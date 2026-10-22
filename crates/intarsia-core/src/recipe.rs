@@ -52,6 +52,10 @@ pub struct AccuracySpec {
     /// the reference's own bf16 forward against the fp32 golden, minus 0.5 points) and cite it in a comment. `--min-top1`
     /// wins. Unset: the class default. Ignored when the class default is "not gated" (format-reference goldens).
     pub min_top1: Option<f64>,
+    /// `intarsia qualify` quick tier (`acc-short`): teacher-forced decode positions per prompt (clamped to the prompt
+    /// length - 1). Raise it for a model whose decode top-1 is noisy at the default 16 positions per prompt (160 rows on
+    /// the short golden); the gate is unchanged. Unset: 16.
+    pub decode_positions: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

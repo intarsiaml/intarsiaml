@@ -49,4 +49,7 @@ max_batch = 8                                   # from closest recipe builtin:qw
 # Qwen2.5-7B-Instruct short + long golden set (tools/golden.py, CPU, same ids): 98.74% (1416/1434 rows), so 98.24%.
 # A bf16 forward cannot reach the 99.5% class default on this model; docs/results/2026-10-22-fx4-rope-bias.md, docs/decisions/LOG.md.
 min_top1 = 98.24
+# Decode top-1 on the default 16 positions per prompt (160 rows) was 97.50% (156/160), 4 rows under the floor; over every
+# position of the same golden (1424 rows) it is 98.95%. The floor is unchanged; the sample is bigger (2026-10-22, user-approved 13:08).
+decode_positions = 1000
 chat_turns = "chatml"
