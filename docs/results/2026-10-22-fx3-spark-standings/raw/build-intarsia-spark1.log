@@ -1,0 +1,11 @@
+fleetq: #3941 waiting (#2 in line): in line behind #3939 "fx5 final #87 head: qualify acc-long 35B, built-in tolerance (vLLM up, non-exclusive)" (claude-f31ccf91) on spark1
+fleetq: #3941 waiting (#1 in line): needs 8 GB on spark1; 7 GB free of 116
+fleetq: #3941 running on spark1: scripts/cuda-decode/build.sh fx3-main
+stamp: head=45dd97f code-tree=6d2158554d36 dirty=yes
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 34.61s
+-rwxrwxr-x 2 nvidia nvidia 52575704 Oct 22 04:38 /home/nvidia/intarsia-decfuse/fx3-main/target/acc/release/intarsia
+fleetq: #3941 done (exit 0)

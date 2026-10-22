@@ -276,6 +276,9 @@ pub struct Model {
     token_feedback: std::sync::atomic::AtomicBool,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
+    /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
+    /// `prefill_chunk + tail_merge` rows when set.
+    tail_merge: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -327,6 +330,12 @@ impl Model {
     /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
     pub fn prefill_chunk(&self) -> usize {
         self.ws.max_tokens
+    }
+
+    /// Opt-in tail merge threshold in rows (`INTARSIA_PREFILL_TAIL_MERGE`; 0 = off, the default). See
+    /// [`crate::scheduler::next_prefill_chunk_tm`].
+    pub fn tail_merge(&self) -> usize {
+        self.tail_merge
     }
 
     pub fn load(
@@ -614,7 +623,13 @@ impl Model {
                 b.name()
             )));
         }
-        let mt = opts.prefill_chunk.max(1);
+        let chunk = opts.prefill_chunk.max(1);
+        let tail_merge = crate::scheduler::effective_tail_merge(
+            crate::scheduler::parse_tail_merge(std::env::var(crate::scheduler::TAIL_MERGE_ENV).ok().as_deref())?,
+            chunk,
+        );
+        // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
+        let mt = chunk + tail_merge;
         let esz = act.size_bytes();
         let mut ws_bytes = 0u64;
         let mut wb = |bytes: usize| -> Result<Buffer> {
@@ -637,7 +652,7 @@ impl Model {
             None => None,
         };
         let ws = Workspace {
-            max_tokens: mt,
+            max_tokens: chunk,
             ids: wb(mt * 4)?,
             h: [wb(mt * dims.hidden * esz)?, wb(mt * dims.hidden * esz)?],
             n: wb(mt * dims.hidden * esz)?,
@@ -727,6 +742,7 @@ impl Model {
             batch_tok: None,
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
+            tail_merge,
         };
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
@@ -1216,7 +1232,7 @@ impl Model {
         let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
         let mut pos = 0;
         while pos < ids.len() {
-            let n = crate::scheduler::next_prefill_chunk(ids.len() - pos, self.ws.max_tokens, avoid);
+            let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
             out.push(&ids[pos..pos + n]);
             pos += n;
         }

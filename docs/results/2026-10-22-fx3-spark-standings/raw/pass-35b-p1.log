@@ -1,0 +1,20 @@
+fleetq: #3959 waiting (#1 in line): needs spark1 to itself; running there: #3958 "fx3 convert 35B NVFP4 to gguf on spark1 (cpu, vLLM up)" (claude-f31ccf91-fx3)
+fleetq:   #3958 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3958 set, or it will wait for #3958 to be released.
+fleetq: #3959 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p1 'ARMS=intarsia vllm sglang llamacpp' PHASES=speed,conc MINGB=36 scripts/standings-fx3/window.sh
+[05:06:28] pass p1 model=35b host=spark1 arms=[intarsia vllm sglang llamacpp] phases=speed,conc job=3959
+[05:06:33] == arm intarsia (MemAvailable 48 GB)
+[05:07:54]   intarsia ready after 75s
+[05:08:28]   speed exit=0
+[05:09:08]   conc exit=0
+[05:09:14] == arm vllm (MemAvailable 49 GB)
+[05:09:14]   vllm ready after 0s
+[05:09:49]   speed exit=0
+[05:10:19]   conc exit=0
+[05:10:24] == arm sglang (MemAvailable 47 GB)
+[05:13:01]   sglang process/container died while starting
+[05:13:01] FAIL sglang did not come up
+[05:13:06] == arm llamacpp (MemAvailable 51 GB)
+[05:13:33]   llamacpp ready after 25s
+[05:14:34]   speed exit=0
+[05:14:37] pass p1 done
+fleetq: #3959 done (exit 0)

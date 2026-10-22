@@ -16,7 +16,8 @@ use std::time::Duration;
 
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
-    chunk_schedule, next_prefill_chunk, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_tail_merge,
+    BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     TraceEvent,
 };
 use intarsia_core::{Error, FinishReason, Result};
@@ -1665,4 +1666,92 @@ fn queue_depth_is_live_during_a_long_step() {
     assert_eq!((m.queue_depth, m.queue_depth_max), (0, 5));
     assert_eq!(m.mixed_iterations > 0 || m.prefill_chunks >= 6, true);
     assert!(m.chunk.count >= 6, "chunk time recorded: {}", m.chunk.count);
+}
+
+#[test]
+fn tail_merge_knob_parse() {
+    assert_eq!(parse_tail_merge(None).unwrap(), 0);
+    assert_eq!(parse_tail_merge(Some("")).unwrap(), 0);
+    assert_eq!(parse_tail_merge(Some("0")).unwrap(), 0);
+    assert_eq!(parse_tail_merge(Some(" 512 ")).unwrap(), 512);
+    assert!(parse_tail_merge(Some("-1")).is_err());
+    assert!(parse_tail_merge(Some("big")).is_err());
+    // clamp: never more than one extra chunk of workspace
+    assert_eq!(effective_tail_merge(512, 4096), 512);
+    assert_eq!(effective_tail_merge(100_000, 4096), 4096);
+    assert_eq!(effective_tail_merge(0, 4096), 0);
+}
+
+#[test]
+fn tail_merge_off_is_the_plain_rule() {
+    // knob 0: next_prefill_chunk_tm / chunk_schedule_tm are exactly the plain rule, for both avoid settings
+    for chunk in [1usize, 2, 3, 256, 2048, 4096] {
+        for rem in 1..=3 * chunk.min(300) + 5 {
+            for avoid in [false, true] {
+                assert_eq!(next_prefill_chunk_tm(rem, chunk, avoid, 0), next_prefill_chunk(rem, chunk, avoid));
+            }
+        }
+    }
+    for plen in [1usize, 270, 4096, 4097, 16384, 16654] {
+        for avoid in [false, true] {
+            assert_eq!(chunk_schedule_tm(0, plen, 4096, avoid, 0), chunk_schedule(0, plen, 4096, avoid));
+        }
+    }
+    // a prompt with no short tail is unchanged with the knob on
+    assert_eq!(chunk_schedule_tm(0, 16384, 4096, false, 512), chunk_schedule(0, 16384, 4096, false));
+    assert_eq!(chunk_schedule_tm(0, 4096, 4096, false, 512), vec![(0, 4096)]);
+    assert_eq!(chunk_schedule_tm(0, 100, 4096, false, 512), vec![(0, 100)]);
+}
+
+#[test]
+fn tail_merge_16654_plan() {
+    // localeval's 16k prompt: 16654 = 4 x 4096 + 270
+    assert_eq!(
+        chunk_schedule(0, 16654, 4096, false),
+        vec![(0, 4096), (4096, 4096), (8192, 4096), (12288, 4096), (16384, 270)]
+    );
+    // tail merge >= 270: the 270 tail folds into the last full chunk (4366 rows)
+    for tm in [270usize, 512, 1024, 4096, 1 << 20] {
+        assert_eq!(
+            chunk_schedule_tm(0, 16654, 4096, false, tm),
+            vec![(0, 4096), (4096, 4096), (8192, 4096), (12288, 4366)],
+            "tm {tm}"
+        );
+    }
+    // tail merge < 270: unchanged
+    assert_eq!(chunk_schedule_tm(0, 16654, 4096, false, 269), chunk_schedule(0, 16654, 4096, false));
+    assert_eq!(chunk_schedule_tm(0, 16654, 4096, false, 1), chunk_schedule(0, 16654, 4096, false));
+    // with a prefix hit the plan is cut from `cached`
+    assert_eq!(chunk_schedule_tm(4096, 16654, 4096, false, 512), vec![(4096, 4096), (8192, 4096), (12288, 4366)]);
+    // the one-row avoidance (Metal) never produces a 1-row tail either way: 4097 folds into one chunk
+    assert_eq!(chunk_schedule_tm(0, 4097, 4096, true, 512), vec![(0, 4097)]);
+}
+
+#[test]
+fn tail_merge_fits_the_workspace() {
+    // workspace rows = chunk + effective_tail_merge; every planned chunk fits, for every prompt length and any knob
+    for chunk in [256usize, 1024, 4096] {
+        for tm_raw in [0usize, 1, 270, 512, chunk, chunk + 1, 10 * chunk] {
+            let cap = chunk + effective_tail_merge(tm_raw, chunk);
+            for avoid in [false, true] {
+                for plen in (1..=3 * chunk + 700).step_by(7).chain([chunk, chunk + 1, 2 * chunk, 2 * chunk + 1]) {
+                    let sch = chunk_schedule_tm(0, plen, chunk, avoid, tm_raw);
+                    let total: usize = sch.iter().map(|&(_, n)| n).sum();
+                    assert_eq!(total, plen, "covers the prompt: {chunk} {tm_raw} {plen}");
+                    for &(_, n) in &sch {
+                        assert!(n >= 1 && n <= cap, "chunk {n} > workspace {cap} ({chunk} {tm_raw} {plen})");
+                    }
+                    // a merged chunk (longer than `chunk`) only ever ends the prompt
+                    for &(s, n) in &sch {
+                        if n > chunk {
+                            assert_eq!(s + n, plen, "merged chunk is the final one: {chunk} {tm_raw} {plen}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // the clamp: an absurd knob cannot grow a chunk past 2 * chunk
+    assert_eq!(next_prefill_chunk_tm(2 * 4096 + 1, 4096, false, usize::MAX), 4096);
+    assert_eq!(next_prefill_chunk_tm(2 * 4096, 4096, false, usize::MAX), 2 * 4096);
 }

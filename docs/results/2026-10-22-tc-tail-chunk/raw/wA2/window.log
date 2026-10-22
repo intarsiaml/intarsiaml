@@ -1,0 +1,28 @@
+################ stage ids start 07:01:40 (budget left 940 s)
+--- ids 16654 07:01:40
+base 16654: prompt: 16654 tokens
+base 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1917 ms (8689.1 tok/s) | decode 1802 ms (141.52 tok/s)
+base 16654: steps=261 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/50 embedding=0ms/261 gate_split_qk_norm_rope_kv=0ms/2610
+off 16654: prompt: 16654 tokens
+off 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1924 ms (8655.4 tok/s) | decode 1801 ms (141.61 tok/s)
+off 16654: steps=261 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/50 embedding=0ms/261 gate_split_qk_norm_rope_kv=0ms/2610
+on 16654: prompt: 16654 tokens
+on 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1865 ms (8927.8 tok/s) | decode 1800 ms (141.66 tok/s)
+on 16654: steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/40 embedding=0ms/260 gate_split_qk_norm_rope_kv=0ms/2600
+ids 16654: 255 commas in base
+IDS 16654: base == off
+IDS 16654: base == on
+--- ids 4408 07:02:00
+base 4408: prompt: 4408 tokens
+base 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 500 ms (8820.8 tok/s) | decode 1641 ms (155.43 tok/s)
+base 4408: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580
+off 4408: prompt: 4408 tokens
+off 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 502 ms (8783.6 tok/s) | decode 1642 ms (155.34 tok/s)
+off 4408: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580
+on 4408: prompt: 4408 tokens
+on 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 457 ms (9641.8 tok/s) | decode 1641 ms (155.36 tok/s)
+on 4408: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570
+ids 4408: 255 commas in base
+IDS 4408: base == off
+IDS 4408: base == on
+################ stage ids end 07:02:15

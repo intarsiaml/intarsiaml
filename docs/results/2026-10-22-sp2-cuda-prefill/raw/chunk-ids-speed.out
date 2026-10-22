@@ -1,0 +1,23 @@
+fleetq: #4105 waiting (#2 in line): in line behind #4092 "tc: CUDA tail-merge ids + prefill A/B (exclusive, vLLM up)" (claude-f31ccf91-tc) on spark1
+fleetq: #4105 waiting (#1 in line): spark1 is held exclusively by #4092 "tc: CUDA tail-merge ids + prefill A/B (exclusive, vLLM up)" (claude-f31ccf91-tc)
+fleetq: #4105 waiting (#1 in line): needs 40 GB on spark1; the box reports only 34 GB actually free (memory used by something fleetq does not track)
+fleetq: #4105 running on spark1: scripts/sp2/chunk-job.sh
+chunk 2048 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 553 ms (2686.4 tok/s) | decode 3039 ms (83.90 to ids_md5=73d6a74e
+chunk 2048 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 1018 ms (4116.1 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 2048 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 3175 ms (5151.0 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+chunk 4096 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 502 ms (2960.9 tok/s) | decode 3058 ms (83.38 to ids_md5=73d6a74e
+chunk 4096 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 936 ms (4473.7 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 4096 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 2988 ms (5474.2 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+chunk 8192 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 523 ms (2838.2 tok/s) | decode 3216 ms (79.30 to ids_md5=73d6a74e
+chunk 8192 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 934 ms (4483.4 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 8192 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 3046 ms (5368.7 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+chunk 2048 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 486 ms (3056.3 tok/s) | decode 3056 ms (83.44 to ids_md5=73d6a74e
+chunk 2048 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 988 ms (4240.7 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 2048 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 3187 ms (5132.1 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+chunk 4096 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 499 ms (2973.3 tok/s) | decode 3038 ms (83.93 to ids_md5=73d6a74e
+chunk 4096 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 949 ms (4413.1 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 4096 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 2951 ms (5542.9 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+chunk 8192 chars 5000: finish=length prompt=1485 (cached 0) completion=256 | prefill 482 ms (3078.9 tok/s) | decode 3064 ms (83.23 to ids_md5=73d6a74e
+chunk 8192 chars 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 864 ms (4848.4 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=6dc9113f
+chunk 8192 chars 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 2859 ms (5720.4 tok/s) | decode 0 ms (0.00 tok/s) ids_md5=4303a403
+fleetq: #4105 done (exit 0)

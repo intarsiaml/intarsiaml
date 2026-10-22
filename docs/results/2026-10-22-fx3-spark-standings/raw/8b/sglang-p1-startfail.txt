@@ -1,0 +1,35 @@
+prefill chunk 256 (default)
+admission on plan shapes: 16 kernel(s) checked, 277 case(s) run, 0 cached
+loaded Qwen/Qwen3-8B on cuda (NVIDIA GB10) in 123.8s, context 11800 tokens
+intarsia server listening on http://0.0.0.0:8190
+  File "/sgl-workspace/sglang/python/sglang/srt/configs/model_config.py", line 581, in from_server_args
+    return ModelConfig(
+           ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/configs/model_config.py", line 311, in __init__
+    get_config(
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 4198, in wrapper
+    result = func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/hf_transformers/config.py", line 262, in get_config
+    config = parser.parse(
+             ^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/hf_transformers/config.py", line 86, in parse
+    config = _try_load_longcat_config(model, revision, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/hf_transformers/config.py", line 65, in _try_load_longcat_config
+    config_dict, _ = PretrainedConfig.get_config_dict(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/configuration_utils.py", line 687, in get_config_dict
+    config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/configuration_utils.py", line 742, in _get_config_dict
+    resolved_config_file = cached_file(
+                           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/hub.py", line 293, in cached_file
+    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/hub.py", line 513, in cached_files
+    raise OSError(
+OSError: We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them in the cached files.
+Check your internet connection or see how to run the library in offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'.
+Error response from daemon: No such container: fx3-vllm

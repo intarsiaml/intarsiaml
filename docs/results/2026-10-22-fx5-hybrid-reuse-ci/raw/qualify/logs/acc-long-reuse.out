@@ -1,0 +1,24 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       continue    2000   4080    2015      0     12/32  FAIL (streams diverge beyond rounding at token 12: warm took 4670 cold took 2186; shared rows differ by 0.877 (before) / 0.356 (here) nats of log-probability, KL up to 3.1e-2; fixed rounding scale 0.250 nats, KL 1e-2 (built-in); warm margin 0.182, cold margin 0.405)
+long_docs_4k       restore     2000   4064    1024      0     32/32  ok
+long_docs_4k       aligned     1024   4064    1024      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k       continue    2000   4080    2015      0     32/32  ok
+long_code_4k       restore     2000   4064    1024      0     32/32  ok
+long_code_4k       aligned     1024   4064    1024      0     32/32  ok (logits bit-identical to the cold run)
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+long_docs_12k      continue    6000   8152    6015      0     32/32  ok
+long_docs_12k      restore     6000   8152    5120      0     32/32  ok
+long_docs_12k      aligned     5120   8152    5120      0     32/32  ok (logits bit-identical to the cold run)
+long_code_12k      continue    6000   8152    6015      0     26/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 26: warm took 9363 cold took 44; shared rows differ by 1.878 (before) / 0.299 (here) nats of log-probability, KL up to 1.5e-2; fixed rounding scale 0.250 nats, KL 1e-2 (built-in); warm margin 0.089, cold margin 0.055; legacy criterion (>= 16 leading tokens): ok)
+long_code_12k      restore     6000   8152    5120      0     32/32  ok
+long_code_12k      aligned     5120   8152    5120      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 5 prompt(s) judged, 0 skipped
+prefix-reuse gate: FAIL
+
+wrote baseline /home/nvidia/intarsia-decfuse/out/fx5/qualify/baselines/acc-long-reuse.baseline.json (0 mode(s); absolute floor passed)
+golden gate: FAIL
