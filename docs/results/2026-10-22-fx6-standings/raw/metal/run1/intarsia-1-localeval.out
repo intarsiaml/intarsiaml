@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=20000
+[localeval]    128 tok rep 1/3: prompt=111 ttft=0.07s prefill=1644 tok/s decode=35.5 tok/s peak=35.8 tok/s out=256
+[localeval]    128 tok rep 2/3: prompt=112 ttft=0.06s prefill=1941 tok/s decode=35.3 tok/s peak=35.8 tok/s out=256
+[localeval]    128 tok rep 3/3: prompt=115 ttft=0.06s prefill=1966 tok/s decode=34.7 tok/s peak=35.8 tok/s out=256
+[localeval]   1024 tok rep 1/3: prompt=985 ttft=0.33s prefill=2965 tok/s decode=32.5 tok/s peak=33.8 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=994 ttft=0.32s prefill=3069 tok/s decode=33.2 tok/s peak=34.3 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=986 ttft=0.38s prefill=2597 tok/s decode=33.3 tok/s peak=34.1 tok/s out=256
+[localeval]   4096 tok rep 1/3: prompt=4086 ttft=2.07s prefill=1972 tok/s decode=32.0 tok/s peak=32.9 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4084 ttft=1.95s prefill=2096 tok/s decode=31.0 tok/s peak=31.8 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4083 ttft=2.00s prefill=2043 tok/s decode=30.6 tok/s peak=31.6 tok/s out=256
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=9.70s prefill=1717 tok/s decode=28.3 tok/s peak=29.4 tok/s out=256
+[localeval]  16384 tok rep 2/3: prompt=16656 ttft=9.08s prefill=1834 tok/s decode=28.3 tok/s peak=29.3 tok/s out=256
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=8.76s prefill=1901 tok/s decode=29.3 tok/s peak=30.6 tok/s out=256
+# localeval: adhoc — 2026-10-22T01:47
+
+- model: `intarsia-metal` on ? (?), url `http://127.0.0.1:8093/v1`
+- thinking: off; run kind: speed; label: gate-intarsia-1
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1b02605
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096,16384 --gen 256 --reps 3 --thinking off --label gate-intarsia-1`
+- result file: `results/20261022-014715-adhoc-gate-intarsia-1/result.json`
+
+## Speed sweep
+
+served `intarsia-metal`, fingerprint `None`, ctx 20000, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 112 | 0.06 | 1941 (1644–1966) * | - | 35.3 (34.7–35.5) | 35.8 (35.8–35.8) | - | - | 256 |
+| 986 | 0.33 | 2965 (2597–3069) * | 3178 | 33.2 (32.5–33.3) | 34.1 (33.8–34.3) | - | - | 256 |
+| 4084 | 2.00 | 2043 (1972–2096) | 1861 | 31.0 (30.6–32.0) | 31.8 (31.6–32.9) | - | - | 256 |
+| 16656 | 9.08 | 1834 (1717–1901) | 1775 | 28.3 (28.3–29.3) | 29.4 (29.3–30.6) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-014715-adhoc-gate-intarsia-1/result.json
+[localeval] logged to unanimis: 79a7334f-1a4f-465c-ad1d-bc0695a20471

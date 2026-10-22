@@ -192,7 +192,7 @@ Notes on the derived panels:
 * Counters advance when a request finishes, so rates are smoothed over request length; the "last request" stats and
   `intarsia top` show the most recent request.
 * ITL is the per-request mean weighted by token count, not a per-token distribution.
-* The batch panels are empty on the single-sequence engine (no `--max-batch`). Average batch size is approximated as
+* The batch panels are empty on the single-sequence engine (no `--max-batch`), which is every CUDA and HIP server: the batch engine is Metal-only. The row is titled "Metal" and the panels say so instead of staying blank (checked against a CUDA server, `docs/results/2026-10-22-ob-observability.md`). Average batch size is approximated as
   generated tokens per decode pass.
 * Kernel panels need per-op timing (`profile_every`); GPU backends time one launch in N, so shares are statistical.
 

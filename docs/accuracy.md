@@ -717,6 +717,12 @@ all-reduce tests on the GPU (`crates/intarsia-backend-hip/tests/comm.rs`); (c) t
 that only (a) closes. The default self-golden budget is unchanged, so `--tp 2` against a tp=1 self-golden keeps failing it;
 do not use that comparison as a TP gate.
 
+**Gate classes for tp=2 (user decision 2026-10-21, `docs/decisions/LOG.md`).**
+- **Required:** the `--ref-noise` gate against the vLLM golden ("Reference noise" above), run with `--tp 2`.
+- **Not required:** `--self-golden --self-vs-ref-noise` of a `--tp 2` run against a `--tp 1` self-golden. It does not separate a TP defect from the
+  reordering: the tp=2 all-reduce sums in a different order, and a correct tp=1 kernel change fails the same check the same way. A tp=2 run that
+  fails it while passing the vLLM `--ref-noise` gate is not a failure. The checks listed under "What guards TP instead" stay as they are.
+
 ### `--reference`
 
 `--reference` makes every op run its `ref_*` kernel (the f64 oracle) instead of the fast cpu kernels (before

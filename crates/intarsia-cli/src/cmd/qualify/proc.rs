@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::{Duration, Instant};
 
 /// Result of one captured subprocess.
@@ -32,8 +33,7 @@ impl Run {
     pub fn tail(&self, n: usize) -> String {
         let e = self.stderr();
         let text = if e.trim().is_empty() { self.stdout() } else { e };
-        let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-        lines[lines.len().saturating_sub(n)..].join("\n")
+        tail_lines(&text, n)
     }
     pub fn describe(&self) -> String {
         if self.timed_out {
@@ -45,6 +45,19 @@ impl Run {
             }
         }
     }
+}
+
+/// The last `n` non-empty lines of `text`; when the last `Error:` line (an anyhow report) is within the last `n`
+/// lines of its chain, start there, so a reason that is cut to its first line names the error, not a warning above it.
+fn tail_lines(text: &str, n: usize) -> String {
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let mut from = lines.len().saturating_sub(n);
+    if let Some(i) = lines.iter().rposition(|l| l.starts_with("Error:")) {
+        if lines.len() - i <= n.max(8) {
+            from = i;
+        }
+    }
+    lines[from..].join("\n")
 }
 
 #[cfg(unix)]
@@ -101,6 +114,36 @@ fn stdio_files(stem: &Path) -> Result<(File, File, PathBuf, PathBuf)> {
     Ok((fo, fe, out, err))
 }
 
+/// Process group of the subprocess [`run_captured`] is waiting for (0: none), for [`forward_termination`].
+static LIVE_PGID: AtomicI32 = AtomicI32::new(0);
+/// Process group of the model server a [`Server`] owns (0: none).
+static SERVER_PGID: AtomicI32 = AtomicI32::new(0);
+
+/// Make SIGTERM / SIGINT of this process also stop the subprocess [`run_captured`] is waiting for (its own process
+/// group, so a plain kill of the parent would orphan it; `die_with_parent` only exists on Linux). Used by the
+/// long-running `intarsia onboard` and by `intarsia qualify` (so a killed onboard takes the whole chain down).
+#[cfg(unix)]
+pub fn forward_termination() {
+    extern "C" fn handler(sig: libc::c_int) {
+        // SAFETY: kill(2) and _exit(2) are async-signal-safe.
+        unsafe {
+            for pg in [LIVE_PGID.load(Ordering::SeqCst), SERVER_PGID.load(Ordering::SeqCst)] {
+                if pg > 0 {
+                    libc::kill(-pg, libc::SIGTERM);
+                }
+            }
+            libc::_exit(128 + sig);
+        }
+    }
+    // SAFETY: installs a handler that only calls async-signal-safe functions.
+    unsafe {
+        libc::signal(libc::SIGTERM, handler as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGINT, handler as *const () as libc::sighandler_t);
+    }
+}
+#[cfg(not(unix))]
+pub fn forward_termination() {}
+
 /// Run `cmd` to completion. stdout goes to `<stem>.out`, stderr to `<stem>.err`; the child runs in its own process
 /// group and is killed (SIGTERM, then SIGKILL) when `timeout` passes.
 pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<Run> {
@@ -111,6 +154,7 @@ pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<
     let t0 = Instant::now();
     let mut child = cmd.spawn().with_context(|| format!("starting {:?}", cmd.get_program()))?;
     let pid = child.id();
+    LIVE_PGID.store(pid as i32, Ordering::SeqCst);
     let (code, timed_out) = loop {
         if let Some(st) = child.try_wait()? {
             break (st.code(), false);
@@ -128,6 +172,7 @@ pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<
         }
         std::thread::sleep(Duration::from_millis(150));
     };
+    LIVE_PGID.store(0, Ordering::SeqCst);
     Ok(Run { code, timed_out, wall_s: t0.elapsed().as_secs_f64(), out, err })
 }
 
@@ -145,6 +190,7 @@ impl Server {
         own_group(&mut cmd);
         die_with_parent(&mut cmd);
         let child = cmd.spawn().with_context(|| format!("starting the server {:?}", cmd.get_program()))?;
+        SERVER_PGID.store(child.id() as i32, Ordering::SeqCst);
         Ok(Server { child, url, err })
     }
 
@@ -173,6 +219,7 @@ impl Server {
     }
 
     fn stop(&mut self) {
+        SERVER_PGID.store(0, Ordering::SeqCst);
         if matches!(self.child.try_wait(), Ok(Some(_))) {
             return;
         }
@@ -206,4 +253,19 @@ pub fn tail_of(path: &Path, n: usize) -> String {
 /// A free TCP port on the loopback interface, starting the search at `start`.
 pub fn free_port(start: u16) -> u16 {
     (start..start.saturating_add(200)).find(|p| std::net::TcpListener::bind(("127.0.0.1", *p)).is_ok()).unwrap_or(start)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tail_lines;
+
+    #[test]
+    fn tail_starts_at_the_error_report() {
+        let t = "warm\nWARNING: a chunk thing\nError: ref_noise from sidecar x\n\nCaused by:\n    hash mismatch\n";
+        assert_eq!(tail_lines(t, 5), "Error: ref_noise from sidecar x\nCaused by:\n    hash mismatch");
+        assert_eq!(tail_lines("a\nb\nc\n", 2), "b\nc");
+        // an Error line far above the tail is not dragged in
+        let long: String = std::iter::once("Error: old\n".to_string()).chain((0..20).map(|i| format!("l{i}\n"))).collect();
+        assert_eq!(tail_lines(&long, 2), "l18\nl19");
+    }
 }

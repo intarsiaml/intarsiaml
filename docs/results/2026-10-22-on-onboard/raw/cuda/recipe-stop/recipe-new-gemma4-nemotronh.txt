@@ -1,0 +1,50 @@
+fleetq: #3917 running on spark1: ssh spark1 'cd ~/intarsia-decfuse/on && for m in models--nvidia--Gemma-4-26B-A4B-NVFP4 models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4; do d=$(ls -d ~/.cache/huggingface/hub/$m/snapshots/* | head -1); echo "== $m"; timeout 120 target/acc/release/intarsia recipe new --model $d --out /tmp/on-recipe-$m.toml 2>&1 | tail -25 | cut -c1-240; echo "exit=$?"; grep -c "TODO(recipe-new)" /tmp/on-recipe-$m.toml; done'
+== models--nvidia--Gemma-4-26B-A4B-NVFP4
+not covered: no existing recipe handles this model (closest: 3/3 tensor templates resolve, quant: nvfp4)
+  note: config.json: architectures ["Gemma4ForConditionalGeneration"], family "gemma4" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (47033 tensors) + 2/2 shard headers
+  note: layer prefix model.language_model.layers.{i} (30 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)
+  note: quantisation: nvfp4 (not implemented in full, see TODOs)
+  note: hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)
+  note: closest existing recipe: builtin:qwen3_5_vl (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn"}; 3/3 tensor templates resolve; architecture differs; layer 0: model error: layer 0 has type 'sliding_attention' but the recipe on
+  note: ignored non-text tensor groups: model.vision_tower.* (355)
+wrote /tmp/on-recipe-models--nvidia--Gemma-4-26B-A4B-NVFP4.toml (10 TODO(recipe-new) item(s))
+10 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5_vl uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. layer: sliding-window attention (text_config.sliding_window = 1024 (use_sliding_window absent, so it applies)) is not implemented, a new attention block kind is needed
+  3. layer: sliding-window attention (text_config.layer_types contains sliding_attention) is not implemented, a new attention block kind is needed
+  4. layer: no attention or linear-attention block recognised (module groups in the layer: ["experts.0", "experts.1", "experts.10", "experts.100", "experts.101", "experts.102", "experts.103", "experts.104", "experts.105", "experts.106", "ex
+  5. top: 1 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["model.embed_vision.embedding_projection.weight"]; decide whether the model needs them
+  6. layer: 1542 per-layer tensor(s) are claimed by no block, e.g. ["experts.1.down_proj.input_scale", "experts.1.down_proj.weight", "experts.1.down_proj.weight_scale", "experts.1.down_proj.weight_scale_2", "experts.1.gate_proj.input_scale"
+  7. quant: quant_algo "NVFP4" (NVFP4 weights AND 4-bit activations) declared in hf_quant_config.json; the engine implements only weight-only W4A16_NVFP4
+  8. quant: unsupported: 'model.language_model.layers.0.experts.0.gate_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would r
+  9. quant: unsupported: 'model.language_model.layers.0.experts.0.up_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run
+  10. quant: unsupported: 'model.language_model.layers.0.experts.0.down_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would 
+Error: 10 item(s) need manual work, see the TODO(recipe-new) markers in /tmp/on-recipe-models--nvidia--Gemma-4-26B-A4B-NVFP4.toml
+exit=0
+11
+== models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
+not covered: no existing recipe handles this model (closest: 1/3 tensor templates resolve, quant: nvfp4)
+  note: config.json: architectures ["NemotronHForCausalLM"], family "nemotron_h" (config.json model_type)
+  note: tensors: model.safetensors.index.json (18487 tensors) + 52/52 shard headers
+  note: layer prefix backbone.layers.{i} (52 layers, matches num_hidden_layers); other numbered stacks ignored: mtp.layers (2)
+  note: quantisation: nvfp4
+  note: hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)
+  note: closest existing recipe: builtin:qwen3_5 (blocks {"attn", "ffn", "gdn"} vs inferred {}; 1/3 tensor templates resolve; architecture differs; 2 tensor template(s) missing in the checkpoint, e.g. ["model.embed_tokens", "model.norm"]; l
+  note: ignored non-text tensor groups: mtp.layers.* (270)
+wrote /tmp/on-recipe-models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4.toml (9 TODO(recipe-new) item(s))
+9 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5 uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. config.json: model error: config.json missing 'rms_norm_eps' (no default is assumed); the engine reads the dimensions with the Hugging Face key names, map different names in a [config] table (docs/adding-a-model.md)
+  3. layer: layers 0 and 51 have different tensors (only in 0: ["mixer.A_log", "mixer.D", "mixer.conv1d"]; only in 51: ["mixer.experts.0.down_proj", "mixer.experts.0.up_proj", "mixer.experts.1.down_proj"]); one pattern cannot describe both 
+  4. layer: mixer looks like a Mamba / SSM mixer (in_proj + A_log); no such block kind is implemented, a new block is needed (docs/adding-a-model.md section 4)
+  5. layer: no attention or linear-attention block recognised (module groups in the layer: ["mixer"]); a new block or a different tensor layout is needed
+  6. layer.ffn: no dense FFN (gate_proj / up_proj / down_proj) or MoE (experts.{e}.*) block recognised in the layer
+  7. top.embed: no embedding tensor (backbone.embed_tokens.weight or similar) in the checkpoint; name the token embedding tensor
+  8. top: 1 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["backbone.embeddings.weight"]; decide whether the model needs them
+  9. layer: 13 per-layer tensor(s) are claimed by no block, e.g. ["mixer.A_log", "mixer.D", "mixer.conv1d.bias", "mixer.conv1d.weight", "mixer.dt_bias", "mixer.in_proj.input_scale"] ... (relative to backbone.layers.<i>.); extra norms, biase
+Error: 9 item(s) need manual work, see the TODO(recipe-new) markers in /tmp/on-recipe-models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4.toml
+exit=0
+10
+fleetq: #3917 done (exit 0)
+done=0

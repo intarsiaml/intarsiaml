@@ -1,0 +1,18 @@
+rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 32150.9 us
+
+Agent 1 (rank 0): 743 launches/step, kernel-busy 29055.3 us/step (90 % of wall), all-reduce 0/step 0.0 us/step (median 0.0 us), idle 3095.6 us/step
+  kernel                                                        n/step   us/step
+  mxfp4_gemv1_lds_kernel<bf16>                                   256.0   18147.9
+  mxfp4_gemv_kernel<1, bf16>                                      64.0    4958.7
+  gemv_kernel<1, 1, 8, float>                                      1.0    3982.9
+  rmsnorm_kernel<true, true>                                     128.0     504.8
+  gdn_conv_delta_kernel<128, 2, 1, 4>                             48.0     495.4
+  mxfp4_xprep_kernel                                              64.0     258.0
+  splitkv_kernel<8, 32, 2>                                        16.0     252.6
+  gated_rmsnorm_kernel<true>                                      48.0     109.4
+  silu_glu_kernel<true>                                           64.0      99.3
+  gate_qk_norm_rope_kv_kernel<bf16>                               16.0      91.2
+  argmax_kernel<float>                                             1.0      62.0
+  combine_kernel<256, 16>                                         16.0      61.1
+  sigmoid_mul_kernel                                              16.0      18.4
+  __amd_rocclr_copyBuffer                                          3.0       7.9

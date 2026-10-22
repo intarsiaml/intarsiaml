@@ -1,0 +1,7 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/
+
+Caused by:
+    no kernel for 2 op(s) of this model have no kernel on cuda/sm_121:
+      - attn_prefill: 36 shape(s) without a kernel, e.g. no kernel for attn_prefill on cuda/sm_121 (m=2 n=0 k=256 act=Some(Bf16) w=Some(F32)) (heads 16/2 head_dim 256 kv_len 2); needed by Prefill t=10, Prefill t=1023, Prefill t=1024, Prefill t=1025, ...
+      - attn_decode: 2 shape(s) without a kernel, e.g. no kernel for attn_decode on cuda/sm_121 (m=1 n=0 k=256 act=Some(Bf16) w=Some(F32)) (heads 16/2 head_dim 256 kv_len 1); needed by Decode t=1

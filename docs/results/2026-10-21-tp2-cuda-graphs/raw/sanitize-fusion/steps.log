@@ -1,0 +1,7 @@
+19:23:44 == dev: intarsia 0.0.1 
+19:24:25 dev server up=1 after 38 s
+19:24:31 dev request short done (44 s)
+19:24:47 dev request long done (60 s)
+19:24:52 dev request short done (65 s)
+19:24:59 == sanitize done
+19:25:01 SANITIZE dev: rank0 0 errors, rank1 0 errors

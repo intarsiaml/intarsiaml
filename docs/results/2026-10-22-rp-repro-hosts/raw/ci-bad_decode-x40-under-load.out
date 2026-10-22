@@ -1,0 +1,11 @@
+fleetq: #3604 waiting (#17 in line): in line behind #3562 "m35: 35B metal per-kernel profile decode (diagnostic)" (claude-f31ccf91) on endor
+fleetq:   #3562 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3562 set, or it will wait for #3562 to be released.
+fleetq: #3604 waiting (#6 in line): in line behind #3598 "kq: cargo test quick_coverage (cpu only, short)" (claude-f31ccf91) on endor
+fleetq:   #3598 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3598 set, or it will wait for #3598 to be released.
+fleetq: #3604 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/ci-test-a.sh
+   Compiling intarsia-models v0.0.1 (/opt/code/wt-rp/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.30s
+  Executable tests/batch_engine.rs (/opt/code/wt-rp-target/debug/deps/batch_engine-b15719fe00c0810b)
+bin /opt/code/wt-rp-target/debug/deps/batch_engine-b15719fe00c0810b
+bad_decode x40 under load: pass=40 fail=0
+fleetq: #3604 done (exit 0)

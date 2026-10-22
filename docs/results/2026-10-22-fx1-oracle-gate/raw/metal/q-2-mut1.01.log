@@ -1,0 +1,19 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on metal, report directory /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/fx1/acc/q-2-mut1.01
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 39 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify      6s] plan: PASS in 5.1s (21 ops resolved, exactness deterministic, loaded in 5.1s)
+[qualify      6s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     20s] gate: PASS in 14.4s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     20s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     20s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     20s] == acc-short [short accuracy against a golden]
+[qualify     44s] acc-short: FAIL in 24.0s (baseline gate failed)
+[qualify     44s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    123s] acc-oracle: FAIL in 78.2s (the logits moved against the recorded dump /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/fx1/acc/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors: mean KL(21-way)                                 9.6962e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                          1.4509e0  (limit 5.0000e-3)  FAIL; top-1 flips                                      2.0000e2  (limit 2.7000e1)  FAIL; mean |tail diff|                                3.2051e-3  (limit 5.0000e-4)  FAIL; worst prompt KL(21-way) [chat_system]           1.9114e-2  (limit 5.0000e-4)  FAIL; prefill self-golden => FAIL; self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL)
+QUICK DONE: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/fx1/acc/q-2-mut1.01/quick-report.md
+FULL DONE: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/fx1/acc/q-2-mut1.01/full-report.md
+[qualify    123s] exit code 1

@@ -100,12 +100,16 @@ the build and runs the command in the tree already there.
 
 Limits to know:
 
-* **The binary hash is informational.** Two builds of the same sha in different tree paths gave different binary hashes on
-  spark1 (3e6e68bc... vs 3f267d9b..., same size class): paths get embedded. The sha, Cargo.lock and toolchain rows pin the
-  build. One attempt at `--remap-path-prefix` did not make the hashes equal and was removed; chasing it needs a look at what
-  nvcc and `build.rs` embed.
+* **The binary hash is reproducible** (`scripts/deploy.sh` builds through `scripts/repro-build.sh`). A plain `cargo build` in
+  two directories gave different hashes: rustc embeds the source, cargo-registry and sysroot paths,
+  `env!("CARGO_MANIFEST_DIR")` baked the build directory into the CLI (golden-dir fallback; now found from the executable's
+  location), and nvcc put the checkout path into the CUDA kernels (see "Reproducible binary" below). Expect `match` on the
+  binary row for the same sha, the same backend and the same toolchain, on any directory and, for the same toolchain
+  versions, on another host (results: `docs/results/2026-10-22-rp-repro-hosts.md`). A different rustc/nvcc/hipcc/Xcode, or
+  a different CUDA/ROCm install path, legitimately gives a different hash, and the toolchain rows say so.
 * The bundle records the **command and env knobs you give it**. It cannot know which knobs a run used unless they went
   through `--env-file`/`--env`; if a run was started by hand with extra variables, pass them to `pack --env`.
+* Model paths differ per host (spark1 has `~/models/Qwen3-8B` as a link to `/mnt/models/Qwen3-8B`; spark2 only has `/mnt/models`). Pack the command with a path that exists on both, or replay with `--cmd` and the host's path (done for the spark1 to spark2 replay in `docs/results/2026-10-22-rp-repro-hosts.md`, where the binary hash and 128 greedy token ids matched).
 * It does not capture the model weights or the tuning DB (there is none yet); the report should name the model path and
   revision. `ARCHITECTURE.md` section 11 sketches an `intarsia replay manifest.json` with plan and tuning hashes; this
   bundle is the script-level step toward it.
@@ -155,3 +159,27 @@ admission) remain fleet runs under fleetq; CI does not replace them.
 1. Find the sha and knobs in the results doc (or its bundle). 2. `scripts/bench-bundle.sh replay <bundle> <host>` inside a
 fleetq slot sized for the run (`--exclusive` for speed numbers; the examples above use a small non-exclusive slot because
 they only smoke-test). 3. Compare the printed table, then the numbers. Do not compare a vLLM-up run with a vLLM-down run.
+
+## Reproducible binary
+
+`scripts/deploy.sh` builds with it (a plain `cargo build` is still fine for development). Same git sha + same toolchain = same `target/release/intarsia` bytes, in any directory. `scripts/repro-build.sh
+[--features metal|cuda|hip]` is `cargo build --release --locked -p intarsia-cli` plus:
+
+| Input | What it does |
+|---|---|
+| `RUSTFLAGS=--remap-path-prefix=...` | Maps the source tree, the cargo target dir, `CARGO_HOME` and the rustc sysroot to fixed names. Needs absolute paths, so it is set by the script, not `.cargo/config.toml` (cargo's own `trim-paths` is not in the pinned 1.90.0). Caller `RUSTFLAGS` are kept. |
+| `SOURCE_DATE_EPOCH` | Defaults to the commit time of HEAD (an exported tree has no `.git`: export `SOURCE_DATE_EPOCH` yourself there); `0` if unknown. Also sets `ZERO_AR_DATE=1`, `LC_ALL=C`, `TZ=UTC`. |
+| `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
+| `CARGO_INCREMENTAL=0` | No incremental cache in the result. |
+
+Backend build scripts: **Metal** and **HIP** need nothing more (the metallib is byte-stable; the HIP kernels build in the dev container, where the tree is always `/work` and the target dir `/target`). **CUDA** needs two things, both in `crates/intarsia-backend-cuda/build.rs`: nvcc derives the `_GLOBAL__N__<hash>` names inside every cubin from the source file's absolute path AND its mtime, `-lineinfo` records the source directory, and the host object carries nvcc's temp file name (`tmpxft_<pid>_...`) as an ELF file symbol. So `build.rs` copies `kernels/{cuda,common,abi}` to `/tmp/intarsia-cuda-kernels-<content hash>` (files stamped with a fixed mtime, checked before reuse), compiles from there, and runs `objcopy --strip-unneeded` on each object. The device code is unchanged; only symbol names and debug-line directories differ. `INTARSIA_CUDA_NO_STAGE=1` compiles in place (assert messages then show your checkout path, the binary hash depends on it). Without `objcopy` the build still works and warns.
+
+Source change: golden files are looked up in `$INTARSIA_GOLDEN_DIR`, then `./golden`, then `golden/` of the checkout the executable sits in (found from its location, so it fails when the target dir is outside the checkout or the binary is copied: set the env var). The "no golden found" error lists every path tried. Nothing else in the workspace embeds a build-time path, clock or hostname (`build.rs` of the metal, cuda and hip crates write only to `OUT_DIR` and print `cargo:` lines).
+
+Check it: `scripts/repro-check.sh [--ref R] [--features F]` exports the ref twice into different directories, builds both
+and compares sha256 (CPU-only by default; CI job `repro` runs it on ubuntu-latest). Results of the lane that introduced
+this: `docs/results/2026-10-21-b1-reproducible-binary.md`.
+
+What can still differ across hosts: the compiler (pinned by `rust-toolchain.toml` where rustup is used; Homebrew rustc on
+endor is not), the linker and libc version for native Linux builds, the CUDA/ROCm/Xcode toolchain versions and install
+paths (they set rpath and the compiled kernels), and `--features`. The deploy stamp records all of these.

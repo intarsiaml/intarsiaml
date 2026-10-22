@@ -48,10 +48,7 @@ jobs:
       # a runner without nvcc / hipcc. Their GPU gates run on the fleet.
       # CI=0: GitHub sets CI=true, which the repo's GPU tests read as "this run has a GPU, a skip is a failure"
       # (crates/*/tests: INTARSIA_REQUIRE_GPU / CI). These runners have none, so the real-model tests skip honestly.
-      # One test is skipped: intarsia-models batch_engine `bad_decode_row_fails_only_its_request` asserts the engine's
-      # `finished` counter right after the last response is received; on the hosted runner the counter is still 2, not 3
-      # (3 of 3 runs; it passes on endor). A race in the test, not in this lane's scope; fix it there and drop the skip.
-      - run: cargo test --workspace --locked --no-fail-fast --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip -- --skip bad_decode_row_fails_only_its_request
+      - run: cargo test --workspace --locked --no-fail-fast --exclude intarsia-backend-metal --exclude intarsia-backend-cuda --exclude intarsia-backend-hip
         env:
           CI: "0"
 
@@ -67,3 +64,14 @@ jobs:
       # empty metallib and warns.
       - run: cargo check --locked -p intarsia-backend-metal
       - run: cargo check --locked -p intarsia-cli --features metal
+
+  # Requirement 5: the same sha builds to the same bytes in two different directories (CPU-only, linux).
+  repro:
+    name: reproducible build (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain && rustc -V
+      - name: Build twice, compare sha256
+        run: scripts/repro-check.sh

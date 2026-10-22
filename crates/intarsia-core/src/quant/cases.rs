@@ -1,5 +1,5 @@
 //! Admission cases for the quantised-weight and MoE ops and the fused decode ops (`MatmulPair`, `MatmulFp8Pair`,
-//! `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`,
+//! `MatmulMxfp4Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`,
 //! `SigmoidMulMatmulFp8`, `SharedDownCombine`, `MoeBlock`): the `intarsia kernels test` sweep and the exact-shape
 //! builders used by plan-time admission (`admission::case_from_call`). Data is generated through the format
 //! encoders so every case is valid (no e4m3 NaN encodings, finite scales, distinct experts per token).
@@ -216,6 +216,31 @@ pub fn matmul_fp8_pair_case(
     }
 }
 
+/// `MatmulMxfp4Pair`: two MXFP4 projections of one `x` sharing one `act` mode (the op's single `act` input).
+#[allow(clippy::too_many_arguments)]
+pub fn matmul_mxfp4_pair_case(
+    rng: &mut SplitMix64,
+    m: usize,
+    n0: usize,
+    n1: usize,
+    k: usize,
+    act: Mxfp4Act,
+    xdt: DType,
+    odt: DType,
+) -> HostCall {
+    let (a, b) = (mxfp4::random_rows(rng, n0, k, act), mxfp4::random_rows(rng, n1, k, act));
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let (mut pa, mut pb) = (a.parts.into_iter(), b.parts.into_iter());
+    let (w0, s0, act0) = (pa.next().unwrap(), pa.next().unwrap(), pa.next().unwrap());
+    let (w1, s1) = (pb.next().unwrap(), pb.next().unwrap());
+    HostCall {
+        op: Op::MatmulMxfp4Pair,
+        inputs: vec![x, w0, s0, w1, s1, act0],
+        outputs: vec![OutSpec::new(odt, &[m, n0]), OutSpec::new(odt, &[m, n1])],
+        attrs: OpAttrs::default(),
+    }
+}
+
 /// `MatmulNvfp4Glu`: gate and up `[n,k]` NVFP4 projections of one `x`, combined as `silu(gate) * up`.
 pub fn matmul_nvfp4_glu_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
     let (g, u) = (nvfp4::random_rows(rng, n, k), nvfp4::random_rows(rng, n, k));
@@ -420,13 +445,16 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     }
                 }
             }
-            if !quick {
+            {
                 // a prefill-shaped batch (M and N tails, 75 tiles of 128 x 128): the CUDA matmul_fp8_gemm_reg kernel
-                // accepts M >= 256 only. Appended after the cases above, so their random data is unchanged.
+                // accepts M >= 256 only, and the gemm kernels K % 128 == 0. Appended after the cases above, so their random
+                // data is unchanged. The quick sweep takes a small one (M tail of 4 over 256, N 144 = 128 + 16, K 256) so
+                // that these kernels are not left untested.
+                let (m, n) = if quick { (260, 144) } else { (300, 3080) };
                 for (xdt, odt, aq) in [(DType::Bf16, DType::Bf16, true), (DType::Bf16, DType::Bf16, false), (DType::Bf16, DType::F32, true)] {
                     push(
-                        format!("M=300 N=3080 K=256 x={xdt} out={odt} act_quant={aq}"),
-                        matmul_fp8_case(&mut rng, 300, 3080, 256, aq, xdt, odt),
+                        format!("M={m} N={n} K=256 x={xdt} out={odt} act_quant={aq}"),
+                        matmul_fp8_case(&mut rng, m, n, 256, aq, xdt, odt),
                     );
                 }
             }
@@ -516,6 +544,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 shapes.push((256, 256, 8, 2048, 512));
                 // a batch at the CUDA FP4 experts kernel's minimum (NVFP4_MIN_TOKENS = 1024), small H/I to keep the cpu reference cheap
                 shapes.push((1024, 16, 8, 256, 128));
+            } else {
+                // the grouped kernels' minimum batches (moe_experts_w4a16_bf16 768 tokens, the FP4 one 1024): small H / I keep
+                // the cpu reference cheap. One shape, so the cost of the quick sweep stays low.
+                shapes.push((1024, 16, 8, 256, 128));
             }
             for (t, e, k, h, i) in shapes {
                 for dt in ACT {
@@ -600,6 +632,32 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         push(
                             format!("M={m} N0={n0} N1={n1} K={k} x={xdt} out={odt} act_quant={aq0}/{aq1}"),
                             matmul_fp8_pair_case(&mut rng, m, n0, n1, k, aq0, aq1, xdt, odt),
+                        );
+                    }
+                }
+            }
+        }
+        Op::MatmulMxfp4Pair => {
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 5, 6, 7, 8] };
+            let mut nnk = vec![(64usize, 48usize, 64usize), (40, 96, 96), (17, 33, 64)];
+            if !quick {
+                // Qwen3.8-27B (hidden 5120): GDN in_qkv + in_z, GDN in_b + in_a, FFN gate + up, attention k + v
+                nnk.extend([(10240, 6144, 5120), (48, 48, 5120), (17408, 17408, 5120), (1024, 1024, 5120)]);
+            }
+            for &m in ms {
+                for &(n0, n1, k) in &nnk {
+                    for (xdt, odt, act) in [
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::F32, DType::F32, Mxfp4Act::Dynamic),
+                    ] {
+                        // the real decode shapes are big: only a couple of row counts for them
+                        if n0 >= 1024 && m > 1 && m != 4 && m != 8 {
+                            continue;
+                        }
+                        push(
+                            format!("M={m} N0={n0} N1={n1} K={k} x={xdt} out={odt} act={}", act.name()),
+                            matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, act, xdt, odt),
                         );
                     }
                 }
@@ -800,6 +858,17 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             o[0].dtype,
             "static/static"
         ),
+        Op::MatmulMxfp4Pair => format!(
+            "M={} N0={} N1={} K={} x={} out={} act={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[3].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
+            "dynamic"
+        ),
         Op::MatmulNvfp4Glu => format!(
             "M={} N={} K={} x={} out={}",
             i[0].shape[0].min(caps.rows),
@@ -914,6 +983,16 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[0].dtype,
             o[0].dtype,
         ),
+        Op::MatmulMxfp4Pair => matmul_mxfp4_pair_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[3].shape[0].min(caps.n),
+            i[0].shape[1],
+            Mxfp4Act::Dynamic,
+            i[0].dtype,
+            o[0].dtype,
+        ),
         Op::MatmulNvfp4Glu => {
             matmul_nvfp4_glu_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
         }
@@ -987,6 +1066,7 @@ mod tests {
             Op::SharedDownCombine,
             Op::MoeBlock,
             Op::MatmulMxfp4,
+            Op::MatmulMxfp4Pair,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

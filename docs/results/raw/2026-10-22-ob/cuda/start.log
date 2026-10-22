@@ -1,0 +1,2 @@
+tree /home/nvidia/intarsia-deploy/cuda/ bin /home/nvidia/intarsia-deploy/cuda//target/release/intarsia
+up after 54x2s

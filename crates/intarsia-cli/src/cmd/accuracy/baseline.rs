@@ -65,6 +65,11 @@ pub struct ModeStats {
     pub mean_kl21_scored: Option<f64>,
     #[serde(default)]
     pub scored_positions: Option<usize>,
+    /// Gate definitions that changed in October, with the verdict under the old and the current definition
+    /// (`gatedefs.rs`). Informational. Absent in baselines written before it existed. The qualify verdict JSON copies
+    /// this object, so it carries them too.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gate_definitions: Vec<super::gatedefs::DefinitionChange>,
 }
 
 impl ModeStats {

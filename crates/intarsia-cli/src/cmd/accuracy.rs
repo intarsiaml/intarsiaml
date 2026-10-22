@@ -33,6 +33,7 @@ use std::sync::{Arc, Mutex};
 
 mod baseline;
 mod envelope;
+mod gatedefs;
 mod provenance;
 mod refnoise;
 mod selfgolden;
@@ -950,16 +951,35 @@ fn row_masks(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], r
     Ok(RowMasks { scored, how: format!("{} ({src}): {hidden} of {total} rows lie inside a system or user turn and are not scored by the KL floor", fmt.name) })
 }
 
-fn default_golden(model: &Path) -> Option<PathBuf> {
+/// Golden file named after the model, searched in `golden_search_dirs()`. `Err` carries every path tried.
+fn default_golden(model: &Path) -> std::result::Result<PathBuf, Vec<PathBuf>> {
     let full = model.to_string_lossy().to_string();
     let name = match full.split("models--").nth(1) {
         Some(rest) => rest.split('/').next().unwrap_or("").rsplit("--").next().unwrap_or("").to_string(),
-        None => model.file_name()?.to_string_lossy().to_string(),
+        None => model.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
     }
     .to_lowercase();
     let file = format!("{name}.safetensors");
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden");
-    [PathBuf::from("golden"), repo].into_iter().map(|d| d.join(&file)).find(|p| p.exists())
+    let tried: Vec<PathBuf> = golden_search_dirs().into_iter().map(|d| d.join(&file)).collect();
+    tried.iter().find(|p| p.exists()).cloned().ok_or(tried)
+}
+
+/// Where golden files are looked for, in order: `$INTARSIA_GOLDEN_DIR`, `./golden`, then `golden/` of the checkout the binary sits in.
+pub fn golden_search_dirs() -> Vec<PathBuf> {
+    golden_dirs_with(std::env::var_os("INTARSIA_GOLDEN_DIR"), checkout_golden_dir())
+}
+
+fn golden_dirs_with(env_dir: Option<std::ffi::OsString>, checkout: Option<PathBuf>) -> Vec<PathBuf> {
+    let env_dir = env_dir.filter(|v| !v.is_empty()).map(PathBuf::from);
+    [env_dir, Some(PathBuf::from("golden")), checkout].into_iter().flatten().collect()
+}
+
+/// `golden/` of the checkout this binary was built in, found from the executable's location (`<checkout>/target/<profile>/intarsia`
+/// or deeper). Not `env!("CARGO_MANIFEST_DIR")`: that bakes the build directory into the binary and makes the same sha build
+/// to different bytes in different directories (docs/reproducing-results.md).
+pub fn checkout_golden_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    exe.ancestors().skip(1).map(|a| a.join("golden")).find(|g| g.is_dir() && g.parent().is_some_and(|r| r.join("Cargo.lock").is_file()))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1215,10 +1235,12 @@ fn run_mode(
         mean_kl_scored: Some(total_sc.mean_kl()),
         mean_kl21_scored: Some(total_sc.mean_kl21()),
         scored_positions: Some(total_sc.n),
+        gate_definitions: Vec::new(), // filled below, once the gate has judged
     };
     if let Some(b) = self_budget {
         // same weights: the class floors are not the question, the distance to the other build's logits is
         let mut checks = selfgolden::judge(&mstats(true), &per_prompt, b);
+        let checks_as_judged = checks.clone(); // before `--self-vs-ref-noise` ungates part of them (gatedefs.rs)
         // change vs base against the reference noise (`--self-vs-ref-noise`): the mean 21-way KL decides, the rest is reported
         let mut self_verdict = None;
         if args.self_vs_ref_noise {
@@ -1232,6 +1254,7 @@ fn run_mode(
             v.pass &= pv.pass;
             checks = refnoise::apply_to_self_checks(checks, v.effective_threshold, &pv);
             v.prompt_checks = Some(pv);
+            v.definition_changes = gatedefs::self_check_changes(&checks_as_judged, &checks);
             self_verdict = Some(v);
         }
         let pass = checks.iter().all(|c| c.ok || !c.gated);
@@ -1251,6 +1274,9 @@ fn run_mode(
         }
         if let Some(v) = &self_verdict {
             println!("{}", v.line());
+            for d in &v.definition_changes {
+                println!("{}", d.line(mode.key()));
+            }
         }
         // one machine-readable line per mode for scripts/phase1b-acceptance.sh (noise calibration of the budgets)
         let flips = total.n - total.top1;
@@ -1266,7 +1292,9 @@ fn run_mode(
             per_prompt.iter().map(|p| p.mean_kl21).fold(0.0, f64::max)
         );
         println!("{} self-golden => {}", mode.name(), if pass { "PASS" } else { "FAIL" });
-        return Ok(ModeResult { matches, pass, stats: mstats(pass), prompts: per_prompt, verdict: self_verdict });
+        let mut stats = mstats(pass);
+        stats.gate_definitions = self_verdict.as_ref().map(|v| v.definition_changes.clone()).unwrap_or_default();
+        return Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: self_verdict });
     }
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
@@ -1293,8 +1321,11 @@ fn run_mode(
         pick.map(|(value, kl, rows)| refnoise::NoiseTerm { value, kl, rows })
     });
     let (factor, factor_source) = gates.noise.as_ref().map_or((1.0, "default".to_string()), |nc| (nc.factor, nc.factor_source.clone()));
-    let verdict = refnoise::judge_kl(mode.key(), gate_kl_name, gate_kl, Some(gates.max_kl), noise_term, factor, &factor_source)?;
+    let mut verdict = refnoise::judge_kl(mode.key(), gate_kl_name, gate_kl, Some(gates.max_kl), noise_term, factor, &factor_source)?;
     let ok_kl = verdict.pass;
+    // the KL floor was redefined on 2026-10-21 (scored rows, reference noise): record the verdict the old definition gives
+    let defs = vec![gatedefs::kl_floor_change(gate_kl_name, all_kl, gate_kl, gates.max_kl, ok_kl, verdict.effective_threshold, verdict.bound_by.name())];
+    verdict.definition_changes = defs.clone();
     let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
     let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
@@ -1333,7 +1364,11 @@ fn run_mode(
         if pass { "PASS" } else { "FAIL" },
     );
     println!("{}", verdict.line());
-    let stats = mstats(pass);
+    for d in &defs {
+        println!("{}", d.line(mode.key()));
+    }
+    let mut stats = mstats(pass);
+    stats.gate_definitions = defs;
     Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: Some(verdict) })
 }
 
@@ -2167,8 +2202,11 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
     }
     let path = match (&args.self_golden, &args.golden) {
         (Some(p), _) | (None, Some(p)) => p.clone(),
-        (None, None) => default_golden(&args.model.model).ok_or_else(|| {
-            anyhow!("no golden file found for this model; generate one with tools/golden.py and pass --golden")
+        (None, None) => default_golden(&args.model.model).map_err(|tried| {
+            let list = tried.iter().map(|p| format!("  {}", p.display())).collect::<Vec<_>>().join("\n");
+            anyhow!(
+                "no golden file found for this model; generate one with tools/golden.py and pass --golden, or set INTARSIA_GOLDEN_DIR to the golden directory. Tried:\n{list}"
+            )
         })?,
     };
     let g = Golden::open(&path)?;
@@ -2816,6 +2854,31 @@ pub fn run(mut args: AccuracyArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn golden_dirs_env_var_comes_first() {
+        let dirs = super::golden_dirs_with(Some("/elsewhere/golden".into()), Some("/co/golden".into()));
+        let dirs: Vec<_> = dirs.iter().map(|d| d.to_string_lossy().to_string()).collect();
+        assert_eq!(dirs, ["/elsewhere/golden", "golden", "/co/golden"]);
+        assert_eq!(super::golden_dirs_with(Some("".into()), None), [std::path::PathBuf::from("golden")]);
+    }
+
+    #[test]
+    fn default_golden_lists_tried_paths_and_finds_env_dir() {
+        let d = std::env::temp_dir().join(format!("ik-golden-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("tinymodel.safetensors"), b"x").unwrap();
+        std::env::set_var("INTARSIA_GOLDEN_DIR", &d);
+        let hit = super::default_golden(std::path::Path::new("/m/TinyModel"));
+        std::env::set_var("INTARSIA_GOLDEN_DIR", d.join("nope"));
+        let miss = super::default_golden(std::path::Path::new("/m/TinyModel"));
+        std::env::remove_var("INTARSIA_GOLDEN_DIR");
+        std::fs::remove_dir_all(&d).ok();
+        assert_eq!(hit.unwrap(), d.join("tinymodel.safetensors"));
+        let tried = miss.unwrap_err();
+        assert_eq!(tried[0], d.join("nope").join("tinymodel.safetensors"));
+        assert!(tried.len() >= 2);
+    }
+
     use super::*;
 
     fn logits(n: usize) -> Vec<f32> {

@@ -1,0 +1,13 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 46 base tokens, 21.41 tokens per filler sentence
+  size    128 rep: prompt=127 gen=128 ttft=0.06s prefill=1959 tok/s decode=159.5 tok/s
+  size    128 rep: prompt=133 gen=128 ttft=0.07s prefill=1938 tok/s decode=159.8 tok/s
+  size    128 rep: prompt=132 gen=128 ttft=0.07s prefill=1963 tok/s decode=159.9 tok/s
+  size   1024 rep: prompt=1021 gen=128 ttft=0.13s prefill=7926 tok/s decode=159.4 tok/s
+  size   1024 rep: prompt=1028 gen=128 ttft=0.13s prefill=8085 tok/s decode=159.3 tok/s
+  size   1024 rep: prompt=1039 gen=128 ttft=0.13s prefill=8097 tok/s decode=159.3 tok/s
+  size   4096 rep: prompt=4182 gen=128 ttft=0.48s prefill=8726 tok/s decode=155.1 tok/s
+  size   4096 rep: prompt=4185 gen=128 ttft=0.48s prefill=8725 tok/s decode=155.1 tok/s
+  size   4096 rep: prompt=4217 gen=128 ttft=0.48s prefill=8696 tok/s decode=155.0 tok/s
+wrote /work/onboard-runs/35b-hip-fresh/report/qualify/bench/qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench.json

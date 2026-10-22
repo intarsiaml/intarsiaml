@@ -1,0 +1,12 @@
+test bad_decode_row_fails_only_its_request ... FAILED
+---- bad_decode_row_fails_only_its_request stdout ----
+thread 'bad_decode_row_fails_only_its_request' panicked at crates/intarsia-models/tests/batch_engine.rs:295:5:
+  left: (1, 2)
+ right: (1, 3)
+    bad_decode_row_fails_only_its_request
+test bad_decode_row_fails_only_its_request ... FAILED
+---- bad_decode_row_fails_only_its_request stdout ----
+thread 'bad_decode_row_fails_only_its_request' panicked at crates/intarsia-models/tests/batch_engine.rs:295:5:
+  left: (1, 2)
+ right: (1, 3)
+    bad_decode_row_fails_only_its_request
