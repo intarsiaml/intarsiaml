@@ -76,10 +76,6 @@ pub struct QualifyArgs {
     /// floor measured in docs/results/2026-10-22-fx1-oracle-gate.md, [`ORACLE_MAX_KL`]).
     #[arg(long)]
     pub oracle_max_kl: Option<f64>,
-    /// `acc-oracle`: also gate |mean logit scale - 1| on scored prefill rows (`accuracy --max-logit-scale-dev`). Off by
-    /// default: correct backends differ by up to 9e-3 in it on the 35B (docs/results/2026-10-22-fx1-oracle-gate.md).
-    #[arg(long)]
-    pub oracle_max_scale_dev: Option<f64>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -1548,18 +1544,10 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
         (Ok((_, note)), false) => (vec![], format!("{note}; not applied (the class floor of a full-precision golden gates this model)")),
         (Err(why), _) => (vec![], why),
     };
+    let missing = needs && extra.is_empty();
     let a = c.accuracy("acc-short", &g, "both", false, 1, &extra)?;
-    let mut o = c.acc_out(a, &g, &how, "short");
-    if needs && extra.is_empty() && o.verdict == Verdict::Pass {
-        o.verdict = Verdict::MissingBaseline;
-        o.reason = format!(
-            "MISSING-BASELINE: {note}. {} has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so the floor alone does not gate it (it read: {}); record one with the envelope stage and commit it to golden/baselines/",
-            c.name,
-            o.reason
-        );
-    } else {
-        o.notes.push(note);
-    }
+    let o = c.acc_out(a, &g, &how, "short");
+    let mut o = baseline_verdict(o, note, missing, &c.name, "acc-short");
     if o.verdict == Verdict::Fail {
         if let Some(f) = c.state.get("acc-format").filter(|f| f.verdict == Verdict::Pass) {
             o.verdict = Verdict::Warn;
@@ -1616,9 +1604,12 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
     Ok(c.acc_out(a, &g, &how, "format"))
 }
 
-/// `acc-oracle`'s floor: mean 21-way KL(oracle || engine) over the scored prefill rows of the short prompt set. Measured,
-/// not chosen: docs/results/2026-10-22-fx1-oracle-gate.md section 3 (clean builds on every backend against the f64 CPU
-/// oracle, and the 1 % row-parallel scale mutants that must fail).
+/// `acc-oracle`'s floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows of the oracle
+/// prompt set (the short set plus `long_docs_4k`). Measured, not chosen (docs/results/2026-10-22-fx1-oracle-gate.md):
+/// clean builds read 9.9e-3 (Metal, HIP tp=1) to 1.1e-2 (HIP tp=2), bf16 activations against f32 / f64 math on the
+/// same NVFP4 weights; 2e-2 is ~1.8x the largest. The floor guards absolute accuracy (a wrong kernel reads 10x and
+/// more). It does NOT see a 1 % scale bug: those mutants read 9.1e-3 to 1.0e-2, inside the clean spread. The kill is
+/// the drift check against the recorded same-backend dump.
 pub const ORACLE_MAX_KL: f64 = 2.0e-2;
 
 impl Ctx {
@@ -1702,9 +1693,6 @@ impl Ctx {
             "--model-id".into(),
             self.name.clone(),
         ];
-        if let Some(sc) = self.a.oracle_max_scale_dev {
-            v.extend(["--max-logit-scale-dev".into(), format!("{sc:e}")]);
-        }
         (v, kl)
     }
 
@@ -2068,12 +2056,30 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     // 0.1 nats at 4% of the positions and 90% of the misses sit there: bf16 noise, docs/results/2026-10-15-metal-golden-4k.md),
     // so there is no absolute top-1 floor here. The stage gates KL (class floor), tail mass, non-finite rows, prefix reuse, and,
     // when the backend has a recorded baseline for this golden, "no worse than the baseline beyond its noise envelope".
+    // As in acc-short (fx1): a model without a full-precision golden reads MISSING-BASELINE instead of passing on the
+    // KL / tail / reuse gates alone; other models keep the floor-only fallback.
+    let needs = c.needs_baseline(&g);
     let (mut extra, note) = c.recorded_baseline(&g, true).unwrap_or_else(|why| (vec![], why));
+    let have = !extra.is_empty();
     extra.splice(0..0, ["--min-top1".to_string(), "0".to_string()]);
     let a = c.accuracy("acc-4k", &g, "all", true, 1, &extra)?;
-    let mut o = c.acc_out(a, &g, &how, "4k");
-    o.notes.push(note);
-    Ok(o)
+    let o = c.acc_out(a, &g, &how, "4k");
+    Ok(baseline_verdict(o, note, needs && !have, &c.name, "acc-4k"))
+}
+
+/// Attach the baseline note. A gate that passed without the baseline its model class needs (`missing`) reads
+/// MISSING-BASELINE (exit 1) instead, with the floor's own reading kept in the reason; a FAIL or ERROR stays what it is.
+fn baseline_verdict(mut o: Out, note: String, missing: bool, model: &str, stage: &str) -> Out {
+    if !(missing && o.verdict == Verdict::Pass) {
+        o.notes.push(note);
+    } else {
+        o.verdict = Verdict::MissingBaseline;
+        o.reason = format!(
+            "MISSING-BASELINE: {note}. {model} has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so {stage}'s floor alone does not gate it (it read: {}); record one with the envelope stage and commit it to golden/baselines/",
+            o.reason
+        );
+    }
+    o
 }
 
 impl Ctx {
@@ -2493,6 +2499,21 @@ mod tests {
     }
 
     #[test]
+    fn a_pass_without_a_needed_baseline_is_missing_baseline() {
+        let pass = || Out::pass("prefill: KL 5.8e-3");
+        let o = baseline_verdict(pass(), "no baseline for backend hip".into(), true, "Qwen3.6-35B-A3B-NVFP4", "acc-short");
+        assert_eq!(o.verdict, Verdict::MissingBaseline);
+        assert!(o.reason.starts_with("MISSING-BASELINE: no baseline for backend hip") && o.reason.contains("KL 5.8e-3"));
+        assert!(o.verdict.is_failing(), "MISSING-BASELINE fails the run (exit 1)");
+        // with the baseline (or for a model with a full-precision golden) the floor verdict stands, note attached
+        let o = baseline_verdict(pass(), "gated against the recorded baseline".into(), false, "m", "acc-short");
+        assert_eq!((o.verdict, o.notes.len()), (Verdict::Pass, 1));
+        // a FAIL stays a FAIL
+        let o = baseline_verdict(Out::fail("KL 4e-2"), "no baseline".into(), true, "m", "acc-4k");
+        assert_eq!(o.verdict, Verdict::Fail);
+    }
+
+    #[test]
     fn stage_table_is_consistent() {
         let ids: Vec<&str> = STAGES.iter().map(|s| s.id).collect();
         let mut dedup = ids.clone();
@@ -2532,12 +2553,6 @@ mod tests {
                 "prefix reuse differs from a cold run"
             ]
         );
-    }
-
-    #[test]
-    fn the_logit_scale_line_is_digested() {
-        let t = "prefill floor [bf16]: top-1 (all rows) 98.5% (need >= 0) ok | 21-way KL (scored rows, n=10) 4e-3 (need <= 1.0e-2) ok => FAIL\nprefill floor [bf16]: logit scale - 1 (scored rows, n=10, slope over the reference top-8) +6.9e-3 (|.| <= 3.5e-3) FAIL\ngolden gate: FAIL";
-        assert_eq!(acc_fail_digest(t), vec!["prefill: logit scale - 1 (scored rows, n=10, slope over the reference top-8) +6.9e-3 (|.| <= 3.5e-3)".to_string()]);
     }
 
     #[test]

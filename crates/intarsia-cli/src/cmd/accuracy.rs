@@ -77,13 +77,6 @@ pub struct AccuracyArgs {
     /// everything outside the reference's top-20). Absolute floor next to the KL gate; default 0.02.
     #[arg(long)]
     pub max_tail_excess: Option<f64>,
-    /// Golden gate: maximum |mean logit scale - 1| over the scored rows. The logit scale of a row is the least-squares
-    /// slope of our log-probs on the reference's over the reference's top-8 ids: 1 when the two distributions are equally
-    /// sharp. A scale bug (a weight or partial-sum scale off by 1 %) moves it systematically while the KL stays inside the
-    /// rounding noise of a correct build (fx1, docs/results/2026-10-22-fx1-oracle-gate.md). Off by default; `qualify`
-    /// sets it for the CPU-oracle stage.
-    #[arg(long)]
-    pub max_logit_scale_dev: Option<f64>,
     /// Reference noise of the golden (`intarsia ref-noise` writes one): the KL floor becomes
     /// max(class floor, factor x noise), and the output says which of the two bound the verdict. Default: the golden's
     /// own `ref_noise` metadata, else a sidecar `golden/ref_noise/<golden file>.json` (next to the golden, in the working
@@ -483,29 +476,6 @@ struct PosStat {
     tail_ours: f64,
     /// Our row has a NaN or an infinity: the position fails whatever the other numbers say.
     nonfinite: bool,
-    /// Logit scale: slope of our log-probs on the reference's over the reference's top-[`SCALE_K`] ids (`None`: the
-    /// reference row is flat there, or our row is not finite).
-    scale: Option<f64>,
-}
-
-/// Reference ids per row of the logit-scale statistic. 8 (rather than 4 or 16) separated a 1 % scale mutant from the
-/// clean builds best on the 35B (fx1).
-const SCALE_K: usize = 8;
-
-/// Least-squares slope of `ours` (raw logits, any per-row offset) on `reference` log-probs over the given ids.
-fn logit_scale(reference: &[(usize, f64)], ours: &[f32]) -> Option<f64> {
-    if reference.len() < 4 {
-        return None;
-    }
-    let n = reference.len() as f64;
-    let mx = reference.iter().map(|r| r.1).sum::<f64>() / n;
-    let my = reference.iter().map(|r| ours[r.0] as f64).sum::<f64>() / n;
-    let (mut sxy, mut sxx) = (0.0, 0.0);
-    for &(i, x) in reference {
-        sxy += (x - mx) * (ours[i] as f64 - my);
-        sxx += (x - mx) * (x - mx);
-    }
-    (sxx > 1e-6).then(|| sxy / sxx).filter(|v| v.is_finite())
 }
 
 /// Support size of the tail bucket for full-vocabulary goldens (a top-k golden uses its own k).
@@ -527,9 +497,6 @@ struct Agg {
     /// Sum over positions of |tail ours - tail reference|.
     tail_abs_sum: f64,
     nonfinite: usize,
-    /// Sum and count of the positions' logit scales (positions that have one).
-    scale_sum: f64,
-    scale_n: usize,
 }
 
 impl Agg {
@@ -547,10 +514,6 @@ impl Agg {
         self.tail_ours_sum += p.tail_ours;
         self.tail_abs_sum += (p.tail_ours - p.tail_ref).abs();
         self.nonfinite += p.nonfinite as usize;
-        if let Some(v) = p.scale {
-            self.scale_sum += v;
-            self.scale_n += 1;
-        }
     }
     fn add(&mut self, o: &Agg) {
         self.n += o.n;
@@ -566,16 +529,6 @@ impl Agg {
         self.tail_ours_sum += o.tail_ours_sum;
         self.tail_abs_sum += o.tail_abs_sum;
         self.nonfinite += o.nonfinite;
-        self.scale_sum += o.scale_sum;
-        self.scale_n += o.scale_n;
-    }
-    /// Mean logit scale minus 1 (positive: we are sharper than the reference). NaN without any position.
-    fn scale_dev(&self) -> f64 {
-        if self.scale_n == 0 {
-            f64::NAN
-        } else {
-            self.scale_sum / self.scale_n as f64 - 1.0
-        }
     }
     fn top1_pct(&self) -> f64 {
         100.0 * self.top1 as f64 / self.n.max(1) as f64
@@ -667,7 +620,6 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
         tail_ref: 0.0,
         tail_ours: 0.0,
         nonfinite: true,
-        scale: None,
     };
     match reference {
         RefRow::Full(r) => {
@@ -701,9 +653,7 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
             let top1 = ot[0] == rt[0];
             let tie = !top1 && f16_to_f64(r[ot[0]]) >= f16_to_f64(r[rt[0]]);
             let overlap = ot.iter().filter(|i| rt.contains(i)).count();
-            let sref: Vec<(usize, f64)> = top_k(rf(), SCALE_K).into_iter().map(|i| (i, f16_to_f64(r[i]) - rl)).collect();
-            let scale = logit_scale(&sref, ours);
-            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, kl21, tail_ref: p_tail, tail_ours: q_tail, nonfinite: false, scale })
+            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, kl21, tail_ref: p_tail, tail_ours: q_tail, nonfinite: false })
         }
         RefRow::TopK(ids, lps) => {
             let valid: Vec<(usize, f64)> =
@@ -753,12 +703,6 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
             let kl21 = kl_partition(&p, &q, p_tail, q_tail);
             let ot = top_k(o(), 5);
             let overlap = ot.iter().filter(|i| rt.contains(i)).count();
-            let scale = {
-                let mut v = valid.clone();
-                v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(&b.0)));
-                v.truncate(SCALE_K);
-                logit_scale(&v, ours)
-            };
             Ok(PosStat {
                 top1: ot[0] == ref_top,
                 tie: false,
@@ -769,7 +713,6 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 tail_ref: p_tail,
                 tail_ours: q_tail,
                 nonfinite: false,
-                scale,
             })
         }
     }
@@ -1373,9 +1316,7 @@ fn run_mode(
     let ok_kl = verdict.pass;
     let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
-    // logit scale (scored rows), gated only when asked (`--max-logit-scale-dev`); NaN (no row has one) fails
-    let ok_scale = args.max_logit_scale_dev.is_none_or(|m| total_sc.scale_dev().abs() <= m);
-    let pass = ok_nf && ok_top1 && ok_kl && ok_tail && ok_scale;
+    let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
     println!(
         "{} floor [{}]: top-1 (all rows) {:.2}%{} ({}) {} | {gate_kl_name} (scored rows, n={}) {:.3e} (need <= {:.1e}) {} [all rows, n={}: {:.3e}, reported only] | tail mass (all rows) ours {:.4} vs ref {:.4}, excess {:+.4} (|.| <= {}) {} | non-finite rows {} {} => {}",
         mode.name(),
@@ -1410,17 +1351,6 @@ fn run_mode(
         tag(ok_nf),
         if pass { "PASS" } else { "FAIL" },
     );
-    if let Some(m) = args.max_logit_scale_dev {
-        println!(
-            "{} floor [{}]: logit scale - 1 (scored rows, n={}, slope over the reference top-{SCALE_K}) {:+.3e} (|.| <= {:.1e}) {}",
-            mode.name(),
-            gates.class.name(),
-            total_sc.scale_n,
-            total_sc.scale_dev(),
-            m,
-            tag(ok_scale),
-        );
-    }
     println!("{}", verdict.line());
     let stats = mstats(pass);
     Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: Some(verdict) })
@@ -2935,28 +2865,6 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn logit_scale_reads_sharpening_and_ignores_offsets() {
-        let reference = [(0usize, -0.1f64), (1, -2.5), (2, -3.0), (3, -4.2), (4, -6.0)];
-        // our logits = 1.02 x the reference log-probs + any per-row constant: scale 1.02
-        let mut ours = vec![0f32; 6];
-        for &(i, l) in &reference {
-            ours[i] = (1.02 * l + 7.0) as f32;
-        }
-        let s = logit_scale(&reference, &ours).unwrap();
-        assert!((s - 1.02).abs() < 1e-5, "{s}");
-        // a flat reference row or fewer than 4 ids has no scale
-        assert_eq!(logit_scale(&[(0, -1.0), (1, -1.0), (2, -1.0), (3, -1.0)], &ours), None);
-        assert_eq!(logit_scale(&reference[..3], &ours), None);
-        // the aggregate reads mean - 1, and a row without a scale does not count
-        let mut a = Agg::default();
-        for v in [Some(1.01), Some(1.03), None] {
-            a.push(&PosStat { top1: true, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false, scale: v });
-        }
-        assert!((a.scale_dev() - 0.02).abs() < 1e-12 && a.scale_n == 2);
-        assert!(Agg::default().scale_dev().is_nan());
-    }
-
     fn logits(n: usize) -> Vec<f32> {
         (0..n).map(|i| ((i * 7) % 13) as f32 * 0.3).collect()
     }
@@ -3071,7 +2979,7 @@ mod tests {
 
     #[test]
     fn greedy_match_length_counts_the_leading_run() {
-        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false, scale: None };
+        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false };
         let s: Vec<PosStat> = [true, true, true, false, true].into_iter().map(mk).collect();
         assert_eq!(greedy_match_len(&s), 3);
         assert_eq!(greedy_match_len(&[]), 0);
