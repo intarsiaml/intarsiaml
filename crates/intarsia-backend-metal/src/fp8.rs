@@ -7,6 +7,7 @@
 
 use crate::dense::OpP;
 use crate::{set_bytes, MetalBackend};
+use intarsia_core::backend::TensorRef;
 use intarsia_core::{DType, Error, OpCall, Result, ShapeInfo};
 use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 
@@ -14,9 +15,18 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 pub const MATMUL_FP8_GEMV: &str = "matmul_fp8_gemv";
 pub const MATMUL_FP8_MMA: &str = "matmul_fp8_mma";
 
+/// `Op::MatmulFp8Pair`: two fp8 projections of one activation in one dispatch (decode GEMV, M <= 8).
+pub const MATMUL_FP8_PAIR_GEMV: &str = "matmul_fp8_pair_gemv";
+/// `Op::RmsNormAddMatmulFp8Pair`: `RmsNormAdd` of one row and two fp8 projections of its norm in one dispatch.
+pub const RMSNORM_ADD_MATMUL_FP8_PAIR_GEMV: &str = "rmsnorm_add_matmul_fp8_pair_gemv";
+/// `Op::SigmoidMulMatmulFp8`: the attention output gate folded into the fp8 o_proj GEMV (M <= 8).
+pub const SIGMOID_MUL_MATMUL_FP8_GEMV: &str = "sigmoid_mul_matmul_fp8_gemv";
+/// `Op::GatedRmsnormMatmulFp8`: the GatedDeltaNet gated norm folded into the fp8 out_proj GEMV (one output row).
+pub const GATED_RMSNORM_MATMUL_FP8_GEMV: &str = "gated_rmsnorm_matmul_fp8_gemv";
+
 const XPREP: &str = "fp8_xprep_bf16";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 7] = [
+pub const SHADERS: [&str; 16] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -24,7 +34,30 @@ pub const SHADERS: [&str; 7] = [
     "fp8_gemv_f32_m8",
     "fp8_mma_bf16",
     "fp8_mma_f32",
+    "fp8_pair_gemv_bf16_m1",
+    "fp8_pair_gemv_bf16_m8",
+    "fp8_pair_gemv_f32_m1",
+    "fp8_pair_gemv_f32_m8",
+    "fp8_pair_norm_gemv_bf16_m1",
+    "fp8_pair_norm_gemv_bf16_m8",
+    "fp8_sigmoid_gemv_bf16_m1",
+    "fp8_sigmoid_gemv_bf16_m8",
+    "fp8_gated_norm_gemv_bf16_m1",
 ];
+
+/// Kernel arguments of the pair shaders (`Fp8PairP` in kernels/metal/fp8.metal; 64 bytes).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+struct Fp8PairP {
+    m: u32,
+    n0: u32,
+    n1: u32,
+    k: u32,
+    skips: [u32; 8],
+    eps: f32,
+    w_offset: f32,
+    pad: [u32; 2],
+}
 
 /// Simdgroups per GEMV threadgroup (`FP8_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
 const GEMV_SG: usize = 8;
@@ -41,9 +74,41 @@ pub fn gemv_ok(s: &ShapeInfo) -> bool {
     (1..=GEMV_MB).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= GEMV_TG_BYTES
 }
 
+/// The norm-folded pair GEMV: staged q(normed) rows plus the shader's partial-sum array fit threadgroup memory.
+pub fn norm_pair_ok(s: &ShapeInfo) -> bool {
+    (1..=GEMV_MB).contains(&s.m)
+        && s.k % 16 == 0
+        && s.m * s.k * 2 + 256 <= GEMV_TG_BYTES
+        && s.out.is_none_or(|d| d == DType::Bf16)
+}
+
+/// The gate-folded GEMV (bf16 output): the decode GEMV's limits.
+pub fn sigmoid_ok(s: &ShapeInfo) -> bool {
+    gemv_ok(s) && s.out.is_none_or(|d| d == DType::Bf16)
+}
+
+/// The GatedDeltaNet norm-folded GEMV: one output row over `K = rows * D` (`s.head_dim` = D, a multiple of 32 up to 256).
+pub fn gated_ok(s: &ShapeInfo) -> bool {
+    s.m == 1
+        && s.head_dim >= 32
+        && s.head_dim <= 256
+        && s.head_dim % 32 == 0
+        && s.k % s.head_dim.max(1) == 0
+        && s.k % 16 == 0
+        && s.k * 2 <= GEMV_TG_BYTES
+        && s.out.is_none_or(|d| d == DType::Bf16)
+}
+
 /// GEMM scratch: the QDQ'd activations as bf16 `[M,K]`.
 pub fn scratch(s: &ShapeInfo) -> usize {
     s.m * s.k * 2 + 16
+}
+
+/// Whether two tensor views share bytes of one allocation.
+pub(crate) fn overlap(a: &TensorRef, b: &TensorRef) -> bool {
+    let span = |t: &TensorRef| (t.offset, t.offset + t.numel() * t.dtype.size_bytes());
+    let (sa, sb) = (span(a), span(b));
+    a.buf.ptr_eq(&b.buf) && sa.0 < sb.1 && sb.0 < sa.1
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -170,6 +235,326 @@ impl MetalBackend {
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(TILE), height: m.div_ceil(TILE), depth: 1 },
                 MTLSize { width: MMA_THREADS, height: 1, depth: 1 },
+            );
+        })
+    }
+    /// `Op::MatmulFp8Pair`: `[x, w0, sc0, w1, sc1] -> [y0, y1]`, `y_j = fp8 GEMV(x, w_j)` bitwise (one `launch_fp8` GEMV per
+    /// matrix, `fp8_pair_gemv_*` runs the same body per threadgroup).
+    pub(crate) fn launch_fp8_pair(&self, call: &OpCall) -> Result<()> {
+        let (x, w0, sc0, w1, sc1, y0, y1) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([x, w0, sc0, w1, sc1], [y0, y1]) => (x, w0, sc0, w1, sc1, y0, y1),
+            _ => return Err(Error::invalid("metal matmul_fp8_pair: expected 5 inputs / 2 outputs")),
+        };
+        if x.shape.len() != 2 || w0.shape.len() != 2 || w1.shape.len() != 2 {
+            return Err(Error::invalid("metal matmul_fp8_pair: x and the weights must be 2-D"));
+        }
+        let (m, k, n0, n1) = (x.shape[0], x.shape[1], w0.shape[0], w1.shape[0]);
+        if k % 16 != 0
+            || w0.shape[1] != k
+            || w1.shape[1] != k
+            || sc0.numel() != 2
+            || sc1.numel() != 2
+            || y0.shape != [m, n0]
+            || y1.shape != [m, n1]
+            || y0.dtype != y1.dtype
+        {
+            return Err(Error::invalid(
+                "metal matmul_fp8_pair: shape mismatch (K % 16 == 0, scales [2], equal output dtypes)",
+            ));
+        }
+        if m == 0 || n0 == 0 || n1 == 0 {
+            return Ok(());
+        }
+        if m > GEMV_MB || m * k * 2 > GEMV_TG_BYTES {
+            return Err(Error::invalid(format!("metal matmul_fp8_pair: M = {m}, K = {k} does not fit")));
+        }
+        let f32_out = match y0.dtype {
+            DType::Bf16 => false,
+            DType::F32 => true,
+            d => return Err(Error::invalid(format!("metal matmul_fp8_pair: output dtype {d}"))),
+        };
+        u32_of(m * k, "M*K")?;
+        u32_of(n0.max(n1) * k, "N*K")?;
+        u32_of((m * n0).max(m * n1), "M*N")?;
+        let od = if f32_out { DType::F32 } else { DType::Bf16 };
+        let xb = self.bind(x, DType::Bf16, false, "x")?;
+        let (wb0, wb1) = (self.bind(w0, DType::Fp8E4m3, false, "w0")?, self.bind(w1, DType::Fp8E4m3, false, "w1")?);
+        let (sb0, sb1) = (self.bind(sc0, DType::F32, false, "scales0")?, self.bind(sc1, DType::F32, false, "scales1")?);
+        let (ob0, ob1) = (self.bind(y0, od, true, "out0")?, self.bind(y1, od, true, "out1")?);
+        for wb in [&wb0, &wb1] {
+            if wb.skip != 0 || wb.off % 8 != 0 {
+                return Err(Error::invalid(format!(
+                    "metal matmul_fp8_pair: the weights must be 8-byte aligned (bound at byte {}, skip {})",
+                    wb.off, wb.skip
+                )));
+            }
+        }
+        let (name, rs) = match (f32_out, m == 1) {
+            (false, true) => (SHADERS[7], GEMV_RS[0]),
+            (false, false) => (SHADERS[8], GEMV_RS[1]),
+            (true, true) => (SHADERS[9], GEMV_RS[0]),
+            (true, false) => (SHADERS[10], GEMV_RS[1]),
+        };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let p = Fp8PairP {
+            m: u32_of(m, "M")?,
+            n0: u32_of(n0, "N0")?,
+            n1: u32_of(n1, "N1")?,
+            k: u32_of(k, "K")?,
+            skips: [xb.skip, ob0.skip, ob1.skip, 0, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        let mb = if m == 1 { 1 } else { GEMV_MB };
+        let tg_bytes = (m * k * 2).next_multiple_of(16);
+        let tiles = n0.div_ceil(GEMV_SG * rs) + n1.div_ceil(GEMV_SG * rs);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [&xb, &wb0, &sb0, &wb1, &sb1, &ob0, &ob1].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+                enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+            }
+            set_bytes(enc, &p, 7);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: tiles, height: m.div_ceil(mb), depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+
+    /// `Op::RmsNormAddMatmulFp8Pair`: `[x, res, norm_w, w0, sc0, w1, sc1] -> [normed, sum, y0, y1]` for up to 8 rows, bitwise
+    /// `rmsnorm_add_bf16` then two `matmul_fp8_gemv` launches on `normed`. Every threadgroup recomputes the row's norm, so
+    /// `sum` and `normed` must not overlap `x` / `res` (threadgroup 0 stores them while the others still read).
+    pub(crate) fn launch_fp8_norm_pair(&self, call: &OpCall) -> Result<()> {
+        let (x, res, nw, w0, sc0, w1, sc1, normed, sum, y0, y1) =
+            match (call.inputs.as_slice(), call.outputs.as_slice()) {
+                ([x, res, nw, w0, sc0, w1, sc1], [normed, sum, y0, y1]) => {
+                    (x, res, nw, w0, sc0, w1, sc1, normed, sum, y0, y1)
+                }
+                _ => return Err(Error::invalid("metal rmsnorm_add_matmul_fp8_pair: expected 7 inputs / 4 outputs")),
+            };
+        let bad = |what: &str| Error::invalid(format!("metal rmsnorm_add_matmul_fp8_pair: {what}"));
+        if x.shape.len() != 2 || w0.shape.len() != 2 || w1.shape.len() != 2 {
+            return Err(bad("2-D x and weights expected"));
+        }
+        let (m, k, n0, n1) = (x.shape[0], x.shape[1], w0.shape[0], w1.shape[0]);
+        if m == 0
+            || m > GEMV_MB
+            || k % 16 != 0
+            || m * k * 2 + 256 > GEMV_TG_BYTES
+            || w0.shape[1] != k
+            || w1.shape[1] != k
+            || res.shape != x.shape
+            || nw.shape != [k]
+            || normed.shape != x.shape
+            || sum.shape != x.shape
+            || sc0.numel() != 2
+            || sc1.numel() != 2
+            || y0.shape != [m, n0]
+            || y1.shape != [m, n1]
+        {
+            return Err(bad("shape mismatch (M <= 8, K % 16 == 0, M * K * 2 + 256 <= 32768, scales [2])"));
+        }
+        if n0 == 0 || n1 == 0 || k == 0 {
+            return Ok(());
+        }
+        for o in [normed, sum] {
+            if [x, res].into_iter().any(|i| overlap(o, i)) {
+                return Err(bad("normed / sum overlap x / res"));
+            }
+        }
+        u32_of(n0.max(n1) * k, "N*K")?;
+        let bf = DType::Bf16;
+        let xb = self.bind(x, bf, false, "x")?;
+        let rb = self.bind(res, bf, false, "res")?;
+        let nb = self.bind(nw, bf, false, "norm w")?;
+        let (wb0, wb1) = (self.bind(w0, DType::Fp8E4m3, false, "w0")?, self.bind(w1, DType::Fp8E4m3, false, "w1")?);
+        let (sb0, sb1) = (self.bind(sc0, DType::F32, false, "scales0")?, self.bind(sc1, DType::F32, false, "scales1")?);
+        let (nrm, smb) = (self.bind(normed, bf, true, "normed")?, self.bind(sum, bf, true, "sum")?);
+        let (ob0, ob1) = (self.bind(y0, bf, true, "out0")?, self.bind(y1, bf, true, "out1")?);
+        for wb in [&wb0, &wb1] {
+            if wb.skip != 0 || wb.off % 8 != 0 {
+                return Err(bad("the weights must be 8-byte aligned"));
+            }
+        }
+        let (name, rs) = if m == 1 { (SHADERS[11], GEMV_RS[0]) } else { (SHADERS[12], GEMV_RS[1]) };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        u32_of(m * k, "M*K")?;
+        let p = Fp8PairP {
+            m: u32_of(m, "M")?,
+            n0: u32_of(n0, "N0")?,
+            n1: u32_of(n1, "N1")?,
+            k: u32_of(k, "K")?,
+            skips: [xb.skip, rb.skip, nb.skip, nrm.skip, smb.skip, ob0.skip, ob1.skip, 0],
+            eps: call.attrs.eps,
+            w_offset: call.attrs.w_offset,
+            pad: [0; 2],
+        };
+        let mb = if m == 1 { 1 } else { GEMV_MB };
+        let tg_bytes = (m * k * 2).next_multiple_of(16);
+        let tiles = n0.div_ceil(GEMV_SG * rs) + n1.div_ceil(GEMV_SG * rs);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [&xb, &rb, &nb, &wb0, &sb0, &wb1, &sb1, &nrm, &smb, &ob0, &ob1].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+                enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+            }
+            set_bytes(enc, &p, 11);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: tiles, height: m.div_ceil(mb), depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+    /// `Op::SigmoidMulMatmulFp8`: `[a, g, w, sc] -> [out]`, bitwise `sigmoid_mul_bf16` then `matmul_fp8_gemv` on its result.
+    pub(crate) fn launch_fp8_sigmoid(&self, call: &OpCall) -> Result<()> {
+        let (a, g, w, sc, out) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([a, g, w, sc], [out]) => (a, g, w, sc, out),
+            _ => return Err(Error::invalid("metal sigmoid_mul_matmul_fp8: expected 4 inputs / 1 output")),
+        };
+        let bad = |what: &str| Error::invalid(format!("metal sigmoid_mul_matmul_fp8: {what}"));
+        if a.shape.len() != 2 || w.shape.len() != 2 {
+            return Err(bad("2-D a and w expected"));
+        }
+        let (m, k, n) = (a.shape[0], a.shape[1], w.shape[0]);
+        if m == 0
+            || m > GEMV_MB
+            || k % 16 != 0
+            || m * k * 2 > GEMV_TG_BYTES
+            || g.shape != a.shape
+            || w.shape[1] != k
+            || sc.numel() != 2
+            || out.shape != [m, n]
+        {
+            return Err(bad("shape mismatch (M <= 8, K % 16 == 0, M * K * 2 <= 32768, scales [2])"));
+        }
+        if n == 0 {
+            return Ok(());
+        }
+        u32_of(m * k, "M*K")?;
+        u32_of(n * k, "N*K")?;
+        u32_of(m * n, "M*N")?;
+        let bf = DType::Bf16;
+        let (ab, gb) = (self.bind(a, bf, false, "a")?, self.bind(g, bf, false, "gate")?);
+        let wb = self.bind(w, DType::Fp8E4m3, false, "w")?;
+        let sb = self.bind(sc, DType::F32, false, "scales")?;
+        let ob = self.bind(out, bf, true, "out")?;
+        if wb.skip != 0 || wb.off % 8 != 0 {
+            return Err(bad("the weights must be 8-byte aligned"));
+        }
+        let (name, rs) = if m == 1 { (SHADERS[13], GEMV_RS[0]) } else { (SHADERS[14], GEMV_RS[1]) };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let p = Fp8PairP {
+            m: u32_of(m, "M")?,
+            n0: u32_of(n, "N")?,
+            k: u32_of(k, "K")?,
+            skips: [ab.skip, gb.skip, ob.skip, 0, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        let mb = if m == 1 { 1 } else { GEMV_MB };
+        let tg_bytes = (m * k * 2).next_multiple_of(16);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [&ab, &gb, &wb, &sb, &ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+                enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+            }
+            set_bytes(enc, &p, 5);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(GEMV_SG * rs), height: m.div_ceil(mb), depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+
+    /// `Op::GatedRmsnormMatmulFp8`: `[x, z, norm_w, w, sc] -> [out]`, `x` / `z` `[R, D]`, `out` `[1, N]`: bitwise `rmsnorm_bf16`
+    /// + `silu_glu_bf16` + `matmul_fp8_gemv` on the `[1, R * D]` result.
+    pub(crate) fn launch_fp8_gated(&self, call: &OpCall) -> Result<()> {
+        let (x, z, nw, w, sc, out) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
+            ([x, z, nw, w, sc], [out]) => (x, z, nw, w, sc, out),
+            _ => return Err(Error::invalid("metal gated_rmsnorm_matmul_fp8: expected 5 inputs / 1 output")),
+        };
+        let bad = |what: &str| Error::invalid(format!("metal gated_rmsnorm_matmul_fp8: {what}"));
+        if x.shape.len() != 2 || w.shape.len() != 2 {
+            return Err(bad("2-D x and w expected"));
+        }
+        let (rows, d, n) = (x.shape[0], x.shape[1], w.shape[0]);
+        let k = rows * d;
+        if rows == 0
+            || d < 32
+            || d > 256
+            || d % 32 != 0
+            || k % 16 != 0
+            || k * 2 > GEMV_TG_BYTES
+            || z.shape != x.shape
+            || nw.shape != [d]
+            || w.shape[1] != k
+            || sc.numel() != 2
+            || out.shape != [1, n]
+        {
+            return Err(bad(
+                "shape mismatch (D a multiple of 32 up to 256, K = R * D <= 16384, scales [2], out [1, N])",
+            ));
+        }
+        if n == 0 {
+            return Ok(());
+        }
+        u32_of(n * k, "N*K")?;
+        let bf = DType::Bf16;
+        let (xb, zb, nb) =
+            (self.bind(x, bf, false, "x")?, self.bind(z, bf, false, "z")?, self.bind(nw, bf, false, "norm w")?);
+        let wb = self.bind(w, DType::Fp8E4m3, false, "w")?;
+        let sb = self.bind(sc, DType::F32, false, "scales")?;
+        let ob = self.bind(out, bf, true, "out")?;
+        if wb.skip != 0 || wb.off % 8 != 0 {
+            return Err(bad("the weights must be 8-byte aligned"));
+        }
+        let name = SHADERS[15];
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let p = Fp8PairP {
+            m: 1,
+            n0: u32_of(n, "N")?,
+            n1: u32_of(d, "D")?,
+            k: u32_of(k, "K")?,
+            skips: [xb.skip, zb.skip, nb.skip, ob.skip, 0, 0, 0, 0],
+            eps: call.attrs.eps,
+            w_offset: call.attrs.w_offset,
+            pad: [0; 2],
+        };
+        let tg_bytes = (k * 2).next_multiple_of(16);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [&xb, &zb, &nb, &wb, &sb, &ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+                enc.setThreadgroupMemoryLength_atIndex(tg_bytes, 0);
+            }
+            set_bytes(enc, &p, 6);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(GEMV_SG * GEMV_RS[0]), height: 1, depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
             );
         })
     }

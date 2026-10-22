@@ -737,6 +737,21 @@ impl Backend for MetalBackend {
         if (kernel == fp8::MATMUL_FP8_GEMV || kernel == fp8::MATMUL_FP8_MMA) && call.op == Op::MatmulFp8 {
             return self.launch_fp8(kernel, call);
         }
+        if kernel == kernels::RMSNORM_ADD_MATMUL_PAIR_BF16_GEMV && call.op == Op::RmsNormAddMatmulPair {
+            return self.launch_rmsnorm_add_matmul_pair(call);
+        }
+        if kernel == fp8::MATMUL_FP8_PAIR_GEMV && call.op == Op::MatmulFp8Pair {
+            return self.launch_fp8_pair(call);
+        }
+        if kernel == fp8::RMSNORM_ADD_MATMUL_FP8_PAIR_GEMV && call.op == Op::RmsNormAddMatmulFp8Pair {
+            return self.launch_fp8_norm_pair(call);
+        }
+        if kernel == fp8::SIGMOID_MUL_MATMUL_FP8_GEMV && call.op == Op::SigmoidMulMatmulFp8 {
+            return self.launch_fp8_sigmoid(call);
+        }
+        if kernel == fp8::GATED_RMSNORM_MATMUL_FP8_GEMV && call.op == Op::GatedRmsnormMatmulFp8 {
+            return self.launch_fp8_gated(call);
+        }
         if (kernel == nvfp4::MATMUL_NVFP4_GEMV || kernel == nvfp4::MATMUL_NVFP4_MMA) && call.op == Op::MatmulNvfp4 {
             return self.launch_nvfp4(kernel, call);
         }

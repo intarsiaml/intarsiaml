@@ -118,6 +118,12 @@ pub const GEMV_PAIR_BF16_A8: &str = "gemv_pair_bf16_rt_a8u4s8";
 /// Rows per threadgroup of the pair shaders (one row per threadgroup, like `DEFAULT_GEMV`) and their threads.
 pub const GEMV_PAIR_ROWS_PER_TG: u32 = DEFAULT_GEMV.rows_per_tg();
 pub const GEMV_PAIR_THREADS: u32 = DEFAULT_GEMV.threads_per_tg();
+/// `RmsNormAddMatmulPair` (decode, one row): `rmsnorm_add_bf16` and the rt pair above in one dispatch (the shaders are
+/// `gemv_pair_bf16_rt_u2s8` / `_a8u4s8` with the norm computed in front of the GEMV in each threadgroup). Bitwise the two
+/// launches; operands the pair shader cannot take run them one after the other.
+pub const RMSNORM_ADD_MATMUL_PAIR_BF16_GEMV: &str = "rmsnorm_add_matmul_pair_bf16_gemv";
+pub const RMSNORM_ADD_GEMV_PAIR_BF16: &str = "rmsnorm_add_gemv_pair_bf16_rt_u2s8";
+pub const RMSNORM_ADD_GEMV_PAIR_BF16_A8: &str = "rmsnorm_add_gemv_pair_bf16_rt_a8u4s8";
 /// The spike's one-row-per-simdgroup pair shaders (phase B part 2), kept compiled in for comparison: bitwise
 /// `gemv_bf16_r1u4s4` / `gemv_bf16_a8u8s4`, 4 rows and 128 threads per threadgroup.
 pub const GEMV_PAIR_BF16_R1: &str = "gemv_pair_bf16";
@@ -308,6 +314,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(ATTN_ROWS_SHADERS);
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
+    v.extend([RMSNORM_ADD_GEMV_PAIR_BF16, RMSNORM_ADD_GEMV_PAIR_BF16_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
     v.push(ARGMAX_F32_V4);
@@ -341,6 +348,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_DECODE_BF16, Op::AttnDecode),
     (ATTN_DECODE_BF16_SPLITKV, Op::AttnDecode),
     (MATMUL_PAIR_BF16_GEMV, Op::MatmulPair),
+    (RMSNORM_ADD_MATMUL_PAIR_BF16_GEMV, Op::RmsNormAddMatmulPair),
     (QK_NORM_ROPE_KV_BF16, Op::QkNormRopeKv),
     (MATMUL_BF16_NAX, Op::Matmul),
     (MATMUL_PAIR_BF16_NAX, Op::MatmulPair),
@@ -358,6 +366,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::moe::MOE_COMBINE_BF16, Op::MoeCombine),
     (crate::fp8::MATMUL_FP8_GEMV, Op::MatmulFp8),
     (crate::fp8::MATMUL_FP8_MMA, Op::MatmulFp8),
+    (crate::fp8::MATMUL_FP8_PAIR_GEMV, Op::MatmulFp8Pair),
+    (crate::fp8::RMSNORM_ADD_MATMUL_FP8_PAIR_GEMV, Op::RmsNormAddMatmulFp8Pair),
+    (crate::fp8::SIGMOID_MUL_MATMUL_FP8_GEMV, Op::SigmoidMulMatmulFp8),
+    (crate::fp8::GATED_RMSNORM_MATMUL_FP8_GEMV, Op::GatedRmsnormMatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
     (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
 ];
@@ -582,6 +594,43 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(crate::fp8::scratch)
                     .priority(0),
+                // RmsNormAdd + the bf16 pair (the router and shared-gate logit, the GatedDeltaNet b / a gates): one row
+                RMSNORM_ADD_MATMUL_PAIR_BF16_GEMV => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| s.m == 1 && s.k % 8 == 0 && s.k <= crate::fused::NORM_PAIR_MAX_K && s.out.is_none_or(|d| d == DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL),
+                // Fused decode GEMVs (kernels/metal/fp8.metal, fp8.rs): every output element is bitwise what the unfused launches
+                // write (same row grouping, K order and rounding points), so each fold changes no bit.
+                // Two fp8 projections of one activation in one dispatch (decode only: M <= 8, q(x) staged in threadgroup memory)
+                crate::fp8::MATMUL_FP8_PAIR_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::gemv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL),
+                // ... with the RmsNormAdd in front of them: bitwise `rmsnorm_add_bf16` + two GEMVs
+                crate::fp8::RMSNORM_ADD_MATMUL_FP8_PAIR_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::norm_pair_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL),
+                // the attention output gate / the GatedDeltaNet gated norm folded into the fp8 projection that follows
+                crate::fp8::SIGMOID_MUL_MATMUL_FP8_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::sigmoid_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL),
+                crate::fp8::GATED_RMSNORM_MATMUL_FP8_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::gated_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL),
                 // NVFP4 (kernels/metal/nvfp4.metal, nvfp4.rs): GEMV for M <= 8 (no scratch), GEMM for every other shape.
                 crate::nvfp4::MATMUL_NVFP4_GEMV => k
                     .acts(bf)
@@ -644,14 +693,14 @@ mod tests {
     // Metal has no fp8 / nvfp4 / MoE kernels: the 35B NVFP4 checkpoint does not load here (the '-' rows), before or after
     const PHASE1_PINS: &[&str] = &[
         "35b attn input norm: rmsnorm_add_bf16",
-        "35b k/v pair: -",
+        "35b k/v pair: matmul_fp8_pair_gemv",
         "35b k proj: matmul_fp8_gemv",
         "35b output gate: sigmoid_mul_bf16",
         "35b o_proj: matmul_fp8_gemv",
         "35b shared down: matmul_nvfp4_gemv",
         "35b combine: moe_combine_bf16",
-        "35b fold P5: -",
-        "35b fold P4b: -",
+        "35b fold P5: rmsnorm_add_matmul_fp8_pair_gemv",
+        "35b fold P4b: sigmoid_mul_matmul_fp8_gemv",
         "35b fold P2a: -",
         "8b attn input norm: rmsnorm_add_bf16",
         "8b k/v pair: matmul_pair_bf16_gemv",
@@ -664,7 +713,7 @@ mod tests {
     fn phase1_folds_are_absent_and_the_unfused_selection_is_pinned() {
         use intarsia_core::ShapeInfo;
         let ks = all();
-        for op in [Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine] {
+        for op in [Op::SharedDownCombine] {
             assert!(!ks.iter().any(|k| k.op == op), "{op} is registered: the model would take the fused path here");
         }
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
@@ -712,6 +761,7 @@ mod tests {
         "attn_prefill_bf16_splitkv_rows:attn_prefill",
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",
+        "gated_rmsnorm_matmul_fp8_gemv:gated_rmsnorm_matmul_fp8",
         "gdn_conv_bf16:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "kv_append_bf16:kv_append",
@@ -724,6 +774,7 @@ mod tests {
         "matmul_bf16_nax:matmul",
         "matmul_fp8_gemv:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
+        "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_mma:matmul_nvfp4",
@@ -736,9 +787,12 @@ mod tests {
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "rmsnorm_add_bf16:rmsnorm_add",
+        "rmsnorm_add_matmul_fp8_pair_gemv:rmsnorm_add_matmul_fp8_pair",
+        "rmsnorm_add_matmul_pair_bf16_gemv:rmsnorm_add_matmul_pair",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
         "sigmoid_mul_bf16:sigmoid_mul",
+        "sigmoid_mul_matmul_fp8_gemv:sigmoid_mul_matmul_fp8",
         "silu_glu_bf16:silu_glu",
     ];
 

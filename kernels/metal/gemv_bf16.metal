@@ -505,3 +505,100 @@ INST_PAIR_RT_A8(8, 4)
 INST_PAIR_RT_A8(2, 8)
 INST_PAIR_RT_A8(4, 4)
 INST_PAIR_RT_A8(8, 8)
+
+// ---- RmsNormAddMatmulPair (decode, one row): RmsNormAdd, then `gemv_pair_bf16_rt<2, 8>` / `gemv_pair_bf16_rt_a8<4, 8>` ----
+// One threadgroup (8 simdgroups, 256 threads) per output row of the pair, exactly the rt pair kernels' geometry; every
+// threadgroup first computes the row's RmsNormAdd with the arithmetic of `rmsnorm_add_bf16` (dense_ops.metal: sum =
+// bf16(x + res), 256 threads each summing elements tid, tid + 256, ... with fma, simd_sum, serial sum of the 8 simdgroup
+// partials, r = 1 / precise::sqrt(mean + eps), normed = bf16(sum * r * (w + w_offset))) into threadgroup memory, then runs the
+// rt pair body with its X read from there instead of from the `normed` buffer. Threadgroup 0 stores `normed` and `sum`.
+// bind: 0 w0, 1 w1, 2 x, 3 res, 4 norm w, 5 normed, 6 sum, 7 y0, 8 y1, 9 params; threadgroup(0) = the staged row (K bf16).
+struct NormPairParams {
+    uint k, n0, n1, y0_skip;
+    uint y1_skip, x_skip, res_skip, nw_skip;
+    uint normed_skip, sum_skip, pad0, pad1;
+    float eps, w_offset, pad2, pad3;
+};
+
+inline float np_bf(ushort v) { return as_type<float>((uint)v << 16); }
+inline float np_dot(uint4 w, uint4 x) { return dot8(w, x); }
+inline float np_dot(uint2 w, uint2 x) { return dot4(w, x); }
+
+template <typename V, int UNROLL>
+kernel void rmsnorm_add_gemv_pair_bf16_rt(device const V* W0 [[buffer(0)]],
+                                          device const V* W1 [[buffer(1)]],
+                                          device const ushort* x [[buffer(2)]],
+                                          device const ushort* res [[buffer(3)]],
+                                          device const ushort* nw [[buffer(4)]],
+                                          device ushort* normed [[buffer(5)]],
+                                          device ushort* sum [[buffer(6)]],
+                                          device ushort* Y0 [[buffer(7)]],
+                                          device ushort* Y1 [[buffer(8)]],
+                                          constant NormPairParams& p [[buffer(9)]],
+                                          threadgroup ushort* xs [[threadgroup(0)]],
+                                          uint tg [[threadgroup_position_in_grid]],
+                                          uint tid [[thread_index_in_threadgroup]],
+                                          uint sg [[simdgroup_index_in_threadgroup]],
+                                          uint lane [[thread_index_in_simdgroup]]) {
+    constexpr int SG = 8;
+    threadgroup float npart[8];
+    threadgroup float part[SG];
+    const uint h = p.k;
+    // RmsNormAdd (the `rmsnorm_add_bf16` arithmetic, 256 threads)
+    float ss = 0.0f;
+    for (uint i = tid; i < h; i += 256) {
+        const float s = np_bf(to_bf16(np_bf(x[p.x_skip + i]) + np_bf(res[p.res_skip + i])));
+        ss = fma(s, s, ss);
+    }
+    {
+        const float v = simd_sum(ss);
+        if (lane == 0) npart[sg] = v;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    float tot = 0.0f;
+    for (uint j = 0; j < 8; ++j) tot += npart[j];
+    const float r = 1.0f / precise::sqrt(tot / (float)h + p.eps);
+    const bool store = tg == 0;
+    for (uint i = tid; i < h; i += 256) {
+        const ushort sb = to_bf16(np_bf(x[p.x_skip + i]) + np_bf(res[p.res_skip + i]));
+        const ushort nb = to_bf16(np_bf(sb) * r * (np_bf(nw[p.nw_skip + i]) + p.w_offset));
+        if (store) {
+            sum[p.sum_skip + i] = sb;
+            normed[p.normed_skip + i] = nb;
+        }
+        xs[i] = nb;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // the rt pair body (gemv_pair_bf16_rt / gemv_pair_bf16_rt_a8), X from threadgroup memory
+    threadgroup const V* X = (threadgroup const V*)xs;
+    const bool second = tg >= p.n0;
+    device const V* W = second ? W1 : W0;
+    device ushort* Y = (second ? Y1 : Y0) + (second ? p.y1_skip : p.y0_skip);
+    const uint row = second ? tg - p.n0 : tg;
+    const uint kv = p.k / (sizeof(V) / 2);
+    device const V* wr = W + (ulong)row * kv;
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * UNROLL;
+    const uint nblk = kv / block;
+    uint i = sg * 32 + lane;
+    float acc = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        V xv[UNROLL];
+        V wv[UNROLL];
+        for (int u = 0; u < UNROLL; ++u) xv[u] = X[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) wv[u] = wr[i + lanes * u];
+        for (int u = 0; u < UNROLL; ++u) acc += np_dot(wv[u], xv[u]);
+    }
+    for (i = nblk * block + sg * 32 + lane; i < kv; i += lanes) acc += np_dot(wr[i], X[i]);
+    const float t = tg_sum<SG>(acc, sg, lane, part);
+    if (sg == 0 && lane == 0) Y[row] = to_bf16(t);
+}
+
+template [[host_name("rmsnorm_add_gemv_pair_bf16_rt_u2s8")]] kernel void rmsnorm_add_gemv_pair_bf16_rt<uint4, 2>(
+    device const uint4*, device const uint4*, device const ushort*, device const ushort*, device const ushort*,
+    device ushort*, device ushort*, device ushort*, device ushort*, constant NormPairParams&, threadgroup ushort*, uint,
+    uint, uint, uint);
+template [[host_name("rmsnorm_add_gemv_pair_bf16_rt_a8u4s8")]] kernel void rmsnorm_add_gemv_pair_bf16_rt<uint2, 4>(
+    device const uint2*, device const uint2*, device const ushort*, device const ushort*, device const ushort*,
+    device ushort*, device ushort*, device ushort*, device ushort*, constant NormPairParams&, threadgroup ushort*, uint,
+    uint, uint, uint);

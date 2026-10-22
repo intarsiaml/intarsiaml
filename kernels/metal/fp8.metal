@@ -104,20 +104,24 @@ kernel void fp8_xprep_bf16(device const ushort* x [[buffer(0)]], device const fl
 
 constant constexpr uint FP8_SG = 8;  // simdgroups per threadgroup
 
+// The GEMV is split in two so the fused pair kernels below can feed it staged rows of their own: `fp8_gemv_stage` fills the
+// threadgroup's q(x) rows from memory, `fp8_gemv_body` (after a threadgroup barrier) runs the dot products and writes
+// `out`. Scalars instead of `OpP`: the pair kernels run it once per matrix with that matrix's N / output skip.
+inline void fp8_gemv_stage(device const ushort* x, ulong xskip, uint M, uint K, uint MB, float is, threadgroup ushort* xs,
+                           uint m0, uint tid) {
+    const uint rows = min(MB, M - m0);
+    for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
+        const ushort v = x[xskip + (ulong)m0 * K + i];
+        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+    }
+}
+
 template <int MB, int RS, int UN, typename OutT>
-inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device const float* sc, device OutT* out,
-                          constant OpP& p, threadgroup ushort* xs, uint2 tg, uint tid, uint sg, uint lane) {
-    const uint M = p.a, N = p.b, K = p.c;
+inline void fp8_gemv_body(device const uchar* w, device const float* sc, device OutT* out, uint M, uint N, uint K,
+                          ulong oskip, threadgroup ushort* xs, uint2 tg, uint sg, uint lane) {
     const uint m0 = tg.y * MB;
     const uint rows = min((uint)MB, M - m0);
     const float ws = sc[0], is = sc[1];
-    // stage q(x) of this threadgroup's activation rows
-    for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
-        const ushort v = x[p.s0 + (ulong)m0 * K + i];
-        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
-    }
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-
     const uint nb = (tg.x * FP8_SG + sg) * RS;
     if (nb >= N) return;  // whole simdgroup exits together
     device const uchar* wr[RS];
@@ -160,9 +164,17 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
         if (m >= (int)rows) break;
         for (int r = 0; r < RS; ++r) {
             const float t = simd_sum(acc[r][m]);
-            if (lane == 0 && nb + r < N) store_out(out + p.s1, (ulong)(m0 + m) * N + nb + r, t * scale);
+            if (lane == 0 && nb + r < N) store_out(out + oskip, (ulong)(m0 + m) * N + nb + r, t * scale);
         }
     }
+}
+
+template <int MB, int RS, int UN, typename OutT>
+inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device const float* sc, device OutT* out,
+                          constant OpP& p, threadgroup ushort* xs, uint2 tg, uint tid, uint sg, uint lane) {
+    fp8_gemv_stage(x, p.s0, p.a, p.c, MB, sc[1], xs, tg.y * MB, tid);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    fp8_gemv_body<MB, RS, UN, OutT>(w, sc, out, p.a, p.b, p.c, p.s1, xs, tg, sg, lane);
 }
 
 #define FP8_GEMV(NAME, MB, RS, UN, OUT)                                                                                 \
@@ -178,6 +190,195 @@ FP8_GEMV(fp8_gemv_bf16_m1, 1, 4, 4, ushort)
 FP8_GEMV(fp8_gemv_bf16_m8, 8, 2, 2, ushort)
 FP8_GEMV(fp8_gemv_f32_m1, 1, 4, 4, float)
 FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
+
+// ---- fused decode GEMVs (Op::MatmulFp8Pair, Op::RmsNormAddMatmulFp8Pair) -------------------------------------------------
+// Two projections of one activation in one dispatch. Threadgroups [0, T0) serve matrix 0 (T0 = ceil(N0 / (FP8_SG * RS))), the
+// rest matrix 1; each stages q(x) with ITS OWN input scale and then runs exactly the single-matrix GEMV body on its rows, so
+// every output element is bitwise what `fp8_gemv_*` writes for it (same row grouping, same lane-strided K order, same
+// simd_sum, same final scale). The norm variant first computes RmsNormAdd (the `rmsnorm_add_bf16` arithmetic: 256 threads,
+// thread-strided fma partial sums, simd_sum, serial sum of the 8 simdgroup partials) into the staged rows; threadgroup 0
+// also stores `normed` and `sum`.
+// Kernel arguments: Fp8PairP (a = M, b = N0, c = N1, d = K; skips in binding order of the pair kernel). Entry points:
+//   fp8_pair_gemv_{bf16,f32}_{m1,m8}     x, w0, sc0, w1, sc1, out0, out1, p
+//   fp8_pair_norm_gemv_bf16_m1           x, res, nw, w0, sc0, w1, sc1, normed, sum, out0, out1, p      (M = 1)
+
+struct Fp8PairP {
+    uint m, n0, n1, k;
+    uint s[8];  // pair: x, out0, out1; norm pair: x, res, nw, normed, sum, out0, out1
+    float eps, w_offset;
+    uint pad[2];
+};
+
+template <int MB, int RS, int UN, typename OutT>
+inline void fp8_pair_impl(device const ushort* x, device const uchar* w0, device const float* sc0, device const uchar* w1,
+                          device const float* sc1, device OutT* out0, device OutT* out1, constant Fp8PairP& p,
+                          threadgroup ushort* xs, uint2 tg, uint tid, uint sg, uint lane) {
+    const uint t0 = (p.n0 + FP8_SG * RS - 1) / (FP8_SG * RS);
+    const bool second = tg.x >= t0;
+    device const float* sc = second ? sc1 : sc0;
+    fp8_gemv_stage(x, p.s[0], p.m, p.k, MB, sc[1], xs, tg.y * MB, tid);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    fp8_gemv_body<MB, RS, UN, OutT>(second ? w1 : w0, sc, second ? out1 : out0, p.m, second ? p.n1 : p.n0, p.k,
+                                    second ? p.s[2] : p.s[1], xs, uint2(second ? tg.x - t0 : tg.x, tg.y), sg, lane);
+}
+
+#define FP8_PAIR(NAME, MB, RS, UN, OUT)                                                                                 \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const uchar* w0 [[buffer(1)]],                    \
+                     device const float* sc0 [[buffer(2)]], device const uchar* w1 [[buffer(3)]],                   \
+                     device const float* sc1 [[buffer(4)]], device OUT* out0 [[buffer(5)]],                         \
+                     device OUT* out1 [[buffer(6)]], constant Fp8PairP& p [[buffer(7)]],                            \
+                     threadgroup ushort* xs [[threadgroup(0)]], uint2 tg [[threadgroup_position_in_grid]],          \
+                     uint tid [[thread_index_in_threadgroup]], uint sg [[simdgroup_index_in_threadgroup]],          \
+                     uint lane [[thread_index_in_simdgroup]]) {                                                     \
+        fp8_pair_impl<MB, RS, UN, OUT>(x, w0, sc0, w1, sc1, out0, out1, p, xs, tg, tid, sg, lane);                    \
+    }
+
+FP8_PAIR(fp8_pair_gemv_bf16_m1, 1, 4, 4, ushort)
+FP8_PAIR(fp8_pair_gemv_bf16_m8, 8, 2, 2, ushort)
+FP8_PAIR(fp8_pair_gemv_f32_m1, 1, 4, 4, float)
+FP8_PAIR(fp8_pair_gemv_f32_m8, 8, 2, 2, float)
+
+// threadgroup-wide sum in the order of `tg_sum` (dense_ops.metal): simd_sum, then a serial sum of the partials
+inline float fp8_tg_sum(float v, threadgroup float* part, uint lane, uint sg, uint nsg) {
+    v = simd_sum(v);
+    if (lane == 0) part[sg] = v;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float t = 0.0f;
+    for (uint j = 0; j < nsg; ++j) t += part[j];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    return t;
+}
+
+template <int MB, int RS, int UN>
+inline void fp8_pair_norm_impl(device const ushort* x, device const ushort* res, device const ushort* nw,
+                               device const uchar* w0, device const float* sc0, device const uchar* w1,
+                               device const float* sc1, device ushort* normed, device ushort* sum, device ushort* out0,
+                               device ushort* out1, constant Fp8PairP& p, threadgroup ushort* xs, threadgroup float* part,
+                               uint2 tg, uint tid, uint sg, uint lane) {
+    const uint M = p.m, h = p.k;
+    const uint m0 = tg.y * MB;
+    const uint rows = min((uint)MB, M - m0);
+    const uint t0 = (p.n0 + FP8_SG * RS - 1) / (FP8_SG * RS);
+    const bool second = tg.x >= t0;
+    device const float* sc = second ? sc1 : sc0;
+    const float is = sc[1];
+    const bool store = tg.x == 0;
+    for (uint r = 0; r < rows; ++r) {
+        const ulong base = (ulong)(m0 + r) * h;
+        float ss = 0.0f;
+        for (uint i = tid; i < h; i += FP8_SG * 32) {
+            const float s = bf2f(f2bf(bf2f(x[p.s[0] + base + i]) + bf2f(res[p.s[1] + base + i])));
+            ss = fma(s, s, ss);
+        }
+        const float tot = fp8_tg_sum(ss, part, lane, sg, FP8_SG);
+        const float rr = 1.0f / precise::sqrt(tot / (float)h + p.eps);
+        for (uint i = tid; i < h; i += FP8_SG * 32) {
+            const ushort sb = f2bf(bf2f(x[p.s[0] + base + i]) + bf2f(res[p.s[1] + base + i]));
+            const ushort nb = f2bf(bf2f(sb) * rr * (bf2f(nw[p.s[2] + i]) + p.w_offset));
+            if (store) {
+                sum[p.s[4] + base + i] = sb;
+                normed[p.s[3] + base + i] = nb;
+            }
+            xs[(ulong)r * h + i] = is > 0.0f ? f2bf(fp8_qx(bf2f(nb), is)) : nb;
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    fp8_gemv_body<MB, RS, UN, ushort>(second ? w1 : w0, sc, second ? out1 : out0, M, second ? p.n1 : p.n0, h,
+                                      second ? p.s[6] : p.s[5], xs, uint2(second ? tg.x - t0 : tg.x, tg.y), sg, lane);
+}
+
+#define FP8_PAIR_NORM(NAME, MB, RS, UN)                                                                                 \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const ushort* res [[buffer(1)]],                  \
+                     device const ushort* nw [[buffer(2)]], device const uchar* w0 [[buffer(3)]],                   \
+                     device const float* sc0 [[buffer(4)]], device const uchar* w1 [[buffer(5)]],                   \
+                     device const float* sc1 [[buffer(6)]], device ushort* normed [[buffer(7)]],                    \
+                     device ushort* sum [[buffer(8)]], device ushort* out0 [[buffer(9)]],                           \
+                     device ushort* out1 [[buffer(10)]], constant Fp8PairP& p [[buffer(11)]],                       \
+                     threadgroup ushort* xs [[threadgroup(0)]], uint2 tg [[threadgroup_position_in_grid]],         \
+                     uint tid [[thread_index_in_threadgroup]], uint sg [[simdgroup_index_in_threadgroup]],          \
+                     uint lane [[thread_index_in_simdgroup]]) {                                                     \
+        threadgroup float part[32];                                                                                 \
+        fp8_pair_norm_impl<MB, RS, UN>(x, res, nw, w0, sc0, w1, sc1, normed, sum, out0, out1, p, xs, part, tg, tid, sg,  \
+                                       lane);                                                                       \
+    }
+
+FP8_PAIR_NORM(fp8_pair_norm_gemv_bf16_m1, 1, 4, 4)
+FP8_PAIR_NORM(fp8_pair_norm_gemv_bf16_m8, 8, 2, 2)
+
+// ---- SigmoidMulMatmulFp8: out = fp8 GEMV(bf16(a * sigmoid(g))) -------------------------------------------------------------
+// The product is staged as the bf16 `sigmoid_mul_bf16` stores it (gdn.metal: f2bf(a * 1 / (1 + exp(-g)))) and then quantised
+// like any other activation. Binding: a, g, w, sc, out, p. Fp8PairP: m, n0 = N, k = K, s = skips of a, g, out (bf16 only).
+template <int MB, int RS, int UN>
+inline void fp8_sigmoid_impl(device const ushort* a, device const ushort* g, device const uchar* w,
+                             device const float* sc, device ushort* out, constant Fp8PairP& p, threadgroup ushort* xs,
+                             uint2 tg, uint tid, uint sg, uint lane) {
+    const uint M = p.m, K = p.k;
+    const uint m0 = tg.y * MB;
+    const uint rows = min((uint)MB, M - m0);
+    const float is = sc[1];
+    for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
+        const ulong e = (ulong)m0 * K + i;
+        const float gv = bf2f(g[p.s[1] + e]);
+        const ushort v = f2bf(bf2f(a[p.s[0] + e]) * (1.0f / (1.0f + precise::exp(-gv))));
+        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    fp8_gemv_body<MB, RS, UN, ushort>(w, sc, out, M, p.n0, K, p.s[2], xs, tg, sg, lane);
+}
+
+#define FP8_SIGMOID(NAME, MB, RS, UN)                                                                                   \
+    kernel void NAME(device const ushort* a [[buffer(0)]], device const ushort* g [[buffer(1)]],                    \
+                     device const uchar* w [[buffer(2)]], device const float* sc [[buffer(3)]],                     \
+                     device ushort* out [[buffer(4)]], constant Fp8PairP& p [[buffer(5)]],                          \
+                     threadgroup ushort* xs [[threadgroup(0)]], uint2 tg [[threadgroup_position_in_grid]],          \
+                     uint tid [[thread_index_in_threadgroup]], uint sg [[simdgroup_index_in_threadgroup]],          \
+                     uint lane [[thread_index_in_simdgroup]]) {                                                     \
+        fp8_sigmoid_impl<MB, RS, UN>(a, g, w, sc, out, p, xs, tg, tid, sg, lane);                                       \
+    }
+
+FP8_SIGMOID(fp8_sigmoid_gemv_bf16_m1, 1, 4, 4)
+FP8_SIGMOID(fp8_sigmoid_gemv_bf16_m8, 8, 2, 2)
+
+// ---- GatedRmsnormMatmulFp8 (one output row): out = fp8 GEMV(silu_glu(z, rmsnorm(x, w))) ----------------------------------
+// x, z are [R, D] row blocks of the K = R * D activation (D = 128 per GatedDeltaNet value head). Every threadgroup normalises
+// all R rows exactly as `rmsnorm_bf16` does a row of D <= 256 elements with D threads (thread i owns element i; fma square,
+// simd_sum per 32 elements, serial sum of the D / 32 partials, 1 / precise::sqrt(mean + eps)), rounds the norm to bf16, then
+// applies `silu_glu_bf16` (f2bf(z / (1 + exp(-z)) * normed)) and stages the quantised result. A simdgroup takes rows
+// sg, sg + 8, ...; lane l of chunk j holds element 32 * j + l. Binding: x, z, nw, w, sc, out, p. Fp8PairP: n0 = N, n1 = D, k = K.
+inline void fp8_gated_stage(device const ushort* x, device const ushort* z, device const ushort* nw, float is, constant Fp8PairP& p,
+                            threadgroup ushort* xs, uint sg, uint lane) {
+    const uint D = p.n1, R = p.k / D, nch = D / 32;
+    for (uint r = sg; r < R; r += FP8_SG) {
+        const ulong base = (ulong)r * D;
+        float part[8];  // D <= 256
+        for (uint j = 0; j < nch; ++j) {
+            const float v = bf2f(x[p.s[0] + base + j * 32 + lane]);
+            part[j] = simd_sum(fma(v, v, 0.0f));
+        }
+        float tot = 0.0f;
+        for (uint j = 0; j < nch; ++j) tot += part[j];
+        const float rr = 1.0f / precise::sqrt(tot / (float)D + p.eps);
+        for (uint j = 0; j < nch; ++j) {
+            const uint i = j * 32 + lane;
+            const ushort nb = f2bf(bf2f(x[p.s[0] + base + i]) * rr * (bf2f(nw[p.s[2] + i]) + p.w_offset));
+            const float gv = bf2f(z[p.s[1] + base + i]);
+            const ushort v = f2bf(gv / (1.0f + precise::exp(-gv)) * bf2f(nb));
+            xs[base + i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+        }
+    }
+}
+
+kernel void fp8_gated_norm_gemv_bf16_m1(device const ushort* x [[buffer(0)]], device const ushort* z [[buffer(1)]],
+                                        device const ushort* nw [[buffer(2)]], device const uchar* w [[buffer(3)]],
+                                        device const float* sc [[buffer(4)]], device ushort* out [[buffer(5)]],
+                                        constant Fp8PairP& p [[buffer(6)]], threadgroup ushort* xs [[threadgroup(0)]],
+                                        uint2 tg [[threadgroup_position_in_grid]],
+                                        uint sg [[simdgroup_index_in_threadgroup]],
+                                        uint lane [[thread_index_in_simdgroup]]) {
+    fp8_gated_stage(x, z, nw, sc[1], p, xs, sg, lane);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    fp8_gemv_body<1, 4, 4, ushort>(w, sc, out, 1, p.n0, p.k, p.s[3], xs, tg, sg, lane);
+}
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 
