@@ -1,0 +1,68 @@
+fleetq: #4041 running on spark1: scripts/sp2/prof-job.sh
+07:07:07 == remote.sh STEPS='prof' MemAvailable 46 GB
+07:07:08 bin sp2-base: intarsia 0.0.1; pair syms 1; glu syms 1
+07:07:08 bin sp2-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+07:07:52 prof base 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 1391 ms (3010.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 776.6 ms
+moe_w4a16_kernel<                                                           268.0 ms  34.5 %    160 calls
+gdn_delta_split_kernel<                                                     110.8 ms  14.3 %     90 calls
+reg::gemm_reg_pair_kernel<<unnamed>::reg::Cfg<                               85.4 ms  11.0 %     80 calls
+moe_mma_kernel<                                                              58.9 ms   7.6 %     80 calls
+reg::gemm_reg_kernel<<unnamed>::reg::Cfg<                                    58.3 ms   7.5 %    100 calls
+moe_reduce_kernel<__nv_bfloat16>                                             28.1 ms   3.6 %    120 calls
+flash_kernel<                                                                24.6 ms   3.2 %     30 calls
+rmsnorm_kernel<                                                              22.3 ms   2.9 %    303 calls
+gdn_conv_kernel                                                              21.1 ms   2.7 %     90 calls
+wq::wq_gemm_kernel<                                                          17.2 ms   2.2 %    250 calls
+nvfp4_reg_kernel<                                                            16.4 ms   2.1 %    160 calls
+fp8_actq_kernel                                                              14.7 ms   1.9 %    310 calls
+gated_rmsnorm_kernel<                                                        13.4 ms   1.7 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             5.8 ms   0.7 %    120 calls
+gate_split_kernel                                                             5.7 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.1 ms   0.5 %    120 calls
+sigmoid_mul_kernel                                                            4.1 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.0 ms   0.4 %     80 calls
+rope_pass_kernel                                                              1.9 ms   0.2 %     60 calls
+moe_topk_kernel                                                               1.6 ms   0.2 %    120 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        1.6 ms   0.2 %    120 calls
+moe_group_tiles_kernel                                                        1.2 ms   0.2 %    120 calls
+kv_append_kernel<__nv_bfloat16,                                               0.8 ms   0.1 %     60 calls
+window: 3196 kernels, span 1357.90 ms, busy 776.34 ms, idle 581.57 ms
+gaps < 20 us: 2877 totalling 6.31 ms (mean 2.2 us); >= 20 us: 31 totalling 575.26 ms
+  gap  533547.7 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   12590.1 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   12512.1 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+07:08:41 prof base 55000: finish=length prompt=16355 (cached 0) completion=1 | prefill 3799 ms (4305.3 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 3390.9 ms
+moe_w4a16_kernel<                                                          1196.8 ms  35.3 %    640 calls
+reg::gemm_reg_pair_kernel<<unnamed>::reg::Cfg<                              457.2 ms  13.5 %    320 calls
+gdn_delta_split_kernel<                                                     454.5 ms  13.4 %    240 calls
+flash_kernel<                                                               332.2 ms   9.8 %     80 calls
+reg::gemm_reg_kernel<<unnamed>::reg::Cfg<                                   280.7 ms   8.3 %    400 calls
+moe_reduce_kernel<__nv_bfloat16>                                            141.3 ms   4.2 %    320 calls
+rmsnorm_kernel<                                                              91.7 ms   2.7 %    808 calls
+gdn_conv_kernel                                                              85.9 ms   2.5 %    240 calls
+nvfp4_reg_kernel<                                                            72.9 ms   2.1 %    640 calls
+fp8_actq_kernel                                                              59.9 ms   1.8 %    720 calls
+gated_rmsnorm_kernel<                                                        58.9 ms   1.7 %    240 calls
+gate_split_kernel                                                            27.4 ms   0.8 %     80 calls
+moe_combine_kernel<__nv_bfloat16>                                            27.0 ms   0.8 %    320 calls
+rope_kernel                                                                  21.1 ms   0.6 %    160 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                        18.0 ms   0.5 %    480 calls
+sigmoid_mul_kernel                                                           16.9 ms   0.5 %     80 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128       15.7 ms   0.5 %    320 calls
+rope_pass_kernel                                                              7.8 ms   0.2 %    160 calls
+moe_topk_kernel                                                               6.9 ms   0.2 %    320 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        5.8 ms   0.2 %    280 calls
+moe_group_tiles_kernel                                                        4.7 ms   0.1 %    320 calls
+kv_append_kernel<__nv_bfloat16,                                               3.2 ms   0.1 %    160 calls
+gdn_conv_state_kernel                                                         2.1 ms   0.1 %    240 calls
+fp8_actq_cond_kernel                                                          1.1 ms   0.0 %    320 calls
+window: 7936 kernels, span 3769.79 ms, busy 3390.61 ms, idle 379.18 ms
+gaps < 20 us: 7425 totalling 16.19 ms (mean 2.2 us); >= 20 us: 32 totalling 362.99 ms
+  gap  335203.9 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   12359.4 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    3083.3 us before <unnamed>::fp8_actq_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, const float *, long)
+07:08:42 == remote.sh done
+fleetq: #4041 done (exit 0)
