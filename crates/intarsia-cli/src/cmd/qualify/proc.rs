@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::{Duration, Instant};
 
 /// Result of one captured subprocess.
@@ -101,6 +102,36 @@ fn stdio_files(stem: &Path) -> Result<(File, File, PathBuf, PathBuf)> {
     Ok((fo, fe, out, err))
 }
 
+/// Process group of the subprocess [`run_captured`] is waiting for (0: none), for [`forward_termination`].
+static LIVE_PGID: AtomicI32 = AtomicI32::new(0);
+/// Process group of the model server a [`Server`] owns (0: none).
+static SERVER_PGID: AtomicI32 = AtomicI32::new(0);
+
+/// Make SIGTERM / SIGINT of this process also stop the subprocess [`run_captured`] is waiting for (its own process
+/// group, so a plain kill of the parent would orphan it; `die_with_parent` only exists on Linux). Used by the
+/// long-running `intarsia onboard` and by `intarsia qualify` (so a killed onboard takes the whole chain down).
+#[cfg(unix)]
+pub fn forward_termination() {
+    extern "C" fn handler(sig: libc::c_int) {
+        // SAFETY: kill(2) and _exit(2) are async-signal-safe.
+        unsafe {
+            for pg in [LIVE_PGID.load(Ordering::SeqCst), SERVER_PGID.load(Ordering::SeqCst)] {
+                if pg > 0 {
+                    libc::kill(-pg, libc::SIGTERM);
+                }
+            }
+            libc::_exit(128 + sig);
+        }
+    }
+    // SAFETY: installs a handler that only calls async-signal-safe functions.
+    unsafe {
+        libc::signal(libc::SIGTERM, handler as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGINT, handler as *const () as libc::sighandler_t);
+    }
+}
+#[cfg(not(unix))]
+pub fn forward_termination() {}
+
 /// Run `cmd` to completion. stdout goes to `<stem>.out`, stderr to `<stem>.err`; the child runs in its own process
 /// group and is killed (SIGTERM, then SIGKILL) when `timeout` passes.
 pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<Run> {
@@ -111,6 +142,7 @@ pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<
     let t0 = Instant::now();
     let mut child = cmd.spawn().with_context(|| format!("starting {:?}", cmd.get_program()))?;
     let pid = child.id();
+    LIVE_PGID.store(pid as i32, Ordering::SeqCst);
     let (code, timed_out) = loop {
         if let Some(st) = child.try_wait()? {
             break (st.code(), false);
@@ -128,6 +160,7 @@ pub fn run_captured(mut cmd: Command, stem: &Path, timeout: Duration) -> Result<
         }
         std::thread::sleep(Duration::from_millis(150));
     };
+    LIVE_PGID.store(0, Ordering::SeqCst);
     Ok(Run { code, timed_out, wall_s: t0.elapsed().as_secs_f64(), out, err })
 }
 
@@ -145,6 +178,7 @@ impl Server {
         own_group(&mut cmd);
         die_with_parent(&mut cmd);
         let child = cmd.spawn().with_context(|| format!("starting the server {:?}", cmd.get_program()))?;
+        SERVER_PGID.store(child.id() as i32, Ordering::SeqCst);
         Ok(Server { child, url, err })
     }
 
@@ -173,6 +207,7 @@ impl Server {
     }
 
     fn stop(&mut self) {
+        SERVER_PGID.store(0, Ordering::SeqCst);
         if matches!(self.child.try_wait(), Ok(Some(_))) {
             return;
         }
