@@ -1,0 +1,6 @@
+Oct 21 19:08:45 tatooine kernel: vethce90c7c (unregistering): left allmulticast mode
+Oct 21 19:08:45 tatooine kernel: vethce90c7c (unregistering): left promiscuous mode
+Oct 21 19:08:51 tatooine kernel: veth9a3012d (unregistering): left allmulticast mode
+Oct 21 19:08:51 tatooine kernel: veth9a3012d (unregistering): left promiscuous mode
+Oct 21 19:08:57 tatooine kernel: veth6e48ac6 (unregistering): left allmulticast mode
+Oct 21 19:08:57 tatooine kernel: veth6e48ac6 (unregistering): left promiscuous mode

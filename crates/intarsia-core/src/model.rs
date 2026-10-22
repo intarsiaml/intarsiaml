@@ -63,8 +63,9 @@ pub struct LoadOptions {
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
     /// Tensor parallelism: run the row-local fused decode ops on each rank's shard when the backend can
-    /// (`Backend::fusion_under_tp`). The CLI turns it on by default for CUDA (`INTARSIA_TP_FUSION=0` opts out); the library
-    /// default is off. Measured bitwise to unfused on the 35B tp=2 gates (docs/results/2026-10-21-tp2-cuda-graphs.md).
+    /// (`Backend::fusion_under_tp`). The CLI turns it on by default for CUDA and for HIP at tp=2 (`INTARSIA_TP_FUSION=0` opts
+    /// out, `=1` asks for it anywhere); the library default is off. Measured bitwise to unfused on the 35B tp=2 gates
+    /// (docs/results/2026-10-21-tp2-cuda-graphs.md, docs/results/2026-10-21-h1-tp2-hip.md).
     pub tp_fusion: bool,
 }
 

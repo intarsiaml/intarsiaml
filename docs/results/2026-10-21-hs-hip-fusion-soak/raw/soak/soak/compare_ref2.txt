@@ -1,0 +1,12 @@
+
+== coverage (from the reference run) ==
+cases 28  prompt tokens min/max [127, 4434]
+prompt-token histogram: {'<=192': 4, '193-384': 1, '385-768': 4, '769-1.5k': 6, '1.5k-2.5k': 6, '2.5k-3.5k': 3, '>3.5k': 4}
+reference finish: {'stop (EOS)': 7, 'length': 19, 'stop (stop string armed: stop string or EOS)': 2}
+tags: {'cancel': 2, 'chat': 8, 'chat_greedy': 2, 'chat_sampled': 2, 'eos': 2, 'golden_4k': 2, 'greedy': 21, 'ignore_eos': 2, 'min_tokens': 2, 'raw': 20, 'raw_greedy': 7, 'raw_sampled': 4, 'sampled': 7, 'stop': 3}
+
+== identity vs reference ==
+run   cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+solo  28     28    0         0        28/0        0(0)/2               0          28       0         0            
+report: /home/josef/hs/out/soak/soak/compare_ref2.json
+RESULT: IDENTICAL, 0 mismatches
