@@ -7,11 +7,20 @@
 //! Commands, in order on the stream (every one applies to the remote copy of one sequence, `sid`):
 //! `NewState`, `Forward(flags, ids)`, `Truncate(len)`, `Snapshot(keep)`, `Drop`, plus `Shutdown`. `Forward`'s flags
 //! carry rank 0's per-step decisions the remote rank must follow: [`FWD_GRAPH`], rank 0 replays its decode graph in
-//! this step, so the remote rank replays its own (the two graphs record the same collectives in the same order). Only `Forward` is answered
-//! (`ok`, the remote length, an error message); the others are fire-and-forget, applied in order, and a failure among
-//! them fails the next forward. The primary sends `Forward` before it runs its own pass and reads the answer after it.
+//! this step, so the remote rank replays its own (the two graphs record the same collectives in the same order).
+//! `Forward`, `Truncate` and `Snapshot` are answered, in order: `Forward` with (`ok`, the remote length, an error
+//! message), `Truncate` and `Snapshot` with an acknowledgement (a status, the remote length, a message) that the
+//! primary waits for, so a failure is reported by the request that caused it. An acknowledgement's status says whether
+//! the remote copy is unchanged (`rejected`: no such snapshot, unknown sequence; the group stays usable) or undefined
+//! (`failed`: a device error; the primary aborts its communicator, as for a failed forward). `NewState`, `Drop` and
+//! `Shutdown` are fire-and-forget; a failed `NewState` fails the next answered command. The primary sends `Forward`
+//! before it runs its own pass and reads the answer after it.
 //! A reader thread on the primary watches the answers: an error aborts the primary's communicator so the primary is not
-//! left waiting in a collective the remote rank never joins. After any failure the group is unusable (ADR-0006).
+//! left waiting in a collective the remote rank never joins. After any failure the group is unusable (ADR-0006), except
+//! after a rejected `Truncate` / `Snapshot`, which changed nothing on either rank.
+//!
+//! The wire protocol is versioned ([`PROTOCOL_VERSION`], exchanged in [`handshake`]): two ranks built with different
+//! versions refuse to pair, with an error naming both. Version 1 (unversioned) answered only `Forward`.
 //!
 //! The protocol carries no model description: both processes load the same model with the same options (the launcher
 //! passes the same flags to both), and [`handshake`] checks a fingerprint of them and agrees the KV capacity.
@@ -35,7 +44,22 @@ const T_SNAPSHOT: u8 = 4;
 const T_DROP: u8 = 5;
 const T_SHUTDOWN: u8 = 6;
 const T_REPLY: u8 = 0x80;
+/// Answer to `Truncate` / `Snapshot` (protocol 2): `[status u8][remote len u64][message]`.
+const T_ACK: u8 = 0x81;
 const T_HELLO: u8 = 0x40;
+/// Wire protocol version. 1: only `Forward` answered. 2: `Truncate` and `Snapshot` answered with [`T_ACK`].
+/// Bump it on any change to the commands, their bodies or their answers.
+pub const PROTOCOL_VERSION: u32 = 2;
+/// Marks the version at the start of the handshake fingerprint (protocol 1 sent the bare fingerprint).
+const PROTO_TAG: &str = "tp-protocol=";
+/// [`T_ACK`] statuses.
+const ACK_OK: u8 = 0;
+/// Refused, remote copy unchanged: the request is not supported (no snapshot at that length).
+const ACK_REJECTED_UNSUPPORTED: u8 = 1;
+/// Refused, remote copy unchanged: the request is invalid (beyond the remote length, unknown sequence).
+const ACK_REJECTED_INVALID: u8 = 2;
+/// Failed part-way (device error): the remote copy is undefined and the group unusable.
+const ACK_FAILED: u8 = 3;
 
 /// `Forward` flag: a single-token step that rank 0 runs as a captured decode graph (`model/graph_step.rs`).
 pub const FWD_GRAPH: u64 = 1;
@@ -78,12 +102,18 @@ fn u64_at(b: &[u8], i: usize) -> Result<u64> {
         .ok_or_else(|| Error::backend("tensor-parallel connection: short frame"))
 }
 
-/// The first exchange on a fresh connection, both sides: each sends its fingerprint (model, options, rank, world) and
-/// KV capacity in tokens and reads the other's. Fails on any fingerprint difference; returns the smaller capacity
-/// (every rank must hold the same number of tokens).
-pub fn handshake(stream: &mut TcpStream, fingerprint: &str, kv_cap: usize) -> Result<usize> {
+/// The first exchange on a fresh connection, both sides: each sends its protocol version, fingerprint (model, options,
+/// rank, world) and KV capacity in tokens and reads the other's. Fails on any version or fingerprint difference;
+/// returns the smaller capacity (every rank must hold the same number of tokens).
+pub fn handshake(stream: &mut (impl Read + Write), fingerprint: &str, kv_cap: usize) -> Result<usize> {
+    handshake_as(stream, fingerprint, kv_cap, PROTOCOL_VERSION)
+}
+
+fn handshake_as(stream: &mut (impl Read + Write), fingerprint: &str, kv_cap: usize, version: u32) -> Result<usize> {
     let mut body = (kv_cap as u64).to_le_bytes().to_vec();
-    body.extend_from_slice(fingerprint.as_bytes());
+    // the version rides in front of the fingerprint text, so a rank of protocol 1 (which compares the whole text)
+    // refuses a rank of protocol 2 with a mismatch that shows both
+    body.extend_from_slice(format!("{PROTO_TAG}{version};{fingerprint}").as_bytes());
     write_frame(stream, T_HELLO, &body)?;
     stream.flush().map_err(io)?;
     let (tag, b) = read_frame(stream)?;
@@ -91,7 +121,18 @@ pub fn handshake(stream: &mut TcpStream, fingerprint: &str, kv_cap: usize) -> Re
         return Err(Error::backend(format!("tensor-parallel handshake: unexpected message {tag}")));
     }
     let theirs = u64_at(&b, 0)? as usize;
-    let fp = String::from_utf8_lossy(&b[8..]);
+    let text = String::from_utf8_lossy(&b[8..]);
+    let (their_version, fp) = match text.strip_prefix(PROTO_TAG).and_then(|t| t.split_once(';')) {
+        Some((v, fp)) => (v.parse::<u32>().ok(), fp),
+        None => (Some(1), &*text),
+    };
+    if their_version != Some(version) {
+        let theirs = their_version.map_or_else(|| "an unreadable version".to_string(), |v| format!("version {v}"));
+        return Err(Error::invalid(format!(
+            "tensor-parallel ranks speak different protocols: this rank speaks version {version}, the other rank {theirs}. \
+             Run the same intarsia build on both ranks"
+        )));
+    }
     if fp != fingerprint {
         return Err(Error::invalid(format!(
             "tensor-parallel ranks were started differently:\n  this rank:  {fingerprint}\n  other rank: {fp}"
@@ -101,7 +142,10 @@ pub fn handshake(stream: &mut TcpStream, fingerprint: &str, kv_cap: usize) -> Re
 }
 
 struct Reply {
-    ok: bool,
+    /// `Forward` answer (`T_REPLY`) or `Truncate` / `Snapshot` acknowledgement (`T_ACK`).
+    ack: bool,
+    /// `Forward`: 1 ok / 0 failed. Acknowledgement: an `ACK_*` status.
+    status: u8,
     len: usize,
     msg: String,
 }
@@ -127,14 +171,16 @@ impl RemotePeer {
             .name("tp-remote-reader".into())
             .spawn(move || loop {
                 match read_frame(&mut rd) {
-                    Ok((T_REPLY, b)) if b.len() >= 9 => {
-                        let ok = b[0] == 1;
+                    Ok((tag @ (T_REPLY | T_ACK), b)) if b.len() >= 9 => {
+                        let ack = tag == T_ACK;
+                        let status = b[0];
                         let len = u64::from_le_bytes(b[1..9].try_into().unwrap()) as usize;
                         let msg = String::from_utf8_lossy(&b[9..]).into_owned();
-                        if !ok {
+                        // a rejected acknowledgement changed nothing on the remote rank: the group stays usable
+                        if if ack { status >= ACK_FAILED } else { status != 1 } {
                             comm.abort();
                         }
-                        if tx.send(Reply { ok, len, msg }).is_err() {
+                        if tx.send(Reply { ack, status, len, msg }).is_err() {
                             return;
                         }
                     }
@@ -151,11 +197,30 @@ impl RemotePeer {
 
     fn send(&self, tag: u8, body: &[u8]) -> Result<()> {
         if self.dead.load(Ordering::SeqCst) {
-            return Err(Error::backend("the remote tensor-parallel rank is gone"));
+            return Err(Error::backend("the remote tensor-parallel rank is gone (or the group failed earlier)"));
         }
         let mut w = self.w.lock().unwrap();
         write_frame(&mut *w, tag, body)?;
         w.flush().map_err(io)
+    }
+
+    /// The next answer from the remote rank, in the order it was sent. A rank that does not answer is hung: the peer is
+    /// marked unusable so nothing queues behind it and waits again.
+    fn next_reply(&self, rx: &Receiver<Reply>) -> Result<Reply> {
+        match rx.recv_timeout(reply_timeout()) {
+            Ok(r) => Ok(r),
+            Err(RecvTimeoutError::Timeout) => {
+                self.dead.store(true, Ordering::SeqCst);
+                Err(Error::backend(format!("the remote tensor-parallel rank did not answer within {:?}", reply_timeout())))
+            }
+            Err(RecvTimeoutError::Disconnected) => Err(Error::backend("the remote tensor-parallel rank is gone")),
+        }
+    }
+
+    /// The group is unusable after a failed pass on this rank (the communicator is aborted, the remote rank may be
+    /// stuck in a collective): later commands fail at once instead of waiting for answers that will not come.
+    pub(crate) fn mark_unusable(&self) {
+        self.dead.store(true, Ordering::SeqCst);
     }
 
     fn sid_body(sid: u64, extra: &[u64]) -> Vec<u8> {
@@ -207,31 +272,55 @@ impl RemoteSeq {
     /// The remote rank's answer to the forward sent by [`RemoteSeq::start_forward`].
     pub fn finish(&mut self) -> Result<()> {
         let rx = self.peer.replies.lock().unwrap();
-        let r = match rx.recv_timeout(reply_timeout()) {
-            Ok(r) => r,
-            Err(RecvTimeoutError::Timeout) => {
-                return Err(Error::backend(format!("the remote tensor-parallel rank did not answer within {:?}", reply_timeout())))
-            }
-            Err(RecvTimeoutError::Disconnected) => return Err(Error::backend("the remote tensor-parallel rank is gone")),
-        };
+        let r = self.peer.next_reply(&rx)?;
+        if r.ack {
+            self.peer.mark_unusable();
+            return Err(Error::backend("tensor-parallel connection: out of step (an acknowledgement answered a forward)"));
+        }
         self.len = r.len;
-        if r.ok {
+        if r.status == 1 {
             Ok(())
         } else {
             Err(Error::backend(format!("remote tensor-parallel rank: {}", r.msg)))
         }
     }
 
-    /// Roll the remote copy back to `len` tokens (after the primary rolled back successfully).
+    /// Send `tag` and wait for the remote rank's acknowledgement. Returns the remote length; a refusal is an error that
+    /// is not a backend error (the remote copy is unchanged, the group usable), a failure is a backend error.
+    fn command(&self, tag: u8, body: &[u8], what: &str) -> Result<usize> {
+        // hold the answer queue across send and wait: the answer to this command is the next one
+        let rx = self.peer.replies.lock().unwrap();
+        self.peer.send(tag, body)?;
+        let r = self.peer.next_reply(&rx)?;
+        if !r.ack {
+            self.peer.mark_unusable();
+            return Err(Error::backend(format!("tensor-parallel connection: out of step (a forward answer acknowledged {what})")));
+        }
+        let msg = format!("remote tensor-parallel rank, {what}: {}", r.msg);
+        match r.status {
+            ACK_OK => Ok(r.len),
+            ACK_REJECTED_UNSUPPORTED => Err(Error::Unsupported(msg)),
+            ACK_REJECTED_INVALID => Err(Error::invalid(msg)),
+            _ => Err(Error::backend(msg)),
+        }
+    }
+
+    /// See [`RemotePeer::mark_unusable`].
+    pub(crate) fn mark_unusable(&self) {
+        self.peer.mark_unusable();
+    }
+
+    /// Roll the remote copy back to `len` tokens and wait for it to confirm. Called before the primary rolls back, once
+    /// the primary has checked it can: on an error, nothing has changed on either rank (unless the error is a backend
+    /// error, which fails the group).
     pub fn truncate(&mut self, len: usize) -> Result<()> {
-        self.peer.send(T_TRUNCATE, &RemotePeer::sid_body(self.sid, &[len as u64]))?;
-        self.len = len;
+        self.len = self.command(T_TRUNCATE, &RemotePeer::sid_body(self.sid, &[len as u64]), &format!("truncate to {len}"))?;
         Ok(())
     }
 
-    /// Snapshot the remote copy's recurrent state (after the primary did).
+    /// Snapshot the remote copy's recurrent state and wait for it to confirm.
     pub fn snapshot(&self, keep: usize) -> Result<()> {
-        self.peer.send(T_SNAPSHOT, &RemotePeer::sid_body(self.sid, &[keep as u64]))
+        self.command(T_SNAPSHOT, &RemotePeer::sid_body(self.sid, &[keep as u64]), "snapshot").map(|_| ())
     }
 }
 
@@ -241,9 +330,20 @@ impl Drop for RemoteSeq {
     }
 }
 
+/// The acknowledgement status for a failed command: an error raised by a check before anything changed is a refusal
+/// (the copy is as it was), anything else (a device error) leaves the copy undefined.
+fn ack_status(e: &Error) -> u8 {
+    match e {
+        Error::Unsupported(_) => ACK_REJECTED_UNSUPPORTED,
+        Error::InvalidCall(_) | Error::BadRequest(_) => ACK_REJECTED_INVALID,
+        _ => ACK_FAILED,
+    }
+}
+
 /// The remote rank's loop: apply the primary's commands to `model` (this process's shard) until `Shutdown` or the
 /// connection closes. A forward that fails resets that sequence (as [`Model::forward`] does) and is answered with the
-/// error; a failed fire-and-forget command is reported by the next forward of any sequence. Returns how many forward
+/// error; `Truncate` and `Snapshot` are acknowledged (see the module docs); a failed `NewState` is reported by the next
+/// answered command of any sequence. Returns how many forward
 /// passes ran.
 pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
     stream.set_nodelay(true).map_err(io)?;
@@ -257,6 +357,13 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
         b.extend_from_slice(&(len as u64).to_le_bytes());
         b.extend_from_slice(msg.as_bytes());
         write_frame(w, T_REPLY, &b)?;
+        w.flush().map_err(io)
+    };
+    let ack = |w: &mut BufWriter<TcpStream>, status: u8, len: usize, msg: &str| -> Result<()> {
+        let mut b = vec![status];
+        b.extend_from_slice(&(len as u64).to_le_bytes());
+        b.extend_from_slice(msg.as_bytes());
+        write_frame(w, T_ACK, &b)?;
         w.flush().map_err(io)
     };
     loop {
@@ -293,19 +400,27 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
             }
             T_TRUNCATE => {
                 let len = u64_at(&b, 1)? as usize;
-                if let Some(st) = seqs.get_mut(&sid) {
-                    if let Err(e) = st.truncate(len, &*model.backend) {
-                        pending = pending.or(Some(format!("truncate to {len}: {e}")));
-                    }
-                }
+                let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
+                    (Some(msg), _) => (ACK_FAILED, msg),
+                    (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
+                    (None, Some(st)) => match st.truncate(len, &*model.backend) {
+                        Ok(()) => (ACK_OK, String::new()),
+                        Err(e) => (ack_status(&e), format!("truncate to {len}: {e}")),
+                    },
+                };
+                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
             }
             T_SNAPSHOT => {
                 let keep = u64_at(&b, 1)? as usize;
-                if let Some(st) = seqs.get_mut(&sid) {
-                    if let Err(e) = st.snapshot(&*model.backend, keep) {
-                        pending = pending.or(Some(format!("snapshot: {e}")));
-                    }
-                }
+                let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
+                    (Some(msg), _) => (ACK_FAILED, msg),
+                    (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
+                    (None, Some(st)) => match st.snapshot(&*model.backend, keep) {
+                        Ok(()) => (ACK_OK, String::new()),
+                        Err(e) => (ack_status(&e), format!("snapshot: {e}")),
+                    },
+                };
+                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
             }
             T_DROP => {
                 seqs.remove(&sid);
