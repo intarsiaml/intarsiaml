@@ -66,6 +66,16 @@ pub struct QualifyArgs {
     /// error alone, at the activation-precision class. Default: `<model>-formatref...` found by name; none is made.
     #[arg(long)]
     pub format_golden: Option<PathBuf>,
+    /// f64 CPU-oracle golden for the `acc-oracle` stage: `intarsia accuracy --backend cpu --golden <short golden> --mode
+    /// prefill --write-self-golden FILE` (f32 accumulation, NVFP4 / MoE / GDN in f64, the same weights). Default:
+    /// `oracle/<model>-cpu-oracle...` in the golden directories, else made with the cpu backend for a MoE / hybrid /
+    /// quantized model (about 10 min for the 35B on an M5 Max; docs/results/2026-10-22-fx1-oracle-gate.md).
+    #[arg(long)]
+    pub oracle_golden: Option<PathBuf>,
+    /// `acc-oracle`: mean 21-way KL(oracle || engine) on scored prefill rows must stay at or below this (default: the
+    /// floor measured in docs/results/2026-10-22-fx1-oracle-gate.md, [`ORACLE_MAX_KL`]).
+    #[arg(long)]
+    pub oracle_max_kl: Option<f64>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -142,7 +152,7 @@ pub struct QualifyArgs {
     /// Pass --no-unim to localeval (no unanimis record for the A/B runs).
     #[arg(long)]
     pub no_unim: bool,
-    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, acc-format, bench, acc-long, acc-4k,
+    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-format, acc-short, acc-oracle, bench, acc-long, acc-4k,
     /// envelope, bench-long, ab, tp.
     #[arg(long)]
     pub skip: Vec<String>,
@@ -262,6 +272,13 @@ const STAGES: &[StageDef] = &[
         section: "quick",
         needs: &["plan"],
         run: st_acc_short,
+    },
+    StageDef {
+        id: "acc-oracle",
+        title: "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+        section: "quick",
+        needs: &["plan"],
+        run: st_acc_oracle,
     },
     StageDef {
         id: "bench",
@@ -425,7 +442,7 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
                 && c.state
                     .stages
                     .iter()
-                    .any(|s| s.section == "quick" && matches!(s.verdict, Verdict::Fail | Verdict::Error))
+                    .any(|s| s.section == "quick" && (s.verdict.is_failing() || s.verdict == Verdict::Error))
             {
                 c.say("--fail-fast: a quick gate failed, the in-depth section is not started");
                 break;
@@ -881,7 +898,7 @@ impl Ctx {
         if !complete || relevant.iter().any(|s| s.verdict == Verdict::Error) {
             return 2;
         }
-        if relevant.iter().any(|s| s.verdict == Verdict::Fail) {
+        if relevant.iter().any(|s| s.verdict.is_failing()) {
             return 1;
         }
         0
@@ -1517,8 +1534,28 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
         Golden::Have(g, h) => (g, h),
         Golden::None(why) => return Ok(Out::skip(why)),
     };
-    let a = c.accuracy("acc-short", &g, "both", false, 1, &[])?;
+    // A model whose golden is a reference server's (MoE / hybrid / quantized: no fp32 HF golden can be made) is gated
+    // against the backend's recorded baseline and noise envelope; without one that applies it cannot PASS: the static
+    // 4-bit floor alone sits 2x above where every build reads and lets a 1 % scale bug through (fx1,
+    // docs/results/2026-10-22-fx1-oracle-gate.md). Other models keep the floor-only gate.
+    let needs = c.needs_baseline(&g);
+    let (extra, note) = match (c.recorded_baseline(&g, false), needs) {
+        (Ok((args, note)), true) => (args, note),
+        (Ok((_, note)), false) => (vec![], format!("{note}; not applied (the class floor of a full-precision golden gates this model)")),
+        (Err(why), _) => (vec![], why),
+    };
+    let a = c.accuracy("acc-short", &g, "both", false, 1, &extra)?;
     let mut o = c.acc_out(a, &g, &how, "short");
+    if needs && extra.is_empty() && o.verdict == Verdict::Pass {
+        o.verdict = Verdict::MissingBaseline;
+        o.reason = format!(
+            "MISSING-BASELINE: {note}. {} has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so the floor alone does not gate it (it read: {}); record one with the envelope stage and commit it to golden/baselines/",
+            c.name,
+            o.reason
+        );
+    } else {
+        o.notes.push(note);
+    }
     if o.verdict == Verdict::Fail {
         if let Some(f) = c.state.get("acc-format").filter(|f| f.verdict == Verdict::Pass) {
             o.verdict = Verdict::Warn;
@@ -1573,6 +1610,104 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
     c.facts.insert("golden_format_how".into(), json!(how.clone()));
     let a = c.accuracy("acc-format", &g, "both", false, 1, &[])?;
     Ok(c.acc_out(a, &g, &how, "format"))
+}
+
+/// `acc-oracle`'s floor: mean 21-way KL(oracle || engine) over the scored prefill rows of the short prompt set. Measured,
+/// not chosen: docs/results/2026-10-22-fx1-oracle-gate.md section 3 (clean builds on every backend against the f64 CPU
+/// oracle, and the 1 % row-parallel scale mutants that must fail).
+pub const ORACLE_MAX_KL: f64 = 1.0e-2;
+
+impl Ctx {
+    /// The f64 CPU-oracle golden: `--oracle-golden`, `oracle/<model>-cpu-oracle...` in the golden directories (the repo
+    /// commits them), one made earlier in this report directory, or, for a model with no full-precision golden, one made
+    /// here with the cpu backend from the short golden's prompts.
+    fn oracle_golden(&mut self) -> Result<Golden> {
+        let key = "golden_oracle";
+        if let Some(p) = self.fact_str(key) {
+            if Path::new(&p).exists() {
+                return Ok(Golden::Have(PathBuf::from(p), self.fact_str(&format!("{key}_how")).unwrap_or_default()));
+            }
+        }
+        if let Some(g) = self.a.oracle_golden.clone() {
+            if !g.exists() {
+                return Ok(Golden::None(format!("--oracle-golden {} does not exist", g.display())));
+            }
+            return Ok(self.have_golden(key, g, "given with --oracle-golden".into()));
+        }
+        let dirs = default_golden_dirs(&self.a);
+        if let Some(g) = facts::find_oracle_golden(&self.name, &dirs) {
+            return Ok(self.have_golden(key, g, "found by model name".into()));
+        }
+        let made = self.path(&format!("goldens/{}-cpu-oracle-short.safetensors", self.name));
+        if made.exists() {
+            return Ok(self.have_golden(key, made, "made earlier in this report directory".into()));
+        }
+        if !["moe", "hybrid", "quantized"].iter().any(|k| self.facts.get(*k) == Some(&json!(true))) {
+            return Ok(Golden::None("not a MoE / hybrid / quantized model: its full-precision golden is the reference, no oracle needed".into()));
+        }
+        let (short, _) = match self.golden(false)? {
+            Golden::Have(g, h) => (g, h),
+            Golden::None(why) => return Ok(Golden::None(format!("no oracle golden, and none can be made without the short golden's prompts: {why}"))),
+        };
+        let mut args = vec!["accuracy".to_string(), "--model".into(), self.a.model.display().to_string(), "--backend".into(), "cpu".into()];
+        if let Some(r) = &self.a.recipe {
+            args.extend(["--recipe".into(), r.display().to_string()]);
+        }
+        for d in &self.a.recipe_dir {
+            args.extend(["--recipe-dir".into(), d.display().to_string()]);
+        }
+        if let Some(m) = self.a.mem_budget {
+            args.extend(["--mem-budget".into(), m.to_string()]);
+        }
+        args.extend([
+            "--golden".into(),
+            short.display().to_string(),
+            "--mode".into(),
+            "prefill".into(),
+            "--max-seq".into(),
+            self.acc_max_seq(false).to_string(),
+            "--prefill-chunk".into(),
+            "256".into(),
+            "--write-self-golden".into(),
+            made.display().to_string(),
+            "--allow-unstamped".into(),
+            "--allow-dirty".into(),
+        ]);
+        self.say(&format!("making the CPU oracle golden from {} (cpu backend, prefill rows, top-64)", short.display()));
+        let r = self.exec("make-oracle", args)?;
+        if !made.exists() {
+            return Ok(Golden::None(format!("making the CPU oracle golden failed ({}): {}", r.describe(), r.tail(3))));
+        }
+        Ok(self.have_golden(key, made, format!("made here with the cpu backend from {} in {:.0}s", short.display(), r.wall_s)))
+    }
+
+    /// The `accuracy` flags of the oracle gate: the floor on scored rows, no top-1 floor (near-tie rows flip between
+    /// any two correct implementations), no reference-noise term (the oracle is deterministic).
+    fn oracle_flags(&self) -> (Vec<String>, f64) {
+        let kl = self.a.oracle_max_kl.unwrap_or(ORACLE_MAX_KL);
+        (vec!["--gate-class".into(), "bf16".into(), "--max-mean-kl".into(), format!("{kl:e}"), "--min-top1".into(), "0".into(), "--no-ref-noise".into()], kl)
+    }
+}
+
+/// The engine against the f64 CPU oracle on the short prompt set, prefill rows (fx1, review finding 1). The oracle runs
+/// the same weights and model definition (recipe, scale interpretation, GDN) in f32 / f64, so it does not catch a recipe
+/// error, but it is deterministic and close: a kernel, scale or TP regression shows at the resolution of the measured
+/// clean spread instead of behind a reference server's run-to-run noise.
+fn st_acc_oracle(c: &mut Ctx) -> Result<Out> {
+    let (g, how) = match c.oracle_golden()? {
+        Golden::Have(g, h) => (g, h),
+        Golden::None(why) => return Ok(Out::skip(why)),
+    };
+    if facts::golden_meta(&g, "self_golden").as_deref() != Some("1")
+        || !facts::golden_meta(&g, "self_meta").is_some_and(|m| m.contains("\"backend\":\"cpu\""))
+    {
+        return Ok(Out::error(format!("{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)", g.display())));
+    }
+    let (extra, kl) = c.oracle_flags();
+    let a = c.accuracy("acc-oracle", &g, "prefill", false, 1, &extra)?;
+    let mut o = c.acc_out(a, &g, &how, "oracle");
+    o.notes.push(format!("floor: mean KL21(oracle || engine) on scored prefill rows <= {kl:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated"));
+    Ok(o)
 }
 
 // ---- serving + bench ----
@@ -1819,7 +1954,7 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     // 0.1 nats at 4% of the positions and 90% of the misses sit there: bf16 noise, docs/results/2026-10-15-metal-golden-4k.md),
     // so there is no absolute top-1 floor here. The stage gates KL (class floor), tail mass, non-finite rows, prefix reuse, and,
     // when the backend has a recorded baseline for this golden, "no worse than the baseline beyond its noise envelope".
-    let (mut extra, note) = c.acc_4k_baseline(&g);
+    let (mut extra, note) = c.recorded_baseline(&g, true).unwrap_or_else(|why| (vec![], why));
     extra.splice(0..0, ["--min-top1".to_string(), "0".to_string()]);
     let a = c.accuracy("acc-4k", &g, "all", true, 1, &extra)?;
     let mut o = c.acc_out(a, &g, &how, "4k");
@@ -1828,10 +1963,11 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
 }
 
 impl Ctx {
-    /// `accuracy` flags that gate the 4k golden against the backend's recorded baseline (and noise envelope), and a note
-    /// that says which baseline, or why there is none. A baseline that does not apply to this run (other chunk, decode
-    /// window or golden file) is not used, so the stage never fails on top-1 for want of a matching one.
-    fn acc_4k_baseline(&self, golden: &Path) -> (Vec<String>, String) {
+    /// `accuracy` flags that gate `golden` against the backend's recorded baseline (and noise envelope), and a note that
+    /// says which baseline; `Err` says why there is none. A baseline that does not apply to this run (other chunk, decode
+    /// window or golden file) is not used: `acc-4k` then gates without it, `acc-short` of a model that needs one reports
+    /// MISSING-BASELINE. `long`: the decode window of the long / 4k goldens.
+    fn recorded_baseline(&self, golden: &Path, long: bool) -> std::result::Result<(Vec<String>, String), String> {
         let mut dirs: Vec<PathBuf> = vec![];
         if let Some(d) = golden.parent() {
             dirs.push(d.join("baselines"));
@@ -1844,9 +1980,9 @@ impl Ctx {
         }
         let backend = self.a.backend.as_str();
         let Some((bp, ep)) = facts::find_baseline(golden, backend, &dirs) else {
-            return (vec![], format!("no baseline for backend {backend} next to the 4k golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"));
+            return Err(format!("no baseline for backend {backend} next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"));
         };
-        let none = |why: String| (vec![], format!("baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated", bp.display()));
+        let none = |why: String| Err(format!("baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated", bp.display()));
         let Ok(b) = read_json(&bp) else { return none("unreadable".into()) };
         let chunk = self.state.get("plan").and_then(|s| s.metrics["prefill_chunk"].as_u64());
         if b["run"]["backend"].as_str() != Some(backend) {
@@ -1855,7 +1991,7 @@ impl Ctx {
         if chunk.is_none() || b["run"]["prefill_chunk"].as_u64() != chunk {
             return none(format!("recorded at prefill chunk {}, this run uses {}", b["run"]["prefill_chunk"], chunk.map_or("?".into(), |c| c.to_string())));
         }
-        if b["run"]["decode_positions"].as_u64() != Some(self.decode_positions(true) as u64) {
+        if b["run"]["decode_positions"].as_u64() != Some(self.decode_positions(long) as u64) {
             return none("other decode window".into());
         }
         if b["golden"]["size"].as_u64() != std::fs::metadata(golden).ok().map(|m| m.len()) {
@@ -1874,7 +2010,15 @@ impl Ctx {
             args.extend(["--pre-change".into(), head.to_string()]);
         }
         args.extend(self.stamp_flags());
-        (args, format!("gated against the recorded baseline {} (commit {}){}", bp.display(), if head.is_empty() { "unstamped" } else { head }, if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" }))
+        Ok((args, format!("gated against the recorded baseline {} (commit {}){}", bp.display(), if head.is_empty() { "unstamped" } else { head }, if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" })))
+    }
+
+    /// The model has no full-precision golden (MoE / hybrid / quantized, the classes `make_golden` refuses) and `golden`
+    /// is not one either (it came from a reference server, `dtype = server`, or names no float32 dtype): its static
+    /// floor is loose, so its accuracy gate needs a recorded baseline.
+    fn needs_baseline(&self, golden: &Path) -> bool {
+        let class = ["moe", "hybrid", "quantized"].iter().any(|k| self.facts.get(*k) == Some(&json!(true)));
+        class && facts::golden_meta(golden, "dtype").as_deref() != Some("float32")
     }
 }
 
@@ -2159,8 +2303,24 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
         }
         Golden::None(_) => None,
     };
+    // and against the f64 CPU oracle: the gate that sees a 1 % partial-scale bug on one rank (fx1)
+    let oracle = match c.oracle_golden()? {
+        Golden::Have(g, _) => {
+            let (extra, _) = c.oracle_flags();
+            Some(c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?)
+        }
+        Golden::None(_) => None,
+    };
     let mut metrics = o.metrics.clone();
     metrics["tp_plan"] = tp_plan;
+    if let Some(a) = &oracle {
+        metrics["oracle"] = json!({"gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
+        match a.verdict {
+            Verdict::Fail => o = Out::fail(format!("tp={tp} against the CPU oracle: {}", a.reason)).art(c.rel(&b.path)),
+            Verdict::Error => o = Out::error(format!("tp={tp} against the CPU oracle: {}", a.reason)),
+            _ => o.reason = format!("{}; oracle {}", o.reason, acc_summary(&a.modes)),
+        }
+    }
     if let Some((g, how, a)) = acc {
         metrics["accuracy"] = json!({"golden": g.display().to_string(), "golden_how": how, "gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
         match a.verdict {
@@ -2224,7 +2384,7 @@ mod tests {
             }
         }
         // the spec's order of the quick section
-        assert_eq!(&ids[..8], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "bench"]);
+        assert_eq!(&ids[..9], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "acc-oracle", "bench"]);
     }
 
     #[test]
