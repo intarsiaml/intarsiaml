@@ -11,7 +11,7 @@ Requirement 5. Follows [M5](2026-10-21-m5-reproducibility.md) (deploy.sh, bench 
 | HIP (tatooine, pinned ROCm 7.2.4 container) | IDENTICAL (`72688024194830b8...`, two host directories, two cargo volumes, plus the deploy tree) | smoke pass, 54 kernels / 239 cases | done |
 | CUDA (spark1 and spark2, GB10, nvcc 13.0.88, rustc 1.90.0) | IDENTICAL on both hosts (`fcd8053febb15f14...`), and the same hash on spark1 and spark2 | smoke pass on both (54 kernels, 292 cases), device code identical to base (SASS, 22/22 objects) | done |
 | Cross-host replay (spark1 bundle on spark2) | every stamp row matches including the binary hash; Qwen3-8B greedy 128 token ids byte-identical | M5 bundle too (sha, lock, toolchain, GPU, driver match; 149-case kernels output equal) | done |
-| CI | green on the PR (`cargo check` linux and macOS, `cargo test` linux, `reproducible build`) | | done |
+| CI | green on the PR head `c400a05e` (`cargo check` linux and macOS, `cargo test` linux with the test no longer skipped, `reproducible build`) | | done |
 
 The HIP two-directory result is weaker than it looks: both trees are mounted at `/work` and the cargo target at `/target`
 inside the container, so hipcc never sees the host directory. It shows the container build is deterministic, not that hipcc
@@ -96,7 +96,10 @@ scheduler counts it finished (`engine/batch.rs` `finish` calls `report_done`, th
 test read the metrics one count early on a slow runner. The test now polls for `failed + finished >= 4` (bounded, 5 s) before
 asserting. It passes 40 of 40 runs under 8 busy loops on endor (`raw/ci-bad_decode-x40-under-load.out`); the pre-fix failure
 rate under the same load was not measured, so that run shows no regression rather than a reproduction. The fix is test-only.
-CI on the PR is green. The CUDA/HIP GPU tests are skipped there as before (no GPU on the runner).
+`.github/workflows/ci.yml` skipped this test by name (`-- --skip bad_decode_row_fails_only_its_request`, added by M5 as a stopgap); that skip is
+removed, so the test runs in CI again (green on `c400a05e`: `cargo check` linux and macOS, `cargo test` linux, `reproducible build`). The
+CUDA/HIP GPU tests are skipped there as before (no GPU on the runner). A second CI failure after merging main
+(`every_env_var_in_the_code_has_a_row_in_docs_tuning_md`, a drift check added on main) was my new `INTARSIA_CUDA_NO_STAGE`: it now has a row in `docs/tuning.md`.
 
 ## Fleet use and downtime
 
