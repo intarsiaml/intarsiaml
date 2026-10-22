@@ -1,7 +1,7 @@
-    Finished `release` profile [optimized] target(s) in 21.35s
--rwxrwxr-x 2 nvidia nvidia 52519152 Oct 22 01:34 /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia
-    Finished `release` profile [optimized] target(s) in 21.57s
--rwxrwxr-x 2 nvidia nvidia 55898504 Oct 22 01:35 /home/nvidia/intarsia-decfuse/s1-dev/target/acc/release/intarsia
-    Finished `release` profile [optimized] target(s) in 9.10s
+    Finished `release` profile [optimized] target(s) in 20.58s
+-rwxrwxr-x 2 nvidia nvidia 52519152 Oct 22 02:08 /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia
+    Finished `release` profile [optimized] target(s) in 22.13s
+-rwxrwxr-x 2 nvidia nvidia 55898504 Oct 22 02:08 /home/nvidia/intarsia-decfuse/s1-dev/target/acc/release/intarsia
+    Finished `release` profile [optimized] target(s) in 15.95s
 s1-base: pair=0 nvfp4reg=0 intarsia 0.0.1
 s1-dev: pair=1 nvfp4reg=1 intarsia 0.0.1

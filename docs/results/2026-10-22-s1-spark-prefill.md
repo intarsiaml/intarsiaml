@@ -6,7 +6,24 @@ The FP8-E4M3 activation path (`INTARSIA_CUDA_FP8_GEMM_LT=1`, lane F2) is untouch
 
 ## 1. Headline
 
-<!-- HEADLINE -->
+- **Default path (dev), bitwise: prefill +2.1 / +2.3 / +2.1 % at 1k / 4k / 16k** (`intarsia bench speed --at-most`, spark2
+  with vLLM down, 3 interleaved rounds; every dev round above every base round), **decode +0.0..+0.4 %**. Three kernels:
+  the fp8 projection *pair* at prefill (one activation quantiser, one grid), and register-dequant NVFP4 GEMM / fused
+  GLU for the shared expert. Greedy ids (8B and 35B, short and 4k), the 35B KL21 digits (short 5.430e-3 / long 4.576e-2,
+  top-1 97.92 / 94.17 %) and chat_reuse_4k are identical to base; the 8B plan is byte-identical.
+- **Opt-in `INTARSIA_CUDA_FP8_CUBLAS=1`, also bitwise: +3.2 / +5.1 / +5.0 %.** cuBLAS's bf16 GEMM on exactly expanded e4m3
+  operands reproduces `matmul_fp8_gemm_reg`'s bytes at every 35B shape on sm_121 / CUDA 13.0, so the projections can run
+  on nvjet. It keeps a bf16 copy of each fp8 weight: **+2.6 GB outside the memory plan**, which is why it is not default.
+  Making it default (or planning that memory) is a decision for the user.
+- **Against vLLM** (localeval speed): the clean vLLM reference is round 7's localeval of spark1's vLLM in its own slot
+  (2026-10-21 10:56, `2026-10-21-cuda-round7/raw/08-localeval-vllm.out`): 4k 6353 / marginal 6862, 16k 6275. Q1's
+  5278 / 5967 ran concurrently with the intarsia speed run on the same box (start 18:32:25 vs 18:32:41) and is not a
+  usable reference. Tonight, localeval on spark2: **4k dev 5739 (-9.7 % vs vLLM), cub 5836 (-8.1 %)**, base 5002;
+  **16k dev 5432 (-13.4 %), cub 5549 (-11.6 %)**; marginal 4k dev 6376 / cub 6612 vs 6862. The gap closes by about a
+  third at 4k (base was -21 % on this harness), not fully. vLLM was not re-measured tonight (both vLLMs were down for
+  #3828 by the time the window closed); a same-night same-box vLLM run is the open check.
+- **The biggest sink is untouched:** routed experts are 40 % of prefill GPU time and stream all ~18 GB of expert weights
+  per 2048-token chunk (131 ms per chunk vs a 66 ms bandwidth floor; the 93-token tail chunk alone costs 51 ms). See 6.
 
 ## 2. Where a 4k prefill goes (step 1)
 
@@ -81,16 +98,72 @@ accumulation order, a rounding or the KV / logits path. CUDA backend and `kernel
    5-10 % on the shared box. Cfg0 stays; Cfg1 / Cfg4 / Cfg7 stay selectable for re-measurement. cuBLAS's 64.7 ms says the
    remaining 20 ms are in the tile schedule (it uses TMA + wgmma-style nvjet kernels), not in the dequantisation.
 
-<!-- SPEED -->
+## 4. Speed
+
+`raw/ab-spark2/summary.txt` (job #3822, spark2, vLLM down, `scripts/s1/wALL.sh` -> `scripts/cuda-prefill4/wB-ab.sh`,
+fresh `serve` per arm, gen 128, 2 reps, rounds base,dev,cub / cub,dev,base / base,dev,cub). Median of the 3 rounds
+[min-max], tok/s:
+
+| size | metric | base f9087322 | dev (default) | cub (opt-in) | dev/base | cub/base |
+|---|---|---|---|---|---|---|
+| 1k | prefill | 4564 [4551-4576] | 4660 [4610-4678] | 4710 [4673-4781] | **+2.1 %** | +3.2 % |
+| 1k | decode | 83.7 [83.6-83.8] | 84.0 [83.1-84.1] | 83.8 [83.5-84.1] | +0.4 % | +0.1 % |
+| 4k | prefill | 5855 [5851-5864] | 5989 [5957-5996] | 6155 [6071-6158] | **+2.3 %** | +5.1 % |
+| 4k | decode | 81.2 [81.1-81.2] | 81.5 [80.5-81.5] | 81.3 [81.0-81.6] | +0.3 % | +0.1 % |
+| 16k | prefill | 5545 [5541-5549] | 5663 [5655-5678] | 5820 [5790-5843] | **+2.1 %** | +5.0 % |
+| 16k | decode | 74.0 [73.8-74.0] | 74.0 [73.3-74.2] | 74.2 [74.0-74.6] | +0.0 % | +0.2 % |
+
+localeval speed in the same window (`raw/w-window-2.out`; one `serve` per arm, 3 reps; results under
+`/opt/code/deepeval/results/20261022-02*-adhoc-intarsia-s1-*`):
+
+| prompt | base prefill / marginal | dev | cub | vLLM, spark1, round 7 (2026-10-21 10:56) |
+|---|---|---|---|---|
+| ~4.1k | 5002 / 6100 | 5739 / 6376 | 5836 / 6612 | 6353 / 6862 |
+| ~16.7k | 5339 / 5460 | 5432 / 5339 | 5549 / 5461 | 6275 / 6252 |
+| decode at 4k / 16k | 82.6 / 74.5 | 81.3 / 73.5 | 80.8 / 73.3 | 76.6 / 73.6 |
+
+localeval's base 1k row (3202 tok/s, TTFT 0.31 s) is the first request after `serve` came up and is not used; its 4k
+decode spread (82.6 vs 81.3) is within the per-arm noise of single localeval runs, and the interleaved bench above
+(decode +0.0..+0.4 %) is the decode gate.
+
 
 ## 5. Gates
 
-<!-- GATES -->
+| gate | result | where |
+|---|---|---|
+| new-kernel GPU tests (bitwise vs the replaced calls), spark1 | `fp8_pair_gemm_reg_is_bitwise_two_calls` (equal / different / weight-only / mixed input scales, bf16 + f32, the 35B shapes, N tails, small grids), `nvfp4_gemm_reg_is_bitwise_the_gemm`, `nvfp4_glu_gemm_is_bitwise_the_chain`, `fp8_gemm_cublas_is_bitwise_gemm_reg` (56 cases incl. all e4m3 codes), every `gemm_reg` schedule bitwise: all PASS | `raw/dev-spark1/tests/` |
+| lib pins (selection by M, kernel list, ABI header) | 16 passed (also with `INTARSIA_CUDA_FP8_CUBLAS=1` / `_FP8_GEMM_LT=1`) | `raw/dev-spark1/tests/test-lib.log` |
+| `intarsia kernels test --backend cuda` | 58 kernels, 1069 cases, **0 FAIL**. The 4 new kernels ran 0 cases: the sweep's matmul cases stop below M = 256 (changing the shared case list would change the Metal / HIP sweeps); their coverage is the bitwise tests above against admitted kernels | `raw/gates-spark2/ktest/dev.log` |
+| greedy ids 35B short (1497 + 256) and 4k (4201 + 64), 8B short and 4k | dev and cub **identical** to base, all 8 | `raw/gates-spark2/ids/` |
+| 8B plan (`plan show --json`) | byte-identical (8630 B) | same |
+| 35B plan | dev selects `matmul_fp8_pair_gemm_reg`, `matmul_nvfp4_gemm_reg`, `matmul_nvfp4_glu_gemm`; cub `matmul_fp8_gemm_cublas`; scratch unchanged (84.0 MB) | `ids/plan35-*.txt` |
+| 35B accuracy KL21, short golden | base / dev / cub 5.430e-3 all rows (4.666e-3 scored), top-1 97.92 %: identical lines, PASS | `raw/gates-spark2/acc/` |
+| 35B accuracy KL21, long golden | 4.576e-2 all rows (1.486e-2 scored), top-1 94.17 %: identical lines, PASS | same |
+| prefix reuse incl. chat_reuse_4k | continue / restore / aligned 32/32 ok, logits bit-identical, gate PASS, all arms | `acc/reuse-*.log` |
+| Metal / HIP | untouched: the diff is `crates/intarsia-backend-cuda`, `kernels/cuda`, scripts and docs; no shared core change | `git diff --stat` |
+
+Accuracy, ids and profiles ran in exclusive slot #3618 on spark2 with vLLM up (idle).
 
 ## 6. Next lever: MoE weight streaming
 
-<!-- NEXT -->
+Per 2048-token chunk the routed experts read every expert's NVFP4 weights and block scales once (~18 GB over 40 layers,
+66 ms at ~273 GB/s), whatever the token count: the 93-token tail chunk costs 51 ms of experts. Measured 131 ms per full
+chunk is 2.0 x that floor, and it is the bulk of the remaining distance to vLLM, which batches up to 8192 tokens per step.
+Two directions, both bigger than one night:
+1. **Fewer weight passes per token**: a larger prefill chunk (opt-in `--prefill-chunk 4096` already gives +20 % in round
+   7, but changes bits against chunk 2048, so making it default is a user decision), or a schedule that keeps more tokens
+   per expert per pass.
+2. **Closer to the floor per pass**: `moe_w4a16` reaches about half the bandwidth floor; its rounds (5, 6) document the
+   per-block prologue / reduce overheads that remain.
+Smaller, bitwise: making the cuBLAS projection path default with its 2.6 GB accounted in the memory plan (+3 % more over
+dev at 4k), and adding `matmul_fp8_pair_gemm_reg`'s shared quantiser to the cuBLAS path.
 
 ## 7. Fleet log
 
-<!-- FLEET -->
+| job | host | what | vLLM |
+|---|---|---|---|
+| #3502 | spark1, 12 GB | dev build, kernel GPU tests, schedule sweep, cuBLAS probes | up |
+| #3618 | spark2 exclusive | build base / dev; gates (ids, plans, profiles, accuracy, reuse, kernels test). Its window step refused itself (the agent-harness check matched this job's own label); fixed | up |
+| #3822 | spark2 exclusive, takes down retro | A/B + localeval window | **down 02:08:49-02:26:22, 17.5 min** (`raw/downtime.log`); agent-harness checked first (none) |
+
+Unqueued: Mac `cargo check` / `cargo test --lib` of the CUDA crate (no GPU), as allowed for this lane.
