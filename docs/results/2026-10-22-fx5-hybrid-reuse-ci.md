@@ -12,7 +12,7 @@ They go through `LocalEngine::generate`, hence `Seq::new` and `restorable_len`, 
 therefore logits, not the path: a restore that is slightly wrong but keeps the argmax passes.
 
 **Added:** `hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind` in `hybrid.rs`. It records the logits row of every generated
-token (`GenRequest::trace_logits`) and requires warm == cold within 1e-4 (cpu, f32; observed 0 for all cases except the continue case)
+token (`GenRequest::trace_logits`) and requires warm == cold within 1e-4 (cpu, f32)
 for: identical prompt (restore at the end-of-prompt snapshot, cached 21); diverging prompts at splits 5, 8, 12, 16, 18, 21 (expected cached
 0, 8, 8, 16, 16, 21: the largest snapshot at or below the split); and a continued conversation (prompt + reply + new tokens, cached =
 whole history). Each split starts from a flushed engine, so the snapshots are 8, 16, 21 every time. It asserts the reused length, the tokens and the logits.
