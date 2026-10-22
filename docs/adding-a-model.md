@@ -61,6 +61,45 @@ failed or stopped early, `3` the recipe needs a human.
 Lease the box first (`fleetq run --host <box> --mem <GB> -- intarsia onboard ...`, or an exclusive lease for numbers
 you will compare).
 
+**Measured timings (Qwen3.6-35B-A3B-NVFP4, a recipe that already exists; 2026-10-22, lane `on`,
+`docs/results/2026-10-22-on-onboard.md`).** Targets: quick numbers within 2 h and the in-depth tier within 4 h of the
+weights being on the box.
+
+| Box | Goldens | Quick numbers published | Whole pass | Notes |
+|---|---|---|---|---|
+| spark1 (CUDA, GB10), `--mem-budget 38`, vLLM up | made from the vLLM server in 29 s (short + long + 4k) | 7 min 24 s after start (smoke 1 m 33 s with the weights cold) | **15 min 24 s** | all 14 stages PASS, 3 skipped (`acc-format`, `ab`, `tp`) |
+| tatooine (HIP, one R9700), `--mem-budget 29` | same goldens, copied | 1 min 24 s | **2 min 47 s** | `acc-4k` FAILs the prefix-reuse gate (a real engine finding, not an onboarding fault) |
+| tatooine, cached canonical goldens (no 4k) | cached | 1 min 23 s | 3 min 59 s | PASS |
+
+Build (cached dependencies) 44 s on spark1, 6 s for the CLI crate on tatooine. The wall clock of a real onboarding is
+dominated by what the pipeline cannot do for you: the box queue (here 4.5 h on the Sparks), a recipe that needs a
+human (`TODO(recipe-new)`), and a new kernel. A model whose recipe exists is far inside both targets.
+
+**Gotchas found by running it on CUDA and HIP.**
+
+* **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
+  and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
+  that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,
+  29 s for the 35B) and give the directory with `-- --golden-dir DIR`. The files are found by model name. **With `--golden-from URL` and no golden the accuracy stages are SKIPPED and the run can still report PASS** (a SKIP
+  is not a failure): read the Skipped list of `quick.md` before trusting a PASS.
+* **The 4k golden is never made by `qualify`.** Without one, `acc-4k` is SKIPPED and the in-depth tier is shorter than a
+  complete one (the 4k golden is where the prefix-reuse gate bites at a 2048 or 4096 chunk). `make-goldens.sh` makes it.
+* **A vLLM server may listen on one address only.** spark1's vLLM listens on its Tailscale address, not `localhost`: use
+  `--golden-from http://<that address>:8000/v1` when onboard runs on the box.
+* **A cached golden whose file name matches a tracked `golden/ref_noise/*.json` sidecar must be the same file.** On
+  tatooine `/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` is an older file with another hash, and
+  `acc-short` ERRORs with `ref_noise was measured on golden hash ...`. Use the golden of the repository (`golden/`) or a
+  freshly made one with another name. The report used to show only a warning line above that error; it now starts at
+  the `Error:` line.
+* **Build the binary from a clean, committed tree.** The baseline written by `envelope` records the tree it came from, and a
+  modified tree makes `envelope` ERROR (`the baseline was recorded from a modified tree`).
+* **The long golden may hold a prompt longer than the fixed accuracy context.** The 35B long golden has a 12k-token prompt
+  and the old fixed `--max-seq 8192` failed `acc-long`. `qualify` now sizes the context from the golden's longest prompt.
+* **A box shared through fleetq is the slow part.** Take one lease that covers the golden generation, the build and the
+  onboard run (`fleetq acquire ... --wait`, then `FLEETQ_JOB=<id>` on each command), so a failed step does not send you to the
+  back of the line. Launch the waiting `fleetq` client detached (`start_new_session`); a client that dies is dropped from the
+  queue after three minutes.
+
 ## 1. `intarsia recipe new`
 
 ```sh
@@ -225,7 +264,8 @@ number of prompts and generated tokens, not with the model.
 | quick | `plan` | `plan show --admit`: load the model, kernel per op, admission | loads, every op admitted | 50 s (cold load) |
 | quick | `kernels` | `kernels test --model` on the model's shapes; a load error lists the missing kernels | all admitted | 41 s (skipped on cpu) |
 | quick | `gate` | `accuracy --quick`: 5 sanity prompts, perplexity, non-finite rows | all ok | 9 s |
-| quick | `acc-short` | `accuracy --golden` (prefill + teacher-forced decode) with the class thresholds | floor gate | 8 s |
+| quick | `acc-short` | `accuracy --golden` (prefill + teacher-forced decode) with the class thresholds; a MoE / hybrid / quantized model with a reference-server golden is also gated against the backend's committed baseline + envelope (`golden/baselines/`) and reads **MISSING-BASELINE** (exit 1) without one that applies | floor gate (+ baseline gate) | 8 s |
+| quick | `acc-oracle` | `accuracy --golden oracle/<name>-cpu-oracle...` (prefill): the engine against the f64 CPU oracle, for a MoE / hybrid / quantized model (no oracle: MISSING-BASELINE with the `accuracy --backend cpu ... --write-self-golden` command that makes it, to commit under `golden/oracle/`), then a drift check against the recorded same-backend dump `golden/baselines/<oracle>.<backend>[-tpN].selfgolden.safetensors` | oracle KL on scored rows <= `--oracle-max-kl` (2e-2) and drift mean KL21 <= 1e-4; **MISSING-BASELINE** without the dump. Re-record the dumps when a change is meant to move the numerics (docs/results/2026-10-22-fx1-oracle-gate.md) | ~20-80 s (35B) |
 | quick | `bench` | `serve` + `bench speed` at 128 / 1024 / 4096, byte floor | every size measured | 80 s |
 | | | **quick section** | | **3 min 8 s** |
 | full | `acc-long` | `accuracy --mode all` on the long golden: prefill, decode, prefix reuse | floor gate + reuse gate | 29 s |
@@ -233,7 +273,7 @@ number of prompts and generated tokens, not with the model.
 | full | `envelope` | noise envelope (`chunk`, plus `attn-simt` on GPUs) and the baseline; then a self-check gate | the pair gates its own build | 24 s |
 | full | `bench-long` | `serve` + `bench speed` at 1024 / 4096 / 16384 | every size measured | 83 s |
 | full | `ab` | `localeval speed` against `--reference` and against our server | both ran | skipped (no `--reference`) |
-| full | `tp` | with `--tp N`: tp plan, `bench speed`, accuracy against the short golden | accuracy gate | 71 s (tp 2) |
+| full | `tp` | with `--tp N`: tp plan, `bench speed`, accuracy against the short golden and, when there is one, the CPU oracle | accuracy gate + oracle floor | 71 s (tp 2) |
 | | | **in-depth section** | | **3 min 26 s** (6 min 34 s in total) |
 
 The numbers it produced for that run: decode 37.7 / 37.1 / 35.9 tok/s at 128 / 1024 / 4096 tokens (91 / 90 / 87 %

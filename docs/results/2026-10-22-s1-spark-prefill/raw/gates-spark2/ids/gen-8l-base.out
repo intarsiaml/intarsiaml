@@ -1,0 +1,3 @@
+`pattern = ["attn", "ffn", "gdn"]` and define `gdn` blocks for the hybrid layers.
+
+The plan compiler translates this into an **op graph** (a DAG of ops), then selects the best kernel for each op based on the host's tuning DB. The graph is

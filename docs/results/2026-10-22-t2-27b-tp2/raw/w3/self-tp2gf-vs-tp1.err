@@ -1,0 +1,14 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /work/t2-out/acc-tp1.safetensors (10 prompts, 1441 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head d3f89b7 code-tree 56ce302b67e2 clean | model amd/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+WARNING: ref_noise names no golden hash, so it is matched by file name and position count only (qwen3.8-27b-mxfp4-hfquark-top20.safetensors)
+reference noise [self-golden metadata]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF W4A4 bf16 vs HF W4A4 f32') and 10; backfilled by the reference-noise gate lane (decision 2026-10-21 12:39 item 2, docs/decisions/LOG.md); estimator kl21 (golden_kl.py, the gate's 21-way KL; 0.176 there against 0.180 from the gate for the same pair); factor 1 (default)
+change vs base: every prompt may be 3 x its own reference noise (default); 0 prompt(s) have one in the record, the others use the mean noise
+this build: head d3f89b7 code-tree 56ce302b67e2 clean
+WARNING: this run differs from the self-golden: device: self-golden AMD Radeon Graphics, this run AMD Radeon Graphics x2 (tp=2, hip-p2p comm)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+Error: the self-golden was recorded from head d3f89b7 code-tree 56ce302b67e2 clean which is unverifiable: pass --pre-change SHA and/or --revlist FILE (git rev-list HEAD, written where the history is)

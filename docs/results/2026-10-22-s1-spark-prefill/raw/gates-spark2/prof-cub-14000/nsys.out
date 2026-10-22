@@ -1,0 +1,6 @@
+layer
+Collecting data...
+Generating '/tmp/nsys-report-22c2.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [14%                         ] nsys.nsys-rep[1/1] [12%                         ] nsys.nsys-rep[1/1] [11%                         ] nsys.nsys-rep[1/1] [10%                         ] nsys.nsys-rep[1/1] [==19%                       ] nsys.nsys-rep[1/1] [====28%                     ] nsys.nsys-rep[1/1] [=======37%                  ] nsys.nsys-rep[1/1] [=========46%                ] nsys.nsys-rep[1/1] [============55%             ] nsys.nsys-rep[1/1] [===============65%          ] nsys.nsys-rep[1/1] [=================74%        ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/s1G/prof-cub-14000/nsys.nsys-rep

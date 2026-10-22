@@ -1,0 +1,85 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:802:58
+    |
+802 |             let maxrel = fa.iter().zip(&fb).map(|(x, y)| ((x - y).abs() / x.abs().max(1e-3))).fold(0f32, f32::max);
+    |                                                          ^                                 ^
+    |
+help: remove these parentheses
+    |
+802 -             let maxrel = fa.iter().zip(&fb).map(|(x, y)| ((x - y).abs() / x.abs().max(1e-3))).fold(0f32, f32::max);
+802 +             let maxrel = fa.iter().zip(&fb).map(|(x, y)| (x - y).abs() / x.abs().max(1e-3)).fold(0f32, f32::max);
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 4 warnings (run `cargo fix --test "quantmoe"` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 1 test
+test bench_wq_prefill_shapes ... M=4096 shared gate/up     matmul_nvfp4_gemm          176.0 us   48.8 TFLOPS
+M=4096 shared down        matmul_nvfp4_gemm          193.0 us   44.5 TFLOPS
+M=4096 nvfp4 per-chunk total matmul_nvfp4_gemm        21798.3 us
+M=4096 shared gate/up     matmul_nvfp4_gemm_reg      131.1 us   65.5 TFLOPS
+M=4096 shared down        matmul_nvfp4_gemm_reg      134.2 us   64.0 TFLOPS
+M=4096 nvfp4 per-chunk total matmul_nvfp4_gemm_reg    15852.1 us
+M=4096 gdn qkv+z pair     two calls    3078.6 us  pair    2917.3 us  saved per chunk   4839.8 us
+M=4096 attn k+v pair      two calls     487.9 us  pair     413.1 us  saved per chunk    748.1 us
+M=4096 shared gate+up+glu   chain     365.6 us  fused     260.3 us  saved per chunk   4211.6 us
+M=2048 shared gate/up     matmul_nvfp4_gemm           89.5 us   48.0 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm           96.7 us   44.4 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        11027.5 us
+M=2048 shared gate/up     matmul_nvfp4_gemm_reg       88.2 us   48.7 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm_reg       69.5 us   61.8 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     9836.6 us
+M=2048 gdn qkv+z pair     two calls    1547.2 us  pair    1480.2 us  saved per chunk   2008.6 us
+M=2048 attn k+v pair      two calls     238.2 us  pair     180.5 us  saved per chunk    577.0 us
+M=2048 shared gate+up+glu   chain     187.5 us  fused     135.8 us  saved per chunk   2068.0 us
+M=1024 shared gate/up     matmul_nvfp4_gemm           61.6 us   34.9 TFLOPS
+M=1024 shared down        matmul_nvfp4_gemm           53.6 us   40.0 TFLOPS
+M=1024 nvfp4 per-chunk total matmul_nvfp4_gemm         7073.8 us
+M=1024 shared gate/up     matmul_nvfp4_gemm_reg       43.7 us   49.2 TFLOPS
+M=1024 shared down        matmul_nvfp4_gemm_reg       38.7 us   55.5 TFLOPS
+M=1024 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     5041.1 us
+M=1024 gdn qkv+z pair     two calls     772.8 us  pair     748.0 us  saved per chunk    742.9 us
+M=1024 attn k+v pair      two calls     103.0 us  pair      98.7 us  saved per chunk     43.2 us
+M=1024 shared gate+up+glu   chain     129.6 us  fused      89.9 us  saved per chunk   1585.6 us
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 5.78s
+

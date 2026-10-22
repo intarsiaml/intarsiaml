@@ -1,0 +1,38 @@
+## acc-tp1.out
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 91.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.799e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.798e-1, reported only] | tail mass (all rows) ours 0.0273 vs ref 0.0210, excess +0.0063 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 1.799e-1 PASS | KL / ref noise = 0.913 on all rows (the factor at which the noise term passes)
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.397e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.742e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 3.397e-1 FAIL | KL / ref noise = 1.392 on all rows (the factor at which the noise term passes)
+wrote self-golden /work/t2-out/acc-tp1.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by head d3f89b7 code-tree 56ce302b67e2 clean)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+## acc-tp2gf.out
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 91.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.799e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.798e-1, reported only] | tail mass (all rows) ours 0.0273 vs ref 0.0210, excess +0.0063 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 1.799e-1 PASS | KL / ref noise = 0.913 on all rows (the factor at which the noise term passes)
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.397e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.742e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 3.397e-1 FAIL | KL / ref noise = 1.392 on all rows (the factor at which the noise term passes)
+wrote self-golden /work/t2-out/acc-tp2gf.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by head d3f89b7 code-tree 56ce302b67e2 clean)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+## acc-tp2g.out
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 91.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.799e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.798e-1, reported only] | tail mass (all rows) ours 0.0273 vs ref 0.0210, excess +0.0063 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 1.799e-1 PASS | KL / ref noise = 0.913 on all rows (the factor at which the noise term passes)
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.397e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.742e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 3.397e-1 FAIL | KL / ref noise = 1.392 on all rows (the factor at which the noise term passes)
+wrote self-golden /work/t2-out/acc-tp2g.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by head d3f89b7 code-tree 56ce302b67e2 clean)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+## self-tp2gf-vs-tp1.out
+## self-tp2gf-vs-tp2g.out

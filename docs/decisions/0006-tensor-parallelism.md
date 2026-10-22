@@ -7,6 +7,11 @@
 > TP are a backend capability (`Backend::fusion_under_tp`), opt-in with `INTARSIA_TP_FUSION=1`; the GatedDeltaNet
 > out-projection fold stays off under TP (it would swallow the all-reduce).
 
+> **Update (2026-10-21, lane H1, `docs/results/2026-10-21-h1-tp2-hip.md`):** HIP's `P2pComm` is capturable (`capture_safe` true), so HIP tp=2
+> decode runs as a hipGraph on both in-process ranks by default, bitwise to eager. `HipBackend::fusion_under_tp` is true (opt-in
+> `INTARSIA_TP_FUSION=1`). The HIP tp=2 short-set KL against tp=1 (1.65x vLLM's run-to-run) is reduction order: the P2P sum equals the
+> host f32 sum bitwise, and tp=1 kernel variants move the set by as much.
+
 > **Update (2026-10-21, docs-accuracy pass, see `docs/decisions/LOG.md`):** C15: item 2 of "Accuracy gate" (the self-golden against tp=1) is NOT a TP gate. Its follow-up paragraph (2026-10-14, `docs/results/2026-10-14-tp2-budget.md`, `docs/accuracy.md` "TP self-golden budget") stands: the fp32 floor and the f32 Mac sharding test are the TP gates.
 
 Status: Accepted (Phase 2b, 2026-10-13)

@@ -1,0 +1,4 @@
+    Checking intarsia-server v0.0.1 (/opt/code/wt-fx12/crates/intarsia-server)
+    Checking intarsia-models v0.0.1 (/opt/code/wt-fx12/crates/intarsia-models)
+    Checking intarsia-cli v0.0.1 (/opt/code/wt-fx12/crates/intarsia-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 33.61s

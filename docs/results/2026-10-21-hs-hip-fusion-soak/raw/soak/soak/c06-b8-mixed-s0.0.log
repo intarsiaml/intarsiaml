@@ -1,0 +1,31 @@
+concurrent: 28 cases -> http://127.0.0.1:8090, B=8, stream=mixed
+token ids: requested (http://127.0.0.1:8090)
+  [  1/28] cb000 N stop 2 0.1s
+  [  2/28] cb006 S length 128 0.8s
+  [  3/28] cb003 N length 16 1.0s
+  [  4/28] cb010 S stop 14 1.2s
+  [  5/28] cb016 S length 32 1.5s
+  [  6/28] cb002 N stop 95 2.2s
+  [  7/28] cb004 N length 96 5.0s
+  [  8/28] cb001 N length 96 5.8s
+  [  9/28] cb028 S length 48 6.5s
+  [ 10/28] cb036 S length 96 7.8s
+  [ 11/28] cb045 N length 64 8.3s
+  [ 12/28] cb064 N length 32 8.4s
+  [ 13/28] cb076 S length 16 8.4s
+  [ 14/28] cb078 S stop 40 7.9s
+  [ 15/28] cb083 S length 16 7.1s
+  [ 16/28] cb088 N length 16 7.2s
+  [ 17/28] cb092 S stop 3 6.6s
+  [ 18/28] cb098 N stop 61 6.0s
+  [ 19/28] cb099 N stop 67 5.8s
+  [ 20/28] cb110 S length 48 6.4s
+  [ 21/28] cb119 S length 128 7.2s
+  [ 22/28] cb123 N length 48 7.3s
+  [ 23/28] cb136 S stop 36 5.7s
+  [ 24/28] cb150 N length 16 5.0s
+  [ 25/28] cb153 S cancelled 32 5.0s
+  [ 26/28] cb170 S length 96 4.5s
+  [ 27/28] cb200 N length 64 4.6s
+  [ 28/28] cb201 N stop 6 5.1s
+wrote /home/josef/hs/out/soak/soak/c06-b8-mixed-s0.0.jsonl: 28 records, 0 errors, wall 21.1s, peak client in-flight 8

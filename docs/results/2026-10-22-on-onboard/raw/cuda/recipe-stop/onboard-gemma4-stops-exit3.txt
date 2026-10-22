@@ -1,0 +1,78 @@
+fleetq: #3918 running on spark1: ssh spark1 'cd ~/intarsia-decfuse/on && d=$(ls -d ~/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4/snapshots/* | head -1); rm -rf ~/onboard-runs/gemma-stop; /usr/bin/time -f "wall=%es" target/acc/release/intarsia onboard --model $d --backend cuda --out ~/onboard-runs/gemma-stop > ~/onboard-runs/gemma-stop.log 2>&1; echo "onboard exit=$?"; head -c 1500 ~/onboard-runs/gemma-stop/quick.md; echo; grep -E "ONBOARD|recipe:|wall=" ~/onboard-runs/gemma-stop.log | cut -c1-200; ls ~/onboard-runs/gemma-stop'
+onboard exit=3
+# Qualification quick report: Gemma-4-26B-A4B-NVFP4 on cuda
+
+> **Onboard verdict: ERROR.** recipe: ERROR (10 item(s) in /home/nvidia/onboard-runs/gemma-stop/recipe.toml need a human before the run can go on:);
+
+_Quick section, generated unix 1792655891, intarsia 0.0.1 build `head=716b4e4 code-tree=79c4400f0040 dirty=no`._
+
+## Headline
+
+**Verdict: PASS** (0 stages: 0 pass, 0 fail, 0 error, 0 skipped)
+
+| | |
+|---|---|
+| Model | Gemma-4-26B-A4B-NVFP4 (`/home/nvidia/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4/snapshots/a19cfe00be84568a6867111c9a68c9c44fdcffe6`) |
+| Backend / device | cuda / not recorded |
+| Decode | not measured |
+| Prefill | not measured |
+| Wall time | quick 0s |
+
+### Failures
+
+None.
+
+### Skipped
+
+None.
+
+## Stages
+
+| # | Stage | Section | Verdict | Wall | Result |
+|---|---|---|---|---|---|
+
+### Notes
+
+None.
+
+## Speed
+
+No speed numbers.
+
+## Accuracy
+
+No golden comparison ran (see Skipped).
+
+## Plan and recipe
+
+
+## Provenance
+
+| Stage | Build stamp | Host | Started (unix) | Command |
+|---|---|---|---|---|
+
+Model fingerprint: `-`.
+
+
+## Artifacts
+
+- `state.json` (stage records; `--resume` reads it)
+
+## Stage timeline
+
+All times UTC. The qualify stages ran inside the `quick` / `in-depth` stages. A stage that was killed and resumed shows its last attempt; the qualify rows show every sub-stage with the time it actually ran.
+
+| Stage | Tier | Verdict | Start | End | Duration | Note |
+|---|---|---|---|---|---|---|
+| recipe | prepare | ERROR | 2026-10-22
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: ERROR in 0s (10 item(s) in /home/nvidia/onboard-runs/gemma-stop/recipe.toml need a human before the run can go on:)
+ONBOARD RECIPE NEEDS A HUMAN (exit 3, stopped early) in 0s
+wall=0.14s
+onboard-state.json
+quick.json
+quick.md
+quick.prom
+recipe.toml
+fleetq: #3918 done (exit 0)
+done=0

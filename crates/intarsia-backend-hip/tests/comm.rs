@@ -6,8 +6,19 @@
 use intarsia_core::dtype::{decode_to_f32, encode_from_f32};
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{Backend, Comm, DType, MemKind, TensorRef};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
+
+/// One group at a time. The tests run in parallel threads of one process, each with its own two-rank group, and with
+/// GPU_MAX_HW_QUEUES=1 (deploy/tatooine/dev.sh) every stream of a device feeds one hardware queue: group A's rank-0
+/// collective can then spin on GPU 0 while GPU 1's queue holds group B's collective ahead of A's, which waits for B's
+/// rank 0, queued behind A on GPU 0. The bounded wait ends that in a trap (lane H1, window 3). The engine runs one
+/// group per process, whose ranks issue the same collectives in the same order, so it cannot interleave like this.
+static SERIAL: Mutex<()> = Mutex::new(());
+
+fn serial() -> MutexGuard<'static, ()> {
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 fn group() -> Option<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>)> {
     let ords: Vec<usize> = std::env::var("INTARSIA_HIP_DEVICES")
@@ -61,6 +72,7 @@ fn run_pair(comms: &[Arc<dyn Comm>], x: &[TensorRef]) {
 
 #[test]
 fn all_reduce_is_exact_and_identical_on_both_ranks() {
+    let _one = serial();
     let Some((be, comms)) = group() else { return };
     assert_eq!(comms[0].name(), "hip-p2p");
     let mut rng = SplitMix64::new(7);
@@ -83,6 +95,7 @@ fn all_reduce_is_exact_and_identical_on_both_ranks() {
 
 #[test]
 fn f32_partials_reduce_into_bf16_with_one_rounding() {
+    let _one = serial();
     let Some((be, comms)) = group() else { return };
     let mut rng = SplitMix64::new(21);
     for n in [4096usize, 3 * 4096, 256 * 4096, 2 * 1024 * 1024] {
@@ -107,6 +120,7 @@ fn f32_partials_reduce_into_bf16_with_one_rounding() {
 
 #[test]
 fn many_back_to_back_launches_keep_both_scratch_parities_straight() {
+    let _one = serial();
     let Some((be, comms)) = group() else { return };
     let mut rng = SplitMix64::new(11);
     let (k, n) = (64usize, 4096usize);
@@ -139,8 +153,75 @@ fn many_back_to_back_launches_keep_both_scratch_parities_straight() {
     }
 }
 
+/// Lane H1: the collectives recorded into a hipGraph on each rank (what the tp=2 decode graph does) give the exact sum
+/// at every replay, with new data in the same buffers each time, while the ranks run unsynchronised and eager
+/// collectives (prefill) interleave with the replays. Three collectives per graph, so each replay starts on the other
+/// scratch parity than the one before: the parity comes from the device counter, not from the recording.
+#[test]
+fn collectives_captured_into_a_graph_replay_exactly_and_interleave_with_eager_ones() {
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    assert!(comms.iter().all(|c| c.capture_safe()), "hip-p2p says capture_safe");
+    let mut rng = SplitMix64::new(31);
+    let n = 2048usize; // the 35B's hidden size: one decode row
+    let zero = vec![0f32; n];
+    // per rank: [f32 partial -> bf16 out] x 2 and one bf16 in-place, fixed buffers (a graph keeps its addresses)
+    let mk = |r: usize| {
+        (
+            [put(&*be[r], DType::F32, &zero), put(&*be[r], DType::F32, &zero)],
+            [put(&*be[r], DType::Bf16, &zero), put(&*be[r], DType::Bf16, &zero)],
+            put(&*be[r], DType::Bf16, &zero),
+        )
+    };
+    let bufs = [mk(0), mk(1)];
+    let body = |r: usize| {
+        let (p, o, x) = &bufs[r];
+        comms[r].all_reduce_sum_into(&p[0], &o[0], 0)?;
+        comms[r].all_reduce_sum_into(&p[1], &o[1], 0)?;
+        comms[r].all_reduce_sum(x, 0)
+    };
+    // capture executes nothing, so the ranks need not capture together
+    let graphs: Vec<_> = (0..2).map(|r| be[r].graph_capture(0, &mut || body(r)).unwrap()).collect();
+    let upload = |r: usize, t: &TensorRef, v: &[f32]| {
+        let mut bytes = vec![0u8; v.len() * t.dtype.size_bytes()];
+        encode_from_f32(t.dtype, v, &mut bytes);
+        be[r].upload(&t.buf, t.offset, &bytes, 0).unwrap();
+    };
+    for round in 0..200 {
+        // new inputs in the recorded buffers, then replay (or, every fifth round, the same calls eagerly)
+        let mut want = Vec::new();
+        let mut held = [Vec::new(), Vec::new()];
+        for r in 0..2 {
+            let (p, _, x) = &bufs[r];
+            for t in [&p[0], &p[1], x] {
+                let v = rng.normal_vec(n, 3.0);
+                upload(r, t, &v);
+                held[r].push(get(&*be[r], t));
+            }
+        }
+        for i in 0..3 {
+            want.push(host_sum(DType::Bf16, &held[0][i], &held[1][i]));
+        }
+        let eager = round % 5 == 4;
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                let (b, g) = (&be[r], &graphs[r]);
+                let body = &body;
+                sc.spawn(move || if eager { body(r).unwrap() } else { b.graph_replay(g, 0).unwrap() });
+            }
+        });
+        for r in 0..2 {
+            let (_, o, x) = &bufs[r];
+            for (i, t) in [&o[0], &o[1], x].into_iter().enumerate() {
+                assert_eq!(get(&*be[r], t), want[i], "round {round} ({}) collective {i} rank {r}", if eager { "eager" } else { "replay" });
+            }
+        }
+    }
+}
+
 #[test]
 fn an_aborted_group_refuses_collectives_instead_of_waiting() {
+    let _one = serial();
     let Some((be, comms)) = group() else { return };
     comms[0].abort();
     let t = put(&*be[0], DType::Bf16, &[1.0; 8]);
@@ -151,6 +232,7 @@ fn an_aborted_group_refuses_collectives_instead_of_waiting() {
 #[test]
 #[ignore]
 fn all_reduce_rate() {
+    let _one = serial();
     let Some((be, comms)) = group() else { return };
     println!("{:>10} {:>12} {:>12} {:>10}", "bytes", "us/call", "GB/s (msg)", "launches");
     for n in [4096usize, 2 * 4096, 8 * 4096, 64 * 4096, 256 * 4096] {

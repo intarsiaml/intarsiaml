@@ -1,0 +1,33 @@
+dump base-35b-short vs dev-35b-short: BITWISE IDENTICAL: 60 tensors
+dump base-8b-short vs dev-8b-short: BITWISE IDENTICAL: 48 tensors
+dump base-35b-tp2-short vs dev-35b-tp2g-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-tp2-long vs dev-35b-tp2g-long: BITWISE IDENTICAL: 30 tensors
+dump dev-35b-tp2g-short vs dev-35b-tp2gf-short: BITWISE IDENTICAL: 60 tensors
+dump base-8b-tp2-short vs dev-8b-tp2g-short: BITWISE IDENTICAL: 48 tensors
+dump base-35b-tp2-short vs diag-tp2-commhost-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-short vs trace-tp1-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-tp2-short vs trace-tp2-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-short vs cal-gemv48-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-short vs cal-chunk128-short: BITWISE IDENTICAL: 60 tensors
+dump base-35b-short vs cal-simt-short: DIFFER: 20 of 60 tensors, first ['dec_topk_ids_0', 'dec_topk_ids_1', 'dec_topk_ids_2', 'dec_topk_ids_3', 'dec_topk_ids_4']
+== short: ref vLLM golden (-meta, cd6ef94b); cands: other vLLM run (b58845c3), tp1, tp2, tp1 simt, tp2 simt, tp1 chunk128, tp2 bf16 partials
+qwen36-35b-a3b-nvfp4-vllm-top20.safetensors ALL 2.576e-03 (n=1441)  excl. system/user-turn rows 2.309e-03 (n=1279)  | count=7.944e-04 story=3.000e-03 code=8.513e-04 science=1.884e-03 chat_short=0.000e
+acc-base-35b-short.safetensors           ALL 7.286e-03 (n=1441)  excl. system/user-turn rows 5.831e-03 (n=1279)  | count=2.800e-03 story=5.301e-03 code=1.016e-03 science=1.304e-02 chat_short=7.727e-03
+acc-base-35b-tp2-short.safetensors       ALL 7.683e-03 (n=1441)  excl. system/user-turn rows 5.843e-03 (n=1279)  | count=3.081e-03 story=3.912e-03 code=1.543e-03 science=7.085e-03 chat_short=6.251e-03
+acc-cal-simt-short.safetensors           ALL 7.286e-03 (n=1441)  excl. system/user-turn rows 5.831e-03 (n=1279)  | count=2.800e-03 story=5.301e-03 code=1.016e-03 science=1.304e-02 chat_short=7.727e-03
+acc-diag-tp2-simt-short.safetensors      ALL 7.683e-03 (n=1441)  excl. system/user-turn rows 5.843e-03 (n=1279)  | count=3.081e-03 story=3.912e-03 code=1.543e-03 science=7.085e-03 chat_short=6.251e-03
+acc-cal-chunk128-short.safetensors       ALL 7.286e-03 (n=1441)  excl. system/user-turn rows 5.831e-03 (n=1279)  | count=2.800e-03 story=5.301e-03 code=1.016e-03 science=1.304e-02 chat_short=7.727e-03
+acc-diag-tp2-partbf16-short.safetensors  ALL 6.295e-03 (n=1441)  excl. system/user-turn rows 4.857e-03 (n=1279)  | count=3.991e-03 story=3.497e-03 code=1.907e-03 science=7.112e-03 chat_short=7.108e-03
+== short: ref tp1 base; cands: tp2, tp2 bf16 partials, tp1 simt, tp1 chunk128, tp1 gemv48
+acc-base-35b-tp2-short.safetensors       ALL 5.023e-03 (n=1441)  excl. system/user-turn rows 4.967e-03 (n=1279)  | count=1.205e-03 story=3.682e-03 code=2.057e-03 science=9.020e-03 chat_short=2.146e-03
+acc-diag-tp2-partbf16-short.safetensors  ALL 4.406e-03 (n=1441)  excl. system/user-turn rows 4.296e-03 (n=1279)  | count=1.832e-03 story=3.736e-03 code=2.588e-03 science=6.572e-03 chat_short=5.034e-03
+acc-cal-simt-short.safetensors           ALL 0.000e+00 (n=1441)  excl. system/user-turn rows 0.000e+00 (n=1279)  | count=0.000e+00 story=0.000e+00 code=0.000e+00 science=0.000e+00 chat_short=0.000e+00
+acc-cal-chunk128-short.safetensors       ALL 0.000e+00 (n=1441)  excl. system/user-turn rows 0.000e+00 (n=1279)  | count=0.000e+00 story=0.000e+00 code=0.000e+00 science=0.000e+00 chat_short=0.000e+00
+acc-cal-gemv48-short.safetensors         ALL 0.000e+00 (n=1441)  excl. system/user-turn rows 0.000e+00 (n=1279)  | count=0.000e+00 story=0.000e+00 code=0.000e+00 science=0.000e+00 chat_short=0.000e+00
+== short: ref tp1 simt; cand tp2 simt (both without split-KV / flash attention)
+acc-diag-tp2-simt-short.safetensors      ALL 5.023e-03 (n=1441)  excl. system/user-turn rows 4.967e-03 (n=1279)  | count=1.205e-03 story=3.682e-03 code=2.057e-03 science=9.020e-03 chat_short=2.146e-03
+== long: ref vLLM golden; cands tp1, tp2
+acc-base-35b-long.safetensors            ALL 3.223e-02 (n=36887)  excl. system/user-turn rows 1.363e-02 (n=32349)  | long_docs_4k=1.574e-02 long_code_4k=7.603e-03 chat_reuse_4k=1.617e-01 long_docs_12k
+acc-base-35b-tp2-long.safetensors        ALL 3.601e-02 (n=36887)  excl. system/user-turn rows 1.394e-02 (n=32349)  | long_docs_4k=1.644e-02 long_code_4k=7.214e-03 chat_reuse_4k=1.896e-01 long_docs_12k
+== long: ref tp1; cand tp2
+acc-base-35b-tp2-long.safetensors        ALL 2.112e-02 (n=36887)  excl. system/user-turn rows 8.021e-03 (n=32349)  | long_docs_4k=9.836e-03 long_code_4k=5.477e-03 chat_reuse_4k=1.123e-01 long_docs_12k

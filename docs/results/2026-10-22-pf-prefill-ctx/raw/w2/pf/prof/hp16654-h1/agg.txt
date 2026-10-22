@@ -1,0 +1,23 @@
+bench-out/pf/out/prof/hp16654-h1/run_kernel_trace.csv total kernel ms 2132.321616999984
+   530.88 ms  24.9% n=    50 avg= 10617.6us void (anonymous namespace)::flash_hpb_kernel<256, 32, 1, true>(ik_bf16 const*, ik_bf16 con
+   400.54 ms  18.8% n=   750 avg=   534.1us void (anonymous namespace)::gdn_delta_rows_v2_kernel<128, 2, 2>(ik_bf16 const*, ik_bf16 co
+   346.74 ms  16.3% n=   160 avg=  2167.1us void moe_wmma_kernel_r7<true, 64, 45>(ik_bf16 const*, unsigned char const*, unsigned char 
+   257.70 ms  12.1% n=   650 avg=   396.5us void f8_gemm_kernel<4, 2, 2, 4, ik_bf16>(unsigned char const*, unsigned char const*, float
+   201.15 ms   9.4% n=   320 avg=   628.6us void moe_wmma_kernel_r7<false, 64, 25>(ik_bf16 const*, unsigned char const*, unsigned char
+    87.27 ms   4.1% n=   600 avg=   145.4us void dq_gemm_kernel<(anonymous namespace)::Nvfp4Policy, 4, 2, 2, 4, ik_bf16>(DqArgs, ik_bf
+    41.09 ms   1.9% n=   200 avg=   205.5us (anonymous namespace)::moe_reduce_v8_kernel(ik_bf16 const*, int const*, float const*, ik_b
+    35.86 ms   1.7% n=   700 avg=    51.2us void (anonymous namespace)::gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>(ik_bf16 const*, ik_bf16 
+    35.42 ms   1.7% n=   150 avg=   236.2us void (anonymous namespace)::gdn_conv_kernel<false>(ik_bf16 const*, ik_bf16 const*, ik_bf16
+    33.71 ms   1.6% n=    40 avg=   842.7us void moe_wmma_kernel<true, 32>(ik_bf16 const*, unsigned char const*, unsigned char const*,
+    26.86 ms   1.3% n=   650 avg=    41.3us f8_actq_kernel(ik_bf16 const*, unsigned char*, float const*, long)
+    26.75 ms   1.3% n=   401 avg=    66.7us void (anonymous namespace)::rmsnorm_kernel<true, true>(ik_bf16 const*, ik_bf16 const*, ik_
+    22.95 ms   1.1% n=   150 avg=   153.0us void (anonymous namespace)::gated_rmsnorm_kernel<true>(ik_bf16 const*, ik_bf16 const*, ik_
+    20.59 ms   1.0% n=   200 avg=   102.9us void (anonymous namespace)::moe_combine_kernel<ik_bf16>(ik_bf16 const*, ik_bf16 const*, ik
+    12.90 ms   0.6% n=    60 avg=   215.0us void (anonymous namespace)::gate_qk_norm_rope_kv_kernel<ik_bf16>(ik_bf16 const*, ik_bf16 c
+    12.22 ms   0.6% n=    40 avg=   305.5us void moe_wmma_kernel_r7<false, 32, 41>(ik_bf16 const*, unsigned char const*, unsigned char
+    11.16 ms   0.5% n=   689 avg=    16.2us __amd_rocclr_copyBuffer
+     6.98 ms   0.3% n=    50 avg=   139.5us (anonymous namespace)::sigmoid_mul_kernel(ik_bf16 const*, ik_bf16 const*, ik_bf16*, long)
+     3.57 ms   0.2% n=   200 avg=    17.8us (anonymous namespace)::moe_topk_v2_kernel(ik_bf16 const*, int, int, int, int, float*, int*
+     3.35 ms   0.2% n=   200 avg=    16.8us (anonymous namespace)::moe_group_kernel(int const*, int, int, int*, int*, int*)
+     3.05 ms   0.1% n=    61 avg=    49.9us __amd_rocclr_fillBufferAligned
+     1.97 ms   0.1% n=    40 avg=    49.2us void (anonymous namespace)::moe_block_kernel<4, 8>((anonymous namespace)::BlockArgs)

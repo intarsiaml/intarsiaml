@@ -1,5 +1,11 @@
 # Standings 2026-10-21: intarsiaml against the other engines, per platform
 
+> **Superseded 2026-10-22 by `docs/results/2026-10-22-fx6-standings.md`.** Headlines withdrawn or restated there: "R9700 #2 of 3 behind hipfire 204 tok/s"
+> (hipfire measures 146 tok/s live; intarsia is #1 of 4), "Metal #1 of 3 on decode at every length" (decode against llama.cpp is within the clock
+> difference), "Spark #1 of 2 on decode at 1k and 4k" (a tie inside the decode noise), and the unexplained 8x MMLU latency (cause: the pre-J1 binary
+> ignored `response_format`). The tables below are kept as measured.
+
+
 Measurement only. No engine code changed. Requirement 4 is "aim for the top 3 on the charts for each supported platform".
 Lane: standings (quota-burn plan, `docs/plans/2026-10-21-quota-burn-plan.md`). Base: `origin/main` 789511c2 for tatooine,
 f78f60be for endor, spark numbers from rounds 6 and 7. Raw data is in `docs/results/2026-10-21-standings/raw/`.

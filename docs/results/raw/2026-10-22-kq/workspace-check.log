@@ -1,0 +1,33 @@
+fleetq: #3761 waiting (#16 in line): in line behind #3724 "fx4 onboard --quick-only Metal: Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct" (claude-f31ccf91) on endor; with --expect it may go first if it ends before #3724 starts
+fleetq:   #3724 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3724 set, or it will wait for #3724 to be released.
+fleetq: #3761 waiting (#15 in line): in line behind #3735 "rp: Metal deploy.sh local at final sha + third-directory build check" (claude-f31ccf91) on endor
+fleetq:   #3735 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3735 set, or it will wait for #3735 to be released.
+fleetq: #3761 waiting (#8 in line): in line behind #3744 "fx1: Metal 35B qualify without baseline (expect MISSING-BASELINE), records baseline/envelope/dump (non-exclusive, deterministic)" (claude-f31ccf91) on endor; with --expect it may go first if it ends before #3744 starts
+fleetq:   #3744 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3744 set, or it will wait for #3744 to be released.
+fleetq: #3761 waiting (#5 in line): in line behind #3752 "m35: 35B metal prefill chunk 256/1024/2048 probe (rough, non-excl)" (claude-f31ccf91) on endor; with --expect it may go first if it ends before #3752 starts
+fleetq:   #3752 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3752 set, or it will wait for #3752 to be released.
+fleetq: #3761 waiting (#4 in line): in line behind #3746 "t2: merged head cargo test core+cpu+models+metal+cuda, cli build (CPU/Metal)" (claude-f31ccf91) on endor
+fleetq:   #3746 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3746 set, or it will wait for #3746 to be released.
+fleetq: #3761 running on endor: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/kq-inner5.sh
+    Checking objc2-metal v0.3.2
+    Checking intarsia-backend-metal v0.0.1 (/opt/code/wt-kq/crates/intarsia-backend-metal)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.10s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 141 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.73s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+fleetq: #3761 done (exit 0)

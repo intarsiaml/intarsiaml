@@ -10,6 +10,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Recipe {
     pub model: RecipeModel,
     pub layer: LayerSpec,
@@ -29,6 +30,7 @@ pub struct Recipe {
 
 /// `[accuracy]` table of a recipe, read only by `intarsia accuracy`.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AccuracySpec {
     /// Turn format of the model's chat template (`chatml`): which rows of a chat prompt the model is asked to predict
     /// (the KL floor skips the system and user turns). Fallback for a golden whose metadata names no known format.
@@ -48,6 +50,7 @@ pub struct AccuracySpec {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecipeModel {
     #[serde(rename = "match")]
     pub matcher: MatchSpec,
@@ -68,6 +71,7 @@ fn default_hf() -> String {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MatchSpec {
     pub architectures: Vec<String>,
 }
@@ -96,6 +100,7 @@ pub struct LayerSpec {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AttnSpec {
     /// "gqa" (Phase 0). Others (mla, sliding_window, gdn, mamba2) are future block types.
     pub kind: String,
@@ -126,6 +131,7 @@ pub struct AttnSpec {
 
 /// Gated DeltaNet linear-attention block (Qwen3-Next / Qwen3.5 / Qwen3.6): tensor name templates.
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GdnSpec {
     /// "gated_delta_net".
     pub kind: String,
@@ -151,6 +157,7 @@ fn default_rope() -> String {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct FfnSpec {
     /// "dense" (Phase 0).
     pub kind: String,
@@ -162,6 +169,7 @@ pub struct FfnSpec {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopSpec {
     pub embed: String,
     pub final_norm: String,
@@ -169,6 +177,7 @@ pub struct TopSpec {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LmHeadSpec {
     pub tensor: String,
     /// When set and `tensor` is absent from the checkpoint (or `tie_word_embeddings`), reuse this tensor.
@@ -176,6 +185,7 @@ pub struct LmHeadSpec {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Defaults {
     /// KV cache dtype. Phase 0 CPU/CUDA support bf16 / f16 / f32 / fp8_e4m3.
     #[serde(default = "default_kv")]
@@ -285,6 +295,7 @@ impl Recipe {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(default)]
 pub struct ConfigKeys {
     pub hidden_size: String,

@@ -1,0 +1,14 @@
+[window] job 3836; pass p5; arms: intarsia-old intarsia llama-vk; window cap 1140 s; stopping radiance 2026-10-22 01:48:26
+[window] radiance stopped; gpu: card0: sclk=1: 662Mhz *  temp_mC=36000 vram_used=59912192 busy=0 | card1: sclk=1: 661Mhz *  temp_mC=40000 vram_used=93114368 busy=13 |  2026-10-22 01:48:30
+[window] visit intarsia-old-p5: starting server (1136 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=35000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=39000 vram_used=93114368 busy=0 |  2026-10-22 01:48:30
+[window] visit intarsia-old-p5: server up (1118 s left) 2026-10-22 01:48:48
+[window] visit intarsia-old-p5: localeval speed exit 0 (1111 s left) 2026-10-22 01:48:55
+[window] visit intarsia-p5: starting server (1099 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=34000 vram_used=59912192 busy=0 | card1: sclk=1: 2126Mhz *  temp_mC=47000 vram_used=93114368 busy=0 |  2026-10-22 01:49:07
+[window] visit intarsia-p5: server up (1087 s left) 2026-10-22 01:49:19
+[window] visit intarsia-p5: localeval speed exit 0 (1080 s left) 2026-10-22 01:49:26
+[window] visit llama-vk-p5: starting server (1069 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=1: 2144Mhz *  temp_mC=51000 vram_used=93114368 busy=0 |  2026-10-22 01:49:37
+[window] visit llama-vk-p5: server up (1064 s left) 2026-10-22 01:49:42
+[window] visit llama-vk-p5: localeval speed exit 0 (1056 s left) 2026-10-22 01:49:50
+[window] arms done 2026-10-22 01:50:03
+[window] starting radiance 2026-10-22 01:50:03
+[window] radiance answers (after 20 s); window total 113 s 2026-10-22 01:50:19

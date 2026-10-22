@@ -437,9 +437,16 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
         }
         Op::AttnPrefill | Op::AttnDecode => {
             let heads: Vec<(usize, usize, usize)> =
-                if quick { vec![(4, 2, 32)] } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (16, 2, 256)] };
+                if quick {
+                    // 64 / 128: the flash kernels take head_dim 64 | 128 | 256 only (Metal NAX flash: 128), so D = 32 alone leaves them untested
+                    vec![(4, 2, 32), (4, 2, 64), (4, 2, 128)]
+                } else { vec![(4, 2, 32), (cfg.n_heads, cfg.n_kv_heads, cfg.head_dim), (16, 2, 256)] };
             let mut tp: Vec<(usize, usize)> =
                 if op == Op::AttnDecode { vec![(1, 0), (1, 7), (1, 40)] } else { vec![(5, 0), (16, 0), (7, 13)] };
+            // more than 16 query rows: the CUDA flash prefill kernels take chunks of > 16 rows only
+            if quick && op == Op::AttnPrefill {
+                tp.push((24, 5));
+            }
             // long context / multi-tile cases (kernels often break past a 64/128-row tile or a few k keys)
             if !quick {
                 if op == Op::AttnDecode {
@@ -648,11 +655,33 @@ pub struct AdmissionOpts {
     pub only_kernel: Option<String>,
 }
 
+/// Names of registered kernels that no case of the `--quick` sweep exercises: they would show up as
+/// `NO CASES (untested)` in `kernels test --quick`. The architecture filter is ignored on purpose (a Mac or a
+/// box without the GPU still checks every kernel the backend registers), and so are reference kernels.
+/// Backends assert this is empty in a test (`tests/quick_coverage.rs`), so a new kernel cannot land without a
+/// case that its shape predicate accepts.
+pub fn kernels_without_quick_case(kernels: &[crate::registry::KernelImpl]) -> Vec<String> {
+    let cfg = SweepConfig { quick: true, ..SweepConfig::default() };
+    let mut uncovered = Vec::new();
+    for kern in kernels.iter().filter(|k| !k.is_reference) {
+        let covered = sweep(kern.op, &cfg)
+            .iter()
+            .any(|case| shape_of(&case.call).map(|s| kern.accepts(&s)).unwrap_or(false));
+        if !covered {
+            uncovered.push(kern.name.clone());
+        }
+    }
+    uncovered
+}
+
 /// Shapes the gated-delta-net sweep covers: (key heads, value heads, dk, dv, conv taps).
 fn gdn_shapes(quick: bool) -> Vec<(usize, usize, usize, usize, usize)> {
     // small shapes catch indexing bugs; the Qwen3.5/3.6-35B-A3B shape is the one that must be right
     let mut v = vec![(2, 4, 32, 32, 4)];
-    if !quick {
+    if quick {
+        // dk = 128: the lanes / split delta-rule kernels take dk 64 | 128 only (the shape GdnConvDelta's quick sweep uses too)
+        v.push((1, 2, 128, 32, 4));
+    } else {
         v.extend([(1, 3, 64, 48, 4), (2, 2, 128, 64, 3), (1, 2, 256, 40, 4), (16, 32, 128, 128, 4)]);
     }
     v

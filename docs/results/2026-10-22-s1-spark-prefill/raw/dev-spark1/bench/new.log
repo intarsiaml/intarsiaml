@@ -1,0 +1,62 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 1 test
+test bench_wq_prefill_shapes ... M=2048 shared gate/up     matmul_nvfp4_gemm           89.2 us   48.1 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm           96.5 us   44.5 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        10996.9 us
+M=2048 shared gate/up     matmul_nvfp4_gemm_reg       88.4 us   48.6 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm_reg       69.3 us   62.0 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     9841.4 us
+
+thread 'bench_wq_prefill_shapes' panicked at crates/intarsia-backend-cuda/tests/quantmoe.rs:243:36:
+called `Result::unwrap()` on an `Err` value: InvalidCall("kernel 'matmul_nvfp4_glu_gemm' implements matmul_nvfp4_glu, not matmul_nvfp4")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    bench_wq_prefill_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.45s
+
+error: test failed, to rerun pass `-p intarsia-backend-cuda --test quantmoe`

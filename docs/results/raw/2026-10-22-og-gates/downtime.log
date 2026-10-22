@@ -1,0 +1,4 @@
+2026-10-21 job=3629 stage=o5 start=23:10:57 end=23:19:46 wall=522 s (radiance down for the burst; see window-o5.log for stop/answers times)
+2026-10-21 job=3635 stage=o4 start=23:20:33 end=23:28:11 wall=450 s (radiance down for the burst; see window-o4.log for stop/answers times)
+2026-10-21 job=3645 stage=o5 start=23:30:56 end=23:33:16 wall=140 s (radiance down for the burst; see window-o5.log for stop/answers times)
+2026-10-21 job=3651 stage=o5 start=23:34:19 end=23:41:08 wall=408 s (radiance down for the burst; see window-o5.log for stop/answers times)

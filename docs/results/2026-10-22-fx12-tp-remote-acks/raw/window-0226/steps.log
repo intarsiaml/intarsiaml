@@ -1,0 +1,39 @@
+spark1 base: intarsia 0.0.1
+spark1 dev: intarsia 0.0.1
+spark2 base: intarsia 0.0.1
+spark2 dev: intarsia 0.0.1
+02:26:57 vLLM stopped on spark1
+02:27:00 vLLM stopped on spark2
+02:27:00 spark1 MemAvailable 110 GB
+02:27:00 spark2 MemAvailable 113 GB
+gen base short rc=0
+prompt: 114 tokens
+finish=length prompt=114 (cached 0) completion=256 | prefill 2029 ms (56.2 tok/s) | decode 2792 ms (91.34 tok/s)
+gen dev short rc=0
+prompt: 114 tokens
+finish=length prompt=114 (cached 0) completion=256 | prefill 1451 ms (78.5 tok/s) | decode 2660 ms (95.87 tok/s)
+gen base 4k rc=0
+prompt: 4449 tokens
+finish=length prompt=4449 (cached 0) completion=256 | prefill 2284 ms (1947.9 tok/s) | decode 2786 ms (91.52 tok/s)
+gen dev 4k rc=0
+prompt: 4449 tokens
+finish=length prompt=4449 (cached 0) completion=256 | prefill 2443 ms (1820.8 tok/s) | decode 2795 ms (91.24 tok/s)
+soak dev rc=0
+SOAK {"requests": 100, "errors": 0, "by_kind": {"short": 20, "reuse": 40, "repeat": 20, "turn": 10, "long": 10}, "cached_hits": 30, "prompt_tokens_max": 2789, "error_samples": [], "seconds": 57.7}
+health-after ok
+0
+soak base rc=0
+SOAK {"requests": 100, "errors": 0, "by_kind": {"short": 20, "reuse": 40, "repeat": 20, "turn": 10, "long": 10}, "cached_hits": 30, "prompt_tokens_max": 2789, "error_samples": [], "seconds": 59.5}
+health-after ok
+0
+xpair rc=1
+    invalid op call: tensor-parallel ranks were started differently:
+      other rank: tp-protocol=2;/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 | recipe builtin:qwen3_5_moe | LoadOptions { max_seq: 20480, kv_fraction: 0.5, prefill_chunk: 2048, act_dtype: None, kv_dtype: None, profile_every: 0, mem_budget: Some(17179869184), fp8_act: None, mxfp4_act: None, graphs: true, tp_fusion: fals
+Error: invalid op call: tensor-parallel ranks speak different protocols: this rank speaks version 2, the other rank version 1. Run the same intarsia build on both ranks
+IDS short: IDENTICAL (first divergence None, 256/256 ids)
+IDS 4k: IDENTICAL (first divergence None, 256/256 ids)
+SOAK compare: 100 base / 100 dev answers, 100 identical, cached>0: base 30 dev 30
+02:30:51 done, 3331 s of budget left
+02:30:51 restore (exit 0)
+02:34:10 vLLM on spark1 serving again
+02:34:10 vLLM on spark2 serving again

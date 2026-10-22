@@ -1,0 +1,67 @@
+## base-1k
+106 decode steps; wall/step 35163 us
+op                       n/step  us/step  MB/step   GB/s %floor floor us
+ffn gate / up               128    10649   6060.8    569     91     9666
+ffn down                     64     4952   3030.4    612     98     4833
+gdn in_qkv                   48     2212   1336.9    604     96     2132
+gdn out / attn o             64     2045   1069.5    523     83     1706
+gdn in_z                     48     1390    802.2    577     92     1279
+attn q                       16      884    534.8    605     96      853
+gdn in_b / in_a              96      292     12.5     43      7       20
+attn k / v                   32      196     89.1    455     73      142
+lm_head (bf16 gemv)           1     3983   2542.8    638    102     4055
+mxfp4_xprep_kernel          496     1931
+rmsnorm_kernel              129      495
+gdn_conv_delta_kernel        48      491
+splitkv_kernel               16      251
+gated_rmsnorm_kernel         48      106
+silu_glu_kernel              64       92
+gate_qk_norm_rope_kv_kernel     16       88
+argmax_kernel                 1       61
+combine_kernel               16       59
+sigmoid_mul_kernel           16       17
+__amd_rocclr_copyBuffer       3        7
+weight GEMVs + lm_head: 26602 us/step vs floor 24687 us (93 %)
+## base-4k
+106 decode steps; wall/step 35717 us
+op                       n/step  us/step  MB/step   GB/s %floor floor us
+ffn gate / up               128    10673   6060.8    568     91     9666
+ffn down                     64     4955   3030.4    612     98     4833
+gdn in_qkv                   48     2220   1336.9    602     96     2132
+gdn out / attn o             64     2040   1069.5    524     84     1706
+gdn in_z                     48     1391    802.2    577     92     1279
+attn q                       16      887    534.8    603     96      853
+gdn in_b / in_a              96      289     12.5     43      7       20
+attn k / v                   32      196     89.1    455     73      142
+lm_head (bf16 gemv)           1     3983   2542.8    638    102     4055
+mxfp4_xprep_kernel          496     1949
+splitkv_kernel               16      700
+rmsnorm_kernel              129      499
+gdn_conv_delta_kernel        48      490
+gated_rmsnorm_kernel         48      106
+combine_kernel               16      104
+silu_glu_kernel              64       93
+gate_qk_norm_rope_kv_kernel     16       91
+argmax_kernel                 1       61
+sigmoid_mul_kernel           16       20
+__amd_rocclr_copyBuffer       3        7
+weight GEMVs + lm_head: 26633 us/step vs floor 24687 us (93 %)
+## lds5-1k
+106 decode steps; wall/step 33996 us
+op                       n/step  us/step  MB/step   GB/s %floor floor us
+attn k / v                  336    18794    935.9     50      8     1493
+gdn out / attn o             64     4966   1069.5    215     34     1706
+gdn in_b / in_a              96      510     12.5     25      4       20
+lm_head (bf16 gemv)           1     3983   2542.8    638    102     4055
+rmsnorm_kernel              129      512
+gdn_conv_delta_kernel        48      497
+mxfp4_xprep_kernel           64      260
+splitkv_kernel               16      254
+gated_rmsnorm_kernel         48      111
+silu_glu_kernel              64      100
+gate_qk_norm_rope_kv_kernel     16       91
+argmax_kernel                 1       62
+combine_kernel               16       61
+sigmoid_mul_kernel           16       19
+__amd_rocclr_copyBuffer       3        8
+weight GEMVs + lm_head: 28253 us/step vs floor 7274 us (26 %)

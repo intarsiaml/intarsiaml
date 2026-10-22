@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "tool": "scripts/deploy.sh",
+  "created": "2026-10-22T06:06:04Z",
+  "git": {
+    "sha": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "ref": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "subject": "deploy-step: fall back to plain cargo build for refs without repro-build.sh",
+    "tree": "33383e0a93ccbb39eab2d714243212289f680203"
+  },
+  "lock_sha256": "7723f17b4e7280cb74868c4950b030e0c82af2c8e0631e839781434db9b4b537",
+  "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+  "backend": "cuda",
+  "features": "cuda",
+  "deploy_host": "spark2",
+  "tree_dir": "intarsia-deploy/cuda-rp",
+  "toolchain": {
+    "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+    "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+    "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+    "hipcc": null,
+    "rocm": null,
+    "container": null
+  },
+  "gpu": {
+    "nvidia_smi": {
+      "name": "NVIDIA GB10",
+      "driver_version": "580.173.02",
+      "compute_cap": "12.1",
+      "memory_total": "[N/A]"
+    },
+    "proc_driver_nvidia": "NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  580.173.02  Release Build  (dvs-builder@U22-A24-5-4)  Tue Jun 23 08:34:19 UTC 2026",
+    "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+    "cuda_toolkit_version": "13.0.3",
+    "rocm_version": null,
+    "hipcc": null
+  },
+  "device": {
+    "name": "NVIDIA GB10",
+    "backend": "cuda",
+    "arch": "sm_121",
+    "total_mem": 130663231488,
+    "free_mem": 20639830016,
+    "unified": true,
+    "bandwidth_gbs": 226.13392734101285
+  },
+  "host": {
+    "hostname": "spark-fa00",
+    "os": "Ubuntu 24.04.5 LTS",
+    "kernel": "Linux 6.17.0-1029-nvidia",
+    "arch": "aarch64",
+    "cpu_model": "Cortex-A725",
+    "logical_cores": 20,
+    "physical_cores": 20,
+    "ram_total_bytes": 130663231488,
+    "ram_available_bytes": 58541375488,
+    "swap_total_bytes": 17179865088
+  },
+  "binary": {
+    "path": "target/release/intarsia",
+    "sha256": "fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593",
+    "bytes": 52326848,
+    "intarsia_version": "0.0.1"
+  },
+  "env_file": null,
+  "smoke": "pass"
+}

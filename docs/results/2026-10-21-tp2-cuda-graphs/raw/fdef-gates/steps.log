@@ -1,0 +1,40 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+2392 MHz, [N/A], 43, 10.84 W, 0 %
+tp2g-def-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 2059 ms (726.9 tok/s) | decode 2533 ms (100.67 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 tp2g-def-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+04:30:50   REPLAY-CHECK ok tp2g-def-5k
+tp2g-off-5k rc=0
+finish=length prompt=1497 (cached 0) completion=256 | prefill 1655 ms (904.6 tok/s) | decode 2652 ms (96.15 tok/s)
+steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257
+  rank1 tp2g-off-5k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+04:31:03   REPLAY-CHECK ok tp2g-off-5k
+IDS tp2g-off-5k vs tp2g-def-5k: IDENTICAL (first divergence none, 256/256)
+tp2g-def-16k rc=0
+finish=length prompt=16026 (cached 0) completion=256 | prefill 3766 ms (4255.3 tok/s) | decode 2746 ms (92.87 tok/s)
+steps=264 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/21120 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264
+  rank1 tp2g-def-16k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+04:31:17   REPLAY-CHECK ok tp2g-def-16k
+tp2g-off-16k rc=0
+finish=length prompt=16026 (cached 0) completion=256 | prefill 4026 ms (3980.9 tok/s) | decode 2842 ms (89.74 tok/s)
+steps=264 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/21120 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264
+  rank1 tp2g-off-16k: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256
+04:31:31   REPLAY-CHECK ok tp2g-off-16k
+IDS tp2g-off-16k vs tp2g-def-16k: IDENTICAL (first divergence none, 256/256)
+fprobe-d rc=0
+gated_rmsnorm                  0.00    0.00      990       0
+matmul_fp8                     0.00    0.00     1730       0
+matmul_fp8_pair                0.00    0.00     1280       0
+matmul_nvfp4_glu               0.00    0.00     1280       0
+matmul_pair                    0.00    0.00       32       0
+rmsnorm                        0.00    0.00       33       0
+rmsnorm_add                    0.00    0.00      432       0
+rmsnorm_add_matmul_pair        0.00    0.00     2208       0
+fprobe-u rc=0
+matmul_fp8                     0.00    0.00     4290       0
+rmsnorm                        0.00    0.00     1023       0
+rmsnorm_add                    0.00    0.00     2640       0
+04:31:51 == gates done, 1361 s of the work budget left
+04:31:51 restore (exit 0)
