@@ -1,0 +1,18 @@
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-core)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-cli)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1723:13
+     |
+1723 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
