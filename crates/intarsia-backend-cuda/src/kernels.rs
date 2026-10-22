@@ -16,6 +16,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("add_bf16", Op::Add),
     ("qk_norm_bf16", Op::QkNorm),
     ("rope_bf16", Op::Rope),
+    ("rope_scaled_bf16", Op::RopeScaled),
+    ("add_bias_bf16", Op::AddBias),
     ("matmul_bf16", Op::Matmul),
     ("matmul_bf16_gemv", Op::Matmul),
     ("logits_bf16", Op::Logits),
@@ -225,7 +227,10 @@ pub fn all() -> Vec<KernelImpl> {
             "rmsnorm_bf16" | "rmsnorm_add_bf16" | "add_bf16" | "qk_norm_bf16" | "silu_glu_bf16" => {
                 k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
             }
-            "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
+            "rope_bf16" | "rope_scaled_bf16" => {
+                k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL)
+            }
+            "add_bias_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             // cuBLAS: tensor cores, algorithm (split-K) may change with the shape or the library version
             "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(F32_TOL).priority(0),
@@ -596,11 +601,7 @@ mod tests {
         // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
         // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`).
-        // `RopeScaled` (llama3 / yarn rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs
-        // them fails at load with `NoKernel`, it never runs the unscaled rope.
-        const NOT_ON_CUDA: [Op; 10] = [
-            Op::RopeScaled,
-            Op::AddBias,
+        const NOT_ON_CUDA: [Op; 8] = [
             Op::Sample,
             Op::QkNormRopeKv,
             Op::RmsNormAddMatmulFp8Pair,
@@ -697,6 +698,7 @@ mod tests {
     #[rustfmt::skip]
     const MAIN_KERNEL_LIST: &[&str] = &[
         "add_bf16:add",
+        "add_bias_bf16:add_bias",
         "argmax_bf16:argmax",
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
@@ -748,12 +750,13 @@ mod tests {
         "rmsnorm_add_matmul_pair_bf16_gemv:rmsnorm_add_matmul_pair",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
+        "rope_scaled_bf16:rope_scaled",
         "sigmoid_mul_bf16:sigmoid_mul",
         "silu_glu_bf16:silu_glu",
     ];
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
-    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
+    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before (plus `rope_scaled_bf16` and `add_bias_bf16`, new ops). Round 5 adds the three fp8-KV attention
     /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {

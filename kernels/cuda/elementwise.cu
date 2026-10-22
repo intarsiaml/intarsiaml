@@ -1,4 +1,4 @@
-// Data-movement and elementwise launchers: embedding, add, silu_glu, kv_append, rope.
+// Data-movement and elementwise launchers: embedding, add, add_bias, silu_glu, kv_append, rope, rope_scaled.
 #include "ik_launch.h"
 
 namespace {
@@ -43,6 +43,27 @@ __global__ void add_kernel(const ik_bf16* __restrict__ a, const ik_bf16* __restr
         const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
         if (i >= n) return;
         out[i] = ik_f2b(ik_b2f(a[i]) + ik_b2f(b[i]));
+    }
+}
+
+// ---- add_bias (Op::AddBias): out[r, c] = x[r, c] + bias[c], one bf16 rounding of the f32 sum -------------------------
+// x and out may be the same buffer (in place), so no __restrict__ on them. VEC: 8 columns per thread (N % 8 == 0, so a
+// chunk never straddles a row), the same unpack / f32 add / pack as `add_kernel<true>`.
+template <bool VEC>
+__global__ void add_bias_kernel(const ik_bf16* x, const ik_bf16* __restrict__ bias, ik_bf16* out, int64_t n, int64_t N) {
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (VEC) {
+        if (i >= n / 8) return;
+        const int64_t c0 = (i * 8) % N;
+        float fa[8], fb[8];
+        ik_unpack8(reinterpret_cast<const uint4*>(x)[i], fa);
+        ik_unpack8(*reinterpret_cast<const uint4*>(bias + c0), fb);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) fa[k] += fb[k];
+        reinterpret_cast<uint4*>(out)[i] = ik_pack8(fa);
+    } else {
+        if (i >= n) return;
+        out[i] = ik_f2b(ik_b2f(x[i]) + ik_b2f(bias[i % N]));
     }
 }
 
@@ -147,6 +168,41 @@ __global__ void rope_pass_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restr
     out[r * D + j] = x[r * D + j];
 }
 
+// ---- rope_scaled (Op::RopeScaled): `rope_kernel` with a caller-supplied frequency table ------------------------------
+// The angle of pair k at token t is (pos0 + t) * inv_freq[k] (f32 table widened to double, like the reference), and both
+// sin and cos are multiplied by `mscale` in double before the narrowing to float (llama3 / yarn scaling). Everything else
+// (grid, head grouping, the two products, in-place aliasing, the `rope_pass_kernel` tail copy) is `rope_kernel`.
+__global__ void rope_scaled_kernel(const ik_bf16* x, const float* __restrict__ inv_freq, ik_bf16* out, int64_t T,
+                                   int N, int D, int RD, int64_t pos0_host, float mscale, const int32_t* pos_dev) {
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int half = RD / 2;
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= T * half) return;
+    const int k = (int)(i % half);
+    const int64_t t = i / half;
+    double sd, cd;
+    sincos((double)(pos0 + t) * (double)inv_freq[k], &sd, &cd);
+    const float fs = (float)(sd * (double)mscale), fc = (float)(cd * (double)mscale);
+    const int n0 = blockIdx.y * kRopeHeads;
+    float a[kRopeHeads], b[kRopeHeads];
+#pragma unroll
+    for (int j = 0; j < kRopeHeads; ++j) {
+        if (n0 + j < N) {
+            const int64_t base = (t * N + n0 + j) * D;
+            a[j] = ik_b2f(x[base + k]);
+            b[j] = ik_b2f(x[base + k + half]);
+        }
+    }
+#pragma unroll
+    for (int j = 0; j < kRopeHeads; ++j) {
+        if (n0 + j < N) {
+            const int64_t base = (t * N + n0 + j) * D;
+            out[base + k] = ik_f2b(a[j] * fc - b[j] * fs);
+            out[base + k + half] = ik_f2b(b[j] * fc + a[j] * fs);
+        }
+    }
+}
+
 // gate_split: x[T,N,2D] -> q[T,N,D], gate[T,N,D]  (per head: D query values then D gate values)
 __global__ void gate_split_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restrict__ q, ik_bf16* __restrict__ gate,
                                   int64_t rows, int D) {
@@ -206,6 +262,24 @@ int ik_add_bf16(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* st
     else
         add_kernel<false><<<blocks(n), kThreads, 0, s>>>((const ik_bf16*)a->data, (const ik_bf16*)b->data,
                                                            (ik_bf16*)out->data, n);
+    return ik_launch_status();
+}
+
+int ik_add_bias_bf16(const ik_tensor* x, const ik_tensor* bias, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    const int64_t R = x->shape[0], N = x->shape[1];
+    if (bias->shape[0] != N || out->shape[0] != R || out->shape[1] != N) return IK_ERR_SHAPE;
+    const int64_t n = R * N;
+    if (n == 0) return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    if (N % 8 == 0 && ik_aligned16(x->data) && ik_aligned16(bias->data) && ik_aligned16(out->data))
+        add_bias_kernel<true><<<blocks(n / 8), kThreads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)bias->data,
+                                                                   (ik_bf16*)out->data, n, N);
+    else
+        add_bias_kernel<false><<<blocks(n), kThreads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)bias->data,
+                                                                (ik_bf16*)out->data, n, N);
     return ik_launch_status();
 }
 
@@ -271,6 +345,33 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
     rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
                                           pos0, theta, pos_dev);
+    return ik_launch_status();
+}
+
+int ik_rope_scaled_bf16(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, float rope_mscale,
+                        int64_t rotary_dim, ik_tensor* out, const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(inv_freq, IK_DTYPE_F32, 1));
+    IK_TRY(ik_check_pos(pos));
+    const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
+    const int64_t T = x->shape[0], N = x->shape[1], D = x->shape[2];
+    const int64_t RD = rotary_dim == 0 ? D : rotary_dim;
+    if (out->shape[0] != T || out->shape[1] != N || out->shape[2] != D || D % 2 != 0 || pos0 < 0) return IK_ERR_SHAPE;
+    if (RD < 0 || RD > D || RD % 2 != 0) return IK_ERR_INVALID_ARG;
+    if (inv_freq->shape[0] != RD / 2) return IK_ERR_SHAPE;
+    if (!(rope_mscale > 0.f) || rope_mscale > 3.4028234e38f) return IK_ERR_INVALID_ARG;  // positive and finite
+    if (T == 0 || N == 0 || D == 0) return IK_OK;
+    if (((uintptr_t)inv_freq->data & 3u) != 0) return IK_ERR_INVALID_ARG;
+    cudaStream_t s = IK_STREAM(stream);
+    if (RD < D && x->data != out->data)
+        rope_pass_kernel<<<blocks(T * N * (D - RD)), kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data,
+                                                                     T * N, (int)D, (int)RD);
+    if (RD == 0) return ik_launch_status();
+    dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
+    rope_scaled_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (const float*)inv_freq->data,
+                                                 (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD, pos0, rope_mscale,
+                                                 pos_dev);
     return ik_launch_status();
 }
 

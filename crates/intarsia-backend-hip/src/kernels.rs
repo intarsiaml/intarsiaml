@@ -59,6 +59,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("add_bf16", Op::Add),
     ("qk_norm_bf16", Op::QkNorm),
     ("rope_bf16", Op::Rope),
+    ("rope_scaled_bf16", Op::RopeScaled),
+    ("add_bias_bf16", Op::AddBias),
     ("matmul_bf16", Op::Matmul),
     ("matmul_bf16_gemv", Op::Matmul),
     ("logits_bf16", Op::Logits),
@@ -85,10 +87,8 @@ pub const TABLE: &[(&str, Op)] = &[
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2';
-/// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate; `RopeScaled` (llama3 / yarn
-/// rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs them fails at load with
-/// `NoKernel`, it never runs the unscaled rope).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3, Op::RopeScaled, Op::AddBias];
+/// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate).
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.
@@ -153,7 +153,10 @@ pub fn all() -> Vec<KernelImpl> {
             "rmsnorm_bf16" | "rmsnorm_add_bf16" | "add_bf16" | "qk_norm_bf16" | "silu_glu_bf16" => {
                 k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
             }
-            "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
+            "rope_bf16" | "rope_scaled_bf16" => {
+                k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL)
+            }
+            "add_bias_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             // native WMMA GEMM: f32 accumulate in a fixed K order, run-to-run identical; any M. (A hipBLASLt route
             // would be Exactness::Fast; the dev image carries no hipblaslt, see docs/backends/hip.md.)
             "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(BF16_TOL).priority(0),

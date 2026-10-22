@@ -110,6 +110,8 @@ extern "C" {
     pub fn ik_add_bf16(a: T, b: T, out: TM, s: S) -> c_int;
     pub fn ik_qk_norm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
     pub fn ik_rope_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
+    pub fn ik_rope_scaled_bf16(x: T, inv_freq: T, pos0: i64, rope_mscale: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
+    pub fn ik_add_bias_bf16(x: T, bias: T, out: TM, s: S) -> c_int;
     pub fn ik_gate_split_bf16(x: T, q: TM, gate: TM, s: S) -> c_int;
     pub fn ik_sigmoid_mul_bf16(a: T, g: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_bf16(x: T, w: T, out: TM, s: S) -> c_int;

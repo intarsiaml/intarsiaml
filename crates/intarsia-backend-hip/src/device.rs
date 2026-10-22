@@ -600,6 +600,10 @@ impl Backend for HipBackend {
                 "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
                 "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
                 "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s),
+                "rope_scaled_bf16" => {
+                    ffi::ik_rope_scaled_bf16(i(0), i(1), a.pos0 as i64, a.rope_mscale, a.rotary_dim as i64, o, pos, s)
+                }
+                "add_bias_bf16" => ffi::ik_add_bias_bf16(i(0), i(1), o, s),
                 "gate_split_bf16" => ffi::ik_gate_split_bf16(i(0), o, o.add(1), s),
                 "sigmoid_mul_bf16" => ffi::ik_sigmoid_mul_bf16(i(0), i(1), o, s),
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),

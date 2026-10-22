@@ -125,6 +125,9 @@ typedef struct {
  * ik_add_*           a[R,H], b[R,H]                   -> out[R,H]
  * ik_qk_norm_*       x[T,N,D], w[D], eps              -> out[T,N,D]   (rmsnorm over D per head)
  * ik_rope_*          x[T,N,D], pos0, theta, rotary_dim -> out[T,N,D]  (neox/rotate-half over the first rotary_dim values, 0 = all; positions pos0..pos0+T-1)
+ * ik_rope_scaled_*   x[T,N,D], inv_freq[rotary_dim/2] f32, pos0, rope_mscale, rotary_dim -> out[T,N,D]  (ik_rope_*, but pair k of token t
+ *                                                    rotates by (pos0+t)*inv_freq[k] and cos / sin are multiplied by rope_mscale; llama3 / yarn)
+ * ik_add_bias_*      x[R,N], bias[N]                  -> out[R,N] = x + bias[col]  (one bf16 rounding; out may alias x)
  * ik_gate_split_*    x[T,N,2D]                        -> q[T,N,D], gate[T,N,D]  (per head: D query values, then D gate values)
  * ik_sigmoid_mul_*   a[R,X], g[R,X]                   -> out[R,X] = a * sigmoid(g)
  * ik_gdn_conv_*      x[T,C], taps[C,K], state[C,K-1] f32 (in/out)  -> y[T,C] = silu(causal depthwise conv)
@@ -148,6 +151,12 @@ int ik_add_bf16(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* st
 int ik_qk_norm_bf16(const ik_tensor* x, const ik_tensor* w, float eps, float w_offset, ik_tensor* out, void* stream);
 int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out,
                  const ik_tensor* pos, void* stream);
+/* Op::RopeScaled: rotary_dim 0 = all of D; inv_freq f32 [rotary_dim / 2]; rope_mscale > 0 and finite; optional device
+ * position `pos` as ik_rope_bf16 */
+int ik_rope_scaled_bf16(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, float rope_mscale, int64_t rotary_dim,
+                        ik_tensor* out, const ik_tensor* pos, void* stream);
+/* Op::AddBias: out may be x (in place) */
+int ik_add_bias_bf16(const ik_tensor* x, const ik_tensor* bias, ik_tensor* out, void* stream);
 /* gated attention / GatedDeltaNet helpers (bf16 activations; conv taps, A_log and dt_bias bf16; recurrent state f32) */
 int ik_gate_split_bf16(const ik_tensor* x, ik_tensor* q, ik_tensor* gate, void* stream);
 int ik_sigmoid_mul_bf16(const ik_tensor* a, const ik_tensor* g, ik_tensor* out, void* stream);
