@@ -72,10 +72,12 @@ Medians: CUDA cold 1.12e-2, warm 7.8e-3; Metal cold 8.7e-3, warm 9.7e-3. Mean wi
 * **Absolute level**: all paths sit at 1.5e-2 to 1.9e-2 here, above FX1's prefill floor (9.3e-3 CUDA, 9.9e-3 Metal, gate 2e-2). 31 of the 32 rows are decode steps, which FX1's
   oracle never covered ("decode: no oracle"). The decode path is therefore about 1.5 to 2x the prefill distance from the oracle on this model, and the 8.5e-2 of fx5b is
   within the spread of one engine path against the truth (max 5.5e-2 to 1.25e-1 per row for every path, cold included).
-* **The oracle is not exact across machines.** Rows 0..1999 of the sequence are the committed endor oracle's `long_docs_4k` rows 0..1999 (same tokens). The spark1 oracle
-  differs from them by KL mean 3.1e-3, max 2.4e-1, top-1 agreement 98.5 % (raw/oracle-xcheck.txt): bf16 activations in the oracle make it deterministic per machine, not bitwise
-  portable. That is about 5x below the distances above and is common to the warm and the cold score (same oracle rows), so it does not move the comparison, but it caps what
-  any oracle gate can resolve.
+* **The oracle is not exact across machines, and its row-level swings are as large as the engines'.** Rows 0..1999 of the sequence are the committed endor oracle's `long_docs_4k`
+  rows 0..1999 (same tokens, same chunk 256). The spark1 oracle differs from them by KL mean 3.1e-3 but **max 2.4e-1**, up to 0.72 nats on the top-1 log-probability, top-1 agreement 98.5 %
+  (raw/oracle-xcheck.txt): bf16 activations make the oracle deterministic per machine, not portable, and near-tie rows (MoE routing, close top-2) move it by as much as they move an engine.
+  Consequences: (a) the mean is common-mode (warm and cold are scored against the same oracle rows), so the mean ratio stands, with 3e-3 of oracle noise against 1.5e-2 to 1.9e-2 of distance;
+  (b) per-row readings (row 8 worse for warm on both backends, the argmax disagreements) are inside the oracle's own row-level noise and are not findings; (c) the "decode rows are 1.5 to 2x the prefill distance"
+  comparison with FX1 (9.3e-3 / 9.9e-3, scored against the endor oracle on different rows) is confounded by the oracle machine as well as the row set, and is indicative only.
 
 ## 4. Proposed gate (not implemented; a decision for the user)
 
@@ -89,6 +91,9 @@ Medians: CUDA cold 1.12e-2, warm 7.8e-3; Metal cold 8.7e-3, warm 9.7e-3. Mean wi
   oracle can exist ahead of time; a 16-min CPU run per qualify is out. What works: freeze `turn2` and the 32 stream tokens (this run's `seq.json`, 4112 ids) and commit only
   the oracle's 32 rows (32 x top-64: about 16 KB), then the gate is the `--reuse-dump` path (teacher-forced `forward_script` rows, which is what the engine measures anyway) scored
   against those rows, with no CPU oracle at qualify time. That replaces, for models whose KL floor is wide (MoE, hybrid, NVFP4), the current stream-tolerance check that fx5b showed cannot pass (0.25 nats / 1e-2 KL calibrated on dense Qwen3-8B / HIP).
+* **What this gate tests, and what it does not.** `--reuse-dump` scores the `forward_script` replay of the continue sequence of operations, not `generate` reading the real prefix cache: fx5b measured the engine's
+  own warm rows against their scripted replay at KL 3.25e-2, so a cache-lookup or snapshot-selection bug inside `generate` is not caught by it. The exact `restore` / `aligned` checks (bit-identical logits, `cached == split`) stay as the guard for the cache logic;
+  the oracle gate only bounds the numerical side of a resumed state. A forced-token `generate` would close the gap and does not exist.
 * Sample size: 32 rows from one text is thin (row-to-row heavy tails; rows share state, so the effective n is smaller than 32 and the s.e. above is optimistic). A gate wants 64 or more rows and two
   prompts; the CI of the ratio at n = 32 (Metal up to 1.68) would false-fail a 1.5 margin by chance.
 
@@ -99,12 +104,14 @@ Medians: CUDA cold 1.12e-2, warm 7.8e-3; Metal cold 8.7e-3, warm 9.7e-3. Mean wi
 * Oracle on spark1 CPU, once; it differs from the committed endor oracle at 3e-3 (above). Not repeated on endor (blocked by the queue).
 * No prefill-only comparator on the same positions, so "decode rows are 1.5 to 2x the prefill distance" compares different rows and is indicative.
 * No per-layer attribution (the repo has no activation dump; fx5b said the same).
-SECOND_PROMPT_PLACEHOLDER
+
+Second prompt (`long_code_4k`, CUDA only): not run at the time of writing: queued as #4122 on spark1 behind two exclusive jobs. Metal on endor was unreachable (its queue was gated by a stale cpu job and the #4051 reservation), so a second prompt could only ever cover CUDA.
 ## 6. Code and files
 
 * `crates/intarsia-cli/src/cmd/accuracy.rs`: `--reuse-dump DIR` (with `--reuse-diag`: write `cold`, `warm`, `warm_pf`, `cold_engine` rows as raw little-endian f32 and `seq.json`, then exit)
   and `--reuse-seq FILE` (teacher-force another run's `seq.json`). Opt-in diagnostics; no default, gate, tolerance, or engine path changes. `cargo check -p intarsia-cli` clean; the flags were exercised on CUDA and Metal as above.
 * `scripts/fx5c/`: `cuda-dump.sh`, `metal-build.sh`, `metal-dump.sh`, `oracle.sh`, `make_oracle_input.py`, `score.py`, `oracle_xcheck.py`, `code-chain.sh`.
 * `docs/results/2026-10-22-fx5c-reuse-vs-oracle/raw/`: run logs, `seq.json`, the oracle dump (2 MB, top-64 for all 4112 rows), score files. The 32 x 248320 f32 row dumps (127 MB per backend) are not in the repo.
-* Fleet jobs (owner claude-f31ccf91-fx5c): #4084 (spark1, build + CUDA dump, non-exclusive), #4089 (spark1, CPU oracle, non-exclusive, 45 -> 40 GB), #4083 (endor, Metal build),
-  #4108 (endor, Metal dump). Cancelled before running: #4109, #4115, #4122 and its replacement, see the list in the second-prompt section. One `cargo check` on endor ran before I took a slot (no fleet role affected).
+* Fleet jobs (owner claude-f31ccf91-fx5c): #4084 (spark1, build + CUDA dump, non-exclusive), #4089 (spark1, CPU oracle, non-exclusive, 40 GB), #4083 (endor, Metal build),
+  #4108 (endor, Metal dump). Cancelled before running: #4109 and #4115 (a Metal-generated `long_code_4k` sequence, unreachable). #4122 (spark1, `long_code_4k` CUDA dump + oracle): FINAL_STATE.
+  One `cargo check` on endor ran before I took a slot (no fleet role affected). Callers of the changed `reuse_diag` signature: the two known sites in `accuracy.rs`, no others in `crates/`; `AccuracyArgs` has no struct-literal constructors (tests parse it with clap), so `--tests` was not separately built.
