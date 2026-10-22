@@ -10,12 +10,12 @@ a stated noise band, withdrawn headlines in `docs/decisions/LOG.md`. Measurement
 ## 0. Read this first
 
 All speed numbers are **single stream** (concurrency 1) unless a section says otherwise. Ranks are by median of the visit medians; two engines
-are **tied** where the min-max bands of their visit medians overlap. "Top 3" is a test only where the field has 3 or more engines, so every
+are **tied** where the min-max bands of their visit medians overlap, and in the prose also where the difference is under the measured noise (about 5 % in decode, 8 % in prefill; see section 1). "Top 3" is a test only where the field has 3 or more engines, so every
 table states N. intarsia is always the default build; the `--prefill-chunk 4096` rows are opt-in and are never counted in a rank.
 
 | model on the Spark | N engines | intarsia decode | intarsia prefill | top 3? |
 |---|---:|---|---|---|
-| Qwen3.6-35B-A3B NVFP4 (same ModelOpt checkpoint in all four; see section 1 for what each engine does with it) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4 at 128 and 1k** (+11.9 % and +9.2 % over vLLM, bands disjoint; SGLang is 7-9 % behind intarsia at 128-4k inside the one vLLM-down window); **#1 at 4k** over vLLM (+7.2 %, bands disjoint); **tied with vLLM at 16k** (+1.1 %) | **#3 of 4** at 4k and 16k: behind SGLang by 19-20 % (per-request, 4k and 16k) and behind vLLM by 6 % (1k-4k marginal) to 21 % (4k-16k marginal), ahead of llama.cpp 2.1-2.4x | yes on decode; on prefill #3 of 4 |
+| Qwen3.6-35B-A3B NVFP4 (same ModelOpt checkpoint in all four; see section 1 for what each engine does with it) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4 at 128 and 1k** (+11.9 % and +9.2 % over vLLM, bands disjoint; SGLang is 7-9 % behind intarsia at 128-4k inside the one vLLM-down window); **#1 at 4k** over vLLM (+7.2 %, bands disjoint); **tied with vLLM at 16k** (+1.1 %) | **tied with vLLM at 1k-4k** (vLLM +6 % marginal, +9 % per-request, bands overlap), both behind SGLang (+19 % at 4k); **#3 of 4 at 16k** (vLLM +18-21 %, SGLang +20 %); ahead of llama.cpp 2.1-2.4x | yes on decode; on prefill #3 of 4 |
 | Qwen3-8B BF16 (same checkpoint in all four) | **4** (intarsia, vLLM, SGLang, llama.cpp) | **#1 of 4, tied with llama.cpp** (15.5 against 15.6 tok/s); 9-11 % ahead of vLLM and SGLang at every length | **#4 of 4**: llama.cpp is 1.1-1.2x faster, SGLang 1.7-1.8x and vLLM 1.7-1.9x faster than intarsia's 2.1-2.4k tok/s; the opt-in `--prefill-chunk 4096` lifts intarsia to 3.6-4.2k (section 3.1) | decode yes; **prefill no** |
 
 What this changes against the standings of 2026-10-21 (LOG rows added):
@@ -23,8 +23,8 @@ What this changes against the standings of 2026-10-21 (LOG rows added):
 1. **"Spark #1 of 2 on decode at 1k / 4k" is restated, not withdrawn.** With six interleaved visits per engine on the 35B the lead over vLLM is
    +9.2 % at 1k and +7.2 % at 4k with disjoint bands; the 10-19/10-21 figure (+5.7 % / +2.1 %) came from one pair of runs and sat inside
    the ~5 % noise that review B.1 pointed at. Lane og's independent O1 run on spark1 (+9.4 / +7.3 / +5.5 / -2.0 % at 128 / 1k / 4k / 16k) agrees. At 16k the two are tied.
-2. **The prefill deficit is the robust finding and is now the headline.** On the 35B intarsia is behind vLLM at 4k-16k (marginal prefill
-   6.2-6.3k against 5.0-5.2k tok/s) and behind SGLang. On the **8B BF16 it is last of four**.
+2. **The prefill deficit is the robust finding and is now the headline.** On the 35B intarsia is tied with vLLM at 1k-4k, behind it at 16k (4k-16k marginal prefill
+   6.3k against 5.2k tok/s) and behind SGLang from 4k up. On the **8B BF16 it is last of four**.
 3. **"Top 3" on Spark is met on the 35B only because the field is 4.** It is not met on 8B prefill.
 4. **Concurrency: intarsia on CUDA serves one sequence at a time.** Aggregate decode stays at the single-stream figure at 4 and 16 streams (35B 74 tok/s,
    8B 15 tok/s) while vLLM and SGLang scale (section 4). No batching was implemented or attempted here.
@@ -33,7 +33,7 @@ What this changes against the standings of 2026-10-21 (LOG rows added):
 ## 1. Method
 
 **Box and engines.** Qwen3.6-35B-A3B on **spark1** (spark-4e77, continuity with the earlier Spark standings and with lane og); Qwen3-8B on
-**spark2** (spark-fa00): both GB10, 121 GB unified memory, clocks 2398-2411 MHz in every sampled visit (`raw/*/<arm>-<pass>-gpu.txt`). Every speed pass of a table ran on the same box
+**spark2** (spark-fa00): both GB10, 121 GB unified memory, SM clocks 2398-2411 MHz in every sampled 35B visit and 2398-2483 MHz on the 8B (two samples above 2411) (`raw/*/<arm>-<pass>-gpu.txt`). Every speed pass of a table ran on the same box
 under one exclusive fleetq slot with the production vLLM resident (quality passes in non-exclusive slots) and idle (poll of its `/metrics` every 2 s: no foreign request during any
 35B pass; `raw/35b/prod-poll-*.log`; spark2's retro vLLM likewise 0).
 
@@ -205,7 +205,7 @@ Visits (vLLM up): see the n column. 8B BF16 decode is memory-bound: the 16.4 GB 
 | sglang | 3 | 14 (14-14) / 13.8 / 0.26 / 0 | 52 (52-52) / 14.2 / 0.90 / 0 | 91 (91-154) / 11.9 / 2.43 / 0 |
 | llamacpp16 | 6 | 15 (15-15) / 15.4 / 0.34 / 0 | 48 (46-48) / 13.4 / 1.22 / 0 | 114 (109-114) / 9.2 / 3.92 / 0 |
 
-Why intarsia's 8B prefill is last: the default prefill chunk is 256 tokens (server log, `raw/8b/vllm-p1-startfail.txt` shows `prefill chunk 256 (default)`). The opt-in arm `intarsia4k` (`--prefill-chunk 4096`) is in the table above and
+Why intarsia's 8B prefill is last: the default prefill chunk is 256 tokens (intarsia's own serve log, `prefill chunk 256 (default)`; the lines are the head of the log that the failed-start dumps `raw/8b/vllm-p1-startfail.txt` and `raw/8b/sglang-p1-startfail.txt` captured from the intarsia server that was still running). The opt-in arm `intarsia4k` (`--prefill-chunk 4096`) is in the table above and
 close to vLLM and SGLang (section 3.1). At the default chunk the 8B BF16 prefill works out at about 38 TFLOP/s (2.4k tok/s x 16 GFLOP) against about 75 TFLOP/s for vLLM; a per-recipe chunk for the 8B on CUDA is the engine owner's call (defaults stay as they are here).
 
 ### 3.1 The prefill gap on the 8B is mostly the default chunk size (opt-in arm `intarsia4k`)
@@ -227,10 +227,10 @@ figure includes prefill and sits below the decode rate). The tables are in secti
 | 35B TTFT of the median stream (s) | 1 / 4 / 16 | 0.23 / 2.8 / 13.2 | 0.20 / 1.5 / 8.8 | 0.20 / 0.62 / 2.0 | not measured |
 | 8B aggregate tok/s | 1 / 4 / 16 | 15 / 15 / 15 | 14 / 52 / 156 | 14 / 52 / 91 | 15 / 48 / 114 |
 
-- **intarsia on CUDA serves one sequence at a time.** Aggregate decode does not move from 1 to 16 streams and the 16th stream waits for the 15 before it (13 s TTFT on the 35B, 65 s on the 8B);
+- **intarsia on CUDA serves one sequence at a time.** Aggregate decode does not move from 1 to 16 streams and requests queue behind each other: the median stream's TTFT is 13 s on the 35B and 65 s on the 8B at 16 streams, and the last one waits about twice that;
   no request failed. This is the known state (continuous batching is Metal-only; `--max-batch` is not wired for CUDA). Nothing was implemented here.
 - **The 35B vLLM number is the production setting, not the engine's ceiling.** The production server runs `--max-num-seqs 2`, so it plateaus at about 105 tok/s from 4 streams on. The 8B vLLM arm (`--max-num-seqs 16`) shows what the engine does when allowed: see the 8B row.
-- SGLang's 35B figure comes from the vLLM-down window and used `--max-running-requests 16`.
+- SGLang's 35B figure comes from the vLLM-down window and used `--max-running-requests 16`. SGLang's 8B figure at 16 streams varies from 91 to 154 tok/s across its three visits (median 91), so it is not a rank against vLLM's 156.
 - llama.cpp 35B ran with `-np 1`; its concurrency was not measured. The 8B llama.cpp arm used `-np 16`.
 
 ## 5. Quality
