@@ -1,0 +1,36 @@
+[window] job 3306 flip; stopping radiance 2026-10-21 19:25:39
+[window] radiance stopped 2026-10-21 19:25:42
+19:25:42 vram idle: card0=57MiB card1=88MiB 
+19:25:42 version exit 0: 
+19:25:48 gen-tp2-default-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:25:54 gen-tp2-on-short exit 0 [INTARSIA_TP_FUSION=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:26:00 gen-tp2-off-short exit 0 [INTARSIA_TP_FUSION=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:26:00 SAME 35B tp=2 short: default vs explicit INTARSIA_TP_FUSION=1 (gen-tp2-default-short.ids == gen-tp2-on-short.ids)
+19:26:00 SAME 35B tp=2 short: default vs H1 fusion-on reference
+19:26:00 SAME 35B tp=2 short: INTARSIA_TP_FUSION=0 vs H1 graphs-only reference
+19:26:00 35B tp=2 short decode: default 184.50 tok/s, =1 183.19 tok/s, =0 139.87 tok/s
+19:26:06 gen-tp2-default-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:26:12 gen-tp2-on-4k exit 0 [INTARSIA_TP_FUSION=1]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:26:19 gen-tp2-off-4k exit 0 [INTARSIA_TP_FUSION=0]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+19:26:19 SAME 35B tp=2 4k: default vs explicit INTARSIA_TP_FUSION=1 (gen-tp2-default-4k.ids == gen-tp2-on-4k.ids)
+19:26:19 SAME 35B tp=2 4k: default vs H1 fusion-on reference
+19:26:19 SAME 35B tp=2 4k: INTARSIA_TP_FUSION=0 vs H1 graphs-only reference
+19:26:19 35B tp=2 4k decode: default 179.21 tok/s, =1 178.68 tok/s, =0 137.82 tok/s
+19:26:29 gen-tp2-default-8b exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+19:26:36 gen-tp2-off-8b exit 0 [INTARSIA_TP_FUSION=0]: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+19:26:36 SAME 8B tp=2 short: default vs H1 fusion-on reference
+19:26:36 SAME 8B tp=2 short: INTARSIA_TP_FUSION=0 vs H1 graphs-only reference
+19:26:36 8B tp=2 short decode: default 63.44 tok/s, =0 60.35 tok/s
+19:26:39 plan-tp1-35b exit 0: 
+19:26:39 SAME 35B tp=1 plan show vs H1 window-7 head
+19:26:43 gen-tp1-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+19:26:43 SAME 35B tp=1 short ids vs H1 window-7 head
+19:26:43 serve container started (default path, no INTARSIA_TP_FUSION): 1b8cf8701106
+19:41:44 soak rc=0 (0 pass, 1 criterion failed, 2 abort): [19:41:44] lane: PASS []
+19:41:44 vram under serve: card0=11277MiB card1=11620MiB 
+19:41:44 serve log suspect lines: 0; kernel gpu lines: 22; container: running exit=0 restarts=0 oomkilled=false
+19:41:44 vram after stop: card0=9629MiB card1=10235MiB 
+19:41:44 done
+[window] stages done 2026-10-21 19:41:44 (exit 0)
+[window] starting radiance 2026-10-21 19:41:44
+[window] radiance answers 2026-10-21 19:41:54 (after 15 s)

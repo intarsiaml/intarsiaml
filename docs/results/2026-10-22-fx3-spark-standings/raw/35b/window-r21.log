@@ -1,0 +1,6 @@
+[05:39:01] pass r21 model=35b host=spark1 arms=[sglang] phases=speed,conc job=3977
+[05:39:05] == arm sglang (MemAvailable 111 GB)
+[05:43:08]   sglang ready after 225s
+[05:43:48]   speed exit=0
+[05:44:07]   conc exit=0
+[05:44:09] pass r21 done

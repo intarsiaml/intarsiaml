@@ -1,0 +1,135 @@
+01:35:25 == remote.sh STEPS='ids prof acc ktest' MemAvailable 48 GB
+01:35:25 bin s1-base: intarsia 0.0.1; pair syms 0; glu syms 0
+01:35:25 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+01:36:06 kernels test dev exit 0: SKIPPED: kernel matmul_fp8_pair_gemm_reg ran 0 cases on backend 'cuda'|SKIPPED: kernel matmul_nvfp4_glu_gemm ran 0 cases on backend 'cuda'|incomplete: 4 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)|
+matmul_nvfp4   matmul_nvfp4_gemm_reg           0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8_pair matmul_fp8_pair_gemm_reg        0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_nvfp4_glu matmul_nvfp4_glu_gemm           0      0     0.000e0     0.000e0  NO CASES (untested)
+SKIPPED: kernel matmul_nvfp4_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_pair_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_nvfp4_glu_gemm ran 0 cases on backend 'cuda'
+01:36:45 prof base 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 1312 ms (3192.4 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 802.2 ms
+moe_w4a16_kernel<                                                           270.9 ms  33.8 %    160 calls
+reg::gemm_reg_kernel<                                                       150.0 ms  18.7 %    260 calls
+gdn_delta_split_kernel<                                                     111.1 ms  13.9 %     90 calls
+moe_mma_kernel<                                                              61.3 ms   7.6 %     80 calls
+wq::wq_gemm_kernel<                                                          41.0 ms   5.1 %    490 calls
+moe_reduce_kernel<__nv_bfloat16>                                             28.8 ms   3.6 %    120 calls
+flash_kernel<                                                                24.6 ms   3.1 %     30 calls
+gdn_conv_kernel                                                              21.4 ms   2.7 %     90 calls
+rmsnorm_kernel<                                                              20.8 ms   2.6 %    303 calls
+fp8_actq_kernel                                                              19.7 ms   2.5 %    390 calls
+gated_rmsnorm_kernel<                                                        13.4 ms   1.7 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.3 ms   0.8 %    120 calls
+gate_split_kernel                                                             5.7 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.1 ms   0.5 %    120 calls
+sigmoid_mul_kernel                                                            4.0 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.0 ms   0.4 %     80 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        2.4 ms   0.3 %    120 calls
+rope_pass_kernel                                                              1.8 ms   0.2 %     60 calls
+moe_topk_kernel                                                               1.7 ms   0.2 %    120 calls
+moe_group_tiles_kernel                                                        1.3 ms   0.2 %    120 calls
+kv_append_kernel<__nv_bfloat16,                                               0.8 ms   0.1 %     60 calls
+gdn_conv_state_kernel                                                         0.7 ms   0.1 %     90 calls
+silu_glu_kernel<                                                              0.7 ms   0.1 %    120 calls
+window: 3436 kernels, span 1252.17 ms, busy 801.90 ms, idle 450.28 ms
+gaps < 20 us: 3105 totalling 6.85 ms (mean 2.2 us); >= 20 us: 32 totalling 443.42 ms
+  gap  372645.9 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   14870.3 us before <unnamed>::gdn_conv_kernel(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, 
+  gap   14056.2 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+01:37:21 prof dev 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 1157 ms (3619.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 748.7 ms
+moe_w4a16_kernel<                                                           262.9 ms  35.1 %    160 calls
+gdn_delta_split_kernel<                                                     108.9 ms  14.5 %     90 calls
+reg::gemm_reg_pair_kernel<<unnamed>::reg::Cfg<                               82.9 ms  11.1 %     80 calls
+reg::gemm_reg_kernel<<unnamed>::reg::Cfg<                                    59.2 ms   7.9 %    100 calls
+moe_mma_kernel<                                                              51.4 ms   6.9 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                             26.8 ms   3.6 %    120 calls
+flash_kernel<                                                                23.4 ms   3.1 %     30 calls
+gdn_conv_kernel                                                              21.5 ms   2.9 %     90 calls
+rmsnorm_kernel<                                                              20.2 ms   2.7 %    303 calls
+nvfp4_reg_kernel<                                                            16.6 ms   2.2 %    160 calls
+fp8_actq_kernel                                                              13.9 ms   1.9 %    310 calls
+wq::wq_gemm_kernel<                                                          13.5 ms   1.8 %    250 calls
+gated_rmsnorm_kernel<                                                        13.0 ms   1.7 %     90 calls
+moe_combine_kernel<__nv_bfloat16>                                             5.7 ms   0.8 %    120 calls
+gate_split_kernel                                                             5.4 ms   0.7 %     30 calls
+rope_kernel                                                                   4.8 ms   0.6 %     60 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.3 ms   0.6 %    120 calls
+sigmoid_mul_kernel                                                            3.9 ms   0.5 %     30 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        2.8 ms   0.4 %     80 calls
+rope_pass_kernel                                                              1.6 ms   0.2 %     60 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        1.4 ms   0.2 %    120 calls
+moe_topk_kernel                                                               1.2 ms   0.2 %    120 calls
+moe_group_tiles_kernel                                                        1.1 ms   0.2 %    120 calls
+kv_append_kernel<__nv_bfloat16,                                               0.7 ms   0.1 %     60 calls
+window: 3196 kernels, span 1132.09 ms, busy 748.50 ms, idle 383.58 ms
+gaps < 20 us: 2882 totalling 6.21 ms (mean 2.2 us); >= 20 us: 32 totalling 377.38 ms
+  gap  341795.4 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   11990.3 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11889.8 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+01:37:56 prof cub 14000: finish=length prompt=4189 (cached 0) completion=1 | prefill 1273 ms (3289.7 tok/s) | decode 0 ms (0.00 tok/s)
+kernel total 798.0 ms
+moe_w4a16_kernel<                                                           280.0 ms  35.1 %    160 calls
+gdn_delta_split_kernel<                                                     116.2 ms  14.6 %     90 calls
+nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bx_TNNN                     63.5 ms   8.0 %     80 calls
+moe_mma_kernel<                                                              53.6 ms   6.7 %     80 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bx_TNNN                      36.3 ms   4.6 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                             29.7 ms   3.7 %    120 calls
+flash_kernel<                                                                24.4 ms   3.1 %     30 calls
+nvjet_sm121_tst_mma_192x160x64_2_48x80x64_tmaAB_bx_TNNN                      24.2 ms   3.0 %     60 calls
+rmsnorm_kernel<                                                              22.6 ms   2.8 %    303 calls
+actq_alpha_kernel                                                            22.2 ms   2.8 %    260 calls
+gdn_conv_kernel                                                              22.0 ms   2.8 %     90 calls
+e4m3_to_bf16_kernel                                                          18.9 ms   2.4 %    130 calls
+nvfp4_reg_kernel<                                                            17.3 ms   2.2 %    160 calls
+gated_rmsnorm_kernel<                                                        13.9 ms   1.7 %     90 calls
+wq::wq_gemm_kernel<                                                          13.6 ms   1.7 %    250 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.0 ms   0.8 %    120 calls
+gate_split_kernel                                                             5.8 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+sigmoid_mul_kernel                                                            4.0 ms   0.5 %     30 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.0 ms   0.5 %    120 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.2 ms   0.4 %     80 calls
+nvjet_sm121_tst_mma_128x192x64_2_32x96x64_tmaAB_bx_TNNN                       2.3 ms   0.3 %     40 calls
+moe_topk_kernel                                                               2.0 ms   0.2 %    120 calls
+rope_pass_kernel                                                              1.6 ms   0.2 %     60 calls
+window: 3406 kernels, span 1218.01 ms, busy 797.52 ms, idle 420.50 ms
+gaps < 20 us: 2859 totalling 6.05 ms (mean 2.1 us); >= 20 us: 40 totalling 414.45 ms
+  gap  327669.7 us before nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bx_TNNN
+  gap   23701.6 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap   13800.3 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+01:38:35 gen 35s-base: finish=length prompt=1497 (cached 0) completion=256 | prefill 580 ms (2580.9 tok/s) | decode 3020 ms (84.43 tok/s)
+01:39:12 gen 35l-base: finish=length prompt=4201 (cached 0) completion=64 | prefill 1007 ms (4172.8 tok/s) | decode 772 ms (81.62 tok/s)
+01:40:31 gen 8s-base: finish=length prompt=1467 (cached 0) completion=256 | prefill 1006 ms (1459.0 tok/s) | decode 16534 ms (15.42 tok/s)
+01:41:08 gen 8l-base: finish=length prompt=4094 (cached 0) completion=64 | prefill 2061 ms (1986.2 tok/s) | decode 4158 ms (15.15 tok/s)
+01:43:00 gen 35s-dev: finish=length prompt=1497 (cached 0) completion=256 | prefill 727 ms (2058.7 tok/s) | decode 3088 ms (82.59 tok/s)
+01:43:38 gen 35l-dev: finish=length prompt=4201 (cached 0) completion=64 | prefill 1012 ms (4150.2 tok/s) | decode 775 ms (81.28 tok/s)
+01:44:31 gen 8s-dev: finish=length prompt=1467 (cached 0) completion=256 | prefill 841 ms (1744.9 tok/s) | decode 16509 ms (15.45 tok/s)
+01:45:14 gen 8l-dev: finish=length prompt=4094 (cached 0) completion=64 | prefill 1955 ms (2094.4 tok/s) | decode 4184 ms (15.06 tok/s)
+01:47:05 gen 35s-cub: finish=length prompt=1497 (cached 0) completion=256 | prefill 693 ms (2160.1 tok/s) | decode 3068 ms (83.11 tok/s)
+01:47:43 gen 35l-cub: finish=length prompt=4201 (cached 0) completion=64 | prefill 1055 ms (3982.4 tok/s) | decode 774 ms (81.43 tok/s)
+01:48:39 gen 8s-cub: finish=length prompt=1467 (cached 0) completion=256 | prefill 833 ms (1761.6 tok/s) | decode 16620 ms (15.34 tok/s)
+01:49:23 gen 8l-cub: finish=length prompt=4094 (cached 0) completion=64 | prefill 1959 ms (2089.9 tok/s) | decode 4207 ms (14.98 tok/s)
+01:50:30 ids 35s base vs dev: identical (256 ids)
+01:50:30 ids 35l base vs dev: identical (64 ids)
+01:50:30 ids 8s base vs dev: identical (256 ids)
+01:50:30 ids 8l base vs dev: identical (64 ids)
+01:50:30 8B plan base vs dev: byte-identical (8630 B)
+01:50:30 ids 35s base vs cub: identical (256 ids)
+01:50:30 ids 35l base vs cub: identical (64 ids)
+01:50:30 ids 8s base vs cub: identical (256 ids)
+01:50:30 ids 8l base vs cub: identical (64 ids)
+01:50:30 8B plan base vs cub: byte-identical (8630 B)
+01:51:10 acc short-base exit 0 40 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+01:52:40 acc long-base exit 0 90 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+01:54:13 reuse base exit 0 93 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok (logits bit-identi|prefix-reuse gate: PASS|
+01:54:53 acc short-dev exit 0 40 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+01:56:30 acc long-dev exit 0 97 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+01:58:05 reuse dev exit 0 95 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok (logits bit-identi|prefix-reuse gate: PASS|
+01:58:40 acc short-cub exit 0 35 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+02:00:21 acc long-cub exit 0 101 s: WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not m|gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside syst|
+02:01:58 reuse cub exit 0 97 s: chat_reuse_4k continue 4521 4647 4536 0 32/32 ok|chat_reuse_4k restore 4521 4631 4096 0 32/32 ok|chat_reuse_4k aligned 4096 4631 4096 0 32/32 ok (logits bit-identi|prefix-reuse gate: PASS|
+02:01:58 == remote.sh done

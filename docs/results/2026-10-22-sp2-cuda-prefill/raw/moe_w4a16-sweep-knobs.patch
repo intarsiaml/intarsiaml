@@ -1,0 +1,243 @@
+diff --git a/kernels/cuda/moe_w4a16.cu b/kernels/cuda/moe_w4a16.cu
+index b27fe95d..ef72ebd9 100644
+--- a/kernels/cuda/moe_w4a16.cu
++++ b/kernels/cuda/moe_w4a16.cu
+@@ -65,7 +65,7 @@ IK_DEVI uint32_t scale_pair(float f) {
+ // Block = R / (8 JW) warps, each owning 8 * JW weight rows (MODE 0: JW/2 gate n8 tiles and the matching JW/2 up tiles) and
+ // all BM = 16 * MT pairs of the tile; R weight rows per block (MODE 0: R/2 gate + the matching R/2 up rows).
+ // Pipeline lookahead: A(s + LA) and the packed unit of step s + LR are requested at iteration s (LR even, LR >= LA).
+-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR>
++template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, int ABL = 0>
+ __global__ void __launch_bounds__(R * 4 / JW, MINB)
+ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                  const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+@@ -94,7 +94,7 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+     const int wn = warp;
+     const int g = lane >> 2, t4 = lane & 3;
+     const int Kdim = MODE == 0 ? H : I;
+-    const int S = Kdim / BK;   // 64-wide steps
++    const int S = (ABL & 256) ? 0 : Kdim / BK;   // 64-wide steps
+     const int U = Kdim / 128;  // 128-wide packed units (Kdim % 128 == 0)
+ 
+     int n0;
+@@ -115,16 +115,16 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+ #pragma unroll
+     for (int q = 0; q < RQ; ++q) {
+         const int r = (tid >> 2) + (NT / 4) * q;
+-        rsrc[q] = w + ((int64_t)e * nrows + weight_row(r)) * (Kdim / 2) + rpart * 16;
++        rsrc[q] = w + ((int64_t)((ABL & 16) ? 0 : e) * nrows + weight_row(r)) * (Kdim / 2) + rpart * 16;
+     }
+-    const uint8_t* ssrc = sc + ((int64_t)e * nrows + weight_row(tid < R ? tid : 0)) * (Kdim / 16);
++    const uint8_t* ssrc = sc + ((int64_t)((ABL & 16) ? 0 : e) * nrows + weight_row(tid < R ? tid : 0)) * (Kdim / 16);
+     auto issue_raw = [&](int u, int slot) {
+ #pragma unroll
+         for (int q = 0; q < RQ; ++q) {
+             const int r = (tid >> 2) + (NT / 4) * q;
+             ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, rsrc[q] + u * 64, 16);
+         }
+-        if (tid < R) cp_async8(rawu(slot) + tid * kRawStride + 64, ssrc + u * 8);
++        if (tid < R && !((ABL & 8) && u > 1)) cp_async8(rawu(slot) + tid * kRawStride + 64, ssrc + u * 8);
+     };
+ 
+     // this thread's A rows: chunk (16 B = 8 bf16) c8 of rows r = (tid >> 3) + (NT / 8) q, q < BM / (NT / 8)
+@@ -150,8 +150,8 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+         }
+     };
+     auto issue_group = [&](int v) {  // the group of iteration v (v < 0: prologue)
+-        if (v + LA >= 0 && v + LA < S) issue_a(v + LA, (v + LA) % NA);
+-        if (!((v + LR) & 1) && (v + LR) / 2 < U) issue_raw((v + LR) / 2, ((v + LR) / 2) % NR);
++        if (v + LA >= 0 && v + LA < S && !((ABL & 4) && v >= 0)) issue_a(v + LA, (v + LA) % NA);
++        if (!((v + LR) & 1) && (v + LR) / 2 < U && !((ABL & 2) && v >= 0)) issue_raw((v + LR) / 2, ((v + LR) / 2) % NR);
+         ik_cp_async_commit();
+     };
+ 
+@@ -199,10 +199,15 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+             for (int j = 0; j < JW; ++j) {
+                 const uint32_t q = __byte_perm(wd[j][2 * kk], wd[j][2 * kk + 1], selt);
+                 uint32_t r0, r1;
+-                fp4x4_to_bf16x2x2(q, r0, r1);
+-                const uint32_t sp = scale_pair(ik_e4m3_to_f((uint8_t)((scs[j] >> (8 * kk)) & 0xFFu)));
+-                b[j][0] = mul_bf16x2(r0, sp);
+-                b[j][1] = mul_bf16x2(r1, sp);
++                if (ABL & 1) {
++                    b[j][0] = q;
++                    b[j][1] = scs[j] ^ q;
++                } else {
++                    fp4x4_to_bf16x2x2(q, r0, r1);
++                    const uint32_t sp = scale_pair(ik_e4m3_to_f((uint8_t)((scs[j] >> (8 * kk)) & 0xFFu)));
++                    b[j][0] = mul_bf16x2(r0, sp);
++                    b[j][1] = mul_bf16x2(r1, sp);
++                }
+             }
+ #pragma unroll
+             for (int i = 0; i < MT; ++i) {
+@@ -214,10 +219,17 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+                 for (int j = 0; j < JW; ++j) {
+                     // each k16 product sum is formed from zero and added to the running sum with a normal fp32 add (the
+                     // reason is in moe_grouped.cu; bitwise the same sums as that kernel)
+-                    float tt[4] = {0.f, 0.f, 0.f, 0.f};
+-                    ik_mma_bf16_16816(tt, a0, a1, a2, a3, b[j][0], b[j][1]);
++                    if (ABL & 64) {
++                        ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
++                    } else if (ABL & 32) {
++#pragma unroll
++                        for (int v = 0; v < 4; ++v) acc[i][j][v] += __uint_as_float(b[j][v & 1] ^ a0);
++                    } else {
++                        float tt[4] = {0.f, 0.f, 0.f, 0.f};
++                        ik_mma_bf16_16816(tt, a0, a1, a2, a3, b[j][0], b[j][1]);
+ #pragma unroll
+-                    for (int v = 0; v < 4; ++v) acc[i][j][v] += tt[v];
++                        for (int v = 0; v < 4; ++v) acc[i][j][v] += tt[v];
++                    }
+                 }
+             }
+         }
+@@ -267,7 +279,7 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__
+     constexpr int CPR = NCOL / 8;  // 16-byte chunks per row
+     for (int c = tid; c < BM * CPR; c += NT) {
+         const int rl = c / CPR, part = c % CPR;
+-        if (rl >= rows) continue;
++        if (rl >= rows || (ABL & 128)) continue;
+         ik_bf16* dst;
+         if (MODE == 0) dst = out + (int64_t)(begin + m0 + rl) * I + n0 + part * 8;
+         else dst = out + (int64_t)pairs[begin + m0 + rl] * H + n0 + part * 8;
+@@ -300,26 +312,113 @@ ScratchLayout scratch_layout(int64_t P, int64_t E, int64_t H, int64_t I) {
+ int pick_bm(int64_t P, int64_t E) {
+     if (const char* v = getenv("INTARSIA_MOE_BM")) {
+         const int b = atoi(v);
+-        if (b == 32 || b == 64) return b;
++        if (b == 32 || b == 64 || b == 128) return b;
+     }
+     return (double)P / (double)E <= 56.0 ? 32 : 64;
+ }
+ 
+-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR>
++template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, int ABL = 0>
+ void launch_w4(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
+                const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
+                int K, cudaStream_t s) {
+-    constexpr size_t smem = (size_t)((LA + 1) * 16 * MT) * LDS * 2 + (size_t)(LR / 2 + 1) * R * kRawStride;
++    constexpr int NCOL = MODE == 0 ? R / 2 : R;
++    constexpr size_t ring = (size_t)((LA + 1) * 16 * MT) * LDS * 2 + (size_t)(LR / 2 + 1) * R * kRawStride;
++    constexpr size_t epi = (size_t)(16 * MT) * (NCOL + 8) * 2;  // the output tile aliases the A ring
++    constexpr size_t smem = ring > epi ? ring : epi;
+     static const bool attr_set = [] {
+-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR>),
++        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, ABL>),
+                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
+-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR>),
++        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, ABL>),
+                              cudaFuncAttributePreferredSharedMemoryCarveout, 100);
+         return true;
+     }();
+     (void)attr_set;
+     const unsigned ny = MODE == 0 ? (unsigned)(I / (R / 2)) : (unsigned)(H / R);
+-    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
++    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, ABL><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
++}
++
++int env_int(const char* name, int dflt) {
++    const char* v = getenv(name);
++    return v ? atoi(v) : dflt;
++}
++
++// BM = 64 launch of one GEMM (MODE 0 gate/up, MODE 1 down) under the schedule `cfg` (temporary sweep knob).
++template <int MODE>
++void launch_bm32(int cfg, const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
++                 const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
++                 int K, cudaStream_t s) {
++#define W4L(R, JW, MINB, LA, LR, ABL) \
++    launch_w4<R, 2, JW, MODE, MINB, LA, LR, ABL>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, tiles_ub, H, I, K, s)
++    switch (cfg) {
++        case 1: W4L(128, 2, 3, 2, 2, 0); break;
++        case 2: W4L(128, 2, 4, 1, 2, 0); break;
++        case 3: W4L(128, 4, 3, 1, 2, 0); break;
++        case 4: W4L(256, 4, 2, 2, 2, 0); break;
++        default: W4L(128, 4, 2, 2, 2, 0); break;
++    }
++#undef W4L
++}
++
++template <int MODE>
++void launch_bm128(int cfg, const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
++                  const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
++                  int K, cudaStream_t s) {
++#define W4L(R, JW, MINB, LA, LR, ABL) \
++    launch_w4<R, 8, JW, MODE, MINB, LA, LR, ABL>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, tiles_ub, H, I, K, s)
++    switch (cfg) {
++        case 1: W4L(128, 2, 1, 1, 2, 0); break;
++        case 2: W4L(64, 2, 2, 1, 2, 0); break;
++        case 3: W4L(128, 4, 1, 2, 2, 0); break;
++        default: W4L(128, 2, 1, 2, 2, 0); break;
++    }
++#undef W4L
++}
++
++template <int MODE>
++void launch_bm64(int cfg, int abl, const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
++                 const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
++                 int K, cudaStream_t s) {
++#define W4L(R, JW, MINB, LA, LR, ABL) \
++    launch_w4<R, 4, JW, MODE, MINB, LA, LR, ABL>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, tiles_ub, H, I, K, s)
++    switch (cfg) {
++        case 1: W4L(128, 2, 2, 2, 2, 0); break;
++        case 2: W4L(128, 4, 3, 1, 2, 0); break;
++        case 3: W4L(256, 4, 1, 2, 2, 0); break;
++        case 4: W4L(256, 2, 2, 2, 2, 0); break;
++        case 5: W4L(64, 4, 2, 2, 2, 0); break;
++        case 6: W4L(128, 2, 3, 1, 2, 0); break;
++        case 7: W4L(128, 4, 2, 3, 4, 0); break;
++        case 8: W4L(64, 4, 4, 1, 2, 0); break;
++        default:
++            switch (abl) {
++                case 1: W4L(128, 4, 2, 2, 2, 1); break;
++                case 2: W4L(128, 4, 2, 2, 2, 2); break;
++                case 4: W4L(128, 4, 2, 2, 2, 4); break;
++                case 8: W4L(128, 4, 2, 2, 2, 8); break;
++                case 16: W4L(128, 4, 2, 2, 2, 16); break;
++                case 32: W4L(128, 4, 2, 2, 2, 32); break;
++                case 64: W4L(128, 4, 2, 2, 2, 64); break;
++                case 17: W4L(128, 4, 2, 2, 2, 17); break;
++                case 48: W4L(128, 4, 2, 2, 2, 48); break;
++                case 49: W4L(128, 4, 2, 2, 2, 49); break;
++                case 14: W4L(128, 4, 2, 2, 2, 14); break;
++                case 15: W4L(128, 4, 2, 2, 2, 15); break;
++                case 46: W4L(128, 4, 2, 2, 2, 46); break;
++                case 47: W4L(128, 4, 2, 2, 2, 47); break;
++                case 62: W4L(128, 4, 2, 2, 2, 62); break;
++                case 63: W4L(128, 4, 2, 2, 2, 63); break;
++                case 6: W4L(128, 4, 2, 2, 2, 6); break;
++                case 10: W4L(128, 4, 2, 2, 2, 10); break;
++                case 12: W4L(128, 4, 2, 2, 2, 12); break;
++                case 22: W4L(128, 4, 2, 2, 2, 22); break;
++                case 128: W4L(128, 4, 2, 2, 2, 128); break;
++                case 256: W4L(128, 4, 2, 2, 2, 256); break;
++                case 384: W4L(128, 4, 2, 2, 2, 384); break;
++                case 298: W4L(128, 4, 2, 2, 2, 298); break;
++                default: W4L(128, 4, 2, 2, 2, 0); break;
++            }
++    }
++#undef W4L
+ }
+ 
+ template <int R, int MT, int JW, int MINB, int LA, int LR>
+@@ -383,10 +482,16 @@ int ik_moe_experts_w4a16_bf16(const ik_tensor* x, const ik_tensor* ids, const ik
+     const uint8_t* dnw = (const uint8_t*)down_w->data;
+     const uint8_t* dns = (const uint8_t*)down_s->data;
+     const float* gs = (const float*)gscales->data;
+-    if (BM == 32) {
+-        run_gemms<128, 2, 4, 2, 2, 2>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
++    static const int c0 = env_int("INTARSIA_W4_CFG0", 0), c1 = env_int("INTARSIA_W4_CFG1", 0), abl = env_int("INTARSIA_W4_ABL", 0);
++    if (BM == 128) {
++        launch_bm128<0>(c0, xp, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, (int)H, (int)I, (int)K, s);
++        launch_bm128<1>(c1, hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
++    } else if (BM == 32) {
++        launch_bm32<0>(c0, xp, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, (int)H, (int)I, (int)K, s);
++        launch_bm32<1>(c1, hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
+     } else {
+-        run_gemms<128, 4, 4, 2, 2, 2>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
++        launch_bm64<0>(c0, abl, xp, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, (int)H, (int)I, (int)K, s);
++        launch_bm64<1>(c1, abl, hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
+     }
+     IK_TRY(ik_launch_status());
+     moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(

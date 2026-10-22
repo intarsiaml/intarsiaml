@@ -1,0 +1,6 @@
+test fp8_gemm_cublas_is_bitwise_gemm_reg ... fp8_gemm_cublas: 56 cases bitwise
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test fp8_pair_gemm_reg_is_bitwise_two_calls ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.18s

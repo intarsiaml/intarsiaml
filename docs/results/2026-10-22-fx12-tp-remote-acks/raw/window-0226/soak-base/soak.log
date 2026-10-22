@@ -1,0 +1,1 @@
+SOAK {"requests": 100, "errors": 0, "by_kind": {"short": 20, "reuse": 40, "repeat": 20, "turn": 10, "long": 10}, "cached_hits": 30, "prompt_tokens_max": 2789, "error_samples": [], "seconds": 59.5}

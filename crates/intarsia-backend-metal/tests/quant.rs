@@ -323,3 +323,47 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
     }
     let _ = f32_to_bf16;
 }
+
+/// The Qwen3.6-35B-A3B dense projection shapes (hidden 2048; q_proj 16 heads x 2 x 256 = 8192 out; k/v 2 x 256 = 512; o_proj in
+/// 4096; GDN in_proj_qkv 8192 / z 4096 / out_proj in 4096; shared expert I = 512), at decode (M = 1), a small batch and a
+/// prefill chunk, through both the GEMV and the MMA kernel (weights at 8 mod 16) against the f64 oracle.
+const REAL_SHAPES: &[(usize, usize, usize)] = &[
+    (1, 8192, 2048),
+    (1, 4096, 2048),
+    (1, 2048, 4096),
+    (1, 512, 2048),
+    (1, 2048, 512),
+    (8, 8192, 2048),
+    (33, 8192, 2048),
+    (33, 2048, 4096),
+    (300, 512, 2048),
+    (300, 2048, 512),
+];
+
+#[test]
+fn fp8_at_the_35b_projection_shapes() {
+    let be = backend();
+    for (ci, &(m, n, k)) in REAL_SHAPES.iter().enumerate() {
+        for f32_out in [false, true] {
+            let c = Fp8Case { m, n, k, is: 0.37, f32_out };
+            for kernel in ["matmul_fp8_gemv", "matmul_fp8_mma"] {
+                if kernel.ends_with("gemv") && m > 8 {
+                    continue; // the GEMV kernel serves M <= 8 only (GEMV_MB); larger batches take the MMA kernel
+                }
+                run_fp8(&be, kernel, &c, 8, 9000 + ci as u64 * 13);
+            }
+        }
+    }
+}
+
+#[test]
+fn nvfp4_at_the_35b_projection_shapes() {
+    let be = backend();
+    for (ci, &(m, n, k)) in REAL_SHAPES.iter().enumerate() {
+        for f32_out in [false, true] {
+            for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma"] {
+                run_nvfp4(&be, kernel, m, n, k, f32_out, 8, 9500 + ci as u64 * 13);
+            }
+        }
+    }
+}

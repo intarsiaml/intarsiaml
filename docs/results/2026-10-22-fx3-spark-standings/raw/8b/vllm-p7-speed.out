@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 48 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=136 ttft=0.17s prefill=819 tok/s decode=13.9 tok/s peak=13.9 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=136 ttft=0.11s prefill=1241 tok/s decode=13.9 tok/s peak=13.9 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=132 ttft=0.11s prefill=1218 tok/s decode=13.9 tok/s peak=13.9 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.24s prefill=4199 tok/s decode=13.8 tok/s peak=13.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.24s prefill=4207 tok/s decode=13.8 tok/s peak=13.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=988 ttft=0.24s prefill=4151 tok/s decode=13.8 tok/s peak=13.8 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.86s prefill=4763 tok/s decode=13.4 tok/s peak=13.4 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.86s prefill=4767 tok/s decode=13.4 tok/s peak=13.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4087 ttft=0.86s prefill=4730 tok/s decode=13.4 tok/s peak=13.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16678 ttft=4.32s prefill=3865 tok/s decode=12.2 tok/s peak=12.2 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16678 ttft=4.26s prefill=3919 tok/s decode=12.1 tok/s peak=12.2 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16678 ttft=4.26s prefill=3913 tok/s decode=12.1 tok/s peak=12.2 tok/s out=128
+# localeval: adhoc — 2026-10-22T09:14
+
+- model: `vllm` on ? (?), url `http://spark-fa00:8300/v1`
+- thinking: off; run kind: speed; label: fx3-8b-vllm-p7-speed
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8300/v1 --model vllm --thinking off --label fx3-8b-vllm-p7-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3`
+- result file: `results/20261022-091452-adhoc-fx3-8b-vllm-p7-speed/result.json`
+
+## Speed sweep
+
+served `vllm`, fingerprint `vllm-0.31.1rc1.dev296+gfe4df3df0-0eb2ed73`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 136 | 0.11 | 1218 (819–1241) * | - | 13.9 (13.9–13.9) | 13.9 (13.9–13.9) | - | - | 128 |
+| 991 | 0.24 | 4199 (4151–4207) * | 6786 | 13.8 (13.8–13.8) | 13.8 (13.8–13.8) | - | - | 128 |
+| 4088 | 0.86 | 4763 (4730–4767) | 4979 | 13.4 (13.4–13.4) | 13.5 (13.4–13.5) | - | - | 128 |
+| 16678 | 4.26 | 3913 (3865–3919) | 3699 | 12.1 (12.1–12.2) | 12.2 (12.2–12.2) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-091452-adhoc-fx3-8b-vllm-p7-speed/result.json
+[localeval] logged to unanimis: fd998ec9-91b7-4c4f-b172-49a72819241a
