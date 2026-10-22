@@ -4,7 +4,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-H=spark1
+H=${HOST:-spark1}
 ssh -n -o BatchMode=yes $H "mkdir -p ~/ck/src ~/ck/out"
 rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude docs/results "$REPO/" $H:ck/src/
 echo "tree HEAD $(git -C "$REPO" rev-parse --short HEAD)"
