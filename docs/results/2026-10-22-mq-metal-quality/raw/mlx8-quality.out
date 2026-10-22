@@ -1,0 +1,86 @@
+[localeval] benchmark mmlu (limit=25, shots=None, tasks=all)
+MMLU Task Accuracy (task=high_school_european_history): 0.8
+MMLU Task Accuracy (task=business_ethics): 0.64
+MMLU Task Accuracy (task=clinical_knowledge): 0.72
+MMLU Task Accuracy (task=medical_genetics): 0.96
+MMLU Task Accuracy (task=high_school_us_history): 0.88
+MMLU Task Accuracy (task=high_school_physics): 0.48
+MMLU Task Accuracy (task=high_school_world_history): 0.88
+MMLU Task Accuracy (task=virology): 0.68
+MMLU Task Accuracy (task=high_school_microeconomics): 0.48
+MMLU Task Accuracy (task=econometrics): 0.64
+MMLU Task Accuracy (task=college_computer_science): 0.56
+MMLU Task Accuracy (task=high_school_biology): 0.88
+MMLU Task Accuracy (task=abstract_algebra): 0.4
+MMLU Task Accuracy (task=professional_accounting): 0.32
+MMLU Task Accuracy (task=philosophy): 0.84
+MMLU Task Accuracy (task=professional_medicine): 0.76
+MMLU Task Accuracy (task=nutrition): 0.88
+MMLU Task Accuracy (task=global_facts): 0.52
+MMLU Task Accuracy (task=machine_learning): 0.52
+MMLU Task Accuracy (task=security_studies): 0.72
+MMLU Task Accuracy (task=public_relations): 0.44
+MMLU Task Accuracy (task=professional_psychology): 0.88
+MMLU Task Accuracy (task=prehistory): 0.84
+MMLU Task Accuracy (task=anatomy): 0.52
+MMLU Task Accuracy (task=human_sexuality): 0.68
+MMLU Task Accuracy (task=college_medicine): 0.68
+MMLU Task Accuracy (task=high_school_government_and_politics): 0.92
+MMLU Task Accuracy (task=college_chemistry): 0.52
+MMLU Task Accuracy (task=logical_fallacies): 0.8
+MMLU Task Accuracy (task=high_school_geography): 0.72
+MMLU Task Accuracy (task=elementary_mathematics): 0.56
+MMLU Task Accuracy (task=human_aging): 0.76
+MMLU Task Accuracy (task=college_mathematics): 0.48
+MMLU Task Accuracy (task=high_school_psychology): 0.96
+MMLU Task Accuracy (task=formal_logic): 0.56
+MMLU Task Accuracy (task=high_school_statistics): 0.84
+MMLU Task Accuracy (task=international_law): 0.84
+MMLU Task Accuracy (task=high_school_mathematics): 0.16
+MMLU Task Accuracy (task=high_school_computer_science): 0.8
+MMLU Task Accuracy (task=conceptual_physics): 0.92
+MMLU Task Accuracy (task=miscellaneous): 0.68
+MMLU Task Accuracy (task=high_school_chemistry): 0.64
+MMLU Task Accuracy (task=marketing): 0.36
+MMLU Task Accuracy (task=professional_law): 0.64
+MMLU Task Accuracy (task=management): 0.76
+MMLU Task Accuracy (task=college_physics): 0.64
+MMLU Task Accuracy (task=jurisprudence): 0.8
+MMLU Task Accuracy (task=world_religions): 0.8
+MMLU Task Accuracy (task=sociology): 0.68
+MMLU Task Accuracy (task=us_foreign_policy): 0.76
+MMLU Task Accuracy (task=high_school_macroeconomics): 0.6
+MMLU Task Accuracy (task=computer_security): 0.68
+MMLU Task Accuracy (task=moral_scenarios): 0.32
+MMLU Task Accuracy (task=moral_disputes): 0.56
+MMLU Task Accuracy (task=electrical_engineering): 0.48
+MMLU Task Accuracy (task=astronomy): 1.0
+MMLU Task Accuracy (task=college_biology): 0.84
+Overall MMLU Accuracy: 0.6785964912280702
+[localeval] benchmark gsm8k (limit=25, shots=None, tasks=all)
+Overall GSM8K Accuracy: 0.0
+# localeval: adhoc — 2026-10-22T06:58
+
+- model: `/Users/josef/models/Qwen3-8B` on ? (?), url `http://127.0.0.1:8092/v1`
+- thinking: off; run kind: quality; label: mq-mlx8
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --thinking off --structured none --bench mmlu,gsm8k --limit 25 --label mq-mlx8`
+- result file: `results/20261022-065854-adhoc-mq-mlx8/result.json`
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| mmlu | 0.679 | 1425 | 0.39 | 1915 | 21.1 | 1425 | 0 | 1709.7 |
+| gsm8k | 0.920 | 25 | 0.34 | - | 23.2 | 25 | 0 | 161.1 |
+
+- gsm8k scores: `gsm8k_flexible` 0.920 (primary); `gsm8k_strict` 0.000
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-065854-adhoc-mq-mlx8/result.json
+[localeval] logged to unanimis: 1172bbf8-77b6-4e88-95e5-cc6a98de98b7
