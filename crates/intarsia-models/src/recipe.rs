@@ -49,6 +49,23 @@ pub fn all_recipes(extra_dirs: &[PathBuf]) -> Vec<(String, Recipe)> {
     out
 }
 
+/// `*.toml` files in `extra_dirs` that do not parse as a recipe, with the reason. `all_recipes` skips them silently, so
+/// a typo in a user recipe otherwise surfaces only as "no recipe matches".
+pub fn unparsable_recipes(extra_dirs: &[PathBuf]) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for d in extra_dirs {
+        let Ok(rd) = std::fs::read_dir(d) else { continue };
+        let mut files: Vec<_> = rd.flatten().map(|e| e.path()).collect();
+        files.sort();
+        for p in files.into_iter().filter(|p| p.extension().and_then(|e| e.to_str()) == Some("toml")) {
+            if let Err(e) = load_recipe_file(&p) {
+                out.push((p.display().to_string(), e.to_string()));
+            }
+        }
+    }
+    out
+}
+
 /// Pick the recipe whose `match.architectures` contains one of the model's architectures.
 pub fn select_recipe(config: &serde_json::Value, extra_dirs: &[PathBuf]) -> Result<(String, Recipe)> {
     let archs: Vec<String> = config
@@ -56,14 +73,21 @@ pub fn select_recipe(config: &serde_json::Value, extra_dirs: &[PathBuf]) -> Resu
         .and_then(|a| a.as_array())
         .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
         .unwrap_or_default();
-    for (src, r) in all_recipes(extra_dirs) {
-        if r.model.matcher.architectures.iter().any(|a| archs.contains(a)) {
-            return Ok((src, r));
-        }
+    let recipes = all_recipes(extra_dirs);
+    if let Some((src, r)) = recipes.iter().find(|(_, r)| r.model.matcher.architectures.iter().any(|a| archs.contains(a))) {
+        return Ok((src.clone(), r.clone()));
     }
-    Err(Error::model(format!(
-        "no recipe matches architectures {archs:?}; write one (see docs/adding-a-model.md) and pass --recipe"
-    )))
+    let mut msg = format!("no recipe matches architectures {archs:?}");
+    if archs.is_empty() {
+        msg.push_str(" (config.json has no \"architectures\" list)");
+    }
+    let known: Vec<String> = recipes.iter().flat_map(|(_, r)| r.model.matcher.architectures.clone()).collect();
+    msg.push_str(&format!("; recipes loaded cover {known:?}"));
+    for (path, why) in unparsable_recipes(extra_dirs) {
+        msg.push_str(&format!("\n  skipped {path}: {why}"));
+    }
+    msg.push_str("\nwrite one with `intarsia recipe new --model <dir>` (see docs/recipes.md) and pass --recipe FILE or --recipe-dir DIR");
+    Err(Error::model(msg))
 }
 
 #[cfg(test)]
@@ -101,6 +125,30 @@ mod tests {
         assert!(r.layer.pattern_for(2, &odd).unwrap_err().to_string().contains("sliding_attention"));
         let cfg = serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]});
         assert_eq!(select_recipe(&cfg, &[]).unwrap().0, "builtin:qwen3_5");
+    }
+
+    #[test]
+    fn unknown_recipe_key_is_rejected_naming_the_key_and_the_valid_ones() {
+        let text = include_str!("../../../recipes/qwen3.toml").replace("kv_dtype =", "kv_dtyp =");
+        let e = parse_recipe(&text).unwrap_err().to_string();
+        assert!(e.contains("unknown field `kv_dtyp`") && e.contains("`kv_dtype`"), "{e}");
+    }
+
+    #[test]
+    fn no_match_error_lists_what_is_loaded_and_why_a_user_recipe_was_skipped() {
+        let dir = std::env::temp_dir().join(format!("intarsia-recipe-skip-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let text = include_str!("../../../recipes/qwen3.toml")
+            .replace("Qwen3ForCausalLM", "MyModelForCausalLM")
+            .replace("kv_dtype =", "kv_dtyp =");
+        std::fs::write(dir.join("mine.toml"), text).unwrap();
+        let cfg = serde_json::json!({"architectures": ["MyModelForCausalLM"]});
+        let e = select_recipe(&cfg, &[dir.clone()]).unwrap_err().to_string();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(e.contains("skipped") && e.contains("mine.toml") && e.contains("kv_dtyp"), "{e}");
+        assert!(e.contains("Qwen3ForCausalLM") && e.contains("recipe new"), "{e}");
+        let e = select_recipe(&serde_json::json!({}), &[]).unwrap_err().to_string();
+        assert!(e.contains("no \"architectures\" list"), "{e}");
     }
 
     #[test]

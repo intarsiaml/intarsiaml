@@ -376,6 +376,10 @@ pub struct KlVerdict {
     pub factor_needed: Option<f64>,
     /// Change vs base only: every prompt's mean KL against `prompt_factor x` its own noise. `pass` already includes it.
     pub prompt_checks: Option<PromptsVerdict>,
+    /// Gate definitions that changed in October, with the metric and the verdict under the old and the current one
+    /// (`gatedefs.rs`). Filled by the caller; informational: `pass` above is the current definition's verdict.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub definition_changes: Vec<super::gatedefs::DefinitionChange>,
 }
 
 /// Which noise a prompt was judged against.
@@ -528,6 +532,7 @@ pub fn judge_kl(mode: &str, kl_metric: &str, kl: f64, static_floor: Option<f64>,
         pass: static_ok || noise_ok,
         factor_needed: noise.filter(|n| n.value > 0.0).map(|n| n.kl / n.value),
         prompt_checks: None,
+        definition_changes: Vec::new(),
     })
 }
 
