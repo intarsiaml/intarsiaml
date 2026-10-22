@@ -43,7 +43,9 @@ total order there. The cpu-ref `Sample` op calls `sample_row` too, so it gets th
   sampled tokens, 0 differ** between base and head. The seeds do change the output: seed 1 and seed 2 diverge at
   token 0 to 29 in every case.
 - `cargo test --release --workspace --no-fail-fast` (fleetq #4227, separate `CARGO_TARGET_DIR`): **747 passed, 0
-  failed**, 4 ignored. Log: `2026-10-22-sp-sampler/test/cargo-test-workspace.log`.
+  failed**, 4 ignored. Log: `2026-10-22-sp-sampler/test/cargo-test-workspace.log`. Debug `cargo test --workspace
+  --no-fail-fast` (fleetq #4235): also 747 passed, 0 failed, 4 ignored (`cargo-test-workspace-debug.log`). The fuzz test
+  takes 19.7 s in debug and 11.7 s in release.
 
 ## Per-token time, before and after (exclusive endor, fleetq #4228, 11:47-11:57 EDT)
 
