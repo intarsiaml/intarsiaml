@@ -69,7 +69,7 @@ A scripted fake rank on a loopback socket speaks the wire protocol; the primary 
 
 Existing tests that run the real `serve` loop over a loopback socket still pass: `tp_hybrid` (7, including the remote rank
 bitwise equal to the in-process group, snapshot rollback through the remote rank), `hybrid` (10), `intarsia-core` (97 unit, 21 +
-2 integration). `cargo check --workspace` passes.
+2 integration). `cargo check --workspace` passes. The same set ran again on the rebased head (main `34ca7267`, fleetq #3898, [raw/final-*.log](2026-10-22-fx12-tp-remote-acks/raw/)): all pass.
 
 ### Each test fails on the old code
 
