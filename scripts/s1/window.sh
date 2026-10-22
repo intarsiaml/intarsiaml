@@ -23,8 +23,10 @@ else
   (( MAXMIN > 24 )) && { echo "outside 00:00-07:00 EDT: cap ${MAXMIN} min -> 24 min (lane rules: 30 min windows incl. vLLM restart)"; MAXMIN=24; }
 fi
 # lane rules: agent-harness benchmarks against the Spark vLLMs; never take spark2's down under one
-if fleetq status 2>&1 | grep -iq "agent-harness"; then
-  echo "refusing: fleetq status shows an agent-harness job:" >&2; fleetq status 2>&1 | grep -i "agent-harness" >&2; exit 3
+# (this job's own two status lines are dropped first: its label may mention agent-harness)
+ah=$(fleetq status 2>&1 | awk -v me="#$FLEETQ_JOB " 'index($0, me) {skip = 2} skip > 0 {skip--; next} {print}' | grep -i "agent-harness")
+if [[ -n "$ah" ]]; then
+  echo "refusing: fleetq status shows an agent-harness job:" >&2; echo "$ah" >&2; exit 3
 fi
 echo "agent-harness check $(date +%T): none in fleetq status"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
