@@ -740,6 +740,11 @@ impl Backend for MetalBackend {
         if (kernel == nvfp4::MATMUL_NVFP4_GEMV || kernel == nvfp4::MATMUL_NVFP4_MMA) && call.op == Op::MatmulNvfp4 {
             return self.launch_nvfp4(kernel, call);
         }
+        if (kernel == nvfp4::MATMUL_NVFP4_GLU_GEMV && call.op == Op::MatmulNvfp4Glu)
+            || (kernel == nvfp4::SHARED_DOWN_COMBINE_GEMV && call.op == Op::SharedDownCombine)
+        {
+            return self.launch_nvfp4_fused(kernel, call);
+        }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);
         }
