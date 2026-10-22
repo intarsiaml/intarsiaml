@@ -1,0 +1,29 @@
+[og-burst] job 3629; og o5; cap 1380s; stopping radiance 2026-10-21 23:10:57
+[og-burst] radiance stopped 2026-10-21 23:11:00
+== o5-tails hip start 23:11:00 host tatooine
+prefill chunk 4557 exit 1 33 s  2088036 bytes
+prefill chunk 4096 exit 1 29 s  2088036 bytes
+prefill chunk 2032 exit 1 29 s  2088036 bytes
+prefill chunk 1016 exit 1 29 s  2088036 bytes
+prefill chunk 239 exit 1 30 s  2088036 bytes
+prefill chunk 2031 exit 1 29 s  2088036 bytes
+prefill chunk 4063 exit 1 29 s  2088036 bytes
+prefill chunk 4062 exit 1 29 s  2088036 bytes
+prefill chunk 4061 exit 1 28 s  2088036 bytes
+prefill chunk 4060 exit 1 29 s  2088036 bytes
+prefill chunk 4059 exit 1 29 s  2088036 bytes
+prefill chunk 4056 exit 1 29 s  2088036 bytes
+prefill chunk 4048 exit 1 29 s  2088036 bytes
+prefill chunk 4556 exit 1 31 s  2088036 bytes
+prefill chunk 4555 exit 1 28 s  2088036 bytes
+prefill chunk 2278 exit 1 29 s  2088036 bytes
+decode chunk 4493 exit 0 6 s  2096628 bytes
+decode chunk 2000 exit 0 6 s  2096628 bytes
+decode chunk 3999 exit 0 5 s  2096628 bytes
+decode chunk 3998 exit 0 6 s  2096628 bytes
+decode chunk 1999 exit 0 6 s  2096628 bytes
+decode chunk 4492 exit 0 6 s  2096628 bytes
+== o5-tails hip done 23:19:24
+[og-burst] command done 2026-10-21 23:19:24 (exit 0)
+[og-burst] starting radiance 2026-10-21 23:19:24
+[og-burst] radiance answers 2026-10-21 23:19:39 (after 20 s); window total 522 s

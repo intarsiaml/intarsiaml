@@ -1,0 +1,257 @@
+{
+ "run_id": "20261022-020158-spark-guidance-og-o1-vllm-r3",
+ "kind": "speed",
+ "label": "og-o1-vllm-r3",
+ "started_at": "2026-10-22T02:01:58-04:00",
+ "finished_at": "2026-10-22T02:02:31-04:00",
+ "target": {
+  "name": "spark-guidance",
+  "url": "http://spark-4e77:8000/v1",
+  "model": "guidance",
+  "host": "spark-4e77",
+  "engine": "vLLM",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": 221,
+  "gb_per_token": null,
+  "notes": "Qwen3.6-35B-A3B NVFP4 (nvidia/Qwen3.6-35B-A3B-NVFP4); FLIGHT + GUIDANCE role; max_model_len 32768",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed spark-guidance --thinking off --sizes 128,1024,4096,16384 --gen 128 --reps 3 --label og-o1-vllm-r3 --wait-idle 300",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance",
+    "capcom"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "vllm",
+   "max_model_len": 32768
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 116,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.136,
+     "min": 0.096,
+     "max": 0.136,
+     "n": 3,
+     "spread_pct": 29.6
+    },
+    "prefill_tok_s": {
+     "median": 855.565,
+     "min": 836.137,
+     "max": 1226.433,
+     "n": 3,
+     "spread_pct": 45.6
+    },
+    "decode_tok_s": {
+     "median": 76.33,
+     "min": 76.315,
+     "max": 76.417,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 80.0,
+     "min": 78.8,
+     "max": 80.1,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.25,
+     "min": 0.24,
+     "max": 0.255,
+     "n": 3,
+     "spread_pct": 6.3
+    },
+    "prefill_tok_s": {
+     "median": 3971.393,
+     "min": 3870.846,
+     "max": 4135.315,
+     "n": 3,
+     "spread_pct": 6.7
+    },
+    "decode_tok_s": {
+     "median": 77.278,
+     "min": 75.916,
+     "max": 78.101,
+     "n": 3,
+     "spread_pct": 2.8
+    },
+    "peak_decode_tok_s": {
+     "median": 79.3,
+     "min": 78.7,
+     "max": 80.4,
+     "n": 3,
+     "spread_pct": 2.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 7675.4,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.734,
+     "min": 0.651,
+     "max": 0.769,
+     "n": 3,
+     "spread_pct": 16.0
+    },
+    "prefill_tok_s": {
+     "median": 5575.933,
+     "min": 5318.557,
+     "max": 6277.837,
+     "n": 3,
+     "spread_pct": 17.2
+    },
+    "decode_tok_s": {
+     "median": 75.985,
+     "min": 74.737,
+     "max": 76.176,
+     "n": 3,
+     "spread_pct": 1.9
+    },
+    "peak_decode_tok_s": {
+     "median": 78.1,
+     "min": 77.9,
+     "max": 80.3,
+     "n": 3,
+     "spread_pct": 3.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6402.9
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16654,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.639,
+     "min": 2.629,
+     "max": 2.641,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 6309.563,
+     "min": 6306.013,
+     "max": 6334.015,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "decode_tok_s": {
+     "median": 73.263,
+     "min": 73.128,
+     "max": 73.449,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "peak_decode_tok_s": {
+     "median": 94.6,
+     "min": 75.7,
+     "max": 97.7,
+     "n": 3,
+     "spread_pct": 23.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6595.3
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.26.1rc1.dev602+g65b7662d3-a11d7492",
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 13,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

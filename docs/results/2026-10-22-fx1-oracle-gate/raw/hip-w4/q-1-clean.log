@@ -1,0 +1,22 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/fx1out/w4/q-1-clean
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 54 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     10s] plan: PASS in 9.0s (30 ops resolved, exactness deterministic, loaded in 9.0s)
+[qualify     10s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     16s] gate: PASS in 5.9s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     16s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     16s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     16s] == acc-short [short accuracy against a golden]
+[qualify     24s] acc-short: PASS in 8.0s (prefill top-1 98.61% KL 7.63e-3; decode top-1 98.75% KL 1.18e-2)
+[qualify     24s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify     59s] acc-oracle: PASS in 35.6s (prefill top-1 95.86% KL 1.07e-2)
+QUICK DONE: /work/fx1out/w4/q-1-clean/quick-report.md
+[qualify     59s] == tp [tensor-parallel variant]
+[qualify     71s] server up in 8s on http://127.0.0.1:8090 (max-seq 2048)
+[qualify    120s] tp: PASS in 60.3s (decode 131.1 tok/s at 128 tokens (232% of the byte floor); oracle prefill top-1 95.82% KL 1.22e-2; accuracy prefill top-1 98.06% KL 8.15e-3; decode top-1 97.50% KL 8.99e-3)
+FULL DONE: /work/fx1out/w4/q-1-clean/full-report.md
+[qualify    120s] exit code 0
