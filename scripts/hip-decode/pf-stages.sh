@@ -106,7 +106,7 @@ stage_bitwise() { # the hip crate's flash_v2 (v2 == v1 bytes, incl. 35B long-con
     for v in ${VARMS:-0 1}; do
       need 240 "$t VP=$v" || continue
       echo "--- test $t VP=$v ($b) $(ts)"
-      INTARSIA_TARGET_VOL=$VOL_TEST $D bash -c "[ $v != x ] && export INTARSIA_HIP_FLASH_VP=$v; timeout 600 $b --nocapture --test-threads=1" < /dev/null 2>&1 | grep -aE "^test |test result|INTARSIA_HIP_FLASH|bitwise|panicked|FAILED" | head -40
+      INTARSIA_TARGET_VOL=$VOL_TEST $D bash -c "[ $v != x ] && export INTARSIA_HIP_FLASH_VP=$v; timeout 600 $b --nocapture --test-threads=1" < /dev/null 2>&1 | grep -aE "^test |test result|INTARSIA_HIP_FLASH_|bitwise|panicked|FAILED" | head -40
     done
   done
   b=$(INTARSIA_TARGET_VOL=$VOL_TEST $D bash -c "ls -t /target/release/deps/flash_v2-* | grep -v '\\.d\$' | head -1" < /dev/null 2>/dev/null | tr -d '\r')
@@ -114,7 +114,7 @@ stage_bitwise() { # the hip crate's flash_v2 (v2 == v1 bytes, incl. 35B long-con
     for v in ${VARMS:-0 1}; do
       need 120 "flash_v2 HPB=$h VP=$v" || continue
       echo "--- test flash_v2 HPB=$h VP=$v $(ts)"
-      INTARSIA_TARGET_VOL=$VOL_TEST $D bash -c "[ $v != x ] && export INTARSIA_HIP_FLASH_VP=$v; export INTARSIA_HIP_FLASH_HPB=$h; timeout 600 $b --nocapture --test-threads=1" < /dev/null 2>&1 | grep -aE "^test |test result|INTARSIA_HIP_FLASH|bitwise|panicked|FAILED" | head -10
+      INTARSIA_TARGET_VOL=$VOL_TEST $D bash -c "[ $v != x ] && export INTARSIA_HIP_FLASH_VP=$v; export INTARSIA_HIP_FLASH_HPB=$h; timeout 600 $b --nocapture --test-threads=1" < /dev/null 2>&1 | grep -aE "^test |test result|INTARSIA_HIP_FLASH_|bitwise|panicked|FAILED" | head -10
     done
   done
 }
