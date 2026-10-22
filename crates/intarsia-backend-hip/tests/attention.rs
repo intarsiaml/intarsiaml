@@ -109,7 +109,7 @@ fn attention_kernels_match_reference_on_random_shapes() {
     let ckernels = hip.kernels();
     let mut runs = std::collections::BTreeMap::<String, usize>::new();
     // (n_heads, n_kv_heads, head_dim): groups of 1, 2, 3, 4, 5, 8 (3 and 5 take the GP=4 / GP=8 paths)
-    let heads = [(4, 4, 64), (6, 2, 128), (6, 2, 32), (12, 4, 256), (10, 2, 128), (16, 2, 256), (8, 8, 128), (32, 8, 128)];
+    let heads = [(4, 4, 64), (6, 2, 128), (6, 2, 32), (12, 4, 256), (10, 2, 128), (16, 2, 256), (8, 1, 256), (8, 8, 128), (32, 8, 128)];
     // (rows, pos0): decode and verify sizes, tile-unaligned prefill chunks, long caches
     let tp = [
         (1, 0), (1, 1), (1, 63), (1, 64), (1, 4095), (2, 700), (4, 33), (8, 1999), (16, 5),

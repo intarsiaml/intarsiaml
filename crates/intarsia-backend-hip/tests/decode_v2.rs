@@ -100,6 +100,7 @@ fn moe_experts_v2_is_bitwise_v1() {
     // the prefetch window), plus the grouped paths v2 hands to the v1 kernels (T = 4 -> P = 32, T = 40)
     for (t, e, k, h, i) in [
         (1usize, 256usize, 8usize, 2048usize, 512usize),
+        (1, 256, 8, 2048, 256), // the 35B tp=2 shard (lane H1)
         (2, 64, 8, 2048, 512),
         (1, 32, 4, 256, 48),
         (1, 16, 2, 4112, 160),

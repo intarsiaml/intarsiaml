@@ -153,6 +153,8 @@ fn moe_block_is_bitwise_the_chain() {
     for (t, e, k, h, i, is) in [
         (1usize, 256usize, 8usize, 2048usize, 512usize, 512usize), // the 35B's decode step
         (2, 256, 8, 2048, 512, 512),
+        (1, 256, 8, 2048, 256, 256), // the 35B tp=2 shard (lane H1)
+        (2, 256, 8, 2048, 256, 256),
         (1, 64, 8, 1024, 256, 256),
         (1, 32, 4, 256, 48, 64),
         (1, 16, 2, 4112, 160, 32), // H / 16 past the 4-iteration windows (glu, gate_up)
