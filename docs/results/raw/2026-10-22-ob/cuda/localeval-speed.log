@@ -1,0 +1,40 @@
+[localeval] calibrated: 22.1 tokens/sentence, 50 base tokens, ctx=8192
+[localeval]    128 tok rep 1/1: prompt=129 ttft=0.10s prefill=1211 tok/s decode=14.0 tok/s peak=14.1 tok/s out=64
+[localeval]   1024 tok rep 1/1: prompt=989 ttft=0.45s prefill=2163 tok/s decode=13.6 tok/s peak=14.2 tok/s out=64
+[localeval]   4096 tok rep 1/1: prompt=4081 ttft=2.76s prefill=1475 tok/s decode=9.8 tok/s peak=11.7 tok/s out=64
+[localeval] 2 streams: aggregate 10.0 tok/s
+# localeval: adhoc — 2026-10-22T01:46
+
+- model: `Qwen3-8B` on ? (?), url `http://192.168.1.95:18612/v1`
+- thinking: default; run kind: speed; label: ob-cuda-dash
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1b02605
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://192.168.1.95:18612/v1 --model Qwen3-8B --sizes 128,1024,4096 --gen 64 --reps 1 --concurrency 2 --label ob-cuda-dash`
+- result file: `results/20261022-014615-adhoc-ob-cuda-dash/result.json`
+
+## Speed sweep
+
+served `Qwen3-8B`, fingerprint `None`, ctx 8192, 1 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 129 | 0.10 | 1211 (1211–1211) * | - | 14.0 (14.0–14.0) | 14.1 (14.1–14.1) | - | - | 64 |
+| 989 | 0.46 | 2163 (2163–2163) * | 2436 | 13.6 (13.6–13.6) | 14.2 (14.2–14.2) | - | - | 64 |
+| 4081 | 2.77 | 1475 (1475–1475) | 1338 | 9.8 (9.8–9.8) | 11.7 (11.7–11.7) | - | - | 64 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 2 | 10.0 | 10.8 (9.8–11.8) | 4.00 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-014615-adhoc-ob-cuda-dash/result.json
+[localeval] logged to unanimis: f57e57d2-38aa-4c26-b08e-df32800405cb
