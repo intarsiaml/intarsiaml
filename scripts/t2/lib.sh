@@ -63,7 +63,7 @@ self() {
   local tree=$1 gpus=$2 tag=$3 d=$4; shift 4
   cp "$O/$d" "$(T "$tree")/t2-out/$d"
   run "$tree" "$gpus" 600 "self-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --mode both \
-    --self-golden /work/t2-out/$d --allow-same-code --allow-config-mismatch --allow-unstamped "$@"
+    --self-golden /work/t2-out/$d --pre-change ${PRE:-d3f89b7} --allow-same-code --allow-config-mismatch --allow-unstamped "$@"
 }
 # prof <tag> <gpus> [args]: rocprofv3 kernel trace of a 128-token 27B decode after a ~1k-token prompt (P1's 1k: the first 3700
 # bytes of prompt4k.txt), per-rank step table by prof2.py -> $O/prof-<tag>.txt (the trace stays in the tree's t2-out/prof/)
