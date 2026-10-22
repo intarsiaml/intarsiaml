@@ -178,3 +178,38 @@ fn fp8_pair_gemm_reg_is_bitwise_two_calls() {
         }
     }
 }
+
+/// `matmul_fp8_gemm_cublas` (cuBLAS bf16 GEMM over exactly expanded e4m3 operands, alpha = the epilogue scale on the device)
+/// must give the bytes of `matmul_fp8_gemm_reg`: W8A8 with the checkpoint-like scales and weight only, the 35B projection
+/// shapes at prefill M (256 .. 4096, chunk tails), and the every-e4m3-code weight set. Holds on sm_121 / CUDA 13.0 where
+/// cuBLAS runs the same m16n8k16 chain; this test is what says so on a given box.
+#[test]
+fn fp8_gemm_cublas_is_bitwise_gemm_reg() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(97);
+    let mut n_cases = 0;
+    for m in [256usize, 300, 777, 1024, 1500, 2048, 4096] {
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+            if m == 4096 && n == 8192 {
+                continue; // 256 MB of host-side case data; 2048 covers the shape
+            }
+            for aq in [true, false] {
+                let hc = matmul_fp8_case(&mut rng, m, n, k, aq, DType::Bf16, DType::Bf16);
+                let a = run_host(&*cuda, "matmul_fp8_gemm_reg", &hc).unwrap();
+                let b = run_host(&*cuda, "matmul_fp8_gemm_cublas", &hc).unwrap();
+                assert!(a[0].data == b[0].data, "M={m} N={n} K={k} act_quant={aq}: cuBLAS bytes differ from gemm_reg");
+                n_cases += 1;
+            }
+        }
+    }
+    // every finite e4m3 code as a weight (both kernels expand it the same way)
+    for (seed, aq) in [(3usize, true), (8, false)] {
+        let mut hc = matmul_fp8_case(&mut rng, 256, 1024, 512, aq, DType::Bf16, DType::Bf16);
+        all_codes(&mut hc, seed);
+        let a = run_host(&*cuda, "matmul_fp8_gemm_reg", &hc).unwrap();
+        let b = run_host(&*cuda, "matmul_fp8_gemm_cublas", &hc).unwrap();
+        assert!(a[0].data == b[0].data, "all-codes case act_quant={aq}: cuBLAS bytes differ from gemm_reg");
+        n_cases += 1;
+    }
+    println!("fp8_gemm_cublas: {n_cases} cases bitwise");
+}

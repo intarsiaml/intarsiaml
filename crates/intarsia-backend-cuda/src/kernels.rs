@@ -170,7 +170,22 @@ pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
 pub fn fp8_pair_reg() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| {
-        std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").map_or(true, |v| v != "0") && fp8_gemm_reg() && !fp8_gemm_f8() && !fp8_gemm_lt()
+        std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").map_or(true, |v| v != "0")
+            && fp8_gemm_reg()
+            && !fp8_gemm_f8()
+            && !fp8_gemm_lt()
+            && !fp8_cublas()
+    })
+}
+
+/// `matmul_fp8_gemm_cublas`: the prefill fp8 projections on cuBLAS's bf16 GEMM over exactly expanded e4m3 operands
+/// (the bytes of `matmul_fp8_gemm_reg` where cuBLAS runs the same m16n8k16 chain; docs/results/2026-10-22-s1-spark-prefill.md).
+/// `INTARSIA_CUDA_FP8_CUBLAS=1` turns it on (and the gemm_reg pair off: the two single calls then run on cuBLAS); off with an
+/// opt-in e4m3 GEMM, which serves those calls instead.
+pub fn fp8_cublas() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| {
+        std::env::var("INTARSIA_CUDA_FP8_CUBLAS").is_ok_and(|v| v == "1") && !fp8_gemm_f8() && !fp8_gemm_lt()
     })
 }
 
@@ -539,7 +554,9 @@ mod tests {
             }
             return;
         }
-        let big = if std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0") {
+        let big = if std::env::var("INTARSIA_CUDA_FP8_CUBLAS").is_ok_and(|v| v == "1") {
+            "matmul_fp8_gemm_cublas" // lane S1: bf16 output (the probe shape)
+        } else if std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0") {
             "matmul_fp8_gemm"
         } else {
             "matmul_fp8_gemm_reg"
@@ -587,7 +604,8 @@ mod tests {
             || env_on("INTARSIA_CUDA_FP8_GEMM_F8")
             || env_on("INTARSIA_CUDA_FAST_PREFILL")
             || std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0")
-            || std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").is_ok_and(|v| v == "0");
+            || std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").is_ok_and(|v| v == "0")
+            || std::env::var("INTARSIA_CUDA_FP8_CUBLAS").is_ok_and(|v| v == "1");
         assert_eq!(pick(1, 2048).as_deref(), Some("matmul_fp8_pair_gemv"));
         for m in [2, 4, 5, 32, 33, 255] {
             assert_eq!(pick(m, 2048), None, "M={m}");
@@ -822,6 +840,7 @@ mod tests {
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
         "matmul_fp8_gemm:matmul_fp8",
+        "matmul_fp8_gemm_cublas:matmul_fp8",
         "matmul_fp8_gemm_f8:matmul_fp8",
         "matmul_fp8_gemm_lt:matmul_fp8",
         "matmul_fp8_gemm_reg:matmul_fp8",

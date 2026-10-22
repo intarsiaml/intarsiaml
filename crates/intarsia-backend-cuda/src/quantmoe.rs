@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
+    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -38,6 +38,9 @@ pub const TABLE: &[(&str, Op)] = &[
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
+    // prefill (M >= 256): the gemm_reg GEMM on cuBLAS's bf16 kernels over exactly expanded e4m3 operands, the same bytes
+    // at the 35B shapes on sm_121 / CUDA 13.0 (INTARSIA_CUDA_FP8_CUBLAS; docs/results/2026-10-22-s1-spark-prefill.md)
+    ("matmul_fp8_gemm_cublas", Op::MatmulFp8),
     // prefill (M >= 256): the pair as one launcher of the two `matmul_fp8_gemm_reg` GEMMs (one activation quantiser when the
     // input scales are equal, one grid), bitwise the two single calls; docs/results/2026-10-22-s1-spark-prefill.md
     ("matmul_fp8_pair_gemm_reg", Op::MatmulFp8Pair),
@@ -326,6 +329,15 @@ pub fn all() -> Vec<KernelImpl> {
                 // bitwise two `matmul_fp8_gemm_reg` calls: served exactly where those serve both halves (M >= 256, the reg
                 // GEMM on; never with the opt-in e4m3 GEMMs, which would serve the singles). `INTARSIA_CUDA_FP8_PAIR_REG=0`
                 // (or INTARSIA_NO_FUSION=1 in the model) gives the two single calls.
+                // above matmul_fp8_gemm_reg (15) where both serve; bf16 output only. Scratch: {alpha, beta}, xq, the bf16 weights
+                "matmul_fp8_gemm_cublas" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| fp8_cublas() && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(|s| 256 + 2 * (s.m * s.k + s.n * s.k))
+                    .priority(16),
                 "matmul_fp8_pair_gemm_reg" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])

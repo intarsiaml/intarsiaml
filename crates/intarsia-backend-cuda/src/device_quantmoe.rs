@@ -118,6 +118,7 @@ extern "C" {
     fn ik_moe_combine_bf16(routed: T, shared: T, gate: T, out: TM, s: S) -> c_int;
     fn ik_matmul_pair_bf16_gemv(x: T, w0: T, w1: T, out0: TM, out1: TM, s: S) -> c_int;
     fn ik_matmul_fp8_pair_gemv(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;
+    fn ik_matmul_fp8_gemm_cublas(x: T, w: T, scales: T, out: TM, scratch: *const IkScratch, s: S) -> c_int;
     fn ik_matmul_fp8_pair_gemm_reg(
         x: T,
         w0: T,
@@ -301,6 +302,14 @@ impl CudaBackend {
                 "moe_combine_bf16" => ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
                 "matmul_pair_bf16_gemv" => ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),
                 "matmul_fp8_pair_gemv" => ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
+                "matmul_fp8_gemm_cublas" => ik_matmul_fp8_gemm_cublas(
+                    i(0),
+                    i(1),
+                    i(2),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
                 "matmul_fp8_pair_gemm_reg" => ik_matmul_fp8_pair_gemm_reg(
                     i(0),
                     i(1),

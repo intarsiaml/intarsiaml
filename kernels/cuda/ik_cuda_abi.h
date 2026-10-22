@@ -32,6 +32,11 @@ int ik_moe_experts_nvfp4_mma_bf16(const ik_tensor* x, const ik_tensor* ids, cons
  * kernels/cuda/fp8_gemm.cu. Needs K % 128 == 0. */
 int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                            const ik_scratch* scratch, void* stream);
+/* matmul_fp8_gemm_cublas: the GEMM of matmul_fp8_gemm_reg on cuBLAS's bf16 kernels over exactly expanded e4m3 operands
+   (alpha = the gemm_reg epilogue scale, read on the device); bf16 output, K % 128 == 0. Scratch: 256 B + (M*K + N*K) bf16.
+   kernels/cuda/fp8_gemm.cu. */
+int ik_matmul_fp8_gemm_cublas(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                              const ik_scratch* scratch, void* stream);
 /* matmul_fp8_pair_gemm_reg: Op::MatmulFp8Pair at prefill, bitwise two ik_matmul_fp8_gemm_reg calls on the same x: the
    activation quantiser runs once when the two input scales are equal (device-side check), and both GEMMs share one grid.
    Scratch: 2 * M * K bf16. kernels/cuda/fp8_gemm.cu. Needs K % 128 == 0. */

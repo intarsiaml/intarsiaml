@@ -2,6 +2,7 @@
 // W8A8 (input_scale > 0): the activations are first quantised to e4m3-valued bf16 into scratch (one pass over x), the
 // GEMM then reads those. Needs K % 64 == 0.
 #include "wq_gemm.cuh"
+#include "ik_internal.h"
 #include <stdlib.h>
 
 namespace {
@@ -521,6 +522,89 @@ int ik_matmul_fp8_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* 
     IK_TRY(prologue(x, w, scales, out, scratch, stream, &xq, &empty));
     if (empty) return IK_OK;
     return out->dtype == IK_DTYPE_F32 ? run<float>(x, w, scales, out, xq, stream) : run<ik_bf16>(x, w, scales, out, xq, stream);
+}
+
+// ---- matmul_fp8_gemm_cublas (lane S1) -------------------------------------------------------------------------------
+// The same GEMM on cuBLAS's bf16 tensor-core kernels: the weights are expanded to their exact bf16 values (the B values of
+// gemm_reg, NaN codes -> +-480 likewise) into scratch, the activations quantised as fp8_actq_kernel does (or copied, weight
+// only), and cublasGemmEx (compute 32F) runs with alpha = gemm_reg's epilogue scale. On sm_121 / CUDA 13.0 at the 35B
+// prefill shapes cuBLAS forms every output element by the same m16n8k16 chain in k order with no split-K: the bytes equal
+// matmul_fp8_gemm_reg's (tests/fp8_gemm_cublas.rs and quantmoe probe_cublas_bf16_vs_gemm_reg_bits check it on the device;
+// the registry keeps it behind INTARSIA_CUDA_FP8_CUBLAS). Scratch: xq [M, K] bf16, w [N, K] bf16, 2 floats.
+namespace cub {
+
+__global__ void __launch_bounds__(256) e4m3_to_bf16_kernel(const uint8_t* __restrict__ w, ik_bf16* __restrict__ o, int64_t n8) {
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n8) return;
+    const uint2 v = reinterpret_cast<const uint2*>(w)[i];
+    uint4 r;
+    // bytes 0,1 / 2,3 of each word: the selector of gemm_reg's B decode (p = 0 / 2, byte p in the low half)
+    r.x = reg::e4m3x2_to_bf16x2(v.x, 4u | (0u << 4) | (4u << 8) | (1u << 12));
+    r.y = reg::e4m3x2_to_bf16x2(v.x, 4u | (2u << 4) | (4u << 8) | (3u << 12));
+    r.z = reg::e4m3x2_to_bf16x2(v.y, 4u | (0u << 4) | (4u << 8) | (1u << 12));
+    r.w = reg::e4m3x2_to_bf16x2(v.y, 4u | (2u << 4) | (4u << 8) | (3u << 12));
+    reinterpret_cast<uint4*>(o)[i] = r;
+}
+
+// xq = fp8_actq_kernel's values when the input scale is positive, else x itself (cuBLAS takes a host pointer, and the scale
+// lives on the device); thread 0 also writes {alpha, beta} = {gemm_reg's s_out, 0}. `first`: when non-null and its input
+// scale equals this one, nothing is quantised (that launch's xq holds the same bytes) but alpha / beta are still written.
+__global__ void __launch_bounds__(256)
+actq_alpha_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restrict__ xq, const float* __restrict__ sc,
+                  const float* __restrict__ first, float* __restrict__ ab, int64_t n8) {
+    const float s_in = sc[1];
+    const bool actq = s_in > 0.f;
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i == 0) {
+        ab[0] = sc[0] * (actq ? s_in : 1.f);
+        ab[1] = 0.f;
+    }
+    if (first && first[1] == s_in) return;
+    if (i >= n8) return;
+    const uint4 u = reinterpret_cast<const uint4*>(x)[i];
+    if (!actq) {
+        reinterpret_cast<uint4*>(xq)[i] = u;
+        return;
+    }
+    float f[8];
+    ik_unpack8(u, f);
+#pragma unroll
+    for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
+    reinterpret_cast<uint4*>(xq)[i] = ik_pack8(f);
+}
+
+constexpr size_t kAbBytes = 256;
+
+// one GEMM given its quantised activations: expand w into wbf, then cuBLAS
+int gemm(const ik_bf16* xq, const ik_tensor* w, ik_bf16* wbf, const float* ab, ik_tensor* out, int64_t M, int64_t K,
+         cudaStream_t s) {
+    const int64_t N = w->shape[0], n8 = N * K / 8;
+    e4m3_to_bf16_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const uint8_t*)w->data, wbf, n8);
+    IK_TRY(ik_launch_status());
+    return ik_cublas_gemm_bf16_devalpha(xq, wbf, out->data, M, N, K, ab, s);
+}
+
+}  // namespace cub
+
+int ik_matmul_fp8_gemm_cublas(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                              const ik_scratch* scratch, void* stream) {
+    bool empty = false;
+    IK_TRY(check_args(x, w, scales, out, &empty));
+    if (empty) return IK_OK;
+    if (out->dtype != IK_DTYPE_BF16 || !ik_aligned16(out->data)) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    const size_t need = cub::kAbBytes + (size_t)(M * K + N * K) * 2;
+    if (!scratch || !scratch->data || scratch->bytes < need || (reinterpret_cast<uintptr_t>(scratch->data) & 255u))
+        return IK_ERR_INVALID_ARG;
+    float* const ab = (float*)scratch->data;
+    ik_bf16* const xq = (ik_bf16*)((char*)scratch->data + cub::kAbBytes);
+    ik_bf16* const wbf = xq + M * K;
+    cudaStream_t s = IK_STREAM(stream);
+    const int64_t n8 = M * K / 8;
+    cub::actq_alpha_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const ik_bf16*)x->data, xq,
+                                                                         (const float*)scales->data, nullptr, ab, n8);
+    IK_TRY(ik_launch_status());
+    return cub::gemm(xq, w, wbf, ab, out, M, K, s);
 }
 
 int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
