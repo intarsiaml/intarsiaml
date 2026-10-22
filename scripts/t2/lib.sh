@@ -65,3 +65,18 @@ self() {
   run "$tree" "$gpus" 600 "self-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --mode both \
     --self-golden /work/t2-out/$d --allow-same-code --allow-config-mismatch --allow-unstamped "$@"
 }
+# prof <tag> <gpus> [args]: rocprofv3 kernel trace of a 128-token 27B decode after a ~1k-token prompt (P1's 1k: the first 3700
+# bytes of prompt4k.txt), per-rank step table by prof2.py -> $O/prof-<tag>.txt (the trace stays in the tree's t2-out/prof/)
+prof() {
+  local tag=$1 gpus=$2; shift 2
+  local d=/work/t2-out/prof/$tag p; p="$(head -c 3700 "$(T head)/scripts/hip-decode/prompt4k.txt")"
+  rm -rf "$(T head)/t2-out/prof/$tag"; mkdir -p "$(T head)/t2-out/prof/$tag"
+  # shellcheck disable=SC2086
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=intarsia-cargo-target-t2-head INTARSIA_REPO=$(T head) \
+    INTARSIA_MODELS=$HUB HIP_VISIBLE_DEVICES=$gpus timeout -s KILL 400 "$(T head)/deploy/tatooine/dev.sh" env ${E:-} \
+    rocprofv3 --kernel-trace --output-format csv -d $d -o run -- /work/t2-intarsia generate -m $M27 --backend hip --mem-budget 29 \
+    --max-seq 8192 --profile-every 0 --ignore-eos -p "$p" --max-tokens 128 "$@" > "$O/prof-$tag.log" 2>&1 < /dev/null
+  local csv; csv=$(find "$(T head)/t2-out/prof/$tag" -name '*kernel_trace.csv' | head -1)
+  if [[ -n "$csv" ]]; then python3 "$HOME/t2/prof2.py" "$csv" > "$O/prof-$tag.txt" 2>&1; else echo "no trace" > "$O/prof-$tag.txt"; fi
+  log "prof $tag${E:+ [$E]}: $(grep -aE 'finish=' "$O/prof-$tag.log" | head -1 | grep -oE 'decode [0-9]+ ms \([0-9.]+ tok/s\)') | $(head -1 "$O/prof-$tag.txt")"
+}

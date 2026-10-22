@@ -13,7 +13,7 @@ RAW=$REPO/docs/results/2026-10-22-t2-27b-tp2/raw
 mkdir -p "$RAW/$W"
 CAP=${CAP:-1500}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/t2' < /dev/null
-scp -q "$S"/lib.sh "$S"/stages-*.sh tatooine:t2/
+scp -q "$S"/lib.sh "$S"/stages-*.sh "$S"/prof2.py tatooine:t2/
 ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/t2/out/$W; rm -rf "$O"; mkdir -p "$O"

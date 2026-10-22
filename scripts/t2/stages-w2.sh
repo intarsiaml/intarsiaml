@@ -5,6 +5,7 @@
 #   2. tp=2 no-op on the models that had tp=2 before: 8B short (bf16 dense FFN arm), 35B short (NVFP4 / MoE / GDN).
 #   3. 27B tp=2 4k: eager vs graphs vs graphs + fusion (must be identical), first divergence from tp=1.
 #   4. kernels test --backend hip --model <27B>; the HIP crate's GPU tests (both cards, comm tests included).
+#   5. rocprofv3 decode traces after a 1k prompt: tp=1, tp=2 graphs, tp=2 graphs + fusion (per-rank step table, prof2.py).
 set -uo pipefail
 export O=${1:?out dir}
 source "$HOME/t2/lib.sh"
@@ -35,4 +36,7 @@ log "HIP crate GPU tests"
 INTARSIA_REPO=$(T head) INTARSIA_TARGET_VOL=intarsia-cargo-target-t2-head-hiptest HIP_VISIBLE_DEVICES=0,1 timeout 900 \
   "$(T head)/deploy/tatooine/dev.sh" cargo test --release -p intarsia-backend-hip > "$O/hiptest.log" 2>&1 < /dev/null
 log "hiptest exit $?: $(grep -E '^test result' "$O/hiptest.log" | awk '{p+=$4; f+=$6} END {print p" passed, "f" failed"}') $(grep -cE 'FAILED|panicked' "$O/hiptest.log") FAILED/panicked lines"
+prof tp1 0
+prof tp2g 0,1 $TP2
+E="INTARSIA_TP_FUSION=1" prof tp2gf 0,1 $TP2
 log done
