@@ -162,7 +162,9 @@ fn fp8_pair_gemm_reg_is_bitwise_two_calls() {
             if mode == "equal" {
                 s1[1] = s0[1];
             } else if mode == "differ" {
-                assert!(s1[1] > 0.0 && s0[1] > 0.0 && s1[1] != s0[1], "case must differ: {s0:?} {s1:?}");
+                // the case generator gives both halves one input scale: make the second's another (the second quantiser)
+                s1[1] = s0[1] * 1.5;
+                assert!(s1[1] > 0.0 && s1[1] != s0[1], "case must differ: {s0:?} {s1:?}");
             }
             hc.inputs[4] = HostTensor::from_f32_as(hc.inputs[4].dtype, &hc.inputs[4].shape, &s1);
             let label = format!("{mode} M={m} N0={n0} N1={n1} K={k} {out:?}");
