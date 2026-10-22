@@ -1122,9 +1122,19 @@ impl Seq {
         // recurrent states keep the plain chunking (their last token runs alone below, for the snapshot rule)
         let remaining = self.plen - self.pos;
         let n = if st.has_recurrent() {
-            remaining.min(chunk)
+            // (a tail merge folds a short remainder into the last chunk: `remaining` runs in one pass)
+            if crate::scheduler::next_prefill_chunk_tm(remaining, chunk, false, model.tail_merge()) == remaining {
+                remaining
+            } else {
+                chunk
+            }
         } else {
-            crate::scheduler::next_prefill_chunk(remaining, chunk, model.backend.avoid_single_row_prefill())
+            crate::scheduler::next_prefill_chunk_tm(
+                remaining,
+                chunk,
+                model.backend.avoid_single_row_prefill(),
+                model.tail_merge(),
+            )
         };
         if n < remaining {
             match model.forward(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {

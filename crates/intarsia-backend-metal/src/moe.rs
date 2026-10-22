@@ -3,8 +3,8 @@
 //!
 //! `MoeExperts` takes one of two paths per call: T*K <= `DECODE_MAX_PAIRS` (HIP's decode cut) runs per-pair GEMVs (gate +
 //! up into scratch `h`, then down + the weighted per-token sum in k order); larger calls group the pairs by expert on the
-//! GPU (`moe_group`), run each expert's rows as 32x32 simdgroup-matrix tiles (each tile's weights decoded once) and
-//! gather per token in k order. Scratch is the core `moe_experts_scratch` layout (pairs, offsets, the "active" region
+//! GPU (`moe_group`) into tiles of `tile_rows` (per call, from the mean rows per expert), run each tile against 64
+//! weight rows at a time on bf16 simdgroup matrices (each tile's weights decoded once) and gather per token in k order. Scratch is the core `moe_experts_scratch` layout (pairs, offsets, the "active" region
 //! holding the per-expert tile prefix, h by slot, y by pair).
 
 use crate::dense::{Bind, OpP};
@@ -22,23 +22,25 @@ const COMBINE: &str = "moe_combine_bf16";
 const DEC_GU: &str = "moe_dec_gu";
 const DEC_DN: [&str; 2] = ["moe_dec_dn_bf16", "moe_dec_dn_f32"];
 const GROUP: &str = "moe_group";
-const GEMM_GU: &str = "moe_gemm_gu";
-const GEMM_DN: &str = "moe_gemm_dn";
+/// Grouped GEMMs by rows per tile (8, 16, 32, 64).
+const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe_mm_gu_m64"];
+const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 11] = [
-    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, GEMM_GU, GEMM_DN, GATHER[0], GATHER[1],
+pub const SHADERS: [&str; 17] = [
+    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
+    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1],
 ];
 
 /// T*K at or below which `MoeExperts` takes the per-pair decode path (the hip decode kernels' cut).
 pub const DECODE_MAX_PAIRS: usize = 16;
 /// Tokens per threadgroup of the top-k shader (`MOE_TOPK_SG`), rows per threadgroup of the decode GEMVs (`MOE_DEC_SG`),
-/// rows / columns of a grouped tile (`MOE_TM` / `MOE_TN`).
+/// gate (= up) / down columns of a grouped tile (`MOE_WR` / 2, `MOE_WR`).
 const TOPK_SG: usize = 4;
 const DEC_SG: usize = 4;
-const TM: usize = 32;
-const TN: usize = 32;
+const GU_COLS: usize = 32;
+const DN_COLS: usize = 64;
 /// The largest expert count `moe_group` takes (its threadgroup counters).
 pub const MAX_EXPERTS: usize = 1024;
 
@@ -181,18 +183,29 @@ impl MetalBackend {
             return self.moe_dispatch(DEC_DN[o32], &[&hb, &ib, &wb, &dwb, &dsb, &gb, &ob], &p, g2, DEC_SG * 32);
         }
         let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
+        let (ti, tm) = tile_rows(pairs, e);
+        let mut p = p;
+        p.dims[5] = tm as u32;
         let gt = self.pso(GROUP).map_or(256, |s| {
             use objc2_metal::MTLComputePipelineState;
             s.maxTotalThreadsPerThreadgroup().min(1024)
         });
         self.moe_dispatch(GROUP, &[&ib, &pb, &offb, &tb], &p, MTLSize { width: 1, height: 1, depth: 1 }, gt)?;
-        // tile slots: at most ceil(P / TM) full tiles plus one partial tile per non-empty expert
-        let max_tiles = pairs.div_ceil(TM) + pairs.min(e);
-        let ggu = MTLSize { width: i.div_ceil(TN), height: max_tiles, depth: 1 };
-        self.moe_dispatch(GEMM_GU, &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
-        let gdn = MTLSize { width: h.div_ceil(TN), height: max_tiles, depth: 1 };
-        self.moe_dispatch(GEMM_DN, &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
+        // tile slots: at most ceil(P / tm) full tiles plus one partial tile per non-empty expert (the rest exit early)
+        let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
+        let ggu = MTLSize { width: i.div_ceil(GU_COLS), height: max_tiles, depth: 1 };
+        self.moe_dispatch(MM_GU[ti], &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
+        let gdn = MTLSize { width: h.div_ceil(DN_COLS), height: max_tiles, depth: 1 };
+        self.moe_dispatch(MM_DN[ti], &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
         let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
         self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256)
     }
+}
+
+/// Rows per grouped tile for `pairs` (token, slot) pairs over `e` experts, as (index into `MM_GU` / `MM_DN`, rows): the
+/// smallest of 8 / 16 / 32 / 64 at or above the mean rows per expert (64 at most).
+fn tile_rows(pairs: usize, e: usize) -> (usize, usize) {
+    let mean = pairs.div_ceil(e.max(1));
+    let ti = (0..3).find(|&t| mean <= 8 << t).unwrap_or(3);
+    (ti, 8 << ti)
 }

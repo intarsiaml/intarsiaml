@@ -1,0 +1,2 @@
+intarsia 0.0.1
+/Users/josef/.local/bin/mlx_lm.server --model /Users/josef/models/Qwen3-8B --port 8092 --chat-template-args {"enable_thinking":false} --prompt-cache-size 1

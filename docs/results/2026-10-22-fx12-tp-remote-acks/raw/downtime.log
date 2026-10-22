@@ -1,0 +1,2 @@
+2026-10-22 job=3828 role=spark1-vllm stop=02:26:26 up=02:34:10 down=464 s label="fx12 tp=2 ack gate window-0226" serving=yes
+2026-10-22 job=3828 role=spark2-vllm stop=02:26:26 up=02:34:10 down=464 s label="fx12 tp=2 ack gate window-0226" serving=yes

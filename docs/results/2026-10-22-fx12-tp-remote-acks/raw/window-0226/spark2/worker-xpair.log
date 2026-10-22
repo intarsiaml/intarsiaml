@@ -1,0 +1,6 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:45788
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+Error: invalid op call: tensor-parallel ranks speak different protocols: this rank speaks version 2, the other rank version 1. Run the same intarsia build on both ranks
+worker exit 1 (1)
+tp-worker: waiting for rank 0 on 10.100.152.3:29555

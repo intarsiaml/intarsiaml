@@ -1,0 +1,25 @@
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+test hybrid_moe_tp2_matches_tp1_f32 ... ok
+test hybrid_moe_tp1_unchanged_by_shard_path ... ok
+test hybrid_moe_tp2_catches_a_one_percent_partial_scale_bug ... ok
+test hybrid_moe_tp2_rank_shapes_and_bytes ... ok
+test hybrid_moe_tp2_remote_rank_is_bitwise_the_in_process_group ... ok
+test hybrid_moe_tp2_row_local_fusion_matches_tp1_f32 ... ok
+test hybrid_moe_tp2_snapshot_rollback_is_exact ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
+test ranks_of_different_protocol_versions_refuse_to_pair ... ok
+test remote_truncate_refusal_fails_that_request_and_changes_nothing ... ok
+test truncate_checks_the_primary_before_touching_any_other_rank ... ok
+test remote_snapshot_refusal_fails_that_request_and_changes_nothing ... ok
+test remote_truncate_failure_is_a_backend_error_and_leaves_the_primary_alone ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

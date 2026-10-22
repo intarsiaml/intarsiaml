@@ -1,7 +1,10 @@
 # CI for the Rust workspace. Runs only on GitHub-hosted runners: no job here touches fleet hardware (spark1, spark2,
 # tatooine, endor), and none needs a GPU. The CUDA and HIP crates build their stub kernels (no nvcc / hipcc on the
-# runners), so CI checks that the workspace compiles and the CPU-side tests pass. GPU gates stay on the fleet, under fleetq
-# (see docs/reproducing-results.md). Dependencies are locked: a Cargo.lock that is out of date fails the build.
+# runners), so `check` and `test` below see only the stub side of those crates. The check-cuda / check-hip jobs close that
+# gap: INTARSIA_{CUDA,HIP}_CHECK_ONLY=1 makes build.rs enable the real-GPU cfgs (ik_cuda, ik_sm120a, ik_hip) without
+# compiling or linking kernels, so `cargo check --all-targets` type-checks every line of the GPU Rust code and tests on a
+# plain runner. This is a type check, not a test: the GPU tests run on the fleet, under fleetq (see
+# docs/reproducing-results.md and docs/results/2026-10-22-fx11-ci-gpu.md for where each ignored / env-gated test runs). Dependencies are locked: a Cargo.lock that is out of date fails the build.
 #
 # fmt and clippy are not run: the tree is not clean for either yet (`cargo fmt --check` reports ~750 diffs; `cargo clippy
 # --workspace -D warnings` on endor's 1.99 stops with 33 errors in intarsia-core and 3 in intarsia-bench), and CI does not
@@ -64,6 +67,36 @@ jobs:
       # empty metallib and warns.
       - run: cargo check --locked -p intarsia-backend-metal
       - run: cargo check --locked -p intarsia-cli --features metal
+
+  # Type-check the cuda / hip backends with their real-GPU cfgs on (see the header). Installing nvcc / ROCm on a hosted
+  # runner would take minutes and gigabytes to check what a cfg switch checks in seconds: Rust type-checking never reads
+  # kernel output. What this does not check: that the .cu / .hip sources compile, and linking; both need the toolkit and
+  # run on the fleet builds. The env var makes the artifacts unlinkable, so it is set on these steps only.
+  check-cuda:
+    name: cargo check (linux, cuda cfgs)
+    runs-on: ubuntu-latest
+    env:
+      INTARSIA_CUDA_CHECK_ONLY: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain && rustc -V
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo check --locked -p intarsia-backend-cuda --all-targets
+      - run: cargo check --locked -p intarsia-cli --features cuda
+
+  check-hip:
+    name: cargo check (linux, hip cfgs)
+    runs-on: ubuntu-latest
+    env:
+      INTARSIA_HIP_CHECK_ONLY: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain && rustc -V
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo check --locked -p intarsia-backend-hip --all-targets
+      - run: cargo check --locked -p intarsia-cli --features hip
 
   # Requirement 5: the same sha builds to the same bytes in two different directories (CPU-only, linux).
   repro:

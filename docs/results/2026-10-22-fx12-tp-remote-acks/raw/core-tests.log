@@ -1,0 +1,12 @@
+test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+test engine::batch::tests::dropped_request_hears_an_error ... ok
+test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+test quant::mxfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::nvfp4::tests::quantize_roundtrip_error_is_small ... ok
+test recipe::tests::conflicting_rope_theta_is_an_error ... ok
+test recipe::tests::missing_numbers_are_errors_not_defaults ... ok
+test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.60s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s

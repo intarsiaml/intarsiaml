@@ -54,12 +54,20 @@ fn main() {
     println!("cargo:rustc-check-cfg=cfg(ik_hip)");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../kernels");
-    for v in ["ROCM_PATH", "HIP_PATH", "INTARSIA_HIP_ARCH", "INTARSIA_NO_HIP"] {
+    for v in ["ROCM_PATH", "HIP_PATH", "INTARSIA_HIP_ARCH", "INTARSIA_NO_HIP", "INTARSIA_HIP_CHECK_ONLY"] {
         println!("cargo:rerun-if-env-changed={v}");
     }
     let arch = std::env::var("INTARSIA_HIP_ARCH").unwrap_or_else(|_| "gfx1201".into());
     println!("cargo:rustc-env=IK_HIP_ARCH={arch}");
 
+    // Check-only build (CI): turn on `ik_hip` so `cargo check` type-checks the whole HIP Rust code and tests, but compile
+    // and link nothing. The result cannot link or run; never set it for a build you will run.
+    if std::env::var("INTARSIA_HIP_CHECK_ONLY").map(|v| v == "1").unwrap_or(false) {
+        println!("cargo:warning=intarsia-backend-hip: INTARSIA_HIP_CHECK_ONLY=1, type-check only, no kernels built, will not link");
+        println!("cargo:rustc-env=IK_HIP_COMPILER=check-only");
+        println!("cargo:rustc-cfg=ik_hip");
+        return;
+    }
     if std::env::var("INTARSIA_NO_HIP").map(|v| v == "1").unwrap_or(false) {
         println!("cargo:warning=intarsia-backend-hip: INTARSIA_NO_HIP=1, building the stub");
         println!("cargo:rustc-env=IK_HIP_COMPILER=none");

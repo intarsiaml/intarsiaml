@@ -8,6 +8,8 @@
 #                        --mem spark1=100,spark2=95 --label "..." -- scripts/tp2-graphs/xg.sh   (no --each: one driver)
 # The window stops both vLLM containers and ALWAYS restarts them (trap on EXIT: docker start, wait for /v1/models), kills
 # every process it started, and appends one line per role to raw/downtime.log. STEPS picks steps (default all).
+# Window mode runs the A/B unless NO_AB=1; the soak runs only when STEPS names it (STEPS=soak NO_AB=1 for a soak window).
+# DRY=1 prints every remote command instead of running it.
 # Binaries: ~/intarsia-tp2/bin/g1c-$TREE-intarsia on both boxes (TREE default dev; BASE default base). Output: raw/$OUT.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -29,7 +31,11 @@ vllm_url() { [[ $1 == spark1 ]] && echo http://100.120.88.104:8000/v1/models || 
 want() { [[ -z "${STEPS:-}" || " $STEPS " == *" $1 "* ]]; }
 log() { echo "$(date +%T) $*" | tee -a "$L/steps.log"; }
 left() { echo $(( DEADLINE - $(date +%s) )); }
-r() { local h=$1; shift; ssh -n -o BatchMode=yes "$h" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
+r() { local h=$1; shift; if [[ -n ${DRY:-} ]]; then echo "DRY[$h] $*"; return 0; fi; ssh -n -o BatchMode=yes "$h" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
+# DRY=1 (with any FLEETQ_JOB): print the remote commands, run nothing remote, no waits
+if [[ -n ${DRY:-} ]]; then sleep() { :; }; rsync() { :; }; scp() { echo "DRY[scp] $*"; }; fi
+# the unfused baseline: fusion is on by default for CUDA at tp=2, so every step meant as "unfused" sets this on both ranks
+UNF=INTARSIA_TP_FUSION=0
 
 cleanup_procs() {
   for h in spark1 spark2; do
@@ -61,7 +67,7 @@ trap restore EXIT INT TERM
 
 for h in spark1 spark2; do r $h "mkdir -p ~/intarsia-tp2/xout/$OUT; rm -f ~/intarsia-tp2/stop-worker; echo $h: \$($BIN --version | tr '\n' ' ')" | tee -a "$L/steps.log"; done
 if [[ $MODE == window ]]; then
-  T_STOP=$(date +%s); STOPPED=1
+  T_STOP=$(date +%s); [[ -n ${DRY:-} ]] || STOPPED=1  # DRY: no restore, no downtime.log line
   for h in spark1 spark2; do r $h "docker stop -t 30 $VLLM_C >/dev/null" && log "vLLM stopped on $h"; done
   for h in spark1 spark2; do
     for i in $(seq 1 30); do gb=$(r $h "awk '/MemAvailable/ {print int(\$2/1048576)}' /proc/meminfo"); (( gb >= 95 )) && break; sleep 2; done
@@ -142,39 +148,48 @@ if [[ $MODE == gates ]]; then
   for sz in 5k:5000 16k:54000; do
     t=${sz%%:*}; c=${sz#*:}
     want ids$t || continue
-    xgen tp2e-$t $c $BIN --no-graphs
-    xgen tp2g-$t $c $BIN
+    XENV=$UNF xgen tp2e-$t $c $BIN --no-graphs
+    XENV=$UNF xgen tp2g-$t $c $BIN
     idcmp tp2e-$t tp2g-$t
   done
   # 2. logits: tp=2 eager dumps (with the vLLM floor verdict), then tp=2 graphs judged against them; prefix reuse with graphs
-  xacc eager-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-short.safetensors
-  xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code $B_FLOOR
+  XENV=$UNF xacc eager-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-short.safetensors
+  XENV=$UNF xacc graph-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code $B_FLOOR
   # the tp=2 floor: eager against its own dump (cross-host run-to-run), the reference for the graphs row
-  xacc eager-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --no-graphs --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
-  xacc eager-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-long.safetensors
-  xacc graph-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change $PRE_CHANGE --allow-same-code $B_FLOOR
-  xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
-  xacc graph-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
-  xacc graph-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
-  # 2b. row-local fusion under TP (opt-in INTARSIA_TP_FUSION=1, both ranks): ids against tp=2 graphs unfused, the vLLM floor
+  XENV=$UNF xacc eager-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --no-graphs --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code $B_FLOOR
+  XENV=$UNF xacc eager-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --no-graphs --write-self-golden $DD/T2E-long.safetensors
+  XENV=$UNF xacc graph-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code $B_FLOOR
+  XENV=$UNF xacc graph-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both
+  XENV=$UNF xacc graph-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both
+  XENV=$UNF xacc graph-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
+  # 2a. the build's default (fusion on for CUDA since the default flip) vs INTARSIA_TP_FUSION=0: greedy ids identical?
+  for sz in 5k:5000 16k:54000; do
+    t=${sz%%:*}; c=${sz#*:}
+    want offids$t || continue
+    xgen tp2g-def-$t $c $BIN
+    XENV=INTARSIA_TP_FUSION=0 xgen tp2g-off-$t $c $BIN
+    idcmp tp2g-off-$t tp2g-def-$t
+  done
+  # 2b. row-local fusion under TP (INTARSIA_TP_FUSION=1 on both ranks; the CUDA default since the flip): ids against tp=2
+  # graphs UNFUSED (INTARSIA_TP_FUSION=0 on both ranks), the vLLM floor
   # (PR #40 judge) with dumps for the run-to-run KL table, the 35B TP self-golden budget against tp=2 eager, prefix reuse
   for sz in 5k:5000 16k:54000; do
     t=${sz%%:*}; c=${sz#*:}
     want fids$t || continue
-    xgen tp2g-$t $c $BIN
+    XENV=$UNF xgen tp2g-$t $c $BIN
     XENV=INTARSIA_TP_FUSION=1 xgen tp2gf-$t $c $BIN
     idcmp tp2g-$t tp2gf-$t
     idcmp tp2e-$t tp2gf-$t
   done
   XENV=INTARSIA_TP_FUSION=1 xacc fus-floor-short $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --write-self-golden $DD/T2F-short.safetensors
   XENV=INTARSIA_TP_FUSION=1 xacc fus-floor-long $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --write-self-golden $DD/T2F-long.safetensors
-  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_SHORT
-  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-$PRE_CHANGE} --allow-same-code $B_LONG
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-short $BIN --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-${PRE_CHANGE:-unset}} --allow-same-code $B_SHORT
+  XENV=INTARSIA_TP_FUSION=1 xacc fus-self-long $BIN --self-golden $DD/T2E-long.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_EAGER:-${PRE_CHANGE:-unset}} --allow-same-code $B_LONG
   XENV=INTARSIA_TP_FUSION=1 xacc fus-reuse $BIN --golden $VG/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode reuse
   # 2c. which fused ops run under TP fusion: rank 0's op table, 1k prompt, 32 tokens, with and without INTARSIA_TP_FUSION
   if want fprobe; then
-    for v in u f; do
-      xe=""; [[ $v == f ]] && xe=INTARSIA_TP_FUSION=1
+    for v in ${FPROBE:-u f}; do
+      case $v in u) xe=INTARSIA_TP_FUSION=0 ;; f) xe=INTARSIA_TP_FUSION=1 ;; d) xe="" ;; esac
       XENV=$xe worker_start fprobe-$v $GEN_FLAGS
       r spark1 "env $NCCLENV $xe timeout 300 $BIN generate $GEN_FLAGS --tp-remote $WIP:$WPORT --op-table --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 32 > $XO/fprobe-$v.out 2> $XO/fprobe-$v.err; echo fprobe-$v rc=\$?; grep -aE '^(matmul_pair|matmul_fp8_pair|rmsnorm_add|gdn_conv_delta|gated_rmsnorm|qk_norm_rope_kv|gate_split_qk|matmul_nvfp4_glu|moe_block|matmul_fp8 |rmsnorm )' $XO/fprobe-$v.err | cut -c1-90" | tee -a "$L/steps.log"
       worker_stop
@@ -199,7 +214,7 @@ if [[ $MODE == gates ]]; then
     done
     A1="-m $M35 --backend cuda --max-seq 16384 --prefill-chunk 2048 --mem-budget 29"
     r spark1 "timeout 1500 $BBIN accuracy $A1 --golden $VG/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --write-self-golden $DD/T1B-short.safetensors > $XO/tp1-base-short.log 2>&1; echo rc=\$?; \
-      timeout 1500 $BIN accuracy $A1 --self-golden $DD/T1B-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_BASE:?} $B_SHORT > $XO/tp1-self-short.log 2>&1; echo rc=\$?; grep -aE 'SELF-STATS|verdict' $XO/tp1-*-short.log | cut -c1-260" | tee -a "$L/steps.log"
+      timeout 1500 $BIN accuracy $A1 --self-golden $DD/T1B-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_BASE:-unset} $B_SHORT > $XO/tp1-self-short.log 2>&1; echo rc=\$?; grep -aE 'SELF-STATS|verdict' $XO/tp1-*-short.log | cut -c1-260" | tee -a "$L/steps.log"
   fi
   # 4. the kernel admission sweep (no kernel changed; the gate asks for it)
   if want kernels; then
@@ -216,7 +231,7 @@ if [[ $MODE == mut ]]; then
     log "== mutant $m"
     GEN_TIMEOUT=300 xgen mut-$m-5k 5000 $MB
     idcmp ref-5k mut-$m-5k
-    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:?} --allow-same-code --allow-dirty $B_FLOOR
+    ACC_TIMEOUT=900 xacc mut-$m-self $MB --self-golden $DD/T2E-short.safetensors --mode both --allow-config-mismatch --pre-change ${PRE_CHANGE:-unset} --allow-same-code --allow-dirty $B_FLOOR
   done
 fi
 
@@ -252,7 +267,7 @@ if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
     r spark1 "timeout 300 $NS -o $XO/nsys-tp1-g $BIN generate -m $M35 --backend cuda --max-seq 8192 --mem-budget 29 --profile-every 0 --chat --no-think --ignore-eos -p \"\$(head -c 3500 ~/intarsia-tp2/prompts/corpus_docs.txt)\" --max-tokens 64 > $XO/prof-tp1.out 2> $XO/prof-tp1.err; echo prof-tp1 rc=\$?; grep -aE 'decode|graph' $XO/prof-tp1.err | head -2; cd ~/intarsia-tp2/xout/$OUT && nsys stats -q --report cuda_gpu_trace --format csv -o nsys-tp1-g nsys-tp1-g.nsys-rep >/dev/null 2>&1; ls nsys-tp1-g*" | tee -a "$L/steps.log"
     for v in ${PROF_VARIANTS:-g e}; do
       wf=""; [[ $v == e ]] && wf="--no-graphs"
-      xe=""; [[ $v == gf ]] && xe=INTARSIA_TP_FUSION=1
+      xe=$UNF; [[ $v == gf ]] && xe=INTARSIA_TP_FUSION=1
       XENV=$xe WWRAP="$NS -o $XO/nsys-r1-$v" worker_start prof-$v $PF $wf
       # one worker only: a restarted nsys worker would overwrite the report before the first one is written
       r spark2 "sleep 2; touch ~/intarsia-tp2/stop-worker"
@@ -265,7 +280,24 @@ if [[ $MODE == window || " ${STEPS:-} " == *" prof "* ]]; then
     done
   fi
 fi
-if [[ $MODE == window ]]; then
+# soak (vLLM down): one tp=2 serve with $SOAKENV on both ranks, scripts/tp2-graphs/soak.py for SOAK_SEC, then the logs
+# of both ranks are scanned for errors and panics, and rank 1 must have replayed
+if [[ $MODE == window && " ${STEPS:-} " == *" soak "* ]]; then
+  scp -q "$S/soak.py" spark1:intarsia-tp2/soak.py
+  o=$XO/soak
+  WENV="${SOAKENV:-}" worker_start soak --serving $SFLAGS --tp 2
+  r spark1 "mkdir -p $o; nohup env $NCCLENV ${SOAKENV:-} $BIN serve $SFLAGS --tp 2 --tp-remote $WIP:$WPORT --port 8090 --host 127.0.0.1 --served-model-name intarsia-35b > $o/serve.log 2>&1 < /dev/null & echo \$! > $o/serve.pid"
+  up=0; for i in $(seq 1 150); do r spark1 "curl -sf -m 3 http://127.0.0.1:8090/health >/dev/null" && { up=1; break; }; sleep 2; done
+  log "soak server up=$up (${SOAKENV:-no env})"
+  if [[ $up == 1 ]]; then
+    r spark1 "python3 ~/intarsia-tp2/soak.py --url http://127.0.0.1:8090 --seconds ${SOAK_SEC:-540} --corpus ~/intarsia-tp2/prompts/corpus_docs.txt > $o/soak.log 2>&1; echo soak rc=\$?; cut -c1-900 $o/soak.log" | tee -a "$L/steps.log"
+  fi
+  r spark1 "echo serve log error/panic lines: \$(grep -aciE 'panic|error' $o/serve.log); grep -aiE 'panic|error' $o/serve.log | head -5; kill \$(cat $o/serve.pid); for i in \$(seq 1 30); do kill -0 \$(cat $o/serve.pid) 2>/dev/null || break; sleep 1; done" | tee -a "$L/steps.log"
+  worker_stop
+  r spark2 "echo worker log error/panic lines: \$(grep -aciE 'panic|error' $XO/worker-soak.log); grep -aiE 'panic|error' $XO/worker-soak.log | head -5" | tee -a "$L/steps.log"
+  rank1_check soak
+fi
+if [[ $MODE == window && -z ${NO_AB:-} ]]; then
   # A/B: tp1g = tp=1 graphs (the shipped config), tp2e = tp=2 eager (PR #44), tp2g = tp=2 graphs; order reversed in even rounds
   ARMS_FWD=${ARMS:-tp1g tp2g}
   for rd in $(seq 1 ${ROUNDS:-3}); do
@@ -274,12 +306,12 @@ if [[ $MODE == window ]]; then
     for a in $order; do
       case $a in
         tp1g) bench_arm tp1g $rd "" - ;;
-        tp2e) bench_arm tp2e $rd "" "--no-graphs" --tp 2 --tp-remote $WIP:$WPORT --no-graphs ;;
-        tp2g) bench_arm tp2g $rd "" "" --tp 2 --tp-remote $WIP:$WPORT ;;
+        tp2e) bench_arm tp2e $rd "$UNF" "--no-graphs" --tp 2 --tp-remote $WIP:$WPORT --no-graphs ;;
+        tp2g) bench_arm tp2g $rd "$UNF" "" --tp 2 --tp-remote $WIP:$WPORT ;;
         tp2gf) bench_arm tp2gf $rd "INTARSIA_TP_FUSION=1" "" --tp 2 --tp-remote $WIP:$WPORT ;;
-        tp2g-ll) SIZES=1024 bench_arm tp2g-ll $rd "NCCL_PROTO=LL" "" --tp 2 --tp-remote $WIP:$WPORT ;;
-        tp2g-ll128) SIZES=1024 bench_arm tp2g-ll128 $rd "NCCL_PROTO=LL128" "" --tp 2 --tp-remote $WIP:$WPORT ;;
-        tp2g-simple) SIZES=1024 bench_arm tp2g-simple $rd "NCCL_PROTO=Simple" "" --tp 2 --tp-remote $WIP:$WPORT ;;
+        tp2g-ll) SIZES=1024 bench_arm tp2g-ll $rd "NCCL_PROTO=LL $UNF" "" --tp 2 --tp-remote $WIP:$WPORT ;;
+        tp2g-ll128) SIZES=1024 bench_arm tp2g-ll128 $rd "NCCL_PROTO=LL128 $UNF" "" --tp 2 --tp-remote $WIP:$WPORT ;;
+        tp2g-simple) SIZES=1024 bench_arm tp2g-simple $rd "NCCL_PROTO=Simple $UNF" "" --tp 2 --tp-remote $WIP:$WPORT ;;
         *) log "unknown arm $a" ;;
       esac
     done
