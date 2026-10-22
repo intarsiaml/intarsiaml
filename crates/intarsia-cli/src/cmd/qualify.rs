@@ -1203,6 +1203,35 @@ enum Golden {
     None(String),
 }
 
+/// The context a golden needs: its longest prompt plus the decode positions and a margin, rounded up to 256 (0 when the
+/// file cannot be read). A long golden made from a server can hold a 12k-token prompt, which the fixed 8192 of
+/// `acc_max_seq` cannot plan for (`sequence of 12064 tokens exceeds the planned context of 8192`). Only the KV capacity
+/// changes with it, not the arithmetic.
+fn golden_max_seq(golden: &Path, decode_positions: usize) -> usize {
+    longest_golden_prompt(golden).map(|n| (n + decode_positions + 64).div_ceil(256) * 256).unwrap_or(0)
+}
+
+/// Longest `ids_<i>` tensor of a golden `.safetensors` file, read from its JSON header alone.
+fn longest_golden_prompt(golden: &Path) -> Option<usize> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(golden).ok()?;
+    let mut len = [0u8; 8];
+    f.read_exact(&mut len).ok()?;
+    let len = u64::from_le_bytes(len) as usize;
+    if len > 64 << 20 {
+        return None;
+    }
+    let mut buf = vec![0u8; len];
+    f.read_exact(&mut buf).ok()?;
+    let header: Value = serde_json::from_slice(&buf).ok()?;
+    header
+        .as_object()?
+        .iter()
+        .filter(|(k, _)| k.strip_prefix("ids_").is_some_and(|i| !i.is_empty() && i.bytes().all(|b| b.is_ascii_digit())))
+        .filter_map(|(_, v)| v["shape"][0].as_u64().map(|n| n as usize))
+        .max()
+}
+
 fn have_cmd(name: &str) -> bool {
     Command::new(name)
         .arg("--version")
@@ -1467,7 +1496,7 @@ impl Ctx {
             "--decode-positions".into(),
             self.decode_positions(long).to_string(),
             "--max-seq".into(),
-            self.acc_max_seq(long).to_string(),
+            self.acc_max_seq(long).max(golden_max_seq(golden, self.decode_positions(long))).to_string(),
             "--write-baseline".into(),
             baseline.display().to_string(),
         ]);
@@ -2240,6 +2269,21 @@ mod tests {
             assert!(server_max_seq(&[size], gen) >= need, "{size}+{gen}");
         }
         assert!(server_max_seq(&[64], 16) >= 2048);
+    }
+
+    #[test]
+    fn golden_context_comes_from_the_longest_prompt() {
+        let dir = std::env::temp_dir().join(format!("qualify-golden-hdr-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let hdr = r#"{"ids_0":{"dtype":"I32","shape":[700],"data_offsets":[0,2800]},"ids_1":{"dtype":"I32","shape":[12064],"data_offsets":[2800,51056]},"topk_ids_1":{"dtype":"I32","shape":[99999,20],"data_offsets":[0,0]},"__metadata__":{"x":"y"}}"#;
+        let mut bytes = (hdr.len() as u64).to_le_bytes().to_vec();
+        bytes.extend(hdr.as_bytes());
+        let f = dir.join("g.safetensors");
+        std::fs::write(&f, bytes).unwrap();
+        assert_eq!(longest_golden_prompt(&f), Some(12064));
+        assert_eq!(golden_max_seq(&f, 64), 12288); // 12064 + 64 + 64 = 12192 -> 12288
+        assert_eq!(golden_max_seq(&dir.join("missing"), 64), 0);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

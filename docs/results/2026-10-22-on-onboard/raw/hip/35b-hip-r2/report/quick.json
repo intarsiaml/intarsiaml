@@ -1,0 +1,913 @@
+{
+  "kind": "intarsia-onboard",
+  "schema_version": 1,
+  "section": "quick",
+  "model": "Qwen3.6-35B-A3B-NVFP4",
+  "model_dir": "/models/Qwen3.6-35B-A3B-NVFP4",
+  "backend": "hip",
+  "tp": 1,
+  "reference": null,
+  "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+  "version": "0.0.1",
+  "generated_unix": 1792640617,
+  "verdict": "PASS",
+  "exit_code": 0,
+  "headline": {
+    "speed": [
+      {
+        "size": 128,
+        "decode_tok_s": 159.93,
+        "prefill_tok_s": 1945.1,
+        "pct_of_floor": 57.5,
+        "ttft_s": 0.067
+      },
+      {
+        "size": 1024,
+        "decode_tok_s": 159.3,
+        "prefill_tok_s": 7902.1,
+        "pct_of_floor": 57.3,
+        "ttft_s": 0.1291
+      },
+      {
+        "size": 4096,
+        "decode_tok_s": 154.75,
+        "prefill_tok_s": 8642.3,
+        "pct_of_floor": 55.6,
+        "ttft_s": 0.4915
+      }
+    ],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.6120749479528,
+            "mean_kl": 0.007625840211595139,
+            "mean_kl21": 0.007416794263115527,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 98.75,
+            "mean_kl": 0.011755706856344646,
+            "mean_kl21": 0.011715516188755964,
+            "floor_pass": true
+          }
+        ]
+      }
+    ],
+    "quick_gate": {
+      "perplexity": 1.214,
+      "perplexity_line": "1.214 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+      "sanity_ok": 5,
+      "sanity_failed": 0
+    }
+  },
+  "failures": [],
+  "warnings": [],
+  "skipped": [
+    {
+      "stage": "acc-format",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)"
+    }
+  ],
+  "wall_s": {
+    "quick": 79.679128046,
+    "full": -0.0,
+    "total": 79.679128046
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "AMD Radeon Graphics (gfx1201), 54 kernels registered",
+      "wall_s": 0.300515514,
+      "started_unix": 1792640537,
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "c4378d282aeb",
+          "os": "Ubuntu 24.04.4 LTS",
+          "kernel": "Linux 7.0.0-38-generic",
+          "arch": "x86_64",
+          "cpu_model": "AMD Ryzen 9 9900X 12-Core Processor",
+          "logical_cores": 24,
+          "physical_cores": 12,
+          "ram_total_bytes": 66458861568,
+          "ram_available_bytes": 60382425088,
+          "swap_total_bytes": 8589930496
+        },
+        "device": {
+          "name": "AMD Radeon Graphics",
+          "backend": "hip",
+          "arch": "gfx1201",
+          "total_mem": 34208743424,
+          "free_mem": 33952890880,
+          "unified": false,
+          "bandwidth_gbs": 441.9365200833057
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 28.5,
+          "device_to_host_gbs": 27.5,
+          "device_copy_gbs": 556.9,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": null,
+        "arch": null,
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia doctor --backend hip --device 0 --out /work/onboard-runs/35b-hip-r2/report/qualify/doctor.json"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "wall_s": 0.295939763,
+      "started_unix": 1792640537,
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3_5MoeForConditionalGeneration"
+        ],
+        "templates_resolved": [
+          61,
+          61
+        ],
+        "quant": "nvfp4+fp8",
+        "notes": [
+          "config.json: architectures [\"Qwen3_5MoeForConditionalGeneration\"], family \"qwen3_5_moe\" (config.json model_type); text model settings merged from text_config",
+          "tensors: model.safetensors.index.json (124468 tensors) + 3/3 shard headers",
+          "layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)",
+          "quantisation: nvfp4+fp8",
+          "hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)",
+          "closest existing recipe: builtin:qwen3_5_moe (blocks {\"attn\", \"gdn\", \"moe\"} vs inferred {\"attn\", \"gdn\", \"moe\"}; 61/61 tensor templates resolve; covers this model)",
+          "ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (15), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)"
+        ],
+        "todos": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "recipe::analyse(/models/Qwen3.6-35B-A3B-NVFP4)"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "30 ops resolved, exactness deterministic, loaded in 9.2s",
+      "wall_s": 9.159162051,
+      "started_unix": 1792640537,
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Qwen3.6-35B-A3B-NVFP4",
+        "device": "AMD Radeon Graphics",
+        "exactness": "deterministic",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 4096,
+        "prefill_chunk_source": "recipe qwen3_5_moe, hip",
+        "scratch_bytes": 167905792,
+        "reference_only": false,
+        "layers": 40,
+        "layer_blocks": [
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_flash_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemv_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_mma_f8",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_gemv_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_topk",
+            "kernel": "moe_topk_bf16_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_bf16_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_combine",
+            "kernel": "moe_combine_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "sigmoid_mul",
+            "kernel": "sigmoid_mul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "gdn_conv",
+            "kernel": "gdn_conv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "gdn_delta_rule",
+            "kernel": "gdn_delta_rule_bf16_v2",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8_pair",
+            "kernel": "matmul_fp8_pair_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "gated_rmsnorm",
+            "kernel": "gated_rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "rmsnorm_add_matmul_pair",
+            "kernel": "rmsnorm_add_matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 69
+          },
+          {
+            "op": "gated_rmsnorm_matmul_fp8",
+            "kernel": "gated_rmsnorm_matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "rmsnorm_add_matmul_fp8_pair",
+            "kernel": "rmsnorm_add_matmul_fp8_pair_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "sigmoid_mul_matmul_fp8",
+            "kernel": "sigmoid_mul_matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "gate_split_qk_norm_rope_kv",
+            "kernel": "gate_split_qk_norm_rope_kv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "gdn_conv_delta",
+            "kernel": "gdn_conv_delta_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "moe_block",
+            "kernel": "moe_block_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          }
+        ],
+        "load_s": 9.15883484
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia plan show --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --admit --json"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "54 kernels, 995 cases in 38.8s",
+      "wall_s": 39.029881495,
+      "started_unix": 1792640546,
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "54 kernels, 995 cases in 38.8s"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia kernels test --backend hip --device 0 --model /models/Qwen3.6-35B-A3B-NVFP4"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows",
+      "wall_s": 6.004999136,
+      "started_unix": 1792640585,
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.214,
+        "perplexity_line": "1.214 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --quick --max-seq 2048"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+      "wall_s": 0.006869387,
+      "started_unix": 1792640591,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 98.61% KL 7.63e-3; decode top-1 98.75% KL 1.18e-2",
+      "wall_s": 8.112251246,
+      "started_unix": 1792640591,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:cd6ef94b3dcd4c82 size:246804",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.6120749479528,
+            "mean_kl": 0.007625840211595139,
+            "mean_kl21": 0.007416794263115527,
+            "top5_pct": 91.29770992366412,
+            "tail_ref": 0.017574283359717616,
+            "tail_ours": 0.017399762731976142,
+            "max_kl": 0.7150448995011207,
+            "max_kl21": 0.7108496543727024,
+            "tail_abs": 0.0017954342499144733,
+            "nonfinite": 0,
+            "greedy_match_pct": 30.950728660652324,
+            "floor_pass": true,
+            "mean_kl_scored": 0.0062664648297315875,
+            "mean_kl21_scored": 0.0059779569912112186,
+            "scored_positions": 1279
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 98.75,
+            "mean_kl": 0.011755706856344646,
+            "mean_kl21": 0.011715516188755964,
+            "top5_pct": 92.875,
+            "tail_ref": 0.025770566161384394,
+            "tail_ours": 0.025398772067653713,
+            "max_kl": 0.731541009027974,
+            "max_kl21": 0.7308349256019548,
+            "tail_abs": 0.0022702815469946816,
+            "nonfinite": 0,
+            "greedy_match_pct": 88.75,
+            "floor_pass": true,
+            "mean_kl_scored": 0.012327864431432169,
+            "mean_kl21_scored": 0.012144712065903018,
+            "scored_positions": 118
+          }
+        ],
+        "run_s": 8.105458807
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --golden golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /work/onboard-runs/35b-hip-r2/report/qualify/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "decode 159.9 tok/s at 128 tokens (58% of the byte floor)",
+      "wall_s": 16.769509454,
+      "started_unix": 1792640600,
+      "artifacts": [
+        "bench/qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 130.0,
+            "ttft_s": 0.067,
+            "prefill_tok_s": 1945.1,
+            "decode_tok_s": 159.93,
+            "decode_stdev": 0.39,
+            "floor_tok_s": 278.1,
+            "pct_of_floor": 57.5,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1023.0,
+            "ttft_s": 0.1291,
+            "prefill_tok_s": 7902.1,
+            "decode_tok_s": 159.3,
+            "decode_stdev": 0.04,
+            "floor_tok_s": 278.1,
+            "pct_of_floor": 57.3,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4242.0,
+            "ttft_s": 0.4915,
+            "prefill_tok_s": 8642.3,
+            "decode_tok_s": 154.75,
+            "decode_stdev": 0.03,
+            "floor_tok_s": 278.1,
+            "pct_of_floor": 55.6,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 2.254637784,
+        "bandwidth_gbs": 627.0,
+        "floor_inputs": "gb/token: estimated from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 627 GB/s, the R9700 figure of docs/results/2026-10-13-phase2a-hip.md",
+        "server_load_s": 6.009603346,
+        "label": "qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=a3288db code-tree=dc8cbb40ec42 dirty=yes",
+        "binary": "/work/on-intarsia",
+        "host": "tatooine",
+        "backend": "hip",
+        "device": "AMD Radeon Graphics",
+        "arch": "gfx1201",
+        "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/work/on-intarsia serve --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3.6-35B-A3B-NVFP4 --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/work/on-intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3.6-35B-A3B-NVFP4 --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench --out-dir /work/onboard-runs/35b-hip-r2/report/qualify/bench --tp 1 --fingerprint model=Qwen3.6-35B-A3B-NVFP4 --fingerprint backend=hip --fingerprint build=head=a3288db code-tree=dc8cbb40ec42 dirty=yes --timeout-s 900 --gb-per-token 2.2546 --bandwidth-gbs 627 --fingerprint-file /work/onboard-runs/35b-hip-r2/report/qualify/doctor.json"
+        ],
+        "env": {
+          "HIP_VISIBLE_DEVICES": "0",
+          "INTARSIA_HOSTNAME": "tatooine",
+          "FLEETQ_JOB": "3665",
+          "GPU_MAX_HW_QUEUES": "1"
+        }
+      },
+      "notes": []
+    }
+  ],
+  "hooks": [],
+  "qualify_verdict": "PASS",
+  "tier": "quick",
+  "published_unix": 1792640617,
+  "published": "2026-10-22T03:43:37Z",
+  "onboard": {
+    "started_unix": 1792640530,
+    "started": "2026-10-22T03:42:10Z",
+    "timeline": {
+      "stages": [
+        {
+          "id": "recipe",
+          "tier": "prepare",
+          "verdict": "PASS",
+          "started_unix": 1792640530,
+          "started": "2026-10-22T03:42:10Z",
+          "ended_unix": 1792640530,
+          "ended": "2026-10-22T03:42:10Z",
+          "wall_s": 0.192697207,
+          "first_started_unix": null,
+          "first_started": null
+        },
+        {
+          "id": "smoke",
+          "tier": "prepare",
+          "verdict": "PASS",
+          "started_unix": 1792640530,
+          "started": "2026-10-22T03:42:10Z",
+          "ended_unix": 1792640537,
+          "ended": "2026-10-22T03:42:17Z",
+          "wall_s": 6.607103722,
+          "first_started_unix": null,
+          "first_started": null
+        },
+        {
+          "id": "quick",
+          "tier": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640537,
+          "started": "2026-10-22T03:42:17Z",
+          "ended_unix": 1792640617,
+          "ended": "2026-10-22T03:43:37Z",
+          "wall_s": 79.851156777,
+          "first_started_unix": null,
+          "first_started": null
+        }
+      ],
+      "qualify_stages": [
+        {
+          "id": "doctor",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640537,
+          "started": "2026-10-22T03:42:17Z",
+          "ended_unix": 1792640537,
+          "ended": "2026-10-22T03:42:17Z",
+          "wall_s": 0.300515514
+        },
+        {
+          "id": "recipe",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640537,
+          "started": "2026-10-22T03:42:17Z",
+          "ended_unix": 1792640537,
+          "ended": "2026-10-22T03:42:17Z",
+          "wall_s": 0.295939763
+        },
+        {
+          "id": "plan",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640537,
+          "started": "2026-10-22T03:42:17Z",
+          "ended_unix": 1792640546,
+          "ended": "2026-10-22T03:42:26Z",
+          "wall_s": 9.159162051
+        },
+        {
+          "id": "kernels",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640546,
+          "started": "2026-10-22T03:42:26Z",
+          "ended_unix": 1792640585,
+          "ended": "2026-10-22T03:43:05Z",
+          "wall_s": 39.029881495
+        },
+        {
+          "id": "gate",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640585,
+          "started": "2026-10-22T03:43:05Z",
+          "ended_unix": 1792640591,
+          "ended": "2026-10-22T03:43:11Z",
+          "wall_s": 6.004999136
+        },
+        {
+          "id": "acc-format",
+          "section": "quick",
+          "verdict": "SKIP",
+          "started_unix": 1792640591,
+          "started": "2026-10-22T03:43:11Z",
+          "ended_unix": 1792640591,
+          "ended": "2026-10-22T03:43:11Z",
+          "wall_s": 0.006869387
+        },
+        {
+          "id": "acc-short",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640591,
+          "started": "2026-10-22T03:43:11Z",
+          "ended_unix": 1792640599,
+          "ended": "2026-10-22T03:43:19Z",
+          "wall_s": 8.112251246
+        },
+        {
+          "id": "bench",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792640600,
+          "started": "2026-10-22T03:43:20Z",
+          "ended_unix": 1792640617,
+          "ended": "2026-10-22T03:43:37Z",
+          "wall_s": 16.769509454
+        }
+      ]
+    },
+    "recipe": {
+      "verdict": "PASS",
+      "reason": "builtin:qwen3_5_moe covers the model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "recipe_path": null,
+      "covered_by": "builtin:qwen3_5_moe"
+    },
+    "smoke": {
+      "verdict": "PASS",
+      "reason": "generated: \"Paris, a city renowned for its iconic landmarks such as the Eiffel Tower,\"",
+      "decode_tok_s": 160.18,
+      "completion": "Paris, a city renowned for its iconic landmarks such as the Eiffel Tower,"
+    }
+  }
+}
