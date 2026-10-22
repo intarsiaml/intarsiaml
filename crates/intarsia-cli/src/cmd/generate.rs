@@ -96,7 +96,8 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     } else {
         args.prompt.clone()
     };
-    let ids = engine.tokenize(&text, false).map_err(|e| anyhow::anyhow!("{e}"))?;
+    // plain text gets the tokenizer's own special tokens (Llama's BOS); a rendered chat template carries its own
+    let ids = engine.tokenize(&text, !args.chat).map_err(|e| anyhow::anyhow!("{e}"))?;
     if ids.is_empty() {
         bail!("the prompt tokenizes to nothing");
     }

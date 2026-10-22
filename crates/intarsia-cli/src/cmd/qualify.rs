@@ -756,8 +756,20 @@ impl Ctx {
         } else if long {
             64
         } else {
-            16
+            self.recipe_decode_positions().unwrap_or(16)
         }
+    }
+    /// The recipe's `[accuracy] decode_positions` (quick tier only): more teacher-forced decode rows for a model whose
+    /// decode top-1 is too noisy at 16 per prompt. The recipe is the explicit `--recipe` or the one matched on `config.json`.
+    fn recipe_decode_positions(&self) -> Option<usize> {
+        let r = match &self.a.recipe {
+            Some(p) => intarsia_models::recipe::load_recipe_file(p).ok()?,
+            None => {
+                let cfg: Value = serde_json::from_str(&std::fs::read_to_string(self.a.model.join("config.json")).ok()?).ok()?;
+                intarsia_models::recipe::select_recipe(&cfg, &self.a.recipe_dir).ok()?.1
+            }
+        };
+        r.accuracy.decode_positions.filter(|n| *n > 0)
     }
     fn acc_max_seq(&self, long: bool) -> usize {
         if long && !self.smoke() {
