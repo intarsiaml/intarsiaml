@@ -47,8 +47,8 @@ weights. It runs teacher-forced prefill only and writes a top-64 self-golden.
   chunk boundaries for the cost of one prompt.
 * **Oracle** (`golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors`, 2.8 MB, committed): made on endor (M5 Max,
   40 GB budget, chunk 256). The short set took 10 min 17 s; the oracle set took 20 min 32 s. qualify finds it by model
-  name. Without one it makes it with the cpu backend from the short golden's prompts. That fallback happens only for
-  MoE / hybrid / quantized models whose golden is not fp32.
+  name. qualify does not make one (a 20-min CPU job inside a quick section would blow any GPU window): a MoE / hybrid /
+  quantized model without one reads MISSING-BASELINE with the exact `accuracy --backend cpu` command.
 * **Determinism**: the oracle is deterministic. Its distance to vLLM is the vLLM sample's noise: KL21 on the top-20
   support is 1.42e-2 against the oracle, while clean Metal reads 8.90e-3 on the same rows.
 
@@ -67,8 +67,12 @@ and user turns hidden, n = 5343 of 5505), the same number `intarsia accuracy` ga
 | HIP tp=1 x1.01 mutant | 9.51e-3 | 96.29 % |
 | HIP tp=2 `scale:1.01` | 1.05e-2 | 96.04 % |
 
-The clean spread (9.9e-3 to 1.1e-2) is bf16 activation rounding against f32 / f64 math on the same NVFP4 weights. The
-spread is not noise, because each build reads the same value every run. The floor is **2e-2**, about 1.8x the largest clean
+**Where the spread comes from.** Both sides run the same NVFP4 weights (W4A16: activations stay 16-bit) and the same
+recipe activation scheme for the fp8 attention projections (`fp8_act` "recipe default" in both dumps' metadata). The
+NVFP4 quantisation error is therefore common to both sides and cancels. It cannot be measured here at all: there is no
+bf16 checkpoint. What remains, 9.9e-3 to 1.1e-2, is arithmetic precision alone: bf16 activations and accumulation
+order on the GPU against f32 accumulation and f64 NVFP4 / MoE / GDN math in the oracle. The spread is not noise, because
+each build reads the same value every run. The floor is **2e-2**, about 1.8x the largest clean
 reading (HIP tp=2): margin for CUDA and for a future backend's different rounding, and still far below a wrong kernel
 (10x and more; the old 4-bit floor sits at 3e-2 against a reference that is itself off by 1.4e-2). Top-1 is not gated:
 the 4 % of rows where clean builds disagree with the oracle's argmax move by a few rows between correct builds
@@ -94,6 +98,14 @@ reads 2.3e-13. `acc-oracle` therefore runs in two parts:
 
 The `tp` stage runs both parts at tp=N against the `-tpN` dump. `INTARSIA_TP_TEST_BUG=scale:1.01` reads 1.15e-2 against
 the tp=2 dump.
+
+**Per device.** A dump is keyed by backend and tp degree, not by device model. `self_compat` treats a device change as a
+warning, so a different GPU of the same backend (another AMD or Apple chip) would read FAIL on clean main, not
+MISSING-BASELINE. The committed dumps are for the R9700 (gfx1201) and the M5 Max only. Another device records its own
+dump.
+
+**Merge order.** The dumps pin today's main (cd617de2 + #74). If a PR that moves HIP or Metal numerics merges before
+this one, re-record the dumps before merging fx1.
 
 **Policy.** The dumps pin the logits of main. A change that is meant to move the numerics (a new kernel, a different
 accumulation order) fails the drift check by design. Its PR re-records the dumps of every backend it touches: run
@@ -129,9 +141,10 @@ short golden, `--oracle-golden` the committed oracle:
 
 Logs: HIP window 4 (fleetq #3769), Metal job #3744, under the lane's scratchpad (`fx1/tatooine/w4`, `fx1/acc`).
 
-**Logits unchanged.** The Metal dump of main + fx1 equals the m35 binary's dump (PR #70 head before merge) at KL 0 over
-5505 rows. The HIP dump after the `accuracy.rs` experiment equals the one before it at KL 0. The diff touches no engine
-crate.
+**Logits unchanged.** The Metal dump of main + fx1 equals the dump of the m35 binary, built from the PR #70 head before
+fx1 existed, at KL 0 over 5505 rows. That is a real before/after check. On HIP both dumps come from fx1 builds (before
+and after the reverted `accuracy.rs` experiment), so they show only that the experiment left no trace. HIP has no
+before-fx1 comparison. The diff touches no engine crate.
 
 ## 7. Downtime
 
