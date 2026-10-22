@@ -6,7 +6,7 @@
 #   on    ~/intarsiaml-tc      volume intarsia-cargo-target-tc       the lane branch, INTARSIA_PREFILL_TAIL_MERGE=$TM
 # The knob is exported INSIDE the container command (dev.sh forwards only INTARSIA_HIP_* / INTARSIA_TP_*).
 #   tc-stages.sh <stage>...   stages: ids acc
-# Needs bench-out/tc/prompt{16654,4408}.txt in both trees and (acc) /models/golden/*. Output: $OUTD (default
+# Needs bench-out/tc/prompt{16654,4408}.txt and the 4k golden in both trees, and (acc) /models/golden/*. Output: $OUTD (default
 # ~/intarsiaml-tc/bench-out/tc/out). Every inner command has stdin from /dev/null.
 set -uo pipefail
 TM=${TM:-1024}
@@ -68,7 +68,7 @@ accrun() {
   HIP_VISIBLE_DEVICES=$gpu INTARSIA_REPO=$REPO INTARSIA_TARGET_VOL=$VOL bash "$D" bash -c "bash /work/bench-out/tc/acc-$tag.sh" < /dev/null > "$OUTD/acc-$tag.log" 2>&1
   echo "acc $tag ($arm, gpu $gpu): exit $? $(ts)"
 }
-# stage_acc: the goldens are copied beside each other in /models/golden by the caller (4k = the 4447-token one, long = 5 prompts of 4064 .. 12064)
+# stage_acc: the 4k golden (prompts 4064 / 4064 / 4631) is copied into bench-out/tc of both trees by the caller; the long golden (5 prompts, 4064 .. 12064) is the one in /models/golden
 # base writes a self-golden per golden (GPU 0 and 1 in parallel); off and on compare against it (parallel again).
 stage_acc() {
   local g mode=${ACC_MODE:-both}

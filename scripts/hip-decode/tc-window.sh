@@ -71,12 +71,15 @@ fi
 if [[ " $STAGES " == *" speed "* ]]; then
   r=1
   while :; do
-    for a in $SPEEDARMS; do
+    arms=$SPEEDARMS
+    # odd rounds in the given order, even rounds reversed (no arm always follows the same other arm)
+    if [ $((r % 2)) -eq 0 ]; then arms=""; for a in $SPEEDARMS; do arms="$a $arms"; done; fi
+    for a in $arms; do
       if [ "$(left)" -lt 100 ]; then say "SKIPPED speed arm $a-r$r: $(left) s left"; continue; fi
       loc_arm "$a" "$r"
     done
     r=$((r + 1))
-    [ "$(left)" -ge 300 ] || break
+    [ "$(left)" -ge 300 ] && [ "$r" -le "${ROUNDS:-99}" ] || break
   done
 fi
 say "stages done"

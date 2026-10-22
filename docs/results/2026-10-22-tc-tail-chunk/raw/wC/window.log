@@ -1,0 +1,10 @@
+################ stage acc start 07:31:16 (budget left 960 s)
+--- acc base self-goldens 07:31:16
+acc base-4k (base, gpu 1): exit 0 07:32:01
+acc base-long (base, gpu 0): exit 0 07:33:25
+--- acc off/on vs self-golden 07:33:25
+acc on-long (on, gpu 1): exit 0 07:34:49
+acc off-long (off, gpu 0): exit 0 07:34:54
+acc on-4k (on, gpu 1): exit 0 07:35:26
+acc off-4k (off, gpu 0): exit 0 07:35:27
+################ stage acc end 07:35:27
