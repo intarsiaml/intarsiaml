@@ -16,6 +16,7 @@
 //! | `AttnPrefill` | q `[T,N,D]`, kc, vc `[Nkv,cap,D]` | `[T,N,D]` | pos0, scale, n_heads, n_kv_heads, head_dim, kv_cap |
 //! | `AttnDecode` | as prefill with T == 1 | `[1,N,D]` | same |
 //! | `SiluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` | |
+//! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
@@ -289,6 +290,10 @@ pub struct OpAttrs {
     /// (the exponent's denominator is the full head dim `D`, not `rotary_dim`), every other value is copied. `rotary_dim` is
     /// the number of rotated values (`partial_rotary_factor * D`). Selects only `.ext()` kernels.
     pub rope_prop: bool,
+    /// `Add` / `Embedding` use the existing `scale` attr: `scale != 1.0` multiplies the result (`out = round(f32(a + b) * scale)`,
+    /// `round(f32(table row) * scale)`, one rounding; Gemma's `layer_scalar` and embedding scale) and selects only `.ext()`
+    /// kernels. Attention keeps reading `scale` as its softmax scale; that is not an extended use.
+    ///
     /// `MoeExperts`: expert activation is tanh-GELU instead of SiLU (`gelu_tanh(gate) * up`). Selects only `.ext()` kernels.
     pub gelu: bool,
 }
@@ -639,7 +644,10 @@ impl ShapeInfo {
         let mut s = ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
-            ext: call.attrs.window > 0 || call.attrs.rope_prop || call.attrs.gelu,
+            ext: call.attrs.window > 0
+                || call.attrs.rope_prop
+                || call.attrs.gelu
+                || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
             ..Default::default()
         };
         match call.op {
