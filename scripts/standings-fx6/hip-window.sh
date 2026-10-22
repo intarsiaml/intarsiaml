@@ -104,6 +104,13 @@ visit() {
   echo "gpu after: $(gpu)" >>"$OUT/$name-gpu.txt"
   save_result "$OUT/$name-localeval.out" "$name"
   curl -s -m 3 "$url/metrics" 2>/dev/null | grep -iE "graph|eager" | head >"$OUT/$name-metrics.txt" 2>&1
+  if [ "${SB:-0}" = 1 ]; then   # reconciliation: the 2026-09-26 stream_bench.py (same decode formula as localeval) on this server, single stream
+    local port=${url##*:}
+    ssh $T "timeout 300 python3 ~/bench-r9700/stream_bench.py --url http://127.0.0.1:$port/v1 --model $mid --streams 1 --output /tmp/fx6-sb-$name.jsonl" </dev/null >"$OUT/$name-streambench.out" 2>&1
+    ssh $T "cat /tmp/fx6-sb-$name.jsonl; rm -f /tmp/fx6-sb-$name.jsonl" </dev/null >"$OUT/$name-streambench.jsonl" 2>&1
+    say "visit $name: stream_bench done ($(left) s left)"
+  fi
+  [ -n "${PROBE:-}" ] && python3 "$H/probe-mmlu.py" "$url/v1" "$mid" "$OUT/$name-probe.jsonl" >"$OUT/$name-probe.out" 2>&1
   if [ "${MMLU:-0}" = 1 ] && { [ $arm = intarsia ] || [ $arm = intarsia-old ] || [ $arm = llama-vk ]; } && (( $(left) > 150 )); then
     local st
     for st in json_schema none; do

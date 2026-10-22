@@ -8,3 +8,14 @@ fleetq: #3820 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-
 [window] visit llama-hip-p2: localeval speed exit 0 (1088 s left) 2026-10-22 01:35:41
 [window] visit hipfire-p2: starting server (1084 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=33000 vram_used=59912192 busy=0 | card1: sclk=1: 280Mhz *  temp_mC=56000 vram_used=93114368 busy=0 |  2026-10-22 01:35:45
 [window] visit hipfire-p2: server up (1073 s left) 2026-10-22 01:35:56
+[window] visit hipfire-p2: localeval speed exit 0 (1013 s left) 2026-10-22 01:36:56
+[window] visit llama-vk-p2: starting server (1009 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=31000 vram_used=59912192 busy=0 | card1: sclk=1: 283Mhz *  temp_mC=56000 vram_used=93114368 busy=7 |  2026-10-22 01:37:00
+[window] visit llama-vk-p2: server up (1004 s left) 2026-10-22 01:37:05
+[window] visit llama-vk-p2: localeval speed exit 0 (965 s left) 2026-10-22 01:37:44
+[window] visit intarsia-p2: starting server (959 s left); gpu: card0: sclk=S: 2Mhz *  temp_mC=31000 vram_used=59912192 busy=0 | card1: sclk=S: 147Mhz *  temp_mC=55000 vram_used=93114368 busy=5 |  2026-10-22 01:37:50
+[window] visit intarsia-p2: server up (941 s left) 2026-10-22 01:38:08
+[window] visit intarsia-p2: localeval speed exit 0 (920 s left) 2026-10-22 01:38:29
+[window] arms done 2026-10-22 01:38:32
+[window] starting radiance 2026-10-22 01:38:33
+[window] radiance answers (after 25 s); window total 245 s 2026-10-22 01:38:54
+fleetq: #3820 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
