@@ -284,6 +284,8 @@ pub fn requires_metal4(kernel: &str) -> bool {
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(crate::mxfp4::SHADERS);
+    v.extend(crate::fp8::SHADERS);
+    v.extend(crate::nvfp4::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -336,6 +338,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
+    (crate::fp8::MATMUL_FP8_GEMV, Op::MatmulFp8),
+    (crate::fp8::MATMUL_FP8_MMA, Op::MatmulFp8),
+    (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
+    (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -508,6 +514,42 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
+                // FP8 e4m3 W8A8 / W8A16 (kernels/metal/fp8.metal, fp8.rs), the hip budgets. The GEMV (M <= 8, one dispatch, q(x)
+                // staged in threadgroup memory) takes decode; the GEMM (priority 0) every other shape, QDQ'ing x into scratch.
+                crate::fp8::MATMUL_FP8_GEMV => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::gemv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(10),
+                crate::fp8::MATMUL_FP8_MMA => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::fp8::scratch)
+                    .priority(0),
+                // NVFP4 (kernels/metal/nvfp4.metal, nvfp4.rs): GEMV for M <= 8 (no scratch), GEMM for every other shape.
+                crate::nvfp4::MATMUL_NVFP4_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::gemv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(10),
+                crate::nvfp4::MATMUL_NVFP4_MMA => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(0),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -554,10 +596,10 @@ mod tests {
     const PHASE1_PINS: &[&str] = &[
         "35b attn input norm: rmsnorm_add_bf16",
         "35b k/v pair: -",
-        "35b k proj: -",
+        "35b k proj: matmul_fp8_gemv",
         "35b output gate: -",
-        "35b o_proj: -",
-        "35b shared down: -",
+        "35b o_proj: matmul_fp8_gemv",
+        "35b shared down: matmul_nvfp4_gemv",
         "35b combine: -",
         "35b fold P5: -",
         "35b fold P4b: -",
@@ -628,7 +670,11 @@ mod tests {
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_nax:matmul",
+        "matmul_fp8_gemv:matmul_fp8",
+        "matmul_fp8_mma:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
+        "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_mma:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",
@@ -746,18 +792,18 @@ mod tests {
         "35b m=1 topk: -",
         "35b m=1 experts: -",
         "35b m=1 shared glu: -",
-        "35b m=1 shared gate: -",
+        "35b m=1 shared gate: matmul_nvfp4_gemv",
         "35b m=1 silu glu: silu_glu_bf16",
-        "35b m=1 shared down: -",
+        "35b m=1 shared down: matmul_nvfp4_gemv",
         "35b m=1 shared down combine: -",
         "35b m=1 combine: -",
         "35b m=1 fold P2': -",
         "35b m=2 topk: -",
         "35b m=2 experts: -",
         "35b m=2 shared glu: -",
-        "35b m=2 shared gate: -",
+        "35b m=2 shared gate: matmul_nvfp4_gemv",
         "35b m=2 silu glu: silu_glu_bf16",
-        "35b m=2 shared down: -",
+        "35b m=2 shared down: matmul_nvfp4_gemv",
         "35b m=2 shared down combine: -",
         "35b m=2 combine: -",
         "35b m=2 fold P2': -",
