@@ -351,10 +351,12 @@ spark2 keeps its role. The CLI now turns row-local fusion on by default for CUDA
 - memcheck on both ranks through short, long, short requests: **rank 0: 0 errors, rank 1: 0 errors**.
 - All three requests answered (16 / 933 / 16 prompt tokens).
 
-**Greedy ids, default (fused) vs `INTARSIA_TP_FUSION=0`, and the op-table probe** (`xg.sh` steps offids5k, offids16k and fprobe d/u, `raw/fdef-gates`): **pending**.
-- The job (fleetq #3285) is queued for memory on spark1.
-- The first attempt aborted at start on a script bug (`${PRE_CHANGE:?}` expanded in a skipped step; `raw/fdef-gates-try1`), now fixed.
-- The G1c gates already showed fused and unfused ids identical with `INTARSIA_TP_FUSION=1` (`raw/gates3`).
+**Greedy ids, default (fused) vs `INTARSIA_TP_FUSION=0`, and the op-table probe** (`xg.sh` MODE=gates, steps offids5k, offids16k and fprobe d/u, fleetq #3920 on 2026-10-22 04:30 EDT, vLLM up, PR head e1e2efba, `raw/fdef-gates`): **PASS**.
+- `IDS tp2g-off-5k vs tp2g-def-5k: IDENTICAL` and `IDS tp2g-off-16k vs tp2g-def-16k: IDENTICAL` (256/256, no divergence).
+- Every `REPLAY-CHECK` line is `ok` (rank 1 replayed its graph in all four runs).
+- Op table, default (`fprobe-d.err`): `matmul_fp8_pair` 1280, `rmsnorm_add_matmul_pair` 2208, `matmul_nvfp4_glu` 1280, `matmul_pair` 32 calls. With `INTARSIA_TP_FUSION=0` (`fprobe-u.err`) none of those appear; plain `matmul_fp8` (4290) and `rmsnorm` (1023) do. So the default takes the fused path and the opt-out takes the unfused one.
+- `moe_block` does not appear in either run: the CUDA 35B path has no `MoeBlock` op (the routed experts run as `moe_topk`/`moe_experts`/`moe_combine` in both), so it was never part of this fusion. The pre-run criterion that listed it was wrong on that point.
+- Earlier attempts: `raw/fdef-gates-try1` aborted on a script bug; fleetq #3285, #3553, #3656 and #3733 never ran (queue waits, clients killed); #3899 was launched without `MODE` and exited at once.
 
 **Mac:**
 - `cargo test -p intarsia-cli tp_fusion` passes.
