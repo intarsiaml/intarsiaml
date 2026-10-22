@@ -131,9 +131,9 @@ decode spread (82.6 vs 81.3) is within the per-arm noise of single localeval run
 
 | gate | result | where |
 |---|---|---|
-| new-kernel GPU tests (bitwise vs the replaced calls), spark1 | `fp8_pair_gemm_reg_is_bitwise_two_calls` (equal / different / weight-only / mixed input scales, bf16 + f32, the 35B shapes, N tails, small grids), `nvfp4_gemm_reg_is_bitwise_the_gemm`, `nvfp4_glu_gemm_is_bitwise_the_chain`, `fp8_gemm_cublas_is_bitwise_gemm_reg` (56 cases incl. all e4m3 codes), every `gemm_reg` schedule bitwise: all PASS | `raw/dev-spark1/tests/` |
+| new-kernel GPU tests (bitwise vs the replaced calls), spark1 and again on spark2 after the merge (cuBLAS: 72 cases incl. M 512 / 768) | `fp8_pair_gemm_reg_is_bitwise_two_calls` (equal / different / weight-only / mixed input scales, bf16 + f32, the 35B shapes, N tails, small grids), `nvfp4_gemm_reg_is_bitwise_the_gemm`, `nvfp4_glu_gemm_is_bitwise_the_chain`, `fp8_gemm_cublas_is_bitwise_gemm_reg` (56 cases incl. all e4m3 codes), every `gemm_reg` schedule bitwise: all PASS | `raw/dev-spark1/tests/`, `raw/ktest-spark2/tests/` |
 | lib pins (selection by M, kernel list, ABI header) | 16 passed (also with `INTARSIA_CUDA_FP8_CUBLAS=1` / `_FP8_GEMM_LT=1`) | `raw/dev-spark1/tests/test-lib.log` |
-| `intarsia kernels test --backend cuda` | 58 kernels, 1069 cases, **0 FAIL**. The 4 new kernels ran 0 cases: the sweep's matmul cases stop below M = 256 (changing the shared case list would change the Metal / HIP sweeps); their coverage is the bitwise tests above against admitted kernels | `raw/gates-spark2/ktest/dev.log` |
+| `intarsia kernels test --backend cuda` | merged tree (with the appended cases): **58 kernels, 1081 cases, 0 FAIL, none untested**; the 4 new kernels ADMITTED (pair 3 cases, nvfp4 reg 2, GLU 1, cuBLAS 2); `--quick` 374 cases, 0 FAIL. (Before the merge, on the gates tree: 1069 cases, 0 FAIL, the new kernels had no case.) | `raw/ktest-spark2/`, `raw/ktest-spark2.out` (job #3876) |
 | greedy ids 35B short (1497 + 256) and 4k (4201 + 64), 8B short and 4k | dev and cub **identical** to base, all 8 | `raw/gates-spark2/ids/` |
 | 8B plan (`plan show --json`) | byte-identical (8630 B) | same |
 | 35B plan | dev selects `matmul_fp8_pair_gemm_reg`, `matmul_nvfp4_gemm_reg`, `matmul_nvfp4_glu_gemm`; cub `matmul_fp8_gemm_cublas`; scratch unchanged (84.0 MB) | `ids/plan35-*.txt` |
@@ -164,6 +164,7 @@ dev at 4k), and adding `matmul_fp8_pair_gemm_reg`'s shared quantiser to the cuBL
 |---|---|---|---|
 | #3502 | spark1, 12 GB | dev build, kernel GPU tests, schedule sweep, cuBLAS probes | up |
 | #3618 | spark2 exclusive | build base / dev; gates (ids, plans, profiles, accuracy, reuse, kernels test). Its window step refused itself (the agent-harness check matched this job's own label); fixed | up |
+| #3876 | spark2, 8 GB | merged tree: rebuild, GPU tests, kernels test | up |
 | #3822 | spark2 exclusive, takes down retro | A/B + localeval window | **down 02:08:49-02:26:22, 17.5 min** (`raw/downtime.log`); agent-harness checked first (none) |
 
 Unqueued: Mac `cargo check` / `cargo test --lib` of the CUDA crate (no GPU), as allowed for this lane.
