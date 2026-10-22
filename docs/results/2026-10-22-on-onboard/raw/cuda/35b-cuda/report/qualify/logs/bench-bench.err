@@ -1,0 +1,13 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 49 base tokens, 21.25 tokens per filler sentence
+  size    128 rep: prompt=132 gen=128 ttft=0.10s prefill=1313 tok/s decode=76.8 tok/s
+  size    128 rep: prompt=131 gen=128 ttft=0.10s prefill=1282 tok/s decode=84.2 tok/s
+  size    128 rep: prompt=124 gen=128 ttft=0.10s prefill=1266 tok/s decode=84.1 tok/s
+  size   1024 rep: prompt=1015 gen=128 ttft=0.22s prefill=4640 tok/s decode=83.6 tok/s
+  size   1024 rep: prompt=1006 gen=128 ttft=0.22s prefill=4662 tok/s decode=83.4 tok/s
+  size   1024 rep: prompt=1017 gen=128 ttft=0.22s prefill=4636 tok/s decode=83.7 tok/s
+  size   4096 rep: prompt=4232 gen=128 ttft=0.79s prefill=5383 tok/s decode=80.8 tok/s
+  size   4096 rep: prompt=4185 gen=128 ttft=0.78s prefill=5353 tok/s decode=81.2 tok/s
+  size   4096 rep: prompt=4173 gen=128 ttft=0.77s prefill=5396 tok/s decode=81.1 tok/s
+wrote /home/nvidia/onboard-runs/35b-cuda/report/qualify/bench/qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench.json
