@@ -1,0 +1,25 @@
+steps: 128 launch-count histogram (top): [(1351, 127), (28903, 1)]
+decode steps analysed: 125, launches/step 1351
+per step: kernel time 30.771 ms, step wall (first start to last end) 35.736 ms, idle inside step 4.965 ms (13.9% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 35.748 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 4640 p99 4760 max 294645; sum/step 4.965 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv_kernel<1, bf16>                                                496.0   22654.5    45.7  73.6%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.7  3982.7  12.9%
+mxfp4_xprep_kernel                                                        496.0    1955.8     3.9   6.4%
+splitkv_kernel<8, 32, 2>                                                   16.0     700.5    43.8   2.3%
+rmsnorm_kernel<true, true>                                                128.0     497.5     3.9   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     490.5    10.2   1.6%
+gated_rmsnorm_kernel<true>                                                 48.0     106.6     2.2   0.3%
+combine_kernel<256, 16>                                                    16.0     104.1     6.5   0.3%
+silu_glu_kernel<true>                                                      64.0      92.7     1.4   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      91.4     5.7   0.3%
+argmax_kernel<float>                                                        1.0      61.5    61.5   0.2%
+sigmoid_mul_kernel                                                         16.0      20.3     1.3   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.5     2.5   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step

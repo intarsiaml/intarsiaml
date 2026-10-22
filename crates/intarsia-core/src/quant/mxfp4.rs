@@ -187,7 +187,6 @@ impl QuantFormat for Mxfp4 {
     }
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
-        opts.refuse_shard("MXFP4", meta.prefix)?;
         let name = |s: &str| format!("{}.{s}", meta.prefix);
         let wi = meta.info("weight").ok_or_else(|| Error::model(format!("'{}.weight' missing", meta.prefix)))?;
         if wi.shape.len() != 2 {
@@ -197,8 +196,37 @@ impl QuantFormat for Mxfp4 {
         if k % GROUP != 0 {
             return Err(Error::model(format!("mxfp4 '{}': K={k} is not a multiple of {GROUP}", meta.prefix)));
         }
-        let w = load_tensor(backend, meta.src, &name("weight"), None)?;
-        let s = load_tensor(backend, meta.src, &name("weight_scale"), Some(&[n, k / GROUP]))?;
+        // tensor parallelism: the packed nibbles `[n, k/2]` and the e8m0 scales `[n, k/32]` are cut along the same axis
+        // (rows, the GatedDeltaNet q|k|v row groups, or columns). A column slice must hold whole 32-element groups, so
+        // each rank's groups, their scales and (W4A4) the activation QDQ groups are exactly those of the full matrix.
+        let (w, s, n, k) = match opts.shard {
+            Some(sh) => {
+                if sh.axis == crate::weights::ShardAxis::Cols && (sh.world == 0 || k % (sh.world * GROUP) != 0) {
+                    return Err(Error::model(format!(
+                        "mxfp4 '{}': K={k} does not split into {} column slices of whole {GROUP}-element groups",
+                        meta.prefix, sh.world
+                    )));
+                }
+                let si = meta.info("weight_scale").ok_or_else(|| Error::model(format!("'{}.weight_scale' missing", meta.prefix)))?;
+                if si.shape != [n, k / GROUP] {
+                    return Err(Error::model(format!(
+                        "mxfp4 '{}': weight_scale is {:?}, expected [{n}, {}]",
+                        meta.prefix,
+                        si.shape,
+                        k / GROUP
+                    )));
+                }
+                let (ln, lk) = sh.local_shape(n, k);
+                let w = crate::weights::load_tensor_shard(backend, meta.src, &name("weight"), sh)?;
+                let s = crate::weights::load_tensor_shard(backend, meta.src, &name("weight_scale"), sh)?;
+                (w, s, ln, lk)
+            }
+            None => {
+                let w = load_tensor(backend, meta.src, &name("weight"), None)?;
+                let s = load_tensor(backend, meta.src, &name("weight_scale"), Some(&[n, k / GROUP]))?;
+                (w, s, n, k)
+            }
+        };
         if s.dtype != DType::U8 {
             return Err(Error::model(format!("mxfp4 '{}': weight_scale must be u8 (e8m0), got {}", meta.prefix, s.dtype)));
         }

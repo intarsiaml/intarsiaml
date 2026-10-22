@@ -1,0 +1,13 @@
+21:24:24 ids-27-tp1-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 189 ms (63.5 tok/s) | decode 7814 ms (32.64 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+21:24:24 ids 27-tp1-short md5 2086b6a4
+21:24:33 ids-27-tp2ng-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 149 ms (80.5 tok/s) | decode 6233 ms (40.91 tok/s)|steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+21:24:33 ids 27-tp2ng-short md5 2086b6a4
+21:24:42 ids-27-tp2g-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 153 ms (78.4 tok/s) | decode 5994 ms (42.54 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+21:24:42 ids 27-tp2g-short md5 2086b6a4
+21:24:50 ids-27-tp2gf-short exit 0 [INTARSIA_TP_FUSION=1]: finish=length prompt=12 (cached 0) completion=256 | prefill 144 ms (83.1 tok/s) | decode 5505 ms (46.32 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+21:24:50 ids 27-tp2gf-short md5 2086b6a4
+21:24:50 SAME 27B tp=2 graphs vs eager (ids-27-tp2ng-short.ids == ids-27-tp2g-short.ids)
+21:24:50 SAME 27B tp=2 graphs+fusion vs graphs (ids-27-tp2g-short.ids == ids-27-tp2gf-short.ids)
+FIRSTDIFF 27B tp=2 vs tp=1 short: 256 / 256 ids, first divergence at none (identical)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 11.56 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+21:24:50 done

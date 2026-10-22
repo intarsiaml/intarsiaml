@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "tool": "scripts/deploy.sh",
+  "created": "2026-10-22T04:54:29Z",
+  "git": {
+    "sha": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "ref": "af77bbfd256c678b56bf26014349cfd66ba553f4",
+    "subject": "deploy-step: fall back to plain cargo build for refs without repro-build.sh",
+    "tree": "33383e0a93ccbb39eab2d714243212289f680203"
+  },
+  "lock_sha256": "7723f17b4e7280cb74868c4950b030e0c82af2c8e0631e839781434db9b4b537",
+  "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+  "backend": "metal",
+  "features": "metal",
+  "deploy_host": "local",
+  "tree_dir": "intarsia-deploy/metal",
+  "toolchain": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27) (Homebrew)",
+    "nvcc": null,
+    "hipcc": null,
+    "rocm": null,
+    "container": null
+  },
+  "gpu": {
+    "nvidia_smi": null,
+    "proc_driver_nvidia": null,
+    "nvcc": null,
+    "cuda_toolkit_version": null,
+    "rocm_version": null,
+    "hipcc": null
+  },
+  "device": {
+    "name": "Apple M5 Max",
+    "backend": "metal",
+    "arch": "applegpu_g17s",
+    "total_mem": 115448725504,
+    "free_mem": 115442761728,
+    "unified": true,
+    "bandwidth_gbs": 496.9445332947907
+  },
+  "host": {
+    "hostname": "endor.kuepker.haus",
+    "os": "macOS 27.0",
+    "kernel": "Darwin 27.0.0",
+    "arch": "aarch64",
+    "cpu_model": "Apple M5 Max",
+    "logical_cores": 18,
+    "physical_cores": 18,
+    "ram_total_bytes": 137438953472,
+    "ram_available_bytes": 25808420864,
+    "swap_total_bytes": 41875931136
+  },
+  "binary": {
+    "path": "target/release/intarsia",
+    "sha256": "070a08a6362a622924eee95b9bf876968b34ebc69cc7038cf481cde50ae9ba69",
+    "bytes": 21873968,
+    "intarsia_version": "0.0.1"
+  },
+  "env_file": null,
+  "smoke": "pass"
+}

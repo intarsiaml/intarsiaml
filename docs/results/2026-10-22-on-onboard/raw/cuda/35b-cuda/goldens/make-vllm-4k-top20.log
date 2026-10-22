@@ -1,0 +1,5 @@
+server max_model_len=32768
+[0] long_docs_4k      4064 tokens (4000+64)  top1_last=364 lp=-0.695  5s
+[1] long_code_4k      4064 tokens (4000+64)  top1_last=283 lp=-0.431  9s
+[2] chat_reuse_4k     4631 tokens (4567+64)  top1_last=279 lp=-0.000  14s
+wrote docs/results/2026-10-22-on-onboard/raw/cuda/35b-cuda/goldens/Qwen3.6-35B-A3B-NVFP4-vllm-4k-top20.safetensors (2.10 MB, 3 prompts, 0 skipped) in 14s

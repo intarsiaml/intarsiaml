@@ -1,0 +1,143 @@
+fleetq: #3797 waiting (#10 in line): in line behind #3579 "ob: intarsia CUDA server + Prometheus 67-query dashboard check + TUI snapshot (Qwen3-8B, vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #3579 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3579 set, or it will wait for #3579 to be released.
+fleetq: #3797 waiting (#9 in line): in line behind #3671 "S1 spark-prefill gates: build, kernel tests, kernels test, nsys 4k, greedy ids, KL21 + chat_reuse_4k (base/dev/cub), vLLM up" (claude-f31ccf91) on spark1
+fleetq:   #3671 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3671 set, or it will wait for #3671 to be released.
+fleetq: #3797 waiting (#7 in line): in line behind #3701 "og: O1 35B decode gate re-run vs same-day vLLM (localeval, vLLM up, exclusive)" (claude-f31ccf91-og) on spark1
+fleetq: #3797 waiting (#6 in line): in line behind #3758 "kq: deploy 86a89163 + kernels test --quick cuda (short)" (claude-f31ccf91) on spark1
+fleetq:   #3758 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3758 set, or it will wait for #3758 to be released.
+fleetq: #3797 waiting (#4 in line): in line behind #3762 "on: onboard CUDA e2e: build + intarsia onboard Qwen3.6-35B-A3B-NVFP4, goldens made from vLLM (vLLM up, nonexclusive, <=60 min)" (claude-f31ccf91) on spark1
+fleetq:   #3762 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3762 set, or it will wait for #3762 to be released.
+fleetq: #3797 waiting (#3 in line): in line behind #3763 "fx5 35B reuse logit deviation + qualify acc-long (vLLM up, non-exclusive)" (claude-f31ccf91) on spark1
+fleetq:   #3763 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3763 set, or it will wait for #3763 to be released.
+fleetq: #3797 waiting (#2 in line): in line behind #3768 "fx1: CUDA 35B build + qualify oracle gate: no-baseline/clean x2/x1.01 mutant (vLLM up, non-exclusive)" (claude-f31ccf91) on spark1
+fleetq:   #3768 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3768 set, or it will wait for #3768 to be released.
+fleetq: #3797 waiting (#1 in line): needs 28 GB on spark1; 10 GB free of 116
+fleetq: #3797 running on spark1: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/s1-all.sh
+##### repro check Thu Oct 22 02:18:39 EDT 2026
+rustc 1.90.0 (1159e78c4 2025-09-14)
+rp/A/one rc=0
+   Compiling sysinfo v0.37.2
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-backend-cuda)
+   Compiling clap_lex v1.1.1
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling winnow v0.7.15
+   Compiling unicode_categories v0.1.1
+   Compiling tokenizers v0.22.2
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling clap_builder v4.6.7
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-backend-cpu)
+   Compiling tracing v0.1.44
+   Compiling minijinja-contrib v2.24.0
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-ui)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-bench)
+   Compiling tokio-stream v0.1.19
+   Compiling clap_derive v4.6.7
+   Compiling memmap2 v0.9.11
+   Compiling intarsia-models v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-models)
+   Compiling clap v4.6.7
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/rp/A/one/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 35.24s
+repro-build: sha256 fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  target/release/intarsia
+build wall 36 s
+rustc 1.90.0 (1159e78c4 2025-09-14)
+rp/B/deeper/two rc=0
+   Compiling sysinfo v0.37.2
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling winnow v0.7.15
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-backend-cuda)
+   Compiling clap_lex v1.1.1
+   Compiling unicode_categories v0.1.1
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling tokenizers v0.22.2
+   Compiling clap_builder v4.6.7
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-backend-cpu)
+   Compiling tracing v0.1.44
+   Compiling minijinja-contrib v2.24.0
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-ui)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-bench)
+   Compiling tokio-stream v0.1.19
+   Compiling clap_derive v4.6.7
+   Compiling memmap2 v0.9.11
+   Compiling intarsia-models v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-models)
+   Compiling clap v4.6.7
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/rp/B/deeper/two/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 34.82s
+repro-build: sha256 fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  target/release/intarsia
+build wall 35 s
+A=fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593
+B=fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593
+CUDA-IDENTICAL
+##### deploy + pack Thu Oct 22 02:20:33 EDT 2026
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only af77bbfd256c678b56bf26014349cfd66ba553f4 is)
+deploy: spark1 (cuda) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+deploy: synced (5 entries changed)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 43.65s
+repro-build: sha256 fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+doctor rc=0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+54 kernels, 292 cases in 0.6s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel attn_prefill_f8kv_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_lt ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (spark1:~/intarsia-deploy/cuda/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        NVIDIA GB10  compute 12.1
+driver     580.173.02  (cuda toolkit 13.0.3)
+host       spark-4e77  Ubuntu 24.04.4 LTS  Cortex-A725
+binary     target/release/intarsia  sha256 fcd8053febb15f14  52326848 bytes  v0.0.1
+smoke      pass
+deploy: running in spark1:~/intarsia-deploy/cuda (INTARSIA_BIN=target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/orig)
+deploy: outputs in spark1:intarsia-deploy/cuda/replay-out/orig
+deploy rc=0
+bench-bundle: wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/rp-bundle.tgz (31104 bytes, 13 files, git af77bbf, cuda)
+pack rc=0
+bundle     2026-10-22T06:23:14Z packed on endor, measured on spark1
+git        af77bbfd256c678b56bf26014349cfd66ba553f4
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cuda       Cuda compilation tools, release 13.0, V13.0.88   rocm -
+gpu        NVIDIA GB10  driver 580.173.02
+binary     sha256 fcd8053febb15f14
+env        
+command    $INTARSIA_BIN generate -m $HOME/models/Qwen3-8B --backend cuda --mem-budget 24 --max-seq 2048 --profile-every 0 --temperature 0 --max-tokens 128 --ignore-eos --show-ids -p "Explain how a hash table handles collisions." > $INTARSIA_REPLAY_OUT/ids.out 2> $INTARSIA_REPLAY_OUT/gen.err
+reports    ./gen.err ./ids.out
+note       rp: greedy 128 ids Qwen3-8B, spark1 original
+ A hash table is a data structure that maps keys to values using a hash function. When two different keys produce the same hash value, a collision occurs. There are several methods to handle collisions in a hash table:
+
+1. **Separate Chaining**: Each bucket in the hash table contains a linked list (or another data structure) of entries that have the same hash value. When a collision occurs, the new entry is added to the linked list. This method is efficient and can handle a large number of collisions.
+
+2. **Open Addressing**: When a collision occurs, the hash table searches for the next availa
+ids: [362, 5175, 1965, 374, 264, 821, 5944, 429, 14043, 6894, 311, 2750, 1667, 264, 5175, 729, 13, 3197, 1378, 2155, 6894, 8193, 279, 1852, 5175, 897, 11, 264, 18752, 13666, 13, 2619, 525, 3807, 5413, 311, 3705, 47353, 304, 264, 5175, 1965, 1447, 16, 13, 3070, 14492, 349, 910, 2056, 95518, 8886, 156
+finish=length prompt=9 (cached 0) completion=128 | prefill 511 ms (17.6 tok/s) | decode 8321 ms (15.26 tok/s)
+steps=128 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/4572 attn_prefill=0ms/36 embedding=0ms/128 kv_append=0ms/9216
+##### end Thu Oct 22 02:23:14 EDT 2026
+fleetq: #3797 done (exit 0)

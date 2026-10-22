@@ -1,0 +1,20 @@
+[qualify] --resume: /work/onboard-runs/35b-hip-r2/report/qualify has no state yet, starting fresh
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/onboard-runs/35b-hip-r2/report/qualify
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.3s (AMD Radeon Graphics (gfx1201), 54 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     10s] plan: PASS in 9.2s (30 ops resolved, exactness deterministic, loaded in 9.2s)
+[qualify     10s] == kernels [kernels test on the model's shapes]
+[qualify     49s] kernels: PASS in 39.0s (54 kernels, 995 cases in 38.8s)
+[qualify     49s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     55s] gate: PASS in 6.0s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     55s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     55s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     55s] == acc-short [short accuracy against a golden]
+[qualify     63s] acc-short: PASS in 8.1s (prefill top-1 98.61% KL 7.63e-3; decode top-1 98.75% KL 1.18e-2)
+[qualify     63s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify     69s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify     80s] bench: PASS in 16.8s (decode 159.9 tok/s at 128 tokens (58% of the byte floor))
+[qualify     80s] exit code 0

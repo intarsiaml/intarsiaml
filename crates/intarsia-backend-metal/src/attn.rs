@@ -65,6 +65,20 @@ pub fn splitkv_scratch(s: &ShapeInfo) -> usize {
     s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
 }
 
+/// Threadgroups the query heads of one kv head are split over (shader: `OpP::s1`, the "head split" of
+/// attention_splitkv.metal): 4 (two query heads per threadgroup) for a group of 8 at head_dim 256 (Qwen3.6-35B-A3B full
+/// attention), where one lane holding all 8 heads needs 128 float registers of q and accumulator and a decode step
+/// costs 270 us at 50 keys; 1 (no split, the kernels of the 8B and every other shape unchanged) otherwise. `INTARSIA_METAL_ATTN_HS=<n>` overrides it (diagnostic; n must divide the group).
+pub fn head_split(grp: usize, d: usize) -> usize {
+    static O: OnceLock<Option<usize>> = OnceLock::new();
+    let o = *O.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_HS").ok().and_then(|v| v.trim().parse().ok()));
+    match o {
+        Some(n) if n >= 1 && grp % n == 0 => n,
+        _ if grp == 8 && d == 256 => 4,
+        _ => 1,
+    }
+}
+
 fn u32_of(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal: {what} = {v} exceeds u32")))
 }
@@ -99,12 +113,15 @@ impl MetalBackend {
         );
         let (pos, use_dev) = self.pos_bind(call)?;
         let grp = n / nkv;
+        // the head split makes the threadgroup grid and the split policy see `hs` virtual kv heads per kv head
+        let hs = head_split(grp, d);
+        let nkvv = nkv * hs;
         // host position: the exact split count of this call; device position: the bound for a full cache (the shader
         // derives the real count from the position it reads and idles the surplus threadgroups)
         let max_split = if use_dev == 1 {
-            decode_splits(cap, nkv, MAX_SPLIT)
+            decode_splits(cap, nkvv, MAX_SPLIT)
         } else {
-            decode_splits((a.pos0 + 1).min(cap), nkv, MAX_SPLIT)
+            decode_splits((a.pos0 + 1).min(cap), nkvv, MAX_SPLIT)
         };
         let need = n * max_split * (d + 2) * 4;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
@@ -133,17 +150,17 @@ impl MetalBackend {
                 use_dev,
                 u32_of(max_split, "max_split")?,
             ],
-            skips: [0, 0, 0, out.skip, 0],
+            skips: [0, u32_of(hs, "head split")?, 0, out.skip, 0],
             f0: a.scale,
             f1: 0.0,
             pad: u32_of(min_keys, "min_keys")?,
         };
         u32_of(nkv * cap * d, "Nkv*cap*D")?;
         u32_of(n * max_split * (d + 2), "N*max_split*(D+2)")?; // the shader indexes the scratch with 32-bit math
-        let gp = grp.next_power_of_two();
+        let gp = (grp / hs).next_power_of_two();
         // few threadgroups (short context): 8 simdgroups each put more loads in flight; a full wave of them: 4, which
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
-        let nsg = if use_dev == 0 && nkv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
+        let nsg = if use_dev == 0 && nkvv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
         let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
@@ -163,7 +180,7 @@ impl MetalBackend {
             }
             set_bytes(enc, &p, 6);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: nkv, height: max_split, depth: 1 },
+                MTLSize { width: nkvv, height: max_split, depth: 1 },
                 MTLSize { width: nsg * 32, height: 1, depth: 1 },
             );
             if combine {
@@ -249,8 +266,10 @@ impl MetalBackend {
         );
         let (pos, use_dev) = self.pos_bind(call)?;
         let grp = n / nkv;
+        let hs = head_split(grp, d); // as the 1-row launch: the per-row work partition must be the same
+        let nkvv = nkv * hs;
         let last = if use_dev == 1 { cap } else { (a.pos0 + t).min(cap) };
-        let max_split = decode_splits(last, nkv, MAX_SPLIT);
+        let max_split = decode_splits(last, nkvv, MAX_SPLIT);
         let need = t * n * max_split * (d + 2) * 4;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
             Error::invalid("metal attn_prefill_bf16_splitkv_rows: the scratch workspace (OpCall::scratch) is missing")
@@ -277,17 +296,17 @@ impl MetalBackend {
                 use_dev,
                 u32_of(max_split, "max_split")?,
             ],
-            skips: [u32_of(t, "rows")?, 0, 0, out.skip, 0],
+            skips: [u32_of(t, "rows")?, u32_of(hs, "head split")?, 0, out.skip, 0],
             f0: a.scale,
             f1: 0.0,
             pad: u32_of(min_keys, "min_keys")?,
         };
         u32_of(nkv * cap * d, "Nkv*cap*D")?;
         u32_of(t * n * max_split * (d + 2), "R*N*max_split*(D+2)")?;
-        let gp = grp.next_power_of_two();
+        let gp = (grp / hs).next_power_of_two();
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
-        let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkv, MAX_SPLIT);
-        let nsg = rows_nsg(use_dev == 0, nkv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
+        let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkvv, MAX_SPLIT);
+        let nsg = rows_nsg(use_dev == 0, nkvv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
         let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
@@ -304,7 +323,7 @@ impl MetalBackend {
             }
             set_bytes(enc, &p, 6);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: nkv * t, height: max_split, depth: 1 },
+                MTLSize { width: nkvv * t, height: max_split, depth: 1 },
                 MTLSize { width: nsg * 32, height: 1, depth: 1 },
             );
             if combine {
@@ -350,6 +369,19 @@ mod tests {
             let bound = splitkv_scratch(&s);
             for v in [1, 17, 128, 1000, 4096, 16384, 262144, usize::MAX / 2] {
                 assert!(n * decode_splits(v, nkv, MAX_SPLIT) * (d + 2) * 4 <= bound);
+            }
+        }
+    }
+
+    #[test]
+    fn head_split_divides_the_group_and_only_the_35b_shape_splits() {
+        for grp in 1..=MAX_GROUP {
+            for d in [8, 16, 32, 64, 128, 256] {
+                let hs = head_split(grp, d);
+                assert!(hs >= 1 && grp % hs == 0, "grp {grp} d {d} hs {hs}");
+                if std::env::var("INTARSIA_METAL_ATTN_HS").is_err() {
+                    assert_eq!(hs, if grp == 8 && d == 256 { 4 } else { 1 }, "grp {grp} d {d}");
+                }
             }
         }
     }

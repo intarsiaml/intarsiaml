@@ -1,0 +1,39 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.720e-3   2.939e-3   2.939e-3   1.953e-2   0.0455   0.0418    92.63     38/38      0
+story                 39    39    94.87   6.063e-3   5.546e-3   5.546e-3   5.407e-2   0.0495   0.0485    94.36      4/39      0
+code                  87    87    97.70   1.669e-3   1.410e-3   1.410e-3   5.810e-2   0.0179   0.0186    96.78     11/87      0
+science               79    79    96.20   1.185e-2   1.455e-2   1.455e-2   4.482e-1   0.0278   0.0321    95.19      0/79      0
+chat_short            18    18    94.44   5.080e-3   5.535e-3   1.302e-2   3.772e-2   0.0424   0.0402    95.56      2/18      0
+chat_system           32    32    96.88   1.648e-2   1.743e-2   1.006e-2   1.818e-1   0.0305   0.0243    91.25     10/32      0
+chat_multiturn        58    58    98.28   1.449e-2   1.451e-2   4.186e-2   7.703e-1   0.0262   0.0256    94.83      2/58      0
+chat_reasoning        90    90    93.33   1.386e-2   1.388e-2   5.772e-3   1.200e-1   0.0207   0.0203    94.44      2/90      0
+long_prose_300       300   300    99.33   3.921e-3   3.973e-3   3.973e-3   4.418e-1   0.0126   0.0129    89.47    26/300      0
+long_prose_700       700   700    99.00   5.617e-3   5.001e-3   5.001e-3   5.598e-1   0.0129   0.0124    90.14     0/700      0
+OVERALL                   1441    98.27   6.409e-3   6.274e-3   5.670e-3   7.703e-1   0.0176   0.0174    91.41      6.6%      0
+prefill floor [4bit]: top-1 (all rows) 98.27% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.670e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.274e-3, reported only] | tail mass (all rows) ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.670e-3 PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.555e-3   1.617e-3   1.617e-3   1.045e-2   0.0209   0.0202    88.75     16/16      0
+story                 39    16    93.75   1.027e-2   9.515e-3   9.515e-3   3.841e-2   0.0971   0.0935    93.75      4/16      0
+code                  87    16   100.00   8.548e-4   8.625e-4   8.625e-4   4.389e-3   0.0007   0.0006    96.25     16/16      0
+science               79    16    87.50   6.471e-3   6.289e-3   6.289e-3   1.192e-2   0.0460   0.0498    95.00     14/16      0
+chat_short            18    16    93.75   4.894e-3   5.368e-3   7.014e-3   2.840e-2   0.0476   0.0449    98.75      0/16      0
+chat_system           32    16   100.00   1.833e-2   2.849e-2   1.127e-2   1.532e-1   0.0421   0.0209    83.75     16/16      0
+chat_multiturn        58    16   100.00   1.516e-2   1.516e-2   4.557e-2   2.234e-1   0.0014   0.0014    95.00     16/16      0
+chat_reasoning        90    16   100.00   1.485e-2   1.490e-2   7.985e-3   7.204e-2   0.0011   0.0011    93.75     16/16      0
+long_prose_300       300    16   100.00   4.634e-5   4.807e-5   4.807e-5   2.277e-4   0.0002   0.0002    96.25     16/16      0
+long_prose_700       700    16   100.00   2.116e-3   2.135e-3   2.135e-3   1.070e-2   0.0007   0.0006    81.25     16/16      0
+OVERALL                    160    97.50   7.455e-3   8.438e-3   6.010e-3   2.234e-1   0.0258   0.0233    92.25     81.2%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 6.010e-3 (need <= 3.0e-2) ok [all rows, n=160: 8.438e-3, reported only] | tail mass (all rows) ours 0.0233 vs ref 0.0258, excess -0.0025 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 6.010e-3 PASS
+greedy-match [prefill]: mean 18.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 81.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /work/h1-out/acc-cal-MOE_WMMA=0-short.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by head 0294b77 code-tree c895dd6a8adb clean)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

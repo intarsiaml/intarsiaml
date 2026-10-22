@@ -1,0 +1,101 @@
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+52 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                             ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+52 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+52 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   |
+58 |     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+   |                                                ^           ^
+   |
+help: remove these parentheses
+   |
+58 -     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+58 +     let ids: Vec<i32> = (0..1024).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:106:25
+    |
+106 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: `intarsia-backend-hip` (test "quantmoe") generated 2 warnings (run `cargo fix --test "quantmoe"` to apply 2 suggestions)
+warning: `intarsia-backend-hip` (test "admission") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.07s
+     Running unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+
+running 17 tests
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test quantmoe::tests::fp8_f8_is_the_default ... ok
+test quantmoe::tests::fp8_folds_follow_the_staging_defaults ... ok
+test quantmoe::tests::fp8_selection_is_pinned ... ok
+test quantmoe::tests::fp8_v2_scratch_stays_below_the_moe_workspace ... ok
+test quantmoe::tests::moe_experts_selection_is_pinned ... ok
+test quantmoe::tests::moe_block_is_default_on_and_its_shapes_are_pinned ... ok
+test quantmoe::tests::moe_v3_is_opt_in ... ok
+test kernels::tests::round5_attention_selection_is_pinned ... ok
+test kernels::tests::phase1_fold_selection_is_pinned ... ok
+test kernels::tests::round4_selection_is_pinned ... ok
+test kernels::tests::phase2_fold_selection_is_pinned ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admission.rs (/target/release/deps/admission-505212eeaca09fd4)
+
+running 6 tests
+test info_reports_the_device ... ok
+test fingerprint_names_the_arch_and_runtime ... ok
+test backend_is_usable_from_other_threads ... ok
+
+running 1 test
+intarsia-hip: INTARSIA_HIP_GEMV=2,16 is not an instantiated variant, using 1,8
+test uninstantiated_gemv_knob_still_computes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+
+test uninstantiated_gemv_knob_still_computes ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.98s
+
+     Running tests/attention.rs (/target/release/deps/attention-3141cbf87c98b4a4)
+
+running 3 tests
+test attention_throughput ... ignored
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_causal_and_chunk_edges_are_exact ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 40.96s
+
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 6 tests
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+GPU coredump: execvp failed: No such file or directory
+Failed to write segment data to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 78840529178 us:  Callback: Queue 0x7e4274400000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+error: test failed, to rerun pass `-p intarsia-backend-hip --test comm`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/comm-b581c712b283f774` (signal: 6, SIGABRT: process abort signal)

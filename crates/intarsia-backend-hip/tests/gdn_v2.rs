@@ -58,6 +58,10 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
     }
     // a value-row count that is not a multiple of the 16 rows of a wave (idle lanes), one key head per value head, and
     // four value heads per key head
+    // the 35B tp=2 shard (lane H1): 8 key heads, 16 value heads
+    for t in [1usize, 33, 312] {
+        shapes.push((t, 8, 16, 128));
+    }
     shapes.push((37, 4, 4, 40));
     shapes.push((100, 2, 8, 128));
     shapes.push((19, 1, 1, 8));

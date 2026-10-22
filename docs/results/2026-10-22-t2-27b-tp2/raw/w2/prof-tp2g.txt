@@ -1,0 +1,35 @@
+rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 25823.5 us
+
+Agent 1 (rank 0): 1239 launches/step, kernel-busy 20864.2 us/step (81 % of wall), all-reduce 128/step 1593.9 us/step (median 4.6 us), idle 4959.3 us/step
+  kernel                                                        n/step   us/step
+  mxfp4_gemv1_lds_kernel<bf16>                                   368.0    9464.4
+  gemv_kernel<1, 1, 8, float>                                      1.0    3981.6
+  mxfp4_gemv_kernel<1, float>                                     64.0    2581.9
+  ar2_kernel<2>                                                  128.0    1593.9
+  mxfp4_gemv1_lds_kernel<float>                                   64.0    1252.8
+  rmsnorm_kernel<true, true>                                     128.0     483.0
+  gdn_delta_rows_v2_kernel<128, 2, 2>                             48.0     275.2
+  mxfp4_xprep_kernel                                              64.0     246.8
+  splitkv_kernel<8, 32, 2>                                        16.0     200.8
+  rope_kernel                                                     32.0     179.6
+  silu_glu_kernel<true>                                          112.0     159.3
+  rmsnorm_kernel<false, true>                                     81.0     142.4
+  gdn_conv_kernel<true>                                           48.0      94.6
+  argmax_kernel<float>                                             1.0      61.1
+
+Agent 2: 1236 launches/step, kernel-busy 16749.7 us/step (65 % of wall), all-reduce 128/step 1579.2 us/step (median 15.2 us), idle 9073.8 us/step
+  kernel                                                        n/step   us/step
+  mxfp4_gemv1_lds_kernel<bf16>                                   368.0    9434.0
+  mxfp4_gemv_kernel<1, float>                                     64.0    2567.1
+  ar2_kernel<2>                                                  128.0    1579.2
+  mxfp4_gemv1_lds_kernel<float>                                   64.0    1247.7
+  rmsnorm_kernel<true, true>                                     128.0     481.2
+  gdn_delta_rows_v2_kernel<128, 2, 2>                             48.0     275.5
+  mxfp4_xprep_kernel                                              64.0     245.1
+  splitkv_kernel<8, 32, 2>                                        16.0     200.1
+  rope_kernel                                                     32.0     178.2
+  silu_glu_kernel<true>                                          112.0     157.7
+  rmsnorm_kernel<false, true>                                     81.0     143.7
+  gdn_conv_kernel<true>                                           48.0      97.0
+  combine_kernel<256, 16>                                         16.0      56.5
+  kv_append_kernel<bf16, 8>                                       32.0      47.6

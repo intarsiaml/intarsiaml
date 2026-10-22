@@ -100,7 +100,7 @@ fn gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue() {
     let Some(hip) = device() else { return };
     let mut n = 0;
     // the admission sweep's cases (incl. the 35B's heads), bf16 activations, then each with an fp8 cache
-    for (nh, nkv, d) in [(16usize, 2usize, 256usize), (32, 8, 128), (8, 8, 128)] {
+    for (nh, nkv, d) in [(16usize, 2usize, 256usize), (8, 1, 256), (32, 8, 128), (8, 8, 128)] {
         let cfg = SweepConfig { n_heads: nh, n_kv_heads: nkv, head_dim: d, quick: false, seed: 91, ..SweepConfig::default() };
         for case in sweep(Op::GateSplitQkNormRopeKv, &cfg) {
             if case.call.inputs[0].dtype != DType::Bf16 {
@@ -232,8 +232,9 @@ fn gdn_conv_delta_many_draws_bitwise() {
     eprintln!("P3: 220 draws bitwise");
 }
 
-const P3_SHAPES: [(usize, usize, usize, usize); 5] = [
+const P3_SHAPES: [(usize, usize, usize, usize); 6] = [
     (16, 32, 128, 128), // the 35B: 8 row blocks per value head, 16 blocks per key head
+    (8, 16, 128, 128),  // the 35B tp=2 shard (lane H1)
     (1, 2, 128, 32),    // the admission sweep's small one
     (2, 4, 128, 40),    // value rows that do not fill the last block (idle lanes)
     (1, 1, 128, 16),    // one block per key head

@@ -1,0 +1,11 @@
+dump base-35b-short vs cal-GEMM_TILE=1: BITWISE IDENTICAL: 60 tensors
+dump base-35b-short vs cal-MOE_WMMA=0: DIFFER: 38 of 60 tensors, first ['dec_topk_ids_0', 'dec_topk_ids_1', 'dec_topk_ids_2', 'dec_topk_ids_3', 'dec_topk_ids_5']
+dump base-35b-short vs cal-FP8_F8=0: DIFFER: 38 of 60 tensors, first ['dec_topk_ids_0', 'dec_topk_ids_1', 'dec_topk_ids_2', 'dec_topk_ids_3', 'dec_topk_ids_5']
+== short: ref tp1 base; cands the w2 calibration knobs
+acc-cal-GEMM_TILE=1-short.safetensors    ALL 0.000e+00 (n=1441)  excl. system/user-turn rows 0.000e+00 (n=1279)  | count=0.000e+00 story=0.000e+00 code=0.000e+00 science=0.000e+00 chat_short=0.000e+00
+acc-cal-MOE_WMMA=0-short.safetensors     ALL 4.772e-03 (n=1441)  excl. system/user-turn rows 4.572e-03 (n=1279)  | count=1.181e-03 story=3.328e-03 code=1.090e-03 science=4.533e-03 chat_short=2.930e-03
+acc-cal-FP8_F8=0-short.safetensors       ALL 3.543e-03 (n=1441)  excl. system/user-turn rows 3.240e-03 (n=1279)  | count=4.036e-04 story=1.633e-03 code=6.330e-04 science=4.698e-03 chat_short=7.395e-04
+== short: ref vLLM golden (-meta)
+acc-cal-GEMM_TILE=1-short.safetensors    ALL 7.286e-03 (n=1441)  excl. system/user-turn rows 5.831e-03 (n=1279)  | count=2.800e-03 story=5.301e-03 code=1.016e-03 science=1.304e-02 chat_short=7.727e-03
+acc-cal-MOE_WMMA=0-short.safetensors     ALL 6.175e-03 (n=1441)  excl. system/user-turn rows 5.559e-03 (n=1279)  | count=2.933e-03 story=5.488e-03 code=1.305e-03 science=1.400e-02 chat_short=5.534e-03
+acc-cal-FP8_F8=0-short.safetensors       ALL 6.922e-03 (n=1441)  excl. system/user-turn rows 6.127e-03 (n=1279)  | count=2.931e-03 story=4.048e-03 code=1.414e-03 science=1.294e-02 chat_short=8.042e-03
