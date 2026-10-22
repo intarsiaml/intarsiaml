@@ -2352,9 +2352,6 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, golden_path: &Path, prompts: &[(S
                 let mut turn2: Vec<u32> = p.ids[..split].to_vec();
                 turn2.extend_from_slice(&reply_toks);
                 turn2.extend_from_slice(&p.ids[split..]);
-                if let (ContinueJudge::Oracle, Some(o)) = (judged_by, &oracle) {
-                    turn2 = o.turn2(&p.ids);
-                }
                 turn2.truncate(ctx.saturating_sub(m + 8));
                 let warm_run = |t: Option<Arc<Mutex<Vec<Vec<f32>>>>>| -> Result<(Vec<u32>, usize)> {
                     flush_cache(engine, p.ids[0], vocab)?;
@@ -2369,7 +2366,11 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, golden_path: &Path, prompts: &[(S
                 let (cold, cold_cached) = cold_run(None)?;
                 let v = match (judged_by, &oracle) {
                     (ContinueJudge::Oracle, Some(o)) => {
-                        let ov = judge_continue_oracle(engine, chunk, o, &p.ids[..split], &turn2, m)?;
+                        // the engine runs above (cached / cold_cached, the streams) keep the engine's own reply, so that the reuse check
+                        // still means "the engine reuses what it holds"; only the scored rows use the frozen reply and stream
+                        let mut frozen = o.turn2(&p.ids);
+                        frozen.truncate(ctx.saturating_sub(m + 8));
+                        let ov = judge_continue_oracle(engine, chunk, o, &p.ids[..split], &frozen, m)?;
                         let file = o.path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
                         println!("    continue judged against the committed CPU oracle {file}: {}", ov.describe());
                         StreamVerdict { agree: first_divergence(&warm, &cold).unwrap_or(m), ok: ov.ok, note: format!("oracle-relative: {}", ov.describe()) }

@@ -14,6 +14,7 @@ RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 BIN="$R/fx5c/target/acc/release/intarsia"
 OUT="$R/out/fx5c/extra"
+HOST=$HOST "$REPO/scripts/cuda-decode/build.sh" fx5c 2>&1 | tail -3     # the gate code changed since the last build there
 rsh "rm -rf $OUT; mkdir -p $OUT ~/intarsiaml-golden"
 rsync -a /opt/code/intarsiaml/golden/qwen3-8b-4k-fp32-top20.safetensors "$HOST:intarsiaml-golden/"
 M8=$(ssh -n "$HOST" 'ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* | head -1')
@@ -23,6 +24,9 @@ rsh "cd $R/fx5c && $BIN accuracy --model $M8 --backend cuda --golden ~/intarsiam
 rsh "cd $R/fx5c && $BIN accuracy --model $M8 --backend cuda --golden ~/intarsiaml-golden/qwen3-8b-4k-fp32-top20.safetensors --mode reuse --max-seq 8192 --mem-budget 30 --allow-dirty --prefill-chunk 1024 --reuse-require-all --no-reuse-oracle > $OUT/reuse-8b-noorc.log 2>&1; echo exit \$? >> $OUT/reuse-8b-noorc.log"
 rsync -a "$HOST:intarsia-decfuse/out/fx5c/extra/" "$RAW/"
 grep -a -e 'continue' -e 'oracle' -e '^exit' -e 'prefix-reuse' "$RAW/reuse-8b.log" | cut -c1-260 | tail -12
+echo "=== CUDA direct reuse gate, chunks 1024 + 2048, mutation, fallback (validate-cuda.sh)"
+HOST=$HOST RAW="$REPO/docs/results/2026-10-22-fx5c-oracle-gate/raw/cuda" "$REPO/scripts/fx5c/validate-cuda.sh" 2>&1 | tail -30
+echo "=== qualify acc-long 35B"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 G='$HOME/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors'
 skips=(); for s in kernels gate acc-short acc-format bench acc-4k envelope bench-long ab tp; do skips+=(--skip $s); done
