@@ -80,3 +80,4 @@ there is no Metal run of the Rust gate and no Metal chunk-2048 evidence (the spl
 * `scripts/fx5c/`: `validate-cuda.sh`, `metal-validate.sh`, `test.sh`, `seq-chain.sh`, `make_continue_oracle.py`, plus the measurement scripts that PR #96 documents.
 * Fleet jobs (owner claude-f31ccf91-fx5c): #4149 (spark1, tests), #4150 (spark1, CUDA build), #4141 (spark1, split-3072 sequence + oracle), #4170 (spark2, build + validation); #4148 (endor, Metal validation): queued, not run;
   #4167 (spark1 copy of the CUDA validation, cancelled in favour of spark2, where the box was free).
+* Two `cargo check -p intarsia-cli` runs on endor ran outside a fleetq slot (cpu only, before the test job; no fleet role affected); every build, test and run after that took a slot.
