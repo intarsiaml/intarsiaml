@@ -860,3 +860,26 @@ IDS SAME 8-4k
 [burst] stages done 2026-10-21 20:26:41 (timeout/cap exit 0)
 [burst] starting radiance 2026-10-21 20:26:41
 [burst] radiance answers 2026-10-21 20:26:51 (after 15 s)
+[burst] job 3507; stages: hiptest:mxfp4_decode; stopping radiance 2026-10-21 22:00:34
+[burst] radiance stopped 2026-10-21 22:00:37
+=== stage hiptest:mxfp4_decode [22:00:37]
+test matmul_mxfp4_pair_is_bitwise_two_gemvs ... ok
+test mxfp4_gemv_lds_is_bitwise_prepass_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+[burst] stages done 2026-10-21 22:00:39 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 22:00:39
+[burst] radiance answers 2026-10-21 22:00:49 (after 15 s)
+[burst] job 3510; stages: hiptest:mxfp4_decode; stopping radiance 2026-10-21 22:01:53
+[burst] radiance stopped 2026-10-21 22:01:56
+=== stage hiptest:mxfp4_decode [22:01:56]
+test matmul_mxfp4_pair_is_bitwise_two_gemvs ... 
+thread 'matmul_mxfp4_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/mxfp4_decode.rs:42:9:
+mxfp4 pair m=1 n0=10240 n1=6144 k=5120 act=Dynamic: output 1 differs in 6131 of 6144 elements (first at 0)
+test mxfp4_gemv_lds_is_bitwise_prepass_gemv ... 
+thread 'mxfp4_gemv_lds_is_bitwise_prepass_gemv' panicked at crates/intarsia-backend-hip/tests/mxfp4_decode.rs:42:9:
+mxfp4 gemv n=17408 k=5120 act=Dynamic out=Bf16: M=1 vs row 0 of M=2 differs in 17125 of 17408 elements (first at 0)
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test mxfp4_decode`
+[burst] stages done 2026-10-21 22:01:56 (timeout/cap exit 101)
+[burst] starting radiance 2026-10-21 22:01:56
+[burst] radiance answers 2026-10-21 22:02:06 (after 15 s)
