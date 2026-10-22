@@ -2,7 +2,7 @@
   "kind": "intarsia-bench-speed",
   "schema_version": 1,
   "label": "ck-hip-35b-c2048",
-  "timestamp_unix": 1792675563,
+  "timestamp_unix": 1792680737,
   "url": "http://127.0.0.1:8093",
   "model": "ck-m",
   "config": {
@@ -21,8 +21,8 @@
     "bandwidth_gbs": null
   },
   "calibration": {
-    "base_prompt_tokens": 48.0,
-    "tokens_per_filler_sentence": 21.93
+    "base_prompt_tokens": 49.0,
+    "tokens_per_filler_sentence": 21.91
   },
   "fingerprint": {
     "prefill_chunk": 2048
@@ -37,19 +37,19 @@
   "rows": [
     {
       "target_prompt_tokens": 4096,
-      "prompt_tokens": 3969.0,
+      "prompt_tokens": 3984.0,
       "gen_tokens": 16.0,
-      "ttft_s": 0.4343,
-      "prefill_tok_s": 9123.4,
-      "decode_tok_s": 154.35,
+      "ttft_s": 0.4358,
+      "prefill_tok_s": 9142.6,
+      "decode_tok_s": 154.14,
       "decode_tok_s_reps": [
-        154.45,
-        154.32,
-        154.35
+        154.04,
+        154.14,
+        154.14
       ],
-      "decode_tok_s_min": 154.32,
-      "decode_tok_s_max": 154.45,
-      "decode_tok_s_stdev": 0.07,
+      "decode_tok_s_min": 154.04,
+      "decode_tok_s_max": 154.14,
+      "decode_tok_s_stdev": 0.06,
       "bandwidth_floor_tok_s": null,
       "pct_of_floor": null,
       "reps_ok": 3,
@@ -66,19 +66,19 @@
     },
     {
       "target_prompt_tokens": 16384,
-      "prompt_tokens": 16256.0,
+      "prompt_tokens": 16266.0,
       "gen_tokens": 16.0,
-      "ttft_s": 1.9547,
-      "prefill_tok_s": 8309.9,
-      "decode_tok_s": 143.96,
+      "ttft_s": 1.957,
+      "prefill_tok_s": 8309.4,
+      "decode_tok_s": 144.05,
       "decode_tok_s_reps": [
-        144.21,
-        143.96,
-        143.96
+        144.05,
+        144.13,
+        143.91
       ],
-      "decode_tok_s_min": 143.96,
-      "decode_tok_s_max": 144.21,
-      "decode_tok_s_stdev": 0.14,
+      "decode_tok_s_min": 143.91,
+      "decode_tok_s_max": 144.13,
+      "decode_tok_s_stdev": 0.11,
       "bandwidth_floor_tok_s": null,
       "pct_of_floor": null,
       "reps_ok": 3,

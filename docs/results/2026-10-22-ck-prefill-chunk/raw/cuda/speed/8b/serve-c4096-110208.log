@@ -1,0 +1,6 @@
+[supervisor] started server pid 18329
+prefill chunk 4096 (--prefill-chunk)
+admission on plan shapes: 16 kernel(s) checked, 2 case(s) run, 275 cached
+loaded Qwen/Qwen3-8B on cuda (NVIDIA GB10) in 75.0s, context 17408 tokens
+intarsia server listening on http://127.0.0.1:8093
+[supervisor] signal 15: stopping the server

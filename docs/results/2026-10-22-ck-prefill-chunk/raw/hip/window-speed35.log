@@ -1,50 +1,49 @@
-[og-burst] previous window ended 43s ago; waiting 257s so radiance serves 5 min
-[og-burst] job 4155; ck speed35; cap 840s; stopping radiance 2026-10-22 09:25:34
-[og-burst] radiance stopped 2026-10-22 09:25:37
-== chunk-job hip start 09:25:37 host tatooine steps 'speed' chunks '2048 4096 8192' job 4155
---- 35b chunk 2048 serve [09:25:37]
-up after ~18 s
-calibration: 48 base tokens, 21.93 tokens per filler sentence
-  size   4096 rep: prompt=3978 gen=16 ttft=0.44s prefill=9120 tok/s decode=154.5 tok/s
-  size   4096 rep: prompt=3969 gen=16 ttft=0.43s prefill=9139 tok/s decode=154.3 tok/s
-  size   4096 rep: prompt=3958 gen=16 ttft=0.43s prefill=9123 tok/s decode=154.4 tok/s
-  size  16384 rep: prompt=16234 gen=16 ttft=1.95s prefill=8310 tok/s decode=144.2 tok/s
-  size  16384 rep: prompt=16256 gen=16 ttft=1.95s prefill=8316 tok/s decode=144.0 tok/s
-  size  16384 rep: prompt=16367 gen=16 ttft=1.97s prefill=8304 tok/s decode=144.0 tok/s
-wrote /work/ck-out/speed35-092117/speed35/speed/35b/ck-hip-35b-c2048.json
+[og-burst] job 4213; ck speed35; cap 480s; stopping radiance 2026-10-22 10:51:51
+[og-burst] radiance stopped 2026-10-22 10:51:54
+== chunk-job hip start 10:51:54 host tatooine steps 'speed' chunks '2048 4096 8192' job 4213
+--- 35b chunk 2048 serve [10:51:54]
+up after ~15 s
+calibration: 49 base tokens, 21.91 tokens per filler sentence
+  size   4096 rep: prompt=3984 gen=16 ttft=0.44s prefill=9143 tok/s decode=154.0 tok/s
+  size   4096 rep: prompt=3971 gen=16 ttft=0.43s prefill=9131 tok/s decode=154.1 tok/s
+  size   4096 rep: prompt=4010 gen=16 ttft=0.44s prefill=9148 tok/s decode=154.1 tok/s
+  size  16384 rep: prompt=16266 gen=16 ttft=1.95s prefill=8322 tok/s decode=144.0 tok/s
+  size  16384 rep: prompt=16262 gen=16 ttft=1.96s prefill=8309 tok/s decode=144.1 tok/s
+  size  16384 rep: prompt=16299 gen=16 ttft=1.96s prefill=8306 tok/s decode=143.9 tok/s
+wrote /work/ck-out/speed35-105150/speed35/speed/35b/ck-hip-35b-c2048.json
 ck-hip-35b-c2048  model=ck-m  gen=16  reps=3
     size   prompt    TTFT s  prefill t/s  decode t/s      gen
-    4096     3969     0.434         9123       154.3       16
-   16384    16256     1.955         8310       144.0       16
---- 35b chunk 4096 serve [09:26:03]
+    4096     3984     0.436         9143       154.1       16
+   16384    16266     1.957         8309       144.1       16
+--- 35b chunk 4096 serve [10:52:17]
 up after ~15 s
-calibration: 48 base tokens, 21.91 tokens per filler sentence
-  size   4096 rep: prompt=3994 gen=16 ttft=0.40s prefill=9975 tok/s decode=155.6 tok/s
-  size   4096 rep: prompt=4009 gen=16 ttft=0.40s prefill=9980 tok/s decode=154.1 tok/s
-  size   4096 rep: prompt=3963 gen=16 ttft=0.39s prefill=10041 tok/s decode=154.1 tok/s
-  size  16384 rep: prompt=16310 gen=16 ttft=1.82s prefill=8944 tok/s decode=143.9 tok/s
-  size  16384 rep: prompt=16290 gen=16 ttft=1.82s prefill=8932 tok/s decode=143.9 tok/s
-  size  16384 rep: prompt=16237 gen=16 ttft=1.82s prefill=8934 tok/s decode=143.9 tok/s
-wrote /work/ck-out/speed35-092117/speed35/speed/35b/ck-hip-35b-c4096.json
+calibration: 48 base tokens, 21.82 tokens per filler sentence
+  size   4096 rep: prompt=3982 gen=16 ttft=0.40s prefill=10003 tok/s decode=154.1 tok/s
+  size   4096 rep: prompt=4001 gen=16 ttft=0.40s prefill=10030 tok/s decode=154.1 tok/s
+  size   4096 rep: prompt=3966 gen=16 ttft=0.40s prefill=10032 tok/s decode=154.2 tok/s
+  size  16384 rep: prompt=16377 gen=16 ttft=1.83s prefill=8969 tok/s decode=142.8 tok/s
+  size  16384 rep: prompt=16350 gen=16 ttft=1.82s prefill=8961 tok/s decode=143.7 tok/s
+  size  16384 rep: prompt=16363 gen=16 ttft=1.83s prefill=8965 tok/s decode=143.7 tok/s
+wrote /work/ck-out/speed35-105150/speed35/speed/35b/ck-hip-35b-c4096.json
 ck-hip-35b-c4096  model=ck-m  gen=16  reps=3
     size   prompt    TTFT s  prefill t/s  decode t/s      gen
-    4096     3994     0.400         9980       154.1       16
-   16384    16290     1.823         8934       143.9       16
---- 35b chunk 8192 serve [09:26:25]
+    4096     3982     0.398        10030       154.1       16
+   16384    16363     1.825         8965       143.7       16
+--- 35b chunk 8192 serve [10:52:39]
 up after ~15 s
-  size   4096 rep: prompt=4005 gen=16 ttft=0.40s prefill=9973 tok/s decode=153.9 tok/s
-  size   4096 rep: prompt=3983 gen=16 ttft=0.40s prefill=9940 tok/s decode=154.0 tok/s
-  size   4096 rep: prompt=4010 gen=16 ttft=0.40s prefill=9973 tok/s decode=153.8 tok/s
-  size  16384 rep: prompt=16360 gen=16 ttft=1.84s prefill=8904 tok/s decode=143.3 tok/s
-  size  16384 rep: prompt=16404 > 16384: redone with fewer sentences
-  size  16384 rep: prompt=16328 gen=16 ttft=1.84s prefill=8880 tok/s decode=143.9 tok/s
-  size  16384 rep: prompt=16352 gen=16 ttft=1.85s prefill=8840 tok/s decode=143.4 tok/s
-wrote /work/ck-out/speed35-092117/speed35/speed/35b/ck-hip-35b-c8192.json
+calibration: 49 base tokens, 21.91 tokens per filler sentence
+  size   4096 rep: prompt=4018 gen=16 ttft=0.40s prefill=9961 tok/s decode=154.2 tok/s
+  size   4096 rep: prompt=3973 gen=16 ttft=0.40s prefill=9956 tok/s decode=154.0 tok/s
+  size   4096 rep: prompt=3923 gen=16 ttft=0.39s prefill=9933 tok/s decode=154.2 tok/s
+  size  16384 rep: prompt=16298 gen=16 ttft=1.83s prefill=8921 tok/s decode=143.9 tok/s
+  size  16384 rep: prompt=16289 gen=16 ttft=1.83s prefill=8880 tok/s decode=143.7 tok/s
+  size  16384 rep: prompt=16225 gen=16 ttft=1.82s prefill=8903 tok/s decode=144.0 tok/s
+wrote /work/ck-out/speed35-105150/speed35/speed/35b/ck-hip-35b-c8192.json
 ck-hip-35b-c8192  model=ck-m  gen=16  reps=3
     size   prompt    TTFT s  prefill t/s  decode t/s      gen
-    4096     4005     0.402         9973       153.9       16
-   16384    16352     1.839         8880       143.4       16
-== chunk-job hip done 09:26:50
-[og-burst] command done 2026-10-22 09:26:50 (exit 0)
-[og-burst] starting radiance 2026-10-22 09:26:50
-[og-burst] radiance answers 2026-10-22 09:27:00 (after 15 s); window total 86 s
+    4096     3973     0.399         9956       154.2       16
+   16384    16289     1.827         8902       143.9       16
+== chunk-job hip done 10:53:02
+[og-burst] command done 2026-10-22 10:53:02 (exit 0)
+[og-burst] starting radiance 2026-10-22 10:53:02
+[og-burst] radiance answers 2026-10-22 10:53:12 (after 15 s); window total 81 s

@@ -2,7 +2,7 @@
   "kind": "intarsia-bench-speed",
   "schema_version": 1,
   "label": "ck-hip-35b-c4096",
-  "timestamp_unix": 1792675585,
+  "timestamp_unix": 1792680759,
   "url": "http://127.0.0.1:8093",
   "model": "ck-m",
   "config": {
@@ -22,7 +22,7 @@
   },
   "calibration": {
     "base_prompt_tokens": 48.0,
-    "tokens_per_filler_sentence": 21.91
+    "tokens_per_filler_sentence": 21.83
   },
   "fingerprint": {
     "prefill_chunk": 4096
@@ -37,19 +37,19 @@
   "rows": [
     {
       "target_prompt_tokens": 4096,
-      "prompt_tokens": 3994.0,
+      "prompt_tokens": 3982.0,
       "gen_tokens": 16.0,
-      "ttft_s": 0.4004,
-      "prefill_tok_s": 9979.6,
-      "decode_tok_s": 154.14,
+      "ttft_s": 0.3981,
+      "prefill_tok_s": 10029.7,
+      "decode_tok_s": 154.1,
       "decode_tok_s_reps": [
-        155.62,
-        154.06,
-        154.14
+        154.1,
+        154.09,
+        154.24
       ],
-      "decode_tok_s_min": 154.06,
-      "decode_tok_s_max": 155.62,
-      "decode_tok_s_stdev": 0.88,
+      "decode_tok_s_min": 154.09,
+      "decode_tok_s_max": 154.24,
+      "decode_tok_s_stdev": 0.08,
       "bandwidth_floor_tok_s": null,
       "pct_of_floor": null,
       "reps_ok": 3,
@@ -66,19 +66,19 @@
     },
     {
       "target_prompt_tokens": 16384,
-      "prompt_tokens": 16290.0,
+      "prompt_tokens": 16363.0,
       "gen_tokens": 16.0,
-      "ttft_s": 1.8235,
-      "prefill_tok_s": 8934.0,
-      "decode_tok_s": 143.86,
+      "ttft_s": 1.8252,
+      "prefill_tok_s": 8965.3,
+      "decode_tok_s": 143.72,
       "decode_tok_s_reps": [
-        143.86,
-        143.88,
-        143.86
+        142.76,
+        143.72,
+        143.74
       ],
-      "decode_tok_s_min": 143.86,
-      "decode_tok_s_max": 143.88,
-      "decode_tok_s_stdev": 0.01,
+      "decode_tok_s_min": 142.76,
+      "decode_tok_s_max": 143.74,
+      "decode_tok_s_stdev": 0.56,
       "bandwidth_floor_tok_s": null,
       "pct_of_floor": null,
       "reps_ok": 3,
