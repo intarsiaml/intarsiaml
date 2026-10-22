@@ -213,14 +213,20 @@ nvfp4_reg_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
     constexpr int NCOL = GLU ? R / 2 : R;  // output columns of the block
     constexpr int JO = GLU ? JH : JW;      // output n8 tiles per warp
     const float sg = gsg[0], su = GLU ? gsu[0] : 0.f;
-    auto value = [&](int i, int jo, int e) {
-        if (GLU) {
-            const float gt = round_bf16(acc[i][jo][e] * sg);
-            const float u = round_bf16(acc[i][jo + JH][e] * su);
-            return ik_silu(gt) * u;
-        }
-        return acc[i][jo][e] * sg;
-    };
+    // the two values of output column pair (i, jo, hh) of this thread
+#define IK_NVFP4_VALUES(v0, v1, i, jo, hh)                                       \
+    float v0, v1;                                                                \
+    if constexpr (GLU) {                                                         \
+        const float g0 = round_bf16(acc[i][jo][2 * (hh)] * sg);                  \
+        const float g1 = round_bf16(acc[i][jo][2 * (hh) + 1] * sg);              \
+        const float u0 = round_bf16(acc[i][(jo) + JH][2 * (hh)] * su);           \
+        const float u1 = round_bf16(acc[i][(jo) + JH][2 * (hh) + 1] * su);       \
+        v0 = ik_silu(g0) * u0;                                                   \
+        v1 = ik_silu(g1) * u1;                                                   \
+    } else {                                                                     \
+        v0 = acc[i][jo][2 * (hh)] * sg;                                          \
+        v1 = acc[i][jo][2 * (hh) + 1] * sg;                                      \
+    }
     if (sizeof(OutT) == 2 && vec) {
         // stage the bf16 tile in shared memory, write full 16-byte row chunks
         constexpr int OS = NCOL + 8;
@@ -234,8 +240,8 @@ nvfp4_reg_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
                 for (int hh = 0; hh < 2; ++hh) {
                     const int rl = i * 16 + g + hh * 8;
                     const int cl = wn * 8 * JO + jo * 8 + t4 * 2;
-                    *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) =
-                        __floats2bfloat162_rn(value(i, jo, 2 * hh), value(i, jo, 2 * hh + 1));
+                    IK_NVFP4_VALUES(v0, v1, i, jo, hh)
+                    *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) = __floats2bfloat162_rn(v0, v1);
                 }
         __syncthreads();
         constexpr int CPR = NCOL / 8;
@@ -256,7 +262,7 @@ nvfp4_reg_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
                 for (int jo = 0; jo < JO; ++jo) {
                     const int col = n0 + wn * 8 * JO + jo * 8 + t4 * 2;
                     OutT* const p = out + (int64_t)(m0 + rl) * N + col;
-                    const float v0 = value(i, jo, 2 * hh), v1 = value(i, jo, 2 * hh + 1);
+                    IK_NVFP4_VALUES(v0, v1, i, jo, hh)
                     if (sizeof(OutT) == 2) {
                         ik_store(p, v0);
                         ik_store(p + 1, v1);
@@ -266,6 +272,7 @@ nvfp4_reg_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
                 }
             }
     }
+#undef IK_NVFP4_VALUES
 }
 
 template <int GLU, typename OutT>
