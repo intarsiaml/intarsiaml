@@ -7,7 +7,7 @@ Each verdict below says **resolved-by-measurement** or **still open**; whether t
 | Row | Verdict | One line |
 |---|---|---|
 | O4 (35B 4096-token HIP prefill delta) | **resolved-by-measurement: noise** | n=5 interleaved pairs: -0.02 % (95 % CI -0.22 to +0.18 %) |
-| O5 (chunk*k+1 prefill tail, CUDA / HIP) | **resolved-by-measurement** (both backends) | a 1-row tail is not bitwise invariant on either backend, and neither is a 2-row tail: HIP differs up to 16 rows (32 and up is invariant), CUDA up to 64 rows (128 and up is invariant). The `(C,1)` to `(C-1,2)` flag would not make either invariant. |
+| O5 (chunk*k+1 prefill tail, CUDA / HIP) | **resolved-by-measurement** for the accuracy path (both backends); the serving first-token path itself was not isolated, see the limits in section 3 | on the all-rows logits path a 1-row tail is not bitwise invariant on either backend, and neither is a 2-row tail: HIP differs up to 16 rows (32 and up equal), CUDA up to 64 rows (128 and up equal). The `(C,1)` to `(C-1,2)` flag would not make either invariant on that path. |
 | O1 (Phase 1 decode gate vs vLLM) | **resolved-by-measurement: PASS at 128 / 1k / 4k, FAIL at 16k** | decode vs same-day vLLM: +9.4 / +7.3 / +5.5 / -2.0 %; against the doc's absolute "86-90 tok/s" every size fails |
 
 ## 1. O1: Phase 1 decode gate on current main vs same-day vLLM (spark1)
@@ -43,7 +43,7 @@ Prefill, for information only (not part of this gate): ours / vLLM at 4k is 5691
 phrase ">= vLLM single-stream" do: PASS at 3 of 4 sizes; (b) the literal absolute figure in the sentence, "86-90 tok/s": ours is
 83.5 / 83.0 / 80.2 / 71.8, so every size misses it; that figure does not match what vLLM does on this box today (73 to 77 tok/s), so
 it looks stale. Nothing was flipped; the 16k decode shortfall is the only measured miss.
-Limits: three rounds, one box, one day; vLLM and our server shared the box (vLLM idle during our arm, 64 GB resident);
+Scope: speed only. The gate sentence also says "correct"; this run did not re-check accuracy (the accuracy gates are other lanes' work). Limits: three rounds, one box, one day; vLLM and our server shared the box (vLLM idle during our arm, 64 GB resident);
 localeval decode figures carry about +-5 % noise on other days (unanimis 6a7efe40), here the rounds agree within 2 tok/s.
 
 ## 2. O4: 35B 4096-token HIP prefill, is the -0.30 % / -0.22 % noise?
@@ -91,8 +91,15 @@ is the model that matters, and that is what was measured.
 the existing 8B 4k golden (4064, 4064, 4557 tokens; all positions are dumped as top-20 rows) at many `--prefill-chunk` values;
 the tail of a prompt is `L mod C` rows. `tailcmp.py` compares every dump with the single-chunk run (`C = 4557`) bit by bit
 (top-20 ids and the float32 log-probabilities), and reports rows that differ, the first differing row, argmax flips and the
-KL(ref || run) per row over the shared top-20 ids. Decode mode (`--mode decode`, 16 teacher-forced decode positions after a prefill
-of 4000 / 4000 / 4493 tokens) shows whether the tail row's KV state differs. The reference is bitwise reproduced by the other
+KL(ref || run) per row over the shared top-20 ids. Greedy ids here means the teacher-forced argmax at every position (the top-1 flips column): there was no free-running generation. Decode
+mode (`--mode decode`, 16 teacher-forced decode positions after a prefill of 4000 / 4000 / 4493 tokens) shows whether the KV
+state left by the tail rows differs.
+
+**Which path this measures.** Prefill mode scores every row, so `Model::forward` runs with `HeadMode::AllLogits` and projects the
+head in groups of `LOGIT_ROWS` = 16 rows (`model.rs:1258-1290`). Serving does not: `Seq::prefill_step` (`engine.rs:1106`) runs
+the final chunk with a last-row head (`LastLogits` / `LastArgmax`, a 1-row projection whatever the chunking). So the rows below
+are the rows the accuracy tool sees; whether the serving first token is bitwise invariant was not isolated (the existing tooling
+cannot dump it), and on HIP it plausibly is more invariant than these rows, because the KV that decode reads is bitwise equal. The reference is bitwise reproduced by the other
 no-tail schedules.
 
 ### HIP (tatooine R9700, Qwen3-8B BF16, build of main `f9087322`, two radiance windows)
@@ -112,11 +119,7 @@ Decode mode: **all 6 schedules, including tails of 1 and 2 rows, are bitwise equ
 so the tail rows' hidden state and KV cache are identical; what differs is the logit projection of the rows of a small tail
 chunk.
 
-**HIP verdict (resolved-by-measurement): the 1-row tail is not invariant, but neither is a 2-row tail, nor any tail up to 16 rows;
-tails of 32 rows or more are bitwise invariant.** Turning `(C, 1)` into `(C-1, 2)` on HIP would therefore not remove the
-non-invariance (it would trade a 1-row for a 2-row tail, which differs just the same). The effect is small (worst-row KL 8.5e-4,
-0 argmax flips in 4064 + 4064 + 4557 positions) and is confined to the logits of the last few prompt rows. Making HIP invariant
-would need a tail floor between 17 and 32 rows, a different rule from the Metal flag; this lane did not test it. Left to the user.
+**HIP verdict (resolved-by-measurement, accuracy path): the 1-row tail is not invariant, but neither is a 2-row tail, nor any tail up to 16 rows; tails of 32 rows or more are bitwise invariant.** Turning `(C, 1)` into `(C-1, 2)` would not remove the non-invariance on this path (it trades a 1-row tail for a 2-row tail, which differs just the same). The effect is small (worst-row KL 8.5e-4, 0 argmax flips in 4064 + 4064 + 4557 positions) and is confined to the logits of the last few prompt rows. Why the small tails differ (a kernel choice by M in the last layer / head, or the 16-row head grouping) was not traced.
 
 ### CUDA (spark1 GB10, Qwen3-8B BF16, build of main `f9087322`, job #3700, vLLM up)
 
@@ -135,21 +138,11 @@ Same prompts, same chunk list, same comparison (`raw/2026-10-22-og-gates/o5-cuda
 The 4557-token prompt: tails of 1, 2 and 16 rows differ (worst-row KL 1e-14 to 1e-3, the near-1e-14 ones are the peaked
 chat-template tail tokens), tails of 461 or more are equal.
 
-**CUDA verdict (resolved-by-measurement): same picture as HIP, with a higher threshold.** The 1-row tail is not invariant, and
-neither is a 2-row tail, nor any tail up to 64 rows; 128 rows and more are bitwise equal, and so are the no-tail multi-chunk
-schedules. The `(C,1)` to `(C-1,2)` flag would not make CUDA invariant either. The effect is confined to the logits of the last
-prompt rows, with 0 argmax flips and KL below 1e-3 in 4064 + 4064 + 4557 positions.
+**CUDA verdict (resolved-by-measurement, accuracy path): same picture as HIP, with a higher threshold.** The 1-row tail is not invariant, and neither is a 2-row tail, nor any tail up to 64 rows; 128 rows and more are bitwise equal, and so are the no-tail multi-chunk schedules **in prefill mode**. The `(C,1)` to `(C-1,2)` flag would not make the CUDA accuracy path invariant either. The effect is confined to the logits of the last prompt rows, with 0 argmax flips and KL below 1e-3 in 4064 + 4064 + 4557 positions.
 
-Aside (not caused by the tail, reported because it showed up): in decode mode the CUDA dump after a **multi-chunk** prefill
-differs from the single-chunk one at the decode positions, also with no tail (chunk 2000 x2 of the 4000-token prompt: all 16
-positions differ, worst KL 1.9e-3 and 3.1e-6 on the two prompts, 0 flips), while HIP is bitwise equal there. In prefill mode the
-same CUDA schedules are bitwise equal at every position. Not investigated here; it may relate to the known CUDA prefix-reuse
-gaps (`docs/results/2026-10-21-cuda-round7.md`) and is a lead for whoever owns that gate. Single-chunk runs were bitwise
-reproducible across processes (chunk 4493 and 4492 of the 4000-token prompts).
+**CUDA decode caveat (a finding of its own, not caused by the tail).** In decode mode the CUDA dump after ANY multi-chunk prefill differs from the single-chunk one at the decode positions, also with no tail: chunk 2000 x2 of the 4000-token prompt differs at all 16 positions (worst KL 1.9e-3 and 3.1e-6 on the two prompts, 0 flips), tails of 1 and 2 rows likewise (3.0e-3 at worst), while single-chunk runs are bitwise reproducible across processes (chunks 4493 and 4492 of the 4000-token prompts) and HIP is bitwise equal in every decode-mode schedule. So on CUDA the KV state (or the decode path reading it) already depends on how the prompt was chunked, whatever the tail rule; no tail rule can make CUDA chunk-invariant on the decode path. In prefill mode the same CUDA schedules are bitwise equal at every position, so the cause is not the prefill logits. Not investigated; it may relate to the known CUDA prefix-reuse gaps (`docs/results/2026-10-21-cuda-round7.md`) and is a lead for whoever owns that gate.
 
-Overall O5 answer to "which backends need the flag": the flag as written helps none of CUDA, HIP; it targets Metal's `m == 1`
-decode-kernel routing. If chunk-invariant first tokens are wanted on CUDA/HIP, the rule would have to keep tails at or above
-32 (HIP) or 128 (CUDA) rows, which is a different rule and a numerics-visible choice; not done.
+**Answer to "which backends need the flag":** none of CUDA, HIP, going by this data. The flag as written targets Metal's `m == 1` decode-kernel routing; on CUDA and HIP a 2-row tail is as non-invariant as a 1-row tail, so turning one into the other changes nothing measurable here. Whether some tail rule would help the serving first token on HIP or CUDA needs a serving-path dump (the last-row head, `engine.rs:1106`), which the existing accuracy tooling cannot produce; that is the open follow-up, if the user wants one.
 
 Raw: `raw/2026-10-22-og-gates/o5-hip/` and `o5-cuda/` (logs, `tailcmp-prefill.txt/.json`, `tailcmp-decode.txt`; the 52 MB + 52 MB of
 dump files are not committed, `tailcmp.py` re-reads them from the dump directories).
