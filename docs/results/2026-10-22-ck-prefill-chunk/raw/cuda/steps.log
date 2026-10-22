@@ -1,0 +1,154 @@
+== chunk-job cuda start 10:20:07 host spark-4e77 steps 'acc gen speed accdec' chunks '2048 4096 8192' job 4171
+Mem:             121          84           5           0          33          36
+2392 MHz, 41, 0 %, [N/A]
+acc 35b all prefill chunk 2048 exit 1 132 s 15600712 bytes
+acc 35b all prefill chunk 4096 exit 1 149 s 15600712 bytes
+acc 35b all prefill chunk 8192 exit 1 153 s 15600712 bytes
+acc 8b short prefill chunk 2048 exit 0 65 s 230464 bytes
+acc 8b short prefill chunk 4096 exit 0 49 s 230464 bytes
+acc 8b short prefill chunk 8192 exit 0 57 s 230464 bytes
+acc 8b 4k prefill chunk 2048 exit 1 101 s 14809652 bytes
+acc 8b 4k prefill chunk 4096 exit 1 91 s 14809652 bytes
+acc 8b 4k prefill chunk 8192 exit 1 91 s 14809652 bytes
+gen 35b 20000 chars chunk 2048 exit 0 165 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 1085 ms (5366.5 tok/s) | decode 804 ms (78.37 tok/s) ids dc74b6c6 top 8cc057a0
+gen 35b 20000 chars chunk 4096 exit 0 64 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 1033 ms (5637.1 tok/s) | decode 804 ms (78.37 tok/s) ids 918344a8 top 36b01aa8
+gen 35b 20000 chars chunk 8192 exit 0 62 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 988 ms (5892.7 tok/s) | decode 797 ms (79.05 tok/s) ids dc74b6c6 top 8cc057a0
+  gen 35b 20000 chars: chunk 4096 vs 2048: ids DIFFER, first-token top-20 logits DIFFER
+  gen 35b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 35b 54000 chars chunk 2048 exit 0 79 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 3027 ms (5290.0 tok/s) | decode 856 ms (73.58 tok/s) ids 5913b8ad top 210ea41b
+gen 35b 54000 chars chunk 4096 exit 0 80 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 2877 ms (5566.7 tok/s) | decode 877 ms (71.86 tok/s) ids d1ee2d71 top 7038f3b5
+gen 35b 54000 chars chunk 8192 exit 0 82 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 2691 ms (5951.6 tok/s) | decode 848 ms (74.32 tok/s) ids 95f2d88d top 0b083a21
+  gen 35b 54000 chars: chunk 4096 vs 2048: ids DIFFER, first-token top-20 logits DIFFER
+  gen 35b 54000 chars: chunk 8192 vs 2048: ids DIFFER, first-token top-20 logits DIFFER
+gen 8b 20000 chars chunk 2048 exit 0 204 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 103 ms (9.7 tok/s) | decode 4290 ms (14.69 tok/s) ids c2e98162 top 43f8f0b3
+gen 8b 20000 chars chunk 4096 exit 0 71 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 130 ms (7.7 tok/s) | decode 4299 ms (14.65 tok/s) ids c2e98162 top 43f8f0b3
+gen 8b 20000 chars chunk 8192 exit 0 71 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 98 ms (10.2 tok/s) | decode 4310 ms (14.62 tok/s) ids c2e98162 top 43f8f0b3
+  gen 8b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 8b 54000 chars chunk 2048 exit 0 60 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 102 ms (9.8 tok/s) | decode 4706 ms (13.39 tok/s) ids 7912d97a top 2e6e1341
+gen 8b 54000 chars chunk 4096 exit 0 62 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 97 ms (10.3 tok/s) | decode 4670 ms (13.49 tok/s) ids 7912d97a top 2e6e1341
+gen 8b 54000 chars chunk 8192 exit 0 54 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 81 ms (12.3 tok/s) | decode 4675 ms (13.48 tok/s) ids 7912d97a top 2e6e1341
+  gen 8b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+--- 35b chunk 2048 serve [10:52:29]
+up after ~90 s
+calibration: 50 base tokens, 21.95 tokens per filler sentence
+  size   4096 rep: prompt=3948 gen=16 ttft=0.68s prefill=5808 tok/s decode=77.5 tok/s
+  size   4096 rep: prompt=3964 gen=16 ttft=0.67s prefill=5924 tok/s decode=79.6 tok/s
+  size   4096 rep: prompt=3949 gen=16 ttft=0.66s prefill=5972 tok/s decode=79.6 tok/s
+  size  16384 rep: prompt=16312 gen=16 ttft=2.91s prefill=5598 tok/s decode=72.6 tok/s
+  size  16384 rep: prompt=16264 gen=16 ttft=2.92s prefill=5572 tok/s decode=73.0 tok/s
+  size  16384 rep: prompt=16265 gen=16 ttft=2.92s prefill=5574 tok/s decode=72.9 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/35b/ck-cuda-35b-c2048.json
+ck-cuda-35b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3949     0.669         5924        79.6       16
+   16384    16265     2.918         5574        72.9       16
+--- 35b chunk 4096 serve [10:54:14]
+up after ~81 s
+  size   4096 rep: prompt=4017 gen=16 ttft=0.63s prefill=6328 tok/s decode=79.1 tok/s
+  size  16384 rep: prompt=16364 gen=16 ttft=2.75s prefill=5958 tok/s decode=72.0 tok/s
+  size  16384 rep: prompt=16427 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16386 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16444 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16322 gen=16 ttft=2.75s prefill=5932 tok/s decode=72.4 tok/s
+  size  16384 rep: prompt=16282 gen=16 ttft=2.75s prefill=5922 tok/s decode=73.0 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/35b/ck-cuda-35b-c4096.json
+ck-cuda-35b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4017     0.635         6328        79.2       16
+   16384    16322     2.749         5932        72.4       16
+--- 35b chunk 8192 serve [10:56:01]
+up after ~78 s
+  size   4096 rep: prompt=4032 gen=16 ttft=0.64s prefill=6322 tok/s decode=80.1 tok/s
+  size   4096 rep: prompt=4014 gen=16 ttft=0.64s prefill=6229 tok/s decode=79.2 tok/s
+  size   4096 rep: prompt=3974 gen=16 ttft=0.64s prefill=6212 tok/s decode=79.9 tok/s
+  size  16384 rep: prompt=16367 gen=16 ttft=2.67s prefill=6126 tok/s decode=72.3 tok/s
+  size  16384 rep: prompt=16322 gen=16 ttft=2.66s prefill=6128 tok/s decode=72.6 tok/s
+  size  16384 rep: prompt=16393 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16331 gen=16 ttft=2.67s prefill=6109 tok/s decode=72.8 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/35b/ck-cuda-35b-c8192.json
+ck-cuda-35b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4014     0.640         6229        79.9       16
+   16384    16331     2.672         6126        72.7       16
+--- 35b chunk 2048 serve [10:57:36]
+up after ~87 s
+calibration: 48 base tokens, 21.95 tokens per filler sentence
+  size   4096 rep: prompt=3984 gen=16 ttft=0.68s prefill=5838 tok/s decode=78.2 tok/s
+  size   4096 rep: prompt=3989 gen=16 ttft=0.70s prefill=5702 tok/s decode=78.2 tok/s
+  size   4096 rep: prompt=3975 gen=16 ttft=0.67s prefill=5891 tok/s decode=78.4 tok/s
+  size  16384 rep: prompt=16248 gen=16 ttft=2.89s prefill=5617 tok/s decode=72.3 tok/s
+  size  16384 rep: prompt=16317 gen=16 ttft=2.92s prefill=5581 tok/s decode=72.1 tok/s
+  size  16384 rep: prompt=16236 gen=16 ttft=2.90s prefill=5600 tok/s decode=71.9 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/35b/ck-cuda-35b-c2048.json
+ck-cuda-35b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3984     0.682         5838        78.2       16
+   16384    16248     2.899         5600        72.1       16
+--- 8b chunk 2048 serve [10:59:19]
+up after ~129 s
+  size   4096 rep: prompt=4050 gen=16 ttft=0.89s prefill=4527 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4050 gen=16 ttft=0.89s prefill=4547 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16487 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16440 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16378 gen=16 ttft=4.44s prefill=3686 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16253 gen=16 ttft=4.43s prefill=3666 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16358 gen=16 ttft=4.47s prefill=3657 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c2048.json
+ck-cuda-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4050     0.894         4527        14.8       16
+   16384    16358     4.443         3666        13.3       16
+--- 8b chunk 4096 serve [11:02:08]
+up after ~78 s
+  size   4096 rep: prompt=4014 gen=16 ttft=0.94s prefill=4265 tok/s decode=14.5 tok/s
+  size   4096 rep: prompt=3949 gen=16 ttft=0.87s prefill=4539 tok/s decode=14.4 tok/s
+  size  16384 rep: prompt=16347 gen=16 ttft=4.51s prefill=3623 tok/s decode=13.2 tok/s
+  size  16384 rep: prompt=16364 gen=16 ttft=4.52s prefill=3616 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16396 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16437 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16275 gen=16 ttft=4.51s prefill=3610 tok/s decode=13.2 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c4096.json
+ck-cuda-8b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3975     0.931         4269        14.4       16
+   16384    16347     4.512         3616        13.2       16
+--- 8b chunk 8192 serve [11:04:07]
+up after ~78 s
+calibration: 47 base tokens, 21.02 tokens per filler sentence
+  size   4096 rep: prompt=3978 gen=16 ttft=0.94s prefill=4232 tok/s decode=14.4 tok/s
+  size   4096 rep: prompt=3976 gen=16 ttft=0.95s prefill=4171 tok/s decode=14.5 tok/s
+  size   4096 rep: prompt=3963 gen=16 ttft=0.95s prefill=4187 tok/s decode=14.5 tok/s
+  size  16384 rep: prompt=16240 gen=16 ttft=4.31s prefill=3771 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16200 gen=16 ttft=4.31s prefill=3756 tok/s decode=13.2 tok/s
+  size  16384 rep: prompt=16233 gen=16 ttft=4.32s prefill=3759 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c8192.json
+ck-cuda-8b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3976     0.946         4187        14.5       16
+   16384    16233     4.313         3759        13.3       16
+--- 8b chunk 2048 serve [11:05:54]
+up after ~78 s
+  size   4096 rep: prompt=4046 gen=16 ttft=0.93s prefill=4361 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4041 gen=16 ttft=0.93s prefill=4360 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4016 gen=16 ttft=0.92s prefill=4348 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16521 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16331 gen=16 ttft=4.61s prefill=3544 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16341 gen=16 ttft=4.62s prefill=3537 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16329 gen=16 ttft=4.61s prefill=3539 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c2048.json
+ck-cuda-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4041     0.927         4360        14.8       16
+   16384    16331     4.615         3538        13.3       16
+accdec 35b all decode chunk 2048 exit 1 85 s 15719648 bytes
+accdec 35b all decode chunk 4096 exit 1 76 s 15719648 bytes
+accdec 35b all decode chunk 8192 exit 1 65 s 15719648 bytes
+accdec 8b short decode chunk 2048 exit 0 67 s 298392 bytes
+accdec 8b short decode chunk 4096 exit 0 55 s 298392 bytes
+accdec 8b short decode chunk 8192 exit 0 49 s 298392 bytes
+accdec 8b 4k decode chunk 2048 exit 1 55 s 14843644 bytes
+accdec 8b 4k decode chunk 4096 exit 1 46 s 14843644 bytes
+accdec 8b 4k decode chunk 8192 exit 1 52 s 14843644 bytes
+== chunk-job cuda done 11:16:59
