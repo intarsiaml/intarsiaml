@@ -369,7 +369,7 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
-                "moe_experts_gelu_bf16" => ik_moe_experts_gelu_bf16(
+                "moe_experts_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_gelu_bf16, ik_moe_experts_bf16)(
                     i(0),
                     i(1),
                     i(2),
@@ -382,7 +382,7 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
-                "moe_experts_mma_gelu_bf16" => ik_moe_experts_mma_gelu_bf16(
+                "moe_experts_mma_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_mma_gelu_bf16, ik_moe_experts_mma_bf16)(
                     i(0),
                     i(1),
                     i(2),
@@ -395,7 +395,7 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
-                "moe_experts_w4a16_gelu_bf16" => ik_moe_experts_w4a16_gelu_bf16(
+                "moe_experts_w4a16_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_w4a16_gelu_bf16, ik_moe_experts_w4a16_bf16)(
                     i(0),
                     i(1),
                     i(2),
@@ -408,7 +408,7 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
-                "moe_experts_decode_gelu_bf16" => ik_moe_experts_decode_gelu_bf16(
+                "moe_experts_decode_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_decode_gelu_bf16, ik_moe_experts_decode_bf16)(
                     i(0),
                     i(1),
                     i(2),
@@ -421,7 +421,7 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
-                "moe_experts_decode_v2_gelu_bf16" => ik_moe_experts_decode_v2_gelu_bf16(
+                "moe_experts_decode_v2_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_decode_v2_gelu_bf16, ik_moe_experts_decode_v2_bf16)(
                     i(0),
                     i(1),
                     i(2),
@@ -487,5 +487,17 @@ impl CudaBackend {
             )));
         }
         Ok(())
+    }
+}
+
+type MoeLauncher = unsafe extern "C" fn(T, T, T, T, T, T, T, T, TM, *const IkScratch, S) -> c_int;
+
+/// The `*_gelu_bf16` kernels serve a plain (silu) call too, by launching the plain launcher: they are registered `.ext()`
+/// (so a gelu call picks them), but the registry also offers them to a call without `OpAttrs::gelu`, which must get silu.
+fn moe_act_pick(gelu: bool, gelu_launcher: MoeLauncher, silu_launcher: MoeLauncher) -> MoeLauncher {
+    if gelu {
+        gelu_launcher
+    } else {
+        silu_launcher
     }
 }
