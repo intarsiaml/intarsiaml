@@ -1,0 +1,7 @@
+stamp: head=188101a code-tree=feee85f368e7 dirty=yes
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 25.70s
+-rwxrwxr-x 2 nvidia nvidia 52520112 Oct 22 02:08 /home/nvidia/intarsia-decfuse/fx5/target/acc/release/intarsia

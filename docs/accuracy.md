@@ -181,6 +181,18 @@ when the dir is an HF cache snapshot, else the dir name).
     prints the count and the names, and `--write-baseline` records them under `reuse.skipped`), and it does not fail
     `--mode all` on a golden with some short prompts. The gate FAILS only when no prompt crossed a boundary ("nothing
     ran"): use a golden with longer prompts or a smaller `--prefill-chunk`. It never passes with nothing run.
+  * **`qualify` runs the reuse gate at `min(chunk, 1024)` and counts the skips.** A backend's default chunk can exceed every
+    split the golden offers (HIP 4096: the 4k prompts' `continue` cases are skipped), which leaves the gate nothing to
+    judge. `qualify` therefore runs the gate as its own `accuracy --mode reuse --prefill-chunk min(plan chunk, 1024)
+    --reuse-require-all` (`acc-long-reuse`, or `acc-4k-reuse` where the 4k golden hosts the gate) and merges it into the
+    stage: with `--reuse-require-all` any skipped prompt FAILS the gate, and the stage's metrics carry `reuse.judged`,
+    `reuse.skipped` and the chunk used. A golden that mixes short prompts (under one chunk) with long ones therefore needs
+    the short ones left out of the reuse host golden; the 35B long golden holds only 4k and 12k prompts.
+  * **`--reuse-measure`** prints, for every *continue* and unaligned *restore* case, `REUSE-MEASURE <prompt> <case> split S
+    shared_rows N nu_max X kl_max Y [diverged_at D]`: the largest top-5 log-probability difference (nats) and KL(cold ||
+    warm) over the rows that share a context, whether or not the streams diverged. Those are the two quantities
+    `reuse_logit_tol` / `reuse_kl_tol` bound; derive a recipe value from them on a known-good build (see
+    docs/results/2026-10-22-fx5-hybrid-reuse-ci.md for the 35B). It changes no verdict.
   * **Hard check: the restore is bit-exact.** When the reused length is a multiple of the prefill chunk (*aligned*, and
     *restore* on such a split) the warm run executes exactly the operations of the cold run, on any backend, so the
     recorded logits rows of the two runs must be equal by bit pattern on all `--reuse-gen` rows, and `cached == s`

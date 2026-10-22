@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane FX5 (hybrid prefix-reuse gate), spark1 side, ONE non-exclusive slot (vLLM stays up):
-#   fleetq run --host spark1 --mem 45 --expect 200 --label "fx5 35B reuse logit deviation + qualify acc-long (vLLM up)" -- scripts/fx5/run.sh
+#   fleetq run --host spark1 --mem 45 --expect 90 --label "fx5 35B reuse logit deviation + qualify acc-long (vLLM up)" -- scripts/fx5/run.sh
 # 1. builds ~/intarsia-decfuse/fx5 from this tree (BUILD=0 skips)
 # 2. `accuracy --mode reuse --reuse-measure` on the 35B long golden: chunk 1024 twice (qualify's chunk) and 2048 once (the
 #    CUDA default); each case prints a REUSE-MEASURE line (nu = top-5 log-prob difference, KL cold||warm)
@@ -27,7 +27,7 @@ if [[ "${BUILD:-1}" == 1 ]]; then
 fi
 rsh "mkdir -p $OUT; test -s $G && ls -la $G && nvidia-smi --query-gpu=name,memory.used --format=csv,noheader; awk '/MemAvailable/ {print \"MemAvailable GB\", \$2/1048576}' /proc/meminfo" | tee "$RAW/01-env.txt"
 common="--model $M35 --backend cuda --golden $G --mode reuse --max-seq 8192 --mem-budget 40 --allow-dirty --reuse-require-all --reuse-measure"
-for run in "c1024-run1 1024" "c1024-run2 1024" "c2048-run1 2048"; do
+for run in "c1024-run1 1024"; do
   set -- $run
   echo "=== reuse $1 (chunk $2)"
   rsh "cd $R/fx5 && $BIN accuracy $common --prefill-chunk $2 > $OUT/reuse-$1.log 2>&1; echo exit \$? >> $OUT/reuse-$1.log"
@@ -39,3 +39,10 @@ skips=(); for s in kernels gate acc-short acc-format bench acc-4k envelope bench
 rsh "cd $R/fx5 && $BIN qualify -m $M35 --backend cuda --golden-long $G --out $OUT/qualify --mem-budget 40 --stage-timeout-min 120 ${skips[*]} > $OUT/qualify.log 2>&1; echo exit \$? >> $OUT/qualify.log"
 pull
 tail -30 "$RAW/qualify.log"
+for run in "c1024-run2 1024" "c2048-run1 2048"; do
+  set -- $run
+  echo "=== reuse $1 (chunk $2)"
+  rsh "cd $R/fx5 && $BIN accuracy $common --prefill-chunk $2 > $OUT/reuse-$1.log 2>&1; echo exit \$? >> $OUT/reuse-$1.log"
+  pull
+  grep -a -e 'REUSE-MEASURE' -e 'prefix reuse:' -e 'prefix-reuse gate' -e '^exit' "$RAW/reuse-$1.log" | tail -30
+done

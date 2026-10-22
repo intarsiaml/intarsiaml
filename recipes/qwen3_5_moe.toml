@@ -78,9 +78,16 @@ prefill_chunk = 2048
 [tuning.hip]
 prefill_chunk = 4096
 
-# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). No
-# reuse_logit_tol / reuse_kl_tol yet: they must be measured once on a known-good build of this model (a GPU run) and
-# written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B
-# (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8: on this model decode-written KV moves the rows more than that).
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML).
+# reuse_logit_tol / reuse_kl_tol: the prefix-reuse judge's rounding scale for a warm run (restored prefix, or a prefix whose
+# reply tokens were written by the decode kernels) against a cold run, measured on this model (CUDA GB10, 35B NVFP4,
+# vLLM-built long golden, `accuracy --mode reuse --reuse-measure`, chunks 1024 and 2048, 5 prompts, 3 runs): the largest
+# top-5 log-prob difference over the rows that share a context is 4.06 nats and the largest KL(cold || warm) 9.4e-2, so
+# 4.06 * 1.25 = 5.1 and 9.4e-2 * 1.25 = 0.12 (derivation: docs/results/2026-10-22-fx5-hybrid-reuse-ci.md). They are wide
+# because decode-written KV/GDN state differs from prefill-written state on this MoE (docs/results/2026-10-21-m3-accuracy-debt.md,
+# 2.8); a restore that lands on a chunk boundary is held to bit identity regardless (`--reuse-exact`), which is what catches a
+# wrong restore. Re-measure on a known-good build of any other backend.
 [accuracy]
 chat_turns = "chatml"
+reuse_logit_tol = 5.1
+reuse_kl_tol = 0.12
