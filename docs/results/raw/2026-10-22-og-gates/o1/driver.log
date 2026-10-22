@@ -1,0 +1,17 @@
+01:58:10 job 3701; tree og-main; sizes 128,1024,4096,16384; rounds 3
+-rwxrwxr-x 2 nvidia nvidia 52518800 Oct 21 23:25 /home/nvidia/intarsia-decfuse/og-main/target/acc/release/intarsia
+intarsia 0.0.1
+ik_matmul_fp8_gemm_lt symbol count: 1
+01:58:11 MemAvailable 54 GB
+01:58:12 starting our server on spark1:8090 (defaults; --max-seq 20480 --mem-budget 30 --profile-every 0, as in the earlier localeval arms)
+01:58:12 server pid 3370860
+01:59:30 server up after ~72 s
+02:00:13 round 1 vllm exit 0 43 s
+02:00:48 round 1 ours exit 0 35 s
+02:01:23 round 2 ours exit 0 35 s
+02:01:57 round 2 vllm exit 0 34 s
+02:02:32 round 3 vllm exit 0 35 s
+02:03:07 round 3 ours exit 0 35 s
+02:03:07 all rounds done
+02:03:07 stopping our server (pid 3370860 on spark1)
+02:03:09 cleanup done

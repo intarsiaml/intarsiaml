@@ -1,0 +1,22 @@
+deploy: warning: eb4e908cc6c5a9888e9d4968965942f5c05de4f6 is on no remote branch; another host cannot replay this stamp until it is pushed
+deploy: spark1 (cuda) <- eb4e908cc6c5a9888e9d4968965942f5c05de4f6 (obs: architecture.svg light-mode variant; ob lane runner scripts)
+deploy: synced (1458 entries changed)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-tui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-deploy/cuda/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 47.09s
+
+=== reproducibility stamp (spark1:~/intarsia-deploy/cuda/DEPLOY_STAMP.json) ===
+git        eb4e908cc6c5a9888e9d4968965942f5c05de4f6  (HEAD; tree f86185437590)
+subject    obs: architecture.svg light-mode variant; ob lane runner scripts
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     target/release/intarsia  sha256 f8447eb845c0bbe1  52519248 bytes  
+smoke      skipped

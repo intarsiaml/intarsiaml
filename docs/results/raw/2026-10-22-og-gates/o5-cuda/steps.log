@@ -1,0 +1,28 @@
+== o5-tails cuda start 01:33:26 host spark-4e77
+prefill chunk 4557 exit 1 76 s  2088244 bytes
+prefill chunk 4096 exit 1 65 s  2088244 bytes
+prefill chunk 2032 exit 1 55 s  2088244 bytes
+prefill chunk 1016 exit 1 54 s  2088244 bytes
+prefill chunk 239 exit 1 66 s  2088244 bytes
+prefill chunk 2031 exit 1 65 s  2088244 bytes
+prefill chunk 4063 exit 1 58 s  2088244 bytes
+prefill chunk 4062 exit 1 53 s  2088244 bytes
+prefill chunk 4061 exit 1 55 s  2088244 bytes
+prefill chunk 4060 exit 1 55 s  2088244 bytes
+prefill chunk 4059 exit 1 65 s  2088244 bytes
+prefill chunk 4056 exit 1 68 s  2088244 bytes
+prefill chunk 4048 exit 1 78 s  2088244 bytes
+prefill chunk 4556 exit 1 63 s  2088244 bytes
+prefill chunk 4555 exit 1 67 s  2088244 bytes
+prefill chunk 2278 exit 1 56 s  2088244 bytes
+prefill chunk 4032 exit 1 56 s  2088244 bytes
+prefill chunk 4000 exit 1 59 s  2088244 bytes
+prefill chunk 3936 exit 1 58 s  2088244 bytes
+prefill chunk 3808 exit 1 58 s  2088244 bytes
+decode chunk 4493 exit 0 38 s  2096836 bytes
+decode chunk 2000 exit 0 45 s  2096836 bytes
+decode chunk 3999 exit 0 38 s  2096836 bytes
+decode chunk 3998 exit 0 46 s  2096836 bytes
+decode chunk 1999 exit 0 37 s  2096836 bytes
+decode chunk 4492 exit 0 46 s  2096836 bytes
+== o5-tails cuda done 01:58:07
