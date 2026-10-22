@@ -1,0 +1,20 @@
+[window] job 3831; pass p4; arms: intarsia-old intarsia llama-vk; window cap 1140 s; stopping radiance 2026-10-22 01:43:55
+[window] radiance stopped; gpu: card0: sclk=1: 668Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=1: 668Mhz *  temp_mC=44000 vram_used=93114368 busy=18 |  2026-10-22 01:43:59
+[window] visit intarsia-old-p4: starting server (1136 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=43000 vram_used=93114368 busy=0 |  2026-10-22 01:43:59
+[window] visit intarsia-old-p4: server up (1118 s left) 2026-10-22 01:44:17
+[window] visit intarsia-old-p4: localeval speed exit 0 (1097 s left) 2026-10-22 01:44:38
+[window] visit intarsia-old-p4: mmlu --structured json_schema exit 0 (1062 s left) 2026-10-22 01:45:13
+[window] visit intarsia-old-p4: mmlu --structured none exit 0 (1059 s left) 2026-10-22 01:45:16
+[window] visit intarsia-p4: starting server (1056 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=30000 vram_used=59912192 busy=0 | card1: sclk=1: 1336Mhz *  temp_mC=58000 vram_used=93114368 busy=35 |  2026-10-22 01:45:19
+[window] visit intarsia-p4: server up (1041 s left) 2026-10-22 01:45:34
+[window] visit intarsia-p4: localeval speed exit 0 (1020 s left) 2026-10-22 01:45:55
+[window] visit intarsia-p4: mmlu --structured json_schema exit 0 (1012 s left) 2026-10-22 01:46:03
+[window] visit intarsia-p4: mmlu --structured none exit 0 (1007 s left) 2026-10-22 01:46:08
+[window] visit llama-vk-p4: starting server (1004 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=29000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=50000 vram_used=93114368 busy=0 |  2026-10-22 01:46:12
+[window] visit llama-vk-p4: server up (998 s left) 2026-10-22 01:46:17
+[window] visit llama-vk-p4: localeval speed exit 0 (958 s left) 2026-10-22 01:46:57
+[window] visit llama-vk-p4: mmlu --structured json_schema exit 0 (952 s left) 2026-10-22 01:47:03
+[window] visit llama-vk-p4: mmlu --structured none exit 0 (947 s left) 2026-10-22 01:47:08
+[window] arms done 2026-10-22 01:47:13
+[window] starting radiance 2026-10-22 01:47:13
+[window] radiance answers (after 20 s); window total 214 s 2026-10-22 01:47:29
