@@ -100,7 +100,7 @@ the build and runs the command in the tree already there.
 
 Limits to know:
 
-* **The binary hash is reproducible when built with `scripts/repro-build.sh`** (deploy.sh does). A plain `cargo build` in
+* **The binary hash is reproducible when built with `scripts/repro-build.sh`** (opt-in: deploy.sh still uses a plain `cargo build`, so deploy builds are not yet reproducible). A plain `cargo build` in
   two directories gave different hashes: rustc embeds the source, cargo-registry and sysroot paths, and
   `env!("CARGO_MANIFEST_DIR")` baked the build directory into the CLI (golden-dir fallback; now found from the executable's
   location). See "Reproducible binary" below. Expect `match` on the binary row for the same sha and the same toolchain; a
@@ -160,14 +160,14 @@ they only smoke-test). 3. Compare the printed table, then the numbers. Do not co
 
 ## Reproducible binary
 
-Same git sha + same toolchain = same `target/release/intarsia` bytes, in any directory. `scripts/repro-build.sh
+Opt-in for now; deploy.sh does not use it because CUDA and HIP were not verified (see the B1 results doc). Same git sha + same toolchain = same `target/release/intarsia` bytes, in any directory. `scripts/repro-build.sh
 [--features metal|cuda|hip]` is `cargo build --release --locked -p intarsia-cli` plus:
 
 | Input | What it does |
 |---|---|
 | `RUSTFLAGS=--remap-path-prefix=...` | Maps the source tree, the cargo target dir, `CARGO_HOME` and the rustc sysroot to fixed names. Needs absolute paths, so it is set by the script, not `.cargo/config.toml` (cargo's own `trim-paths` is not in the pinned 1.90.0). Caller `RUSTFLAGS` are kept. |
-| `SOURCE_DATE_EPOCH` | Defaults to the commit time of HEAD (deploy.sh passes the commit time, the exported tree has no `.git`); `0` if unknown. Also sets `ZERO_AR_DATE=1`, `LC_ALL=C`, `TZ=UTC`. |
-| `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input from deploy.sh, not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
+| `SOURCE_DATE_EPOCH` | Defaults to the commit time of HEAD (an exported tree has no `.git`: export `SOURCE_DATE_EPOCH` yourself there); `0` if unknown. Also sets `ZERO_AR_DATE=1`, `LC_ALL=C`, `TZ=UTC`. |
+| `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
 | `CARGO_INCREMENTAL=0` | No incremental cache in the result. |
 
 Source change: `golden/` fallback in `intarsia accuracy` is found relative to the executable (`<checkout>/target/release/`),
