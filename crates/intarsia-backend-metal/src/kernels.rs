@@ -621,6 +621,7 @@ mod tests {
     #[rustfmt::skip]
     const MAIN_KERNEL_LIST: &[&str] = &[
         "add_bf16:add",
+        "add_bias_bf16:add_bias",
         "argmax_bf16:argmax",
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
@@ -647,11 +648,13 @@ mod tests {
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
+        "rope_scaled_bf16:rope_scaled",
         "silu_glu_bf16:silu_glu",
     ];
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
-    /// origin/main's (`4962d8fa`), so the plan has the same candidates as before.
+    /// origin/main's (`4962d8fa`) plus the two ops added by rope scaling / projection bias (`add_bias`, `rope_scaled`: no existing
+    /// op gains or loses a kernel), so the plan has the same candidates as before.
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
