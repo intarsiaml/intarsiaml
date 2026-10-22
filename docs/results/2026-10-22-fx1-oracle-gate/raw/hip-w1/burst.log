@@ -1,0 +1,30 @@
+[burst] job 3720; fx1 window 1; stopping radiance 2026-10-22 00:02:18
+[burst] radiance stopped 2026-10-22 00:02:20
+[fx1] clean start 00:02:20
+[fx1] clean exit 0 00:02:30
+prefill floor [4bit]: top-1 (all rows) 98.61% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.978e-3 (need <= 3.0e-2) ok [all rows, n=1441: 7.417e-3, reported only] | tail mass (all rows) ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.214e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.172e-2, reported only] | tail mass (all rows) ours 0.0254 vs ref 0.0258, excess -0.000
+golden gate: PASS
+[fx1] mut1.01 start 00:02:30
+[fx1] mut1.01 exit 0 00:02:41
+prefill floor [4bit]: top-1 (all rows) 98.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.802e-3 (need <= 3.0e-2) ok [all rows, n=1441: 5.849e-3, reported only] | tail mass (all rows) ours 0.0173 vs ref 0.0176, excess -0.0003 (|.| <= 0.02
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.88% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.275e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.266e-2, reported only] | tail mass (all rows) ours 0.0243 vs ref 0.0258, excess -0.001
+golden gate: PASS
+[fx1] mut1.005 start 00:02:41
+[fx1] mut1.005 exit 0 00:02:51
+prefill floor [4bit]: top-1 (all rows) 98.54% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.938e-3 (need <= 3.0e-2) ok [all rows, n=1441: 5.914e-3, reported only] | tail mass (all rows) ours 0.0173 vs ref 0.0176, excess -0.0003 (|.| <= 0.02
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.12% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.230e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.152e-2, reported only] | tail mass (all rows) ours 0.0251 vs ref 0.0258, excess -0.000
+golden gate: PASS
+[fx1] tp2-clean start 00:02:51
+[fx1] tp2-clean exit 0 00:03:02
+prefill floor [4bit]: top-1 (all rows) 98.06% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.967e-3 (need <= 3.0e-2) ok [all rows, n=1441: 7.794e-3, reported only] | tail mass (all rows) ours 0.0174 vs ref 0.0176, excess -0.0002 (|.| <= 0.02
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 7.102e-3 (need <= 3.0e-2) ok [all rows, n=160: 9.113e-3, reported only] | tail mass (all rows) ours 0.0250 vs ref 0.0258, excess -0.000
+golden gate: PASS
+[fx1] tp2-bug1.01 start 00:03:02
+[fx1] tp2-bug1.01 exit 0 00:03:15
+prefill floor [4bit]: top-1 (all rows) 98.40% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.913e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.264e-3, reported only] | tail mass (all rows) ours 0.0170 vs ref 0.0176, excess -0.0006 (|.| <= 0.02
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.199e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.215e-2, reported only] | tail mass (all rows) ours 0.0252 vs ref 0.0258, excess -0.000
+golden gate: PASS
+[burst] stages done 2026-10-22 00:03:15 (exit 0)
+[burst] starting radiance 2026-10-22 00:03:15
+[burst] radiance answers 2026-10-22 00:03:25 (after 15 s)

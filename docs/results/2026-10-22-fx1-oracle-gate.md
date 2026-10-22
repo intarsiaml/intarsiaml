@@ -133,7 +133,13 @@ Logs: HIP window 4 (fleetq #3769), Metal job #3744, under the lane's scratchpad 
 5505 rows. The HIP dump after the `accuracy.rs` experiment equals the one before it at KL 0. The diff touches no engine
 crate.
 
-## 7. Not done
+## 7. Downtime
+
+tatooine radiance only, six windows, 18.4 min in total: 1.6 min before 00:00, and none above 7.2 min
+([raw/downtime.log](2026-10-22-fx1-oracle-gate/raw/downtime.log)). Spark vLLM was never taken down. Raw qualify logs:
+`raw/hip-w4`, `raw/metal`.
+
+## 8. Not done
 
 * **CUDA.** The job (`scripts/fx1-oracle/cuda-job.sh`) builds fx1, runs no-baseline, installs the recorded files, then
   runs clean twice and the mutant. It is queued on spark1 behind #3555, which waits for a spark2 reboot. Requirement 3
