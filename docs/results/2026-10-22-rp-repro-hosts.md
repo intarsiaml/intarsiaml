@@ -100,21 +100,30 @@ CI on the PR is green. The CUDA/HIP GPU tests are skipped there as before (no GP
 
 ## Fleet use and downtime
 
-* Jobs (fleetq): endor #3604, #3605, #3606, #3694, #3735; tatooine #3588, #3591, #3595, #3736, #3737; spark1 #3677, #3682, #3688, #3689 (nvcc experiments, 1 to 5 min, vLLM up, non-exclusive), #3797 (repro builds, deploy, pack); spark2 #3732 (repro builds, SASS, deploy, M5 replay), #3872 (failed on the model path), #3880 (replay). Dropped or released before running: #3578, #3586, #3590, #3580, #3654, #3697, #3698, #3731, #3734 (client killed by another agent, requeued as #3797).
+* Jobs (fleetq): endor #3604, #3605, #3606, #3694, #3735; tatooine #3588, #3591, #3595, #3736, #3737; spark1 #3677, #3682, #3688, #3689 (nvcc experiments, 1 to 5 min, vLLM up, non-exclusive), #3797 (repro builds, deploy, pack); spark2 #3732 (repro builds, SASS, deploy, M5 replay), #3872 (failed on the model path), #3880 (replay). Dropped or released before running: #3578, #3586, #3590, #3580, #3654, #3697, #3698, #3731, #3734 (client went away, cause unknown, requeued as #3797).
 * tatooine radiance down (taken down only for the GPU smoke, EXIT trap restores, waits for `/v1/models`): 15 s, 23 s, 33 s = 71 s in 3 windows (`raw/downtime.log`); the longest was 33 s, well inside the 30 min cap. The builds ran with radiance up (CPU only).
 * No Spark vLLM taken down by this lane.
 
-## Mistake to report
+## Mistake to report: broad `pkill` on `fleetq run` clients
 
-Cleaning up my own queued jobs I used `pkill -f "fleetq run --host ..."` three times (endor around 23:04, spark1 around 23:34
-and 00:27 EDT). Those patterns also match other agents' `fleetq run` clients on this Mac. Jobs of other owners that left the queue within
-a minute of those commands: #3572, #3565 (endor); #3553, #3643, #3638, #3639, #3649 (spark1, around 23:34); #3656 (spark1, 00:27) and
-#3658, #3667, #3699 (dropped "client went away" at 00:28). Their owners appear to have resubmitted (#3656 reappeared as a
-"requeued" job, #3699 as #3762, #3667 as #3763) but they lost their queue position. No job of another owner was running at those
-moments, and no `--takes-down` job was affected. Later cleanup used `fleetq release <id>` and saved PIDs only.
+To cancel my own queued jobs I used `pkill -f` on `fleetq run ...` command lines, and several patterns were broad enough to match
+other agents' `fleetq run` clients on this Mac (all agents share it). Patterns and times (EDT, 2026-10-21/22):
+`fleetq run --host endor` (generic) about 23:03:56; `fleetq run --host spark1` (generic) about 23:34:10 and about 00:27:15;
+`... spark1 --mem 8 --expect 80` about 23:51; `... spark1 --mem 8` about 00:24:47; `... spark1 --mem 4` about 00:25:19 (the last three
+carry my flags, so they only match another client that used the same flags). Jobs of other owners that left the queue within
+about 90 s after one of the generic ones: #3572 and #3565 (endor, 23:04); #3553, #3638, #3643 (spark1, 23:34); #3656 (spark1, 00:27)
+and, dropped as "client went away" at 00:28:09, #3658, #3667, #3699. `fleetq show` gives each of these as `cancelled` and still
+waiting in line (not running), so no job was cut off mid-run and no role was down because of them. That is timing evidence, not proof:
+the fleetq log keeps only the last 500 events, so I could not re-check what started or finished in each window, and other
+jobs also left the queue at 23:35 (#3639, #3649, endor) and 23:52 (#3593, spark1) with no matching command of mine.
+The owners appear to have resubmitted (#3656 as a "requeued" job, #3699 as #3762, #3667 as #3763) but they lost their queue position.
+My own #3734 was dropped at 00:42 ("client went away", cause unknown, not one of my commands) and requeued as #3797. Later cleanup used
+`fleetq release <id>` and saved PIDs only.
 
 ## Not done / uncertain
 
 * The objcopy and staging step has not been run on a Linux host other than spark1/spark2 (CI runners have no nvcc, so the CUDA branch of `build.rs` is not compiled there beyond the stub path).
 * Cross-toolchain identity (different rustc or nvcc versions) is not claimed.
 * `-frandom-seed` is unnecessary and not used.
+* The staged directories `/tmp/intarsia-cuda-kernels-<hash>` (about 1 MB each) are kept, one per kernel-source revision, on every CUDA host; nothing removes old ones.
+* Staging and `objcopy --strip-unneeded` are on for every CUDA build, not only through `repro-build.sh`: host-side local symbol names and kernel assert paths change (device SASS does not). Gating them to `repro-build.sh` is a possible follow-up; it would have invalidated the spark1/spark2 verification, so it was not reworked.
