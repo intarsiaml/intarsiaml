@@ -145,6 +145,8 @@ pub const ROPE_BF16: &str = "rope_bf16";
 pub const ROPE_SCALED_BF16: &str = "rope_scaled_bf16";
 /// `AddBias`: `x + bias[col]`, one rounding.
 pub const ADD_BIAS_BF16: &str = "add_bias_bf16";
+/// `AddBias` on an f32 input (the f32 output of a projection) into a bf16 output: one rounding.
+pub const ADD_BIAS_F32_BF16: &str = "add_bias_f32_bf16";
 pub const SILU_GLU_BF16: &str = "silu_glu_bf16";
 pub const KV_APPEND_BF16: &str = "kv_append_bf16";
 /// `QkNormRopeKv` (qk_rope_kv.metal): qk-norm, rope and the k / v cache appends of a layer in one dispatch, bitwise the
@@ -305,7 +307,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
     v.extend([EMBEDDING_BF16, RMSNORM_BF16, RMSNORM_ADD_BF16, ADD_BF16, ROPE_BF16, SILU_GLU_BF16, KV_APPEND_BF16]);
-    v.extend([ROPE_SCALED_BF16, ADD_BIAS_BF16]);
+    v.extend([ROPE_SCALED_BF16, ADD_BIAS_BF16, ADD_BIAS_F32_BF16]);
     v.extend([ARGMAX_F32, ARGMAX_BF16]);
     v.extend([QK_NORM_ROPE_KV_BF16, QK_NORM_ROPE_KV_BF16_PF]);
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
@@ -334,6 +336,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ROPE_BF16, Op::Rope),
     (ROPE_SCALED_BF16, Op::RopeScaled),
     (ADD_BIAS_BF16, Op::AddBias),
+    (ADD_BIAS_F32_BF16, Op::AddBias),
     (MATMUL_BF16, Op::Matmul),
     (MATMUL_BF16_GEMV, Op::Matmul),
     (LOGITS_BF16, Op::Logits),
@@ -384,7 +387,8 @@ pub fn all() -> Vec<KernelImpl> {
                 ROPE_BF16 | ROPE_SCALED_BF16 => {
                     k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL)
                 }
-                ADD_BIAS_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                ADD_BIAS_BF16 => k.acts(bf).when(|s| s.out == Some(DType::Bf16)).exact(Exactness::Deterministic).tol(BF16_TOL),
+                ADD_BIAS_F32_BF16 => k.acts([DType::F32]).when(|s| s.out == Some(DType::Bf16)).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // tiled GEMM, f32 accumulate in a fixed K order, run-to-run identical; any M
                 MATMUL_BF16 => k
                     .acts(bf)
@@ -713,6 +717,7 @@ mod tests {
     const MAIN_KERNEL_LIST: &[&str] = &[
         "add_bf16:add",
         "add_bias_bf16:add_bias",
+        "add_bias_f32_bf16:add_bias",
         "argmax_bf16:argmax",
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",

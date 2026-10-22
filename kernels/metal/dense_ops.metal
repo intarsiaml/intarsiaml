@@ -183,6 +183,19 @@ kernel void add_bias_bf16(device const ushort* x [[buffer(0)]],
     out[p.s2 + gid] = f2bf(bf2f(x[p.s0 + gid]) + bf2f(bias[p.s1 + gid % p.b]));
 }
 
+// ---- AddBias, f32 input: out[r, c] = bf16(x[r, c] + bias[c]) with x the f32 output of a projection (`Logits`) ------------------
+// One rounding, from the f32 accumulator sum plus the bias: how a fused matmul+bias epilogue rounds.
+// bind: 0 x f32 [R,N], 1 bias bf16 [N], 2 out bf16 [R,N]. a = R * N, b = N. s0 must be 0 (f32 operands are 4-byte aligned),
+// s1 / s2 skips of bias / out.
+kernel void add_bias_f32_bf16(device const float* x [[buffer(0)]],
+                              device const ushort* bias [[buffer(1)]],
+                              device ushort* out [[buffer(2)]],
+                              constant OpP& p [[buffer(3)]],
+                              uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a) return;
+    out[p.s2 + gid] = f2bf(x[gid] + bf2f(bias[p.s1 + gid % p.b]));
+}
+
 // ---- KvAppend: cache[h, pos0 + t, :] = new[t, h, :] (in place; other rows keep their bits) ------------------------------
 // bind: 0 new [T,Nkv,D], 1 cache [Nkv,cap,D], 2 pos (i32 [1], read when `e` != 0). a = T, b = Nkv, c = D, d = cap,
 // e = use device position, f = host pos0. s0 / s1 skips of new / cache.

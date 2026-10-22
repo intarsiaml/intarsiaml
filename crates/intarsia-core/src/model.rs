@@ -153,6 +153,9 @@ struct Workspace {
     /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
     /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
     part: Option<Buffer>,
+    /// f32 `[max_tokens, q + k + v widths]` of the biased attention projections (one region each): the f32 output of
+    /// `Op::Logits` that `Op::AddBias` rounds once into the bf16 activation. `None` when no block has a projection bias.
+    bias_f32: Option<Buffer>,
     /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
     pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
@@ -699,6 +702,11 @@ impl Model {
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
             part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
+            bias_f32: if layers.iter().flatten().any(|bl| matches!(bl, Block::Attn(x) if x.q_bias.is_some() || x.k_bias.is_some() || x.v_bias.is_some())) {
+                Some(wb(mt * (qdim + 2 * kvdim) * 4)?)
+            } else {
+                None
+            },
             pos: wb(16)?,
             x,
             moe,
@@ -1861,32 +1869,38 @@ impl Model {
             Some(gate)
         } else {
             let qv = self.view(&ws.q[qc], act, &[t, nh * hd]);
-            self.proj(n, &a.wq, &qv, profile)?;
-            if let Some(bias) = &a.q_bias {
-                self.add_bias(&qv, bias, profile)?;
-            }
+            self.proj_bias(n, &a.wq, a.q_bias.as_ref(), 0, &qv, profile)?;
             None
         };
         // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
         let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
-        if !kv_done && !self.kv_pair(a, n, &k_out, &v_out, profile)? {
-            self.proj(n, &a.wk, &k_out, profile)?;
-            self.proj(n, &a.wv, &v_out, profile)?;
-        }
-        if !kv_done {
-            if let Some(bias) = &a.k_bias {
-                self.add_bias(&k_out, bias, profile)?;
-            }
-            if let Some(bias) = &a.v_bias {
-                self.add_bias(&v_out, bias, profile)?;
-            }
+        // a biased k / v goes projection by projection (f32 output, bias, one rounding): the pair kernel rounds first
+        let biased = a.k_bias.is_some() || a.v_bias.is_some();
+        if !kv_done && (biased || !self.kv_pair(a, n, &k_out, &v_out, profile)?) {
+            self.proj_bias(n, &a.wk, a.k_bias.as_ref(), nh * hd, &k_out, profile)?;
+            self.proj_bias(n, &a.wv, a.v_bias.as_ref(), nh * hd + nkv * hd, &v_out, profile)?;
         }
         Ok((qc, gate))
     }
 
-    /// `x += bias` in place (`Op::AddBias`): a projection bias, right after the projection that produced `x`.
-    fn add_bias(&self, x: &TensorRef, bias: &TensorRef, profile: bool) -> Result<()> {
-        self.exec(Op::AddBias, vec![x.clone(), bias.clone()], vec![x.clone()], OpAttrs::default(), profile)
+    /// `out = x @ W^T (+ bias)`. Without a bias this is [`Model::proj`]. With one, a bf16 weight projects to f32
+    /// (`Op::Logits`, region `col0` of the f32 scratch) and `Op::AddBias` adds the bias there and rounds once into `out`,
+    /// the way a fused matmul+bias rounds (transformers' bf16 `Linear`). Any other weight format projects, rounds, then adds.
+    fn proj_bias(&self, x: &TensorRef, w: &QTensor, bias: Option<&TensorRef>, col0: usize, out: &TensorRef, profile: bool) -> Result<()> {
+        let Some(bias) = bias else { return self.proj(x, w, out, profile) };
+        match (&self.ws.bias_f32, w.format == crate::quant::BF16 && w.parts.len() == 1) {
+            (Some(scratch), true) => {
+                let (t, n) = (out.shape[0], out.shape[1]);
+                let mut f = self.view(scratch, DType::F32, &[t, n]);
+                f.offset = col0 * t * 4;
+                self.exec(Op::Logits, vec![x.clone(), w.parts[0].clone()], vec![f.clone()], OpAttrs::default(), profile)?;
+                self.exec(Op::AddBias, vec![f, bias.clone()], vec![out.clone()], OpAttrs::default(), profile)
+            }
+            _ => {
+                self.proj(x, w, out, profile)?;
+                self.exec(Op::AddBias, vec![out.clone(), bias.clone()], vec![out.clone()], OpAttrs::default(), profile)
+            }
+        }
     }
 
     /// Views of the attention scratch for `t` rows.

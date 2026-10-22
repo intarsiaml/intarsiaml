@@ -11,7 +11,7 @@
 //! | `QkNorm` | x `[T,N,D]`, w `[D]` | `[T,N,D]` | eps, w_offset |
 //! | `Rope` | x `[T,N,D]` | `[T,N,D]` | pos0 (or `OpCall::pos`), theta, rotary_dim (neox / rotate-half over the first `rotary_dim` values, 0 = all `D`; the rest is copied) |
 //! | `RopeScaled` | x `[T,N,D]`, inv_freq `[rd/2]` f32 | `[T,N,D]` | as `Rope`, but pair `i` rotates by `pos * inv_freq[i]` (instead of `theta^(-2i/rd)`) and cos / sin are multiplied by `rope_mscale`; llama3 / yarn scaling, table from `rope::RopeScaling::freqs` |
-//! | `AddBias` | x `[R,N]`, bias `[N]` (x's dtype) | `[R,N]` (= x + bias, one rounding; may alias x) | |
+//! | `AddBias` | x `[R,N]` (the output's dtype or f32), bias `[N]` (the output's dtype) | `[R,N]` (= x + bias in f32, one rounding into the output; may alias x when the dtypes match) | |
 //! | `Matmul` | x `[M,K]`, w `[N,K]` | `[M,N]` (= x @ w^T) | |
 //! | `Logits` | x `[M,K]`, w `[V,K]` | `[M,V]` f32 | same math as `Matmul`, f32 output |
 //! | `KvAppend` | new `[T,Nkv,D]` | cache `[Nkv,cap,D]` (written in place) | pos0 |
@@ -489,10 +489,17 @@ impl OpCall {
             Op::AddBias => {
                 rank(&i[0], 2, "x")?;
                 rank(&i[1], 1, "bias")?;
-                if i[1].shape[0] != i[0].shape[1] || o[0].shape != i[0].shape || i[1].dtype != i[0].dtype {
-                    return bad(format!("x {:?} bias {:?} out {:?}", i[0].shape, i[1].shape, o[0].shape));
+                // x is the output's dtype, or f32 (the f32-output projection `Op::Logits`): the add happens in f32 and rounds
+                // once into the output, which is how a fused matmul+bias rounds
+                let x_ok = i[0].dtype == o[0].dtype || i[0].dtype == DType::F32;
+                if i[1].shape[0] != i[0].shape[1] || o[0].shape != i[0].shape || i[1].dtype != o[0].dtype || !x_ok {
+                    return bad(format!(
+                        "x {:?} {} bias {:?} {} out {:?} {}",
+                        i[0].shape, i[0].dtype, i[1].shape, i[1].dtype, o[0].shape, o[0].dtype
+                    ));
                 }
                 float(&i[0], "x")?;
+                float(&o[0], "out")?;
             }
             Op::Matmul | Op::Logits => {
                 rank(&i[0], 2, "x")?;
