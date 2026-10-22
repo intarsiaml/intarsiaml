@@ -16,6 +16,12 @@ M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/sn
 G='$HOME/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors'
 BIN="$R/fx5c/target/acc/release/intarsia"
 OUT="$R/out/fx5c/val"
+if [[ "${BUILD:-0}" == 1 ]]; then   # a box without the tree: seed the dependency cache from another tree there, build in this slot (cpu)
+  rsh "mkdir -p $R/fx5c; test -d $R/fx5c/target || cp -a ${SEED_TARGET:-$R/fx3-main/target} $R/fx5c/target"
+  HOST=$HOST "$REPO/scripts/cuda-decode/build.sh" fx5c 2>&1 | tail -4
+fi
+rsh "mkdir -p ~/intarsiaml-golden"
+rsync -a /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors "$HOST:intarsiaml-golden/"
 rsh "rm -rf $OUT; mkdir -p $OUT ~/intarsiaml-golden/oracle"
 rsync -a "$REPO"/golden/oracle/*.continue-oracle.safetensors "$HOST:intarsiaml-golden/oracle/"
 rsh "ls -la ~/intarsiaml-golden/oracle/ | grep continue"
