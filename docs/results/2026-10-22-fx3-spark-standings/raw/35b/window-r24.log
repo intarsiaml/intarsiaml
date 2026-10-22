@@ -1,0 +1,6 @@
+[05:51:15] pass r24 model=35b host=spark1 arms=[sglang] phases=speed,conc job=3977
+[05:51:19] == arm sglang (MemAvailable 111 GB)
+[05:55:21]   sglang ready after 225s
+[05:55:57]   speed exit=0
+[05:56:15]   conc exit=0
+[05:56:18] pass r24 done

@@ -1,0 +1,34 @@
+docs/results/2026-10-22-ck-prefill-chunk/raw/cuda/acc/35b-all: prefill, reference chunk 2048, 14 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+  4096count                 38      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096story                 39      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096code                  87      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096science               79      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_short            18      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_system           32      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_multiturn        58      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_reasoning        90      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_300       300      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_700       700      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_docs_4k        4064   4060      NO  7.733e+00  1.04e+00  1.18e-02   209
+  4096long_code_4k        4064   4061      NO  8.903e+00  9.56e-01  5.77e-03    84
+  4096chat_reuse_4k       4631   4627      NO  1.271e+01  7.80e+00  6.29e-02   372
+  4096synth_16k          16000  15996      NO  1.347e+01  1.02e+01  2.04e-02   694
+  8192count                 38      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192story                 39      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192code                  87      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192science               79      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_short            18      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_system           32      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_multiturn        58      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192chat_reasoning        90      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192long_prose_300       300      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192long_prose_700       700      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  8192long_docs_4k        4064   4060      NO  7.733e+00  1.04e+00  1.18e-02   209
+  8192long_code_4k        4064   4061      NO  8.903e+00  9.56e-01  5.77e-03    84
+  8192chat_reuse_4k       4631   4627      NO  1.271e+01  7.80e+00  6.38e-02   377
+  8192synth_16k          16000  15996      NO  1.062e+01  8.90e+00  2.22e-02   709
+aggregate over all prompts (row-weighted mean KL):
+  chunk 4096: rows 30200, rows differing 28744, max|dlp| 1.347e+01, max KL 1.02e+01, mean KL 2.28e-02, flips 1359
+  chunk 8192: rows 30200, rows differing 28744, max|dlp| 1.271e+01, max KL 8.90e+00, mean KL 2.39e-02, flips 1379
+ALL BITWISE: NO  (chunks compared: [4096, 8192])

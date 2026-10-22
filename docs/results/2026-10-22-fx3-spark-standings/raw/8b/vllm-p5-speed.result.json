@@ -1,0 +1,256 @@
+{
+ "run_id": "20261022-054427-adhoc-fx3-8b-vllm-p5-speed",
+ "kind": "speed",
+ "label": "fx3-8b-vllm-p5-speed",
+ "started_at": "2026-10-22T05:44:27-04:00",
+ "finished_at": "2026-10-22T05:46:40-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8300/v1",
+  "model": "vllm",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8300/v1 --model vllm --thinking off --label fx3-8b-vllm-p5-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "vllm"
+   ],
+   "root": "/root/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+   "owned_by": "vllm",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 137,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.112,
+     "min": 0.111,
+     "max": 0.178,
+     "n": 3,
+     "spread_pct": 59.5
+    },
+    "prefill_tok_s": {
+     "median": 1218.995,
+     "min": 768.587,
+     "max": 1221.521,
+     "n": 3,
+     "spread_pct": 37.2
+    },
+    "decode_tok_s": {
+     "median": 13.926,
+     "min": 13.923,
+     "max": 13.929,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "peak_decode_tok_s": {
+     "median": 14.0,
+     "min": 13.9,
+     "max": 14.0,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 989,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.248,
+     "min": 0.244,
+     "max": 0.251,
+     "n": 3,
+     "spread_pct": 2.8
+    },
+    "prefill_tok_s": {
+     "median": 3982.787,
+     "min": 3943.447,
+     "max": 4045.745,
+     "n": 3,
+     "spread_pct": 2.6
+    },
+    "decode_tok_s": {
+     "median": 13.833,
+     "min": 13.824,
+     "max": 13.841,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 13.9,
+     "min": 13.9,
+     "max": 14.0,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6264.7,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4089,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.9,
+     "min": 0.9,
+     "max": 0.904,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 4542.495,
+     "min": 4522.064,
+     "max": 4544.425,
+     "n": 3,
+     "spread_pct": 0.5
+    },
+    "decode_tok_s": {
+     "median": 13.483,
+     "min": 13.48,
+     "max": 13.487,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 13.5,
+     "min": 13.5,
+     "max": 13.7,
+     "n": 3,
+     "spread_pct": 1.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 4754.6
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16676,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 4.35,
+     "min": 4.337,
+     "max": 4.367,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "prefill_tok_s": {
+     "median": 3833.793,
+     "min": 3818.987,
+     "max": 3846.082,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "decode_tok_s": {
+     "median": 12.204,
+     "min": 12.198,
+     "max": 12.206,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 12.2,
+     "min": 12.2,
+     "max": 12.2,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3648.4
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.31.1rc1.dev296+gfe4df3df0-0eb2ed73",
+  "served_model": "vllm",
+  "activity_checks": {
+   "idle": 13,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

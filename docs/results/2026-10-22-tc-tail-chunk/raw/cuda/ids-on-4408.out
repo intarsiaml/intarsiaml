@@ -1,0 +1,23 @@
+**e allowed (e.g. `rmsnorm_add`, `gdn_conv`, `gdn_delta_rule`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) because they are the only way to hit the bar. They are still kernel-pack ported, not imported.
+
+### 3.4 Model recipe (the "wood")
+
+A recipe is a TOML file that maps a model's config.json to a block pattern and quant settings. The engine is agnostic to model families; a recipe is a piece that plugs into the engine.
+
+```toml
+[general]
+name = "Qwen3.5-32B-A5B"
+family = "qwen3_5"
+tokenizer = "Qwen/Qwen3.5-32B-A5B"
+quant = "NVFP4"
+layer_types = ["linear_attention", "full_attention"]
+
+[layer.pattern_by_layer]
+# maps config.json layer_type → block pattern
+0 = "linear_attention"
+1 = "full_attention"
+2 = "full_attention"
+# ...
+
+[layer.by_type.linear_attention]
+

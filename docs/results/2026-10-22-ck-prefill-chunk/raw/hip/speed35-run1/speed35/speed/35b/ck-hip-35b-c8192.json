@@ -1,0 +1,99 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "ck-hip-35b-c8192",
+  "timestamp_unix": 1792675610,
+  "url": "http://127.0.0.1:8093",
+  "model": "ck-m",
+  "config": {
+    "sizes": [
+      4096,
+      16384
+    ],
+    "gen": 16,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": null,
+    "bandwidth_gbs": null
+  },
+  "calibration": {
+    "base_prompt_tokens": 49.0,
+    "tokens_per_filler_sentence": 21.86
+  },
+  "fingerprint": {
+    "prefill_chunk": 8192
+  },
+  "graph": {
+    "available": true,
+    "replays": 112,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4005.0,
+      "gen_tokens": 16.0,
+      "ttft_s": 0.4016,
+      "prefill_tok_s": 9973.2,
+      "decode_tok_s": 153.87,
+      "decode_tok_s_reps": [
+        153.87,
+        154.01,
+        153.78
+      ],
+      "decode_tok_s_min": 153.78,
+      "decode_tok_s_max": 154.01,
+      "decode_tok_s_stdev": 0.12,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 48,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 16384,
+      "prompt_tokens": 16352.0,
+      "gen_tokens": 16.0,
+      "ttft_s": 1.8388,
+      "prefill_tok_s": 8879.7,
+      "decode_tok_s": 143.36,
+      "decode_tok_s_reps": [
+        143.34,
+        143.85,
+        143.36
+      ],
+      "decode_tok_s_min": 143.34,
+      "decode_tok_s_max": 143.85,
+      "decode_tok_s_stdev": 0.29,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 1,
+      "graph": {
+        "available": true,
+        "replays": 64,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

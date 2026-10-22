@@ -1,0 +1,12 @@
+calibration: 48 base tokens, 21.91 tokens per filler sentence
+  size   4096 rep: prompt=3994 gen=16 ttft=0.40s prefill=9975 tok/s decode=155.6 tok/s
+  size   4096 rep: prompt=4009 gen=16 ttft=0.40s prefill=9980 tok/s decode=154.1 tok/s
+  size   4096 rep: prompt=3963 gen=16 ttft=0.39s prefill=10041 tok/s decode=154.1 tok/s
+  size  16384 rep: prompt=16310 gen=16 ttft=1.82s prefill=8944 tok/s decode=143.9 tok/s
+  size  16384 rep: prompt=16290 gen=16 ttft=1.82s prefill=8932 tok/s decode=143.9 tok/s
+  size  16384 rep: prompt=16237 gen=16 ttft=1.82s prefill=8934 tok/s decode=143.9 tok/s
+wrote /work/ck-out/speed35-092117/speed35/speed/35b/ck-hip-35b-c4096.json
+ck-hip-35b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3994     0.400         9980       154.1       16
+   16384    16290     1.823         8934       143.9       16

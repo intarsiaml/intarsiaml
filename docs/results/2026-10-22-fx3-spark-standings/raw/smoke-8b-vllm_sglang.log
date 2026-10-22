@@ -1,0 +1,8 @@
+fleetq: #3933 waiting (#2 in line): in line behind #3920 "G1c PR64 ids default vs TP_FUSION=0 + op-table probe (requeue, MODE=gates)" (claude-f31ccf91) on spark2
+fleetq: #3933 running on spark2: scripts/standings-fx3/smoke.sh
+fleetq: #3933 went ahead of the line and must end within 44m (by Thu 05:04); it is stopped then
+[04:19:06] pass smoke-8b-vllm_sglang model=8b host=spark2 arms=[vllm sglang] phases=speed,conc job=3933
+[04:19:11] == arm vllm (MemAvailable 53 GB)
+Terminated: 15
+fleetq: stopping processes the command left running
+fleetq: #3933 done (exit -15)

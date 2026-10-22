@@ -1,0 +1,4 @@
+ gates pass |
+| **publish deep results** (markdown + JSON + unanimis) | 1 min | — |
+
+The publish stage writes a **manifest** (model, recipe, plan hash, kernel versions, tuning DB hash, exactness mode, gates, benchmarks, localeval scores, quant config,

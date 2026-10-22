@@ -1,0 +1,3 @@
+u(up)`, `gate * up`, `down * (gate * up)`,
+`sigmoid(shared_gate) * shared`, `routed + shared`, `routed + sigmoid * shared`), except `topk` is float32 (the
+checkpoint is bf16, so the router is

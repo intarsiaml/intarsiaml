@@ -1,0 +1,12 @@
+  size   4096 rep: prompt=4032 gen=16 ttft=0.64s prefill=6322 tok/s decode=80.1 tok/s
+  size   4096 rep: prompt=4014 gen=16 ttft=0.64s prefill=6229 tok/s decode=79.2 tok/s
+  size   4096 rep: prompt=3974 gen=16 ttft=0.64s prefill=6212 tok/s decode=79.9 tok/s
+  size  16384 rep: prompt=16367 gen=16 ttft=2.67s prefill=6126 tok/s decode=72.3 tok/s
+  size  16384 rep: prompt=16322 gen=16 ttft=2.66s prefill=6128 tok/s decode=72.6 tok/s
+  size  16384 rep: prompt=16393 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16331 gen=16 ttft=2.67s prefill=6109 tok/s decode=72.8 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/35b/ck-cuda-35b-c8192.json
+ck-cuda-35b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4014     0.640         6229        79.9       16
+   16384    16331     2.672         6126        72.7       16

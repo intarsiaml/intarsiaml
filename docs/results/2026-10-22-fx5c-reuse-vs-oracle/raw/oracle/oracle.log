@@ -1,0 +1,53 @@
+prefill chunk 256 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on cpu-ref (Cortex-A725) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 0 of 4112 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /home/nvidia/intarsia-decfuse/out/fx5c/oracle/input.safetensors (1 prompts, 4112 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden_4k.jsonl", "golden_12k.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 4112; prompts spanning more than one chunk: 1/1
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: head f94aff5 code-tree 886c96af2111 clean
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+fx5c_continue       4112  4112     0.00    4.634e0    1.760e0    1.760e0    1.908e1   0.8652   0.8626     0.29    0/4112      0
+OVERALL                   4112     0.00    4.634e0    1.760e0    1.760e0    1.908e1   0.8652   0.8626     0.29      0.0%      0
+prefill floor [4bit]: top-1 (all rows) 0.00% (not gated for this class) ok | 21-way KL (scored rows, n=4112) 1.760e0 (need <= 3.0e-2) FAIL [all rows, n=4112: 1.760e0, reported only] | tail mass (all rows) ours 0.8626 vs ref 0.8652, excess -0.0026 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.760e0 FAIL
+gate-definition: kl_floor [prefill]: old def: FAIL 1.760e0 (21-way KL over all rows <= static floor) | current def: FAIL 1.760e0 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /home/nvidia/intarsia-decfuse/out/fx5c/oracle/oracle.dump.safetensors (top-64 rows of modes prefill for 1 prompts; written by head f94aff5 code-tree 886c96af2111 clean)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+Command exited with non-zero status 1
+	Command being timed: "/home/nvidia/intarsia-decfuse/fx5c/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cpu --golden /home/nvidia/intarsia-decfuse/out/fx5c/oracle/input.safetensors --mode prefill --prefill-chunk 256 --mem-budget 40 --max-seq 8192 --allow-dirty --write-self-golden /home/nvidia/intarsia-decfuse/out/fx5c/oracle/oracle.dump.safetensors"
+	User time (seconds): 14127.97
+	System time (seconds): 21.92
+	Percent of CPU this job got: 1511%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 15:36.31
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 37806172
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 19
+	Minor (reclaiming a frame) page faults: 4899280
+	Voluntary context switches: 612129
+	Involuntary context switches: 1435329
+	Swaps: 0
+	File system inputs: 1696
+	File system outputs: 4176
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+exit 1

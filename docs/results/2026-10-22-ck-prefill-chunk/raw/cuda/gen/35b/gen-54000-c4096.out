@@ -1,0 +1,3 @@
+u(up)`, `down` matmul, `combine` sum,
+`sigmoid(shared_gate)`). The `moe_topk` kernel is a reference implementation (no fast path yet); the `moe_experts`
+kernel is the NVFP4 GEMV split-K (the one that holds

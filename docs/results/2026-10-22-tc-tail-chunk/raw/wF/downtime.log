@@ -1,0 +1,30 @@
+active
+[window] job 4098; stages: speed; stopping radiance 2026-10-22 08:00:45
+[window] radiance stopped 2026-10-22 08:00:48
+[window] localeval arm base-r1 up 2026-10-22 08:01:01
+[window] localeval arm base-r1 exit 0 2026-10-22 08:01:16
+[window] localeval arm off-r1 up 2026-10-22 08:01:29
+[window] localeval arm off-r1 exit 0 2026-10-22 08:01:44
+[window] localeval arm off-r2 up 2026-10-22 08:01:57
+[window] localeval arm off-r2 exit 0 2026-10-22 08:02:12
+[window] localeval arm base-r2 up 2026-10-22 08:02:24
+[window] localeval arm base-r2 exit 0 2026-10-22 08:02:39
+[window] localeval arm base-r3 up 2026-10-22 08:02:49
+[window] localeval arm base-r3 exit 0 2026-10-22 08:03:06
+[window] localeval arm off-r3 up 2026-10-22 08:03:19
+[window] localeval arm off-r3 exit 0 2026-10-22 08:03:33
+[window] localeval arm off-r4 up 2026-10-22 08:03:46
+[window] localeval arm off-r4 exit 0 2026-10-22 08:04:01
+[window] localeval arm base-r4 up 2026-10-22 08:04:14
+[window] localeval arm base-r4 exit 0 2026-10-22 08:04:28
+[window] localeval arm base-r5 up 2026-10-22 08:04:41
+[window] localeval arm base-r5 exit 0 2026-10-22 08:04:56
+[window] localeval arm off-r5 up 2026-10-22 08:05:09
+[window] localeval arm off-r5 exit 0 2026-10-22 08:05:25
+[window] localeval arm off-r6 up 2026-10-22 08:05:38
+[window] localeval arm off-r6 exit 0 2026-10-22 08:05:52
+[window] localeval arm base-r6 up 2026-10-22 08:06:05
+[window] localeval arm base-r6 exit 0 2026-10-22 08:06:20
+[window] stages done 2026-10-22 08:06:20
+[window] starting radiance 2026-10-22 08:06:21
+[window] radiance answers (after 15 s) 2026-10-22 08:06:32

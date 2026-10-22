@@ -1,0 +1,3 @@
+u(up)`, `gate * up`, `down * (gate * up)`,
+`sigmoid(shared_gate) * shared`, `routed + shared`, `combine`): `x * y` is `float(x) * float(y)` (RNE), `x + y` is
+`float

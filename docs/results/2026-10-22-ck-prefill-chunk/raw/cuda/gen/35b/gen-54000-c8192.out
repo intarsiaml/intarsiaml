@@ -1,0 +1,3 @@
+u(up)`, `down`, `combine` all bf16; only the
+gate is bf16→fp8→bf16). The MoE block is a single `Op::MoeBlock` in the plan (the engine does not schedule the
+internal ops; the block kernel does).

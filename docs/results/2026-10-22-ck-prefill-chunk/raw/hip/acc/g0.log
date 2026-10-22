@@ -1,0 +1,5 @@
+== chunk-job hip start 09:05:49 host tatooine steps 'acc' chunks '2048 4096 8192' job 4137
+acc 35b all chunk 2048 exit 1 104 s 15600504 bytes
+acc 35b all chunk 4096 exit 1 101 s 15600504 bytes
+acc 35b all chunk 8192 exit 1 100 s 15600504 bytes
+== chunk-job hip done 09:10:54
