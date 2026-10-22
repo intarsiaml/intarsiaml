@@ -1,0 +1,342 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/gdn.rs (/opt/code/target-fx10/release/deps/gdn-64e441a7d62cbd52)
+
+running 7 tests
+sigmoid_mul T=1: worst error 0.976 of tolerance
+sigmoid_mul T=3: worst error 0.981 of tolerance
+test gate_split_is_an_exact_per_head_split ... ok
+sigmoid_mul T=300: worst error 0.996 of tolerance
+test sigmoid_mul_matches_the_reference ... ok
+test conv_chunked_prefill_equals_one_call_and_the_reference ... ok
+test delta_rule_chunked_prefill_equals_one_call_and_the_reference ... ok
+test conv_at_the_35b_channel_count ... ok
+test delta_rule_long_sequence_stays_within_the_budget ... ok
+test delta_rule_at_the_35b_layer_shape ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/quant.rs (/opt/code/target-fx10/release/deps/quant-3edfe7ab933440cb)
+
+running 6 tests
+test weights_not_8_byte_aligned_are_refused ... ok
+matmul_fp8_gemv m=1 n=40 k=96 is=0 f32_out=false: 40 elements, worst error 0.894 of tolerance
+matmul_nvfp4_gemv m=1 n=40 k=48 f32_out=false w_off=8: 40 elements, worst error 0.898 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0 f32_out=false: 40 elements, worst error 0.894 of tolerance
+matmul_nvfp4_gemv m=1 n=40 k=48 f32_out=false w_off=16: 40 elements, worst error 0.898 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0 f32_out=false: 40 elements, worst error 0.894 of tolerance
+matmul_nvfp4_mma m=1 n=40 k=48 f32_out=false w_off=8: 40 elements, worst error 0.898 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0 f32_out=false: 40 elements, worst error 0.894 of tolerance
+matmul_nvfp4_mma m=1 n=40 k=48 f32_out=false w_off=16: 40 elements, worst error 0.898 of tolerance
+matmul_fp8_mma is=1: 65536 elements bit-exact
+matmul_fp8_gemv m=1 n=40 k=96 is=0 f32_out=true: 40 elements, worst error 0.013 of tolerance
+matmul_nvfp4_gemv m=1 n=40 k=48 f32_out=true w_off=8: 40 elements, worst error 0.012 of tolerance
+matmul_nvfp4_gemv m=1 n=40 k=48 f32_out=true w_off=16: 40 elements, worst error 0.012 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0 f32_out=true: 40 elements, worst error 0.013 of tolerance
+matmul_nvfp4_mma m=1 n=40 k=48 f32_out=true w_off=8: 40 elements, worst error 0.012 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0 f32_out=true: 40 elements, worst error 0.028 of tolerance
+matmul_nvfp4_mma m=1 n=40 k=48 f32_out=true w_off=16: 40 elements, worst error 0.012 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0 f32_out=true: 40 elements, worst error 0.028 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0.37 f32_out=false: 40 elements, worst error 0.878 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0.37 f32_out=false: 40 elements, worst error 0.878 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0.37 f32_out=false: 40 elements, worst error 0.878 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0.37 f32_out=false: 40 elements, worst error 0.878 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0.37 f32_out=true: 40 elements, worst error 0.010 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=0.37 f32_out=true: 40 elements, worst error 0.010 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0.37 f32_out=true: 40 elements, worst error 0.014 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=0.37 f32_out=true: 40 elements, worst error 0.014 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=2 f32_out=false: 40 elements, worst error 0.769 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=2 f32_out=false: 40 elements, worst error 0.769 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=2 f32_out=false: 40 elements, worst error 0.769 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=2 f32_out=false: 40 elements, worst error 0.769 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=2 f32_out=true: 40 elements, worst error 0.014 of tolerance
+matmul_fp8_gemv m=1 n=40 k=96 is=2 f32_out=true: 40 elements, worst error 0.014 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=2 f32_out=true: 40 elements, worst error 0.016 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=false w_off=8: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=1 n=40 k=96 is=2 f32_out=true: 40 elements, worst error 0.016 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=false w_off=16: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_gemv is=1: 65536 elements bit-exact
+matmul_fp8_gemv m=1 n=512 k=2048 is=0 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=false w_off=8: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_mma is=0.37: 65536 elements bit-exact
+matmul_fp8_mma m=1 n=512 k=2048 is=0 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=false w_off=16: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=true w_off=8: 512 elements, worst error 0.009 of tolerance
+matmul_fp8_gemv is=0.37: 65536 elements bit-exact
+matmul_fp8_gemv m=1 n=512 k=2048 is=0 f32_out=true: 512 elements, worst error 0.007 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=true w_off=16: 512 elements, worst error 0.009 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0 f32_out=true: 512 elements, worst error 0.007 of tolerance
+matmul_fp8_mma is=0.003: 65536 elements bit-exact
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=true w_off=8: 512 elements, worst error 0.048 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0 f32_out=true: 512 elements, worst error 0.063 of tolerance
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=true w_off=16: 512 elements, worst error 0.048 of tolerance
+matmul_fp8_gemv is=0.003: 65536 elements bit-exact
+matmul_fp8_mma m=1 n=512 k=2048 is=0 f32_out=true: 512 elements, worst error 0.063 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=false w_off=8: 2048 elements, worst error 0.965 of tolerance
+matmul_fp8_mma is=300: 65536 elements bit-exact
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=false w_off=16: 2048 elements, worst error 0.965 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=false w_off=8: 2048 elements, worst error 0.965 of tolerance
+matmul_fp8_gemv is=300: 65536 elements bit-exact
+test w8a8_quantiser_is_bit_exact_over_every_bf16_pattern ... ok
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=false w_off=16: 2048 elements, worst error 0.965 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_fp8_gemv m=1 n=8192 k=2048 is=0.37 f32_out=false: 8192 elements, worst error 0.958 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=true w_off=8: 2048 elements, worst error 0.016 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.010 of tolerance
+matmul_nvfp4_gemv m=1 n=8192 k=2048 f32_out=false w_off=8: 8192 elements, worst error 0.965 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=true w_off=16: 2048 elements, worst error 0.016 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.010 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=true w_off=8: 2048 elements, worst error 0.042 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.054 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=true w_off=16: 2048 elements, worst error 0.042 of tolerance
+matmul_nvfp4_gemv m=4 n=33 k=80 f32_out=false w_off=8: 132 elements, worst error 0.852 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.054 of tolerance
+matmul_nvfp4_gemv m=4 n=33 k=80 f32_out=false w_off=16: 132 elements, worst error 0.852 of tolerance
+matmul_nvfp4_mma m=4 n=33 k=80 f32_out=false w_off=8: 132 elements, worst error 0.852 of tolerance
+matmul_nvfp4_mma m=4 n=33 k=80 f32_out=false w_off=16: 132 elements, worst error 0.852 of tolerance
+matmul_nvfp4_gemv m=4 n=33 k=80 f32_out=true w_off=8: 132 elements, worst error 0.011 of tolerance
+matmul_nvfp4_gemv m=4 n=33 k=80 f32_out=true w_off=16: 132 elements, worst error 0.011 of tolerance
+matmul_nvfp4_mma m=4 n=33 k=80 f32_out=true w_off=8: 132 elements, worst error 0.024 of tolerance
+matmul_nvfp4_mma m=4 n=33 k=80 f32_out=true w_off=16: 132 elements, worst error 0.024 of tolerance
+matmul_nvfp4_gemv m=8 n=130 k=512 f32_out=false w_off=8: 1040 elements, worst error 0.948 of tolerance
+matmul_nvfp4_gemv m=8 n=130 k=512 f32_out=false w_off=16: 1040 elements, worst error 0.948 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=2 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_mma m=8 n=130 k=512 f32_out=false w_off=8: 1040 elements, worst error 0.948 of tolerance
+matmul_nvfp4_mma m=8 n=130 k=512 f32_out=false w_off=16: 1040 elements, worst error 0.948 of tolerance
+matmul_nvfp4_gemv m=8 n=130 k=512 f32_out=true w_off=8: 1040 elements, worst error 0.016 of tolerance
+matmul_nvfp4_gemv m=8 n=130 k=512 f32_out=true w_off=16: 1040 elements, worst error 0.016 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=2 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_nvfp4_mma m=8 n=130 k=512 f32_out=true w_off=8: 1040 elements, worst error 0.064 of tolerance
+matmul_nvfp4_mma m=8 n=130 k=512 f32_out=true w_off=16: 1040 elements, worst error 0.064 of tolerance
+matmul_nvfp4_mma m=9 n=33 k=48 f32_out=false w_off=8: 297 elements, worst error 0.897 of tolerance
+matmul_nvfp4_mma m=9 n=33 k=48 f32_out=false w_off=16: 297 elements, worst error 0.897 of tolerance
+matmul_nvfp4_mma m=9 n=33 k=48 f32_out=true w_off=8: 297 elements, worst error 0.018 of tolerance
+matmul_nvfp4_mma m=9 n=33 k=48 f32_out=true w_off=16: 297 elements, worst error 0.018 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=2 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=2 f32_out=false: 512 elements, worst error 0.912 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=2 f32_out=true: 512 elements, worst error 0.006 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=2 f32_out=true: 512 elements, worst error 0.006 of tolerance
+matmul_nvfp4_mma m=70 n=130 k=512 f32_out=false w_off=8: 9100 elements, worst error 0.969 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=2 f32_out=true: 512 elements, worst error 0.056 of tolerance
+matmul_nvfp4_mma m=70 n=130 k=512 f32_out=false w_off=16: 9100 elements, worst error 0.969 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=2 f32_out=true: 512 elements, worst error 0.056 of tolerance
+matmul_fp8_mma m=1 n=8192 k=2048 is=0.37 f32_out=false: 8192 elements, worst error 0.958 of tolerance
+matmul_nvfp4_mma m=70 n=130 k=512 f32_out=true w_off=8: 9100 elements, worst error 0.065 of tolerance
+matmul_nvfp4_mma m=70 n=130 k=512 f32_out=true w_off=16: 9100 elements, worst error 0.065 of tolerance
+matmul_nvfp4_mma m=1 n=8192 k=2048 f32_out=false w_off=8: 8192 elements, worst error 0.965 of tolerance
+matmul_nvfp4_mma m=200 n=100 k=64 f32_out=false w_off=8: 20000 elements, worst error 0.962 of tolerance
+matmul_nvfp4_mma m=200 n=100 k=64 f32_out=false w_off=16: 20000 elements, worst error 0.962 of tolerance
+matmul_nvfp4_mma m=200 n=100 k=64 f32_out=true w_off=8: 20000 elements, worst error 0.042 of tolerance
+matmul_nvfp4_mma m=200 n=100 k=64 f32_out=true w_off=16: 20000 elements, worst error 0.042 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0 f32_out=false: 2048 elements, worst error 0.953 of tolerance
+matmul_nvfp4_gemv m=1 n=3000 k=2048 f32_out=false w_off=8: 3000 elements, worst error 0.956 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0 f32_out=false: 2048 elements, worst error 0.953 of tolerance
+matmul_fp8_gemv m=1 n=8192 k=2048 is=0.37 f32_out=true: 8192 elements, worst error 0.010 of tolerance
+matmul_nvfp4_gemv m=1 n=3000 k=2048 f32_out=false w_off=16: 3000 elements, worst error 0.956 of tolerance
+matmul_nvfp4_gemv m=1 n=8192 k=2048 f32_out=true w_off=8: 8192 elements, worst error 0.008 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0 f32_out=false: 2048 elements, worst error 0.953 of tolerance
+matmul_nvfp4_mma m=1 n=3000 k=2048 f32_out=false w_off=8: 3000 elements, worst error 0.956 of tolerance
+matmul_nvfp4_mma m=1 n=3000 k=2048 f32_out=false w_off=16: 3000 elements, worst error 0.956 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0 f32_out=false: 2048 elements, worst error 0.953 of tolerance
+matmul_fp8_mma m=1 n=8192 k=2048 is=0.37 f32_out=true: 8192 elements, worst error 0.072 of tolerance
+matmul_nvfp4_gemv m=1 n=3000 k=2048 f32_out=true w_off=8: 3000 elements, worst error 0.009 of tolerance
+matmul_nvfp4_mma m=1 n=8192 k=2048 f32_out=true w_off=8: 8192 elements, worst error 0.063 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_gemv m=1 n=4096 k=2048 is=0.37 f32_out=false: 4096 elements, worst error 0.957 of tolerance
+matmul_nvfp4_gemv m=1 n=3000 k=2048 f32_out=true w_off=16: 3000 elements, worst error 0.009 of tolerance
+matmul_nvfp4_gemv m=1 n=4096 k=2048 f32_out=false w_off=8: 4096 elements, worst error 0.938 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_mma m=1 n=4096 k=2048 is=0.37 f32_out=false: 4096 elements, worst error 0.957 of tolerance
+matmul_nvfp4_mma m=1 n=3000 k=2048 f32_out=true w_off=8: 3000 elements, worst error 0.052 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0 f32_out=true: 2048 elements, worst error 0.092 of tolerance
+matmul_fp8_gemv m=1 n=4096 k=2048 is=0.37 f32_out=true: 4096 elements, worst error 0.009 of tolerance
+matmul_nvfp4_mma m=1 n=4096 k=2048 f32_out=false w_off=8: 4096 elements, worst error 0.938 of tolerance
+matmul_nvfp4_mma m=1 n=3000 k=2048 f32_out=true w_off=16: 3000 elements, worst error 0.052 of tolerance
+test nvfp4_matches_the_oracle ... ok
+matmul_fp8_mma m=1 n=2048 k=4096 is=0 f32_out=true: 2048 elements, worst error 0.092 of tolerance
+matmul_fp8_mma m=1 n=4096 k=2048 is=0.37 f32_out=true: 4096 elements, worst error 0.080 of tolerance
+matmul_nvfp4_gemv m=1 n=4096 k=2048 f32_out=true w_off=8: 4096 elements, worst error 0.011 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.961 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.935 of tolerance
+matmul_nvfp4_mma m=1 n=4096 k=2048 f32_out=true w_off=8: 4096 elements, worst error 0.053 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.961 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.935 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=4096 f32_out=false w_off=8: 2048 elements, worst error 0.931 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.961 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=4096 f32_out=false w_off=8: 2048 elements, worst error 0.931 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.070 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=false: 2048 elements, worst error 0.961 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.946 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.946 of tolerance
+matmul_fp8_gemv m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.008 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=4096 f32_out=true w_off=8: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_mma m=1 n=512 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.046 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=512 is=0.37 f32_out=false: 2048 elements, worst error 0.947 of tolerance
+matmul_fp8_mma m=1 n=2048 k=512 is=0.37 f32_out=false: 2048 elements, worst error 0.947 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=512 is=0.37 f32_out=true: 2048 elements, worst error 0.016 of tolerance
+matmul_fp8_mma m=1 n=2048 k=512 is=0.37 f32_out=true: 2048 elements, worst error 0.082 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=4096 f32_out=true w_off=8: 2048 elements, worst error 0.061 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=false w_off=8: 512 elements, worst error 0.948 of tolerance
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=false w_off=8: 512 elements, worst error 0.948 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_nvfp4_gemv m=1 n=512 k=2048 f32_out=true w_off=8: 512 elements, worst error 0.007 of tolerance
+matmul_nvfp4_mma m=1 n=512 k=2048 f32_out=true w_off=8: 512 elements, worst error 0.042 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=false w_off=8: 2048 elements, worst error 0.953 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=false w_off=8: 2048 elements, worst error 0.953 of tolerance
+matmul_nvfp4_gemv m=1 n=2048 k=512 f32_out=true w_off=8: 2048 elements, worst error 0.015 of tolerance
+matmul_nvfp4_mma m=1 n=2048 k=512 f32_out=true w_off=8: 2048 elements, worst error 0.041 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.083 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=0.37 f32_out=true: 2048 elements, worst error 0.083 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=2 f32_out=false: 2048 elements, worst error 0.948 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=2 f32_out=false: 2048 elements, worst error 0.948 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=2 f32_out=false: 2048 elements, worst error 0.948 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=2 f32_out=false: 2048 elements, worst error 0.948 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=2 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_gemv m=8 n=8192 k=2048 is=0.37 f32_out=false: 65536 elements, worst error 0.968 of tolerance
+matmul_nvfp4_gemv m=8 n=8192 k=2048 f32_out=false w_off=8: 65536 elements, worst error 0.960 of tolerance
+matmul_fp8_gemv m=1 n=2048 k=4096 is=2 f32_out=true: 2048 elements, worst error 0.007 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=2 f32_out=true: 2048 elements, worst error 0.062 of tolerance
+matmul_fp8_mma m=1 n=2048 k=4096 is=2 f32_out=true: 2048 elements, worst error 0.062 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0 f32_out=false: 99 elements, worst error 0.911 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0 f32_out=false: 99 elements, worst error 0.911 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0 f32_out=false: 99 elements, worst error 0.911 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0 f32_out=false: 99 elements, worst error 0.911 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0 f32_out=true: 99 elements, worst error 0.024 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0 f32_out=true: 99 elements, worst error 0.024 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0 f32_out=true: 99 elements, worst error 0.030 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0 f32_out=true: 99 elements, worst error 0.030 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0.37 f32_out=false: 99 elements, worst error 0.830 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0.37 f32_out=false: 99 elements, worst error 0.830 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0.37 f32_out=false: 99 elements, worst error 0.830 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0.37 f32_out=false: 99 elements, worst error 0.830 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0.37 f32_out=true: 99 elements, worst error 0.021 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=0.37 f32_out=true: 99 elements, worst error 0.021 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0.37 f32_out=true: 99 elements, worst error 0.021 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=0.37 f32_out=true: 99 elements, worst error 0.021 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=2 f32_out=false: 99 elements, worst error 0.936 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=2 f32_out=false: 99 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=2 f32_out=false: 99 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=2 f32_out=false: 99 elements, worst error 0.936 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=2 f32_out=true: 99 elements, worst error 0.017 of tolerance
+matmul_fp8_gemv m=3 n=33 k=48 is=2 f32_out=true: 99 elements, worst error 0.017 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=2 f32_out=true: 99 elements, worst error 0.017 of tolerance
+matmul_fp8_mma m=3 n=33 k=48 is=2 f32_out=true: 99 elements, worst error 0.017 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0 f32_out=false: 1040 elements, worst error 0.944 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0 f32_out=false: 1040 elements, worst error 0.944 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0 f32_out=false: 1040 elements, worst error 0.944 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0 f32_out=false: 1040 elements, worst error 0.944 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0 f32_out=true: 1040 elements, worst error 0.017 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0 f32_out=true: 1040 elements, worst error 0.017 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0 f32_out=true: 1040 elements, worst error 0.063 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0 f32_out=true: 1040 elements, worst error 0.063 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0.37 f32_out=false: 1040 elements, worst error 0.938 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0.37 f32_out=false: 1040 elements, worst error 0.938 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0.37 f32_out=false: 1040 elements, worst error 0.938 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0.37 f32_out=false: 1040 elements, worst error 0.938 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0.37 f32_out=true: 1040 elements, worst error 0.015 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=0.37 f32_out=true: 1040 elements, worst error 0.015 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0.37 f32_out=true: 1040 elements, worst error 0.056 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=0.37 f32_out=true: 1040 elements, worst error 0.056 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=2 f32_out=false: 1040 elements, worst error 0.901 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=2 f32_out=false: 1040 elements, worst error 0.901 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=2 f32_out=false: 1040 elements, worst error 0.901 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=2 f32_out=false: 1040 elements, worst error 0.901 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=2 f32_out=true: 1040 elements, worst error 0.014 of tolerance
+matmul_fp8_gemv m=8 n=130 k=512 is=2 f32_out=true: 1040 elements, worst error 0.014 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=2 f32_out=true: 1040 elements, worst error 0.049 of tolerance
+matmul_fp8_mma m=8 n=130 k=512 is=2 f32_out=true: 1040 elements, worst error 0.049 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0 f32_out=false: 512 elements, worst error 0.887 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0 f32_out=false: 512 elements, worst error 0.887 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0 f32_out=false: 512 elements, worst error 0.887 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0 f32_out=false: 512 elements, worst error 0.887 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0 f32_out=true: 512 elements, worst error 0.008 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0 f32_out=true: 512 elements, worst error 0.008 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0 f32_out=true: 512 elements, worst error 0.087 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0 f32_out=true: 512 elements, worst error 0.087 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0.37 f32_out=false: 512 elements, worst error 0.929 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.007 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.007 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.054 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=0.37 f32_out=true: 512 elements, worst error 0.054 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=2 f32_out=false: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=2 f32_out=false: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=2 f32_out=false: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=2 f32_out=false: 512 elements, worst error 0.936 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=2 f32_out=true: 512 elements, worst error 0.008 of tolerance
+matmul_nvfp4_mma m=8 n=8192 k=2048 f32_out=false w_off=8: 65536 elements, worst error 0.960 of tolerance
+matmul_fp8_gemv m=8 n=64 k=2048 is=2 f32_out=true: 512 elements, worst error 0.008 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=2 f32_out=true: 512 elements, worst error 0.069 of tolerance
+matmul_fp8_mma m=8 n=64 k=2048 is=2 f32_out=true: 512 elements, worst error 0.069 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0 f32_out=false: 297 elements, worst error 0.859 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0 f32_out=false: 297 elements, worst error 0.859 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0 f32_out=true: 297 elements, worst error 0.036 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0 f32_out=true: 297 elements, worst error 0.036 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0.37 f32_out=false: 297 elements, worst error 0.907 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0.37 f32_out=false: 297 elements, worst error 0.907 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0.37 f32_out=true: 297 elements, worst error 0.026 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=0.37 f32_out=true: 297 elements, worst error 0.026 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=2 f32_out=false: 297 elements, worst error 0.926 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=2 f32_out=false: 297 elements, worst error 0.926 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=2 f32_out=true: 297 elements, worst error 0.023 of tolerance
+matmul_fp8_mma m=9 n=33 k=48 is=2 f32_out=true: 297 elements, worst error 0.023 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0 f32_out=false: 9100 elements, worst error 0.963 of tolerance
+matmul_fp8_mma m=8 n=8192 k=2048 is=0.37 f32_out=false: 65536 elements, worst error 0.968 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0 f32_out=false: 9100 elements, worst error 0.963 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0 f32_out=true: 9100 elements, worst error 0.120 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0 f32_out=true: 9100 elements, worst error 0.120 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0.37 f32_out=false: 9100 elements, worst error 0.959 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0.37 f32_out=false: 9100 elements, worst error 0.959 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0.37 f32_out=true: 9100 elements, worst error 0.063 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=0.37 f32_out=true: 9100 elements, worst error 0.063 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=2 f32_out=false: 9100 elements, worst error 0.971 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=2 f32_out=false: 9100 elements, worst error 0.971 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=2 f32_out=true: 9100 elements, worst error 0.065 of tolerance
+matmul_fp8_mma m=70 n=130 k=512 is=2 f32_out=true: 9100 elements, worst error 0.065 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0 f32_out=false: 20000 elements, worst error 0.970 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0 f32_out=false: 20000 elements, worst error 0.970 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0 f32_out=true: 20000 elements, worst error 0.065 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0 f32_out=true: 20000 elements, worst error 0.065 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0.37 f32_out=false: 20000 elements, worst error 0.975 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0.37 f32_out=false: 20000 elements, worst error 0.975 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0.37 f32_out=true: 20000 elements, worst error 0.041 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=0.37 f32_out=true: 20000 elements, worst error 0.041 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=2 f32_out=false: 20000 elements, worst error 0.972 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=2 f32_out=false: 20000 elements, worst error 0.972 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=2 f32_out=true: 20000 elements, worst error 0.040 of tolerance
+matmul_fp8_mma m=200 n=100 k=64 is=2 f32_out=true: 20000 elements, worst error 0.040 of tolerance
+test fp8_matches_the_oracle ... ok
+matmul_nvfp4_gemv m=8 n=8192 k=2048 f32_out=true w_off=8: 65536 elements, worst error 0.011 of tolerance
+matmul_fp8_gemv m=8 n=8192 k=2048 is=0.37 f32_out=true: 65536 elements, worst error 0.013 of tolerance
+matmul_nvfp4_mma m=8 n=8192 k=2048 f32_out=true w_off=8: 65536 elements, worst error 0.118 of tolerance
+matmul_fp8_mma m=8 n=8192 k=2048 is=0.37 f32_out=true: 65536 elements, worst error 0.120 of tolerance
+matmul_fp8_mma m=33 n=8192 k=2048 is=0.37 f32_out=false: 270336 elements, worst error 0.972 of tolerance
+matmul_nvfp4_mma m=33 n=8192 k=2048 f32_out=false w_off=8: 270336 elements, worst error 0.972 of tolerance
+matmul_fp8_mma m=33 n=8192 k=2048 is=0.37 f32_out=true: 270336 elements, worst error 0.122 of tolerance
+matmul_fp8_mma m=33 n=2048 k=4096 is=0.37 f32_out=false: 67584 elements, worst error 0.968 of tolerance
+matmul_nvfp4_mma m=33 n=8192 k=2048 f32_out=true w_off=8: 270336 elements, worst error 0.148 of tolerance
+matmul_fp8_mma m=33 n=2048 k=4096 is=0.37 f32_out=true: 67584 elements, worst error 0.103 of tolerance
+matmul_fp8_mma m=300 n=512 k=2048 is=0.37 f32_out=false: 153600 elements, worst error 0.970 of tolerance
+matmul_nvfp4_mma m=33 n=2048 k=4096 f32_out=false w_off=8: 67584 elements, worst error 0.962 of tolerance
+matmul_fp8_mma m=300 n=512 k=2048 is=0.37 f32_out=true: 153600 elements, worst error 0.110 of tolerance
+matmul_nvfp4_mma m=33 n=2048 k=4096 f32_out=true w_off=8: 67584 elements, worst error 0.098 of tolerance
+matmul_fp8_mma m=300 n=2048 k=512 is=0.37 f32_out=false: 614400 elements, worst error 0.974 of tolerance
+matmul_fp8_mma m=300 n=2048 k=512 is=0.37 f32_out=true: 614400 elements, worst error 0.097 of tolerance
+test fp8_at_the_35b_projection_shapes ... ok
+matmul_nvfp4_mma m=300 n=512 k=2048 f32_out=false w_off=8: 153600 elements, worst error 0.966 of tolerance
+matmul_nvfp4_mma m=300 n=512 k=2048 f32_out=true w_off=8: 153600 elements, worst error 0.114 of tolerance
+matmul_nvfp4_mma m=300 n=2048 k=512 f32_out=false w_off=8: 614400 elements, worst error 0.973 of tolerance
+matmul_nvfp4_mma m=300 n=2048 k=512 f32_out=true w_off=8: 614400 elements, worst error 0.118 of tolerance
+test nvfp4_at_the_35b_projection_shapes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.88s
+
+new rc 0

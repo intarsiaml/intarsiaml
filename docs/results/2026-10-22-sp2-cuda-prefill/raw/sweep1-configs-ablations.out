@@ -1,0 +1,58 @@
+fleetq: #4056 running on spark1: scripts/sp2/sweep-job.sh '0,0,0 0,0,1 0,0,2 0,0,3 0,0,5 1,1,0 2,2,0 3,3,0 4,4,0 5,5,0 6,6,0 7,7,0 8,8,0 0,0,0'
+== cfg0=0 cfg1=0 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1260 ms (3323.9 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 2101.6 us, total 168.1 ms
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1320.7 us, total 105.7 ms
+  kernel total 799.4 ms
+== cfg0=0 cfg1=0 abl=1: finish=length prompt=4189 (cached 0) completion=1 | prefill 1074 ms (3899.6 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=1: 80 calls, avg 70.6 us, total 5.7 ms
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=1: 80 calls, avg 63.6 us, total 5.1 ms
+  kernel total 489.0 ms
+== cfg0=0 cfg1=0 abl=2: finish=length prompt=4189 (cached 0) completion=1 | prefill 876 ms (4782.7 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=2: 80 calls, avg 48.0 us, total 3.8 ms
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=2: 80 calls, avg 44.3 us, total 3.5 ms
+  kernel total 453.7 ms
+== cfg0=0 cfg1=0 abl=3: finish=length prompt=4189 (cached 0) completion=1 | prefill 1407 ms (2977.3 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=3: 80 calls, avg 2267.3 us, total 181.4 ms
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=3: 80 calls, avg 1551.7 us, total 124.1 ms
+  kernel total 925.9 ms
+== cfg0=0 cfg1=0 abl=5: finish=length prompt=4189 (cached 0) completion=1 | prefill 929 ms (4507.9 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=5: 80 calls, avg 62.2 us, total 5.0 ms
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=5: 80 calls, avg 55.4 us, total 4.4 ms
+  kernel total 490.0 ms
+== cfg0=1 cfg1=1 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1271 ms (3296.2 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=2 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1982.3 us, total 158.6 ms
+  mode 1 R=128 JW=2 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1197.5 us, total 95.8 ms
+  kernel total 739.6 ms
+== cfg0=2 cfg1=2 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1150 ms (3641.7 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=3 LA=1 LR=2 abl=0: 80 calls, avg 2041.6 us, total 163.3 ms
+  mode 1 R=128 JW=4 MINB=3 LA=1 LR=2 abl=0: 80 calls, avg 1286.3 us, total 102.9 ms
+  kernel total 752.5 ms
+== cfg0=3 cfg1=3 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1179 ms (3554.0 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=256 JW=4 MINB=1 LA=2 LR=2 abl=0: 80 calls, avg 2152.3 us, total 172.2 ms
+  mode 1 R=256 JW=4 MINB=1 LA=2 LR=2 abl=0: 80 calls, avg 1295.9 us, total 103.7 ms
+  kernel total 761.7 ms
+== cfg0=4 cfg1=4 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1182 ms (3545.1 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=256 JW=2 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 2398.7 us, total 191.9 ms
+  mode 1 R=256 JW=2 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1279.0 us, total 102.3 ms
+  kernel total 782.3 ms
+== cfg0=5 cfg1=5 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1277 ms (3280.8 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=64 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 2870.6 us, total 229.7 ms
+  mode 1 R=64 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1822.8 us, total 145.8 ms
+  kernel total 862.4 ms
+== cfg0=6 cfg1=6 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1167 ms (3590.5 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=2 MINB=3 LA=1 LR=2 abl=0: 80 calls, avg 1987.2 us, total 159.0 ms
+  mode 1 R=128 JW=2 MINB=3 LA=1 LR=2 abl=0: 80 calls, avg 1246.5 us, total 99.7 ms
+  kernel total 749.8 ms
+== cfg0=7 cfg1=7 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1256 ms (3334.3 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=3 LR=4 abl=0: 80 calls, avg 2748.5 us, total 219.9 ms
+  mode 1 R=128 JW=4 MINB=2 LA=3 LR=4 abl=0: 80 calls, avg 1853.7 us, total 148.3 ms
+  kernel total 853.9 ms
+== cfg0=8 cfg1=8 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1185 ms (3535.2 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=64 JW=4 MINB=4 LA=1 LR=2 abl=0: 80 calls, avg 2344.1 us, total 187.5 ms
+  mode 1 R=64 JW=4 MINB=4 LA=1 LR=2 abl=0: 80 calls, avg 1426.5 us, total 114.1 ms
+  kernel total 786.8 ms
+== cfg0=0 cfg1=0 abl=0: finish=length prompt=4189 (cached 0) completion=1 | prefill 1166 ms (3591.8 tok/s) | decode 0 ms (0.00 tok/s)
+  mode 0 R=128 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 2050.5 us, total 164.0 ms
+  mode 1 R=128 JW=4 MINB=2 LA=2 LR=2 abl=0: 80 calls, avg 1253.6 us, total 100.3 ms
+  kernel total 748.4 ms
+fleetq: #4056 done (exit 0)
