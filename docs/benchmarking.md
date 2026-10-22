@@ -174,15 +174,13 @@ Never use port 8000 for our server (production vLLM).
 
 Decided by the user ("1 yes", `docs/decisions/LOG.md`). The evidence is `docs/results/2026-10-21-g3-metal.md` section 2: on endor, decode follows the GPU clock (r = +0.94), and the clock falls when other processes load the CPU (r = −0.93). A flat floor therefore failed builds that had not changed.
 
-The gate uses three parts:
+**Clock-normalised 2026-10-21 (user, `docs/decisions/LOG.md`).** The 4k run missed at 84.5 % on machine state, so the floor is judged on a decode figure normalised for it. The gate uses three parts:
 
 1. **Floor:** decode must reach at least 85 % of the **context-aware** byte floor. The floor is bandwidth / (weight bytes + KV bytes at the mean context). The mean context is the prompt plus half the generated tokens. For Qwen3-8B BF16 that is 15.1368 GB plus 147,456 B per position at 614 GB/s, for example 39.0 tok/s at a 4k prompt. The old flat 40.6 tok/s ignored the KV bytes.
-2. **State admission:** a run counts for the floor only when its macmon samples show a median GPU clock of at least 1300 MHz (busy samples) and a median CPU load of at most 0.30.
-   - A run outside that window is STATE-INVALID: re-run it; it is not a failure.
-   - On a normally used endor, many runs fall outside the window.
+2. **Clock normalisation:** `sameslot.sh` runs `scripts/metal-speed-gate/refbw.py` before and after every arm. It streams 1 GiB of bf16 matrices through a matrix-vector product (the access pattern of a decode GEMV, no intarsia code) and prints GB/s. The median of the arm's runs over the stored baseline (`scripts/metal-speed-gate/ref-baseline.json`) is the state factor. Normalised decode = raw decode / factor, and the floor is judged on that. The gate output prints raw, reference, factor and normalised values for every size. A factor outside 0.70 to 1.30 is STATE-INVALID: re-run it; it is not a failure. An arm with no reference file (older result dirs) is not normalised and falls back to the earlier admission rule (median GPU clock of busy macmon samples of at least 1300 MHz and median CPU load of at most 0.30). Re-baseline `ref-baseline.json` only after a deliberate machine change (OS update, new chip) and say so in the PR.
 3. **Same-slot ratios:** these apply to every intarsia arm and do not depend on the clock. Decode must be at least 0.90× mlx-lm and at least 1.00× llama.cpp, measured in the same exclusive slot.
 
-To run it, use `scripts/metal-speed-gate/sameslot.sh <binary> <out-dir>` inside one exclusive endor slot. It runs an ABBA of intarsia, mlx-lm, llama.cpp and intarsia with localeval and macmon, then `gate.py`. `gate.py` exits with:
+To run it, use `scripts/metal-speed-gate/sameslot.sh <binary> <out-dir>` inside one exclusive endor slot. It runs an ABBA of intarsia, mlx-lm, llama.cpp and intarsia with localeval and macmon, then `gate.py`. Unit tests for the normalisation math: `python3 -m unittest scripts/metal-speed-gate/test_gate.py`. `gate.py` exits with:
 - 0 for PASS;
 - 1 for FAIL;
 - 3 for STATE-INVALID (the ratios passed but no arm was admitted).

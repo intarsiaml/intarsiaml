@@ -1,0 +1,29 @@
+13:44:18 no-op tracks start
+13:44:20 plan-base-8b exit 0
+13:44:21 plan-base-35b exit 0
+13:44:28 acc-base-8b-short exit 0
+13:44:31 acc-base-35b-short exit 0
+13:44:43 acc-base-8b-long exit 0
+13:44:51 gen-base-8b-short exit 0
+13:45:01 gen-base-8b-4k exit 0
+13:45:02 plan-dev-8b exit 0
+13:45:10 acc-dev-8b-short exit 0
+13:45:25 acc-dev-8b-long exit 0
+13:45:33 gen-dev-8b-short exit 0
+13:45:43 gen-dev-8b-4k exit 0
+13:46:39 acc-base-35b-long exit 0
+13:46:43 gen-base-35b-short exit 0
+13:46:48 gen-base-35b-4k exit 0
+13:46:51 plan-dev-35b exit 0
+13:47:00 acc-dev-35b-short exit 0
+13:49:07 acc-dev-35b-long exit 0
+13:49:11 gen-dev-35b-short exit 0
+13:49:16 gen-dev-35b-4k exit 0
+13:49:16 no-op tracks done
+13:49:16 PLAN 35b identical (12732 bytes)
+13:49:16 IDS 35b short identical (257 words)
+13:49:16 IDS 35b 4k identical (257 words)
+13:49:16 PLAN 8b identical (8343 bytes)
+13:49:16 IDS 8b short identical (257 words)
+13:49:16 IDS 8b 4k identical (257 words)
+13:49:16 no-op done
