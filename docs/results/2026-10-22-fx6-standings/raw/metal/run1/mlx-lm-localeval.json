@@ -1,0 +1,274 @@
+{
+ "run_id": "20261022-014940-adhoc-gate-mlx-lm",
+ "kind": "speed",
+ "label": "gate-mlx-lm",
+ "started_at": "2026-10-22T01:49:40-04:00",
+ "finished_at": "2026-10-22T01:52:11-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8092/v1",
+  "model": "/Users/josef/models/Qwen3-8B",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8092/v1 --model /Users/josef/models/Qwen3-8B --sizes 128,1024,4096,16384 --gen 256 --reps 3 --thinking off --label gate-mlx-lm",
+  "git": "1b02605"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-oQ6",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "TensorFold/Qwen3.8-27B-MLX-4bit",
+    "LiquidAI/LFM2.5-24B-A2B-MLX-4bit",
+    "Jundot/Qwen3.8-27B-oQ4e-mtp",
+    "Vontra/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit",
+    "Vontra/Qwen3.8-27B-MLX-4bit",
+    "Jundot/Qwen3.8-27B-oQ6e-mtp",
+    "mlx-community/Qwen3.5-2B-MLX-4bit",
+    "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+    "TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit",
+    "unsloth/Llama-3.1-8B-Instruct",
+    "LiquidAI/LFM2.5-24B-A2B-MLX-8bit",
+    "LOKSUN-158/SamQuant-Qwen3.8-Flash-Next-Uncensored-MLX-Serve-Mix-C58",
+    "TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP",
+    "TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-oQ4",
+    "LiquidAI/LFM2.5-24B-A2B-MLX-6bit",
+    "/Users/josef/models/Qwen3-8B"
+   ]
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 114,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.298,
+     "min": 0.283,
+     "max": 0.862,
+     "n": 3,
+     "spread_pct": 194.5
+    },
+    "prefill_tok_s": {
+     "median": 362.359,
+     "min": 127.539,
+     "max": 389.113,
+     "n": 3,
+     "spread_pct": 72.2
+    },
+    "decode_tok_s": {
+     "median": 28.206,
+     "min": 28.028,
+     "max": 29.909,
+     "n": 3,
+     "spread_pct": 6.7
+    },
+    "peak_decode_tok_s": {
+     "median": 34.9,
+     "min": 33.5,
+     "max": 38.8,
+     "n": 3,
+     "spread_pct": 15.2
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 990,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.56,
+     "min": 0.554,
+     "max": 0.6,
+     "n": 3,
+     "spread_pct": 8.2
+    },
+    "prefill_tok_s": {
+     "median": 1760.281,
+     "min": 1647.646,
+     "max": 1778.005,
+     "n": 3,
+     "spread_pct": 7.4
+    },
+    "decode_tok_s": {
+     "median": 29.376,
+     "min": 29.207,
+     "max": 30.457,
+     "n": 3,
+     "spread_pct": 4.3
+    },
+    "peak_decode_tok_s": {
+     "median": 36.2,
+     "min": 34.8,
+     "max": 36.6,
+     "n": 3,
+     "spread_pct": 5.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3343.5,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4089,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.563,
+     "min": 2.484,
+     "max": 2.568,
+     "n": 3,
+     "spread_pct": 3.3
+    },
+    "prefill_tok_s": {
+     "median": 1593.926,
+     "min": 1589.289,
+     "max": 1644.409,
+     "n": 3,
+     "spread_pct": 3.5
+    },
+    "decode_tok_s": {
+     "median": 29.046,
+     "min": 27.01,
+     "max": 29.725,
+     "n": 3,
+     "spread_pct": 9.3
+    },
+    "peak_decode_tok_s": {
+     "median": 36.5,
+     "min": 34.1,
+     "max": 37.9,
+     "n": 3,
+     "spread_pct": 10.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 7,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 1547.2
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16652,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 9.836,
+     "min": 9.728,
+     "max": 10.757,
+     "n": 3,
+     "spread_pct": 10.5
+    },
+    "prefill_tok_s": {
+     "median": 1692.488,
+     "min": 1547.638,
+     "max": 1711.621,
+     "n": 3,
+     "spread_pct": 9.7
+    },
+    "decode_tok_s": {
+     "median": 26.221,
+     "min": 26.002,
+     "max": 26.437,
+     "n": 3,
+     "spread_pct": 1.7
+    },
+    "peak_decode_tok_s": {
+     "median": 26.9,
+     "min": 26.7,
+     "max": 33.6,
+     "n": 3,
+     "spread_pct": 25.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 1727.3
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "0.31.3-0.32.1-macOS-27.0-arm64-arm-64bit-applegpu_g17s",
+  "served_model": "/Users/josef/models/Qwen3-8B",
+  "activity_checks": {
+   "idle": 0,
+   "busy": 0,
+   "unknown": 13
+  },
+  "warnings": [
+   "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+ ]
+}

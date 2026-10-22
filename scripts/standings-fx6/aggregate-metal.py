@@ -85,6 +85,15 @@ def main():
             cells.append(f"{raw:.1f} / {raw / fac:.1f}" if fac else f"{raw:.1f} / -")
         head = f"| {lab} | {r:.1f} | {fac:.3f} | {mhz:.0f} | " if (r and mhz) else f"| {lab} | - | - | {mhz or 0:.0f} | "
         out.append(head + " | ".join(cells) + " |")
+    out.append("\n**Per visit, prefill tok/s raw (marginal), unnormalised**\n")
+    out.append("| visit | busy GPU MHz | " + " | ".join(f"prefill {s}" for s in SIZES[1:]) + " |")
+    out.append("|---|---:|" + "---:|" * len(SIZES[1:]))
+    for e, lab, run, fac, mhz, r, rows in visits:
+        cells = []
+        for s in SIZES[1:]:
+            x = rows.get(s)
+            cells.append(f"{x['prefill_tok_s']['median']:.0f} ({x['marginal_prefill_tok_s']:.0f})" if x and x.get("marginal_prefill_tok_s") else "-")
+        out.append(f"| {lab} | {mhz or 0:.0f} | " + " | ".join(cells) + " |")
     engines = [e for e in ("intarsia", "mlx-lm", "llama.cpp") if any(v[0] == e for v in visits)]
 
     def collect(e, s, kind):
@@ -127,6 +136,19 @@ def main():
             rk.append(f"{s}: " + "".join(parts))
         out.append("\nOrder (~ = bands overlap, a tie): " + "; ".join(rk))
         ranks[kind] = rk
+    # sensitivity: put every engine at intarsia's median busy-GPU clock with the G3 slope (0.014 tok/s per MHz, measured on intarsia only)
+    SLOPE = 0.014
+    mh = {e: st.median([v[4] for v in visits if v[0] == e and v[4]]) for e in engines}
+    out.append(f"\n**Sensitivity: clock-matched by MHz** (decode raw median + {SLOPE} tok/s per MHz x (intarsia median busy MHz - engine median busy MHz); "
+               "the slope was measured on intarsia only, docs/results/2026-10-21-g3-metal.md section 2, so for the other engines it is an assumption)\n")
+    out.append("| engine | median busy GPU MHz | " + " | ".join(f"decode {s}" for s in SIZES) + " |")
+    out.append("|---|---:|" + "---:|" * len(SIZES))
+    for e in engines:
+        cells = []
+        for s in SIZES:
+            raw = collect(e, s, "raw")
+            cells.append(f"{st.median(raw) + SLOPE * (mh['intarsia'] - mh[e]):.1f}" if raw else "-")
+        out.append(f"| {e} | {mh[e]:.0f} | " + " | ".join(cells) + " |")
     txt = "\n".join(out)
     print(txt)
     if "--out" in sys.argv:
