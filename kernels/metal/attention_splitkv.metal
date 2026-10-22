@@ -22,8 +22,15 @@
 // (relative to its max) and (max, sum) per (query head, split) into the scratch workspace, and stage 2 combines the
 // partials in split order (fixed order: run-to-run identical, no atomics).
 //
+// Head split (s1 = HS, 0 or 1 = none): the G query heads of a kv head are split over HS threadgroups of G / HS heads each
+// (grid x = Nkv * HS, virtual kv head kvh * HS + hg), every one reading the kv head's keys / values (the second reader
+// hits the caches). The launcher uses it for G = 8, D = 256 (Qwen3.6-35B-A3B full attention): GP = 8 at one key per
+// simdgroup step keeps 128 float registers of q and accumulator per lane (spilled, 270 us per call at 50 keys), GP = 4
+// is the footprint of the 8B (G = 4, D = 128) kernel. The split count policy sees the virtual kv head count Nkv * HS.
+// Each query head's arithmetic is independent of the others', so HS changes no bit at the same simdgroup count.
+//
 // Kernel arguments (`OpP`): a = target threadgroups for the policy, b = N, c = Nkv, d = D, e = cap, f = host pos0, g = use
-// device position, h = max_split (grid y; also the scratch stride), s3 = skip of out (q is 16-byte aligned, skip 0; the launcher
+// device position, h = max_split (grid y; also the scratch stride), s1 = HS, s3 = skip of out (q is 16-byte aligned, skip 0; the launcher
 // falls back otherwise), f0 = scale, pad = min_keys.
 // Scratch layout (floats): part[N][max_split][D] then float2 ml[N][max_split].
 // stage 1 bind: 0 q, 1 k cache, 2 v cache, 3 out, 4 pos, 5 scratch, 6 OpP.  stage 2 bind: 0 out, 1 pos, 2 scratch, 3 OpP.
@@ -129,18 +136,22 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
 
     const uint n = p.b, nkv = p.c, d = p.d;
     const uint cap = p.e;
+    const uint hs = max(p.s1, 1u);
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);  // clamped, as the other decode kernels
-    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
-    const uint kvh = tg.x, sp = tg.y;
+    const uint nsplit = ask_nsplit(visible, nkv * hs, p.h, p.pad, p.a);
+    const uint sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
-    const uint grp = n / nkv;  // query heads per kv head, <= GP
+    const uint kvh = hs == 1 ? tg.x : tg.x / hs, hg = tg.x - kvh * hs;
+    const uint kgrp = n / nkv;  // query heads per kv head
+    const uint grp = kgrp / hs;  // query heads of this threadgroup, <= GP
+    const uint head0 = kvh * kgrp + hg * grp;
     const uint chunk = ask_chunk(visible, nsplit);
     const uint start = sp * chunk;
     const uint end = min(visible, start + chunk);
     device float2* ml = (device float2*)(part + n * p.h * d);
     if (start >= end) {  // an empty split (the chunk rounding leaves trailing ones): max = -inf, sum = 0
-        if (sg == 0 && lane < grp) ml[(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
+        if (sg == 0 && lane < grp) ml[(head0 + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
         return;
     }
 
@@ -155,7 +166,7 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
         // one 16-byte load of the lane's 8 q values (the launcher guarantees a 16-byte aligned q, skip 0): 8 scalar loads
         // are a chain of load issues on the ramp of every launch; the values and the scaling are unchanged
         float qf[8];
-        ask_unpack8(g < grp ? ((device const uint4*)(q + (kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
+        ask_unpack8(g < grp ? ((device const uint4*)(q + (head0 + g) * d + c8 * 8))[0] : uint4(0), qf);
         for (uint i = 0; i < 8; ++i) {
             qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
             acc[g][i] = 0.0f;
@@ -214,7 +225,7 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
             lt += tl[s * GP + g] * w;
             num += tacc[(s * GP + g) * d + di] * w;
         }
-        const uint head = kvh * grp + g;
+        const uint head = head0 + g;
         if (nsplit == 1) {
             out[p.s3 + head * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
         } else {
@@ -245,7 +256,7 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
     const uint n = p.b, nkv = p.c, d = p.d;
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * max(p.s1, 1u), p.h, p.pad, p.a);
     if (nsplit == 1) return;  // stage 1 wrote the output
     device const float2* ml = (device const float2*)(part + n * p.h * d) + head * p.h;
     device const float* acc = part + head * p.h * d + di;
@@ -332,21 +343,25 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
     const uint n = p.b, nkv = p.c, d = p.d;
     const uint cap = p.e;
     const uint rows = p.s0;
-    const uint kvh = tg.x / rows, row = tg.x - kvh * rows;  // x = kvh * R + row: the R threadgroups of a K / V slice are adjacent
+    const uint hs = max(p.s1, 1u);
+    const uint vkv = tg.x / rows, row = tg.x - vkv * rows;  // x = (kvh * HS + hg) * R + row: the R threadgroups of a K / V slice are adjacent
+    const uint kvh = hs == 1 ? vkv : vkv / hs, hg = vkv - kvh * hs;
     const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * hs, p.h, p.pad, p.a);
     const uint sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
-    const uint nsg = askr_nsg(p.g == 0, nkv, nsplit, GP, d);
-    const uint grp = n / nkv;
+    const uint nsg = askr_nsg(p.g == 0, nkv * hs, nsplit, GP, d);
+    const uint kgrp = n / nkv;
+    const uint grp = kgrp / hs;
+    const uint head0 = kvh * kgrp + hg * grp;
     const uint chunk = ask_chunk(visible, nsplit);
     const uint start = sp * chunk;
     const uint end = min(visible, start + chunk);
     device float* part_r = part + row * (n * p.h * (d + 2));
     device float2* ml = (device float2*)(part_r + n * p.h * d);
     if (start >= end) {
-        if (sg == 0 && lane < grp) ml[(kvh * grp + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
+        if (sg == 0 && lane < grp) ml[(head0 + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
         return;
     }
 
@@ -359,7 +374,7 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
     const uint qrow = row * n;
     for (uint g = 0; g < GP; ++g) {
         float qf[8];
-        ask_unpack8(g < grp ? ((device const uint4*)(q + (qrow + kvh * grp + g) * d + c8 * 8))[0] : uint4(0), qf);
+        ask_unpack8(g < grp ? ((device const uint4*)(q + (qrow + head0 + g) * d + c8 * 8))[0] : uint4(0), qf);
         for (uint i = 0; i < 8; ++i) {
             qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
             acc[g][i] = 0.0f;
@@ -419,7 +434,7 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
                 lt += tl[s * GP + g] * w;
                 num += tacc[(s * GP + g) * d + di] * w;
             }
-            const uint head = kvh * grp + g;
+            const uint head = head0 + g;
             if (nsplit == 1) {
                 out[p.s3 + (qrow + head) * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
             } else {
@@ -452,7 +467,7 @@ kernel void attn_rows_combine(device ushort* out [[buffer(0)]],
     const uint head = tg.x, row = tg.y;
     const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * max(p.s1, 1u), p.h, p.pad, p.a);
     if (nsplit == 1) return;
     device const float* part_r = part + row * (n * p.h * (d + 2));
     device const float2* ml = (device const float2*)(part_r + n * p.h * d) + head * p.h;
