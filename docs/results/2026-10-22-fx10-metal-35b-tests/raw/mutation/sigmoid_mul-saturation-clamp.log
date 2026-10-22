@@ -1,0 +1,22 @@
+
+running 1 test
+test sigmoid_mul_matches_the_reference ... FAILED
+
+failures:
+
+---- sigmoid_mul_matches_the_reference stdout ----
+
+thread 'sigmoid_mul_matches_the_reference' (158125096) panicked at crates/intarsia-backend-metal/tests/gdn.rs:298:13:
+T=1 [1]: gpu -0.0002307891845703125 vs reference -0.0000006493119842658341
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sigmoid_mul_matches_the_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.08s
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-fx10-mut/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 3.18s
+     Running tests/gdn.rs (/opt/code/target-fx10-mut/release/deps/gdn-64e441a7d62cbd52)
+error: test failed, to rerun pass `-p intarsia-backend-metal --test gdn`

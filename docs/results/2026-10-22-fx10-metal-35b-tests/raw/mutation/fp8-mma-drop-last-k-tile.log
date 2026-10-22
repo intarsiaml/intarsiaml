@@ -1,0 +1,23 @@
+
+running 1 test
+test fp8_at_the_35b_projection_shapes ... FAILED
+
+failures:
+
+---- fp8_at_the_35b_projection_shapes stdout ----
+matmul_fp8_gemv m=1 n=8192 k=2048 is=0.37 f32_out=false: 8192 elements, worst error 0.958 of tolerance
+
+thread 'fp8_at_the_35b_projection_shapes' (158129385) panicked at crates/intarsia-backend-metal/tests/quant.rs:102:9:
+matmul_fp8_mma m=1 n=8192 k=2048 is=0.37 f32_out=false: element 0: gpu 25.25 ref 24.838241730258908 (|err| 0.4117582697410924 > tol 0.10028934292523053)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fp8_at_the_35b_projection_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.21s
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-fx10-mut/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 3.19s
+     Running tests/quant.rs (/opt/code/target-fx10-mut/release/deps/quant-3edfe7ab933440cb)
+error: test failed, to rerun pass `-p intarsia-backend-metal --test quant`
