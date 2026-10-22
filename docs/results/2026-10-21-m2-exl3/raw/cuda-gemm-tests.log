@@ -1,0 +1,1168 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/admission.rs (target/acc/release/deps/admission-47fa24c8024b63b2)
+
+running 4 tests
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... 312 repeat checks
+ok
+test every_cuda_kernel_matches_the_reference ... candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 V=2048 H=256 bf16
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 V=2048 H=1024 bf16
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 V=2048 H=256 bf16
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 V=2048 H=1024 bf16
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 V=2048 H=256 bf16
+  embedding      embedding_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 V=2048 H=1024 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16 w_offset=1
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16 w_offset=1
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16 w_offset=1
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16 w_offset=1
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16 w_offset=1
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16
+  rmsnorm        rmsnorm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16 w_offset=1
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16
+  rmsnorm_add    rmsnorm_add_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16 w_offset=1
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16
+  add            add_bf16               ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=16 D=128 pos0=0 bf16 rot=0 off=1
+  qk_norm        qk_norm_bf16           ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  qk_norm        qk_norm_bf16           ok    max_abs=1.488e-3 rel_l2=4.327e-5 T=32 N=8 D=128 pos0=0 bf16 rot=0 off=1
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=0 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=64 pos0=37 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=16 D=128 pos0=37 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=8 D=128 pos0=37 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=0 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=4 D=64 pos0=37 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=16 D=128 pos0=37 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 N=8 D=128 pos0=37 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=0 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=4 D=64 pos0=37 bf16 rot=16 off=0
+  rope           rope_bf16              ok    max_abs=1.469e-5 rel_l2=2.380e-7 T=32 N=16 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=16 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=16 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=16 D=128 pos0=37 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=8 D=128 pos0=0 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=8 D=128 pos0=0 bf16 rot=32 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=8 D=128 pos0=37 bf16 rot=0 off=0
+  rope           rope_bf16              ok    max_abs=0.000e0 rel_l2=0.000e0 T=32 N=8 D=128 pos0=37 bf16 rot=32 off=0
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=33 K=70 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=5.020e-4 rel_l2=3.727e-5 M=1 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=33 K=70 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=2.119e-3 rel_l2=1.068e-4 M=3 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.992e-3 rel_l2=1.434e-4 M=3 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.852e-3 rel_l2=1.575e-4 M=3 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=3.497e-3 rel_l2=1.833e-4 M=3 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.938e-3 rel_l2=1.394e-4 M=3 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=32 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 M=32 N=33 K=70 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.773e-3 rel_l2=3.444e-5 M=32 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.786e-3 rel_l2=4.586e-5 M=32 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=4.845e-4 rel_l2=1.098e-5 M=32 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=8.278e-4 rel_l2=1.461e-5 M=32 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16            ok    max_abs=1.838e-3 rel_l2=6.472e-5 M=32 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=33 K=70 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=33 K=70 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=4.371e-4 rel_l2=2.037e-5 M=3 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_gemv       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=3072 x=bf16 w=bf16
+  logits         logits_bf16            ok    max_abs=9.356e-8 rel_l2=7.771e-8 M=1 N=8192 K=1024 x=bf16 w=bf16
+  logits         logits_bf16            ok    max_abs=9.645e-8 rel_l2=5.337e-8 M=1 N=151669 K=128 x=bf16 w=bf16
+  logits         logits_bf16            ok    max_abs=1.184e-6 rel_l2=1.004e-6 M=4 N=8192 K=1024 x=bf16 w=bf16
+  logits         logits_bf16            ok    max_abs=2.211e-7 rel_l2=1.151e-7 M=4 N=151669 K=128 x=bf16 w=bf16
+  logits         logits_bf16_gemv       ok    max_abs=1.247e-7 rel_l2=7.371e-8 M=1 N=8192 K=1024 x=bf16 w=bf16
+  logits         logits_bf16_gemv       ok    max_abs=9.645e-8 rel_l2=5.396e-8 M=1 N=151669 K=128 x=bf16 w=bf16
+  logits         logits_bf16_gemv       ok    max_abs=1.076e-7 rel_l2=7.402e-8 M=4 N=8192 K=1024 x=bf16 w=bf16
+  logits         logits_bf16_gemv       ok    max_abs=1.106e-7 rel_l2=5.278e-8 M=4 N=151669 K=128 x=bf16 w=bf16
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=bf16
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 Nkv=8 D=128 cap=6 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=bf16
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=9 Nkv=8 D=128 cap=15 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=bf16
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=0 Nkv=8 D=128 cap=11 new=bf16 cache=fp8_e4m3
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=bf16
+  kv_append      kv_append_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=6 pos0=9 Nkv=8 D=128 cap=20 new=bf16 cache=fp8_e4m3
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=130 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=3.052e-5 rel_l2=2.625e-6 T=70 pos0=131 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.526e-5 rel_l2=1.930e-6 T=200 pos0=1100 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=6.983e-4 rel_l2=2.758e-5 T=5 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=3.600e-5 rel_l2=1.199e-6 T=16 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=1.149e-4 rel_l2=5.557e-6 T=7 pos0=13 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=3.157e-4 rel_l2=1.089e-5 T=130 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=9.766e-4 rel_l2=3.313e-5 T=70 pos0=131 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=4.883e-4 rel_l2=4.343e-5 T=200 pos0=1100 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=8.538e-5 rel_l2=2.281e-6 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=5.734e-4 rel_l2=2.019e-5 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=5.297e-4 rel_l2=2.237e-5 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=5.187e-4 rel_l2=1.900e-5 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=9.766e-4 rel_l2=2.242e-5 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=2.441e-4 rel_l2=6.104e-5 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16      ok    max_abs=9.766e-4 rel_l2=6.527e-5 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=6.104e-5 rel_l2=3.781e-5 T=1 pos0=2000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=1.192e-7 rel_l2=1.101e-7 T=1 pos0=5000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=9.191e-5 rel_l2=7.266e-6 T=1 pos0=40 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=2.441e-4 rel_l2=1.028e-4 T=1 pos0=2000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=6.104e-5 rel_l2=4.275e-5 T=1 pos0=5000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=5.051e-3 rel_l2=1.887e-3 T=130 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=3.906e-3 rel_l2=2.269e-3 T=70 pos0=131 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=1.953e-3 rel_l2=2.407e-3 T=200 pos0=1100 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=4.149e-3 rel_l2=1.912e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=3.906e-3 rel_l2=2.246e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_flash ok    max_abs=9.766e-4 rel_l2=2.378e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=1.397e-3 rel_l2=5.352e-5 T=5 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=5.760e-4 rel_l2=1.934e-5 T=16 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=9.191e-4 rel_l2=4.446e-5 T=7 pos0=13 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=9.537e-7 rel_l2=2.867e-7 T=3 pos0=1500 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=8.538e-5 rel_l2=2.281e-6 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=2.240e-6 rel_l2=5.493e-8 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=3.310e-5 rel_l2=9.886e-7 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_bf16_splitkv ok    max_abs=6.104e-5 rel_l2=1.332e-5 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=6.384e-8 rel_l2=5.430e-9 T=1 pos0=7 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=6.104e-5 rel_l2=3.781e-5 T=1 pos0=2000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=7.629e-6 rel_l2=7.049e-6 T=1 pos0=5000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=2.404e-3 rel_l2=1.891e-3 T=130 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=3.448e-3 rel_l2=2.252e-3 T=70 pos0=131 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=9.766e-4 rel_l2=2.389e-3 T=200 pos0=1100 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=4.464e-3 rel_l2=1.851e-3 T=130 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=3.546e-3 rel_l2=2.232e-3 T=70 pos0=131 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_flash ok    max_abs=9.766e-4 rel_l2=2.376e-3 T=200 pos0=1100 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=1.110e-5 rel_l2=1.143e-6 T=16 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 pos0=1500 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=7.512e-5 rel_l2=2.588e-6 T=16 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=6.104e-5 rel_l2=1.814e-5 T=3 pos0=1500 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=2.170e-4 rel_l2=8.926e-6 T=5 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=3.272e-4 rel_l2=8.267e-6 T=16 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 pos0=13 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_prefill   attn_prefill_f8kv_splitkv ok    max_abs=7.451e-9 rel_l2=1.569e-9 T=3 pos0=1500 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=1.490e-8 rel_l2=3.715e-8 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=8 D=128 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=7.451e-9 rel_l2=3.153e-9 T=1 pos0=2000 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  attn_decode    attn_decode_f8kv_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=2 D=256 q=bf16 kv=fp8_e4m3
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=256 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=1024 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 H=3072 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=256 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=1024 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 H=3072 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=256 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=1024 bf16
+  silu_glu       silu_glu_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 H=3072 bf16
+  gate_split     gate_split_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 N=4 D=32 bf16
+  gate_split     gate_split_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 N=4 D=32 bf16
+  gate_split     gate_split_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 T=64 N=4 D=32 bf16
+  gate_split     gate_split_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 T=130 N=4 D=32 bf16
+  sigmoid_mul    sigmoid_mul_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 X=128 bf16
+  sigmoid_mul    sigmoid_mul_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 X=128 bf16
+  sigmoid_mul    sigmoid_mul_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=64 X=128 bf16
+  sigmoid_mul    sigmoid_mul_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 R=130 X=128 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=256 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=256 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=64 C=256 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=130 C=256 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=272 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=272 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=64 C=272 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=130 C=272 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=640 K=3 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=640 K=3 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=64 C=640 K=3 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=5.621e-5 rel_l2=3.238e-6 T=130 C=640 K=3 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=592 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=592 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=1.017e-5 rel_l2=5.345e-7 T=64 C=592 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=1.524e-4 rel_l2=5.770e-6 T=130 C=592 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=8192 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=3.954e-6 rel_l2=2.098e-7 T=7 C=8192 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=1.096e-3 rel_l2=1.841e-5 T=64 C=8192 K=4 bf16
+  gdn_conv       gdn_conv_bf16          ok    max_abs=1.347e-4 rel_l2=1.574e-6 T=130 C=8192 K=4 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=7.605e-8 T=1 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.037e-7 rel_l2=6.317e-8 T=7 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=8.090e-8 T=64 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=6.104e-5 rel_l2=2.229e-5 T=130 Hk=2 Hv=4 dk=32 dv=32 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=7.331e-8 T=1 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=9.151e-8 T=7 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=5.960e-8 rel_l2=6.094e-8 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=7.451e-8 rel_l2=9.581e-8 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=8.941e-8 rel_l2=9.726e-8 T=1 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=8.941e-8 rel_l2=1.757e-7 T=7 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.526e-5 rel_l2=3.242e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.384e-7 rel_l2=3.958e-7 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=7.128e-8 T=1 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=4.470e-8 rel_l2=9.427e-8 T=7 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=7.032e-8 T=64 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=2.980e-8 rel_l2=6.300e-8 T=130 Hk=1 Hv=2 dk=256 dv=40 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.192e-7 rel_l2=6.561e-8 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=9.537e-7 rel_l2=1.295e-6 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=3.052e-5 rel_l2=1.844e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16    ok    max_abs=1.221e-4 rel_l2=3.773e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=7.382e-8 T=1 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=9.118e-8 T=7 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=7.629e-6 rel_l2=9.432e-6 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=5.960e-8 rel_l2=9.315e-8 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=8.941e-8 rel_l2=9.741e-8 T=1 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=8.941e-8 rel_l2=1.739e-7 T=7 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.526e-5 rel_l2=3.242e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=4.470e-8 rel_l2=7.823e-8 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.192e-7 rel_l2=6.548e-8 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.526e-5 rel_l2=1.690e-5 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=1.221e-4 rel_l2=4.646e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_lanes ok    max_abs=6.104e-5 rel_l2=1.769e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=1.192e-7 rel_l2=7.331e-8 T=1 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=1.192e-7 rel_l2=9.151e-8 T=7 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=5.960e-8 rel_l2=6.094e-8 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=7.451e-8 rel_l2=9.581e-8 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=8.941e-8 rel_l2=9.726e-8 T=1 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=8.941e-8 rel_l2=1.757e-7 T=7 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=1.526e-5 rel_l2=3.242e-5 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=2.384e-7 rel_l2=3.958e-7 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=1.192e-7 rel_l2=6.561e-8 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=9.537e-7 rel_l2=1.295e-6 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=3.052e-5 rel_l2=1.844e-5 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_split ok    max_abs=1.221e-4 rel_l2=3.773e-5 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+  argmax         argmax_f32             ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 V=100 f32
+  argmax         argmax_f32             ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 V=4096 f32
+  argmax         argmax_f32             ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 V=100 f32
+  argmax         argmax_f32             ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 V=4096 f32
+  argmax         argmax_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 V=100 bf16
+  argmax         argmax_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 V=4096 bf16
+  argmax         argmax_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 V=100 bf16
+  argmax         argmax_bf16            ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 V=4096 bf16
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=3.437e-8 rel_l2=8.973e-10 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=1.371e-4 rel_l2=5.314e-6 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=3.551e-5 rel_l2=1.873e-6 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemv        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.190e-3 rel_l2=7.871e-5 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.252e-3 rel_l2=1.127e-4 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.327e-6 rel_l2=8.129e-8 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.282e-3 rel_l2=8.230e-5 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.027e-5 rel_l2=4.767e-6 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.006e-5 rel_l2=4.643e-6 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=9.645e-5 rel_l2=1.441e-5 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=6.831e-4 rel_l2=9.602e-5 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.252e-3 rel_l2=1.180e-4 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.096e-3 rel_l2=6.613e-5 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=5.682e-4 rel_l2=2.457e-5 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.273e-3 rel_l2=1.020e-4 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.500e-3 rel_l2=1.924e-4 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.273e-3 rel_l2=1.939e-4 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.880e-4 rel_l2=3.025e-5 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.953e-5 rel_l2=2.064e-6 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.082e-3 rel_l2=5.560e-5 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.984e-3 rel_l2=7.841e-5 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.183e-3 rel_l2=1.271e-4 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.329e-3 rel_l2=1.849e-4 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.083e-3 rel_l2=1.434e-4 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.116e-3 rel_l2=7.809e-5 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.688e-3 rel_l2=1.618e-4 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.092e-3 rel_l2=1.651e-4 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.167e-3 rel_l2=1.300e-4 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.000e-3 rel_l2=1.097e-4 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.304e-3 rel_l2=1.007e-4 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.252e-3 rel_l2=8.630e-5 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.392e-3 rel_l2=1.142e-4 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.336e-3 rel_l2=1.636e-4 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.374e-3 rel_l2=1.216e-4 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.250e-3 rel_l2=7.830e-5 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.984e-3 rel_l2=9.038e-5 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=3.817e-3 rel_l2=1.148e-4 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.184e-3 rel_l2=1.029e-4 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.082e-3 rel_l2=1.159e-4 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.242e-3 rel_l2=1.241e-4 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=4.065e-3 rel_l2=1.723e-4 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=2.128e-3 rel_l2=8.691e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.059e-3 rel_l2=5.762e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=3.030e-3 rel_l2=3.595e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=1.678e-3 rel_l2=4.181e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_mma         ok    max_abs=3.663e-7 rel_l2=2.085e-7 M=300 N=3080 K=256 x=bf16 out=f32 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=1.984e-3 rel_l2=9.038e-5 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=3.817e-3 rel_l2=1.148e-4 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=4.184e-3 rel_l2=1.029e-4 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=4.082e-3 rel_l2=1.159e-4 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=2.242e-3 rel_l2=1.241e-4 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=4.065e-3 rel_l2=1.723e-4 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=2.128e-3 rel_l2=8.691e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=1.059e-3 rel_l2=5.762e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=3.030e-3 rel_l2=3.595e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=1.678e-3 rel_l2=4.181e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm        ok    max_abs=3.663e-7 rel_l2=2.085e-7 M=300 N=3080 K=256 x=bf16 out=f32 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.353e-4 rel_l2=2.369e-6 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.984e-3 rel_l2=7.841e-5 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.183e-3 rel_l2=5.352e-5 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=4.329e-3 rel_l2=1.849e-4 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=5.086e-7 rel_l2=1.815e-8 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.116e-3 rel_l2=7.809e-5 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.092e-3 rel_l2=1.651e-4 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.604e-4 rel_l2=6.349e-6 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.000e-3 rel_l2=1.097e-4 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.152e-3 rel_l2=3.444e-5 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.252e-3 rel_l2=8.630e-5 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=7.301e-8 rel_l2=2.120e-9 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.336e-3 rel_l2=1.636e-4 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.250e-3 rel_l2=7.830e-5 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=9.921e-4 rel_l2=1.133e-5 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=3.817e-3 rel_l2=1.148e-4 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.092e-3 rel_l2=2.931e-5 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=4.082e-3 rel_l2=1.159e-4 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=2.242e-3 rel_l2=3.870e-5 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=4.065e-3 rel_l2=1.723e-4 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.064e-3 rel_l2=3.266e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.059e-3 rel_l2=5.762e-5 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=3.030e-3 rel_l2=2.331e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.678e-3 rel_l2=4.181e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_f8     ok    max_abs=1.570e-7 rel_l2=7.277e-8 M=300 N=3080 K=256 x=bf16 out=f32 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_reg    ok    max_abs=3.030e-3 rel_l2=3.595e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_gemm_reg    ok    max_abs=1.678e-3 rel_l2=4.181e-5 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_gemm_reg    ok    max_abs=3.663e-7 rel_l2=2.085e-7 M=300 N=3080 K=256 x=bf16 out=f32 act_quant=true
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=7.266e-7 rel_l2=1.821e-8 M=3 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=5.549e-6 rel_l2=9.427e-8 M=8 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=6.912e-8 rel_l2=2.491e-8 M=1 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=1.097e-7 rel_l2=6.746e-8 M=1 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=8.324e-8 rel_l2=6.281e-8 M=1 N=8192 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=6.621e-8 rel_l2=3.219e-8 M=4 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=1.508e-7 rel_l2=6.675e-8 M=4 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemv      ok    max_abs=7.837e-8 rel_l2=6.646e-8 M=4 N=8192 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.995e-7 rel_l2=8.467e-9 M=1 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.488e-3 rel_l2=3.872e-5 M=3 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=2.003e-4 rel_l2=1.166e-5 M=8 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.309e-3 rel_l2=6.587e-5 M=8 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=2.841e-3 rel_l2=5.344e-5 M=8 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=4.071e-8 rel_l2=2.341e-9 M=9 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.170e-5 rel_l2=3.453e-7 M=9 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.330e-3 rel_l2=2.799e-5 M=9 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=40 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.524e-4 rel_l2=5.328e-6 M=40 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=6.345e-4 rel_l2=1.477e-5 M=40 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=2.252e-3 rel_l2=5.061e-5 M=40 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.382e-7 rel_l2=2.673e-8 M=1 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.023e-6 rel_l2=4.518e-7 M=1 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=7.491e-7 rel_l2=3.292e-7 M=1 N=8192 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.324e-7 rel_l2=3.957e-8 M=4 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.432e-6 rel_l2=4.786e-7 M=4 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.254e-6 rel_l2=4.477e-7 M=4 N=8192 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.122e-7 rel_l2=3.489e-8 M=40 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.188e-6 rel_l2=4.422e-7 M=40 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_mma       ok    max_abs=1.050e-6 rel_l2=4.701e-7 M=40 N=8192 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=1.524e-4 rel_l2=5.328e-6 M=40 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=6.345e-4 rel_l2=1.477e-5 M=40 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=2.252e-3 rel_l2=5.061e-5 M=40 N=8192 K=2048 x=bf16 out=bf16
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=1.122e-7 rel_l2=3.489e-8 M=40 N=248320 K=128 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=1.188e-6 rel_l2=4.422e-7 M=40 N=248320 K=2048 x=bf16 out=f32 (head)
+  matmul_nvfp4   matmul_nvfp4_gemm      ok    max_abs=1.050e-6 rel_l2=4.701e-7 M=40 N=8192 K=2048 x=bf16 out=f32 (head)
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=64 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=64 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=64 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=1 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=1 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=256 K=1 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=8 K=2 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=8 K=2 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=8 K=2 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=64 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=64 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=64 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=1 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=1 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=256 K=1 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=8 K=2 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=8 K=2 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=8 K=2 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=64 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=64 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=64 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=1 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=1 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 E=256 K=1 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=8 K=2 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=8 K=2 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=8 K=2 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=64 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=64 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=64 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=8 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=8 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=8 bf16 ties=false norm=false
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=1 bf16 ties=false norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=1 bf16 ties=true norm=true
+  moe_topk       moe_topk_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=256 E=256 K=1 bf16 ties=false norm=false
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 E=16 K=4 H=128 I=48 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.195e-4 rel_l2=2.009e-5 T=4 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=3.145e-3 rel_l2=8.001e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.857e-3 rel_l2=7.599e-5 T=130 E=16 K=8 H=256 I=64 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=4.178e-5 rel_l2=1.216e-6 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=1.592e-3 rel_l2=5.147e-5 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=1.126e-3 rel_l2=4.851e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.976e-3 rel_l2=8.956e-5 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_bf16       ok    max_abs=2.475e-3 rel_l2=4.887e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_decode_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_decode_bf16 ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_decode_v2_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=8 K=2 H=64 I=32 bf16
+  moe_experts    moe_experts_decode_v2_bf16 ok    max_abs=4.149e-3 rel_l2=3.160e-4 T=1 E=64 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=36 E=16 K=4 H=128 I=128 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=7.862e-4 rel_l2=1.501e-5 T=40 E=32 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=6.684e-4 rel_l2=2.247e-5 T=130 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=3.185e-3 rel_l2=1.245e-4 T=60 E=16 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=5.631e-4 rel_l2=3.216e-5 T=45 E=16 K=4 H=640 I=384 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=2.976e-3 rel_l2=1.135e-4 T=256 E=256 K=8 H=2048 I=512 bf16
+  moe_experts    moe_experts_mma_bf16   ok    max_abs=2.475e-3 rel_l2=5.867e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_nvfp4_mma_bf16 ok    max_abs=1.683e-1 rel_l2=1.628e-1 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_experts    moe_experts_w4a16_bf16 ok    max_abs=2.475e-3 rel_l2=5.867e-5 T=1024 E=16 K=8 H=256 I=128 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=64 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=2048 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 H=64 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=5 H=2048 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 H=64 bf16
+  moe_combine    moe_combine_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=33 H=2048 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=9 N1=17 K=40 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=32 N1=32 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=300 N1=5 K=520 bf16
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=2.934e-7 rel_l2=1.263e-8 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=1.860e-4 rel_l2=2.667e-5 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/false
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=9 K=16 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=512 x=bf16 out=bf16
+  matmul_nvfp4_glu matmul_nvfp4_glu_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=300 K=4112 x=bf16 out=bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=5 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=33 D=256 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=1.526e-6 rel_l2=8.836e-8 R=960 D=64 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=6.073e-7 rel_l2=3.065e-8 R=960 D=128 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 R=960 D=130 bf16
+  gated_rmsnorm  gated_rmsnorm_bf16     ok    max_abs=7.940e-6 rel_l2=3.586e-7 R=960 D=256 bf16
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=9 N1=17 K=40 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=9 N1=17 K=40 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=32 N1=32 K=2048 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=32 N1=32 K=2048 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=300 N1=5 K=520 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=300 N1=5 K=520 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=24 K=4104 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=24 K=4104 bf16 w_offset=1
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=2048 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=2.706e-4 rel_l2=1.980e-5 R=32 N=2048 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=false
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.067e-3 rel_l2=1.034e-3 M=1 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.564e-3 rel_l2=1.071e-3 M=3 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.564e-3 rel_l2=7.613e-4 M=8 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.538e-3 rel_l2=7.958e-4 M=17 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.222e-3 rel_l2=8.142e-4 M=40 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.202e-3 rel_l2=8.955e-4 M=256 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.650e-3 rel_l2=8.767e-4 M=300 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.475e-4 rel_l2=1.868e-4 M=2 N=128 K=256 bits=1 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.689e-3 rel_l2=7.150e-4 M=1 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.778e-3 rel_l2=8.698e-4 M=3 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.646e-3 rel_l2=8.649e-4 M=8 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.232e-3 rel_l2=7.288e-4 M=17 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.319e-3 rel_l2=8.802e-4 M=40 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.167e-3 rel_l2=8.477e-4 M=256 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.731e-3 rel_l2=8.496e-4 M=300 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.057e-4 rel_l2=2.059e-4 M=2 N=128 K=256 bits=1 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.608e-3 rel_l2=1.679e-3 M=1 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.592e-3 rel_l2=6.650e-4 M=3 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.571e-3 rel_l2=9.069e-4 M=8 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.472e-3 rel_l2=9.229e-4 M=17 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=9.094e-4 M=40 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.604e-3 rel_l2=8.676e-4 M=256 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.484e-3 rel_l2=8.706e-4 M=300 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.147e-4 rel_l2=2.041e-4 M=2 N=128 K=256 bits=1 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.761e-3 rel_l2=7.624e-4 M=1 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.425e-3 rel_l2=9.265e-4 M=3 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.289e-3 rel_l2=7.386e-4 M=8 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.959e-3 rel_l2=9.132e-4 M=17 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.857e-3 rel_l2=8.489e-4 M=40 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.181e-3 rel_l2=8.727e-4 M=256 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.181e-3 rel_l2=8.740e-4 M=300 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.722e-4 rel_l2=1.916e-4 M=2 N=128 K=256 bits=1.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.667e-3 rel_l2=5.157e-4 M=1 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.817e-3 rel_l2=8.165e-4 M=3 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.874e-3 rel_l2=9.864e-4 M=8 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.660e-3 rel_l2=8.479e-4 M=17 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.358e-3 rel_l2=8.273e-4 M=40 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.202e-3 rel_l2=8.296e-4 M=256 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.219e-3 rel_l2=8.577e-4 M=300 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.815e-4 rel_l2=2.033e-4 M=2 N=128 K=256 bits=2 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.838e-3 rel_l2=7.264e-4 M=1 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.226e-3 rel_l2=1.078e-3 M=3 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.102e-3 rel_l2=8.318e-4 M=8 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.762e-3 rel_l2=9.084e-4 M=17 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.618e-3 rel_l2=9.095e-4 M=40 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.255e-3 rel_l2=8.770e-4 M=256 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.098e-3 rel_l2=8.445e-4 M=300 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.887e-4 rel_l2=2.329e-4 M=2 N=128 K=256 bits=2 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.632e-3 rel_l2=1.054e-3 M=1 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.016e-3 rel_l2=8.419e-4 M=3 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=9.070e-4 M=8 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.618e-3 rel_l2=7.948e-4 M=17 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.809e-3 rel_l2=9.218e-4 M=40 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.513e-3 rel_l2=8.776e-4 M=256 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.051e-3 rel_l2=8.626e-4 M=300 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.887e-4 rel_l2=1.969e-4 M=2 N=128 K=256 bits=2 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.953e-3 rel_l2=9.600e-4 M=1 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.597e-3 rel_l2=8.057e-4 M=3 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=6.173e-3 rel_l2=9.196e-4 M=8 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.907e-3 rel_l2=8.584e-4 M=17 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.356e-3 rel_l2=8.266e-4 M=40 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.566e-3 rel_l2=8.561e-4 M=256 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.902e-3 rel_l2=8.561e-4 M=300 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.084e-4 rel_l2=1.819e-4 M=2 N=128 K=256 bits=2.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.907e-3 rel_l2=7.467e-4 M=1 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.841e-3 rel_l2=1.046e-3 M=3 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.488e-3 rel_l2=7.466e-4 M=8 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.688e-3 rel_l2=8.571e-4 M=17 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.762e-3 rel_l2=8.344e-4 M=40 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.704e-3 rel_l2=8.412e-4 M=256 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.704e-3 rel_l2=8.895e-4 M=300 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.232e-4 rel_l2=1.945e-4 M=2 N=128 K=256 bits=3 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.984e-3 rel_l2=1.221e-3 M=1 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.145e-3 rel_l2=8.068e-4 M=3 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.674e-3 rel_l2=7.801e-4 M=8 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.273e-3 rel_l2=7.437e-4 M=17 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.902e-3 rel_l2=8.693e-4 M=40 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.545e-3 rel_l2=8.740e-4 M=256 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.876e-3 rel_l2=8.708e-4 M=300 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.743e-4 rel_l2=2.127e-4 M=2 N=128 K=256 bits=3 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.656e-3 rel_l2=7.497e-4 M=1 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.439e-3 rel_l2=9.406e-4 M=3 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.846e-3 rel_l2=8.378e-4 M=8 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.959e-3 rel_l2=7.766e-4 M=17 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.538e-3 rel_l2=8.697e-4 M=40 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.102e-3 rel_l2=8.850e-4 M=256 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=8.435e-4 M=300 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.370e-4 rel_l2=1.913e-4 M=2 N=128 K=256 bits=3 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.025e-3 rel_l2=1.298e-3 M=1 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.145e-3 rel_l2=1.050e-3 M=3 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.404e-3 rel_l2=7.457e-4 M=8 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.268e-3 rel_l2=8.859e-4 M=17 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.841e-3 rel_l2=8.358e-4 M=40 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.405e-3 rel_l2=8.470e-4 M=256 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.336e-3 rel_l2=8.456e-4 M=300 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.225e-4 rel_l2=2.075e-4 M=2 N=128 K=256 bits=3.5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.731e-3 rel_l2=9.131e-4 M=1 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.106e-3 rel_l2=8.491e-4 M=3 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=7.283e-4 M=8 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.941e-3 rel_l2=8.584e-4 M=17 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.310e-3 rel_l2=8.951e-4 M=40 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.167e-3 rel_l2=8.397e-4 M=256 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.255e-3 rel_l2=8.803e-4 M=300 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.622e-4 rel_l2=2.035e-4 M=2 N=128 K=256 bits=4 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.389e-3 rel_l2=6.849e-4 M=1 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.497e-3 rel_l2=8.382e-4 M=3 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.203e-3 rel_l2=6.814e-4 M=8 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.630e-3 rel_l2=8.894e-4 M=17 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.167e-3 rel_l2=9.452e-4 M=40 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.846e-3 rel_l2=8.489e-4 M=256 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.274e-3 rel_l2=8.834e-4 M=300 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.092e-4 rel_l2=1.927e-4 M=2 N=128 K=256 bits=4 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.572e-3 rel_l2=7.154e-4 M=1 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.866e-3 rel_l2=6.895e-4 M=3 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.147e-3 rel_l2=7.543e-4 M=8 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.497e-3 rel_l2=8.664e-4 M=17 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.086e-3 rel_l2=8.423e-4 M=40 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.975e-3 rel_l2=8.573e-4 M=256 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.181e-3 rel_l2=8.759e-4 M=300 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.000e-4 rel_l2=2.001e-4 M=2 N=128 K=256 bits=4 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.289e-3 rel_l2=5.535e-4 M=1 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.762e-3 rel_l2=8.591e-4 M=3 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.703e-3 rel_l2=9.295e-4 M=8 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.577e-3 rel_l2=8.084e-4 M=17 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.252e-3 rel_l2=7.731e-4 M=40 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.444e-3 rel_l2=8.855e-4 M=256 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.167e-3 rel_l2=8.721e-4 M=300 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.142e-4 rel_l2=2.108e-4 M=2 N=128 K=256 bits=5 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.472e-4 rel_l2=1.733e-4 M=1 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.976e-3 rel_l2=6.450e-4 M=3 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.812e-3 rel_l2=6.982e-4 M=8 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.451e-3 rel_l2=8.389e-4 M=17 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.315e-3 rel_l2=8.606e-4 M=40 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.846e-3 rel_l2=8.548e-4 M=256 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.000e-3 rel_l2=8.288e-4 M=300 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.738e-4 rel_l2=2.120e-4 M=2 N=128 K=256 bits=5 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.174e-3 rel_l2=5.399e-4 M=1 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.689e-3 rel_l2=7.182e-4 M=3 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.724e-3 rel_l2=7.227e-4 M=8 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.356e-3 rel_l2=8.554e-4 M=17 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.841e-3 rel_l2=8.898e-4 M=40 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.319e-3 rel_l2=8.626e-4 M=256 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.674e-3 rel_l2=8.581e-4 M=300 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.826e-4 rel_l2=2.009e-4 M=2 N=128 K=256 bits=5 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=7.184e-4 rel_l2=3.628e-4 M=1 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.145e-3 rel_l2=7.067e-4 M=3 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.564e-3 rel_l2=9.041e-4 M=8 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.304e-3 rel_l2=7.841e-4 M=17 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.051e-3 rel_l2=8.382e-4 M=40 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.219e-3 rel_l2=8.240e-4 M=256 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.065e-3 rel_l2=8.591e-4 M=300 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.800e-4 rel_l2=2.152e-4 M=2 N=128 K=256 bits=6 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.701e-3 rel_l2=7.003e-4 M=1 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.717e-3 rel_l2=9.044e-4 M=3 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.358e-3 rel_l2=7.458e-4 M=8 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.439e-3 rel_l2=8.558e-4 M=17 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.674e-3 rel_l2=8.474e-4 M=40 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.132e-3 rel_l2=8.478e-4 M=256 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.401e-3 rel_l2=8.613e-4 M=300 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.834e-4 rel_l2=1.958e-4 M=2 N=128 K=256 bits=6 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.984e-3 rel_l2=7.796e-4 M=1 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.273e-3 rel_l2=6.708e-4 M=3 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.976e-3 rel_l2=8.223e-4 M=8 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=6.250e-3 rel_l2=9.285e-4 M=17 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.632e-3 rel_l2=8.684e-4 M=40 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=8.393e-4 M=256 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.236e-3 rel_l2=8.638e-4 M=300 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.704e-4 rel_l2=2.217e-4 M=2 N=128 K=256 bits=6 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=9.124e-4 rel_l2=3.870e-4 M=1 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.577e-3 rel_l2=8.360e-4 M=3 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.049e-3 rel_l2=7.721e-4 M=8 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.538e-3 rel_l2=7.806e-4 M=17 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.488e-3 rel_l2=9.088e-4 M=40 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.876e-3 rel_l2=8.607e-4 M=256 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.310e-3 rel_l2=8.862e-4 M=300 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.027e-4 rel_l2=1.917e-4 M=2 N=128 K=256 bits=7 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.174e-3 rel_l2=6.511e-4 M=1 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.205e-3 rel_l2=8.171e-4 M=3 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=8.440e-4 M=8 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.370e-3 rel_l2=8.453e-4 M=17 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.137e-3 rel_l2=8.771e-4 M=40 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.386e-3 rel_l2=8.267e-4 M=256 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.132e-3 rel_l2=8.655e-4 M=300 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.008e-4 rel_l2=2.432e-4 M=2 N=128 K=256 bits=7 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.938e-3 rel_l2=6.700e-4 M=1 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.613e-3 rel_l2=6.690e-4 M=3 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.597e-3 rel_l2=1.021e-3 M=8 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.333e-3 rel_l2=9.475e-4 M=17 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.841e-3 rel_l2=8.792e-4 M=40 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.695e-3 rel_l2=8.963e-4 M=256 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.000e-3 rel_l2=8.761e-4 M=300 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.514e-4 rel_l2=1.896e-4 M=2 N=128 K=256 bits=7 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.309e-3 rel_l2=7.778e-4 M=1 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.012e-3 rel_l2=9.006e-4 M=3 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.304e-3 rel_l2=8.358e-4 M=8 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.577e-3 rel_l2=9.890e-4 M=17 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.788e-3 rel_l2=8.692e-4 M=40 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.032e-3 rel_l2=8.544e-4 M=256 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.759e-3 rel_l2=8.747e-4 M=300 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.514e-4 rel_l2=2.174e-4 M=2 N=128 K=256 bits=8 cb=3inst x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=9.690e-4 rel_l2=4.993e-4 M=1 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.283e-3 rel_l2=9.748e-4 M=3 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.591e-3 rel_l2=8.077e-4 M=8 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.566e-3 rel_l2=9.608e-4 M=17 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.236e-3 rel_l2=9.098e-4 M=40 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.348e-3 rel_l2=8.711e-4 M=256 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.704e-3 rel_l2=8.437e-4 M=300 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.162e-4 rel_l2=1.967e-4 M=2 N=128 K=256 bits=8 cb=mcg x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.370e-3 rel_l2=7.451e-4 M=1 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.812e-3 rel_l2=8.624e-4 M=3 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.656e-3 rel_l2=7.591e-4 M=8 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.378e-3 rel_l2=8.269e-4 M=17 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.475e-3 rel_l2=8.025e-4 M=40 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.435e-3 rel_l2=8.689e-4 M=256 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=8.587e-4 M=300 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.869e-4 rel_l2=2.077e-4 M=2 N=128 K=256 bits=8 cb=mul1 x=f32 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=9.195e-4 M=1 N=4096 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.854e-3 rel_l2=8.954e-4 M=4 N=4096 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.732e-3 rel_l2=9.206e-4 M=1 N=4096 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.545e-3 rel_l2=8.140e-4 M=4 N=4096 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.378e-3 rel_l2=8.724e-4 M=1 N=4096 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.874e-3 rel_l2=8.133e-4 M=4 N=4096 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.717e-3 rel_l2=9.495e-4 M=1 N=1024 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.604e-3 rel_l2=8.078e-4 M=4 N=1024 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.165e-3 rel_l2=8.509e-4 M=1 N=1024 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.551e-3 rel_l2=8.264e-4 M=4 N=1024 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=1.701e-3 rel_l2=7.009e-4 M=1 N=1024 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=5.464e-3 rel_l2=1.031e-3 M=4 N=1024 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.444e-3 rel_l2=8.927e-4 M=1 N=12288 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.566e-3 rel_l2=8.754e-4 M=4 N=12288 K=4096 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.315e-3 rel_l2=8.328e-4 M=1 N=12288 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.922e-3 rel_l2=8.561e-4 M=4 N=12288 K=4096 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.125e-3 rel_l2=8.497e-4 M=1 N=12288 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.717e-3 rel_l2=8.388e-4 M=4 N=12288 K=4096 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.358e-3 rel_l2=8.019e-4 M=1 N=4096 K=12288 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.203e-3 rel_l2=8.835e-4 M=4 N=4096 K=12288 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.604e-3 rel_l2=8.518e-4 M=1 N=4096 K=12288 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=4.739e-3 rel_l2=8.612e-4 M=4 N=4096 K=12288 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=3.268e-3 rel_l2=8.741e-4 M=1 N=4096 K=12288 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.762e-3 rel_l2=8.278e-4 M=4 N=4096 K=12288 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.170e-4 rel_l2=2.041e-4 M=1 N=151936 K=4096 bits=6 cb=3inst x=bf16 out=f32
+  matmul_exl3    matmul_exl3_gemv       ok    max_abs=2.273e-4 rel_l2=2.077e-4 M=4 N=151936 K=4096 bits=6 cb=3inst x=bf16 out=f32
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.222e-3 rel_l2=8.142e-4 M=40 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.202e-3 rel_l2=8.955e-4 M=256 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.650e-3 rel_l2=8.767e-4 M=300 N=256 K=384 bits=1 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.319e-3 rel_l2=8.802e-4 M=40 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.167e-3 rel_l2=8.477e-4 M=256 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.731e-3 rel_l2=8.496e-4 M=300 N=256 K=384 bits=1 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.732e-3 rel_l2=9.094e-4 M=40 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.604e-3 rel_l2=8.676e-4 M=256 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.484e-3 rel_l2=8.706e-4 M=300 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.857e-3 rel_l2=8.489e-4 M=40 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.181e-3 rel_l2=8.727e-4 M=256 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.181e-3 rel_l2=8.740e-4 M=300 N=256 K=384 bits=1.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.358e-3 rel_l2=8.273e-4 M=40 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.202e-3 rel_l2=8.296e-4 M=256 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.219e-3 rel_l2=8.577e-4 M=300 N=256 K=384 bits=2 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.618e-3 rel_l2=9.095e-4 M=40 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.255e-3 rel_l2=8.770e-4 M=256 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.098e-3 rel_l2=8.445e-4 M=300 N=256 K=384 bits=2 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.809e-3 rel_l2=9.218e-4 M=40 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.513e-3 rel_l2=8.776e-4 M=256 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.051e-3 rel_l2=8.626e-4 M=300 N=256 K=384 bits=2 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.356e-3 rel_l2=8.266e-4 M=40 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.566e-3 rel_l2=8.561e-4 M=256 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.902e-3 rel_l2=8.561e-4 M=300 N=256 K=384 bits=2.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.762e-3 rel_l2=8.344e-4 M=40 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.704e-3 rel_l2=8.412e-4 M=256 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.704e-3 rel_l2=8.895e-4 M=300 N=256 K=384 bits=3 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.902e-3 rel_l2=8.693e-4 M=40 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.545e-3 rel_l2=8.740e-4 M=256 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.876e-3 rel_l2=8.708e-4 M=300 N=256 K=384 bits=3 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.538e-3 rel_l2=8.697e-4 M=40 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.102e-3 rel_l2=8.850e-4 M=256 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.591e-3 rel_l2=8.435e-4 M=300 N=256 K=384 bits=3 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.841e-3 rel_l2=8.358e-4 M=40 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.405e-3 rel_l2=8.470e-4 M=256 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.336e-3 rel_l2=8.456e-4 M=300 N=256 K=384 bits=3.5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.310e-3 rel_l2=8.951e-4 M=40 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.167e-3 rel_l2=8.397e-4 M=256 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.255e-3 rel_l2=8.803e-4 M=300 N=256 K=384 bits=4 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.167e-3 rel_l2=9.452e-4 M=40 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.846e-3 rel_l2=8.489e-4 M=256 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.274e-3 rel_l2=8.834e-4 M=300 N=256 K=384 bits=4 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.086e-3 rel_l2=8.423e-4 M=40 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.975e-3 rel_l2=8.573e-4 M=256 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.181e-3 rel_l2=8.759e-4 M=300 N=256 K=384 bits=4 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.252e-3 rel_l2=7.731e-4 M=40 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.444e-3 rel_l2=8.855e-4 M=256 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.167e-3 rel_l2=8.721e-4 M=300 N=256 K=384 bits=5 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.315e-3 rel_l2=8.606e-4 M=40 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.846e-3 rel_l2=8.548e-4 M=256 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.000e-3 rel_l2=8.288e-4 M=300 N=256 K=384 bits=5 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.841e-3 rel_l2=8.898e-4 M=40 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.319e-3 rel_l2=8.626e-4 M=256 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.674e-3 rel_l2=8.581e-4 M=300 N=256 K=384 bits=5 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.051e-3 rel_l2=8.382e-4 M=40 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.219e-3 rel_l2=8.240e-4 M=256 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.065e-3 rel_l2=8.591e-4 M=300 N=256 K=384 bits=6 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.674e-3 rel_l2=8.474e-4 M=40 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.132e-3 rel_l2=8.478e-4 M=256 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.401e-3 rel_l2=8.613e-4 M=300 N=256 K=384 bits=6 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.632e-3 rel_l2=8.684e-4 M=40 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.591e-3 rel_l2=8.393e-4 M=256 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.236e-3 rel_l2=8.638e-4 M=300 N=256 K=384 bits=6 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.488e-3 rel_l2=9.088e-4 M=40 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.876e-3 rel_l2=8.607e-4 M=256 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.310e-3 rel_l2=8.862e-4 M=300 N=256 K=384 bits=7 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.137e-3 rel_l2=8.771e-4 M=40 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.386e-3 rel_l2=8.267e-4 M=256 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.132e-3 rel_l2=8.655e-4 M=300 N=256 K=384 bits=7 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.841e-3 rel_l2=8.792e-4 M=40 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.695e-3 rel_l2=8.963e-4 M=256 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.000e-3 rel_l2=8.761e-4 M=300 N=256 K=384 bits=7 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.788e-3 rel_l2=8.692e-4 M=40 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.032e-3 rel_l2=8.544e-4 M=256 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.759e-3 rel_l2=8.747e-4 M=300 N=256 K=384 bits=8 cb=3inst x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.236e-3 rel_l2=9.098e-4 M=40 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=4.348e-3 rel_l2=8.711e-4 M=256 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=3.704e-3 rel_l2=8.437e-4 M=300 N=256 K=384 bits=8 cb=mcg x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.475e-3 rel_l2=8.025e-4 M=40 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=5.435e-3 rel_l2=8.689e-4 M=256 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+  matmul_exl3    matmul_exl3_gemm       ok    max_abs=2.732e-3 rel_l2=8.587e-4 M=300 N=256 K=384 bits=8 cb=mul1 x=bf16 out=bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0    1.488e-3    4.327e-5  ADMITTED
+rope           rope_bf16                      36      0    1.469e-5    2.380e-7  ADMITTED
+matmul         matmul_bf16                    21      0    3.497e-3    1.833e-4  ADMITTED
+matmul         matmul_bf16_gemv               14      0    4.371e-4    2.037e-5  ADMITTED
+logits         logits_bf16                     4      0    1.184e-6    1.004e-6  ADMITTED
+logits         logits_bf16_gemv                4      0    1.247e-7    7.402e-8  ADMITTED
+kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              21      0    9.766e-4    6.527e-5  ADMITTED
+attn_decode    attn_decode_bf16               15      0    2.441e-4    1.028e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash         6      0    5.051e-3    2.407e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv      12      0    1.397e-3    5.352e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       15      0    6.104e-5    3.781e-5  ADMITTED
+attn_prefill   attn_prefill_f8kv_flash         6      0    4.464e-3    2.389e-3  ADMITTED
+attn_prefill   attn_prefill_f8kv_splitkv      12      0    3.272e-4    1.814e-5  ADMITTED
+attn_decode    attn_decode_f8kv_splitkv       15      0    1.490e-8    3.715e-8  ADMITTED
+silu_glu       silu_glu_bf16                   9      0     0.000e0     0.000e0  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    3.773e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_lanes      12      0    1.221e-4    4.646e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16_split      12      0    1.221e-4    3.773e-5  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                11      0    4.184e-3    1.723e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8             27      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_reg             3      0    3.030e-3    4.181e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    5.549e-6    9.427e-8  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               34      0    2.841e-3    6.587e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemm               6      0    2.252e-3    5.061e-5  ADMITTED
+moe_topk       moe_topk_bf16                  48      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            7      0    3.185e-3    1.245e-4  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.683e-1    1.628e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.475e-3    5.867e-5  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv           15      0    1.860e-4    2.667e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemv           6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm  gated_rmsnorm_bf16             16      0    7.940e-6    3.586e-7  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv     14      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+matmul_exl3    matmul_exl3_gemv              242      0    6.250e-3    1.679e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               81      0    5.435e-3    9.452e-4  ADMITTED
+
+ok
+test info_reports_the_device ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.13s
+
+     Running tests/exl3.rs (target/acc/release/deps/exl3-44b3aa20d6c25d10)
+
+running 11 tests
+test a_bad_codebook_gives_nan ... ok
+test bench_decode_shapes ... ignored
+test bench_prefill_shapes ... ignored
+test f16_activations_and_outputs ... matmul_exl3_gemv x=f16 out=f16: max_abs 7.429e-4 rel_l2 3.473e-4
+matmul_exl3_gemv x=f16 out=f32: max_abs 2.094e-4 rel_l2 2.011e-4
+matmul_exl3_gemv x=bf16 out=f16: max_abs 6.489e-4 rel_l2 3.347e-4
+matmul_exl3_gemv x=f32 out=bf16: max_abs 3.030e-3 rel_l2 7.587e-4
+matmul_exl3_gemm x=f16 out=f16: max_abs 8.842e-4 rel_l2 3.246e-4
+matmul_exl3_gemm x=f16 out=f32: max_abs 2.141e-4 rel_l2 2.082e-4
+matmul_exl3_gemm x=bf16 out=f16: max_abs 6.840e-4 rel_l2 3.595e-4
+matmul_exl3_gemm x=f32 out=bf16: max_abs 2.778e-3 rel_l2 1.037e-3
+ok
+test gemm_is_the_gemv_bit_for_bit ... 68 cases bit for bit equal
+ok
+test gemm_matches_the_cpu_reference_over_the_sweep ... worst bf16 output: rel_l2 1.679e-3 (at M=1 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16), max_abs 6.250e-3
+worst f32 output: rel_l2 2.432e-4 (at M=2 N=128 K=256 bits=7 cb=mcg x=f32 out=f32), max_abs 3.153e-4
+323 cases, 0 outside the kernel's tolerance
+ok
+test gemm_rows_do_not_depend_on_the_batch ... ok
+test matches_the_cpu_reference_over_the_sweep ... worst bf16 output: rel_l2 1.679e-3 (at M=1 N=256 K=384 bits=1 cb=mul1 x=bf16 out=bf16), max_abs 6.250e-3
+worst f32 output: rel_l2 2.432e-4 (at M=2 N=128 K=256 bits=7 cb=mcg x=f32 out=f32), max_abs 3.153e-4
+323 cases, 0 outside the kernel's tolerance
+ok
+test only_the_input_rounding_separates_it_from_the_reference ... case                             vs f64 ref  vs f16-xh ref
+bits=4 cb=3inst                    2.177e-4       1.004e-6
+bits=3 cb=mcg                      2.180e-4       8.832e-6
+bits=2.5 cb=mul1                   2.083e-4       1.585e-7
+bits=2 cb=3inst                    2.088e-4       1.551e-7
+bits=8 cb=mul1                     2.122e-4       3.388e-5
+ok
+test profile_one_shape ... ignored
+test rows_do_not_depend_on_the_batch ... ok
+
+test result: ok. 8 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 6.00s
+
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 14 tests
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 f8 gemm 2.323e-5; elements off: 0.0011 / 0.0001
+act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 f8 gemm 1.163e-7; elements off: 0.9799 / 0.7553
+act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 f8 gemm 9.521e-6; elements off: 0.0003 / 0.0001
+act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 f8 gemm 0.000e0; elements off: 0.0000 / 0.0000
+act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 2.928e-5 f8 gemm 2.928e-5; elements off: 0.0003 / 0.0003
+act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 1.212e-4 f8 gemm 1.212e-4; elements off: 0.0017 / 0.0017
+act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.226e-6 f8 gemm 1.226e-6; elements off: 0.9885 / 0.9885
+act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 5.217e-5 f8 gemm 5.217e-5; elements off: 0.0004 / 0.0004
+ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... T=128 E=64: elements off the reference: old 0.0005 new 0.0014; rel_l2 old 8.005e-5 new 1.409e-4
+T=512 E=64: elements off the reference: old 0.0011 new 0.0025; rel_l2 old 1.123e-4 new 1.751e-4
+ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 4.69s
+

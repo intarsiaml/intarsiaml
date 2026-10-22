@@ -1,0 +1,83 @@
+{
+ "summary": {
+  "chat_ok": 0,
+  "chat_total": 0,
+  "anthropic_ok": 5,
+  "anthropic_total": 5,
+  "wall_s": 62.2
+ },
+ "results": [
+  [
+   "anthropic-tool-0",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 2032,
+    "tool": "get_weather",
+    "secs": 14.3
+   }
+  ],
+  [
+   "anthropic-tool-1",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "text",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 26.3
+   }
+  ],
+  [
+   "anthropic-tool-2",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 23.9
+   }
+  ],
+  [
+   "anthropic-tool-3",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "text",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 23.8
+   }
+  ],
+  [
+   "anthropic-tool-4",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 24.1
+   }
+  ]
+ ]
+}

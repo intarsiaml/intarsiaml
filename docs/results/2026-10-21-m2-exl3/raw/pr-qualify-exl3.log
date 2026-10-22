@@ -1,0 +1,30 @@
+fleetq: #3100 running on spark1: ssh -o BatchMode=yes spark1 bash /tmp/m2qual.sh
+Wed Oct 21 01:23:40 PM EDT 2026
+[qualify      0s] qwen3-8b-exl3-4.0bpw-bf16plain on cuda, report directory /home/nvidia/m2-qualify-pr/exl3
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 54 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.0s (builtin:qwen3 covers this model (25/25 tensor templates resolve, quant exl3))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     22s] plan: PASS in 21.6s (13 ops resolved, exactness deterministic, loaded in 21.6s)
+[qualify     22s] == kernels [kernels test on the model's shapes]
+[qualify     87s] kernels: PASS in 64.5s (54 kernels, 1069 cases in 63.9s)
+[qualify     87s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    102s] gate: PASS in 15.3s (perplexity 2.01, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    102s] == acc-short [short accuracy against a golden]
+[qualify    117s] acc-short: PASS in 14.3s (prefill top-1 95.16% KL 2.32e-2; decode top-1 94.53% KL 3.26e-2)
+[qualify    117s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    129s] server up in 12s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    162s] bench: PASS in 45.5s (decode 47.3 tok/s at 128 tokens (111% of the byte floor))
+QUICK DONE: /home/nvidia/m2-qualify-pr/exl3/quick-report.md
+[qualify    162s] exit code 0
+qualify exit 0
+baselines
+bench
+doctor.json
+logs
+plan.json
+quick.json
+quick-report.md
+state.json
+fleetq: #3100 done (exit 0)

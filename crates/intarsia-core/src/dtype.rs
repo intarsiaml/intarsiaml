@@ -15,16 +15,19 @@ pub enum DType {
     I32 = 5,
     I8 = 6,
     U8 = 7,
+    /// Signed 16-bit integers: EXL3 trellis words and packed sign vectors (`quant::exl3`). Appended, so the ids above
+    /// (the ABI's `ik_dtype`) are unchanged.
+    I16 = 8,
 }
 
 impl DType {
-    pub const ALL: [DType; 8] =
-        [DType::F32, DType::F16, DType::Bf16, DType::Fp8E4m3, DType::Fp8E5m2, DType::I32, DType::I8, DType::U8];
+    pub const ALL: [DType; 9] =
+        [DType::F32, DType::F16, DType::Bf16, DType::Fp8E4m3, DType::Fp8E5m2, DType::I32, DType::I8, DType::U8, DType::I16];
 
     pub fn size_bytes(self) -> usize {
         match self {
             DType::F32 | DType::I32 => 4,
-            DType::F16 | DType::Bf16 => 2,
+            DType::F16 | DType::Bf16 | DType::I16 => 2,
             DType::Fp8E4m3 | DType::Fp8E5m2 | DType::I8 | DType::U8 => 1,
         }
     }
@@ -43,6 +46,7 @@ impl DType {
             DType::I32 => "i32",
             DType::I8 => "i8",
             DType::U8 => "u8",
+            DType::I16 => "i16",
         }
     }
 
@@ -57,6 +61,7 @@ impl DType {
             "i32" | "int32" => DType::I32,
             "i8" | "int8" => DType::I8,
             "u8" | "uint8" => DType::U8,
+            "i16" | "int16" => DType::I16,
             other => return Err(Error::Model(format!("unknown dtype '{other}'"))),
         })
     }
@@ -72,6 +77,7 @@ impl DType {
             "I32" => DType::I32,
             "I8" => DType::I8,
             "U8" => DType::U8,
+            "I16" => DType::I16,
             other => return Err(Error::Unsupported(format!("safetensors dtype {other} is not supported"))),
         })
     }
@@ -213,6 +219,11 @@ pub fn decode_to_f32(dtype: DType, bytes: &[u8], out: &mut [f32]) {
                 *o = *b as f32;
             }
         }
+        DType::I16 => {
+            for (o, c) in out.iter_mut().zip(bytes.chunks_exact(2)) {
+                *o = i16::from_le_bytes([c[0], c[1]]) as f32;
+            }
+        }
     }
 }
 
@@ -258,6 +269,11 @@ pub fn encode_from_f32(dtype: DType, vals: &[f32], out: &mut [u8]) {
         DType::U8 => {
             for (v, b) in vals.iter().zip(out.iter_mut()) {
                 *b = *v as u8;
+            }
+        }
+        DType::I16 => {
+            for (v, c) in vals.iter().zip(out.chunks_exact_mut(2)) {
+                c.copy_from_slice(&(*v as i16).to_le_bytes());
             }
         }
     }

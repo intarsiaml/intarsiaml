@@ -1,0 +1,513 @@
+{
+ "summary": {
+  "chat_ok": 50,
+  "chat_total": 50,
+  "anthropic_ok": 3,
+  "anthropic_total": 5,
+  "wall_s": 1543.9
+ },
+ "results": [
+  [
+   "chat-number-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2641,
+    "content": "{\"answer\": 18, \"reasoning\": \"Janet's ducks lay 16 eggs per day. She eats 3 eggs for breakfast, leaving 13 eggs. She uses 4 eggs to bake muffins, leaving 9 eggs. She sells these 9 eggs at $2 each, earning 9 * 2 = $18 per day.\"}",
+    "secs": 23.7
+   }
+  ],
+  [
+   "chat-number-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 4606,
+    "content": "{\"answer\": 260, \"unit\": \"km\", \"steps\": [\"Calculate the distance for the first part: 60 km/h * 3 h = 180 km\", \"Calculate the distance for the second part: 40 km/h * 2 h = 80 km\", \"Add the distances together: 180 km + 80 km = 260 km\"]}",
+    "secs": 107.9
+   }
+  ],
+  [
+   "chat-number-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2641,
+    "content": "{\"answer\": 18, \"reasoning\": \"Janet's ducks lay 16 eggs per day. She eats 3 eggs for breakfast, leaving 13 eggs. She uses 4 eggs to bake muffins, leaving 9 eggs. She sells these 9 eggs at $2 each, earning 9 * 2 = $18 per day.\"}",
+    "secs": 131.2
+   }
+  ],
+  [
+   "chat-number-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 3866,
+    "content": "{\"answer\": 260, \"unit\": \"km\", \"unit_symbol\": \"km\", \"total_distance\": 260, \"distance1\": 180, \"distance2\": 80, \"speed1\": 60, \"time1\": 3, \"speed2\": 40, \"time2\": 2, \"calculation1\": \"60 * 3 = 180\", \"calculation2\": \"40 * 2 = 80\", \"total_calculation\": \"180 + 80 = 260\"}",
+    "secs": 68.7
+   }
+  ],
+  [
+   "chat-number-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 1851,
+    "content": "{\"answer\": 18, \"reasoning\": \"Janet's ducks lay 16 eggs per day. She eats 3 eggs, leaving 13 eggs. She uses 4 eggs for muffins, leaving 9 eggs. Selling these 9 eggs at $2 each results in 9 * 2 = $18. The final answer is 18.\"}",
+    "secs": 131.5
+   }
+  ],
+  [
+   "chat-person-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2996,
+    "content": "{\"name\": \"Ava Kael\", \"age\": 28, \"email\": \"ava.kael@nexgensolutions.com\"}",
+    "secs": 104.8
+   }
+  ],
+  [
+   "chat-person-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2639,
+    "content": "{\"name\": \"Ada Lovelace\", \"age\": 18, \"email\": \"ada.lovelace@analyticalengine.org.uk\"}",
+    "secs": 82.2
+   }
+  ],
+  [
+   "chat-person-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2996,
+    "content": "{\"name\": \"Ava Kael\", \"age\": 28, \"email\": \"ava.kael@nexgensolutions.com\"}",
+    "secs": 77.3
+   }
+  ],
+  [
+   "chat-person-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 2251,
+    "content": "{\"name\": \"Ada Lovelace\", \"age\": 37, \"email\": \"ada.lovelace@analyticalengine.org.uk\"}",
+    "secs": 73.4
+   }
+  ],
+  [
+   "chat-person-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 3358,
+    "content": "{\"name\": \"Ava Kael\", \"age\": 28, \"email\": \"ava.kael@codecraft.innovate\"}",
+    "secs": 82.8
+   }
+  ],
+  [
+   "chat-sentiment-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1763,
+    "content": "{\"sentiment\": \"negative\", \"confidence\": 0.95}",
+    "secs": 76.4
+   }
+  ],
+  [
+   "chat-sentiment-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2594,
+    "content": "{\"sentiment\": \"positive\", \"confidence\": 0.95}",
+    "secs": 72.9
+   }
+  ],
+  [
+   "chat-sentiment-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1763,
+    "content": "{\"sentiment\": \"negative\", \"confidence\": 0.95}",
+    "secs": 63.2
+   }
+  ],
+  [
+   "chat-sentiment-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 2525,
+    "content": "{\"sentiment\": \"positive\", \"confidence\": 0.95}",
+    "secs": 55.6
+   }
+  ],
+  [
+   "chat-sentiment-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 1966,
+    "content": "{\"sentiment\": \"negative\", \"confidence\": 0.95}",
+    "secs": 61.2
+   }
+  ],
+  [
+   "chat-shopping-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1587,
+    "content": "{\"items\": [{\"name\": \"Flour\", \"qty\": 1}, {\"name\": \"Baking Powder\", \"qty\": 1}, {\"name\": \"Sugar\", \"qty\": 1}, {\"name\": \"Salt\", \"qty\": 1}, {\"name\": \"Eggs\", \"qty\": 1}]}",
+    "secs": 58.0
+   }
+  ],
+  [
+   "chat-shopping-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2191,
+    "content": "{\"items\": [{\"name\": \"Sandwiches\", \"qty\": 4}, {\"name\": \"Fruit (e.g., grapes, berries, apple slices)\", \"qty\": 2}, {\"name\": \"Cheese and Crackers\", \"qty\": 1}, {\"name\": \"Water Bottles\", \"qty\": 4}, {\"name\": \"Juice Boxes\", \"qty\": 2}]}",
+    "secs": 64.1
+   }
+  ],
+  [
+   "chat-shopping-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1587,
+    "content": "{\"items\": [{\"name\": \"Flour\", \"qty\": 1}, {\"name\": \"Baking Powder\", \"qty\": 1}, {\"name\": \"Sugar\", \"qty\": 1}, {\"name\": \"Salt\", \"qty\": 1}, {\"name\": \"Eggs\", \"qty\": 1}]}",
+    "secs": 55.6
+   }
+  ],
+  [
+   "chat-shopping-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 1794,
+    "content": "{\"items\": [{\"name\": \"Sandwiches\", \"qty\": 2}, {\"name\": \"Fruit (e.g., grapes, berries, apple slices)\", \"qty\": 1}, {\"name\": \"Cheese and Crackers\", \"qty\": 1}, {\"name\": \"Cookies or Small Cake\", \"qty\": 1}, {\"name\": \"Water (bottled)\", \"qty\": 2}]}",
+    "secs": 58.3
+   }
+  ],
+  [
+   "chat-shopping-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 1052,
+    "content": "{\"items\": [{\"name\": \"Flour\", \"qty\": 1}, {\"name\": \"Eggs\", \"qty\": 1}, {\"name\": \"Milk\", \"qty\": 1}, {\"name\": \"Baking Powder\", \"qty\": 1}, {\"name\": \"Sugar\", \"qty\": 1}]}",
+    "secs": 57.2
+   }
+  ],
+  [
+   "chat-address-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1839,
+    "content": "{\"address\": {\"street\": \"Oranienstra\u00dfe\", \"city\": \"Berlin\", \"zip\": \"10115\"}, \"tags\": [\"fictional\", \"made-up\", \"bakery\"]}",
+    "secs": 55.1
+   }
+  ],
+  [
+   "chat-address-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2263,
+    "content": "{\"address\": {\"street\": \"123 Innovation Lane\", \"city\": \"San Francisco\", \"zip\": \"94105\"}, \"tags\": [\"Innovative\", \"Tech-Forward\", \"Collaborative Space\"]}",
+    "secs": 60.0
+   }
+  ],
+  [
+   "chat-address-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1839,
+    "content": "{\"address\": {\"street\": \"Oranienstra\u00dfe\", \"city\": \"Berlin\", \"zip\": \"10115\"}, \"tags\": [\"fictional\", \"made-up\", \"bakery\"]}",
+    "secs": 55.5
+   }
+  ],
+  [
+   "chat-address-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 1879,
+    "content": "{\"address\": {\"street\": \"123 Innovate Drive\", \"city\": \"Nexus City\", \"zip\": \"98765\"}, \"tags\": [\"Innovation Hub\", \"Tech Campus\", \"Startup Headquarters\"]}",
+    "secs": 63.0
+   }
+  ],
+  [
+   "chat-address-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 1355,
+    "content": "{\"address\": {\"street\": \"M\u00fcllerstra\u00dfe 42a\", \"city\": \"Berlin\", \"zip\": \"10115\"}, \"tags\": [\"Quirky\", \"Playful\", \"Fictional\"]}",
+    "secs": 63.1
+   }
+  ],
+  [
+   "chat-prime-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2983,
+    "content": "{\"is_prime\": false, \"factors\": [1, 7, 13, 91], \"note\": \"91 is not a prime number because it can be divided by 7 and 13.\"}",
+    "secs": 77.2
+   }
+  ],
+  [
+   "chat-prime-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 6151,
+    "content": "{\"is_prime\": true, \"factors\": [1, 97], \"note\": \"97 is a prime number because it has no divisors other than 1 and itself.\"}",
+    "secs": 124.9
+   }
+  ],
+  [
+   "chat-prime-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2983,
+    "content": "{\"is_prime\": false, \"factors\": [1, 7, 13, 91], \"note\": \"91 is not a prime number because it can be divided by 7 and 13.\"}",
+    "secs": 138.1
+   }
+  ],
+  [
+   "chat-prime-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 6609,
+    "content": "{\"is_prime\": true, \"factors\": [1, 97], \"note\": \"97 is a prime number because it has no divisors other than 1 and itself.\"}",
+    "secs": 215.8
+   }
+  ],
+  [
+   "chat-prime-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 4202,
+    "content": "{\"is_prime\": false, \"factors\": [1, 7, 13, 91], \"note\": \"91 is not a prime number because it can be divided evenly by 7 and 13.\"}",
+    "secs": 244.0
+   }
+  ],
+  [
+   "chat-anyof-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2118,
+    "content": "{\"result\": 51}",
+    "secs": 202.3
+   }
+  ],
+  [
+   "chat-anyof-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2712,
+    "content": "{\"result\": \"The sky appears blue\"}",
+    "secs": 187.3
+   }
+  ],
+  [
+   "chat-anyof-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2118,
+    "content": "{\"result\": 51}",
+    "secs": 115.4
+   }
+  ],
+  [
+   "chat-anyof-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 3145,
+    "content": "{\"result\": \"The sky appears blue\"}",
+    "secs": 82.4
+   }
+  ],
+  [
+   "chat-anyof-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 2780,
+    "content": "{\"result\": \"51\"}",
+    "secs": 97.7
+   }
+  ],
+  [
+   "chat-points-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 15260,
+    "content": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 1, \"y\": 1}}",
+    "secs": 184.1
+   }
+  ],
+  [
+   "chat-points-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 6282,
+    "content": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 3, \"y\": 4}}",
+    "secs": 209.4
+   }
+  ],
+  [
+   "chat-points-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 15260,
+    "content": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 1, \"y\": 1}}",
+    "secs": 286.8
+   }
+  ],
+  [
+   "chat-points-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 7506,
+    "content": "{\"a\": {\"x\": 0, \"y\": 0}, \"b\": {\"x\": 3, \"y\": 4}}",
+    "secs": 321.4
+   }
+  ],
+  [
+   "chat-points-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 12884,
+    "content": "{\"a\": {\"x\": 2, \"y\": 3}, \"b\": {\"x\": 5, \"y\": 7}}",
+    "secs": 331.9
+   }
+  ],
+  [
+   "chat-title-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2745,
+    "content": "{\"title\": \"Mastering Async in Rust: Building High-<\", \"words\": 10}",
+    "secs": 302.3
+   }
+  ],
+  [
+   "chat-title-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 2287,
+    "content": "{\"title\": \"The Keeper of the Silent Beacon\", \"words\": 100}",
+    "secs": 214.2
+   }
+  ],
+  [
+   "chat-title-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 2745,
+    "content": "{\"title\": \"Mastering Async in Rust: Building High-<\", \"words\": 10}",
+    "secs": 159.9
+   }
+  ],
+  [
+   "chat-title-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 4635,
+    "content": "{\"title\": \"The Whispering Light\", \"words\": 150}",
+    "secs": 89.3
+   }
+  ],
+  [
+   "chat-title-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 2963,
+    "content": "{\"title\": \"Mastering Rust Async: A Developer's Guid\", \"words\": 11}",
+    "secs": 98.0
+   }
+  ],
+  [
+   "chat-version-0-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1443,
+    "content": "{\"version\": \"1.0\", \"ok\": false}",
+    "secs": 91.9
+   }
+  ],
+  [
+   "chat-version-1-stream-t0.0",
+   true,
+   {
+    "reasoning_chars": 1855,
+    "content": "{\"version\": \"1.0\", \"ok\": true}",
+    "secs": 87.6
+   }
+  ],
+  [
+   "chat-version-2-plain-t0.0",
+   true,
+   {
+    "reasoning_chars": 1443,
+    "content": "{\"version\": \"1.0\", \"ok\": false}",
+    "secs": 54.2
+   }
+  ],
+  [
+   "chat-version-3-stream-t0.7",
+   true,
+   {
+    "reasoning_chars": 2358,
+    "content": "{\"version\": \"1.0\", \"ok\": true}",
+    "secs": 48.4
+   }
+  ],
+  [
+   "chat-version-4-plain-t0.7",
+   true,
+   {
+    "reasoning_chars": 2204,
+    "content": "{\"version\": \"1.0\", \"ok\": true}",
+    "secs": 58.1
+   }
+  ],
+  [
+   "anthropic-tool-0",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 2032,
+    "tool": "get_weather",
+    "secs": 60.8
+   }
+  ],
+  [
+   "anthropic-tool-1",
+   false,
+   "JSONDecodeError('Extra data: line 1 column 34 (char 33)')"
+  ],
+  [
+   "anthropic-tool-2",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 57.0
+   }
+  ],
+  [
+   "anthropic-tool-3",
+   false,
+   "JSONDecodeError('Extra data: line 1 column 34 (char 33)')"
+  ],
+  [
+   "anthropic-tool-4",
+   true,
+   {
+    "kinds": [
+     "thinking",
+     "tool_use",
+     "tool_use"
+    ],
+    "think_chars": 1700,
+    "tool": "get_weather",
+    "secs": 47.6
+   }
+  ]
+ ]
+}

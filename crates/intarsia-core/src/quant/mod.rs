@@ -4,7 +4,7 @@
 //!   `dequant_ref` back to f32 (the oracle: `dequant_ref` + a plain matmul is the meaning of every kernel),
 //!   `quantize` (optional round-to-nearest quantiser for tests and on-the-fly use).
 //! * Formats: `bf16` (plain dense), `fp8_e4m3` (per-tensor scale, [`fp8`]), `nvfp4` (ModelOpt, [`nvfp4`]),
-//!   `mxfp4` (OCP MX, AMD Quark, [`mxfp4`]).
+//!   `mxfp4` (OCP MX, AMD Quark, [`mxfp4`]), `exl3` (ExLlamaV3 trellis, [`exl3`]).
 //! * [`moe`]: the Qwen3.5/3.6 sparse MoE block (router + routed NVFP4 experts + gated shared expert).
 //! * [`ops`]: shape/dtype validation of the quantised and MoE ops (`Op::MatmulFp8`, `MatmulNvfp4`, `MoeTopk`,
 //!   `MoeExperts`, `MoeCombine`); [`cases`]: admission sweeps and plan-time case builders for them.
@@ -12,6 +12,7 @@
 //! Layout rule (v1): tensors keep the checkpoint layout (no repacking), so `dequant_ref` is checkpoint semantics.
 
 pub mod cases;
+pub mod exl3;
 pub mod fp8;
 pub mod moe;
 pub mod mxfp4;
@@ -34,6 +35,7 @@ pub const NVFP4: QuantId = "nvfp4";
 pub const MXFP4: QuantId = "mxfp4";
 
 pub use mxfp4::Mxfp4Act;
+pub const EXL3: QuantId = "exl3";
 
 /// How the FP8 format treats activations (per-recipe option, see `fp8.rs`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Deserialize, serde::Serialize)]
@@ -143,6 +145,7 @@ impl HostQTensor {
                 nvfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, gs, self.n, self.k)
             }
             MXFP4 => mxfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, self.n, self.k),
+            EXL3 => exl3::dequant_parts(&self.parts),
             FP8_E4M3 => {
                 let ws = self.parts[1].to_f32()[0];
                 self.parts[0].to_f32().into_iter().map(|v| v * ws).collect()
@@ -170,6 +173,7 @@ fn op_for(format: QuantId, f32_out: bool) -> Op {
     match format {
         NVFP4 => Op::MatmulNvfp4,
         MXFP4 => Op::MatmulMxfp4,
+        EXL3 => Op::MatmulExl3,
         FP8_E4M3 => Op::MatmulFp8,
         _ if f32_out => Op::Logits,
         _ => Op::Matmul,
@@ -255,12 +259,13 @@ impl QuantFormat for Bf16Dense {
 }
 
 /// Every known format, most specific first.
-pub fn formats() -> [&'static dyn QuantFormat; 4] {
+pub fn formats() -> [&'static dyn QuantFormat; 5] {
     static NV: nvfp4::Nvfp4 = nvfp4::Nvfp4;
     static MX: mxfp4::Mxfp4 = mxfp4::Mxfp4;
+    static EX: exl3::Exl3 = exl3::Exl3;
     static F8: fp8::Fp8E4m3 = fp8::Fp8E4m3;
     static BF: Bf16Dense = Bf16Dense;
-    [&NV, &MX, &F8, &BF]
+    [&NV, &MX, &EX, &F8, &BF]
 }
 
 pub fn format_by_id(id: &str) -> Option<&'static dyn QuantFormat> {
@@ -270,7 +275,7 @@ pub fn format_by_id(id: &str) -> Option<&'static dyn QuantFormat> {
 /// The format that holds the linear layer `meta.prefix`, or an error naming what was found.
 pub fn detect(meta: &WeightMeta) -> Result<&'static dyn QuantFormat> {
     formats().into_iter().find(|f| f.detect(meta)).ok_or_else(|| {
-        let have: Vec<String> = ["weight", "weight_scale", "weight_scale_2", "input_scale"]
+        let have: Vec<String> = ["weight", "weight_scale", "weight_scale_2", "input_scale", "trellis"]
             .iter()
             .filter_map(|s| meta.info(s).map(|i| format!("{s}:{}{:?}", i.dtype, i.shape)))
             .collect();
@@ -314,6 +319,11 @@ mod tests {
         assert_eq!(detect(&WeightMeta::new(&w, "b")).unwrap().id(), FP8_E4M3);
         assert_eq!(detect(&WeightMeta::new(&w, "c")).unwrap().id(), BF16);
         assert_eq!(detect(&WeightMeta::new(&w, "e")).unwrap().id(), MXFP4);
+        let ex = exl3::random(&mut rng, 128, 128, 4, exl3::Codebook::Mcg);
+        w.insert("x.trellis", ex.parts[0].clone());
+        w.insert("x.suh", ex.parts[1].clone());
+        w.insert("x.svh", ex.parts[2].clone());
+        assert_eq!(detect(&WeightMeta::new(&w, "x")).unwrap().id(), EXL3);
         assert!(detect(&WeightMeta::new(&w, "d")).is_err());
     }
 }

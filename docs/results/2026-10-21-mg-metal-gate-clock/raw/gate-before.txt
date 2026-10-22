@@ -1,0 +1,31 @@
+Metal speed gate on /opt/code/wt-mg/docs/results/2026-10-21-mg-metal-gate-clock/raw: floor 85% of context-aware bytes, decode clock-normalised by the refbw.py reference (baseline ? GB/s, valid factor 0.70-1.30); arms without a reference use the GPU >= 1300 MHz and CPU <= 0.30 admission; ratios >= 0.90x mlx-lm, >= 1.00x llama.cpp
+
+| arm | GPU MHz | CPU | ref GB/s | state factor | valid | 128: raw tok/s, % cf, norm tok/s, % cf | 1024: raw tok/s, % cf, norm tok/s, % cf | 4096: raw tok/s, % cf, norm tok/s, % cf | 16384: raw tok/s, % cf, norm tok/s, % cf |
+|---|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| intarsia-1 | 1338 | 0.08 | 557.0 | - | yes | 36.3, 89.6 % | 36.0, 89.8 % | 34.9, 89.6 % | 31.2, 89.5 % |
+| intarsia-2 | 1328 | 0.12 | 549.7 | - | yes | 36.0, 89.0 % | 36.1, 89.9 % | 34.8, 89.4 % | 31.0, 89.0 % |
+| llamacpp | 1214 | 0.12 | 554.4 | - | no | 34.4, 85.1 % | 33.8, 84.2 % | 33.1, 84.9 % | 29.6, 85.0 % |
+| mlx-lm | 1342 | 0.12 | 533.9 | - | yes | 33.1, 81.8 % | 32.7, 81.5 % | 32.1, 82.3 % | 27.9, 79.9 % |
+
+128: intarsia-1 / mlx-lm 1.096 ok
+128: intarsia-1 / llama.cpp 1.053 ok
+128: intarsia-2 / mlx-lm 1.088 ok
+128: intarsia-2 / llama.cpp 1.046 ok
+1024: intarsia-1 / mlx-lm 1.102 ok
+1024: intarsia-1 / llama.cpp 1.066 ok
+1024: intarsia-2 / mlx-lm 1.103 ok
+1024: intarsia-2 / llama.cpp 1.067 ok
+4096: intarsia-1 / mlx-lm 1.089 ok
+4096: intarsia-1 / llama.cpp 1.055 ok
+4096: intarsia-2 / mlx-lm 1.087 ok
+4096: intarsia-2 / llama.cpp 1.053 ok
+16384: intarsia-1 / mlx-lm 1.120 ok
+16384: intarsia-1 / llama.cpp 1.053 ok
+16384: intarsia-2 / mlx-lm 1.113 ok
+16384: intarsia-2 / llama.cpp 1.047 ok
+128: floor gate: best valid intarsia-1: raw 36.27 tok/s (not normalised: no reference): 89.6 % of the context-aware floor (40.47 tok/s) ok
+1024: floor gate: best valid intarsia-2: raw 36.06 tok/s (not normalised: no reference): 89.9 % of the context-aware floor (40.13 tok/s) ok
+4096: floor gate: best valid intarsia-1: raw 34.91 tok/s (not normalised: no reference): 89.6 % of the context-aware floor (38.96 tok/s) ok
+16384: floor gate: best valid intarsia-1: raw 31.20 tok/s (not normalised: no reference): 89.5 % of the context-aware floor (34.86 tok/s) ok
+
+VERDICT: PASS

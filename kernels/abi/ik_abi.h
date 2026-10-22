@@ -41,7 +41,8 @@ enum ik_dtype {
     IK_DTYPE_FP8_E5M2 = 4,
     IK_DTYPE_I32 = 5,
     IK_DTYPE_I8 = 6,
-    IK_DTYPE_U8 = 7
+    IK_DTYPE_U8 = 7,
+    IK_DTYPE_I16 = 8           /* EXL3 trellis words (appended) */
 };
 
 /* ---- status codes ------------------------------------------------------- */

@@ -49,7 +49,7 @@ fn key(s: &str) -> String {
 /// Find the golden file of `name` in `dirs`. `long` asks for the longer prompt set (`<name>-long...`, then `...-4k...`);
 /// otherwise the short one. A full-vocabulary fp32 reference outranks other sources.
 pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> {
-    find_scored(name, dirs, |is_long, is_4k| match (long, is_long, is_4k) {
+    find_scored(name, dirs, false, |is_long, is_4k| match (long, is_long, is_4k) {
         (false, false, false) => Some(100),
         (true, true, _) => Some(100),
         (true, false, true) => Some(60),
@@ -60,10 +60,33 @@ pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> 
 /// Find the ~4k-token golden of `name` (`<name>-4k...`, built from `tools/prompts/golden_4k.jsonl`): the one golden whose
 /// prompts are long enough for the prefix-reuse gate at a prefill chunk of 2048 (the long golden's longest is 700 tokens).
 pub fn find_golden_4k(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
-    find_scored(name, dirs, |_, is_4k| is_4k.then_some(100))
+    find_scored(name, dirs, false, |_, is_4k| is_4k.then_some(100))
 }
 
-fn find_scored(name: &str, dirs: &[PathBuf], base: impl Fn(bool, bool) -> Option<i32>) -> Option<PathBuf> {
+/// Find the format-reference golden of `name` (`<name>-formatref...`): the same quantized weights run by the format's own
+/// reference implementation (tools/golden_exl3.py for EXL3). The short prompt set; never picked as an ordinary golden.
+pub fn find_format_golden(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    find_scored(name, dirs, true, |is_long, is_4k| (!is_long && !is_4k).then_some(100))
+}
+
+/// One `__metadata__` string of a safetensors file (reads the header only).
+pub fn golden_meta(path: &Path, key: &str) -> Option<String> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut n = [0u8; 8];
+    f.read_exact(&mut n).ok()?;
+    let len = u64::from_le_bytes(n);
+    if len > 100 << 20 {
+        return None;
+    }
+    let mut h = vec![0u8; len as usize];
+    f.read_exact(&mut h).ok()?;
+    let v: Value = serde_json::from_slice(&h).ok()?;
+    v.get("__metadata__")?.get(key)?.as_str().map(String::from)
+}
+
+/// `formatref`: look for format-reference goldens (`-formatref` in the name) instead of ordinary ones.
+fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool, bool) -> Option<i32>) -> Option<PathBuf> {
     let k = key(name);
     let mut best: Option<(i32, PathBuf)> = None;
     for d in dirs {
@@ -76,6 +99,10 @@ fn find_scored(name: &str, dirs: &[PathBuf], base: impl Fn(bool, bool) -> Option
             let stem = key(p.file_stem().and_then(|s| s.to_str()).unwrap_or(""));
             let Some(rest) = stem.strip_prefix(&k) else { continue };
             if !(rest.is_empty() || rest.starts_with('-')) || rest.contains("meta") {
+                continue;
+            }
+            // a format-reference golden belongs to these exact weights: `<name>-formatref...`, no other variant of the name
+            if rest.contains("-formatref") != formatref || (formatref && !rest.starts_with("-formatref")) {
                 continue;
             }
             let is_long = rest.contains("-long");
@@ -263,6 +290,7 @@ mod tests {
             "qwen3-8b-4k-fp32.safetensors",
             "qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
             "qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors",
+            "qwen3-8b-formatref.safetensors",
         ] {
             std::fs::write(d.join(f), b"x").unwrap();
         }
@@ -280,6 +308,34 @@ mod tests {
         assert_eq!(n(find_golden_4k("Qwen3-8B", &dirs)).as_deref(), Some("qwen3-8b-4k-fp32.safetensors"));
         assert_eq!(n(find_golden_4k("Qwen3.6-35B-A3B-NVFP4", &dirs)), None);
         assert_eq!(n(find_golden_4k("Llama-3", &dirs)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn format_golden_is_found_apart_and_never_as_the_ordinary_golden() {
+        let d = std::env::temp_dir().join(format!("qualify-formatref-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        for f in ["qwen3-8b-exl3-4.0bpw-formatref-exllamav3.safetensors", "qwen3-8b-exl3-4.0bpw-long-formatref.safetensors"] {
+            std::fs::write(d.join(f), b"x").unwrap();
+        }
+        let dirs = vec![d.clone()];
+        let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
+        assert_eq!(
+            n(find_format_golden("qwen3-8b-exl3-4.0bpw", &dirs)).as_deref(),
+            Some("qwen3-8b-exl3-4.0bpw-formatref-exllamav3.safetensors")
+        );
+        assert_eq!(n(find_golden("qwen3-8b-exl3-4.0bpw", &dirs, false)), None);
+        assert_eq!(n(find_golden("qwen3-8b-exl3-4.0bpw", &dirs, true)), None);
+        assert_eq!(n(find_format_golden("Qwen3-8B", &dirs)), None);
+        // metadata is read from the header only
+        let hdr = br#"{"__metadata__":{"reference_kind":"format","reference_engine":"exllamav3 0.0.x"}}"#;
+        let mut bytes = (hdr.len() as u64).to_le_bytes().to_vec();
+        bytes.extend_from_slice(hdr);
+        let p = d.join("meta-only.safetensors");
+        std::fs::write(&p, bytes).unwrap();
+        assert_eq!(golden_meta(&p, "reference_kind").as_deref(), Some("format"));
+        assert_eq!(golden_meta(&p, "nope"), None);
+        assert_eq!(golden_meta(&d.join("qwen3-8b-exl3-4.0bpw-long-formatref.safetensors"), "reference_kind"), None);
         let _ = std::fs::remove_dir_all(&d);
     }
 
