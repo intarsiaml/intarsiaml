@@ -1,0 +1,200 @@
+{
+ "run_id": "20261022-055557-adhoc-fx3-35b-sglang-r24-conc",
+ "kind": "speed",
+ "label": "fx3-35b-sglang-r24-conc",
+ "started_at": "2026-10-22T05:55:57-04:00",
+ "finished_at": "2026-10-22T05:56:15-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-4e77:8200/v1",
+  "model": "sglang",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8200/v1 --model sglang --thinking off --label fx3-35b-sglang-r24-conc --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,16",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "sglang"
+   ],
+   "root": "sglang",
+   "owned_by": "sglang",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 1,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.198,
+     "min": 0.198,
+     "max": 0.198,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 5002.324,
+     "min": 5002.324,
+     "max": 5002.324,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 75.021,
+     "min": 75.021,
+     "max": 75.021,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "peak_decode_tok_s": {
+     "median": 76.6,
+     "min": 76.6,
+     "max": 76.6,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 1,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 1,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 68.1,
+    "per_stream_decode_tok_s": {
+     "median": 75.659,
+     "min": 75.659,
+     "max": 75.659,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 78.4,
+     "min": 78.4,
+     "max": 78.4,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.199,
+     "min": 0.199,
+     "max": 0.199,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "errors": []
+   },
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 157.5,
+    "per_stream_decode_tok_s": {
+     "median": 48.313,
+     "min": 41.956,
+     "max": 48.355,
+     "n": 4,
+     "spread_pct": 13.2
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 51.0,
+     "min": 50.4,
+     "max": 51.0,
+     "n": 4,
+     "spread_pct": 1.2
+    },
+    "ttft_s": {
+     "median": 0.621,
+     "min": 0.22,
+     "max": 0.621,
+     "n": 4,
+     "spread_pct": 64.5
+    },
+    "errors": []
+   },
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 216.6,
+    "per_stream_decode_tok_s": {
+     "median": 23.514,
+     "min": 17.335,
+     "max": 75.012,
+     "n": 16,
+     "spread_pct": 245.3
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 25.8,
+     "min": 25.8,
+     "max": 76.7,
+     "n": 16,
+     "spread_pct": 197.3
+    },
+    "ttft_s": {
+     "median": 2.15,
+     "min": 0.225,
+     "max": 7.763,
+     "n": 16,
+     "spread_pct": 350.7
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "sglang",
+  "activity_checks": {
+   "idle": 0,
+   "busy": 0,
+   "unknown": 5
+  },
+  "warnings": [
+   "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+ ]
+}

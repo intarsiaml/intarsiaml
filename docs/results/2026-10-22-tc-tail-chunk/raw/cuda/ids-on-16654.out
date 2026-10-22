@@ -1,0 +1,15 @@
+, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, checked at plan time
+    exact: Exactness::Deterministic,               // or BitExactVsSerial / Tolerance(...)
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions

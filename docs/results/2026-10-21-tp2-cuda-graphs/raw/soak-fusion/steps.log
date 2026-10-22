@@ -1,0 +1,18 @@
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+17:18:49 vLLM stopped on spark1
+17:18:52 vLLM stopped on spark2
+17:18:52 spark1 MemAvailable 111 GB
+17:18:52 spark2 MemAvailable 112 GB
+214 MHz, [N/A], 41, 3.82 W, 0 %
+17:19:04 soak server up=1 (INTARSIA_TP_FUSION=1)
+soak rc=0
+SOAK {"requests": 687, "errors": 0, "by_kind": {"short": {"n": 211, "err": 0, "sec": 195.0234010219574}, "reuse": {"n": 176, "err": 0, "sec": 239.42314386367798}, "long": {"n": 129, "err": 0, "sec": 308.4136974811554}, "stream": {"n": 119, "err": 0, "sec": 160.48089599609375}, "turn": {"n": 52, "err": 0, "sec": 114.2847056388855}}, "cached_hits": 51, "prompt_tokens_max": 18274, "error_samples": [], "final": {"health": 200, "last_short": "Blue", "probe_identical": true}, "seconds": 511, "verdict": "PASS"}
+serve log error/panic lines: 0
+worker log error/panic lines: 0
+  rank1 soak: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=22886
+17:27:40   REPLAY-CHECK ok soak
+17:27:40 == window done, 97 s of the work budget left
+17:27:40 restore (exit 0)
+17:30:58 vLLM on spark1 serving again
+17:31:03 vLLM on spark2 serving again

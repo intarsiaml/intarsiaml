@@ -1,0 +1,20 @@
+Thu Oct 22 06:36:57 EDT 2026
+finish=length prompt=973 (cached 0) completion=129 | prefill 1285 ms (757.3 tok/s) | decode 1034 ms (123.83 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1068 ms (910.9 tok/s) | decode 1064 ms (120.34 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1136 ms (856.8 tok/s) | decode 1033 ms (123.96 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1200 ms (810.8 tok/s) | decode 1072 ms (119.46 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1151 ms (845.1 tok/s) | decode 1033 ms (123.96 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 2130 ms (456.7 tok/s) | decode 14666 ms (8.73 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 2070 ms (470.0 tok/s) | decode 1123 ms (113.94 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1127 ms (863.7 tok/s) | decode 1046 ms (122.41 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+finish=length prompt=973 (cached 0) completion=129 | prefill 1142 ms (852.1 tok/s) | decode 1038 ms (123.29 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330
+Thu Oct 22 06:37:59 EDT 2026

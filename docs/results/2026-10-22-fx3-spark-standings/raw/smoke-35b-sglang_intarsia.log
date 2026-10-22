@@ -1,0 +1,2 @@
+fleetq: #3934 waiting (#3 in line): in line behind #3920 "G1c PR64 ids default vs TP_FUSION=0 + op-table probe (requeue, MODE=gates)" (claude-f31ccf91) on spark2
+fleetq: #3934 is cancelled, so it will not run: scripts/standings-fx3/smoke.sh

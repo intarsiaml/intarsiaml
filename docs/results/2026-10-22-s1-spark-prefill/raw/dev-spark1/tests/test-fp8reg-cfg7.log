@@ -1,0 +1,11 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/fp8_gemm_reg.rs (target/acc/release/deps/fp8_gemm_reg-cae94fa42256b613)
+
+running 4 tests
+test fp8_gemm_reg_35b_shapes ... ok
+test fp8_gemm_reg_every_e4m3_code ... ok
+test fp8_gemm_reg_is_bitwise_the_gemm ... ok
+test fp8_pair_gemm_reg_is_bitwise_two_calls ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+

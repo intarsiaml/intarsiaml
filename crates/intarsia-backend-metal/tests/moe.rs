@@ -1,6 +1,6 @@
 //! `moe_experts_bf16` against the cpu reference math (`intarsia_core::quant::reference::moe_experts_token`) at the
 //! Qwen3.6-35B-A3B expert shapes (256 experts, top-8, H 2048, I 512): the decode path (T*K <= 16: T = 1, 2) and the grouped
-//! prefill path (T = 3, 300), out-of-range ids, run-to-run bitwise output of the grouped path (atomic scatter), and expert
+//! prefill path (T = 3, 300; 256 and 2048 on a token subset), out-of-range ids, run-to-run bitwise output of the grouped path (atomic scatter), and expert
 //! weights bound at 8 mod 16 inside a larger buffer (how safetensors shards place most expert tensors).
 #![cfg(target_os = "macos")]
 
@@ -175,6 +175,28 @@ fn moe_experts_skewed_routing_runs_several_tiles_per_expert() {
     let want = reference(&x, &idv, &ws.to_f32(), &ex, DType::Bf16);
     let got = run(&be, &x, &ids, &ws, &ex, 0).unwrap();
     grade(&got, &want, &format!("T={t} skewed (rows/expert {}..{})", rows[..hot].iter().min().unwrap(), rows[..hot].iter().max().unwrap()));
+}
+
+/// Prefill chunks at the real shape (T = 256: ~8 rows per expert, 8-row tiles; T = 2048: ~64 rows, 64-row tiles, many experts
+/// on two), graded on a strided token subset (the cpu reference is slow) that includes the last token.
+#[test]
+fn moe_experts_prefill_chunks_match_the_reference_on_a_token_subset() {
+    let be = common::backend();
+    let mut rng = SplitMix64::new(0x35a3e);
+    let ex = random_experts(&mut rng, E, H, I);
+    for t in [256usize, 2048] {
+        let x = HostTensor::from_f32_as(DType::Bf16, &[t, H], &rng.normal_vec(t * H, 1.0));
+        let (ids, ws) = random_routing(&mut rng, t, E, K);
+        let got = run(&be, &x, &ids, &ws, &ex, 0).unwrap();
+        let mut sub: Vec<usize> = (0..t).step_by(t / 32).collect();
+        sub.push(t - 1);
+        let (idv, wv, xf) = (ids.to_i32().unwrap(), ws.to_f32(), x.to_f32());
+        let pick = |v: &[f32], w: usize| sub.iter().flat_map(|&r| v[r * w..(r + 1) * w].to_vec()).collect::<Vec<f32>>();
+        let xs = HostTensor::from_f32_as(DType::Bf16, &[sub.len(), H], &pick(&xf, H));
+        let is: Vec<i32> = sub.iter().flat_map(|&r| idv[r * K..(r + 1) * K].to_vec()).collect();
+        let want = reference(&xs, &is, &pick(&wv, K), &ex, DType::Bf16);
+        grade(&pick(&got, H), &want, &format!("T={t} (grouped, {} tokens graded)", sub.len()));
+    }
 }
 
 /// Block-scale tensors at odd byte offsets (gate_up at 5, down at 7: 4-byte skips 1 and 3; weights at 8 mod 16) are bitwise

@@ -1,0 +1,39 @@
+fleetq: #3977 waiting (#3 in line): in line behind #3971 "fx3 35B standings pass p4 (exclusive, vLLM guidance up)" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3971 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3971 set, or it will wait for #3971 to be released.
+fleetq: #3977 waiting (#2 in line): in line behind #3972 "post-merge CUDA 35B qualify main 2bf3b73f (>=db49a025)" (claude-f31ccf91-qcheck) on spark1
+fleetq: #3977 waiting (#1 in line): needs spark1 to itself; running there: #3972 "post-merge CUDA 35B qualify main 2bf3b73f (>=db49a025)" (claude-f31ccf91-qcheck)
+fleetq: #3977 waiting (#1 in line): needs 36 GB on spark1; the box reports only 31 GB actually free (memory used by something fleetq does not track)
+fleetq: #3977 running on spark1: scripts/standings-fx3/takedown-window.sh 'r21:sglang r22:intarsia r23:sglang r24:sglang'
+[05:38:59] vLLM stopped; MemAvailable 111 GB
+[05:38:59] == r21 sglang
+[05:39:01] pass r21 model=35b host=spark1 arms=[sglang] phases=speed,conc job=3977
+[05:39:05] == arm sglang (MemAvailable 111 GB)
+[05:43:08]   sglang ready after 225s
+[05:43:48]   speed exit=0
+[05:44:07]   conc exit=0
+[05:44:09] pass r21 done
+[05:44:10] == r22 intarsia
+[05:44:11] pass r22 model=35b host=spark1 arms=[intarsia] phases=speed,conc job=3977
+[05:44:15] == arm intarsia (MemAvailable 111 GB)
+[05:45:03]   intarsia ready after 45s
+[05:45:38]   speed exit=0
+[05:46:20]   conc exit=0
+[05:46:22] pass r22 done
+[05:46:22] == r23 sglang
+[05:46:23] pass r23 model=35b host=spark1 arms=[sglang] phases=speed,conc job=3977
+[05:46:28] == arm sglang (MemAvailable 111 GB)
+[05:50:14]   sglang ready after 210s
+[05:50:52]   speed exit=0
+[05:51:11]   conc exit=0
+[05:51:13] pass r23 done
+[05:51:14] == r24 sglang
+[05:51:15] pass r24 model=35b host=spark1 arms=[sglang] phases=speed,conc job=3977
+[05:51:19] == arm sglang (MemAvailable 111 GB)
+[05:55:21]   sglang ready after 225s
+[05:55:57]   speed exit=0
+[05:56:15]   conc exit=0
+[05:56:18] pass r24 done
+[05:56:18] window done
+[05:56:19] starting missioncntrl-guidance, waiting for /v1/models
+[05:59:25] vLLM serving again
+fleetq: #3977 done (exit 0); spark1-vllm must come back before others can use it

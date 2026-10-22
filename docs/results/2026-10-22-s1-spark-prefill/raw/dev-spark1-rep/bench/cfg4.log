@@ -1,0 +1,79 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:802:58
+    |
+802 |             let maxrel = fa.iter().zip(&fb).map(|(x, y)| ((x - y).abs() / x.abs().max(1e-3))).fold(0f32, f32::max);
+    |                                                          ^                                 ^
+    |
+help: remove these parentheses
+    |
+802 -             let maxrel = fa.iter().zip(&fb).map(|(x, y)| ((x - y).abs() / x.abs().max(1e-3))).fold(0f32, f32::max);
+802 +             let maxrel = fa.iter().zip(&fb).map(|(x, y)| (x - y).abs() / x.abs().max(1e-3)).fold(0f32, f32::max);
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 4 warnings (run `cargo fix --test "quantmoe"` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 1 test
+test bench_wq_prefill_shapes ... M=4096 gdn in_proj_qkv    matmul_fp8_gemm_reg       1988.2 us   69.1 TFLOPS
+M=4096 gdn in_proj_z      matmul_fp8_gemm_reg       1109.3 us   62.0 TFLOPS
+M=4096 gdn out_proj       matmul_fp8_gemm_reg       1292.7 us   53.2 TFLOPS
+M=4096 attn q_proj+gate   matmul_fp8_gemm_reg       1990.6 us   69.0 TFLOPS
+M=4096 attn k/v_proj      matmul_fp8_gemm_reg        251.6 us   34.1 TFLOPS
+M=4096 attn o_proj        matmul_fp8_gemm_reg       1241.4 us   55.4 TFLOPS
+M=4096 fp8 per-chunk total matmul_fp8_gemm_reg     169057.8 us
+M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1014.7 us   67.7 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        545.6 us   63.0 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        657.9 us   52.2 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1001.0 us   68.6 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        120.1 us   35.8 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        625.8 us   54.9 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      85216.7 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        499.0 us   68.9 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        271.5 us   63.3 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        304.7 us   56.4 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        498.0 us   69.0 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         55.6 us   38.6 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        301.9 us   56.9 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41368.2 us
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 5.98s
+

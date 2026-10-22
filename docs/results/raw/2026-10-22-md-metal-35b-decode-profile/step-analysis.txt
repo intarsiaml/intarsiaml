@@ -1,0 +1,53 @@
+kernel-mode step sum (serialised, incl. per-cb cost): median 9205 us
+ce1 step sum of attributed durations: median 8447 us; first-start..last-end span median 7963 us
+ce1 inter-step GPU idle (argmax end -> next embedding start): median 491 us
+
+role | launches/token | kernel-mode us/token | ce1 us/token
+gdn qkv fp8 8192x2048 | 30 | 1319 | 1460
+moe experts gate/up | 40 | 972 | 959
+gdn out fp8 2048x4096 | 30 | 867 | 879
+gdn z fp8 4096x2048 | 30 | 823 | 332
+moe experts down | 40 | 670 | 688
+lm_head nvfp4 | 1 | 496 | 488
+attn q+gate fp8 8192x2048 | 10 | 441 | 468
+moe topk | 40 | 347 | 314
+shared expert gate | 40 | 320 | 0
+gdn delta_rule | 30 | 297 | 301
+attn o_proj fp8 2048x4096 | 10 | 290 | 279
+shared expert up | 40 | 276 | 11
+attn_decode (split-KV) | 10 | 270 | 268
+rmsnorm_add (post) | 40 | 214 | 201
+shared expert down | 40 | 214 | 213
+moe router+gate pair | 40 | 196 | 195
+rmsnorm_add (gdn) | 30 | 171 | 160
+gdn conv | 30 | 142 | 127
+attn k fp8 512x2048 | 10 | 113 | 4
+moe combine | 40 | 112 | 113
+attn v fp8 512x2048 | 10 | 111 | 3
+gdn a/b pair bf16 | 30 | 110 | 110
+gdn gated rmsnorm | 30 | 92 | 89
+shared silu_glu | 40 | 92 | 529
+attn qk_norm_rope_kv | 10 | 76 | 74
+gdn silu_glu | 30 | 70 | 71
+rmsnorm_add (attn) | 10 | 55 | 52
+attn gate_split | 10 | 27 | 28
+attn sigmoid_mul | 10 | 22 | 21
+argmax | 1 | 18 | 19
+rmsnorm (first) | 1 | 5 | 5
+embedding | 1 | 3 | 3
+cb1: 128 decode steps, cb records/step {7: 128}
+  GPU busy (sum e-s) 7837 us; first-start..last-end 7859 us; GPU idle between cbs inside step 8 us
+  host encode (open->commit entered, summed over cbs) 732 us; commit call 16 us
+  first encode -> last GPU end 7974 us; first-cb encode start -> its GPU start 109 us
+  GPU idle step-to-step (last end -> next first start) 234 us (min 145, max 10328)
+cb2: 128 decode steps, cb records/step {7: 128}
+  GPU busy (sum e-s) 7825 us; first-start..last-end 7834 us; GPU idle between cbs inside step 5 us
+  host encode (open->commit entered, summed over cbs) 710 us; commit call 15 us
+  first encode -> last GPU end 7939 us; first-cb encode start -> its GPU start 111 us
+  GPU idle step-to-step (last end -> next first start) 220 us (min 146, max 311)
+head: illegal line count -- 0
+servecb: 128 decode steps, cb records/step {7: 128}
+  GPU busy (sum e-s) 7840 us; first-start..last-end 7882 us; GPU idle between cbs inside step 26 us
+  host encode (open->commit entered, summed over cbs) 820 us; commit call 17 us
+  first encode -> last GPU end 8001 us; first-cb encode start -> its GPU start 109 us
+  GPU idle step-to-step (last end -> next first start) 227 us (min 157, max 334)

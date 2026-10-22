@@ -1,0 +1,22 @@
+
+running 1 test
+test nvfp4_at_the_35b_projection_shapes ... FAILED
+
+failures:
+
+---- nvfp4_at_the_35b_projection_shapes stdout ----
+
+thread 'nvfp4_at_the_35b_projection_shapes' (158128593) panicked at crates/intarsia-backend-metal/tests/quant.rs:102:9:
+matmul_nvfp4_gemv m=1 n=8192 k=2048 f32_out=false w_off=8: element 0: gpu -0.25390625 ref -0.24799387228784608 (|err| 0.005912377712153916 > tol 0.0010085278286190325)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nvfp4_at_the_35b_projection_shapes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.18s
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-fx10-mut/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 3.19s
+     Running tests/quant.rs (/opt/code/target-fx10-mut/release/deps/quant-3edfe7ab933440cb)
+error: test failed, to rerun pass `-p intarsia-backend-metal --test quant`

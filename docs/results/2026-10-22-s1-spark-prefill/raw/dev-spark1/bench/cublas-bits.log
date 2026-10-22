@@ -1,0 +1,7 @@
+M=2048 N=4096 K=2048: 0 of 8388608 bf16 outputs differ (max rel 0.00e0)
+M=2048 N=2048 K=4096: 0 of 4194304 bf16 outputs differ (max rel 0.00e0)
+M=2048 N=512 K=2048: 0 of 1048576 bf16 outputs differ (max rel 0.00e0)
+M=1024 N=8192 K=2048: 0 of 8388608 bf16 outputs differ (max rel 0.00e0)
+M=1024 N=4096 K=2048: 0 of 4194304 bf16 outputs differ (max rel 0.00e0)
+M=1024 N=2048 K=4096: 0 of 2097152 bf16 outputs differ (max rel 0.00e0)
+M=1024 N=512 K=2048: 0 of 524288 bf16 outputs differ (max rel 0.00e0)

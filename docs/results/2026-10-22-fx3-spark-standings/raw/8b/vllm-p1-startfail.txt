@@ -1,0 +1,10 @@
+prefill chunk 256 (default)
+admission on plan shapes: 16 kernel(s) checked, 277 case(s) run, 0 cached
+loaded Qwen/Qwen3-8B on cuda (NVIDIA GB10) in 123.8s, context 11800 tokens
+intarsia server listening on http://0.0.0.0:8190
+Error response from daemon: No such container: fx3-sglang
+With `vllm serve`, you should provide the model as a positional argument or in a config file instead of via the `--model` option. The `--model` option will be removed in a future version.
+usage: vllm [-h] [-v]
+            {chat,complete,serve,launch,bench,collect-env,download-kernels,preload,run-batch,snapshot}
+            ...
+vllm: error: unrecognized arguments: serve

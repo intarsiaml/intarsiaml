@@ -1,0 +1,20 @@
+fleetq: #3995 waiting (#3 in line): in line behind #3980 "fx3 8B quality MMLU n=25/task (vLLM retro up, non-exclusive)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3980 set, or it will wait for #3980 to be released.
+fleetq: #3995 waiting (#2 in line): in line behind #3994 "fx3 8b opt-in prefill-chunk pass p31 (exclusive, vLLM up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3994 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3994 set, or it will wait for #3994 to be released.
+fleetq: #3995 waiting (#1 in line): spark2 is held exclusively by #3994 "fx3 8b opt-in prefill-chunk pass p31 (exclusive, vLLM up)" (claude-f31ccf91-fx3)
+fleetq:   #3994 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3994 set, or it will wait for #3994 to be released.
+fleetq: #3995 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #3995 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p32 'ARMS=vllm intarsia4k intarsia' PHASES=speed MINGB=30 scripts/standings-fx3/window-opt.sh
+[08:38:20] pass p32 model=8b host=spark2 arms=[vllm intarsia4k intarsia] phases=speed job=3995
+[08:38:25] == arm vllm (MemAvailable 54 GB)
+[08:41:55]   vllm ready after 195s
+[08:44:10]   speed exit=0
+[08:44:16] == arm intarsia4k (MemAvailable 54 GB)
+[08:45:31]   intarsia4k ready after 70s
+[08:47:37]   speed exit=0
+[08:47:42] == arm intarsia (MemAvailable 54 GB)
+[08:48:57]   intarsia ready after 70s
+[08:51:16]   speed exit=0
+[08:51:18] pass p32 done
+fleetq: #3995 done (exit 0)

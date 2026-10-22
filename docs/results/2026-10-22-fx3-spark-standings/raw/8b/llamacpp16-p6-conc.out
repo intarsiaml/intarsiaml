@@ -1,0 +1,40 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=5120
+[localeval]   1024 tok rep 1/1: prompt=991 ttft=0.34s prefill=2940 tok/s decode=15.3 tok/s peak=15.4 tok/s out=128
+[localeval] 1 streams: aggregate 14.9 tok/s
+[localeval] 4 streams: aggregate 47.7 tok/s
+[localeval] 16 streams: aggregate 114.2 tok/s
+# localeval: adhoc — 2026-10-22T06:09
+
+- model: `llamacpp` on ? (?), url `http://spark-fa00:8400/v1`
+- thinking: off; run kind: speed; label: fx3-8b-llamacpp16-p6-conc
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8400/v1 --model llamacpp --thinking off --label fx3-8b-llamacpp16-p6-conc --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,16`
+- result file: `results/20261022-060959-adhoc-fx3-8b-llamacpp16-p6-conc/result.json`
+
+## Speed sweep
+
+served `llamacpp`, fingerprint `b1-d88040c`, ctx 5120, 1 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.34 | 2940 (2940–2940) * | - | 15.3 (15.3–15.3) | 15.4 (15.4–15.4) | 3079 | 15.3 | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 14.9 | 15.4 (15.4–15.4) | 0.34 |
+| 4 | 47.7 | 13.4 (12.4–13.9) | 1.22 |
+| 16 | 114.2 | 9.3 (7.6–11.4) | 3.94 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-060959-adhoc-fx3-8b-llamacpp16-p6-conc/result.json
+[localeval] logged to unanimis: 8abb6346-60b1-4d95-ac11-040fe4b33a71

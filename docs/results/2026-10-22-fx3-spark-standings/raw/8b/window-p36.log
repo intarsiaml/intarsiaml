@@ -1,0 +1,5 @@
+[09:33:18] pass p36 model=8b host=spark2 arms=[intarsia4k] phases=speed job=4126
+[09:33:24] == arm intarsia4k (MemAvailable 54 GB)
+[09:34:33]   intarsia4k ready after 65s
+[09:36:40]   speed exit=0
+[09:36:42] pass p36 done

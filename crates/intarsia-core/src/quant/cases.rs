@@ -483,6 +483,14 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     push(format!("M={m} N={n} K={k} x=bf16 out=f32 (head)"), matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::F32));
                 }
             }
+            {
+                // a prefill-shaped batch (lane S1): the CUDA matmul_nvfp4_gemm_reg kernel accepts M >= 256 and N % 128 == 0
+                // only. Appended after the cases above, so their random data is unchanged; small in the quick sweep.
+                let (m, n, k) = if quick { (260, 256, 256) } else { (300, 512, 2048) };
+                for odt in [DType::Bf16, DType::F32] {
+                    push(format!("M={m} N={n} K={k} x=bf16 out={odt} (prefill)"), matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, odt));
+                }
+            }
         }
         Op::MatmulMxfp4 => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
@@ -636,6 +644,17 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     }
                 }
             }
+            {
+                // a prefill-shaped pair (lane S1): CUDA matmul_fp8_pair_gemm_reg accepts M >= 256 (K % 128 == 0) and takes its
+                // one-grid path from 24 tiles per half. Appended, so the cases above keep their random data.
+                let (m, n0, n1, k) = if quick { (260, 1024, 1032, 256) } else { (300, 3200, 1544, 512) };
+                for (odt, aq0, aq1) in [(DType::Bf16, true, true), (DType::Bf16, true, false), (DType::F32, true, true)] {
+                    push(
+                        format!("M={m} N0={n0} N1={n1} K={k} x=bf16 out={odt} act_quant={aq0}/{aq1} (prefill)"),
+                        matmul_fp8_pair_case(&mut rng, m, n0, n1, k, aq0, aq1, DType::Bf16, odt),
+                    );
+                }
+            }
         }
         Op::MatmulMxfp4Pair => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 5, 6, 7, 8] };
@@ -675,6 +694,12 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         push(format!("M={m} N={n} K={k} x={xdt} out={odt}"), matmul_nvfp4_glu_case(&mut rng, m, n, k, xdt, odt));
                     }
                 }
+            }
+            {
+                // a prefill-shaped batch (lane S1): CUDA matmul_nvfp4_glu_gemm accepts M >= 256, N % 64 == 0, bf16 out.
+                // Appended, so the cases above keep their random data.
+                let (m, n, k) = if quick { (260, 128, 256) } else { (300, 512, 2048) };
+                push(format!("M={m} N={n} K={k} x=bf16 out=bf16 (prefill)"), matmul_nvfp4_glu_case(&mut rng, m, n, k, DType::Bf16, DType::Bf16));
             }
         }
         Op::GatedRmsnorm => {
