@@ -4,6 +4,7 @@
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <string.h>
+#include <stdlib.h>
 #include <map>
 #include <mutex>
 
@@ -12,6 +13,14 @@ namespace {
 // weight lives in and drops them when that allocation is freed (lane S1)
 std::mutex g_alloc_mu;
 std::map<uintptr_t, size_t> g_allocs;
+// only with the opt-in cuBLAS fp8 path on: the default path keeps plain cudaMalloc / cudaFree
+bool track_allocs() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_CUDA_FP8_CUBLAS");
+        return e && strcmp(e, "1") == 0;
+    }();
+    return on;
+}
 }  // namespace
 
 extern "C" {
@@ -54,15 +63,15 @@ int ik_rt_init_device(int ordinal, ik_device_info* info) {
 
 int ik_rt_malloc(void** p, size_t bytes) {
     const cudaError_t e = cudaMalloc(p, bytes);
-    if (e == cudaSuccess) {
+    if (e == cudaSuccess && track_allocs()) {
         std::lock_guard<std::mutex> lock(g_alloc_mu);
         g_allocs[(uintptr_t)*p] = bytes;
     }
     return (int)e;
 }
 int ik_rt_free(void* p) {
-    ik_fp8_bf16_cache_forget(p);
-    {
+    if (track_allocs()) {
+        ik_fp8_bf16_cache_forget(p);
         std::lock_guard<std::mutex> lock(g_alloc_mu);
         g_allocs.erase((uintptr_t)p);
     }

@@ -188,7 +188,7 @@ fn fp8_gemm_cublas_is_bitwise_gemm_reg() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(97);
     let mut n_cases = 0;
-    for m in [256usize, 300, 777, 1024, 1500, 2048, 4096] {
+    for m in [256usize, 300, 512, 768, 777, 1024, 1500, 2048, 4096] {
         for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
             if m == 4096 && n == 8192 {
                 continue; // 256 MB of host-side case data; 2048 covers the shape
