@@ -83,6 +83,10 @@ def main():
         if "cold" in res and "warm" in res:
             c, w = res["cold"][0], res["warm"][0]
             print(f"warm/cold oracle-KL ratio: mean {w.mean() / c.mean():.2f}, max {w.max() / c.max():.2f}; rows with warm KL > cold KL: {int((w > c).sum())}/{m}; paired mean diff (warm-cold) {np.mean(w - c):+.2e} +- {np.std(w - c, ddof=1) / np.sqrt(m):.2e} (s.e.)")
+            rng = np.random.default_rng(0)
+            idx = rng.integers(0, m, size=(20000, m))
+            ratio = w[idx].mean(1) / c[idx].mean(1)
+            print(f"bootstrap (20000 row resamples, seed 0) of mean(warm)/mean(cold) oracle-KL: median {np.median(ratio):.2f}, 95% CI [{np.percentile(ratio, 2.5):.2f}, {np.percentile(ratio, 97.5):.2f}]")
             lc, lw = lps["cold"], lps["warm"]
             klcw = np.array([(np.exp(lc[j]) * (lc[j] - lw[j])).sum() for j in range(m)])
             klwc = np.array([(np.exp(lw[j]) * (lw[j] - lc[j])).sum() for j in range(m)])
