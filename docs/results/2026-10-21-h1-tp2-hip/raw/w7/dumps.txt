@@ -1,0 +1,2 @@
+w7/acc-head-35b-tp2g-long vs w7/acc-head-35b-tp2gf-long: BITWISE IDENTICAL: 30 tensors
+w1/acc-dev-35b-tp2g-long vs w7/acc-head-35b-tp2g-long: BITWISE IDENTICAL: 30 tensors

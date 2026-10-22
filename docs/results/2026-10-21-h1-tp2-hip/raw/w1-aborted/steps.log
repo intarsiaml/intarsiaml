@@ -1,0 +1,17 @@
+17:51:46 hiptest comm-par exit 0: test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.81s|
+17:51:49 hiptest comm-ser exit 0: test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.37s|
+17:52:03 gen-smoke-dev-35b-tp2g-short exit 0 [AMD_LOG_LEVEL=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+17:52:03 A: tp=1 tracks start
+17:52:05 plan-base-8b exit 0: 
+17:52:06 plan-base-35b exit 0: 
+17:52:09 acc-base-35b-short exit 1: Error: ref_noise from sidecar golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json|    ref_noise was measured on golden hash cd6ef94b3dcd4c82, this golden is b58845c3cb8a3cb6 (qwen36-35b-a3b-nvfp4-vllm-top20.safetensors): measure it again (`intarsia ref-noise`)|
+17:52:13 acc-base-8b-short exit 0: golden gate: PASS|
+17:52:14 gen-base-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+17:52:19 gen-base-35b-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+17:52:21 plan-dev-35b exit 0: 
+17:52:22 gen-base-8b-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+17:52:24 acc-dev-35b-short exit 1: Error: ref_noise from sidecar golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json|    ref_noise was measured on golden hash cd6ef94b3dcd4c82, this golden is b58845c3cb8a3cb6 (qwen36-35b-a3b-nvfp4-vllm-top20.safetensors): measure it again (`intarsia ref-noise`)|
+17:52:29 gen-dev-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+17:52:31 gen-base-8b-4k exit 0: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258 logits=0ms/256|
+17:52:32 plan-dev-8b exit 0: 
+17:52:34 gen-dev-35b-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|

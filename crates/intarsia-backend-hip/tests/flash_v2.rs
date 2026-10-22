@@ -60,7 +60,7 @@ fn flash_v2_is_bitwise_v1() {
     let mut rng = SplitMix64::new(61);
     let mut n_cases = 0;
     for (n, nkv, d) in
-        [(16usize, 2usize, 256usize), (32, 8, 128), (8, 8, 64), (6, 2, 128), (8, 2, 64), (16, 2, 128), (4, 1, 256)]
+        [(16usize, 2usize, 256usize), (8, 1, 256), (32, 8, 128), (8, 8, 64), (6, 2, 128), (8, 2, 64), (16, 2, 128), (4, 1, 256)]
     {
         for (t, p) in [(17usize, 0usize), (64, 0), (100, 0), (300, 0), (129, 37), (64, 4096), (257, 1000)] {
             let hc = case(&mut rng, n, nkv, d, t, p);

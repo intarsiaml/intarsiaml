@@ -766,6 +766,13 @@ impl Backend for HipBackend {
         r
     }
 
+    /// The fused decode kernels take every dim from the call's tensors, and their admission and launch checks hold at the
+    /// 35B tp=2 shard shapes (8 q / 1 kv heads, GDN 8 / 16 heads, MoE and shared widths 256); the halved shapes are
+    /// cases in the fused-op tests (lane H1, docs/results/2026-10-21-h1-tp2-hip.md). Opt-in (`INTARSIA_TP_FUSION=1`).
+    fn fusion_under_tp(&self) -> bool {
+        true
+    }
+
     fn supports_graphs(&self) -> bool {
         true
     }
