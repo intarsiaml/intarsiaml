@@ -360,6 +360,21 @@ impl Backend for CudaBackend {
                 "attn_prefill_bf16_ext" => {
                     ffi::ik_attn_prefill_bf16_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, s)
                 }
+                "attn_decode_bf16_splitkv_ext" => ffi::ik_attn_decode_bf16_splitkv_ext(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.pos0 as i64,
+                    a.scale,
+                    a.window as i64,
+                    o,
+                    sc,
+                    pos,
+                    s,
+                ),
+                "attn_prefill_bf16_splitkv_ext" => {
+                    ffi::ik_attn_prefill_bf16_splitkv_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, sc, s)
+                }
                 "attn_decode_bf16_ext" => {
                     ffi::ik_attn_decode_bf16_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, pos, s)
                 }

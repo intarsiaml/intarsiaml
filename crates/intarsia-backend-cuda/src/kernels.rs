@@ -38,6 +38,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("embedding_scaled_bf16", Op::Embedding),
     ("attn_prefill_bf16_ext", Op::AttnPrefill),
     ("attn_decode_bf16_ext", Op::AttnDecode),
+    ("attn_prefill_bf16_splitkv_ext", Op::AttnPrefill),
+    ("attn_decode_bf16_splitkv_ext", Op::AttnDecode),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("gdn_conv_bf16", Op::GdnConv),
@@ -363,6 +365,17 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1),
+            // the split-KV kernels with the sliding window (decode and short q_len); like the plain split-KV ones they need scratch.
+            // Priority 9: below the plain split-KV kernels (10, which never accept an ext call), above the SIMT ones (-1)
+            "attn_decode_bf16_splitkv_ext" | "attn_prefill_bf16_splitkv_ext" => k
+                .acts(bf)
+                .weights(bf)
+                .ext()
+                .when(|s| splitkv_ok(s) && s.m <= SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(9)
+                .scratch(splitkv_scratch),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
             // sequential recurrence, one warp per state row: fixed reduction order
@@ -937,7 +950,9 @@ mod tests {
     const G4_KERNELS: &[&str] = &[
         "add_scaled_bf16:add",
         "attn_decode_bf16_ext:attn_decode",
+        "attn_decode_bf16_splitkv_ext:attn_decode",
         "attn_prefill_bf16_ext:attn_prefill",
+        "attn_prefill_bf16_splitkv_ext:attn_prefill",
         "embedding_scaled_bf16:embedding",
         "gelu_glu_bf16:gelu_glu",
         "moe_experts_decode_gelu_bf16:moe_experts",
@@ -974,8 +989,11 @@ mod tests {
         // plain calls: the pre-g4 choice; Gemma's shapes (window / D = 512) get the ext kernels
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, false)).as_deref(), Some("attn_decode_bf16_splitkv"));
         assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 2, 256, false)).as_deref(), Some("attn_prefill_bf16_flash"));
-        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, true)).as_deref(), Some("attn_decode_bf16_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 8, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(8, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, true)).as_deref(), Some("attn_decode_bf16_ext"));
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, false)).as_deref(), Some("attn_decode_bf16_ext"));
         assert_eq!(pick(Op::AttnPrefill, &att(20, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_ext"));
         let el = |ext: bool| ShapeInfo { m: 4, k: 64, head_dim: 64, act: bf, out: bf, ext, ..Default::default() };

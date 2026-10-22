@@ -101,6 +101,8 @@ extern "C" {
     pub fn ik_add_scaled_bf16(a: T, b: T, out: TM, scale: f32, s: S) -> c_int;
     pub fn ik_embedding_scaled_bf16(ids: T, table: T, out: TM, scale: f32, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16_splitkv_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, scratch: SC, pos: T, s: S) -> c_int;
+    pub fn ik_attn_prefill_bf16_splitkv_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, pos: T, s: S) -> c_int;
 }
 

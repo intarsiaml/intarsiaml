@@ -29,6 +29,15 @@ int ik_attn_prefill_bf16_ext(const ik_tensor* q, const ik_tensor* kc, const ik_t
 int ik_attn_decode_bf16_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                             int64_t window, ik_tensor* out, const ik_tensor* pos, void* stream);
 
+/* attn_{decode,prefill}_bf16_splitkv_ext: the split-KV kernels (head_dim 32/64/128/256, group <= 8, scratch as the plain ones)
+ * with the sliding window; kernels/cuda/attention_splitkv.cu */
+int ik_attn_decode_bf16_splitkv_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                    float scale, int64_t window, ik_tensor* out, const ik_scratch* scratch,
+                                    const ik_tensor* pos, void* stream);
+int ik_attn_prefill_bf16_splitkv_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                     float scale, int64_t window, ik_tensor* out, const ik_scratch* scratch,
+                                     void* stream);
+
 #ifdef __cplusplus
 }
 #endif

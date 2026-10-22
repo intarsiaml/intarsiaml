@@ -482,9 +482,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     // 1100 > 1024: a 1024-key window cuts the context at a key that is not a tile boundary
                     if quick { vec![(1, 7), (1, 40), (1, 1100)] } else { vec![(1, 7), (1, 40), (1, 1100), (1, 1500)] }
                 } else if quick {
-                    vec![(20, 30), (20, 1100)]
+                    vec![(20, 30), (20, 1100), (5, 40)]
                 } else {
-                    vec![(20, 30), (20, 1100), (5, 0)]
+                    vec![(20, 30), (20, 1100), (5, 0), (5, 40), (12, 1100)]
                 };
                 for &(n, nkv, d) in eheads {
                     for &w in ewin {
