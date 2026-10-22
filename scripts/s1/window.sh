@@ -14,17 +14,14 @@ set -uo pipefail
 (( $# == 3 )) || { sed -n 2,11p "$0"; exit 2; }
 MAXMIN=$1; LABEL=$2; SCRIPT=$3
 (( MAXMIN >= 1 && MAXMIN <= 60 )) || { echo "max-minutes must be 1..60" >&2; exit 2; }
-h=$(TZ=America/New_York date +%H)
-if (( 10#$h == 23 )); then  # the slot came up before midnight: vLLM stays up until 00:00
-  echo "waiting for 00:00 EDT ($(TZ=America/New_York date +%T)); vLLM stays up"
-  until (( 10#$(TZ=America/New_York date +%H) < 7 )); do sleep 30; done
-  h=$(TZ=America/New_York date +%H)
+# lane rules: no cap 00:00-07:00 EDT (the cap ends the window by 07:00); outside it, windows of at most 30 min
+h=$(TZ=America/New_York date +%H); mnow=$(( 10#$h * 60 + 10#$(TZ=America/New_York date +%M) ))
+if (( mnow < 7 * 60 - 25 )); then
+  mins_left=$(( 7 * 60 - mnow - 10 ))
+  (( MAXMIN > mins_left )) && { echo "cap ${MAXMIN} min -> ${mins_left} min (07:00 EDT)"; MAXMIN=$mins_left; }
+else
+  (( MAXMIN > 28 )) && { echo "outside 00:00-07:00 EDT: cap ${MAXMIN} min -> 28 min (lane rules: 30 min windows)"; MAXMIN=28; }
 fi
-(( 10#$h < 7 )) || { echo "refusing: $(TZ=America/New_York date +%T) EDT is outside 00:00-07:00" >&2; exit 2; }
-# the script cap must end the window by 07:00 EDT
-mins_left=$(( (7 * 60) - (10#$h * 60 + 10#$(TZ=America/New_York date +%M)) - 10 ))
-(( MAXMIN > mins_left )) && { echo "cap ${MAXMIN} min -> ${mins_left} min (07:00 EDT)"; MAXMIN=$mins_left; }
-(( MAXMIN >= 15 )) || { echo "refusing: under 15 min left before 07:00 EDT" >&2; exit 2; }
 # lane rules: agent-harness benchmarks against the Spark vLLMs; never take spark2's down under one
 if fleetq status 2>&1 | grep -iq "agent-harness"; then
   echo "refusing: fleetq status shows an agent-harness job:" >&2; fleetq status 2>&1 | grep -i "agent-harness" >&2; exit 3

@@ -11,4 +11,11 @@ echo "== build $(date +%T)"
 HOST=spark2 bash "$S/build.sh" 2>&1 | tee "$LOG/w-build.out"
 ssh -n spark2 'for t in s1-base s1-dev; do test -x ~/intarsia-decfuse/$t/target/acc/release/intarsia || exit 1; done' || { echo "build missing"; exit 1; }
 echo "== window $(date +%T)"
-LOCALEVAL_ARMS="base dev cub" bash "$S/window.sh" ${WIN_MIN:-55} "S1 spark2 A/B + localeval (base/dev/cub)" '~/intarsia-decfuse/s1-dev/scripts/s1/wALL.sh' 2>&1 | tee "$LOG/w-window.out"
+mnow=$(( 10#$(TZ=America/New_York date +%H) * 60 + 10#$(TZ=America/New_York date +%M) ))
+if (( mnow < 6 * 60 )); then  # an hour or more of the night window left: A/B and localeval
+  LOCALEVAL_ARMS="base dev cub" bash "$S/window.sh" ${WIN_MIN:-55} "S1 spark2 A/B + localeval (base/dev/cub)" \
+    '~/intarsia-decfuse/s1-dev/scripts/s1/wALL.sh "ab le"' 2>&1 | tee "$LOG/w-window.out"
+else  # a 30-minute day window: the A/B only
+  bash "$S/window.sh" 28 "S1 spark2 A/B base/dev/cub (30 min day window)" \
+    '~/intarsia-decfuse/s1-dev/scripts/s1/wALL.sh ab' 2>&1 | tee "$LOG/w-window.out"
+fi

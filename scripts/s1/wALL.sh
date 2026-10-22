@@ -4,14 +4,14 @@
 #      arms base / dev / cub);
 #   2. one `serve` per arm for localeval speed (scripts/cuda-prefill4/wC-serve.sh, READY protocol), the harness the Q1 vLLM
 #      numbers came from.
-# STEPS (default "ab le") picks the parts.
+# $1 or STEPS (default "ab le") picks the parts. Outside the night window: "ab" with W_BUDGET_SEC 1500.
 set -u
 P=$HOME/intarsia-decfuse
 S=$P/s1-dev/scripts
-STEPS=${STEPS:-ab le}
+STEPS=${1:-${STEPS:-ab le}}
 export OUTNAME=${OUTNAME:-s1W}
 if [[ " $STEPS " == *" ab "* ]]; then
-  AB_ARMS=${AB_ARMS:-"base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1"} W_BUDGET_SEC=${W_BUDGET_SEC:-2400} bash $S/s1/wAB.sh
+  AB_ARMS=${AB_ARMS:-"base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1"} W_BUDGET_SEC=${W_BUDGET_SEC:-$([[ " $STEPS " == *" le "* ]] && echo 2400 || echo 1500)} bash $S/s1/wAB.sh
 fi
 if [[ " $STEPS " == *" le "* ]]; then
   TREE=s1-base ARM_MAX_SEC=600 bash $S/cuda-prefill4/wC-serve.sh base
