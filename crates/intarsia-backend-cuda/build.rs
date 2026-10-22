@@ -107,16 +107,21 @@ fn main() {
             (None, true) => (vec![format!("-arch={arch}")], Some("-DIK_SM120A=0")),
             _ => (vec![format!("-arch={arch}")], None),
         };
+        // Run in the kernels root with a relative source path and `-I .`: `-lineinfo` and `__FILE__`/`assert` record the
+        // path nvcc was given, so an absolute path would put the checkout's directory into the object (and the binary),
+        // and the same sha built in two directories would differ. The output path is not embedded.
+        let rel = src.strip_prefix(&kroot).unwrap_or(src);
         let child = Command::new(&nvcc)
+            .current_dir(&kroot)
             .args(["-c", "-O3", "--std=c++17", "-lineinfo", "--expt-relaxed-constexpr"])
             .args(&arch_args)
             .args(a_def)
             .args(["-Xcompiler", "-fPIC,-Wall"])
             .arg("-I")
-            .arg(&kroot)
+            .arg(".")
             .arg("-o")
             .arg(&obj)
-            .arg(src)
+            .arg(rel)
             .spawn()
             .unwrap_or_else(|e| panic!("failed to run {}: {e}", nvcc.display()));
         children.push((src.clone(), child));
