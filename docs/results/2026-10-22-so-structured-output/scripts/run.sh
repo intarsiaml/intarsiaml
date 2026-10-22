@@ -1,26 +1,25 @@
 #!/bin/zsh
 # so lane: ONE exclusive endor slot. Qwen3-8B BF16, Metal.
-#   1. profile: prof binary, INTARSIA_CONSTRAIN_PROFILE=1, fruits-40 speed x3 (per-phase ns on stderr)
+#   1. profile: head binary, INTARSIA_CONSTRAIN_PROFILE=1, fruits-40 speed x3 (per-phase ns on stderr)
 #   2. A/B: base vs head, ROUNDS rounds, order alternates, fresh server per visit, speed x REPS (+ identity in rounds 1-2)
 #   3. llama.cpp (BF16 GGUF) same schema and prompt, speed x ROUNDS visits... (one server, ROUNDS x REPS reps)
 # fleetq run --host endor --exclusive --mem 24 --expect 45 --label "so: constrained decode profile + A/B" -- zsh run.sh <out dir>
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 OUT=${1:?out dir}
-ROUNDS=${ROUNDS:-5}
+ROUNDS=${ROUNDS:-3}
 REPS=${REPS:-1}
 H=${0:A:h}
 MODEL=${MODEL:-/Users/josef/models/Qwen3-8B}
 GGUF=${GGUF:-/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf}
 BASE=/opt/code/wt-so-base/target-metal/release/intarsia
-PROF=/opt/code/wt-so-prof/target-metal/release/intarsia
 HEAD=/opt/code/wt-so/target-metal/release/intarsia
 PORT=8093
 mkdir -p $OUT
-for b in $BASE $PROF $HEAD; do [ -x $b ] || { echo "missing binary $b" >&2; exit 3; }; done
+for b in $BASE $HEAD; do [ -x $b ] || { echo "missing binary $b" >&2; exit 3; }; done
 SPID=""
 trap '[ -n "$SPID" ] && kill $SPID 2>/dev/null' EXIT
-{ echo "date: $(date -Iseconds) fleetq job: $FLEETQ_JOB"; for b in $BASE $PROF $HEAD; do echo "$b $(md5 -q $b)"; done; sw_vers | tr '\n' ' '; echo; } > $OUT/versions.txt 2>&1
+{ echo "date: $(date -Iseconds) fleetq job: $FLEETQ_JOB"; for b in $BASE $HEAD; do echo "$b $(md5 -q $b)"; done; sw_vers | tr '\n' ' '; echo; } > $OUT/versions.txt 2>&1
 
 serve() { # label bin [env...]
   local label=$1 bin=$2; shift 2
@@ -47,7 +46,7 @@ warm() {
 SS="uv run --script $H/ssbench.py"
 
 echo "== profile $(date)" | tee -a $OUT/job.log
-serve prof $PROF INTARSIA_CONSTRAIN_PROFILE=1 && {
+serve prof $HEAD INTARSIA_CONSTRAIN_PROFILE=1 && {
   warm
   $SS speed --url http://127.0.0.1:$PORT --reps 3 --label prof --out $OUT/prof-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
 }

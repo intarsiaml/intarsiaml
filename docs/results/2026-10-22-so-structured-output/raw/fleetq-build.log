@@ -1,2 +1,5 @@
 fleetq: #4159 waiting (#9 in line): in line behind #4129 "fx4 final: Qwen3 no-op + onboard quick x2 (double-rounded, min_top1)" (claude-f31ccf91) on endor
 fleetq: #4159 waiting (#9 in line): in line behind #4129 "fx4 final: Qwen3 no-op + onboard quick x2 (double-rounded, min_top1)" (claude-f31ccf91) on endor; #4129 has no estimated start, so nothing can go first by ending before it
+fleetq: #4159 waiting (#6 in line): in line behind #4135 "ck: prefill chunk 2048/4096/8192 Metal acc+speed (exclusive)" (claude-f31ccf91-ck) on endor
+fleetq: #4159 waiting (#5 in line): in line behind #4148 "fx5c: Metal 35B reuse gate with the oracle-relative continue rule + mutation (non-exclusive, numerics only)" (claude-f31ccf91-fx5c) on endor
+fleetq: #4159 waiting (#4 in line): in line behind #4156 "mdl: Metal decode folds A/B speed n=3 main vs head + dispatches/token (exclusive)" (claude-f31ccf91-mdl) on endor
