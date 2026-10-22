@@ -40,7 +40,8 @@ pub const NAX_FLASH_VARIANTS: &[NaxFlashVariant] = &[
     nv!("attn_nax_d128_s8", 128, 8, 32),
 ];
 
-const GROUPS: [usize; 4] = [1, 2, 4, 8];
+/// Group sizes (query heads per kv head); 3, 5, 6, 7 run the next larger variant with surplus simdgroups owning no head (see flash.rs).
+const GROUPS: [usize; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 static FALLBACKS: AtomicU64 = AtomicU64::new(0);
 
@@ -59,7 +60,7 @@ pub fn fallbacks() -> u64 {
 pub const NAX_FLASH_MIN_M: usize = 2;
 
 /// Shapes the NAX flash kernel is registered for: at least [`NAX_FLASH_MIN_M`] query rows, head_dim 128, query heads a
-/// multiple of the kv heads with a group in 1, 2, 4, 8. (A call to `launch` by name takes any T.)
+/// multiple of the kv heads with a group of 1 to 8. (A call to `launch` by name takes any T.)
 pub fn nax_flash_ok(s: &ShapeInfo) -> bool {
     s.m >= NAX_FLASH_MIN_M
         && s.head_dim == 128
@@ -90,7 +91,11 @@ fn pick(d: usize, g: usize) -> &'static NaxFlashVariant {
     if let Some(v) = NAX_FLASH_VARIANTS.get(ix).filter(|v| v.head_dim == d && v.nsg % g == 0) {
         return v;
     }
-    NAX_FLASH_VARIANTS.iter().find(|v| v.head_dim == d && v.nsg % g == 0).expect("a nax flash variant for head_dim and group")
+    NAX_FLASH_VARIANTS
+        .iter()
+        .find(|v| v.head_dim == d && v.nsg % g == 0)
+        .or_else(|| NAX_FLASH_VARIANTS.iter().find(|v| v.head_dim == d && v.nsg >= g))
+        .expect("a nax flash variant for head_dim and group")
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -175,10 +180,11 @@ mod tests {
     #[test]
     fn every_group_has_a_variant() {
         for g in GROUPS {
-            assert!(NAX_FLASH_VARIANTS.iter().any(|v| v.head_dim == 128 && v.nsg % g == 0), "group {g}");
+            assert!(NAX_FLASH_VARIANTS.iter().any(|v| v.head_dim == 128 && v.nsg >= g), "group {g}");
         }
         let sh = |m, n, nkv, d| ShapeInfo { m, n_heads: n, n_kv_heads: nkv, head_dim: d, ..Default::default() };
-        assert!(!nax_flash_ok(&sh(64, 12, 4, 128)));
+        assert!(nax_flash_ok(&sh(64, 28, 4, 128)));
+        assert!(!nax_flash_ok(&sh(64, 36, 4, 128)), "group 9");
         assert!(!nax_flash_ok(&sh(64, 32, 8, 64)));
         assert!(!nax_flash_ok(&sh(1, 32, 8, 128)), "T = 1 is the decode op");
         assert!(nax_flash_ok(&sh(NAX_FLASH_MIN_M, 32, 8, 128)));

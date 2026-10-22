@@ -134,6 +134,7 @@ template <int D, int BK, int NSG>
     const uint kvh = tg.y;
     const uint hg = sg / PQ, pq = sg % PQ;
     const uint head = kvh * G + hg;
+    const bool live = hg < G;  // group sizes that do not divide NSG (3, 5, 6, 7): the surplus simdgroups own no head
     const uint qbase = qb * BQ + pq * 16;
     const ulong kv_len = min(pos0 + T, cap);
     const ulong kmax = min(kv_len, pos0 + min((ulong)T, (ulong)(qb + 1) * BQ));
@@ -152,8 +153,8 @@ template <int D, int BK, int NSG>
     frag_t<bfloat> Qf[TD];
     FN_UNROLL
     for (int id = 0; id < TD; ++id) {
-        const uint2 a = pos0r < T ? *(device const uint2*)(q + ((ulong)pos0r * N + head) * D + 16 * id + 4 * cq) : uint2(0);
-        const uint2 b = pos1r < T ? *(device const uint2*)(q + ((ulong)pos1r * N + head) * D + 16 * id + 4 * cq) : uint2(0);
+        const uint2 a = (pos0r < T && live) ? *(device const uint2*)(q + ((ulong)pos0r * N + head) * D + 16 * id + 4 * cq) : uint2(0);
+        const uint2 b = (pos1r < T && live) ? *(device const uint2*)(q + ((ulong)pos1r * N + head) * D + 16 * id + 4 * cq) : uint2(0);
         const bfloat4 al = as_type<bfloat4>(a), bl = as_type<bfloat4>(b);
         FN_UNROLL
         for (short j = 0; j < 4; ++j) {
@@ -279,7 +280,7 @@ template <int D, int BK, int NSG>
     FN_UNROLL
     for (int i = 0; i < 2; ++i) {
         const uint pos = i ? pos1r : pos0r;
-        if (pos >= T) continue;
+        if (pos >= T || !live) continue;
         const float inv = i ? inv1 : inv0;
         device uint2* dst = (device uint2*)(out + ((ulong)pos * N + head) * D + 4 * cq);
         FN_UNROLL
