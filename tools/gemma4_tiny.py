@@ -118,6 +118,61 @@ def randomize(model, seed=0):
             p.copy_(p.to(torch.bfloat16).to(p.dtype))
 
 
+E2M1 = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0]
+LUT = torch.tensor(E2M1 + [-v for v in E2M1], dtype=torch.float32)  # bit 3 = sign
+_MIDS = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0])
+_TIE_UP = torch.tensor([False, True, False, True, False, True, False])  # ties to even code
+
+
+def quant_nvfp4(w):
+    """ModelOpt-style RTN NVFP4 of f32 [N,K] (see quantize_rows in nvfp4.rs):
+    gs = amax/(6*448); per-16 scale = e4m3(block_amax/6/gs); e2m1 nearest, ties to even code.
+    Returns (u8 [N,K/2] low nibble = even element, f8e4m3 [N,K/16], gs f32 scalar)."""
+    w = w.float()
+    n, k = w.shape
+    gs = w.abs().max().item() / (6.0 * 448.0)
+    blocks = w.reshape(n, k // 16, 16)
+    sc = (blocks.abs().amax(-1) / 6.0 / gs).to(torch.float8_e4m3fn)
+    eff = (sc.float() * gs).clamp_min(1e-30).unsqueeze(-1)
+    x = blocks / eff
+    a = x.abs()
+    idx = (a.unsqueeze(-1) > _MIDS).sum(-1)  # strictly above midpoint -> next code
+    code = idx.clone()
+    # exact ties go to the even code (see quantize_rows in nvfp4.rs)
+    for i in range(7):
+        m = (a == _MIDS[i])
+        code = torch.where(m, torch.full_like(code, i + (1 if bool(_TIE_UP[i]) else 0)), code)
+    code = code | ((x < 0).long() << 3)
+    code = code.reshape(n, k)
+    packed = (code[:, 0::2] | (code[:, 1::2] << 4)).to(torch.uint8)
+    return packed, sc, torch.tensor(gs, dtype=torch.float32)
+
+
+def dequant_nvfp4(packed, sc, gs):
+    n, kh = packed.shape
+    lo, hi = (packed & 0xF).long(), (packed >> 4).long()
+    vals = LUT[torch.stack([lo, hi], -1).reshape(n, kh * 2)]
+    return (vals * sc.float().repeat_interleave(16, 1) * float(gs)).to(torch.bfloat16)
+
+
+def quantize_experts(model):
+    """Replace expert weights in-place by their NVFP4 dequantisation (bf16-representable);
+    return {(layer, expert, proj): (packed, scale, gs)} for export."""
+    q = {}
+    with torch.no_grad():
+        for L, layer in enumerate(model.model.layers):
+            ex = layer.experts
+            I = ex.down_proj.shape[2]
+            for e in range(ex.down_proj.shape[0]):
+                for proj, w in (("gate_proj", ex.gate_up_proj[e, :I]), ("up_proj", ex.gate_up_proj[e, I:]),
+                                ("down_proj", ex.down_proj[e])):
+                    pk, sc, gs = quant_nvfp4(w)
+                    q[(L, e, proj)] = (pk, sc, gs)
+                    dq = dequant_nvfp4(pk, sc, gs).to(w.dtype)
+                    w.copy_(dq)
+    return q
+
+
 def to_bf16(model):
     """Cast params/buffers to bf16 but keep rotary inv_freq (and embed_scale) in f32.
 
@@ -133,7 +188,7 @@ def to_bf16(model):
     return model
 
 
-def to_ckpt(sd, cfg):
+def to_ckpt(sd, cfg, q):
     """HF state dict -> real-checkpoint tensor names (bf16, per-expert split)."""
     out = {}
     inter = cfg.moe_intermediate_size
@@ -142,16 +197,19 @@ def to_ckpt(sd, cfg):
             continue  # tied
         assert k.startswith("model."), k
         nk = "model.language_model." + k[len("model."):]
-        v = v.detach().to(torch.bfloat16).contiguous()
+        v = v.detach().to(torch.bfloat16).contiguous() if not re.search(r'experts\.(gate_up_proj|down_proj)$', nk) else v.detach()
         m = re.match(r"(.*\.layers\.\d+)\.experts\.(gate_up_proj|down_proj)$", nk)
         if m:
             pre, which = m.groups()
+            L = int(re.search(r"layers\.(\d+)", pre).group(1))
             for e in range(v.shape[0]):
-                if which == "gate_up_proj":
-                    out[f"{pre}.experts.{e}.gate_proj.weight"] = v[e, :inter].clone()
-                    out[f"{pre}.experts.{e}.up_proj.weight"] = v[e, inter:].clone()
-                else:
-                    out[f"{pre}.experts.{e}.down_proj.weight"] = v[e].clone()
+                for proj in (("gate_proj", "up_proj") if which == "gate_up_proj" else ("down_proj",)):
+                    pk, sc, gs = q[(L, e, proj)]
+                    b = f"{pre}.experts.{e}.{proj}"
+                    out[b + ".weight"] = pk.contiguous()
+                    out[b + ".weight_scale"] = sc.contiguous()
+                    out[b + ".weight_scale_2"] = gs.reshape(()).contiguous()
+                    out[b + ".input_scale"] = torch.tensor(1.0, dtype=torch.float32)
         else:
             out[nk] = v
     return out
@@ -166,7 +224,11 @@ def from_ckpt(ck, cfg):
         nk = "model." + k[len("model.language_model."):]
         m = re.match(r"(.*\.layers\.\d+)\.experts\.(\d+)\.(gate_proj|up_proj|down_proj)\.weight$", nk)
         if m:
-            buckets.setdefault(m.group(1), {})[(int(m.group(2)), m.group(3))] = v
+            sc = ck[k.replace(".weight", ".weight_scale")]
+            gs = ck[k.replace(".weight", ".weight_scale_2")]
+            buckets.setdefault(m.group(1), {})[(int(m.group(2)), m.group(3))] = dequant_nvfp4(v, sc, gs)
+        elif re.search(r"\.experts\.\d+\..*(weight_scale|weight_scale_2|input_scale)$", nk):
+            continue
         else:
             sd[nk] = v
     for pre, d in buckets.items():
@@ -185,8 +247,6 @@ def real_patterns(names):
             continue
         n = re.sub(r"\.layers\.\d+\.", ".layers.N.", n)
         n = re.sub(r"\.experts\.\d+\.", ".experts.E.", n)
-        if re.search(r"\.(input_scale|weight_scale|weight_scale_2)$", n):
-            continue  # NVFP4 side tensors; tiny ckpt is unquantised
         pats.add(n)
     return pats
 
@@ -219,6 +279,7 @@ def main():
     torch.manual_seed(0)
     model = Gemma4ForCausalLM(cfg)
     randomize(model)
+    qexp = quantize_experts(model)  # experts = NVFP4 dequant (W4A16 semantics) for HF and engine alike
     model = to_bf16(model).eval()
 
     for i, l in enumerate(model.model.layers):
@@ -228,7 +289,7 @@ def main():
               f"window={a.sliding_window}")
 
     # ---- checkpoint
-    ck = to_ckpt(model.state_dict(), cfg)
+    ck = to_ckpt(model.state_dict(), cfg, qexp)
     save_file(ck, os.path.join(args.out, "model.safetensors"), metadata={"format": "pt"})
 
     # name-pattern check against the real checkpoint
@@ -242,7 +303,7 @@ def main():
     for i, t in enumerate(cfg.layer_types):
         has_v = f"model.language_model.layers.{i}.self_attn.v_proj.weight" in ck
         assert has_v == (t == "sliding_attention"), (i, t, has_v)
-    print(f"NAME CHECK OK: {len(ck)} tensors, {len(tp)} patterns == real (minus nvfp4 side tensors / vision)")
+    print(f"NAME CHECK OK: {len(ck)} tensors, {len(tp)} patterns == real (vision excluded)")
 
     # config.json: real top-level layout, tiny text_config
     real_cfg = json.load(open(REAL_CONFIG))

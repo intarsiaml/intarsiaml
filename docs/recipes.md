@@ -26,7 +26,7 @@ live in `recipes/*.toml` and are compiled in by `crates/intarsia-models/src/reci
 **Errors you will meet.** An unknown key is rejected with the list of valid ones (`unknown field `kv_dtyp`, expected
 one of `kv_dtype`, `max_batch`, `fp8_act``) in every table with a fixed set of keys. Three places still accept names
 they do not know: `[layer.norms]` (a map: a misspelled `pre_ffn` is a norm that is never applied), `[layer.by_type]`
-(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` is read, the rest
+(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` and `[layer.gemma]` are read, the rest
 fail at build). A recipe in `--recipe-dir` that does not parse is skipped when choosing by architecture, and the "no
 recipe matches" error now lists each skipped file with its parse error, so a typo shows up there instead of as a silent
 miss. `intarsia plan show` is the quickest way to see a load error with the model's real `config.json`.
@@ -99,6 +99,13 @@ missing feature.
 |---|---|---|---|
 | `kind` | string | required | `"qwen3_5_moe"` (the only MoE layout implemented: routed experts plus a gated shared expert). |
 | `prefix` | string | required | Tensor prefix of the MoE block, e.g. `"model.language_model.layers.{i}.mlp"`; the loader finds router, experts and shared expert under it. Expert counts and widths come from `config.json`. |
+
+### `[layer.gemma]` (Gemma 4 decoder layer, one block per layer)
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `kind` | string | required | `"gemma4"` (the only layout implemented). |
+| `prefix` | string | required | Tensor prefix of the whole layer, e.g. `"model.language_model.layers.{i}"`. Everything under it (attention, dense MLP, router, experts, the five norms, `layer_scalar`) is found by the fixed Gemma 4 names. Head sizes, KV heads, sliding window, rope tables, soft-cap and expert counts come from `config.json` (`ModelDims::gemma`, `layer_types`). Use `pattern = ["gemma"]` and `[layer.norms] pre_gemma = <input_layernorm>`. |
 
 ### `[top]` (required)
 
