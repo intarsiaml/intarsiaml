@@ -34,7 +34,7 @@ restore() {
   return 1
 }
 
-# localeval speed arm: a server on GPU 0 (knob exported through docker -e for `on`), then `localeval run --sizes 4096,16384 --reps 3`
+# localeval speed arm: a server on GPU 0 (knob exported through docker -e for `on`), then `localeval speed --sizes 4096,16384 --reps 3`
 loc_stop() { ssh $T 'docker rm -f intarsia-serve >/dev/null 2>&1; true' < /dev/null; }
 loc_arm() { # loc_arm <arm> <round>
   local arm=$1 r=$2 repo vol envx="" i
@@ -49,7 +49,7 @@ loc_arm() { # loc_arm <arm> <round>
   for ((i = 0; i < 240; i += 3)); do curl -sf -m 2 "http://$T:8090/health" > /dev/null 2>&1 && break; sleep 3; done
   say "localeval arm $label up"
   ssh $T 'docker logs intarsia-serve 2>&1 | head -80' < /dev/null > "$OUT/loc-$label-serve.log" 2>&1
-  (cd /opt/code/deepeval && uv run localeval run --url "http://$T:8090/v1" --model qwen36-35b-intarsia-hip --sizes 4096,16384 --gen 128 --reps 3 --thinking off --label "tc-$label") > "$OUT/loc-$label.txt" 2>&1
+  (cd /opt/code/deepeval && uv run localeval speed --url "http://$T:8090/v1" --model qwen36-35b-intarsia-hip --sizes 4096,16384 --gen 128 --reps 3 --thinking off --label "tc-$label") > "$OUT/loc-$label.txt" 2>&1
   say "localeval arm $label exit $?"
   loc_stop
 }
@@ -72,11 +72,11 @@ if [[ " $STAGES " == *" speed "* ]]; then
   r=1
   while :; do
     for a in $SPEEDARMS; do
-      if [ "$(left)" -lt 240 ]; then say "SKIPPED speed arm $a-r$r: $(left) s left"; continue; fi
+      if [ "$(left)" -lt 100 ]; then say "SKIPPED speed arm $a-r$r: $(left) s left"; continue; fi
       loc_arm "$a" "$r"
     done
     r=$((r + 1))
-    [ "$(left)" -ge 800 ] || break
+    [ "$(left)" -ge 300 ] || break
   done
 fi
 say "stages done"
