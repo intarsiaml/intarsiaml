@@ -3,6 +3,8 @@
 # 128 / 1k / 4k / 16k, gen 256, 3 reps, macmon logged per arm, then gate.py (docs/benchmarking.md "Metal speed gate").
 #   fleetq run --host endor --exclusive --mem 24 --label "metal speed gate" -- \
 #     zsh scripts/metal-speed-gate/sameslot.sh <intarsia binary built with --features metal> <out dir>
+# Each arm is bracketed by refbw.py (clock-normalisation reference, baseline in ref-baseline.json); gate.py divides decode by
+# the reference/baseline ratio and prints raw, reference and normalised values.
 # Server flags as docs/results/2026-10-18-metal-sameslot-main.md, plus --max-seq 20000 / llama.cpp -c 20480 for 16k.
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
@@ -31,10 +33,13 @@ run_engine() { # label port health-path modelid cmd...
     sleep 1
   done
   [[ $up == 1 ]] || { echo "SERVER FAILED $label"; SPID=""; return 1; }
+  REF=$H/refbw.py   # fixed reference workload (clock normalisation), run before and after the arm's localeval
+  $REF >> $OUT/$label-ref.jsonl 2>> $OUT/$label-ref.err
   $MACMON pipe -i 250 > $OUT/$label-macmon.jsonl 2>/dev/null & MPID=$!
   ( cd /opt/code/deepeval && uv run localeval speed --url http://127.0.0.1:$port/v1 --model $mid --sizes $SIZES --gen 256 --reps 3 \
       --thinking off --label gate-$label ) > $OUT/$label-localeval.out 2> $OUT/$label-localeval.err
   echo "localeval exit $?"
+  $REF >> $OUT/$label-ref.jsonl 2>> $OUT/$label-ref.err
   kill $MPID 2>/dev/null; wait $MPID 2>/dev/null; MPID=""
   local res=$(grep -o 'saved .*result.json' $OUT/$label-localeval.out | tail -1 | sed 's/^saved //')
   [ -n "$res" ] && cp $res $OUT/$label-localeval.json

@@ -24,6 +24,8 @@ enum Command {
     RefNoise(cmd::accuracy::RefNoiseArgs),
     /// Speed benchmark.
     Bench(cmd::bench::BenchArgs),
+    /// New model, one command: recipe, smoke, quick tier (published), then the in-depth tier. Resumable.
+    Onboard(cmd::onboard::OnboardArgs),
     /// Host fingerprint and known-pitfall checks.
     Doctor(cmd::doctor::DoctorArgs),
     /// Show the resolved execution plan (kernel per op) for a model.
@@ -45,6 +47,7 @@ fn main() -> Result<()> {
     match Cli::parse().cmd {
         Command::Generate(a) => cmd::generate::run(a),
         Command::Kernels(a) => cmd::kernels::run(a),
+        Command::Onboard(a) => cmd::onboard::run(a),
         Command::Serve(a) => cmd::serve::run(a),
         Command::Accuracy(a) => cmd::accuracy::run(a),
         Command::RefNoise(a) => cmd::accuracy::run_ref_noise(a),

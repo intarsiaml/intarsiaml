@@ -1,17 +1,65 @@
 # Adding a model
 
-A newly downloaded model goes through two commands:
+A newly downloaded model goes through one command:
 
 ```sh
-# 1. does an existing recipe cover it? if not, scaffold one (seconds, reads config.json and the tensor names only)
-intarsia recipe new --model /models/NewModel
-
-# 2. qualify it: quick numbers in minutes, then the in-depth stages in the same run
-intarsia qualify --model /models/NewModel --backend hip
+intarsia onboard --model /models/NewModel --backend hip [--golden-from http://host:8000/v1] [--out reports/NewModel/onboard-1]
 ```
+
+It chains the steps below (recipe, smoke generate, `qualify`'s quick tier, then its in-depth tier), **publishes the
+quick numbers as soon as the quick tier is done** (`quick.md`, `quick.json`, `quick.prom`) while the in-depth tier
+keeps running, and can be killed and run again with the same `--out`: finished stages are not repeated. The individual
+commands ([`recipe new`](#1-intarsia-recipe-new), [`qualify`](#2-intarsia-qualify), [by hand](#3-by-hand-generate-and-accuracy)) stay
+available for one step at a time.
 
 Most models need only a recipe, a TOML file that maps the checkpoint's tensor names onto library
 blocks. A new block type is needed only for a new mechanism ([When you need code](#when-you-need-code)).
+
+## 0. `intarsia onboard`
+
+```sh
+intarsia onboard --model <hf dir> --backend <cpu|cuda|hip|metal> [--golden-from <vllm url | hf dir | golden file>]
+                 [--out DIR] [--quick-only] [--fail-fast] [--redo STAGE]... [--push-metrics URL] [--on-quick-done CMD]
+                 [--recipe FILE] [--recipe-dir DIR]... [--device N] [--tp N] [--mem-budget GiB] [-- <qualify flags>]
+```
+
+Six stages, in this order (`STAGES` in `crates/intarsia-cli/src/cmd/onboard.rs`; a new stage is one entry there):
+
+| Stage | What it runs | Notes |
+|---|---|---|
+| `recipe` | `recipe new`'s analysis | A covering recipe is used as is. Otherwise a scaffold goes to `<out>/recipe.toml` and every later stage gets `--recipe` of it. While `TODO(recipe-new)` lines remain, onboard prints them numbered and **stops with exit 3**; fix them, delete the markers and run the same command again. A scaffold with no TODOs goes on (check it into `recipes/` afterwards). |
+| `smoke` | `intarsia generate`, 16 tokens of "The capital of France is" | Load plus one completion. Crash or empty output stops the run (the quick report is still written). |
+| `quick` | `intarsia qualify --quick-only` on `<out>/qualify/` | doctor, plan (load), kernels, gate, accuracy against the golden, speed snapshot 128 / 1024 / 4096 with the byte floor (`intarsia bench`). |
+| `publish-quick` | report rendering | `quick.md`, `quick.json`, `quick.prom` (+ `--on-quick-done`). Runs **before** the in-depth tier starts, also after a failed or stopped run. |
+| `in-depth` | `intarsia qualify` on the same directory | Long-context accuracy, 4k golden, noise envelope, speed sweep 1k / 4k / 16k, A/B against `--golden-from` when it is a server, `tp` with `--tp`. Quick stages are skipped (qualify's own `--resume`). |
+| `publish-in-depth` | report rendering | `in-depth.md`, `in-depth.json`, `in-depth.prom`. Quick + in-depth stages, so it is the full report. |
+
+`--golden-from` becomes `--reference` (an `http(s)://` URL of a vLLM-style server, or an HF model directory) or
+`--golden` (a `.safetensors` file); without it qualify looks for a golden by model name and makes one only for small
+checkpoints (see [qualify](#2-intarsia-qualify)). The accuracy, speed and gate logic is qualify's: onboard runs it and
+renders its `state.json` with qualify's report code, so every number is the one `qualify` documents.
+
+**What is published.** Each report carries the onboard verdict (a stopped recipe or a crashed smoke test is an
+`ERROR`, never "PASS (0 stages)"), qualify's headline and per-stage tables, and a **stage timeline** table: start,
+end and duration in UTC for each onboard stage and each qualify stage inside it. `*.json` has the same under
+`onboard.timeline` plus `published_unix`; `*.prom` is Prometheus text exposition (qualify's headline gauges plus
+`intarsia_onboard_stage_seconds`, `intarsia_onboard_stage_end_timestamp_seconds` and
+`intarsia_onboard_published_timestamp_seconds`), ready for a node-exporter textfile directory; `--push-metrics URL`
+also PUTs the headline to a Pushgateway when each tier is done. Files are written atomically, `quick.md` last, so its
+mtime is the moment the quick numbers went public. `--on-quick-done 'cmd'` runs in the background with the path of
+`quick.md` as `$1`.
+
+**Resume.** `<out>/onboard-state.json` holds one record per stage (verdict, start, end). Run the same command with the same
+`--out`: a stage that finished (PASS or FAIL: the gate ran) is skipped; an ERROR stage and the stage that was running
+when the process died run again, and `qualify` then skips its own finished stages, so a kill in the middle of the
+in-depth tier costs only the stage that was running. `--redo quick` runs a stage again even though it finished (its
+report is rewritten with it). A SKIP inside qualify (no golden) is not retried by onboard; supply the golden and
+`--redo quick`. SIGTERM / SIGINT of onboard stops the whole chain (qualify, its model server and the stage
+subprocess), so a killed run holds no GPU memory. Exit code: `0` all gates passed, `1` a gate failed, `2` the pipeline
+failed or stopped early, `3` the recipe needs a human.
+
+Lease the box first (`fleetq run --host <box> --mem <GB> -- intarsia onboard ...`, or an exclusive lease for numbers
+you will compare).
 
 ## 1. `intarsia recipe new`
 

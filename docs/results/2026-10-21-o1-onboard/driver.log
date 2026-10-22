@@ -1,0 +1,27 @@
+fleetq: #3270 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e-kill3.sh
+== run 1 start 2026-10-21T22:33:04Z
+== killing onboard pid 3452 at 2026-10-21T22:38:47Z
+-rw-r--r--@ 1 josef  wheel   2433 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/onboard-state.json
+-rw-r--r--@ 1 josef  wheel  23595 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.json
+-rw-r--r--@ 1 josef  wheel   8430 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.md
+-rw-r--r--@ 1 josef  wheel   4273 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.prom
+onboard exit after SIGTERM: 143
+== processes left after the kill (expect none):
+== state after the kill:
+running: {'id': 'in-depth', 'started_unix': 1792622180}
+  recipe pass
+  smoke pass
+  quick pass
+  publish-quick pass
+qualify stages: [('doctor', 'pass'), ('recipe', 'pass'), ('plan', 'pass'), ('kernels', 'pass'), ('gate', 'pass'), ('acc-short', 'pass'), ('bench', 'pass'), ('acc-long', 'pass'), ('acc-4k', 'pass'), ('envelope', 'pass')]
+== run 2 start 2026-10-21T22:38:50Z
+run 2 exit: 0
+== end 2026-10-21T22:40:03Z
+-rw-r--r--@ 1 josef  wheel  43221 Oct 21 18:40 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/in-depth.json
+-rw-r--r--@ 1 josef  wheel  14860 Oct 21 18:40 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/in-depth.md
+-rw-r--r--@ 1 josef  wheel   5964 Oct 21 18:40 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/in-depth.prom
+-rw-r--r--@ 1 josef  wheel   3431 Oct 21 18:40 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/onboard-state.json
+-rw-r--r--@ 1 josef  wheel  23595 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.json
+-rw-r--r--@ 1 josef  wheel   8430 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.md
+-rw-r--r--@ 1 josef  wheel   4273 Oct 21 18:36 /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/quick.prom
+fleetq: #3270 done (exit 0)
