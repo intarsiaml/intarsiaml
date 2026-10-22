@@ -187,6 +187,10 @@ pub struct Defaults {
     /// (W8A16). See `quant::fp8` and docs/quant-moe.md.
     #[serde(default)]
     pub fp8_act: crate::quant::Fp8Act,
+    /// The checkpoint declares `NVFP4` (weights AND 4-bit activations, W4A4) but the engine runs the experts weight-only
+    /// (W4A16): off = refuse to load it (a deviation from the declared scheme and from vLLM); on = accept, knowingly.
+    #[serde(default)]
+    pub w4a4_as_w4a16: bool,
 }
 
 fn default_kv() -> String {
@@ -198,7 +202,7 @@ fn default_batch() -> usize {
 
 impl Default for Defaults {
     fn default() -> Self {
-        Defaults { kv_dtype: default_kv(), max_batch: 1, fp8_act: Default::default() }
+        Defaults { kv_dtype: default_kv(), max_batch: 1, fp8_act: Default::default(), w4a4_as_w4a16: false }
     }
 }
 

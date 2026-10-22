@@ -123,6 +123,7 @@ missing feature.
 | `kv_dtype` | string | `"bf16"` | KV cache dtype: `bf16`, `f16`, `f32` or `fp8_e4m3`. Override per run with `--kv-dtype`. Anything but `bf16` changes numerics ([tuning.md](tuning.md)). |
 | `max_batch` | int | `1` | Most sequences a run may decode together. `--max-batch N` above it is refused; without the flag the value is clamped to what the engine implements (continuous batching is Metal only, up to 8). |
 | `fp8_act` | string | `"static"` | FP8 checkpoints: `"static"` quantises activations with the checkpoint's `input_scale` (W8A8), `"none"` keeps them 16-bit (W8A16). No effect on other formats. See [quant-moe.md](quant-moe.md). Override with `--fp8-act`. |
+| `w4a4_as_w4a16` | bool | `false` | A checkpoint that declares plain `NVFP4` (weights AND 4-bit activations, W4A4) is refused by the loader (`Gemma4` layers) and not covered by the recipe in `recipe new` / `onboard`, because the engine runs NVFP4 weight-only (W4A16): a deviation from the declared scheme and from vLLM. `true` accepts that knowingly (Gemma-4 NVFP4 does). |
 
 ### `[tuning]` and `[tuning.<backend>]`
 

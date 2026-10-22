@@ -30,6 +30,7 @@ lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
 [defaults]
 kv_dtype = "bf16"
 max_batch = 1
+w4a4_as_w4a16 = true   # the checkpoint declares NVFP4 W4A4; the experts run weight-only (docs/decisions/LOG.md 2026-10-22)
 
 [tuning.cuda]
 prefill_chunk = 1024

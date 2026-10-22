@@ -1192,6 +1192,28 @@ fn coverage(
                         cov.problems.push("recipe has a moe block but no [layer.moe] prefix".into());
                     }
                 }
+                "gemma" => {
+                    if let Some(p) = r.layer.other.get("gemma").and_then(|m| m.get("prefix")).and_then(Value::as_str) {
+                        let p = e(p);
+                        for t in ["self_attn.q_proj", "self_attn.k_proj", "self_attn.o_proj", "mlp.gate_proj", "mlp.down_proj", "router.proj"] {
+                            add(format!("{p}.{t}"));
+                        }
+                        let mut ex = vec![0];
+                        if n_experts > 1 {
+                            ex.push(n_experts - 1);
+                        }
+                        for x in ex {
+                            for proj in ["gate_proj", "up_proj", "down_proj"] {
+                                add(format!("{p}.experts.{x}.{proj}"));
+                            }
+                        }
+                        for t in ["layer_scalar", "router.scale", "router.per_expert_scale", "post_attention_layernorm", "pre_feedforward_layernorm_2", "post_feedforward_layernorm_2"] {
+                            add(format!("{p}.{t}"));
+                        }
+                    } else {
+                        cov.problems.push("recipe has a gemma block but no [layer.gemma] prefix".into());
+                    }
+                }
                 other => cov.problems.push(format!("block '{other}' is not implemented in this build")),
             }
             match r.layer.norms.get(&format!("pre_{b}")) {
@@ -1519,7 +1541,11 @@ pub fn analyse(model: &Path, recipe_dirs: &[PathBuf]) -> Result<Analysis> {
         cands.push(Cand { src, recipe, arch_match, cov });
     }
     let inferred: BTreeSet<String> = det.types.iter().flat_map(|t| t.pattern.iter().map(|b| b.to_string())).collect();
-    let covering = cands.iter().position(|c| c.arch_match && c.cov.clean() && quant.problems.is_empty());
+    // a recipe may accept a W4A4-declared NVFP4 checkpoint running weight-only (`[defaults] w4a4_as_w4a16`)
+    let only_w4a4 = !quant.problems.is_empty() && quant.problems.iter().all(|p| p.contains("NVFP4 weights AND 4-bit activations"));
+    let covering = cands
+        .iter()
+        .position(|c| c.arch_match && c.cov.clean() && (quant.problems.is_empty() || (only_w4a4 && c.recipe.defaults.w4a4_as_w4a16)));
     let closest = covering.or_else(|| {
         let score = |c: &Cand| {
             let rb = recipe_blocks(&c.recipe);

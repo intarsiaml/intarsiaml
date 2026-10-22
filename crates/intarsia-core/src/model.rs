@@ -637,6 +637,17 @@ impl Model {
                             let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
                             crate::weights::to_f32_vec(info.dtype, src.bytes(&name)?)?.first().copied().ok_or_else(|| Error::model(format!("tensor '{name}' is empty")))?
                         };
+                        if let Some(scheme) = src.quant_scheme() {
+                            let m = format!("{lp}.experts.0.gate_proj");
+                            let declared = scheme.algo_of(&m).map(crate::quant::scheme::Algo::parse);
+                            if declared == Some(crate::quant::scheme::Algo::Nvfp4W4A4) && !recipe.defaults.w4a4_as_w4a16 {
+                                return Err(Error::Unsupported(format!(
+                                    "'{m}' is declared quant_algo NVFP4 (weights AND 4-bit activations) in hf_quant_config.json; this engine \
+                                     runs it weight-only (W4A16), different from the declared scheme and from vLLM. Set \
+                                     [defaults] w4a4_as_w4a16 = true in the recipe to accept that"
+                                )));
+                            }
+                        }
                         let moe = MoeWeights::load_gemma(b, src, &lp, mc, &qopts)?;
                         weights_bytes.set(weights_bytes.get() + moe.weight_bytes() as u64);
                         blocks.push(Block::Gemma(GemmaLayer {
