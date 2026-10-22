@@ -457,7 +457,7 @@ fn bench_wq_prefill_shapes() {
             }
             println!("M={m} fp8 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
         }
-        for kern in kernels.iter().filter(|k| k.starts_with("matmul_nvfp4")) {
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_nvfp4") && !k.contains("glu")) {
             let mut total = 0.0;
             for (name, n, k, calls) in nv {
                 let hc = matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::Bf16);
@@ -467,6 +467,27 @@ fn bench_wq_prefill_shapes() {
                 println!("M={m} {name:<18} {kern:<22} {:>9.1} us {:>6.1} TFLOPS", s * 1e6, tf);
             }
             println!("M={m} nvfp4 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
+        }
+        // lane S1: cuBLAS bf16 GEMM (nvjet) at the same shapes, as the bf16 tensor-core reference for gemm_reg's ceiling
+        if kernels.iter().any(|k| k == "matmul_bf16") {
+            let mut total = 0.0;
+            for (name, n, k, calls) in fp8 {
+                let mut r = SplitMix64::new(5);
+                let mut v = |len: usize| (0..len).map(|_| (r.next_f32() - 0.5) * 0.25).collect::<Vec<f32>>();
+                let hc = HostCall {
+                    op: Op::Matmul,
+                    inputs: vec![
+                        HostTensor::from_f32_as(DType::Bf16, &[m, k], &v(m * k)),
+                        HostTensor::from_f32_as(DType::Bf16, &[n, k], &v(n * k)),
+                    ],
+                    outputs: vec![OutSpec::new(DType::Bf16, &[m, n])],
+                    attrs: Default::default(),
+                };
+                let s = time("matmul_bf16", &hc);
+                total += s * calls as f64;
+                println!("M={m} {name:<18} {:<22} {:>9.1} us {:>6.1} TFLOPS", "matmul_bf16 (cuBLAS)", s * 1e6, 2.0 * (m * n * k) as f64 / s / 1e12);
+            }
+            println!("M={m} bf16 cuBLAS per-chunk total {:>9.1} us", total * 1e6);
         }
         // lane S1: the prefill pair (GDN qkv + z, attention k + v; equal input scales as in the 35B) and the shared-expert
         // GLU against the calls they replace
