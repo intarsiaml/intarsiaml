@@ -15,8 +15,8 @@ Every number below comes from an EXCLUSIVE fleetq slot unless it says otherwise.
 | HIP tatooine (R9700) | 35B | yes | free after load -348 MB / -1049 MB; scratch +80 / +240 MiB | +9.7 % / +8.9 % (second run +9.4 % / +9.3 %) | +7.9 % / +7.1 % (second run +7.5 % / +6.9 %) | **Keep 4096** (already the recipe value). 8192 gains nothing more and costs another +0.7 GB |
 | HIP tatooine (R9700) | 8B | yes | -264 MB / -793 MB | +2.3 % / +2.3 % | +7.8 % / +5.3 % | 4096 is bitwise-neutral, +7.8 % at 16k for +0.26 GB: **optional change 2048 -> 4096**, the user's call (the recipe comment measured +-1.2 % at 1k / 4k only) |
 
-Bitwise means exactly 0: every top-64 id and every log-prob bit equal, on every row. Only CUDA 35B fails. The other five combinations are
-exactly 0 for all 13-14 prompts, all rows, in prefill and in decode mode.
+Bitwise means exactly 0: every top-64 id and every log-prob bit equal, on every row. Only CUDA 35B fails (prefill and decode mode). The other five combinations are
+exactly 0 for all 8-14 prompts, all rows, in prefill and in decode mode (CUDA 8B decode mode included).
 
 ## 1. Where the old "chunk 4096 changes numerics" note comes from, and why sp2 saw nothing
 
@@ -29,9 +29,9 @@ exactly 0 for all 13-14 prompts, all rows, in prefill and in decode mode.
   (`2806-chunk-bisect.log`).
 * **Why sp2's "byte-identical ids" did not contradict it:** `scripts/sp2/chunk-job.sh` compared a 1485-token prompt (256 ids; shorter than every
   chunk, so one chunk at 2048 / 4096 / 8192: nothing to compare) and two longer prompts with `--max-tokens 1` (a single greedy token; 4189 and
-  16355 tokens). One greedy token is insensitive: here (section 2) the 64-token greedy ids of the 5822-token prompt are identical at 8192 vs 2048
-  and still differ at 4096 vs 2048, and the first-token top-20 logits (printed to 4 decimals) can match while 4000+ rows of the dump differ in
-  the last bits.
+  16355 tokens). One greedy token is insensitive: in the dumps below an argmax flips on only 4.5 % of the rows (1359 of 30200), so
+one token agrees about 95 % of the time even when every row differs. Here (section 2) the 64-token greedy ids of the 5822-token prompt are
+identical at 8192 vs 2048 and differ at 4096 vs 2048 (the same pattern as round 6), while the dump differs on 4000+ rows of every such prompt.
 * **fx5b's "cold prefill bit-identical across chunk 512 / 1023 / 1024 / 2048"** is also right, and is the same boundary: everything up to
   2048 is one kernel regime. This lane's CUDA 35B data show the break lies between 2048 and 4096 (section 2).
 
@@ -83,7 +83,10 @@ while the rows do not. The dump comparison above is the decisive one.
 
 Everything else, all exactly 0 (`raw/<backend>/compare/`): CUDA 8B prefill (short 434 rows, 4k + synth 28685 rows) and its 64 greedy ids on both
 prompts; Metal 35B and 8B prefill and decode mode (16 teacher-forced steps after the chunked prefill of each prompt, 16000-token one included)
-and the 35B / 8B greedy ids; HIP 35B and 8B prefill, decode mode and greedy ids. CUDA decode mode: __CUDA_DEC__
+and the 35B / 8B greedy ids; HIP 35B and 8B prefill, decode mode and greedy ids. CUDA 35B decode mode (16 teacher-forced single-token steps after the chunked prefill of each prompt) is NOT bitwise either:
+the 4 prompts above 2048 tokens differ in all 16 steps (64 of 224 rows; max abs d logprob 2.4 at 4096 / 2.0 at 8192, max row KL 0.108, mean row KL
+2.9e-3, 1 argmax flip), the 10 short prompts are identical (`raw/cuda/compare/decode-35b-all.txt`): the KV and recurrent state left by a chunked prefill
+already differ. CUDA 8B decode mode is exactly 0 (short 8 prompts and the 4k + synthetic prompts, 16 steps each, `raw/cuda/compare/decode-8b-*.txt`).
 
 ## 3. Memory
 
@@ -150,11 +153,11 @@ Gains are not monotonic in the chunk: CUDA 35B at 4k gains most at 4096 (+7.6 %)
 
 ## 6. Not done / limits
 
-* CUDA decode-mode dumps were run last and __CUDA_DEC_STATE__
+* All planned CUDA steps finished (job #4171 ended 11:17, before the 11:30 stop).
 * Nothing here says why CUDA 35B above 2048 differs; it was not root-caused (no kernel change allowed in this lane).
 * The 16000-token prompt is synthetic (tiled 4k prompts), so its vLLM-side KL columns are meaningless; only chunk-vs-chunk numbers are used.
 * HIP and Metal 8B 2048 speed has one or two serves, 3 reps each (CUDA and Metal have the drift-control repeat of 2048, HIP does not).
-* Dumps (15 MB each) are not committed; their sha256 and the per-prompt comparisons are in `raw/<backend>/`.
+* Dumps (up to 16 MB each) are not committed; their sha256 are in `raw/*-sha256.txt` and the per-prompt comparisons in `raw/<backend>/compare/`.
 * Metal 35B and 8B memory is the free-memory gauge of a shared 128 GB Mac with other services; the deltas repeat to the byte on HIP
   (same formula), which is why they are trusted.
 

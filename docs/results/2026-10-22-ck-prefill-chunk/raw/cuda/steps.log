@@ -143,3 +143,12 @@ ck-cuda-8b-c2048  model=ck-m  gen=16  reps=3
     4096     4041     0.927         4360        14.8       16
    16384    16331     4.615         3538        13.3       16
 accdec 35b all decode chunk 2048 exit 1 85 s 15719648 bytes
+accdec 35b all decode chunk 4096 exit 1 76 s 15719648 bytes
+accdec 35b all decode chunk 8192 exit 1 65 s 15719648 bytes
+accdec 8b short decode chunk 2048 exit 0 67 s 298392 bytes
+accdec 8b short decode chunk 4096 exit 0 55 s 298392 bytes
+accdec 8b short decode chunk 8192 exit 0 49 s 298392 bytes
+accdec 8b 4k decode chunk 2048 exit 1 55 s 14843644 bytes
+accdec 8b 4k decode chunk 4096 exit 1 46 s 14843644 bytes
+accdec 8b 4k decode chunk 8192 exit 1 52 s 14843644 bytes
+== chunk-job cuda done 11:16:59
