@@ -1,8 +1,49 @@
 # g4: Gemma-4-26B-A4B-NVFP4 through `intarsia onboard` (no existing recipe)
 
-Status: IN PROGRESS (this file is rewritten at the end of the lane; the timeline below is appended as it happens).
-Lane g4, branch `lane-g4/gemma4`, fleetq owner `claude-f31ccf91-g4`. Hard stop 11:30 EDT. T0 = 09:11:56 EDT (weights already on spark1:
-`~/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4`, 2 shards, 18.8 GB, nothing downloaded).
+Lane g4, branch `lane-g4/gemma4`, fleetq owner `claude-f31ccf91-g4`. T0 = 09:11:56 EDT 2026-10-22 (weights already on spark1:
+`~/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4`, 2 shards, 18.8 GB). Hard stop 11:30.
+
+## Verdict
+
+**Requirement 1 is met for the code, not yet for the clock.** A model with no recipe went from "`recipe new` exits 3 with 10 TODOs" to a
+recipe-covered, loading, generating, admission-clean, HF-matching model in about 1 h 10 min of wall clock (09:12 to 10:23), by
+writing new engine code (one layer block, 4 op attributes, 1 op, 9 CUDA kernels, a loader). The 2 h quick / 4 h full targets are
+not measurable on the full 26B: **no GPU lease big enough for it (>= 20 GB) was grantable before the hard stop**, so there is no
+"weights present to quick numbers" number for the real model. What was run instead, all on real weights:
+
+| Check | Result |
+|---|---|
+| `recipe new` before / `onboard` recipe stage after | 10 TODOs, exit 3 / `builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4)`, PASS in 0 s |
+| Tiny random 6-layer Gemma-4 (NVFP4 experts, window 8) vs HF transformers 5.6.2, CPU backend | top-1 5/5, 21/21, 39/40 vs HF-f32; mean row rel-L2 to HF-f32 1.7e-2 / 2.1e-2 / 1.1e-1, where HF-bf16 itself is 5.4e-2 / 5.5e-2 / 1.2e-1 from HF-f32 (`tests/gemma4_tiny.rs`, runs in CI) |
+| 2-layer slice of the REAL weights (layer 0 sliding + layer 5 global, 3.2 GB) vs HF, CUDA, prefill, 248 positions | final norm scaled 2^-5 (see below): top-1 95.2%, mean 21-way KL 3.5e-3, gate PASS; CPU backend 95.2% / 3.8e-3. Multi-chunk prefill (`--prefill-chunk 31`) + decode mode: prefill 96.0% / 3.2e-3, decode 96.9% / 3.2e-3, PASS |
+| `intarsia onboard --quick-only` on that slice, CUDA, spark2 | recipe PASS (0 s), smoke PASS (8 s), kernels admission PASS (71 kernels, 1425 cases, 0 rejected), quick tier 3 min 34 s; verdict FAIL only on the perplexity / repeat-sanity gates, which a 2-layer model cannot pass (`raw/onboard-2L-slice/`) |
+| 6-layer real-weight slice, CUDA vs CPU `generate` (12 greedy ids) | identical ids |
+| `intarsia kernels test --backend cuda` | 71 kernels, 1425 cases (full sweep, spark2), 505 (quick, spark1), 0 rejected |
+| Qwen3-8B no-op (CUDA, first 12 layers, 256 greedy ids + `plan show`) vs merge-base `acba5987` | plan identical, 256 ids identical (`raw/qwen3-noop/`). Deviation: 12 layers, not the full model, because only <= 12 GB leases were obtainable |
+
+Why the final norm was scaled in the slice comparison: the real `model.language_model.norm.weight` has mean 29 (max 588), so after
+only two layers the pre-softcap logits have std 140 and 24% sit at the 30.0 soft-cap; the specified comparison is then vacuous
+(top-1 2.0%, KL 5.5e-8 PASS, meaningless). Scaling that one weight by 2^-5 (exact in bf16) in BOTH the HF and the engine slice
+brings the logits to std 4.4 and makes the comparison real. Not run: the full 26B against any reference (an HF reference needs
+~52 GB dequantised, vLLM on the Sparks cannot be asked: it serves other models), sliding-window behaviour at the real window of 1024
+against HF (the tiny model covers window 8; the kernel tests cover window 1024 on 1100 keys).
+
+## What was added
+
+* `recipes/gemma4.toml`: one block per layer (`gemma`), prefix, `norm_offset = 0.0`, tied head, `[defaults] w4a4_as_w4a16 = true`.
+* `crates/intarsia-core/src/model/gemma.rs` (new): the Gemma-4 decoder layer (sandwich norms, per-layer-type attention with
+  K = V on global layers, parallel dense GeGLU MLP + 128-expert MoE, `layer_scalar`), `Block::Gemma`, `GemmaDims` from `config.json`
+  (`rope_parameters` per layer type, `global_head_dim`, soft-cap, embedding scale), final soft-cap on host logits.
+* Folded at load time, no op: `router.scale * hidden^-0.5` into the router norm weight, `per_expert_scale` into each expert's
+  down-projection global scale (`MoeWeights::load_gemma`).
+* Op surface (all behind the new `.ext()` kernel flag, so a backend that ignores an attribute cannot run it silently wrong):
+  `Op::GeluGlu`, `OpAttrs::window`, `rope_prop`, `gelu` (MoeExperts), and `scale` on `Add` / `Embedding`.
+* CPU reference + fast kernels for all of them; CUDA: `gelu_glu`, `rope_prop`, `add_scaled`, `embedding_scaled`, attention with
+  window and head_dim up to 512 (SIMT, plus a split-KV window variant for D <= 256), MoE GELU epilogues in 4 kernels + the generic one.
+  Kernels-test cases for each. Not done: HIP and Metal (they keep refusing Gemma through `.ext()`), fused variants, captured CUDA
+  graphs for Gemma layers (eager decode), tensor parallelism, speculative decoding, the vision tower.
+* `recipe new` / `onboard`: reads `hidden_activation`, knows the `gemma` block's tensors (`coverage`), and a recipe can now accept a
+  W4A4-declared NVFP4 checkpoint (`[defaults] w4a4_as_w4a16`), without which the loader and `onboard` both refuse it.
 
 ## What the architecture needs versus what the engine has
 
