@@ -551,7 +551,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // MoE (kernels/metal/moe.metal, moe.rs), the hip entries' predicates and budget. top-k: bf16 or f32 logits.
                 crate::moe::MOE_TOPK_BF16 => k
                     .acts([DType::Bf16, DType::F32])
-                    .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
+                    .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k) && s.top_k <= s.experts)
                     .exact(Exactness::Deterministic)
                     .tol(MOE_TOL),
                 // NVFP4 experts, bf16 x (h / y scratch are bf16); decode GEMVs at T*K <= 16, else grouped by expert
