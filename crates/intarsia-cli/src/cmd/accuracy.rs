@@ -961,16 +961,35 @@ fn row_masks(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], r
     Ok(RowMasks { scored, how: format!("{} ({src}): {hidden} of {total} rows lie inside a system or user turn and are not scored by the KL floor", fmt.name) })
 }
 
-fn default_golden(model: &Path) -> Option<PathBuf> {
+/// Golden file named after the model, searched in `golden_search_dirs()`. `Err` carries every path tried.
+fn default_golden(model: &Path) -> std::result::Result<PathBuf, Vec<PathBuf>> {
     let full = model.to_string_lossy().to_string();
     let name = match full.split("models--").nth(1) {
         Some(rest) => rest.split('/').next().unwrap_or("").rsplit("--").next().unwrap_or("").to_string(),
-        None => model.file_name()?.to_string_lossy().to_string(),
+        None => model.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
     }
     .to_lowercase();
     let file = format!("{name}.safetensors");
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden");
-    [PathBuf::from("golden"), repo].into_iter().map(|d| d.join(&file)).find(|p| p.exists())
+    let tried: Vec<PathBuf> = golden_search_dirs().into_iter().map(|d| d.join(&file)).collect();
+    tried.iter().find(|p| p.exists()).cloned().ok_or(tried)
+}
+
+/// Where golden files are looked for, in order: `$INTARSIA_GOLDEN_DIR`, `./golden`, then `golden/` of the checkout the binary sits in.
+pub fn golden_search_dirs() -> Vec<PathBuf> {
+    golden_dirs_with(std::env::var_os("INTARSIA_GOLDEN_DIR"), checkout_golden_dir())
+}
+
+fn golden_dirs_with(env_dir: Option<std::ffi::OsString>, checkout: Option<PathBuf>) -> Vec<PathBuf> {
+    let env_dir = env_dir.filter(|v| !v.is_empty()).map(PathBuf::from);
+    [env_dir, Some(PathBuf::from("golden")), checkout].into_iter().flatten().collect()
+}
+
+/// `golden/` of the checkout this binary was built in, found from the executable's location (`<checkout>/target/<profile>/intarsia`
+/// or deeper). Not `env!("CARGO_MANIFEST_DIR")`: that bakes the build directory into the binary and makes the same sha build
+/// to different bytes in different directories (docs/reproducing-results.md).
+pub fn checkout_golden_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    exe.ancestors().skip(1).map(|a| a.join("golden")).find(|g| g.is_dir() && g.parent().is_some_and(|r| r.join("Cargo.lock").is_file()))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -2279,8 +2298,11 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
     }
     let path = match (&args.self_golden, &args.golden) {
         (Some(p), _) | (None, Some(p)) => p.clone(),
-        (None, None) => default_golden(&args.model.model).ok_or_else(|| {
-            anyhow!("no golden file found for this model; generate one with tools/golden.py and pass --golden")
+        (None, None) => default_golden(&args.model.model).map_err(|tried| {
+            let list = tried.iter().map(|p| format!("  {}", p.display())).collect::<Vec<_>>().join("\n");
+            anyhow!(
+                "no golden file found for this model; generate one with tools/golden.py and pass --golden, or set INTARSIA_GOLDEN_DIR to the golden directory. Tried:\n{list}"
+            )
         })?,
     };
     let g = Golden::open(&path)?;
@@ -2928,6 +2950,31 @@ pub fn run(mut args: AccuracyArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn golden_dirs_env_var_comes_first() {
+        let dirs = super::golden_dirs_with(Some("/elsewhere/golden".into()), Some("/co/golden".into()));
+        let dirs: Vec<_> = dirs.iter().map(|d| d.to_string_lossy().to_string()).collect();
+        assert_eq!(dirs, ["/elsewhere/golden", "golden", "/co/golden"]);
+        assert_eq!(super::golden_dirs_with(Some("".into()), None), [std::path::PathBuf::from("golden")]);
+    }
+
+    #[test]
+    fn default_golden_lists_tried_paths_and_finds_env_dir() {
+        let d = std::env::temp_dir().join(format!("ik-golden-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("tinymodel.safetensors"), b"x").unwrap();
+        std::env::set_var("INTARSIA_GOLDEN_DIR", &d);
+        let hit = super::default_golden(std::path::Path::new("/m/TinyModel"));
+        std::env::set_var("INTARSIA_GOLDEN_DIR", d.join("nope"));
+        let miss = super::default_golden(std::path::Path::new("/m/TinyModel"));
+        std::env::remove_var("INTARSIA_GOLDEN_DIR");
+        std::fs::remove_dir_all(&d).ok();
+        assert_eq!(hit.unwrap(), d.join("tinymodel.safetensors"));
+        let tried = miss.unwrap_err();
+        assert_eq!(tried[0], d.join("nope").join("tinymodel.safetensors"));
+        assert!(tried.len() >= 2);
+    }
+
     use super::*;
 
     fn logits(n: usize) -> Vec<f32> {
