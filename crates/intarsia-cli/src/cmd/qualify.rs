@@ -76,9 +76,8 @@ pub struct QualifyArgs {
     /// floor measured in docs/results/2026-10-22-fx1-oracle-gate.md, [`ORACLE_MAX_KL`]).
     #[arg(long)]
     pub oracle_max_kl: Option<f64>,
-    /// `acc-oracle`: |mean logit scale - 1| on scored prefill rows (the slope of the engine's log-probs on the oracle's
-    /// over the oracle's top-8 ids) must stay at or below this (default [`ORACLE_MAX_SCALE_DEV`]): the check that sees a
-    /// 1 % scale bug, which the KL does not.
+    /// `acc-oracle`: also gate |mean logit scale - 1| on scored prefill rows (`accuracy --max-logit-scale-dev`). Off by
+    /// default: correct backends differ by up to 9e-3 in it on the 35B (docs/results/2026-10-22-fx1-oracle-gate.md).
     #[arg(long)]
     pub oracle_max_scale_dev: Option<f64>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
@@ -1621,8 +1620,6 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
 /// not chosen: docs/results/2026-10-22-fx1-oracle-gate.md section 3 (clean builds on every backend against the f64 CPU
 /// oracle, and the 1 % row-parallel scale mutants that must fail).
 pub const ORACLE_MAX_KL: f64 = 1.0e-2;
-/// `acc-oracle`'s logit-scale limit (same doc, section 3): |mean slope - 1| over the scored prefill rows.
-pub const ORACLE_MAX_SCALE_DEV: f64 = 3.5e-3;
 
 impl Ctx {
     /// The f64 CPU-oracle golden: `--oracle-golden`, `oracle/<model>-cpu-oracle...` in the golden directories (the repo
@@ -1649,13 +1646,14 @@ impl Ctx {
         if made.exists() {
             return Ok(self.have_golden(key, made, "made earlier in this report directory".into()));
         }
-        if !["moe", "hybrid", "quantized"].iter().any(|k| self.facts.get(*k) == Some(&json!(true))) {
-            return Ok(Golden::None("not a MoE / hybrid / quantized model: its full-precision golden is the reference, no oracle needed".into()));
-        }
         let (short, _) = match self.golden(false)? {
             Golden::Have(g, h) => (g, h),
             Golden::None(why) => return Ok(Golden::None(format!("no oracle golden, and none can be made without the short golden's prompts: {why}"))),
         };
+        // the same scope as acc-short's baseline requirement: a model whose golden is a full-precision reference needs no oracle
+        if !self.needs_baseline(&short) {
+            return Ok(Golden::None("the short golden is a full-precision reference of this model (or the model is dense, unquantized): no oracle needed".into()));
+        }
         let mut args = vec!["accuracy".to_string(), "--model".into(), self.a.model.display().to_string(), "--backend".into(), "cpu".into()];
         if let Some(r) = &self.a.recipe {
             args.extend(["--recipe".into(), r.display().to_string()]);
@@ -1690,24 +1688,96 @@ impl Ctx {
 
     /// The `accuracy` flags of the oracle gate: the floor on scored rows, no top-1 floor (near-tie rows flip between
     /// any two correct implementations), no reference-noise term (the oracle is deterministic).
-    fn oracle_flags(&self) -> (Vec<String>, f64, f64) {
+    fn oracle_flags(&self) -> (Vec<String>, f64) {
         let kl = self.a.oracle_max_kl.unwrap_or(ORACLE_MAX_KL);
-        let sc = self.a.oracle_max_scale_dev.unwrap_or(ORACLE_MAX_SCALE_DEV);
-        (
-            vec![
-                "--gate-class".into(),
-                "bf16".into(),
-                "--max-mean-kl".into(),
-                format!("{kl:e}"),
-                "--max-logit-scale-dev".into(),
-                format!("{sc:e}"),
-                "--min-top1".into(),
-                "0".into(),
-                "--no-ref-noise".into(),
-            ],
-            kl,
-            sc,
-        )
+        let mut v: Vec<String> = vec![
+            "--gate-class".into(),
+            "bf16".into(),
+            "--max-mean-kl".into(),
+            format!("{kl:e}"),
+            "--min-top1".into(),
+            "0".into(),
+            "--no-ref-noise".into(),
+            // the dump's identity: the same name on every box and for every copy of the weights
+            "--model-id".into(),
+            self.name.clone(),
+        ];
+        if let Some(sc) = self.a.oracle_max_scale_dev {
+            v.extend(["--max-logit-scale-dev".into(), format!("{sc:e}")]);
+        }
+        (v, kl)
+    }
+
+    /// `<oracle stem>.<backend>[-tpN]`: the name of this backend's (and tp degree's) recorded dump on the oracle prompts.
+    fn dump_tag(&self, oracle: &Path, tp: usize) -> String {
+        let stem = oracle.file_stem().and_then(|s| s.to_str()).unwrap_or("oracle");
+        if tp > 1 {
+            format!("{stem}.{}-tp{tp}", self.a.backend)
+        } else {
+            format!("{stem}.{}", self.a.backend)
+        }
+    }
+
+    /// The drift check: this build's prefill logits on the oracle prompts against the dump recorded from clean main on
+    /// the same backend and tp degree (`golden/baselines/<oracle stem>.<backend>[-tpN].selfgolden.safetensors`), with the
+    /// self-golden budgets (mean KL21 1e-4 ...). The engine is deterministic, so clean main reads 0; any change of the
+    /// logits fails it, a 1 % partial-scale bug included, which no comparison with another implementation can resolve
+    /// on this model (fx1). `Err(why)`: there is no dump for this configuration.
+    fn drift_check(&mut self, oracle: &Path, tp: usize, stem: &str) -> Result<std::result::Result<(Verdict, String), String>> {
+        let tag = self.dump_tag(oracle, tp);
+        let mut dirs: Vec<PathBuf> = vec![];
+        if let Some(d) = oracle.parent().and_then(|d| d.parent()) {
+            dirs.push(d.join("baselines"));
+        }
+        if let Some(r) = facts::repo_root() {
+            dirs.push(r.join("golden/baselines"));
+            if let Some(m) = facts::main_checkout(&r) {
+                dirs.push(m.join("golden/baselines"));
+            }
+        }
+        let Some(dump) = dirs.iter().map(|d| d.join(format!("{tag}.selfgolden.safetensors"))).find(|p| p.is_file()) else {
+            return Ok(Err(format!("no recorded dump {tag}.selfgolden.safetensors in golden/baselines")));
+        };
+        let mut args = vec!["accuracy".to_string()];
+        args.extend(self.load_args(tp));
+        args.extend([
+            "--self-golden".into(),
+            dump.display().to_string(),
+            "--mode".into(),
+            "prefill".into(),
+            "--decode-positions".into(),
+            self.decode_positions(false).to_string(),
+            "--max-seq".into(),
+            self.acc_max_seq(false).to_string(),
+            "--model-id".into(),
+            self.name.clone(),
+            "--allow-same-code".into(),
+        ]);
+        let head = facts::golden_meta(&dump, "self_meta")
+            .and_then(|m| serde_json::from_str::<Value>(&m).ok())
+            .and_then(|m| m["code"]["head"].as_str().map(String::from))
+            .unwrap_or_default();
+        if head.is_empty() {
+            args.push("--allow-unstamped".into());
+        } else {
+            args.extend(["--pre-change".into(), head]);
+        }
+        args.extend(self.stamp_flags());
+        let r = self.exec(stem, args)?;
+        let text = r.stdout();
+        let what = format!("against the recorded dump {}", dump.display());
+        Ok(if r.timed_out || r.code.is_none() {
+            Ok((Verdict::Error, format!("drift check {}", r.describe())))
+        } else if r.ok() && text.contains("golden gate: PASS") {
+            Ok((Verdict::Pass, format!("logits unchanged {what}")))
+        } else if text.contains("golden gate: FAIL") {
+            let bad: Vec<String> = text.lines().filter(|l| l.trim_end().ends_with("FAIL") && !l.contains("golden gate")).map(|l| l.trim().to_string()).collect();
+            Ok((Verdict::Fail, format!("the logits moved {what}: {}", if bad.is_empty() { "self-golden budgets exceeded".into() } else { bad.join("; ") })))
+        } else if r.stderr().contains("different configuration") {
+            Err(format!("the recorded dump {} does not apply: {}", dump.display(), r.tail(2)))
+        } else {
+            Ok((Verdict::Error, format!("drift check {}: {}", r.describe(), r.tail(4))))
+        })
     }
 }
 
@@ -1725,10 +1795,32 @@ fn st_acc_oracle(c: &mut Ctx) -> Result<Out> {
     {
         return Ok(Out::error(format!("{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)", g.display())));
     }
-    let (extra, kl, sc) = c.oracle_flags();
+    let (mut extra, kl) = c.oracle_flags();
+    // this run's own dump: copied to golden/baselines/ it becomes the recorded dump of the drift check
+    let rec = c.path(&format!("baselines/{}.selfgolden.safetensors", c.dump_tag(&g, 1)));
+    extra.extend(["--write-self-golden".into(), rec.display().to_string()]);
     let a = c.accuracy("acc-oracle", &g, "prefill", false, 1, &extra)?;
     let mut o = c.acc_out(a, &g, &how, "oracle");
-    o.notes.push(format!("floor: mean KL(oracle || engine) on scored prefill rows <= {kl:.1e} and |mean logit scale - 1| <= {sc:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated"));
+    o.notes.push(format!("floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows, <= {kl:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated. The floor guards absolute accuracy; it does not see a 1 % scale bug, the drift check does"));
+    if rec.exists() {
+        o = o.art(c.rel(&rec));
+    }
+    if o.verdict != Verdict::Pass {
+        return Ok(o);
+    }
+    o = match c.drift_check(&g, 1, "acc-oracle-drift")? {
+        Ok((Verdict::Pass, why)) => {
+            o.notes.push(format!("drift check: {why}"));
+            o
+        }
+        Ok((v, why)) => Out::new(v, why).metrics(o.metrics).art(c.rel(&c.path("logs/acc-oracle-drift.out"))),
+        Err(why) => {
+            let mut m = Out::new(Verdict::MissingBaseline, format!("MISSING-BASELINE: {why}; the oracle floor passed ({}), but on this model only a recorded same-backend dump can see a 1 % scale bug. Record it from clean main: copy {} to golden/baselines/ and commit it", o.reason, c.rel(&rec)));
+            m.metrics = o.metrics;
+            m.artifacts = o.artifacts;
+            m
+        }
+    };
     Ok(o)
 }
 
@@ -2328,19 +2420,32 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
     // and against the f64 CPU oracle: the gate that sees a 1 % partial-scale bug on one rank (fx1)
     let oracle = match c.oracle_golden()? {
         Golden::Have(g, _) => {
-            let (extra, _, _) = c.oracle_flags();
-            Some(c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?)
+            let (mut extra, _) = c.oracle_flags();
+            let rec = c.path(&format!("baselines/{}.selfgolden.safetensors", c.dump_tag(&g, tp)));
+            extra.extend(["--write-self-golden".into(), rec.display().to_string()]);
+            let a = c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?;
+            let drift = if a.verdict == Verdict::Pass { Some(c.drift_check(&g, tp, &format!("tp{tp}-oracle-drift"))?) } else { None };
+            Some((a, drift, rec))
         }
         Golden::None(_) => None,
     };
     let mut metrics = o.metrics.clone();
     metrics["tp_plan"] = tp_plan;
-    if let Some(a) = &oracle {
+    if let Some((a, drift, rec)) = &oracle {
         metrics["oracle"] = json!({"gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
         match a.verdict {
             Verdict::Fail => o = Out::fail(format!("tp={tp} against the CPU oracle: {}", a.reason)).art(c.rel(&b.path)),
             Verdict::Error => o = Out::error(format!("tp={tp} against the CPU oracle: {}", a.reason)),
             _ => o.reason = format!("{}; oracle {}", o.reason, acc_summary(&a.modes)),
+        }
+        match drift {
+            Some(Ok((Verdict::Pass, why))) => o.notes.push(format!("tp={tp} drift check: {why}")),
+            Some(Ok((Verdict::Error, why))) => o = Out::error(format!("tp={tp} drift check: {why}")),
+            Some(Ok((_, why))) if o.verdict != Verdict::Error => o = Out::fail(format!("tp={tp}: {why}")).art(c.rel(&b.path)),
+            Some(Err(why)) if o.verdict == Verdict::Pass => {
+                o = Out::new(Verdict::MissingBaseline, format!("MISSING-BASELINE: tp={tp}: {why}; record it from clean main: copy {} to golden/baselines/", c.rel(rec)))
+            }
+            _ => {}
         }
     }
     if let Some((g, how, a)) = acc {
