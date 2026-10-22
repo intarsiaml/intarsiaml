@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane S1 (docs/results/2026-10-22-s1-spark-prefill.md): build the dev tree (this worktree) and the base tree
 # (origin/main export, BASE_REF, default 06fba3a9) on spark2, CLI + CUDA test binaries, inside a fleetq slot (vLLM up):
-#   fleetq run --host spark2 --mem 16 --label "..." -- scripts/sp2/build.sh
+#   fleetq run --host spark2 --mem 16 --label "..." -- docs/results/2026-10-22-sp2-cuda-prefill/scripts/build.sh
 # Trees: ~/intarsia-decfuse/sp2-dev, ~/intarsia-decfuse/sp2-base (lane-unique names). Every synced source file is touched
 # after the rsync so a seeded target dir can never look fresh (round 7's base-build pitfall). Checks that the base binary
 # has none of the new symbols and the dev binary has them.

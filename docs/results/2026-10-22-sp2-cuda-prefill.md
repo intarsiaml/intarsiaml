@@ -117,7 +117,7 @@ recorded here because the kernel work above shows that no routed-expert schedule
 
 No code ships, so the gates that apply to a kernel change (kernels test, 256 greedy ids, qualify drift, 8B no-op, main-vs-head A/B) were
 not run: there is no head to compare. The schedule candidates passed `moe_w4a16` (bitwise vs `moe_experts_mma_bf16`) except where noted.
-Reproduce: `scripts/sp2/` (build.sh, prof-job.sh, sweep-job.sh, mbench.sh, bitwise-job.sh, chunk-job.sh; fleetq slots as in each header).
+Reproduce: `docs/results/2026-10-22-sp2-cuda-prefill/scripts/` (build.sh, prof-job.sh, sweep-job.sh, mbench.sh, bitwise-job.sh, chunk-job.sh; fleetq slots as in each header).
 
 ## 7. Fleet log
 

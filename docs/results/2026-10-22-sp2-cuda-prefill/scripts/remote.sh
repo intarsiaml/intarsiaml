@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane S1, spark2 side. Run inside a fleetq slot (FLEETQ_JOB set), from the Mac:
-#   ssh -n spark2 "export FLEETQ_JOB=$FLEETQ_JOB STEPS='probe tests'; bash ~/intarsia-decfuse/sp2-dev/scripts/sp2/remote.sh"
+#   ssh -n spark2 "export FLEETQ_JOB=$FLEETQ_JOB STEPS='probe tests'; bash ~/intarsia-decfuse/sp2-dev/docs/results/2026-10-22-sp2-cuda-prefill/scripts/remote.sh"
 # Steps (STEPS, space separated; default all non-window steps in this order):
 #   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/test
 #   bench   GEMM microbenchmark at the 35B prefill shapes: every matmul_fp8_gemm_reg schedule (INTARSIA_CUDA_FP8_REG_CFG
@@ -80,7 +80,7 @@ if want prof; then
       log "prof $n $chars: $(grep -aE 'finish=' $d/nsys.err | head -1 | cut -c1-200)"
       $NSYS stats -r cuda_gpu_kern_sum,cuda_gpu_trace -f csv --force-export=true -o $d/kern $d/nsys.nsys-rep < /dev/null > $d/stats.log 2>&1 || tail -3 $d/stats.log
       rm -f $d/nsys.sqlite
-      python3 $P/sp2-dev/scripts/sp2/rank.py $d/kern_cuda_gpu_kern_sum.csv $d/kern_cuda_gpu_trace.csv > $d/rank.txt 2>&1
+      python3 $P/sp2-dev/docs/results/2026-10-22-sp2-cuda-prefill/scripts/rank.py $d/kern_cuda_gpu_kern_sum.csv $d/kern_cuda_gpu_trace.csv > $d/rank.txt 2>&1
       head -30 $d/rank.txt | tee -a $O/steps.log
     done
   done

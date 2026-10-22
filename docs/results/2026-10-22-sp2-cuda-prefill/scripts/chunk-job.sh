@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane sp2: is --prefill-chunk bitwise-neutral on the 35B (greedy ids), and what does it do to prefill speed? Base tree (origin/main),
-# exclusive slot:  fleetq run --host spark1 --exclusive --mem 40 --label "..." -- scripts/sp2/chunk-job.sh
+# exclusive slot:  fleetq run --host spark1 --exclusive --mem 40 --label "..." -- docs/results/2026-10-22-sp2-cuda-prefill/scripts/chunk-job.sh
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 ssh -n -o BatchMode=yes "${HOST:-spark1}" "export FLEETQ_JOB=$FLEETQ_JOB; set -u

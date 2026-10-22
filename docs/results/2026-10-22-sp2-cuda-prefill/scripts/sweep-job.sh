@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane sp2: in-engine schedule sweep of the routed-expert kernels. One nsys prefill (4k prompt, chunk 2048) per setting; prints
 # the per-mode (gate/up = MODE 0, down = MODE 1) average microseconds of moe_w4a16_kernel.
-#   fleetq run --host spark1 --exclusive --mem 40 --label "..." -- scripts/sp2/sweep-job.sh "0,0,0 1,1,0 ..."
+#   fleetq run --host spark1 --exclusive --mem 40 --label "..." -- docs/results/2026-10-22-sp2-cuda-prefill/scripts/sweep-job.sh "0,0,0 1,1,0 ..."
 # Setting = cfg0,cfg1,abl  (INTARSIA_W4_CFG0, INTARSIA_W4_CFG1, INTARSIA_W4_ABL).  TREE (default sp2-dev), CHARS (default 14000).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"

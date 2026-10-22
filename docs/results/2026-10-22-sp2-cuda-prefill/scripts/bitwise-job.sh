@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane sp2: moe_w4a16 bitwise tests (w4a16 vs moe_experts_mma_bf16) under each schedule setting "cfg0,cfg1".
-#   fleetq run --host spark1 --mem 12 --label "..." -- scripts/sp2/bitwise-job.sh "0,0 1,1 ..."
+#   fleetq run --host spark1 --mem 12 --label "..." -- docs/results/2026-10-22-sp2-cuda-prefill/scripts/bitwise-job.sh "0,0 1,1 ..."
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 ssh -n -o BatchMode=yes "${HOST:-spark1}" "export FLEETQ_JOB=$FLEETQ_JOB PATH=\$HOME/.cargo/bin:/usr/local/cuda/bin:\$PATH; cd ~/intarsia-decfuse/${TREE:-sp2-dev}
