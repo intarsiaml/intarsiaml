@@ -1319,7 +1319,8 @@ struct ConfigIssues {
 }
 
 fn config_issues(tc: &Value) -> ConfigIssues {
-    let act = tc.get("hidden_act").and_then(Value::as_str).filter(|a| *a != "silu").map(String::from);
+    // Gemma 4 spells the key `hidden_activation`
+    let act = tc.get("hidden_act").or_else(|| tc.get("hidden_activation")).and_then(Value::as_str).filter(|a| *a != "silu").map(String::from);
     let attention_bias = tc.get("attention_bias").and_then(Value::as_bool) == Some(true);
     let mut sliding = Vec::new();
     let use_sw = tc.get("use_sliding_window").and_then(Value::as_bool);

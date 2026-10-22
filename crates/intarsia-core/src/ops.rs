@@ -932,10 +932,11 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL.last(), Some(&Op::MatmulMxfp4Pair), "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL.last(), Some(&Op::GeluGlu), "appended after MatmulMxfp4Pair");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

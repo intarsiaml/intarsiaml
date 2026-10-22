@@ -87,6 +87,15 @@ fn macos_reclaimable_bytes() -> Option<u64> {
     }
 }
 
+/// Ops whose cpu kernels implement the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`, and `scale != 1.0` on
+/// `Add` / `Embedding`; `GeluGlu` is itself the extension).
+fn implements_ext(op: Op) -> bool {
+    matches!(
+        op,
+        Op::Embedding | Op::Add | Op::Rope | Op::AttnPrefill | Op::AttnDecode | Op::GeluGlu | Op::MoeExperts
+    )
+}
+
 fn tol_for(op: Op) -> Tol {
     match op {
         // pure data movement / integer results: must match bit for bit
@@ -160,19 +169,23 @@ impl Backend for CpuBackend {
     fn kernels(&self) -> Vec<KernelImpl> {
         let mut v = Vec::new();
         for op in Op::ALL {
-            v.push(
-                KernelImpl::new(op, format!("ref_{}", op.as_str()), "cpu")
-                    .exact(Exactness::Exact)
-                    .tol(Tol::EXACT)
-                    .reference(true)
-                    .priority(-100),
-            );
-            v.push(
-                KernelImpl::new(op, format!("cpu_f32_{}", op.as_str()), "cpu")
-                    .exact(if tol_for(op).max_abs == 0.0 { Exactness::Exact } else { Exactness::Deterministic })
-                    .tol(tol_for(op))
-                    .priority(0),
-            );
+            let mut r = KernelImpl::new(op, format!("ref_{}", op.as_str()), "cpu")
+                .exact(Exactness::Exact)
+                .tol(Tol::EXACT)
+                .reference(true)
+                .priority(-100);
+            let mut f = KernelImpl::new(op, format!("cpu_f32_{}", op.as_str()), "cpu")
+                .exact(if tol_for(op).max_abs == 0.0 { Exactness::Exact } else { Exactness::Deterministic })
+                .tol(tol_for(op))
+                .priority(0);
+            // the extended attributes (window, rope_prop, gelu, Add/Embedding scale) are implemented by the ops' own
+            // reference and fast paths; the fused ops that decompose into sub-calls do not forward them, so stay off
+            if implements_ext(op) {
+                r = r.ext();
+                f = f.ext();
+            }
+            v.push(r);
+            v.push(f);
         }
         v
     }

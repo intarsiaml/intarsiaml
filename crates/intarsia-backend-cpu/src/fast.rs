@@ -38,6 +38,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::KvAppend => kv_append(call),
         Op::AttnPrefill | Op::AttnDecode => attention(call),
         Op::SiluGlu => silu_glu(call),
+        Op::GeluGlu => gelu_glu(call),
         Op::Argmax => argmax_op(call),
         Op::Sample => sample_op(call),
     }
@@ -74,13 +75,20 @@ fn embedding(call: &OpCall) -> Result<()> {
     let ob = unsafe { bytes_mut(out)? };
     let same = table.dtype == out.dtype;
     let osz = out.dtype.size_bytes();
+    let scale = call.attrs.scale;
     ob.par_chunks_mut(h * osz).enumerate().try_for_each(|(t, row)| -> Result<()> {
         let id = i32::from_le_bytes(idb[t * 4..t * 4 + 4].try_into().unwrap());
         if id < 0 || id as usize >= v {
             return Err(Error::invalid(format!("embedding id {id} out of range {v}")));
         }
         let src = &tb[id as usize * h * esz..(id as usize + 1) * h * esz];
-        if same {
+        if scale != 1.0 {
+            // output multiplier (Gemma embedding scale): one rounding of f32(row) * scale
+            let mut tmp = vec![0f32; h];
+            decode_to_f32(table.dtype, src, &mut tmp);
+            tmp.iter_mut().for_each(|v| *v *= scale);
+            encode_from_f32(out.dtype, &tmp, row);
+        } else if same {
             row.copy_from_slice(src);
         } else {
             let mut tmp = vec![0f32; h];
@@ -133,7 +141,9 @@ fn rmsnorm_add(call: &OpCall) -> Result<()> {
 fn add(call: &OpCall) -> Result<()> {
     let a = read_f32(&call.inputs[0])?;
     let b = read_f32(&call.inputs[1])?;
-    let o: Vec<f32> = a.iter().zip(&b).map(|(x, y)| x + y).collect();
+    let scale = call.attrs.scale;
+    // `scale != 1.0` (Gemma layer_scalar): one rounding of f32(a + b) * scale
+    let o: Vec<f32> = if scale != 1.0 { a.iter().zip(&b).map(|(x, y)| (x + y) * scale).collect() } else { a.iter().zip(&b).map(|(x, y)| x + y).collect() };
     write_f32(&call.outputs[0], &o)
 }
 
@@ -143,9 +153,10 @@ fn rope(call: &OpCall) -> Result<()> {
     let x = read_f32(xt)?;
     // partial rotary: only the first `rd` values of each head rotate, the rest pass through
     let rd = if call.attrs.rotary_dim == 0 { d } else { call.attrs.rotary_dim };
-    let half = rd / 2;
+    // proportional rope: the angles cover the first `rd / 2` pairs (j, j + d/2), exponent denominator is the full head dim
+    let (half, stride, denom) = if call.attrs.rope_prop { (rd / 2, d / 2, d) } else { (rd / 2, rd / 2, rd) };
     let theta = call.attrs.theta as f64;
-    let inv: Vec<f64> = (0..half).map(|i| theta.powf(-2.0 * i as f64 / rd as f64)).collect();
+    let inv: Vec<f64> = (0..half).map(|i| theta.powf(-2.0 * i as f64 / denom as f64)).collect();
     let mut o = x.clone();
     o.par_chunks_mut(n * d).enumerate().for_each(|(ti, trow)| {
         let pos = (call.attrs.pos0 + ti) as f64;
@@ -161,8 +172,8 @@ fn rope(call: &OpCall) -> Result<()> {
             let or = &mut trow[h * d..(h + 1) * d];
             for i in 0..half {
                 let (c, s) = cs[i];
-                or[i] = xr[i] * c - xr[i + half] * s;
-                or[i + half] = xr[i + half] * c + xr[i] * s;
+                or[i] = xr[i] * c - xr[i + stride] * s;
+                or[i + stride] = xr[i + stride] * c + xr[i] * s;
             }
         }
     });
@@ -245,16 +256,19 @@ fn attention(call: &OpCall) -> Result<()> {
         let (ti, head) = (i / n, i % n);
         let kvh = head / group;
         let visible = pos0 + ti + 1;
+        // sliding window: the last `window` keys including the query's own position (0 = all)
+        let start = if call.attrs.window > 0 { visible.saturating_sub(call.attrs.window) } else { 0 };
         let qrow = &q[(ti * n + head) * d..(ti * n + head + 1) * d];
         let (k, v) = (&ks[kvh], &vs[kvh]);
-        let mut s: Vec<f32> = (0..visible).map(|j| scale * dot(qrow, &k[j * d..(j + 1) * d])).collect();
+        let mut s: Vec<f32> = (start..visible).map(|j| scale * dot(qrow, &k[j * d..(j + 1) * d])).collect();
         let mx = s.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let mut den = 0f32;
         for x in s.iter_mut() {
             *x = (*x - mx).exp();
             den += *x;
         }
-        for (j, p) in s.iter().enumerate() {
+        for (jj, p) in s.iter().enumerate() {
+            let j = start + jj;
             let w = p / den;
             let vr = &v[j * d..(j + 1) * d];
             for (a, b) in orow.iter_mut().zip(vr) {
@@ -269,6 +283,14 @@ fn silu_glu(call: &OpCall) -> Result<()> {
     let g = read_f32(&call.inputs[0])?;
     let u = read_f32(&call.inputs[1])?;
     let o: Vec<f32> = g.par_iter().zip(u.par_iter()).map(|(g, u)| (g / (1.0 + (-g).exp())) * u).collect();
+    write_f32(&call.outputs[0], &o)
+}
+
+fn gelu_glu(call: &OpCall) -> Result<()> {
+    let g = read_f32(&call.inputs[0])?;
+    let u = read_f32(&call.inputs[1])?;
+    const C: f32 = 0.797_884_56; // sqrt(2/pi)
+    let o: Vec<f32> = g.par_iter().zip(u.par_iter()).map(|(g, u)| 0.5 * g * (1.0 + (C * (g + 0.044715 * g * g * g)).tanh()) * u).collect();
     write_f32(&call.outputs[0], &o)
 }
 
