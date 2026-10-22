@@ -2,3 +2,5 @@ fleetq: #4004 waiting (#5 in line): in line behind #3980 "fx3 8B quality MMLU n=
 fleetq:   #3980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3980 set, or it will wait for #3980 to be released.
 fleetq: #4004 waiting (#4 in line): in line behind #3994 "fx3 8b opt-in prefill-chunk pass p31 (exclusive, vLLM up)" (claude-f31ccf91-fx3) on spark2
 fleetq:   #3994 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3994 set, or it will wait for #3994 to be released.
+fleetq: #4004 waiting (#3 in line): in line behind #3995 "fx3 8b opt-in prefill-chunk pass p32 (exclusive, vLLM up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3995 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3995 set, or it will wait for #3995 to be released.

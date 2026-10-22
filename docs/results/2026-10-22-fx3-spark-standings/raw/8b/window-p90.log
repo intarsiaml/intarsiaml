@@ -4,3 +4,11 @@
 [06:46:41]   quality exit=0
 [06:46:46] == arm vllm (MemAvailable 54 GB)
 [06:50:16]   vllm ready after 195s
+[07:22:36]   quality exit=0
+[07:22:41] == arm sglang (MemAvailable 54 GB)
+[07:25:46]   sglang ready after 170s
+[07:56:59]   quality exit=0
+[07:57:04] == arm llamacpp (MemAvailable 54 GB)
+[07:57:26]   llamacpp ready after 20s
+[08:25:33]   quality exit=0
+[08:25:35] pass p90 done

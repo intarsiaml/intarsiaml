@@ -2,3 +2,7 @@ fleetq: #3994 waiting (#2 in line): in line behind #3980 "fx3 8B quality MMLU n=
 fleetq:   #3980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3980 set, or it will wait for #3980 to be released.
 fleetq: #3994 waiting (#1 in line): needs spark2 to itself; running there: #3980 "fx3 8B quality MMLU n=25/task (vLLM retro up, non-exclusive)" (claude-f31ccf91-fx3)
 fleetq:   #3980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3980 set, or it will wait for #3980 to be released.
+fleetq: #3994 waiting (#1 in line): needs spark2 quiet, but its GPU is 44% busy with work fleetq does not track
+fleetq: #3994 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p31 'ARMS=intarsia4k vllm intarsia' PHASES=speed MINGB=30 scripts/standings-fx3/window-opt.sh
+[08:25:50] pass p31 model=8b host=spark2 arms=[intarsia4k vllm intarsia] phases=speed job=3994
+[08:25:54] == arm intarsia4k (MemAvailable 54 GB)

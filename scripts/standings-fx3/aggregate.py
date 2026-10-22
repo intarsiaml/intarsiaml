@@ -143,7 +143,7 @@ def main():
         for a in [x for x in ORDER if x in qual] + [x for x in qual if x not in ORDER]:
             for res in list(qual[a].values())[:1]:
                 for b in res.get("benchmarks") or []:
-                    out.append(f"| {a} | {len(qual[a])} | {b['benchmark']} | {b.get('overall_score')} | {b.get('n_predictions')} |")
+                    out.append(f"| {a} | {len(qual[a])} | {b['benchmark']} | {b['overall_score']:.3f} | {b.get('n_predictions')} |")
         out.append("")
     txt = "\n".join(out)
     if "--out" in sys.argv:

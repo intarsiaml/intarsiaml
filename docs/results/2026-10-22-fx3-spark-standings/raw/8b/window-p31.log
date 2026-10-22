@@ -1,0 +1,2 @@
+[08:25:50] pass p31 model=8b host=spark2 arms=[intarsia4k vllm intarsia] phases=speed job=3994
+[08:25:54] == arm intarsia4k (MemAvailable 54 GB)
