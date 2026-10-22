@@ -45,7 +45,7 @@ impl Model {
         let dense = self.layers.iter().flatten().all(|b| match b {
             Block::Attn(a) => !a.gated,
             Block::Ffn(_) => true,
-            Block::Gdn(_) | Block::Moe(_) => false,
+            Block::Gdn(_) | Block::Moe(_) | Block::Gemma(_) => false,
         });
         if !dense {
             return Err(Error::Unsupported(

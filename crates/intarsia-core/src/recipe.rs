@@ -427,6 +427,87 @@ pub struct ModelDims {
     pub linear: Option<LinearDims>,
     /// Sparse MoE FFN dimensions when the config carries them.
     pub moe: Option<crate::quant::moe::MoeConfig>,
+    /// Gemma 4 text-model dimensions (`model_type = "gemma4_text"`); `None` for every other family.
+    pub gemma: Option<GemmaDims>,
+}
+
+/// What a Gemma 4 text config adds to [`ModelDims`] (HF `Gemma4TextConfig`): sliding / global attention layers with their
+/// own head sizes and RoPE, `attention_k_eq_v`, the final logit soft-cap, the embedding scale. `ModelDims::head_dim` /
+/// `n_kv_heads` / `rope_theta` are the SLIDING layers' (`head_dim`, `num_key_value_heads`, `rope_parameters.sliding_attention`).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+pub struct GemmaDims {
+    /// Keys a sliding layer attends (itself included).
+    pub sliding_window: usize,
+    /// Global (`full_attention`) layers: head size, KV heads, RoPE base and the fraction of the head that rotates.
+    pub global_head_dim: usize,
+    pub global_kv_heads: usize,
+    pub global_theta: f32,
+    pub global_rotary_factor: f32,
+    /// Global layers have no `v_proj`: V is the (unit-normed) K projection (`attention_k_eq_v`).
+    pub k_eq_v: bool,
+    /// `final_logit_softcapping` (`cap * tanh(logit / cap)`), 0 = none.
+    pub softcap: f32,
+    /// Embedding multiplier, `sqrt(hidden_size)` rounded to bf16 like HF's `embed_scale.to(weight.dtype)`.
+    pub embed_scale: f32,
+}
+
+impl GemmaDims {
+    /// `Some` for a `gemma4_text` config (the text config of a `Gemma4ForConditionalGeneration` wrapper or the config itself).
+    pub fn from_hf_config(cfg: &serde_json::Value) -> Result<Option<GemmaDims>> {
+        let tc = text_config(cfg);
+        if tc.get("model_type").and_then(|v| v.as_str()) != Some("gemma4_text") {
+            return Ok(None);
+        }
+        let u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
+        let rp = tc.get("rope_parameters").filter(|v| v.is_object()).ok_or_else(|| Error::model("gemma4 config: rope_parameters missing"))?;
+        let ty = |k: &str, want: &str| -> Result<serde_json::Value> {
+            let v = rp.get(k).filter(|v| v.is_object()).ok_or_else(|| Error::model(format!("gemma4 config: rope_parameters.{k} missing")))?;
+            let t = v.get("rope_type").and_then(|t| t.as_str()).unwrap_or("default");
+            if t != want {
+                return Err(Error::Unsupported(format!("gemma4 config: rope_parameters.{k}.rope_type = \"{t}\" (only \"{want}\" is implemented)")));
+            }
+            Ok(v.clone())
+        };
+        let _local = ty("sliding_attention", "default")?;
+        let global = ty("full_attention", "proportional")?;
+        let g = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64());
+        if g(&global, "factor").is_some_and(|f| (f - 1.0).abs() > 1e-9) {
+            return Err(Error::Unsupported("gemma4 config: proportional rope with factor != 1".into()));
+        }
+        let hidden = u("hidden_size")?;
+        // HF rounds sqrt(hidden) to the weight dtype (bf16) before the multiply
+        let embed_scale = half::bf16::from_f32((hidden as f32).sqrt()).to_f32();
+        let rot = g(&global, "partial_rotary_factor").unwrap_or(1.0) as f32;
+        let ghd = u("global_head_dim")?;
+        if !(rot > 0.0 && rot <= 1.0) || ((rot * ghd as f32) as usize) % 2 != 0 {
+            return Err(Error::model(format!("gemma4 config: global partial_rotary_factor {rot} on head_dim {ghd}")));
+        }
+        if tc.get("num_kv_shared_layers").and_then(|v| v.as_u64()).unwrap_or(0) != 0 {
+            return Err(Error::Unsupported("gemma4 config: num_kv_shared_layers != 0".into()));
+        }
+        if tc.get("hidden_size_per_layer_input").and_then(|v| v.as_u64()).unwrap_or(0) != 0 {
+            return Err(Error::Unsupported("gemma4 config: hidden_size_per_layer_input != 0 (per-layer embeddings)".into()));
+        }
+        if tc.get("hidden_activation").and_then(|v| v.as_str()) != Some("gelu_pytorch_tanh") {
+            return Err(Error::Unsupported(format!("gemma4 config: hidden_activation = {:?} (only gelu_pytorch_tanh)", tc.get("hidden_activation"))));
+        }
+        if !tc.get("enable_moe_block").and_then(|v| v.as_bool()).unwrap_or(false) {
+            return Err(Error::Unsupported("gemma4 config: enable_moe_block = false (dense Gemma 4 is not implemented)".into()));
+        }
+        if tc.get("attention_bias").and_then(|v| v.as_bool()) == Some(true) {
+            return Err(Error::Unsupported("gemma4 config: attention_bias = true".into()));
+        }
+        Ok(Some(GemmaDims {
+            sliding_window: u("sliding_window")?,
+            global_head_dim: ghd,
+            global_kv_heads: u("num_global_key_value_heads")?,
+            global_theta: g(&global, "rope_theta").ok_or_else(|| Error::model("gemma4 config: full_attention rope_theta missing"))? as f32,
+            global_rotary_factor: rot,
+            k_eq_v: tc.get("attention_k_eq_v").and_then(|v| v.as_bool()).unwrap_or(false),
+            softcap: tc.get("final_logit_softcapping").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            embed_scale,
+        }))
+    }
 }
 
 /// Dimensions of a GatedDeltaNet (linear attention) layer.
@@ -455,6 +536,10 @@ pub fn text_config(cfg: &serde_json::Value) -> &serde_json::Value {
 /// Reject configuration this engine would silently run wrong. Errors name the offending key.
 pub fn check_supported(cfg: &serde_json::Value) -> Result<()> {
     let tc = text_config(cfg);
+    // Gemma 4 (sliding-window layers, per-layer-type proportional rope, GELU) is validated by `GemmaDims::from_hf_config`
+    if GemmaDims::from_hf_config(cfg)?.is_some() {
+        return Ok(());
+    }
     let unsupported = |m: String| Err(Error::Unsupported(m));
     if let Some(act) = tc.get("hidden_act").and_then(|v| v.as_str()) {
         if act != "silu" {
@@ -505,6 +590,9 @@ impl ModelDims {
         if world <= 1 {
             return Ok(self.clone());
         }
+        if self.gemma.is_some() {
+            return Err(Error::Unsupported("tensor parallelism of Gemma 4 (per-layer-type head counts, parallel dense + MoE FFN)".into()));
+        }
         let mut checks = vec![("attention heads", self.n_heads), ("KV heads", self.n_kv_heads), ("FFN width", self.intermediate)];
         if let Some(l) = &self.linear {
             checks.extend([("GatedDeltaNet key heads", l.k_heads), ("GatedDeltaNet value heads", l.v_heads)]);
@@ -535,6 +623,7 @@ impl ModelDims {
     pub fn from_hf_config(cfg: &serde_json::Value, keys: &ConfigKeys) -> Result<ModelDims> {
         check_supported(cfg)?;
         let tc = text_config(cfg);
+        let gemma = GemmaDims::from_hf_config(cfg)?;
         let get_u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize);
         let need_u = |k: &str| get_u(k).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
         let get_f = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64());
@@ -549,6 +638,8 @@ impl ModelDims {
             .ok_or_else(|| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.rms_eps)))?;
         // transformers 5 keeps rope settings in `rope_parameters`; older checkpoints have a top-level key.
         let rp = tc.get("rope_parameters").filter(|v| v.is_object());
+        // Gemma 4 keeps one rope table per layer type: `ModelDims` carries the sliding layers', `GemmaDims` the global ones'
+        let rp = if gemma.is_some() { rp.and_then(|r| r.get("sliding_attention")).filter(|v| v.is_object()) } else { rp };
         let theta_new = rp.and_then(|r| get_f(r, &keys.rope_theta));
         let theta_old = get_f(tc, &keys.rope_theta);
         let rope_theta = match (theta_new, theta_old) {
@@ -576,6 +667,17 @@ impl ModelDims {
         let max_positions = need_u(&keys.max_positions)
             .map_err(|_| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.max_positions)))?;
         let is_moe = ["num_experts", "num_local_experts", "moe_intermediate_size"].iter().any(|k| tc.get(*k).is_some());
+        let gemma_moe = || -> Result<crate::quant::moe::MoeConfig> {
+            let u = |k: &str| get_u(k).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
+            Ok(crate::quant::moe::MoeConfig {
+                hidden,
+                experts: u("num_experts")?,
+                top_k: u("top_k_experts")?,
+                inter: u("moe_intermediate_size")?,
+                shared_inter: 0,
+                norm_topk: true,
+            })
+        };
         let intermediate = match get_u(&keys.intermediate_size) {
             Some(v) => v,
             None if is_moe => 0,
@@ -640,7 +742,14 @@ impl ModelDims {
             max_positions,
             layer_types,
             linear,
-            moe: if is_moe { Some(crate::quant::moe::MoeConfig::from_hf_config(cfg)?) } else { None },
+            moe: if gemma.is_some() {
+                Some(gemma_moe()?)
+            } else if is_moe {
+                Some(crate::quant::moe::MoeConfig::from_hf_config(cfg)?)
+            } else {
+                None
+            },
+            gemma,
         })
     }
 }
