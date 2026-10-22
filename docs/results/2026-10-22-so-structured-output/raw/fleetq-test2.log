@@ -1,0 +1,6 @@
+fleetq: #4202 waiting (#8 in line): in line behind #4190 "ck: Metal chunk gen ids + decode-mode dumps (exclusive)" (claude-f31ccf91-ck) on endor
+fleetq: #4202 waiting (#7 in line): endor is held exclusively by #4190 "ck: Metal chunk gen ids + decode-mode dumps (exclusive)" (claude-f31ccf91-ck); then in line behind #4192 "mdl: build head binary w/ NO_FOLD knob (cargo, cpu only)" (claude-f31ccf91-mdl) on endor
+fleetq: #4202 waiting (#5 in line): in line behind #4197 "so: constrained decode profile + A/B vs main + llama.cpp (exclusive, short)" (claude-f31ccf91-so) on endor
+fleetq:   #4197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4197 set, or it will wait for #4197 to be released.
+fleetq: #4202 waiting (#4 in line): endor is held exclusively by #4197 "so: constrained decode profile + A/B vs main + llama.cpp (exclusive, short)" (claude-f31ccf91-so); then in line behind #4198 "fx4 build new+base with metal" (claude-f31ccf91) on endor
+fleetq:   #4197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4197 set, or it will wait for #4197 to be released.

@@ -97,6 +97,35 @@ def one(base, body):
     return n, tps, dt, len(toks)
 
 
+def llama_native(a):
+    """llama-server /completion (native): `json_schema` is converted to a grammar by the server. Streams `content`."""
+    def one_native(body):
+        st, ev, stamps, dt = e2e.post(a.url + "/completion", body, True)
+        assert st == 200, ev
+        pairs = [(e["content"], s) for (_, e), s in zip(ev, stamps) if e.get("content")]
+        n = [e for _, e in ev if e.get("stop")][-1].get("tokens_predicted", len(pairs))
+        text = "".join(c for c, _ in pairs)
+        ts = [s for _, s in pairs]
+        return n, (len(ts) - 1) / (ts[-1] - ts[0]) if len(ts) > 1 else 0.0, dt, text
+
+    rows = []
+    for r in range(a.reps):
+        base = {"prompt": PROMPT, "temperature": 0, "stream": True, "cache_prompt": False}
+        n, cons, dt, text = one_native({**base, "n_predict": 600, "json_schema": FRUITS})
+        try:
+            ok = len(json.loads(text)["fruits"]) == 40
+        except Exception:  # noqa: BLE001
+            ok = False
+        _, gr, dtg, _ = one_native({**base, "n_predict": n, "ignore_eos": True})
+        row = {"rep": r, "tokens": n, "cons_tok_s": cons, "greedy_tok_s": gr, "cons_s": dt, "greedy_s": dtg, "valid_40": ok,
+               "text_head": text[:80]}
+        rows.append(row)
+        print(json.dumps(row), flush=True)
+    with open(a.out, "a") as f:
+        for row in rows:
+            f.write(json.dumps({"label": a.label, **row}) + "\n")
+
+
 def speed(a):
     rows = []
     rf = {"type": "json_schema", "json_schema": {"name": "f", "schema": FRUITS}}
@@ -147,11 +176,11 @@ def identity(a):
 
 
 ap = argparse.ArgumentParser()
-ap.add_argument("mode", choices=["speed", "identity"])
+ap.add_argument("mode", choices=["speed", "identity", "llama-native"])
 ap.add_argument("--url", default="http://127.0.0.1:8093")
 ap.add_argument("--engine", default="intarsia")
 ap.add_argument("--reps", type=int, default=2)
 ap.add_argument("--label", default="")
 ap.add_argument("--out", required=True)
 a = ap.parse_args()
-{"speed": speed, "identity": identity}[a.mode](a)
+{"speed": speed, "identity": identity, "llama-native": llama_native}[a.mode](a)
