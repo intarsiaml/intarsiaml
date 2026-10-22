@@ -1,0 +1,5 @@
+[06:24:31] pass p91 model=35b host=spark1 arms=[sglang] phases=quality job=3990
+[06:24:35] == arm sglang (MemAvailable 111 GB)
+[06:28:54]   sglang ready after 240s
+[06:33:35]   quality exit=0
+[06:33:37] pass p91 done

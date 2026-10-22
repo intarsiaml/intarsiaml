@@ -56,7 +56,7 @@ start_arm() {
       PORT=8300; NAME=vllm
       rsh "docker run -d --name fx3-vllm --gpus all --ipc=host --network host -v \$HOME/.cache/huggingface:/root/.cache/huggingface -e HF_HUB_OFFLINE=1 -e VLLM_USE_FLASHINFER_MOE_FP4=0 -e VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel $VLLM_IMG $CM --host 0.0.0.0 --port $PORT --served-model-name $NAME --max-model-len 20480 --max-num-seqs 16 --max-num-batched-tokens 8192 --gpu-memory-utilization ${VLLM_UTIL:-0.20} --enable-prefix-caching --enable-chunked-prefill > /dev/null";;
     sglang) PORT=8200; NAME=sglang
-      rsh "bash \$HOME/fx3/start-sglang.sh $MODEL $PORT" >/dev/null;;
+      rsh "MEMFRAC=${SGL_MEMFRAC:-} bash \$HOME/fx3/start-sglang.sh $MODEL $PORT" >/dev/null;;
     llamacpp) PORT=8400; NAME=llamacpp
       rsh "nohup $LLAMA -m $GGUF -ngl 999 -fa on -c 20480 -np 1 --host 0.0.0.0 --port $PORT -a $NAME --jinja --cache-ram 0 --no-webui > \$HOME/fx3/logs/llamacpp-$PASS.log 2>&1 < /dev/null & echo \$! > $PIDFILE";;
     llamacpp16) PORT=8400; NAME=llamacpp

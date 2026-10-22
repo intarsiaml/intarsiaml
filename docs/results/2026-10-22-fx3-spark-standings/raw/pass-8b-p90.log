@@ -1,0 +1,14 @@
+fleetq: #3980 waiting (#3 in line): in line behind #3962 "fx3 8B standings pass p5 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3962 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3962 set, or it will wait for #3962 to be released.
+fleetq: #3980 waiting (#2 in line): in line behind #3963 "fx3 8B standings pass p6 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3963 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3963 set, or it will wait for #3963 to be released.
+fleetq: #3980 waiting (#1 in line): spark2 is held exclusively by #3963 "fx3 8B standings pass p6 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3)
+fleetq:   #3963 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3963 set, or it will wait for #3963 to be released.
+fleetq: #3980 waiting (#1 in line): needs 32 GB on spark2; the box reports only 28 GB actually free (memory used by something fleetq does not track)
+fleetq: #3980 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p90 'ARMS=intarsia vllm sglang llamacpp' PHASES=quality QBENCH=mmlu QLIMIT=25 MINGB=30 scripts/standings-fx3/window.sh
+[06:17:50] pass p90 model=8b host=spark2 arms=[intarsia vllm sglang llamacpp] phases=quality job=3980
+[06:17:54] == arm intarsia (MemAvailable 54 GB)
+[06:19:14]   intarsia ready after 75s
+[06:46:41]   quality exit=0
+[06:46:46] == arm vllm (MemAvailable 54 GB)
+[06:50:16]   vllm ready after 195s

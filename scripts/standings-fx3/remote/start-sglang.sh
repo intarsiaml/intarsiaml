@@ -8,7 +8,7 @@ docker rm -f fx3-sglang >/dev/null 2>&1
 snap() { local d; d=$(ls -d $HOME/.cache/huggingface/hub/models--$1/snapshots/* | head -1); echo "/root/.cache/huggingface/${d#*/.cache/huggingface/}"; }
 case $M in
   35b) MODEL=$(snap nvidia--Qwen3.6-35B-A3B-NVFP4); EXTRA="--quantization modelopt_fp4 --kv-cache-dtype fp8_e4m3 --mem-fraction-static ${MEMFRAC:-0.36}";;
-  8b)  MODEL=$(snap Qwen--Qwen3-8B); EXTRA="--mem-fraction-static ${MEMFRAC:-0.33}";;
+  8b)  MODEL=$(snap Qwen--Qwen3-8B); EXTRA="--mem-fraction-static ${MEMFRAC:-0.36}";;
 esac
 docker run -d --name fx3-sglang --gpus all --ipc=host --network host \
   -v $HOME/.cache/huggingface:/root/.cache/huggingface -e HF_HUB_OFFLINE=1 --entrypoint python3 $IMG \

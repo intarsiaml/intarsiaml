@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """fx3: aggregate the interleaved Spark visits.
 
-usage: aggregate.py <raw/<model> dir> [--out table.md]
+usage: [VISITS=<regex on visit id, e.g. '^p' or '^r'>] [REF=intarsia] aggregate.py <raw/<model> dir> [--out table.md]
+Visit ids: pN = vLLM up (production server resident), rN = vLLM-down window, p9N = quality.
 
 Files: <arm>-<pass>-speed.result.json, -conc.result.json, -quality.result.json (localeval results, one visit = one server start).
 Per arm and prompt size, each visit contributes the median of its reps; a cell is the median of the visit medians, the band is
@@ -10,17 +11,20 @@ arm named REF (default intarsia).
 """
 import glob, json, os, re, statistics as st, sys
 
-ORDER = ["intarsia", "vllm", "sglang", "llamacpp", "llamacpp16"]
+ORDER = ["intarsia", "intarsia4k", "vllm", "sglang", "llamacpp", "llamacpp16"]
 SIZES = [128, 1024, 4096, 16384]
 
 
 def load(d, kind):
     out = {}
+    vis = os.environ.get('VISITS')
     for f in sorted(glob.glob(os.path.join(d, f"*-{kind}.result.json"))):
         m = re.match(r"(.+?)-(p\d+|r\d+|smoke\d*)-" + kind + r"\.result\.json", os.path.basename(f))
         if not m or m.group(2).startswith("smoke"):
             continue
         arm, visit = m.groups()[:2]
+        if vis and kind != 'quality' and not re.search(vis, visit):
+            continue
         try:
             out.setdefault(arm, {})[visit] = json.load(open(f))
         except Exception:
@@ -29,7 +33,7 @@ def load(d, kind):
 
 
 def row(res, size):
-    for r in res.get("speed", {}).get("rows", []):
+    for r in (res.get("speed") or {}).get("rows", []):
         if r["target_prompt_tokens"] == size:
             return r
     return None
@@ -112,7 +116,7 @@ def main():
     out.append("")
     if conc:
         out.append("### Concurrency (1k-token prompts, 128 generated tokens, one burst per visit; median over visits)\n")
-        streams = sorted({c["streams"] for v in conc.values() for res in v.values() for c in res["speed"]["concurrency"]})
+        streams = sorted({c["streams"] for v in conc.values() for res in v.values() for c in ((res.get("speed") or {}).get("concurrency") or [])})
         out.append("| engine | n | " + " | ".join(f"{s}: agg tok/s / per-stream / TTFT s / errors" for s in streams) + " |")
         out.append("|---|---:|" + "---|" * len(streams))
         for a in [x for x in ORDER if x in conc] + [x for x in conc if x not in ORDER]:
@@ -120,7 +124,7 @@ def main():
             for s in streams:
                 agg, per, tt, er = [], [], [], 0
                 for res in conc[a].values():
-                    for c in res["speed"]["concurrency"]:
+                    for c in ((res.get("speed") or {}).get("concurrency") or []):
                         if c["streams"] == s:
                             if c["aggregate_decode_tok_s"] is not None:
                                 agg.append(c["aggregate_decode_tok_s"])

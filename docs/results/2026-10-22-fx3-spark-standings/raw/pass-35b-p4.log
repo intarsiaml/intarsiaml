@@ -1,2 +1,5 @@
 fleetq: #3971 waiting (#2 in line): in line behind #3970 "fx3 35B standings pass p3 (exclusive, vLLM guidance up)" (claude-f31ccf91-fx3) on spark1
 fleetq:   #3970 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3970 set, or it will wait for #3970 to be released.
+fleetq: #3971 waiting (#1 in line): spark1 is held exclusively by #3970 "fx3 35B standings pass p3 (exclusive, vLLM guidance up)" (claude-f31ccf91-fx3)
+fleetq:   #3970 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3970 set, or it will wait for #3970 to be released.
+fleetq: #3971 is cancelled, so it will not run: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p4 'ARMS=llamacpp intarsia sglang vllm' PHASES=speed,conc MINGB=36 scripts/standings-fx3/window.sh

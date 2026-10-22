@@ -1,2 +1,23 @@
 fleetq: #3970 waiting (#1 in line): spark1 is held exclusively by #3969 "fx3 35B standings pass p2 (exclusive, vLLM guidance up)" (claude-f31ccf91-fx3)
 fleetq:   #3969 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3969 set, or it will wait for #3969 to be released.
+fleetq: #3970 waiting (#1 in line): needs 44 GB on spark1; the box reports only 31 GB actually free (memory used by something fleetq does not track)
+fleetq: #3970 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #3970 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p3 'ARMS=vllm sglang intarsia llamacpp' PHASES=speed,conc MINGB=36 scripts/standings-fx3/window.sh
+[05:25:19] pass p3 model=35b host=spark1 arms=[vllm sglang intarsia llamacpp] phases=speed,conc job=3970
+[05:25:24] == arm vllm (MemAvailable 52 GB)
+[05:25:24]   vllm ready after 0s
+[05:25:58]   speed exit=0
+[05:26:28]   conc exit=0
+[05:26:33] == arm sglang (MemAvailable 52 GB)
+[05:29:15]   sglang process/container died while starting
+[05:29:15] FAIL sglang did not come up
+[05:29:19] == arm intarsia (MemAvailable 52 GB)
+[05:30:13]   intarsia ready after 50s
+[05:30:47]   speed exit=0
+[05:31:28]   conc exit=0
+[05:31:33] == arm llamacpp (MemAvailable 52 GB)
+[05:32:00]   llamacpp ready after 25s
+[05:33:01]   speed exit=0
+scripts/standings-fx3/window.sh: line 128: unexpected EOF while looking for matching `"'
+scripts/standings-fx3/window.sh: line 129: syntax error: unexpected end of file
+fleetq: #3970 done (exit 2)
