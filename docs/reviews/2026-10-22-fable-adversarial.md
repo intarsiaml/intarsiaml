@@ -20,7 +20,7 @@ Updated 2026-10-22. "In progress" means a lane has been assigned and is working;
 | 8 | medium | CUDA and HIP baselines/envelopes not committed | folded into fx1 | in progress |
 | 9 | medium | Quant format enum across 21 files; 20+ accuracy gate flags | none yet | deferred (user decision) |
 | 10 | medium | PR #70 MoE multi-tile path and four ops untested; no reuse-mode run on Metal 35B | PR #70 review fixes, fx10 (tests, reuse run) | PR #92 |
-| 11 | low | CI excludes GPU crates, skips tests; `INTARSIA_CUDA_FAST_PREFILL` semantics flipped | fx12 | in progress |
+| 11 | low | CI excludes GPU crates, skips tests; `INTARSIA_CUDA_FAST_PREFILL` semantics flipped | fx11 (docs/results/2026-10-22-fx11-ci-gpu.md) | CI now type-checks cuda and hip with the GPU cfgs (check-only build.rs switch); the by-name skip was already removed (c400a05e); all 24 `#[ignore]` tests are GPU benches or need external inputs, none un-ignored, each mapped to its box; FAST_PREFILL was `== "1"` from its first commit, so docs and code agree and the "flip" is not supported by history; in review (PR) |
 | 12 | low | tp_remote `Truncate`/`Snapshot` errors deferred; `truncate` not atomic across ranks | fx12 | in progress |
 
 Finding 9 is a design question (how far to refactor the quant format enum and the accuracy flags), so it waits for the user.
