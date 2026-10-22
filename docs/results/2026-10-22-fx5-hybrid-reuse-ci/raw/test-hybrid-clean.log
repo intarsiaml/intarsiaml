@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
+
+running 11 tests
+test layer_kinds_follow_the_config ... ok
+test argmax_decode_path_agrees ... ok
+test one_shot_prefill_matches_hf ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... ok
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+

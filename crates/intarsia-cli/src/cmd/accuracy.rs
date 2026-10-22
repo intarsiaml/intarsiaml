@@ -233,6 +233,17 @@ pub struct AccuracyArgs {
     /// execute the same operations as the cold run, so its logits must equal the cold run's bit for bit (no tolerance).
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub reuse_exact: bool,
+    /// Reuse mode: a prompt skipped because it cannot cross a prefill-chunk boundary (shorter than the chunk) FAILS the gate
+    /// instead of being reported and left out. `qualify` sets it, with a chunk of at most 1024, so that a reuse gate which
+    /// tested only some of the golden's prompts is never a pass.
+    #[arg(long)]
+    pub reuse_require_all: bool,
+    /// Reuse mode: for every `continue` and unaligned `restore` case print the largest top-5 log-probability difference
+    /// (`nu`, nats) and KL(cold || warm) between the warm and the cold run over the rows that share a context (up to the
+    /// first divergence), whether or not the streams diverged. The numbers a `reuse_logit_tol` / `reuse_kl_tol` is derived
+    /// from (docs/accuracy.md). Costs two more generations per case; changes no verdict.
+    #[arg(long)]
+    pub reuse_measure: bool,
     /// Quick gate: maximum perplexity on the fixed text.
     #[arg(long, default_value_t = 40.0)]
     pub max_ppl: f64,
@@ -1847,6 +1858,38 @@ fn judge_streams(
     Ok(StreamVerdict { agree, ok, note: format!("{note}{legacy_note}") })
 }
 
+/// `--reuse-measure` for one case: the rounding scale the warm and cold rows differ by where they share a context.
+/// Prints `REUSE-MEASURE <label> shared_rows N nu_max X kl_max Y [diverged_at D]` (nu: largest |dlog-prob| over either
+/// row's top-5 tokens; kl: KL(cold || warm)), the two quantities the tolerance of [`judge_divergence`] bounds.
+fn reuse_measure(
+    label: &str,
+    rerun: &dyn Fn(bool, Arc<Mutex<Vec<Vec<f32>>>>) -> Result<Vec<u32>>,
+) -> Result<()> {
+    let (tw, tc) = (Arc::new(Mutex::new(Vec::new())), Arc::new(Mutex::new(Vec::new())));
+    let (wt, ct) = (rerun(true, tw.clone())?, rerun(false, tc.clone())?);
+    let (wr, cr) = (tw.lock().unwrap().clone(), tc.lock().unwrap().clone());
+    let avail = wr.len().min(cr.len()).min(wt.len()).min(ct.len());
+    if avail == 0 {
+        println!("    REUSE-MEASURE {label} no traced rows (engine cannot trace logits)");
+        return Ok(());
+    }
+    // rows 0..=d share one context (the streams agree before d); with no divergence every row does
+    let d = first_divergence(&wt, &ct);
+    let shared = d.map_or(avail, |d| (d + 1).min(avail));
+    let nu = (0..shared).map(|j| row_nu(&wr[j], &cr[j])).fold(0.0, f64::max);
+    let kl = (0..shared).map(|j| kl_rows(&cr[j], &wr[j])).fold(0.0, f64::max);
+    println!(
+        "    REUSE-MEASURE {label} shared_rows {shared} nu_max {nu:.4} kl_max {kl:.3e}{}",
+        d.map_or(String::new(), |d| format!(" diverged_at {d}"))
+    );
+    Ok(())
+}
+
+/// Why the gate fails for skipped prompts: under `--reuse-require-all` any prompt that was left out fails it.
+fn skipped_failure(skipped: &[String], require_all: bool) -> Option<String> {
+    (require_all && !skipped.is_empty()).then(|| format!("{} prompt(s) skipped, none of their splits crosses a chunk boundary: {}", skipped.len(), skipped.join(", ")))
+}
+
 /// The split of the reuse cases for a prompt of `n` tokens at prefill chunk `chunk`: turn 1 (`ids[..split]`) must cross a
 /// chunk boundary (`split > chunk`), or the restore never leaves the first chunk and "passes" without testing anything.
 /// The golden's `reuse_split` (or half the prompt) is used when it does; otherwise one and a half chunks, bounded by the
@@ -1922,7 +1965,10 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
     // `warm` / `cold` runs of one case: (trace) -> (stream, cached); the cold run is preceded by a cache flush
     type Trace = Arc<Mutex<Vec<Vec<f32>>>>;
     type Run<'a> = &'a dyn Fn(Option<Arc<Mutex<Vec<Vec<f32>>>>>) -> Result<(Vec<u32>, usize)>;
-    let judge = |warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+    let judge = |label: &str, warm_run: Run, cold_run: Run, warm: &[u32], cold: &[u32]| -> Result<StreamVerdict> {
+        if args.reuse_measure {
+            reuse_measure(label, &|is_warm, t| Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 }))?;
+        }
         judge_streams(warm, cold, m, args, tol, &|is_warm, t| {
             Ok(if is_warm { warm_run(Some(t))?.0 } else { cold_run(Some(t))?.0 })
         })
@@ -1966,7 +2012,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 };
                 let (warm, cached) = gen_tokens(engine, turn2.clone(), m)?;
                 let (cold, cold_cached) = cold_run(None)?;
-                let v = judge(&warm_run, &cold_run, &warm, &cold)?;
+                let v = judge(&format!("{name} continue split {split}"), &warm_run, &cold_run, &warm, &cold)?;
                 let ok = cached >= split && cold_cached == 0 && v.ok;
                 let note = if cached < split {
                     format!("reuse covered {cached} < the {split} tokens of turn 1")
@@ -2041,7 +2087,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                         StreamVerdict { agree: first_divergence(&warm, &cold).unwrap_or(m), ok: false, note: String::new() }
                     }
                 } else {
-                    judge(&warm_run, &cold_run, &warm, &cold)?
+                    judge(&format!("{name} {case} split {s}"), &warm_run, &cold_run, &warm, &cold)?
                 };
                 // on a chunk boundary the whole prefix must be reused: a lost snapshot would still give equal rows
                 let reused_ok = if bits { cached == s } else { cached > 0 && cached <= s };
@@ -2100,6 +2146,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         ran: ran.clone(),
         skipped: skipped.clone(),
     };
+    println!("prefix reuse: {} prompt(s) judged, {} skipped", ran.len(), skipped.len());
     if !skipped.is_empty() {
         println!(
             "prefix reuse: {} prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk {chunk} ({}): {}; {} judged",
@@ -2115,7 +2162,11 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
         );
         return Ok((false, summary(false)));
     }
-    let ok = rows.iter().all(|r| r.ok);
+    let mut ok = rows.iter().all(|r| r.ok);
+    if let Some(why) = skipped_failure(&skipped, args.reuse_require_all) {
+        println!("prefix-reuse gate: FAIL (--reuse-require-all: {why}; a smaller --prefill-chunk or a golden of longer prompts)");
+        ok = false;
+    }
     println!("prefix-reuse gate: {}", if ok { "PASS" } else { "FAIL" });
     Ok((ok, summary(ok)))
 }
@@ -3234,6 +3285,15 @@ mod tests {
         c[6] -= 3.0; // a tail token far below the top 5
         assert!(row_nu(&a, &c) < 1e-3);
         assert_eq!(row_nu(&a, &a), 0.0);
+    }
+
+    #[test]
+    fn a_skipped_prompt_fails_the_reuse_gate_only_when_all_are_required() {
+        let sk = vec!["long_docs_4k".to_string(), "chat_reuse_4k".to_string()];
+        assert_eq!(skipped_failure(&sk, false), None);
+        assert_eq!(skipped_failure(&[], true), None);
+        let why = skipped_failure(&sk, true).unwrap();
+        assert!(why.starts_with("2 prompt(s) skipped") && why.contains("long_docs_4k, chat_reuse_4k"), "{why}");
     }
 
     #[test]
