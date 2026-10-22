@@ -1,0 +1,2 @@
+refusing: fleetq status shows an agent-harness job:
+    #3618  S1 spark-prefill: build + vLLM-down window 00-07 EDT: intarsia bench A/B base/dev/cub + localeval (agent-harness checked)

@@ -10,18 +10,42 @@ The FP8-E4M3 activation path (`INTARSIA_CUDA_FP8_GEMM_LT=1`, lane F2) is untouch
 
 ## 2. Where a 4k prefill goes (step 1)
 
-<!-- PROFILE -->
+One nsys profile per arm of `intarsia generate --max-tokens 1` on a 4189-token prompt (chunks 2048 + 2048 + 93), spark2,
+exclusive slot #3618 with vLLM up and idle (`raw/gates-spark2/prof-*-14000/rank.txt`; single runs, so rows move by a few
+% between arms on their own: compare the rows a change touches). GPU kernel time per arm, ms:
+
+| kernel | base f9087322 | dev (default) | cub (opt-in) | what it is |
+|---|---|---|---|---|
+| `moe_w4a16_kernel` (2048 chunks) | 270.9 | 262.9 | 280.0 | routed experts, 2 launches per layer and chunk |
+| `moe_mma_kernel` (93-token tail) | 61.3 | 51.4 | 53.6 | routed experts of the tail chunk: still streams almost every expert |
+| fp8 projections | 150.0 `gemm_reg` | 82.9 pair + 59.2 single = **142.1** | 126.3 cuBLAS nvjet | dense W8A8 GEMMs |
+| `fp8_actq_kernel` | 19.7 (390 calls) | **13.9** (310) | 22.2 `actq_alpha` (260) | activation quantiser |
+| shared expert (NVFP4) | 41.0 `wq_gemm` (490 calls) + 0.7 `silu_glu` | **16.6** `nvfp4_reg` + 13.5 `wq_gemm` (250, tail chunk + other) | 17.3 + 13.6 | gate / up / down |
+| `gdn_delta_split_kernel` | 111.1 | 108.9 | 116.2 | GDN recurrence, 30 layers |
+| `moe_reduce` / `moe_combine` | 28.8 / 6.3 | 26.8 / 5.7 | 29.7 / 6.0 | |
+| `flash_kernel` | 24.6 | 23.4 | 24.4 | full attention, 10 layers |
+| norms (`rmsnorm`, `gated_rmsnorm`), `gdn_conv`, rope, gate_split, sigmoid_mul | 70.2 | 68.7 | 73.2 | |
+| `e4m3_to_bf16_kernel` | | | 18.9 | cub only: the one-time bf16 weight copies (first prompt) |
+| **kernel total** | **802.2** | **748.7** (-6.7 %) | 798.0 (779 without the one-time copies) | |
+| launch gaps < 20 us | 3105 gaps, 6.9 ms | 2882, 6.2 ms | | not a lever: 0.8 % |
+
+The window also shows one 330-370 ms host gap before the first cuBLAS call of the process (cuBLAS / cuBLASLt lazy init)
+in every arm; `serve` pays it during warmup, so the bench below does not see it.
+
+Reading: the routed experts are 40 % of the GPU time and the fp8 projections 18 %; the 93-token tail chunk costs 51-61 ms
+of experts because 744 (token, expert) pairs still touch nearly all 256 experts, i.e. the expert kernels are bound by
+weight streaming, not by tokens.
 
 Roofline per 2048-token chunk (GB10: 122 TFLOPS bf16 m16n8k16, 244 e4m3, ~273 GB/s LPDDR5x; numbers per chunk, 40 layers):
 
 | sink | work per chunk | floor | measured (kernel, chunk 2048) | gap |
 |---|---|---|---|---|
-| MoE experts (256 x top-8, NVFP4) | 4.1 TFLOP; every expert hit, so all ~18 GB of expert weights + block scales stream once per chunk | 66 ms (bandwidth) / 34 ms (bf16 mma) | <!-- MOE --> | bandwidth-bound: re-streamed per chunk |
+| MoE experts (256 x top-8, NVFP4) | 4.1 TFLOP; every expert hit, so all ~18 GB of expert weights + block scales stream once per chunk | 66 ms (bandwidth) / 34 ms (bf16 mma) | 262.9 ms / 2 chunks = 131 ms per chunk (2.0 x the bandwidth floor); the 93-token tail chunk alone 51 ms | bandwidth-bound: re-streamed per chunk |
 | fp8 dense projections (W8A8, e4m3-valued bf16 mma) | 5.24 TFLOP | 43 ms (bf16 mma) | 83.6 ms `matmul_fp8_gemm_reg` (52 % of peak); 64.7 ms on cuBLAS (opt-in, 67 %) | tile schedule; cuBLAS shows 19 ms are reachable bitwise |
-| GDN delta rule (30 layers) | sequential in tokens per head | latency-bound | <!-- GDN --> | out of scope tonight |
-| attention (10 layers, flash, hd 256) | ~2 x 2048 x 4k-ctx x 16 heads x 256 x 2 | small | <!-- ATTN --> | |
-| norms, rope, actq, combine, small GEMMs | memory | a few ms | <!-- SMALL --> | |
-| launch gaps | | 0 | <!-- GAPS --> | |
+| GDN delta rule (30 layers) | sequential in tokens per head | latency-bound | 108.9 ms / 4189 tokens | | out of scope tonight |
+| attention (10 layers, flash, hd 256) | ~2 x 2048 x 4k-ctx x 16 heads x 256 x 2 | small | 23.4 ms | not a lever | |
+| norms, rope, actq, combine, small GEMMs | memory | a few ms | ~110 ms (norms, conv, reduce/combine, actq, rope) | fusion candidates, each < 3 % | |
+| launch gaps | | 0 | 6.2 ms in 2882 gaps | not a lever | |
 
 ## 3. What was built
 
