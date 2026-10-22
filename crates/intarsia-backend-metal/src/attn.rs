@@ -374,6 +374,19 @@ mod tests {
     }
 
     #[test]
+    fn head_split_divides_the_group_and_only_the_35b_shape_splits() {
+        for grp in 1..=MAX_GROUP {
+            for d in [8, 16, 32, 64, 128, 256] {
+                let hs = head_split(grp, d);
+                assert!(hs >= 1 && grp % hs == 0, "grp {grp} d {d} hs {hs}");
+                if std::env::var("INTARSIA_METAL_ATTN_HS").is_err() {
+                    assert_eq!(hs, if grp == 8 && d == 256 { 4 } else { 1 }, "grp {grp} d {d}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn threadgroup_accumulators_fit() {
         for gp in [1, 2, 4, 8] {
             for d in [8, 16, 32, 64, 128, 256] {
