@@ -1,6 +1,6 @@
 # On: `intarsia onboard` on CUDA (spark1) and HIP (tatooine) against the 2 h / 4 h targets
 
-**Verdict: both targets are met by a wide margin for a model whose recipe exists.** Qwen3.6-35B-A3B-NVFP4, weights already on the box: the quick numbers were published 7 min 24 s (CUDA) and 1 min 24 s (HIP) after `onboard` started, and the whole pass (quick plus in-depth) took 15 min 24 s on CUDA and 2 min 47 s on HIP. On CUDA all gates PASS. On HIP the in-depth tier reports a real gate FAIL (`acc-4k` prefix reuse), which is an engine finding, not an onboarding fault. Three onboard/qualify faults were found and fixed (below). Real wall-clock risk is outside the tool: the fleetq queue (4.5 h on the Sparks tonight), a recipe that needs a human, a missing kernel.
+**Verdict: both targets are met by a wide margin for a model whose recipe exists.** Qwen3.6-35B-A3B-NVFP4, weights already on the box: the quick numbers were published 7 min 24 s (CUDA) and 1 min 24 s (HIP) after `onboard` started, and the whole pass (quick plus in-depth) took 15 min 24 s on CUDA and 2 min 47 s on HIP. On CUDA all gates PASS. On HIP the in-depth tier reports a real gate FAIL (`acc-4k` prefix reuse), which is an engine finding, not an onboarding fault. Two onboard/qualify faults were fixed and one environment problem is documented (below). Real wall-clock risk is outside the tool: the fleetq queue (4.5 h on the Sparks tonight), a recipe that needs a human, a missing kernel.
 
 Branch `lane-on/onboard-cuda-hip`. Docs: `docs/adding-a-model.md` section 0 (measured timings and gotchas). Raw logs: `docs/results/2026-10-22-on-onboard/raw/`.
 
@@ -8,10 +8,10 @@ Branch `lane-on/onboard-cuda-hip`. Docs: `docs/adding-a-model.md` section 0 (mea
 
 Weights already on the boxes (listed under fleetq slots, nothing downloaded):
 
-* spark1 (`~/.cache/huggingface/hub`): Qwen3.6-35B-A3B-NVFP4, Qwen3-8B, Nemotron/Gemma/GLM/DeepSeek checkpoints (other lanes' downloads; no recipe, the DeepSeek and GLM ones are large and the spark2 disk is reserved), Qwen3.8-27B variants.
+* spark1 (`~/.cache/huggingface/hub`): Qwen3.6-35B-A3B-NVFP4, Qwen3-8B, Gemma-4-26B-A4B-NVFP4, Nemotron-3.5-Lightning-30B-A3B-NVFP4 (+ DSpark), Qwen3.8-27B variants, and GLM / DeepSeek / Cloudflare checkpoints that other lanes downloaded. spark1's vLLM serves only the 35B, so there is no reference server to make goldens for any other model.
 * tatooine (`/data/models/intarsia` as `/models`): Qwen3-8B, Qwen3.6-35B-A3B-NVFP4.
 
-Chosen: **Qwen3.6-35B-A3B-NVFP4** on both. It is not Qwen3-8B dense: a hybrid GatedDeltaNet + MoE model, NVFP4 with FP8 parts (recipe `qwen3_5_moe`, 61/61 tensor templates resolve), and it runs on both backends. It has cached goldens, so for the CUDA run and the fresh HIP run the goldens were made again (below) to exercise the generation step. A model with no recipe (which would exercise `recipe new` and the exit-3 path) is not on either box, so that path was **not run here**.
+Chosen: **Qwen3.6-35B-A3B-NVFP4** on both. It is not Qwen3-8B dense: a hybrid GatedDeltaNet + MoE model, NVFP4 with FP8 parts (recipe `qwen3_5_moe`, 61/61 tensor templates resolve), and it runs on both backends. It has cached goldens, so for the CUDA run and the fresh HIP run the goldens were made again (below) to exercise the generation step. Gemma-4-26B-A4B-NVFP4 and Nemotron-H are on spark1 without a recipe, but with no reference server there is no golden for them, so they could only be taken as far as the recipe stage: `recipe new` finds no covering recipe (Gemma 4: 10 `TODO(recipe-new)` items, sliding-window attention, per-expert tensors, NVFP4 with 4-bit activations; Nemotron-H: 9, SSM `A_log` / `conv1d`, MoE) and `intarsia onboard` on Gemma 4 stops in the `recipe` stage with **exit 3** and an ERROR `quick.md` (fleetq #3917, #3918, `raw/cuda/recipe-stop/`). That is the designed behaviour for a new architecture; writing those recipes (and the blocks they need) is the human step that no timing here includes.
 
 ## Per-stage timing
 
@@ -44,6 +44,7 @@ Queue wait is not part of the target and is reported separately: the CUDA job wa
 * The goldens were made from the vLLM server (`tools/golden_vllm.py`, top-20 `prompt_logprobs`) by `scripts/onboard/make-goldens.sh` **on the Mac**, copied to the box and found by model name from `-- --golden-dir`. `qualify state.json` lists all three as "found by model name" with their fnv fingerprints.
 * `qualify`'s own make step could **not** run on either box: spark1 has no `uv` and no numpy (`ModuleNotFoundError: numpy`), and the tatooine dev image has none either (fleetq #3614). That is documented as a gotcha instead of fixed: porting `golden_vllm.py` to Rust was out of scope. So the "golden generated on the box" path is untested on CUDA and HIP; the generated-from-server goldens themselves are exercised.
 * The 4k golden (`tools/prompts/golden_4k.jsonl`) is never made by `qualify`; the script makes it, and with it `acc-4k` ran on both backends.
+* **The made goldens are not like-for-like with the canonical cached ones.** The fresh short golden is `golden.jsonl` only (79 KB), the canonical one is 247 KB and 1441 positions (`golden_vllm.py`'s default prompt set is `golden.jsonl` + `golden_long.jsonl`); the fresh long golden has no 12k prompt. So the CUDA short top-1 of 96.83 % cannot be set against earlier canonical-golden numbers, and the max-seq fix (fault 2) was verified only by the canonical long golden on HIP (`35b-hip-r3`), not by the fresh CUDA set. The fresh goldens are not committed (`.safetensors` is ignored here); `qualify/state.json` in each run keeps their fingerprints.
 
 ## Faults found and fixed (no numerics change)
 
@@ -86,7 +87,7 @@ Commits are on a clean tree for the CUDA run and the last two HIP runs (build st
 
 ## Not done
 
-* A model with no recipe (`recipe new` scaffold, TODO stop, exit 3) was not run: no such weights are on either box.
+* No model without a recipe was taken through the whole pipeline (that needs a human to write the recipe; see Model choice for the stop at the recipe stage).
 * `ab` (needs localeval and `uv` on the box) and `tp` (`--tp 2`) were skipped.
 * HIP stayed in 20 min windows; the whole pass is 2 m 47 s so the cap never mattered.
 * The in-box golden generation (numpy + uv on the box, or a Rust port of `golden_vllm.py`) is not implemented.

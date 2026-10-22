@@ -80,7 +80,8 @@ human (`TODO(recipe-new)`), and a new kernel. A model whose recipe exists is far
 * **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
   and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
   that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,
-  29 s for the 35B) and give the directory with `-- --golden-dir DIR`. The files are found by model name.
+  29 s for the 35B) and give the directory with `-- --golden-dir DIR`. The files are found by model name. **With `--golden-from URL` and no golden the accuracy stages are SKIPPED and the run can still report PASS** (a SKIP
+  is not a failure): read the Skipped list of `quick.md` before trusting a PASS.
 * **The 4k golden is never made by `qualify`.** Without one, `acc-4k` is SKIPPED and the in-depth tier is shorter than a
   complete one (the 4k golden is where the prefix-reuse gate bites at a 2048 or 4096 chunk). `make-goldens.sh` makes it.
 * **A vLLM server may listen on one address only.** spark1's vLLM listens on its Tailscale address, not `localhost`: use
