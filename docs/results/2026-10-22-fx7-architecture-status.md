@@ -23,9 +23,9 @@ that does the job; **partial** names what is missing; **planned** means no code.
 
 | Status | Rows |
 |---|---|
-| implemented | 70 |
-| partial | 50 |
-| planned | 37 |
+| implemented | 61 |
+| partial | 36 |
+| planned | 29 |
 
 (The top table is a summary and is not counted.) Biggest gaps: paged KV, radix prefix cache, host KV tier, autotuner and
 tuning DB, kernel packs, `intarsia-quant` crate, GGUF and AWQ/GPTQ, MLA / sliding window / Mamba2 / LayerNorm, RCCL, fused
