@@ -1,0 +1,14 @@
+fleetq: #3942 waiting (#3 in line): in line behind #3939 "fx5 final #87 head: qualify acc-long 35B, built-in tolerance (vLLM up, non-exclusive)" (claude-f31ccf91) on spark1
+fleetq: #3942 waiting (#2 in line): in line behind #3941 "fx3 build intarsia cuda origin/main 45dd97fd on spark1 (vLLM up)" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3941 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3941 set, or it will wait for #3941 to be released.
+fleetq: #3942 running on spark1: scripts/standings-fx3/build-llamacpp.sh
+Cloning into 'llama.cpp'...
+llama.cpp 7170cad4d02f7907517613931840cbb2367399a3 Thu Oct 22 16:19:58 2026 +0800
+-- Configuring done (2.7s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/nvidia/fx3/llama.cpp/build
+[100%] Building CXX object tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[100%] Linking CXX executable ../../bin/llama-bench
+[100%] Built target llama-bench
+-rwxrwxr-x 1 nvidia nvidia 72456 Oct 22 04:40 build/bin/llama-server
+fleetq: #3942 done (exit 0)

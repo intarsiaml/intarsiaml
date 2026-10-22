@@ -1,0 +1,20 @@
+fleetq: #3992 waiting (#3 in line): in line behind #3990 "fx3 SGLang 35B quality window: vLLM guidance down <=30 min" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3990 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3990 set, or it will wait for #3990 to be released.
+fleetq: #3992 waiting (#2 in line): in line behind #3991 "fx3 35b opt-in prefill-chunk pass p31 (exclusive, vLLM up)" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3991 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3991 set, or it will wait for #3991 to be released.
+fleetq: #3992 waiting (#1 in line): spark1 is held exclusively by #3991 "fx3 35b opt-in prefill-chunk pass p31 (exclusive, vLLM up)" (claude-f31ccf91-fx3)
+fleetq:   #3991 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3991 set, or it will wait for #3991 to be released.
+fleetq: #3992 waiting (#1 in line): needs spark1 quiet, but requests not tracked by fleetq are in flight: spark1-vllm (1 in flight)
+fleetq: #3992 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p32 'ARMS=vllm intarsia4k intarsia' PHASES=speed MINGB=36 scripts/standings-fx3/window-opt.sh
+[06:41:20] pass p32 model=35b host=spark1 arms=[vllm intarsia4k intarsia] phases=speed job=3992
+[06:41:24] == arm vllm (MemAvailable 46 GB)
+[06:41:24]   vllm ready after 0s
+[06:41:58]   speed exit=0
+[06:42:03] == arm intarsia4k (MemAvailable 46 GB)
+[06:42:46]   intarsia4k ready after 40s
+[06:43:21]   speed exit=0
+[06:43:26] == arm intarsia (MemAvailable 46 GB)
+[06:44:14]   intarsia ready after 45s
+[06:44:50]   speed exit=0
+[06:44:52] pass p32 done
+fleetq: #3992 done (exit 0)

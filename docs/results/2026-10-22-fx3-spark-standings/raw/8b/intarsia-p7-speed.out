@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=115 ttft=0.10s prefill=1084 tok/s decode=15.3 tok/s peak=15.3 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=112 ttft=0.10s prefill=1029 tok/s decode=15.3 tok/s peak=15.3 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=114 ttft=0.11s prefill=1033 tok/s decode=15.3 tok/s peak=15.3 tok/s out=128
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.41s prefill=2390 tok/s decode=15.1 tok/s peak=15.2 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.41s prefill=2381 tok/s decode=15.1 tok/s peak=15.2 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=987 ttft=0.42s prefill=2342 tok/s decode=15.1 tok/s peak=15.2 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=1.67s prefill=2441 tok/s decode=14.7 tok/s peak=14.7 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=1.67s prefill=2441 tok/s decode=14.7 tok/s peak=14.7 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=1.68s prefill=2434 tok/s decode=14.7 tok/s peak=14.7 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16676 ttft=7.73s prefill=2156 tok/s decode=13.2 tok/s peak=13.2 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16677 ttft=7.74s prefill=2155 tok/s decode=13.2 tok/s peak=13.2 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16677 ttft=7.74s prefill=2155 tok/s decode=13.2 tok/s peak=13.2 tok/s out=128
+# localeval: adhoc — 2026-10-22T09:19
+
+- model: `intarsia` on ? (?), url `http://spark-fa00:8190/v1`
+- thinking: off; run kind: speed; label: fx3-8b-intarsia-p7-speed
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8190/v1 --model intarsia --thinking off --label fx3-8b-intarsia-p7-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3`
+- result file: `results/20261022-091913-adhoc-fx3-8b-intarsia-p7-speed/result.json`
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 114 | 0.10 | 1033 (1029–1084) * | - | 15.3 (15.3–15.3) | 15.3 (15.3–15.3) | - | - | 128 |
+| 989 | 0.41 | 2381 (2342–2390) * | 2823 | 15.1 (15.1–15.1) | 15.2 (15.2–15.2) | - | - | 128 |
+| 4090 | 1.67 | 2441 (2434–2441) | 2461 | 14.7 (14.7–14.7) | 14.7 (14.7–14.7) | - | - | 128 |
+| 16677 | 7.74 | 2155 (2155–2156) | 2076 | 13.2 (13.2–13.2) | 13.2 (13.2–13.2) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-091913-adhoc-fx3-8b-intarsia-p7-speed/result.json
+[localeval] logged to unanimis: e90e2dae-9195-4ccd-b6a9-1a4f57cc1f5f

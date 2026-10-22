@@ -1,0 +1,332 @@
+{
+ "run_id": "20261022-061915-adhoc-fx3-8b-intarsia-p90-quality",
+ "kind": "quality",
+ "label": "fx3-8b-intarsia-p90-quality",
+ "started_at": "2026-10-22T06:19:15-04:00",
+ "finished_at": "2026-10-22T06:46:40-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8190/v1",
+  "model": "intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "none",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-fa00:8190/v1 --model intarsia --thinking off --label fx3-8b-intarsia-p90-quality --structured none --bench mmlu --limit 25",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [
+  {
+   "benchmark": "mmlu",
+   "error": null,
+   "overall_score": 0.6757894736842105,
+   "n_predictions": 1425,
+   "task_scores": [
+    {
+     "Task": "high_school_european_history",
+     "Score": 0.8
+    },
+    {
+     "Task": "business_ethics",
+     "Score": 0.56
+    },
+    {
+     "Task": "clinical_knowledge",
+     "Score": 0.72
+    },
+    {
+     "Task": "medical_genetics",
+     "Score": 0.96
+    },
+    {
+     "Task": "high_school_us_history",
+     "Score": 0.84
+    },
+    {
+     "Task": "high_school_physics",
+     "Score": 0.48
+    },
+    {
+     "Task": "high_school_world_history",
+     "Score": 0.88
+    },
+    {
+     "Task": "virology",
+     "Score": 0.64
+    },
+    {
+     "Task": "high_school_microeconomics",
+     "Score": 0.48
+    },
+    {
+     "Task": "econometrics",
+     "Score": 0.64
+    },
+    {
+     "Task": "college_computer_science",
+     "Score": 0.56
+    },
+    {
+     "Task": "high_school_biology",
+     "Score": 0.88
+    },
+    {
+     "Task": "abstract_algebra",
+     "Score": 0.36
+    },
+    {
+     "Task": "professional_accounting",
+     "Score": 0.32
+    },
+    {
+     "Task": "philosophy",
+     "Score": 0.8
+    },
+    {
+     "Task": "professional_medicine",
+     "Score": 0.76
+    },
+    {
+     "Task": "nutrition",
+     "Score": 0.88
+    },
+    {
+     "Task": "global_facts",
+     "Score": 0.52
+    },
+    {
+     "Task": "machine_learning",
+     "Score": 0.52
+    },
+    {
+     "Task": "security_studies",
+     "Score": 0.72
+    },
+    {
+     "Task": "public_relations",
+     "Score": 0.4
+    },
+    {
+     "Task": "professional_psychology",
+     "Score": 0.88
+    },
+    {
+     "Task": "prehistory",
+     "Score": 0.84
+    },
+    {
+     "Task": "anatomy",
+     "Score": 0.52
+    },
+    {
+     "Task": "human_sexuality",
+     "Score": 0.68
+    },
+    {
+     "Task": "college_medicine",
+     "Score": 0.72
+    },
+    {
+     "Task": "high_school_government_and_politics",
+     "Score": 0.92
+    },
+    {
+     "Task": "college_chemistry",
+     "Score": 0.52
+    },
+    {
+     "Task": "logical_fallacies",
+     "Score": 0.8
+    },
+    {
+     "Task": "high_school_geography",
+     "Score": 0.72
+    },
+    {
+     "Task": "elementary_mathematics",
+     "Score": 0.56
+    },
+    {
+     "Task": "human_aging",
+     "Score": 0.76
+    },
+    {
+     "Task": "college_mathematics",
+     "Score": 0.48
+    },
+    {
+     "Task": "high_school_psychology",
+     "Score": 0.96
+    },
+    {
+     "Task": "formal_logic",
+     "Score": 0.56
+    },
+    {
+     "Task": "high_school_statistics",
+     "Score": 0.84
+    },
+    {
+     "Task": "international_law",
+     "Score": 0.84
+    },
+    {
+     "Task": "high_school_mathematics",
+     "Score": 0.16
+    },
+    {
+     "Task": "high_school_computer_science",
+     "Score": 0.8
+    },
+    {
+     "Task": "conceptual_physics",
+     "Score": 0.92
+    },
+    {
+     "Task": "miscellaneous",
+     "Score": 0.68
+    },
+    {
+     "Task": "high_school_chemistry",
+     "Score": 0.68
+    },
+    {
+     "Task": "marketing",
+     "Score": 0.4
+    },
+    {
+     "Task": "professional_law",
+     "Score": 0.64
+    },
+    {
+     "Task": "management",
+     "Score": 0.76
+    },
+    {
+     "Task": "college_physics",
+     "Score": 0.64
+    },
+    {
+     "Task": "jurisprudence",
+     "Score": 0.8
+    },
+    {
+     "Task": "world_religions",
+     "Score": 0.8
+    },
+    {
+     "Task": "sociology",
+     "Score": 0.68
+    },
+    {
+     "Task": "us_foreign_policy",
+     "Score": 0.76
+    },
+    {
+     "Task": "high_school_macroeconomics",
+     "Score": 0.6
+    },
+    {
+     "Task": "computer_security",
+     "Score": 0.68
+    },
+    {
+     "Task": "moral_scenarios",
+     "Score": 0.32
+    },
+    {
+     "Task": "moral_disputes",
+     "Score": 0.56
+    },
+    {
+     "Task": "electrical_engineering",
+     "Score": 0.48
+    },
+    {
+     "Task": "astronomy",
+     "Score": 1.0
+    },
+    {
+     "Task": "college_biology",
+     "Score": 0.84
+    }
+   ],
+   "config": {
+    "limit": 25,
+    "shots": null,
+    "tasks": null
+   },
+   "speed": {
+    "calls": 1425,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 2542,
+     "min": 2497,
+     "max": 3459,
+     "n": 1425,
+     "spread_pct": 37.8
+    },
+    "completion_tokens": {
+     "median": 2,
+     "min": 2,
+     "max": 1024,
+     "n": 1425,
+     "spread_pct": 51100.0
+    },
+    "ttft_s": {
+     "median": 0.11,
+     "min": 0.098,
+     "max": 1.483,
+     "n": 1425,
+     "spread_pct": 1260.1
+    },
+    "prefill_tok_s": {
+     "median": 2398.673,
+     "min": 1832.271,
+     "max": 2443.185,
+     "n": 57,
+     "spread_pct": 25.5
+    },
+    "prefill_tok_s_all": {
+     "median": 875.376,
+     "min": 469.024,
+     "max": 2443.185,
+     "n": 1425,
+     "spread_pct": 225.5
+    },
+    "decode_tok_s": {
+     "median": 15.054,
+     "min": 14.956,
+     "max": 16.092,
+     "n": 47,
+     "spread_pct": 7.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 1424,
+    "wall_s": 1615.7
+   },
+   "wall_s": 1644.3
+  }
+ ],
+ "datasets": [],
+ "warnings": []
+}

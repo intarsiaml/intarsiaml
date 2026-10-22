@@ -1,0 +1,18 @@
+[05:11:19] pass p4 model=8b host=spark2 arms=[vllm sglang intarsia llamacpp llamacpp16] phases=speed,conc job=3961
+[05:11:24] == arm vllm (MemAvailable 54 GB)
+[05:14:44]   vllm ready after 185s
+[05:16:59]   speed exit=0
+[05:17:43]   conc exit=0
+[05:17:49] == arm sglang (MemAvailable 54 GB)
+[05:19:58]   sglang process/container died while starting
+[05:19:58] FAIL sglang did not come up
+[05:20:02] == arm intarsia (MemAvailable 54 GB)
+[05:21:12]   intarsia ready after 65s
+[05:23:30]   speed exit=0
+[05:26:45]   conc exit=0
+[05:26:51] == arm llamacpp (MemAvailable 54 GB)
+[05:27:12]   llamacpp ready after 20s
+[05:29:25]   speed exit=0
+[05:29:31] == arm llamacpp16 (MemAvailable 54 GB)
+[05:29:41]   llamacpp16 ready after 10s
+[05:30:30]   conc exit=0

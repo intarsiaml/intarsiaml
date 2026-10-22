@@ -1,0 +1,31 @@
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1002, in init_model_worker
+    self.init_memory_pools()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 968, in init_memory_pools
+    self.init_target_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 964, in init_target_memory_pool
+    self.tp_worker.alloc_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 403, in alloc_memory_pool
+    self.model_runner.alloc_memory_pool(memory_pool_config)
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 805, in alloc_memory_pool
+    result = self.kv_cache_configurator.configure(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 284, in configure
+    config = self._resolve_memory_pool_config(pre_model_load_memory)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 1936, in _resolve_memory_pool_config
+    available_bytes = self._profile_available_bytes(pre_model_load_memory)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 1791, in _profile_available_bytes
+    rest_memory = self._handle_max_mamba_cache(rest_memory)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 2117, in _handle_max_mamba_cache
+    raise RuntimeError(
+RuntimeError: Not enough GPU memory for hybrid (mamba/linear-attention) state cache. Computed max_mamba_cache_size=-25 (total_rest_memory=-2.94 GB, mamba_cache_per_req=61.41 MB). Try: (1) reduce --max-running-requests, (2) increase --mem-fraction-static, (3) reduce --speculative-num-draft-tokens, or (4) use GPUs with more memory.
+
+[2026-10-22 09:28:53] Received sigquit from a child process. It usually means the child failed.
+[2026-10-22 09:28:53] kill_process_tree called: parent_pid=1, include_parent=True, pid=1
+[2026-10-22 09:28:53] kill_process_tree called: parent_pid=1, include_parent=False, pid=1
+Error response from daemon: No such container: fx3-vllm

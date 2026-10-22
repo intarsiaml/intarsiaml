@@ -1,0 +1,16 @@
+fleetq: #3926 running on spark2: scripts/standings-fx3/build-llamacpp.sh
+Cloning into 'llama.cpp'...
+llama.cpp d88040c704c8855c497d46c20675a3d492f70f94 Thu Oct 22 09:58:08 2026 +0200
+-- Configuring done (3.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/nvidia/fx3/llama.cpp/build
+[100%] Building CXX object tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[100%] Linking CXX executable ../../bin/llama-bench
+[100%] Built target llama-bench
+-rwxrwxr-x 1 nvidia nvidia 72456 Oct 22 04:14 build/bin/llama-server
+snapshot: /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
+ERROR:hf-to-gguf:Error: /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 is not a directory
+total 8
+drwxrwxr-x 2 nvidia nvidia 4096 Oct 22 04:14 .
+drwxrwxr-x 4 nvidia nvidia 4096 Oct 22 04:14 ..
+fleetq: #3926 done (exit 0)

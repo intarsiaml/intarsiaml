@@ -1,0 +1,31 @@
+[2026-10-22 08:52:51] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5073, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1002, in init_model_worker
+    self.init_memory_pools()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 968, in init_memory_pools
+    self.init_target_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 964, in init_target_memory_pool
+    self.tp_worker.alloc_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 403, in alloc_memory_pool
+    self.model_runner.alloc_memory_pool(memory_pool_config)
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 805, in alloc_memory_pool
+    result = self.kv_cache_configurator.configure(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 284, in configure
+    config = self._resolve_memory_pool_config(pre_model_load_memory)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 1936, in _resolve_memory_pool_config
+    available_bytes = self._profile_available_bytes(pre_model_load_memory)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/mem_cache/kv_cache_configurator.py", line 1801, in _profile_available_bytes
+    raise ValueError(
+ValueError: Loaded weights leave no GPU memory for the KV cache under --mem-fraction-static=0.2. Raise --mem-fraction-static above 0.285 (minimum viable = 1 - available/pre = 0.2849). If using speculative decoding, draft weights are now counted.
+
+[2026-10-22 08:52:51] Received sigquit from a child process. It usually means the child failed.
+[2026-10-22 08:52:51] kill_process_tree called: parent_pid=1, include_parent=True, pid=1
+[2026-10-22 08:52:51] kill_process_tree called: parent_pid=1, include_parent=False, pid=1
+Error response from daemon: No such container: fx3-vllm
