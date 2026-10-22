@@ -1,0 +1,15 @@
+M=2048 shared down        matmul_nvfp4_gemm           96.0 us   44.7 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        10925.3 us
+M=2048 shared gate/up     matmul_nvfp4_gemm_reg       87.3 us   49.2 TFLOPS
+M=2048 shared down        matmul_nvfp4_gemm_reg       68.4 us   62.8 TFLOPS
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     9721.2 us
+M=2048 gdn in_proj_qkv    matmul_bf16 (cuBLAS)       785.5 us   87.5 TFLOPS
+M=2048 gdn in_proj_z      matmul_bf16 (cuBLAS)       367.2 us   93.6 TFLOPS
+M=2048 gdn out_proj       matmul_bf16 (cuBLAS)       342.7 us  100.3 TFLOPS
+M=2048 attn q_proj+gate   matmul_bf16 (cuBLAS)       713.0 us   96.4 TFLOPS
+M=2048 attn k/v_proj      matmul_bf16 (cuBLAS)        51.1 us   84.1 TFLOPS
+M=2048 attn o_proj        matmul_bf16 (cuBLAS)       335.4 us  102.5 TFLOPS
+M=2048 bf16 cuBLAS per-chunk total   56366.8 us
+M=2048 gdn qkv+z pair     two calls    1542.0 us  pair    1470.7 us  saved per chunk   2137.0 us
+M=2048 attn k+v pair      two calls     233.8 us  pair     184.9 us  saved per chunk    488.8 us
+M=2048 shared gate+up+glu   chain     185.8 us  fused     135.1 us  saved per chunk   2027.4 us

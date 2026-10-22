@@ -1,0 +1,13 @@
+fleetq: #3883 running on spark2: ssh -n -o BatchMode=yes spark2 'INTARSIA_CUDA_FP8_CUBLAS=1 ~/intarsia-decfuse/s1-dev/target/acc/release/intarsia kernels test --backend cuda --op matmul_fp8 2>&1 | tail -12'
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                24      0    1.371e-4    5.314e-6  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    4.329e-3    1.939e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm                11      0    4.184e-3    1.723e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_f8             27      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_lt             24      0    4.329e-3    1.849e-4  ADMITTED
+matmul_fp8     matmul_fp8_gemm_reg             3      0    3.030e-3    4.181e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemm_cublas          2      0    3.030e-3    4.181e-5  ADMITTED
+7 kernels, 154 cases in 5.2s
+fleetq: #3883 done (exit 0)
