@@ -1,0 +1,9 @@
+target http://127.0.0.1:8199/v1/chat/completions  model md35
+server context window: 8192 tokens
+calibration: 44 base tokens, 21.98 tokens per filler sentence
+  size   1024 rep: prompt=1014 gen=128 ttft=3.40s prefill=299 tok/s decode=103.1 tok/s
+  size   1024 rep: prompt=1004 gen=128 ttft=3.37s prefill=298 tok/s decode=102.8 tok/s
+  size   1024 rep: prompt=997 gen=128 ttft=3.40s prefill=293 tok/s decode=102.5 tok/s
+  size   1024 rep: prompt=996 gen=128 ttft=3.41s prefill=292 tok/s decode=102.8 tok/s
+  size   1024 rep: prompt=1002 gen=128 ttft=3.38s prefill=297 tok/s decode=102.8 tok/s
+wrote /opt/code/wt-md/docs/results/raw/2026-10-22-md-metal-35b-decode-profile/data3/baseS.bench/baseS.json

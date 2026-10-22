@@ -2,12 +2,12 @@
 //! `GdnConv` / `GdnDeltaRule` (gdn_conv_bf16, gdn_delta_rule_bf16): chunked prefill (T = 37 split 1 + 20 + 16, and a
 //! 1 + 70 + 29 split that crosses the conv's 32-token tile and takes its separate state dispatch) is bitwise one call,
 //! and both match the f64 reference of intarsia_core::gdn (whole sequence); a 512-token delta-rule run stays within the
-//! budget; conv taps K in {2, 4, 8} and delta-rule dk in {64, 128}; operands sit at a 2-byte offset (the leftover-element path).
+//! budget; conv taps K in {2, 4, 8} and delta-rule dk in {32, 64, 128, 256}; operands sit at a 2-byte offset (the leftover-element path).
 
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
-use intarsia_backend_metal::kernels::{GDN_CONV_BF16, GDN_DELTA_RULE_BF16};
+use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, GDN_DELTA_RULE_BF16, SIGMOID_MUL_BF16};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::gdn::{self, DeltaDims};
@@ -176,7 +176,12 @@ fn reference_delta(i: &Delta, d: &DeltaDims) -> (Vec<f64>, Vec<f64>) {
 }
 
 fn check_delta(be: &MetalBackend, dk: usize, t: usize, split: &[usize], o_tol: f64, st_tol: f64) {
-    let d = DeltaDims { t, hk: 2, hv: 4, dk, dv: 128 };
+    check_delta_heads(be, 2, 4, dk, t, split, o_tol, st_tol);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_delta_heads(be: &MetalBackend, hk: usize, hv: usize, dk: usize, t: usize, split: &[usize], o_tol: f64, st_tol: f64) {
+    let d = DeltaDims { t, hk, hv, dk, dv: 128 };
     let i = delta_inputs(t, &d, 100 + t as u64);
     let (o, st) = run_delta(be, &i, &d, split);
     if split.len() > 1 {
@@ -187,14 +192,14 @@ fn check_delta(be: &MetalBackend, dk: usize, t: usize, split: &[usize], o_tol: f
     let (want, want_st) = reference_delta(&i, &d);
     let e = rel_l2_bf16(&o, &want);
     let es = rel_l2(&st.iter().map(|&v| v as f64).collect::<Vec<_>>(), &want_st);
-    assert!(e < o_tol, "dk={dk} T={t} {split:?}: o vs reference rel_l2 {e:e}");
-    assert!(es < st_tol, "dk={dk} T={t} {split:?}: state vs reference rel_l2 {es:e}");
+    assert!(e < o_tol, "hk={hk} hv={hv} dk={dk} T={t} {split:?}: o vs reference rel_l2 {e:e}");
+    assert!(es < st_tol, "hk={hk} hv={hv} dk={dk} T={t} {split:?}: state vs reference rel_l2 {es:e}");
 }
 
 #[test]
 fn delta_rule_chunked_prefill_equals_one_call_and_the_reference() {
     let be = backend();
-    for dk in [64, 128] {
+    for dk in [32, 64, 128, 256] {
         check_delta(&be, dk, 37, &[1, 20, 16], 1e-3, 1e-5);
         check_delta(&be, dk, 1, &[1], 1e-3, 1e-5);
     }
@@ -203,8 +208,96 @@ fn delta_rule_chunked_prefill_equals_one_call_and_the_reference() {
 #[test]
 fn delta_rule_long_sequence_stays_within_the_budget() {
     let be = backend();
-    for dk in [64, 128] {
+    for dk in [32, 64, 128, 256] {
         check_delta(&be, dk, 512, &[512], 1e-3, 1e-4);
         check_delta(&be, dk, 512, &[1, 255, 256], 1e-3, 1e-4);
+    }
+}
+
+/// The Qwen3.6-35B-A3B linear-attention layer shape (config.json: 16 key heads, 32 value heads, dk = dv = 128, so
+/// conv_dim 8192): T = 300 split mid-sequence (1 + 127 + 172, so the carried state crosses chunk boundaries and the
+/// conv's 32-token tile) and a single decode token, against the f64 reference.
+#[test]
+fn delta_rule_at_the_35b_layer_shape() {
+    let be = backend();
+    check_delta_heads(&be, 16, 32, 128, 300, &[1, 127, 172], 1e-3, 1e-4);
+    check_delta_heads(&be, 16, 32, 128, 1, &[1], 1e-3, 1e-5);
+    check_delta_heads(&be, 16, 32, 128, 1024, &[1024], 1e-3, 1e-4);
+}
+
+#[test]
+fn conv_at_the_35b_channel_count() {
+    let be = backend();
+    let (c, k) = (8192usize, 4usize); // conv_dim = 2 * 16 * 128 + 32 * 128, linear_conv_kernel_dim 4
+    for (t, split) in [(300usize, vec![1usize, 127, 172]), (1, vec![1]), (65, vec![33, 32])] {
+        let x = rand_bf16(t * c, 21 + t as u64);
+        let w = rand_bf16(c * k, 9);
+        let (y1, s1) = run_conv(&be, &x, &w, t, c, k, &[t]);
+        let (yc, sc) = run_conv(&be, &x, &w, t, c, k, &split);
+        assert_eq!(y1, yc, "T={t} {split:?}: chunked y differs from one call");
+        assert_eq!(s1, sc, "T={t} {split:?}: chunked state differs from one call");
+        let mut st = vec![0.0f64; c * (k - 1)];
+        let want = gdn::conv_silu(&f64s(&x), &f64s(&w), &mut st, t, c, k);
+        let err = rel_l2_bf16(&y1, &want);
+        assert!(err < 1e-3, "T={t}: y vs reference rel_l2 {err:e}");
+        let st32: Vec<f64> = s1.iter().map(|&v| v as f64).collect();
+        assert_eq!(st32, st, "T={t}: state vs reference");
+    }
+}
+
+/// `GateSplit` at the full-attention layer's shape (16 heads, head_dim 256: q_proj emits [T, 16, 2 * 256] = q | gate per
+/// head): both halves are exact copies of the input rows, with the input and both outputs at a 2-byte offset.
+#[test]
+fn gate_split_is_an_exact_per_head_split() {
+    let be = backend();
+    let (n, d) = (16usize, 256usize);
+    for t in [1usize, 3, 300] {
+        let x = rand_bf16(t * n * 2 * d, 31 + t as u64);
+        let xb = upload_off(&be, &x);
+        let qb = upload_off(&be, &vec![0xEEEEu16; t * n * d]);
+        let gb = upload_off(&be, &vec![0xEEEEu16; t * n * d]);
+        let call = OpCall::new(
+            Op::GateSplit,
+            vec![tref(&xb, OFF, &[t, n, 2 * d])],
+            vec![tref(&qb, OFF, &[t, n, d]), tref(&gb, OFF, &[t, n, d])],
+            OpAttrs::default(),
+        );
+        be.launch(GATE_SPLIT_BF16, &call, 0).unwrap();
+        be.synchronize(0).unwrap();
+        let (wq, wg) = gdn::gate_split(&f64s(&x), t, n, d);
+        assert_eq!(read_bf16(&be, &qb, t * n * d), wq, "T={t}: q half");
+        assert_eq!(read_bf16(&be, &gb, t * n * d), wg, "T={t}: gate half");
+    }
+}
+
+/// `SigmoidMul` (a * sigmoid(g), f32 math, one bf16 rounding) at the attention output's size, with g spread over +-12 so the
+/// sigmoid saturates at both ends; operands and output at a 2-byte offset. Within one bf16 ulp (2^-8 relative) of f64.
+#[test]
+fn sigmoid_mul_matches_the_reference() {
+    let be = backend();
+    let (n, d) = (16usize, 256usize);
+    for t in [1usize, 3, 300] {
+        let len = t * n * d;
+        let a = rand_bf16(len, 41 + t as u64);
+        let g: Vec<u16> = rand_bf16(len, 43 + t as u64).iter().map(|&u| f32_to_bf16(bf16_to_f32(u) * 12.0)).collect();
+        let (ab, gb) = (upload_off(&be, &a), upload_off(&be, &g));
+        let ob = upload_off(&be, &vec![0xEEEEu16; len]);
+        let call = OpCall::new(
+            Op::SigmoidMul,
+            vec![tref(&ab, OFF, &[t, n * d]), tref(&gb, OFF, &[t, n * d])],
+            vec![tref(&ob, OFF, &[t, n * d])],
+            OpAttrs::default(),
+        );
+        be.launch(SIGMOID_MUL_BF16, &call, 0).unwrap();
+        be.synchronize(0).unwrap();
+        let got = read_bf16(&be, &ob, len);
+        let want = gdn::sigmoid_mul(&f64s(&a), &f64s(&g));
+        let mut worst = 0f64;
+        for (i, (g, w)) in got.iter().zip(&want).enumerate() {
+            let tol = w.abs() * 2f64.powi(-8) + 1e-30;
+            assert!((g - w).abs() <= tol, "T={t} [{i}]: gpu {g} vs reference {w}");
+            worst = worst.max((g - w).abs() / tol);
+        }
+        eprintln!("sigmoid_mul T={t}: worst error {worst:.3} of tolerance");
     }
 }
