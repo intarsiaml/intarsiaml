@@ -19,7 +19,7 @@ Updated 2026-10-22. "In progress" means a lane has been assigned and is working;
 | 7 | medium | ARCHITECTURE.md describes components that do not exist | fx7 (status markers in docs/ARCHITECTURE.md, diagram legend) | in progress |
 | 8 | medium | CUDA and HIP baselines/envelopes not committed | folded into fx1 | in progress |
 | 9 | medium | Quant format enum across 21 files; 20+ accuracy gate flags | none yet | deferred (user decision) |
-| 10 | medium | PR #70 MoE multi-tile path and four ops untested; no reuse-mode run on Metal 35B | PR #70 review fixes | in progress |
+| 10 | medium | PR #70 MoE multi-tile path and four ops untested; no reuse-mode run on Metal 35B | PR #70 review fixes, fx10 (tests, reuse run) | PR #92 |
 | 11 | low | CI excludes GPU crates, skips tests; `INTARSIA_CUDA_FAST_PREFILL` semantics flipped | fx12 | in progress |
 | 12 | low | tp_remote `Truncate`/`Snapshot` errors deferred; `truncate` not atomic across ranks | fx12 | in progress |
 
