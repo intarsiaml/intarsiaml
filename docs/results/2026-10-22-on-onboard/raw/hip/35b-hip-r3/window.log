@@ -1,0 +1,25 @@
+[window] job 3683 35b-hip-r3; stopping radiance 2026-10-21 23:47:18
+[window] radiance stopped 2026-10-21 23:47:21
+[window] onboard /models/Qwen3.6-35B-A3B-NVFP4 -> /work/onboard-runs/35b-hip-r3 (cap 1000s) 2026-10-21 23:47:21
+[window] onboard exit 0 2026-10-21 23:51:21
+[onboard      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/onboard-runs/35b-hip-r3/report
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:qwen3_5_moe covers the model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /work/onboard-runs/35b-hip-r3/report/logs/smoke.err
+[onboard] smoke: PASS in 3s (generated: "Paris, a city renowned for its iconic landmarks such as the Eiffel Tower,")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard      3s] log: /work/onboard-runs/35b-hip-r3/report/logs/quick.err
+[onboard] quick: PASS in 80s (qualify exit 0, 8 stage(s) recorded)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-22T03:48:44Z)
+QUICK DONE: /work/onboard-runs/35b-hip-r3/report/quick.md
+[onboard] == in-depth: in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)
+[onboard     83s] log: /work/onboard-runs/35b-hip-r3/report/logs/in-depth.err
+[onboard] in-depth: PASS in 2m36s (qualify exit 0, 14 stage(s) recorded)
+[onboard] == publish-in-depth: publish in-depth.md / in-depth.json / in-depth.prom
+IN-DEPTH DONE: /work/onboard-runs/35b-hip-r3/report/in-depth.md
+[onboard] publish-in-depth: PASS in 0s (in-depth.md written 2026-10-22T03:51:21Z)
+ONBOARD PASS (exit 0) in 3m59s
+[window] starting radiance 2026-10-21 23:51:21
+[window] radiance answers 2026-10-21 23:51:31 (after 15 s)
