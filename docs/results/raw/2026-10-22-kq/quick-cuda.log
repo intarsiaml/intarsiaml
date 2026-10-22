@@ -1,0 +1,3 @@
+fleetq: #3758 waiting (#10 in line): in line behind #3555 "Flare GLM-5.3-Flash TP2 over both Sparks (RoCE): prepare + localeval (repro of @NullBurn 2300 tok/s @32k claim)" (claude-6adc80e7) on spark1; with --expect it may go first if it ends before #3555 starts
+fleetq: #3758 waiting (#5 in line): in line behind #3579 "ob: intarsia CUDA server + Prometheus 67-query dashboard check + TUI snapshot (Qwen3-8B, vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #3579 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3579 set, or it will wait for #3579 to be released.

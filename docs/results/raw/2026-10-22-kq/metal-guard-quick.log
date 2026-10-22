@@ -1,0 +1,9 @@
+test every_cuda_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+test every_hip_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+test every_metal_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.60s
+28 kernels, 121 cases in 0.6s
+DONE

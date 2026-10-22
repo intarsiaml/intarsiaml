@@ -1,0 +1,16 @@
+test every_cuda_kernel_has_a_quick_case ... FAILED
+cuda kernels with no quick sweep case: ["attn_prefill_bf16_flash", "attn_prefill_f8kv_flash"]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test every_hip_kernel_has_a_quick_case ... FAILED
+hip kernels with no quick sweep case: ["attn_prefill_bf16_flash", "attn_prefill_bf16_flash_v2"]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test every_metal_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+REVERTED
+test every_cuda_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test every_hip_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test every_metal_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+fleetq: #3715 done (exit 0)
