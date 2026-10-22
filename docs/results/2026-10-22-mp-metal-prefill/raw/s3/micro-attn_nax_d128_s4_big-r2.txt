@@ -1,0 +1,5 @@
+heads 32/8 head_dim 128, chunk 2048, 36 layers (one KV cache each), 3 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 attn_nax_d128_s4_big             679.2     678.7     686.8    50.61
+   4096 attn_nax_d128_s4_big            3984.4    3924.2    4015.2    43.12
+  14336 attn_nax_d128_s4_big           15730.0   15589.1   15857.8    32.77

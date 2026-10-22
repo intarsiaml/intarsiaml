@@ -67,3 +67,14 @@ jobs:
       # empty metallib and warns.
       - run: cargo check --locked -p intarsia-backend-metal
       - run: cargo check --locked -p intarsia-cli --features metal
+
+  # Requirement 5: the same sha builds to the same bytes in two different directories (CPU-only, linux).
+  repro:
+    name: reproducible build (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain && rustc -V
+      - name: Build twice, compare sha256
+        run: scripts/repro-check.sh

@@ -52,6 +52,8 @@ pub struct GrammarEnv {
     vocab: usize,
     open: Tag,
     close: Tag,
+    /// The single `</think>` token, when the tokenizer has one (needed to gate a constraint behind the think block).
+    think_close: Option<u32>,
 }
 
 impl GrammarEnv {
@@ -92,16 +94,31 @@ impl GrammarEnv {
             Tag { id, lark }
         };
         let (open, close) = (tag("<tool_call>"), tag("</tool_call>"));
+        let think_close = tag(THINK_CLOSE).id;
         let env: TokEnv = Arc::new(ModelTokEnv { trie, tokenize });
         let mut factory =
             ParserFactory::new(&env, InferenceCapabilities::default(), &SlicedBiasComputer::general_slices())
                 .map_err(|e| format!("structured output: {e}"))?;
         factory.quiet();
-        Ok(GrammarEnv { factory, vocab, open, close })
+        Ok(GrammarEnv { factory, vocab, open, close, think_close })
+    }
+
+    /// [`GrammarEnv::compile_with`] with thinking off: the grammar starts at the first generated token.
+    #[cfg(test)]
+    pub fn compile(&self, plan: &Plan) -> Result<Arc<dyn ConstraintSpec>, String> {
+        self.compile_with(plan, false)
     }
 
     /// Compile `plan` into a constraint the engine can run; `Err` is a client error (HTTP 400) with the reason.
-    pub fn compile(&self, plan: &Plan) -> Result<Arc<dyn ConstraintSpec>, String> {
+    ///
+    /// `think`: the request has thinking on, so the constraint applies only after the `</think>` token; the think
+    /// section before it is unconstrained (and nothing in it, a `<tool_call>` included, triggers the grammar).
+    pub fn compile_with(&self, plan: &Plan, think: bool) -> Result<Arc<dyn ConstraintSpec>, String> {
+        let gate = if think {
+            Some(self.think_close.ok_or("thinking with structured output needs a model whose tokenizer has a single </think> token")?)
+        } else {
+            None
+        };
         let (grammar, trigger) = match plan {
             Plan::Json(schema) => (TopLevelGrammar::from_json_schema(compact(schema)), None),
             Plan::Tools { tools, required: true, parallel } => {
@@ -123,24 +140,36 @@ impl GrammarEnv {
             return Err(format!("invalid schema: {e}"));
         }
         let once = matches!(plan, Plan::Tools { required: false, parallel: false, .. });
-        Ok(Arc::new(LlgSpec { proto: Mutex::new(m), trigger, once, vocab: self.vocab }))
+        Ok(Arc::new(LlgSpec { proto: Mutex::new(m), trigger, gate, once, vocab: self.vocab }))
     }
 }
 
 /// Compile `plan` for the engine `st` serves (building the token table on first use). Every failure is the client's
 /// (HTTP 400): an unusable schema, or a model structured output cannot run on.
-pub async fn compile_for(st: &AppState, flavor: Flavor, plan: Plan) -> Result<Arc<dyn ConstraintSpec>, ApiError> {
+pub async fn compile_for(
+    st: &AppState,
+    flavor: Flavor,
+    plan: Plan,
+    think: bool,
+) -> Result<Arc<dyn ConstraintSpec>, ApiError> {
     let (cell, eng) = (st.grammar.clone(), st.engine.clone());
     let r = blocking_as(&st.engine, flavor, move |_| {
         let env = cell.get_or_init(|| GrammarEnv::from_engine(eng).map(Arc::new)).clone();
-        Ok(env.and_then(|env| env.compile(&plan)))
+        Ok(env.and_then(|env| env.compile_with(&plan, think)))
     })
     .await?;
     r.map_err(|m| ApiError::bad_request(flavor, m))
 }
 
 /// Attach `plan`'s constraint to `gen` (none for `None`). Rejects the sampling options a constraint cannot honour.
-pub async fn attach(st: &AppState, flavor: Flavor, gen: &mut GenRequest, plan: Option<Plan>) -> Result<(), ApiError> {
+/// `think`: thinking is on, the constraint starts after `</think>` (see [`GrammarEnv::compile`]).
+pub async fn attach(
+    st: &AppState,
+    flavor: Flavor,
+    gen: &mut GenRequest,
+    plan: Option<Plan>,
+    think: bool,
+) -> Result<(), ApiError> {
     let Some(plan) = plan else { return Ok(()) };
     let bad = |m: &str| Err(ApiError::bad_request(flavor, m));
     if gen.ignore_eos {
@@ -149,7 +178,7 @@ pub async fn attach(st: &AppState, flavor: Flavor, gen: &mut GenRequest, plan: O
     if gen.min_tokens > 0 {
         return bad("min_tokens cannot be combined with structured output");
     }
-    gen.constraint = Some(compile_for(st, flavor, plan).await?);
+    gen.constraint = Some(compile_for(st, flavor, plan, think).await?);
     Ok(())
 }
 
@@ -453,6 +482,8 @@ pub fn tools_plan(tools: &[Tool], choice: &Choice, parallel: bool) -> Option<Pla
 struct LlgSpec {
     proto: Mutex<Matcher>,
     trigger: Option<u32>,
+    /// Thinking on: the grammar (and its trigger) wait for this `</think>` token.
+    gate: Option<u32>,
     /// Lazy constraint that allows one call: after it only EOS.
     once: bool,
     vocab: usize,
@@ -470,7 +501,9 @@ impl ConstraintSpec for LlgSpec {
         Ok(Box::new(LlgConstraint {
             m,
             trigger: self.trigger,
-            active: self.trigger.is_none(),
+            gate: self.gate,
+            gated: self.gate.is_some(),
+            active: self.trigger.is_none() && self.gate.is_none(),
             once: self.once,
             spent: false,
             vocab: self.vocab,
@@ -482,6 +515,9 @@ struct LlgConstraint {
     m: Matcher,
     /// Lazy constraint: the grammar starts after this token and re-arms once it is complete.
     trigger: Option<u32>,
+    /// Waiting for the `</think>` token (`gate`) before anything else applies.
+    gate: Option<u32>,
+    gated: bool,
     active: bool,
     once: bool,
     /// `once` and the call is done: only EOS may follow.
@@ -510,6 +546,13 @@ impl TokenConstraint for LlgConstraint {
     }
 
     fn commit(&mut self, tok: u32) -> intarsia_core::Result<()> {
+        if self.gated {
+            if Some(tok) == self.gate {
+                self.gated = false;
+                self.active = self.trigger.is_none();
+            }
+            return Ok(());
+        }
         if !self.active {
             if Some(tok) == self.trigger {
                 self.active = true;
@@ -546,6 +589,8 @@ pub enum Piece {
     },
 }
 
+const THINK_OPEN: &str = "<think>";
+const THINK_CLOSE: &str = "</think>";
 const OPEN: &str = "<tool_call>";
 const CLOSE: &str = "</tool_call>";
 
@@ -631,6 +676,138 @@ fn parse_call(body: &str) -> Option<Piece> {
     Some(Piece::Call { name, arguments })
 }
 
+// ---------------------------------------------------------------------------
+// reasoning (`<think>...</think>`) output parsing
+// ---------------------------------------------------------------------------
+
+/// A piece of output split by [`ReasoningParser`].
+#[derive(Clone, Debug, PartialEq)]
+pub enum Part {
+    /// Thinking (`reasoning_content` / a `thinking` block).
+    Reasoning(String),
+    /// The answer (`content`).
+    Content(String),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Phase {
+    /// Before the first byte is decided: an optional `<think>` opener may still arrive.
+    Start,
+    Reasoning,
+    Content,
+}
+
+/// Splits generated text at `</think>` as vLLM's `qwen3` reasoning parser does: everything before it is reasoning (an
+/// optional leading `<think>` is dropped, since newer templates put it in the prompt), everything after is content.
+/// Output without a `</think>` is all reasoning. Whitespace around the split (the `\n` the model writes after
+/// `<think>` and `\n\n` around `</think>`) is trimmed. Text that may be the start of `</think>` is held back.
+#[derive(Debug)]
+pub struct ReasoningParser {
+    phase: Phase,
+    buf: String,
+    /// Nothing but whitespace was emitted in the current section so far: drop leading whitespace.
+    lead: bool,
+}
+
+impl Default for ReasoningParser {
+    fn default() -> Self {
+        ReasoningParser { phase: Phase::Start, buf: String::new(), lead: true }
+    }
+}
+
+/// Length of the longest suffix of `s` that is a proper prefix of `pat`.
+fn partial_suffix(s: &str, pat: &str) -> usize {
+    (1..pat.len().min(s.len() + 1)).rev().find(|&n| s.is_char_boundary(s.len() - n) && s.ends_with(&pat[..n])).unwrap_or(0)
+}
+
+impl ReasoningParser {
+    pub fn push(&mut self, text: &str) -> Vec<Part> {
+        self.buf.push_str(text);
+        let mut out = Vec::new();
+        loop {
+            match self.phase {
+                Phase::Start => {
+                    if let Some(r) = self.buf.strip_prefix(THINK_OPEN) {
+                        self.buf = r.to_string();
+                        self.phase = Phase::Reasoning;
+                    } else if THINK_OPEN.starts_with(self.buf.as_str()) {
+                        return out; // empty or a proper prefix of the opener: wait
+                    } else {
+                        self.phase = Phase::Reasoning;
+                    }
+                }
+                Phase::Reasoning => {
+                    if let Some(i) = self.buf.find(THINK_CLOSE) {
+                        let rest = self.buf.split_off(i + THINK_CLOSE.len());
+                        self.buf.truncate(i);
+                        let head = std::mem::take(&mut self.buf);
+                        self.emit(&mut out, &head, true);
+                        self.buf = rest;
+                        self.phase = Phase::Content;
+                        self.lead = true;
+                    } else {
+                        let keep = partial_suffix(&self.buf, THINK_CLOSE);
+                        let cut = self.buf.len() - keep;
+                        let head = self.buf[..cut].trim_end().len();
+                        // trailing whitespace (and a possible partial tag) stays until it is known not to be trailing
+                        let emit: String = self.buf.drain(..head).collect();
+                        self.emit(&mut out, &emit, false);
+                        return out;
+                    }
+                }
+                Phase::Content => {
+                    let t = std::mem::take(&mut self.buf);
+                    self.emit_content(&mut out, &t);
+                    return out;
+                }
+            }
+        }
+    }
+
+    fn emit(&mut self, out: &mut Vec<Part>, t: &str, last: bool) {
+        let t = if self.lead { t.trim_start() } else { t };
+        let t = if last { t.trim_end() } else { t };
+        if !t.is_empty() {
+            self.lead = false;
+            out.push(Part::Reasoning(t.to_string()));
+        }
+    }
+
+    fn emit_content(&mut self, out: &mut Vec<Part>, t: &str) {
+        let t = if self.lead { t.trim_start() } else { t };
+        if !t.is_empty() {
+            self.lead = false;
+            out.push(Part::Content(t.to_string()));
+        }
+    }
+
+    /// End of output: whatever is held back.
+    pub fn finish(&mut self) -> Vec<Part> {
+        let rest = std::mem::take(&mut self.buf);
+        let mut out = Vec::new();
+        match self.phase {
+            Phase::Start | Phase::Reasoning => self.emit(&mut out, &rest, true),
+            Phase::Content => self.emit_content(&mut out, &rest),
+        }
+        out
+    }
+
+    /// The whole output at once: `(reasoning, content)`, `None` for an empty section.
+    pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+        let mut p = ReasoningParser::default();
+        let mut parts = p.push(text);
+        parts.extend(p.finish());
+        let (mut r, mut c) = (String::new(), String::new());
+        for part in parts {
+            match part {
+                Part::Reasoning(t) => r.push_str(&t),
+                Part::Content(t) => c.push_str(&t),
+            }
+        }
+        ((!r.is_empty()).then_some(r), (!c.is_empty()).then_some(c))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -643,6 +820,7 @@ mod tests {
         b.push(b"\xFF<eos>".to_vec());
         b.push(OPEN.as_bytes().to_vec());
         b.push(CLOSE.as_bytes().to_vec());
+        b.push(THINK_CLOSE.as_bytes().to_vec());
         GrammarEnv::from_parts(b, 300, &[256], Box::new(|s| Some(tokenize(s)))).unwrap()
     }
 
@@ -656,6 +834,9 @@ mod tests {
                 rest = r;
             } else if let Some(r) = rest.strip_prefix(CLOSE) {
                 out.push(258);
+                rest = r;
+            } else if let Some(r) = rest.strip_prefix(THINK_CLOSE) {
+                out.push(259);
                 rest = r;
             } else {
                 let c = rest.chars().next().unwrap();
@@ -671,6 +852,7 @@ mod tests {
             0..=255 => vec![t as u8],
             257 => OPEN.as_bytes().to_vec(),
             258 => CLOSE.as_bytes().to_vec(),
+            259 => THINK_CLOSE.as_bytes().to_vec(),
             _ => Vec::new(),
         }
     }
@@ -973,6 +1155,79 @@ mod tests {
             let v: Value = serde_json::from_str(&s).unwrap_or_else(|e| panic!("{e}: {s:?}"));
             assert!(v["answer"].is_i64() || v["answer"].is_u64(), "{s}");
         }
+    }
+
+    fn split_stream(chunks: &[&str]) -> (String, String) {
+        let mut p = ReasoningParser::default();
+        let (mut r, mut c) = (String::new(), String::new());
+        let mut parts: Vec<Part> = chunks.iter().flat_map(|t| p.push(t)).collect();
+        parts.extend(p.finish());
+        for part in parts {
+            match part {
+                Part::Reasoning(t) => r.push_str(&t),
+                Part::Content(t) => c.push_str(&t),
+            }
+        }
+        (r, c)
+    }
+
+    #[test]
+    fn reasoning_parser_splits_at_the_close_tag_however_it_is_chunked() {
+        let text = "<think>\nlet me see\n</think>\n\n{\"a\": 1}";
+        let want = ("let me see".to_string(), "{\"a\": 1}".to_string());
+        assert_eq!(split_stream(&[text]), want);
+        let bytes: Vec<String> = text.chars().map(String::from).collect();
+        let refs: Vec<&str> = bytes.iter().map(String::as_str).collect();
+        assert_eq!(split_stream(&refs), want);
+        // opener in the prompt (not generated)
+        assert_eq!(split_stream(&["\nlet me see\n", "</think>", "\n\n{\"a\": 1}"]), want);
+        // a `<` that is not a tag stays in the reasoning
+        assert_eq!(split_stream(&["a < b </th", "ink> done"]), ("a < b".to_string(), "done".to_string()));
+        // no close tag: all reasoning; empty think section
+        assert_eq!(split_stream(&["<think>\nunfinished"]), ("unfinished".to_string(), String::new()));
+        assert_eq!(split_stream(&["<think>\n\n</think>\n\nhi"]), (String::new(), "hi".to_string()));
+        assert_eq!(ReasoningParser::parse_all(text), (Some("let me see".into()), Some("{\"a\": 1}".into())));
+        assert_eq!(ReasoningParser::parse_all(""), (None, None));
+    }
+
+    #[test]
+    fn think_gate_leaves_the_think_section_unconstrained_then_applies_the_grammar() {
+        let e = env();
+        let schema = json!({"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"],
+                            "additionalProperties": false});
+        let spec = e.compile_with(&Plan::Json(schema), true).unwrap();
+        let mut c = spec.start().unwrap();
+        // thinking: not constrained, even for tokens the grammar would never allow, and a hermes tag changes nothing
+        assert!(!c.active());
+        for t in tokenize("hmm <tool_call> {x") {
+            c.commit(t).unwrap();
+            assert!(!c.active());
+        }
+        c.commit(259).unwrap(); // </think>
+        assert!(c.active());
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(b'{' as u32) && !m.allows(b'[' as u32) && !m.allows(256));
+        for t in tokenize("{\"n\": 1}") {
+            assert!(c.compute_mask().unwrap().allows(t));
+            c.commit(t).unwrap();
+        }
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(256) && !m.allows(b'{' as u32));
+        // tools: required calls start only after the gate, auto keeps its own trigger after it
+        let tools = weather();
+        let spec = e.compile_with(&tools_plan(&tools, &Choice::Required, true).unwrap(), true).unwrap();
+        let mut c = spec.start().unwrap();
+        assert!(!c.active());
+        c.commit(259).unwrap();
+        assert!(c.active() && c.compute_mask().unwrap().allows(257));
+        let spec = e.compile_with(&tools_plan(&tools, &Choice::Auto, true).unwrap(), true).unwrap();
+        let mut c = spec.start().unwrap();
+        c.commit(257).unwrap(); // a <tool_call> inside the think section does not trigger
+        assert!(!c.active());
+        c.commit(259).unwrap();
+        assert!(!c.active());
+        c.commit(257).unwrap();
+        assert!(c.active());
     }
 
     #[test]

@@ -1,0 +1,15 @@
+fleetq: #3274 waiting (#2 in line): in line behind #3271 "G1c fusion default: compute-sanitizer with fusion on by default (vLLM up)" (claude-f31ccf91) on spark1
+fleetq:   #3271 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3271 set, or it will wait for #3271 to be released.
+fleetq: #3274 running on spark1: /private/tmp/claude-501/b1/linux2.sh spark1 cuda
+b1repro/A/one rc=101
+  cargo:rustc-check-cfg=cfg(ik_sm120a)
+warning: build failed, waiting for other jobs to finish...
+sha256sum: target/release/intarsia: No such file or directory
+ldd (Ubuntu GLIBC 2.39-0ubuntu8.8) 2.39
+b1repro/B/deeper/two rc=101
+  cargo:rustc-check-cfg=cfg(ik_sm120a)
+warning: build failed, waiting for other jobs to finish...
+sha256sum: target/release/intarsia: No such file or directory
+ldd (Ubuntu GLIBC 2.39-0ubuntu8.8) 2.39
+fleetq: #3274 done (exit 0)
+finished

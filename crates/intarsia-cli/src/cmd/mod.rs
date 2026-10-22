@@ -6,6 +6,7 @@ pub mod bench;
 pub mod doctor;
 pub mod generate;
 pub mod kernels;
+pub mod onboard;
 pub mod plan;
 pub mod qualify;
 pub mod recipe;
