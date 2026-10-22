@@ -7,7 +7,61 @@
 
 use crate::error::{Error, Result};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
+
+/// Opt-in per-phase timing of the constrained step (`INTARSIA_CONSTRAIN_PROFILE=1`): cumulative nanoseconds in the
+/// mask worker, the wait for it, the thread spawn, `commit`, the mask apply and the sampler, printed to stderr every
+/// 100 constrained steps. Diagnostic only; off it costs one cached bool test per phase.
+pub(crate) mod prof {
+    use super::*;
+
+    pub(crate) static COMPUTE: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static WAIT: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static SPAWN: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static COMMIT: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static APPLY: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static SAMPLE: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static STEPS: AtomicU64 = AtomicU64::new(0);
+
+    pub(crate) fn on() -> bool {
+        static ON: OnceLock<bool> = OnceLock::new();
+        *ON.get_or_init(|| std::env::var("INTARSIA_CONSTRAIN_PROFILE").is_ok_and(|v| v != "0" && !v.is_empty()))
+    }
+
+    /// Start a timer when profiling is on.
+    pub(crate) fn t0() -> Option<Instant> {
+        on().then(Instant::now)
+    }
+
+    /// Add the time since `t` to `acc`.
+    pub(crate) fn add(acc: &AtomicU64, t: Option<Instant>) {
+        if let Some(t) = t {
+            acc.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
+    }
+
+    /// Count a constrained step; every 100th prints the cumulative totals.
+    pub(crate) fn step() {
+        if !on() {
+            return;
+        }
+        let n = STEPS.fetch_add(1, Ordering::Relaxed) + 1;
+        if n % 100 == 0 {
+            let g = |a: &AtomicU64| a.load(Ordering::Relaxed);
+            eprintln!(
+                "constrain-profile steps={n} compute_ns={} wait_ns={} spawn_ns={} commit_ns={} apply_ns={} sample_ns={}",
+                g(&COMPUTE),
+                g(&WAIT),
+                g(&SPAWN),
+                g(&COMMIT),
+                g(&APPLY),
+                g(&SAMPLE)
+            );
+        }
+    }
+}
 
 /// The allowed set for one sampling step: bit `i % 32` of word `i / 32` allows token `i`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,7 +147,9 @@ impl ConstraintRun {
     /// Wait for the prefetched mask, if one is being computed.
     fn join(&mut self) -> Result<Option<TokenMask>> {
         let Some(rx) = self.job.take() else { return Ok(None) };
+        let t = prof::t0();
         let m = rx.recv().map_err(|_| Error::Other("constraint mask worker died".into()))?;
+        prof::add(&prof::WAIT, t);
         m.map(Some)
     }
 
@@ -110,10 +166,14 @@ impl ConstraintRun {
         }
         let (tx, rx) = channel();
         let st = self.state.clone();
+        let ts = prof::t0();
         let spawned = std::thread::Builder::new().name("intarsia-mask".into()).spawn(move || {
+            let t = prof::t0();
             let m = st.lock().unwrap_or_else(|e| e.into_inner()).compute_mask();
+            prof::add(&prof::COMPUTE, t);
             let _ = tx.send(m);
         });
+        prof::add(&prof::SPAWN, ts);
         if spawned.is_ok() {
             self.job = Some(rx);
         }
@@ -130,7 +190,10 @@ impl ConstraintRun {
     pub(crate) fn commit(&mut self, tok: u32) -> Result<()> {
         // a prefetched mask nobody took (cannot happen in step order, but never commit under a running worker)
         let _ = self.join();
-        self.lock().commit(tok)
+        let t = prof::t0();
+        let r = self.lock().commit(tok);
+        prof::add(&prof::COMMIT, t);
+        r
     }
 }
 
