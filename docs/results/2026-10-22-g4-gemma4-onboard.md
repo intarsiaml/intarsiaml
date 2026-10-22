@@ -5,7 +5,7 @@ Lane g4, branch `lane-g4/gemma4`, fleetq owner `claude-f31ccf91-g4`. T0 = 09:11:
 
 ## Verdict
 
-**Requirement 1 is met for the code, not yet for the clock.** A model with no recipe went from "`recipe new` exits 3 with 10 TODOs" to a
+**Requirement 1 is met for the code, not for the clock: there is no full-model time-to-quick number.** A model with no recipe went from "`recipe new` exits 3 with 10 TODOs" to a
 recipe-covered, loading, generating, admission-clean, HF-matching model in about 1 h 10 min of wall clock (09:12 to 10:23), by
 writing new engine code (one layer block, 4 op attributes, 1 op, 9 CUDA kernels, a loader). The 2 h quick / 4 h full targets are
 not measurable on the full 26B: **no GPU lease big enough for it (>= 20 GB) was grantable before the hard stop**, so there is no
@@ -19,7 +19,7 @@ not measurable on the full 26B: **no GPU lease big enough for it (>= 20 GB) was 
 | `intarsia onboard --quick-only` on that slice, CUDA, spark2 | recipe PASS (0 s), smoke PASS (8 s), kernels admission PASS (71 kernels, 1425 cases, 0 rejected), quick tier 3 min 34 s; verdict FAIL only on the perplexity / repeat-sanity gates, which a 2-layer model cannot pass (`raw/onboard-2L-slice/`) |
 | 6-layer real-weight slice, CUDA vs CPU `generate` (12 greedy ids) | identical ids |
 | `intarsia kernels test --backend cuda` | 71 kernels, 1425 cases (full sweep, spark2), 505 (quick, spark1), 0 rejected |
-| Qwen3-8B no-op (CUDA, first 12 layers, 256 greedy ids + `plan show`) vs merge-base `acba5987` | plan identical, 256 ids identical (`raw/qwen3-noop/`). Deviation: 12 layers, not the full model, because only <= 12 GB leases were obtainable |
+| Qwen3-8B no-op (CUDA, first 12 layers, 256 greedy ids + `plan show`) vs current main `0b0cbc3e` (both rebuilt after merging main into the branch) | plan identical, 256 ids identical (`raw/qwen3-noop/`). Deviation: 12 layers, not the full model, because only <= 12 GB leases were obtainable |
 
 Why the final norm was scaled in the slice comparison: the real `model.language_model.norm.weight` has mean 29 (max 588), so after
 only two layers the pre-softcap logits have std 140 and 24% sit at the 30.0 soft-cap; the specified comparison is then vacuous
@@ -151,3 +151,11 @@ without the cuda feature"); tiny-model "bf16 vs f32" disagrees through router fl
 * `moe_intermediate_size` 704 is not a multiple of 128: the mma / w4a16 GELU MoE kernels do not apply to it, prefill with T >= 2
   uses the slow generic `moe_experts_gelu_bf16` (correct, untuned). The 2-layer slice's quick-tier speed numbers (~7000 tok/s prefill) are
   for 2 layers and mean nothing for the model.
+
+## Process failure, mine
+
+Lease #4206 (26 GB, `--expect 24`, the one slot that would have run the full 26B load and chat smoke) was granted at 10:34:17 while
+the session was blocked inside a queued no-op command (`fleetq run` #4222, which only returned at ~11:40). It sat idle for ~66 minutes
+and was released at 11:40, ten minutes after the hard stop, with the full-model run not done. The no-op had been started from a
+foreground call; the full-model command should have been pre-staged and the lease watched by a monitor that ran the command itself
+(`--on-quick-done` / a script), not by the interactive session. Jobs left held at the end: none.
