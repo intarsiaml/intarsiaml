@@ -111,10 +111,12 @@ pub enum Op {
     MatmulExl3,
     // appended (2026-10-21, P1 MXFP4 decode, after M2 EXL3): `MatmulFp8Pair` for OCP MXFP4 weights
     MatmulMxfp4Pair,
+    // appended (2026-10-22, g4 Gemma-4): `SiluGlu` with the tanh-GELU activation (`gelu_pytorch_tanh`), for the same reason
+    GeluGlu,
 }
 
 impl Op {
-    pub const ALL: [Op; 39] = [
+    pub const ALL: [Op; 40] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -154,6 +156,7 @@ impl Op {
         Op::MatmulMxfp4,
         Op::MatmulExl3,
         Op::MatmulMxfp4Pair,
+        Op::GeluGlu,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -198,6 +201,7 @@ impl Op {
             Op::MatmulMxfp4 => "matmul_mxfp4",
             Op::MatmulExl3 => "matmul_exl3",
             Op::MatmulMxfp4Pair => "matmul_mxfp4_pair",
+            Op::GeluGlu => "gelu_glu",
         }
     }
 
@@ -245,6 +249,7 @@ impl Op {
             Op::MatmulMxfp4 => (4, 1),
             Op::MatmulExl3 => (5, 1),
             Op::MatmulMxfp4Pair => (6, 2),
+            Op::GeluGlu => (2, 1),
         }
     }
 }
@@ -275,6 +280,17 @@ pub struct OpAttrs {
     pub rotary_dim: usize,
     /// Norm ops: the scale applied is `w + w_offset` (1.0 for zero-centred norms such as Qwen3.5's), added in f32.
     pub w_offset: f32,
+    /// `AttnPrefill` / `AttnDecode`: sliding window. Query at absolute position `p` attends keys `max(0, p + 1 - window)..=p`
+    /// (the last `window` keys including itself, HF `sliding_window` with `sliding_window_mask_function`); 0 = all keys.
+    /// A call with `window > 0` selects only kernels registered `.ext()`.
+    pub window: usize,
+    /// `Rope`: "proportional" rotation (Gemma 4 global layers, HF `rope_type = "proportional"`). Only the first
+    /// `rotary_dim / 2` angles are non-zero: pair `(j, j + D/2)` for `j < rotary_dim / 2` is rotated by `pos * theta^(-2j/D)`
+    /// (the exponent's denominator is the full head dim `D`, not `rotary_dim`), every other value is copied. `rotary_dim` is
+    /// the number of rotated values (`partial_rotary_factor * D`). Selects only `.ext()` kernels.
+    pub rope_prop: bool,
+    /// `MoeExperts`: expert activation is tanh-GELU instead of SiLU (`gelu_tanh(gate) * up`). Selects only `.ext()` kernels.
+    pub gelu: bool,
 }
 
 impl Default for OpAttrs {
@@ -294,6 +310,9 @@ impl Default for OpAttrs {
             norm_topk: true,
             rotary_dim: 0,
             w_offset: 0.0,
+            window: 0,
+            rope_prop: false,
+            gelu: false,
         }
     }
 }
@@ -498,7 +517,7 @@ impl OpCall {
                     return bad("decode requires T == 1".into());
                 }
             }
-            Op::SiluGlu => {
+            Op::SiluGlu | Op::GeluGlu => {
                 if i[0].shape != i[1].shape || o[0].shape != i[0].shape {
                     return bad("shape mismatch".into());
                 }
@@ -608,6 +627,9 @@ pub struct ShapeInfo {
     /// MoE ops: number of routed experts / experts selected per token.
     pub experts: usize,
     pub top_k: usize,
+    /// The call uses an extended attribute (`OpAttrs::window`, `rope_prop`, `gelu`): only kernels registered `.ext()` accept it,
+    /// so a kernel that predates the attribute can never run it silently wrong.
+    pub ext: bool,
 }
 
 impl ShapeInfo {
@@ -617,6 +639,7 @@ impl ShapeInfo {
         let mut s = ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
+            ext: call.attrs.window > 0 || call.attrs.rope_prop || call.attrs.gelu,
             ..Default::default()
         };
         match call.op {
@@ -626,7 +649,7 @@ impl ShapeInfo {
                 s.k = i[1].shape[1];
                 s.act = Some(i[1].dtype);
             }
-            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
             }
