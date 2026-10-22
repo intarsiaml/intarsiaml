@@ -42,6 +42,8 @@ fn overall(stages: &[&StageRecord], expected_full: bool, have_full: bool) -> &'s
         "ERROR"
     } else if stages.iter().any(|s| s.verdict == Verdict::Fail) {
         "FAIL"
+    } else if stages.iter().any(|s| s.verdict == Verdict::MissingBaseline) {
+        "MISSING-BASELINE"
     } else if expected_full && !have_full {
         "INCOMPLETE"
     } else {
@@ -83,7 +85,7 @@ pub fn summary_json(state: &State, meta: &Meta, full: bool) -> Value {
     let verdict = overall(&stages, full && !meta.quick_only, have_full);
     let failures: Vec<Value> = stages
         .iter()
-        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error))
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error))
         .map(|s| json!({"stage": s.id, "verdict": s.verdict.label(), "reason": s.reason}))
         .collect();
     let warnings: Vec<Value> = stages
@@ -162,11 +164,16 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     let count = |v: Verdict| stages.iter().filter(|s| s.verdict == v).count();
     let _ = writeln!(
         o,
-        "**Verdict: {verdict}** ({} stages: {} pass, {}{} fail, {} error, {} skipped)\n",
+        "**Verdict: {verdict}** ({} stages: {} pass, {}{} fail, {}{} error, {} skipped)\n",
         stages.len(),
         count(Verdict::Pass),
         if count(Verdict::Warn) > 0 { format!("{} report-only (warn), ", count(Verdict::Warn)) } else { String::new() },
         count(Verdict::Fail),
+        if count(Verdict::MissingBaseline) > 0 {
+            format!("{} missing baseline, ", count(Verdict::MissingBaseline))
+        } else {
+            String::new()
+        },
         count(Verdict::Error),
         count(Verdict::Skip)
     );
@@ -250,8 +257,10 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     }
     let _ = writeln!(o);
     let _ = writeln!(o, "### Failures\n");
-    let fails: Vec<&&StageRecord> =
-        stages.iter().filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error)).collect();
+    let fails: Vec<&&StageRecord> = stages
+        .iter()
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error))
+        .collect();
     if fails.is_empty() {
         let _ = writeln!(o, "None.\n");
     } else {

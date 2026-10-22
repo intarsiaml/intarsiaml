@@ -1,0 +1,7 @@
+prefill chunk 256 (default)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 3.2s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 4096 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 23 tokens
+Sunlight reaches Earth's atmosphere and is scattered in all directions by all the gases and particles in the air. Blue light is scattered more than other colors because it travels in shorter, smaller waves. This is why we see a blue sky most of the time.
+finish=stop prompt=23 (cached 0) completion=53 | prefill 1862 ms (12.4 tok/s) | decode 777 ms (66.96 tok/s)
+steps=54 graph replays=0 (captures 0) eager decode steps=53 (profiled 3) top ops: moe_experts=658ms/2160 rmsnorm_add=588ms/4320 embedding=447ms/54 matmul_fp8=119ms/7020 matmul_nvfp4=87ms/6533

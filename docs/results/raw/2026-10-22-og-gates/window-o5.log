@@ -1,0 +1,13 @@
+[og-burst] previous window ended 63s ago; waiting 237s so radiance serves 5 min
+[og-burst] job 3651; og o5; cap 480s; stopping radiance 2026-10-21 23:38:16
+[og-burst] radiance stopped 2026-10-21 23:38:19
+== o5-tails hip start 23:38:19 host tatooine
+prefill chunk 4557 exit 1 32 s  2088036 bytes
+prefill chunk 4032 exit 1 29 s  2088036 bytes
+prefill chunk 4000 exit 1 29 s  2088036 bytes
+prefill chunk 3936 exit 1 29 s  2088036 bytes
+prefill chunk 3808 exit 1 29 s  2088036 bytes
+== o5-tails hip done 23:40:47
+[og-burst] command done 2026-10-21 23:40:47 (exit 0)
+[og-burst] starting radiance 2026-10-21 23:40:47
+[og-burst] radiance answers 2026-10-21 23:41:07 (after 25 s); window total 171 s
