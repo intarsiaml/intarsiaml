@@ -1,0 +1,24 @@
+450c450
+<   "prefill_chunk": 256,
+---
+>   "prefill_chunk": 4096,
+478c478,490
+<     256
+---
+>     256,
+>     257,
+>     511,
+>     512,
+>     513,
+>     1023,
+>     1024,
+>     1025,
+>     2047,
+>     2048,
+>     2049,
+>     4095,
+>     4096
+482c494
+<   "prefill_chunk_source": "default"
+---
+>   "prefill_chunk_source": "recipe qwen3, cuda"
