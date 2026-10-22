@@ -253,8 +253,7 @@ pub fn check_binding(n: &RefNoise, id: &GoldenIdent) -> Result<Vec<String>> {
 /// `golden/ref_noise/` of the working directory, then of this checkout.
 pub fn sidecar_candidates(golden_dir: &Path, file: &str) -> Vec<PathBuf> {
     let name = format!("{file}.json");
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden");
-    [golden_dir.to_path_buf(), PathBuf::from("golden"), repo].into_iter().map(|d| d.join("ref_noise").join(&name)).collect()
+    std::iter::once(golden_dir.to_path_buf()).chain(super::golden_search_dirs()).map(|d| d.join("ref_noise").join(&name)).collect()
 }
 
 fn read_record(p: &Path) -> Result<RefNoise> {

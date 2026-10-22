@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/Users/josef/Models/Qwen3-8B",
+    "backend": "metal"
+  },
+  "created_unix": 1792621984,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3 covers the model (25/25 tensor templates resolve, quant bf16)",
+      "started_unix": 1792621984,
+      "ended_unix": 1792621984,
+      "wall_s": 0.001744584,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3",
+        "family": "qwen3",
+        "quant": "bf16"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris. The capital of Italy is Rome. The capital of Spain is Madrid.\"",
+      "started_unix": 1792621984,
+      "ended_unix": 1792621986,
+      "wall_s": 1.226773292,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 37.15,
+        "completion": "Paris. The capital of Italy is Rome. The capital of Spain is Madrid.",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "qualify exit 0, 7 stage(s) recorded",
+      "started_unix": 1792621986,
+      "ended_unix": 1792622180,
+      "wall_s": 194.657095084,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 0
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-21T22:36:20Z",
+      "started_unix": 1792622180,
+      "ended_unix": 1792622180,
+      "wall_s": 0.000776291,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792622180
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    },
+    {
+      "id": "in-depth",
+      "title": "in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "qualify exit 0, 13 stage(s) recorded",
+      "started_unix": 1792622330,
+      "ended_unix": 1792622403,
+      "wall_s": 73.351334167,
+      "halted": false,
+      "first_started_unix": 1792622180,
+      "facts": {
+        "qualify_exit": 0
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-in-depth",
+      "title": "publish in-depth.md / in-depth.json / in-depth.prom",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "in-depth.md written 2026-10-21T22:40:03Z",
+      "started_unix": 1792622403,
+      "ended_unix": 1792622403,
+      "wall_s": 0.000940041,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792622403
+      },
+      "artifacts": [
+        "in-depth.md",
+        "in-depth.json",
+        "in-depth.prom"
+      ]
+    }
+  ]
+}
