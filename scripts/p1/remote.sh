@@ -158,6 +158,15 @@ stage_idsab() { # 35B + 8B greedy ids, base vs new (must be identical)
   done
 }
 
+stage_kop() { # kop:<op>: kernels test for one op (27B shapes)
+  $D $B kernels test --backend hip --model $M --op "$1" < /dev/null 2>&1 | grep -aE "FAIL|REJECT|ADMITTED|kernels,|rror" | tail -8
+}
+stage_selfcheck() { # selfcheck:<tag>: new build (with env KNOB) vs the base self-golden written by `selfgolden`
+  INTARSIA_TARGET_VOL=$NEWVOL $D env ${GEN_ENV:-X=0} $B accuracy --backend hip --model $M --mem-budget 30 --mode both \
+    --self-golden /work/bench-out/acc/sg27-base.safetensors --allow-unstamped < /dev/null > "$OUTD/acc/sg27-check-$1.log" 2>&1
+  grep -aE "SELF-STATS|self-golden verdict" "$OUTD/acc/sg27-check-$1.log"
+}
+
 for s in "$@"; do
   name=${s%%:*}; arg=${s#*:}; [ "$arg" = "$s" ] && arg=""
   echo "=== stage $s [$(ts)]"

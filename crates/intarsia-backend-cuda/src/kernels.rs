@@ -594,8 +594,9 @@ mod tests {
         // ops are registered (quantmoe.rs) and the model still falls back to the unfused ops for an exact call without one.
         // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
-        // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`).
-        const NOT_ON_CUDA: [Op; 8] = [
+        // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`), and the MXFP4 k/v-style
+        // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
+        const NOT_ON_CUDA: [Op; 9] = [
             Op::Sample,
             Op::QkNormRopeKv,
             Op::RmsNormAddMatmulFp8Pair,
@@ -604,6 +605,7 @@ mod tests {
             Op::GateSplitQkNormRopeKv,
             Op::GdnConvDelta,
             Op::MoeBlock,
+            Op::MatmulMxfp4Pair,
         ];
         for op in Op::ALL {
             if !NOT_ON_CUDA.contains(&op) {

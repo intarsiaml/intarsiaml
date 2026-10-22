@@ -16,6 +16,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
+        | Op::MatmulMxfp4Pair
         | Op::MatmulNvfp4Glu
         | Op::GatedRmsnorm
         | Op::QkNormRopeKv
