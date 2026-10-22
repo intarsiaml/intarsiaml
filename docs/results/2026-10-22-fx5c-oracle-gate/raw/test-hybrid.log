@@ -1,0 +1,30 @@
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5c-test/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.48s
+     Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
+
+running 11 tests
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... ok
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+
+     Running tests/recipes_doc.rs (target/debug/deps/recipes_doc-e07c03691dcd11d2)
+
+running 2 tests
+test complete_recipes_in_the_docs_parse_and_validate ... ok
+test every_schema_key_is_documented ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -16,3 +16,350 @@ warning: variable does not need to be mutable
      |
      = note: `#[warn(unused_mut)]` on by default
 
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+warning: `intarsia-cli` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.63s
+     Running unittests src/lib.rs (target/debug/deps/intarsia_cli-f3b38442d28a25c9)
+
+running 160 tests
+test cmd::accuracy::baseline::tests::fnv_known_vectors ... ok
+test cmd::accuracy::baseline::tests::each_metric_can_fail_the_gate ... ok
+test cmd::accuracy::baseline::tests::mismatching_golden_or_config_is_refused ... ok
+test cmd::accuracy::baseline::tests::a_tiny_baseline_kl_is_not_brittle ... ok
+test cmd::accuracy::baseline::tests::a_run_passes_its_own_baseline_and_small_noise ... ok
+test cmd::accuracy::baseline::tests::chunk_mismatch_names_the_recipe_default ... ok
+test cmd::accuracy::baseline::tests::one_flipped_position_does_not_fail_a_short_mode ... ok
+test cmd::accuracy::baseline::tests::one_prompt_doubling_fails_although_the_overall_mean_passes ... ok
+test cmd::accuracy::baseline::tests::an_old_baseline_json_without_scored_fields_still_reads ... ok
+test cmd::accuracy::baseline::tests::baseline_json_round_trips ... ok
+test cmd::accuracy::baseline::tests::scored_row_kl_is_judged_only_against_a_baseline_that_has_it ... ok
+test cmd::accuracy::envelope::tests::missing_or_mismatched_prompts_are_errors ... ok
+test cmd::accuracy::envelope::tests::delta_is_the_absolute_difference_of_the_prompt_numbers ... ok
+test cmd::accuracy::envelope::tests::several_perturbations_give_the_per_prompt_maximum ... ok
+test cmd::accuracy::envelope::tests::without_an_envelope_the_limits_are_the_old_fixed_ones ... ok
+test cmd::accuracy::envelope::tests::the_envelope_widens_the_limit_only_where_the_prompt_is_noisy ... ok
+test cmd::accuracy::gatedefs::tests::kl_floor_noise_bound_pass_is_visible ... ok
+test cmd::accuracy::envelope::tests::the_perturbed_run_is_checked_against_its_reference ... ok
+test cmd::accuracy::envelope::tests::envelope_json_round_trips ... ok
+test cmd::accuracy::gatedefs::tests::kl_floor_carries_both_verdicts_and_both_metrics ... ok
+test cmd::accuracy::gatedefs::tests::self_vs_base_unchanged_has_no_records ... ok
+test cmd::accuracy::gatedefs::tests::kl_floor_same_rows_and_nan ... ok
+test cmd::accuracy::envelope::tests::the_envelope_must_belong_to_the_baseline ... ok
+test cmd::accuracy::provenance::tests::the_declared_pre_change_commit_or_an_ancestor_is_accepted ... ok
+test cmd::accuracy::provenance::tests::unstamped_artefacts_are_refused_unless_allowed ... ok
+test cmd::accuracy::gatedefs::tests::self_vs_ref_noise_records_ungated_checks_with_both_verdicts ... ok
+test cmd::accuracy::provenance::tests::a_baseline_from_somewhere_else_is_refused ... ok
+test cmd::accuracy::provenance::tests::comparing_code_with_itself_needs_an_explicit_flag ... ok
+test cmd::accuracy::envelope::tests::dense_detection_on_the_real_configs ... ok
+test cmd::accuracy::provenance::tests::exec_diff_names_the_changed_kernels_and_flags ... ok
+test cmd::accuracy::provenance::tests::parse_round_trip_and_unstamped ... ok
+test cmd::accuracy::provenance::tests::only_the_harness_overlay_may_be_dirty ... ok
+test cmd::accuracy::envelope::tests::perturbation_specs ... ok
+test cmd::accuracy::envelope::tests::dense_detection ... ok
+test cmd::accuracy::baseline::tests::the_reuse_summary_is_recorded_and_an_old_baseline_without_it_reads ... ok
+test cmd::accuracy::refnoise::tests::binding_refuses_another_golden ... ok
+test cmd::accuracy::refnoise::tests::factor_precedence_is_flag_record_recipe_default ... ok
+test cmd::accuracy::refnoise::tests::invalid_factor_and_empty_verdicts_are_errors ... ok
+test cmd::accuracy::refnoise::tests::dates ... ok
+test cmd::accuracy::refnoise::tests::change_vs_base_gates_the_mean_kl_and_every_prompt_and_reports_the_rest ... ok
+test cmd::accuracy::refnoise::tests::change_vs_base_has_no_static_floor ... ok
+test cmd::accuracy::refnoise::tests::nan_and_infinity_never_pass ... ok
+test cmd::accuracy::refnoise::tests::noise_above_the_floor_raises_the_threshold_and_binds ... ok
+test cmd::accuracy::refnoise::tests::noise_below_the_floor_leaves_the_floor_binding ... ok
+test cmd::accuracy::refnoise::tests::parses_a_full_record_and_a_minimal_one ... ok
+test cmd::accuracy::refnoise::tests::prompt_factor_resolution_and_validation ... ok
+test cmd::accuracy::refnoise::tests::per_prompt_noise_parses_validates_and_round_trips ... ok
+test cmd::accuracy::refnoise::tests::rejects_bad_records ... ok
+test cmd::accuracy::refnoise::tests::row_sets_are_judged_each_on_its_own ... ok
+test cmd::accuracy::refnoise::tests::prompts_use_their_own_noise_and_fall_back_to_the_mean ... ok
+test cmd::accuracy::refnoise::tests::static_floor_alone_is_the_old_gate ... ok
+test cmd::accuracy::refnoise::tests::tie_goes_to_the_static_floor ... ok
+test cmd::accuracy::refnoise::tests::load_prefers_flag_then_metadata_then_sidecar ... ok
+test cmd::accuracy::refnoise::tests::zero_noise_gives_no_factor_needed ... ok
+test cmd::accuracy::refnoise::tests::topk_pair_kl_matches_the_hand_computation ... ok
+test cmd::accuracy::selfgolden::tests::captured_rows_are_normalised_log_probs_best_first ... ok
+test cmd::accuracy::selfgolden::tests::identical_logits_pass_and_each_check_can_fail ... ok
+test cmd::accuracy::selfgolden::tests::one_flip_does_not_fail_a_short_mode ... ok
+test cmd::accuracy::tests::a_skipped_prompt_fails_the_reuse_gate_only_when_all_are_required ... ok
+test cmd::accuracy::tests::a_flipped_near_tie_is_rounding_but_a_moved_distribution_is_not ... ok
+test cmd::accuracy::refnoise::tests::rescore_m1_w4a4_from_the_documented_numbers ... ok
+test cmd::accuracy::tests::default_gates_by_class ... ok
+test cmd::accuracy::tests::default_golden_lists_tried_paths_and_finds_env_dir ... ok
+test cmd::accuracy::tests::first_divergence_of_streams ... ok
+test cmd::accuracy::tests::greedy_match_length_counts_the_leading_run ... ok
+test cmd::accuracy::tests::golden_dirs_env_var_comes_first ... ok
+test cmd::accuracy::tests::continue_oracle_found_only_for_its_model_prompt_split_and_ids ... ok
+test cmd::accuracy::tests::identical_distributions_agree ... ok
+test cmd::accuracy::tests::kl_oracle_row_is_top_k_plus_tail ... ok
+test cmd::accuracy::tests::rescore_m3_dump_with_the_row_mask ... ignored
+test cmd::accuracy::refnoise::tests::rescore_cuda_round7_from_the_committed_table ... ok
+test cmd::accuracy::tests::a_format_reference_golden_drops_the_weight_class ... ok
+test cmd::accuracy::tests::nan_in_the_golden_is_an_error ... ok
+test cmd::accuracy::tests::oracle_relative_warm_1_4x_passes_and_1_6x_fails ... ok
+test cmd::accuracy::tests::kv_dtype_aliases_and_warnings ... ok
+test cmd::accuracy::tests::repeat_detection ... ok
+test cmd::accuracy::tests::row_nu_looks_at_the_top_tokens_only ... ok
+test cmd::accuracy::tests::oracle_relative_mutation_scaled_warm_logits_fail ... ok
+test cmd::accuracy::tests::rows_are_compared_by_bit_pattern ... ok
+test cmd::accuracy::tests::nan_anywhere_fails_the_position ... ok
+test cmd::accuracy::tests::reference_logprobs_summing_just_over_one_do_not_break_the_tail ... ok
+test cmd::accuracy::tests::strict_top1_and_tie_reporting ... ok
+test cmd::accuracy::tests::the_reuse_split_crosses_a_chunk_boundary_or_the_prompt_is_skipped ... ok
+test cmd::accuracy::tests::the_21_way_kl_is_a_lower_bound_of_the_full_kl ... ok
+test cmd::accuracy::tests::top_k_orders_and_breaks_ties_low ... ok
+test cmd::accuracy::turns::tests::formats_by_name ... ok
+test cmd::accuracy::turns::tests::plain_text_keeps_every_row ... ok
+test cmd::accuracy::turns::tests::open_assistant_turn_at_the_end_is_scored ... ok
+test cmd::accuracy::turns::tests::multi_turn_two_user_turns ... ok
+test cmd::accuracy::tests::topk_kl_is_zero_for_equal_and_positive_for_shifted ... ok
+test cmd::accuracy::turns::tests::resolve_refuses_an_ambiguous_tokenizer ... ok
+test cmd::accuracy::turns::tests::system_and_user_hidden_assistant_scored ... ok
+test cmd::accuracy::turns::tests::text_before_the_first_turn_is_scored ... ok
+test cmd::kernels::tests::a_rejected_kernel_or_an_empty_run_still_fails ... ok
+test cmd::accuracy::turns::tests::unterminated_user_turn_is_hidden_to_the_end ... ok
+test cmd::kernels::tests::skipped_kernels_alone_do_not_fail_the_run ... ok
+test cmd::onboard::tests::recipe_needing_a_human_exits_3 ... ok
+test cmd::onboard::tests::recipe_todos_count_only_marker_lines ... ok
+test cmd::onboard::tests::the_real_stage_list_is_ordered_and_consistent ... ok
+test cmd::qualify::facts::tests::baselines_are_found_by_golden_stem_and_backend ... ok
+test cmd::qualify::facts::tests::format_golden_is_found_apart_and_never_as_the_ordinary_golden ... ok
+test cmd::onboard::tests::golden_from_maps_to_qualify_flags ... ok
+test cmd::qualify::facts::tests::golden_discovery_prefers_fp32_and_separates_long ... ok
+test cmd::accuracy::tests::identical_distributions_have_no_tail_difference ... ok
+test cmd::qualify::facts::tests::main_checkout_is_found_from_a_worktree ... ok
+test cmd::accuracy::tests::the_reuse_tolerance_is_a_fixed_constant_from_flag_then_golden_then_recipe_then_built_in ... ok
+test cmd::qualify::facts::tests::names_from_paths ... ok
+test cmd::qualify::proc::tests::tail_starts_at_the_error_report ... ok
+test cmd::qualify::report::tests::durations ... ok
+test cmd::qualify::facts::tests::oracle_golden_lives_in_oracle_and_is_never_the_short_golden ... ok
+test cmd::qualify::state::tests::resume_keeps_pass_and_fail_and_reruns_skip_and_error ... ok
+test cmd::qualify::report::tests::rendered_report_follows_the_documented_template ... ok
+test cmd::qualify::report::tests::a_report_only_warn_does_not_fail_the_run ... ok
+test cmd::qualify::tests::a_pass_without_a_needed_baseline_is_missing_baseline ... ok
+test cmd::qualify::state::tests::state_round_trips_and_put_replaces ... ok
+test cmd::qualify::tests::accuracy_failures_are_digested ... ok
+test cmd::qualify::tests::baseline_class_is_moe_hybrid_or_quantized_without_an_fp32_golden ... ok
+test cmd::qualify::tests::line_value_finds_prefixed_lines ... ok
+test cmd::qualify::tests::missing_kernels_are_listed_from_the_load_error ... ok
+test cmd::qualify::tests::golden_context_comes_from_the_longest_prompt ... ok
+test cmd::qualify::report::tests::summary_and_metrics ... ok
+test cmd::qualify::tests::require_all_applies_only_to_goldens_whose_prompts_can_all_cross_a_boundary ... ok
+test cmd::qualify::tests::server_context_covers_the_benchs_margin ... ok
+test cmd::qualify::tests::stage_table_is_consistent ... ok
+test cmd::qualify::tests::stamp_formats_as_utc ... ok
+test cmd::qualify::tests::the_reuse_gate_counts_and_skip_failures_are_read_back ... ok
+test cmd::qualify::tests::the_scored_row_floor_line_is_digested ... ok
+test cmd::onboard::tests::state_is_keyed_and_round_trips ... ok
+test cmd::recipe::tests::a_layer_that_differs_from_the_last_one_is_flagged ... ok
+test cmd::recipe::tests::header_reader_and_layer_split ... ok
+test cmd::qualify::tests::prompt_lengths_are_read_from_the_golden_header ... ok
+test cmd::accuracy::tests::weight_class_of_the_real_checkpoints ... ok
+test cmd::recipe::tests::dense_qwen3_dir_is_covered_and_scaffold_equals_the_shipped_recipe ... ok
+test cmd::recipe::tests::missing_config_or_tensors_is_an_error_not_a_scaffold ... ok
+test cmd::onboard::tests::a_halting_stage_stops_the_rest_but_not_the_publish ... ok
+test cmd::tui::tests::size_parses ... ok
+test common::tests::busy_chunk_is_a_serve_flag_with_a_checked_range ... ok
+test cmd::recipe::tests::llama_like_model_with_gelu_yarn_bias_and_unknown_quant_lists_every_todo ... ok
+test cmd::recipe::tests::unknown_architecture_with_qwen3_layout_gets_a_clean_scaffold ... ok
+test cmd::accuracy::tests::mass_leaving_the_top_k_is_invisible_to_the_renormalised_kl_but_not_to_the_tail_bucket ... ok
+test common::tests::max_batch_is_a_serve_only_flag ... ok
+test cmd::recipe::tests::covered_without_out_writes_nothing_and_out_is_not_overwritten_without_force ... ok
+test common::tests::keepwarm_is_on_for_serve_only_and_the_env_overrides_both_ways ... ok
+test common::tests::spec_off_at_is_a_serve_flag_with_a_checked_range ... ok
+test common::tests::serve_on_metal_does_not_profile_by_default ... ok
+test cmd::accuracy::tests::weight_class_from_quantization_metadata ... ok
+test cmd::onboard::tests::quick_only_leaves_out_the_in_depth_tier ... ok
+test cmd::onboard::tests::stages_run_in_order_and_quick_is_published_before_in_depth ... ok
+test cmd::onboard::tests::timeline_has_start_end_duration_and_iso_times ... ok
+test cmd::recipe::tests::mixed_fp8_nvfp4_moe_from_an_index_alone_is_covered_by_qwen3_5_moe ... ok
+test cmd::onboard::tests::a_killed_run_resumes_at_the_stage_it_died_in ... ok
+test cmd::onboard::tests::a_finished_halting_stage_still_stops_a_resumed_run ... ok
+test cmd::onboard::tests::a_stopped_run_does_not_read_as_pass ... ok
+test cmd::onboard::tests::a_failed_gate_is_final_but_an_error_runs_again ... ok
+test cmd::onboard::tests::redo_and_refresh_rerun_the_stage_and_its_report ... ok
+test cmd::onboard::tests::a_resumed_stage_remembers_when_its_first_attempt_started ... ok
+test cmd::recipe::tests::declared_w4a4_nvfp4_is_not_covered ... ok
+test cmd::recipe::tests::hybrid_dense_dir_is_covered_by_qwen3_5 ... ok
+test cmd::accuracy::tests::top_k_selection_path_matches_the_insertion_path ... ok
+test cmd::accuracy::tests::gate_fails_on_nan_even_with_perfect_other_rows ... ok
+
+test result: ok. 159 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/main.rs (target/debug/deps/intarsia-3ebd71195f0d2ffa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/docs_env_vars.rs (target/debug/deps/docs_env_vars-babb0c8ff73a7923)
+
+running 2 tests
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/real_model.rs (target/debug/deps/real_model-bbfaab47a4b03643)
+
+running 1 test
+test counts_up_on_real_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/intarsia_core-69c3b081111f1b3b)
+
+running 97 tests
+test admission::plan_case_tests::unknown_ops_have_no_case ... ok
+test constrain::tests::full_words_keep_logits ... ok
+test constrain::tests::mask_bits_and_apply ... ok
+test dtype::tests::bulk_roundtrip_bf16 ... ok
+test dtype::tests::abi_header_matches ... ok
+test engine::batch::tests::busy_chunk_reaches_the_scheduler_config ... ok
+test engine::batch::tests::dropped_request_hears_an_error ... ok
+test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+test dtype::tests::fp8_e5m2_roundtrip ... ok
+test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+test engine::batch::tests::spec_off_at_reaches_the_scheduler_config ... ok
+test gdn::tests::delta_rule_first_token_is_beta_scaled_v ... ok
+test gdn::tests::delta_rule_state_carries_across_chunks ... ok
+test memplan::tests::clamps_to_free_memory ... ok
+test gdn::tests::split_and_gate ... ok
+test memplan::tests::mem_budget_caps_kv ... ok
+test model::feedback::tests::initial_switch ... ok
+test ops::tests::check_phase1_folds ... ok
+test ops::tests::check_phase2_folds ... ok
+test ops::tests::op_names_roundtrip ... ok
+test ops::tests::check_moeblock ... ok
+test plan::tests::fnv_is_stable ... ok
+test plan::tests::position_diff_names_the_differing_ops ... ok
+test plan::tests::probe_sizes_cover_small_and_boundaries ... ok
+test quant::exl3::tests::config_fields_and_refusals ... ok
+test quant::exl3::tests::hadamard_is_orthonormal ... ok
+test quant::exl3::tests::signs_unpack_low_bit_first ... ok
+test ops::tests::check_qk_norm_rope_kv ... ok
+test quant::exl3::tests::stream_ends_and_positions ... ok
+test quant::fp8::tests::activation_snaps_to_the_fp8_grid ... ok
+test quant::fp8::tests::quantize_then_dequant ... ok
+test quant::mxfp4::tests::e8m0_decode ... ok
+test dtype::tests::fp8_e4m3_roundtrip_all_codes ... ok
+test ops::tests::check_matmul ... ok
+test engine::batch::tests::finished_request_is_not_reported_twice ... ok
+test quant::exl3::tests::codebook_values_spot_checks ... ok
+test gdn::tests::conv_state_carries_across_chunks ... ok
+test quant::mxfp4::tests::nibble_order_is_low_first ... ok
+test quant::mxfp4::tests::qdq_keeps_representable_groups_and_saturates ... ok
+test quant::nvfp4::tests::code_table_and_rounding ... ok
+test quant::mxfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::nvfp4::tests::nibble_order_is_low_first ... ok
+test quant::mxfp4::tests::random_rows_are_finite_and_scaled ... ok
+test constrain::tests::prefetch_matches_sync ... ok
+test quant::nvfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::scheme::tests::a_global_algorithm_covers_every_layer_except_the_excluded ... ok
+test quant::scheme::tests::declared_and_stored_formats_must_agree ... ok
+test quant::scheme::tests::exl3_layers_are_exl3_or_plain ... ok
+test quant::scheme::tests::globs ... ok
+test quant::mxfp4::tests::even_scale_rule ... ok
+test quant::scheme::tests::kv_cache_deviation_is_a_note ... ok
+test quant::scheme::tests::matching_formats_pass ... ok
+test quant::scheme::tests::parses_the_modelopt_layout ... ok
+test quant::scheme::tests::quark_mxfp4_w4a4_and_w4a16 ... ok
+test quant::scheme::tests::quark_other_schemes_are_rejected_per_layer ... ok
+test quant::scheme::tests::the_real_qwen36_scheme_accepts_what_the_loader_finds ... ok
+test quant::scheme::tests::w4a4_and_unknown_algorithms_are_rejected ... ok
+test quant::tests::detect_each_format ... ok
+test recipe::tests::conflicting_rope_theta_is_an_error ... ok
+test recipe::tests::legacy_config_loads ... ok
+test recipe::tests::missing_numbers_are_errors_not_defaults ... ok
+test recipe::tests::moe_checkpoint_has_no_dense_width ... ok
+test recipe::tests::rope_parameters_layout_and_text_config ... ok
+test registry::tests::macro_builds_impl ... ok
+test recipe::tests::unsupported_fields_are_rejected ... ok
+test registry::tests::tol_for_picks_the_f32_budget_only_for_f32_outputs ... ok
+test rng::tests::deterministic_and_in_range ... ok
+test sampler::tests::greedy_and_ties ... ok
+test sampler::tests::top_k_one_is_argmax ... ok
+test sampler::tests::seeded_reproducible ... ok
+test sampler::tests::top_p_cuts_tail ... ok
+test spec::tests::accept_longest_matching_prefix ... ok
+test spec::tests::config_parse ... ok
+test spec::tests::gate_accepted_pass_resets_the_back_off_length ... ok
+test spec::tests::gate_backs_off_exponentially_on_a_run_of_failures ... ok
+test spec::tests::gate_busy_stops_probing_a_poor_request_and_keeps_a_good_one ... ok
+test spec::tests::gate_busy_threshold_is_the_mean_accepted_per_pass ... ok
+test spec::tests::gate_busy_warmup_and_off_switches ... ok
+test spec::tests::gate_cost_on_open_text_is_logarithmic ... ok
+test spec::tests::gate_not_busy_ignores_the_busy_check ... ok
+test spec::tests::gate_probe_hit_reopens_immediately ... ok
+test spec::tests::accept_needs_one_row_per_draft_plus_one - should panic ... ok
+test spec::tests::gate_resumes_when_alone_again ... ok
+test spec::tests::gate_starts_open_and_one_miss_does_not_close_it ... ok
+test spec::tests::gate_zero_fails_is_off ... ok
+test spec::tests::propose_falls_back_to_shorter_suffixes ... ok
+test spec::tests::propose_longest_suffix_most_recent ... ok
+test spec::tests::propose_min_skips_short_suffixes ... ok
+test spec::tests::propose_never_proposes_the_suffix_position_itself ... ok
+test spec::tests::propose_overlapping_repetition ... ok
+test telemetry::tests::counters ... ok
+test telemetry::tests::queued_requests_that_never_start_stay_counted ... ok
+test quant::exl3::tests::forward_equals_dequant_matmul ... ok
+test quant::exl3::tests::every_case_validates ... ok
+test quant::cases::tests::every_case_validates ... ok
+test admission::plan_case_tests::matmul_case_keeps_k_and_clamps_rows_and_n ... ok
+test admission::sweep_dim_tests::moe_only_config_sweeps_no_zero_dim_case ... ok
+
+test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.95s
+
+     Running tests/fault_inject.rs (target/debug/deps/fault_inject-3a833c8e05fb0a38)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gdn_hf.rs (target/debug/deps/gdn_hf-92131960a902a0be)
+
+running 2 tests
+test delta_rule_matches_hf_recurrent_and_chunked ... ok
+test conv_matches_hf_with_and_without_carried_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/scheduler.rs (target/debug/deps/scheduler-cbda4cc67eb59ed5)
+
+running 21 tests
+test busy_chunk_is_sticky ... ok
+test cancel_in_every_phase ... ok
+test busy_flag_follows_decoding_rows ... ok
+test failure_isolation_and_fatal ... ok
+test chunk_schedule_rule ... ok
+test config_limits ... ok
+test chunk_size_changes_output ... ok
+test fifo_checker_rejects_overtaking ... ok
+test next_prefill_chunk_rule ... ok
+test leaky_model_is_detected ... ok
+test max_batch_one_uses_solo_chunk ... ok
+test engine_queue_bound_and_fatal ... ok
+test queue_overflow ... ok
+test prefix_reuse_from_idle_slots ... ok
+test spec_gate_follows_batch_size ... ok
+test trace_store_is_off_by_default_and_bounded ... ok
+test batched_equals_solo_other_budget ... ok
+test engine_concurrent_submit_and_cancel ... ok
+test queue_depth_is_live_during_a_long_step ... ok
+test batched_equals_solo_randomized ... ok
+test fifo_fairness_randomized ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests intarsia_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_core
+
+running 1 test
+test crates/intarsia-core/src/registry.rs - registry::register_kernel (line 206) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

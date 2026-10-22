@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane FX5c, spark1: the 35B qualify acc-long stage (reuse at chunk 1024 and the --mode all run at the plan chunk 2048) with the
+# Lane FX5c, spark1: the 35B reuse gate (what qualify's acc-long runs) at chunks 1024 and 2048 with the
 # oracle-relative continue rule, then mutation and fallback runs on long_docs_4k. The tree must already be built there
 # (`fleetq run --host spark1 --mem 4 -- scripts/cuda-decode/build.sh fx5c`).
 #   fleetq run --host spark1 --mem 45 --expect 60 --label "fx5c: qualify acc-long 35B CUDA, oracle-relative continue (non-exclusive, numerics only)" -- scripts/fx5c/validate-cuda.sh
@@ -19,18 +19,16 @@ OUT="$R/out/fx5c/val"
 rsh "rm -rf $OUT; mkdir -p $OUT ~/intarsiaml-golden/oracle"
 rsync -a "$REPO"/golden/oracle/*.continue-oracle.safetensors "$HOST:intarsiaml-golden/oracle/"
 rsh "ls -la ~/intarsiaml-golden/oracle/ | grep continue"
-skips=(); for s in kernels gate acc-short acc-format bench acc-4k envelope bench-long ab tp; do skips+=(--skip $s); done
-rsh "cd $R/fx5c && $BIN qualify -m $M35 --backend cuda --golden-long $G --out $OUT/qualify --mem-budget 40 --stage-timeout-min 120 ${skips[*]} > $OUT/qualify.log 2>&1; echo exit \$? >> $OUT/qualify.log"
-rsync -a "$HOST:intarsia-decfuse/out/fx5c/val/" "$RAW/"
-tail -8 "$RAW/qualify.log" | cut -c1-300
-python3 - "$RAW/qualify/full.json" <<'PY'
-import json,sys
-j=json.load(open(sys.argv[1]))
-for s in j.get("stages",[]):
-    if s.get("id")=="acc-long": print("acc-long", s.get("verdict"), json.dumps((s.get("metrics") or {}).get("reuse")))
-PY
+# the gate qualify's acc-long runs (reuse at chunk 1024 via acc-long-reuse, and inside `--mode all` at the CUDA plan chunk 2048):
+# `accuracy --mode reuse --reuse-require-all` on the whole long golden at both chunks (qualify itself costs ~45 min of prefill/decode KL gates this change does not touch)
+B="$BIN accuracy --model $M35 --backend cuda --golden $G --mode reuse --max-seq 16384 --mem-budget 40 --allow-dirty"
+for c in 1024 2048; do
+  rsh "cd $R/fx5c && $B --prefill-chunk $c --reuse-require-all > $OUT/reuse-c$c.log 2>&1; echo exit \$? >> $OUT/reuse-c$c.log"
+  rsync -a "$HOST:intarsia-decfuse/out/fx5c/val/" "$RAW/"
+  grep -a -e 'continue judged' -e '^exit' -e 'prefix-reuse' -e '^long_\|^chat_' "$RAW/reuse-c$c.log" | cut -c1-300 | tail -24
+done
 # mutation (a deliberate error on the warm rows only) and the absolute fallback, long_docs_4k, chunk 1024
-A="$BIN accuracy --model $M35 --backend cuda --golden $G --mode reuse --max-seq 8192 --mem-budget 40 --allow-dirty --prefill-chunk 1024 --reuse-prompt long_docs_4k"
+A="$B --prefill-chunk 1024 --reuse-prompt long_docs_4k"
 for m in "x1.2 scale:1.2" "x1.1 scale:1.1" "x1.01 scale:1.01"; do set -- $m
   rsh "cd $R/fx5c && INTARSIA_REUSE_TEST_BUG=$2 $A > $OUT/mut-$1.log 2>&1; echo exit \$? >> $OUT/mut-$1.log"
 done
