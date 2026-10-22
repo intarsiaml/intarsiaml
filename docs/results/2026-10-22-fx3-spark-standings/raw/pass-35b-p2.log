@@ -1,0 +1,3 @@
+fleetq: #3969 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p2 'ARMS=sglang llamacpp vllm intarsia' PHASES=speed,conc MINGB=36 scripts/standings-fx3/window.sh
+[05:15:50] pass p2 model=35b host=spark1 arms=[sglang llamacpp vllm intarsia] phases=speed,conc job=3969
+[05:15:55] == arm sglang (MemAvailable 51 GB)

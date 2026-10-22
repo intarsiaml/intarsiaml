@@ -1,0 +1,7 @@
+fleetq: #3961 waiting (#1 in line): spark2 is held exclusively by #3945 "fx3 8B standings pass p3 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3)
+fleetq:   #3945 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3945 set, or it will wait for #3945 to be released.
+fleetq: #3961 waiting (#1 in line): needs spark2 quiet, but its GPU is 95% busy with work fleetq does not track
+fleetq: #3961 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p4 'ARMS=vllm sglang intarsia llamacpp llamacpp16' PHASES=speed,conc MINGB=30 scripts/standings-fx3/window.sh
+[05:11:19] pass p4 model=8b host=spark2 arms=[vllm sglang intarsia llamacpp llamacpp16] phases=speed,conc job=3961
+[05:11:24] == arm vllm (MemAvailable 54 GB)
+[05:14:44]   vllm ready after 185s

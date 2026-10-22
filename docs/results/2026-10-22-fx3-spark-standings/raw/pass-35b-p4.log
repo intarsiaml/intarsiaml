@@ -1,0 +1,2 @@
+fleetq: #3971 waiting (#2 in line): in line behind #3970 "fx3 35B standings pass p3 (exclusive, vLLM guidance up)" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3970 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3970 set, or it will wait for #3970 to be released.

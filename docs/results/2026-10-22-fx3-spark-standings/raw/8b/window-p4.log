@@ -1,0 +1,3 @@
+[05:11:19] pass p4 model=8b host=spark2 arms=[vllm sglang intarsia llamacpp llamacpp16] phases=speed,conc job=3961
+[05:11:24] == arm vllm (MemAvailable 54 GB)
+[05:14:44]   vllm ready after 185s

@@ -1,0 +1,4 @@
+fleetq: #3963 waiting (#3 in line): in line behind #3961 "fx3 8B standings pass p4 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3961 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3961 set, or it will wait for #3961 to be released.
+fleetq: #3963 waiting (#2 in line): in line behind #3962 "fx3 8B standings pass p5 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3962 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3962 set, or it will wait for #3962 to be released.

@@ -1,0 +1,41 @@
+{
+ "run_id": "20261022-044232-adhoc-fx3-8b-llamacpp16-p1-conc",
+ "kind": "speed",
+ "label": "fx3-8b-llamacpp16-p1-conc",
+ "started_at": "2026-10-22T04:42:32-04:00",
+ "finished_at": "2026-10-22T04:42:32-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8400/v1",
+  "model": "llamacpp",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8400/v1 --model llamacpp --thinking off --label fx3-8b-llamacpp16-p1-conc --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,16",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "INCOMPLETE: RuntimeError: adhoc: calibration failed: HTTP 400: {\"error\":{\"code\":400,\"message\":\"request (4462 tokens) exceeds the available context size (2560 tokens), try increasing it\",\"type\":\"exceed_context_size_error\",\"n_prompt_tokens\":4462,\"n_ctx\":2560}}"
+ ]
+}

@@ -1,0 +1,2 @@
+[04:19:06] pass smoke-8b-vllm_sglang model=8b host=spark2 arms=[vllm sglang] phases=speed,conc job=3933
+[04:19:11] == arm vllm (MemAvailable 53 GB)
