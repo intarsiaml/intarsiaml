@@ -1,0 +1,90 @@
+22:35:47 == remote.sh STEPS='probe tests' MemAvailable 43 GB
+22:35:47 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:35:48 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:35:49 probe nvcc exit 0 ()
+22:35:50 probe SASS: FADD2/FFMA2/FMUL2 lines 0, FADD 1184, FFMA 706
+22:35:50 probe run exit 0
+rep 0: mma C=acc 115.0 TFLOPS | zero+4 FADD 181.1 | zero+2 FADD2 281.2
+rep 1: mma C=acc 115.2 TFLOPS | zero+4 FADD 181.8 | zero+2 FADD2 279.7
+rep 2: mma C=acc 115.2 TFLOPS | zero+4 FADD 181.8 | zero+2 FADD2 279.8
+rep 0: scalar FFMA 29.54 TFLOPS | fma.rn.f32x2 29.40 TFLOPS
+rep 1: scalar FFMA 29.54 TFLOPS | fma.rn.f32x2 29.34 TFLOPS
+rep 2: scalar FFMA 29.54 TFLOPS | fma.rn.f32x2 29.40 TFLOPS
+fma scalar vs f32x2 bitwise: 0 of 98304 differ
+mode1 vs mode2 bitwise: 0 of 786432 differ; err=no error
+22:35:52 gdn SASS: packed lines 0, FFMA 2302
+22:35:52 test --lib exit 0: test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|
+22:35:54 test --test fp8_gemm_reg exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s|
+22:35:55 test --test nvfp4_gemm_reg exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s|
+22:36:01 test --test quantmoe exit 0: test result: ok. 12 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 5.88s|
+22:36:02 test fp8_gemm_reg cfg 0 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s|
+22:36:04 test fp8_gemm_reg cfg 1 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s|
+22:36:06 test fp8_gemm_reg cfg 2 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s|
+22:36:09 test fp8_gemm_reg cfg 3 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s|
+22:36:10 test fp8_gemm_reg cfg 4 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s|
+22:36:12 test fp8_gemm_reg cfg 5 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.84s|
+22:36:15 test fp8_gemm_reg cfg 6 exit 101: thread 'fp8_pair_gemm_reg_is_bitwise_two_calls' panicked at crates/intarsia-backend-cuda/tests/fp8_gemm_reg.rs:165:17:|test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s|
+22:36:15 == remote.sh done
+22:36:29 == remote.sh STEPS='tests' MemAvailable 43 GB
+22:36:29 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:36:30 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:36:30 test --lib exit 0: test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|
+22:36:34 test --test fp8_gemm_reg exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s|
+22:36:35 test --test nvfp4_gemm_reg exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s|
+22:36:41 test --test quantmoe exit 0: test result: ok. 12 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 5.85s|
+22:36:45 test fp8_gemm_reg cfg 0 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.45s|
+22:36:48 test fp8_gemm_reg cfg 1 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.36s|
+22:36:51 test fp8_gemm_reg cfg 2 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s|
+22:36:54 test fp8_gemm_reg cfg 3 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s|
+22:36:58 test fp8_gemm_reg cfg 4 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.01s|
+22:37:00 test fp8_gemm_reg cfg 5 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s|
+22:37:04 test fp8_gemm_reg cfg 6 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.13s|
+22:37:04 == remote.sh done
+22:37:10 == remote.sh STEPS='bench' MemAvailable 43 GB
+22:37:10 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:37:10 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:37:12 bench cfg 0 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 83059.8 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 42380.9 us|
+22:37:15 bench cfg 1 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 80520.4 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 45201.9 us|
+22:37:17 bench cfg 2 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 86628.8 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 46530.6 us|
+22:37:19 bench cfg 3 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 86261.8 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 47803.3 us|
+22:37:21 bench cfg 4 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 83405.3 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41496.3 us|
+22:37:23 bench cfg 5 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 102064.3 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 45495.2 us|
+22:37:25 bench cfg 6 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 85475.3 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41992.8 us|
+22:37:26 bench new exit 101
+called `Result::unwrap()` on an `Err` value: InvalidCall("kernel 'matmul_fp8_pair_gemm_reg' implements matmul_fp8_pair, not matmul_fp8")
+22:37:26 == remote.sh done
+22:40:51 == remote.sh STEPS='tests bench' MemAvailable 43 GB
+22:40:51 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:40:51 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:40:51 test --lib exit 0: test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|
+22:40:54 test --test fp8_gemm_reg exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.89s|
+22:40:55 test --test nvfp4_gemm_reg exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s|
+22:41:01 test --test quantmoe exit 0: test result: ok. 12 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 6.15s|
+22:41:05 test fp8_gemm_reg cfg 0 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.95s|
+22:41:08 test fp8_gemm_reg cfg 7 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s|
+22:41:11 test fp8_gemm_reg cfg 8 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s|
+22:41:14 test fp8_gemm_reg cfg 9 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.28s|
+22:41:18 test fp8_gemm_reg cfg 10 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.20s|
+22:41:21 test fp8_gemm_reg cfg 11 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.83s|
+22:41:23 bench cfg 0 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 84441.4 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 42422.3 us|
+22:41:25 bench cfg 7 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 85040.5 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41879.9 us|
+22:41:27 bench cfg 8 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 82084.0 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 45915.5 us|
+22:41:29 bench cfg 9 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 96467.3 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 46536.0 us|
+22:41:31 bench cfg 10 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 89566.4 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 51460.1 us|
+22:41:33 bench cfg 11 exit 0: M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 84065.2 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 43173.5 us|
+22:41:34 bench new exit 101
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        10996.9 us
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     9841.4 us
+called `Result::unwrap()` on an `Err` value: InvalidCall("kernel 'matmul_nvfp4_glu_gemm' implements matmul_nvfp4_glu, not matmul_nvfp4")
+22:41:34 == remote.sh done
+22:56:59 == remote.sh STEPS='ktest' MemAvailable 45 GB
+22:56:59 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:56:59 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:57:42 kernels test dev exit 0: SKIPPED: kernel matmul_fp8_pair_gemm_reg ran 0 cases on backend 'cuda'|SKIPPED: kernel matmul_nvfp4_glu_gemm ran 0 cases on backend 'cuda'|incomplete: 4 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)|
+matmul_nvfp4   matmul_nvfp4_gemm_reg           0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8_pair matmul_fp8_pair_gemm_reg        0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_nvfp4_glu matmul_nvfp4_glu_gemm           0      0     0.000e0     0.000e0  NO CASES (untested)
+SKIPPED: kernel matmul_nvfp4_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_pair_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_nvfp4_glu_gemm ran 0 cases on backend 'cuda'
+22:57:42 == remote.sh done

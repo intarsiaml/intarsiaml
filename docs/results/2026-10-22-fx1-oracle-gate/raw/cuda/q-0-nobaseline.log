@@ -1,0 +1,21 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/fx1/q/q-0-nobaseline
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 54 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     52s] plan: PASS in 51.2s (36 ops resolved, exactness fast, loaded in 51.2s)
+[qualify     52s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     96s] gate: PASS in 43.7s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     96s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     96s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     96s] == acc-short [short accuracy against a golden]
+[qualify    150s] acc-short: MISSING-BASELINE in 53.5s (MISSING-BASELINE: no baseline for backend cuda next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated. Qwen3.6-35B-A3B-NVFP4 has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so acc-short's floor alone does not gate it (it read: prefill top-1 97.92% KL 5.87e-3; decode top-1 98.12% KL 1.54e-2); record one with the envelope stage and commit it to golden/baselines/)
+[qualify    150s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    204s] acc-oracle: MISSING-BASELINE in 54.6s (MISSING-BASELINE: no recorded dump qwen36-35b-a3b-nvfp4-cpu-oracle.cuda.selfgolden.safetensors in golden/baselines; the oracle floor passed (prefill top-1 95.82% KL 1.01e-2), but on this model only a recorded same-backend dump can see a 1 % scale bug. Record it from clean main: copy baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.cuda.selfgolden.safetensors to golden/baselines/ and commit it)
+QUICK DONE: /home/nvidia/fx1/q/q-0-nobaseline/quick-report.md
+[qualify    204s] == envelope [noise envelope and baseline for regression gating]
+[qualify    373s] envelope: PASS in 169.1s (baseline and envelope (chunk + attn-simt) written; they gate this build: PASS)
+FULL DONE: /home/nvidia/fx1/q/q-0-nobaseline/full-report.md
+[qualify    373s] exit code 1
