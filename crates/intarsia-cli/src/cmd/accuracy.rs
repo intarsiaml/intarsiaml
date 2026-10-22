@@ -33,6 +33,7 @@ use std::sync::{Arc, Mutex};
 
 mod baseline;
 mod envelope;
+mod gatedefs;
 mod provenance;
 mod refnoise;
 mod selfgolden;
@@ -1234,10 +1235,12 @@ fn run_mode(
         mean_kl_scored: Some(total_sc.mean_kl()),
         mean_kl21_scored: Some(total_sc.mean_kl21()),
         scored_positions: Some(total_sc.n),
+        gate_definitions: Vec::new(), // filled below, once the gate has judged
     };
     if let Some(b) = self_budget {
         // same weights: the class floors are not the question, the distance to the other build's logits is
         let mut checks = selfgolden::judge(&mstats(true), &per_prompt, b);
+        let checks_as_judged = checks.clone(); // before `--self-vs-ref-noise` ungates part of them (gatedefs.rs)
         // change vs base against the reference noise (`--self-vs-ref-noise`): the mean 21-way KL decides, the rest is reported
         let mut self_verdict = None;
         if args.self_vs_ref_noise {
@@ -1251,6 +1254,7 @@ fn run_mode(
             v.pass &= pv.pass;
             checks = refnoise::apply_to_self_checks(checks, v.effective_threshold, &pv);
             v.prompt_checks = Some(pv);
+            v.definition_changes = gatedefs::self_check_changes(&checks_as_judged, &checks);
             self_verdict = Some(v);
         }
         let pass = checks.iter().all(|c| c.ok || !c.gated);
@@ -1270,6 +1274,9 @@ fn run_mode(
         }
         if let Some(v) = &self_verdict {
             println!("{}", v.line());
+            for d in &v.definition_changes {
+                println!("{}", d.line(mode.key()));
+            }
         }
         // one machine-readable line per mode for scripts/phase1b-acceptance.sh (noise calibration of the budgets)
         let flips = total.n - total.top1;
@@ -1285,7 +1292,9 @@ fn run_mode(
             per_prompt.iter().map(|p| p.mean_kl21).fold(0.0, f64::max)
         );
         println!("{} self-golden => {}", mode.name(), if pass { "PASS" } else { "FAIL" });
-        return Ok(ModeResult { matches, pass, stats: mstats(pass), prompts: per_prompt, verdict: self_verdict });
+        let mut stats = mstats(pass);
+        stats.gate_definitions = self_verdict.as_ref().map(|v| v.definition_changes.clone()).unwrap_or_default();
+        return Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: self_verdict });
     }
     let ok_nf = total.nonfinite == 0;
     let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
@@ -1312,8 +1321,11 @@ fn run_mode(
         pick.map(|(value, kl, rows)| refnoise::NoiseTerm { value, kl, rows })
     });
     let (factor, factor_source) = gates.noise.as_ref().map_or((1.0, "default".to_string()), |nc| (nc.factor, nc.factor_source.clone()));
-    let verdict = refnoise::judge_kl(mode.key(), gate_kl_name, gate_kl, Some(gates.max_kl), noise_term, factor, &factor_source)?;
+    let mut verdict = refnoise::judge_kl(mode.key(), gate_kl_name, gate_kl, Some(gates.max_kl), noise_term, factor, &factor_source)?;
     let ok_kl = verdict.pass;
+    // the KL floor was redefined on 2026-10-21 (scored rows, reference noise): record the verdict the old definition gives
+    let defs = vec![gatedefs::kl_floor_change(gate_kl_name, all_kl, gate_kl, gates.max_kl, ok_kl, verdict.effective_threshold, verdict.bound_by.name())];
+    verdict.definition_changes = defs.clone();
     let ok_tail = total.tail_excess().abs() <= gates.max_tail_excess;
     let tag = |ok: bool| if ok { "ok" } else { "FAIL" };
     let pass = ok_nf && ok_top1 && ok_kl && ok_tail;
@@ -1352,7 +1364,11 @@ fn run_mode(
         if pass { "PASS" } else { "FAIL" },
     );
     println!("{}", verdict.line());
-    let stats = mstats(pass);
+    for d in &defs {
+        println!("{}", d.line(mode.key()));
+    }
+    let mut stats = mstats(pass);
+    stats.gate_definitions = defs;
     Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: Some(verdict) })
 }
 
