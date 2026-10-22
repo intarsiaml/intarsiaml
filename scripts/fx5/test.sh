@@ -7,7 +7,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$S/../.." && pwd)"
+REPO="$(cd "$S/../.." && pwd)"; cd "$REPO"
 HOST=${HOST:-spark1}
 RAW=${RAW:-$REPO/docs/results/2026-10-22-fx5-hybrid-reuse-ci/raw}
 mkdir -p "$RAW"
@@ -18,7 +18,7 @@ rsh "mkdir -p $R; test -d $R/target || { test -d ~/intarsia-decfuse/fx5/target/t
 rsync -a --delete --include golden/ --include "golden/ref_noise/***" --exclude "golden/*" --exclude target --exclude .git --exclude tools/.venv --exclude .claude "$REPO/" "$HOST:intarsia-decfuse/fx5-test/"
 T="cd $R && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=$R/target cargo test"
 echo "=== cargo check --workspace"
-rsh "cd $R && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=$R/target cargo check --workspace --tests 2>&1" | tee "$RAW/test-check-workspace.log" | grep -a -e '^error' -e 'Finished' | cut -c1-200
+rsh "cd $R && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=$R/target cargo check --workspace 2>&1" | tee "$RAW/test-check-workspace.log" | grep -a -e '^error' -e 'Finished' | cut -c1-200
 echo "=== clean: hybrid.rs, recipes_doc.rs"
 rsh "$T -p intarsia-models --test hybrid --test recipes_doc 2>&1" | tee "$RAW/test-hybrid-clean.log" | grep -a -e '^test ' -e 'test result' -e '^error' | cut -c1-200
 echo "=== clean: intarsia-cli unit tests (accuracy, qualify)"

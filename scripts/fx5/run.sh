@@ -9,7 +9,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$S/../.." && pwd)"
+REPO="$(cd "$S/../.." && pwd)"; cd "$REPO"
 HOST=${HOST:-spark1}
 RAW=${RAW:-$REPO/docs/results/2026-10-22-fx5-hybrid-reuse-ci/raw}
 mkdir -p "$RAW"
