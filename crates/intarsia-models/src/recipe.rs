@@ -11,6 +11,8 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
     ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
     ("qwen3_5_vl", include_str!("../../../recipes/qwen3_5_vl.toml")),
+    ("llama", include_str!("../../../recipes/llama.toml")),
+    ("qwen2", include_str!("../../../recipes/qwen2.toml")),
 ];
 
 pub fn parse_recipe(text: &str) -> Result<Recipe> {
@@ -176,6 +178,29 @@ lm_head = { tensor = "h" }
         assert_eq!((dense.accuracy.ref_noise_prompt_factor, moe.accuracy.ref_noise_prompt_factor), (None, None));
         assert_eq!(parse_recipe(&format!("{TUNED}[accuracy]\nref_noise_factor = 1.5\n")).unwrap().accuracy.ref_noise_factor, Some(1.5));
         assert_eq!(parse_recipe(&format!("{TUNED}[accuracy]\nref_noise_prompt_factor = 4.0\n")).unwrap().accuracy.ref_noise_prompt_factor, Some(4.0));
+    }
+
+    #[test]
+    fn llama_and_qwen2_recipes_select_by_architecture_and_map_what_they_need() {
+        let pick = |arch: &str| select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+        let (src, llama) = pick("LlamaForCausalLM");
+        assert_eq!(src, "builtin:llama");
+        let a = llama.layer.attn.as_ref().unwrap();
+        assert!(a.q_norm.is_none() && a.k_norm.is_none() && a.q_bias.is_none() && !a.gated);
+        assert_eq!(llama.accuracy.chat_turns.as_deref(), Some("llama3"));
+        let (src, qwen2) = pick("Qwen2ForCausalLM");
+        assert_eq!(src, "builtin:qwen2");
+        let a = qwen2.layer.attn.as_ref().unwrap();
+        assert!(a.q_norm.is_none() && a.k_norm.is_none() && !a.gated);
+        assert_eq!(
+            (a.q_bias.as_deref(), a.k_bias.as_deref(), a.v_bias.as_deref()),
+            (
+                Some("model.layers.{i}.self_attn.q_proj.bias"),
+                Some("model.layers.{i}.self_attn.k_proj.bias"),
+                Some("model.layers.{i}.self_attn.v_proj.bias")
+            )
+        );
+        assert_eq!(qwen2.accuracy.chat_turns.as_deref(), Some("chatml"));
     }
 
     #[test]

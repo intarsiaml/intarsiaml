@@ -85,8 +85,10 @@ pub const TABLE: &[(&str, Op)] = &[
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2';
-/// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3];
+/// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate; `RopeScaled` (llama3 / yarn
+/// rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs them fails at load with
+/// `NoKernel`, it never runs the unscaled rope).
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3, Op::RopeScaled, Op::AddBias];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.

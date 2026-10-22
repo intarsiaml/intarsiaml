@@ -172,6 +172,71 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::RopeScaled => {
+            use crate::rope::RopeScaling;
+            let dims: Vec<(usize, usize)> = if quick {
+                vec![(cfg.n_heads.min(4), cfg.head_dim.min(64))]
+            } else {
+                vec![(4, 64), (cfg.n_heads, cfg.head_dim), (cfg.n_kv_heads, cfg.head_dim)]
+            };
+            for &t in rows {
+                for &(n, d) in &dims {
+                    for p in [0usize, 37] {
+                        // full head and a quarter of the head rotating; the two scalings with the shortest "original context" that
+                        // still changes the table at the swept positions (llama3: blend + divide; yarn: ramp + attention factor)
+                        for (rdim, scaling) in [
+                            (0usize, RopeScaling::Llama3 { factor: 8.0, low_freq_factor: 1.0, high_freq_factor: 4.0, original_max: 64.0 }),
+                            ((d / 4) & !1, RopeScaling::Yarn { factor: 4.0, original_max: 64.0, beta_fast: 32.0, beta_slow: 1.0, truncate: true, attention_factor: None, mscale: None, mscale_all_dim: None }),
+                        ] {
+                            let rd = if rdim == 0 { d } else { rdim };
+                            if rd < 2 {
+                                continue;
+                            }
+                            let f = scaling.freqs(cfg.rope_theta as f64, rd).expect("scaled");
+                            for dt in act_dtypes() {
+                                let x = rand_t(&mut rng, dt, &[t, n, d], 1.0);
+                                push(
+                                    format!("T={t} N={n} D={d} pos0={p} {dt} rot={rdim} {} mscale={:.4}", scaling.name(), f.attention_factor),
+                                    HostCall {
+                                        op,
+                                        inputs: vec![x, HostTensor::from_f32(&[rd / 2], &f.inv_freq)],
+                                        outputs: vec![OutSpec::new(dt, &[t, n, d])],
+                                        attrs: OpAttrs {
+                                            pos0: p,
+                                            head_dim: d,
+                                            rotary_dim: rdim,
+                                            rope_mscale: f.attention_factor,
+                                            ..attrs()
+                                        },
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Op::AddBias => {
+            let mut widths = hs.clone();
+            if !quick {
+                widths.extend([cfg.n_heads * cfg.head_dim, cfg.n_kv_heads * cfg.head_dim]);
+            }
+            for &r in rows {
+                for &h in &widths {
+                    for dt in act_dtypes() {
+                        push(
+                            format!("R={r} N={h} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![rand_t(&mut rng, dt, &[r, h], 1.0), rand_t(&mut rng, dt, &[h], 1.0)],
+                                outputs: vec![OutSpec::new(dt, &[r, h])],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                }
+            }
+        }
         Op::Matmul | Op::Logits => {
             let mut nk: Vec<(usize, usize)> = vec![(64, 64), (33, 70)];
             if !quick {

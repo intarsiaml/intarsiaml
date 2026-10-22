@@ -32,7 +32,8 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::RmsNorm | Op::QkNorm => rmsnorm(call),
         Op::RmsNormAdd => rmsnorm_add(call),
         Op::Add => add(call),
-        Op::Rope => rope(call),
+        Op::Rope | Op::RopeScaled => rope(call),
+        Op::AddBias => add_bias(call),
         Op::Matmul | Op::Logits => matmul(call),
         Op::KvAppend => kv_append(call),
         Op::AttnPrefill | Op::AttnDecode => attention(call),
@@ -136,6 +137,14 @@ fn add(call: &OpCall) -> Result<()> {
     write_f32(&call.outputs[0], &o)
 }
 
+fn add_bias(call: &OpCall) -> Result<()> {
+    let cols = call.inputs[0].shape[1];
+    let x = read_f32(&call.inputs[0])?;
+    let b = read_f32(&call.inputs[1])?;
+    let o: Vec<f32> = x.iter().enumerate().map(|(i, v)| v + b[i % cols]).collect();
+    write_f32(&call.outputs[0], &o)
+}
+
 fn rope(call: &OpCall) -> Result<()> {
     let xt = &call.inputs[0];
     let (n, d) = (xt.shape[1], xt.shape[2]);
@@ -143,8 +152,13 @@ fn rope(call: &OpCall) -> Result<()> {
     // partial rotary: only the first `rd` values of each head rotate, the rest pass through
     let rd = if call.attrs.rotary_dim == 0 { d } else { call.attrs.rotary_dim };
     let half = rd / 2;
-    let theta = call.attrs.theta as f64;
-    let inv: Vec<f64> = (0..half).map(|i| theta.powf(-2.0 * i as f64 / rd as f64)).collect();
+    // `RopeScaled`: the caller's frequency table and cos / sin multiplier; `Rope`: `theta^(-2i/rd)`, multiplier 1
+    let (inv, mscale): (Vec<f64>, f64) = if call.op == Op::RopeScaled {
+        (read_f32(&call.inputs[1])?.iter().map(|&f| f as f64).collect(), call.attrs.rope_mscale as f64)
+    } else {
+        let theta = call.attrs.theta as f64;
+        ((0..half).map(|i| theta.powf(-2.0 * i as f64 / rd as f64)).collect(), 1.0)
+    };
     let mut o = x.clone();
     o.par_chunks_mut(n * d).enumerate().for_each(|(ti, trow)| {
         let pos = (call.attrs.pos0 + ti) as f64;
@@ -152,7 +166,11 @@ fn rope(call: &OpCall) -> Result<()> {
             .iter()
             .map(|f| {
                 let a = pos * f;
-                (a.cos() as f32, a.sin() as f32)
+                if mscale == 1.0 {
+                    (a.cos() as f32, a.sin() as f32)
+                } else {
+                    ((a.cos() * mscale) as f32, (a.sin() * mscale) as f32)
+                }
             })
             .collect();
         for h in 0..n {

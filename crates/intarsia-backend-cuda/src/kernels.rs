@@ -596,7 +596,11 @@ mod tests {
         // `QkNormRopeKv` is a fifth optional fused op that only the Metal backend registers. The phase-1 folds
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
         // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`).
-        const NOT_ON_CUDA: [Op; 8] = [
+        // `RopeScaled` (llama3 / yarn rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs
+        // them fails at load with `NoKernel`, it never runs the unscaled rope.
+        const NOT_ON_CUDA: [Op; 10] = [
+            Op::RopeScaled,
+            Op::AddBias,
             Op::Sample,
             Op::QkNormRopeKv,
             Op::RmsNormAddMatmulFp8Pair,
