@@ -1,0 +1,27 @@
+**e allowed (e.g. `rmsnorm_add`, `attn_out_gate_mul`, `gdn_conv_bf16`, `gdn_delta_rule_bf16`) because they are local to a block and have a single reference.
+
+### 3.4 Model recipe (TOML)
+
+A recipe is a declarative map from a model's config.json to the block library:
+
+```toml
+[recipe]
+name = "Qwen3.5-32B-A4B"
+family = "qwen3_5"
+layer_types = ["linear_attention", "full_attention"]
+
+[layer.pattern_by_layer]
+# maps config.json layer_type → block pattern
+linear_attention = ["gdn", "moe"]
+full_attention   = ["attn", "moe"]
+
+[layer.by_type]
+# per-type config (norm eps, head_dim, num_heads, etc.)
+linear_attention = { head_dim = 256, num_heads = 32, ... }
+full_attention   = { head_dim = 128, num_heads = 8, ... }
+
+[quant]
+format = "NVFP4"
+```
+
+The plan compiler reads
