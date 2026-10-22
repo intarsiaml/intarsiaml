@@ -92,3 +92,9 @@ The built-in 0.25 nats / 1e-2 are exceeded by the numbers of every `continue` ca
 ## 7. Follow-up (lane fx5b)
 
 The teacher-forced rerun of the `continue` check was tried in diagnostic form: the 35B deviation survives it (KL max 8.5e-2 on the cold context), and the judge already scores only shared-context rows, so the check was not changed. See `2026-10-22-fx5b-continue-teacher-forced.md`.
+
+## 8. Update (lane fx5c, 2026-10-22): the 35B `continue` check is now oracle-relative
+
+On the user's decision (09:10 EDT) `continue` is judged against a committed CPU oracle where one exists (mean KL(oracle, warm) <= 1.5 x mean KL(oracle, cold) + 3e-3), instead of the absolute 0.25 / 1e-2 that
+section 3 shows the 35B cannot meet. The 35B reuse gate on CUDA now PASSES at chunks 1024 and 2048; `restore` / `aligned` unchanged; Qwen3-8B unchanged. See `2026-10-22-fx5c-oracle-gate.md`. The tolerance proposal in draft PR
+#89 (`lane-fx5/reuse-tol`) is superseded.
