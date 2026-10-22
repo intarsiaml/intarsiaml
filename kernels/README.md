@@ -69,6 +69,29 @@ bit-identical results (argmax lowest-index tie-break, embedding, kv_append); `De
 run-to-run identical but allowed to differ from the serial reference within tolerance; `Fast` may
 vary between runs (atomics, split-K).
 
+## Adding a kernel and its test
+
+A registered kernel must be exercised by `intarsia kernels test --quick` on every backend that registers it. A kernel with
+no quick case shows up as `NO CASES (untested)` in the sweep, which is not a failure, so it would otherwise go unnoticed.
+Three things make that checkable:
+
+1. **The case comes from the sweep, the tolerance from the registration.** Cases live in `intarsia_core::admission::sweep`
+   (`crates/intarsia-core/src/admission.rs`) and, for the quantised and MoE ops, `crates/intarsia-core/src/quant/cases.rs`. The
+   admission harness compares the kernel with the cpu reference using the `tol` (and `tol_f32`) declared in `register_kernel!`;
+   a case never carries a tolerance of its own. Do not widen a tolerance to make a new case pass.
+2. **Make a quick case that your shape predicate accepts.** Read your `when` closure: a threshold such as `s.m >= 256`,
+   `s.k % 128 == 0`, `head_dim` in `{64, 128}` or `s.m > 16` needs a quick-sweep shape that satisfies it. Add the smallest such
+   shape under the `if quick` branch of the op's sweep (keep the full sweep's cases and random data unchanged: new cases are
+   appended). Dtype filters (`acts`, `weights`) count too.
+3. **Run the guard.** `cargo test -p intarsia-backend-<cuda|hip|metal> --test quick_coverage` needs no GPU. It calls
+   `intarsia_core::admission::kernels_without_quick_case` on the backend's `kernels::all()` and fails, naming the kernels, when
+   one has no accepted quick case (the architecture filter is ignored, so a Mac checks CUDA and HIP kernels as well). The
+   one exception is a kernel whose predicate depends on a build-time cfg (`moe_experts_nvfp4_mma_bf16` needs `ik_sm120a`);
+   the CUDA test skips it when that cfg is off.
+
+Then run the sweep itself on a GPU box (inside a fleetq slot): `intarsia kernels test --backend <cuda|hip|metal> --quick`
+must print no `FAIL` row and no `NO CASES`.
+
 ## Scratch workspace
 
 "No allocation inside the launcher" also covers kernels that need temporary global memory (split-KV

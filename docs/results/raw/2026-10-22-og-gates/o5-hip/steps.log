@@ -1,0 +1,31 @@
+== o5-tails hip start 23:11:00 host tatooine
+prefill chunk 4557 exit 1 33 s  2088036 bytes
+prefill chunk 4096 exit 1 29 s  2088036 bytes
+prefill chunk 2032 exit 1 29 s  2088036 bytes
+prefill chunk 1016 exit 1 29 s  2088036 bytes
+prefill chunk 239 exit 1 30 s  2088036 bytes
+prefill chunk 2031 exit 1 29 s  2088036 bytes
+prefill chunk 4063 exit 1 29 s  2088036 bytes
+prefill chunk 4062 exit 1 29 s  2088036 bytes
+prefill chunk 4061 exit 1 28 s  2088036 bytes
+prefill chunk 4060 exit 1 29 s  2088036 bytes
+prefill chunk 4059 exit 1 29 s  2088036 bytes
+prefill chunk 4056 exit 1 29 s  2088036 bytes
+prefill chunk 4048 exit 1 29 s  2088036 bytes
+prefill chunk 4556 exit 1 31 s  2088036 bytes
+prefill chunk 4555 exit 1 28 s  2088036 bytes
+prefill chunk 2278 exit 1 29 s  2088036 bytes
+decode chunk 4493 exit 0 6 s  2096628 bytes
+decode chunk 2000 exit 0 6 s  2096628 bytes
+decode chunk 3999 exit 0 5 s  2096628 bytes
+decode chunk 3998 exit 0 6 s  2096628 bytes
+decode chunk 1999 exit 0 6 s  2096628 bytes
+decode chunk 4492 exit 0 6 s  2096628 bytes
+== o5-tails hip done 23:19:24
+== o5-tails hip start 23:38:19 host tatooine
+prefill chunk 4557 exit 1 32 s  2088036 bytes
+prefill chunk 4032 exit 1 29 s  2088036 bytes
+prefill chunk 4000 exit 1 29 s  2088036 bytes
+prefill chunk 3936 exit 1 29 s  2088036 bytes
+prefill chunk 3808 exit 1 29 s  2088036 bytes
+== o5-tails hip done 23:40:47

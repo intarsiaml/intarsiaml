@@ -1,0 +1,59 @@
+fleetq: #3880 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/s2-replay-new.sh
+replay command: $INTARSIA_BIN generate -m /mnt/models/Qwen3-8B --backend cuda --mem-budget 24 --max-seq 2048 --profile-every 0 --temperature 0 --max-tokens 128 --ignore-eos --show-ids -p "Explain how a hash table handles collisions." > $INTARSIA_REPLAY_OUT/ids.out 2> $INTARSIA_REPLAY_OUT/gen.err
+deploy: spark2 (cuda) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+deploy: synced (0 entries changed)
+    Finished `release` profile [optimized] target(s) in 0.08s
+repro-build: sha256 fcd8053febb15f146caafd61ea766ccae0b152ce56ea9618945cf786d9620593  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+doctor rc=0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+54 kernels, 292 cases in 0.6s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel attn_prefill_f8kv_flash ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_lanes ran 0 cases on backend 'cuda'
+SKIPPED: kernel gdn_delta_rule_bf16_split ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_f8 ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_lt ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_fp8_gemm_reg ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_nvfp4_mma_bf16 ran 0 cases on backend 'cuda'
+SKIPPED: kernel moe_experts_w4a16_bf16 ran 0 cases on backend 'cuda'
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (spark2:~/intarsia-deploy/replay-rp/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        NVIDIA GB10  compute 12.1
+driver     580.173.02  (cuda toolkit 13.0.3)
+host       spark-fa00  Ubuntu 24.04.5 LTS  Cortex-A725
+binary     target/release/intarsia  sha256 fcd8053febb15f14  52326848 bytes  v0.0.1
+smoke      pass
+deploy: running in spark2:~/intarsia-deploy/replay-rp (INTARSIA_BIN=target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/replay-af77bbf-20261022T063810Z)
+deploy: outputs in spark2:intarsia-deploy/replay-rp/replay-out/replay-af77bbf-20261022T063810Z
+
+=== replay vs original stamp ===
+match   git sha: af77bbfd256c678b56bf26014349cfd66ba553f4
+match   Cargo.lock: 7723f17b4e7280cb
+match   rustc: rustc 1.90.0 (1159e78c4 2025-09-14)
+match   cuda: Cuda compilation tools, release 13.0, V13.0.88
+match   rocm: null
+match   container: null
+match   gpu: NVIDIA GB10
+match   gpu/driver: {"nvidia_smi":{"name":"NVIDIA GB10","driver_version":"580.173.02","com
+match   binary sha256: fcd8053febb15f14
+(a binary hash can differ with identical sources when the build tree path or the box differs; the sha, lock and toolchain rows are what pin the build)
+bench-bundle: replay outputs in ./replay-af77bbf-20261022T064151
+replay rc=0
+replay dir: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/replay-af77bbf-20261022T064151
+original ids md5 : d41d8cd98f00b204e9800998ecf8427e
+replayed ids md5 : d41d8cd98f00b204e9800998ecf8427e
+GREEDY-IDS-IDENTICAL
+finish=length prompt=9 (cached 0) completion=128 | prefill 466 ms (19.3 tok/s) | decode 8086 ms (15.71 tok/s)
+fleetq: #3880 done (exit 0)

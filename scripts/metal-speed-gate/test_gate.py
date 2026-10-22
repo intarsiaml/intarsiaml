@@ -83,5 +83,58 @@ class EndToEnd(unittest.TestCase):
             self.assertEqual(run_gate(d)[0], 3)
 
 
+class DefinitionHistory(unittest.TestCase):
+    """Every gate run carries the verdict under the pre-2026-10-21 definition (raw decode against the flat 85 % of
+    bandwidth / weights = 34.48 tok/s) next to the current one, in the output and in gate-verdict.json."""
+
+    def record(self, d):
+        j = json.load(open(os.path.join(d, "gate-verdict.json")))
+        (c,) = j["definition_changes"]
+        return j, c
+
+    def test_rescued_run_shows_old_fail_and_current_pass(self):
+        with tempfile.TemporaryDirectory() as d:
+            write_arm(d, "intarsia-1", 32.5, ref_gbs=225.0, mhz=1180, cpu=0.6)  # raw 32.5 < 34.48 (old FAIL); normalised 36.11 (new PASS)
+            rc, out = run_gate(d)
+            self.assertEqual(rc, 0, out)  # the verdict is the current definition's, unchanged
+            j, c = self.record(d)
+            self.assertEqual(j["verdict"], "PASS")
+            self.assertEqual(c["old_def"]["verdict"], "FAIL")
+            self.assertEqual(c["current_def"]["verdict"], "PASS")
+            self.assertAlmostEqual(c["old_def"]["metric"], 32.5)
+            self.assertAlmostEqual(c["current_def"]["metric"], 36.11, places=2)
+            self.assertAlmostEqual(c["old_def"]["limit"], 0.85 * 614.0 / 15.1368, places=3)
+            self.assertEqual(c["changed_on"], "2026-10-21")
+            self.assertTrue(any("12:25" in r for r in c["log_ref"]))
+            self.assertIn("gate-definition: metal_decode_floor[4096]: old def: FAIL 32.50 tok/s", out)
+            self.assertIn("| current def: PASS 36.11 tok/s", out)
+
+    def test_state_invalid_run_shows_both(self):
+        with tempfile.TemporaryDirectory() as d:
+            write_arm(d, "intarsia-1", 20.0, ref_gbs=100.0)  # factor 0.4: no valid arm
+            rc, out = run_gate(d)
+            self.assertEqual(rc, 3, out)
+            _, c = self.record(d)
+            self.assertEqual(c["old_def"]["verdict"], "FAIL")
+            self.assertEqual(c["current_def"]["verdict"], "STATE-INVALID")
+            self.assertIsNone(c["current_def"]["metric"])
+
+    def test_healthy_run_passes_under_both(self):
+        with tempfile.TemporaryDirectory() as d:
+            write_arm(d, "intarsia-1", 36.0, ref_gbs=250.0)  # 36.0 >= 34.48 and >= 33.15
+            rc, out = run_gate(d)
+            self.assertEqual(rc, 0, out)
+            _, c = self.record(d)
+            self.assertEqual((c["old_def"]["verdict"], c["current_def"]["verdict"]), ("PASS", "PASS"))
+
+    def test_real_regression_fails_under_both(self):
+        with tempfile.TemporaryDirectory() as d:
+            write_arm(d, "intarsia-1", 30.0, ref_gbs=250.0)
+            rc, _ = run_gate(d)
+            self.assertEqual(rc, 1)
+            _, c = self.record(d)
+            self.assertEqual((c["old_def"]["verdict"], c["current_def"]["verdict"]), ("FAIL", "FAIL"))
+
+
 if __name__ == "__main__":
     unittest.main()

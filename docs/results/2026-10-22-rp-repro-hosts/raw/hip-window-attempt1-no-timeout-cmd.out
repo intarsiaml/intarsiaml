@@ -1,0 +1,33 @@
+fleetq: #3591 waiting (#1 in line): tatooine-r9700 is held exclusively by #3589 "localeval speed adhoc native190f-conc-r2" (claude-f07ec01e)
+fleetq: #3591 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/t-b-window.sh
+deploy: tatooine (hip) <- f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc (deploy-step: export SOURCE_DATE_EPOCH for the build (a parameter expansion is not an assignment))
+deploy: synced (0 entries changed)
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 47.72s
+repro-build: sha256 77d34e1e83222ef591d6d53ace0317de8ce88f6b5329a2a0361f7529624d325d  SOURCE_DATE_EPOCH=1792638024  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/hip/DEPLOY_STAMP.json) ===
+git        f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc  (f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc; tree a90272276dc9)
+subject    deploy-step: export SOURCE_DATE_EPOCH for the build (a parameter expansion is not an assignment)
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     /target/release/intarsia  sha256 77d34e1e83222ef5  34086480 bytes  
+smoke      skipped
+deploy(build) rc=0
+job 3591 radiance stop 2026-10-21 23:01:39 EDT
+/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/t-b-window.sh: line 26: timeout: command not found
+deploy(smoke) rc=127
+gpu part done 2026-10-21 23:01:43 EDT
+radiance start 2026-10-21 23:01:43 EDT
+radiance answers 2026-10-21 23:01:54 EDT (after 15 s)
+fleetq: #3591 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

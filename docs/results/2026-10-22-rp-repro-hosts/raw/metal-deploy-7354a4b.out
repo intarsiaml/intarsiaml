@@ -1,0 +1,45 @@
+fleetq: #3605 waiting (#18 in line): in line behind #3562 "m35: 35B metal per-kernel profile decode (diagnostic)" (claude-f31ccf91) on endor
+fleetq:   #3562 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3562 set, or it will wait for #3562 to be released.
+fleetq: #3605 waiting (#7 in line): in line behind #3598 "kq: cargo test quick_coverage (cpu only, short)" (claude-f31ccf91) on endor
+fleetq:   #3598 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3598 set, or it will wait for #3598 to be released.
+fleetq: #3605 waiting (#1 in line): needs 8 GB on endor; 6 GB free of 110
+fleetq: #3605 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/e-metal-deploy.sh
+deploy: local (metal) <- 7354a4b6918642f771f059caf163ed1b36d152b5 (deploy: build through scripts/repro-build.sh (commit time as SOURCE_DATE_EPOCH))
+deploy: synced (19056 entries changed)
+   Compiling intarsia-tui v0.0.1 (/Users/josef/intarsia-deploy/metal/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/Users/josef/intarsia-deploy/metal/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/Users/josef/intarsia-deploy/metal/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 55.60s
+repro-build: sha256 64ee7003cb82d917cbf33591638fcefe46e11681d5556add799934b64bd952b4  SOURCE_DATE_EPOCH=1792637723  rustc=rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)
+doctor rc=0
+attn_decode    attn_decode_bf16                3      0     0.000e0     0.000e0  ADMITTED
+attn_decode    attn_decode_bf16_splitkv        3      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16            8      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_nax                 2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_nax            3      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_gemv_rows           2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv_rows      3      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16_gemv_rows           1      0    1.018e-7    6.086e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows      2      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv               8      0     0.000e0     0.000e0  ADMITTED
+28 kernels, 84 cases in 0.5s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_prefill_bf16_flash_nax ran 0 cases on backend 'metal'
+incomplete: 2 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (local:~/intarsia-deploy/metal/DEPLOY_STAMP.json) ===
+git        7354a4b6918642f771f059caf163ed1b36d152b5  (7354a4b6918642f771f059caf163ed1b36d152b5; tree 842b846c5444)
+subject    deploy: build through scripts/repro-build.sh (commit time as SOURCE_DATE_EPOCH)
+backend    metal
+rustc      rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)
+cargo      cargo 1.99.0 (5f94df478 2026-08-27) (Homebrew)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+gpu        Apple M5 Max  compute -
+driver     n/a  (cuda toolkit -)
+host       endor.kuepker.haus  macOS 27.0  Apple M5 Max
+binary     target/release/intarsia  sha256 64ee7003cb82d917  21873968 bytes  v0.0.1
+smoke      pass
+deploy rc=0
+fleetq: #3605 done (exit 0)

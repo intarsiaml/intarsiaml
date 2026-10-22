@@ -1,0 +1,42 @@
+################ stage hpb start 02:29:40 (budget left 900 s)
+--- hpb n=512 HPB=4 02:29:40
+prompt: 512 tokens
+finish=length prompt=512 (cached 0) completion=1 | prefill 123 ms (4172.5 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=512 HPB=4: 0.68
+--- hpb n=512 HPB=1 02:29:43
+prompt: 512 tokens
+finish=length prompt=512 (cached 0) completion=1 | prefill 123 ms (4161.6 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=512 HPB=1: 1.09
+--- hpb n=1024 HPB=4 02:29:47
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 153 ms (6698.0 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=1024 HPB=4: 2.08
+--- hpb n=1024 HPB=1 02:29:50
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 154 ms (6633.5 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=1024 HPB=1: 2.88
+--- hpb n=2048 HPB=4 02:29:53
+prompt: 2048 tokens
+finish=length prompt=2048 (cached 0) completion=1 | prefill 244 ms (8395.8 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=2048 HPB=4: 4.81
+--- hpb n=2048 HPB=1 02:29:56
+prompt: 2048 tokens
+finish=length prompt=2048 (cached 0) completion=1 | prefill 248 ms (8255.4 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=2048 HPB=1: 9.41
+--- hpb n=4096 HPB=4 02:30:00
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 428 ms (9580.0 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=4096 HPB=4: 18.86
+--- hpb n=4096 HPB=1 02:30:03
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 442 ms (9265.1 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=4096 HPB=1: 32.86
+--- hpb n=16654 HPB=4 02:30:06
+prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1969 ms (8457.1 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=16654 HPB=4: 316.95
+--- hpb n=16654 HPB=1 02:30:12
+prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2174 ms (7659.1 tok/s) | decode 0 ms (0.00 tok/s)
+flash_hpb total ms n=16654 HPB=1: 530.88
+################ stage hpb end 02:30:17

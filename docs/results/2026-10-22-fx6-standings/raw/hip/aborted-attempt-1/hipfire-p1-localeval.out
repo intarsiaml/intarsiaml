@@ -1,0 +1,2 @@
+fleetq: #3815 holds tatooine-r9700, tatooine-r9700-2, not endor; queueing separately
+fleetq: #3816 waiting (#12 in line): in line behind #3790 "m35-sp-attn: e2e profile + bench 1k/4k base vs new" (claude-f31ccf91) on endor

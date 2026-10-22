@@ -54,9 +54,14 @@ run_engine() { # label port health-path modelid cmd...
 OURS=($BIN serve --model $MODEL --backend metal --device 0 --host 127.0.0.1 --port 8093 --served-model-name intarsia-metal --max-seq 20000 --profile-every 0 --no-supervisor --no-ui)
 MLX=(/Users/josef/.local/bin/mlx_lm.server --model $MODEL --port 8092 --chat-template-args '{"enable_thinking":false}' --prompt-cache-size 1)
 LLA=(/opt/homebrew/bin/llama-server -m $GGUF -ngl 999 -fa on -c 20480 --cache-ram 0 --port 8091)
-run_engine intarsia-1 8093 /health intarsia-metal $OURS
-run_engine mlx-lm 8092 /v1/models $MODEL $MLX
-run_engine llamacpp 8091 /health $GGUF $LLA
-run_engine intarsia-2 8093 /health intarsia-metal $OURS
+# ORDER is the visit order (default: ABBA-style A B C A). Labels must start with intarsia / mlx-lm / llamacpp (gate.py groups by prefix).
+for arm in ${=ORDER:-intarsia-1 mlx-lm llamacpp intarsia-2}; do
+  case $arm in
+    intarsia*) run_engine $arm 8093 /health intarsia-metal $OURS ;;
+    mlx-lm*)   run_engine $arm 8092 /v1/models $MODEL $MLX ;;
+    llamacpp*) run_engine $arm 8091 /health $GGUF $LLA ;;
+    *) echo "unknown arm $arm" >&2 ;;
+  esac
+done
 python3 $H/gate.py $OUT | tee $OUT/gate.txt
 exit ${pipestatus[1]}

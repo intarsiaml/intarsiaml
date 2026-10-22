@@ -1,0 +1,136 @@
+################ stage prof start 02:20:02 (budget left 2700 s)
+--- op_table 4096 (base binary, --profile-every 1) 02:20:02
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 462 ms (8874.5 tok/s) | decode 0 ms (0.00 tok/s)
+--- op_table 16384 (base binary, --profile-every 1) 02:20:10
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2046 ms (8006.4 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 base 4096 02:20:15
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 434 ms (9441.1 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 base 16384 02:20:18
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2010 ms (8150.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 base 4089 02:20:23
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4089 tokens
+finish=length prompt=4089 (cached 0) completion=1 | prefill 435 ms (9404.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 base 16654 02:20:27
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2122 ms (7848.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+################ stage prof end 02:20:32
+################ stage opvp start 02:20:32 (budget left 2670 s)
+--- rocprofv3 dev VP=1 16384 02:20:32
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1858 ms (8817.4 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+flash_hpb total ms VP=1: 296.38
+--- rocprofv3 dev VP=0 16384 02:20:37
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2018 ms (8118.3 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+flash_hpb total ms VP=0: 472.83
+################ stage opvp end 02:20:42
+################ stage bitwise start 02:20:42 (budget left 2660 s)
+--- test flash_v2 VP=0 (/target/release/deps/flash_v2-073cbe32b53e1a48) 02:20:42
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=None INTARSIA_HIP_FLASH_VP=Some("0")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.00s
+--- test flash_v2 VP=1 (/target/release/deps/flash_v2-073cbe32b53e1a48) 02:20:45
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=None INTARSIA_HIP_FLASH_VP=Some("1")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s
+--- test attention VP=0 (/target/release/deps/attention-3141cbf87c98b4a4) 02:20:49
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 49.50s
+--- test attention VP=1 (/target/release/deps/attention-3141cbf87c98b4a4) 02:21:38
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 49.35s
+################ stage bitwise end 02:22:28
+################ stage ab start 02:22:28 (budget left 2554 s)
+--- ab rep 1 02:22:28
+base16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2002 ms (8184.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2001 ms (8186.1 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1853 ms (8841.9 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 434 ms (9441.9 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 422 ms (9715.3 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab rep 2 02:22:48
+base16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2009 ms (8156.0 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2013 ms (8140.0 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1862 ms (8800.1 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 435 ms (9408.5 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 424 ms (9649.3 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab rep 3 02:23:09
+base16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2018 ms (8118.0 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2021 ms (8105.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1866 ms (8779.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 438 ms (9342.0 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 427 ms (9596.1 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage ab end 02:23:29
+################ stage ids start 02:23:29 (budget left 2493 s)
+--- ids 4096 02:23:29
+base: prompt: 4096 tokens
+base: finish=length prompt=4096 (cached 0) completion=256 | prefill 438 ms (9360.9 tok/s) | decode 1640 ms (155.44 tok/s)
+d0: prompt: 4096 tokens
+d0: finish=length prompt=4096 (cached 0) completion=256 | prefill 438 ms (9345.6 tok/s) | decode 1637 ms (155.77 tok/s)
+d1: prompt: 4096 tokens
+d1: finish=length prompt=4096 (cached 0) completion=256 | prefill 428 ms (9575.9 tok/s) | decode 1637 ms (155.80 tok/s)
+ids 4096: 255 commas in base
+IDS 4096: base == dev VP=0
+IDS 4096: base == dev VP=1
+--- ids 16384 02:23:44
+base: prompt: 16384 tokens
+base: finish=length prompt=16384 (cached 0) completion=256 | prefill 2033 ms (8060.0 tok/s) | decode 1800 ms (141.68 tok/s)
+d0: prompt: 16384 tokens
+d0: finish=length prompt=16384 (cached 0) completion=256 | prefill 2036 ms (8046.0 tok/s) | decode 1802 ms (141.54 tok/s)
+d1: prompt: 16384 tokens
+d1: finish=length prompt=16384 (cached 0) completion=256 | prefill 1878 ms (8726.0 tok/s) | decode 1801 ms (141.55 tok/s)
+ids 16384: 255 commas in base
+IDS 16384: base == dev VP=0
+IDS 16384: base == dev VP=1
+################ stage ids end 02:24:04
+################ stage chunk start 02:24:04 (budget left 2458 s)
+--- chunk 4096 16384 02:24:04
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=256 | prefill 2040 ms (8031.8 tok/s) | decode 1801 ms (141.58 tok/s)
+--- chunk 8192 16384 02:24:10
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=256 | prefill 2049 ms (7995.9 tok/s) | decode 1804 ms (141.34 tok/s)
+CHUNK 8192 ids == chunk 4096 ids
+################ stage chunk end 02:24:17

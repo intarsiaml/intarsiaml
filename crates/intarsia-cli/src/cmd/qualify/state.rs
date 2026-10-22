@@ -22,6 +22,11 @@ pub enum Verdict {
     /// The gate ran and failed, but is report-only for this model (a warning; the run does not fail). The reason says
     /// why: `acc-short` of a third-party quant format whose `acc-format` passed (user decision 2026-10-21 17:13).
     Warn,
+    /// The gate needs a recorded baseline that is not there (or does not apply to this run): a model with no
+    /// full-precision reference (MoE / hybrid / quantized, gated against a noisy reference server) is not judged by
+    /// the static floor alone. Counts as a failure (exit code 1); `--resume` runs it again once the baseline is there.
+    #[serde(rename = "missing-baseline")]
+    MissingBaseline,
 }
 
 impl Verdict {
@@ -32,7 +37,12 @@ impl Verdict {
             Verdict::Skip => "SKIP",
             Verdict::Error => "ERROR",
             Verdict::Warn => "WARN",
+            Verdict::MissingBaseline => "MISSING-BASELINE",
         }
+    }
+    /// The gate did not pass and the run fails on it (exit code 1): FAIL or MISSING-BASELINE.
+    pub fn is_failing(self) -> bool {
+        matches!(self, Verdict::Fail | Verdict::MissingBaseline)
     }
     /// A finished stage (PASS or FAIL: the gate ran) is not run again by `--resume`. SKIP and ERROR are: the input a
     /// SKIP was missing (a golden, a reference server, `--skip`) may be there now, and the tool an ERROR hit may be fixed.

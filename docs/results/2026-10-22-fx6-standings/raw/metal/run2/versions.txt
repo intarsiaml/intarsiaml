@@ -1,0 +1,11 @@
+date: 2026-10-22T01:57:53-04:00  fleetq job: 3821
+binary md5: bf72ec9ecb5e7e381d797f90d24c5479
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
+top cpu:
+PID    COMMAND          %CPU
+99847  cloudtelemetryd  0.0 
+99838  com.apple.Safari 0.0 
+99818  SetStoreUpdateSe 0.0 
+99751  node             0.0 
+99731  node             0.0 
+99699  com.apple.WebKit 0.0 
