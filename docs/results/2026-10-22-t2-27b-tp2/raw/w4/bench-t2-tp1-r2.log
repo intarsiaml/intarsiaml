@@ -1,0 +1,12 @@
+target http://localhost:8091/v1/chat/completions  model qwen38-27b-t2
+server context window: 20480 tokens
+calibration: 48 base tokens, 21.82 tokens per filler sentence
+  size   1024 rep: prompt=969 gen=128 ttft=1.02s prefill=953 tok/s decode=32.5 tok/s
+  size   4096 rep: prompt=3953 gen=128 ttft=4.03s prefill=980 tok/s decode=31.9 tok/s
+  size  16384 rep: prompt=16284 gen=128 ttft=18.11s prefill=899 tok/s decode=30.5 tok/s
+wrote /work/t2-out/bench/t2-tp1-r2.json
+t2-tp1-r2  model=qwen38-27b-t2  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      969     1.016          953        32.5      128
+    4096     3953     4.035          980        31.9      128
+   16384    16284    18.111          899        30.5      128

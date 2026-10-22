@@ -108,6 +108,11 @@ int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor
                          ik_tensor* out, const ik_scratch* scratch, void* stream);
 int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                         ik_tensor* out, const ik_scratch* scratch, void* stream);
+/* matmul_mxfp4_pair_gemv (lane P1): Op::MatmulMxfp4Pair, two MXFP4 projections of one x with one act input; M == 1 one launch
+ * (x staged once), else the two single gemvs (scratch as matmul_mxfp4_gemv). */
+int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                              const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                              const ik_scratch* scratch, void* stream);
 
 #ifdef __cplusplus
 }

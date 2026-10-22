@@ -105,6 +105,136 @@ mxfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     }
 }
 
+// M == 1 (decode): the block stages x once in LDS (bf16 [K]), QDQ'd per 32-element group when act[0] != 0, so neither a
+// pre-pass launch nor a per-row QDQ is needed. The grid is sized to the device (blocks per CU, INTARSIA_HIP_MXFP4_LDS)
+// and each warp walks rows n, n + 8 * gridDim.x, ... so the staging is paid once per block, not once per 8 rows. Per
+// output row the arithmetic is the one of mxfp4_gemv_kernel<1> on a pre-passed x (same lane-to-group map, same fma
+// chain, same warp sum; the QDQ'd values are exact in bf16): bitwise equal.
+template <typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_gemv1_lds_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const uint8_t* __restrict__ sc0,
+                       OutT* __restrict__ out0, int64_t N0, const uint8_t* __restrict__ w1, const uint8_t* __restrict__ sc1,
+                       OutT* __restrict__ out1, int64_t N1, const float* __restrict__ act, int K) {
+    // rows [0, N0) of (w0, sc0, out0), then rows [0, N1) of (w1, sc1, out1) (MatmulMxfp4Pair: both from one staged x)
+    const int64_t N = N0 + N1;
+    auto row = [&](int64_t r, const uint8_t*& w, const uint8_t*& sc, int64_t& rr) {
+        if (r < N0) { w = w0; sc = sc0; rr = r; } else { w = w1; sc = sc1; rr = r - N0; }
+    };
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [4][G] x 8 bf16: chunk i of group g at xs[i * G + g] (lanes read
+                                                 // consecutive 16-byte words: no LDS bank conflicts)
+    IK_FP4_LUT(lut);
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t stride = (int64_t)gridDim.x * kWarps;
+    int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const int G = K / kG;
+    const bool qdq = act[0] != 0.f;
+    constexpr int UN = 8;  // groups per lane with their loads in flight together
+    // the first batch of the first row is in flight while x is staged
+    uint4 wv[UN];
+    uint32_t sb[UN];
+    if (n < N) {
+        const uint8_t *w, *sc;
+        int64_t rr;
+        row(n, w, sc, rr);
+        const uint4* wr = reinterpret_cast<const uint4*>(w + rr * (K / 2));
+#pragma unroll
+        for (int j = 0; j < UN; ++j) {
+            const int u = lane + j * IK_WARP;
+            if (u < G) {
+                wv[j] = ik_ldcs(wr + u);
+                sb[j] = sc[rr * G + u];
+            }
+        }
+    }
+    const uint4* xg = reinterpret_cast<const uint4*>(x);
+    for (int g = threadIdx.x; g < G; g += kWarps * IK_WARP) {
+        uint4 v[4];
+#pragma unroll
+        for (int i = 0; i < 4; ++i) v[i] = xg[g * 4 + i];
+        if (qdq) {
+            float f[kG];
+#pragma unroll
+            for (int i = 0; i < 4; ++i) ik_unpack8(v[i], f + 8 * i);
+            mx_qdq32(f);
+#pragma unroll
+            for (int i = 0; i < 4; ++i) v[i] = ik_pack8(f + 8 * i);  // exact: e2m1 * 2^e fits bf16
+        }
+#pragma unroll
+        for (int i = 0; i < 4; ++i) xs[i * G + g] = v[i];
+    }
+    __syncthreads();
+    bool first = true;
+    for (; n < N; n += stride) {  // whole warp walks the same rows
+        const uint8_t *w, *sc;
+        int64_t rr;
+        row(n, w, sc, rr);
+        const uint4* wr = reinterpret_cast<const uint4*>(w + rr * (K / 2));
+        const uint8_t* sr = sc + rr * G;
+        float acc = 0.f;
+        for (int base = lane; base < G; base += UN * IK_WARP) {
+#pragma unroll
+            for (int j = 0; j < UN && !first; ++j) {
+                const int u = base + j * IK_WARP;
+                if (u < G) {
+                    wv[j] = ik_ldcs(wr + u);
+                    sb[j] = sr[u];
+                }
+            }
+            first = false;
+#pragma unroll
+            for (int j = 0; j < UN; ++j) {
+                const int u = base + j * IK_WARP;
+                if (u < G) {  // same group order per lane as mxfp4_gemv_kernel
+                    const float s = mx_e8m0(sb[j]);
+                    float wf[kG];
+                    ik_fp4x8_to_f32(wv[j].x, lut, wf);
+                    ik_fp4x8_to_f32(wv[j].y, lut, wf + 8);
+                    ik_fp4x8_to_f32(wv[j].z, lut, wf + 16);
+                    ik_fp4x8_to_f32(wv[j].w, lut, wf + 24);
+                    float xf[kG];
+                    ik_unpack8(xs[u], xf);
+                    ik_unpack8(xs[G + u], xf + 8);
+                    ik_unpack8(xs[2 * G + u], xf + 16);
+                    ik_unpack8(xs[3 * G + u], xf + 24);
+                    float t = 0.f;
+#pragma unroll
+                    for (int e = 0; e < kG; ++e) t = fmaf(wf[e], xf[e], t);
+                    acc = fmaf(t, s, acc);
+                }
+            }
+        }
+        const float t = ik_warp_sum(acc);
+        if (lane == 0) ik_store((n < N0 ? out0 : out1) + rr, t);
+    }
+}
+
+constexpr int64_t kLdsMax = 16 * 1024;  // x of K <= 8192 in LDS; a larger x (down_proj, K = 17408) costs occupancy:
+                                        // the pre-pass + plain GEMV is faster there (measured on gfx1201)
+
+// INTARSIA_HIP_MXFP4_LDS=<blocks per CU> for the M == 1 LDS kernel (default 4); 0: the pre-pass + plain GEMV path
+static int mx_lds_blocks() {
+    static const int v = [] {
+        int per = 4;
+        if (const char* e = getenv("INTARSIA_HIP_MXFP4_LDS")) per = atoi(e);
+        if (per <= 0) return 0;
+        int dev = 0, cus = 0;
+        if (hipGetDevice(&dev) != hipSuccess || hipDeviceGetAttribute(&cus, hipDeviceAttributeMultiprocessorCount, dev) != hipSuccess || cus <= 0)
+            cus = 64;
+        return per * cus;
+    }();
+    return v;
+}
+
+template <typename OutT>
+int lds_launch(const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
+               const uint8_t* s1, OutT* o1, int64_t N1, const float* act, int64_t K, hipStream_t s) {
+    const int64_t full = (N0 + N1 + kWarps - 1) / kWarps;
+    const unsigned grid = (unsigned)(full < mx_lds_blocks() ? full : mx_lds_blocks());
+    mxfp4_gemv1_lds_kernel<OutT><<<grid, kWarps * IK_WARP, (size_t)K * 2, s>>>(x, w0, s0, o0, N0, w1, s1, o1, N1, act, (int)K);
+    return ik_launch_status();
+}
+
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, const float* act, OutT* out, int64_t N,
               int64_t K, hipStream_t s) {
@@ -217,6 +347,12 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > 8) return IK_ERR_SHAPE;
+        if (M == 1 && K * 2 <= kLdsMax && mx_lds_blocks() > 0) {
+            return f32o ? lds_launch(xp, wp, sp, (float*)out->data, N, (const uint8_t*)nullptr, (const uint8_t*)nullptr,
+                                     (float*)nullptr, 0, ap, K, s)
+                        : lds_launch(xp, wp, sp, (ik_bf16*)out->data, N, (const uint8_t*)nullptr, (const uint8_t*)nullptr,
+                                     (ik_bf16*)nullptr, 0, ap, K, s);
+        }
         if (scratch && scratch->data && scratch->bytes >= M * K * 2 && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)) {
             // QDQ (or copy) the activations once, then the GEMV reads them as plain bf16
             ik_bf16* xs = (ik_bf16*)scratch->data;
@@ -257,6 +393,39 @@ extern "C" {
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                          ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return launch(x, w, scales, act, out, scratch, stream, true);
+}
+// MatmulMxfp4Pair: out0 = matmul_mxfp4(x, w0, s0, act), out1 = matmul_mxfp4(x, w1, s1, act). M == 1 and K <= 8192: one
+// launch of the LDS kernel over the rows of both (each row bitwise as in the single op); otherwise the two single ops.
+int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                              const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                              const ik_scratch* scratch, void* stream) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    IK_TRY(ik_check_a(w0, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(w1, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(s0, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(s1, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(act, IK_DTYPE_F32, 1, 4));
+    if (!out0 || !out1 || out0->dtype != out1->dtype || (out0->dtype != IK_DTYPE_BF16 && out0->dtype != IK_DTYPE_F32))
+        return IK_ERR_DTYPE;
+    IK_TRY(ik_check(out0, out0->dtype, 2));
+    IK_TRY(ik_check(out1, out1->dtype, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (K % kG != 0 || w0->shape[1] != K / 2 || w1->shape[1] != K / 2 || s0->shape[0] != N0 || s1->shape[0] != N1 ||
+        s0->shape[1] != K / kG || s1->shape[1] != K / kG || act->shape[0] != 1 || out0->shape[0] != M ||
+        out1->shape[0] != M || out0->shape[1] != N0 || out1->shape[1] != N1)
+        return IK_ERR_SHAPE;
+    if (M == 1 && K > 0 && K * 2 <= kLdsMax && mx_lds_blocks() > 0 && N0 > 0 && N1 > 0) {
+        hipStream_t s = IK_STREAM(stream);
+        const ik_bf16* xp = (const ik_bf16*)x->data;
+        const float* ap = (const float*)act->data;
+        const uint8_t *a0 = (const uint8_t*)w0->data, *b0 = (const uint8_t*)s0->data;
+        const uint8_t *a1 = (const uint8_t*)w1->data, *b1 = (const uint8_t*)s1->data;
+        return out0->dtype == IK_DTYPE_F32
+                   ? lds_launch(xp, a0, b0, (float*)out0->data, N0, a1, b1, (float*)out1->data, N1, ap, K, s)
+                   : lds_launch(xp, a0, b0, (ik_bf16*)out0->data, N0, a1, b1, (ik_bf16*)out1->data, N1, ap, K, s);
+    }
+    IK_TRY(launch(x, w0, s0, act, out0, scratch, stream, true));
+    return launch(x, w1, s1, act, out1, scratch, stream, true);
 }
 int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                         ik_tensor* out, const ik_scratch* scratch, void* stream) {

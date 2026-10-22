@@ -13,7 +13,7 @@
 //! ```
 
 use super::*;
-use crate::quant::{BF16, FP8_E4M3};
+use crate::quant::{BF16, FP8_E4M3, MXFP4};
 
 /// Bytes the recurrent slot of one GatedDeltaNet layer holds: conv state `[C, K-1]` f32, then (256-byte
 /// aligned) the delta-rule state `[Hv, dv, dk]` f32.
@@ -151,8 +151,8 @@ impl Model {
                 self.exec(Op::RmsNormAdd, inputs, outputs, f.attrs.clone(), profile)?;
             }
         }
-        // The four projections read the same activation. qkv and z (fp8) go through one launch, and so do the b and a
-        // gates (dense), when the backend has the fused pair kernels; otherwise each runs on its own.
+        // The four projections read the same activation. qkv and z (fp8 / mxfp4) go through one launch, and so do the b and a
+        // gates (dense / mxfp4), when the backend has the fused pair kernels; otherwise each runs on its own.
         let qz_fused = match (g.in_qkv.format, g.in_z.format) {
             (FP8_E4M3, FP8_E4M3) => self.try_fused(
                 Op::MatmulFp8Pair,
@@ -161,6 +161,7 @@ impl Model {
                 OpAttrs::default(),
                 profile,
             )?,
+            (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_qkv, &g.in_z, &qkv, &z, profile)?,
             _ => false,
         };
         if !qz_fused {
@@ -176,6 +177,7 @@ impl Model {
                     OpAttrs::default(),
                     profile,
                 )?,
+                (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_b, &g.in_a, &b, &a, profile)?,
                 _ => false,
             };
         if !ba_fused {

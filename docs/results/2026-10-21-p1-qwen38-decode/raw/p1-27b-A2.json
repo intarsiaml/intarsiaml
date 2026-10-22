@@ -1,0 +1,93 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "p1-27b-A2",
+  "timestamp_unix": 1792627815,
+  "url": "http://127.0.0.1:8091",
+  "model": "qwen38-27b-p1",
+  "config": {
+    "sizes": [
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 1,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 15.49,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 49.0,
+    "tokens_per_filler_sentence": 21.71
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 256,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 948.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 1.0148,
+      "prefill_tok_s": 934.2,
+      "decode_tok_s": 30.33,
+      "decode_tok_s_reps": [
+        30.33
+      ],
+      "decode_tok_s_min": 30.33,
+      "decode_tok_s_max": 30.33,
+      "decode_tok_s_stdev": null,
+      "bandwidth_floor_tok_s": 40.48,
+      "pct_of_floor": 74.9,
+      "reps_ok": 1,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4041.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 4.123,
+      "prefill_tok_s": 980.1,
+      "decode_tok_s": 29.81,
+      "decode_tok_s_reps": [
+        29.81
+      ],
+      "decode_tok_s_min": 29.81,
+      "decode_tok_s_max": 29.81,
+      "decode_tok_s_stdev": null,
+      "bandwidth_floor_tok_s": 40.48,
+      "pct_of_floor": 73.6,
+      "reps_ok": 1,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}
