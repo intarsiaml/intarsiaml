@@ -1,0 +1,35 @@
+rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 23227.1 us
+
+Agent 1 (rank 0): 871 launches/step, kernel-busy 19638.6 us/step (85 % of wall), all-reduce 128/step 1676.4 us/step (median 5.9 us), idle 3588.5 us/step
+  kernel                                                        n/step   us/step
+  mxfp4_gemv1_lds_kernel<bf16>                                   192.0    8419.1
+  gemv_kernel<1, 1, 8, float>                                      1.0    3981.8
+  mxfp4_gemv_kernel<1, float>                                     64.0    2585.7
+  ar2_kernel<2>                                                  128.0    1676.4
+  mxfp4_gemv1_lds_kernel<float>                                   64.0    1258.0
+  rmsnorm_kernel<true, true>                                     128.0     489.1
+  gdn_conv_delta_kernel<128, 2, 1, 4>                             48.0     348.0
+  mxfp4_xprep_kernel                                              64.0     247.7
+  splitkv_kernel<8, 32, 2>                                        16.0     199.8
+  gated_rmsnorm_kernel<true>                                      48.0     104.0
+  silu_glu_kernel<true>                                           64.0      92.2
+  gate_qk_norm_rope_kv_kernel<bf16>                               16.0      88.8
+  argmax_kernel<float>                                             1.0      61.1
+  combine_kernel<256, 16>                                         16.0      57.6
+
+Agent 2: 868 launches/step, kernel-busy 15257.3 us/step (66 % of wall), all-reduce 128/step 1399.7 us/step (median 6.1 us), idle 7969.8 us/step
+  kernel                                                        n/step   us/step
+  mxfp4_gemv1_lds_kernel<bf16>                                   192.0    8379.2
+  mxfp4_gemv_kernel<1, float>                                     64.0    2576.2
+  ar2_kernel<2>                                                  128.0    1399.7
+  mxfp4_gemv1_lds_kernel<float>                                   64.0    1253.7
+  rmsnorm_kernel<true, true>                                     128.0     487.3
+  gdn_conv_delta_kernel<128, 2, 1, 4>                             48.0     348.0
+  mxfp4_xprep_kernel                                              64.0     247.0
+  splitkv_kernel<8, 32, 2>                                        16.0     198.8
+  gated_rmsnorm_kernel<true>                                      48.0     104.9
+  silu_glu_kernel<true>                                           64.0      92.0
+  gate_qk_norm_rope_kv_kernel<bf16>                               16.0      87.0
+  combine_kernel<256, 16>                                         16.0      57.1
+  sigmoid_mul_kernel                                              16.0      16.0
+  __amd_rocclr_copyBuffer                                          2.0       5.0

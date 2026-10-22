@@ -1,0 +1,13 @@
+target http://localhost:8091/v1/chat/completions  model qwen36-35b-h1
+server context window: 17408 tokens
+calibration: 49 base tokens, 21.64 tokens per filler sentence
+  size   1024 rep: prompt=976 gen=128 ttft=0.15s prefill=6523 tok/s decode=159.2 tok/s
+  size   4096 rep: prompt=4071 gen=128 ttft=0.43s prefill=9546 tok/s decode=155.3 tok/s
+  size  16384 rep: prompt=16516 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16338 gen=128 ttft=2.02s prefill=8084 tok/s decode=142.2 tok/s
+wrote /work/h1-out/bench/h1-tp1-r3.json
+h1-tp1-r3  model=qwen36-35b-h1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      976     0.150         6522       159.2      128
+    4096     4071     0.426         9546       155.3      128
+   16384    16338     2.021         8084       142.2      128

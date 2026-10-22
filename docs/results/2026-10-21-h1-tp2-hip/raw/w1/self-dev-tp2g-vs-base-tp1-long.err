@@ -1,0 +1,16 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /work/h1-out/acc-base-35b-long.safetensors (5 prompts, 36887 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 0294b77 code-tree c895dd6a8adb clean | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 4096; longest prompt 12064; prompts spanning more than one chunk: 3/5
+reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt values for 5 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md); estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl); factor 1 (default)
+change vs base: every prompt may be 3 x its own reference noise (default); 5 prompt(s) have one in the record, the others use the mean noise
+this build: head 2ec085e code-tree 04e601ea3d0e clean
+WARNING: this run differs from the self-golden: device: self-golden AMD Radeon Graphics, this run AMD Radeon Graphics x2 (tp=2, hip-p2p comm)
+self-golden written by: head 0294b77 code-tree c895dd6a8adb clean (top-64, modes prefill,decode)
+differences from the self-golden's run (kernels per op, flags): gate_split_qk_norm_rope_kv: gate_split_qk_norm_rope_kv_bf16 -> (not in this plan); gated_rmsnorm: gated_rmsnorm_bf16 -> (not in this plan); gated_rmsnorm_matmul_fp8: gated_rmsnorm_matmul_fp8_gemv -> (not in this plan); gdn_conv_delta: gdn_conv_delta_bf16 -> (not in this plan); matmul_fp8_pair: matmul_fp8_pair_gemv -> (not in this plan); matmul_pair: matmul_pair_bf16_gemv -> (not in this plan); moe_block: moe_block_bf16 -> (not in this plan); rmsnorm_add_matmul_fp8_pair: rmsnorm_add_matmul_fp8_pair_gemv -> (not in this plan); rmsnorm_add_matmul_pair: rmsnorm_add_matmul_pair_bf16_gemv -> (not in this plan); sigmoid_mul_matmul_fp8: sigmoid_mul_matmul_fp8_gemv -> (not in this plan); gate_split: (not in the baseline's plan) -> gate_split_bf16; kv_append: (not in the baseline's plan) -> kv_append_bf16; qk_norm: (not in the baseline's plan) -> qk_norm_bf16; rope: (not in the baseline's plan) -> rope_bf16
+self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=80
+Error: accuracy gate FAILED

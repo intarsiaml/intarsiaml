@@ -33,8 +33,7 @@ impl Run {
     pub fn tail(&self, n: usize) -> String {
         let e = self.stderr();
         let text = if e.trim().is_empty() { self.stdout() } else { e };
-        let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-        lines[lines.len().saturating_sub(n)..].join("\n")
+        tail_lines(&text, n)
     }
     pub fn describe(&self) -> String {
         if self.timed_out {
@@ -46,6 +45,19 @@ impl Run {
             }
         }
     }
+}
+
+/// The last `n` non-empty lines of `text`; when the last `Error:` line (an anyhow report) is within the last `n`
+/// lines of its chain, start there, so a reason that is cut to its first line names the error, not a warning above it.
+fn tail_lines(text: &str, n: usize) -> String {
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let mut from = lines.len().saturating_sub(n);
+    if let Some(i) = lines.iter().rposition(|l| l.starts_with("Error:")) {
+        if lines.len() - i <= n.max(8) {
+            from = i;
+        }
+    }
+    lines[from..].join("\n")
 }
 
 #[cfg(unix)]
@@ -241,4 +253,19 @@ pub fn tail_of(path: &Path, n: usize) -> String {
 /// A free TCP port on the loopback interface, starting the search at `start`.
 pub fn free_port(start: u16) -> u16 {
     (start..start.saturating_add(200)).find(|p| std::net::TcpListener::bind(("127.0.0.1", *p)).is_ok()).unwrap_or(start)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tail_lines;
+
+    #[test]
+    fn tail_starts_at_the_error_report() {
+        let t = "warm\nWARNING: a chunk thing\nError: ref_noise from sidecar x\n\nCaused by:\n    hash mismatch\n";
+        assert_eq!(tail_lines(t, 5), "Error: ref_noise from sidecar x\nCaused by:\n    hash mismatch");
+        assert_eq!(tail_lines("a\nb\nc\n", 2), "b\nc");
+        // an Error line far above the tail is not dragged in
+        let long: String = std::iter::once("Error: old\n".to_string()).chain((0..20).map(|i| format!("l{i}\n"))).collect();
+        assert_eq!(tail_lines(&long, 2), "l18\nl19");
+    }
 }

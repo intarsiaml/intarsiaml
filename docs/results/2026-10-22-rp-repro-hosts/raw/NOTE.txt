@@ -1,0 +1,3 @@
+nvcc-experiment-N.out: tiny nvcc runs on spark1 (see ../../2026-10-22-rp-repro-hosts.md, "What nvcc embeds").
+The first full two-directory CUDA build at 7354a4b (relative paths only) printed CUDA-DIFFER (A=46d4a5de79e859bb, B=cbe76e4adad7e375,
+82 absolute-path strings, 23 tmpxft_ names, 8-hex GLOBAL__N hashes differing per object); its output file was overwritten by a requeue and is not kept.

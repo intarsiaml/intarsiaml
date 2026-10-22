@@ -1,0 +1,19 @@
+[window] job 3728 w4; stopping radiance 2026-10-22 00:14:41
+[window] radiance stopped 2026-10-22 00:14:44
+00:14:58 self-tp2g-vs-tp1 exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10|SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9|self-golden verdict (same weights, tight budgets, against the other build's logits): PASS|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+00:15:12 self-tp2gf-vs-tp1 exit 0 [INTARSIA_TP_FUSION=1]: SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10|SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9|self-golden verdict (same weights, tight budgets, against the other build's logits): PASS|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+00:15:25 self-tp2gf-vs-tp2g exit 0 [INTARSIA_TP_FUSION=1]: SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10|SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9|self-golden verdict (same weights, tight budgets, against the other build's logits): PASS|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+00:15:41 self-tp1-vs-tp1 exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10|SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9|self-golden verdict (same weights, tight budgets, against the other build's logits): PASS|golden gate: PASS|
+00:17:41 t2-tp1-r1 exit 0:  1024 972 1.024 949 32.4 128| 4096 4040 4.150 974 31.9 128| 16384 16369 18.164 901 30.4 128|
+00:18:57 t2-tp2g-r1 exit 0:  1024 951 0.709 1342 42.5 128| 4096 4009 2.876 1394 42.0 128| 16384 16309 12.591 1295 40.6 128|
+00:20:43 t2-tp2gf-r1 exit 0:  1024 959 0.707 1356 46.2 128| 4096 3988 2.861 1394 45.6 128| 16384 16306 12.596 1294 43.9 128|
+00:21:58 t2-tp2gf-r2 exit 0:  1024 974 0.712 1368 46.3 128| 4096 3966 2.831 1401 45.6 128| 16384 16193 12.534 1292 44.1 128|
+00:23:14 t2-tp2g-r2 exit 0:  1024 941 0.707 1330 42.5 128| 4096 4008 2.876 1394 42.1 128| 16384 16304 12.604 1294 40.6 128|
+00:24:51 t2-tp1-r2 exit 0:  1024 969 1.016 953 32.5 128| 4096 3953 4.035 980 31.9 128| 16384 16284 18.111 899 30.5 128|
+00:26:28 t2-tp1-r3 exit 0:  1024 947 1.013 935 32.5 128| 4096 3962 4.029 983 31.9 128| 16384 16309 18.104 901 30.5 128|
+00:27:44 t2-tp2g-r3 exit 0:  1024 990 0.719 1378 42.5 128| 4096 3994 2.880 1387 42.0 128| 16384 16343 12.636 1293 40.5 128|
+00:29:15 t2-tp2gf-r3 exit 0:  1024 971 0.709 1370 46.3 128| 4096 4011 2.865 1400 45.6 128| 16384 16322 12.581 1297 43.9 128|
+00:29:15 done
+[window] stages done 2026-10-22 00:29:15 (exit 0)
+[window] starting radiance 2026-10-22 00:29:15
+[window] radiance answers 2026-10-22 00:29:25 (after 15 s)

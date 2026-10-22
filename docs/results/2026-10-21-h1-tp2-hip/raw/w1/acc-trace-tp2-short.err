@@ -1,0 +1,70 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /models/golden/qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 4096; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: head 0294b77 code-tree c895dd6a8adb clean
+hip trace: 180 batches, 151560 launches, kernel GPU time 2243.9 ms, stream wall time 3344.1 ms, idle between launches 1100.3 ms (33% of wall)
+kernel                         launches   total ms    avg us % kern
+moe_experts_bf16_v2                7200     517.78      71.9  23.1%
+matmul_fp8_gemv_v2                20930     347.10      16.6  15.5%
+matmul_nvfp4_gemv_v2              19320     205.46      10.6   9.2%
+matmul_bf16_gemv                  22540     170.76       7.6   7.6%
+matmul_nvfp4_mma                   2280     126.69      55.6   5.6%
+rmsnorm_add_bf16                  14400     122.35       8.5   5.5%
+matmul_fp8_mma_f8                  2470     109.76      44.4   4.9%
+gdn_delta_rule_bf16_v2             5400     103.16      19.1   4.6%
+silu_glu_bf16                     12600      87.13       6.9   3.9%
+matmul_bf16                        2660      75.27      28.3   3.4%
+moe_topk_bf16_v2                   7200      73.33      10.2   3.3%
+moe_combine_bf16                   7200      54.07       7.5   2.4%
+gdn_conv_bf16                      5400      47.97       8.9   2.1%
+rope_bf16                          3600      42.11      11.7   1.9%
+rmsnorm_bf16                       5580      41.55       7.4   1.9%
+attn_decode_bf16_splitkv           1600      34.09      21.3   1.5%
+qk_norm_bf16                       3600      26.09       7.2   1.2%
+kv_append_bf16                     3600      24.23       6.7   1.1%
+gate_split_bf16                    1800      12.17       6.8   0.5%
+sigmoid_mul_bf16                   1800      11.71       6.5   0.5%
+attn_prefill_bf16_flash_v2          180       6.85      38.1   0.3%
+embedding_bf16                      180       3.87      21.5   0.2%
+attn_prefill_bf16_splitkv            20       0.35      17.4   0.0%
+hip trace gaps after launches of < 0.1 ms: n 150453 sum 1094.27 ms, us min 3.4 p10 3.5 median 3.6 p90 9.7 max 2961.8
+hip trace gaps after launches of 0.1 to 1 ms: n 921 sum 5.96 ms, us min 3.4 p10 3.5 median 3.7 p90 6.8 max 1552.9
+hip trace gaps after launches of >= 1 ms: n 6 sum 0.03 ms, us min 3.7 p10 3.7 median 3.8 p90 6.3 max 6.8
+hip trace: 10367 batches, 151814 launches, kernel GPU time 2974.0 ms, stream wall time 3957.6 ms, idle between launches 983.6 ms (25% of wall)
+kernel                         launches   total ms    avg us % kern
+matmul_nvfp4_mma                   2370     673.32     284.1  22.6%
+moe_experts_bf16_v2                7200     560.67      77.9  18.9%
+matmul_fp8_gemv_v2                20930     355.52      17.0  12.0%
+matmul_nvfp4_gemv_v2              19484     298.70      15.3  10.0%
+matmul_bf16_gemv                  22540     171.21       7.6   5.8%
+rmsnorm_add_bf16                  14400     124.20       8.6   4.2%
+matmul_fp8_mma_f8                  2470     120.26      48.7   4.0%
+gdn_delta_rule_bf16_v2             5400     111.16      20.6   3.7%
+silu_glu_bf16                     12600      88.34       7.0   3.0%
+matmul_bf16                        2660      85.40      32.1   2.9%
+moe_topk_bf16_v2                   7200      75.89      10.5   2.6%
+moe_combine_bf16                   7200      55.65       7.7   1.9%
+gdn_conv_bf16                      5400      49.76       9.2   1.7%
+rope_bf16                          3600      42.50      11.8   1.4%
+rmsnorm_bf16                       5580      42.38       7.6   1.4%
+attn_decode_bf16_splitkv           1600      32.27      20.2   1.1%
+qk_norm_bf16                       3600      26.63       7.4   0.9%
+kv_append_bf16                     3600      24.83       6.9   0.8%
+gate_split_bf16                    1800      12.82       7.1   0.4%
+sigmoid_mul_bf16                   1800      11.88       6.6   0.4%
+attn_prefill_bf16_flash_v2          180       7.82      43.5   0.3%
+embedding_bf16                      180       2.42      13.4   0.1%
+attn_prefill_bf16_splitkv            20       0.37      18.4   0.0%
+hip trace gaps after launches of < 0.1 ms: n 140389 sum 976.46 ms, us min 3.3 p10 3.5 median 3.5 p90 9.7 max 2007.5
+hip trace gaps after launches of 0.1 to 1 ms: n 1043 sum 7.09 ms, us min 3.4 p10 3.5 median 3.6 p90 5.8 max 2174.5
+hip trace gaps after launches of >= 1 ms: n 15 sum 0.08 ms, us min 3.4 p10 3.6 median 4.6 p90 5.4 max 9.8

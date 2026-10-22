@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+    "backend": "cuda"
+  },
+  "created_unix": 1792653800,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_moe covers the model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "started_unix": 1792653800,
+      "ended_unix": 1792653800,
+      "wall_s": 0.249012616,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_moe",
+        "family": "qwen3_5_moe",
+        "quant": "nvfp4+fp8"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris, a city renowned for its rich history, culture, and iconic landmarks.\"",
+      "started_unix": 1792653800,
+      "ended_unix": 1792653893,
+      "wall_s": 93.172444052,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 79.19,
+        "completion": "Paris, a city renowned for its rich history, culture, and iconic landmarks.",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "qualify exit 0, 8 stage(s) recorded",
+      "started_unix": 1792653893,
+      "ended_unix": 1792654244,
+      "wall_s": 350.572808047,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 0
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-22T07:30:44Z",
+      "started_unix": 1792654244,
+      "ended_unix": 1792654244,
+      "wall_s": 0.005799882,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792654244
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    },
+    {
+      "id": "in-depth",
+      "title": "in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "qualify exit 0, 14 stage(s) recorded",
+      "started_unix": 1792654244,
+      "ended_unix": 1792654724,
+      "wall_s": 480.084614795,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 0
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-in-depth",
+      "title": "publish in-depth.md / in-depth.json / in-depth.prom",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "in-depth.md written 2026-10-22T07:38:44Z",
+      "started_unix": 1792654724,
+      "ended_unix": 1792654724,
+      "wall_s": 0.007628262,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792654724
+      },
+      "artifacts": [
+        "in-depth.md",
+        "in-depth.json",
+        "in-depth.prom"
+      ]
+    }
+  ]
+}

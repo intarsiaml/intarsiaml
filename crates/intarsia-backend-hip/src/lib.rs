@@ -38,6 +38,14 @@ pub fn inner_variants() -> (i32, i32, i32) {
     unsafe { (ffi::ik_hip_flash_hpb(), ffi::ik_hip_moe_mw(64), ffi::ik_hip_moe_mw(32)) }
 }
 
+/// The staging / math variant mask flash v2 runs in this process (INTARSIA_HIP_FLASH_VP, default 5; every value gives the same
+/// bits; docs/results/2026-10-22-pf-prefill-ctx.md). Host-only; pinned by tests/pf_flash_vp.rs.
+#[cfg(ik_hip)]
+pub fn flash_vp() -> i32 {
+    // SAFETY: a plain host function of the kernel library without arguments that point anywhere
+    unsafe { ffi::ik_hip_flash_vp() }
+}
+
 /// The MoE down projection's variant bits (at 64 pairs, at 32), as the kernel library resolves them in this process (round 7
 /// selects gate_up and down separately; `inner_variants` has gate_up). docs/results/2026-10-19-hip-round7.md; pinned by
 /// tests/round6_selection.rs.

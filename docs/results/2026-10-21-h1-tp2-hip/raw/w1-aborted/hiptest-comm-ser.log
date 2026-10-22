@@ -1,0 +1,16 @@
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 6 tests
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test collectives_captured_into_a_graph_replay_exactly_and_interleave_with_eager_ones ... :1:hip_graph_internal.cpp   :1694: 77066656615 us:  UpdateStreams failed for device id:0
+:1:hip_graph_internal.cpp   :1694: 77066656625 us:  UpdateStreams failed for device id:1
+ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.37s
+
+:1:rocdevice.cpp            :3340: 77069431264 us:  Unknown Event Type 

@@ -1,0 +1,8 @@
+stamp: head=716b4e4 code-tree=79c4400f0040 dirty=no
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-decfuse/on/crates/intarsia-tui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/on/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/on/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/on/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 26.14s
+-rwxrwxr-x 2 nvidia nvidia 52520288 Oct 22 03:23 /home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia
+build_seconds=44 exit=0
