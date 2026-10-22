@@ -5,3 +5,4 @@
 - Thu Oct 22 09:26:33 EDT 2026 queued rsync spark1->endor fleetq job (log target-g4-real/rsync.log)
 - Thu Oct 22 09:28:07 EDT 2026 queued endor golden job (log target-g4-real/golden.log)
 - Thu Oct 22 09:33:10 EDT 2026 task2 DROPPED per lead: released #4162/#4165, killed rsync, deleted partial copy
+- Thu Oct 22 09:40:08 EDT 2026 tiny experts now NVFP4 (W4A16 refs from dequant), re-exported
