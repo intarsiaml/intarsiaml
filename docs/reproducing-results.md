@@ -109,6 +109,7 @@ Limits to know:
   a different CUDA/ROCm install path, legitimately gives a different hash, and the toolchain rows say so.
 * The bundle records the **command and env knobs you give it**. It cannot know which knobs a run used unless they went
   through `--env-file`/`--env`; if a run was started by hand with extra variables, pass them to `pack --env`.
+* Model paths differ per host (spark1 has `~/models/Qwen3-8B` as a link to `/mnt/models/Qwen3-8B`; spark2 only has `/mnt/models`). Pack the command with a path that exists on both, or replay with `--cmd` and the host's path (done for the spark1 to spark2 replay in `docs/results/2026-10-22-rp-repro-hosts.md`, where the binary hash and 128 greedy token ids matched).
 * It does not capture the model weights or the tuning DB (there is none yet); the report should name the model path and
   revision. `ARCHITECTURE.md` section 11 sketches an `intarsia replay manifest.json` with plan and tuning hashes; this
   bundle is the script-level step toward it.

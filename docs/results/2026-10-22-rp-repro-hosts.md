@@ -10,7 +10,7 @@ Requirement 5. Follows [M5](2026-10-21-m5-reproducibility.md) (deploy.sh, bench 
 | Metal (endor, rustc 1.99 Homebrew) | IDENTICAL (`070a08a6362a6229...`, deploy tree vs a third directory; also `repro-check.sh`) | smoke pass, M5 Max | done |
 | HIP (tatooine, pinned ROCm 7.2.4 container) | IDENTICAL (`72688024194830b8...`, two host directories, two cargo volumes, plus the deploy tree) | smoke pass, 54 kernels / 239 cases | done |
 | CUDA (spark1 and spark2, GB10, nvcc 13.0.88, rustc 1.90.0) | IDENTICAL on both hosts (`fcd8053febb15f14...`), and the same hash on spark1 and spark2 | smoke pass on both (54 kernels, 292 cases), device code identical to base (SASS, 22/22 objects) | done |
-| Cross-host replay (spark1 bundle on spark2) | M5 bundle replayed: sha, lock, rustc, nvcc, GPU, driver match, 149-case kernels output equal | new bundle (greedy 128 ids, Qwen3-8B): see "Cross-host replay" | see below |
+| Cross-host replay (spark1 bundle on spark2) | every stamp row matches including the binary hash; Qwen3-8B greedy 128 token ids byte-identical | M5 bundle too (sha, lock, toolchain, GPU, driver match; 149-case kernels output equal) | done |
 | CI | green on the PR (`cargo check` linux and macOS, `cargo test` linux, `reproducible build`) | | done |
 
 The HIP two-directory result is weaker than it looks: both trees are mounted at `/work` and the cargo target at `/target`
@@ -78,7 +78,15 @@ because that sha predates repro-build.sh):
 | binary sha256 | DIFFER (`823b41be...` on spark1, `90acdf46...` on spark2), expected: that sha was built with plain cargo in another directory |
 | the recorded command (`kernels test --quick --json`), 149 cases | `kernels.json` of the replay equals the original in all but 2 of 2464 lines (`free_mem` and the measured `bandwidth_gbs`) |
 
-Replay of a bundle made by this lane (`af77bbf`, spark1, greedy 128 tokens of Qwen3-8B BF16, `raw/rp-bundle.tgz`): REPLAY_NEW_PENDING
+Replay of a bundle made by this lane (`af77bbf`, packed on spark1 in fleetq #3797: Qwen3-8B BF16, `generate` greedy, 128 tokens, `raw/rp-bundle.tgz`), on spark2 (fleetq #3880, tree `replay-rp`, `raw/spark2-replay-greedy-ids.out`):
+
+| Row | Result |
+|---|---|
+| git sha, Cargo.lock `7723f17b4e7280cb`, rustc 1.90.0, nvcc 13.0.88, GPU GB10, driver 580.173.02 | match |
+| binary sha256 | **match**, `fcd8053febb15f14...` (built on spark2 from the exported sha, deploy tree path differs) |
+| generated text (`ids.out`, 622 bytes) and the 128 token ids line in `gen.err` | byte-identical to the spark1 original (`raw/spark1-original-output/`, `raw/spark2-replay-output/`) |
+
+The replay command needed one change: spark1 reads the model through `~/models/Qwen3-8B`, a link to `/mnt/models/Qwen3-8B`; spark2 has the model only under `/mnt/models` (file sizes and config/tokenizer sha256 equal on both), so the replay used `--cmd` with that path. The first attempt failed on the missing path (`raw/spark2-replay-attempt1-model-path.out`). The script's own ids comparison printed `GREEDY-IDS-IDENTICAL` over two empty selections (it grepped the wrong file); the comparison above was redone by hand with `cmp` and an md5 of the `ids:` line. Speed was not compared (prefill 511 ms / decode 15.26 tok/s on spark1, 466 ms / 15.71 tok/s on spark2, both with other jobs on the box).
 
 ## CI: `bad_decode_row_fails_only_its_request`
 
@@ -92,7 +100,7 @@ CI on the PR is green. The CUDA/HIP GPU tests are skipped there as before (no GP
 
 ## Fleet use and downtime
 
-* Jobs (fleetq): endor #3604, #3605, #3606, #3694, #3735; tatooine #3588, #3591, #3595, #3736, #3737; spark1 #3677, #3682, #3688, #3689 (nvcc experiments, 1 to 5 min, vLLM up, non-exclusive); others pending (see CUDA).
+* Jobs (fleetq): endor #3604, #3605, #3606, #3694, #3735; tatooine #3588, #3591, #3595, #3736, #3737; spark1 #3677, #3682, #3688, #3689 (nvcc experiments, 1 to 5 min, vLLM up, non-exclusive), #3797 (repro builds, deploy, pack); spark2 #3732 (repro builds, SASS, deploy, M5 replay), #3872 (failed on the model path), #3880 (replay). Dropped or released before running: #3578, #3586, #3590, #3580, #3654, #3697, #3698, #3731, #3734 (client killed by another agent, requeued as #3797).
 * tatooine radiance down (taken down only for the GPU smoke, EXIT trap restores, waits for `/v1/models`): 15 s, 23 s, 33 s = 71 s in 3 windows (`raw/downtime.log`); the longest was 33 s, well inside the 30 min cap. The builds ran with radiance up (CPU only).
 * No Spark vLLM taken down by this lane.
 
