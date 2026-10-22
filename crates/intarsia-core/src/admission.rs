@@ -107,10 +107,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             let mut hs2 = hs.clone();
             // `intermediate` is 0 for MoE-only checkpoints (no dense FFN, e.g. Qwen3.6-35B-A3B): no dense width to sweep.
-            if op == Op::SiluGlu && !quick && cfg.intermediate > 0 {
+            if matches!(op, Op::SiluGlu | Op::GeluGlu) && !quick && cfg.intermediate > 0 {
                 hs2.push(cfg.intermediate);
             }
             for &r in rows {
@@ -949,7 +949,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
     // the signatures this builder was written for; an op whose arity changed falls back to the
     // kernel's own sweep instead of being graded on a case that does not match what the kernel gets
     let known = match call.op {
-        Op::Embedding | Op::RmsNorm | Op::Add | Op::QkNorm | Op::Matmul | Op::Logits | Op::SiluGlu => (2, 1),
+        Op::Embedding | Op::RmsNorm | Op::Add | Op::QkNorm | Op::Matmul | Op::Logits | Op::SiluGlu | Op::GeluGlu => (2, 1),
         Op::RmsNormAdd => (3, 2),
         Op::Rope | Op::KvAppend | Op::Argmax => (1, 1),
         Op::AttnPrefill | Op::AttnDecode => (3, 1),
@@ -973,7 +973,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
             i[1].shape[1],
             i[1].dtype
         ),
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             format!("R={} H={} {} off={}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype, a.w_offset)
         }
         Op::QkNorm => format!(
@@ -1127,7 +1127,7 @@ pub fn case_from_call(call: &crate::ops::OpCall, caps: &ShapeCaps, rng: &mut Spl
                 attrs: a.clone(),
             }
         }
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             let (r, h, dt) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype);
             let x = rand_t(rng, dt, &[r, h], 1.0);
             let (inputs, outputs) = match op {

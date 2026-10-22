@@ -85,6 +85,12 @@ pub fn run(call: &OpCall) -> Result<()> {
                 }
                 out.extend_from_slice(&table[id as usize * h..(id as usize + 1) * h]);
             }
+            if a.scale != 1.0 {
+                // output multiplier (Gemma embedding scale): one rounding of f32(row) * scale
+                for v in out.iter_mut() {
+                    *v = (*v as f32 * a.scale) as f64;
+                }
+            }
             wr(&o[0], &out)
         }
         Op::RmsNorm | Op::QkNorm => {
@@ -104,6 +110,10 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::Add => {
             let x = rd(&i[0])?;
             let y = rd(&i[1])?;
+            if a.scale != 1.0 {
+                // output multiplier (Gemma layer_scalar): one rounding of f32(a + b) * scale
+                return wr(&o[0], &x.iter().zip(&y).map(|(p, q)| ((p + q) as f32 * a.scale) as f64).collect::<Vec<_>>());
+            }
             wr(&o[0], &x.iter().zip(&y).map(|(p, q)| p + q).collect::<Vec<_>>())
         }
         Op::Rope => {
@@ -111,19 +121,20 @@ pub fn run(call: &OpCall) -> Result<()> {
             let x = rd(&i[0])?;
             // partial rotary: only the first `rd_` values of each head rotate, the rest pass through
             let rd_ = if a.rotary_dim == 0 { d } else { a.rotary_dim };
-            let half = rd_ / 2;
+            // proportional rope: the angles cover the first `rd_ / 2` pairs (j, j + d/2), exponent denominator is the full head dim
+            let (half, stride, denom) = if a.rope_prop { (rd_ / 2, d / 2, d) } else { (rd_ / 2, rd_ / 2, rd_) };
             let mut out = x.clone();
             for ti in 0..t {
                 let pos = (a.pos0 + ti) as f64;
                 for h in 0..n {
                     let base = (ti * n + h) * d;
                     for k in 0..half {
-                        let ang = pos * (a.theta as f64).powf(-2.0 * k as f64 / rd_ as f64);
+                        let ang = pos * (a.theta as f64).powf(-2.0 * k as f64 / denom as f64);
                         let (s, c) = ang.sin_cos();
                         // narrowing cos/sin to f32 like every real kernel does with its tables
                         let (s, c) = (s as f32 as f64, c as f32 as f64);
-                        out[base + k] = x[base + k] * c - x[base + k + half] * s;
-                        out[base + k + half] = x[base + k + half] * c + x[base + k] * s;
+                        out[base + k] = x[base + k] * c - x[base + k + stride] * s;
+                        out[base + k + stride] = x[base + k + stride] * c + x[base + k] * s;
                     }
                 }
             }
@@ -181,11 +192,13 @@ pub fn run(call: &OpCall) -> Result<()> {
             let mut out = vec![0f64; t * n * d];
             for ti in 0..t {
                 let visible = a.pos0 + ti + 1;
+                // sliding window: the last `window` keys including the query's own position (0 = all)
+                let start = if a.window > 0 { visible.saturating_sub(a.window) } else { 0 };
                 for h in 0..n {
                     let kvh = h / group;
                     let qrow = &q[(ti * n + h) * d..(ti * n + h + 1) * d];
-                    let mut sc = Vec::with_capacity(visible);
-                    for j in 0..visible {
+                    let mut sc = Vec::with_capacity(visible - start);
+                    for j in start..visible {
                         let kr = &kc[(kvh * cap + j) * d..(kvh * cap + j + 1) * d];
                         let mut s = 0.0;
                         for e in 0..d {
@@ -196,10 +209,10 @@ pub fn run(call: &OpCall) -> Result<()> {
                     let mx = sc.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
                     let ex: Vec<f64> = sc.iter().map(|s| (s - mx).exp()).collect();
                     let den: f64 = ex.iter().sum();
-                    for j in 0..visible {
+                    for j in start..visible {
                         let vr = &vc[(kvh * cap + j) * d..(kvh * cap + j + 1) * d];
                         for e in 0..d {
-                            out[(ti * n + h) * d + e] += ex[j] / den * vr[e];
+                            out[(ti * n + h) * d + e] += ex[j - start] / den * vr[e];
                         }
                     }
                 }
@@ -210,6 +223,11 @@ pub fn run(call: &OpCall) -> Result<()> {
             let g = rd(&i[0])?;
             let u = rd(&i[1])?;
             wr(&o[0], &g.iter().zip(&u).map(|(g, u)| g / (1.0 + (-g).exp()) * u).collect::<Vec<_>>())
+        }
+        Op::GeluGlu => {
+            let g = rd(&i[0])?;
+            let u = rd(&i[1])?;
+            wr(&o[0], &g.iter().zip(&u).map(|(g, u)| intarsia_core::quant::reference::gelu_tanh(*g) * u).collect::<Vec<_>>())
         }
         Op::Argmax => {
             let (r, v) = (i[0].shape[0], i[0].shape[1]);
