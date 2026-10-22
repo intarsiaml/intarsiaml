@@ -1,0 +1,4 @@
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/fx5/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 10.46s
+-rwxrwxr-x 2 nvidia nvidia 52520144 Oct 22 03:07 /home/nvidia/intarsia-decfuse/fx5/target/acc/release/intarsia

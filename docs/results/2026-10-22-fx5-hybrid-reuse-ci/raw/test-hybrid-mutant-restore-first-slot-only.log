@@ -12,13 +12,13 @@ warning: value assigned to `off` is never read
    Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
    Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
 warning: `intarsia-core` (lib) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.25s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.44s
      Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
 
 running 11 tests
 test layer_kinds_follow_the_config ... ok
-test one_shot_prefill_matches_hf ... ok
 test argmax_decode_path_agrees ... ok
+test one_shot_prefill_matches_hf ... ok
 test failed_forward_resets_recurrent_state ... ok
 test recurrent_snapshots_restore_exactly ... FAILED
 test prefill_then_token_by_token_decode_matches_hf ... ok
@@ -69,6 +69,6 @@ failures:
     hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind
     recurrent_snapshots_restore_exactly
 
-test result: FAILED. 7 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: FAILED. 7 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
 
 error: test failed, to rerun pass `-p intarsia-models --test hybrid`

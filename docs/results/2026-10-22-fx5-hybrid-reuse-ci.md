@@ -78,7 +78,9 @@ restore (`--reuse-exact`, default on) and the CI test of section 1. Verification
 
 ## 4. Verification with the recipe tolerance
 
-RESULT_PLACEHOLDER
+fleetq #3869 (rebuilt with the recipe values; `raw/reuse-recipe-c1024.log`, `raw/reuse-recipe-c2048.log`): `accuracy --mode reuse --reuse-require-all` on the same golden prints
+`stream tolerance (fixed, recipe qwen3_5_moe): 5.1 nats, KL 1e-1` (0.12) and, at both chunks, `5 prompt(s) judged, 0 skipped` and `prefix-reuse gate: PASS` (exit 0). At chunk 1024 the same
+run with the built-in constants FAILED (section 3). `cargo test -p intarsia-cli` (spark1, #3870): 141 passed incl. `the_reuse_tolerance_is_a_fixed_constant_...`, which now pins the recipe value.
 
 ## 5. Commands and jobs
 
