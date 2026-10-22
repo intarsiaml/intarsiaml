@@ -1,0 +1,52 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 0 of 11764 rows lie inside a system or user turn and are not scored by the KL floor
+golden: vllm-gsm24-top20.safetensors (24 prompts, 11764 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.5", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2637824", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1771", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["gsm200.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: a3: vLLM guidance launch flags: modelopt_fp4, fp8 KV, prefix caching, max-num-seqs 2
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 542; prompts spanning more than one chunk: 0/24
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 180 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+gsm0                 495   495    93.33   5.419e-2   5.383e-2   5.383e-2    2.544e0   0.0106   0.0099    89.13     6/495      0
+gsm1                 457   457    93.44   4.277e-2   4.267e-2   4.267e-2    1.984e0   0.0114   0.0109    88.88     2/457      0
+gsm2                 488   488    93.65   3.727e-2   3.684e-2   3.684e-2   9.349e-1   0.0112   0.0104    89.06     2/488      0
+gsm3                 466   466    95.06   4.164e-2   4.151e-2   4.151e-2    3.765e0   0.0103   0.0097    89.48     6/466      0
+gsm4                 542   542    93.73   6.228e-2   6.319e-2   6.319e-2    9.050e0   0.0105   0.0119    89.08     6/542      0
+gsm5                 485   485    93.61   4.568e-2   4.616e-2   4.616e-2    2.797e0   0.0097   0.0094    88.99     2/485      0
+gsm6                 471   471    93.63   5.584e-2   5.553e-2   5.553e-2    5.860e0   0.0101   0.0097    88.87     6/471      0
+gsm7                 500   500    94.00   4.313e-2   4.290e-2   4.290e-2    1.742e0   0.0110   0.0107    89.76     6/500      0
+gsm8                 535   535    93.27   4.905e-2   5.021e-2   5.021e-2    2.190e0   0.0097   0.0111    89.91     2/535      0
+gsm9                 491   491    93.48   3.691e-2   3.659e-2   3.659e-2    1.081e0   0.0097   0.0089    89.57     6/491      0
+gsm10                491   491    93.89   4.127e-2   4.098e-2   4.098e-2    3.438e0   0.0125   0.0116    89.49     2/491      0
+gsm11                495   495    93.74   5.685e-2   5.622e-2   5.622e-2    3.392e0   0.0107   0.0098    89.78     6/495      0
+gsm12                498   498    93.37   4.531e-2   4.629e-2   4.629e-2   8.666e-1   0.0100   0.0106    89.32     6/498      0
+gsm13                488   488    94.88   4.015e-2   3.949e-2   3.949e-2    1.280e0   0.0116   0.0112    89.96     6/488      0
+gsm14                483   483    94.20   4.283e-2   4.290e-2   4.290e-2    1.867e0   0.0111   0.0107    89.69     6/483      0
+gsm15                525   525    93.71   3.567e-2   3.534e-2   3.534e-2    1.166e0   0.0151   0.0152    89.45     2/525      0
+gsm16                484   484    92.77   6.191e-2   6.179e-2   6.179e-2    6.513e0   0.0117   0.0109    89.09     6/484      0
+gsm17                488   488    95.49   4.196e-2   4.447e-2   4.447e-2    1.663e0   0.0108   0.0115    89.26     2/488      0
+gsm18                459   459    93.68   4.118e-2   4.063e-2   4.063e-2    2.632e0   0.0119   0.0109    89.50     6/459      0
+gsm19                496   496    94.15   5.057e-2   5.004e-2   5.004e-2    4.187e0   0.0097   0.0089    89.03     2/496      0
+gsm20                494   494    94.74   4.392e-2   4.363e-2   4.363e-2    2.490e0   0.0107   0.0100    89.35     6/494      0
+gsm21                476   476    94.33   3.798e-2   3.759e-2   3.759e-2    1.993e0   0.0118   0.0114    89.12     6/476      0
+gsm22                486   486    93.83   4.489e-2   4.468e-2   4.468e-2    4.277e0   0.0103   0.0097    90.25     2/486      0
+gsm23                471   471    94.06   4.006e-2   4.032e-2   4.032e-2    1.200e0   0.0115   0.0106    89.47     2/471      0
+OVERALL                  11764    93.91   4.565e-2   4.568e-2   4.568e-2    9.050e0   0.0110   0.0107    89.40      0.9%      0
+prefill floor [4bit]: top-1 (all rows) 93.91% (not gated for this class) ok | 21-way KL (scored rows, n=11764) 4.568e-2 (need <= 3.0e-2) FAIL [all rows, n=11764: 4.568e-2, reported only] | tail mass (all rows) ours 0.0107 vs ref 0.0110, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.568e-2 FAIL
+greedy-match [prefill]: mean 0.9% of positions before the first argmax divergence, worst prompt 0.4% (informational)
+
+wrote self-golden cuda-main-fp8static-gsm24.safetensors (top-20 rows of modes prefill for 24 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
