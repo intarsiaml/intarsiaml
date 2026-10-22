@@ -3,13 +3,14 @@
 #   ssh -n spark2 "export FLEETQ_JOB=$FLEETQ_JOB STEPS='probe tests'; bash ~/intarsia-decfuse/s1-dev/scripts/s1/remote.sh"
 # Steps (STEPS, space separated; default all non-window steps in this order):
 #   probe   f32x2 packed-fp32 probe (kernels/cuda_checks/f32x2_probe.cu): SASS + throughput + bitwise
-#   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/acc
+#   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/test
 #   bench   GEMM microbenchmark at the 35B prefill shapes: every matmul_fp8_gemm_reg schedule (INTARSIA_CUDA_FP8_REG_CFG
 #           0..6), then the new nvfp4 / pair / GLU kernels against the calls they replace (quantmoe bench_wq_prefill_shapes)
 #   ktest   intarsia kernels test --backend cuda (admission, dev binary)
-#   prof    nsys over a ~4k-token 35B prefill, base and dev (kernel ranking + launch gaps, rank.txt / gaps.txt)
-#   ids     greedy ids base vs dev: 35B ~1.5k-token (256 tokens) and ~4k-token (64 tokens) prompts, 8B the same; 8B plan
-#   acc     35B KL21 short + long goldens (dev must reproduce base's digits), prefix-reuse gate incl. chat_reuse_4k
+#   prof    nsys over a ~4k-token 35B prefill per arm (kernel ranking + launch gaps, rank.txt)
+#   ids     greedy ids per arm vs base: 35B ~1.2k-token (256 tokens) and ~3.4k-token (64 tokens) prompts, 8B the same; plans
+#   acc     35B KL21 short + long goldens per arm (must reproduce base's digits), prefix-reuse gate incl. chat_reuse_4k
+# Arms (ARMS, space separated name:tree[:ENV=V,ENV=V]): default 'base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1'.
 # Output: ~/intarsia-decfuse/out/s1/<step>/...
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
@@ -23,6 +24,10 @@ S=$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; L=$GD/qwen36-35b-a3b-nvfp4-vl
 CORPUS=$P/s1-dev/tools/prompts/corpus_docs.txt
 STEPS=${STEPS:-probe tests bench ktest prof ids acc}
 want() { [[ " $STEPS " == *" $1 "* ]]; }
+read -r -a ARMV <<< "${ARMS:-base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1}"
+arm_tree() { echo "$1" | cut -d: -f2; }
+arm_env() { local e; e=$(echo "$1" | cut -s -d: -f3); echo "${e:-INTARSIA_X=0}" | tr ',' ' '; }
+arm_name() { echo "$1" | cut -d: -f1; }
 bin() { echo $P/$1/target/acc/release/intarsia; }
 memgb() { echo $(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); }
 log() { echo "$(date +%T) $*" | tee -a $O/steps.log; }
@@ -45,7 +50,7 @@ fi
 
 if want tests; then
   d=$O/tests; mkdir -p $d; cd $P/s1-dev
-  CT="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda"
+  CT="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda"
   for t in "--lib" "--test fp8_gemm_reg" "--test nvfp4_gemm_reg" "--test quantmoe"; do
     eval "env $CT $t -- --test-threads=1" < /dev/null > "$d/test-${t//[ -]/}.log" 2>&1
     log "test $t exit $?: $(grep -E 'test result|panicked' "$d/test-${t//[ -]/}.log" | head -3 | tr '\n' '|')"
@@ -59,7 +64,7 @@ fi
 
 if want bench; then
   d=$O/bench; mkdir -p $d; cd $P/s1-dev
-  B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
+  B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
   for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
     eval "env INTARSIA_CUDA_FP8_REG_CFG=$c INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg $B" < /dev/null > $d/cfg$c.log 2>&1
     log "bench cfg $c exit $?: $(grep -E 'per-chunk total' $d/cfg$c.log | tr -s ' ' | tr '\n' '|')"
@@ -77,58 +82,66 @@ fi
 
 if want prof; then
   NSYS=$(ls /opt/nvidia/nsight-systems*/*/bin/nsys /usr/local/cuda/bin/nsys 2>/dev/null | head -1)
-  for t in ${PROF_TREES:-s1-base s1-dev}; do
+  for a in "${ARMV[@]}"; do
+    t=$(arm_tree $a); n=$(arm_name $a)
     for chars in ${CHARS:-14000}; do
-      d=$O/prof-$t-$chars; rm -rf $d; mkdir -p $d; head -c $chars $CORPUS > $d/prompt.txt
+      d=$O/prof-$n-$chars; rm -rf $d; mkdir -p $d; head -c $chars $CORPUS > $d/prompt.txt
       (( $(memgb) >= 34 )) || { log "prof ABORT: memory $(memgb) GB"; break 2; }
-      $NSYS profile -t cuda --force-overwrite true -o $d/nsys $(bin $t) generate -m $M35 --backend cuda --mem-budget 29 --max-seq 20480 \
+      env $(arm_env $a) $NSYS profile -t cuda --force-overwrite true -o $d/nsys $(bin $t) generate -m $M35 --backend cuda --mem-budget 29 --max-seq 20480 \
         --prefill-chunk 2048 --profile-every 0 --max-tokens 1 -p "$(cat $d/prompt.txt)" < /dev/null > $d/nsys.out 2> $d/nsys.err
-      log "prof $t $chars: $(grep -aE 'finish=|prompt' $d/nsys.err | head -1 | cut -c1-200)"
+      log "prof $n $chars: $(grep -aE 'finish=' $d/nsys.err | head -1 | cut -c1-200)"
       $NSYS stats -r cuda_gpu_kern_sum,cuda_gpu_trace -f csv --force-export=true -o $d/kern $d/nsys.nsys-rep < /dev/null > $d/stats.log 2>&1 || tail -3 $d/stats.log
       rm -f $d/nsys.sqlite
       python3 $P/s1-dev/scripts/s1/rank.py $d/kern_cuda_gpu_kern_sum.csv $d/kern_cuda_gpu_trace.csv > $d/rank.txt 2>&1
-      head -28 $d/rank.txt | tee -a $O/steps.log
+      head -30 $d/rank.txt | tee -a $O/steps.log
     done
   done
 fi
 
-gen() { # gen <tag> <tree> <model> <prompt chars> <tokens> [env]
-  local tag=$1 tree=$2 m=$3 chars=$4 n=$5 e=${6:-INTARSIA_X=0}
-  env $e timeout 900 $(bin $tree) generate -m $m --backend cuda --mem-budget 30 --max-seq 20480 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
+gen() { # gen <tag> <tree> <model> <prompt chars> <tokens> <env words>
+  local tag=$1 tree=$2 m=$3 chars=$4 n=$5; shift 5
+  env "$@" timeout 900 $(bin $tree) generate -m $m --backend cuda --mem-budget 30 --max-seq 20480 --chat --no-think --profile-every 0 --ignore-eos --show-ids \
     -p "$(head -c $chars $CORPUS)" --max-tokens $n < /dev/null > $O/ids/gen-$tag.out 2> $O/ids/gen-$tag.err
   grep -a '^ids:' $O/ids/gen-$tag.err > $O/ids/gen-$tag.ids
   log "gen $tag: $(grep -aE 'finish=' $O/ids/gen-$tag.err | head -1 | cut -c1-160)"
 }
 if want ids; then
   mkdir -p $O/ids
-  for t in s1-base s1-dev; do
-    gen 35s-$t $t $M35 5000 256; gen 35l-$t $t $M35 14000 64
-    gen 8s-$t $t $M8 5000 256; gen 8l-$t $t $M8 14000 64
-    timeout 300 $(bin $t) plan show --backend cuda --model $M8 --max-seq 4096 --mem-budget 30 --json < /dev/null > $O/ids/plan8-$t.json 2> $O/ids/plan8-$t.err
-    timeout 300 $(bin $t) plan show --backend cuda --model $M35 --max-seq 20480 --mem-budget 30 < /dev/null > $O/ids/plan35-$t.txt 2> $O/ids/plan35-$t.err
+  for a in "${ARMV[@]}"; do
+    t=$(arm_tree $a); n=$(arm_name $a); e=$(arm_env $a)
+    gen 35s-$n $t $M35 5000 256 $e; gen 35l-$n $t $M35 14000 64 $e
+    gen 8s-$n $t $M8 5000 256 $e; gen 8l-$n $t $M8 14000 64 $e
+    env $e timeout 300 $(bin $t) plan show --backend cuda --model $M8 --max-seq 4096 --mem-budget 30 --json < /dev/null > $O/ids/plan8-$n.json 2> $O/ids/plan8-$n.err
+    env $e timeout 300 $(bin $t) plan show --backend cuda --model $M35 --max-seq 20480 --mem-budget 30 < /dev/null > $O/ids/plan35-$n.txt 2> $O/ids/plan35-$n.err
   done
-  [[ -n "${IDS_EXTRA_ENV:-}" ]] && { gen 35s-dev-off s1-dev $M35 5000 256 "$IDS_EXTRA_ENV"; gen 35l-dev-off s1-dev $M35 14000 64 "$IDS_EXTRA_ENV"; }
-  for p in 35s 35l 8s 8l; do
-    if cmp -s $O/ids/gen-$p-s1-base.ids $O/ids/gen-$p-s1-dev.ids && [[ -s $O/ids/gen-$p-s1-base.ids ]]; then r=identical; else r=DIFFER; fi
-    log "ids $p base vs dev: $r ($(tr ',' '\n' < $O/ids/gen-$p-s1-dev.ids | wc -l) ids)"
+  b=$(arm_name ${ARMV[0]})
+  for a in "${ARMV[@]:1}"; do
+    n=$(arm_name $a)
+    for p in 35s 35l 8s 8l; do
+      if cmp -s $O/ids/gen-$p-$b.ids $O/ids/gen-$p-$n.ids && [[ -s $O/ids/gen-$p-$b.ids ]]; then r=identical; else r=DIFFER; fi
+      log "ids $p $b vs $n: $r ($(tr ',' '\n' < $O/ids/gen-$p-$n.ids | wc -l) ids)"
+    done
+    cmp -s $O/ids/plan8-$b.json $O/ids/plan8-$n.json && log "8B plan $b vs $n: byte-identical ($(wc -c < $O/ids/plan8-$n.json) B)" || log "8B plan $b vs $n: DIFFER"
   done
-  cmp -s $O/ids/plan8-s1-base.json $O/ids/plan8-s1-dev.json && log "8B plan: byte-identical ($(wc -c < $O/ids/plan8-s1-dev.json) B)" || log "8B plan: DIFFER"
 fi
 
-acc() { # acc <tag> <tree> <golden> [env]
-  local tag=$1 tree=$2 g=$3 e=${4:-INTARSIA_X=0}; local t0=$(date +%s)
-  env $e timeout 900 $(bin $tree) accuracy --model $M35 --backend cuda --golden $g --mode prefill --max-seq 16384 --mem-budget 40 \
+acc() { # acc <tag> <tree> <golden> <env words>
+  local tag=$1 tree=$2 g=$3; shift 3; local t0=$(date +%s)
+  env "$@" timeout 900 $(bin $tree) accuracy --model $M35 --backend cuda --golden $g --mode prefill --max-seq 16384 --mem-budget 40 \
     --prefill-chunk 2048 --allow-dirty < /dev/null > $O/acc/acc-$tag.log 2>&1
   log "acc $tag exit $? $(( $(date +%s) - t0 )) s: $(grep -aE '^prefill floor|KL21|top-1' $O/acc/acc-$tag.log | head -2 | cut -c1-160 | tr '\n' '|')"
 }
-reuse() { # reuse <tag> <tree> [env]
-  local tag=$1 tree=$2 e=${3:-INTARSIA_X=0}; local t0=$(date +%s)
-  env $e timeout 900 $(bin $tree) accuracy --model $M35 --backend cuda --golden $L --mode reuse --max-seq 16384 --mem-budget 40 --prefill-chunk 2048 --allow-dirty < /dev/null > $O/acc/reuse-$tag.log 2>&1
+reuse() { # reuse <tag> <tree> <env words>
+  local tag=$1 tree=$2; shift 2; local t0=$(date +%s)
+  env "$@" timeout 900 $(bin $tree) accuracy --model $M35 --backend cuda --golden $L --mode reuse --max-seq 16384 --mem-budget 40 --prefill-chunk 2048 --allow-dirty < /dev/null > $O/acc/reuse-$tag.log 2>&1
   log "reuse $tag exit $? $(( $(date +%s) - t0 )) s: $(grep -aE '^chat_reuse_4k|prefix-reuse gate' $O/acc/reuse-$tag.log | cut -c1-90 | tr -s ' ' | tr '\n' '|')"
 }
 if want acc; then
   mkdir -p $O/acc
   (( $(memgb) >= 44 )) || log "acc WARNING: MemAvailable $(memgb) GB"
-  for t in ${ACC_TREES:-s1-dev s1-base}; do acc short-$t $t $S; acc long-$t $t $L; reuse $t $t; done
+  for a in "${ARMV[@]}"; do
+    t=$(arm_tree $a); n=$(arm_name $a); e=$(arm_env $a)
+    acc short-$n $t $S $e; acc long-$n $t $L $e; reuse $n $t $e
+  done
 fi
 log "== remote.sh done"
