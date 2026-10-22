@@ -17,7 +17,7 @@ rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $
 STEPS=${STEPS:-base,dev}
 has() { [[ ",$STEPS," == *",$1,"* ]]; }
 seed() {  # seed the registry-dependency cache from an existing tree on the box
-  rsh "mkdir -p $R/$1; test -d $R/$1/target || cp -a $R/tp2-base/target $R/$1/target"
+  rsh "mkdir -p $R/$1; test -d $R/$1/target || cp -a $R/${SEED_TREE:-tp2-base}/target $R/$1/target"
 }
 touch_tree() { rsh "cd $R/$1 && find . -path ./target -prune -o -type f \( -name '*.rs' -o -name '*.cu' -o -name '*.cuh' -o -name '*.h' -o -name '*.toml' \) -print0 | xargs -0 touch"; }
 build() {  # build <tree> <src dir> <stamp>
@@ -36,7 +36,7 @@ if has base; then
 fi
 if has dev; then
   build s1-dev "$REPO" "$("$REPO/scripts/tree-stamp.sh")"
-  rsh "cd $R/s1-dev && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=target/test cargo test --release -p intarsia-backend-cuda --no-run 2>&1 | grep -E '^error|Finished' | tail -3" || true
+  rsh "cd $R/s1-dev && CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=target/acc cargo test --release -p intarsia-backend-cuda --no-run 2>&1 | grep -E '^error|Finished' | tail -3" || true
 fi
 for t in s1-base s1-dev; do
   rsh "test -x $R/$t/target/acc/release/intarsia && echo \"$t: pair=\$(grep -c ik_matmul_fp8_pair_gemm_reg $R/$t/target/acc/release/intarsia) nvfp4reg=\$(grep -c ik_matmul_nvfp4_glu_gemm $R/$t/target/acc/release/intarsia) \$($R/$t/target/acc/release/intarsia --version 2>&1 | head -1)\"" || true

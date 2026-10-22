@@ -3,7 +3,7 @@
 #   ssh -n spark2 "export FLEETQ_JOB=$FLEETQ_JOB STEPS='probe tests'; bash ~/intarsia-decfuse/s1-dev/scripts/s1/remote.sh"
 # Steps (STEPS, space separated; default all non-window steps in this order):
 #   probe   f32x2 packed-fp32 probe (kernels/cuda_checks/f32x2_probe.cu): SASS + throughput + bitwise
-#   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/test
+#   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/acc
 #   bench   GEMM microbenchmark at the 35B prefill shapes: every matmul_fp8_gemm_reg schedule (INTARSIA_CUDA_FP8_REG_CFG
 #           0..6), then the new nvfp4 / pair / GLU kernels against the calls they replace (quantmoe bench_wq_prefill_shapes)
 #   ktest   intarsia kernels test --backend cuda (admission, dev binary)
@@ -45,7 +45,7 @@ fi
 
 if want tests; then
   d=$O/tests; mkdir -p $d; cd $P/s1-dev
-  CT="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda"
+  CT="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda"
   for t in "--lib" "--test fp8_gemm_reg" "--test nvfp4_gemm_reg" "--test quantmoe"; do
     eval "env $CT $t -- --test-threads=1" < /dev/null > "$d/test-${t//[ -]/}.log" 2>&1
     log "test $t exit $?: $(grep -E 'test result|panicked' "$d/test-${t//[ -]/}.log" | head -3 | tr '\n' '|')"
@@ -59,7 +59,7 @@ fi
 
 if want bench; then
   d=$O/bench; mkdir -p $d; cd $P/s1-dev
-  B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
+  B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/acc INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
   for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
     eval "env INTARSIA_CUDA_FP8_REG_CFG=$c INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg $B" < /dev/null > $d/cfg$c.log 2>&1
     log "bench cfg $c exit $?: $(grep -E 'per-chunk total' $d/cfg$c.log | tr -s ' ' | tr '\n' '|')"
