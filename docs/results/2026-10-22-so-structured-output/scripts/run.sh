@@ -7,8 +7,8 @@
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 OUT=${1:?out dir}
-ROUNDS=${ROUNDS:-3}
-REPS=${REPS:-1}
+ROUNDS=${ROUNDS:-2}
+REPS=${REPS:-2}
 H=${0:A:h}
 MODEL=${MODEL:-/Users/josef/models/Qwen3-8B}
 GGUF=${GGUF:-/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf}
@@ -48,7 +48,7 @@ SS=(uv run --script $H/ssbench.py)
 echo "== profile $(date)" | tee -a $OUT/job.log
 serve prof $HEAD INTARSIA_CONSTRAIN_PROFILE=1 && {
   warm
-  ${SS[@]} speed --url http://127.0.0.1:$PORT --reps 3 --label prof --out $OUT/prof-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
+  ${SS[@]} speed --url http://127.0.0.1:$PORT --reps 2 --label prof --out $OUT/prof-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
 }
 stop
 
@@ -60,7 +60,7 @@ for r in {1..$ROUNDS}; do
     serve $arm-r$r $bin || continue
     warm
     ${SS[@]} speed --url http://127.0.0.1:$PORT --reps $REPS --label $arm-r$r --out $OUT/ab-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
-    (( r <= 2 )) && ${SS[@]} identity --url http://127.0.0.1:$PORT --out $OUT/identity-$arm-r$r.json < /dev/null > $OUT/identity-$arm-r$r.log 2>&1
+    (( r <= 1 )) && ${SS[@]} identity --url http://127.0.0.1:$PORT --out $OUT/identity-$arm-r$r.json < /dev/null > $OUT/identity-$arm-r$r.log 2>&1
     stop
   done
 done

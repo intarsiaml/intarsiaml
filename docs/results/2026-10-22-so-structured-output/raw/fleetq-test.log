@@ -4,3 +4,18 @@ fleetq: #4189 waiting (#8 in line): in line behind #4160 "so: constrained decode
 fleetq:   #4160 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4160 set, or it will wait for #4160 to be released.
 fleetq: #4189 waiting (#7 in line): in line behind #4163 "dashcntrl bl46+47 post-merge e2e (main 55e6409): studio.sh, mobile.sh" (claude-121fea2b) on endor
 fleetq: #4189 waiting (#4 in line): in line behind #4175 "fx4 final A: onboard quick x2 (double-rounded, min_top1), ~12 min" (claude-f31ccf91) on endor
+fleetq: #4189 waiting (#3 in line): endor is held exclusively by #4175 "fx4 final A: onboard quick x2 (double-rounded, min_top1), ~12 min" (claude-f31ccf91); then in line behind #4176 "fx4 final B: Qwen3 Metal no-op vs main a6217969, ~40 min" (claude-f31ccf91) on endor
+fleetq: #4189 waiting (#2 in line): endor is held exclusively by #4176 "fx4 final B: Qwen3 Metal no-op vs main a6217969, ~40 min" (claude-f31ccf91); then in line behind #4184 "gc: Metal 35B acc-4k qualify" (claude-f31ccf91-gc) on endor
+fleetq: #4189 waiting (#1 in line): needs 16 GB on endor; 15 GB free of 110
+fleetq: #4189 running on endor: zsh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/test.sh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/raw/test
+== main digests + microbench Thu Oct 22 10:19:56 EDT 2026
+thread 'structured::tests::constrained_step_phases' (161587035) panicked at crates/intarsia-server/src/structured.rs:1302:76:
+FAILED
+digest nested c2f2146cc7161b78
+digest enum 29c3e9c34bcf5e37
+digest array 0489a17db0ea47d8
+thread 'structured::tests::mask_digests_are_stable' (161587861) panicked at crates/intarsia-server/src/structured.rs:1018:9:
+FAILED
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.84s
+no digests from main (3); head digest test will fail
+== head structured + microbench Thu Oct 22 10:20:11 EDT 2026
