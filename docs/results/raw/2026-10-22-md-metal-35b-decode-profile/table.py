@@ -34,15 +34,18 @@ groups = [  # name, roles, launches, bytes MB
     ('rmsnorm / rmsnorm_add (all layers)', ['rmsnorm_add (post)', 'rmsnorm_add (gdn)', 'rmsnorm_add (attn)', 'rmsnorm (first)'], 81, 0),
     ('attn qk_norm_rope_kv + gate_split + sigmoid_mul', ['attn qk_norm_rope_kv', 'attn gate_split', 'attn sigmoid_mul'], 30, 0),
     ('embedding + argmax', ['embedding', 'argmax'], 2, 0)]
+STEP = 8064.0  # us: cb1 GPU busy 7837 + idle between steps 227 (served trace); generate wall 8.05 ms
 rows = []; tot_l = 0; tot_us = 0; tot_mb = 0
 for name, roles, n, mb in groups:
     us = sum(cr[r][0] for r in roles) - c * n; k = sum(kr[r][0] for r in roles)
     rows.append((name, n, us, k, mb)); tot_l += n; tot_us += us; tot_mb += mb
 print(f'launch correction c = {c:.2f} us (ce1 attributed sum {csum:.0f} - cb1 GPU busy {cbusy:.0f}) / 764; roofline {ROOF:.0f} GB/s')
-print('| phase | launches / token | us / token | % of GPU busy | weight+KV MB / token | achieved GB/s | at-roofline us | excess us |')
+print('| phase | launches / token | us / token | % of step (8064 us) | weight+KV MB / token | achieved GB/s | at-roofline us | excess us |')
 print('|---|---:|---:|---:|---:|---:|---:|---:|')
 for name, n, us, k, mb in sorted(rows, key=lambda r: -r[2]):
     gbs = f'{mb / us * 1e3:.0f}' if mb and us > 0 else '-'
     ideal = mb / ROOF * 1e3 if mb else 0
-    print(f'| {name} | {n} | {us:.0f} | {us / tot_us * 100:.1f} % | {mb:.1f} | {gbs} | {ideal:.0f} | {us - ideal:.0f} |')
-print(f'| total | {tot_l} | {tot_us:.0f} | 100 % | {tot_mb:.0f} | {tot_mb / tot_us * 1e3:.0f} | {tot_mb / ROOF * 1e3:.0f} | {tot_us - tot_mb / ROOF * 1e3:.0f} |')
+    print(f'| {name} | {n} | {us:.0f} | {us / STEP * 100:.1f} % | {mb:.1f} | {gbs} | {ideal:.0f} | {us - ideal:.0f} |')
+print(f'| total | {tot_l} | {tot_us:.0f} | {tot_us / STEP * 100:.1f} % | {tot_mb:.0f} | {tot_mb / tot_us * 1e3:.0f} | {tot_mb / ROOF * 1e3:.0f} | {tot_us - tot_mb / ROOF * 1e3:.0f} |')
+print(f'| GPU idle between steps (feedback off: recurrent model) | - | 227 | {227 / STEP * 100:.1f} % | - | - | - | 227 |')
+print(f'| Host encode on the critical path (710-820 us per step overlapped with GPU) | - | ~0 | ~0 % | - | - | - | - |')

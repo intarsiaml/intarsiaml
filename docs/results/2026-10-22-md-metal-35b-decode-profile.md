@@ -6,9 +6,9 @@ All numbers below come from **exclusive** fleetq slots on endor (#4007, #4013, #
 
 ## Key findings
 
-1. **Decode on main is 124 tok/s, not 103.** Served (`bench speed`, 1k prompt, 128 tokens, 5 reps) 124.0-124.6 tok/s; `intarsia generate` 123.9-125.0 (6 runs, median 124.2). The "about 103" figure is the state before PR #78 (lane m35/sp-attn, `d1189e93`, split-KV decode attention for head_dim 256 / 8 q heads per kv head). In the same slot, interleaved, base `d99cfa73` (the base lane m35 sp-gemv measured) gives 101.2-103.4 tok/s (generate, 6 runs, median 102.9) and 102.5-103.1 served. The whole difference is `attn_decode`: 1939 us per token at base, 267 us now (section 4). The sp-gemv premise ("decode is 9.7 ms") was true for its base; main's step is **8.05 ms**.
+1. **Decode on main is 124 tok/s, not 103.** Served (`bench speed`, 1k prompt, 128 tokens, 5 reps) 124.0-124.6 tok/s; `intarsia generate` 123.9-125.0 (6 runs, median 124.2). The "about 103" figure is the pre-#78 state (PR #78, lane m35/sp-attn, `d1189e93`, split-KV decode attention for head_dim 256 / 8 q heads per kv head, merged as `551a743f`, 02:17 EDT). `97250baf` already contains #78 (`git merge-base --is-ancestor 551a743f 97250baf`), so 103 cannot be a measurement of `97250baf`; it is the number lane m35 sp-gemv measured on its base `d99cfa73`, which I reproduce at 102.9. In the same slot, interleaved, base `d99cfa73` (the base lane m35 sp-gemv measured) gives 101.2-103.4 tok/s (generate, 6 runs, median 102.9) and 102.5-103.1 served. The whole difference is `attn_decode`: 1939 us per token at base, 267 us now (section 4). The sp-gemv premise ("decode is 9.7 ms") was true for its base; main's step is **8.05 ms**.
 2. **The step is GPU-bound, not host-bound.** Per token: GPU busy 7.84 ms, GPU idle between steps 0.22-0.23 ms, idle inside a step 0.01 ms. CPU encode of all 764 dispatches takes 0.71-0.82 ms per step and is hidden behind the GPU (9 % duty). Served and `generate` have the same trace (served: busy 7840 us, idle 227 us), so the serving path adds nothing.
-3. **The step is 55 % of the byte roofline.** 2.40 GB of weights, KV and recurrent state stream per token (4.28 ms at 560 GB/s). GPU busy time is 7.84 ms. The 3.55 ms gap splits into about 1.9 ms of under-roofline streaming in the GEMV / MoE kernels and 1.67 ms of small kernels that move almost no bytes (21 % of GPU time, 383 of 764 launches).
+3. **The step is 55 % of the byte roofline, and most of the gap is fixed cost per launch.** 2.40 GB of weights, KV and recurrent state stream per token (4.28 ms at 560 GB/s); GPU busy time is 7.84 ms. The sp-gemv per-shape medians (exclusive slot, base `d99cfa73`) fit `time = 10.1 us + 2.0 us/MB` (500 GB/s at the margin) for the fp8 GEMVs (8192x2048 42.8 us, 4096x2048 27.1, 2048x4096 28.4, 512x2048 11.2). Every fp8 GEMV in this profile sits on that line (kernel mode: 44.5 us against 43.6 predicted for 8192x2048, 27.0 against 26.8, 28.7 against 26.8), and the routed expert kernels sit on or below it (gate/up 24.4 us against 29.0, down 16.9 against 19.5). So the 130 fp8 launches pay about 10 us each (1.3 ms of kernel-mode time) on top of a marginal rate near 500 GB/s; the only kernel above 560 GB/s is lm_head (587). The levers below are therefore launch-count work first, byte work second. 21 % of GPU time is 383 small launches that move almost no bytes.
 4. **No Metal comparator can load this model**, so there is no comparator tok/s (section 6).
 
 ## 1. Method
@@ -44,32 +44,34 @@ Wall time per step (`generate`, plain): 8.05 ms = 124.2 tok/s.
 
 Why the 0.23 ms gap exists: the next step is encoded about 120 us after the previous one ends. Device-side token feedback (T1, on by default on Metal) would remove it, but `Model::feedback_ok` (`crates/intarsia-core/src/model/feedback.rs`) requires `!st.has_recurrent()`, and 30 of the 40 layers are GatedDeltaNet, so the 35B never takes the feedback path.
 
-### Per-phase table (`ce1` per-launch GPU time, launch cost subtracted, % of GPU busy 7837 us)
+### Per-phase table (`ce1` per-launch GPU time, launch cost subtracted; % of the 8064 us step including the idle gap)
 
 Roofline 560 GB/s. "Excess" is measured minus bytes / 560 GB/s.
 
-| Phase | Launches / token | us / token | % of step GPU | MB / token | Achieved GB/s | At roofline us | Excess us |
+| Phase | Launches / token | us / token | % of step (8064 us) | MB / token | Achieved GB/s | At roofline us | Excess us |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| fp8 GEMV gdn qkv 8192x2048 + z 4096x2048 | 60 | 1743 | 22.2 % | 755 | 433 | 1348 | 395 |
-| MoE experts gate/up (8 of 256, NVFP4) | 40 | 926 | 11.8 % | 378 | 408 | 674 | 252 |
-| fp8 GEMV gdn out 2048x4096 | 30 | 855 | 10.9 % | 252 | 294 | 449 | 405 |
-| MoE experts down + weighted sum | 40 | 655 | 8.4 % | 189 | 288 | 337 | 318 |
-| Shared expert (gate, up, silu_glu, down; NVFP4) | 160 | 621 | 7.9 % | 71 | 114 | 126 | 495 |
-| lm_head NVFP4 248320x2048 | 1 | 487 | 6.2 % | 286 | 587 | 511 | -23 |
-| fp8 GEMV attn q+gate 8192x2048 + k, v 512x2048 | 30 | 450 | 5.7 % | 189 | 420 | 337 | 113 |
-| rmsnorm / rmsnorm_add (all layers) | 81 | 352 | 4.5 % | 0 | - | 0 | 352 |
-| MoE topk (256 experts, top 8) | 40 | 281 | 3.6 % | 0 | - | 0 | 281 |
-| gdn delta_rule (f32 state read + write) | 30 | 276 | 3.5 % | 126 | 456 | 225 | 51 |
-| fp8 GEMV attn o 2048x4096 | 10 | 271 | 3.5 % | 84 | 310 | 150 | 121 |
-| attn_decode split-KV (1k context, KV bf16 assumed) | 10 | 259 | 3.3 % | 20 | 79 | 37 | 223 |
-| MoE router + shared-gate pair (bf16 257x2048) | 40 | 162 | 2.1 % | 42 | 260 | 75 | 87 |
-| gdn gated rmsnorm + silu_glu | 60 | 111 | 1.4 % | 0 | - | 0 | 111 |
-| gdn conv | 30 | 103 | 1.3 % | 0 | - | 0 | 103 |
-| attn qk_norm_rope_kv + gate_split + sigmoid_mul | 30 | 98 | 1.3 % | 0 | - | 0 | 98 |
-| gdn a/b pair bf16 | 30 | 86 | 1.1 % | 8 | 92 | 14 | 72 |
-| MoE combine | 40 | 80 | 1.0 % | 0 | - | 0 | 80 |
-| embedding + argmax | 2 | 20 | 0.3 % | 0 | - | 0 | 20 |
-| **Total** | **764** | **7837** | 100 % | **2399** | **306** | **4283** | **3554** |
+| fp8 GEMV gdn qkv 8192x2048 + z 4096x2048 | 60 | 1743 | 21.6 % | 755.0 | 433 | 1348 | 395 |
+| MoE experts gate/up (8 of 256, nvfp4) | 40 | 926 | 11.5 % | 377.5 | 408 | 674 | 252 |
+| fp8 GEMV gdn out 2048x4096 | 30 | 855 | 10.6 % | 251.7 | 294 | 449 | 405 |
+| MoE experts down (8 of 256, nvfp4) | 40 | 655 | 8.1 % | 188.7 | 288 | 337 | 318 |
+| shared expert (gate, up, silu_glu, down; nvfp4) | 160 | 621 | 7.7 % | 70.8 | 114 | 126 | 495 |
+| lm_head nvfp4 248320x2048 | 1 | 487 | 6.0 % | 286.1 | 587 | 511 | -23 |
+| fp8 GEMV attn q+gate 8192x2048 + k, v 512x2048 | 30 | 450 | 5.6 % | 188.7 | 420 | 337 | 113 |
+| rmsnorm / rmsnorm_add (all layers) | 81 | 352 | 4.4 % | 0.0 | - | 0 | 352 |
+| MoE topk | 40 | 281 | 3.5 % | 0.0 | - | 0 | 281 |
+| gdn delta_rule (f32 state in + out) | 30 | 276 | 3.4 % | 125.8 | 456 | 225 | 51 |
+| fp8 GEMV attn o 2048x4096 | 10 | 271 | 3.4 % | 83.9 | 310 | 150 | 121 |
+| attn_decode split-KV (1k ctx) | 10 | 259 | 3.2 % | 20.5 | 79 | 37 | 223 |
+| MoE router+shared-gate pair (bf16 257x2048) | 40 | 162 | 2.0 % | 42.1 | 260 | 75 | 87 |
+| gdn gated rmsnorm + silu_glu | 60 | 111 | 1.4 % | 0.0 | - | 0 | 111 |
+| gdn conv | 30 | 103 | 1.3 % | 0.0 | - | 0 | 103 |
+| attn qk_norm_rope_kv + gate_split + sigmoid_mul | 30 | 98 | 1.2 % | 0.0 | - | 0 | 98 |
+| gdn a/b pair bf16 | 30 | 86 | 1.1 % | 7.9 | 92 | 14 | 72 |
+| MoE combine | 40 | 80 | 1.0 % | 0.0 | - | 0 | 80 |
+| embedding + argmax | 2 | 20 | 0.2 % | 0.0 | - | 0 | 20 |
+| **Total GPU busy** | 764 | 7837 | 97.2 % | 2399 | 306 | 4283 | 3554 |
+| GPU idle between steps (feedback off: recurrent model) | - | 227 | 2.8 % | - | - | - | 227 |
+| Host encode on the critical path (710-820 us per step overlapped with GPU) | - | ~0 | ~0 % | - | - | - | - |
 
 Groupings:
 
@@ -117,15 +119,18 @@ Baseline 8.05 ms per step (124.2 tok/s). Gains are estimates from the table, not
 
 | # | Lever | Evidence | Expected gain | Numerics |
 |---|---|---|---|---|
-| 1 | Re-pack the fp8 projections to 4-bit weights (opt-in) | fp8 GEMVs are 3319 us (42 %) and stream 1.28 GB at 386 GB/s; at 4 bits per weight (NVFP4: 0.5625 B) they stream 0.72 GB, about 1.9 ms if the GEMV rate holds, i.e. -1.4 ms | about +20 % (+25 tok/s) | **Changes numerics**: the checkpoint keeps these layers in FP8 on purpose (ModelOpt mixed precision); needs a KL21 / golden gate and would be opt-in only |
-| 2 | Cut launches: fuse the small kernels and fold elementwise work into neighbours | 383 launches, 1667 us (21 %) move almost no bytes; largest excess: rmsnorm / rmsnorm_add 352 us, topk 281 us, gdn conv + gated rmsnorm + silu 214 us, qk_norm_rope + gate_split + sigmoid 98 us, combine 80 us. HIP runs the same 35B decode in 375-415 plan launches after core-op fusion (docs/results/2026-10-19-core-op-fusion-p2.md); Metal registers none of those fused ops (`fused_ok` false) and issues 764 dispatches | -0.6 to -1.0 ms: **+8 to +12 %** | **Bitwise** if each fused kernel spells out the unfused arithmetic order (the HIP P2 precedent, with the one rounding slip it found and fixed) |
-| 3 | MoE block efficiency: shared expert as one fused GLU kernel overlapped with the routed experts, and routed experts closer to the roofline | Shared expert is 160 launches, 621 us, 114 GB/s for 71 MB. Routed gate/up reaches 408 GB/s, routed down 288 GB/s (each at 8 x 0.6-1.2 MB runs picked by router ids) against 560. Excess 252 + 318 + 495 us | -0.5 to -0.8 ms: **+6 to +9 %** (overlaps lever 2 on `silu_glu`) | **Bitwise** if the reduction order inside each dot product and the k-order weighted sum stay; retiling that reorders sums would not be |
-| 4 | Token feedback for recurrent (GatedDeltaNet) models | 0.22-0.23 ms idle per step (2.8 %), exactly the gap T1 removed on the 8B (0.263 to 0 ms); disabled here by `!st.has_recurrent()` in `Model::feedback_ok` | +0.1 to +0.23 ms: **+1.5 to +3 %** | **Bitwise.** A late stop must not leave a half-run step in the recurrent state: the held step must stop before the first GDN state write (launch index 5 of layer 0) instead of the default 16 dispatches, or the state needs a snapshot (126 MB) |
+| 1 | Re-pack the fp8 projections to 4-bit weights (opt-in) | fp8 GEMVs stream 1.28 GB; at the fitted 2.0 us/MB marginal rate that is 2.6 ms, and 4-bit weights (0.5625 B) remove 44 % of the bytes, about -1.1 ms; the 10 us fixed cost per launch stays | upper bound **+14 %** (+17 tok/s) | **Changes numerics**: the checkpoint keeps these layers in FP8 on purpose (ModelOpt mixed precision); needs KL21 / golden gates; opt-in only |
+| 2 | Merge fp8 GEMVs that read the same input into one dispatch (an fp8 analogue of `matmul_pair`): gdn qkv + z (30 layers), attn q+gate + k + v (10 layers) | 130 fp8 launches each pay the 10 us fixed cost (about 7 us in-stream after the 2-3 us command-buffer overhead of kernel mode); the merge removes 50 launches (30 + 2 x 10) | -0.4 to -0.5 ms: **+5 to +6 %** | **Bitwise**: each output row is the same dot product, and the activation quantiser is deterministic per row |
+| 3 | Fuse the small kernels and fold elementwise work into neighbours | 383 launches, 1667 us, almost no bytes: rmsnorm / rmsnorm_add 352 us, topk 281 us, gdn conv + gated rmsnorm + silu 214 us, qk_norm_rope + gate_split + sigmoid 98 us, combine 80 us. HIP runs the same 35B decode in 375-415 plan launches after core-op fusion; Metal registers none of those fused ops (`fused_ok` false) and issues 764. The HIP P2 precedent bought about 2 us per removed launch (40 launches, about 1.3 % of a 6.7 ms step), so 150-200 removable launches are worth about 0.3-0.45 ms | **+4 to +6 %** | **Bitwise** if each fused kernel keeps the unfused arithmetic order (HIP P2 found and fixed one rounding slip this way) |
+| 4 | Fold the shared expert into the routed dispatch as an always-on ninth expert | 160 launches, 621 us, 114 GB/s for 71 MB (3 tiny GEMVs + silu_glu per layer, then `moe_combine` adds it with its sigmoid gate); routed gate/up and down already sit at the launch floor, so closing them to the roofline is not a lever | -0.35 to -0.5 ms: **+4 to +6 %** (overlaps lever 3 on `silu_glu`) | **Bitwise** only if the shared output is still added after the k-ordered routed sum, with the same sigmoid gate rounding; reordering the adds would change numerics |
+| 5 | Token feedback for recurrent (GatedDeltaNet) models | 0.227 ms idle per step (2.8 %), the gap T1 removed on the 8B (0.263 to 0 ms); disabled by `!st.has_recurrent()` in `Model::feedback_ok` | -0.1 to -0.23 ms: **+1.5 to +3 %** | **Bitwise.** A late stop must not leave a half-run step in the recurrent state: hold at most 5 dispatches (embedding, norm, qkv, z, pair; the first state write is launch 5) instead of 16, or snapshot the 126 MB state |
+
+Ranking by gain: 1 (opt-in), 2, 3 and 4 (close, bitwise), 5. Levers 2 to 5 are all bitwise and together are worth about -1.2 to -1.7 ms (**+15 to +21 %**, about 143-150 tok/s) if they do not overlap; expect some overlap, so treat that as a ceiling. Every one of them is launch-count work, which matches the per-launch-floor finding.
 
 Not levers (measured):
 
 - `lm_head` is at the roofline (587 GB/s).
-- The fp8 GEMV kernel itself: sp-gemv already showed split-K is flat; the GEMVs sit at the per-launch ramp / tail cost, which is why launch count (levers 2 and 3), not bandwidth tuning, is the lever on these shapes.
+- The fp8 and routed-expert kernels themselves: they sit on the 10 us + 2.0 us/MB line (sp-gemv showed split-K is flat), so bandwidth tuning of these kernels is not a lever; launch count (levers 2 to 4) is.
 - `attn_decode` at 1k context: 259 us (3.3 %), at most about 0.2 ms of excess. Revisit at long context.
 - `gdn delta_rule` (456 GB/s on its f32 state): only lowering the state precision would help, which changes numerics.
 - CPU encode and commit (hidden, 9 % duty) and serve-path overhead (none).
@@ -152,4 +157,4 @@ None. mlx-lm cannot load the ModelOpt NVFP4 checkpoint, and endor has no MLX 4-b
 - Where `ce1` shows overlapping neighbours (gdn qkv with z, attn q+gate with k and v, the shared-expert chain), time is reported for the merged group, not per kernel; the GB/s of a merged row is a rate over the group.
 - Single machine, one prompt (973 tokens, 1k context). Decode attention grows with context; this profile does not cover 4k and above.
 - endor was under memory pressure during every run (macmon: RAM 104-112 GB used, swap 41.5 GB used) because standing services (`endor-kev`, `endor-tensorfold`) hold memory. Speed was stable at 120-125 tok/s across all slots, so no effect was visible, but it is a risk for runs near the memory budget.
-- Lever gains are arithmetic on this table, not prototypes. Lever 1 assumes the GEMV rate does not fall when the bytes halve; sp-gemv's finding that these shapes sit at a per-launch floor suggests it will fall, so treat +20 % as an upper bound.
+- Lever gains are arithmetic on this table and the sp-gemv fit, not prototypes. The fit uses four kernel-mode points from a different run (base `d99cfa73`), so its intercept includes 2-3 us of command-buffer cost; lever 1 is an upper bound because the 4-bit GEMV rate may be lower than the fp8 one.
