@@ -169,7 +169,11 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
         count(Verdict::Pass),
         if count(Verdict::Warn) > 0 { format!("{} report-only (warn), ", count(Verdict::Warn)) } else { String::new() },
         count(Verdict::Fail),
-        if count(Verdict::MissingBaseline) > 0 { format!("{} missing baseline, ", count(Verdict::MissingBaseline)) } else { String::new() },
+        if count(Verdict::MissingBaseline) > 0 {
+            format!("{} missing baseline, ", count(Verdict::MissingBaseline))
+        } else {
+            String::new()
+        },
         count(Verdict::Error),
         count(Verdict::Skip)
     );
@@ -253,8 +257,10 @@ pub fn render(state: &State, meta: &Meta, full: bool) -> String {
     }
     let _ = writeln!(o);
     let _ = writeln!(o, "### Failures\n");
-    let fails: Vec<&&StageRecord> =
-        stages.iter().filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error)).collect();
+    let fails: Vec<&&StageRecord> = stages
+        .iter()
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error))
+        .collect();
     if fails.is_empty() {
         let _ = writeln!(o, "None.\n");
     } else {

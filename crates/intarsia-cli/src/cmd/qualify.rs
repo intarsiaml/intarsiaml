@@ -1159,7 +1159,8 @@ fn st_kernels(c: &mut Ctx) -> Result<Out> {
     }
     let mut o = if r.ok() {
         // kernels with no case in the sweep do not fail `kernels test`; keep them visible in the pass line
-        let incomplete = text.lines().find(|l| l.starts_with("incomplete: ")).map(|l| format!("; {l}")).unwrap_or_default();
+        let incomplete =
+            text.lines().find(|l| l.starts_with("incomplete: ")).map(|l| format!("; {l}")).unwrap_or_default();
         Out::pass(if summary.is_empty() {
             format!("all kernels admitted{incomplete}")
         } else {
@@ -1556,7 +1557,9 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
     let needs = c.needs_baseline(&g);
     let (extra, note) = match (c.recorded_baseline(&g, false), needs) {
         (Ok((args, note)), true) => (args, note),
-        (Ok((_, note)), false) => (vec![], format!("{note}; not applied (the class floor of a full-precision golden gates this model)")),
+        (Ok((_, note)), false) => {
+            (vec![], format!("{note}; not applied (the class floor of a full-precision golden gates this model)"))
+        }
         (Err(why), _) => (vec![], why),
     };
     let missing = needs && extra.is_empty();
@@ -1711,7 +1714,12 @@ impl Ctx {
     /// self-golden budgets (mean KL21 1e-4 ...). The engine is deterministic, so clean main reads 0; any change of the
     /// logits fails it, a 1 % partial-scale bug included, which no comparison with another implementation can resolve
     /// on this model (fx1). `Err(why)`: there is no dump for this configuration.
-    fn drift_check(&mut self, oracle: &Path, tp: usize, stem: &str) -> Result<std::result::Result<(Verdict, String), String>> {
+    fn drift_check(
+        &mut self,
+        oracle: &Path,
+        tp: usize,
+        stem: &str,
+    ) -> Result<std::result::Result<(Verdict, String), String>> {
         let tag = self.dump_tag(oracle, tp);
         let mut dirs: Vec<PathBuf> = vec![];
         if let Some(d) = oracle.parent().and_then(|d| d.parent()) {
@@ -1723,7 +1731,8 @@ impl Ctx {
                 dirs.push(m.join("golden/baselines"));
             }
         }
-        let Some(dump) = dirs.iter().map(|d| d.join(format!("{tag}.selfgolden.safetensors"))).find(|p| p.is_file()) else {
+        let Some(dump) = dirs.iter().map(|d| d.join(format!("{tag}.selfgolden.safetensors"))).find(|p| p.is_file())
+        else {
             return Ok(Err(format!("no recorded dump {tag}.selfgolden.safetensors in golden/baselines")));
         };
         let mut args = vec!["accuracy".to_string()];
@@ -1754,8 +1763,18 @@ impl Ctx {
         } else if r.ok() && text.contains("golden gate: PASS") {
             Ok((Verdict::Pass, format!("logits unchanged {what}")))
         } else if text.contains("golden gate: FAIL") {
-            let bad: Vec<String> = text.lines().filter(|l| l.trim_end().ends_with("FAIL") && !l.contains("golden gate")).map(|l| l.trim().to_string()).collect();
-            Ok((Verdict::Fail, format!("the logits moved {what}: {}", if bad.is_empty() { "self-golden budgets exceeded".into() } else { bad.join("; ") })))
+            let bad: Vec<String> = text
+                .lines()
+                .filter(|l| l.trim_end().ends_with("FAIL") && !l.contains("golden gate"))
+                .map(|l| l.trim().to_string())
+                .collect();
+            Ok((
+                Verdict::Fail,
+                format!(
+                    "the logits moved {what}: {}",
+                    if bad.is_empty() { "self-golden budgets exceeded".into() } else { bad.join("; ") }
+                ),
+            ))
         } else if r.stderr().contains("different configuration") {
             Err(format!("the recorded dump {} does not apply: {}", dump.display(), r.tail(2)))
         } else {
@@ -1776,7 +1795,10 @@ fn st_acc_oracle(c: &mut Ctx) -> Result<Out> {
     if facts::golden_meta(&g, "self_golden").as_deref() != Some("1")
         || !facts::golden_meta(&g, "self_meta").is_some_and(|m| m.contains("\"backend\":\"cpu\""))
     {
-        return Ok(Out::error(format!("{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)", g.display())));
+        return Ok(Out::error(format!(
+            "{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)",
+            g.display()
+        )));
     }
     let (mut extra, kl) = c.oracle_flags();
     // this run's own dump: copied to golden/baselines/ it becomes the recorded dump of the drift check
@@ -2103,14 +2125,23 @@ impl Ctx {
         let Some((bp, ep)) = facts::find_baseline(golden, backend, &dirs) else {
             return Err(format!("no baseline for backend {backend} next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"));
         };
-        let none = |why: String| Err(format!("baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated", bp.display()));
+        let none = |why: String| {
+            Err(format!(
+                "baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated",
+                bp.display()
+            ))
+        };
         let Ok(b) = read_json(&bp) else { return none("unreadable".into()) };
         let chunk = self.state.get("plan").and_then(|s| s.metrics["prefill_chunk"].as_u64());
         if b["run"]["backend"].as_str() != Some(backend) {
             return none("other backend".into());
         }
         if chunk.is_none() || b["run"]["prefill_chunk"].as_u64() != chunk {
-            return none(format!("recorded at prefill chunk {}, this run uses {}", b["run"]["prefill_chunk"], chunk.map_or("?".into(), |c| c.to_string())));
+            return none(format!(
+                "recorded at prefill chunk {}, this run uses {}",
+                b["run"]["prefill_chunk"],
+                chunk.map_or("?".into(), |c| c.to_string())
+            ));
         }
         if b["run"]["decode_positions"].as_u64() != Some(self.decode_positions(long) as u64) {
             return none("other decode window".into());
@@ -2126,7 +2157,15 @@ impl Ctx {
         // the baseline is a recorded earlier run: its commit is the declared pre-change code (or the same tree, rebuilt)
         args.push("--allow-same-code".into());
         args.extend(self.provenance_flags(head));
-        Ok((args, format!("gated against the recorded baseline {} (commit {}){}", bp.display(), if head.is_empty() { "unstamped" } else { head }, if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" })))
+        Ok((
+            args,
+            format!(
+                "gated against the recorded baseline {} (commit {}){}",
+                bp.display(),
+                if head.is_empty() { "unstamped" } else { head },
+                if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" }
+            ),
+        ))
     }
 
     /// The model has no full-precision golden (MoE / hybrid / quantized, the classes `make_golden` refuses) and `golden`
@@ -2430,7 +2469,11 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
             let rec = c.path(&format!("baselines/{}.selfgolden.safetensors", c.dump_tag(&g, tp)));
             extra.extend(["--write-self-golden".into(), rec.display().to_string()]);
             let a = c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?;
-            let drift = if a.verdict == Verdict::Pass { Some(c.drift_check(&g, tp, &format!("tp{tp}-oracle-drift"))?) } else { None };
+            let drift = if a.verdict == Verdict::Pass {
+                Some(c.drift_check(&g, tp, &format!("tp{tp}-oracle-drift"))?)
+            } else {
+                None
+            };
             Some((a, drift, rec))
         }
         Golden::None(why) => {
@@ -2444,7 +2487,8 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
     let mut metrics = o.metrics.clone();
     metrics["tp_plan"] = tp_plan;
     if let Some((a, drift, rec)) = &oracle {
-        metrics["oracle"] = json!({"gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
+        metrics["oracle"] =
+            json!({"gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
         match a.verdict {
             Verdict::Fail => o = Out::fail(format!("tp={tp} against the CPU oracle: {}", a.reason)).art(c.rel(&b.path)),
             Verdict::Error => o = Out::error(format!("tp={tp} against the CPU oracle: {}", a.reason)),
@@ -2453,9 +2497,17 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
         match drift {
             Some(Ok((Verdict::Pass, why))) => o.notes.push(format!("tp={tp} drift check: {why}")),
             Some(Ok((Verdict::Error, why))) => o = Out::error(format!("tp={tp} drift check: {why}")),
-            Some(Ok((_, why))) if o.verdict != Verdict::Error => o = Out::fail(format!("tp={tp}: {why}")).art(c.rel(&b.path)),
+            Some(Ok((_, why))) if o.verdict != Verdict::Error => {
+                o = Out::fail(format!("tp={tp}: {why}")).art(c.rel(&b.path))
+            }
             Some(Err(why)) if o.verdict == Verdict::Pass => {
-                o = Out::new(Verdict::MissingBaseline, format!("MISSING-BASELINE: tp={tp}: {why}; record it from clean main: copy {} to golden/baselines/", c.rel(rec)))
+                o = Out::new(
+                    Verdict::MissingBaseline,
+                    format!(
+                        "MISSING-BASELINE: tp={tp}: {why}; record it from clean main: copy {} to golden/baselines/",
+                        c.rel(rec)
+                    ),
+                )
             }
             _ => {}
         }
@@ -2520,9 +2572,12 @@ mod tests {
     #[test]
     fn a_pass_without_a_needed_baseline_is_missing_baseline() {
         let pass = || Out::pass("prefill: KL 5.8e-3");
-        let o = baseline_verdict(pass(), "no baseline for backend hip".into(), true, "Qwen3.6-35B-A3B-NVFP4", "acc-short");
+        let o =
+            baseline_verdict(pass(), "no baseline for backend hip".into(), true, "Qwen3.6-35B-A3B-NVFP4", "acc-short");
         assert_eq!(o.verdict, Verdict::MissingBaseline);
-        assert!(o.reason.starts_with("MISSING-BASELINE: no baseline for backend hip") && o.reason.contains("KL 5.8e-3"));
+        assert!(
+            o.reason.starts_with("MISSING-BASELINE: no baseline for backend hip") && o.reason.contains("KL 5.8e-3")
+        );
         assert!(o.verdict.is_failing(), "MISSING-BASELINE fails the run (exit 1)");
         // with the baseline (or for a model with a full-precision golden) the floor verdict stands, note attached
         let o = baseline_verdict(pass(), "gated against the recorded baseline".into(), false, "m", "acc-short");
@@ -2551,7 +2606,10 @@ mod tests {
             }
         }
         // the spec's order of the quick section
-        assert_eq!(&ids[..9], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "acc-oracle", "bench"]);
+        assert_eq!(
+            &ids[..9],
+            &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "acc-oracle", "bench"]
+        );
     }
 
     #[test]
