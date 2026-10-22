@@ -60,6 +60,19 @@ stage_ids() { # 256 greedy ids after the 16654 (localeval's 16k) and 4408 (4k + 
   done
 }
 
+stage_pf() { # prefill time of ONE prompt (generate --max-tokens 1, a fresh process per run), PFREPS reps per arm and size, the arm order reversed on even reps
+  local n rep a order
+  for n in ${PFSIZES:-16654 4408 4089}; do
+    for rep in $(seq 1 ${PFREPS:-5}); do
+      need 60 "pf $n rep $rep" || return 0
+      order="base off on"; [ $((rep % 2)) -eq 0 ] && order="on off base"
+      for a in $order; do
+        echo "pf $n rep $rep $a: $(gen $a $n 1 "$OUTD/pf-$a-$n-r$rep" | grep -a 'finish=' | sed 's/.*prefill \([0-9]*\) ms.*/\1 ms/')"
+      done
+    done
+  done
+}
+
 # accrun <arm> <gpu> <tag> <extra accuracy args...>: one accuracy run, log in $OUTD/acc-<tag>.log
 accrun() {
   local arm=$1 gpu=$2 tag=$3; shift 3
