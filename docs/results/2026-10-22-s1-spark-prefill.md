@@ -140,7 +140,7 @@ decode spread (82.6 vs 81.3) is within the per-arm noise of single localeval run
 | 35B accuracy KL21, short golden | base / dev / cub 5.430e-3 all rows (4.666e-3 scored), top-1 97.92 %: identical lines, PASS | `raw/gates-spark2/acc/` |
 | 35B accuracy KL21, long golden | 4.576e-2 all rows (1.486e-2 scored), top-1 94.17 %: identical lines, PASS | same |
 | prefix reuse incl. chat_reuse_4k | continue / restore / aligned 32/32 ok, logits bit-identical, gate PASS, all arms | `acc/reuse-*.log` |
-| Metal / HIP | untouched: the diff is `crates/intarsia-backend-cuda`, `kernels/cuda`, scripts and docs; no shared core change | `git diff --stat` |
+| Metal / HIP | no kernel or engine change: the diff is `crates/intarsia-backend-cuda`, `kernels/cuda`, scripts, docs, and **one shared-core file**, `crates/intarsia-core/src/quant/cases.rs`: main's new `quick_coverage` test needs a quick-sweep case each new kernel accepts, so one prefill-shaped case (M = 260 quick, 300 full) is appended to the `MatmulNvfp4`, `MatmulFp8Pair` and `MatmulNvfp4Glu` sweeps, after the existing cases (their random data is unchanged), as main's fp8 prefill case is. Metal / HIP kernels that accept those shapes now also see them. CPU sweep re-run: 0 FAIL; HIP and CUDA `quick_coverage` pass | `git diff --stat origin/main` |
 
 Accuracy, ids and profiles ran in exclusive slot #3618 on spark2 with vLLM up (idle).
 
