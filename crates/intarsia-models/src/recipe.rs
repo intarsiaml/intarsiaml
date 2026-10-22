@@ -261,10 +261,12 @@ lm_head = { tensor = "h" }
         assert_eq!(r.resolve_prefill_chunk(Some(256), "hip").value, 256);
         assert_eq!(r.resolve_prefill_chunk(None, "cpu").value, 256);
         assert_eq!(r.resolve_prefill_chunk(Some(256), "cuda").value, 256);
-        // the other built-ins stay at 256 everywhere
-        for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM"] {
-            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
-            assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 256, "{arch}");
-        }
+        // the dense Qwen3 recipe has 4096 on CUDA (user-approved 2026-10-22 13:08); CPU and the hybrid dense recipe stay at 256
+        let (_, q3) = select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap();
+        let c = q3.resolve_prefill_chunk(None, "cuda");
+        assert_eq!((c.value, c.source.as_str()), (4096, "recipe qwen3, cuda"));
+        assert_eq!(q3.resolve_prefill_chunk(None, "cpu").value, 256);
+        let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
+        assert_eq!(q35.resolve_prefill_chunk(None, "cuda").value, 256);
     }
 }
