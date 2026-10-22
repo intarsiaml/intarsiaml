@@ -14,7 +14,8 @@ case "$step" in
     backend=$1 jobs=$2 stamp=$3 sde=${4:-}
     # repro-build.sh = `cargo build --release --locked -p intarsia-cli` plus path remapping and a fixed SOURCE_DATE_EPOCH;
     # the tree has no .git, so the commit time comes from deploy.sh (4th argument)
-    ${sde:+SOURCE_DATE_EPOCH="$sde"} INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS="$jobs" \
+    [ -n "$sde" ] && export SOURCE_DATE_EPOCH="$sde"
+    INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS="$jobs" \
       bash scripts/repro-build.sh --features "$backend" 2>&1 | tail -5
     exit "${PIPESTATUS[0]}" ;;
   smoke)
