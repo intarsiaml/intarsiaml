@@ -1,0 +1,2 @@
+intarsia 0.0.1
+/opt/homebrew/bin/llama-server -m /Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf -ngl 999 -fa on -c 8192 --cache-ram 0 --jinja --port 8091

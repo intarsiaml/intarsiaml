@@ -1,0 +1,8 @@
+prefill chunk 256 (default)
+intarsia-backend-metal: keep-warm: registered the file at 0x720a2cc000, 10.01 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 3.41 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x745ea1c000, 10.00 GB
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 21 kernel(s) checked, 0 case(s) run, 401 cached
+loaded Qwen3.6-35B-A3B-NVFP4 on metal (Apple M5 Max) in 4.7s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8093
