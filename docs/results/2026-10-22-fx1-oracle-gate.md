@@ -1,6 +1,6 @@
 # fx1: an independent accuracy reference for the 35B, and a gate that kills a 1 % scale bug (2026-10-22)
 
-Lane fx1 answers finding 1 and section D of the adversarial review (`fable-review-2026-10-22.md`, scratchpad). Base
+Lane fx1 answers finding 1 and section D of the adversarial review ([docs/reviews/2026-10-22-fable-adversarial.md](../reviews/2026-10-22-fable-adversarial.md)). Base
 `origin/main` cd617de2 (PR #70 merged: the 35B runs on Metal). Model `nvidia/Qwen3.6-35B-A3B-NVFP4` (MoE, GDN hybrid,
 NVFP4 experts, fp8 attention). Only `intarsia-cli` qualify code changes: `git diff --stat origin/main -- crates kernels
 recipes` lists `qualify.rs`, `qualify/{facts,report,state}.rs` and `onboard.rs` only. Engine numerics and defaults are
