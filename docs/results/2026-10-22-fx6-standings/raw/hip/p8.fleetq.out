@@ -1,0 +1,14 @@
+fleetq: #3894 waiting (#1 in line): tatooine-r9700 is held exclusively by #3890 "pf: lane pf final: flash VP default A/B + bitwise + ids + localeval (radiance down, night window 4)" (claude-f31ccf91)
+fleetq:   #3890 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3890 set, or it will wait for #3890 to be released.
+fleetq: #3894 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 88% busy with work fleetq does not track
+fleetq: #3894 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #3894 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-fx6/docs/results/2026-10-22-fx6-standings/raw/hip/p8 ARMS=hipfire PASS=p8 SIZES=128,1024 bash scripts/standings-fx6/hip-window.sh
+[window] job 3894; pass p8; arms: hipfire; window cap 1140 s; stopping radiance 2026-10-22 03:08:49
+[window] radiance stopped; gpu: card0: sclk=1: 699Mhz *  temp_mC=36000 vram_used=59912192 busy=0 | card1: sclk=1: 694Mhz *  temp_mC=42000 vram_used=93114368 busy=12 |  2026-10-22 03:08:53
+[window] visit hipfire-p8: starting server (1136 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=35000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=42000 vram_used=93114368 busy=0 |  2026-10-22 03:08:53
+[window] visit hipfire-p8: server up (1125 s left) 2026-10-22 03:09:04
+[window] visit hipfire-p8: localeval speed exit 0 (1115 s left) 2026-10-22 03:09:14
+[window] arms done 2026-10-22 03:09:18
+[window] starting radiance 2026-10-22 03:09:18
+[window] radiance answers (after 20 s); window total 45 s 2026-10-22 03:09:34
+fleetq: #3894 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

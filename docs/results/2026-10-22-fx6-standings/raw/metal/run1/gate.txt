@@ -1,0 +1,31 @@
+Metal speed gate on /opt/code/wt-fx6/docs/results/2026-10-22-fx6-standings/raw/metal/run1: floor 85% of context-aware bytes, decode clock-normalised by the refbw.py reference (baseline 554.2 GB/s, valid factor 0.70-1.30); arms without a reference use the GPU >= 1300 MHz and CPU <= 0.30 admission; ratios >= 0.90x mlx-lm, >= 1.00x llama.cpp
+
+| arm | GPU MHz | CPU | ref GB/s | state factor | valid | 128: raw tok/s, % cf, norm tok/s, % cf | 1024: raw tok/s, % cf, norm tok/s, % cf | 4096: raw tok/s, % cf, norm tok/s, % cf | 16384: raw tok/s, % cf, norm tok/s, % cf |
+|---|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| intarsia-1 | 1122 | 0.54 | 504.5 | 0.910 | yes | 35.3, 87.2 %, 38.8, 95.8 % | 33.2, 82.7 %, 36.5, 90.9 % | 31.0, 79.6 %, 34.1, 87.5 % | 28.3, 81.1 %, 31.1, 89.1 % |
+| intarsia-2 | 1276 | 0.18 | 535.5 | 0.966 | yes | 36.3, 89.8 %, 37.6, 92.9 % | 36.4, 90.6 %, 37.6, 93.8 % | 33.7, 86.5 %, 34.9, 89.5 % | 30.1, 86.2 %, 31.1, 89.2 % |
+| llamacpp | 1064 | 0.19 | 541.3 | 0.977 | yes | 32.8, 81.0 %, 33.6, 83.0 % | 32.1, 80.1 %, 32.9, 82.0 % | 31.4, 80.6 %, 32.2, 82.5 % | 27.9, 80.2 %, 28.6, 82.1 % |
+| mlx-lm | 1180 | 0.33 | 534.2 | 0.964 | yes | 28.2, 69.7 %, 29.3, 72.3 % | 29.4, 73.2 %, 30.5, 75.9 % | 29.0, 74.5 %, 30.1, 77.3 % | 26.2, 75.2 %, 27.2, 78.0 % |
+
+128: intarsia-1 / mlx-lm 1.251 ok
+128: intarsia-1 / llama.cpp 1.077 ok
+128: intarsia-2 / mlx-lm 1.288 ok
+128: intarsia-2 / llama.cpp 1.108 ok
+1024: intarsia-1 / mlx-lm 1.130 ok
+1024: intarsia-1 / llama.cpp 1.033 ok
+1024: intarsia-2 / mlx-lm 1.238 ok
+1024: intarsia-2 / llama.cpp 1.131 ok
+4096: intarsia-1 / mlx-lm 1.068 ok
+4096: intarsia-1 / llama.cpp 0.988 FAIL
+4096: intarsia-2 / mlx-lm 1.160 ok
+4096: intarsia-2 / llama.cpp 1.073 ok
+16384: intarsia-1 / mlx-lm 1.078 ok
+16384: intarsia-1 / llama.cpp 1.011 ok
+16384: intarsia-2 / mlx-lm 1.146 ok
+16384: intarsia-2 / llama.cpp 1.075 ok
+128: floor gate: best valid intarsia-1: raw 35.29 tok/s (87.2 %), ref 504.5 GB/s / baseline 554.2 = factor 0.910, normalised 38.77 tok/s: 95.8 % of the context-aware floor (40.47 tok/s) ok
+1024: floor gate: best valid intarsia-2: raw 36.36 tok/s (90.6 %), ref 535.5 GB/s / baseline 554.2 = factor 0.966, normalised 37.63 tok/s: 93.8 % of the context-aware floor (40.13 tok/s) ok
+4096: floor gate: best valid intarsia-2: raw 33.70 tok/s (86.5 %), ref 535.5 GB/s / baseline 554.2 = factor 0.966, normalised 34.87 tok/s: 89.5 % of the context-aware floor (38.96 tok/s) ok
+16384: floor gate: best valid intarsia-2: raw 30.05 tok/s (86.2 %), ref 535.5 GB/s / baseline 554.2 = factor 0.966, normalised 31.10 tok/s: 89.2 % of the context-aware floor (34.86 tok/s) ok
+
+VERDICT: FAIL

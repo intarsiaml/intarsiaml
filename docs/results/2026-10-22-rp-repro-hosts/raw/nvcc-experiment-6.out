@@ -1,0 +1,28 @@
+fleetq: #3693 running on spark1: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/nvcc-exp6.sh
+fleetq: #3693 went ahead of the line and must end within 1h31m (by Thu 01:20); it is stopped then
+== fixed stage path, raw
+norm f3335a606684675a 118e08b9cb0662af DIFF
+argmax 9abc1b8f524560a6 e2d68edd28f73275 DIFF
+moe_nvfp4_mma_sm120a c0f7eab28e528d58 56ff05fd12241074 DIFF
+attention_flash 3b9674c8845055da fdd43934bff7bdcd DIFF
+== fixed stage path + objcopy --strip-unneeded
+norm ff41be7652f8f092 ff41be7652f8f092 SAME
+argmax 4a7788621b817f98 4a7788621b817f98 SAME
+moe_nvfp4_mma_sm120a dceb6c25edb75353 dceb6c25edb75353 SAME
+attention_flash 56b560c0cda3e000 56b560c0cda3e000 SAME
+tmpxft strings left after strip-unneeded:
+0
+path strings left (raw):
+symbol names still present (nm, attention_flash.su.o):
+                 U atexit
+                 U cudaFuncSetAttribute
+                 U cudaGetDevice
+                 U __cudaGetKernel
+                 U cudaGetLastError
+                 U __cudaLaunchKernel
+                 U __cudaPopCallConfiguration
+                 U __cudaPushCallConfiguration
+size raw vs su:
+995464 /home/nvidia/nvx/o4/A-attention_flash.o
+989080 /home/nvidia/nvx/o4/A-attention_flash.su.o
+fleetq: #3693 done (exit 0)

@@ -1,0 +1,50 @@
+fleetq: #3735 waiting (#12 in line): in line behind #3708 "fx4 Metal no-op: Qwen3-8B plan show / kernels test / 256 greedy ids / goldens, main vs lane-fx4/rope-bias" (claude-f31ccf91) on endor
+fleetq:   #3708 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3708 set, or it will wait for #3708 to be released.
+fleetq: #3735 waiting (#11 in line): in line behind #3709 "dashcntrl ux phone phone-ux e2e" (claude-b15e5587) on endor
+fleetq: #3735 waiting (#2 in line): in line behind #3724 "fx4 onboard --quick-only Metal: Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct" (claude-f31ccf91) on endor
+fleetq:   #3724 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3724 set, or it will wait for #3724 to be released.
+fleetq: #3735 waiting (#1 in line): endor is held exclusively by #3724 "fx4 onboard --quick-only Metal: Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct" (claude-f31ccf91)
+fleetq:   #3724 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3724 set, or it will wait for #3724 to be released.
+fleetq: #3735 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/e-metal-all.sh
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only af77bbfd256c678b56bf26014349cfd66ba553f4 is)
+deploy: local (metal) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+deploy: synced (1 entries changed)
+   Compiling intarsia-cli v0.0.1 (/Users/josef/intarsia-deploy/metal/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 34.39s
+repro-build: sha256 070a08a6362a622924eee95b9bf876968b34ebc69cc7038cf481cde50ae9ba69  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)
+doctor rc=0
+attn_decode    attn_decode_bf16                3      0     0.000e0     0.000e0  ADMITTED
+attn_decode    attn_decode_bf16_splitkv        3      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           3      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16            8      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_nax                 2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_nax            3      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_gemv_rows           2      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv_rows      3      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16_gemv_rows           1      0    1.018e-7    6.086e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows      2      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv               8      0     0.000e0     0.000e0  ADMITTED
+28 kernels, 84 cases in 1.3s
+SKIPPED: kernel attn_prefill_bf16_flash ran 0 cases on backend 'metal'
+SKIPPED: kernel attn_prefill_bf16_flash_nax ran 0 cases on backend 'metal'
+incomplete: 2 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+kernels-test rc=0
+
+=== reproducibility stamp (local:~/intarsia-deploy/metal/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    metal
+rustc      rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)
+cargo      cargo 1.99.0 (5f94df478 2026-08-27) (Homebrew)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+gpu        Apple M5 Max  compute -
+driver     n/a  (cuda toolkit -)
+host       endor.kuepker.haus  macOS 27.0  Apple M5 Max
+binary     target/release/intarsia  sha256 070a08a6362a6229  21873968 bytes  v0.0.1
+smoke      pass
+deploy rc=0
+    Finished `release` profile [optimized] target(s) in 51.61s
+repro-build: sha256 070a08a6362a622924eee95b9bf876968b34ebc69cc7038cf481cde50ae9ba69  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.99.0 (b940084d7 2026-09-28) (Homebrew)
+deploy tree : 070a08a6362a622924eee95b9bf876968b34ebc69cc7038cf481cde50ae9ba69  (deploy stamp git af77bbfd)
+third dir   : 070a08a6362a622924eee95b9bf876968b34ebc69cc7038cf481cde50ae9ba69
+fleetq: #3735 done (exit 0)

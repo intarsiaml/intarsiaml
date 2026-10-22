@@ -1,0 +1,260 @@
+{
+ "run_id": "20261022-015231-adhoc-fx6-hipfire-p6",
+ "kind": "speed",
+ "label": "fx6-hipfire-p6",
+ "started_at": "2026-10-22T01:52:31-04:00",
+ "finished_at": "2026-10-22T01:53:30-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://tatooine:11435/v1",
+  "model": "qwen3.6-35b-a3b.mq4r",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:11435/v1 --model qwen3.6-35b-a3b.mq4r --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --ignore-busy --label fx6-hipfire-p6",
+  "git": "1b02605"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "qwen3.6-35b-a3b.mq4",
+    "qwen3.6-35b-a3b.mq4",
+    "qwen3.6:35b-a3b",
+    "qwen3.6:35b-a3b-mq4r"
+   ]
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 112,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.085,
+     "min": 0.082,
+     "max": 0.091,
+     "n": 3,
+     "spread_pct": 11.1
+    },
+    "prefill_tok_s": {
+     "median": 1312.104,
+     "min": 1271.599,
+     "max": 1370.235,
+     "n": 3,
+     "spread_pct": 7.5
+    },
+    "decode_tok_s": {
+     "median": 146.323,
+     "min": 144.566,
+     "max": 146.841,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "peak_decode_tok_s": {
+     "median": 148.4,
+     "min": 148.4,
+     "max": 153.5,
+     "n": 3,
+     "spread_pct": 3.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 990,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.36,
+     "min": 0.359,
+     "max": 0.363,
+     "n": 3,
+     "spread_pct": 1.3
+    },
+    "prefill_tok_s": {
+     "median": 2753.947,
+     "min": 2723.85,
+     "max": 2759.314,
+     "n": 3,
+     "spread_pct": 1.3
+    },
+    "decode_tok_s": {
+     "median": 145.078,
+     "min": 144.953,
+     "max": 145.19,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 146.4,
+     "min": 146.4,
+     "max": 157.8,
+     "n": 3,
+     "spread_pct": 7.8
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3192.7,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.746,
+     "min": 1.743,
+     "max": 1.748,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "prefill_tok_s": {
+     "median": 2342.378,
+     "min": 2339.87,
+     "max": 2345.763,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "decode_tok_s": {
+     "median": 141.218,
+     "min": 141.088,
+     "max": 141.574,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "peak_decode_tok_s": {
+     "median": 143.7,
+     "min": 143.4,
+     "max": 145.0,
+     "n": 3,
+     "spread_pct": 1.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 2236.7
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16655,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 12.983,
+     "min": 12.943,
+     "max": 12.999,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 1282.992,
+     "min": 1281.29,
+     "max": 1286.732,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "decode_tok_s": {
+     "median": 127.148,
+     "min": 127.005,
+     "max": 127.345,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "peak_decode_tok_s": {
+     "median": 129.8,
+     "min": 129.1,
+     "max": 136.4,
+     "n": 3,
+     "spread_pct": 5.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 1118.2
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "qwen3.6-35b-a3b.mq4r",
+  "activity_checks": {
+   "idle": 0,
+   "busy": 0,
+   "unknown": 13
+  },
+  "warnings": [
+   "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+ ]
+}

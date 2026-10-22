@@ -1,0 +1,22 @@
+fleetq: #3588 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/t-a-build.sh
+deploy: tatooine (hip) <- 7354a4b6918642f771f059caf163ed1b36d152b5 (deploy: build through scripts/repro-build.sh (commit time as SOURCE_DATE_EPOCH))
+deploy: synced (1457 entries changed)
+DEPLOY_STEP.sh: line 17: SOURCE_DATE_EPOCH=1792637723: command not found
+deploy(build-only) rc=127
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 49.02s
+repro-build: sha256 19a2d785201c1cdbed9fdec70b04e4e8ffef4bc734200748ddb84ac0f20e6f15  SOURCE_DATE_EPOCH=1792637723  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+19a2d785201c1cdbed9fdec70b04e4e8ffef4bc734200748ddb84ac0f20e6f15  /target/release/intarsia
+hip a built in 50 s from ~/rp/hipa
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 48.81s
+repro-build: sha256 19a2d785201c1cdbed9fdec70b04e4e8ffef4bc734200748ddb84ac0f20e6f15  SOURCE_DATE_EPOCH=1792637723  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+19a2d785201c1cdbed9fdec70b04e4e8ffef4bc734200748ddb84ac0f20e6f15  /target/release/intarsia
+hip b built in 50 s from ~/rp/deeper/still/hipb
+cat: /home/josef/intarsia-deploy/hip/DEPLOY_STAMP.json: No such file or directory
+removed volumes
+fleetq: #3588 done (exit 0)

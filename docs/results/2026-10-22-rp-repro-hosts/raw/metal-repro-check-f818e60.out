@@ -1,0 +1,16 @@
+fleetq: #3606 waiting (#19 in line): in line behind #3562 "m35: 35B metal per-kernel profile decode (diagnostic)" (claude-f31ccf91) on endor
+fleetq:   #3562 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3562 set, or it will wait for #3562 to be released.
+fleetq: #3606 waiting (#8 in line): in line behind #3598 "kq: cargo test quick_coverage (cpu only, short)" (claude-f31ccf91) on endor
+fleetq:   #3598 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3598 set, or it will wait for #3598 to be released.
+fleetq: #3606 waiting (#2 in line): in line behind #3605 "rp: Metal deploy.sh local (repro-build, quick smoke)" (claude-f31ccf91) on endor
+fleetq:   #3605 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3605 set, or it will wait for #3605 to be released.
+fleetq: #3606 waiting (#1 in line): needs 8 GB on endor; 2 GB free of 110
+fleetq: #3606 waiting (#1 in line): needs 8 GB on endor; 6 GB free of 110
+fleetq: #3606 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/e-repro-metal.sh
+repro-check metal @ f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc
+repro-check: building f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc in /var/folders/2w/xpl9qy357k172_v9_5hqzfpc0000gn/T/tmp.BKvHWX2WvD/first/a (features: metal)
+repro-check: building f818e60b2d5714fe8ae17a13e218c5c4ef14f3cc in /var/folders/2w/xpl9qy357k172_v9_5hqzfpc0000gn/T/tmp.BKvHWX2WvD/second/much/deeper/b (features: metal)
+repro-check: 7f38d250447310548e069b95372a7de506267ad7374bdcf39830af932490a5d8  /var/folders/2w/xpl9qy357k172_v9_5hqzfpc0000gn/T/tmp.BKvHWX2WvD/first
+repro-check: 7f38d250447310548e069b95372a7de506267ad7374bdcf39830af932490a5d8  /var/folders/2w/xpl9qy357k172_v9_5hqzfpc0000gn/T/tmp.BKvHWX2WvD/second
+repro-check: IDENTICAL
+fleetq: #3606 done (exit 0)
