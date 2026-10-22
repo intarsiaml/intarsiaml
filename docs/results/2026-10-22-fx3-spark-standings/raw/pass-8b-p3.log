@@ -1,0 +1,28 @@
+fleetq: #3945 waiting (#3 in line): in line behind #3943 "fx3 8B standings pass p1 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3943 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3943 set, or it will wait for #3943 to be released.
+fleetq: #3945 waiting (#2 in line): in line behind #3944 "fx3 8B standings pass p2 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3) on spark2
+fleetq:   #3944 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3944 set, or it will wait for #3944 to be released.
+fleetq: #3945 waiting (#1 in line): spark2 is held exclusively by #3944 "fx3 8B standings pass p2 (exclusive, vLLM retro up)" (claude-f31ccf91-fx3)
+fleetq:   #3944 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3944 set, or it will wait for #3944 to be released.
+fleetq: #3945 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #3945 running on spark2: env HOST=spark2 MACHINE=spark-fa00 MODEL=8b PASS=p3 'ARMS=sglang intarsia llamacpp16 vllm llamacpp' PHASES=speed,conc MINGB=30 scripts/standings-fx3/window.sh
+[04:50:49] pass p3 model=8b host=spark2 arms=[sglang intarsia llamacpp16 vllm llamacpp] phases=speed,conc job=3945
+[04:50:54] == arm sglang (MemAvailable 54 GB)
+[04:53:09]   sglang process/container died while starting
+[04:53:09] FAIL sglang did not come up
+[04:53:14] == arm intarsia (MemAvailable 54 GB)
+[04:54:29]   intarsia ready after 70s
+[04:56:47]   speed exit=0
+[05:00:01]   conc exit=0
+[05:00:06] == arm llamacpp16 (MemAvailable 54 GB)
+[05:00:39]   llamacpp16 ready after 30s
+[05:01:31]   conc exit=0
+[05:01:39] == arm vllm (MemAvailable 54 GB)
+[05:05:00]   vllm ready after 185s
+[05:07:15]   speed exit=0
+[05:07:59]   conc exit=0
+[05:08:05] == arm llamacpp (MemAvailable 54 GB)
+[05:08:26]   llamacpp ready after 20s
+[05:10:40]   speed exit=0
+[05:10:43] pass p3 done
+fleetq: #3945 done (exit 0)

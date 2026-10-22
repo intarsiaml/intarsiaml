@@ -1,0 +1,15 @@
+== chunk-job hip start 10:11:39 host tatooine steps 'gen accdec' chunks '2048 4096 8192' job 4191
+gen 35b 20000 chars chunk 2048 exit 0 10 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 647 ms (8996.8 tok/s) | decode 410 ms (153.52 tok/s) ids 795a2931 top b8d24080
+gen 35b 20000 chars chunk 4096 exit 0 7 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 607 ms (9590.9 tok/s) | decode 410 ms (153.62 tok/s) ids 795a2931 top b8d24080
+gen 35b 20000 chars chunk 8192 exit 0 6 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 591 ms (9848.0 tok/s) | decode 409 ms (154.10 tok/s) ids 795a2931 top b8d24080
+  gen 35b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 35b 54000 chars chunk 2048 exit 0 11 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1943 ms (8241.1 tok/s) | decode 437 ms (144.09 tok/s) ids 5d663875 top 7fdd757f
+gen 35b 54000 chars chunk 4096 exit 0 11 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1782 ms (8986.8 tok/s) | decode 438 ms (143.96 tok/s) ids 5d663875 top 7fdd757f
+gen 35b 54000 chars chunk 8192 exit 0 12 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 1781 ms (8991.4 tok/s) | decode 438 ms (143.90 tok/s) ids 5d663875 top 7fdd757f
+  gen 35b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+accdec 35b all decode chunk 2048 exit 1 8 s 15719440 bytes
+accdec 35b all decode chunk 4096 exit 1 9 s 15719440 bytes
+accdec 35b all decode chunk 8192 exit 1 9 s 15719440 bytes
+== chunk-job hip done 10:13:02

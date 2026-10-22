@@ -1,0 +1,30 @@
+prefill chunk 8192 (--prefill-chunk)
+accuracy: Qwen3-8B on Apple M5 Max (vocab 151936, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 4464 of 28685 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/gold/qwen3-8b-4k-s16k.safetensors (4 prompts, 28685 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.19.0, torch 2.14.1 | model /Users/josef/Models/Qwen3-8B | revision not in the model path | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden_4k.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 (all rows) >= 99.5%, 21-way KL (scored rows: outside system and user turns) <= 1.0e-3, |tail excess| (all rows) <= 0.02
+prefill chunk 8192; longest prompt 16000; prompts spanning more than one chunk: 1/4
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    16   100.00   1.664e-4   1.615e-4   1.615e-4   5.878e-4   0.0804   0.0811   100.00     16/16      0
+long_code_4k        4064    16   100.00   1.897e-5   1.899e-5   1.899e-5   2.866e-4   0.0000   0.0000    98.75     16/16      0
+chat_reuse_4k       4557    16   100.00   7.892e-4   7.893e-4   7.893e-4   6.789e-3   0.0000   0.0000   100.00     16/16      0
+synth_16k          16000    16     0.00    0.000e0    3.892e1    3.892e1    0.000e0   0.0043   1.0000     0.00      0/16      0
+OVERALL                     64    75.00   2.436e-4    9.731e0    9.731e0   6.789e-3   0.0212   0.2703    74.69     75.0%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 75.00% (need >= 99.5) FAIL | 21-way KL (scored rows, n=64) 9.731e0 (need <= 1.0e-3) FAIL [all rows, n=64: 9.731e0, reported only] | tail mass (all rows) ours 0.2703 vs ref 0.0212, excess +0.2491 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 9.731e0 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 9.731e0 (21-way KL over all rows <= static floor) | current def: FAIL 9.731e0 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [decode (teacher-forced)]: mean 75.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /opt/code/wt-ck/docs/results/2026-10-22-ck-prefill-chunk/raw/metal/acc/8b-4k/decode-c8192.safetensors (top-64 rows of modes decode for 4 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

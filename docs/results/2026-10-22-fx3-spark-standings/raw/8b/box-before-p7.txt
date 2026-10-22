@@ -1,0 +1,4 @@
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+2398 MHz, [N/A], 49, 12.73 W, 0 %
+missioncntrl-guidance f733c5dd166c
+MemAvailable:   57022284 kB

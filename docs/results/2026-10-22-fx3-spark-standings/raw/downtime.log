@@ -1,0 +1,2 @@
+2026-10-22 job=3977 stop=05:38:48 up=05:59:25 down=20.6 min label="fx3 spark1 SGLang 35B speed window (r21-r24)" serving=1
+2026-10-22 job=3990 stop=06:24:18 up=06:37:04 down=12.7 min label="fx3 spark1 SGLang 35B quality window (MMLU+GSM8K)" serving=1

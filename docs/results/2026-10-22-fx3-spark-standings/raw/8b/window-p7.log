@@ -1,0 +1,14 @@
+[09:05:07] pass p7 model=8b host=spark2 arms=[sglang vllm intarsia] phases=speed,conc job=4004
+[09:05:11] == arm sglang (MemAvailable 54 GB)
+[09:08:11]   sglang ready after 165s
+[09:10:27]   speed exit=0
+[09:11:21]   conc exit=0
+[09:11:26] == arm vllm (MemAvailable 54 GB)
+[09:14:51]   vllm ready after 190s
+[09:17:07]   speed exit=0
+[09:17:51]   conc exit=0
+[09:17:57] == arm intarsia (MemAvailable 54 GB)
+[09:19:11]   intarsia ready after 70s
+[09:21:31]   speed exit=0
+[09:24:49]   conc exit=0
+[09:24:51] pass p7 done

@@ -91,6 +91,7 @@ kernel void attn_flash(device const ushort* q [[buffer(0)]],
     const uint kvh = tg.y;
     const uint hg = sg / PQ, pq = sg % PQ;
     const uint head = kvh * G + hg;
+    const bool live = hg < G;  // group sizes that do not divide NSG (3, 5, 6, 7): the surplus simdgroups load and barrier but own no head
     const uint qbase = qb * BQ + pq * 8;  // first position (within the call) of this simdgroup
     const ulong kv_len = min(pos0 + T, cap);
     const ulong kmax = min(kv_len, pos0 + min((ulong)T, (ulong)(qb + 1) * BQ));  // keys the block's last row sees
@@ -110,7 +111,7 @@ kernel void attn_flash(device const ushort* q [[buffer(0)]],
     FL_UNROLL
     for (uint dd = 0; dd < TD; ++dd) {
         uint w = 0;
-        if (pos < T) w = *(device const uint*)(q + ((ulong)pos * N + head) * D + dd * 8 + fn);
+        if (pos < T && live) w = *(device const uint*)(q + ((ulong)pos * N + head) * D + dd * 8 + fn);
         Qf[dd].thread_elements()[0] = as_type<bfloat>((ushort)(w & 0xFFFF));
         Qf[dd].thread_elements()[1] = as_type<bfloat>((ushort)(w >> 16));
     }
@@ -201,7 +202,7 @@ kernel void attn_flash(device const ushort* q [[buffer(0)]],
     l += simd_shuffle_xor(l, ushort(1));
     l += simd_shuffle_xor(l, ushort(8));
     const float inv = 1.0f / l;
-    if (pos < T) {
+    if (pos < T && live) {
         device uint* dst = (device uint*)(out + ((ulong)pos * N + head) * D + fn);
         FL_UNROLL
         for (uint id = 0; id < TD; ++id) {

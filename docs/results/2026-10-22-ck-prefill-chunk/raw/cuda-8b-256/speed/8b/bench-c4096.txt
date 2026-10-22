@@ -1,0 +1,12 @@
+calibration: 46 base tokens, 20.89 tokens per filler sentence
+  size   4096 rep: prompt=3942 gen=16 ttft=0.88s prefill=4488 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3989 gen=16 ttft=0.95s prefill=4197 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3982 gen=16 ttft=0.95s prefill=4171 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16249 gen=16 ttft=4.47s prefill=3635 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16310 gen=16 ttft=4.49s prefill=3631 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16297 gen=16 ttft=4.50s prefill=3619 tok/s decode=13.4 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c4096.json
+ck-cuda-8b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3982     0.950         4197        14.8       16
+   16384    16297     4.492         3631        13.4       16

@@ -1,0 +1,26 @@
+################ stage ids start 06:58:26 (budget left 940 s)
+--- ids 16654 06:58:26
+base 16654: prompt: 16654 tokens
+base 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1912 ms (8712.4 tok/s) | decode 1800 ms (141.66 tok/s)
+base 16654: steps=261 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/50 embedding=0ms/261 gate_split_qk_norm_rope_kv=0ms/2610
+off 16654: prompt: 16654 tokens
+off 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1913 ms (8704.9 tok/s) | decode 1800 ms (141.64 tok/s)
+off 16654: steps=261 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/50 embedding=0ms/261 gate_split_qk_norm_rope_kv=0ms/2610
+on 16654: prompt: 16654 tokens
+on 16654: Error: generation failed: memory plan: kernel needs 178932736 scratch bytes but the plan reserved 167905792
+ids 16654: 255 commas in base
+IDS 16654: base == off
+IDS 16654: base != on (cmp: EOF on /home/josef/intarsiaml-tc/bench-out/tc/out/ids-on-16654.ids which is empty)
+--- ids 4408 06:58:44
+base 4408: prompt: 4408 tokens
+base 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 497 ms (8860.9 tok/s) | decode 1644 ms (155.14 tok/s)
+base 4408: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580
+off 4408: prompt: 4408 tokens
+off 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 497 ms (8863.5 tok/s) | decode 1638 ms (155.65 tok/s)
+off 4408: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580
+on 4408: prompt: 4408 tokens
+on 4408: Error: generation failed: memory plan: kernel needs 180654336 scratch bytes but the plan reserved 167905792
+ids 4408: 255 commas in base
+IDS 4408: base == off
+IDS 4408: base != on (cmp: EOF on /home/josef/intarsiaml-tc/bench-out/tc/out/ids-on-4408.ids which is empty)
+################ stage ids end 06:58:57

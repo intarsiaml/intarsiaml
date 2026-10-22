@@ -206,6 +206,17 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
     if cap > chunk {
         probes.push((Phase::Prefill, chunk, cap - chunk));
     }
+    // opt-in tail merge (`INTARSIA_PREFILL_TAIL_MERGE`): the final chunk of a prompt may have up to `chunk + tail_merge`
+    // rows, so the kernel scratch is sized (and the kernels admitted) for those shapes too; nothing is added when off
+    let merged = chunk + model.tail_merge();
+    if model.tail_merge() > 0 {
+        for t in [chunk + 1, merged] {
+            probes.push((Phase::Prefill, t, 0));
+            if cap > t {
+                probes.push((Phase::Prefill, t, cap - t));
+            }
+        }
+    }
     // speculative verify passes (spec on only): every row count, at both ends of the context
     for t in 2..=model.verify_rows() {
         if t < cap {
@@ -275,7 +286,8 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache); every other op runs once
 /// for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`, so it is listed, although
 /// `Model::enable_batch` rejects gated attention today and no batched plan can contain it.
-const PER_ROW_OPS: [Op; 6] = [Op::QkNormRopeKv, Op::GateSplitQkNormRopeKv, Op::QkNorm, Op::Rope, Op::KvAppend, Op::AttnDecode];
+const PER_ROW_OPS: [Op; 7] =
+    [Op::QkNormRopeKv, Op::GateSplitQkNormRopeKv, Op::QkNorm, Op::Rope, Op::RopeScaled, Op::KvAppend, Op::AttnDecode];
 
 /// A batched step must be the solo decode step with its row-parallel ops widened: the same op multiset, the per-row
 /// attention ops `rows` times. A different fusion choice (a fused pair in the solo step, two projections in the batch)

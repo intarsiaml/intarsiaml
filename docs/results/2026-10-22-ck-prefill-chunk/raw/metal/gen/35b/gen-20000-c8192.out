@@ -1,0 +1,8 @@
+ gates pass |
+| publish deep results | 1 min | — |
+
+The quick publish is a hard requirement: a model that fails deep is still useful if the quick numbers are good.
+
+## 8. Observability, UI and metrics
+
+- **Metrics**: Prometheus `/metrics` (step time, decode

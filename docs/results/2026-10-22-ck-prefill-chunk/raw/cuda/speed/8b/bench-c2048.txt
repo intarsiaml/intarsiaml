@@ -1,0 +1,24 @@
+  size   4096 rep: prompt=4050 gen=16 ttft=0.89s prefill=4527 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4050 gen=16 ttft=0.89s prefill=4547 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16487 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16440 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16378 gen=16 ttft=4.44s prefill=3686 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16253 gen=16 ttft=4.43s prefill=3666 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16358 gen=16 ttft=4.47s prefill=3657 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c2048.json
+ck-cuda-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4050     0.894         4527        14.8       16
+   16384    16358     4.443         3666        13.3       16
+  size   4096 rep: prompt=4046 gen=16 ttft=0.93s prefill=4361 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4041 gen=16 ttft=0.93s prefill=4360 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=4016 gen=16 ttft=0.92s prefill=4348 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16521 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16331 gen=16 ttft=4.61s prefill=3544 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16341 gen=16 ttft=4.62s prefill=3537 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16329 gen=16 ttft=4.61s prefill=3539 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-102007/speed/8b/ck-cuda-8b-c2048.json
+ck-cuda-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4041     0.927         4360        14.8       16
+   16384    16331     4.615         3538        13.3       16

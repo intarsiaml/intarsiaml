@@ -1,0 +1,3 @@
+u_glu` for the dense part, `silu_glu` for the
+shared part). The `moe_topk` op is a `topk` with softmax and weight normalisation, `moe_experts` is a `matmul` with
+`moe_grouped_gemm`

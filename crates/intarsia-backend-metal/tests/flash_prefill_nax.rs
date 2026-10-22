@@ -224,6 +224,11 @@ fn flash_matches_f64_reference() {
         c(16, 4, 1, 128, 0, 16),        // group 4 with kv head 1, exactly one 16-row slab
         c(129, 16, 2, 128, 63, 400),    // group 8, key tile boundary at 64 inside the block
         c(300, 8, 8, 128, 1000, 1300),  // MHA, continuation, cap = pos0 + T
+        c(70, 12, 4, 128, 5, 90),       // group 3
+        c(100, 20, 4, 128, 3, 200),     // group 5
+        c(64, 18, 3, 128, 0, 70),       // group 6
+        c(257, 28, 4, 128, 3839, 4200), // group 7: Qwen2.5-7B heads, one row past a block, 4k context
+        c(33, 14, 2, 128, 30, 64),      // group 7, short chunk
     ];
     for name in all_variants() {
         select_variant(Some(name));
@@ -317,7 +322,10 @@ fn flash_predicate() {
     }
     assert!(accepts(f, &mk(2, 32, 8, 128, DType::Bf16)), "the smallest chunk");
     assert!(accepts(f, &mk(47, 32, 8, 128, DType::Bf16)), "a short tail chunk takes the NAX kernel too");
-    assert!(!accepts(f, &mk(256, 24, 8, 128, DType::Bf16)), "group 3");
+    for g in [3, 5, 6, 7] {
+        assert!(accepts(f, &mk(256, g * 8, 8, 128, DType::Bf16)), "group {g}");
+    }
+    assert!(!accepts(f, &mk(256, 72, 8, 128, DType::Bf16)), "group 9");
     assert!(!accepts(f, &mk(256, 16, 1, 128, DType::Bf16)), "group 16");
     assert!(!accepts(f, &mk(256, 4, 2, 64, DType::Bf16)), "head_dim 64 stays on the P2 kernel");
     assert!(!accepts(f, &mk(256, 4, 2, 256, DType::Bf16)), "head_dim 256 stays on the P2 kernel");
