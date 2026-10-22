@@ -1,0 +1,37 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+tensor parallel x2 across processes: rank 1 is remote (20480 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 x2 (tp=2, nccl comm) in 4.5s: 40 layers, hidden 2048, act bf16, kv bf16, weights 11.09 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 1073 tokens
+finish=length prompt=1073 (cached 0) completion=32 | prefill 1476 ms (726.9 tok/s) | decode 312 ms (99.47 tok/s)
+op table (estimated ms over all launches; total 0.0 ms):
+op                               ms  share%    calls   timed
+all_reduce                     0.00    0.00     2640       0
+argmax                         0.00    0.00       32       0
+attn_decode                    0.00    0.00      320       0
+attn_prefill                   0.00    0.00       10       0
+embedding                      0.00    0.00       33       0
+gate_split                     0.00    0.00      330       0
+gated_rmsnorm                  0.00    0.00      990       0
+gdn_conv                       0.00    0.00      990       0
+gdn_delta_rule                 0.00    0.00      990       0
+kv_append                      0.00    0.00      660       0
+matmul                         0.00    0.00      140       0
+matmul_fp8                     0.00    0.00     1730       0
+matmul_fp8_pair                0.00    0.00     1280       0
+matmul_nvfp4                   0.00    0.00     1432       0
+matmul_nvfp4_glu               0.00    0.00     1280       0
+matmul_pair                    0.00    0.00       32       0
+moe_combine                    0.00    0.00     1320       0
+moe_experts                    0.00    0.00     1320       0
+moe_topk                       0.00    0.00     1320       0
+qk_norm                        0.00    0.00      660       0
+rmsnorm                        0.00    0.00       33       0
+rmsnorm_add                    0.00    0.00      432       0
+rmsnorm_add_matmul_pair        0.00    0.00     2208       0
+rope                           0.00    0.00      660       0
+sigmoid_mul                    0.00    0.00      330       0
+silu_glu                       0.00    0.00       40       0
+tensor parallel: 2640 all-reduces (80.0 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=33 graph replays=32 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/2640 argmax=0ms/32 attn_decode=0ms/320 attn_prefill=0ms/10 embedding=0ms/33
