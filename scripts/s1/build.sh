@@ -10,7 +10,7 @@ set -euo pipefail
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$S/../.." && pwd)"
 export HOST=${HOST:-spark2}
-BASE_REF=${BASE_REF:-06fba3a9}
+BASE_REF=${BASE_REF:-f9087322}
 R='~/intarsia-decfuse'
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }

@@ -2,10 +2,9 @@
 # Lane S1, spark2 side. Run inside a fleetq slot (FLEETQ_JOB set), from the Mac:
 #   ssh -n spark2 "export FLEETQ_JOB=$FLEETQ_JOB STEPS='probe tests'; bash ~/intarsia-decfuse/s1-dev/scripts/s1/remote.sh"
 # Steps (STEPS, space separated; default all non-window steps in this order):
-#   probe   f32x2 packed-fp32 probe (kernels/cuda_checks/f32x2_probe.cu): SASS + throughput + bitwise
 #   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/test
 #   bench   GEMM microbenchmark at the 35B prefill shapes: every matmul_fp8_gemm_reg schedule (INTARSIA_CUDA_FP8_REG_CFG
-#           0..6), then the new nvfp4 / pair / GLU kernels against the calls they replace (quantmoe bench_wq_prefill_shapes)
+#           0 1 4 7), then the new nvfp4 / pair / GLU kernels against the calls they replace (quantmoe bench_wq_prefill_shapes)
 #   ktest   intarsia kernels test --backend cuda (admission, dev binary)
 #   prof    nsys over a ~4k-token 35B prefill per arm (kernel ranking + launch gaps, rank.txt)
 #   ids     greedy ids per arm vs base: 35B ~1.2k-token (256 tokens) and ~3.4k-token (64 tokens) prompts, 8B the same; plans
@@ -22,7 +21,7 @@ M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d
 GD=${GOLDEN_DIR:-$HOME/intarsiaml-golden-s1}
 S=$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; L=$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 CORPUS=$P/s1-dev/tools/prompts/corpus_docs.txt
-STEPS=${STEPS:-probe tests bench ktest prof ids acc}
+STEPS=${STEPS:-tests bench ktest prof ids acc}
 want() { [[ " $STEPS " == *" $1 "* ]]; }
 read -r -a ARMV <<< "${ARMS:-base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1}"
 arm_tree() { echo "$1" | cut -d: -f2; }
@@ -35,19 +34,6 @@ log "== remote.sh STEPS='$STEPS' MemAvailable $(memgb) GB"
 nvidia-smi --query-gpu=clocks.sm,clocks.mem,temperature.gpu,power.draw,utilization.gpu --format=csv,noheader >> $O/clocks.txt 2>&1
 for t in s1-base s1-dev; do log "bin $t: $($(bin $t) --version 2>&1 | head -1); pair syms $(grep -c ik_matmul_fp8_pair_gemm_reg $(bin $t)); glu syms $(grep -c ik_matmul_nvfp4_glu_gemm $(bin $t))"; done
 
-if want probe; then
-  d=$O/probe; mkdir -p $d; cd $P/s1-dev
-  nvcc -O3 -arch=sm_121 -o $d/f32x2_probe kernels/cuda_checks/f32x2_probe.cu > $d/nvcc.log 2>&1; log "probe nvcc exit $? ($(tail -2 $d/nvcc.log | tr '\n' ' '))"
-  if [[ -x $d/f32x2_probe ]]; then
-    cuobjdump -sass $d/f32x2_probe > $d/sass.txt 2>&1
-    log "probe SASS: FADD2/FFMA2/FMUL2 lines $(grep -cE 'FADD2|FFMA2|FMUL2|F32x2' $d/sass.txt), FADD $(grep -cE ' FADD ' $d/sass.txt), FFMA $(grep -cE ' FFMA ' $d/sass.txt)"
-    timeout 120 $d/f32x2_probe < /dev/null > $d/run.txt 2>&1; log "probe run exit $?"; cat $d/run.txt | tee -a $O/steps.log
-  fi
-  # does nvcc already emit packed fp32 in the GDN split kernel?
-  nvcc -O3 -arch=sm_121 -cubin -I kernels/cuda -o $d/gdn.cubin kernels/cuda/gdn.cu > $d/gdn-nvcc.log 2>&1 && cuobjdump -sass $d/gdn.cubin > $d/gdn-sass.txt 2>&1
-  log "gdn SASS: packed lines $(grep -cE 'FADD2|FFMA2|FMUL2|F32x2' $d/gdn-sass.txt 2>/dev/null), FFMA $(grep -cE ' FFMA ' $d/gdn-sass.txt 2>/dev/null)"
-fi
-
 if want tests; then
   d=$O/tests; mkdir -p $d; cd $P/s1-dev
   CT="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda"
@@ -55,8 +41,10 @@ if want tests; then
     eval "env $CT $t -- --test-threads=1" < /dev/null > "$d/test-${t//[ -]/}.log" 2>&1
     log "test $t exit $?: $(grep -E 'test result|panicked' "$d/test-${t//[ -]/}.log" | head -3 | tr '\n' '|')"
   done
+  eval "env INTARSIA_CUDA_FP8_CUBLAS=1 $CT --test fp8_gemm_reg -- --nocapture --test-threads=1" < /dev/null > "$d/test-fp8reg-cublas.log" 2>&1
+  log "test fp8_gemm_reg (cuBLAS on) exit $?: $(grep -E 'cases bitwise|test result|panicked' "$d/test-fp8reg-cublas.log" | head -3 | tr '\n' '|')"
   # every gemm_reg schedule must be bitwise matmul_fp8_gemm (and the pair two gemm_reg calls) under that schedule
-  for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
+  for c in ${BENCH_CFGS:-0 1 4 7}; do
     eval "env INTARSIA_CUDA_FP8_REG_CFG=$c $CT --test fp8_gemm_reg -- --test-threads=1" < /dev/null > "$d/test-fp8reg-cfg$c.log" 2>&1
     log "test fp8_gemm_reg cfg $c exit $?: $(grep -E 'test result|panicked' "$d/test-fp8reg-cfg$c.log" | head -3 | tr '\n' '|')"
   done
@@ -65,11 +53,11 @@ fi
 if want bench; then
   d=$O/bench; mkdir -p $d; cd $P/s1-dev
   B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
-  for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
+  for c in ${BENCH_CFGS:-0 1 4 7}; do
     eval "env INTARSIA_CUDA_FP8_REG_CFG=$c INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg $B" < /dev/null > $d/cfg$c.log 2>&1
     log "bench cfg $c exit $?: $(grep -E 'per-chunk total' $d/cfg$c.log | tr -s ' ' | tr '\n' '|')"
   done
-  eval "env INTARSIA_BENCH_WQ=matmul_nvfp4_gemm,matmul_nvfp4_gemm_reg,matmul_fp8_pair_gemm_reg,matmul_nvfp4_glu_gemm $B" < /dev/null > $d/new.log 2>&1
+  eval "env INTARSIA_CUDA_FP8_CUBLAS=1 INTARSIA_BENCH_WQ=matmul_bf16,matmul_fp8_gemm_cublas,matmul_nvfp4_gemm,matmul_nvfp4_gemm_reg,matmul_fp8_pair_gemm_reg,matmul_nvfp4_glu_gemm $B" < /dev/null > $d/new.log 2>&1
   log "bench new exit $?"; grep -E 'per-chunk total|pair|glu' $d/new.log | tee -a $O/steps.log
 fi
 

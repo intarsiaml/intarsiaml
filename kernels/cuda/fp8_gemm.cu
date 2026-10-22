@@ -363,21 +363,14 @@ void launch(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const float* 
 }
 
 // The schedules (every one bitwise the same results; the choice is speed only). INTARSIA_CUDA_FP8_REG_CFG=<id> forces one
-// for every shape (microbenchmarks); unset, pick_cfg chooses by shape.
-using Cfg0 = Cfg<4, 3>;              // 128 x 128, k 64, 3 slots (round 3), 86 KB, 1 block / SM
-using Cfg1 = Cfg<4, 2, 8, 64, 1>;    // 128 x 256, k 64, 2 slots, 78 KB
-using Cfg2 = Cfg<4, 3, 8, 32, 1>;    // 128 x 256, k 32, 3 slots, 68 KB
-using Cfg3 = Cfg<4, 4, 8, 32, 1>;    // 128 x 256, k 32, 4 slots, 90 KB
-using Cfg4 = Cfg<4, 3, 4, 32, 2>;    // 128 x 128, k 32, 3 slots, 49 KB, 2 blocks / SM
-using Cfg5 = Cfg<4, 4, 4, 32, 1>;    // 128 x 128, k 32, 4 slots, 66 KB
-using Cfg6 = Cfg<2, 3, 8, 32, 2>;    // 128 x 128 with 4 warps of 64 x 64, k 32, 3 slots, 49 KB, 2 blocks / SM
-// the same with the fragment-pipelined main loop
-using Cfg7 = Cfg<4, 3, 4, 64, 1, true>;   // as Cfg0
-using Cfg8 = Cfg<4, 2, 8, 64, 1, true>;   // as Cfg1
-using Cfg9 = Cfg<4, 4, 4, 32, 1, true>;   // as Cfg5
-using Cfg10 = Cfg<4, 3, 8, 32, 1, true>;  // as Cfg2
-using Cfg11 = Cfg<4, 3, 4, 32, 2, true>;  // as Cfg4
-constexpr int kNumCfg = 12;
+// for every shape (microbenchmarks); unset, pick_cfg chooses. Lane S1 swept twelve (tile 128 x 256, k 32 steps, 2 blocks
+// per SM, a fragment-pipelined main loop; docs/results/2026-10-22-s1-spark-prefill.md): none beat Cfg0 consistently, so
+// Cfg0 stays the default and three representatives stay for re-measurement on other parts.
+using Cfg0 = Cfg<4, 3>;                  // 128 x 128, k 64, 3 slots (round 3), 86 KB, 1 block / SM
+using Cfg1 = Cfg<4, 2, 8, 64, 1>;        // 128 x 256, k 64, 2 slots, 78 KB
+using Cfg4 = Cfg<4, 3, 4, 32, 2>;        // 128 x 128, k 32, 3 slots, 49 KB, 2 blocks / SM
+using Cfg7 = Cfg<4, 3, 4, 64, 1, true>;  // Cfg0 with the fragment-pipelined main loop
+constexpr int kNumCfg = 8;
 
 int forced_cfg() {
     static const int v = [] {
@@ -402,16 +395,8 @@ void launch_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, 
                 int K, int vec, cudaStream_t s) {
     switch (cfg) {
         case 1: launch<Cfg1, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 2: launch<Cfg2, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 3: launch<Cfg3, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         case 4: launch<Cfg4, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 5: launch<Cfg5, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 6: launch<Cfg6, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         case 7: launch<Cfg7, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 8: launch<Cfg8, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 9: launch<Cfg9, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 10: launch<Cfg10, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
-        case 11: launch<Cfg11, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
         default: launch<Cfg0, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
     }
 }
@@ -423,16 +408,8 @@ void launch_pair_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq0, const ik_bf1
 #define IK_PAIR(C) launch_pair<C, OutT>(x, xq0, xq1, w0, w1, sc0, sc1, out0, out1, M, N0, N1, K, vec0, vec1, s)
     switch (cfg) {
         case 1: IK_PAIR(Cfg1); break;
-        case 2: IK_PAIR(Cfg2); break;
-        case 3: IK_PAIR(Cfg3); break;
         case 4: IK_PAIR(Cfg4); break;
-        case 5: IK_PAIR(Cfg5); break;
-        case 6: IK_PAIR(Cfg6); break;
         case 7: IK_PAIR(Cfg7); break;
-        case 8: IK_PAIR(Cfg8); break;
-        case 9: IK_PAIR(Cfg9); break;
-        case 10: IK_PAIR(Cfg10); break;
-        case 11: IK_PAIR(Cfg11); break;
         default: IK_PAIR(Cfg0); break;
     }
 #undef IK_PAIR
