@@ -127,3 +127,52 @@ fn fp8_gemm_reg_35b_shapes() {
         check(&*cuda, &hc, &format!("35B M={m} N={n} K={k}"), false);
     }
 }
+
+/// `matmul_fp8_pair_gemm_reg` (Op::MatmulFp8Pair at prefill: one activation quantiser when the input scales are equal, one
+/// grid for both GEMMs) must give the bytes of two `matmul_fp8_gemm_reg` calls, for equal input scales (the shared-xq path,
+/// the 35B's case: every in_proj_qkv / in_proj_z and k / v pair has one input scale), different ones (the second
+/// quantiser), weight-only and mixed halves, bf16 and f32 outputs, the 35B pair shapes, N tails, and grids below 24 tiles
+/// (the launcher's single-call path).
+#[test]
+fn fp8_pair_gemm_reg_is_bitwise_two_calls() {
+    use intarsia_core::quant::cases::matmul_fp8_pair_case;
+    use intarsia_core::{HostTensor, Op};
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(94);
+    let single = |hc: &HostCall, w: usize, out: usize| HostCall {
+        op: Op::MatmulFp8,
+        inputs: vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[w + 1].clone()],
+        outputs: vec![hc.outputs[out].clone()],
+        attrs: hc.attrs.clone(),
+    };
+    for (m, n0, n1, k, out) in [
+        (2048usize, 8192usize, 4096usize, 2048usize, DType::Bf16),
+        (2048, 512, 512, 2048, DType::Bf16),
+        (1000, 512, 512, 2048, DType::Bf16),
+        (300, 512, 512, 2048, DType::Bf16),  // 12 tiles per half: the single-call path
+        (300, 3080, 136, 384, DType::Bf16),  // one half above, one below 24 tiles
+        (777, 3196, 1608, 256, DType::Bf16), // N % 8 != 0: scalar epilogue
+        (256, 1600, 1100, 512, DType::F32),
+    ] {
+        for (mode, aq0, aq1) in
+            [("equal", true, true), ("differ", true, true), ("weight-only", false, false), ("mixed", true, false)]
+        {
+            let mut hc = matmul_fp8_pair_case(&mut rng, m, n0, n1, k, aq0, aq1, DType::Bf16, out);
+            let (s0, mut s1) = (hc.inputs[2].to_f32(), hc.inputs[4].to_f32());
+            if mode == "equal" {
+                s1[1] = s0[1];
+            } else if mode == "differ" {
+                assert!(s1[1] > 0.0 && s0[1] > 0.0 && s1[1] != s0[1], "case must differ: {s0:?} {s1:?}");
+            }
+            hc.inputs[4] = HostTensor::from_f32_as(hc.inputs[4].dtype, &hc.inputs[4].shape, &s1);
+            let label = format!("{mode} M={m} N0={n0} N1={n1} K={k} {out:?}");
+            let pair = run_host(&*cuda, "matmul_fp8_pair_gemm_reg", &hc).unwrap();
+            let a = run_host(&*cuda, "matmul_fp8_gemm_reg", &single(&hc, 1, 0)).unwrap();
+            let b = run_host(&*cuda, "matmul_fp8_gemm_reg", &single(&hc, 3, 1)).unwrap();
+            assert!(pair[0].data == a[0].data, "{label}: first output differs from matmul_fp8_gemm_reg");
+            assert!(pair[1].data == b[0].data, "{label}: second output differs from matmul_fp8_gemm_reg");
+            let again = run_host(&*cuda, "matmul_fp8_pair_gemm_reg", &hc).unwrap();
+            assert!(pair[0].data == again[0].data && pair[1].data == again[1].data, "{label}: not repeatable");
+        }
+    }
+}

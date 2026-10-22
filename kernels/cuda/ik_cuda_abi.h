@@ -32,6 +32,20 @@ int ik_moe_experts_nvfp4_mma_bf16(const ik_tensor* x, const ik_tensor* ids, cons
  * kernels/cuda/fp8_gemm.cu. Needs K % 128 == 0. */
 int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                            const ik_scratch* scratch, void* stream);
+/* matmul_fp8_pair_gemm_reg: Op::MatmulFp8Pair at prefill, bitwise two ik_matmul_fp8_gemm_reg calls on the same x: the
+   activation quantiser runs once when the two input scales are equal (device-side check), and both GEMMs share one grid.
+   Scratch: 2 * M * K bf16. kernels/cuda/fp8_gemm.cu. Needs K % 128 == 0. */
+int ik_matmul_fp8_pair_gemm_reg(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1,
+                                const ik_tensor* sc1, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch,
+                                void* stream);
+/* matmul_nvfp4_gemm_reg / matmul_nvfp4_glu_gemm: dense NVFP4 prefill GEMMs with the weights dequantised in registers,
+   bitwise matmul_nvfp4_gemm (and, for the GLU, two of them followed by silu_glu_bf16). kernels/cuda/nvfp4_gemm_reg.cu.
+   Need K % 128 == 0 and N % 128 == 0 (GEMM) / N % 64 == 0 (GLU, bf16 out). */
+int ik_matmul_nvfp4_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                             const ik_tensor* global_scale, ik_tensor* out, void* stream);
+int ik_matmul_nvfp4_glu_gemm(const ik_tensor* x, const ik_tensor* w_gate, const ik_tensor* block_scales_gate,
+                             const ik_tensor* global_scale_gate, const ik_tensor* w_up, const ik_tensor* block_scales_up,
+                             const ik_tensor* global_scale_up, ik_tensor* out, void* stream);
 
 /* matmul_fp8_gemm_lt: matmul_fp8_gemm (same arguments, same scratch) with the W8A8 products on cuBLASLt's e4m3 tensor-core
  * GEMM: the same e4m3 activations, a different accumulation (not bitwise the default kernels), one pinned algorithm per

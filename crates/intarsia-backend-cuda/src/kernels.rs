@@ -163,6 +163,25 @@ pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
     }
 }
 
+/// `matmul_fp8_pair_gemm_reg` (Op::MatmulFp8Pair at prefill, bitwise the two `matmul_fp8_gemm_reg` calls it replaces,
+/// docs/results/2026-10-22-s1-spark-prefill.md) serves exactly where `matmul_fp8_gemm_reg` would serve both halves: the reg
+/// GEMM on and neither opt-in e4m3 GEMM (`INTARSIA_CUDA_FP8_GEMM_F8` / `_LT` / `FAST_PREFILL`, which then serve the single
+/// calls). `INTARSIA_CUDA_FP8_PAIR_REG=0` switches it off.
+pub fn fp8_pair_reg() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| {
+        std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").map_or(true, |v| v != "0") && fp8_gemm_reg() && !fp8_gemm_f8() && !fp8_gemm_lt()
+    })
+}
+
+/// The register-dequantising dense NVFP4 prefill kernels (`matmul_nvfp4_gemm_reg`, `matmul_nvfp4_glu_gemm`; bitwise the
+/// kernels they replace, docs/results/2026-10-22-s1-spark-prefill.md) are on by default; `INTARSIA_CUDA_NVFP4_REG=0`
+/// switches them off (the 35B shared expert then runs `matmul_nvfp4_gemm` x 3 and `silu_glu_bf16` again).
+pub fn nvfp4_reg() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_NVFP4_REG").map_or(true, |v| v != "0"))
+}
+
 /// `INTARSIA_CUDA_FP8_GEMM_F8=1` selects the e4m3 tensor-core W8A8 GEMM (`matmul_fp8_gemm_f8`, every M >= 5) without the
 /// lanes GDN kernel that `INTARSIA_CUDA_FAST_PREFILL=1` also turns on; `INTARSIA_CUDA_FAST_PREFILL=1` still selects it as
 /// before. Opt-in: docs/results/2026-10-19-cuda-prefill-4.md.
@@ -540,6 +559,90 @@ mod tests {
         }
     }
 
+    /// `Op::MatmulFp8Pair` (GDN qkv + z, attention k + v of the 35B): the gemv at one row, nothing from 2 to 255 rows (the
+    /// model then runs the two single projections), the prefill pair launcher from 256 rows, exactly where
+    /// `matmul_fp8_gemm_reg` serves both singles; never when an opt-in e4m3 GEMM or the kill switch is on.
+    #[test]
+    fn fp8_pair_selection_by_batch_size() {
+        let pick = |m: usize, k: usize| {
+            let s = ShapeInfo {
+                m,
+                n: 8192,
+                k,
+                act: Some(DType::Bf16),
+                weight: Some(DType::Fp8E4m3),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        let env_on = |v: &str| std::env::var(v).is_ok_and(|x| x == "1");
+        let off = env_on("INTARSIA_CUDA_FP8_GEMM_LT")
+            || env_on("INTARSIA_CUDA_FP8_GEMM_F8")
+            || env_on("INTARSIA_CUDA_FAST_PREFILL")
+            || std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0")
+            || std::env::var("INTARSIA_CUDA_FP8_PAIR_REG").is_ok_and(|v| v == "0");
+        assert_eq!(pick(1, 2048).as_deref(), Some("matmul_fp8_pair_gemv"));
+        for m in [2, 4, 5, 32, 33, 255] {
+            assert_eq!(pick(m, 2048), None, "M={m}");
+        }
+        for m in [256, 2048, 4096] {
+            let want = if off { None } else { Some("matmul_fp8_pair_gemm_reg") };
+            assert_eq!(pick(m, 2048).as_deref(), want, "M={m}");
+        }
+    }
+
+    /// The 35B shared expert's NVFP4 projections: `Op::MatmulNvfp4` (gate / up 512 x 2048, down 2048 x 512) and the fused
+    /// `Op::MatmulNvfp4Glu` (gate + up + silu_glu) take the register-dequantising prefill kernels from 256 rows; below, the
+    /// gemv / mma / gemm kernels as before and no GLU kernel past one row (the model runs gate, up and silu_glu).
+    #[test]
+    fn nvfp4_selection_by_batch_size() {
+        let pick = |op: Op, m: usize, n: usize, k: usize| {
+            let s = ShapeInfo {
+                m,
+                n,
+                k,
+                act: Some(DType::Bf16),
+                weight: Some(DType::U8),
+                out: Some(DType::Bf16),
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s)) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        assert_eq!(crate::quantmoe::NVFP4_REG_MIN_TOKENS, 256);
+        let off = std::env::var("INTARSIA_CUDA_NVFP4_REG").is_ok_and(|v| v == "0");
+        for (n, k) in [(512, 2048), (2048, 512)] {
+            assert_eq!(pick(Op::MatmulNvfp4, 1, n, k).as_deref(), Some("matmul_nvfp4_gemv"));
+            assert_eq!(pick(Op::MatmulNvfp4, 32, n, k).as_deref(), Some("matmul_nvfp4_mma"));
+            assert_eq!(pick(Op::MatmulNvfp4, 255, n, k).as_deref(), Some("matmul_nvfp4_gemm"));
+            for m in [256, 2048, 4096] {
+                let want = if off { "matmul_nvfp4_gemm" } else { "matmul_nvfp4_gemm_reg" };
+                assert_eq!(pick(Op::MatmulNvfp4, m, n, k).as_deref(), Some(want), "M={m} N={n} K={k}");
+            }
+        }
+        assert_eq!(pick(Op::MatmulNvfp4, 2048, 520, 2048).as_deref(), Some("matmul_nvfp4_gemm"), "N % 128 != 0");
+        assert_eq!(pick(Op::MatmulNvfp4Glu, 1, 512, 2048).as_deref(), Some("matmul_nvfp4_glu_gemv"));
+        for m in [2, 5, 33, 255] {
+            assert_eq!(pick(Op::MatmulNvfp4Glu, m, 512, 2048), None, "M={m}");
+        }
+        for m in [256, 2048] {
+            let want = if off { None } else { Some("matmul_nvfp4_glu_gemm") };
+            assert_eq!(pick(Op::MatmulNvfp4Glu, m, 512, 2048).as_deref(), want, "M={m}");
+        }
+    }
+
     /// The attention kernel the registry picks for the 35B (16 / 2 / 256) and 8B (32 / 8 / 128) heads by cache dtype: a bf16
     /// cache keeps the split-KV (decode, <= 16 rows) and flash (> 16 rows) kernels, an fp8_e4m3 cache gets their f8kv twins;
     /// no f8kv kernel can serve a bf16 cache (and the reverse).
@@ -724,10 +827,13 @@ mod tests {
         "matmul_fp8_gemm_reg:matmul_fp8",
         "matmul_fp8_gemv:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
+        "matmul_fp8_pair_gemm_reg:matmul_fp8_pair",
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
         "matmul_nvfp4_gemm:matmul_nvfp4",
+        "matmul_nvfp4_gemm_reg:matmul_nvfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_glu_gemm:matmul_nvfp4_glu",
         "matmul_nvfp4_glu_gemv:matmul_nvfp4_glu",
         "matmul_nvfp4_mma:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",

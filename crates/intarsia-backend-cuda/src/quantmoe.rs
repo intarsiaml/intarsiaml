@@ -5,7 +5,10 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::{fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_gemm_reg_priority, moe_nvfp4_priority, moe_w4a16_priority, ARCH};
+use crate::kernels::{
+    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
+    nvfp4_reg, ARCH,
+};
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
@@ -19,6 +22,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
+    // prefill (M >= 256): weights dequantised in registers, bitwise `matmul_nvfp4_gemm` (kernels/cuda/nvfp4_gemm_reg.cu)
+    ("matmul_nvfp4_gemm_reg", Op::MatmulNvfp4),
     // M1 drill (kernels/cuda/mxfp4.cu): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input; any M
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
     ("moe_topk_bf16", Op::MoeTopk),
@@ -33,7 +38,12 @@ pub const TABLE: &[(&str, Op)] = &[
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
+    // prefill (M >= 256): the pair as one launcher of the two `matmul_fp8_gemm_reg` GEMMs (one activation quantiser when the
+    // input scales are equal, one grid), bitwise the two single calls; docs/results/2026-10-22-s1-spark-prefill.md
+    ("matmul_fp8_pair_gemm_reg", Op::MatmulFp8Pair),
     ("matmul_nvfp4_glu_gemv", Op::MatmulNvfp4Glu),
+    // prefill (M >= 256): gate + up + silu_glu in one launch, bitwise two `matmul_nvfp4_gemm` and `silu_glu_bf16`
+    ("matmul_nvfp4_glu_gemm", Op::MatmulNvfp4Glu),
     ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
     // the residual add + norm (RmsNormAddMatmulPair) or the GDN output norm (GatedRmsnormMatmulFp8) folded into the GEMV that
     // follows it (docs/results/2026-10-17-cuda-norm-gemv.md)
@@ -68,6 +78,11 @@ const GEMM_MIN_TOKENS: usize = 33;
 /// from 256 tokens up on spark1 (fp8 projections of one 256-token chunk 12.5 vs 14.7 ms, 2048 tokens 83 vs 104 ms;
 /// docs/results/2026-10-19-cuda-prefill-3.md); not measured below 256, where `matmul_fp8_gemm` stays.
 pub const FP8_REG_MIN_TOKENS: usize = 256;
+
+/// Fewest tokens for the register-dequantising NVFP4 prefill kernels (`matmul_nvfp4_gemm_reg`, `matmul_nvfp4_glu_gemm`,
+/// bitwise the kernels they replace): the 35B shared expert at prefill-chunk sizes; below, `matmul_nvfp4_gemm` and the
+/// unfused gate / up / silu_glu chain stay (docs/results/2026-10-22-s1-spark-prefill.md).
+pub const NVFP4_REG_MIN_TOKENS: usize = 256;
 
 /// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
 /// the grouping kernel from 2 tokens on, 130 us vs 119 us).
@@ -308,6 +323,35 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
+                // bitwise two `matmul_fp8_gemm_reg` calls: served exactly where those serve both halves (M >= 256, the reg
+                // GEMM on; never with the opt-in e4m3 GEMMs, which would serve the singles). `INTARSIA_CUDA_FP8_PAIR_REG=0`
+                // (or INTARSIA_NO_FUSION=1 in the model) gives the two single calls.
+                "matmul_fp8_pair_gemm_reg" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| fp8_pair_reg() && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| 2 * s.m * s.k * 2)
+                    .priority(15),
+                "matmul_nvfp4_gemm_reg" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| nvfp4_reg() && s.m >= NVFP4_REG_MIN_TOKENS && s.k % 128 == 0 && s.n % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(15),
+                "matmul_nvfp4_glu_gemm" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        nvfp4_reg() && s.m >= NVFP4_REG_MIN_TOKENS && s.k % 128 == 0 && s.n % 64 == 0 && s.out == Some(DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(GLU_TOL)
+                    .priority(15),
                 "matmul_nvfp4_glu_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
