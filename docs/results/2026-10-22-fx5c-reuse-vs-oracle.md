@@ -99,13 +99,28 @@ Medians: CUDA cold 1.12e-2, warm 7.8e-3; Metal cold 8.7e-3, warm 9.7e-3. Mean wi
 
 ## 5. Caveats, not done
 
-* One prompt, one sequence, 32 rows per backend. The sequence was chosen by the CUDA cold engine's greedy decoding, so it is the cold path's own context; both warm and cold are scored on it and the oracle row
+* One prompt on Metal and two on CUDA (section 5b), one sequence and 32 rows each. The sequence was chosen by the CUDA cold engine's greedy decoding, so it is the cold path's own context; both warm and cold are scored on it and the oracle row
   is conditioned on it, but a context picked by one path is a mild favour to that path. Metal teacher-forces CUDA's tokens, which differ from its own stream.
 * Oracle on spark1 CPU, once; it differs from the committed endor oracle at 3e-3 (above). Not repeated on endor (blocked by the queue).
 * No prefill-only comparator on the same positions, so "decode rows are 1.5 to 2x the prefill distance" compares different rows and is indicative.
 * No per-layer attribution (the repo has no activation dump; fx5b said the same).
 
-Second prompt (`long_code_4k`, CUDA only): not run at the time of writing: queued as #4122 on spark1 behind two exclusive jobs. Metal on endor was unreachable (its queue was gated by a stale cpu job and the #4051 reservation), so a second prompt could only ever cover CUDA.
+## 5b. Second prompt, `long_code_4k`, CUDA only
+
+Same recipe on a code prompt (fleetq #4122: CUDA dump and CPU oracle in one spark1 slot; the sequence is this CUDA engine's own, split 2000, turn2 4080 + 32 stream tokens;
+oracle 15 min 16 s, 37.8 GB; the oracle's top-1 equals the stream token at 32/32 rows). Metal could not run a second prompt: endor's queue was gated by a stale cpu job and the #4051 reservation.
+
+| path (CUDA, long_code_4k) | KL(o \|\| path) mean / max | top-1 vs o |
+|---|---|---|
+| cold | 2.80e-3 / 3.36e-2 | 32/32 |
+| warm | 3.09e-3 / 4.97e-2 | 32/32 |
+| `warm_pf` | 3.35e-3 / 5.90e-2 | 32/32 |
+| `cold_engine` | 3.29e-3 / 4.34e-2 | 32/32 |
+
+warm / cold: 1.10 on the mean (bootstrap 95 % CI [0.65, 1.46]), 1.48 on the max; warm is the worse of the pair on 14 of 32 rows; KL(cold || warm) 3.2e-3 mean / 2.6e-2 max, KL(warm || cold) 3.2e-3 / 2.8e-2
+(raw/score-cuda-code.txt). Same verdict, and the same shape as `long_docs_4k`: warm and cold are as far from each other as each is from the oracle (3.2e-3 against 2.8e-3 to 3.1e-3), warm is within the 1.5x rule on the mean.
+Code is low entropy, so every distance is about 5x smaller than on the prose prompt; the gate margin is a ratio, which is why it transfers where the absolute 1e-2 does not.
+
 ## 6. Code and files
 
 * `crates/intarsia-cli/src/cmd/accuracy.rs`: `--reuse-dump DIR` (with `--reuse-diag`: write `cold`, `warm`, `warm_pf`, `cold_engine` rows as raw little-endian f32 and `seq.json`, then exit)
@@ -113,5 +128,5 @@ Second prompt (`long_code_4k`, CUDA only): not run at the time of writing: queue
 * `scripts/fx5c/`: `cuda-dump.sh`, `metal-build.sh`, `metal-dump.sh`, `oracle.sh`, `make_oracle_input.py`, `score.py`, `oracle_xcheck.py`, `code-chain.sh`.
 * `docs/results/2026-10-22-fx5c-reuse-vs-oracle/raw/`: run logs, `seq.json`, the oracle dump (2 MB, top-64 for all 4112 rows), score files. The 32 x 248320 f32 row dumps (127 MB per backend) are not in the repo.
 * Fleet jobs (owner claude-f31ccf91-fx5c): #4084 (spark1, build + CUDA dump, non-exclusive), #4089 (spark1, CPU oracle, non-exclusive, 40 GB), #4083 (endor, Metal build),
-  #4108 (endor, Metal dump). Cancelled before running: #4109 and #4115 (a Metal-generated `long_code_4k` sequence, unreachable). #4122 (spark1, `long_code_4k` CUDA dump + oracle): FINAL_STATE.
+  #4108 (endor, Metal dump). Cancelled before running: #4109 and #4115 (a Metal-generated `long_code_4k` sequence, unreachable). #4122 (spark1, `long_code_4k` CUDA dump + oracle): done, exit 0 (oracle exit 1 is the tool's verdict on the filler reference, expected).
   One `cargo check` on endor ran before I took a slot (no fleet role affected). Callers of the changed `reuse_diag` signature: the two known sites in `accuracy.rs`, no others in `crates/`; `AccuracyArgs` has no struct-literal constructors (tests parse it with clap), so `--tests` was not separately built.
