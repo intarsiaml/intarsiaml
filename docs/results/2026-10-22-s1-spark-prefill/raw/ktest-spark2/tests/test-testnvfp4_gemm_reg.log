@@ -1,0 +1,9 @@
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/nvfp4_gemm_reg.rs (target/test/release/deps/nvfp4_gemm_reg-8e2dad2a7dc0dae2)
+
+running 2 tests
+test nvfp4_gemm_reg_is_bitwise_the_gemm ... ok
+test nvfp4_glu_gemm_is_bitwise_the_chain ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+

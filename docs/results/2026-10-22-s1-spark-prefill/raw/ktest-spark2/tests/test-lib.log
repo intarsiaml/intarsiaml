@@ -1,0 +1,23 @@
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/test/release/deps/intarsia_backend_cuda-eb13275dd2d9552a)
+
+running 16 tests
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::attention_selection_by_kv_dtype ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::fp8_gemm_lt_range ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test kernels::tests::fp8_pair_selection_by_batch_size ... ok
+test kernels::tests::gdn_delta_rule_selection ... ok
+test kernels::tests::kernel_list_is_unchanged_by_core_op_fusion_p1 ... ok
+test kernels::tests::moe_block_is_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::moe_experts_selection_by_batch_size ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::nvfp4_selection_by_batch_size ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::phase1_folds_are_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::phase2_folds_are_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
