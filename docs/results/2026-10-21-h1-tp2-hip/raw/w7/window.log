@@ -1,0 +1,41 @@
+[window] job 3284 w7; stopping radiance 2026-10-21 18:44:42
+[window] radiance stopped 2026-10-21 18:44:45
+18:44:49 plan-base2-8b exit 0: 
+18:44:49 plan-base2-35b exit 0: 
+18:44:54 gen-base2-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+18:44:57 gen-base2-8b-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+18:44:59 gen-base2-35b-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+18:45:02 plan-head-35b exit 0: 
+18:45:06 gen-head-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+18:45:06 gen-base2-8b-4k exit 0: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258 logits=0ms/256|
+18:45:08 plan-head-8b exit 0: 
+18:45:11 gen-head-35b-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+18:45:16 gen-head-8b-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+18:45:25 gen-head-8b-4k exit 0: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258 logits=0ms/256|
+18:45:25 SAME tp=1 plan 35b (plan-base2-35b.out == plan-head-35b.out)
+18:45:25 SAME tp=1 ids 35b short (gen-base2-35b-short.ids == gen-head-35b-short.ids)
+18:45:25 SAME tp=1 ids 35b 4k (gen-base2-35b-4k.ids == gen-head-35b-4k.ids)
+18:45:25 SAME tp=1 plan 8b (plan-base2-8b.out == plan-head-8b.out)
+18:45:25 SAME tp=1 ids 8b short (gen-base2-8b-short.ids == gen-head-8b-short.ids)
+18:45:25 SAME tp=1 ids 8b 4k (gen-base2-8b-4k.ids == gen-head-8b-4k.ids)
+18:45:32 gen-head-35b-tp2g-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:45:38 gen-head-35b-tp2ng-short exit 0: steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+18:45:43 gen-head-35b-tp2gf-short exit 0 [INTARSIA_TP_FUSION=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:45:43 SAME tp=2 ids 35b short: --no-graphs vs graphs (gen-head-35b-tp2ng-short.ids == gen-head-35b-tp2g-short.ids)
+18:45:43 SAME tp=2 ids 35b short: graphs+fusion vs graphs (gen-head-35b-tp2gf-short.ids == gen-head-35b-tp2g-short.ids)
+18:45:50 gen-head-35b-tp2g-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:45:56 gen-head-35b-tp2ng-4k exit 0: steps=258 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+18:46:02 gen-head-35b-tp2gf-4k exit 0 [INTARSIA_TP_FUSION=1]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20640 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:46:03 SAME tp=2 ids 35b 4k: --no-graphs vs graphs (gen-head-35b-tp2ng-4k.ids == gen-head-35b-tp2g-4k.ids)
+18:46:03 SAME tp=2 ids 35b 4k: graphs+fusion vs graphs (gen-head-35b-tp2gf-4k.ids == gen-head-35b-tp2g-4k.ids)
+18:46:10 gen-head-8b-tp2g-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+18:46:17 gen-head-8b-tp2ng-short exit 0: steps=256 graph replays=0 (captures 0) eager decode steps=255 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+18:46:24 gen-head-8b-tp2gf-short exit 0 [INTARSIA_TP_FUSION=1]: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+18:46:24 SAME tp=2 ids 8b short: --no-graphs vs graphs (gen-head-8b-tp2ng-short.ids == gen-head-8b-tp2g-short.ids)
+18:46:24 SAME tp=2 ids 8b short: graphs+fusion vs graphs (gen-head-8b-tp2gf-short.ids == gen-head-8b-tp2g-short.ids)
+18:48:32 acc-head-35b-tp2g-long exit 0: golden gate: PASS|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt val|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=80|
+18:50:41 acc-head-35b-tp2gf-long exit 0 [INTARSIA_TP_FUSION=1]: golden gate: PASS|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt val|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=80|
+18:50:41 done
+[window] stages done 2026-10-21 18:50:41 (exit 0)
+[window] starting radiance 2026-10-21 18:50:41
+[window] radiance answers 2026-10-21 18:50:51 (after 15 s)

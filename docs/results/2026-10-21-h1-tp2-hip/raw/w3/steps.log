@@ -1,0 +1,12 @@
+18:21:20 hiptest all exit 101: 26 passed, 0 failed 
+18:22:00 kernels-test exit 0: 
+18:22:00 kernels test: op             kernel                      cases   fail     max_abs      rel_l2  result|
+18:22:06 gen-mut-no-peer-upload-35b-tp2-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:22:06 MUTANT no-peer-upload: ids DIFFER from base tp=2 eager; tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:23:12 gen-mut-drop-captured-allreduce-35b-tp2-short exit 139: 
+18:23:12 MUTANT drop-captured-allreduce: ids DIFFER from base tp=2 eager; 
+18:23:18 gen-mut-peer-ignores-flag-35b-tp2-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+18:23:18 MUTANT peer-ignores-flag: ids SAME as base tp=2 eager; tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+18:23:24 gen-mut-tp-fold-outproj-35b-tp2-short exit 0 [INTARSIA_TP_FUSION=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/12880 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:23:24 MUTANT tp-fold-outproj: ids DIFFER from base tp=2 eager; tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+18:23:24 done

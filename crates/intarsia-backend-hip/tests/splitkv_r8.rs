@@ -52,7 +52,7 @@ fn splitkv_round8_loops_are_bitwise_the_old_ones() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(808);
     // (n_heads, n_kv_heads, head_dim): the 35B (16 / 2 / 256), the 8B (32 / 8 / 128), groups 1, 3, 5
-    let heads = [(16usize, 2usize, 256usize), (32, 8, 128), (4, 4, 64), (6, 2, 32), (12, 4, 256), (10, 2, 128)];
+    let heads = [(16usize, 2usize, 256usize), (8, 1, 256), (32, 8, 128), (4, 4, 64), (6, 2, 32), (12, 4, 256), (10, 2, 128)];
     // (rows, pos0)
     let short = [(1usize, 0usize), (1, 1), (1, 15), (1, 63), (1, 64), (1, 65), (1, 700), (2, 700), (4, 33), (8, 1999), (16, 5)];
     let long = [(1usize, 4095usize), (1, 4096), (1, 9000), (1, 17631), (1, 20000), (16, 9000)];
