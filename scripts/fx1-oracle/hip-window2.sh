@@ -2,8 +2,9 @@
 # ON tatooine, one radiance-down window (trap restores radiance on any exit). fx1 window 2, lane-fx1 HIP build:
 #  A. the engine against the committed CPU oracle (qualify's acc-oracle flags) with dumps: tp=1 clean on GPU 0 twice
 #     and on GPU 1 (determinism), the x1.01 row-parallel scale mutant, tp=2 clean, tp=2 INTARSIA_TP_TEST_BUG=scale:1.01;
-#  B. qualify on clean weights without a HIP baseline -> MISSING-BASELINE; it records the baseline, envelope and dump;
-#  C. the recorded files (and the tp=2 dump of A) installed in golden/baselines/ of this tree;
+#  B. qualify (tp=2 stage included) on clean weights without a HIP baseline -> MISSING-BASELINE; it records the
+#     acc-short baseline, the envelope and the tp=1 / tp=2 oracle dumps;
+#  C. the recorded files installed in golden/baselines/ of this tree;
 #  D. qualify clean, tp=2 included -> PASS;  E. qualify on the x1.01 mutant -> FAIL;
 #  F. qualify clean with INTARSIA_TP_TEST_BUG=scale:1.01 and --tp 2 -> FAIL (tp stage).
 set -uo pipefail
@@ -55,7 +56,8 @@ stages() {
     run otp2-clean 0,1 $M --tp 2 --devices 0,1
     INTARSIA_TP_TEST_BUG=scale:1.01 run otp2-bug1.01 0,1 $M --tp 2 --devices 0,1
   fi
-  Q="qualify --backend hip --golden $G --model-name Qwen3.6-35B-A3B-NVFP4 --mem-budget 29 --bench-sizes 128 --reps 1 --gen 16"
+  Q="qualify --backend hip --golden $G --oracle-golden $OR --model-name Qwen3.6-35B-A3B-NVFP4 --mem-budget 29 --bench-sizes 128 --reps 1 --gen 16"
+  SK="--skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab"
   qual() { # name gpus model [extra...]
     local n=$1 g=$2 m=$3; shift 3
     echo "[fx1] qualify $n start $(date +%T)"
@@ -63,16 +65,16 @@ stages() {
     echo "[fx1] qualify $n exit $? $(date +%T)"
     grep -E "\] [a-z0-9-]+: (PASS|FAIL|SKIP|ERROR|WARN|MISSING-BASELINE)" $H/q-$n.log | cut -c1-260
   }
-  qual 0-nobaseline 0 $M --skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab --skip tp
+  qual 0-nobaseline 0,1 $M --tp 2 --devices 0,1 $SK
   mkdir -p golden/baselines
-  cp $H/q-0-nobaseline/baselines/acc-short.baseline.json golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.baseline.json
-  cp $H/q-0-nobaseline/baselines/envelope.json golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.envelope.json
-  cp $H/q-0-nobaseline/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors golden/baselines/
-  cp $R/fx1out/w2/hip-otp2-clean.dump.safetensors golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors
+  Bd=$H/q-0-nobaseline/baselines
+  cp $Bd/acc-short.baseline.json golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.baseline.json
+  cp $Bd/envelope.json golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.envelope.json
+  cp $Bd/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors $Bd/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors golden/baselines/
   echo "[fx1] installed: $(ls golden/baselines | grep 35b | tr '\n' ' ')"
-  qual 1-clean 0,1 $M --tp 2 --devices 0,1 --skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab
-  qual 2-mut1.01 0 /work/mutants/mut1.01 --skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab --skip tp
-  INTARSIA_TP_TEST_BUG=scale:1.01 qual 3-tp2bug1.01 0,1 $M --tp 2 --devices 0,1 --skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab --skip envelope
+  qual 1-clean 0,1 $M --tp 2 --devices 0,1 $SK --skip envelope
+  qual 2-mut1.01 0 /work/mutants/mut1.01 $SK --skip envelope --skip tp
+  INTARSIA_TP_TEST_BUG=scale:1.01 qual 3-tp2bug1.01 0,1 $M --tp 2 --devices 0,1 $SK --skip envelope
 }
 timeout "${BURST_CAP:-1140}" bash -c "$(declare -f stages); stages" 2>&1 | tee -a "$LOG"
 echo "[burst] stages done $(now) (exit ${PIPESTATUS[0]})" | tee -a "$LOG"
