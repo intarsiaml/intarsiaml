@@ -1,0 +1,35 @@
+# Gemma 4 text decoder with a dense GeGLU MLP and a 128-expert top-8 MoE in parallel (Gemma4ForConditionalGeneration, e.g.
+# nvidia/Gemma-4-26B-A4B-NVFP4). Written by hand from transformers 5.6.2 `modeling_gemma4.py` and the checkpoint's config.json
+# (lane g4, docs/results/2026-10-22-g4-gemma4-onboard.md): every layer is ONE block, `gemma` (model/gemma.rs), because the layer is
+# not attention-then-FFN with pre-norms: it has sandwich norms, a parallel MLP + MoE, a per-layer scalar and per-layer-type
+# attention (sliding window 1024, head_dim 256, 8 KV heads / global, head_dim 512, 2 KV heads, K = V, proportional RoPE), all
+# derived from config.json layer_types and text_config (ModelDims::gemma). Text weights live under model.language_model.*; the
+# vision tower is ignored. Only the experts are NVFP4 (attention, MLP, router, embeddings are bf16); it runs weight-only
+# (W4A16) although hf_quant_config.json declares W4A4 (docs/decisions/LOG.md 2026-10-22).
+[model]
+match.architectures = ["Gemma4ForConditionalGeneration", "Gemma4ForCausalLM"]
+family = "gemma4"
+chat_template = "hf"
+norm_offset = 0.0        # Gemma4RMSNorm scales by `weight` (not 1 + weight)
+
+[layer]
+pattern = ["gemma"]
+
+[layer.gemma]
+kind = "gemma4"
+prefix = "model.language_model.layers.{i}"
+
+[layer.norms]
+pre_gemma = "model.language_model.layers.{i}.input_layernorm"
+
+[top]
+embed = "model.language_model.embed_tokens"
+final_norm = "model.language_model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
+
+[defaults]
+kv_dtype = "bf16"
+max_batch = 1
+
+[tuning.cuda]
+prefill_chunk = 1024
