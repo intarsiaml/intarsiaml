@@ -326,7 +326,25 @@ def main():
         d = (lb - lf).abs().max().item()
         print(f"p{i}: T={len(p)} logits {tuple(lb.shape)} next(bf16)={am[-1]} next(f32)={amf[-1]} "
               f"argmax-agree={agree:.2f} max|bf16-f32|={d:.3f} logit-std={lb.std():.2f} max|logit|={lb.abs().max():.2f}")
-    json.dump(greedy, open(os.path.join(args.out, "ref_greedy.json"), "w"), indent=1)
+    # greedy continuation: HF generate (do_sample=False, KV cache) on the bf16 model
+    model_bf = to_bf16(Gemma4ForCausalLM(cfg)).eval()
+    model_bf.load_state_dict(m2.state_dict())
+    cont = []
+    for p in prompts:
+        with torch.no_grad():
+            gen = model_bf.generate(torch.tensor([p]), attention_mask=torch.ones(1, len(p), dtype=torch.long),
+                                    max_new_tokens=8, min_new_tokens=8, do_sample=False, pad_token_id=0)
+        cont.append(gen[0, len(p):].tolist())
+    out = {
+        "prompts": prompts,
+        "greedy_next": [g["next_token_bf16"] for g in greedy.values()],
+        "greedy_continuation": cont,
+    }
+    for i, c in enumerate(cont):
+        assert c[0] == out["greedy_next"][i], (i, c, out["greedy_next"][i])  # cache path == full forward
+    out.update(greedy)  # extra diagnostics (per-position argmax, f32 next token)
+    json.dump(out, open(os.path.join(args.out, "ref_greedy.json"), "w"), indent=1)
+    print("greedy_continuation:", cont)
 
     # does the window actually matter? compare against a model with a huge window
     cfg_big = Gemma4TextConfig(**{**TEXT_CFG, "sliding_window": 4096})

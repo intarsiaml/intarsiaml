@@ -4,3 +4,4 @@
 - Thu Oct 22 09:26:05 EDT 2026 TASK1 done: tools/gemma4_tiny.py, golden/gemma4-tiny (3.2MB), run ~10s
 - Thu Oct 22 09:26:33 EDT 2026 queued rsync spark1->endor fleetq job (log target-g4-real/rsync.log)
 - Thu Oct 22 09:28:07 EDT 2026 queued endor golden job (log target-g4-real/golden.log)
+- Thu Oct 22 09:33:10 EDT 2026 task2 DROPPED per lead: released #4162/#4165, killed rsync, deleted partial copy
