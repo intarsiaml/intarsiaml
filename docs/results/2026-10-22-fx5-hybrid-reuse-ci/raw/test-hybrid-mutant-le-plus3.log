@@ -2,7 +2,7 @@
    Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cpu)
    Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
    Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.73s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.14s
      Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
 
 running 11 tests
@@ -49,6 +49,6 @@ failures:
     hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind
     recurrent_snapshots_restore_exactly
 
-test result: FAILED. 8 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: FAILED. 8 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
 
 error: test failed, to rerun pass `-p intarsia-models --test hybrid`

@@ -1,28 +1,16 @@
-   Compiling darling_macro v0.24.1
-   Compiling darling_macro v0.20.11
-    Checking derive_more v2.1.1
-    Checking intarsiaml v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsiaml)
+    Checking intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-hip v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-hip)
 warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
-    Checking crossterm v0.29.0
-   Compiling darling v0.24.1
-   Compiling instability v0.3.14
-   Compiling darling v0.20.11
-   Compiling derive_builder_core v0.20.2
-    Checking ratatui-widgets v0.3.2
-    Checking ratatui-crossterm v0.1.2
-   Compiling derive_builder_macro v0.20.2
-    Checking ratatui-macros v0.7.2
-    Checking ratatui v0.30.2
-    Checking intarsia-bench v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-bench)
-    Checking intarsia-tui v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-tui)
-    Checking derive_builder v0.20.2
-    Checking tokenizers v0.22.2
+    Checking intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cpu)
+    Checking intarsia-server v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-server)
+    Checking intarsia-backend-metal v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-metal)
     Checking intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
     Checking intarsia-cli v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-cli)
 warning: variable does not need to be mutable
-    --> crates/intarsia-cli/src/cmd/qualify.rs:1694:13
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1723:13
      |
-1694 |         let mut v: Vec<String> = vec![
+1723 |         let mut v: Vec<String> = vec![
      |             ----^
      |             |
      |             help: remove this `mut`
@@ -30,4 +18,4 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` on by default
 
 warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.19s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.07s

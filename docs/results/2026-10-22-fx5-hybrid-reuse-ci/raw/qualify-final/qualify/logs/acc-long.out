@@ -1,0 +1,52 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.63   1.978e-2   1.779e-2   1.779e-2    1.871e0   0.0944   0.0964    90.75    0/4064      0
+long_code_4k        4064  4064    97.29   8.261e-3   7.569e-3   7.569e-3   3.982e-1   0.0370   0.0379    91.67   20/4064      0
+chat_reuse_4k       4631  4631    87.39   2.264e-1   2.608e-1   5.916e-3    1.930e1   0.0688   0.0863    87.51    7/4631      0
+long_docs_12k      12064 12064    92.95   2.473e-2   2.237e-2   2.237e-2    1.169e1   0.0839   0.0851    90.19  19/12064      0
+long_code_12k      12064 12064    97.13   9.525e-3   8.884e-3   8.884e-3    2.066e0   0.0323   0.0325    91.03  20/12064      0
+OVERALL                  36887    94.17   4.271e-2   4.576e-2   1.486e-2    1.930e1   0.0611   0.0641    90.36      0.2%      0
+prefill floor [4bit]: top-1 (all rows) 94.17% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.486e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.576e-2, reported only] | tail mass (all rows) ours 0.0641 vs ref 0.0611, excess +0.0030 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.486e-2 PASS
+gate-definition: kl_floor [prefill]: old def: FAIL 4.576e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.486e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.263e-2   1.205e-2   1.205e-2   1.240e-1   0.0185   0.0201    90.31     45/64      0
+long_code_4k        4064    64    93.75   1.729e-2   1.430e-2   1.430e-2   3.771e-1   0.0481   0.0480    90.94     28/64      0
+chat_reuse_4k       4631    64   100.00   2.126e-3   2.127e-3   2.127e-3   3.753e-2   0.0000   0.0000    90.62     64/64      0
+long_docs_12k      12064    64    98.44   1.353e-2   1.275e-2   1.275e-2   9.271e-2   0.0399   0.0426    88.44      7/64      0
+long_code_12k      12064    64   100.00   6.773e-3   6.685e-3   6.685e-3   1.291e-1   0.0085   0.0083    88.44     64/64      0
+OVERALL                    320    97.19   1.047e-2   9.581e-3   9.581e-3   3.771e-1   0.0230   0.0238    89.75     65.0%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.19% (not gated for this class) ok | 21-way KL (scored rows, n=320) 9.581e-3 (need <= 3.0e-2) ok [all rows, n=320: 9.581e-3, reported only] | tail mass (all rows) ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 9.581e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 9.581e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.581e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 65.0% of positions before the first argmax divergence, worst prompt 10.9% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 2048 (recipe qwen3_5_moe, cuda); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       continue    3072   4080    3087      0     32/32  ok
+long_docs_4k       restore     3072   4064    2048      0     32/32  ok
+long_docs_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k       continue    3072   4080    3087      0     32/32  ok
+long_code_4k       restore     3072   4064    2048      0     32/32  ok
+long_code_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok (logits bit-identical to the cold run)
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 5 prompt(s) judged, 0 skipped
+prefix-reuse gate: PASS
+
+wrote baseline /home/nvidia/intarsia-decfuse/out/fx5q/qualify/baselines/acc-long.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: PASS

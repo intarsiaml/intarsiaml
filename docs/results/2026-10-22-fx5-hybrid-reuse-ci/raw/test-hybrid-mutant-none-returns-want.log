@@ -2,7 +2,7 @@
    Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cpu)
    Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
    Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.98s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.29s
      Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
 
 running 11 tests
