@@ -194,6 +194,21 @@ when the dir is an HF cache snapshot, else the dir name).
     warm) over the rows that share a context, whether or not the streams diverged. Those are the two quantities
     `reuse_logit_tol` / `reuse_kl_tol` bound; derive a recipe value from them on a known-good build (see
     docs/results/2026-10-22-fx5-hybrid-reuse-ci.md for the 35B). It changes no verdict.
+  * **`continue` against a committed CPU oracle (lane fx5c).** A model whose logits move by more than the dense-model stream
+    tolerance under any non-identical but equivalent path (the 35B NVFP4 MoE: warm-vs-cold KL up to 8.5e-2) cannot be judged by
+    the absolute 0.25 nats / 1e-2 KL check. When `golden/oracle/` (or `--reuse-oracle-dir`, `$INTARSIA_REUSE_ORACLE_DIR`, `oracle/`
+    beside the golden) holds a `*.continue-oracle.safetensors` for the golden's model, prompt, split and token ids, *continue* is
+    judged on a frozen token list instead of the free-running streams: the engine's teacher-forced cold and warm rows
+    (`Engine::forward_script`; turn 1 prefilled, the frozen reply decoded token by token, resume, 32 forced tokens) are each scored
+    against the oracle's top-64 rows, and the case passes when `mean KL(oracle || warm) <= 1.5 x mean KL(oracle || cold) + 3e-3`
+    (the means over the 32 rows; both means, the ratio and the limit are printed). The floor 3e-3 is the measured disagreement of
+    two runs of the oracle itself on the same tokens (spark1 vs endor CPU: KL 3.1e-3), so a difference below it is oracle noise.
+    Without a matching file the absolute rule above applies unchanged; *restore* and *aligned* always do. `cached >= s` and the
+    cold-run check are kept. `--no-reuse-oracle` forces the absolute rule. What the rule does not cover: it scores the scripted
+    replay of the continue operations, not `generate` reading the cache (the exact *restore* / *aligned* checks guard that), and
+    it resolves errors of about 10% on the logits, not 1%. A new oracle file: `scripts/fx5c/seq-chain.sh` (freeze a sequence on
+    CUDA, run the CPU oracle on it) and `scripts/fx5c/make_continue_oracle.py`. Evidence:
+    docs/results/2026-10-22-fx5c-reuse-vs-oracle.md, docs/results/2026-10-22-fx5c-oracle-gate.md.
   * **Hard check: the restore is bit-exact.** When the reused length is a multiple of the prefill chunk (*aligned*, and
     *restore* on such a split) the warm run executes exactly the operations of the cold run, on any backend, so the
     recorded logits rows of the two runs must be equal by bit pattern on all `--reuse-gen` rows, and `cached == s`
