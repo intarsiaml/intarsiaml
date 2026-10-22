@@ -107,6 +107,9 @@ dump.
 **Merge order.** The dumps pin today's main (cd617de2 + #74). If a PR that moves HIP or Metal numerics merges before
 this one, re-record the dumps before merging fx1.
 
+Checked after #79 merged: main 34ca7267, with PR #78's Metal decode-attention change, still PASSes the committed Metal
+baseline (decode KL 1.12e-2 -> 1.11e-2, inside the envelope) and dump (prefill, unchanged); fleetq #3897.
+
 **Policy.** The dumps pin the logits of main. A change that is meant to move the numerics (a new kernel, a different
 accumulation order) fails the drift check by design. Its PR re-records the dumps of every backend it touches: run
 qualify on the new main, copy `baselines/*.selfgolden.safetensors` from the report into `golden/baselines/`, and justify
