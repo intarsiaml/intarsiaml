@@ -104,6 +104,7 @@ visit() {
   echo "gpu after: $(gpu)" >>"$OUT/$name-gpu.txt"
   save_result "$OUT/$name-localeval.out" "$name"
   curl -s -m 3 "$url/metrics" 2>/dev/null | grep -iE "graph|eager" | head >"$OUT/$name-metrics.txt" 2>&1
+  ssh $T 'docker logs fx6-intarsia 2>&1 | tail -120; docker logs fx6-llamacpp-hip 2>&1 | tail -120; docker logs fx6-hipfire 2>&1 | tail -200' </dev/null >"$OUT/$name-server.log" 2>&1
   if [ "${SB:-0}" = 1 ]; then   # reconciliation: the 2026-09-26 stream_bench.py (same decode formula as localeval) on this server, single stream
     local port=${url##*:}
     ssh $T "timeout 300 python3 ~/bench-r9700/stream_bench.py --url http://127.0.0.1:$port/v1 --model $mid --streams 1 --output /tmp/fx6-sb-$name.jsonl" </dev/null >"$OUT/$name-streambench.out" 2>&1

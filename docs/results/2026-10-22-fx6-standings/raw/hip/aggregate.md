@@ -8,7 +8,7 @@
 | llama.cpp v0.5.0 Vulkan MXFP4_MOE | 115.4 (114.7-115.6, n=6) | 115.3 (114.7-115.5, n=5) | 112.0 (111.6-112.5, n=5) | 106.7 (106.0-106.8, n=5) |
 | llama.cpp 0.4.0-dev Vulkan MXFP4_MOE (old comparator) | 113.1 (113.1-113.1, n=2) | 112.7 (112.6-112.9, n=2) | 110.3 (110.3-110.4, n=2) | 105.3 (105.1-105.4, n=2) |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | 83.3 (83.0-83.4, n=4) | 83.3 (83.0-83.3, n=4) | 81.6 (81.5-81.7, n=4) | 77.7 (77.7-77.8, n=4) |
-| hipfire ad10b3d MQ4R | 146.3 (145.5-146.6, n=5) | 145.1 (145.1-146.2, n=5) | 141.9 (141.2-142.6, n=4) | 127.6 (127.1-127.9, n=4) |
+| hipfire ad10b3d MQ4R | 146.4 (145.5-146.6, n=6) | 145.2 (145.1-146.2, n=6) | 141.9 (141.2-142.6, n=4) | 127.6 (127.1-127.9, n=4) |
 
 **Prefill tok/s (per request; 1k prompt has 990 tokens so TTFT overhead is included)**: median of visit medians (min-max over visits, n = visits of 3 reps each)
 
@@ -19,7 +19,7 @@
 | llama.cpp v0.5.0 Vulkan MXFP4_MOE | 2796 (2784-2817, n=5) | 3198 (3183-3200, n=5) | 2967 (2963-2972, n=5) |
 | llama.cpp 0.4.0-dev Vulkan MXFP4_MOE (old comparator) | 2540 (2536-2544, n=2) | 2865 (2861-2869, n=2) | 2685 (2680-2691, n=2) |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | 2989 (2983-3027, n=4) | 3382 (3373-3394, n=4) | 3235 (3227-3238, n=4) |
-| hipfire ad10b3d MQ4R | 2760 (2754-2770, n=5) | 2343 (2341-2346, n=4) | 1283 (1283-1284, n=4) |
+| hipfire ad10b3d MQ4R | 2762 (2754-2800, n=6) | 2343 (2341-2346, n=4) | 1283 (1283-1284, n=4) |
 
 **Marginal prefill tok/s (delta tokens / delta TTFT)**: median of visit medians (min-max over visits, n = visits of 3 reps each)
 
@@ -30,7 +30,7 @@
 | llama.cpp v0.5.0 Vulkan MXFP4_MOE | 4079 (3977-4156, n=5) | 3338 (3332-3358, n=5) | 2902 (2894-2905, n=5) |
 | llama.cpp 0.4.0-dev Vulkan MXFP4_MOE (old comparator) | 3722 (3696-3748, n=2) | 2986 (2986-2986, n=2) | 2632 (2626-2638, n=2) |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | 3864 (3834-3915, n=4) | 3527 (3515-3541, n=4) | 3188 (3180-3196, n=4) |
-| hipfire ad10b3d MQ4R | 3193 (3173-3212, n=5) | 2236 (2234-2237, n=4) | 1118 (1118-1119, n=4) |
+| hipfire ad10b3d MQ4R | 3195 (3173-3269, n=6) | 2236 (2234-2237, n=4) | 1118 (1118-1119, n=4) |
 
 **TTFT s**: median of visit medians (min-max over visits, n = visits of 3 reps each)
 
@@ -41,7 +41,7 @@
 | llama.cpp v0.5.0 Vulkan MXFP4_MOE | 0.35 (0.35-0.36, n=5) | 1.28 (1.28-1.28, n=5) | 5.61 (5.60-5.63, n=5) |
 | llama.cpp 0.4.0-dev Vulkan MXFP4_MOE (old comparator) | 0.39 (0.39-0.39, n=2) | 1.43 (1.43-1.43, n=2) | 6.21 (6.20-6.22, n=2) |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | 0.33 (0.33-0.33, n=4) | 1.21 (1.21-1.21, n=4) | 5.15 (5.14-5.16, n=4) |
-| hipfire ad10b3d MQ4R | 0.36 (0.36-0.36, n=5) | 1.75 (1.74-1.75, n=4) | 12.98 (12.97-12.98, n=4) |
+| hipfire ad10b3d MQ4R | 0.36 (0.35-0.36, n=6) | 1.75 (1.74-1.75, n=4) | 12.98 (12.97-12.98, n=4) |
 
 **Ratio to intarsia (new binary), medians; 'tie' when the min-max bands of the two arms overlap**
 
@@ -55,5 +55,5 @@
 | llama.cpp 0.4.0-dev Vulkan MXFP4_MOE (old comparator) | prefill (ours / theirs) | 2.26x | 3.18x | 2.88x |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | decode (ours / theirs) | 1.91x | 1.91x | 1.82x |
 | llama.cpp v0.5.0 HIP MXFP4_MOE | prefill (ours / theirs) | 1.92x | 2.69x | 2.39x |
-| hipfire ad10b3d MQ4R | decode (ours / theirs) | 1.10x | 1.10x | 1.11x |
+| hipfire ad10b3d MQ4R | decode (ours / theirs) | 1.09x | 1.10x | 1.11x |
 | hipfire ad10b3d MQ4R | prefill (ours / theirs) | 2.08x | 3.89x | 6.03x |

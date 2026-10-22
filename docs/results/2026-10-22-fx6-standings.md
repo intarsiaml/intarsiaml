@@ -15,9 +15,9 @@ engines `N`.
 
 | platform | model | GPUs | N engines measured live | what survives | what does not |
 |---|---|---:|---:|---|---|
-| R9700 (tatooine, HIP) | Qwen3.6-35B-A3B | 1 | **4** (intarsia, llama.cpp Vulkan, llama.cpp HIP, hipfire) | intarsia **#1 of 4** on prefill (2.1-6.0x) and on decode (1.10x hipfire, 1.38x llama.cpp Vulkan, 1.91x llama.cpp HIP) | "second behind hipfire 204 tok/s": hipfire measures 146 tok/s live. Quant formats differ per engine (section 2.1) |
-| Metal (endor, M5 Max) | Qwen3-8B BF16 | 1 | **3** (intarsia, mlx-lm, llama.cpp) | prefill: ahead of llama.cpp 1.4-1.7x, tied to ahead of mlx-lm. Decode: ahead of mlx-lm | "#1 of 3 on decode at every length": against llama.cpp the decode margin is inside the clock difference (section 2.2) |
-| Spark (GB10, CUDA) | Qwen3.6-35B-A3B NVFP4 | 1 | **2** (intarsia, vLLM) | 4k and 16k default prefill is behind vLLM (-9.0 % / -15.3 %) | "#1 of 2 on decode at 1k and 4k": +5.7 % and +2.1 % are inside the ~5 % decode noise: a tie. Not re-measured here |
+| R9700 (tatooine, HIP) | Qwen3.6-35B-A3B | 1 | **4** (intarsia, llama.cpp Vulkan, llama.cpp HIP, hipfire) | intarsia **#1 of 4** on prefill (1.9-6.0x) and on decode (1.38x llama.cpp Vulkan, 1.91x llama.cpp HIP). Single stream, 1 GPU, four different 4-bit formats | The decode lead over hipfire (1.10x) **depends on hipfire running 27 % below its own 2026-09-26 result** (same container, config and script, cause unknown): against its 09-26 figure (202-204 tok/s) hipfire would be ahead. "Second behind hipfire 204" is withdrawn only in the sense that 204 does not reproduce today |
+| Metal (endor, M5 Max) | Qwen3-8B BF16 | 1 | **3** (intarsia, mlx-lm, llama.cpp) | prefill: ahead of llama.cpp 1.4-1.7x, ahead of mlx-lm at 1k and tied at 4k and 16k. Decode: ahead of mlx-lm on raw medians (1.12-1.14x); clock-normalised the lead is a tie at 128 and 1k and 1.03-1.10x at 4k and 16k. Single stream, 1 GPU | "#1 of 3 on decode at every length": against llama.cpp the margin is 1.04-1.08x raw, 1.08-1.12x reference-normalised and 0.99-1.02x clock-matched by MHz, so the rank against llama.cpp is method-dependent: a tie |
+| Spark (GB10, CUDA) | Qwen3.6-35B-A3B NVFP4 | 1 | **2** (intarsia, vLLM) | 4k and 16k default prefill is behind vLLM (-9.0 % / -15.3 %); decode is a tie. Single stream, 1 GPU. Carried forward, not re-measured here | "#1 of 2 on decode at 1k and 4k": +5.7 % and +2.1 % are inside the ~5 % decode noise |
 
 Counts of engines: with `N = 2` on Spark a rank is just "ahead" or "behind". Only the R9700 has a field of 3 or more besides intarsia
 and only Metal has exactly 3 engines in total.
@@ -31,7 +31,7 @@ tokens / delta TTFT) is the cleanest prefill figure and is shown too. Decode is 
 
 **Interleaving and noise band (R9700).** One visit = one server start + 3 reps (first rep discarded as warmup). Each visit contributes
 its median; a cell is the **median of the visit medians** and the band is **min-max over visits**, n = number of visits. Seven
-radiance windows were used (passes p1-p7). Passes p1 to p4 and p6 visited all arms in rotated order (p1 intarsia, llama-vk,
+measurement passes (p1-p7) were used, each in one radiance window, plus two aborted windows (section 5). Passes p1 to p4 and p6 visited all arms in rotated order (p1 intarsia, llama-vk,
 hipfire, llama-hip; p2 reversed; p3 llama-vk, intarsia, llama-hip, hipfire, llama-vk4; p4 intarsia-old, intarsia, llama-vk;
 p6 llama-vk4, hipfire, llama-hip, intarsia, llama-vk); p5 and p7 were diagnostic passes with a 128-token (p7: 128 and 1k) sweep, so
 n differs by column. Radiance was down on both cards for the whole of each window; all arms ran on HIP/Vulkan device 0, which is sysfs `card1` in every arm (the GPU samples in `raw/hip/<pass>/<arm>-<pass>-gpu.txt`
@@ -108,8 +108,7 @@ What changed against the 2026-10-21 standings, and why each open point is closed
    at 18k, so prefill reproduces and decode does not). To rule out the harness, the 09-26 `stream_bench.py` (same
    `(tokens-1)/(last-first)` decode formula as localeval) was run against the same hipfire server: 147.5 tok/s at 830 prompt tokens,
    141.5 at 6k, 127.7 at 18k (`raw/hip/p7/`). The 09-26 figures were 202 / 198 / 173 with that script, so hipfire is about 27 % slower
-   today with the same script and the same container. Cause not found (same image and config; candidates are the GPU or driver state and
-   the other lanes' use of the box). **The "intarsia is second behind hipfire" line is withdrawn.**
+   today with the same script and the same container. Cause not found. Ruled out: a cold kernel cache (pass p8, `raw/hip/p8/hipfire-p8-server.log`: pre-compiled kernels loaded from `/var/cache/hipfire/gfx1201`, no fallback message) and a localeval artefact (two harnesses agree). The server log's own pre-warm line reports 134.9 tok/s decode on this boot, and logs `[redline] enabling fail-closed retained default on gfx1201 ... transport=pm4`; whether that mode was on in the 09-26 run is not known. Other candidates: GPU or driver state, other lanes' use of the box. **The "intarsia is second behind hipfire" line is withdrawn.**
 4. **Pre-J1 binary of 2026-10-21 against the new one:** decode 159.6 / 158.6 / 155.3 / 141.5 versus 159.3 / 159.1 / 155.5 / 141.6, prefill
    within 1 %. Structured output (J1) cost no throughput.
 
@@ -118,7 +117,7 @@ What changed against the 2026-10-21 standings, and why each open point is closed
 intarsia (md5 `bf72ec9ecb5e7e381d797f90d24c5479`, built from this tree, same Metal code as cd617de2), mlx-lm 0.31.3, llama.cpp
 (BF16 GGUF, `-ngl 999 -fa on -c 20480`). `sameslot.sh` in one exclusive endor slot per run, gen 256, 3 reps, `--max-seq 20000`.
 Visit orders: run 1 intarsia, mlx-lm, llama.cpp, intarsia; run 2 llama.cpp, mlx-lm, intarsia, mlx-lm, llama.cpp
-(fleetq #3821). Cells are the median of the visit medians over n = 3 visits per engine, with the min-max band. A third run (#3854, rotated order, 5 more visits) is queued behind other lanes' endor jobs; if it lands, `raw/metal/run3/` and the regenerated `raw/metal/aggregate.md` are added and the cells here are not changed.
+(fleetq #3821). Cells are the median of the visit medians over n = 3 visits per engine, with the min-max band. The tables are pasted from `raw/metal/aggregate.md`, which `scripts/standings-fx6/aggregate-metal.py raw/metal` regenerates from the committed run directories.
 
 **Decode tok/s, raw** - median over visits (min-max), n visits per cell
 
@@ -262,6 +261,24 @@ are not standings. Quality on Spark was later measured (`2026-10-21-q1-spark-qua
 RoCE) with vLLM on **one**; no vLLM tp=2 arm exists. The tp=2-over-tp=1 numbers are sound, the "faster than vLLM" rows are 2 GPUs against 1
 and are not part of any rank here.
 
+## 2.4 Rank summary, every cell with its mode
+
+Mode of every cell below: **single stream (concurrency 1)**, GPU count as in the column header. "tie" = the min-max bands of the visit
+medians overlap, or the lead is below the ~5 % decode noise. N is the number of engines compared.
+
+| metric | R9700, 1 GPU, N = 4 | Metal raw, 1 GPU, N = 3 | Metal clock-normalised (decode), 1 GPU, N = 3 | Spark, 1 GPU, N = 2 (carried forward) |
+|---|---|---|---|---|
+| prefill 1k (990 tokens, overhead-influenced) | 1 of 4 (1.9x the next engine) | 1 of 3 per request; marginal tie with mlx-lm | not normalised | not resolved (-8.3 %, inside the 1k drift) |
+| prefill 4k | 1 of 4 (2.7x the next) | 1 of 3 vs llama.cpp (1.41x); tie with mlx-lm | not normalised | 2 of 2 (-9.0 %) |
+| prefill 16k | 1 of 4 (2.4x the next) | 1 of 3 vs llama.cpp (1.65x); tie with mlx-lm | not normalised | 2 of 2 (-15.3 %) |
+| decode 1k | 1 of 4 (1.10x hipfire, which ran 27 % below its 09-26 result) | 1 of 3 (1.06x llama.cpp; 1.12x mlx-lm) | 1.05x mlx-lm (tie), 1.11x llama.cpp (MHz-matched 1.01x: tie) | tie (+5.7 %) |
+| decode 4k | 1 of 4 (1.10x hipfire) | tie with llama.cpp (1.07x), ahead of mlx-lm (1.13x) | 1.03x mlx-lm (below noise), 1.08x llama.cpp (MHz-matched 1.02x: tie) | tie (+2.1 %) |
+| decode 16k | 1 of 4 (1.11x hipfire) | 1 of 3 on the median (1.04x llama.cpp, inside the noise; 1.14x mlx-lm) | 1.10x mlx-lm, 1.08x llama.cpp (MHz-matched 0.99x: tie) | tie (-4.2 %) |
+| quality | not re-measured | not re-measured | n/a | tie MMLU, -0.04 GSM8K (Q1, harness caveat) |
+
+Read the Metal columns together: the same visits give "#1" on raw medians and a tie once the machine state is accounted for, and the engines'
+different clocks during their own runs (llama.cpp about 120 MHz lower) are exactly what the reference cannot see.
+
 ## 3. The 8x MMLU latency (finding 3)
 
 Observation of 2026-10-21 on the R9700: intarsia 2.8-3.0 s per MMLU call against llama.cpp's 0.37 s. Cause established in about 25
@@ -296,17 +313,18 @@ minutes, with three controls on the same card in one window (p4, p5; `raw/hip/p4
 - Concurrency: not measured anywhere. intarsia's 35B serves one sequence at a time on CUDA and HIP (continuous batching is Metal-only
   and excludes MoE), llama.cpp ran with `-np 1`, hipfire in sequential mode (its 8-lane beta mode is a separate 09-26 measurement).
   A concurrency leaderboard would need those paths first.
+- Metal has n = 3 visits per engine and the 4k and 16k prefill bands are wide (intarsia 4k: 2043-3899 tok/s); the third run was not obtained (section 5).
 - The R9700 comparison spans four quant formats. An equal-quant comparison does not exist on this box.
 - Spark was not re-measured; vLLM on that box is the only other engine and a tp=2 vLLM arm does not exist.
 - No Metal 35B row (the 35B checkpoint on Metal is lane m35).
 
 ## 5. Downtime and fleet
 
-radiance on tatooine (both cards) was down for 9 short windows, about 30 minutes in total, all between 01:26 and 02:01 EDT (inside the
+radiance on tatooine (both cards) was down for 10 short windows, about 31 minutes in total, all between 01:26 and 03:10 EDT (inside the
 00:00-07:00 free window, each window at most 5 minutes, role cap 3 h per day): fleetq #3814 (4 s, script bug), #3815 (147 s, aborted: localeval
 re-queued the hipfire URL on endor; fixed by pointing it at the host name and by bash-3.2 array handling), #3817 (p1), #3820 (p2),
-#3825 (p3), #3831 (p4), #3836 (p5), #3842 (p6), #3846 (p7). The EXIT trap restored radiance each time; it answered `/v1/models` 15-30 s after start.
-endor: #3821 (exclusive, build + two `sameslot.sh` runs, 01:46-02:11). Read-only and build jobs on tatooine: #3798-#3813.
+#3825 (p3), #3831 (p4), #3836 (p5), #3842 (p6), #3846 (p7), #3894 (p8, 45 s: hipfire server log). The EXIT trap restored radiance each time; it answered `/v1/models` 15-30 s after start.
+endor: #3821 (exclusive, build + two `sameslot.sh` runs, 01:46-02:11). A third run (#3854, rotated order, 5 more visits for the noisy prefill cells) was queued at 02:12 behind another lane's long endor job (#3824) and released unrun at 03:10, because an exclusive request at the head of the queue was holding back other lanes' non-exclusive jobs. `scripts/standings-fx6/metal-run3.sh` is kept for a later re-run. Read-only and build jobs on tatooine: #3798-#3809, #3811-#3813 (#3810 was an endor build job, cancelled and replaced by #3821).
 
 ## 6. Files
 
