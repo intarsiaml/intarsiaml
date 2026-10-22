@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# PROMPT (default long_docs_4k), OUT (subdirectory name), DUMPS (where the large f32 rows go, out of the repo).
 # Lane FX5c: build the CLI (with --reuse-dump / --reuse-seq) on spark1 and dump the teacher-forced `continue` rows of the 35B,
 # long_docs_4k, chunk 1024 (fx5b's diagnostic). Without SEQ the engine's own reply and cold stream are used and written to
 # seq.json; with SEQ=<seq.json> that sequence is forced.
@@ -23,6 +24,7 @@ SEQARG=""
 if [[ -n "${SEQ:-}" ]]; then
   rsh "mkdir -p $R/out/fx5c/$OUT"; rsync -a "$SEQ" "$HOST:intarsia-decfuse/out/fx5c/$OUT/seq-in.json"; SEQARG="--reuse-seq $R/out/fx5c/$OUT/seq-in.json"
 fi
-rsh "mkdir -p $R/out/fx5c/$OUT; cd $R/$NAME && $BIN accuracy --model $M35 --backend cuda --golden $G --mode reuse --max-seq 8192 --mem-budget 40 --allow-dirty --reuse-diag --reuse-prompt long_docs_4k --prefill-chunk 1024 --reuse-dump $R/out/fx5c/$OUT/dump $SEQARG > $R/out/fx5c/$OUT/run.log 2>&1; echo exit \$? >> $R/out/fx5c/$OUT/run.log"
-rsync -a "$HOST:intarsia-decfuse/out/fx5c/$OUT/" "$RAW/$OUT/"
+rsh "mkdir -p $R/out/fx5c/$OUT; cd $R/$NAME && $BIN accuracy --model $M35 --backend cuda --golden $G --mode reuse --max-seq 8192 --mem-budget 40 --allow-dirty --reuse-diag --reuse-prompt ${PROMPT:-long_docs_4k} --prefill-chunk 1024 --reuse-dump $R/out/fx5c/$OUT/dump $SEQARG > $R/out/fx5c/$OUT/run.log 2>&1; echo exit \$? >> $R/out/fx5c/$OUT/run.log"
+rsync -a --exclude '*.f32' "$HOST:intarsia-decfuse/out/fx5c/$OUT/" "$RAW/$OUT/"
+if [[ -n "${DUMPS:-}" ]]; then mkdir -p "$DUMPS/$OUT"; rsync -a --include '*.f32' --include 'seq.json' --exclude '*' "$HOST:intarsia-decfuse/out/fx5c/$OUT/dump/" "$DUMPS/$OUT/"; fi
 tail -15 "$RAW/$OUT/run.log"
