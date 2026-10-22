@@ -20,7 +20,7 @@ if (( mnow < 7 * 60 - 25 )); then
   mins_left=$(( 7 * 60 - mnow - 10 ))
   (( MAXMIN > mins_left )) && { echo "cap ${MAXMIN} min -> ${mins_left} min (07:00 EDT)"; MAXMIN=$mins_left; }
 else
-  (( MAXMIN > 28 )) && { echo "outside 00:00-07:00 EDT: cap ${MAXMIN} min -> 28 min (lane rules: 30 min windows)"; MAXMIN=28; }
+  (( MAXMIN > 24 )) && { echo "outside 00:00-07:00 EDT: cap ${MAXMIN} min -> 24 min (lane rules: 30 min windows incl. vLLM restart)"; MAXMIN=24; }
 fi
 # lane rules: agent-harness benchmarks against the Spark vLLMs; never take spark2's down under one
 if fleetq status 2>&1 | grep -iq "agent-harness"; then

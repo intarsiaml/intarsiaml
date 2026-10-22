@@ -11,7 +11,7 @@ S=$P/s1-dev/scripts
 STEPS=${1:-${STEPS:-ab le}}
 export OUTNAME=${OUTNAME:-s1W}
 if [[ " $STEPS " == *" ab "* ]]; then
-  AB_ARMS=${AB_ARMS:-"base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1"} W_BUDGET_SEC=${W_BUDGET_SEC:-$([[ " $STEPS " == *" le "* ]] && echo 2400 || echo 1500)} bash $S/s1/wAB.sh
+  AB_ARMS=${AB_ARMS:-"base:s1-base dev:s1-dev cub:s1-dev:INTARSIA_CUDA_FP8_CUBLAS=1"} W_BUDGET_SEC=${W_BUDGET_SEC:-$([[ " $STEPS " == *" le "* ]] && echo 2400 || echo 1260)} bash $S/s1/wAB.sh
 fi
 if [[ " $STEPS " == *" le "* ]]; then
   TREE=s1-base ARM_MAX_SEC=600 bash $S/cuda-prefill4/wC-serve.sh base
