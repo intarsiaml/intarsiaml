@@ -17,6 +17,7 @@ set -u
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH CUDA_PATH=/usr/local/cuda
 cd ~/ck9
 for t in main br; do
+  touch $t/recipes/*.toml $t/crates/intarsia-models/src/recipe.rs
   ( cd $t && CARGO_TARGET_DIR=$HOME/ck9/target nice cargo build --release -q -p intarsia-cli --features cuda -j 10 < /dev/null 2>&1 | grep -E '^error' | head -3 )
   cp target/release/intarsia bin-$t
   echo "built $t: $(./bin-$t --version)"
