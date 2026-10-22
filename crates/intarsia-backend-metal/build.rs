@@ -39,6 +39,10 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/gemm_nax.rs",
     "src/multirow.rs",
     "src/mxfp4.rs",
+    "src/fp8.rs",
+    "src/nvfp4.rs",
+    "src/gdn.rs",
+    "src/moe.rs",
 ];
 
 /// FNV-1a 64 over the launcher sources (file name, then contents, in list order).

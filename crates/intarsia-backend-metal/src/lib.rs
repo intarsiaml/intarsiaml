@@ -36,7 +36,9 @@ mod host;
 pub mod kernels;
 pub mod multirow;
 mod moe;
+mod fp8;
 mod mxfp4;
+mod nvfp4;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -731,6 +733,12 @@ impl Backend for MetalBackend {
         }
         if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
             return self.launch_moe_combine(call);
+        }
+        if (kernel == fp8::MATMUL_FP8_GEMV || kernel == fp8::MATMUL_FP8_MMA) && call.op == Op::MatmulFp8 {
+            return self.launch_fp8(kernel, call);
+        }
+        if (kernel == nvfp4::MATMUL_NVFP4_GEMV || kernel == nvfp4::MATMUL_NVFP4_MMA) && call.op == Op::MatmulNvfp4 {
+            return self.launch_nvfp4(kernel, call);
         }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);
