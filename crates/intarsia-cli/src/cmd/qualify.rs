@@ -695,6 +695,20 @@ impl Ctx {
 
     /// Provenance flags for baseline / envelope runs: an unstamped or dirty build is accepted (and said so in the
     /// report), because the baseline and the run that reads it are one binary within this run.
+    /// Provenance flags for gating against a recorded run whose commit is `head` (empty: it was unstamped): the
+    /// declared pre-change commit, and this build's own stamp flags, `--allow-unstamped` once (clap refuses it twice).
+    fn provenance_flags(&self, head: &str) -> Vec<String> {
+        let mut v = self.stamp_flags();
+        if head.is_empty() {
+            if !v.iter().any(|f| f == "--allow-unstamped") {
+                v.push("--allow-unstamped".into());
+            }
+        } else {
+            v.extend(["--pre-change".into(), head.to_string()]);
+        }
+        v
+    }
+
     fn stamp_flags(&self) -> Vec<String> {
         let mut v = vec![];
         match BUILD_STAMP {
@@ -1745,12 +1759,7 @@ impl Ctx {
             .and_then(|m| serde_json::from_str::<Value>(&m).ok())
             .and_then(|m| m["code"]["head"].as_str().map(String::from))
             .unwrap_or_default();
-        if head.is_empty() {
-            args.push("--allow-unstamped".into());
-        } else {
-            args.extend(["--pre-change".into(), head]);
-        }
-        args.extend(self.stamp_flags());
+        args.extend(self.provenance_flags(&head));
         let r = self.exec(stem, args)?;
         let text = r.stdout();
         let what = format!("against the recorded dump {}", dump.display());
@@ -2124,12 +2133,7 @@ impl Ctx {
         }
         // the baseline is a recorded earlier run: its commit is the declared pre-change code (or the same tree, rebuilt)
         args.push("--allow-same-code".into());
-        if head.is_empty() {
-            args.push("--allow-unstamped".into());
-        } else {
-            args.extend(["--pre-change".into(), head.to_string()]);
-        }
-        args.extend(self.stamp_flags());
+        args.extend(self.provenance_flags(head));
         Ok((args, format!("gated against the recorded baseline {} (commit {}){}", bp.display(), if head.is_empty() { "unstamped" } else { head }, if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" })))
     }
 
