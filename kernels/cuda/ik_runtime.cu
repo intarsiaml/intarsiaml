@@ -4,6 +4,15 @@
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <string.h>
+#include <map>
+#include <mutex>
+
+namespace {
+// live ik_rt_malloc allocations (base -> bytes): matmul_fp8_gemm_cublas keys its bf16 weight copies by the allocation a
+// weight lives in and drops them when that allocation is freed (lane S1)
+std::mutex g_alloc_mu;
+std::map<uintptr_t, size_t> g_allocs;
+}  // namespace
 
 extern "C" {
 
@@ -43,8 +52,31 @@ int ik_rt_init_device(int ordinal, ik_device_info* info) {
     return 0;
 }
 
-int ik_rt_malloc(void** p, size_t bytes) { return (int)cudaMalloc(p, bytes); }
-int ik_rt_free(void* p) { return (int)cudaFree(p); }
+int ik_rt_malloc(void** p, size_t bytes) {
+    const cudaError_t e = cudaMalloc(p, bytes);
+    if (e == cudaSuccess) {
+        std::lock_guard<std::mutex> lock(g_alloc_mu);
+        g_allocs[(uintptr_t)*p] = bytes;
+    }
+    return (int)e;
+}
+int ik_rt_free(void* p) {
+    ik_fp8_bf16_cache_forget(p);
+    {
+        std::lock_guard<std::mutex> lock(g_alloc_mu);
+        g_allocs.erase((uintptr_t)p);
+    }
+    return (int)cudaFree(p);
+}
+int ik_rt_alloc_base(const void* p, uintptr_t* base) {
+    std::lock_guard<std::mutex> lock(g_alloc_mu);
+    auto it = g_allocs.upper_bound((uintptr_t)p);
+    if (it == g_allocs.begin()) return 1;
+    --it;
+    if ((uintptr_t)p >= it->first + it->second) return 1;
+    *base = it->first;
+    return 0;
+}
 
 int ik_rt_memcpy_h2d(void* dst, const void* src, size_t n, void* stream) {
     return (int)cudaMemcpyAsync(dst, src, n, cudaMemcpyHostToDevice, (cudaStream_t)stream);

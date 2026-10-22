@@ -329,14 +329,15 @@ pub fn all() -> Vec<KernelImpl> {
                 // bitwise two `matmul_fp8_gemm_reg` calls: served exactly where those serve both halves (M >= 256, the reg
                 // GEMM on; never with the opt-in e4m3 GEMMs, which would serve the singles). `INTARSIA_CUDA_FP8_PAIR_REG=0`
                 // (or INTARSIA_NO_FUSION=1 in the model) gives the two single calls.
-                // above matmul_fp8_gemm_reg (15) where both serve; bf16 output only. Scratch: {alpha, beta}, xq, the bf16 weights
+                // above matmul_fp8_gemm_reg (15) where both serve; bf16 output only. Scratch: {alpha, beta}, xq. OPT-IN: keeps a
+                // bf16 copy of every fp8 weight it runs (+2 bytes per weight, outside the memory plan)
                 "matmul_fp8_gemm_cublas" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| fp8_cublas() && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
-                    .scratch(|s| 256 + 2 * (s.m * s.k + s.n * s.k))
+                    .scratch(|s| 256 + 2 * s.m * s.k)
                     .priority(16),
                 "matmul_fp8_pair_gemm_reg" => k
                     .acts(bf)

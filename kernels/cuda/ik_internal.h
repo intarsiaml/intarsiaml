@@ -17,6 +17,10 @@ int ik_fp8_gemm_weight_only_internal(const void* x, const void* w, const void* s
  * in device memory. */
 int ik_cublas_gemm_bf16_devalpha(const void* x, const void* w, void* out, int64_t M, int64_t N, int64_t K,
                                  const float* alpha_beta_dev, void* stream);
+/* ik_runtime.cu: the ik_rt_malloc allocation holding device address p (0 = found). fp8_gemm.cu: drop the bf16 weight copies
+ * of matmul_fp8_gemm_cublas made from weights inside the allocation at `base` (called by ik_rt_free before cudaFree). */
+int ik_rt_alloc_base(const void* p, uintptr_t* base);
+void ik_fp8_bf16_cache_forget(const void* base);
 #ifdef __cplusplus
 }
 #endif

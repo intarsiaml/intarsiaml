@@ -4,6 +4,9 @@
 #include "wq_gemm.cuh"
 #include "ik_internal.h"
 #include <stdlib.h>
+#include <map>
+#include <mutex>
+#include <utility>
 
 namespace {
 
@@ -525,12 +528,15 @@ int ik_matmul_fp8_gemm(const ik_tensor* x, const ik_tensor* w, const ik_tensor* 
 }
 
 // ---- matmul_fp8_gemm_cublas (lane S1) -------------------------------------------------------------------------------
-// The same GEMM on cuBLAS's bf16 tensor-core kernels: the weights are expanded to their exact bf16 values (the B values of
-// gemm_reg, NaN codes -> +-480 likewise) into scratch, the activations quantised as fp8_actq_kernel does (or copied, weight
-// only), and cublasGemmEx (compute 32F) runs with alpha = gemm_reg's epilogue scale. On sm_121 / CUDA 13.0 at the 35B
-// prefill shapes cuBLAS forms every output element by the same m16n8k16 chain in k order with no split-K: the bytes equal
-// matmul_fp8_gemm_reg's (tests/fp8_gemm_cublas.rs and quantmoe probe_cublas_bf16_vs_gemm_reg_bits check it on the device;
-// the registry keeps it behind INTARSIA_CUDA_FP8_CUBLAS). Scratch: xq [M, K] bf16, w [N, K] bf16, 2 floats.
+// The same GEMM on cuBLAS's bf16 tensor-core kernels (OPT-IN, INTARSIA_CUDA_FP8_CUBLAS=1): each fp8 weight is expanded
+// once to its exact bf16 values (the B values of gemm_reg; NaN codes -> +-480 likewise) into a device copy kept for the
+// life of the weight's allocation (2 bytes per weight: +2.6 GB on the 35B, outside the engine's memory plan; dropped by
+// ik_rt_free), the activations are quantised as fp8_actq_kernel does (or copied, weight only), and cublasGemmEx (compute
+// 32F) runs with alpha = gemm_reg's epilogue scale. On sm_121 / CUDA 13.0 at the 35B prefill shapes cuBLAS forms every
+// output element by the same m16n8k16 chain in k order with no split-K, so the bytes equal matmul_fp8_gemm_reg's
+// (tests/fp8_gemm_reg.rs fp8_gemm_cublas_is_bitwise_gemm_reg and quantmoe probe_cublas_bf16_vs_gemm_reg_bits check it on
+// the device). Falls back to matmul_fp8_gemm_reg (same bytes) during graph capture, for weights outside an ik_rt_malloc
+// allocation, and when the copy cannot be allocated. Scratch: 256 B ({alpha, beta}) + xq [M, K] bf16.
 namespace cub {
 
 __global__ void __launch_bounds__(256) e4m3_to_bf16_kernel(const uint8_t* __restrict__ w, ik_bf16* __restrict__ o, int64_t n8) {
@@ -575,36 +581,84 @@ actq_alpha_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restrict__ xq, const
 
 constexpr size_t kAbBytes = 256;
 
-// one GEMM given its quantised activations: expand w into wbf, then cuBLAS
-int gemm(const ik_bf16* xq, const ik_tensor* w, ik_bf16* wbf, const float* ab, ik_tensor* out, int64_t M, int64_t K,
-         cudaStream_t s) {
-    const int64_t N = w->shape[0], n8 = N * K / 8;
-    e4m3_to_bf16_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const uint8_t*)w->data, wbf, n8);
-    IK_TRY(ik_launch_status());
-    return ik_cublas_gemm_bf16_devalpha(xq, wbf, out->data, M, N, K, ab, s);
+struct Copy {
+    ik_bf16* bf;
+    int64_t n, k;
+    uintptr_t base;
+};
+std::mutex g_mu;
+std::map<std::pair<int, uintptr_t>, Copy> g_copies;  // (device, weight address)
+bool g_alloc_failed = false;
+
+// the bf16 copy of w (made on stream s on first use), or nullptr: fall back
+const ik_bf16* weight_copy(const ik_tensor* w, cudaStream_t s) {
+    int dev = 0;
+    if (cudaGetDevice(&dev) != cudaSuccess) return nullptr;
+    const int64_t N = w->shape[0], K = w->shape[1];
+    std::lock_guard<std::mutex> lock(g_mu);
+    const auto key = std::make_pair(dev, (uintptr_t)w->data);
+    auto it = g_copies.find(key);
+    if (it != g_copies.end()) return (it->second.n == N && it->second.k == K) ? it->second.bf : nullptr;
+    if (g_alloc_failed) return nullptr;
+    uintptr_t base = 0;
+    if (ik_rt_alloc_base(w->data, &base) != 0) return nullptr;
+    void* p = nullptr;
+    if (cudaMalloc(&p, (size_t)(N * K) * 2) != cudaSuccess) {
+        cudaGetLastError();
+        g_alloc_failed = true;
+        return nullptr;
+    }
+    const int64_t n8 = N * K / 8;
+    e4m3_to_bf16_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const uint8_t*)w->data, (ik_bf16*)p, n8);
+    if (cudaGetLastError() != cudaSuccess) {
+        cudaFree(p);
+        return nullptr;
+    }
+    g_copies[key] = Copy{(ik_bf16*)p, N, K, base};
+    return (const ik_bf16*)p;
 }
 
 }  // namespace cub
+
+extern "C" void ik_fp8_bf16_cache_forget(const void* base) {
+    std::lock_guard<std::mutex> lock(cub::g_mu);
+    for (auto it = cub::g_copies.begin(); it != cub::g_copies.end();) {
+        if (it->second.base == (uintptr_t)base) {
+            cudaFree(it->second.bf);
+            it = cub::g_copies.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
+                           const ik_scratch* scratch, void* stream);
 
 int ik_matmul_fp8_gemm_cublas(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                               const ik_scratch* scratch, void* stream) {
     bool empty = false;
     IK_TRY(check_args(x, w, scales, out, &empty));
     if (empty) return IK_OK;
-    if (out->dtype != IK_DTYPE_BF16 || !ik_aligned16(out->data)) return IK_ERR_DTYPE;
-    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
-    const size_t need = cub::kAbBytes + (size_t)(M * K + N * K) * 2;
-    if (!scratch || !scratch->data || scratch->bytes < need || (reinterpret_cast<uintptr_t>(scratch->data) & 255u))
+    const int64_t M = x->shape[0], K = x->shape[1];
+    const size_t need = cub::kAbBytes + (size_t)(M * K) * 2;
+    if (!scratch || !scratch->data || (size_t)scratch->bytes < need || (reinterpret_cast<uintptr_t>(scratch->data) & 255u))
         return IK_ERR_INVALID_ARG;
-    float* const ab = (float*)scratch->data;
-    ik_bf16* const xq = (ik_bf16*)((char*)scratch->data + cub::kAbBytes);
-    ik_bf16* const wbf = xq + M * K;
     cudaStream_t s = IK_STREAM(stream);
+    const ik_scratch rest{(char*)scratch->data + cub::kAbBytes, scratch->bytes - (int64_t)cub::kAbBytes};
+    cudaStreamCaptureStatus cs = cudaStreamCaptureStatusNone;
+    if (out->dtype != IK_DTYPE_BF16 || !ik_aligned16(out->data) || cudaStreamIsCapturing(s, &cs) != cudaSuccess ||
+        cs != cudaStreamCaptureStatusNone)
+        return ik_matmul_fp8_gemm_reg(x, w, scales, out, &rest, stream);
+    const ik_bf16* const wbf = cub::weight_copy(w, s);
+    if (!wbf) return ik_matmul_fp8_gemm_reg(x, w, scales, out, &rest, stream);
+    float* const ab = (float*)scratch->data;
+    ik_bf16* const xq = (ik_bf16*)rest.data;
     const int64_t n8 = M * K / 8;
     cub::actq_alpha_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>((const ik_bf16*)x->data, xq,
                                                                          (const float*)scales->data, nullptr, ab, n8);
     IK_TRY(ik_launch_status());
-    return cub::gemm(xq, w, wbf, ab, out, M, K, s);
+    return ik_cublas_gemm_bf16_devalpha(xq, wbf, out->data, M, w->shape[0], K, ab, s);
 }
 
 int ik_matmul_fp8_gemm_reg(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
