@@ -1,0 +1,18 @@
+fleetq: #3991 waiting (#2 in line): in line behind #3990 "fx3 SGLang 35B quality window: vLLM guidance down <=30 min" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3990 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3990 set, or it will wait for #3990 to be released.
+fleetq: #3991 waiting (#1 in line): spark1 is held exclusively by #3990 "fx3 SGLang 35B quality window: vLLM guidance down <=30 min" (claude-f31ccf91-fx3)
+fleetq:   #3990 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3990 set, or it will wait for #3990 to be released.
+fleetq: #3991 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #3991 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p31 'ARMS=intarsia4k intarsia vllm' PHASES=speed MINGB=36 scripts/standings-fx3/window-opt.sh
+[06:37:20] pass p31 model=35b host=spark1 arms=[intarsia4k intarsia vllm] phases=speed job=3991
+[06:37:24] == arm intarsia4k (MemAvailable 48 GB)
+[06:38:12]   intarsia4k ready after 45s
+[06:38:47]   speed exit=0
+[06:38:53] == arm intarsia (MemAvailable 47 GB)
+[06:39:36]   intarsia ready after 40s
+[06:40:10]   speed exit=0
+[06:40:16] == arm vllm (MemAvailable 47 GB)
+[06:40:16]   vllm ready after 0s
+[06:40:50]   speed exit=0
+[06:40:51] pass p31 done
+fleetq: #3991 done (exit 0)

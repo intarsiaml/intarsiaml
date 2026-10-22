@@ -1,0 +1,3 @@
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W], utilization.gpu [%]
+208 MHz, [N/A], 52, 4.55 W, 0 %
+MemAvailable:   117117548 kB

@@ -1,0 +1,11 @@
+[06:41:20] pass p32 model=35b host=spark1 arms=[vllm intarsia4k intarsia] phases=speed job=3992
+[06:41:24] == arm vllm (MemAvailable 46 GB)
+[06:41:24]   vllm ready after 0s
+[06:41:58]   speed exit=0
+[06:42:03] == arm intarsia4k (MemAvailable 46 GB)
+[06:42:46]   intarsia4k ready after 40s
+[06:43:21]   speed exit=0
+[06:43:26] == arm intarsia (MemAvailable 46 GB)
+[06:44:14]   intarsia ready after 45s
+[06:44:50]   speed exit=0
+[06:44:52] pass p32 done

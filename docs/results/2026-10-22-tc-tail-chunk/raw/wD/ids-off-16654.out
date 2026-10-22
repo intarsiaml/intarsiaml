@@ -1,0 +1,15 @@
+, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, prefix reuse works through snapshots: the engine snapshots after each prefill
+chunk and one token before the end of the prompt (`SequenceState::snapshot`, at most `RECURRENT_SNAPSHOTS` = 4 kept),
+and reuses the longest prefix that is the held sequence itself, a snapshot, or empty (`restorable_len`). A failed
+forward resets the sequence (the state would otherwise match no token prefix).
+
+## Kernels
+
+`kernels/cuda/gdn.cu`: `gdn_conv_bf16` (tiled over tokens), `gdn_delta_rule_bf16` (sequential over tokens; one
+thread per state row for dk <= 1

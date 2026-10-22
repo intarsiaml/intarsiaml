@@ -1,0 +1,18 @@
+fleetq: #3979 waiting (#3 in line): in line behind #3972 "post-merge CUDA 35B qualify main 2bf3b73f (>=db49a025)" (claude-f31ccf91-qcheck) on spark1
+fleetq: #3979 waiting (#2 in line): in line behind #3977 "fx3 SGLang 35B window: vLLM guidance down <=30 min (00-07 EDT free window)" (claude-f31ccf91-fx3) on spark1
+fleetq:   #3977 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3977 set, or it will wait for #3977 to be released.
+fleetq: #3979 waiting (#1 in line): spark1 is held exclusively by #3977 "fx3 SGLang 35B window: vLLM guidance down <=30 min (00-07 EDT free window)" (claude-f31ccf91-fx3)
+fleetq:   #3977 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3977 set, or it will wait for #3977 to be released.
+fleetq: #3979 running on spark1: env HOST=spark1 MACHINE=spark-4e77 MODEL=35b PASS=p90 'ARMS=intarsia vllm llamacpp' PHASES=quality QBENCH=mmlu,gsm8k QLIMIT=25 MINGB=36 scripts/standings-fx3/window.sh
+[05:59:27] pass p90 model=35b host=spark1 arms=[intarsia vllm llamacpp] phases=quality job=3979
+[05:59:32] == arm intarsia (MemAvailable 47 GB)
+[06:00:19]   intarsia ready after 45s
+[06:06:52]   quality exit=0
+[06:06:58] == arm vllm (MemAvailable 48 GB)
+[06:06:58]   vllm ready after 0s
+[06:12:11]   quality exit=0
+[06:12:15] == arm llamacpp (MemAvailable 47 GB)
+[06:12:47]   llamacpp ready after 30s
+[06:23:36]   quality exit=0
+[06:23:39] pass p90 done
+fleetq: #3979 done (exit 0)

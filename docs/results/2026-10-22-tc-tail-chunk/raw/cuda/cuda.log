@@ -1,0 +1,57 @@
+clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]
+2411 MHz, [N/A], 56, 12.74 W
+--- ids 16654 08:04:32
+base 16654: prompt: 16654 tokens
+base 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 4036 ms (4126.4 tok/s) | decode 3511 ms (72.63 tok/s)
+base 16654: steps=265 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/90 embedding=0ms/265 gate_split=0ms/2650
+off 16654: prompt: 16654 tokens
+off 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 3543 ms (4701.0 tok/s) | decode 3446 ms (74.00 tok/s)
+off 16654: steps=265 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/90 embedding=0ms/265 gate_split=0ms/2650
+on 16654: prompt: 16654 tokens
+on 16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 3230 ms (5156.6 tok/s) | decode 3436 ms (74.21 tok/s)
+on 16654: steps=264 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/80 embedding=0ms/264 gate_split=0ms/2640
+IDS 16654: base == off
+IDS 16654: base != on
+--- ids 4408 08:06:47
+base 4408: prompt: 4408 tokens
+base 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 1049 ms (4203.5 tok/s) | decode 3126 ms (81.59 tok/s)
+base 4408: steps=259 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/30 embedding=0ms/259 gate_split=0ms/2590
+off 4408: prompt: 4408 tokens
+off 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 1049 ms (4202.6 tok/s) | decode 3085 ms (82.67 tok/s)
+off 4408: steps=259 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/30 embedding=0ms/259 gate_split=0ms/2590
+on 4408: prompt: 4408 tokens
+on 4408: finish=length prompt=4408 (cached 0) completion=256 | prefill 1034 ms (4261.7 tok/s) | decode 3141 ms (81.19 tok/s)
+on 4408: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split=0ms/2580
+IDS 4408: base == off
+IDS 4408: base != on
+pf 16654 rep 1 base: 3387 ms
+pf 16654 rep 1 off: 3402 ms
+pf 16654 rep 1 on: 3306 ms
+pf 16654 rep 2 on: 3316 ms
+pf 16654 rep 2 off: 3382 ms
+pf 16654 rep 2 base: 3435 ms
+pf 16654 rep 3 base: 3404 ms
+pf 16654 rep 3 off: 3395 ms
+pf 16654 rep 3 on: 3280 ms
+pf 16654 rep 4 on: 3292 ms
+pf 16654 rep 4 off: 3365 ms
+pf 16654 rep 4 base: 3322 ms
+pf 16654 rep 5 base: 3339 ms
+pf 16654 rep 5 off: 3355 ms
+pf 16654 rep 5 on: 3347 ms
+pf 4408 rep 1 base: 1023 ms
+pf 4408 rep 1 off: 1042 ms
+pf 4408 rep 1 on: 947 ms
+pf 4408 rep 2 on: 944 ms
+pf 4408 rep 2 off: 1035 ms
+pf 4408 rep 2 base: 1031 ms
+pf 4408 rep 3 base: 1049 ms
+pf 4408 rep 3 off: 1044 ms
+pf 4408 rep 3 on: 952 ms
+pf 4408 rep 4 on: 950 ms
+pf 4408 rep 4 off: 1037 ms
+pf 4408 rep 4 base: 1032 ms
+pf 4408 rep 5 base: 1037 ms
+pf 4408 rep 5 off: 1020 ms
+pf 4408 rep 5 on: 941 ms
+done 08:31:23

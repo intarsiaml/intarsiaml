@@ -1,0 +1,260 @@
+{
+ "run_id": "20261022-055015-adhoc-fx3-35b-sglang-r23-speed",
+ "kind": "speed",
+ "label": "fx3-35b-sglang-r23-speed",
+ "started_at": "2026-10-22T05:50:15-04:00",
+ "finished_at": "2026-10-22T05:50:51-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-4e77:8200/v1",
+  "model": "sglang",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8200/v1 --model sglang --thinking off --label fx3-35b-sglang-r23-speed --sizes 128,1024,4096,16384 --gen 128 --reps 3",
+  "git": "1f24e53"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "sglang"
+   ],
+   "root": "sglang",
+   "owned_by": "sglang",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.09,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 136,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.097,
+     "min": 0.095,
+     "max": 0.182,
+     "n": 3,
+     "spread_pct": 89.9
+    },
+    "prefill_tok_s": {
+     "median": 1407.592,
+     "min": 746.105,
+     "max": 1414.514,
+     "n": 3,
+     "spread_pct": 47.5
+    },
+    "decode_tok_s": {
+     "median": 74.965,
+     "min": 74.771,
+     "max": 76.693,
+     "n": 3,
+     "spread_pct": 2.6
+    },
+    "peak_decode_tok_s": {
+     "median": 76.1,
+     "min": 75.3,
+     "max": 81.4,
+     "n": 3,
+     "spread_pct": 8.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.208,
+     "min": 0.197,
+     "max": 0.217,
+     "n": 3,
+     "spread_pct": 9.5
+    },
+    "prefill_tok_s": {
+     "median": 4774.363,
+     "min": 4567.827,
+     "max": 5038.128,
+     "n": 3,
+     "spread_pct": 9.9
+    },
+    "decode_tok_s": {
+     "median": 73.722,
+     "min": 73.671,
+     "max": 73.839,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 75.4,
+     "min": 75.3,
+     "max": 76.6,
+     "n": 3,
+     "spread_pct": 1.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 7702.7,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.607,
+     "min": 0.599,
+     "max": 0.609,
+     "n": 3,
+     "spread_pct": 1.7
+    },
+    "prefill_tok_s": {
+     "median": 6731.726,
+     "min": 6712.213,
+     "max": 6830.56,
+     "n": 3,
+     "spread_pct": 1.8
+    },
+    "decode_tok_s": {
+     "median": 72.344,
+     "min": 72.168,
+     "max": 72.816,
+     "n": 3,
+     "spread_pct": 0.9
+    },
+    "peak_decode_tok_s": {
+     "median": 74.4,
+     "min": 74.3,
+     "max": 74.6,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 7766.9
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16655,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.617,
+     "min": 2.613,
+     "max": 2.657,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "prefill_tok_s": {
+     "median": 6364.419,
+     "min": 6270.607,
+     "max": 6372.823,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "decode_tok_s": {
+     "median": 70.514,
+     "min": 70.191,
+     "max": 70.571,
+     "n": 3,
+     "spread_pct": 0.5
+    },
+    "peak_decode_tok_s": {
+     "median": 71.1,
+     "min": 70.8,
+     "max": 71.3,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6251.2
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "sglang",
+  "activity_checks": {
+   "idle": 0,
+   "busy": 0,
+   "unknown": 13
+  },
+  "warnings": [
+   "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "server exposes no in-flight counters (/metrics, /slots); could not verify the server was idle, so other clients may have contended this run"
+ ]
+}

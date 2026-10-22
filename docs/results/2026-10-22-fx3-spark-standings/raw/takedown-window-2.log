@@ -1,0 +1,16 @@
+fleetq: #3990 waiting (#1 in line): needs spark1 to itself; running there: #3979 "fx3 35B quality MMLU+GSM8K n=25 (vLLM guidance up, non-exclusive)" (claude-f31ccf91-fx3)
+fleetq:   #3979 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3979 set, or it will wait for #3979 to be released.
+fleetq: #3990 waiting (#1 in line): needs spark1 quiet, but its GPU is 67% busy with work fleetq does not track
+fleetq: #3990 waiting (#1 in line): needs spark1 quiet, but its GPU is 94% busy with work fleetq does not track
+fleetq: #3990 running on spark1: env WPHASES=quality QBENCH=mmlu,gsm8k QLIMIT=25 scripts/standings-fx3/takedown-window.sh p91:sglang
+[06:24:29] vLLM stopped; MemAvailable 111 GB
+[06:24:29] == p91 sglang
+[06:24:31] pass p91 model=35b host=spark1 arms=[sglang] phases=quality job=3990
+[06:24:35] == arm sglang (MemAvailable 111 GB)
+[06:28:54]   sglang ready after 240s
+[06:33:35]   quality exit=0
+[06:33:37] pass p91 done
+[06:33:37] window done
+[06:33:38] starting missioncntrl-guidance, waiting for /v1/models
+[06:37:04] vLLM serving again
+fleetq: #3990 done (exit 0); spark1-vllm must come back before others can use it
