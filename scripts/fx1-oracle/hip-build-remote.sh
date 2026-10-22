@@ -11,7 +11,11 @@ cd ~/intarsiaml-fx1 && mkdir -p bench-out fx1out mutants
 export INTARSIA_REPO=$HOME/intarsiaml-fx1 INTARSIA_TARGET_VOL=intarsia-cargo-target-fx1
 deploy/tatooine/dev.sh cargo build --release -p intarsia-cli --features hip < /dev/null 2>&1 | grep -E '^error|Finished' | head
 deploy/tatooine/dev.sh /target/release/intarsia --version < /dev/null
+if [ "${FX1_TEST:-0}" = 1 ]; then
+  deploy/tatooine/dev.sh bash -c 'CARGO_TARGET_DIR=/target/fx1-test cargo test -p intarsia-cli 2>&1 | grep -E "^test result|FAILED|panicked|^error" | head -20' < /dev/null
+fi
 for f in 1.01 1.005; do
+  [ -e mutants/mut$f/zz-scale-mutant.safetensors ] && continue
   LINK_ROOT=/models/Qwen3.6-35B-A3B-NVFP4 python3 scripts/fx1-oracle/make_scale_mutant.py /data/models/intarsia/Qwen3.6-35B-A3B-NVFP4 mutants/mut$f $f < /dev/null
 done
 ls /data/models/intarsia/golden/ | grep -i 35b || true

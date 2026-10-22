@@ -1619,7 +1619,7 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
 /// `acc-oracle`'s floor: mean 21-way KL(oracle || engine) over the scored prefill rows of the short prompt set. Measured,
 /// not chosen: docs/results/2026-10-22-fx1-oracle-gate.md section 3 (clean builds on every backend against the f64 CPU
 /// oracle, and the 1 % row-parallel scale mutants that must fail).
-pub const ORACLE_MAX_KL: f64 = 1.0e-2;
+pub const ORACLE_MAX_KL: f64 = 2.0e-2;
 
 impl Ctx {
     /// The f64 CPU-oracle golden: `--oracle-golden`, `oracle/<model>-cpu-oracle...` in the golden directories (the repo

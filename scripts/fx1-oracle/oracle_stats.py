@@ -16,7 +16,7 @@ import sys
 import numpy as np
 
 IM_START, IM_END, SYSTEM, USER = 248045, 248046, 8678, 846
-K = 20
+K = int(__import__("os").environ.get("KSUP", "20"))
 
 
 def load(path):
