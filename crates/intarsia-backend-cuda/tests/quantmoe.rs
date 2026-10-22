@@ -779,10 +779,13 @@ fn probe_cublas_bf16_vs_gemm_reg_bits() {
             // weight scale 1, no input scale: gemm_reg's output is bf16(sum of x * e4m3 weight)
             hc.inputs[2] = HostTensor::from_f32_as(hc.inputs[2].dtype, &hc.inputs[2].shape, &[1.0, 0.0]);
             // x on the e4m3 grid (as W8A8 activations are), so both kernels see the same small-mantissa operands
+            // INTARSIA_PROBE_GRID=0 keeps x as full-mantissa bf16 (products of 12 significant bits over a wide exponent range:
+            // the sums then depend on the accumulation order, a sharper test of "same chain")
+            let grid = std::env::var("INTARSIA_PROBE_GRID").map_or(true, |v| v != "0");
             let xs: Vec<f32> = hc.inputs[0]
                 .to_f32()
                 .iter()
-                .map(|&v| intarsia_core::dtype::fp8_e4m3_to_f32(intarsia_core::dtype::f32_to_fp8_e4m3(v * 8.0)))
+                .map(|&v| if grid { intarsia_core::dtype::fp8_e4m3_to_f32(intarsia_core::dtype::f32_to_fp8_e4m3(v * 8.0)) } else { v * 8.0 })
                 .collect();
             hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[m, k], &xs);
             let wf: Vec<f32> = hc.inputs[1].data.iter().map(|&b| intarsia_core::dtype::fp8_e4m3_to_f32(b)).collect();
