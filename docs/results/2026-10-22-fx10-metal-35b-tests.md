@@ -74,4 +74,6 @@ prefills them. Whether the tolerance should absorb it is the open decision in PR
 Short-golden note: with the Metal default chunk (256) the 300- and 700-token prompts of the short golden do cross a boundary; that run was not made
 (the task named 1024 and 2048). Verdict-gate consequence: a Metal reuse gate on the short golden at the defaults needs `--prefill-chunk 256` to judge anything.
 
-Fleet jobs: #3978 (first build and test), #3984 (crate tests and mutation), #3985 (failed reuse launch), #3999 (reuse runs).
+After merging origin/main (which brought lane m35's `moe_mm_*` kernels) the gdn and quant binaries were re-run: 7 and 6 passed (#4010, `raw/cargo-test-after-merge.log`).
+
+Fleet jobs: #3978 (first build and test), #3984 (crate tests and mutation), #3985 (failed reuse launch), #3999 (reuse runs), #4010 (re-run after merge).
