@@ -460,24 +460,24 @@ impl GemmaDims {
         }
         let u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
         let rp = tc.get("rope_parameters").filter(|v| v.is_object()).ok_or_else(|| Error::model("gemma4 config: rope_parameters missing"))?;
-        let ty = |k: &str, want: &str| -> Result<&serde_json::Value> {
+        let ty = |k: &str, want: &str| -> Result<serde_json::Value> {
             let v = rp.get(k).filter(|v| v.is_object()).ok_or_else(|| Error::model(format!("gemma4 config: rope_parameters.{k} missing")))?;
             let t = v.get("rope_type").and_then(|t| t.as_str()).unwrap_or("default");
             if t != want {
                 return Err(Error::Unsupported(format!("gemma4 config: rope_parameters.{k}.rope_type = \"{t}\" (only \"{want}\" is implemented)")));
             }
-            Ok(v)
+            Ok(v.clone())
         };
         let _local = ty("sliding_attention", "default")?;
         let global = ty("full_attention", "proportional")?;
         let g = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64());
-        if g(global, "factor").is_some_and(|f| (f - 1.0).abs() > 1e-9) {
+        if g(&global, "factor").is_some_and(|f| (f - 1.0).abs() > 1e-9) {
             return Err(Error::Unsupported("gemma4 config: proportional rope with factor != 1".into()));
         }
         let hidden = u("hidden_size")?;
         // HF rounds sqrt(hidden) to the weight dtype (bf16) before the multiply
         let embed_scale = half::bf16::from_f32((hidden as f32).sqrt()).to_f32();
-        let rot = g(global, "partial_rotary_factor").unwrap_or(1.0) as f32;
+        let rot = g(&global, "partial_rotary_factor").unwrap_or(1.0) as f32;
         let ghd = u("global_head_dim")?;
         if !(rot > 0.0 && rot <= 1.0) || ((rot * ghd as f32) as usize) % 2 != 0 {
             return Err(Error::model(format!("gemma4 config: global partial_rotary_factor {rot} on head_dim {ghd}")));
@@ -501,7 +501,7 @@ impl GemmaDims {
             sliding_window: u("sliding_window")?,
             global_head_dim: ghd,
             global_kv_heads: u("num_global_key_value_heads")?,
-            global_theta: g(global, "rope_theta").ok_or_else(|| Error::model("gemma4 config: full_attention rope_theta missing"))? as f32,
+            global_theta: g(&global, "rope_theta").ok_or_else(|| Error::model("gemma4 config: full_attention rope_theta missing"))? as f32,
             global_rotary_factor: rot,
             k_eq_v: tc.get("attention_k_eq_v").and_then(|v| v.as_bool()).unwrap_or(false),
             softcap: tc.get("final_logit_softcapping").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,

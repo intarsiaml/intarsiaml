@@ -387,5 +387,18 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   `crates/intarsia-core/src/model.rs`, its op(s) to `ops.rs` with a cpu-ref reference, and a
   `SlotSpec` if it carries state (`Recurrent` for GDN/Mamba). Then `intarsia kernels test` covers it.
 * New kernel for an existing op: `kernels/README.md`.
+* A whole new decoder-layer structure (Gemma 4, lane g4, `docs/results/2026-10-22-g4-gemma4-onboard.md`): do not try to express
+  it as `attn` + `ffn` with pre-norms. Gemma 4 is one block per layer (`Block::Gemma`, `crates/intarsia-core/src/model/gemma.rs`)
+  because it has sandwich norms (a norm on each block's OUTPUT before the residual add), a dense MLP and a MoE in parallel, a
+  per-layer scalar on the whole residual stream, and per-layer-type attention. The recipe stays small (`recipes/gemma4.toml`:
+  prefix, `norm_offset`, tied head) and the config-derived numbers live in `ModelDims::gemma`. Order of work that paid off:
+  read the HF `modeling_*.py` of the pinned transformers version first (it is the only spec; `pip download transformers==X
+  --no-deps` and unzip the wheel), list every difference from the engine as a table (the `recipe new` TODO list is a subset),
+  then (1) fold constants at load time instead of adding ops (`router.scale`, `per_expert_scale` into existing weights),
+  (2) put new behaviour behind an op attribute plus the `.ext()` kernel flag (`KernelImpl::ext`, `ShapeInfo::ext`): a call that
+  uses `OpAttrs::window`, `rope_prop`, `gelu` or a non-1 `scale` on `Add` / `Embedding` is accepted only by kernels that
+  registered `.ext()`, so a backend that ignores the attribute fails with `NoKernel` instead of running wrong, (3) validate the
+  architecture on a tiny random-weight checkpoint against HF (`tools/gemma4_tiny.py`, `tests/gemma4_tiny.rs`) before touching the
+  real weights, because that needs neither a GPU nor a golden.
 
 `recipe new` names these cases in its TODO list; `qualify`'s `plan` stage names the ops that have no kernel.
