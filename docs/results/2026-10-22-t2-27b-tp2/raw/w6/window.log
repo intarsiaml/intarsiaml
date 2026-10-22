@@ -1,0 +1,21 @@
+[window] job 3778 w6; stopping radiance 2026-10-22 00:59:23
+[window] radiance stopped 2026-10-22 00:59:26
+00:59:39 ids-27-a16-tp1-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 188 ms (63.9 tok/s) | decode 7631 ms (33.41 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+00:59:39 ids 27-a16-tp1-short md5 fe07b31a
+00:59:48 ids-27-a16-tp2-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 148 ms (81.3 tok/s) | decode 5679 ms (44.90 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:59:48 ids 27-a16-tp2-short md5 6ef7bcc0
+01:00:03 ids-27-a16-tp1-4k exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 4793 ms (919.6 tok/s) | decode 7833 ms (32.56 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+01:00:03 ids 27-a16-tp1-4k md5 008bca89
+01:00:15 ids-27-a16-tp2-4k exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 3296 ms (1337.3 tok/s) | decode 5750 ms (44.34 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35072 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+01:00:15 ids 27-a16-tp2-4k md5 008bca89
+01:00:15 DIFF 27B W4A16 tp=2 vs tp=1 short (ids-27-a16-tp1-short.ids != ids-27-a16-tp2-short.ids)
+01:00:15 SAME 27B W4A16 tp=2 vs tp=1 4k (ids-27-a16-tp1-4k.ids == ids-27-a16-tp2-4k.ids)
+FIRSTDIFF 27B W4A16 tp=2 vs tp=1 short: 256 / 256 ids, first divergence at 222
+FIRSTDIFF 27B W4A16 tp=2 vs tp=1 4k: 256 / 256 ids, first divergence at none (identical)
+01:00:32 acc-a16-tp1 exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+01:00:47 acc-a16-tp2 exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+01:01:01 self-a16-tp2-vs-tp1 exit 1: SELF-STATS mode=prefill positions=1441 mean_kl21=1.262359e-3 max_kl21=1.329721e0 flips=5 flip_pct=0.3470 tail_abs=1.252946e-4 worst_prompt_kl21=2.338533e-2|SELF-STATS mode=decode positions=160 mean_kl21=8.996808e-4 max_kl21=4.905097e-2 flips=1 flip_pct=0.6250 tail_abs=2.229354e-4 worst_prompt_kl21=3.862393e-3|self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL|golden gate: FAIL|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|Error: accuracy gate FAILED|
+01:01:01 done
+[window] stages done 2026-10-22 01:01:01 (exit 0)
+[window] starting radiance 2026-10-22 01:01:01
+[window] radiance answers 2026-10-22 01:01:16 (after 20 s)
