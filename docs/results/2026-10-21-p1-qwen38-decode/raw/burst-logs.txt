@@ -1,0 +1,885 @@
+[burst] job none; stages: prof:base:1k prof:base:4k optable:base:1k bench:base; stopping radiance 2026-10-21 17:32:13
+[burst] radiance stopped 2026-10-21 17:32:16
+=== stage prof:base:1k [17:32:16]
+--- unprofiled (1k) [17:32:16]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1226 ms (879.5 tok/s) | decode 4175 ms (30.42 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [17:32:28]
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1236 ms (872.1 tok/s) | decode 4471 ms (28.41 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(1351, 127), (9728, 1)]
+decode steps analysed: 125, launches/step 1351
+per step: kernel time 30.221 ms, step wall (first start to last end) 35.187 ms, idle inside step 4.966 ms (14.1% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 35.198 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 4640 p99 4760 max 296683; sum/step 4.966 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv_kernel<1, bf16>                                                496.0   22624.2    45.6  74.9%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3983.0  3983.0  13.2%
+mxfp4_xprep_kernel                                                        496.0    1940.5     3.9   6.4%
+rmsnorm_kernel<true, true>                                                128.0     493.8     3.9   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     491.7    10.2   1.6%
+splitkv_kernel<8, 32, 2>                                                   16.0     250.8    15.7   0.8%
+gated_rmsnorm_kernel<true>                                                 48.0     106.2     2.2   0.4%
+silu_glu_kernel<true>                                                      64.0      92.3     1.4   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      88.0     5.5   0.3%
+argmax_kernel<float>                                                        1.0      61.5    61.5   0.2%
+combine_kernel<256, 16>                                                    16.0      59.2     3.7   0.2%
+sigmoid_mul_kernel                                                         16.0      17.1     1.1   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.3     2.4   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.3     3.3   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+=== stage prof:base:4k [17:32:36]
+--- unprofiled (4k) [17:32:36]
+prompt: 4408 tokens
+finish=length prompt=4408 (cached 0) completion=128 | prefill 4567 ms (965.2 tok/s) | decode 4257 ms (29.83 tok/s)
+steps=146 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/288 embedding=0ms/146 gate_split_qk_norm_rope_kv=0ms/2336
+--- rocprofv3 (4k) [17:32:47]
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+finish=length prompt=4408 (cached 0) completion=128 | prefill 4623 ms (953.6 tok/s) | decode 4541 ms (27.97 tok/s)
+steps=146 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/288 embedding=0ms/146 gate_split_qk_norm_rope_kv=0ms/2336
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+steps: 128 launch-count histogram (top): [(1351, 127), (28903, 1)]
+decode steps analysed: 125, launches/step 1351
+per step: kernel time 30.771 ms, step wall (first start to last end) 35.736 ms, idle inside step 4.965 ms (13.9% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 35.748 ms
+intra-step gaps (ns): p10 2920 p50 3000 p90 4640 p99 4760 max 294645; sum/step 4.965 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv_kernel<1, bf16>                                                496.0   22654.5    45.7  73.6%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.7  3982.7  12.9%
+mxfp4_xprep_kernel                                                        496.0    1955.8     3.9   6.4%
+splitkv_kernel<8, 32, 2>                                                   16.0     700.5    43.8   2.3%
+rmsnorm_kernel<true, true>                                                128.0     497.5     3.9   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     490.5    10.2   1.6%
+gated_rmsnorm_kernel<true>                                                 48.0     106.6     2.2   0.3%
+combine_kernel<256, 16>                                                    16.0     104.1     6.5   0.3%
+silu_glu_kernel<true>                                                      64.0      92.7     1.4   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      91.4     5.7   0.3%
+argmax_kernel<float>                                                        1.0      61.5    61.5   0.2%
+sigmoid_mul_kernel                                                         16.0      20.3     1.3   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.5     2.5   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+=== stage optable:base:1k [17:32:59]
+--- op-table (1k, eager, profile every step) [17:32:59]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1336 ms (807.2 tok/s) | decode 6036 ms (21.04 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=128 (profiled 128) top ops: matmul_mxfp4=5552ms/65968 logits=546ms/128 rmsnorm_add=396ms/17024 gdn_conv_delta=207ms/6144 silu_glu=168ms/8512
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 1.3s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 1078 tokens
+ the `gdn` kernel.
+## Verification
+* `tools/gen_hybrid_fixture.py` (HF, `--model qwen3.5-4b | qwen3.6-35b-a3b`): per-layer fixtures for the first 3 layers
+  (full attention, GatedDeltaNet, MoE) + a full forward pass.
+* `tests/hybrid.rs`: `test_hybrid_forward` (Qwen3.5-4B, 3 layers, 2 sequences, 200 tokens, max diff < 0.05),
+  `
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1336 ms (807.2 tok/s) | decode 6036 ms (21.04 tok/s)
+op table (estimated ms over all launches; total 7306.5 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                5552.48   75.99    65968   65968
+logits                       546.38    7.48      128     128
+rmsnorm_add                  396.00    5.42    17024   17024
+gdn_conv_delta               207.31    2.84     6144    6144
+silu_glu                     168.28    2.30     8512    8512
+gated_rmsnorm                135.70    1.86     6384    6384
+attn_decode                   87.47    1.20     2048    2048
+gdn_delta_rule                64.76    0.89      240     240
+gate_split_qk_norm_rope_kv      57.47    0.79     2128    2128
+sigmoid_mul                   40.45    0.55     2128    2128
+attn_prefill                  16.46    0.23       80      80
+gdn_conv                      12.31    0.17      240     240
+embedding                      9.64    0.13      133     133
+argmax                         8.31    0.11      128     128
+rmsnorm                        3.42    0.05      133     133
+steps=133 graph replays=0 (captures 0) eager decode steps=128 (profiled 128) top ops: matmul_mxfp4=5552ms/65968 logits=546ms/128 rmsnorm_add=396ms/17024 gdn_conv_delta=207ms/6144 silu_glu=168ms/8512
+=== stage bench:base [17:33:08]
+--- serve base [17:33:08]
+up after ~42s
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.76 tokens per filler sentence
+  size   1024 rep: prompt=945 gen=128 ttft=1.02s prefill=931 tok/s decode=30.3 tok/s
+  size   1024 rep: prompt=941 gen=128 ttft=1.02s prefill=923 tok/s decode=30.3 tok/s
+  size   1024 rep: prompt=968 gen=128 ttft=1.03s prefill=942 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=4014 gen=128 ttft=4.14s prefill=970 tok/s decode=29.8 tok/s
+  size   4096 rep: prompt=3973 gen=128 ttft=4.14s prefill=960 tok/s decode=29.7 tok/s
+  size   4096 rep: prompt=4024 gen=128 ttft=4.15s prefill=970 tok/s decode=29.8 tok/s
+wrote /work/bench-out/p1-27b-base.json
+p1-27b-base  model=qwen38-27b-p1  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      945     1.020          931        30.3      128       74.9
+    4096     4014     4.139          970        29.8      128       73.5
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+[burst] stages done 2026-10-21 17:34:39 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 17:34:39
+[burst] radiance answers 2026-10-21 17:34:49 (after 15 s)
+[burst] job 3232; stages: ids27:lds prof:lds:1k bench:lds; stopping radiance 2026-10-21 17:44:14
+[burst] radiance stopped 2026-10-21 17:44:17
+=== stage ids27:lds [17:44:17]
+27-lds-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 222 ms (54.0 tok/s) | decode 9592 ms (26.59 tok/s)
+27-lds-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4588 ms (960.8 tok/s) | decode 9837 ms (25.92 tok/s)
+=== stage prof:lds:1k [17:44:49]
+--- unprofiled (1k) [17:44:49]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1253 ms (860.3 tok/s) | decode 4843 ms (26.22 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [17:44:57]
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1274 ms (845.9 tok/s) | decode 5014 ms (25.33 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(855, 127), (9232, 1)]
+decode steps analysed: 125, launches/step 855
+per step: kernel time 35.828 ms, step wall (first start to last end) 39.448 ms, idle inside step 3.619 ms (9.2% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 39.459 ms
+intra-step gaps (ns): p10 3040 p50 3201 p90 4760 p99 4960 max 289406; sum/step 3.619 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              496.0   30088.3    60.7  84.0%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.7  3982.7  11.1%
+rmsnorm_kernel<true, true>                                                128.0     520.7     4.1   1.5%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     505.7    10.5   1.4%
+splitkv_kernel<8, 32, 2>                                                   16.0     261.5    16.3   0.7%
+gated_rmsnorm_kernel<true>                                                 48.0     112.3     2.3   0.3%
+silu_glu_kernel<true>                                                      64.0     101.6     1.6   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      93.4     5.8   0.3%
+combine_kernel<256, 16>                                                    16.0      63.1     3.9   0.2%
+argmax_kernel<float>                                                        1.0      63.0    63.0   0.2%
+sigmoid_mul_kernel                                                         16.0      19.5     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0      11.0     3.7   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.5     3.5   0.0%
+embedding_kernel<true>                                                      1.0       2.2     2.2   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+=== stage bench:lds [17:45:06]
+--- serve lds [17:45:06]
+up after ~42s
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.70 tokens per filler sentence
+  size   1024 rep: prompt=987 gen=128 ttft=1.03s prefill=959 tok/s decode=26.3 tok/s
+  size   1024 rep: prompt=973 gen=128 ttft=1.03s prefill=946 tok/s decode=26.3 tok/s
+  size   1024 rep: prompt=992 gen=128 ttft=1.04s prefill=958 tok/s decode=26.2 tok/s
+  size   4096 rep: prompt=4020 gen=128 ttft=4.15s prefill=969 tok/s decode=25.8 tok/s
+  size   4096 rep: prompt=4039 gen=128 ttft=4.17s prefill=968 tok/s decode=25.4 tok/s
+  size   4096 rep: prompt=4016 gen=128 ttft=4.16s prefill=966 tok/s decode=25.7 tok/s
+wrote /work/bench-out/p1-27b-lds.json
+p1-27b-lds  model=qwen38-27b-p1  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      987     1.029          958        26.2      128       64.9
+    4096     4020     4.158          968        25.7      128       63.4
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 786
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+[burst] stages done 2026-10-21 17:46:42 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 17:46:42
+[burst] radiance answers 2026-10-21 17:46:52 (after 15 s)
+[burst] job none; stages: ids27:nolds; stopping radiance 2026-10-21 17:46:52
+[burst] radiance stopped 2026-10-21 17:46:55
+=== stage ids27:nolds [17:46:55]
+27-nolds-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 209 ms (57.5 tok/s) | decode 8904 ms (28.64 tok/s)
+27-nolds-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4676 ms (942.7 tok/s) | decode 9182 ms (27.77 tok/s)
+[burst] stages done 2026-10-21 17:47:21 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 17:47:21
+[burst] radiance answers 2026-10-21 17:47:31 (after 15 s)
+[burst] job 3238; stages: rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=1 rate:1k:INTARSIA_HIP_MXFP4_LDS=2 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 rate:1k:INTARSIA_HIP_MXFP4_LDS=8 rate:1k:INTARSIA_HIP_MXFP4_LDS=16 ids27:lds2 prof:lds2:1k; stopping radiance 2026-10-21 17:49:08
+[burst] radiance stopped 2026-10-21 17:49:10
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [17:49:10]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4187 ms (30.33 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=1 [17:49:18]
+rate 1k INTARSIA_HIP_MXFP4_LDS=1: decode 5498 ms (23.10 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=2 [17:49:26]
+rate 1k INTARSIA_HIP_MXFP4_LDS=2: decode 4219 ms (30.10 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [17:49:33]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4330 ms (29.33 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=8 [17:49:41]
+rate 1k INTARSIA_HIP_MXFP4_LDS=8: decode 4363 ms (29.11 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=16 [17:49:48]
+rate 1k INTARSIA_HIP_MXFP4_LDS=16: decode 4604 ms (27.59 tok/s)
+=== stage ids27:lds2 [17:49:56]
+27-lds2-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 192 ms (62.5 tok/s) | decode 8671 ms (29.41 tok/s)
+27-lds2-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4644 ms (949.1 tok/s) | decode 8848 ms (28.82 tok/s)
+=== stage prof:lds2:1k [17:50:22]
+--- unprofiled (1k) [17:50:22]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1255 ms (859.2 tok/s) | decode 4336 ms (29.29 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [17:50:29]
+ finish=length prompt=1078 (cached 0) completion=128 | prefill 1261 ms (854.8 tok/s) | decode 4514 ms (28.13 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(855, 127), (9232, 1)]
+decode steps analysed: 125, launches/step 855
+per step: kernel time 32.013 ms, step wall (first start to last end) 35.527 ms, idle inside step 3.514 ms (9.9% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 12 us
+=> full per-token period ~ 35.539 ms
+intra-step gaps (ns): p10 2960 p50 3080 p90 4720 p99 4840 max 302727; sum/step 3.514 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              496.0   26311.0    53.0  82.2%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.7  3982.7  12.4%
+rmsnorm_kernel<true, true>                                                128.0     509.7     4.0   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     498.9    10.4   1.6%
+splitkv_kernel<8, 32, 2>                                                   16.0     256.8    16.0   0.8%
+gated_rmsnorm_kernel<true>                                                 48.0     110.6     2.3   0.3%
+silu_glu_kernel<true>                                                      64.0      94.9     1.5   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      91.9     5.7   0.3%
+argmax_kernel<float>                                                        1.0      62.4    62.4   0.2%
+combine_kernel<256, 16>                                                    16.0      61.8     3.9   0.2%
+sigmoid_mul_kernel                                                         16.0      19.5     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.4     2.5   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+[burst] stages done 2026-10-21 17:50:37 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 17:50:37
+[burst] radiance answers 2026-10-21 17:50:47 (after 15 s)
+[burst] job 3242; stages: rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=2 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 rate:1k:INTARSIA_HIP_MXFP4_LDS=8 rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 prof:lds3:1k; stopping radiance 2026-10-21 17:55:50
+[burst] radiance stopped 2026-10-21 17:55:53
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [17:55:53]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4193 ms (30.29 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=2 [17:56:01]
+rate 1k INTARSIA_HIP_MXFP4_LDS=2: decode 4080 ms (31.13 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [17:56:08]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4202 ms (30.22 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=8 [17:56:15]
+rate 1k INTARSIA_HIP_MXFP4_LDS=8: decode 4218 ms (30.11 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [17:56:23]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4196 ms (30.26 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [17:56:30]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4198 ms (30.25 tok/s)
+=== stage prof:lds3:1k [17:56:37]
+--- unprofiled (1k) [17:56:37]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1259 ms (855.9 tok/s) | decode 4201 ms (30.23 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [17:56:45]
+ finish=length prompt=1078 (cached 0) completion=128 | prefill 1264 ms (852.9 tok/s) | decode 4384 ms (28.97 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(855, 127), (9232, 1)]
+decode steps analysed: 125, launches/step 855
+per step: kernel time 30.995 ms, step wall (first start to last end) 34.506 ms, idle inside step 3.510 ms (10.2% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 34.517 ms
+intra-step gaps (ns): p10 2960 p50 3080 p90 4720 p99 4840 max 297926; sum/step 3.510 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              496.0   25298.0    51.0  81.6%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.7  3982.7  12.8%
+rmsnorm_kernel<true, true>                                                128.0     508.4     4.0   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     497.5    10.4   1.6%
+splitkv_kernel<8, 32, 2>                                                   16.0     255.8    16.0   0.8%
+gated_rmsnorm_kernel<true>                                                 48.0     110.3     2.3   0.4%
+silu_glu_kernel<true>                                                      64.0      95.0     1.5   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      91.1     5.7   0.3%
+argmax_kernel<float>                                                        1.0      62.3    62.3   0.2%
+combine_kernel<256, 16>                                                    16.0      61.4     3.8   0.2%
+sigmoid_mul_kernel                                                         16.0      19.9     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.5     2.5   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+[burst] stages done 2026-10-21 17:56:53 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 17:56:53
+[burst] radiance answers 2026-10-21 17:57:03 (after 15 s)
+[burst] job 3250; stages: rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=1 rate:1k:INTARSIA_HIP_MXFP4_LDS=2 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 rate:1k:INTARSIA_HIP_MXFP4_LDS=8 rate:1k:INTARSIA_HIP_MXFP4_LDS=64 rate:1k:INTARSIA_HIP_MXFP4_LDS=0 prof:lds4:1k; stopping radiance 2026-10-21 18:12:01
+[burst] radiance stopped 2026-10-21 18:12:04
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [18:12:04]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4193 ms (30.29 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=1 [18:12:14]
+rate 1k INTARSIA_HIP_MXFP4_LDS=1: decode 5348 ms (23.75 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=2 [18:12:23]
+rate 1k INTARSIA_HIP_MXFP4_LDS=2: decode 4184 ms (30.36 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [18:12:31]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4226 ms (30.06 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=8 [18:12:39]
+rate 1k INTARSIA_HIP_MXFP4_LDS=8: decode 4244 ms (29.92 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=64 [18:12:46]
+rate 1k INTARSIA_HIP_MXFP4_LDS=64: decode 4624 ms (27.47 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [18:12:54]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4208 ms (30.18 tok/s)
+=== stage prof:lds4:1k [18:13:02]
+--- unprofiled (1k) [18:13:02]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1269 ms (849.4 tok/s) | decode 4235 ms (29.99 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [18:13:10]
+ finish=length prompt=1078 (cached 0) completion=128 | prefill 1281 ms (841.4 tok/s) | decode 4419 ms (28.74 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(855, 127), (9232, 1)]
+decode steps analysed: 125, launches/step 855
+per step: kernel time 31.237 ms, step wall (first start to last end) 34.773 ms, idle inside step 3.536 ms (10.2% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 34.784 ms
+intra-step gaps (ns): p10 2960 p50 3120 p90 4720 p99 4841 max 298927; sum/step 3.536 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              496.0   25539.2    51.5  81.8%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3982.6  3982.6  12.7%
+rmsnorm_kernel<true, true>                                                128.0     506.9     4.0   1.6%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     497.6    10.4   1.6%
+splitkv_kernel<8, 32, 2>                                                   16.0     252.6    15.8   0.8%
+gated_rmsnorm_kernel<true>                                                 48.0     109.9     2.3   0.4%
+silu_glu_kernel<true>                                                      64.0      99.4     1.6   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      91.3     5.7   0.3%
+argmax_kernel<float>                                                        1.0      62.1    62.1   0.2%
+combine_kernel<256, 16>                                                    16.0      61.2     3.8   0.2%
+sigmoid_mul_kernel                                                         16.0      19.8     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       8.3     2.8   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.1     2.1   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+[burst] stages done 2026-10-21 18:13:19 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 18:13:19
+[burst] radiance answers 2026-10-21 18:13:29 (after 15 s)
+[burst] job 3255; stages: rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=2 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 rate:1k:INTARSIA_HIP_MXFP4_LDS=8 rate:1k:INTARSIA_HIP_MXFP4_LDS=0 rate:1k:INTARSIA_HIP_MXFP4_LDS=4 prof:lds5:1k ids27:lds5; stopping radiance 2026-10-21 18:23:36
+[burst] radiance stopped 2026-10-21 18:23:38
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [18:23:38]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4195 ms (30.27 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=2 [18:23:47]
+rate 1k INTARSIA_HIP_MXFP4_LDS=2: decode 4141 ms (30.67 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [18:23:54]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4113 ms (30.88 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=8 [18:24:01]
+rate 1k INTARSIA_HIP_MXFP4_LDS=8: decode 4205 ms (30.20 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=0 [18:24:08]
+rate 1k INTARSIA_HIP_MXFP4_LDS=0: decode 4200 ms (30.24 tok/s)
+=== stage rate:1k:INTARSIA_HIP_MXFP4_LDS=4 [18:24:16]
+rate 1k INTARSIA_HIP_MXFP4_LDS=4: decode 4114 ms (30.87 tok/s)
+=== stage prof:lds5:1k [18:24:23]
+--- unprofiled (1k) [18:24:23]
+prompt: 1078 tokens
+ finish=length prompt=1078 (cached 0) completion=128 | prefill 1249 ms (863.1 tok/s) | decode 4115 ms (30.86 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [18:24:30]
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1261 ms (854.9 tok/s) | decode 4320 ms (29.40 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(919, 127), (9296, 1)]
+decode steps analysed: 125, launches/step 919
+per step: kernel time 30.234 ms, step wall (first start to last end) 33.999 ms, idle inside step 3.765 ms (11.1% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 34.010 ms
+intra-step gaps (ns): p10 2960 p50 3440 p90 4680 p99 4801 max 290806; sum/step 3.765 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              432.0   19307.6    44.7  63.9%
+mxfp4_gemv_kernel<1, bf16>                                                 64.0    4966.3    77.6  16.4%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3983.0  3983.0  13.2%
+rmsnorm_kernel<true, true>                                                128.0     508.6     4.0   1.7%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     497.4    10.4   1.6%
+mxfp4_xprep_kernel                                                         64.0     260.1     4.1   0.9%
+splitkv_kernel<8, 32, 2>                                                   16.0     253.5    15.8   0.8%
+gated_rmsnorm_kernel<true>                                                 48.0     110.7     2.3   0.4%
+silu_glu_kernel<true>                                                      64.0      99.7     1.6   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      90.8     5.7   0.3%
+argmax_kernel<float>                                                        1.0      62.3    62.3   0.2%
+combine_kernel<256, 16>                                                    16.0      61.5     3.8   0.2%
+sigmoid_mul_kernel                                                         16.0      19.2     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       7.6     2.5   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.4     2.4   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+=== stage ids27:lds5 [18:24:38]
+27-lds5-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 191 ms (62.7 tok/s) | decode 8230 ms (30.98 tok/s)
+27-lds5-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4655 ms (947.0 tok/s) | decode 8395 ms (30.37 tok/s)
+[burst] stages done 2026-10-21 18:25:03 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 18:25:03
+[burst] radiance answers 2026-10-21 18:25:13 (after 15 s)
+[burst] job 3265; stages: bench32k ab:3; stopping radiance 2026-10-21 18:29:12
+[burst] radiance stopped 2026-10-21 18:29:15
+=== stage bench32k [18:29:15]
+--- serve base-ms32k [18:29:15]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 32768 tokens
+calibration: 46 base tokens, 21.93 tokens per filler sentence
+  size   1024 rep: prompt=960 gen=128 ttft=1.02s prefill=945 tok/s decode=30.4 tok/s
+wrote /work/bench-out/p1-27b-base-ms32k.json
+p1-27b-base-ms32k  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      960     1.016          945        30.4      128       75.0
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 138
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+=== stage ab:3 [18:29:59]
+--- serve A1 [18:29:59]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.97 tokens per filler sentence
+  size   1024 rep: prompt=944 gen=128 ttft=1.02s prefill=930 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=3970 gen=128 ttft=4.12s prefill=965 tok/s decode=29.8 tok/s
+p1-27b-A1  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      944     1.015          930        30.3      128       74.9
+    4096     3970     4.116          964        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+wrote /work/bench-out/p1-27b-A1.json
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B1 [18:30:57]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 47 base tokens, 21.82 tokens per filler sentence
+  size   1024 rep: prompt=945 gen=128 ttft=1.01s prefill=932 tok/s decode=31.0 tok/s
+  size   4096 rep: prompt=3986 gen=128 ttft=4.11s prefill=970 tok/s decode=30.4 tok/s
+wrote /work/bench-out/p1-27b-B1.json
+p1-27b-B1  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      945     1.014          932        30.9      128       76.5
+    4096     3986     4.111          970        30.4      128       75.1
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve A2 [18:31:54]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 50 base tokens, 22.00 tokens per filler sentence
+  size   1024 rep: prompt=962 gen=128 ttft=1.02s prefill=947 tok/s decode=30.4 tok/s
+  size   4096 rep: prompt=3960 gen=128 ttft=4.04s prefill=981 tok/s decode=29.8 tok/s
+wrote /work/bench-out/p1-27b-A2.json
+p1-27b-A2  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      962     1.015          947        30.4      128       75.0
+    4096     3960     4.036          981        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B2 [18:32:51]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 49 base tokens, 22.12 tokens per filler sentence
+  size   1024 rep: prompt=985 gen=128 ttft=1.02s prefill=967 tok/s decode=30.9 tok/s
+  size   4096 rep: prompt=3932 gen=128 ttft=4.04s prefill=974 tok/s decode=30.4 tok/s
+wrote /work/bench-out/p1-27b-B2.json
+p1-27b-B2  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      985     1.019          967        30.9      128       76.5
+    4096     3932     4.035          974        30.4      128       75.1
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve A3 [18:33:48]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 48 base tokens, 21.80 tokens per filler sentence
+  size   1024 rep: prompt=966 gen=128 ttft=1.02s prefill=950 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=3972 gen=128 ttft=4.11s prefill=967 tok/s decode=29.8 tok/s
+wrote /work/bench-out/p1-27b-A3.json
+p1-27b-A3  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      966     1.017          950        30.4      128       75.0
+    4096     3972     4.107          967        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B3 [18:34:45]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 48 base tokens, 22.01 tokens per filler sentence
+  size   1024 rep: prompt=961 gen=128 ttft=1.02s prefill=947 tok/s decode=30.9 tok/s
+  size   4096 rep: prompt=3956 gen=128 ttft=4.04s prefill=980 tok/s decode=30.4 tok/s
+wrote /work/bench-out/p1-27b-B3.json
+p1-27b-B3  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      961     1.015          947        30.9      128       76.5
+    4096     3956     4.037          980        30.4      128       75.1
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+[burst] stages done 2026-10-21 18:35:42 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 18:35:42
+[burst] radiance answers 2026-10-21 18:35:52 (after 15 s)
+[burst] job 3279; stages: selfgolden acc:new idsab kernels; stopping radiance 2026-10-21 18:40:17
+[burst] radiance stopped 2026-10-21 18:40:19
+=== stage selfgolden [18:40:19]
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+  mean KL(21-way)                                2.6424e-12  (limit 1.0000e-4)  ok
+  max position KL(21-way)                         1.9697e-9  (limit 5.0000e-3)  ok
+  top-1 flips                                      0.0000e0  (limit 7.0000e0)  ok
+  worst prompt KL(21-way) [chat_short]           1.1809e-10  (limit 5.0000e-4)  ok
+SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10
+prefill self-golden => PASS
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+  mean KL(21-way)                                2.2888e-10  (limit 1.0000e-4)  ok
+  max position KL(21-way)                         3.5901e-8  (limit 5.0000e-3)  ok
+  top-1 flips                                      0.0000e0  (limit 1.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]           2.2439e-9  (limit 5.0000e-4)  ok
+SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+=== stage acc:new [18:40:52]
+--- accuracy 27B W4A4 (new) [18:40:52]
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations dynamic (Quark even_round), 496 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+WARNING: ref_noise names no golden hash, so it is matched by file name and position count only (qwen3.8-27b-mxfp4-hfquark-top20.safetensors)
+reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF W4A4 bf16 vs HF W4A4 f32') and 10; backfilled by the reference-noise gate lane (decision 2026-10-21 12:39 item 2, docs/decisions/LOG.md); estimator kl21 (golden_kl.py, the gate's 21-way KL; 0.176 there against 0.180 from the gate for the same pair); factor 1 (default)
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 91.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.799e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.798e-1, reported only] | tail mass (all rows) ours 0.0273 vs ref 0.0210, excess +0.0063 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 1.799e-1 PASS | KL / ref noise = 0.913 on all rows (the factor at which the noise term passes)
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.397e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.742e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 3.397e-1 FAIL | KL / ref noise = 1.392 on all rows (the factor at which the noise term passes)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+note: the reference noise was measured over 1441 positions, the decode mode compares 160: the noise is applied as measured, but the subset can differ
+Error: accuracy gate FAILED
+=== stage idsab [18:41:08]
+35-base-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 59 ms (203.8 tok/s) | decode 1599 ms (159.47 tok/s)
+35-base-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 523 ms (8429.7 tok/s) | decode 1643 ms (155.18 tok/s)
+8-base-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 66 ms (181.9 tok/s) | decode 6578 ms (38.76 tok/s)
+8-base-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1091 ms (3942.6 tok/s) | decode 6895 ms (36.98 tok/s)
+35-new-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 53 ms (228.5 tok/s) | decode 1595 ms (159.87 tok/s)
+35-new-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 524 ms (8407.5 tok/s) | decode 1645 ms (155.00 tok/s)
+8-new-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 67 ms (179.9 tok/s) | decode 6578 ms (38.77 tok/s)
+8-new-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1114 ms (3861.5 tok/s) | decode 6895 ms (36.98 tok/s)
+IDS SAME 35-short
+IDS SAME 35-4k
+IDS SAME 8-short
+IDS SAME 8-4k
+=== stage kernels [18:42:07]
+--- kernels test [18:42:07]
+matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+54 kernels, 1008 cases in 91.0s
+[burst] stages done 2026-10-21 18:43:39 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 18:43:39
+[burst] radiance answers 2026-10-21 18:43:54 (after 20 s)
+[burst] job 3293; stages: kop:matmul_mxfp4_pair kop:matmul_mxfp4 ids27:pair selfcheck:pair rate:1k:X=0 rate:1k:INTARSIA_NO_FUSION=1 rate:1k:X=0 prof:pair:1k; stopping radiance 2026-10-21 18:56:22
+[burst] radiance stopped 2026-10-21 18:56:24
+=== stage kop:matmul_mxfp4_pair [18:56:25]
+matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    9.470e-4    4.589e-5  ADMITTED
+1 kernels, 82 cases in 2.0s
+=== stage kop:matmul_mxfp4 [18:56:27]
+matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+2 kernels, 85 cases in 1.3s
+=== stage ids27:pair [18:56:29]
+27-pair-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 202 ms (59.3 tok/s) | decode 7816 ms (32.63 tok/s)
+27-pair-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4571 ms (964.4 tok/s) | decode 8000 ms (31.87 tok/s)
+=== stage selfcheck:pair [18:56:54]
+SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10
+SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+=== stage rate:1k:X=0 [18:57:09]
+rate 1k X=0: decode 3930 ms (32.31 tok/s)
+=== stage rate:1k:INTARSIA_NO_FUSION=1 [18:57:16]
+rate 1k INTARSIA_NO_FUSION=1: decode 4205 ms (30.20 tok/s)
+=== stage rate:1k:X=0 [18:57:24]
+rate 1k X=0: decode 3926 ms (32.35 tok/s)
+=== stage prof:pair:1k [18:57:31]
+--- unprofiled (1k) [18:57:31]
+prompt: 1078 tokens
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1253 ms (860.6 tok/s) | decode 3934 ms (32.28 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+--- rocprofv3 (1k) [18:57:38]
+ finish=length prompt=1078 (cached 0) completion=128 | prefill 1260 ms (855.9 tok/s) | decode 4095 ms (31.02 tok/s)
+steps=133 graph replays=128 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/80 embedding=0ms/133 gate_split_qk_norm_rope_kv=0ms/2128
+steps: 128 launch-count histogram (top): [(743, 127), (9120, 1)]
+decode steps analysed: 125, launches/step 743
+per step: kernel time 29.130 ms, step wall (first start to last end) 32.229 ms, idle inside step 3.099 ms (9.6% of wall)
+inter-step gap (argmax end -> next step start): median 12 us, mean 11 us
+=> full per-token period ~ 32.240 ms
+intra-step gaps (ns): p10 3000 p50 3120 p90 4720 p99 4840 max 306206; sum/step 3.099 ms
+
+kernel                                                                   n/step   us/step  avg us  %kern
+mxfp4_gemv1_lds_kernel<bf16>                                              256.0   18192.8    71.1  62.5%
+mxfp4_gemv_kernel<1, bf16>                                                 64.0    4962.1    77.5  17.0%
+gemv_kernel<1, 1, 8, float>                                                 1.0    3983.0  3983.0  13.7%
+rmsnorm_kernel<true, true>                                                128.0     512.7     4.0   1.8%
+gdn_conv_delta_kernel<128, 2, 1, 4>                                        48.0     499.8    10.4   1.7%
+mxfp4_xprep_kernel                                                         64.0     262.6     4.1   0.9%
+splitkv_kernel<8, 32, 2>                                                   16.0     255.3    16.0   0.9%
+gated_rmsnorm_kernel<true>                                                 48.0     111.0     2.3   0.4%
+silu_glu_kernel<true>                                                      64.0     100.3     1.6   0.3%
+gate_qk_norm_rope_kv_kernel<bf16>                                          16.0      92.4     5.8   0.3%
+argmax_kernel<float>                                                        1.0      62.6    62.6   0.2%
+combine_kernel<256, 16>                                                    16.0      62.1     3.9   0.2%
+sigmoid_mul_kernel                                                         16.0      19.0     1.2   0.1%
+__amd_rocclr_copyBuffer                                                     3.0       8.0     2.7   0.0%
+rmsnorm_kernel<false, true>                                                 1.0       3.4     3.4   0.0%
+embedding_kernel<true>                                                      1.0       2.3     2.3   0.0%
+
+fp8 kernel / blocks                                n/step  avg us      MB   GB/s  %627  us/step
+[burst] stages done 2026-10-21 18:57:46 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 18:57:46
+[burst] radiance answers 2026-10-21 18:57:56 (after 15 s)
+[burst] job 3321; stages: ids27:final selfbase acc:final ab:3 idsab kernels; stopping radiance 2026-10-21 20:06:22
+[burst] radiance stopped 2026-10-21 20:06:25
+=== stage ids27:final [20:06:25]
+27-final-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 191 ms (62.8 tok/s) | decode 7830 ms (32.57 tok/s)
+27-final-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4557 ms (967.2 tok/s) | decode 7986 ms (31.93 tok/s)
+=== stage selfbase [20:06:52]
+SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10
+SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+=== stage acc:final [20:07:08]
+--- accuracy 27B W4A4 (final) [20:07:08]
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations dynamic (Quark even_round), 496 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+WARNING: ref_noise names no golden hash, so it is matched by file name and position count only (qwen3.8-27b-mxfp4-hfquark-top20.safetensors)
+reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF W4A4 bf16 vs HF W4A4 f32') and 10; backfilled by the reference-noise gate lane (decision 2026-10-21 12:39 item 2, docs/decisions/LOG.md); estimator kl21 (golden_kl.py, the gate's 21-way KL; 0.176 there against 0.180 from the gate for the same pair); factor 1 (default)
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 91.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.799e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.798e-1, reported only] | tail mass (all rows) ours 0.0273 vs ref 0.0210, excess +0.0063 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 1.799e-1 PASS | KL / ref noise = 0.913 on all rows (the factor at which the noise term passes)
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+note: the reference noise was measured over 1441 positions, the decode mode compares 160: the noise is applied as measured, but the subset can differ
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.397e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.742e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.970e-1 (all rows) x factor 1 (default) = 1.970e-1 => effective 1.970e-1 bound by ref noise; KL 3.397e-1 FAIL | KL / ref noise = 1.392 on all rows (the factor at which the noise term passes)
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+=== stage ab:3 [20:07:23]
+--- serve A1 [20:07:23]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 50 base tokens, 22.27 tokens per filler sentence
+  size   1024 rep: prompt=952 gen=128 ttft=1.02s prefill=936 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=3889 gen=128 ttft=4.08s prefill=954 tok/s decode=29.8 tok/s
+wrote /work/bench-out/p1-27b-A1.json
+p1-27b-A1  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      952     1.017          936        30.3      128       74.9
+    4096     3889     4.076          954        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B1 [20:08:21]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 49 base tokens, 21.92 tokens per filler sentence
+  size   1024 rep: prompt=972 gen=128 ttft=1.02s prefill=956 tok/s decode=32.5 tok/s
+  size   4096 rep: prompt=4021 gen=128 ttft=4.11s prefill=977 tok/s decode=31.9 tok/s
+wrote /work/bench-out/p1-27b-B1.json
+p1-27b-B1  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      972     1.017          956        32.5      128       80.2
+    4096     4021     4.115          977        31.9      128       78.8
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve A2 [20:09:17]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 49 base tokens, 21.71 tokens per filler sentence
+  size   1024 rep: prompt=948 gen=128 ttft=1.01s prefill=934 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=4041 gen=128 ttft=4.12s prefill=980 tok/s decode=29.8 tok/s
+p1-27b-A2  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      948     1.015          934        30.3      128       74.9
+    4096     4041     4.123          980        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+wrote /work/bench-out/p1-27b-A2.json
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B2 [20:10:15]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 46 base tokens, 21.84 tokens per filler sentence
+  size   1024 rep: prompt=960 gen=128 ttft=1.01s prefill=947 tok/s decode=32.5 tok/s
+  size   4096 rep: prompt=4003 gen=128 ttft=4.11s prefill=974 tok/s decode=31.9 tok/s
+wrote /work/bench-out/p1-27b-B2.json
+p1-27b-B2  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      960     1.014          947        32.5      128       80.2
+    4096     4003     4.110          974        31.9      128       78.8
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve A3 [20:11:11]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 46 base tokens, 21.71 tokens per filler sentence
+  size   1024 rep: prompt=988 gen=128 ttft=1.02s prefill=969 tok/s decode=30.3 tok/s
+  size   4096 rep: prompt=3995 gen=128 ttft=4.11s prefill=972 tok/s decode=29.8 tok/s
+wrote /work/bench-out/p1-27b-A3.json
+p1-27b-A3  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      988     1.020          969        30.4      128       75.0
+    4096     3995     4.110          972        29.8      128       73.6
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+--- serve B3 [20:12:09]
+up after ~36s
+target http://127.0.0.1:8091/v1/chat/completions  model qwen38-27b-p1
+server context window: 8192 tokens
+calibration: 48 base tokens, 21.99 tokens per filler sentence
+  size   1024 rep: prompt=948 gen=128 ttft=1.01s prefill=936 tok/s decode=32.5 tok/s
+  size   4096 rep: prompt=3946 gen=128 ttft=4.04s prefill=978 tok/s decode=31.9 tok/s
+wrote /work/bench-out/p1-27b-B3.json
+p1-27b-B3  model=qwen38-27b-p1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+    1024      948     1.013          936        32.5      128       80.2
+    4096     3946     4.036          978        31.9      128       78.7
+bandwidth floor: 40.5 tok/s
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 274
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 1
+=== stage idsab [20:13:05]
+35-base-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (206.8 tok/s) | decode 1597 ms (159.68 tok/s)
+35-base-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 520 ms (8479.3 tok/s) | decode 1643 ms (155.21 tok/s)
+8-base-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 69 ms (174.1 tok/s) | decode 6577 ms (38.77 tok/s)
+8-base-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1099 ms (3913.9 tok/s) | decode 6895 ms (36.98 tok/s)
+35-new-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 53 ms (225.2 tok/s) | decode 1593 ms (160.11 tok/s)
+35-new-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 524 ms (8406.5 tok/s) | decode 1643 ms (155.16 tok/s)
+8-new-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 64 ms (188.6 tok/s) | decode 6576 ms (38.78 tok/s)
+8-new-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1106 ms (3888.3 tok/s) | decode 6895 ms (36.98 tok/s)
+IDS SAME 35-short
+IDS SAME 35-4k
+IDS SAME 8-short
+IDS SAME 8-4k
+=== stage kernels [20:14:01]
+--- kernels test [20:14:01]
+matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    9.470e-4    4.589e-5  ADMITTED
+55 kernels, 1090 cases in 78.9s
+[burst] stages done 2026-10-21 20:15:21 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 20:15:21
+[burst] radiance answers 2026-10-21 20:15:31 (after 15 s)
+[burst] job 3344; stages: ids27:merged kop:matmul_mxfp4_pair kop:matmul_mxfp4 idsab; stopping radiance 2026-10-21 20:25:11
+[burst] radiance stopped 2026-10-21 20:25:14
+=== stage ids27:merged [20:25:14]
+27-merged-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 196 ms (61.3 tok/s) | decode 7812 ms (32.64 tok/s)
+27-merged-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4557 ms (967.3 tok/s) | decode 7993 ms (31.90 tok/s)
+=== stage kop:matmul_mxfp4_pair [20:25:39]
+matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    8.929e-4    1.141e-5  ADMITTED
+1 kernels, 82 cases in 2.0s
+=== stage kop:matmul_mxfp4 [20:25:41]
+matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+2 kernels, 85 cases in 1.4s
+=== stage idsab [20:25:43]
+35-base-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 57 ms (210.6 tok/s) | decode 1597 ms (159.63 tok/s)
+35-base-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 517 ms (8533.6 tok/s) | decode 1641 ms (155.39 tok/s)
+8-base-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 72 ms (167.1 tok/s) | decode 6577 ms (38.77 tok/s)
+8-base-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1084 ms (3965.9 tok/s) | decode 6895 ms (36.98 tok/s)
+35-new-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 53 ms (227.5 tok/s) | decode 1593 ms (160.10 tok/s)
+35-new-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 521 ms (8466.8 tok/s) | decode 1643 ms (155.16 tok/s)
+8-new-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 72 ms (165.6 tok/s) | decode 6575 ms (38.79 tok/s)
+8-new-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1102 ms (3901.8 tok/s) | decode 6895 ms (36.98 tok/s)
+IDS SAME 35-short
+IDS SAME 35-4k
+IDS SAME 8-short
+IDS SAME 8-4k
+[burst] stages done 2026-10-21 20:26:41 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 20:26:41
+[burst] radiance answers 2026-10-21 20:26:51 (after 15 s)
+[burst] job 3507; stages: hiptest:mxfp4_decode; stopping radiance 2026-10-21 22:00:34
+[burst] radiance stopped 2026-10-21 22:00:37
+=== stage hiptest:mxfp4_decode [22:00:37]
+test matmul_mxfp4_pair_is_bitwise_two_gemvs ... ok
+test mxfp4_gemv_lds_is_bitwise_prepass_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+[burst] stages done 2026-10-21 22:00:39 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 22:00:39
+[burst] radiance answers 2026-10-21 22:00:49 (after 15 s)
+[burst] job 3510; stages: hiptest:mxfp4_decode; stopping radiance 2026-10-21 22:01:53
+[burst] radiance stopped 2026-10-21 22:01:56
+=== stage hiptest:mxfp4_decode [22:01:56]
+test matmul_mxfp4_pair_is_bitwise_two_gemvs ... 
+thread 'matmul_mxfp4_pair_is_bitwise_two_gemvs' panicked at crates/intarsia-backend-hip/tests/mxfp4_decode.rs:42:9:
+mxfp4 pair m=1 n0=10240 n1=6144 k=5120 act=Dynamic: output 1 differs in 6131 of 6144 elements (first at 0)
+test mxfp4_gemv_lds_is_bitwise_prepass_gemv ... 
+thread 'mxfp4_gemv_lds_is_bitwise_prepass_gemv' panicked at crates/intarsia-backend-hip/tests/mxfp4_decode.rs:42:9:
+mxfp4 gemv n=17408 k=5120 act=Dynamic out=Bf16: M=1 vs row 0 of M=2 differs in 17125 of 17408 elements (first at 0)
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test mxfp4_decode`
+[burst] stages done 2026-10-21 22:01:56 (timeout/cap exit 101)
+[burst] starting radiance 2026-10-21 22:01:56
+[burst] radiance answers 2026-10-21 22:02:06 (after 15 s)

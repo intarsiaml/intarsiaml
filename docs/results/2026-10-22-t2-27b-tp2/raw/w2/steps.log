@@ -1,0 +1,56 @@
+00:04:37 ids-27-tp1-short-base exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 193 ms (62.0 tok/s) | decode 7832 ms (32.56 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+00:04:37 ids 27-tp1-short-base md5 2086b6a4
+00:04:51 ids-27-tp1-4k-base exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 4593 ms (959.8 tok/s) | decode 8002 ms (31.87 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+00:04:51 ids 27-tp1-4k-base md5 ef88d237
+00:05:01 ids-27-tp1-short-head exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 194 ms (61.9 tok/s) | decode 7841 ms (32.52 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+00:05:01 ids 27-tp1-short-head md5 2086b6a4
+00:05:15 ids-27-tp1-4k-head exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 4737 ms (930.5 tok/s) | decode 8032 ms (31.75 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+00:05:15 ids 27-tp1-4k-head md5 ef88d237
+00:05:15 SAME 27B tp=1 short base vs head (ids-27-tp1-short-base.ids == ids-27-tp1-short-head.ids)
+00:05:15 SAME 27B tp=1 4k base vs head (ids-27-tp1-4k-base.ids == ids-27-tp1-4k-head.ids)
+00:05:20 ids-35-tp1-short-base exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (207.6 tok/s) | decode 1598 ms (159.57 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+00:05:20 ids 35-tp1-short-base md5 7f8d5c3b
+00:05:25 ids-35-tp1-4k-base exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 521 ms (8464.6 tok/s) | decode 1644 ms (155.07 tok/s)|steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+00:05:25 ids 35-tp1-4k-base md5 1c4f85d0
+00:05:38 ids-8-tp1-short-base exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 73 ms (164.5 tok/s) | decode 6582 ms (38.74 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+00:05:38 ids 8-tp1-short-base md5 e61a780f
+00:05:45 ids-8-tp2-short-base exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (206.3 tok/s) | decode 4228 ms (60.31 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+00:05:45 ids 8-tp2-short-base md5 808d679a
+00:05:51 ids-35-tp2-short-base exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 63 ms (190.8 tok/s) | decode 1821 ms (140.01 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:05:51 ids 35-tp2-short-base md5 1475a36c
+00:05:56 ids-35-tp1-short-head exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (206.7 tok/s) | decode 1592 ms (160.14 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+00:05:56 ids 35-tp1-short-head md5 7f8d5c3b
+00:06:01 ids-35-tp1-4k-head exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 520 ms (8474.3 tok/s) | decode 1641 ms (155.37 tok/s)|steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+00:06:01 ids 35-tp1-4k-head md5 1c4f85d0
+00:06:09 ids-8-tp1-short-head exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 72 ms (167.7 tok/s) | decode 6575 ms (38.78 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+00:06:09 ids 8-tp1-short-head md5 e61a780f
+00:06:16 ids-8-tp2-short-head exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 56 ms (214.0 tok/s) | decode 4222 ms (60.40 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+00:06:16 ids 8-tp2-short-head md5 808d679a
+00:06:23 ids-35-tp2-short-head exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 61 ms (197.5 tok/s) | decode 1831 ms (139.28 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:06:23 ids 35-tp2-short-head md5 1475a36c
+00:06:23 SAME 35-tp1-short base vs head (ids-35-tp1-short-base.ids == ids-35-tp1-short-head.ids)
+00:06:23 SAME 35-tp1-4k base vs head (ids-35-tp1-4k-base.ids == ids-35-tp1-4k-head.ids)
+00:06:23 SAME 8-tp1-short base vs head (ids-8-tp1-short-base.ids == ids-8-tp1-short-head.ids)
+00:06:23 SAME 8-tp2-short base vs head (ids-8-tp2-short-base.ids == ids-8-tp2-short-head.ids)
+00:06:23 SAME 35-tp2-short base vs head (ids-35-tp2-short-base.ids == ids-35-tp2-short-head.ids)
+00:06:36 ids-27-tp2ng-4k exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 3306 ms (1333.5 tok/s) | decode 6307 ms (40.43 tok/s)|steps=274 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/35072 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+00:06:36 ids 27-tp2ng-4k md5 ef88d237
+00:06:48 ids-27-tp2g-4k exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 3306 ms (1333.4 tok/s) | decode 6066 ms (42.04 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35072 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:06:48 ids 27-tp2g-4k md5 ef88d237
+00:07:00 ids-27-tp2gf-4k exit 0 [INTARSIA_TP_FUSION=1]: finish=length prompt=4408 (cached 0) completion=256 | prefill 3331 ms (1323.5 tok/s) | decode 5594 ms (45.58 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35072 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:07:00 ids 27-tp2gf-4k md5 ef88d237
+00:07:00 SAME 27B tp=2 4k graphs vs eager (ids-27-tp2ng-4k.ids == ids-27-tp2g-4k.ids)
+00:07:00 SAME 27B tp=2 4k graphs+fusion vs graphs (ids-27-tp2g-4k.ids == ids-27-tp2gf-4k.ids)
+FIRSTDIFF 27B tp=2 vs tp=1 4k: 256 / 256 ids, first divergence at none (identical)
+00:07:00 kernels test 27B
+00:08:19 kernels-27b exit 0: 
+/home/josef/t2/out/w2/kernels-27b.out:matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+/home/josef/t2/out/w2/kernels-27b.out:matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+/home/josef/t2/out/w2/kernels-27b.out:matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    8.929e-4    1.141e-5  ADMITTED
+/home/josef/t2/out/w2/kernels-27b.out:55 kernels, 1090 cases in 78.3s
+00:08:19 HIP crate GPU tests
+00:10:37 hiptest exit 0: 93 passed, 0 failed 0 FAILED/panicked lines
+00:10:46 prof tp1: decode 4084 ms (31.10 tok/s) | rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 32150.9 us
+00:10:55 prof tp2g: decode 3281 ms (38.71 tok/s) | rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 25823.5 us
+00:11:03 prof tp2gf [INTARSIA_TP_FUSION=1]: decode 2951 ms (43.04 tok/s) | rank 0 (head) = Agent 1; decode steps analysed: 119; step wall 23227.1 us
+00:11:03 done

@@ -1,0 +1,236 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench-long",
+  "timestamp_unix": 1792654723,
+  "url": "http://127.0.0.1:8090",
+  "model": "qualify-Qwen3.6-35B-A3B-NVFP4",
+  "config": {
+    "sizes": [
+      1024,
+      4096,
+      16384
+    ],
+    "gen": 64,
+    "reps": 2,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2546,
+    "bandwidth_gbs": 221.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 47.0,
+    "tokens_per_filler_sentence": 21.89
+  },
+  "fingerprint": {
+    "host": {
+      "kind": "intarsia-doctor",
+      "schema_version": 1,
+      "timestamp_unix": 1792653894,
+      "intarsia_version": "0.0.1",
+      "cuda_feature": true,
+      "hip_feature": false,
+      "metal_feature": false,
+      "host": {
+        "hostname": "spark-4e77",
+        "os": "Ubuntu 24.04.4 LTS",
+        "kernel": "Linux 6.17.0-1029-nvidia",
+        "arch": "aarch64",
+        "cpu_model": "Cortex-A725",
+        "logical_cores": 20,
+        "physical_cores": 20,
+        "ram_total_bytes": 130663231488,
+        "ram_available_bytes": 39999258624,
+        "swap_total_bytes": 17179865088
+      },
+      "gpu": {
+        "nvidia_smi": {
+          "name": "NVIDIA GB10",
+          "driver_version": "580.173.02",
+          "compute_cap": "12.1",
+          "memory_total": "[N/A]"
+        },
+        "proc_driver_nvidia": "NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  580.173.02  Release Build  (dvs-builder@U22-A24-5-4)  Tue Jun 23 08:34:19 UTC 2026",
+        "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+        "cuda_toolkit_version": "13.0.3",
+        "rocm_version": null,
+        "hipcc": null
+      },
+      "backend": {
+        "requested": "cuda",
+        "name": "cuda",
+        "device": {
+          "name": "NVIDIA GB10",
+          "backend": "cuda",
+          "arch": "sm_121",
+          "total_mem": 130663231488,
+          "free_mem": 22437912576,
+          "unified": true,
+          "bandwidth_gbs": 221.59255304944148
+        },
+        "kernel_count": 54,
+        "kernels_by_arch": {
+          "sm_121": 54
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 59.4,
+          "device_to_host_gbs": 59.6,
+          "device_copy_gbs": 224.8,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        }
+      },
+      "checks": [
+        {
+          "id": "sm_121_target",
+          "status": "ok",
+          "detail": "GPU is compute 12.1 and 54 kernels are built for sm_121",
+          "fix": null
+        },
+        {
+          "id": "cuda_toolkit",
+          "status": "ok",
+          "detail": "CUDA toolkit 13.0.3 supports sm_121",
+          "fix": null
+        },
+        {
+          "id": "transparent_hugepages",
+          "status": "ok",
+          "detail": "THP = madvise (kernel: always [madvise] never)",
+          "fix": null
+        },
+        {
+          "id": "disk_free:.",
+          "status": "warn",
+          "detail": "271.5 GB free of 4032 GB (7% free)",
+          "fix": "free space before downloading models or building (target/ dirs are large); keep result files small"
+        },
+        {
+          "id": "disk_free:/home/nvidia",
+          "status": "warn",
+          "detail": "271.5 GB free of 4032 GB (7% free)",
+          "fix": "free space before downloading models or building (target/ dirs are large); keep result files small"
+        },
+        {
+          "id": "hip_gpu_max_hw_queues",
+          "status": "info",
+          "detail": "GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+          "fix": null
+        },
+        {
+          "id": "serve_port",
+          "status": "ok",
+          "detail": "port 8090 is free",
+          "fix": null
+        },
+        {
+          "id": "bandwidth",
+          "status": "info",
+          "detail": "host->device 59.4 GB/s, device->host 59.6 GB/s, device copy 224.8 GB/s (read+write)",
+          "fix": null
+        }
+      ]
+    },
+    "model": "Qwen3.6-35B-A3B-NVFP4",
+    "backend": "cuda",
+    "build": "head=716b4e4 code-tree=79c4400f0040 dirty=no"
+  },
+  "graph": {
+    "available": true,
+    "replays": 384,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1020.0,
+      "gen_tokens": 64.0,
+      "ttft_s": 0.2191,
+      "prefill_tok_s": 4653.2,
+      "decode_tok_s": 82.86,
+      "decode_tok_s_reps": [
+        82.85,
+        82.87
+      ],
+      "decode_tok_s_min": 82.85,
+      "decode_tok_s_max": 82.87,
+      "decode_tok_s_stdev": 0.01,
+      "bandwidth_floor_tok_s": 98.02,
+      "pct_of_floor": 84.5,
+      "reps_ok": 2,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4078.0,
+      "gen_tokens": 64.0,
+      "ttft_s": 0.7013,
+      "prefill_tok_s": 5814.6,
+      "decode_tok_s": 80.56,
+      "decode_tok_s_reps": [
+        80.5,
+        80.61
+      ],
+      "decode_tok_s_min": 80.5,
+      "decode_tok_s_max": 80.61,
+      "decode_tok_s_stdev": 0.08,
+      "bandwidth_floor_tok_s": 98.02,
+      "pct_of_floor": 82.2,
+      "reps_ok": 2,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 16384,
+      "prompt_tokens": 16721.0,
+      "gen_tokens": 64.0,
+      "ttft_s": 3.1132,
+      "prefill_tok_s": 5370.9,
+      "decode_tok_s": 72.86,
+      "decode_tok_s_reps": [
+        72.81,
+        72.9
+      ],
+      "decode_tok_s_min": 72.81,
+      "decode_tok_s_max": 72.9,
+      "decode_tok_s_stdev": 0.07,
+      "bandwidth_floor_tok_s": 98.02,
+      "pct_of_floor": 74.3,
+      "reps_ok": 2,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

@@ -1,0 +1,6 @@
+qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench  model=qualify-Qwen3.6-35B-A3B-NVFP4  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      131     0.101         1282        84.1      128       85.8
+    1024     1015     0.219         4640        83.6      128       85.3
+    4096     4185     0.782         5383        81.1      128       82.8
+bandwidth floor: 98.0 tok/s

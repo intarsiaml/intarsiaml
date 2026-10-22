@@ -1,0 +1,24 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/onboard-runs/35b-hip-r3/report/qualify
+[qualify      0s] doctor: already done (PASS), not run again
+[qualify      0s] recipe: already done (PASS), not run again
+[qualify      0s] plan: already done (PASS), not run again
+[qualify      0s] kernels: already done (PASS), not run again
+[qualify      0s] gate: already done (PASS), not run again
+[qualify      0s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify      0s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify      0s] acc-short: already done (PASS), not run again
+[qualify      0s] bench: already done (PASS), not run again
+[qualify      0s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    115s] acc-long: PASS in 114.9s (prefill top-1 94.32% KL 4.13e-2; decode top-1 96.88% KL 1.00e-2)
+[qualify    115s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    115s] acc-4k: SKIP in 0.0s (no 4k golden for 'Qwen3.6-35B-A3B-NVFP4' in golden, /models/golden, /work/golden (give --golden-4k FILE or --golden-dir DIR, or --reference <vLLM url> to make one; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl))
+[qualify    115s] == envelope [noise envelope and baseline for regression gating]
+[qualify    139s] envelope: PASS in 24.0s (baseline and envelope (chunk + attn-simt) written; they gate this build: PASS)
+[qualify    139s] == bench-long [long-context bench up to 16k]
+[qualify    145s] server up in 6s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    157s] bench-long: PASS in 17.7s (decode 159.0 tok/s at 1024 tokens (57% of the byte floor))
+[qualify    157s] == ab [A/B against the reference server via localeval]
+[qualify    157s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    157s] == tp [tensor-parallel variant]
+[qualify    157s] tp: SKIP in 0.0s (--tp not given (or 1))
+[qualify    157s] exit code 0
