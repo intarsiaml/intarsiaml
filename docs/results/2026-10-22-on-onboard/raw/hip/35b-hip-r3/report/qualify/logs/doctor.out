@@ -1,0 +1,16 @@
+intarsia doctor  (efaab0a59e8c x86_64, backend hip)
+  os      Ubuntu 24.04.4 LTS
+  cpu     AMD Ryzen 9 9900X 12-Core Processor (24 threads)
+  ram     66.5 GB total, 60.5 GB available
+  device  AMD Radeon Graphics [hip gfx1201] free 34.0 GB
+
+[info] sm_121_target: no NVIDIA GPU visible (nvidia-smi missing or failing)
+[ ok ] hip_arch_target: GPU is gfx1201 and 54 kernels are built for it
+[ ok ] transparent_hugepages: THP = madvise (kernel: always [madvise] never)
+[ ok ] disk_free:.: 74.4 GB free of 244 GB (31% free)
+[ ok ] disk_free:/tmp: 74.4 GB free of 244 GB (31% free)
+[info] hip_gpu_max_hw_queues: GPU_MAX_HW_QUEUES=1 (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)
+[ ok ] serve_port: port 8090 is free
+[info] bandwidth: host->device 28.6 GB/s, device->host 28.0 GB/s, device copy 584.9 GB/s (read+write)
+
+fingerprint written to /work/onboard-runs/35b-hip-r3/report/qualify/doctor.json

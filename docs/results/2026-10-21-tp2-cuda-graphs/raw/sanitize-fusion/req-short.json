@@ -1,0 +1,1 @@
+{"model":"intarsia-35b","messages":[{"role":"user","content":"Name a colour."}],"max_tokens":6,"temperature":0,"chat_template_kwargs":{"enable_thinking":false}}

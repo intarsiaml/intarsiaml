@@ -124,6 +124,7 @@ extern "C" {
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash_v2(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_hip_flash_hpb() -> c_int;
+    pub fn ik_hip_flash_vp() -> c_int;
     pub fn ik_hip_moe_mw(pairs: c_int) -> c_int;
     pub fn ik_hip_moe_mw_down(pairs: c_int) -> c_int;
     pub fn ik_hip_split_pieces(est_us: c_double, max_pieces: i64) -> c_int;
@@ -184,6 +185,7 @@ extern "C" {
     pub fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_mma(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_mxfp4_pair_gemv(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     pub fn ik_moe_topk_bf16_v2(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]

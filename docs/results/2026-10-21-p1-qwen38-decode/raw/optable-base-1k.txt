@@ -1,0 +1,31 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 1.3s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 1078 tokens
+ the `gdn` kernel.
+
+## Verification
+
+* `tools/gen_hybrid_fixture.py` (HF, `--model qwen3.5-4b | qwen3.6-35b-a3b`): per-layer fixtures for the first 3 layers
+  (full attention, GatedDeltaNet, MoE) + a full forward pass.
+* `tests/hybrid.rs`: `test_hybrid_forward` (Qwen3.5-4B, 3 layers, 2 sequences, 200 tokens, max diff < 0.05),
+  `
+finish=length prompt=1078 (cached 0) completion=128 | prefill 1336 ms (807.2 tok/s) | decode 6036 ms (21.04 tok/s)
+op table (estimated ms over all launches; total 7306.5 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                5552.48   75.99    65968   65968
+logits                       546.38    7.48      128     128
+rmsnorm_add                  396.00    5.42    17024   17024
+gdn_conv_delta               207.31    2.84     6144    6144
+silu_glu                     168.28    2.30     8512    8512
+gated_rmsnorm                135.70    1.86     6384    6384
+attn_decode                   87.47    1.20     2048    2048
+gdn_delta_rule                64.76    0.89      240     240
+gate_split_qk_norm_rope_kv      57.47    0.79     2128    2128
+sigmoid_mul                   40.45    0.55     2128    2128
+attn_prefill                  16.46    0.23       80      80
+gdn_conv                      12.31    0.17      240     240
+embedding                      9.64    0.13      133     133
+argmax                         8.31    0.11      128     128
+rmsnorm                        3.42    0.05      133     133
+steps=133 graph replays=0 (captures 0) eager decode steps=128 (profiled 128) top ops: matmul_mxfp4=5552ms/65968 logits=546ms/128 rmsnorm_add=396ms/17024 gdn_conv_delta=207ms/6144 silu_glu=168ms/8512

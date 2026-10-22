@@ -1,5 +1,5 @@
 //! `attn_prefill_bf16_flash_v2` (kernels/hip/attention_flash.hip, `flash_hpb_kernel`): the WMMA flash prefill kernel with
-//! INTARSIA_HIP_FLASH_HPB (1, 2 or 4; default 2) query heads of one kv head per block, so a K / V tile is staged into LDS
+//! INTARSIA_HIP_FLASH_HPB (1, 2 or 4; default 4) query heads of one kv head per block, so a K / V tile is staged into LDS
 //! once for all of them. Each wave runs `flash_kernel`'s instructions for its 16 rows, so:
 //!
 //! * `flash_v2_is_bitwise_v1`: every output byte equals `attn_prefill_bf16_flash`'s at the 35B's (16 / 2 / 256) and the 8B's
@@ -52,11 +52,15 @@ fn case(rng: &mut SplitMix64, n: usize, nkv: usize, d: usize, t: usize, p: usize
 #[test]
 fn flash_v2_is_bitwise_v1() {
     let Some(hip) = device() else { return };
-    eprintln!("INTARSIA_HIP_FLASH_HPB={:?}", std::env::var("INTARSIA_HIP_FLASH_HPB").ok());
+    eprintln!(
+        "INTARSIA_HIP_FLASH_HPB={:?} INTARSIA_HIP_FLASH_VP={:?}",
+        std::env::var("INTARSIA_HIP_FLASH_HPB").ok(),
+        std::env::var("INTARSIA_HIP_FLASH_VP").ok()
+    );
     let mut rng = SplitMix64::new(61);
     let mut n_cases = 0;
     for (n, nkv, d) in
-        [(16usize, 2usize, 256usize), (32, 8, 128), (8, 8, 64), (6, 2, 128), (8, 2, 64), (16, 2, 128), (4, 1, 256)]
+        [(16usize, 2usize, 256usize), (8, 1, 256), (32, 8, 128), (8, 8, 64), (6, 2, 128), (8, 2, 64), (16, 2, 128), (4, 1, 256)]
     {
         for (t, p) in [(17usize, 0usize), (64, 0), (100, 0), (300, 0), (129, 37), (64, 4096), (257, 1000)] {
             let hc = case(&mut rng, n, nkv, d, t, p);
@@ -66,12 +70,20 @@ fn flash_v2_is_bitwise_v1() {
             n_cases += 1;
         }
     }
-    // a full 35B prefill chunk, from the start and after a 4096-token prefix
-    for p in [0usize, 4096] {
+    // a full 35B prefill chunk, from the start and after 1, 2 and 3 chunks of prefix (4096-token chunks: a 16k prompt), and the
+    // 270-token tail chunk of a 16654-token prompt (localeval's 16k)
+    for p in [0usize, 4096, 8192, 12288] {
         let hc = case(&mut rng, 16, 2, 256, 4096, p);
         let a = run_host(&*hip, "attn_prefill_bf16_flash", &hc).unwrap();
         let b = run_host(&*hip, "attn_prefill_bf16_flash_v2", &hc).unwrap();
         assert!(a[0].data == b[0].data, "flash v2 differs from v1 on a 4096-row 35B chunk at pos0={p}");
+        n_cases += 1;
+    }
+    for (t, p) in [(270usize, 16384usize), (1248, 16384), (4089, 0)] {
+        let hc = case(&mut rng, 16, 2, 256, t, p);
+        let a = run_host(&*hip, "attn_prefill_bf16_flash", &hc).unwrap();
+        let b = run_host(&*hip, "attn_prefill_bf16_flash_v2", &hc).unwrap();
+        assert!(a[0].data == b[0].data, "flash v2 differs from v1 on the 35B shape: t={t} pos0={p}");
         n_cases += 1;
     }
     eprintln!("flash v2 bitwise v1 on {n_cases} cases");

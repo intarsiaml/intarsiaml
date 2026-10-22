@@ -1,0 +1,50 @@
+2026-10-22T06:04:32Z preflight
+models--Cloudflare--clef
+models--Cloudflare--clef-flash
+models--deepseek-ai--DeepSeek-V4.1-Flash-1017
+models--incoai--GLM-5.3-Flash-DFlash2
+models--meta-models--Muse-Glimmer-30B-assistant
+models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw
+models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw
+models--neko-legends--GLM-5.3-Flash-Uncensored-EXL3
+models--nvidia--Gemma-4-26B-A4B-NVFP4
+models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
+models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4-DSpark
+models--nvidia--Qwen3.6-35B-A3B-NVFP4
+models--Qwen--Qwen3-8B
+models--unsloth--Qwen3.8-27B-GGUF
+models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP
+Qwen3.8-27B-DFlash2-NVFP4-RTNcal-bd7a934213c4
+Qwen3.8-27B-NVFP4-52d1adc5f38a
+Qwen3-8B
+/usr/bin/python3
+ModuleNotFoundError: No module named 'numpy'
+/dev/nvme0n1p2  3.7T  3.3T  261G  93% /
+Mem:             121          69          20           0          32          52
+
+2026-10-22T06:04:33Z ABORT: no python with numpy+safetensors and no uv on spark1: goldens cannot be made
+2026-10-22T06:47:31Z preflight
+models--Cloudflare--clef
+models--Cloudflare--clef-flash
+models--deepseek-ai--DeepSeek-V4.1-Flash-1017
+models--incoai--GLM-5.3-Flash-DFlash2
+models--meta-models--Muse-Glimmer-30B-assistant
+models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw
+models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw
+models--neko-legends--GLM-5.3-Flash-Uncensored-EXL3
+models--nvidia--Gemma-4-26B-A4B-NVFP4
+models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
+models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4-DSpark
+models--nvidia--Qwen3.6-35B-A3B-NVFP4
+models--Qwen--Qwen3-8B
+models--unsloth--Qwen3.8-27B-GGUF
+models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP
+Qwen3.8-27B-DFlash2-NVFP4-RTNcal-bd7a934213c4
+Qwen3.8-27B-NVFP4-52d1adc5f38a
+Qwen3-8B
+/usr/bin/python3
+ModuleNotFoundError: No module named 'numpy'
+/dev/nvme0n1p2  3.7T  3.3T  255G  93% /
+Mem:             121          68          24           0          30          53
+
+2026-10-22T06:47:32Z ABORT: reference server http://localhost:8000/v1 does not answer

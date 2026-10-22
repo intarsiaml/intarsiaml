@@ -1,0 +1,20 @@
+fleetq: #3689 running on spark1: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/nvcc-exp5.sh
+fleetq: #3689 went ahead of the line and must end within 1h32m (by Thu 01:20); it is stopped then
+bytes differing: 6
+--- sections
+--- first differing offsets
+ 26011 360 366
+ 26033 360 366
+ 26106 360 366
+252483 360 366
+252505 360 366
+252578 360 366
+--- section containing offsets
+2] .text PROGBITS 0000000000000000 000050
+3] .rela.text RELA 0000000000000000 04cde0
+6] .nv_fatbin PROGBITS 0000000000000000 002600
+9] .text.startup PROGBITS 0000000000000000 04c200
+.rela.text.startup RELA 0000000000000000 04e388 0003c0
+.nvFatBinSegment PROGBITS 0000000000000000 04c370 000018
+.rela.nvFatBinSegment RELA 0000000000000000 04e760 000018
+fleetq: #3689 done (exit 0)

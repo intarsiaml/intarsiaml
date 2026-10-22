@@ -66,6 +66,17 @@ pub struct QualifyArgs {
     /// error alone, at the activation-precision class. Default: `<model>-formatref...` found by name; none is made.
     #[arg(long)]
     pub format_golden: Option<PathBuf>,
+    /// f64 CPU-oracle golden for the `acc-oracle` stage: `intarsia accuracy --backend cpu --golden <short golden> --mode
+    /// prefill --write-self-golden FILE` (f32 accumulation, NVFP4 / MoE / GDN in f64, the same weights). Default:
+    /// `oracle/<model>-cpu-oracle...` in the golden directories. A MoE / hybrid / quantized model without one reads
+    /// MISSING-BASELINE with the command that makes it (~20 min for the 35B on an M5 Max;
+    /// docs/results/2026-10-22-fx1-oracle-gate.md).
+    #[arg(long)]
+    pub oracle_golden: Option<PathBuf>,
+    /// `acc-oracle`: mean 21-way KL(oracle || engine) on scored prefill rows must stay at or below this (default: the
+    /// floor measured in docs/results/2026-10-22-fx1-oracle-gate.md, [`ORACLE_MAX_KL`]).
+    #[arg(long)]
+    pub oracle_max_kl: Option<f64>,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -142,7 +153,7 @@ pub struct QualifyArgs {
     /// Pass --no-unim to localeval (no unanimis record for the A/B runs).
     #[arg(long)]
     pub no_unim: bool,
-    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-short, acc-format, bench, acc-long, acc-4k,
+    /// Skip a stage by id (repeatable): doctor, recipe, plan, kernels, gate, acc-format, acc-short, acc-oracle, bench, acc-long, acc-4k,
     /// envelope, bench-long, ab, tp.
     #[arg(long)]
     pub skip: Vec<String>,
@@ -262,6 +273,13 @@ const STAGES: &[StageDef] = &[
         section: "quick",
         needs: &["plan"],
         run: st_acc_short,
+    },
+    StageDef {
+        id: "acc-oracle",
+        title: "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+        section: "quick",
+        needs: &["plan"],
+        run: st_acc_oracle,
     },
     StageDef {
         id: "bench",
@@ -425,7 +443,7 @@ fn pipeline(mut a: QualifyArgs) -> Result<i32> {
                 && c.state
                     .stages
                     .iter()
-                    .any(|s| s.section == "quick" && matches!(s.verdict, Verdict::Fail | Verdict::Error))
+                    .any(|s| s.section == "quick" && (s.verdict.is_failing() || s.verdict == Verdict::Error))
             {
                 c.say("--fail-fast: a quick gate failed, the in-depth section is not started");
                 break;
@@ -678,6 +696,20 @@ impl Ctx {
 
     /// Provenance flags for baseline / envelope runs: an unstamped or dirty build is accepted (and said so in the
     /// report), because the baseline and the run that reads it are one binary within this run.
+    /// Provenance flags for gating against a recorded run whose commit is `head` (empty: it was unstamped): the
+    /// declared pre-change commit, and this build's own stamp flags, `--allow-unstamped` once (clap refuses it twice).
+    fn provenance_flags(&self, head: &str) -> Vec<String> {
+        let mut v = self.stamp_flags();
+        if head.is_empty() {
+            if !v.iter().any(|f| f == "--allow-unstamped") {
+                v.push("--allow-unstamped".into());
+            }
+        } else {
+            v.extend(["--pre-change".into(), head.to_string()]);
+        }
+        v
+    }
+
     fn stamp_flags(&self) -> Vec<String> {
         let mut v = vec![];
         match BUILD_STAMP {
@@ -881,7 +913,7 @@ impl Ctx {
         if !complete || relevant.iter().any(|s| s.verdict == Verdict::Error) {
             return 2;
         }
-        if relevant.iter().any(|s| s.verdict == Verdict::Fail) {
+        if relevant.iter().any(|s| s.verdict.is_failing()) {
             return 1;
         }
         0
@@ -1127,7 +1159,8 @@ fn st_kernels(c: &mut Ctx) -> Result<Out> {
     }
     let mut o = if r.ok() {
         // kernels with no case in the sweep do not fail `kernels test`; keep them visible in the pass line
-        let incomplete = text.lines().find(|l| l.starts_with("incomplete: ")).map(|l| format!("; {l}")).unwrap_or_default();
+        let incomplete =
+            text.lines().find(|l| l.starts_with("incomplete: ")).map(|l| format!("; {l}")).unwrap_or_default();
         Out::pass(if summary.is_empty() {
             format!("all kernels admitted{incomplete}")
         } else {
@@ -1201,6 +1234,35 @@ fn st_gate(c: &mut Ctx) -> Result<Out> {
 enum Golden {
     Have(PathBuf, String),
     None(String),
+}
+
+/// The context a golden needs: its longest prompt plus the decode positions and a margin, rounded up to 256 (0 when the
+/// file cannot be read). A long golden made from a server can hold a 12k-token prompt, which the fixed 8192 of
+/// `acc_max_seq` cannot plan for (`sequence of 12064 tokens exceeds the planned context of 8192`). Only the KV capacity
+/// changes with it, not the arithmetic.
+fn golden_max_seq(golden: &Path, decode_positions: usize) -> usize {
+    longest_golden_prompt(golden).map(|n| (n + decode_positions + 64).div_ceil(256) * 256).unwrap_or(0)
+}
+
+/// Longest `ids_<i>` tensor of a golden `.safetensors` file, read from its JSON header alone.
+fn longest_golden_prompt(golden: &Path) -> Option<usize> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(golden).ok()?;
+    let mut len = [0u8; 8];
+    f.read_exact(&mut len).ok()?;
+    let len = u64::from_le_bytes(len) as usize;
+    if len > 64 << 20 {
+        return None;
+    }
+    let mut buf = vec![0u8; len];
+    f.read_exact(&mut buf).ok()?;
+    let header: Value = serde_json::from_slice(&buf).ok()?;
+    header
+        .as_object()?
+        .iter()
+        .filter(|(k, _)| k.strip_prefix("ids_").is_some_and(|i| !i.is_empty() && i.bytes().all(|b| b.is_ascii_digit())))
+        .filter_map(|(_, v)| v["shape"][0].as_u64().map(|n| n as usize))
+        .max()
 }
 
 fn have_cmd(name: &str) -> bool {
@@ -1420,7 +1482,7 @@ impl Ctx {
             "--decode-positions".into(),
             self.decode_positions(long).to_string(),
             "--max-seq".into(),
-            self.acc_max_seq(long).to_string(),
+            self.acc_max_seq(long).max(golden_max_seq(golden, self.decode_positions(long))).to_string(),
             "--write-baseline".into(),
             baseline.display().to_string(),
         ]);
@@ -1517,8 +1579,22 @@ fn st_acc_short(c: &mut Ctx) -> Result<Out> {
         Golden::Have(g, h) => (g, h),
         Golden::None(why) => return Ok(Out::skip(why)),
     };
-    let a = c.accuracy("acc-short", &g, "both", false, 1, &[])?;
-    let mut o = c.acc_out(a, &g, &how, "short");
+    // A model whose golden is a reference server's (MoE / hybrid / quantized: no fp32 HF golden can be made) is gated
+    // against the backend's recorded baseline and noise envelope; without one that applies it cannot PASS: the static
+    // 4-bit floor alone sits 2x above where every build reads and lets a 1 % scale bug through (fx1,
+    // docs/results/2026-10-22-fx1-oracle-gate.md). Other models keep the floor-only gate.
+    let needs = c.needs_baseline(&g);
+    let (extra, note) = match (c.recorded_baseline(&g, false), needs) {
+        (Ok((args, note)), true) => (args, note),
+        (Ok((_, note)), false) => {
+            (vec![], format!("{note}; not applied (the class floor of a full-precision golden gates this model)"))
+        }
+        (Err(why), _) => (vec![], why),
+    };
+    let missing = needs && extra.is_empty();
+    let a = c.accuracy("acc-short", &g, "both", false, 1, &extra)?;
+    let o = c.acc_out(a, &g, &how, "short");
+    let mut o = baseline_verdict(o, note, missing, &c.name, "acc-short");
     if o.verdict == Verdict::Fail {
         if let Some(f) = c.state.get("acc-format").filter(|f| f.verdict == Verdict::Pass) {
             o.verdict = Verdict::Warn;
@@ -1573,6 +1649,213 @@ fn st_acc_format(c: &mut Ctx) -> Result<Out> {
     c.facts.insert("golden_format_how".into(), json!(how.clone()));
     let a = c.accuracy("acc-format", &g, "both", false, 1, &[])?;
     Ok(c.acc_out(a, &g, &how, "format"))
+}
+
+/// `acc-oracle`'s floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows of the oracle
+/// prompt set (the short set plus `long_docs_4k`). Measured, not chosen (docs/results/2026-10-22-fx1-oracle-gate.md):
+/// clean builds read 9.9e-3 (Metal, HIP tp=1) to 1.1e-2 (HIP tp=2), bf16 activations against f32 / f64 math on the
+/// same NVFP4 weights; 2e-2 is ~1.8x the largest. The floor guards absolute accuracy (a wrong kernel reads 10x and
+/// more). It does NOT see a 1 % scale bug: those mutants read 9.1e-3 to 1.0e-2, inside the clean spread. The kill is
+/// the drift check against the recorded same-backend dump.
+pub const ORACLE_MAX_KL: f64 = 2.0e-2;
+
+impl Ctx {
+    /// No oracle: SKIP for a model that does not need one, MISSING-BASELINE (with the command that makes it) otherwise.
+    fn no_oracle(&mut self, why: String) -> Out {
+        match self.golden(false) {
+            Ok(Golden::Have(short, _)) if self.needs_baseline(&short) => Out::new(
+                Verdict::MissingBaseline,
+                format!(
+                    "MISSING-BASELINE: {why}. {} has no full-precision golden, so it is gated against the f64 CPU oracle; make it once ({}), commit it, and record this backend's dump with a qualify run on clean main",
+                    self.name,
+                    self.oracle_make_cmd(&short)
+                ),
+            ),
+            _ => Out::skip(why),
+        }
+    }
+
+    /// The f64 CPU-oracle golden: `--oracle-golden`, `oracle/<model>-cpu-oracle...` in the golden directories (the repo
+    /// commits them). qualify does not make one (a ~20 min CPU job): `no_oracle` says how.
+    fn oracle_golden(&mut self) -> Result<Golden> {
+        let key = "golden_oracle";
+        if let Some(p) = self.fact_str(key) {
+            if Path::new(&p).exists() {
+                return Ok(Golden::Have(PathBuf::from(p), self.fact_str(&format!("{key}_how")).unwrap_or_default()));
+            }
+        }
+        if let Some(g) = self.a.oracle_golden.clone() {
+            if !g.exists() {
+                return Ok(Golden::None(format!("--oracle-golden {} does not exist", g.display())));
+            }
+            return Ok(self.have_golden(key, g, "given with --oracle-golden".into()));
+        }
+        let dirs = default_golden_dirs(&self.a);
+        if let Some(g) = facts::find_oracle_golden(&self.name, &dirs) {
+            return Ok(self.have_golden(key, g, "found by model name".into()));
+        }
+        Ok(Golden::None(format!("no CPU-oracle golden for '{}' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory)", self.name)))
+    }
+
+    /// The command that makes the CPU oracle of this model from `prompts` (a golden whose prompts it takes): ~10 min per
+    /// 1500 prompt tokens of a 35B-A3B on an M5 Max. Not run by qualify: it is a reference to commit, made once.
+    fn oracle_make_cmd(&self, prompts: &Path) -> String {
+        format!(
+            "intarsia accuracy --model {} --backend cpu --golden {} --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id {} --write-self-golden golden/oracle/{}-cpu-oracle.safetensors",
+            self.a.model.display(),
+            prompts.display(),
+            self.name,
+            facts::sanitize(&self.name).to_lowercase()
+        )
+    }
+
+    /// The `accuracy` flags of the oracle gate: the floor on scored rows, no top-1 floor (near-tie rows flip between
+    /// any two correct implementations), no reference-noise term (the oracle is deterministic).
+    fn oracle_flags(&self) -> (Vec<String>, f64) {
+        let kl = self.a.oracle_max_kl.unwrap_or(ORACLE_MAX_KL);
+        let mut v: Vec<String> = vec![
+            "--gate-class".into(),
+            "bf16".into(),
+            "--max-mean-kl".into(),
+            format!("{kl:e}"),
+            "--min-top1".into(),
+            "0".into(),
+            "--no-ref-noise".into(),
+            // the dump's identity: the same name on every box and for every copy of the weights
+            "--model-id".into(),
+            self.name.clone(),
+        ];
+        (v, kl)
+    }
+
+    /// `<oracle stem>.<backend>[-tpN]`: the name of this backend's (and tp degree's) recorded dump on the oracle prompts.
+    fn dump_tag(&self, oracle: &Path, tp: usize) -> String {
+        let stem = oracle.file_stem().and_then(|s| s.to_str()).unwrap_or("oracle");
+        if tp > 1 {
+            format!("{stem}.{}-tp{tp}", self.a.backend)
+        } else {
+            format!("{stem}.{}", self.a.backend)
+        }
+    }
+
+    /// The drift check: this build's prefill logits on the oracle prompts against the dump recorded from clean main on
+    /// the same backend and tp degree (`golden/baselines/<oracle stem>.<backend>[-tpN].selfgolden.safetensors`), with the
+    /// self-golden budgets (mean KL21 1e-4 ...). The engine is deterministic, so clean main reads 0; any change of the
+    /// logits fails it, a 1 % partial-scale bug included, which no comparison with another implementation can resolve
+    /// on this model (fx1). `Err(why)`: there is no dump for this configuration.
+    fn drift_check(
+        &mut self,
+        oracle: &Path,
+        tp: usize,
+        stem: &str,
+    ) -> Result<std::result::Result<(Verdict, String), String>> {
+        let tag = self.dump_tag(oracle, tp);
+        let mut dirs: Vec<PathBuf> = vec![];
+        if let Some(d) = oracle.parent().and_then(|d| d.parent()) {
+            dirs.push(d.join("baselines"));
+        }
+        if let Some(r) = facts::repo_root() {
+            dirs.push(r.join("golden/baselines"));
+            if let Some(m) = facts::main_checkout(&r) {
+                dirs.push(m.join("golden/baselines"));
+            }
+        }
+        let Some(dump) = dirs.iter().map(|d| d.join(format!("{tag}.selfgolden.safetensors"))).find(|p| p.is_file())
+        else {
+            return Ok(Err(format!("no recorded dump {tag}.selfgolden.safetensors in golden/baselines")));
+        };
+        let mut args = vec!["accuracy".to_string()];
+        args.extend(self.load_args(tp));
+        args.extend([
+            "--self-golden".into(),
+            dump.display().to_string(),
+            "--mode".into(),
+            "prefill".into(),
+            "--decode-positions".into(),
+            self.decode_positions(false).to_string(),
+            "--max-seq".into(),
+            self.acc_max_seq(false).to_string(),
+            "--model-id".into(),
+            self.name.clone(),
+            "--allow-same-code".into(),
+        ]);
+        let head = facts::golden_meta(&dump, "self_meta")
+            .and_then(|m| serde_json::from_str::<Value>(&m).ok())
+            .and_then(|m| m["code"]["head"].as_str().map(String::from))
+            .unwrap_or_default();
+        args.extend(self.provenance_flags(&head));
+        let r = self.exec(stem, args)?;
+        let text = r.stdout();
+        let what = format!("against the recorded dump {}", dump.display());
+        Ok(if r.timed_out || r.code.is_none() {
+            Ok((Verdict::Error, format!("drift check {}", r.describe())))
+        } else if r.ok() && text.contains("golden gate: PASS") {
+            Ok((Verdict::Pass, format!("logits unchanged {what}")))
+        } else if text.contains("golden gate: FAIL") {
+            let bad: Vec<String> = text
+                .lines()
+                .filter(|l| l.trim_end().ends_with("FAIL") && !l.contains("golden gate"))
+                .map(|l| l.trim().to_string())
+                .collect();
+            Ok((
+                Verdict::Fail,
+                format!(
+                    "the logits moved {what}: {}",
+                    if bad.is_empty() { "self-golden budgets exceeded".into() } else { bad.join("; ") }
+                ),
+            ))
+        } else if r.stderr().contains("different configuration") {
+            Err(format!("the recorded dump {} does not apply: {}", dump.display(), r.tail(2)))
+        } else {
+            Ok((Verdict::Error, format!("drift check {}: {}", r.describe(), r.tail(4))))
+        })
+    }
+}
+
+/// The engine against the f64 CPU oracle on the short prompt set, prefill rows (fx1, review finding 1). The oracle runs
+/// the same weights and model definition (recipe, scale interpretation, GDN) in f32 / f64, so it does not catch a recipe
+/// error, but it is deterministic and close: a kernel, scale or TP regression shows at the resolution of the measured
+/// clean spread instead of behind a reference server's run-to-run noise.
+fn st_acc_oracle(c: &mut Ctx) -> Result<Out> {
+    let (g, how) = match c.oracle_golden()? {
+        Golden::Have(g, h) => (g, h),
+        Golden::None(why) => return Ok(c.no_oracle(why)),
+    };
+    if facts::golden_meta(&g, "self_golden").as_deref() != Some("1")
+        || !facts::golden_meta(&g, "self_meta").is_some_and(|m| m.contains("\"backend\":\"cpu\""))
+    {
+        return Ok(Out::error(format!(
+            "{}: not a CPU-oracle golden (want self_golden = 1 written by the cpu backend)",
+            g.display()
+        )));
+    }
+    let (mut extra, kl) = c.oracle_flags();
+    // this run's own dump: copied to golden/baselines/ it becomes the recorded dump of the drift check
+    let rec = c.path(&format!("baselines/{}.selfgolden.safetensors", c.dump_tag(&g, 1)));
+    extra.extend(["--write-self-golden".into(), rec.display().to_string()]);
+    let a = c.accuracy("acc-oracle", &g, "prefill", false, 1, &extra)?;
+    let mut o = c.acc_out(a, &g, &how, "oracle");
+    o.notes.push(format!("floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows, <= {kl:.1e} (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated. The floor guards absolute accuracy; it does not see a 1 % scale bug, the drift check does"));
+    if rec.exists() {
+        o = o.art(c.rel(&rec));
+    }
+    if o.verdict != Verdict::Pass {
+        return Ok(o);
+    }
+    o = match c.drift_check(&g, 1, "acc-oracle-drift")? {
+        Ok((Verdict::Pass, why)) => {
+            o.notes.push(format!("drift check: {why}"));
+            o
+        }
+        Ok((v, why)) => Out::new(v, why).metrics(o.metrics).art(c.rel(&c.path("logs/acc-oracle-drift.out"))),
+        Err(why) => {
+            let mut m = Out::new(Verdict::MissingBaseline, format!("MISSING-BASELINE: {why}; the oracle floor passed ({}), but on this model only a recorded same-backend dump can see a 1 % scale bug. Record it from clean main: copy {} to golden/baselines/ and commit it", o.reason, c.rel(&rec)));
+            m.metrics = o.metrics;
+            m.artifacts = o.artifacts;
+            m
+        }
+    };
+    Ok(o)
 }
 
 // ---- serving + bench ----
@@ -1819,19 +2102,44 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     // 0.1 nats at 4% of the positions and 90% of the misses sit there: bf16 noise, docs/results/2026-10-15-metal-golden-4k.md),
     // so there is no absolute top-1 floor here. The stage gates KL (class floor), tail mass, non-finite rows, prefix reuse, and,
     // when the backend has a recorded baseline for this golden, "no worse than the baseline beyond its noise envelope".
-    let (mut extra, note) = c.acc_4k_baseline(&g);
+    // As in acc-short (fx1): a model without a full-precision golden reads MISSING-BASELINE instead of passing on the
+    // KL / tail / reuse gates alone; other models keep the floor-only fallback.
+    let needs = c.needs_baseline(&g);
+    let (mut extra, note) = c.recorded_baseline(&g, true).unwrap_or_else(|why| (vec![], why));
+    let have = !extra.is_empty();
     extra.splice(0..0, ["--min-top1".to_string(), "0".to_string()]);
     let a = c.accuracy("acc-4k", &g, "all", true, 1, &extra)?;
-    let mut o = c.acc_out(a, &g, &how, "4k");
-    o.notes.push(note);
-    Ok(o)
+    let o = c.acc_out(a, &g, &how, "4k");
+    Ok(baseline_verdict(o, note, needs && !have, &c.name, "acc-4k"))
+}
+
+/// MoE / hybrid / quantized (the classes `make_golden` refuses) with a golden that is not float32.
+fn needs_baseline_class(facts: &Map<String, Value>, golden_dtype: Option<&str>) -> bool {
+    let class = ["moe", "hybrid", "quantized"].iter().any(|k| facts.get(*k) == Some(&json!(true)));
+    class && golden_dtype != Some("float32")
+}
+
+/// Attach the baseline note. A gate that passed without the baseline its model class needs (`missing`) reads
+/// MISSING-BASELINE (exit 1) instead, with the floor's own reading kept in the reason; a FAIL or ERROR stays what it is.
+fn baseline_verdict(mut o: Out, note: String, missing: bool, model: &str, stage: &str) -> Out {
+    if !(missing && o.verdict == Verdict::Pass) {
+        o.notes.push(note);
+    } else {
+        o.verdict = Verdict::MissingBaseline;
+        o.reason = format!(
+            "MISSING-BASELINE: {note}. {model} has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so {stage}'s floor alone does not gate it (it read: {}); record one with the envelope stage and commit it to golden/baselines/",
+            o.reason
+        );
+    }
+    o
 }
 
 impl Ctx {
-    /// `accuracy` flags that gate the 4k golden against the backend's recorded baseline (and noise envelope), and a note
-    /// that says which baseline, or why there is none. A baseline that does not apply to this run (other chunk, decode
-    /// window or golden file) is not used, so the stage never fails on top-1 for want of a matching one.
-    fn acc_4k_baseline(&self, golden: &Path) -> (Vec<String>, String) {
+    /// `accuracy` flags that gate `golden` against the backend's recorded baseline (and noise envelope), and a note that
+    /// says which baseline; `Err` says why there is none. A baseline that does not apply to this run (other chunk, decode
+    /// window or golden file) is not used: `acc-4k` then gates without it, `acc-short` of a model that needs one reports
+    /// MISSING-BASELINE. `long`: the decode window of the long / 4k goldens.
+    fn recorded_baseline(&self, golden: &Path, long: bool) -> std::result::Result<(Vec<String>, String), String> {
         let mut dirs: Vec<PathBuf> = vec![];
         if let Some(d) = golden.parent() {
             dirs.push(d.join("baselines"));
@@ -1844,18 +2152,27 @@ impl Ctx {
         }
         let backend = self.a.backend.as_str();
         let Some((bp, ep)) = facts::find_baseline(golden, backend, &dirs) else {
-            return (vec![], format!("no baseline for backend {backend} next to the 4k golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"));
+            return Err(format!("no baseline for backend {backend} next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"));
         };
-        let none = |why: String| (vec![], format!("baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated", bp.display()));
+        let none = |why: String| {
+            Err(format!(
+                "baseline {} not used ({why}): KL, tail, prefix-reuse gates only, top-1 not gated",
+                bp.display()
+            ))
+        };
         let Ok(b) = read_json(&bp) else { return none("unreadable".into()) };
         let chunk = self.state.get("plan").and_then(|s| s.metrics["prefill_chunk"].as_u64());
         if b["run"]["backend"].as_str() != Some(backend) {
             return none("other backend".into());
         }
         if chunk.is_none() || b["run"]["prefill_chunk"].as_u64() != chunk {
-            return none(format!("recorded at prefill chunk {}, this run uses {}", b["run"]["prefill_chunk"], chunk.map_or("?".into(), |c| c.to_string())));
+            return none(format!(
+                "recorded at prefill chunk {}, this run uses {}",
+                b["run"]["prefill_chunk"],
+                chunk.map_or("?".into(), |c| c.to_string())
+            ));
         }
-        if b["run"]["decode_positions"].as_u64() != Some(self.decode_positions(true) as u64) {
+        if b["run"]["decode_positions"].as_u64() != Some(self.decode_positions(long) as u64) {
             return none("other decode window".into());
         }
         if b["golden"]["size"].as_u64() != std::fs::metadata(golden).ok().map(|m| m.len()) {
@@ -1868,13 +2185,28 @@ impl Ctx {
         }
         // the baseline is a recorded earlier run: its commit is the declared pre-change code (or the same tree, rebuilt)
         args.push("--allow-same-code".into());
-        if head.is_empty() {
-            args.push("--allow-unstamped".into());
-        } else {
-            args.extend(["--pre-change".into(), head.to_string()]);
+        args.extend(self.provenance_flags(head));
+        Ok((
+            args,
+            format!(
+                "gated against the recorded baseline {} (commit {}){}",
+                bp.display(),
+                if head.is_empty() { "unstamped" } else { head },
+                if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" }
+            ),
+        ))
+    }
+
+    /// The model has no full-precision golden (MoE / hybrid / quantized, the classes `make_golden` refuses) and `golden`
+    /// is not one either (it came from a reference server, `dtype = server`, or names no float32 dtype): its static
+    /// floor is loose, so its accuracy gate needs a recorded baseline.
+    fn needs_baseline(&self, golden: &Path) -> bool {
+        // a quant format whose acc-format passed is gated by its own format reference (user decision 2026-10-21 17:13):
+        // its acc-short is report-only, so a missing baseline must not turn a better run into a worse verdict
+        if self.state.get("acc-format").is_some_and(|f| f.verdict == Verdict::Pass) {
+            return false;
         }
-        args.extend(self.stamp_flags());
-        (args, format!("gated against the recorded baseline {} (commit {}){}", bp.display(), if head.is_empty() { "unstamped" } else { head }, if ep.is_some() { " and its noise envelope" } else { ", no noise envelope" }))
+        needs_baseline_class(&self.facts, facts::golden_meta(golden, "dtype").as_deref())
     }
 }
 
@@ -2159,8 +2491,56 @@ fn st_tp(c: &mut Ctx) -> Result<Out> {
         }
         Golden::None(_) => None,
     };
+    // and against the f64 CPU oracle: the gate that sees a 1 % partial-scale bug on one rank (fx1)
+    let oracle = match c.oracle_golden()? {
+        Golden::Have(g, _) => {
+            let (mut extra, _) = c.oracle_flags();
+            let rec = c.path(&format!("baselines/{}.selfgolden.safetensors", c.dump_tag(&g, tp)));
+            extra.extend(["--write-self-golden".into(), rec.display().to_string()]);
+            let a = c.accuracy(&format!("tp{tp}-oracle"), &g, "prefill", false, tp, &extra)?;
+            let drift = if a.verdict == Verdict::Pass {
+                Some(c.drift_check(&g, tp, &format!("tp{tp}-oracle-drift"))?)
+            } else {
+                None
+            };
+            Some((a, drift, rec))
+        }
+        Golden::None(why) => {
+            let n = c.no_oracle(why);
+            if n.verdict == Verdict::MissingBaseline && o.verdict == Verdict::Pass {
+                o = Out::new(Verdict::MissingBaseline, format!("tp={tp}: {}", n.reason));
+            }
+            None
+        }
+    };
     let mut metrics = o.metrics.clone();
     metrics["tp_plan"] = tp_plan;
+    if let Some((a, drift, rec)) = &oracle {
+        metrics["oracle"] =
+            json!({"gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
+        match a.verdict {
+            Verdict::Fail => o = Out::fail(format!("tp={tp} against the CPU oracle: {}", a.reason)).art(c.rel(&b.path)),
+            Verdict::Error => o = Out::error(format!("tp={tp} against the CPU oracle: {}", a.reason)),
+            _ => o.reason = format!("{}; oracle {}", o.reason, acc_summary(&a.modes)),
+        }
+        match drift {
+            Some(Ok((Verdict::Pass, why))) => o.notes.push(format!("tp={tp} drift check: {why}")),
+            Some(Ok((Verdict::Error, why))) => o = Out::error(format!("tp={tp} drift check: {why}")),
+            Some(Ok((_, why))) if o.verdict != Verdict::Error => {
+                o = Out::fail(format!("tp={tp}: {why}")).art(c.rel(&b.path))
+            }
+            Some(Err(why)) if o.verdict == Verdict::Pass => {
+                o = Out::new(
+                    Verdict::MissingBaseline,
+                    format!(
+                        "MISSING-BASELINE: tp={tp}: {why}; record it from clean main: copy {} to golden/baselines/",
+                        c.rel(rec)
+                    ),
+                )
+            }
+            _ => {}
+        }
+    }
     if let Some((g, how, a)) = acc {
         metrics["accuracy"] = json!({"golden": g.display().to_string(), "golden_how": how, "gate_class": a.gate_class, "modes": a.modes, "verdict": a.verdict.label(), "reason": a.reason});
         match a.verdict {
@@ -2196,6 +2576,21 @@ mod tests {
     }
 
     #[test]
+    fn golden_context_comes_from_the_longest_prompt() {
+        let dir = std::env::temp_dir().join(format!("qualify-golden-hdr-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let hdr = r#"{"ids_0":{"dtype":"I32","shape":[700],"data_offsets":[0,2800]},"ids_1":{"dtype":"I32","shape":[12064],"data_offsets":[2800,51056]},"topk_ids_1":{"dtype":"I32","shape":[99999,20],"data_offsets":[0,0]},"__metadata__":{"x":"y"}}"#;
+        let mut bytes = (hdr.len() as u64).to_le_bytes().to_vec();
+        bytes.extend(hdr.as_bytes());
+        let f = dir.join("g.safetensors");
+        std::fs::write(&f, bytes).unwrap();
+        assert_eq!(longest_golden_prompt(&f), Some(12064));
+        assert_eq!(golden_max_seq(&f, 64), 12288); // 12064 + 64 + 64 = 12192 -> 12288
+        assert_eq!(golden_max_seq(&dir.join("missing"), 64), 0);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn missing_kernels_are_listed_from_the_load_error() {
         // the text built in crates/intarsia-core/src/plan.rs
         let e = "Error: no kernel for 2 op(s) of this model have no kernel on hip/gfx1201:\n  - matmul: 3 shape(s) without a kernel, e.g. m=1 n=4096 k=4096 fp8; needed by layer.attn.q\n  - attn_decode: 1 shape(s) without a kernel, e.g. hd=256; needed by layer.attn, ...\n";
@@ -2203,6 +2598,37 @@ mod tests {
         assert_eq!(m.len(), 2);
         assert!(m[0].starts_with("matmul: 3 shape(s) without a kernel"));
         assert!(m[1].starts_with("attn_decode:"));
+    }
+
+    #[test]
+    fn baseline_class_is_moe_hybrid_or_quantized_without_an_fp32_golden() {
+        let f = |k: &str| {
+            let mut m = Map::new();
+            m.insert(k.into(), json!(true));
+            m
+        };
+        assert!(needs_baseline_class(&f("moe"), Some("server")));
+        assert!(needs_baseline_class(&f("quantized"), None));
+        assert!(!needs_baseline_class(&f("hybrid"), Some("float32")), "a full-precision golden is its own reference");
+        assert!(!needs_baseline_class(&Map::new(), None), "a dense bf16 model keeps the floor-only gate");
+    }
+
+    #[test]
+    fn a_pass_without_a_needed_baseline_is_missing_baseline() {
+        let pass = || Out::pass("prefill: KL 5.8e-3");
+        let o =
+            baseline_verdict(pass(), "no baseline for backend hip".into(), true, "Qwen3.6-35B-A3B-NVFP4", "acc-short");
+        assert_eq!(o.verdict, Verdict::MissingBaseline);
+        assert!(
+            o.reason.starts_with("MISSING-BASELINE: no baseline for backend hip") && o.reason.contains("KL 5.8e-3")
+        );
+        assert!(o.verdict.is_failing(), "MISSING-BASELINE fails the run (exit 1)");
+        // with the baseline (or for a model with a full-precision golden) the floor verdict stands, note attached
+        let o = baseline_verdict(pass(), "gated against the recorded baseline".into(), false, "m", "acc-short");
+        assert_eq!((o.verdict, o.notes.len()), (Verdict::Pass, 1));
+        // a FAIL stays a FAIL
+        let o = baseline_verdict(Out::fail("KL 4e-2"), "no baseline".into(), true, "m", "acc-4k");
+        assert_eq!(o.verdict, Verdict::Fail);
     }
 
     #[test]
@@ -2224,7 +2650,10 @@ mod tests {
             }
         }
         // the spec's order of the quick section
-        assert_eq!(&ids[..8], &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "bench"]);
+        assert_eq!(
+            &ids[..9],
+            &["doctor", "recipe", "plan", "kernels", "gate", "acc-format", "acc-short", "acc-oracle", "bench"]
+        );
     }
 
     #[test]

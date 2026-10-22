@@ -78,6 +78,7 @@ fn matmul_pair_is_bitwise_two_gemvs() {
     // (n0, n1, k): GDN b + a, MoE router + shared-expert gate, a segment shorter than a block, an odd split, K = 8
     for (n0, n1, k) in [
         (32usize, 32usize, 2048usize),
+        (16, 16, 2048), // GDN b + a, 35B tp=2 shard (lane H1)
         (256, 1, 2048),
         (33, 1, 96),
         (300, 5, 520),
@@ -113,6 +114,8 @@ fn matmul_fp8_pair_is_bitwise_two_gemvs() {
     for (n0, n1, k) in [
         (8192usize, 4096usize, 2048usize),
         (512, 512, 2048),
+        (4096, 2048, 2048), // GDN qkv + z, 35B tp=2 shard (lane H1)
+        (256, 256, 2048),   // attention k + v, 35B tp=2 shard
         (64, 48, 64),
         (17, 33, 48),
         (130, 7, 1040),
@@ -147,7 +150,7 @@ fn matmul_nvfp4_glu_is_bitwise_gate_up_silu() {
     let mut rng = SplitMix64::new(63);
     // (n, k): the shared expert (512 x 2048), its transpose, K past the 4-iteration prefetch window (4112), N not a multiple
     // of the 8 warps of a block, one K block
-    for (n, k) in [(512usize, 2048usize), (2048, 512), (300, 4112), (9, 16), (64, 64), (40, 96), (1, 16), (1030, 160)] {
+    for (n, k) in [(512usize, 2048usize), (256, 2048), (2048, 512), (300, 4112), (9, 16), (64, 64), (40, 96), (1, 16), (1030, 160)] {
         let mut hc = matmul_nvfp4_glu_case(&mut rng, 1, n, k, DType::Bf16, DType::Bf16);
         // different global scales for gate and up: using one for both must be visible
         let gs = hc.inputs[3].to_f32()[0];
@@ -205,6 +208,7 @@ fn rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair() {
     // (4104: threads hold two or three vectors), the largest K the LDS staging takes, a larger grid
     for (n0, n1, k) in [
         (32usize, 32usize, 2048usize),
+        (16, 16, 2048), // GDN b + a, 35B tp=2 shard (lane H1)
         (256, 1, 2048),
         (33, 1, 96),
         (9, 17, 40),

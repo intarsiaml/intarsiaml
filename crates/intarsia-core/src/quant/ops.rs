@@ -1,5 +1,5 @@
 //! Validation and shape facts of the quantised-weight and MoE ops (`Op::MatmulFp8` ... `Op::MoeCombine`) and of the
-//! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`,
+//! fused decode ops (`Op::MatmulPair`, `MatmulFp8Pair`, `MatmulMxfp4Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`, `RmsNormAddMatmulPair`,
 //! `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`, `MoeBlock`).
 //! Called from `OpCall::check` / `ShapeInfo::from_call`; the table of signatures is in `ops.rs`.
 
@@ -80,6 +80,34 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad(op, format!("scales must be u8 (e8m0) [N,K/32]=[{n},{}], got {} {:?}", k / g, i[2].dtype, i[2].shape));
             }
             if i[3].dtype != DType::F32 || i[3].shape != [1] {
+                return bad(op, "act must be f32 [1] (0 = 16-bit activations, 1 = dynamic MXFP4)".into());
+            }
+        }
+        Op::MatmulMxfp4Pair => {
+            rank(&i[0], 2, "x")?;
+            let (m, k) = (i[0].shape[0], i[0].shape[1]);
+            if !act(&i[0]) {
+                return bad(op, "x must be bf16/f16/f32".into());
+            }
+            let g = crate::quant::mxfp4::GROUP;
+            if k % g != 0 {
+                return bad(op, format!("K={k} must be a multiple of {g}"));
+            }
+            for j in 0..2 {
+                let (w, sc, out) = (&i[1 + 2 * j], &i[2 + 2 * j], &o[j]);
+                rank(w, 2, "w")?;
+                let n = w.shape[0];
+                if w.dtype != DType::U8 || w.shape != [n, k / 2] {
+                    return bad(op, format!("w{j} must be u8 [N,K/2]=[{n},{}], got {} {:?}", k / 2, w.dtype, w.shape));
+                }
+                if sc.dtype != DType::U8 || sc.shape != [n, k / g] {
+                    return bad(op, format!("scales{j} must be u8 (e8m0) [N,K/32]=[{n},{}], got {} {:?}", k / g, sc.dtype, sc.shape));
+                }
+                if !act(out) || out.shape != [m, n] {
+                    return bad(op, format!("out{j} {:?} != [{m},{n}]", out.shape));
+                }
+            }
+            if i[5].dtype != DType::F32 || i[5].shape != [1] {
                 return bad(op, "act must be f32 [1] (0 = 16-bit activations, 1 = dynamic MXFP4)".into());
             }
         }
@@ -442,7 +470,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.k = i[0].shape[1];
         }
         // the fused decode ops: m rows, k reduction (or row width), n the first (or only) output width
-        Op::MatmulPair | Op::MatmulFp8Pair => {
+        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulMxfp4Pair => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];

@@ -1,0 +1,12 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a mature understanding of the trade-offs between flexibility, performance, and correctness in modern LLM inference engines. The decision to decouple the "recipe" (model definition) from the "kernel" (implementation) via a strict C ABI and a reference oracle is the correct architectural choice to avoid the "per-family engine" trap that plagued previous projects.
+
+Below is a technical review and implementation strategy based on the provided document, focusing on critical path items, risk mitigation, and immediate next steps for **Phase 0**.
+
+---
+
+### 1. Architectural Strengths & Key Decisions
+
+#### A. The "Piece" Abstraction & Kernel Registry
+*   **Why it works:** By treating every op/kernel as a "piece" with a contract (signature + reference), you enable **composability**. You can swap a CUDA NVFP4 GEMM for a HIP MXFP4 GEMM without touching the scheduler or KV manager.
+*   **The Oracle:** The `cpu-ref` oracle is non-negotiable. It is the single source of truth. The admission test (`intarsia kernels test`) is the gatekeeper. This prevents
+NCCL version 2.30.7+cuda13.3

@@ -1,0 +1,2 @@
+base: -rwxr-xr-x 1 josef josef 33625704 Oct 21 17:33 /home/josef/intarsiaml-h1-base/h1-intarsia
+dev: -rwxr-xr-x 1 josef josef 33628176 Oct 21 17:44 /home/josef/intarsiaml-h1-dev/h1-intarsia

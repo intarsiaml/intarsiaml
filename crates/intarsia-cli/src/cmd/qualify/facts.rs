@@ -121,6 +121,30 @@ fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool
     best.map(|(_, p)| p)
 }
 
+/// Find the f64 CPU-oracle golden of model `name` (`<name>-cpu-oracle...` in the `oracle/` subdirectory of a golden
+/// directory: `intarsia accuracy --backend cpu --write-self-golden` on the short prompt set). It lives apart from the
+/// goldens so that `find_golden` never takes it for the short golden.
+pub fn find_oracle_golden(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    let k = key(name);
+    for d in dirs {
+        let Ok(rd) = std::fs::read_dir(d.join("oracle")) else { continue };
+        let mut hits: Vec<PathBuf> = rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("safetensors"))
+            .filter(|p| {
+                let stem = key(p.file_stem().and_then(|s| s.to_str()).unwrap_or(""));
+                stem.strip_prefix(&k).is_some_and(|rest| rest.starts_with("-cpu-oracle"))
+            })
+            .collect();
+        hits.sort();
+        if let Some(p) = hits.into_iter().next() {
+            return Some(p);
+        }
+    }
+    None
+}
+
 /// The recorded baseline (and noise envelope, if there is one) of a golden for a backend: `<golden stem>.<backend>.baseline.json`
 /// / `.envelope.json` in the first of `dirs` that has the baseline (`golden/baselines/`, see `docs/accuracy.md`).
 pub fn find_baseline(golden: &Path, backend: &str, dirs: &[PathBuf]) -> Option<(PathBuf, Option<PathBuf>)> {
@@ -308,6 +332,27 @@ mod tests {
         assert_eq!(n(find_golden_4k("Qwen3-8B", &dirs)).as_deref(), Some("qwen3-8b-4k-fp32.safetensors"));
         assert_eq!(n(find_golden_4k("Qwen3.6-35B-A3B-NVFP4", &dirs)), None);
         assert_eq!(n(find_golden_4k("Llama-3", &dirs)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn oracle_golden_lives_in_oracle_and_is_never_the_short_golden() {
+        let d = std::env::temp_dir().join(format!("qualify-oracle-{}", std::process::id()));
+        std::fs::create_dir_all(d.join("oracle")).unwrap();
+        std::fs::write(d.join("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors"), b"x").unwrap();
+        std::fs::write(d.join("oracle/qwen36-35b-a3b-nvfp4-cpu-oracle-short.safetensors"), b"x").unwrap();
+        std::fs::write(d.join("oracle/qwen3-8b-vllm-top20.safetensors"), b"x").unwrap();
+        let dirs = vec![d.clone()];
+        let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
+        assert_eq!(
+            n(find_oracle_golden("Qwen3.6-35B-A3B-NVFP4", &dirs)).as_deref(),
+            Some("qwen36-35b-a3b-nvfp4-cpu-oracle-short.safetensors")
+        );
+        assert_eq!(n(find_oracle_golden("Qwen3-8B", &dirs)), None, "only -cpu-oracle files are oracles");
+        assert_eq!(
+            n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, false)).as_deref(),
+            Some("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors")
+        );
         let _ = std::fs::remove_dir_all(&d);
     }
 

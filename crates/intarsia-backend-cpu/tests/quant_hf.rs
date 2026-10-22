@@ -315,6 +315,7 @@ fn plan_time_cases_are_built_for_every_new_op() {
     for op in [
         Op::MatmulFp8,
         Op::MatmulNvfp4,
+        Op::MatmulMxfp4Pair,
         Op::MoeTopk,
         Op::MoeExperts,
         Op::MoeCombine,

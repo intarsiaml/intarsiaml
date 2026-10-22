@@ -1,0 +1,15 @@
+target http://localhost:8091/v1/chat/completions  model qwen36-35b-h1
+server context window: 17408 tokens
+calibration: 45 base tokens, 21.90 tokens per filler sentence
+  size   1024 rep: prompt=950 gen=128 ttft=0.12s prefill=8137 tok/s decode=131.6 tok/s
+  size   4096 rep: prompt=3997 gen=128 ttft=0.35s prefill=11280 tok/s decode=131.5 tok/s
+  size  16384 rep: prompt=16324 gen=128 ttft=1.59s prefill=10258 tok/s decode=127.4 tok/s
+wrote /work/h1-out/bench/h1-tp2e-r1.json
+h1-tp2e-r1  model=qwen36-35b-h1  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      950     0.117         8137       131.6      128
+    4096     3997     0.354        11280       131.5      128
+   16384    16324     1.591        10258       127.4      128
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)

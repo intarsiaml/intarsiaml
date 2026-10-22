@@ -1,0 +1,28 @@
+fleetq: #3717 waiting (#1 in line): tatooine-r9700 is held exclusively by #3716 "fx1: HIP 35B tp=1 clean/scale mutants + tp=2 clean/TP_TEST_BUG accuracy dumps, retry with canonical golden (radiance down, <=20 min)" (claude-f31ccf91)
+fleetq:   #3716 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3716 set, or it will wait for #3716 to be released.
+fleetq: #3717 running on tatooine-r9700, tatooine-r9700-2: scripts/deploy.sh tatooine --backend hip --ref 882aa27b --tree kq-hip --smoke none
+deploy: warning: 882aa27bfac8f8c891b0914b1830143a4fa0bed3 is on no remote branch; another host cannot replay this stamp until it is pushed
+deploy: tatooine (hip) <- 882aa27bfac8f8c891b0914b1830143a4fa0bed3 (kernels/README: adding a kernel and its test)
+deploy: synced (2237 entries changed)
+   Compiling intarsia-models v0.0.1 (/work/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 33.46s
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/kq-hip/DEPLOY_STAMP.json) ===
+git        882aa27bfac8f8c891b0914b1830143a4fa0bed3  (882aa27b; tree e2e0d5aa12f6)
+subject    kernels/README: adding a kernel and its test
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     /target/release/intarsia  sha256 096a3e77e0a9420b  34091720 bytes  
+smoke      skipped
+fleetq: #3717 done (exit 0)
