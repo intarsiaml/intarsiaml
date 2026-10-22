@@ -1,0 +1,614 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+    "backend": "metal",
+    "device": 0,
+    "reference": null
+  },
+  "created_unix": 1792678564,
+  "quick_report": "quick-report.md",
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "started_unix": 1792678564,
+      "wall_s": 0.345087042,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "recipe::analyse(/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4)"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3_5MoeForConditionalGeneration"
+        ],
+        "templates_resolved": [
+          61,
+          61
+        ],
+        "quant": "nvfp4+fp8",
+        "notes": [
+          "config.json: architectures [\"Qwen3_5MoeForConditionalGeneration\"], family \"qwen3_5_moe\" (config.json model_type); text model settings merged from text_config",
+          "tensors: model.safetensors.index.json (124468 tensors) + 3/3 shard headers",
+          "layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)",
+          "quantisation: nvfp4+fp8",
+          "hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)",
+          "closest existing recipe: builtin:qwen3_5_moe (blocks {\"attn\", \"gdn\", \"moe\"} vs inferred {\"attn\", \"gdn\", \"moe\"}; 61/61 tensor templates resolve; covers this model)",
+          "ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (15), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)"
+        ],
+        "todos": []
+      },
+      "facts": {
+        "recipe": "builtin:qwen3_5_moe",
+        "family": "qwen3_5_moe",
+        "quant": "nvfp4+fp8",
+        "weights_gb": 20.825156824,
+        "active_gb": 2.254637784,
+        "moe": true,
+        "hybrid": true,
+        "quantized": true,
+        "n_layers": 40
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "28 ops resolved, exactness deterministic, loaded in 9.7s",
+      "started_unix": 1792678564,
+      "wall_s": 9.711062042,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-mdl-bin/head plan show --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --admit --json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Qwen3.6-35B-A3B-NVFP4",
+        "device": "Apple M5 Max",
+        "exactness": "deterministic",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 256,
+        "prefill_chunk_source": "default",
+        "scratch_bytes": 10496512,
+        "reference_only": false,
+        "layers": 40,
+        "layer_blocks": [
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_flash",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_topk",
+            "kernel": "moe_topk_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_combine",
+            "kernel": "moe_combine_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "gate_split",
+            "kernel": "gate_split_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "sigmoid_mul",
+            "kernel": "sigmoid_mul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "gdn_conv",
+            "kernel": "gdn_conv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "gdn_delta_rule",
+            "kernel": "gdn_delta_rule_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_nax",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_fp8_pair",
+            "kernel": "matmul_fp8_pair_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "matmul_nvfp4_glu",
+            "kernel": "matmul_nvfp4_glu_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "qk_norm_rope_kv",
+            "kernel": "qk_norm_rope_kv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "rmsnorm_add_matmul_pair",
+            "kernel": "rmsnorm_add_matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 69
+          },
+          {
+            "op": "gated_rmsnorm_matmul_fp8",
+            "kernel": "gated_rmsnorm_matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "rmsnorm_add_matmul_fp8_pair",
+            "kernel": "rmsnorm_add_matmul_fp8_pair_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "sigmoid_mul_matmul_fp8",
+            "kernel": "sigmoid_mul_matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "shared_down_combine",
+            "kernel": "shared_down_combine_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          }
+        ],
+        "load_s": 9.709809125
+      },
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-mdl-bin/head plan show --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --admit --json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows",
+      "started_unix": 1792678574,
+      "wall_s": 26.043564375,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-mdl-bin/head accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --quick --max-seq 2048"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.214,
+        "perplexity_line": "1.214 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+      "started_unix": 1792678600,
+      "wall_s": 0.000658708,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "--golden /Users/josef/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors does not exist",
+      "started_unix": 1792678600,
+      "wall_s": 0.00017275,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "acc-oracle",
+      "title": "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+      "section": "quick",
+      "verdict": "pass",
+      "reason": "prefill top-1 96.26% KL 1.09e-2",
+      "started_unix": 1792678600,
+      "wall_s": 77.566245791,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-mdl-bin/head accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --golden /opt/code/wt-mdl/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors --mode prefill --decode-positions 16 --max-seq 4352 --write-baseline /opt/code/wt-mdl/docs/results/raw/2026-10-22-mdl-decode-levers/qualify-head2/baselines/acc-oracle.baseline.json --gate-class bf16 --max-mean-kl 2e-2 --min-top1 0 --no-ref-noise --model-id Qwen3.6-35B-A3B-NVFP4 --write-self-golden /opt/code/wt-mdl/docs/results/raw/2026-10-22-mdl-decode-levers/qualify-head2/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors",
+          "/opt/code/wt-mdl-bin/head accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --self-golden /opt/code/wt-mdl/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allow-same-code --allow-unstamped"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [
+        "logs/acc-oracle.out",
+        "baselines/acc-oracle.baseline.json",
+        "baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors"
+      ],
+      "metrics": {
+        "golden": "/opt/code/wt-mdl/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors",
+        "golden_how": "given with --oracle-golden",
+        "golden_fingerprint": "fnv1a64:27f686cb0bbb8579 size:2853428",
+        "gate_class": "bf16",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 5505,
+            "top1_pct": 96.25794732061762,
+            "mean_kl": 0.010898542883785502,
+            "mean_kl21": 0.01007112586329509,
+            "top5_pct": 92.3088101725704,
+            "tail_ref": 0.04538240502743794,
+            "tail_ours": 0.04560019578078947,
+            "max_kl": 1.1090502898537224,
+            "max_kl21": 1.108815430796654,
+            "tail_abs": 0.003179612984008213,
+            "nonfinite": 0,
+            "greedy_match_pct": 5.2679382379654855,
+            "floor_pass": true,
+            "mean_kl_scored": 0.010865990405674635,
+            "mean_kl21_scored": 0.01001405836177541,
+            "scored_positions": 5343,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.01007112586329509,
+                  "scored_rows_kl": 0.01001405836177541
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.01007112586329509,
+                  "limit": 0.02,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.01001405836177541,
+                  "limit": 0.02,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 45.254763167
+      },
+      "facts": {
+        "oracle_baseline": "baselines/acc-oracle.baseline.json"
+      },
+      "notes": [
+        "floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows, <= 2.0e-2 (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated. The floor guards absolute accuracy; it does not see a 1 % scale bug, the drift check does",
+        "drift check: logits unchanged against the recorded dump /opt/code/wt-mdl/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors"
+      ]
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-mdl-bin/head",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-mdl-bin/head accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --golden /opt/code/wt-mdl/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors --mode prefill --decode-positions 16 --max-seq 4352 --write-baseline /opt/code/wt-mdl/docs/results/raw/2026-10-22-mdl-decode-levers/qualify-head2/baselines/acc-oracle.baseline.json --gate-class bf16 --max-mean-kl 2e-2 --min-top1 0 --no-ref-noise --model-id Qwen3.6-35B-A3B-NVFP4 --write-self-golden /opt/code/wt-mdl/docs/results/raw/2026-10-22-mdl-decode-levers/qualify-head2/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors",
+          "/opt/code/wt-mdl-bin/head accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --self-golden /opt/code/wt-mdl/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allow-same-code --allow-unstamped"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4177"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    }
+  ],
+  "hooks": []
+}

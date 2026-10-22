@@ -1,0 +1,10 @@
+Thu Oct 22 10:09:48 EDT 2026
+spd-main-1: finish=length prompt=973 (cached 0) completion=129 | prefill 1643 ms (592.4 tok/s) | decode 1040 ms (123.03 tok/s)
+spd-head-1: finish=length prompt=973 (cached 0) completion=129 | prefill 1045 ms (930.9 tok/s) | decode 1069 ms (119.74 tok/s)
+spd-main-2: finish=length prompt=973 (cached 0) completion=129 | prefill 1128 ms (862.9 tok/s) | decode 1034 ms (123.81 tok/s)
+spd-head-2: finish=length prompt=973 (cached 0) completion=129 | prefill 1117 ms (871.0 tok/s) | decode 1092 ms (117.27 tok/s)
+spd-main-3: finish=length prompt=973 (cached 0) completion=129 | prefill 1111 ms (876.1 tok/s) | decode 1032 ms (124.00 tok/s)
+spd-head-3: finish=length prompt=973 (cached 0) completion=129 | prefill 1122 ms (867.0 tok/s) | decode 1059 ms (120.87 tok/s)
+dispatches/token main: 764.00   (sum nd 53328 -> 102224)
+dispatches/token head: 455.00   (sum nd 33243 -> 62363)
+Thu Oct 22 10:10:38 EDT 2026

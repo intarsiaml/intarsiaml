@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 2.6s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 973 tokens
+finish=length prompt=973 (cached 0) completion=129 | prefill 1138 ms (854.9 tok/s) | decode 1068 ms (119.89 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330

@@ -379,8 +379,15 @@ pub const TABLE: &[(&str, Op)] = &[
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
+    // `INTARSIA_METAL_NO_FOLD=a,b`: leave the named fused decode kernels out of the registry (the model then runs the unfused
+    // chain they replace; a name matches when it contains the entry). Output is bitwise the same either way; the knob exists to
+    // A/B each fold's speed.
+    let skip: Vec<String> = std::env::var("INTARSIA_METAL_NO_FOLD")
+        .map(|v| v.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect())
+        .unwrap_or_default();
     TABLE
         .iter()
+        .filter(|&&(name, _)| !skip.iter().any(|x| name.contains(x.as_str())))
         .map(|&(name, op)| {
             let k = KernelImpl::new(op, name, "metal");
             match name {
