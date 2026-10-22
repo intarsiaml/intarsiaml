@@ -12,7 +12,7 @@ H=spark1
 W=/opt/code/wt-fx1
 git -C $W archive "$REV" | ssh $H "rm -rf fx1/src && mkdir -p fx1/src fx1/mutants && tar -x -C fx1/src"
 scp -q /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors $H:fx1/src/golden/
-ssh -n -o BatchMode=yes $H "FLEETQ_JOB=$FLEETQ_JOB bash -s" <<'EOS'
+ssh -o BatchMode=yes $H "FLEETQ_JOB=$FLEETQ_JOB bash -s" <<'EOS'
 set -u
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH CUDA_PATH=/usr/local/cuda
 cd ~/fx1/src
