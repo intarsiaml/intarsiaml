@@ -120,3 +120,34 @@ fn loader_detects_and_loads_the_real_layout() {
         }
     }
 }
+
+/// `MatmulMxfp4Pair` is exactly two `MatmulMxfp4` calls of the same x and act: bitwise, in both cpu implementations.
+#[test]
+fn pair_equals_two_matmul_mxfp4_bitwise() {
+    use intarsia_core::quant::cases::matmul_mxfp4_pair_case;
+    let b = CpuBackend::new();
+    let mut rng = intarsia_core::rng::SplitMix64::new(11);
+    for (m, n0, n1, k) in [(1usize, 64usize, 48usize, 64usize), (3, 40, 96, 96), (8, 17, 33, 64), (1, 48, 48, 5120)] {
+        for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {
+            for (xdt, odt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32), (DType::Bf16, DType::F32)] {
+                let pair = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, act, xdt, odt);
+                for (pk, sk) in [("ref_matmul_mxfp4_pair", "ref_matmul_mxfp4"), ("cpu_f32_matmul_mxfp4_pair", "cpu_f32_matmul_mxfp4")] {
+                    let got = run_host(&b, pk, &pair).unwrap();
+                    assert_eq!(got.len(), 2);
+                    let i = &pair.inputs;
+                    for (j, n) in [n0, n1].into_iter().enumerate() {
+                        let single = HostCall {
+                            op: Op::MatmulMxfp4,
+                            inputs: vec![i[0].clone(), i[1 + 2 * j].clone(), i[2 + 2 * j].clone(), i[5].clone()],
+                            outputs: vec![OutSpec::new(odt, &[m, n])],
+                            attrs: OpAttrs::default(),
+                        };
+                        let want = run_host(&b, sk, &single).unwrap().remove(0);
+                        assert_eq!(got[j].shape, want.shape);
+                        assert_eq!(got[j].data, want.data, "{pk} out{j} M={m} N={n} K={k} act={} x={xdt} out={odt}", act.name());
+                    }
+                }
+            }
+        }
+    }
+}

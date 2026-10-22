@@ -1604,7 +1604,31 @@ impl Model {
         self.exec(call.op, call.inputs, call.outputs, call.attrs, profile)
     }
 
-    /// k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair. Returns
+    /// Two MXFP4 projections of the same activation as one `Op::MatmulMxfp4Pair` launch, when the backend has the kernel.
+    /// Only for two MXFP4 weights with the same `act_quant` (the pair carries one `act` input): anything else, or no kernel,
+    /// returns `false` without running anything and the caller runs the two `proj`s.
+    pub(crate) fn try_mxfp4_pair(
+        &self,
+        x: &TensorRef,
+        a: &QTensor,
+        b: &QTensor,
+        out_a: &TensorRef,
+        out_b: &TensorRef,
+        profile: bool,
+    ) -> Result<bool> {
+        if a.format != crate::quant::MXFP4 || b.format != crate::quant::MXFP4 || a.act_quant != b.act_quant {
+            return Ok(false);
+        }
+        self.try_fused(
+            Op::MatmulMxfp4Pair,
+            vec![x.clone(), a.parts[0].clone(), a.parts[1].clone(), b.parts[0].clone(), b.parts[1].clone(), a.parts[2].clone()],
+            vec![out_a.clone(), out_b.clone()],
+            OpAttrs::default(),
+            profile,
+        )
+    }
+
+    /// k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 / mxfp4 pair. Returns
     /// whether it ran (then `k_out` and `v_out` hold both projections); `false` leaves both to `proj`.
     fn kv_pair(&self, a: &AttnBlock, n: &TensorRef, k_out: &TensorRef, v_out: &TensorRef, profile: bool) -> Result<bool> {
         match (a.wk.format, a.wv.format) {
@@ -1622,6 +1646,7 @@ impl Model {
                 OpAttrs::default(),
                 profile,
             ),
+            (crate::quant::MXFP4, crate::quant::MXFP4) => self.try_mxfp4_pair(n, &a.wk, &a.wv, k_out, v_out, profile),
             _ => Ok(false),
         }
     }
@@ -2015,8 +2040,8 @@ impl Model {
         let u = self.view(&ws.u, act, &[t, i]);
         let a = self.view(&ws.a, act, &[t, i]);
         let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
-        // gate and up read the same activation: one launch for both when the backend has the fused bf16 pair
-        let gu_fused = bf16(&f.gate)
+        // gate and up read the same activation: one launch for both when the backend has the fused bf16 / mxfp4 pair
+        let gu_fused = (bf16(&f.gate)
             && bf16(&f.up)
             && self.try_fused(
                 Op::MatmulPair,
@@ -2024,7 +2049,9 @@ impl Model {
                 vec![g.clone(), u.clone()],
                 OpAttrs::default(),
                 profile,
-            )?;
+            )?)
+            // two MXFP4 projections with the same activation mode: the fused mxfp4 pair (false for any other format)
+            || self.try_mxfp4_pair(n, &f.gate, &f.up, &g, &u, profile)?;
         if !gu_fused {
             self.proj(n, &f.gate, &g, profile)?;
             self.proj(n, &f.up, &u, profile)?;
