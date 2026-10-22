@@ -2,7 +2,7 @@
 //! `GdnConv` / `GdnDeltaRule` (gdn_conv_bf16, gdn_delta_rule_bf16): chunked prefill (T = 37 split 1 + 20 + 16, and a
 //! 1 + 70 + 29 split that crosses the conv's 32-token tile and takes its separate state dispatch) is bitwise one call,
 //! and both match the f64 reference of intarsia_core::gdn (whole sequence); a 512-token delta-rule run stays within the
-//! budget; operands sit at a 2-byte offset (the leftover-element path).
+//! budget; conv taps K in {2, 4, 8} and delta-rule dk in {64, 128}; operands sit at a 2-byte offset (the leftover-element path).
 
 mod common;
 use common::*;
@@ -96,20 +96,23 @@ fn run_conv(be: &MetalBackend, x: &[u16], w: &[u16], t: usize, c: usize, k: usiz
 #[test]
 fn conv_chunked_prefill_equals_one_call_and_the_reference() {
     let be = backend();
-    let (c, k) = (300usize, 4usize);
-    for (t, split) in [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2])] {
+    let c = 300usize;
+    // tap counts: 2 (shortest), 4 (the checkpoint's), 8 (longest registered)
+    for (t, split, k) in [2usize, 4, 8].into_iter().flat_map(|k| {
+        [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2])].into_iter().map(move |(t, s)| (t, s, k))
+    }) {
         let x = rand_bf16(t * c, 11 + t as u64);
         let w = rand_bf16(c * k, 5);
         let (y1, s1) = run_conv(&be, &x, &w, t, c, k, &[t]);
         let (yc, sc) = run_conv(&be, &x, &w, t, c, k, &split);
-        assert_eq!(y1, yc, "T={t} {split:?}: chunked y differs from one call");
-        assert_eq!(s1, sc, "T={t} {split:?}: chunked state differs from one call");
+        assert_eq!(y1, yc, "K={k} T={t} {split:?}: chunked y differs from one call");
+        assert_eq!(s1, sc, "K={k} T={t} {split:?}: chunked state differs from one call");
         let mut st = vec![0.0f64; c * (k - 1)];
         let want = gdn::conv_silu(&f64s(&x), &f64s(&w), &mut st, t, c, k);
         let err = rel_l2_bf16(&y1, &want);
-        assert!(err < 1e-3, "T={t}: y vs reference rel_l2 {err:e}");
+        assert!(err < 1e-3, "K={k} T={t}: y vs reference rel_l2 {err:e}");
         let st32: Vec<f64> = s1.iter().map(|&v| v as f64).collect();
-        assert_eq!(st32, st, "T={t}: state vs reference"); // the state holds bf16 inputs: exact
+        assert_eq!(st32, st, "K={k} T={t}: state vs reference"); // the state holds bf16 inputs: exact
     }
 }
 
@@ -172,32 +175,36 @@ fn reference_delta(i: &Delta, d: &DeltaDims) -> (Vec<f64>, Vec<f64>) {
     (o, st)
 }
 
-fn check_delta(be: &MetalBackend, t: usize, split: &[usize], o_tol: f64, st_tol: f64) {
-    let d = DeltaDims { t, hk: 2, hv: 4, dk: 128, dv: 128 };
+fn check_delta(be: &MetalBackend, dk: usize, t: usize, split: &[usize], o_tol: f64, st_tol: f64) {
+    let d = DeltaDims { t, hk: 2, hv: 4, dk, dv: 128 };
     let i = delta_inputs(t, &d, 100 + t as u64);
     let (o, st) = run_delta(be, &i, &d, split);
     if split.len() > 1 {
         let (o1, st1) = run_delta(be, &i, &d, &[t]);
-        assert_eq!(o1, o, "T={t} {split:?}: chunked o differs from one call");
-        assert_eq!(st1, st, "T={t} {split:?}: chunked state differs from one call");
+        assert_eq!(o1, o, "dk={dk} T={t} {split:?}: chunked o differs from one call");
+        assert_eq!(st1, st, "dk={dk} T={t} {split:?}: chunked state differs from one call");
     }
     let (want, want_st) = reference_delta(&i, &d);
     let e = rel_l2_bf16(&o, &want);
     let es = rel_l2(&st.iter().map(|&v| v as f64).collect::<Vec<_>>(), &want_st);
-    assert!(e < o_tol, "T={t} {split:?}: o vs reference rel_l2 {e:e}");
-    assert!(es < st_tol, "T={t} {split:?}: state vs reference rel_l2 {es:e}");
+    assert!(e < o_tol, "dk={dk} T={t} {split:?}: o vs reference rel_l2 {e:e}");
+    assert!(es < st_tol, "dk={dk} T={t} {split:?}: state vs reference rel_l2 {es:e}");
 }
 
 #[test]
 fn delta_rule_chunked_prefill_equals_one_call_and_the_reference() {
     let be = backend();
-    check_delta(&be, 37, &[1, 20, 16], 1e-3, 1e-5);
-    check_delta(&be, 1, &[1], 1e-3, 1e-5);
+    for dk in [64, 128] {
+        check_delta(&be, dk, 37, &[1, 20, 16], 1e-3, 1e-5);
+        check_delta(&be, dk, 1, &[1], 1e-3, 1e-5);
+    }
 }
 
 #[test]
 fn delta_rule_long_sequence_stays_within_the_budget() {
     let be = backend();
-    check_delta(&be, 512, &[512], 1e-3, 1e-4);
-    check_delta(&be, 512, &[1, 255, 256], 1e-3, 1e-4);
+    for dk in [64, 128] {
+        check_delta(&be, dk, 512, &[512], 1e-3, 1e-4);
+        check_delta(&be, dk, 512, &[1, 255, 256], 1e-3, 1e-4);
+    }
 }
