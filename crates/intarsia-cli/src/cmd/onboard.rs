@@ -428,7 +428,7 @@ pub fn exit_code<C>(defs: &[StageDef<C>], quick_only: bool, st: &OnbState) -> i3
     if !complete || st.stages.iter().any(|s| s.verdict == Verdict::Error) {
         return 2;
     }
-    if st.stages.iter().any(|s| s.verdict == Verdict::Fail) {
+    if st.stages.iter().any(|s| s.verdict.is_failing()) {
         return 1;
     }
     0
@@ -550,6 +550,8 @@ pub fn tier_verdict(st: &OnbState, qualify_verdict: &str, upto: Option<Tier>) ->
         "ERROR"
     } else if recs().any(|s| s.verdict == Verdict::Fail) || qualify_verdict == "FAIL" {
         "FAIL"
+    } else if recs().any(|s| s.verdict == Verdict::MissingBaseline) || qualify_verdict == "MISSING-BASELINE" {
+        "MISSING-BASELINE"
     } else if qualify_verdict == "INCOMPLETE" {
         "INCOMPLETE"
     } else {
@@ -791,7 +793,7 @@ fn run_qualify(c: &mut Ctx, st: &OnbState, quick_only: bool, stem: &str) -> Resu
     let bad: Vec<String> = q
         .stages
         .iter()
-        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::Error))
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error))
         .map(|s| format!("{} {}: {}", s.id, s.verdict.label(), first_line(&s.reason)))
         .collect();
     let detail = bad.join("; ");

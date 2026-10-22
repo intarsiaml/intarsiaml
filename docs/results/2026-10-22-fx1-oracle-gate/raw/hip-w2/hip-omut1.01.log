@@ -1,0 +1,36 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (recipe qwen3_5_moe): 162 of 5505 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors (11 prompts, 5505 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+gates: class bf16 (--gate-class); top-1 (all rows) >= 0%, 21-way KL (scored rows: outside system and user turns) <= 2.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 4096; longest prompt 4064; prompts spanning more than one chunk: 0/11
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 1354 or a golden with longer prompts
+reference noise: ignored (--no-ref-noise): the KL floor is the class floor alone
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.144e-3   2.404e-3   2.404e-3   1.496e-2   0.0337   0.0319    91.05     38/38      0
+story                 39    39    97.44   4.098e-3   4.076e-3   4.076e-3   1.906e-2   0.0209   0.0219    96.92      4/39      0
+code                  87    87   100.00   1.532e-3   1.105e-3   1.105e-3   6.962e-2   0.0116   0.0117    96.32     87/87      0
+science               79    79    96.20   5.116e-3   5.054e-3   5.054e-3   3.932e-2   0.0120   0.0116    97.47      0/79      0
+chat_short            18    18   100.00   1.308e-3   1.372e-3   3.659e-3   1.705e-2   0.0301   0.0304    95.56     18/18      0
+chat_system           32    32    93.75   4.904e-2   4.914e-2   1.087e-2   5.580e-1   0.0184   0.0210    93.12      6/32      0
+chat_multiturn        58    58    98.28   2.744e-3   2.750e-3   7.555e-3   7.603e-2   0.0181   0.0182    94.83     20/58      0
+chat_reasoning        90    90    96.67   5.715e-3   5.700e-3   2.070e-3   9.761e-2   0.0145   0.0142    94.00     25/90      0
+long_prose_300       300   300    99.00   4.651e-3   4.547e-3   4.547e-3   5.374e-1   0.0091   0.0089    90.93    26/300      0
+long_prose_700       700   700    99.43   3.126e-3   3.041e-3   3.041e-3   1.856e-1   0.0075   0.0076    90.46    12/700      0
+long_docs_4k        4064  4064    95.40   1.255e-2   1.139e-2   1.139e-2   7.158e-1   0.0577   0.0581    92.50    7/4064      0
+OVERALL                   5505    96.29   1.047e-2   9.594e-3   9.507e-3   7.158e-1   0.0454   0.0457    92.37      4.4%      0
+prefill floor [bf16]: top-1 (all rows) 96.29% (need >= 0) ok | 21-way KL (scored rows, n=5343) 9.507e-3 (need <= 2.0e-2) ok [all rows, n=5505: 9.594e-3, reported only] | tail mass (all rows) ours 0.0457 vs ref 0.0454, excess +0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 2.000e-2 | no ref noise measured for this golden => effective 2.000e-2 bound by static floor; KL 9.507e-3 PASS
+greedy-match [prefill]: mean 36.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /work/fx1out/w2/hip-omut1.01.dump.safetensors (top-64 rows of modes prefill for 11 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
