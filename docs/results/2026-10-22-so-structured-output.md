@@ -85,8 +85,8 @@ closes after 40 fruits), so **llama.cpp's grammar was probably not applied on `/
 its unconstrained speed. What the table supports: intarsia constrained decode (36.4 tok/s) is not slower per token
 than llama.cpp decoding without a grammar (35.1 tok/s), and intarsia's unconstrained greedy (37.1) is 5.7 % ahead of
 llama.cpp, in line with the fx6 standings. A valid constrained llama.cpp number needs its native `/completion`
-`json_schema` field; `scripts/llama.sh` does that (queued as fleetq #4208, see the status line at the end of this
-doc).
+`json_schema` field; `scripts/llama.sh` does that (a client mock-tested against a fake server, **not run**: fleetq #4208
+was still queued behind another lane's exclusive job at the 11:30 stop and was released unrun).
 
 ## 3. Levers
 
@@ -148,5 +148,5 @@ micro-levers stay in only because they are tested and identical in output; they 
 - fleetq jobs (owner `claude-f31ccf91-so`): #4157 cancelled unrun; #4159 build base + head, non-exclusive, done;
   #4160 exclusive, released after 2 minutes (the script word-split `uv run --script` wrongly, no data); #4189 non-exclusive
   tests (main digests recorded; head digest test failed on its placeholder, microbench input bug); #4194 released
-  unrun; **#4197 exclusive, the measurement above**; #4202 non-exclusive tests, passed; #4212 the same on the merged tree, passed; #4208 llama.cpp native check.
+  unrun; **#4197 exclusive, the measurement above**; #4202 non-exclusive tests, passed; #4212 the same on the merged tree, passed; #4208 llama.cpp native check, released unrun.
 - Downtime: none. No role was taken down.
