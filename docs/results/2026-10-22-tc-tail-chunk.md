@@ -75,11 +75,18 @@ Total 38.4 min over seven windows, none above 20 min. **The gap between A and A2
 
 ## CUDA (spark1)
 
-See the section at the end of this file if the CUDA run happened; otherwise it did not (the queue held an exclusive and a 40 GB job until about 08:48).
+Exclusive slot with vLLM up (job 4092, `scripts/cuda-decode/tc-cuda.sh`), trees `tc-base` (origin/main `62c759b7`) and `tc-dev` (this branch before the docs commits; the engine files are the PR's) built by `scripts/deploy.sh` (job 4082). The CUDA 35B recipe chunk is 2048, so `INTARSIA_PREFILL_TAIL_MERGE=1024` turns `8 x 2048 + 270` (16654 tokens) into `7 x 2048 + 2318` and `2 x 2048 + 312` (4408 tokens) into `2048 + 2360`: both merged chunks are outside the sizes whose invariance is established.
+
+| prompt tokens | base ms | off ms | on ms | on vs base |
+|---:|---|---|---|---|
+| 16654 | 3387 (3322 to 3435) | 3382 (3355 to 3402) | 3306 (3280 to 3347) | -81 ms, +2.4 % tok/s |
+| 4408 | 1032 (1023 to 1049) | 1037 (1020 to 1044) | 947 (941 to 952) | -85 ms, +9.0 % tok/s |
+
+Fresh process, `generate --max-tokens 1`, n=5, order reversed on even reps. **Not bitwise on CUDA:** the 256 greedy ids of `off` equal base at both sizes, but the `on` ids differ from base from position 6 (16654 tokens) and position 13 (4408 tokens), 250 and 243 of 256 ids differ afterwards (a divergence that early is more than a near-tie flip after a rounding-level change; the KL below says how large the logit change is). CUDA_KL_PLACEHOLDER
 
 ## fleetq jobs
 
-CPU/builds (non-exclusive): 4008, 4011, 4016, 4019 (negative control, expected exit 101), 4020 (HIP builds base and dev on tatooine), 4021, 4029, 4030, 4087 (file copies and the dev rebuild), 4028 (unit tests), 4082 (CUDA builds on spark1). GPU windows: 4022, 4031, 4054, 4072, 4085, 4091, 4098; 4097 and 4096 (read-only script check, final tests). CUDA: 4092 (see below).
+CPU/builds (non-exclusive): 4008, 4011, 4016, 4019 (negative control, expected exit 101), 4020 (HIP builds base and dev on tatooine), 4021, 4029, 4030, 4087 (file copies and the dev rebuild), 4028 (unit tests), 4082 (CUDA builds on spark1). GPU windows: 4022, 4031, 4054, 4072, 4085, 4091, 4098; 4097 and 4096 (read-only script check, final tests). CUDA: 4092 (ids and prefill), 4121 (accuracy, see the CUDA section; 4119 was my first attempt at it, cancelled because 40 GB never fit the box's free memory).
 
 ## Files
 
