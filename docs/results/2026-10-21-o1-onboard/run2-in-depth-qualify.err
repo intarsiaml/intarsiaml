@@ -1,0 +1,20 @@
+[qualify      0s] Qwen3-8B on metal, report directory /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/o1/e2e3/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] doctor: already done (PASS), not run again
+[qualify      0s] recipe: already done (PASS), not run again
+[qualify      0s] plan: already done (PASS), not run again
+[qualify      0s] kernels: already done (PASS), not run again
+[qualify      0s] gate: already done (PASS), not run again
+[qualify      0s] acc-short: already done (PASS), not run again
+[qualify      0s] bench: already done (PASS), not run again
+[qualify      0s] acc-long: already done (PASS), not run again
+[qualify      0s] acc-4k: already done (PASS), not run again
+[qualify      0s] envelope: already done (PASS), not run again
+[qualify      0s] == bench-long [long-context bench up to 16k]
+[qualify     38s] server up in 38s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify     73s] bench-long: PASS in 73.3s (decode 36.5 tok/s at 1024 tokens (90% of the byte floor))
+[qualify     73s] == ab [A/B against the reference server via localeval]
+[qualify     73s] ab: SKIP in 0.0s (no --reference server given)
+[qualify     73s] == tp [tensor-parallel variant]
+[qualify     73s] tp: SKIP in 0.0s (--tp not given (or 1))
+[qualify     73s] exit code 0

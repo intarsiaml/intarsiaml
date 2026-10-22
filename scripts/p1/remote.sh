@@ -173,6 +173,11 @@ stage_selfbase() { # the base build against its own self-golden: the floor of th
   grep -aE "SELF-STATS|self-golden verdict|rror" "$OUTD/acc/sg27-selfbase.log"
 }
 
+stage_hiptest() { # hiptest:<test file>: one HIP integration test binary, in its own cargo target vol (not the served binary's)
+  INTARSIA_TARGET_VOL=${TEST_VOL:-intarsia-cargo-target-p1test} $D cargo test --release -p intarsia-backend-hip --test "${1:-mxfp4_decode}" -- --nocapture --test-threads=1 < /dev/null 2>&1 \
+    | grep -aE "^test |test result|panicked|differs|skipping|^error" | head -20
+}
+
 for s in "$@"; do
   name=${s%%:*}; arg=${s#*:}; [ "$arg" = "$s" ] && arg=""
   echo "=== stage $s [$(ts)]"
