@@ -236,7 +236,7 @@ What each stage needs and how it decides:
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt
   (`long_prose_700`, continue and restore) is long enough to exercise it: a thin check, and none at all at a prefill
   chunk above ~350 (the long golden's gate prints SKIPPED, which fails). A **4k golden** (`<name>-4k...`, built with
-  `tools/golden.py --prompts tools/prompts/golden_4k.jsonl`, never made by `qualify`; its `chat_reuse_4k` prompt splits at
+  `tools/golden.py --prompts tools/prompts/golden_4k.jsonl`, made by `qualify` only from a `--reference` server (`tools/golden_vllm.py`), never with HF fp32; its `chat_reuse_4k` prompt splits at
   4447 tokens) takes the reuse gate over in `acc-4k`; when one is found, `acc-long` runs `--mode both` and `acc-4k` runs
   `--mode all`, which keeps a prefill chunk of 2048 (Metal) qualifiable. `acc-4k` has **no absolute top-1 floor** (no build reaches 99.5% on 4k prompts: the misses are near-ties of the fp32 reference); it gates KL (class floor), tail mass, non-finite rows, prefix reuse, and top-1 / KL against the backend's recorded baseline and noise envelope (`golden/baselines/<golden>.<backend>.baseline.json` / `.envelope.json`, recorded at the chunk the run uses), and with no matching baseline it is KL-only with a note. Without a 4k golden nothing changes. A stress run with
   `--prefill-chunk 16` on the short golden of Qwen3-8B (hip) failed the old stream-agreement criterion once

@@ -1252,8 +1252,9 @@ impl Ctx {
         })
     }
 
-    /// The ~4k-token golden, if there is one: `--golden-4k`, or `<model>-4k...` in the golden directories. Never made
-    /// here (the HF fp32 run over its 12.6k positions takes much longer than a stage).
+    /// The ~4k-token golden, if there is one: `--golden-4k`, or `<model>-4k...` in the golden directories, else made
+    /// from a `--reference` server. Never made with HF fp32 here (that run over its 12.6k positions takes much longer
+    /// than a stage).
     fn golden_4k(&mut self) -> Result<Golden> {
         let key = "golden_4k";
         if let Some(p) = self.fact_str(key) {
@@ -1267,15 +1268,61 @@ impl Ctx {
             }
             return Ok(self.have_golden(key, g, "given with --golden-4k".into()));
         }
+        let made = self.path(&format!("goldens/{}-4k.safetensors", self.name));
+        if made.exists() {
+            return Ok(self.have_golden(key, made, "made earlier in this report directory".into()));
+        }
         let dirs = default_golden_dirs(&self.a);
         if let Some(g) = facts::find_golden_4k(&self.name, &dirs) {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
+        // With a reference server the 4k golden is cheap (one request per prompt, no HF fp32 run), so make it.
+        if let Some(g) = self.make_golden_4k()? {
+            return Ok(g);
+        }
         Ok(Golden::None(format!(
-            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
+            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR, or --reference <vLLM url> to make one; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
             self.name,
             dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
         )))
+    }
+
+    /// The 4k golden from a `--reference` vLLM-style server (`tools/golden_vllm.py` on `golden_4k.jsonl`). `None` when
+    /// there is no reference URL or the tools are not reachable; a failed run is also `None` (the stage then skips
+    /// with the usual reason, and the log is in `logs/make-golden-4k`).
+    fn make_golden_4k(&mut self) -> Result<Option<Golden>> {
+        let Some(r) = self.a.reference.clone().filter(|r| r.starts_with("http://") || r.starts_with("https://")) else {
+            return Ok(None);
+        };
+        let Some(repo) = facts::repo_root() else { return Ok(None) };
+        let out = self.path(&format!("goldens/{}-4k.safetensors", self.name));
+        let mut cmd = if have_cmd("uv") {
+            let mut c = Command::new("uv");
+            c.args(["run", "--project"]).arg(repo.join("tools")).arg("python");
+            c
+        } else {
+            Command::new("python3")
+        };
+        let base = intarsia_bench::http::api_base(&r);
+        let model = self.reference_model(&base)?;
+        cmd.arg(repo.join("tools/golden_vllm.py")).args(["--base-url", &base, "--model", &model, "--out"]).arg(&out);
+        cmd.arg("--prompts").arg(repo.join("tools/prompts/golden_4k.jsonl"));
+        if let Some(d) = out.parent() {
+            std::fs::create_dir_all(d)?;
+        }
+        self.say(&format!("making the 4k golden (made from the reference server {base}, top-20 prompt_logprobs)"));
+        self.cmds.push(format!("{:?}", cmd));
+        let res = proc::run_captured(
+            cmd,
+            &self.path("logs/make-golden-4k"),
+            Duration::from_secs(self.a.stage_timeout_min * 60),
+        )?;
+        if !res.ok() || !out.exists() {
+            self.say(&format!("making the 4k golden failed ({}): {}", res.describe(), res.tail(3)));
+            return Ok(None);
+        }
+        let how = format!("made from the reference server {base} (top-20 prompt_logprobs) in {:.0}s", res.wall_s);
+        Ok(Some(self.have_golden("golden_4k", out, how)))
     }
 
     fn have_golden(&mut self, key: &str, p: PathBuf, how: String) -> Golden {
