@@ -214,6 +214,16 @@ pub struct AccuracyArgs {
     /// the engine's own traced rows.
     #[arg(long)]
     pub reuse_diag: bool,
+    /// Reuse mode, with `--reuse-diag` (lane fx5c): write the `continue` diagnostic's teacher-forced logits rows (full
+    /// vocabulary, raw little-endian f32, `rows x vocab`: `cold`, `warm`, `warm_pf`, and the engine's own `cold_engine` when
+    /// its stream equals the forced one) and the token sequence (`seq.json`) to this directory, then exit. Measurement only:
+    /// the rows are scored against a CPU oracle outside the gate.
+    #[arg(long)]
+    pub reuse_dump: Option<PathBuf>,
+    /// Reuse mode, with `--reuse-diag --reuse-dump`: teacher-force the `seq.json` of another run (possibly another backend)
+    /// instead of this engine's own reply and cold stream, so that two backends and an oracle see the same tokens.
+    #[arg(long)]
+    pub reuse_seq: Option<PathBuf>,
     /// Reuse mode: judge only these prompts (comma separated names).
     #[arg(long, value_delimiter = ',')]
     pub reuse_prompt: Vec<String>,
@@ -1631,12 +1641,87 @@ fn print_cmp(label: &str, c: &RowsCmp) {
     );
 }
 
+/// Where `--reuse-diag` writes its rows (`--reuse-dump`) and reads the sequence to force (`--reuse-seq`).
+#[derive(Default)]
+struct DiagIo<'a> {
+    dump: Option<&'a Path>,
+    seq: Option<&'a Path>,
+}
+
+fn write_rows(path: &Path, rows: &[Vec<f32>]) -> Result<()> {
+    let mut buf = Vec::with_capacity(rows.iter().map(|r| r.len() * 4).sum());
+    for r in rows {
+        for x in r {
+            buf.extend_from_slice(&x.to_le_bytes());
+        }
+    }
+    std::fs::write(path, buf).with_context(|| format!("writing {}", path.display()))
+}
+
+/// `--reuse-dump`: the rows of the teacher-forced `continue` comparison, written for offline scoring against an oracle, then
+/// the process exits (nothing else of the gate is wanted). The sequence is `turn2` followed by `stream[..m-1]`; row `j` is the
+/// distribution at position `turn2.len() - 1 + j`. `seq` replaces the engine's own reply and cold stream with another run's.
+#[allow(clippy::too_many_arguments)]
+fn reuse_dump(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize, dir: &Path, seq: Option<&Path>) -> Result<()> {
+    let ids = |v: &Value| -> Result<Vec<u32>> { v.as_array().ok_or_else(|| anyhow!("seq.json: not an array"))?.iter().map(|x| x.as_u64().map(|x| x as u32).ok_or_else(|| anyhow!("seq.json: bad id"))).collect() };
+    let forced: Option<(Vec<u32>, Vec<u32>, Vec<u32>, usize, usize)> = match seq {
+        Some(p) => {
+            let v: Value = serde_json::from_slice(&std::fs::read(p).with_context(|| format!("reading {}", p.display()))?)?;
+            let n = |k: &str| v[k].as_u64().map(|x| x as usize).ok_or_else(|| anyhow!("seq.json: no {k}"));
+            Some((ids(&v["turn2"])?, ids(&v["fed"])?, ids(&v["stream"])?, n("split")?, n("cached")?))
+        }
+        None => None,
+    };
+    let (turn2, fed, split, cached) = match &forced {
+        Some((t2, f, _, sp, c)) => (&t2[..], &f[..], *sp, *c),
+        None => (turn2, fed, turn1.len(), cached),
+    };
+    let turn1 = &turn2[..split];
+    // the engine's own cold run: its stream is the one to force unless another run's is given
+    let flush = || flush_cache(engine, turn2[0], vocab);
+    flush()?;
+    let t = Arc::new(Mutex::new(Vec::<Vec<f32>>::new()));
+    let (own, _) = gen_tokens_traced(engine, turn2.to_vec(), m, Some(t.clone()))?;
+    let own_rows = t.lock().unwrap().clone();
+    let stream: Vec<u32> = forced.as_ref().map_or_else(|| own.clone(), |f| f.2.clone());
+    let before_warm = |chunk: usize| -> Vec<ScriptStep> {
+        let mut s = prefill_steps(turn1, 0, chunk);
+        s.extend(fed.iter().map(|&t| ScriptStep { ids: vec![t], logits: true, truncate: None }));
+        s
+    };
+    let cold_s = script_rows(engine, Vec::new(), turn2, 0, chunk, &stream, m)?;
+    let warm_s = script_rows(engine, before_warm(chunk), turn2, cached, chunk, &stream, m)?;
+    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
+    prefilled.last_mut().unwrap().logits = false;
+    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?;
+    std::fs::create_dir_all(dir)?;
+    write_rows(&dir.join("cold.f32"), &cold_s)?;
+    write_rows(&dir.join("warm.f32"), &warm_s)?;
+    write_rows(&dir.join("warm_pf.f32"), &warm_pf)?;
+    let same = own == stream;
+    if same {
+        write_rows(&dir.join("cold_engine.f32"), &own_rows)?;
+    }
+    let seq_json = serde_json::json!({
+        "turn2": turn2, "fed": fed, "stream": stream, "split": split, "cached": cached, "m": m, "vocab": vocab, "chunk": chunk,
+        "row0": turn2.len() - 1, "own_cold_stream": own, "cold_engine_written": same, "forced": seq.is_some(),
+    });
+    std::fs::write(dir.join("seq.json"), serde_json::to_vec(&seq_json)?)?;
+    print_cmp("dump: warm vs cold (KL(warm||cold))", &cmp_rows(&warm_s, &cold_s));
+    print_cmp("dump: warm_pf vs cold", &cmp_rows(&warm_pf, &cold_s));
+    println!("    dump: wrote {} (rows {m}, vocab {vocab}, turn2 {}, cached {cached}, split {split}, own cold stream == forced stream: {same})", dir.display(), turn2.len());
+    std::process::exit(0);
+}
+
 /// `--reuse-diag` for one comparison. `turn1` is the first request's prompt, `fed` the tokens of its reply that went
 /// through the model (the last generated token never does), `turn2` the second request, `cached` the tokens the
 /// engine reused for it. The engine's own traced rows (generate) are compared with `forward_script` replays; all
 /// replays are teacher-forced on the cold stream so that their rows share one context.
 #[allow(clippy::too_many_arguments)]
-fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize) -> Result<()> {
+fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fed: &[u32], turn2: &[u32], cached: usize, m: usize, io: &DiagIo) -> Result<()> {
+    if let Some(dir) = io.dump {
+        return reuse_dump(engine, vocab, chunk, turn1, fed, turn2, cached, m, dir, io.seq);
+    }
     let flush = || flush_cache(engine, turn2[0], vocab);
     let tr = || Arc::new(Mutex::new(Vec::<Vec<f32>>::new()));
     let take = |t: &Arc<Mutex<Vec<Vec<f32>>>>| t.lock().unwrap().clone();
@@ -2024,7 +2109,7 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 if args.reuse_diag {
                     println!("{name} continue split {split} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
                     let fed = &reply_toks[..reply_toks.len().saturating_sub(1)];
-                    reuse_diag(engine, vocab, chunk, &p.ids[..split], fed, &turn2, cached, m)?;
+                    reuse_diag(engine, vocab, chunk, &p.ids[..split], fed, &turn2, cached, m, &DiagIo { dump: args.reuse_dump.as_deref(), seq: args.reuse_seq.as_deref() })?;
                 }
                 Ok(ReuseRow { prompt: name.clone(), case: "continue", split, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
@@ -2107,12 +2192,12 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 } else {
                     v.note.clone()
                 };
-                if args.reuse_diag && case == "restore" {
+                if args.reuse_diag && case == "restore" && args.reuse_dump.is_none() {
                     println!("{name} restore split {s} turn2 {} cached {cached} agree {}/{m}", turn2.len(), v.agree);
                     // turn 1 generated 4 tokens; the first 3 went through the model (the 4th was never fed)
                     flush_cache(engine, p.ids[0], vocab)?;
                     let (t1, _) = gen_tokens(engine, turn1.clone(), 4)?;
-                    reuse_diag(engine, vocab, chunk, &turn1, &t1[..t1.len().saturating_sub(1)], &turn2, cached, m)?;
+                    reuse_diag(engine, vocab, chunk, &turn1, &t1[..t1.len().saturating_sub(1)], &turn2, cached, m, &DiagIo::default())?;
                 }
                 Ok(ReuseRow { prompt: name.clone(), case, split: s, turn2: turn2.len(), cached, cold_cached, agree: v.agree, of: m, ok, note })
             };
