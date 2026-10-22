@@ -4,8 +4,8 @@
 //!   cargo run --release -p intarsia-backend-metal --example quant_bw
 //!
 //! Env: `QBW_OFF` byte offset of the weights (default 8, like the checkpoint tensors), `QBW_IS` input scale (0: W8A16),
-//! `QBW_ONLY` comma list of name substrings, `QBW_PROF=<n>` runs <n> launches per shape and prints `CELL` lines, to be read
-//! next to an `INTARSIA_METAL_PROFILE=kernel:<file>` trace (each launch timed on the GPU as its own command buffer).
+//! `QBW_ONLY` comma list of name substrings. The activations are random bits (huge / NaN bf16 values), not real
+//! activations: use `QBW_IS=0` (W8A16) to time the weight streaming alone.
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --mem 8 ...`).
 
@@ -25,10 +25,7 @@ fn main() {
 
     let be = MetalBackend::new().expect("metal backend");
     println!("device: {}", be.device().name());
-    // QBW_PROF=<n>: run <n> launches per cell and print only the cell labels (use with INTARSIA_METAL_PROFILE=kernel:<file>,
-    // which times each launch on the GPU as its own command buffer, like a decode profile)
-    let prof: usize = std::env::var("QBW_PROF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
-    for mb in if prof > 0 { vec![] } else { vec![8usize, 16, 64, 512] } {
+    for mb in [8usize, 16, 64, 512] {
         let g = intarsia_backend_metal::bench::measure_copy_gbs(&be, mb << 20, 5, 30).unwrap();
         println!("copy ceiling, one dispatch of {mb} MB: {g:.0} GB/s (read + write)");
     }
@@ -93,14 +90,6 @@ fn main() {
             be.synchronize(0).unwrap();
         };
         let bytes = wbytes + if op == Op::MatmulNvfp4 { n * k / 16 } else { 0 };
-        if prof > 0 {
-            for r in 0..prof {
-                be.launch(kernel, &calls[r % pool], 0).unwrap();
-                be.synchronize(0).unwrap();
-            }
-            println!("CELL {what}|{kernel}|{n}|{k}|{m}|{prof}|{bytes}");
-            continue;
-        }
         run(pool.min(20));
         // min over trials of the per-call time of a synced batch (the box is shared: a trial may be disturbed)
         let reps = pool.clamp(20, 200);

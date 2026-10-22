@@ -40,6 +40,12 @@ impl Label {
                 (l.n, l.k, l.bytes) = (w.shape[0], w.shape[1], weight_bytes(w));
             }
         }
+        if call.op == Op::MatmulNvfp4 {
+            // NVFP4: two codes per byte, so K is twice the stored row, and the block scales are streamed too
+            if let [_, w, bs, _] = call.inputs.as_slice() {
+                (l.k, l.bytes) = (w.shape.get(1).map_or(0, |k| 2 * k), weight_bytes(w) + weight_bytes(bs));
+            }
+        }
         if call.op == Op::MatmulPair {
             // both weight matrices: n is the sum of their rows
             if let [_, w0, w1] = call.inputs.as_slice() {

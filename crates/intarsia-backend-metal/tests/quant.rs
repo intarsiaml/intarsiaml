@@ -270,7 +270,7 @@ fn weights_not_8_byte_aligned_are_refused() {
 
 /// The W8A8 activation quantiser is `f32_to_fp8_e4m3(x / is)` bit for bit, for every bf16 pattern (NaN, inf, subnormals, every
 /// tie of the e4m3 grid at is = 1). x is `[4096, 16]`, W the 16 x 16 identity (e4m3 1.0), so `out[m][j]` = decode(q(x[m][j])) * is
-/// unless the row holds a NaN code, which poisons the whole row (NaN * 0). Run through the GEMM and the 8-row GEMV.
+/// unless the row holds a NaN code, which poisons the whole row (NaN * 0). Run through the GEMM, the 8-row GEMV and the 1-row split-K GEMV.
 #[test]
 fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
     let be = backend();
@@ -293,10 +293,10 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
             })
             .collect();
         let (xb, wb, sb) = (upload_bytes(&be, 0, &bf16_bytes(&x)), upload_bytes(&be, 8, &w), upload_bytes(&be, 0, &f32_bytes(&[1.0, is])));
-        for kernel in ["matmul_fp8_mma", "matmul_fp8_gemv"] {
+        // the GEMM, the 8-row GEMV (staged q(x)) and the 1-row split-K GEMV (each thread quantises its own activations)
+        for (kernel, step) in [("matmul_fp8_mma", rows), ("matmul_fp8_gemv", 8), ("matmul_fp8_gemv", 1)] {
             let yb = be.alloc(rows * k * 4 + 16, MemKind::Device).unwrap();
             be.upload(&yb, 0, &vec![0xEEu8; rows * k * 4 + 16], 0).unwrap();
-            let step = if kernel == "matmul_fp8_gemv" { 8 } else { rows };
             for r0 in (0..rows).step_by(step) {
                 let mut cl = OpCall::new(
                     Op::MatmulFp8,
@@ -317,8 +317,8 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
                 .map(|(i, (g, w))| (i, x[i], *g, *w))
                 .take(5)
                 .collect::<Vec<_>>();
-            assert!(bad.is_empty(), "{kernel} is={is}: quantiser differs (element, bf16 bits, gpu, want): {bad:?}");
-            eprintln!("{kernel} is={is}: {} elements bit-exact", rows * k);
+            assert!(bad.is_empty(), "{kernel} M={step} is={is}: quantiser differs (element, bf16 bits, gpu, want): {bad:?}");
+            eprintln!("{kernel} M={step} is={is}: {} elements bit-exact", rows * k);
         }
     }
     let _ = f32_to_bf16;
