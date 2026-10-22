@@ -18,5 +18,5 @@ test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
 test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... ok
 test cuda_bf16_matches_cpu_bf16_and_hf ... ok
 
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
 

@@ -186,8 +186,9 @@ when the dir is an HF cache snapshot, else the dir name).
     judge. `qualify` therefore runs the gate as its own `accuracy --mode reuse --prefill-chunk min(plan chunk, 1024)
     --reuse-require-all` (`acc-long-reuse`, or `acc-4k-reuse` where the 4k golden hosts the gate) and merges it into the
     stage: with `--reuse-require-all` any skipped prompt FAILS the gate, and the stage's metrics carry `reuse.judged`,
-    `reuse.skipped` and the chunk used. A golden that mixes short prompts (under one chunk) with long ones therefore needs
-    the short ones left out of the reuse host golden; the 35B long golden holds only 4k and 12k prompts.
+    `reuse.skipped` and the chunk used. `qualify` passes `--reuse-require-all` only when every prompt of the golden is
+    longer than the chunk + 2 (read from the golden's `prompts` metadata; the 35B long golden holds only 4k and 12k prompts);
+    a golden that mixes short prompts with long ones (the standard `golden_long`) keeps its skips as a reported count.
   * **`--reuse-measure`** prints, for every *continue* and unaligned *restore* case, `REUSE-MEASURE <prompt> <case> split S
     shared_rows N nu_max X kl_max Y [diverged_at D]`: the largest top-5 log-probability difference (nats) and KL(cold ||
     warm) over the rows that share a context, whether or not the streams diverged. Those are the two quantities
