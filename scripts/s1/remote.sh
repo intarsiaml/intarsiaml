@@ -50,6 +50,11 @@ if want tests; then
     eval "env $CT $t -- --test-threads=1" < /dev/null > "$d/test-${t//[ -]/}.log" 2>&1
     log "test $t exit $?: $(grep -E 'test result|panicked' "$d/test-${t//[ -]/}.log" | head -3 | tr '\n' '|')"
   done
+  # every gemm_reg schedule must be bitwise matmul_fp8_gemm (and the pair two gemm_reg calls) under that schedule
+  for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
+    eval "env INTARSIA_CUDA_FP8_REG_CFG=$c $CT --test fp8_gemm_reg -- --test-threads=1" < /dev/null > "$d/test-fp8reg-cfg$c.log" 2>&1
+    log "test fp8_gemm_reg cfg $c exit $?: $(grep -E 'test result|panicked' "$d/test-fp8reg-cfg$c.log" | head -3 | tr '\n' '|')"
+  done
 fi
 
 if want bench; then
