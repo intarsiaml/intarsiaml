@@ -167,6 +167,12 @@ stage_selfcheck() { # selfcheck:<tag>: new build (with env KNOB) vs the base sel
   grep -aE "SELF-STATS|self-golden verdict" "$OUTD/acc/sg27-check-$1.log"
 }
 
+stage_selfbase() { # the base build against its own self-golden: the floor of the self-golden comparison itself
+  INTARSIA_TARGET_VOL=$BASEVOL $D $B accuracy --backend hip --model $M --mem-budget 30 --mode both \
+    --self-golden /work/bench-out/acc/sg27-base.safetensors --allow-unstamped --allow-same-code < /dev/null > "$OUTD/acc/sg27-selfbase.log" 2>&1
+  grep -aE "SELF-STATS|self-golden verdict|rror" "$OUTD/acc/sg27-selfbase.log"
+}
+
 for s in "$@"; do
   name=${s%%:*}; arg=${s#*:}; [ "$arg" = "$s" ] && arg=""
   echo "=== stage $s [$(ts)]"
