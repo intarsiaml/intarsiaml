@@ -39,9 +39,9 @@ for chars in 20000 54000; do for t in main br; do
   grep -a '^ids:' out/gen-$chars-$t.err > out/gen-$chars-$t.ids
   echo "gen $chars $t: $(grep -aE 'finish=' out/gen-$chars-$t.err | head -1 | cut -c1-90) ids md5 $(md5sum < out/gen-$chars-$t.ids | cut -c1-8) $(grep -a 'prefill chunk' out/gen-$chars-$t.err | head -1)"
 done; cmp -s out/gen-$chars-main.ids out/gen-$chars-br.ids && echo "  $chars: ids identical" || echo "  $chars: ids DIFFER"; done
-for g in qwen3-8b-fp32:short qwen3-8b-4k-fp32-top20:4k; do f=${g%%:*}; n=${g##*:}
-  ./bin-br accuracy --backend cuda --model $M8 --golden golden/$f.safetensors --mode all --max-seq 8192 --mem-budget 26 --gate-class bf16 --allow-unstamped --allow-dirty < /dev/null > out/acc-$n-br.log 2>&1
-  echo "accuracy $n branch exit $?: $(grep -a -E 'golden gate|chunk' out/acc-$n-br.log | head -3 | tr '\n' ' ')"
-done
+for g in qwen3-8b-fp32:short qwen3-8b-4k-fp32-top20:4k; do f=${g%%:*}; n=${g##*:}; for t in main br; do
+  ./bin-$t accuracy --backend cuda --model $M8 --golden golden/$f.safetensors --mode all --max-seq 8192 --mem-budget 26 --gate-class bf16 --allow-unstamped --allow-dirty < /dev/null > out/acc-$n-$t.log 2>&1
+  echo "accuracy $n $t exit $?: $(grep -a -E '^golden gate|^floor verdict|prefill chunk [0-9]+ \(' out/acc-$n-$t.log | tr '\n' ' ' | cut -c1-200)"
+done; done
 EOS
 rsync -a $H:ck9/out/ "$OUT/"
