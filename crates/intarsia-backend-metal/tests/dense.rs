@@ -413,30 +413,3 @@ fn add_bias_matches_reference_in_place_and_at_odd_offsets() {
         assert_eq!(read_u16(&be, &out, out_off, x.len()), want, "offsets {xo} {bo} {oo} in_place {in_place}");
     }
 }
-
-/// `AddBias` on an f32 input (the f32 output of a projection): `bf16(x + bias)`, one rounding, bit-exact against the host.
-#[test]
-fn add_bias_f32_input_rounds_once() {
-    let be = backend();
-    let (rows, cols) = (5usize, 301usize);
-    let xs: Vec<f32> = rand_bf16(rows * cols, 33).iter().map(|v| bf16_to_f32(*v) * 1.0009765).collect();
-    let bias = rand_bf16(cols, 34);
-    let want: Vec<u16> = xs.iter().enumerate().map(|(i, v)| f32_to_bf16(v + bf16_to_f32(bias[i % cols]))).collect();
-    // the pair that rounding the projection first would get wrong must exist in the data
-    let twice: Vec<u16> = xs.iter().enumerate().map(|(i, v)| f32_to_bf16(bf16_to_f32(f32_to_bf16(*v)) + bf16_to_f32(bias[i % cols]))).collect();
-    assert_ne!(want, twice, "the data does not separate one rounding from two");
-    for (bo, oo) in [(0usize, 0usize), (2, 2), (0, 2)] {
-        let xb = be.alloc(xs.len() * 4, MemKind::Device).unwrap();
-        be.upload(&xb, 0, &xs.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>(), 0).unwrap();
-        let bb = upload_at(&be, bo, &bias);
-        let out = be.alloc(oo + xs.len() * 2 + 16, MemKind::Device).unwrap();
-        let call = OpCall::new(
-            Op::AddBias,
-            vec![t(&xb, 0, DType::F32, &[rows, cols]), t(&bb, bo, DType::Bf16, &[cols])],
-            vec![t(&out, oo, DType::Bf16, &[rows, cols])],
-            OpAttrs::default(),
-        );
-        be.launch("add_bias_f32_bf16", &call, 0).unwrap();
-        assert_eq!(read_u16(&be, &out, oo, xs.len()), want, "offsets bias {bo} out {oo}");
-    }
-}

@@ -233,18 +233,6 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                 attrs: attrs(),
                             },
                         );
-                        // the f32 output of a projection, rounded once into the activation dtype
-                        if dt != DType::F32 {
-                            push(
-                                format!("R={r} N={h} f32 -> {dt}"),
-                                HostCall {
-                                    op,
-                                    inputs: vec![rand_t(&mut rng, DType::F32, &[r, h], 1.0), rand_t(&mut rng, dt, &[h], 1.0)],
-                                    outputs: vec![OutSpec::new(dt, &[r, h])],
-                                    attrs: attrs(),
-                                },
-                            );
-                        }
                     }
                 }
             }

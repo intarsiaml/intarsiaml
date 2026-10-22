@@ -217,21 +217,6 @@ fn add_bias_broadcasts_over_rows() {
 }
 
 #[test]
-fn add_bias_f32_input_rounds_once_into_the_output_dtype() {
-    // bf16 steps by 2^-7 at 1.0. x = 1.0035 alone rounds to 1.0, and 1.0 + 2^-8 is a tie that rounds back to 1.0 (round the
-    // projection first, then add: 1.0). Adding in f32 first gives 1.0074, which rounds to 1.0078125 (one rounding).
-    let hc = call(
-        Op::AddBias,
-        vec![HostTensor::from_f32(&[1, 2], &[1.0035, 3.0]), HostTensor::from_f32_as(DType::Bf16, &[2], &[2f32.powi(-8), 0.5])],
-        vec![OutSpec::new(DType::Bf16, &[1, 2])],
-        OpAttrs::default(),
-    );
-    for r in both(&hc) {
-        assert_eq!(r[0].to_f32(), vec![1.0078125, 3.5]);
-    }
-}
-
-#[test]
 fn matmul_is_x_times_w_transposed() {
     let x = [1.0f32, 2.0, 3.0, 0.5, -1.0, 2.0];
     let w = [1.0f32, 0.0, 1.0, 2.0, 1.0, -1.0, 0.5, 0.5, 0.5, 0.0, 0.0, 1.0];

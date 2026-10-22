@@ -127,3 +127,7 @@ Kernel registry grows (39 -> 42 kernels, `rope_scaled`, `add_bias` x2); everythi
 
 ### Still open
 Top-1 floor policy; an f32-input `add_bias` kernel for CUDA/HIP and the HIP compile check; a NAX/f32-out GEMM for the biased prefill projections.
+
+## Round 3 (user decision, 2026-10-22 07:58 EDT: "go with your recommendation for #77")
+- **Bias goes back to double rounding.** Commit 761ad319 is reverted (matmul, then in-place bf16 `AddBias`); the f32-input `AddBias` variant and its Metal kernel `add_bias_f32_bf16` are dropped because nothing else used them. Kept from that commit: `RopeScaled` in `PER_ROW_OPS` (`plan.rs`) and the batched-decode test. The Round 2 table above stays as the measurement behind the decision; the CUDA note in Round 2 about a missing f32-input `add_bias` no longer applies (the side branch's `add_bias` is again the one the model emits).
+- **Top-1 floor.** Recipe `[accuracy] min_top1` (Llama-3.1-8B-Instruct 98.72, Qwen2.5-7B-Instruct 98.24 = HF transformers bf16 vs fp32 top-1 on the same rows, minus 0.5 points) is approved by the user as written.

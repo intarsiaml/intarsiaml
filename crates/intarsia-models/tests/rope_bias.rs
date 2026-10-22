@@ -13,8 +13,7 @@ use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::rope::RopeScaling;
 use intarsia_core::weights::MemWeights;
-use intarsia_core::plan::Phase;
-use intarsia_core::{DType, HostTensor, Op, Telemetry};
+use intarsia_core::{DType, HostTensor, Telemetry};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -337,33 +336,6 @@ fn a_checkpoint_bias_the_recipe_does_not_map_is_a_load_error() {
     );
     let e = r.err().expect("must refuse").to_string();
     assert!(e.contains("q_proj.bias") && e.contains("recipe maps no bias"), "{e}");
-}
-
-fn is_bf16_model(m: &Model, phase: Phase, t: usize) -> bool {
-    let rec = m.dry_run(phase, t, 5).unwrap();
-    rec.calls.iter().any(|c| c.call.op == Op::AddBias && c.call.inputs[0].dtype == DType::F32 && c.call.outputs[0].dtype == DType::Bf16)
-}
-
-#[test]
-fn bf16_biased_projections_round_once_through_the_f32_output() {
-    // bf16 weights: q / k / v run as Logits (f32 out) + AddBias(f32 -> bf16), not matmul + in-place AddBias
-    let v = Variant { bias: true, qk_norm: false, rope: llama3_small() };
-    let w = weights_for(&v, DType::Bf16, 31);
-    let m = load_for(&v, &w, DType::F32);
-    for (phase, t) in [(Phase::Decode, 1), (Phase::Prefill, 9)] {
-        assert!(is_bf16_model(&m, phase, t), "{phase:?}");
-        let rec = m.dry_run(phase, t, 5).unwrap();
-        let biased = |op: Op| rec.calls.iter().filter(|c| c.call.op == op).count();
-        assert_eq!(biased(Op::AddBias), 3 * LAYERS, "{phase:?}");
-        assert_eq!(biased(Op::RopeScaled), 2 * LAYERS, "{phase:?}");
-        assert_eq!(biased(Op::Rope), 0);
-        assert_eq!(biased(Op::MatmulPair), LAYERS, "only the FFN gate / up pair: a biased k / v never takes the pair kernel");
-    }
-    let input = ids(16);
-    let got = all_logits(&m, &input);
-    let want = naive(&v, &w, &input);
-    let e = rel_l2(&got, &want);
-    assert!(e < 2e-2, "rel_l2 {e} (bf16 activations throughout)");
 }
 
 #[test]

@@ -280,27 +280,6 @@ impl MetalBackend {
                 dim(total, "T*N*D")?;
                 self.dispatch(kernel, &[&x, &out, pos.as_ref().unwrap_or(&x)], &p, Grid::Threads(total))
             }
-            ADD_BIAS_F32_BF16 => {
-                let (rows, cols) = (i[0].shape[0], i[0].shape[1]);
-                let n = rows * cols;
-                if n == 0 {
-                    return Ok(());
-                }
-                let (x, bias, out) = (
-                    self.bind(&i[0], DType::F32, false, "x")?,
-                    self.bind(&i[1], bf, false, "bias")?,
-                    self.bind(&o[0], bf, true, "out")?,
-                );
-                if x.skip != 0 {
-                    return Err(Error::invalid("metal add_bias x: f32 tensors must be 4-byte aligned".to_string()));
-                }
-                let p = OpP {
-                    dims: [dim(n, "elements")?, dim(cols, "N")?, 0, 0, 0, 0, 0, 0],
-                    skips: [0, bias.skip, out.skip, 0, 0],
-                    ..Default::default()
-                };
-                self.dispatch(kernel, &[&x, &bias, &out], &p, Grid::Threads(n))
-            }
             ROPE_SCALED_BF16 => {
                 let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
                 let total = t * n * d;
