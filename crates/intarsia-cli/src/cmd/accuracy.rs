@@ -3138,12 +3138,12 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
 // quick gate
 // ---------------------------------------------------------------------------
 
-/// Greedy sanity prompts (ARCHITECTURE section 6.2: five, one answering a known fact). The second field,
+/// Greedy sanity prompts (ARCHITECTURE section 6.2: five, three answering a known fact). The second field,
 /// when set, must appear in the (case-insensitive) output.
 const SANITY_PROMPTS: [(&str, Option<&str>); 5] = [
     ("1, 2, 3, 4, 5, 6, 7, 8, 9, 10,", None),
     ("Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who", None),
-    ("The three primary colors are red, yellow, and", None),
+    ("The three primary colors are red, yellow, and", Some("blue")),
     ("The capital of France is", Some("paris")),
     ("Water is a molecule made of two hydrogen atoms and one", Some("oxygen")),
 ];
@@ -3722,6 +3722,15 @@ mod tests {
         }
         use clap::Parser;
         Cli::parse_from(["x", "--model", "/nonexistent"].into_iter().chain(extra.iter().copied())).a
+    }
+
+    #[test]
+    fn the_primary_colors_sanity_prompt_is_a_fact_prompt() {
+        // a fact prompt must name "blue" in its first 16 tokens and is exempt from the repeat limit: a correct answer that
+        // goes on to list the colour mixes ("If you mix red and yellow ...") legitimately repeats a 4-gram
+        let e = SANITY_PROMPTS.iter().find(|(p, _)| p.starts_with("The three primary colors")).map(|(_, e)| *e);
+        assert_eq!(e, Some(Some("blue")));
+        assert_eq!(SANITY_PROMPTS.iter().filter(|(_, e)| e.is_some()).count(), 3);
     }
 
     #[test]
