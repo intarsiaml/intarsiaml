@@ -832,3 +832,31 @@ matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    9.470e-4    4.589e
 [burst] stages done 2026-10-21 20:15:21 (timeout/cap exit 0)
 [burst] starting radiance 2026-10-21 20:15:21
 [burst] radiance answers 2026-10-21 20:15:31 (after 15 s)
+[burst] job 3344; stages: ids27:merged kop:matmul_mxfp4_pair kop:matmul_mxfp4 idsab; stopping radiance 2026-10-21 20:25:11
+[burst] radiance stopped 2026-10-21 20:25:14
+=== stage ids27:merged [20:25:14]
+27-merged-short: 2086b6a4 finish=length prompt=12 (cached 0) completion=256 | prefill 196 ms (61.3 tok/s) | decode 7812 ms (32.64 tok/s)
+27-merged-4k: ef88d237 finish=length prompt=4408 (cached 0) completion=256 | prefill 4557 ms (967.3 tok/s) | decode 7993 ms (31.90 tok/s)
+=== stage kop:matmul_mxfp4_pair [20:25:39]
+matmul_mxfp4_pair matmul_mxfp4_pair_gemv         82      0    8.929e-4    1.141e-5  ADMITTED
+1 kernels, 82 cases in 2.0s
+=== stage kop:matmul_mxfp4 [20:25:41]
+matmul_mxfp4   matmul_mxfp4_gemv              32      0    2.075e-3    8.968e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               53      0    2.762e-3    4.098e-5  ADMITTED
+2 kernels, 85 cases in 1.4s
+=== stage idsab [20:25:43]
+35-base-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 57 ms (210.6 tok/s) | decode 1597 ms (159.63 tok/s)
+35-base-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 517 ms (8533.6 tok/s) | decode 1641 ms (155.39 tok/s)
+8-base-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 72 ms (167.1 tok/s) | decode 6577 ms (38.77 tok/s)
+8-base-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1084 ms (3965.9 tok/s) | decode 6895 ms (36.98 tok/s)
+35-new-short: 7f8d5c3b finish=length prompt=12 (cached 0) completion=256 | prefill 53 ms (227.5 tok/s) | decode 1593 ms (160.10 tok/s)
+35-new-4k: 1c4f85d0 finish=length prompt=4408 (cached 0) completion=256 | prefill 521 ms (8466.8 tok/s) | decode 1643 ms (155.16 tok/s)
+8-new-short: e61a780f finish=length prompt=12 (cached 0) completion=256 | prefill 72 ms (165.6 tok/s) | decode 6575 ms (38.79 tok/s)
+8-new-4k: dab59cc8 finish=length prompt=4301 (cached 0) completion=256 | prefill 1102 ms (3901.8 tok/s) | decode 6895 ms (36.98 tok/s)
+IDS SAME 35-short
+IDS SAME 35-4k
+IDS SAME 8-short
+IDS SAME 8-4k
+[burst] stages done 2026-10-21 20:26:41 (timeout/cap exit 0)
+[burst] starting radiance 2026-10-21 20:26:41
+[burst] radiance answers 2026-10-21 20:26:51 (after 15 s)
