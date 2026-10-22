@@ -114,7 +114,7 @@ micro-levers stay in only because they are tested and identical in output; they 
   **0 differ, 0 errors** (`raw/run/identity-base-r1.json` against `identity-head-r1.json`).
 - **Tests.** `cargo test --release -p intarsia-server -p intarsia-core -- structured constrain`: 13 passed (server) and
   2 passed (core). `cargo test --release --workspace --no-fail-fast`: exit 0 (non-exclusive CPU slot #4202,
-  `raw/test2/`).
+  `raw/test2/`), and again on the tree merged with `origin/main` `b85dd52f` (#4212, `raw/test3/`): 13 + 2 passed, workspace exit 0.
 - Unconstrained requests take the same path as main: the timers sit inside the constrained branch of
   `Seq::token_from` and the `ConstraintRun` methods, which an unconstrained request never reaches.
 
@@ -141,5 +141,5 @@ micro-levers stay in only because they are tested and identical in output; they 
 - fleetq jobs (owner `claude-f31ccf91-so`): #4157 cancelled unrun; #4159 build base + head, non-exclusive, done;
   #4160 exclusive, released after 2 minutes (the script word-split `uv run --script` wrongly, no data); #4189 non-exclusive
   tests (main digests recorded; head digest test failed on its placeholder, microbench input bug); #4194 released
-  unrun; **#4197 exclusive, the measurement above**; #4202 non-exclusive tests, passed; #4208 llama.cpp native check.
+  unrun; **#4197 exclusive, the measurement above**; #4202 non-exclusive tests, passed; #4212 the same on the merged tree, passed; #4208 llama.cpp native check.
 - Downtime: none. No role was taken down.
