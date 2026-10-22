@@ -1,6 +1,0 @@
-
-== mode: prefill ==
-prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
-long_docs_4k        4064  4064    93.63   1.978e-2   1.779e-2   1.779e-2    1.871e0   0.0944   0.0964    90.75    0/4064      0
-long_code_4k        4064  4064    97.29   8.261e-3   7.569e-3   7.569e-3   3.982e-1   0.0370   0.0379    91.67   20/4064      0
-chat_reuse_4k       4631  4631    87.39   2.264e-1   2.608e-1   5.916e-3    1.930e1   0.0688   0.0863    87.51    7/4631      0

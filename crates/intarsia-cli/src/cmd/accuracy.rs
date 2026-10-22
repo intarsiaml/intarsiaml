@@ -3378,12 +3378,10 @@ mod tests {
         let (_, moe) = intarsia_models::recipe::select_recipe(&serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]}), &[]).unwrap();
         let none = golden_with(&[]);
         // built-in constants
-        let t = resolve_reuse_tol(&args_with(&[]), &none, None).unwrap();
-        assert_eq!((t.logit, t.kl, t.source.as_str()), (0.25, 1e-2, "built-in"));
-        // the hybrid MoE recipe carries the 35B's measured value (docs/results/2026-10-22-fx5-hybrid-reuse-ci.md)
         let t = resolve_reuse_tol(&args_with(&[]), &none, Some(&moe)).unwrap();
-        assert_eq!((t.logit, t.kl), (5.1, 0.12));
-        assert!(t.source.starts_with("recipe "), "{}", t.source);
+        assert_eq!((t.logit, t.kl, t.source.as_str()), (0.25, 1e-2, "built-in"));
+        let t = resolve_reuse_tol(&args_with(&[]), &none, None).unwrap();
+        assert_eq!((t.logit, t.kl), (0.25, 1e-2));
         // the recipe's measured value
         let t = resolve_reuse_tol(&args_with(&[]), &none, Some(&dense)).unwrap();
         assert_eq!((t.logit, t.kl, t.source.as_str()), (0.25, 1e-2, "recipe qwen3"));

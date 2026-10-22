@@ -1,3 +1,0 @@
-warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 0.11s
--rwxrwxr-x 2 nvidia nvidia 52764312 Oct 22 03:49 /home/nvidia/intarsia-decfuse/fx5/target/acc/release/intarsia
