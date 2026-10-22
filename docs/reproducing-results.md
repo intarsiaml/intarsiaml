@@ -170,9 +170,7 @@ Opt-in for now; deploy.sh does not use it because CUDA and HIP were not verified
 | `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
 | `CARGO_INCREMENTAL=0` | No incremental cache in the result. |
 
-Source change: `golden/` fallback in `intarsia accuracy` is found relative to the executable (`<checkout>/target/release/`),
-not from `env!("CARGO_MANIFEST_DIR")`. Nothing else in the workspace embeds a build-time path, clock or hostname
-(`build.rs` of the metal, cuda and hip crates write only to `OUT_DIR` and print `cargo:` lines).
+Source change: golden files are looked up in `$INTARSIA_GOLDEN_DIR`, then `./golden`, then `golden/` of the checkout the executable sits in (found from its location, so it fails when the target dir is outside the checkout or the binary is copied: set the env var). The "no golden found" error lists every path tried. Nothing else in the workspace embeds a build-time path, clock or hostname (`build.rs` of the metal, cuda and hip crates write only to `OUT_DIR` and print `cargo:` lines).
 
 Check it: `scripts/repro-check.sh [--ref R] [--features F]` exports the ref twice into different directories, builds both
 and compares sha256 (CPU-only by default; CI job `repro` runs it on ubuntu-latest). Results of the lane that introduced
