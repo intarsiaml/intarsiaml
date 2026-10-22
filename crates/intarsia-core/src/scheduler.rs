@@ -100,6 +100,11 @@ pub trait BatchModel {
     fn avoid_single_row_prefill(&self) -> bool {
         false
     }
+    /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
+    /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
+    fn tail_merge(&self) -> usize {
+        0
+    }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
 }
@@ -251,15 +256,62 @@ pub fn next_prefill_chunk(remaining: usize, chunk: usize, avoid_one_row: bool) -
     }
 }
 
+/// Env knob: `INTARSIA_PREFILL_TAIL_MERGE=<rows>` (unset / empty / `0`: off, the default).
+pub const TAIL_MERGE_ENV: &str = "INTARSIA_PREFILL_TAIL_MERGE";
+
+/// Parse [`TAIL_MERGE_ENV`]: `None`, empty and `0` are off (0); a positive integer is the tail threshold in rows.
+pub fn parse_tail_merge(v: Option<&str>) -> Result<usize> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(0),
+        Some(s) => s
+            .parse::<usize>()
+            .map_err(|_| Error::invalid(format!("{TAIL_MERGE_ENV}={s} (a row count, 0 = off)"))),
+    }
+}
+
+/// The tail threshold the workspace and the chunk plan actually use: `tail_merge` clamped to `chunk` (a larger value
+/// would more than double the activation workspace; the memory plan sizes it as `chunk + merge` rows).
+pub fn effective_tail_merge(tail_merge: usize, chunk: usize) -> usize {
+    tail_merge.min(chunk)
+}
+
+/// [`next_prefill_chunk`] with the opt-in tail merge (`tail_merge` rows, 0 = off = exactly [`next_prefill_chunk`]).
+///
+/// With `tail_merge > 0`, when more than `chunk` tokens remain but at most `chunk + tail_merge` do, the whole
+/// remainder runs as ONE chunk of up to `chunk + tail_merge` rows instead of `chunk` and a short tail (a short tail
+/// pays a full pass over the weights, MoE experts included, for few rows). The caller must have sized the activation
+/// workspace for `chunk + effective_tail_merge(tail_merge, chunk)` rows (`Model::load` does, so the memory plan counts
+/// it); `tail_merge` is clamped to `chunk` here too, so a chunk never exceeds `2 * chunk`. Chunk sizes outside the
+/// proven-invariant set (256 / 1024 / 2048 / 4096) can change bits on some backends: this is opt-in for that reason.
+pub fn next_prefill_chunk_tm(remaining: usize, chunk: usize, avoid_one_row: bool, tail_merge: usize) -> usize {
+    let tm = effective_tail_merge(tail_merge, chunk);
+    if tm > 0 && remaining > chunk && remaining - chunk <= tm {
+        remaining
+    } else {
+        next_prefill_chunk(remaining, chunk, avoid_one_row)
+    }
+}
+
 /// The prefill chunk schedule of a request: `(start, len)` of every forward pass, the last one carrying the head.
 /// Same rule as `engine::Seq::prefill_step` ([`next_prefill_chunk`]): from `cached`, full chunks of `chunk` while more
 /// than `chunk` tokens remain, then the rest (1..=`chunk` tokens) as the final chunk; with `avoid_one_row` a
 /// `chunk + 1` remainder is split `(chunk - 1, 2)` instead of `(chunk, 1)`.
 pub fn chunk_schedule(cached: usize, prompt_len: usize, chunk: usize, avoid_one_row: bool) -> Vec<(usize, usize)> {
+    chunk_schedule_tm(cached, prompt_len, chunk, avoid_one_row, 0)
+}
+
+/// [`chunk_schedule`] with the opt-in tail merge ([`next_prefill_chunk_tm`]; 0 = off = [`chunk_schedule`]).
+pub fn chunk_schedule_tm(
+    cached: usize,
+    prompt_len: usize,
+    chunk: usize,
+    avoid_one_row: bool,
+    tail_merge: usize,
+) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut pos = cached;
     while pos < prompt_len {
-        let n = next_prefill_chunk(prompt_len - pos, chunk, avoid_one_row);
+        let n = next_prefill_chunk_tm(prompt_len - pos, chunk, avoid_one_row, tail_merge);
         out.push((pos, n));
         pos += n;
     }
@@ -906,7 +958,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         };
         let plen = self.active[i].seq.prompt().len();
-        let len = next_prefill_chunk(plen - pos, chunk, self.model.avoid_single_row_prefill());
+        let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
         let last = len == plen - pos;
         let mode = if last { Some(self.active[i].seq.first_mode()) } else { None };
         let slot = self.active[i].slot;

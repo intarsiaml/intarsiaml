@@ -1,0 +1,35 @@
+active
+[window] job 4054; stages: speed; stopping radiance 2026-10-22 07:17:42
+[window] radiance stopped 2026-10-22 07:17:45
+[window] localeval arm base-r1 up 2026-10-22 07:17:58
+[window] localeval arm base-r1 exit 0 2026-10-22 07:18:13
+[window] localeval arm on-r1 up 2026-10-22 07:18:26
+[window] localeval arm on-r1 exit 0 2026-10-22 07:18:41
+[window] localeval arm off-r1 up 2026-10-22 07:18:54
+[window] localeval arm off-r1 exit 0 2026-10-22 07:19:09
+[window] localeval arm base-r2 up 2026-10-22 07:19:22
+[window] localeval arm base-r2 exit 0 2026-10-22 07:19:37
+[window] localeval arm on-r2 up 2026-10-22 07:19:50
+[window] localeval arm on-r2 exit 0 2026-10-22 07:20:05
+[window] localeval arm off-r2 up 2026-10-22 07:20:20
+[window] localeval arm off-r2 exit 0 2026-10-22 07:20:35
+[window] localeval arm base-r3 up 2026-10-22 07:20:49
+[window] localeval arm base-r3 exit 0 2026-10-22 07:21:04
+[window] localeval arm on-r3 up 2026-10-22 07:21:17
+[window] localeval arm on-r3 exit 0 2026-10-22 07:21:33
+[window] localeval arm off-r3 up 2026-10-22 07:21:46
+[window] localeval arm off-r3 exit 0 2026-10-22 07:22:02
+[window] localeval arm base-r4 up 2026-10-22 07:22:15
+[window] localeval arm base-r4 exit 0 2026-10-22 07:22:31
+[window] localeval arm on-r4 up 2026-10-22 07:22:44
+[window] localeval arm on-r4 exit 0 2026-10-22 07:22:58
+[window] localeval arm off-r4 up 2026-10-22 07:23:11
+[window] localeval arm off-r4 exit 0 2026-10-22 07:23:26
+[window] localeval arm base-r5 up 2026-10-22 07:23:39
+[window] localeval arm base-r5 exit 0 2026-10-22 07:23:54
+[window] localeval arm on-r5 up 2026-10-22 07:24:07
+[window] localeval arm on-r5 exit 0 2026-10-22 07:24:22
+[window] localeval arm off-r5 up 2026-10-22 07:24:35
+[window] localeval arm off-r5 exit 0 2026-10-22 07:24:50
+[window] starting radiance 2026-10-22 07:24:51
+[window] radiance answers (after 15 s) 2026-10-22 07:25:02

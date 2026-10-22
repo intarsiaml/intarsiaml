@@ -1,0 +1,24 @@
+, arch set, dtype/
+
+
+user
+assistant
+<think>
+
+</think>
+
+It looks like your message got cut off at the end of the `register_kernel!` macro definition.
+
+Based on the context of the **IntarsiaML architecture plan (v0.2)**, here is the completion of that section and the logical continuation of the document structure, picking up from where the text truncated.
+
+### Completion of Section 3.2 (Kernel Registry)
+
+...
+```rust
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions**: shape predicates are evaluated when the plan is built, so traps like "MXFP4 GEMM needs per-rank K % 128" fail loudly

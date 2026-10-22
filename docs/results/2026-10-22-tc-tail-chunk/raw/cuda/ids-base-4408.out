@@ -1,0 +1,22 @@
+**e allowed (e.g. `rmsnorm_add`, `attn_out_gate`, `gdn_conv`), but they must still pass the reference test and be registered as a single op in the registry.
+
+### 3.4 Block library (the model is a recipe)
+
+A model is a **recipe** (TOML) that maps each layer in the config to a block pattern:
+
+```toml
+[layer]
+pattern_by_layer = "layer_types"
+
+[layer.by_type]
+linear_attention = ["gdn", "moe"]
+full_attention   = ["attn", "moe"]
+```
+
+The engine walks the config, resolves each layer type to a block pattern, and builds the op graph. New block types (vision encoder, LoRA, etc.) are added as new patterns; the engine does not need to change.
+
+### 3.5 Quant formats
+
+Formats are first-class: every op signature carries a quant format. The registry selects kernels by `(op, backend, arch, dtype/quant, shape)`. Formats are registered as packs (e.g. `tensorfold` for EXL3, `radiance` for MXFP4).
+
+### 3.6 Spec
