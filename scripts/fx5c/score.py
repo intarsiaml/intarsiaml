@@ -59,7 +59,8 @@ def main():
     orows = slice(row0, row0 + m)
     oid, olp = oid[orows], olp[orows]
     o_top1 = oid[np.arange(m), olp.argmax(1)]
-    print(f"oracle rows {row0}..{row0 + m - 1}; oracle top-1 vs forced stream (alignment check): {int((o_top1[:m-1] == np.array(seq['stream'][1:m])).sum())}/{m-1} match the next stream token? (informational)")
+    agree = int((o_top1 == np.array(seq["stream"][:m])).sum())
+    print(f"oracle rows {row0}..{row0 + m - 1}; oracle top-1 equals the forced stream token (alignment check, row j chose stream[j]) at {agree}/{m} rows")
     out = {}
     for d in sys.argv[3:]:
         eng = {}
