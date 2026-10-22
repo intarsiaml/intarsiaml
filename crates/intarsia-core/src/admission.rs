@@ -479,9 +479,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 let eheads: &[(usize, usize, usize)] = &[(16, 2, 512), (16, 8, 256), (4, 2, 64)];
                 let ewin: &[usize] = if quick { &[5, 1024] } else { &[0, 5, 1024] };
                 let etp: Vec<(usize, usize)> = if op == Op::AttnDecode {
-                    if quick { vec![(1, 7), (1, 40)] } else { vec![(1, 7), (1, 40), (1, 1500)] }
+                    // 1100 > 1024: a 1024-key window cuts the context at a key that is not a tile boundary
+                    if quick { vec![(1, 7), (1, 40), (1, 1100)] } else { vec![(1, 7), (1, 40), (1, 1100), (1, 1500)] }
                 } else if quick {
-                    vec![(20, 30)]
+                    vec![(20, 30), (20, 1100)]
                 } else {
                     vec![(20, 30), (20, 1100), (5, 0)]
                 };
