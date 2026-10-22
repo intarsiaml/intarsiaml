@@ -4,6 +4,8 @@
 # Steps (STEPS, space separated; default all non-window steps in this order):
 #   probe   f32x2 packed-fp32 probe (kernels/cuda_checks/f32x2_probe.cu): SASS + throughput + bitwise
 #   tests   cargo test of the new kernels (fp8_gemm_reg, nvfp4_gemm_reg, lib pins), CARGO_TARGET_DIR=target/test
+#   bench   GEMM microbenchmark at the 35B prefill shapes: every matmul_fp8_gemm_reg schedule (INTARSIA_CUDA_FP8_REG_CFG
+#           0..6), then the new nvfp4 / pair / GLU kernels against the calls they replace (quantmoe bench_wq_prefill_shapes)
 #   ktest   intarsia kernels test --backend cuda (admission, dev binary)
 #   prof    nsys over a ~4k-token 35B prefill, base and dev (kernel ranking + launch gaps, rank.txt / gaps.txt)
 #   ids     greedy ids base vs dev: 35B ~1.5k-token (256 tokens) and ~4k-token (64 tokens) prompts, 8B the same; 8B plan
@@ -19,7 +21,7 @@ M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d
 GD=${GOLDEN_DIR:-$HOME/intarsiaml-golden-s1}
 S=$GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors; L=$GD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
 CORPUS=$P/s1-dev/tools/prompts/corpus_docs.txt
-STEPS=${STEPS:-probe tests ktest prof ids acc}
+STEPS=${STEPS:-probe tests bench ktest prof ids acc}
 want() { [[ " $STEPS " == *" $1 "* ]]; }
 bin() { echo $P/$1/target/acc/release/intarsia; }
 memgb() { echo $(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); }
@@ -48,6 +50,17 @@ if want tests; then
     eval "env $CT $t -- --test-threads=1" < /dev/null > "$d/test-${t//[ -]/}.log" 2>&1
     log "test $t exit $?: $(grep -E 'test result|panicked' "$d/test-${t//[ -]/}.log" | head -3 | tr '\n' '|')"
   done
+fi
+
+if want bench; then
+  d=$O/bench; mkdir -p $d; cd $P/s1-dev
+  B="CARGO_BUILD_JOBS=8 CARGO_TARGET_DIR=target/test INTARSIA_REQUIRE_GPU=1 INTARSIA_BENCH_M=${BENCH_M:-2048,1024} INTARSIA_BENCH_REPS=${BENCH_REPS:-5} cargo test --release -p intarsia-backend-cuda --test quantmoe -- --ignored --nocapture --test-threads=1 bench_wq_prefill_shapes"
+  for c in ${BENCH_CFGS:-0 1 2 3 4 5 6}; do
+    eval "env INTARSIA_CUDA_FP8_REG_CFG=$c INTARSIA_BENCH_WQ=matmul_fp8_gemm_reg $B" < /dev/null > $d/cfg$c.log 2>&1
+    log "bench cfg $c exit $?: $(grep -E 'per-chunk total' $d/cfg$c.log | tr -s ' ' | tr '\n' '|')"
+  done
+  eval "env INTARSIA_BENCH_WQ=matmul_nvfp4_gemm,matmul_nvfp4_gemm_reg,matmul_fp8_pair_gemm_reg,matmul_nvfp4_glu_gemm $B" < /dev/null > $d/new.log 2>&1
+  log "bench new exit $?"; grep -E 'per-chunk total|pair|glu' $d/new.log | tee -a $O/steps.log
 fi
 
 if want ktest; then

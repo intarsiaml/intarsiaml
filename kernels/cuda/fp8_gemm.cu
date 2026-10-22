@@ -2,6 +2,7 @@
 // W8A8 (input_scale > 0): the activations are first quantised to e4m3-valued bf16 into scratch (one pass over x), the
 // GEMM then reads those. Needs K % 64 == 0.
 #include "wq_gemm.cuh"
+#include <stdlib.h>
 
 namespace {
 
@@ -62,18 +63,24 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* 
 // one block per SM). Needs K % 128 == 0 (the rule of the other fp8 GEMMs; K % 64 would do).
 namespace reg {
 
-constexpr int BM = 128, BK = 64;
-constexpr int LDA = BK + 8;     // bf16 elements per A smem row (144 bytes: ldmatrix rows hit distinct bank groups)
-constexpr int LDW = BK + 16;    // bytes per weight smem row (80: the 8 rows a B load touches hit distinct banks)
-constexpr int A_BYTES = BM * LDA * 2;
+constexpr int BM = 128;
 
-// WNW warps along N (block tile BM x 32 * WNW, 2 * WNW warps), ST ring slots
-template <int WNW, int ST>
+// The schedule (all bitwise the same results, lane S1 docs/results/2026-10-22-s1-spark-prefill.md): WNW warps along N
+// (2 along M), JW n8 tiles per warp (warp tile 64 x 8 JW, block tile BM x 8 JW WNW), ST ring slots of BKT-wide k steps,
+// MINB blocks per SM (launch bounds). Cfg<4, 3> is the round-3 kernel (128 x 128, k 64, 3 slots, 86 KB).
+template <int WNW, int ST, int JW_ = 4, int BKT = 64, int MINB_ = 1>
 struct Cfg {
-    static constexpr int BN = 32 * WNW, NT = 64 * WNW, STAGES = ST;
+    static constexpr int WN = WNW, JW = JW_, BK = BKT, MINB = MINB_;
+    static constexpr int BN = 8 * JW * WNW, NT = 64 * WNW, STAGES = ST;
+    static constexpr int LDA = BK + 8;   // bf16 elements per A smem row (k 64: 144 bytes, k 32: 80; ldmatrix rows hit distinct bank groups)
+    static constexpr int LDW = BK + 16;  // bytes per weight smem row (80 / 48: the 8 rows a B load touches hit distinct banks)
+    static constexpr int A_BYTES = BM * LDA * 2;
     static constexpr int W_BYTES = BN * LDW;
     static constexpr int STAGE_BYTES = A_BYTES + W_BYTES;
     static constexpr size_t SMEM = (size_t)STAGES * STAGE_BYTES;
+    static constexpr int CPRA = BK / 8, CPRW = BK / 16;  // 16-byte chunks per A / weight row and stage
+    static_assert(BK == 32 || BK == 64, "k step");
+    static_assert(BM * CPRA % NT == 0 && BN * CPRW % NT == 0, "copy split");
     static_assert(BM * (BN + 8) * 2 <= STAGES * STAGE_BYTES, "epilogue staging must fit in the ring");
 };
 
@@ -90,13 +97,15 @@ IK_DEVI uint32_t e4m3x2_to_bf16x2(uint32_t w, uint32_t sel) {
 
 // One 128 x BN output tile (block `bid` of the problem's grid). The body of gemm_reg_kernel, and of each half of
 // gemm_reg_pair_kernel's grid: the same instructions per tile, so the pair's outputs are bitwise those of two calls.
-template <int WNW, int ST, typename OutT>
+template <class C, typename OutT>
 IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
                            const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K, int vec_out,
                            int nfast, int bid, unsigned char* smem) {
-    using C = Cfg<WNW, ST>;
     constexpr int BN = C::BN, NT = C::NT, STAGES = C::STAGES, STAGE_BYTES = C::STAGE_BYTES;
-    constexpr int AQ = BM * 8 / NT;  // 16-byte A chunks per thread and stage
+    constexpr int BK = C::BK, LDA = C::LDA, LDW = C::LDW, A_BYTES = C::A_BYTES, JW = C::JW, WNW = C::WN;
+    constexpr int CPRA = C::CPRA, CPRW = C::CPRW;
+    constexpr int AQ = BM * CPRA / NT;  // 16-byte A chunks per thread and stage
+    constexpr int WQ = BN * CPRW / NT;  // 16-byte weight chunks per thread and stage
     const int nmt = (M + BM - 1) / BM, nnt = (N + BN - 1) / BN;
     const int m0 = (nfast ? bid / nnt : bid % nmt) * BM;
     const int n0 = (nfast ? bid % nnt : bid / nmt) * BN;
@@ -109,23 +118,23 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
     auto a_tile = [&](int slot) { return reinterpret_cast<ik_bf16*>(smem + slot * STAGE_BYTES); };
     auto w_tile = [&](int slot) { return smem + slot * STAGE_BYTES + A_BYTES; };
 
-    // copies: A row (tid >> 3) + (NT / 8) q, 16-byte chunk tid & 7 (q < AQ); weight row (tid >> 2) + (NT / 4) q, chunk
-    // tid & 3 (q < 2)
+    // copies: A row tid / CPRA + (NT / CPRA) q, 16-byte chunk tid % CPRA (q < AQ); weight row tid / CPRW + (NT / CPRW) q,
+    // chunk tid % CPRW (q < WQ)
     const ik_bf16* asrc[AQ];
     bool av[AQ];
 #pragma unroll
     for (int q = 0; q < AQ; ++q) {
-        const int r = (tid >> 3) + (NT / 8) * q;
+        const int r = tid / CPRA + (NT / CPRA) * q;
         av[q] = m0 + r < M;
-        asrc[q] = a_src + (int64_t)(av[q] ? m0 + r : 0) * K + (tid & 7) * 8;
+        asrc[q] = a_src + (int64_t)(av[q] ? m0 + r : 0) * K + (tid % CPRA) * 8;
     }
-    const uint8_t* wsrc[2];
-    bool wv[2];
+    const uint8_t* wsrc[WQ];
+    bool wv[WQ];
 #pragma unroll
-    for (int q = 0; q < 2; ++q) {
-        const int r = (tid >> 2) + (NT / 4) * q;
+    for (int q = 0; q < WQ; ++q) {
+        const int r = tid / CPRW + (NT / CPRW) * q;
         wv[q] = n0 + r < N;
-        wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid & 3) * 16;
+        wsrc[q] = w + (int64_t)(wv[q] ? n0 + r : 0) * K + (tid % CPRW) * 16;
     }
     auto issue = [&](int st) {
         const int slot = st % STAGES;
@@ -133,24 +142,24 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
         unsigned char* b = w_tile(slot);
 #pragma unroll
         for (int q = 0; q < AQ; ++q)
-            ik_cp_async16(a + ((tid >> 3) + (NT / 8) * q) * LDA + (tid & 7) * 8, asrc[q] + (int64_t)st * BK, av[q] ? 16 : 0);
+            ik_cp_async16(a + (tid / CPRA + (NT / CPRA) * q) * LDA + (tid % CPRA) * 8, asrc[q] + (int64_t)st * BK, av[q] ? 16 : 0);
 #pragma unroll
-        for (int q = 0; q < 2; ++q)
-            ik_cp_async16(b + ((tid >> 2) + (NT / 4) * q) * LDW + (tid & 3) * 16, wsrc[q] + (int64_t)st * BK, wv[q] ? 16 : 0);
+        for (int q = 0; q < WQ; ++q)
+            ik_cp_async16(b + (tid / CPRW + (NT / CPRW) * q) * LDW + (tid % CPRW) * 16, wsrc[q] + (int64_t)st * BK, wv[q] ? 16 : 0);
     };
 
     // B fragment source: row wn * 32 + j * 8 + (lane >> 2) of the weight tile, the 32-bit word holding k bytes 2t, 2t+1
     // (and +8 for the second register), t = lane & 3
     const int t = lane & 3;
-    const int boff = (wn * 32 + (lane >> 2)) * LDW + 4 * (t >> 1);
+    const int boff = (wn * 8 * JW + (lane >> 2)) * LDW + 4 * (t >> 1);
     const uint32_t p = 2u * (uint32_t)(t & 1);
     const uint32_t sel = 4u | (p << 4) | (4u << 8) | ((p + 1u) << 12);
 
-    float acc[4][4][4];
+    float acc[4][JW][4];
 #pragma unroll
     for (int i = 0; i < 4; ++i)
 #pragma unroll
-        for (int j = 0; j < 4; ++j)
+        for (int j = 0; j < JW; ++j)
 #pragma unroll
             for (int v = 0; v < 4; ++v) acc[i][j][v] = 0.f;
 
@@ -168,9 +177,9 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
         const unsigned char* bt = w_tile(s % STAGES) + boff;
 #pragma unroll
         for (int kk = 0; kk < BK; kk += 16) {
-            uint32_t b[4][2];
+            uint32_t b[JW][2];
 #pragma unroll
-            for (int j = 0; j < 4; ++j) {
+            for (int j = 0; j < JW; ++j) {
                 const uint32_t lo = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW + kk);
                 const uint32_t hi = *reinterpret_cast<const uint32_t*>(bt + j * 8 * LDW + kk + 8);
                 b[j][0] = e4m3x2_to_bf16x2(lo, sel);
@@ -182,7 +191,7 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
                 const int r = wm * 64 + i * 16 + (lane & 7) + ((lane >> 3) & 1) * 8;
                 ik_ldmatrix_x4(a0, a1, a2, a3, at + r * LDA + kk + (lane >> 4) * 8);
 #pragma unroll
-                for (int j = 0; j < 4; ++j) ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
+                for (int j = 0; j < JW; ++j) ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
             }
         }
     }
@@ -199,8 +208,8 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
             for (int hh = 0; hh < 2; ++hh) {
                 const int rl = wm * 64 + i * 16 + (lane >> 2) + hh * 8;
 #pragma unroll
-                for (int j = 0; j < 4; ++j) {
-                    const int cl = wn * 32 + j * 8 + (lane & 3) * 2;
+                for (int j = 0; j < JW; ++j) {
+                    const int cl = wn * 8 * JW + j * 8 + (lane & 3) * 2;
                     *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) =
                         __floats2bfloat162_rn(acc[i][j][2 * hh] * s_out, acc[i][j][2 * hh + 1] * s_out);
                 }
@@ -217,11 +226,11 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
 #pragma unroll
         for (int i = 0; i < 4; ++i)
 #pragma unroll
-            for (int j = 0; j < 4; ++j)
+            for (int j = 0; j < JW; ++j)
 #pragma unroll
                 for (int hh = 0; hh < 2; ++hh) {
                     const int row = m0 + wm * 64 + i * 16 + (lane >> 2) + hh * 8;
-                    const int col = n0 + wn * 32 + j * 8 + (lane & 3) * 2;
+                    const int col = n0 + wn * 8 * JW + j * 8 + (lane & 3) * 2;
                     if (row >= M) continue;
                     if (col < N) ik_store(out + (int64_t)row * N + col, acc[i][j][2 * hh] * s_out);
                     if (col + 1 < N) ik_store(out + (int64_t)row * N + col + 1, acc[i][j][2 * hh + 1] * s_out);
@@ -229,20 +238,20 @@ IK_DEVI void gemm_reg_tile(const ik_bf16* __restrict__ x, const ik_bf16* __restr
     }
 }
 
-template <int WNW, int ST, typename OutT>
-__global__ void __launch_bounds__(64 * WNW, 1)
+template <class C, typename OutT>
+__global__ void __launch_bounds__(C::NT, C::MINB)
 gemm_reg_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, const uint8_t* __restrict__ w,
                 const float* __restrict__ gs, OutT* __restrict__ out, int M, int N, int K, int vec_out, int nfast) {
     extern __shared__ __align__(16) unsigned char smem[];
-    gemm_reg_tile<WNW, ST, OutT>(x, xq, w, gs, out, M, N, K, vec_out, nfast, blockIdx.x, smem);
+    gemm_reg_tile<C, OutT>(x, xq, w, gs, out, M, N, K, vec_out, nfast, blockIdx.x, smem);
 }
 
 // Two projections of one activation in one grid (Op::MatmulFp8Pair at prefill: GDN in_proj_qkv + in_proj_z, attention
 // k + v): blocks [0, nblk0) are problem 0's tiles, the rest problem 1's, each tile exactly as gemm_reg_kernel computes it.
 // Problem 1 reads problem 0's quantised activations when the two input scales are equal (the e4m3 activations are then
 // the same bytes: fp8_actq_kernel is elementwise in x and input_scale), else its own (written by fp8_actq_cond_kernel).
-template <int WNW, int ST, typename OutT>
-__global__ void __launch_bounds__(64 * WNW, 1)
+template <class C, typename OutT>
+__global__ void __launch_bounds__(C::NT, C::MINB)
 gemm_reg_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq0, const ik_bf16* __restrict__ xq1,
                      const uint8_t* __restrict__ w0, const uint8_t* __restrict__ w1, const float* __restrict__ gs0,
                      const float* __restrict__ gs1, OutT* __restrict__ out0, OutT* __restrict__ out1, int M, int N0, int N1,
@@ -250,21 +259,22 @@ gemm_reg_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ 
     extern __shared__ __align__(16) unsigned char smem[];
     const int bid = blockIdx.x;
     if (bid < nblk0) {
-        gemm_reg_tile<WNW, ST, OutT>(x, xq0, w0, gs0, out0, M, N0, K, vec0, nfast0, bid, smem);
+        gemm_reg_tile<C, OutT>(x, xq0, w0, gs0, out0, M, N0, K, vec0, nfast0, bid, smem);
     } else {
         const ik_bf16* const q = gs1[1] == gs0[1] ? xq0 : xq1;
-        gemm_reg_tile<WNW, ST, OutT>(x, q, w1, gs1, out1, M, N1, K, vec1, nfast1, bid - nblk0, smem);
+        gemm_reg_tile<C, OutT>(x, q, w1, gs1, out1, M, N1, K, vec1, nfast1, bid - nblk0, smem);
     }
 }
 
-template <int WNW, int ST, typename OutT>
+template <class C, typename OutT>
 void launch_pair(const ik_bf16* x, const ik_bf16* xq0, const ik_bf16* xq1, const uint8_t* w0, const uint8_t* w1,
                  const float* sc0, const float* sc1, OutT* out0, OutT* out1, int M, int N0, int N1, int K, int vec0, int vec1,
                  cudaStream_t s) {
-    using C = Cfg<WNW, ST>;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_pair_kernel<WNW, ST, OutT>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_pair_kernel<C, OutT>),
                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)C::SMEM);
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_pair_kernel<C, OutT>),
+                             cudaFuncAttributePreferredSharedMemoryCarveout, 100);
         return true;
     }();
     (void)attr_set;
@@ -272,24 +282,85 @@ void launch_pair(const ik_bf16* x, const ik_bf16* xq0, const ik_bf16* xq1, const
     const int nfast0 = (double)M * 2.0 > (double)N0 ? 1 : 0, nfast1 = (double)M * 2.0 > (double)N1 ? 1 : 0;
     const int64_t nblk0 = (int64_t)((M + BM - 1) / BM) * ((N0 + C::BN - 1) / C::BN);
     const int64_t nblk1 = (int64_t)((M + BM - 1) / BM) * ((N1 + C::BN - 1) / C::BN);
-    gemm_reg_pair_kernel<WNW, ST, OutT><<<dim3((unsigned)(nblk0 + nblk1)), C::NT, C::SMEM, s>>>(
+    gemm_reg_pair_kernel<C, OutT><<<dim3((unsigned)(nblk0 + nblk1)), C::NT, C::SMEM, s>>>(
         x, xq0, xq1, w0, w1, sc0, sc1, out0, out1, M, N0, N1, K, vec0, vec1, nfast0, nfast1, (int)nblk0);
 }
 
-template <int WNW, int ST, typename OutT>
+template <class C, typename OutT>
 void launch(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const float* sc, OutT* out, int M, int N, int K, int vec,
             cudaStream_t s) {
-    using C = Cfg<WNW, ST>;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_kernel<WNW, ST, OutT>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_kernel<C, OutT>),
                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)C::SMEM);
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(gemm_reg_kernel<C, OutT>),
+                             cudaFuncAttributePreferredSharedMemoryCarveout, 100);
         return true;
     }();
     (void)attr_set;
     // activation bytes vs weight bytes: the larger operand is the one consecutive blocks share (as wq_gemm.cuh)
     const int nfast = (double)M * 2.0 > (double)N ? 1 : 0;
     const int64_t nblk = (int64_t)((M + BM - 1) / BM) * ((N + C::BN - 1) / C::BN);
-    gemm_reg_kernel<WNW, ST, OutT><<<dim3((unsigned)nblk), C::NT, C::SMEM, s>>>(x, xq, w, sc, out, M, N, K, vec, nfast);
+    gemm_reg_kernel<C, OutT><<<dim3((unsigned)nblk), C::NT, C::SMEM, s>>>(x, xq, w, sc, out, M, N, K, vec, nfast);
+}
+
+// The schedules (every one bitwise the same results; the choice is speed only). INTARSIA_CUDA_FP8_REG_CFG=<id> forces one
+// for every shape (microbenchmarks); unset, pick_cfg chooses by shape.
+using Cfg0 = Cfg<4, 3>;              // 128 x 128, k 64, 3 slots (round 3), 86 KB, 1 block / SM
+using Cfg1 = Cfg<4, 2, 8, 64, 1>;    // 128 x 256, k 64, 2 slots, 78 KB
+using Cfg2 = Cfg<4, 3, 8, 32, 1>;    // 128 x 256, k 32, 3 slots, 68 KB
+using Cfg3 = Cfg<4, 4, 8, 32, 1>;    // 128 x 256, k 32, 4 slots, 90 KB
+using Cfg4 = Cfg<4, 3, 4, 32, 2>;    // 128 x 128, k 32, 3 slots, 49 KB, 2 blocks / SM
+using Cfg5 = Cfg<4, 4, 4, 32, 1>;    // 128 x 128, k 32, 4 slots, 66 KB
+using Cfg6 = Cfg<2, 3, 8, 32, 2>;    // 128 x 128 with 4 warps of 64 x 64, k 32, 3 slots, 49 KB, 2 blocks / SM
+constexpr int kNumCfg = 7;
+
+int forced_cfg() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_CUDA_FP8_REG_CFG");
+        if (!e || !*e) return -1;
+        const int c = atoi(e);
+        return (c >= 0 && c < kNumCfg) ? c : -1;
+    }();
+    return v;
+}
+
+int pick_cfg(int M, int N, int K) {
+    (void)M;
+    (void)N;
+    (void)K;
+    const int f = forced_cfg();
+    return f >= 0 ? f : 0;
+}
+
+template <typename OutT>
+void launch_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const float* sc, OutT* out, int M, int N,
+                int K, int vec, cudaStream_t s) {
+    switch (cfg) {
+        case 1: launch<Cfg1, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 2: launch<Cfg2, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 3: launch<Cfg3, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 4: launch<Cfg4, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 5: launch<Cfg5, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        case 6: launch<Cfg6, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+        default: launch<Cfg0, OutT>(x, xq, w, sc, out, M, N, K, vec, s); break;
+    }
+}
+
+template <typename OutT>
+void launch_pair_cfg(int cfg, const ik_bf16* x, const ik_bf16* xq0, const ik_bf16* xq1, const uint8_t* w0, const uint8_t* w1,
+                     const float* sc0, const float* sc1, OutT* out0, OutT* out1, int M, int N0, int N1, int K, int vec0,
+                     int vec1, cudaStream_t s) {
+#define IK_PAIR(C) launch_pair<C, OutT>(x, xq0, xq1, w0, w1, sc0, sc1, out0, out1, M, N0, N1, K, vec0, vec1, s)
+    switch (cfg) {
+        case 1: IK_PAIR(Cfg1); break;
+        case 2: IK_PAIR(Cfg2); break;
+        case 3: IK_PAIR(Cfg3); break;
+        case 4: IK_PAIR(Cfg4); break;
+        case 5: IK_PAIR(Cfg5); break;
+        case 6: IK_PAIR(Cfg6); break;
+        default: IK_PAIR(Cfg0); break;
+    }
+#undef IK_PAIR
 }
 
 template <typename OutT>
@@ -304,8 +375,8 @@ int run(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* 
         wq::gemm_by_m<wq::FMT_FP8, OutT>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data, nullptr,
                                          (const float*)sc->data, (OutT*)out->data, (int)M, (int)N, (int)K, vec, s);
     } else {
-        launch<4, 3, OutT>((const ik_bf16*)x->data, xq, (const uint8_t*)w->data, (const float*)sc->data, (OutT*)out->data,
-                           (int)M, (int)N, (int)K, vec, s);
+        launch_cfg<OutT>(pick_cfg((int)M, (int)N, (int)K), (const ik_bf16*)x->data, xq, (const uint8_t*)w->data,
+                         (const float*)sc->data, (OutT*)out->data, (int)M, (int)N, (int)K, vec, s);
     }
     return ik_launch_status();
 }
@@ -420,7 +491,7 @@ int ik_matmul_fp8_pair_gemm_reg(const ik_tensor* x, const ik_tensor* w0, const i
     const unsigned qblocks = (unsigned)((n8 + 255) / 256);
     fp8_actq_kernel<<<qblocks, 256, 0, s>>>(xp, xq0, s0, n8);
     IK_TRY(ik_launch_status());
-    using C = reg::Cfg<4, 3>;
+    using C = reg::Cfg0;  // the small-grid rule of reg::run (128 x 128 tile count)
     const int64_t mt = (M + reg::BM - 1) / reg::BM;
     const int64_t t0 = mt * ((N0 + C::BN - 1) / C::BN), t1 = mt * ((N1 + C::BN - 1) / C::BN);
     if (t0 < 24 || t1 < 24) {  // reg::run's small-grid path for a half: the single calls, own quantiser
@@ -438,13 +509,13 @@ int ik_matmul_fp8_pair_gemm_reg(const ik_tensor* x, const ik_tensor* w0, const i
     const uint8_t* const wp0 = (const uint8_t*)w0->data;
     const uint8_t* const wp1 = (const uint8_t*)w1->data;
     if (out0->dtype == IK_DTYPE_F32) {
-        reg::launch_pair<4, 3, float>(xp, xq0, xq1, wp0, wp1, s0, s1, (float*)out0->data, (float*)out1->data, (int)M,
-                                      (int)N0, (int)N1, (int)K, 0, 0, s);
+        reg::launch_pair_cfg<float>(reg::pick_cfg((int)M, (int)(N0 > N1 ? N0 : N1), (int)K), xp, xq0, xq1, wp0, wp1, s0, s1,
+                                    (float*)out0->data, (float*)out1->data, (int)M, (int)N0, (int)N1, (int)K, 0, 0, s);
     } else {
         const int v0 = (N0 % 8 == 0 && ik_aligned16(out0->data)) ? 1 : 0;
         const int v1 = (N1 % 8 == 0 && ik_aligned16(out1->data)) ? 1 : 0;
-        reg::launch_pair<4, 3, ik_bf16>(xp, xq0, xq1, wp0, wp1, s0, s1, (ik_bf16*)out0->data, (ik_bf16*)out1->data,
-                                        (int)M, (int)N0, (int)N1, (int)K, v0, v1, s);
+        reg::launch_pair_cfg<ik_bf16>(reg::pick_cfg((int)M, (int)(N0 > N1 ? N0 : N1), (int)K), xp, xq0, xq1, wp0, wp1, s0, s1,
+                                      (ik_bf16*)out0->data, (ik_bf16*)out1->data, (int)M, (int)N0, (int)N1, (int)K, v0, v1, s);
     }
     return ik_launch_status();
 }

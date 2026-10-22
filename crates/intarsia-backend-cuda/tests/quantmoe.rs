@@ -468,6 +468,53 @@ fn bench_wq_prefill_shapes() {
             }
             println!("M={m} nvfp4 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
         }
+        // lane S1: the prefill pair (GDN qkv + z, attention k + v; equal input scales as in the 35B) and the shared-expert
+        // GLU against the calls they replace
+        if kernels.iter().any(|k| k == "matmul_fp8_pair_gemm_reg") {
+            for (name, n0, n1, k, calls) in [("gdn qkv+z pair", 8192usize, 4096usize, 2048usize, 30usize), ("attn k+v pair", 512, 512, 2048, 10)] {
+                let mut hc = intarsia_core::quant::cases::matmul_fp8_pair_case(&mut rng, m, n0, n1, k, true, true, DType::Bf16, DType::Bf16);
+                let mut s1 = hc.inputs[4].to_f32();
+                s1[1] = hc.inputs[2].to_f32()[1];
+                hc.inputs[4] = HostTensor::from_f32_as(hc.inputs[4].dtype, &hc.inputs[4].shape, &s1);
+                let single = |w: usize, out: usize| HostCall {
+                    op: Op::MatmulFp8,
+                    inputs: vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[w + 1].clone()],
+                    outputs: vec![hc.outputs[out].clone()],
+                    attrs: hc.attrs.clone(),
+                };
+                let two = time("matmul_fp8_gemm_reg", &single(1, 0)) + time("matmul_fp8_gemm_reg", &single(3, 1));
+                let pair = time("matmul_fp8_pair_gemm_reg", &hc);
+                println!(
+                    "M={m} {name:<18} two calls {:>9.1} us  pair {:>9.1} us  saved per chunk {:>8.1} us",
+                    two * 1e6,
+                    pair * 1e6,
+                    (two - pair) * calls as f64 * 1e6
+                );
+            }
+        }
+        if kernels.iter().any(|k| k == "matmul_nvfp4_glu_gemm") {
+            let hc = intarsia_core::quant::cases::matmul_nvfp4_glu_case(&mut rng, m, 512, 2048, DType::Bf16, DType::Bf16);
+            let proj = |w: usize| HostCall {
+                op: Op::MatmulNvfp4,
+                inputs: vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[w + 1].clone(), hc.inputs[w + 2].clone()],
+                outputs: vec![OutSpec::new(DType::Bf16, &[m, 512])],
+                attrs: Default::default(),
+            };
+            let glu = HostCall {
+                op: Op::SiluGlu,
+                inputs: vec![HostTensor::zeros(DType::Bf16, &[m, 512]), HostTensor::zeros(DType::Bf16, &[m, 512])],
+                outputs: vec![OutSpec::new(DType::Bf16, &[m, 512])],
+                attrs: Default::default(),
+            };
+            let chain = time("matmul_nvfp4_gemm", &proj(1)) + time("matmul_nvfp4_gemm", &proj(4)) + time("silu_glu_bf16", &glu);
+            let fused = time("matmul_nvfp4_glu_gemm", &hc);
+            println!(
+                "M={m} shared gate+up+glu   chain {:>9.1} us  fused {:>9.1} us  saved per chunk {:>8.1} us",
+                chain * 1e6,
+                fused * 1e6,
+                (chain - fused) * 40.0 * 1e6
+            );
+        }
     }
 }
 
