@@ -83,8 +83,9 @@ block types.
   overwrite without `--force`). Every inferred field carries a comment with its source (`# from config.json
   architectures`, `# from tensors: model.layers.0.self_attn.q_norm.weight`, `# from text_config.layer_types`).
   Anything it cannot map becomes `# TODO(recipe-new): <what, why, what to do>` where the field belongs: an unknown
-  block (MLA, sliding window, Mamba, an unclaimed tensor group), an activation other than `silu`, `attention_bias`,
-  a rope type other than `default` (yarn, linear, llama3, longrope), an unknown quantisation scheme (the
+  block (MLA, sliding window, Mamba, an unclaimed tensor group), an activation other than `silu`, an output-projection
+  bias (`o_proj.bias`, config `attention_bias = true`), a rope type other than `default`, `llama3` or `yarn` (linear,
+  dynamic, longrope), an unknown quantisation scheme (the
   `quant_method` / `quant_algo` string is named), recipe tensors missing from the checkpoint. The numbered list is
   printed to stderr and the command **exits non-zero**. Resolve every TODO, then run step 2.
 
@@ -106,7 +107,10 @@ kind = "gqa"
 q = "model.layers.{i}.self_attn.q_proj"       # {i} = layer index; ".weight" is appended if needed
 k = "..."  v = "..."  o = "..."
 q_norm = "..."  k_norm = "..."                # present = per-head qk RMSNorm before rope
-rope = "default"                              # neox / rotate-half, theta from config.json
+q_bias = "model.layers.{i}.self_attn.q_proj.bias"   # present = projection bias, added right after the projection
+k_bias = "..."  v_bias = "..."                # (Qwen2 / Qwen2.5 set these without any config key; each one optional)
+rope = "default"                              # neox / rotate-half, theta from config.json; llama3 / yarn scaling is read from
+                                              # config.json (rope_parameters / rope_scaling), nothing to set here
 
 [layer.ffn]
 kind = "dense"
@@ -138,6 +142,28 @@ Dimensions are read from `config.json` with the Hugging Face key names (`hidden_
 only falls back to `hidden / heads`. A `[config]` table can rename keys for families that differ.
 Hybrid models (GatedDeltaNet, MoE) add `pattern_by_layer` / `[layer.by_type]`, `[layer.gdn]`, `[layer.moe]`
 and `norm_offset`; see `recipes/qwen3_5.toml` and `recipes/qwen3_5_moe.toml`.
+
+### What the attention block expresses without code
+
+| Feature | Where it comes from | Built-in recipe | Backends |
+|---|---|---|---|
+| GQA, `head_dim` from the config, partial rotary (`partial_rotary_factor`) | `config.json` | `qwen3`, `qwen3_5*` | all |
+| per-head qk RMSNorm (`q_norm` / `k_norm`) | recipe | `qwen3` | all |
+| q / k / v projection bias (`q_bias` / `k_bias` / `v_bias`) | recipe (Qwen2 sets them without a config key) | `qwen2` | cpu, Metal (op `add_bias`)<sup>1</sup> |
+| `rope_type` `llama3` (Llama 3.1 / 3.2 / 3.3) and `yarn` | `config.json` `rope_parameters` / `rope_scaling` | `llama` | cpu, Metal (op `rope_scaled`)<sup>1</sup> |
+| gated query (`attn_output_gate`) | recipe (`gated = true`) | `qwen3_5*` | all |
+
+<sup>1</sup> CUDA and HIP do not register `rope_scaled` / `add_bias` yet: a model that needs one fails at load with
+`NoKernel` (named in the plan stage); it never runs the unscaled rope or drops a bias.
+
+How scaling works: the loader computes the whole frequency table once (`crates/intarsia-core/src/rope.rs`, the
+transformers formulas for `llama3` and `yarn`, including YaRN's attention factor on cos / sin), uploads it, and the
+attention block calls `rope_scaled` instead of `rope`. A model without scaling emits exactly the calls it did before, so its
+plan and numerics do not change. Scaled models also skip the fused qk-norm + rope + KV-append prologue (it computes
+plain frequencies). Biases are added by a separate `add_bias` op after each projection (one extra bf16 rounding; the HF
+bf16 reference rounds once). Still rejected, by name, at `recipe new` and at load: `linear` / `dynamic` / `longrope` rope
+types, sliding-window attention, an activation other than `silu`, an `o_proj` bias (HF Llama's `attention_bias = true`), a
+checkpoint that carries a projection bias the recipe does not map.
 
 `[tuning]` sets the prefill chunk (tokens per forward pass) a model loads with. Resolution order: the explicit
 `--prefill-chunk` flag, then `[tuning.<backend>] prefill_chunk` for the running backend, then `[tuning] prefill_chunk`,
