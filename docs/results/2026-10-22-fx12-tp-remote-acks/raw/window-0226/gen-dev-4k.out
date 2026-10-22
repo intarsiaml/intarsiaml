@@ -1,0 +1,16 @@
+This is a robust, production-grade architecture plan. The shift from "per-family engines" to a **recipe-driven, kernel-registry-based modular system** is the correct architectural decision for long-term maintainability, especially given the fragmentation of quantization formats (EXL3, NVFP4, MXFP4, GGUF) and hardware backends (CUDA, HIP, Metal).
+
+The **Fable adversarial review** integration is particularly strong. By enforcing a **torch-free C ABI** and requiring **admission tests** against a CPU reference for every kernel, you eliminate the two most common failure modes in ML inference engines:
+1.  **Silent correctness drift** (compiles but produces garbage).
+2.  **Dependency hell** (heavy Python/CUDA runtime dependencies in the serving path).
+
+Below is a detailed analysis, potential risks, and recommended next steps for **IntarsiaML v0.2**.
+
+---
+
+### 1. Strengths of the Architecture
+
+#### A. The "Kernel Registry" as the Source of Truth
+The `register_kernel!` macro and the `cpu-ref` oracle pattern is the most critical innovation here.
+*   **Why it works:** It decouples *correctness* from *
+NCCL version 2.30.7+cuda13.3

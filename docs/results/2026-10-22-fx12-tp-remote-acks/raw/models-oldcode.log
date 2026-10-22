@@ -1,0 +1,18 @@
+   Compiling intarsia-core v0.0.1 (/opt/code/wt-fx12-old/crates/intarsia-core)
+test ranks_of_different_protocol_versions_refuse_to_pair ... FAILED
+test remote_truncate_refusal_fails_that_request_and_changes_nothing ... FAILED
+test remote_snapshot_refusal_fails_that_request_and_changes_nothing ... FAILED
+test remote_truncate_failure_is_a_backend_error_and_leaves_the_primary_alone ... FAILED
+test truncate_checks_the_primary_before_touching_any_other_rank ... FAILED
+thread 'ranks_of_different_protocol_versions_refuse_to_pair' (156822507) panicked at crates/intarsia-models/tests/tp_remote_acks.rs:234:52:
+thread 'remote_truncate_refusal_fails_that_request_and_changes_nothing' (156822510) panicked at crates/intarsia-models/tests/tp_remote_acks.rs:131:35:
+thread 'remote_snapshot_refusal_fails_that_request_and_changes_nothing' (156822508) panicked at crates/intarsia-models/tests/tp_remote_acks.rs:179:35:
+---- remote_truncate_failure_is_a_backend_error_and_leaves_the_primary_alone stdout ----
+thread 'remote_truncate_failure_is_a_backend_error_and_leaves_the_primary_alone' (156822509) panicked at crates/intarsia-models/tests/tp_remote_acks.rs:158:35:
+thread 'truncate_checks_the_primary_before_touching_any_other_rank' (156822511) panicked at crates/intarsia-models/tests/tp_remote_acks.rs:213:5:
+assertion `left == right` failed: peer unchanged
+  left: (6, 4, [4])
+ right: (6, 6, [4])
+    remote_truncate_failure_is_a_backend_error_and_leaves_the_primary_alone
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+error: test failed, to rerun pass `-p intarsia-models --test tp_remote_acks`

@@ -152,12 +152,16 @@ impl SequenceState {
     /// Copy the recurrent state as of the current token count. At most `keep` snapshots are held
     /// (the oldest is dropped, its buffer reused); a snapshot at the same length is replaced.
     /// No-op without recurrent slots or at length 0 (the zero state needs no copy).
+    ///
+    /// Other ranks first, the primary last, so that a failure leaves no rank with a snapshot the primary lacks (a rank
+    /// holding extra snapshots is harmless: [`SequenceState::truncate`] checks the primary's before it asks any other
+    /// rank). The remote rank's failure is returned from here, as the remote rank answers.
     pub fn snapshot(&mut self, backend: &dyn Backend, keep: usize) -> Result<()> {
-        for p in &mut self.peers {
-            p.st.snapshot(&*p.backend, keep)?;
-        }
         if let Some(r) = &self.remote {
             r.snapshot(keep)?;
+        }
+        for p in &mut self.peers {
+            p.st.snapshot(&*p.backend, keep)?;
         }
         let total = self.recurrent_bytes();
         if total == 0 || self.len == 0 || keep == 0 {
@@ -197,14 +201,17 @@ impl SequenceState {
     /// otherwise cannot be rolled back (`Unsupported`). Truncating to 0 always zeroes recurrent
     /// state, even when the state is already empty: a forward that failed halfway through the first
     /// chunk leaves written-but-uncommitted state behind.
+    ///
+    /// All-or-nothing across ranks as far as a rank can refuse: the primary and the in-process peers check that they can
+    /// make the rollback ([`SequenceState::check_truncate`]) before any of them changes, and the remote rank, which
+    /// checks for itself, is asked next and confirms before the primary changes. An error from a check or from the
+    /// remote rank's refusal leaves every rank as it was; a device error part-way is fatal for the group.
     pub fn truncate(&mut self, len: usize, backend: &dyn Backend) -> Result<()> {
-        if len > self.len {
-            return Err(Error::invalid("truncate beyond current length"));
+        self.check_truncate(len)?;
+        if let Some(r) = &mut self.remote {
+            r.truncate(len)?;
         }
         for p in &mut self.peers {
-            if len > p.st.len {
-                return Err(Error::invalid("truncate beyond a peer rank's length"));
-            }
             p.st.truncate(len, &*p.backend)?;
         }
         if self.has_recurrent() {
@@ -238,9 +245,26 @@ impl SequenceState {
         }
         self.len = len;
         self.tokens.truncate(len);
-        // the remote rank follows only a rollback the primary could make (same snapshots on both, so it can too)
-        if let Some(r) = &mut self.remote {
-            r.truncate(len)?;
+        Ok(())
+    }
+
+    /// Whether [`SequenceState::truncate`] to `len` would pass its own checks here and on the in-process peers: not
+    /// beyond a length, and a recurrent snapshot exists where one is needed. Changes nothing.
+    fn check_truncate(&self, len: usize) -> Result<()> {
+        if len > self.len {
+            return Err(Error::invalid("truncate beyond current length"));
+        }
+        for p in &self.peers {
+            if len > p.st.len {
+                return Err(Error::invalid("truncate beyond a peer rank's length"));
+            }
+            p.st.check_truncate(len)?;
+        }
+        if self.has_recurrent() && len != 0 && len != self.len && !self.snapshots.iter().any(|s| s.len == len) {
+            return Err(Error::Unsupported(format!(
+                "cannot roll recurrent state back to {len} tokens (no snapshot there; length {})",
+                self.len
+            )));
         }
         Ok(())
     }
