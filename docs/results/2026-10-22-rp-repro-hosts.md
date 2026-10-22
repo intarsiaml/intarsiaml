@@ -32,7 +32,7 @@ First full build at `7354a4b` (nvcc given relative paths only), spark1, `repro-b
 `~/rp/B/deeper/two`: DIFFER (`46d4a5de79e859bb...` vs `cbe76e4adad7e375...`). The final binary held 82 strings of the build
 directory (`.../kernels/cuda`, `.../kernels/cuda/../common`, the `-lineinfo` directory table inside each cubin) and 23 nvcc temp
 names (`tmpxft_<pid>_00000000-6_<file>.cudafe1.cpp`), and every object differed in its anonymous-namespace symbol names
-(`_GLOBAL__N__<8 hex>_<n>_<file>_cu_...`). Four small experiments (`raw/nvcc-experiment-N.out`, 4 kernels each, spark1):
+(`_GLOBAL__N__<8 hex>_<n>_<file>_cu_...`). Small experiments (`raw/nvcc-experiment-N.out`, 4 kernels each, spark1):
 
 | Experiment | Result |
 |---|---|
