@@ -7,14 +7,44 @@ Each verdict below says **resolved-by-measurement** or **still open**; whether t
 | Row | Verdict | One line |
 |---|---|---|
 | O4 (35B 4096-token HIP prefill delta) | **resolved-by-measurement: noise** | n=5 interleaved pairs: -0.02 % (95 % CI -0.22 to +0.18 %) |
-| O5 (chunk*k+1 prefill tail, CUDA / HIP) | HIP **resolved-by-measurement**; CUDA **still open** (no spark1 slot yet) | HIP: every tail of 1 to 16 rows differs bitwise from the no-tail run, so the 1-row flag would not make HIP invariant; CUDA: see section 3 |
-| O1 (Phase 1 decode gate vs vLLM) | **still open** (no spark1 slot yet) | see section 1 |
-
-CUDA_O1_STATUS_PLACEHOLDER
+| O5 (chunk*k+1 prefill tail, CUDA / HIP) | **resolved-by-measurement** (both backends) | a 1-row tail is not bitwise invariant on either backend, and neither is a 2-row tail: HIP differs up to 16 rows (32 and up is invariant), CUDA up to 64 rows (128 and up is invariant). The `(C,1)` to `(C-1,2)` flag would not make either invariant. |
+| O1 (Phase 1 decode gate vs vLLM) | **resolved-by-measurement: PASS at 128 / 1k / 4k, FAIL at 16k** | decode vs same-day vLLM: +9.4 / +7.3 / +5.5 / -2.0 %; against the doc's absolute "86-90 tok/s" every size fails |
 
 ## 1. O1: Phase 1 decode gate on current main vs same-day vLLM (spark1)
 
-PENDING
+The gate (`docs/ARCHITECTURE.md:322`): "Qwen3.6-35B-A3B NVFP4 on spark1 correct and >= vLLM single-stream (86-90 tok/s)". It was
+recorded FAIL on 2026-10-13 (72.3 / 71.8 / 69.6 against 76.1 / 77.6 / 76.4 tok/s at 128 / 1k / 4k) and never re-run.
+
+**Method** (`scripts/og-gates/o1-driver.sh`, one exclusive spark1 slot, job #3701; vLLM `guidance` stayed up and untouched):
+- our server: `og-main` build of origin/main `f9087322`, **defaults**, started
+  beside the idle vLLM with `--max-seq 20480 --mem-budget 30 --profile-every 0` (the serve flags of every earlier localeval arm);
+- `localeval speed` (`/opt/code/deepeval`, `--thinking off --sizes 128,1024,4096,16384 --gen 128 --reps 3`) against vLLM
+  (`spark-guidance`) and against our server, 3 rounds, vLLM first in rounds 1 and 3, ours first in round 2;
+- a 2 s poller on vLLM's `/metrics` ran the whole slot; no round was dropped for foreign load on vLLM;
+- rule fixed before the run (`scripts/og-gates/o1-analyze.py`): per size and round delta = ours - vLLM decode tok/s (median of 3
+  reps); PASS if the median delta >= 0 and at least 2/3 of rounds are >= 0, FAIL if the median is < 0 and at least 2/3 are < 0,
+  else MIXED; a median within +-1 tok/s is flagged noise.
+
+**Result** (decode tok/s, per-round values in `raw/2026-10-22-og-gates/o1/analysis.md`, localeval run ids and `result.json` in
+`o1/results/`):
+
+| prompt (target) | vLLM median | ours median | delta | rounds ours >= vLLM | verdict |
+|---|---|---|---|---|---|
+| 128 | 76.3 | 83.5 | +7.2 (+9.4 %) | 3 / 3 | **PASS** |
+| 1024 (990 tokens) | 77.4 | 83.0 | +5.6 (+7.3 %) | 3 / 3 | **PASS** |
+| 4096 | 76.0 | 80.2 | +4.1 (+5.5 %) | 3 / 3 | **PASS** |
+| 16384 (16.7k tokens) | 73.3 | 71.8 | -1.5 (-2.0 %) | 0 / 3 | **FAIL** (just outside the 1 tok/s noise band) |
+
+Prefill, for information only (not part of this gate): ours / vLLM at 4k is 5691 / 5845 tok/s (-2.6 %, medians over the rounds) and at
+16k 5300 / 6310 (-16 %), with the default 2048-token chunk. The 1k column is a 990-token prompt, so it is TTFT overhead.
+
+**Verdict: resolved-by-measurement.** Against same-day vLLM the single-stream decode gate is met at 128, 1k and 4k and missed at
+16k by 1.5 tok/s in all three rounds. The 2026-10-13 FAIL no longer holds at short and medium context (the LOG row already noted CUDA decode fusion moving 72 to 80 tok/s). **Two readings, for the user to choose:** (a) relative to the same-day vLLM, as the 2026-10-13 run and the
+phrase ">= vLLM single-stream" do: PASS at 3 of 4 sizes; (b) the literal absolute figure in the sentence, "86-90 tok/s": ours is
+83.5 / 83.0 / 80.2 / 71.8, so every size misses it; that figure does not match what vLLM does on this box today (73 to 77 tok/s), so
+it looks stale. Nothing was flipped; the 16k decode shortfall is the only measured miss.
+Limits: three rounds, one box, one day; vLLM and our server shared the box (vLLM idle during our arm, 64 GB resident);
+localeval decode figures carry about +-5 % noise on other days (unanimis 6a7efe40), here the rounds agree within 2 tok/s.
 
 ## 2. O4: 35B 4096-token HIP prefill, is the -0.30 % / -0.22 % noise?
 
@@ -88,12 +118,41 @@ non-invariance (it would trade a 1-row for a 2-row tail, which differs just the 
 0 argmax flips in 4064 + 4064 + 4557 positions) and is confined to the logits of the last few prompt rows. Making HIP invariant
 would need a tail floor between 17 and 32 rows, a different rule from the Metal flag; this lane did not test it. Left to the user.
 
-### CUDA (spark1)
+### CUDA (spark1 GB10, Qwen3-8B BF16, build of main `f9087322`, job #3700, vLLM up)
 
-CUDA_O5_PLACEHOLDER
+Same prompts, same chunk list, same comparison (`raw/2026-10-22-og-gates/o5-cuda/`).
 
-Raw: `raw/2026-10-22-og-gates/o5-hip/` (logs, `tailcmp-prefill.txt/.json`, `tailcmp-decode.txt`; the 26 dump files, 52 MB, are not
-committed).
+| schedule (chunk) | prompt 4064 tail rows | rows that differ from single chunk | worst-row KL (prompt 0 / 1) | argmax flips |
+|---|---|---|---|---|
+| 4096, 2032 x2, 1016 x4 (control: no tail) | 0 | **0** (bitwise equal) | 0 | 0 |
+| 4063 and 239 x17 (chunk*k+1) | 1 | **1** (the tail row) | 5.3e-4 / 8.1e-5 | 0 |
+| 4062 and 2031 x2 (chunk*k+2) | 2 | **2** | 9.3e-5 / 9.6e-5 | 0 |
+| 4061, 4060, 4059 | 3, 4, 5 | 3, 4, 5 | up to 3.7e-4 | 0 |
+| 4056, 4048 | 8, 16 | 8, 16 | up to 9.5e-4 | 0 |
+| 4032, 4000 | 32, 64 | 32, 64 | up to 7.6e-4 | 0 |
+| 3936, 3808 | 128, 256 | **0** | 0 | 0 |
+
+The 4557-token prompt: tails of 1, 2 and 16 rows differ (worst-row KL 1e-14 to 1e-3, the near-1e-14 ones are the peaked
+chat-template tail tokens), tails of 461 or more are equal.
+
+**CUDA verdict (resolved-by-measurement): same picture as HIP, with a higher threshold.** The 1-row tail is not invariant, and
+neither is a 2-row tail, nor any tail up to 64 rows; 128 rows and more are bitwise equal, and so are the no-tail multi-chunk
+schedules. The `(C,1)` to `(C-1,2)` flag would not make CUDA invariant either. The effect is confined to the logits of the last
+prompt rows, with 0 argmax flips and KL below 1e-3 in 4064 + 4064 + 4557 positions.
+
+Aside (not caused by the tail, reported because it showed up): in decode mode the CUDA dump after a **multi-chunk** prefill
+differs from the single-chunk one at the decode positions, also with no tail (chunk 2000 x2 of the 4000-token prompt: all 16
+positions differ, worst KL 1.9e-3 and 3.1e-6 on the two prompts, 0 flips), while HIP is bitwise equal there. In prefill mode the
+same CUDA schedules are bitwise equal at every position. Not investigated here; it may relate to the known CUDA prefix-reuse
+gaps (`docs/results/2026-10-21-cuda-round7.md`) and is a lead for whoever owns that gate. Single-chunk runs were bitwise
+reproducible across processes (chunk 4493 and 4492 of the 4000-token prompts).
+
+Overall O5 answer to "which backends need the flag": the flag as written helps none of CUDA, HIP; it targets Metal's `m == 1`
+decode-kernel routing. If chunk-invariant first tokens are wanted on CUDA/HIP, the rule would have to keep tails at or above
+32 (HIP) or 128 (CUDA) rows, which is a different rule and a numerics-visible choice; not done.
+
+Raw: `raw/2026-10-22-og-gates/o5-hip/` and `o5-cuda/` (logs, `tailcmp-prefill.txt/.json`, `tailcmp-decode.txt`; the 52 MB + 52 MB of
+dump files are not committed, `tailcmp.py` re-reads them from the dump directories).
 
 ## Downtime (radiance, tatooine)
 
@@ -104,5 +163,6 @@ adds before a window so radiance serves at least 5 minutes in between. Radiance 
 
 ## fleetq jobs
 
-tatooine: #3624 (CPU build, tree `~/og-hip`, volume `intarsia-cargo-target-og`), #3628 and #3599 (read-only looks), #3629 (O5),
-#3635 (O4), #3645 (failed attempt), #3651 (O5 tails 32 to 256). spark1: #3583 (CUDA build of main, tree `og-main`), the rest below.
+spark1: #3583 (CUDA build of main, tree `og-main`, non-exclusive), #3700 (O5 CUDA, non-exclusive, 28 GB, 25 min), #3701 (O1,
+exclusive, 32 GB, 5 min; vLLM up the whole time, nothing taken down). tatooine: #3624 (CPU build, tree `~/og-hip`, volume `intarsia-cargo-target-og`), #3628 and #3599 (read-only looks), #3629 (O5),
+#3635 (O4), #3645 (failed attempt), #3651 (O5 tails 32 to 256).
