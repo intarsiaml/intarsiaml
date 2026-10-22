@@ -372,6 +372,8 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::GATED_RMSNORM_MATMUL_FP8_GEMV, Op::GatedRmsnormMatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
     (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
+    (crate::nvfp4::MATMUL_NVFP4_GLU_GEMV, Op::MatmulNvfp4Glu),
+    (crate::nvfp4::SHARED_DOWN_COMBINE_GEMV, Op::SharedDownCombine),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -648,6 +650,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .priority(0),
+                // fused decode GEMVs (M <= 8), bitwise the unfused chains (tests/nvfp4_fused.rs)
+                crate::nvfp4::MATMUL_NVFP4_GLU_GEMV | crate::nvfp4::SHARED_DOWN_COMBINE_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::fused_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(10),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -701,20 +712,20 @@ mod tests {
         "35b combine: moe_combine_bf16",
         "35b fold P5: rmsnorm_add_matmul_fp8_pair_gemv",
         "35b fold P4b: sigmoid_mul_matmul_fp8_gemv",
-        "35b fold P2a: -",
+        "35b fold P2a: shared_down_combine_gemv",
         "8b attn input norm: rmsnorm_add_bf16",
         "8b k/v pair: matmul_pair_bf16_gemv",
     ];
 
-    /// Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): this backend registers none of the three new
-    /// ops, so `Model::try_fused` returns false for each and the model runs the unfused chain it ran before (the selection of
-    /// those ops at the Qwen3.6-35B-A3B and Qwen3-8B decode shapes is pinned below: the names origin/main's table resolves).
+    /// Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): this backend now registers all three new
+    /// ops (lane mdl: bitwise folds, byte-identity tests in tests/fp8_fused.rs, tests/nvfp4_fused.rs); the selection of
+    /// the unfused ops they replace at the Qwen3.6-35B-A3B and Qwen3-8B decode shapes is pinned below: the names origin/main's table resolves).
     #[test]
     fn phase1_folds_are_absent_and_the_unfused_selection_is_pinned() {
         use intarsia_core::ShapeInfo;
         let ks = all();
-        for op in [Op::SharedDownCombine] {
-            assert!(!ks.iter().any(|k| k.op == op), "{op} is registered: the model would take the fused path here");
+        for op in [Op::RmsNormAddMatmulFp8Pair, Op::SigmoidMulMatmulFp8, Op::SharedDownCombine] {
+            assert!(ks.iter().any(|k| k.op == op), "{op} is not registered: the model would run the unfused chain");
         }
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
@@ -777,6 +788,7 @@ mod tests {
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_glu_gemv:matmul_nvfp4_glu",
         "matmul_nvfp4_mma:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
@@ -791,6 +803,7 @@ mod tests {
         "rmsnorm_add_matmul_pair_bf16_gemv:rmsnorm_add_matmul_pair",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
+        "shared_down_combine_gemv:shared_down_combine",
         "sigmoid_mul_bf16:sigmoid_mul",
         "sigmoid_mul_matmul_fp8_gemv:sigmoid_mul_matmul_fp8",
         "silu_glu_bf16:silu_glu",
@@ -901,20 +914,20 @@ mod tests {
     const MOE_BLOCK_PINS: &[&str] = &[
         "35b m=1 topk: moe_topk_bf16",
         "35b m=1 experts: moe_experts_bf16",
-        "35b m=1 shared glu: -",
+        "35b m=1 shared glu: matmul_nvfp4_glu_gemv",
         "35b m=1 shared gate: matmul_nvfp4_gemv",
         "35b m=1 silu glu: silu_glu_bf16",
         "35b m=1 shared down: matmul_nvfp4_gemv",
-        "35b m=1 shared down combine: -",
+        "35b m=1 shared down combine: shared_down_combine_gemv",
         "35b m=1 combine: moe_combine_bf16",
         "35b m=1 fold P2': -",
         "35b m=2 topk: moe_topk_bf16",
         "35b m=2 experts: moe_experts_bf16",
-        "35b m=2 shared glu: -",
+        "35b m=2 shared glu: matmul_nvfp4_glu_gemv",
         "35b m=2 shared gate: matmul_nvfp4_gemv",
         "35b m=2 silu glu: silu_glu_bf16",
         "35b m=2 shared down: matmul_nvfp4_gemv",
-        "35b m=2 shared down combine: -",
+        "35b m=2 shared down combine: shared_down_combine_gemv",
         "35b m=2 combine: moe_combine_bf16",
         "35b m=2 fold P2': -",
     ];

@@ -115,6 +115,115 @@ NV_GEMV(nv_gemv_bf16_m8, 8, 2, ushort)
 NV_GEMV(nv_gemv_f32_m1, 1, 4, float)
 NV_GEMV(nv_gemv_f32_m8, 8, 2, float)
 
+// ---- fused decode GEMV epilogues (M <= 8, one activation row per threadgroup row) --------------------------------------------------------------------------------
+//   nv_glu_gemv_bf16          Op::MatmulNvfp4Glu: a = silu_glu(gate GEMV, up GEMV), one dispatch.
+//   nv_down_combine_gemv_bf16 Op::SharedDownCombine: out = moe_combine(routed, down GEMV, logit), one dispatch.
+// Bitwise the unfused launches: nv_gemv_row below is one row of nv_gemv_impl<MB, RS, ushort> with the store left to the caller
+// (same lane / K chunking, same fma order, same simd_sum, same `t * scale`), each GEMV result is rounded to bf16 (the store of
+// nv_gemv_bf16_m1 and the load of the next kernel), and the epilogues are silu_glu_bf16's (dense_ops.metal) and
+// moe_combine_bf16's (moe.metal) expressions verbatim.
+
+constant constexpr int NV_RS_FUSED = 4;  // output rows per simdgroup, as nv_gemv_bf16_m1
+
+// the f32 result of weight rows nb .. nb + RS - 1 for ONE activation row (rows >= N repeat row N - 1; the caller must not
+// store them); xrow = x + skip + row * K as an element offset
+template <int RS>
+inline void nv_gemv_row(device const ushort* x, device const uchar* w, device const uchar* bs, device const float* gs,
+                            ulong xrow, uint bskip, uint N, uint K, uint nb, uint lane, thread float* res) {
+    device const uchar* wr[RS];
+    device const uchar* br[RS];
+    for (int r = 0; r < RS; ++r) {
+        const uint n = min(nb + r, N - 1);
+        wr[r] = w + (ulong)n * (K / 2);
+        br[r] = bs + bskip + (ulong)n * (K / 16);
+    }
+    float acc[RS][1];
+    for (int r = 0; r < RS; ++r)
+        for (int m = 0; m < 1; ++m) acc[r][m] = 0.0f;
+    for (uint u = lane; u < K / 16; u += 32) {
+        uint2 wv[RS];
+        float s[RS];
+        for (int r = 0; r < RS; ++r) {
+            wv[r] = *(device const uint2*)(wr[r] + (ulong)u * 8);
+            s[r] = nv_scale(br[r][u]);
+        }
+        for (int m = 0; m < 1; ++m) {
+            device const packed_ushort4* xp = (device const packed_ushort4*)(x + xrow + (ulong)(0 + m) * K + (ulong)u * 16);
+            float xf[16];
+            for (int q = 0; q < 4; ++q) {
+                const ushort4 v = ushort4(xp[q]);
+                xf[4 * q] = bf2f(v.x);
+                xf[4 * q + 1] = bf2f(v.y);
+                xf[4 * q + 2] = bf2f(v.z);
+                xf[4 * q + 3] = bf2f(v.w);
+            }
+            for (int r = 0; r < RS; ++r) acc[r][m] = fma(nv_dot16(wv[r], xf), s[r], acc[r][m]);
+        }
+    }
+    const float scale = gs[0] * NV_FOLD;
+    for (int m = 0; m < 1; ++m) {
+        for (int r = 0; r < RS; ++r) {
+            const float t = simd_sum(acc[r][m]);
+            res[r] = t * scale;
+        }
+    }
+}
+
+// buffers: 0 x, 1 gate w, 2 gate block scales, 3 gate global scale, 4 up w, 5 up block scales, 6 up global scale, 7 out, 8 p.
+// p: a = M (<= 8; row = tg.y), b = N, c = K; s0 = x skip, s1 = gate block-scale skip, s2 = up block-scale skip, s3 = out skip.
+kernel void nv_glu_gemv_bf16(device const ushort* x [[buffer(0)]], device const uchar* gw [[buffer(1)]],
+                                device const uchar* gbs [[buffer(2)]], device const float* ggs [[buffer(3)]],
+                                device const uchar* uw [[buffer(4)]], device const uchar* ubs [[buffer(5)]],
+                                device const float* ugs [[buffer(6)]], device ushort* out [[buffer(7)]],
+                                constant OpP& p [[buffer(8)]], uint2 tg [[threadgroup_position_in_grid]],
+                                uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {
+    const uint N = p.b, K = p.c;
+    const uint nb = (tg.x * NV_SG + sg) * NV_RS_FUSED;
+    if (nb >= N) return;  // whole simdgroup exits together
+    const uint row = tg.y;
+    const ulong xrow = p.s0 + (ulong)row * K;
+    float g[NV_RS_FUSED], u[NV_RS_FUSED];
+    nv_gemv_row<NV_RS_FUSED>(x, gw, gbs, ggs, xrow, p.s1, N, K, nb, lane, g);
+    nv_gemv_row<NV_RS_FUSED>(x, uw, ubs, ugs, xrow, p.s2, N, K, nb, lane, u);
+    if (lane == 0) {
+        for (int r = 0; r < NV_RS_FUSED; ++r) {
+            if (nb + r < N) {
+                const float gv = bf2f(f2bf(g[r]));
+                const float uv = bf2f(f2bf(u[r]));
+                out[p.s3 + (ulong)row * N + nb + r] = f2bf(gv / (1.0f + precise::exp(-gv)) * uv);
+            }
+        }
+    }
+}
+
+// buffers: 0 a (x), 1 down w, 2 down block scales, 3 down global scale, 4 routed, 5 gate logit, 6 out, 7 p.
+// p: a = M (<= 8; row = tg.y), b = N, c = K; s0 = a skip, s1 = block-scale skip, s2 = routed skip, s3 = logit skip, s4 = out skip.
+kernel void nv_down_combine_gemv_bf16(device const ushort* x [[buffer(0)]], device const uchar* w [[buffer(1)]],
+                                         device const uchar* bs [[buffer(2)]], device const float* gs [[buffer(3)]],
+                                         device const ushort* routed [[buffer(4)]], device const ushort* gate [[buffer(5)]],
+                                         device ushort* out [[buffer(6)]], constant OpP& p [[buffer(7)]],
+                                         uint2 tg [[threadgroup_position_in_grid]],
+                                         uint sg [[simdgroup_index_in_threadgroup]],
+                                         uint lane [[thread_index_in_simdgroup]]) {
+    const uint N = p.b, K = p.c;
+    const uint nb = (tg.x * NV_SG + sg) * NV_RS_FUSED;
+    if (nb >= N) return;  // whole simdgroup exits together
+    const uint row = tg.y;
+    float d[NV_RS_FUSED];
+    nv_gemv_row<NV_RS_FUSED>(x, w, bs, gs, p.s0 + (ulong)row * K, p.s1, N, K, nb, lane, d);
+    if (lane == 0) {
+        const float gl = bf2f(gate[p.s3 + row]);
+        const float sgm = bf2f(f2bf(1.f / (1.f + exp(-gl))));
+        for (int r = 0; r < NV_RS_FUSED; ++r) {
+            if (nb + r < N) {
+                const float sh = bf2f(f2bf(d[r]));
+                const float s = bf2f(f2bf(sgm * sh));
+                out[p.s4 + (ulong)row * N + nb + r] = f2bf(bf2f(routed[p.s2 + (ulong)row * N + nb + r]) + s);
+            }
+        }
+    }
+}
+
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 
 constant constexpr uint NV_BM = 64;
