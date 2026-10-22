@@ -213,6 +213,17 @@ pub struct AccuracyArgs {
     /// the engine's own traced rows.
     #[arg(long)]
     pub reuse_diag: bool,
+    /// Reuse mode, diagnosis only (F2): instead of the gate, run the `continue` case at this many different splits of
+    /// each judged prompt (`--reuse-sweep-from`, `--reuse-sweep-stride`) and print, per split, the verdict and, per shared
+    /// row, the top-2 gap of the cold and the warm run. Judges nothing: the run reports no gate verdict and never counts as a pass.
+    #[arg(long, default_value_t = 0)]
+    pub reuse_sweep: usize,
+    /// Reuse mode sweep: first split (default: the gate's split for the prompt).
+    #[arg(long)]
+    pub reuse_sweep_from: Option<usize>,
+    /// Reuse mode sweep: tokens between two splits.
+    #[arg(long, default_value_t = 37)]
+    pub reuse_sweep_stride: usize,
     /// Reuse mode: judge only these prompts (comma separated names).
     #[arg(long, value_delimiter = ',')]
     pub reuse_prompt: Vec<String>,
@@ -1869,6 +1880,92 @@ struct ReuseRow {
     note: String,
 }
 
+/// `--reuse-sweep` (diagnosis F2): the `continue` case of the reuse gate at `--reuse-sweep` different splits, through
+/// the engine's serving path, with the logits rows of both runs recorded. Prints one `SPLIT` line per split (the gate's
+/// own verdict: [`judge_divergence`] and the leading-token rule) and one `ROW` line per row the two runs share a context
+/// for (up to and including the first divergence): the cold run's top-2 pair, its log-probability gap, the warm run's gap
+/// for the same pair, the KL between the rows, and whether the argmax differs. A `SUM` line at the end.
+#[allow(clippy::too_many_arguments)]
+fn reuse_sweep(
+    engine: &dyn Engine,
+    vocab: usize,
+    ctx: usize,
+    chunk: usize,
+    m: usize,
+    reply: usize,
+    name: &str,
+    ids: &[u32],
+    split0: usize,
+    args: &AccuracyArgs,
+    tol: &ReuseTol,
+) -> Result<()> {
+    let from = args.reuse_sweep_from.unwrap_or(split0);
+    let stride = args.reuse_sweep_stride.max(1);
+    println!("SWEEP {name} chunk {chunk} splits {} from {from} stride {stride} (prompt {} tokens, reply {reply}, m {m})", args.reuse_sweep, ids.len());
+    let (mut n_split, mut n_div, mut n_fail, mut n_rows, mut n_flip) = (0usize, 0usize, 0usize, 0usize, 0usize);
+    let mut gaps = Vec::<(f64, f64)>::new();
+    for k in 0..args.reuse_sweep {
+        let s = from + k * stride;
+        if s + 2 > ids.len() {
+            break;
+        }
+        flush_cache(engine, ids[0], vocab)?;
+        let (reply_toks, _) = gen_tokens(engine, ids[..s].to_vec(), reply)?;
+        let mut turn2: Vec<u32> = ids[..s].to_vec();
+        turn2.extend_from_slice(&reply_toks);
+        turn2.extend_from_slice(&ids[s..]);
+        turn2.truncate(ctx.saturating_sub(m + 8));
+        let (tw, tc): (Arc<Mutex<Vec<Vec<f32>>>>, Arc<Mutex<Vec<Vec<f32>>>>) = Default::default();
+        flush_cache(engine, ids[0], vocab)?;
+        gen_tokens(engine, ids[..s].to_vec(), reply)?;
+        let (warm, cached) = gen_tokens_traced(engine, turn2.clone(), m, Some(tw.clone()))?;
+        flush_cache(engine, ids[0], vocab)?;
+        let (cold, cold_cached) = gen_tokens_traced(engine, turn2.clone(), m, Some(tc.clone()))?;
+        let (wr, cr) = (tw.lock().unwrap().clone(), tc.lock().unwrap().clone());
+        let avail = wr.len().min(cr.len()).min(warm.len()).min(cold.len());
+        let div = first_divergence(&warm, &cold).filter(|&d| d < avail);
+        let shared = div.map_or(avail, |d| d + 1);
+        for j in 0..shared {
+            let lc = log_softmax(&cr[j]);
+            let lw = log_softmax(&wr[j]);
+            let mut idx: Vec<usize> = (0..lc.len()).collect();
+            idx.sort_by(|&a, &b| lc[b].partial_cmp(&lc[a]).unwrap_or(std::cmp::Ordering::Equal));
+            let (a, b) = (idx[0], idx[1]);
+            let (gc, gw) = (lc[a] - lc[b], lw[a] - lw[b]);
+            let flip = argmax_row(&cr[j]) != argmax_row(&wr[j]);
+            println!("ROW {s} {j} cold_top2 {a} {b} gap_cold {gc:.4} gap_warm {gw:.4} kl {:.3e} flip {}", kl_rows(&cr[j], &wr[j]), flip as u8);
+            gaps.push((gc, gw));
+            n_rows += 1;
+            n_flip += flip as usize;
+        }
+        let agree = first_divergence(&warm, &cold).unwrap_or(warm.len());
+        let (ok, desc) = match div {
+            None => (true, "identical".to_string()),
+            Some(d) => {
+                let dv = judge_divergence(&warm, &cold, &wr, &cr, d, tol.logit, tol.kl);
+                let ok = dv.is_tie() || agree >= args.reuse_min_match.min(m);
+                (
+                    ok,
+                    format!(
+                        "token {d} warm {} cold {} nu_pre {:.3} nu_div {:.3} kl_max {:.2e} gap_warm {:.3} gap_cold {:.3} tie {}",
+                        warm[d], cold[d], dv.nu_pre, dv.nu_div, dv.kl_max, dv.gap_warm, dv.gap_cold, dv.is_tie()
+                    ),
+                )
+            }
+        };
+        n_split += 1;
+        n_div += div.is_some() as usize;
+        n_fail += (!ok || cached < s || cold_cached != 0) as usize;
+        println!("SPLIT {s} turn2 {} cached {cached} cold_cached {cold_cached} agree {agree}/{m} {} ({desc})", turn2.len(), if ok { "ok" } else { "FAIL" });
+    }
+    let sq: f64 = gaps.iter().map(|(c, w)| (w - c) * (w - c)).sum();
+    println!(
+        "SUM {name} chunk {chunk} splits {n_split} diverged {n_div} gate-fail {n_fail} rows {n_rows} argmax-flips {n_flip} rms(gap_warm-gap_cold) {:.4}",
+        (sq / gaps.len().max(1) as f64).sqrt()
+    );
+    Ok(())
+}
+
 /// The prefix-reuse path of a real model, compared with a cold run, through `Engine::generate` (what `serve` runs):
 ///
 /// * `continue`: turn 1 = `ids[..s]` and a real reply of the model; turn 2 = turn 1 + reply + the rest of the prompt.
@@ -1930,6 +2027,10 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 continue;
             }
         };
+        if args.reuse_sweep > 0 {
+            reuse_sweep(engine, vocab, ctx, chunk, m, reply, name, &p.ids, split, args, tol)?;
+            continue;
+        }
         // ---- continue
         {
             let run = || -> Result<ReuseRow> {
@@ -2070,6 +2171,17 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], 
                 if r.note.is_empty() { String::new() } else { format!(" ({})", r.note) }
             );
         }
+    }
+    if args.reuse_sweep > 0 {
+        let summary = baseline::ReuseSummary {
+            passed: false, // judges nothing: never recordable as a pass
+            prefill_chunk: chunk,
+            prefill_chunk_source: args.model.chunk_source(),
+            ran: Vec::new(),
+            skipped: skipped.clone(),
+        };
+        println!("reuse sweep: diagnosis only, no gate verdict");
+        return Ok((false, summary));
     }
     let mut ran: Vec<String> = Vec::new();
     for r in &rows {
