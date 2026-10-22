@@ -1,0 +1,19 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/fx1/q/q-2-mut1.01
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 54 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     39s] plan: PASS in 37.7s (36 ops resolved, exactness fast, loaded in 37.7s)
+[qualify     39s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     79s] gate: PASS in 40.3s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     79s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     79s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     79s] == acc-short [short accuracy against a golden]
+[qualify    121s] acc-short: FAIL in 41.7s (baseline gate failed)
+[qualify    121s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    229s] acc-oracle: FAIL in 108.2s (the logits moved against the recorded dump /home/nvidia/fx1/src/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.cuda.selfgolden.safetensors: mean KL(21-way)                                 9.1574e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                         6.9756e-1  (limit 5.0000e-3)  FAIL; top-1 flips                                      2.2100e2  (limit 2.7000e1)  FAIL; mean |tail diff|                                3.0894e-3  (limit 5.0000e-4)  FAIL; worst prompt KL(21-way) [chat_system]           1.6542e-2  (limit 5.0000e-4)  FAIL; prefill self-golden => FAIL; self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL)
+QUICK DONE: /home/nvidia/fx1/q/q-2-mut1.01/quick-report.md
+FULL DONE: /home/nvidia/fx1/q/q-2-mut1.01/full-report.md
+[qualify    229s] exit code 1

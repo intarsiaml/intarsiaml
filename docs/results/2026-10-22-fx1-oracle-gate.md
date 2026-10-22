@@ -62,7 +62,7 @@ and user turns hidden, n = 5343 of 5505), the same number `intarsia accuracy` ga
 | Metal clean (also at chunk 512: identical) | 9.88e-3 | 96.26 % |
 | HIP tp=1 clean (GPU 0, GPU 0 again, GPU 1: identical) | 9.86e-3 | 95.86 % |
 | HIP tp=2 clean | 1.12e-2 | 95.82 % |
-| CUDA | not measured (spark1 queue, section 7) | |
+| CUDA tp=1 clean (GB10, spark1) | 9.33e-3 | 95.82 % |
 | Metal x1.01 / x1.005 mutant | 9.05e-3 / 1.00e-2 | 96.44 / 95.93 % |
 | HIP tp=1 x1.01 mutant | 9.51e-3 | 96.29 % |
 | HIP tp=2 `scale:1.01` | 1.05e-2 | 96.04 % |
@@ -73,7 +73,7 @@ NVFP4 quantisation error is therefore common to both sides and cancels. It canno
 bf16 checkpoint. What remains, 9.9e-3 to 1.1e-2, is arithmetic precision alone: bf16 activations and accumulation
 order on the GPU against f32 accumulation and f64 NVFP4 / MoE / GDN math in the oracle. The spread is not noise, because
 each build reads the same value every run. The floor is **2e-2**, about 1.8x the largest clean
-reading (HIP tp=2): margin for CUDA and for a future backend's different rounding, and still far below a wrong kernel
+reading (HIP tp=2): margin for a future backend's different rounding, and still far below a wrong kernel
 (10x and more; the old 4-bit floor sits at 3e-2 against a reference that is itself off by 1.4e-2). Top-1 is not gated:
 the 4 % of rows where clean builds disagree with the oracle's argmax move by a few rows between correct builds
 (HIP tp=1 / tp=2 / Metal: 95.86 / 95.82 / 96.26 %), and a mutant can read higher than clean.
@@ -88,7 +88,7 @@ was dropped.
 ## 4. The kill: a drift check against a recorded same-backend dump
 
 The engine is deterministic per backend and tp degree: HIP clean reads KL 0 run to run and GPU 0 to GPU 1, and Metal
-reads 2.3e-13. `acc-oracle` therefore runs in two parts:
+reads 2.3e-13, CUDA 1.7e-13. `acc-oracle` therefore runs in two parts:
 
 1. **Floor**: the engine against the oracle at <= 2e-2. This guards absolute accuracy. The run also writes the engine's
    own top-64 dump on the oracle prompts.
@@ -101,7 +101,7 @@ the tp=2 dump.
 
 **Per device.** A dump is keyed by backend and tp degree, not by device model. `self_compat` treats a device change as a
 warning, so a different GPU of the same backend (another AMD or Apple chip) would read FAIL on clean main, not
-MISSING-BASELINE. The committed dumps are for the R9700 (gfx1201) and the M5 Max only. Another device records its own
+MISSING-BASELINE. The committed dumps are for the R9700 (gfx1201), the M5 Max and the GB10. Another device records its own
 dump.
 
 **Merge order.** The dumps pin today's main (cd617de2 + #74). If a PR that moves HIP or Metal numerics merges before
@@ -137,9 +137,9 @@ short golden, `--oracle-golden` the committed oracle:
 |---|---|---|---|---|
 | HIP (tatooine, tp=2 stage included) | MISSING-BASELINE, exit 1 (acc-short, acc-oracle, tp) | PASS, exit 0 | FAIL, exit 1: acc-oracle drift KL 9.19e-3; acc-short baseline gate (top-1, 2 of 10 prompts beyond the envelope) | FAIL, exit 1: tp drift KL 1.15e-2 |
 | Metal (endor) | MISSING-BASELINE, exit 1 (acc-short, acc-oracle) | PASS, exit 0, twice (drift 2.3e-13) | FAIL, exit 1: acc-oracle drift KL 9.70e-3; acc-short baseline gate (2 of 10 prompts) | n/a (tp=1 only) |
-| CUDA (spark1) | not run | not run | not run | not run |
+| CUDA (spark1 GB10) | MISSING-BASELINE, exit 1 (acc-short, acc-oracle) | PASS, exit 0, twice (drift 1.7e-13) | FAIL, exit 1: acc-oracle drift KL 9.16e-3; acc-short baseline gate (2 of 10 prompts) | not run (tp=2 needs both Sparks) |
 
-Logs: HIP window 4 (fleetq #3769), Metal job #3744, under the lane's scratchpad (`fx1/tatooine/w4`, `fx1/acc`).
+Logs: HIP window 4 (fleetq #3769), Metal job #3744, CUDA job #3868 (`raw/cuda`), under the lane's scratchpad (`fx1/tatooine/w4`, `fx1/acc`).
 
 **Logits unchanged.** The Metal dump of main + fx1 equals the dump of the m35 binary, built from the PR #70 head before
 fx1 existed, at KL 0 over 5505 rows. That is a real before/after check. On HIP both dumps come from fx1 builds (before
@@ -154,9 +154,7 @@ tatooine radiance only, six windows, 18.4 min in total: 1.6 min before 00:00, an
 
 ## 8. Not done
 
-* **CUDA.** The job (`scripts/fx1-oracle/cuda-job.sh`) builds fx1, runs no-baseline, installs the recorded files, then
-  runs clean twice and the mutant. It is queued on spark1 behind #3555, which waits for a spark2 reboot. Requirement 3
-  asks for committed CUDA baselines; they are not committed, and a CUDA qualify of the 35B reads MISSING-BASELINE until
-  they are. CUDA determinism of the MoE path, which the drift check relies on, is unmeasured.
+* **CUDA tp=2** (both Sparks) has no recorded `-tp2` dump: a CUDA `qualify --tp 2` of the 35B reads MISSING-BASELINE
+  on the tp stage until one is recorded. The TP-hook kill is shown on HIP tp=2.
 * The oracle covers prefill only. Decode is gated by the acc-short baseline + envelope, which caught the mutant on both
   backends. Decode has no oracle.
