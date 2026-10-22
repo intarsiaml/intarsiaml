@@ -1,0 +1,256 @@
+{
+ "run_id": "20261022-014715-adhoc-gate-intarsia-1",
+ "kind": "speed",
+ "label": "gate-intarsia-1",
+ "started_at": "2026-10-22T01:47:15-04:00",
+ "finished_at": "2026-10-22T01:49:27-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://127.0.0.1:8093/v1",
+  "model": "intarsia-metal",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8093/v1 --model intarsia-metal --sizes 128,1024,4096,16384 --gen 256 --reps 3 --thinking off --label gate-intarsia-1",
+  "git": "1b02605"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia-metal"
+   ],
+   "root": "Qwen3-8B",
+   "owned_by": "intarsia",
+   "max_model_len": 20000
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 112,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.056,
+     "min": 0.056,
+     "max": 0.065,
+     "n": 3,
+     "spread_pct": 16.7
+    },
+    "prefill_tok_s": {
+     "median": 1941.031,
+     "min": 1643.71,
+     "max": 1966.081,
+     "n": 3,
+     "spread_pct": 16.6
+    },
+    "decode_tok_s": {
+     "median": 35.291,
+     "min": 34.688,
+     "max": 35.458,
+     "n": 3,
+     "spread_pct": 2.2
+    },
+    "peak_decode_tok_s": {
+     "median": 35.8,
+     "min": 35.8,
+     "max": 35.8,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 4,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 986,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.331,
+     "min": 0.322,
+     "max": 0.378,
+     "n": 3,
+     "spread_pct": 16.9
+    },
+    "prefill_tok_s": {
+     "median": 2964.877,
+     "min": 2596.553,
+     "max": 3068.746,
+     "n": 3,
+     "spread_pct": 15.9
+    },
+    "decode_tok_s": {
+     "median": 33.19,
+     "min": 32.46,
+     "max": 33.306,
+     "n": 3,
+     "spread_pct": 2.5
+    },
+    "peak_decode_tok_s": {
+     "median": 34.1,
+     "min": 33.8,
+     "max": 34.3,
+     "n": 3,
+     "spread_pct": 1.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 5,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3178.2,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4084,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.996,
+     "min": 1.946,
+     "max": 2.07,
+     "n": 3,
+     "spread_pct": 6.2
+    },
+    "prefill_tok_s": {
+     "median": 2043.454,
+     "min": 1971.756,
+     "max": 2096.069,
+     "n": 3,
+     "spread_pct": 6.1
+    },
+    "decode_tok_s": {
+     "median": 31.032,
+     "min": 30.643,
+     "max": 31.956,
+     "n": 3,
+     "spread_pct": 4.2
+    },
+    "peak_decode_tok_s": {
+     "median": 31.8,
+     "min": 31.6,
+     "max": 32.9,
+     "n": 3,
+     "spread_pct": 4.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 6,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 1860.7
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16656,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 9.08,
+     "min": 8.759,
+     "max": 9.697,
+     "n": 3,
+     "spread_pct": 10.3
+    },
+    "prefill_tok_s": {
+     "median": 1833.687,
+     "min": 1717.107,
+     "max": 1901.041,
+     "n": 3,
+     "spread_pct": 10.0
+    },
+    "decode_tok_s": {
+     "median": 28.266,
+     "min": 28.265,
+     "max": 29.321,
+     "n": 3,
+     "spread_pct": 3.7
+    },
+    "peak_decode_tok_s": {
+     "median": 29.4,
+     "min": 29.3,
+     "max": 30.6,
+     "n": 3,
+     "spread_pct": 4.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 6,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 1774.7
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia-metal",
+  "activity_checks": {
+   "idle": 13,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

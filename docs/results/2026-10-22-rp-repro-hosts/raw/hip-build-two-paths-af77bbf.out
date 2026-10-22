@@ -1,0 +1,43 @@
+fleetq: #3736 waiting (#3 in line): in line behind #3729 "on: HIP CLI build + lib tests (CPU, tatooine) r4" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #3729 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3729 set, or it will wait for #3729 to be released.
+fleetq: #3736 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/t-a-build.sh
+deploy: note: the working tree has uncommitted changes; they are NOT deployed (only af77bbfd256c678b56bf26014349cfd66ba553f4 is)
+deploy: tatooine (hip) <- af77bbfd256c678b56bf26014349cfd66ba553f4 (deploy-step: fall back to plain cargo build for refs without repro-build.sh)
+deploy: synced (0 entries changed)
+    Blocking waiting for file lock on build directory
+    Finished `release` profile [optimized] target(s) in 11.58s
+repro-build: sha256 72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+
+=== reproducibility stamp (tatooine:~/intarsia-deploy/hip/DEPLOY_STAMP.json) ===
+git        af77bbfd256c678b56bf26014349cfd66ba553f4  (af77bbfd256c678b56bf26014349cfd66ba553f4; tree 33383e0a93cc)
+subject    deploy-step: fall back to plain cargo build for refs without repro-build.sh
+backend    hip
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+hipcc      HIP version: 7.2.53211-97f5574fe2
+rocm       7.2.4
+container  sha256:67e66c624a8f7114e469626532b53be4ac74c053e80fcff78d6ddd22845e62a0 base=rocm/dev-ubuntu-24.04:7.2.4@sha256:bdc8e61026cbb844ede93d44d2c50055f51ebb2041906b60182bf3bee3139054
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     /target/release/intarsia  sha256 72688024194830b8  34086472 bytes  
+smoke      skipped
+deploy(build-only) rc=0
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 57.73s
+repro-build: sha256 72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  /target/release/intarsia
+hip a built in 59 s from ~/rp/hipa
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 53.60s
+repro-build: sha256 72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  SOURCE_DATE_EPOCH=1792643185  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806  /target/release/intarsia
+hip b built in 54 s from ~/rp/deeper/still/hipb
+deploy tree binary sha256 72688024194830b8a78eb0a8684d57526e111537d4e339eac1fc4b58ec5c4806
+removed volumes
+fleetq: #3736 done (exit 0)

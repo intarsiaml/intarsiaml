@@ -79,6 +79,21 @@ impl GraphState {
     }
 }
 
+/// In-process tensor parallelism (one process, a thread per rank): the peers keep their own telemetry, so rank 0 prints
+/// each peer's graph counters when the group goes away, as `tp-worker` does for a remote rank. That line is the evidence
+/// that the other ranks replayed in lockstep (a rank that ran eagerly while rank 0 replayed gives the same bits).
+impl Drop for Model {
+    fn drop(&mut self) {
+        for p in &self.peers {
+            let g = p.graph_stats();
+            eprintln!(
+                "tensor-parallel rank {}: decode graph enabled={} captures={} replays={}",
+                p.tp.rank, g.enabled, g.captures, g.replays
+            );
+        }
+    }
+}
+
 impl Model {
     /// Turn graph replay of the decode step on or off (`--no-graphs`). Off drops the recording.
     pub fn set_graphs(&self, on: bool) {

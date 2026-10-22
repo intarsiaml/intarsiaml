@@ -1,0 +1,13 @@
+fleetq: #3682 running on spark1: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/nvcc-exp3.sh
+fleetq: #3682 went ahead of the line and must end within 1h33m (by Thu 01:20); it is stopped then
+a vs b DIFF (2 bytes)
+3725c3725
+< tmpxft_0030f70f_00000000-6_norm.cudafe1.cpp
+---
+> tmpxft_0030f724_00000000-6_norm.cudafe1.cpp
+s1 vs s2 DIFF (2 bytes)
+3725c3725
+< tmpxft_0030f739_00000000-6_norm.cudafe1.cpp
+---
+> tmpxft_0030f74e_00000000-6_norm.cudafe1.cpp
+fleetq: #3682 done (exit 0)

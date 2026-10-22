@@ -1,0 +1,9 @@
+active
+[window] job 3890; stages: bitwise ids ids8 profdev ab ab8; stopping radiance 2026-10-22 02:46:14
+[window] radiance stopped 2026-10-22 02:46:17
+[window] localeval arm base-r1 up 2026-10-22 02:55:24
+[window] localeval arm base-r1 exit 0 2026-10-22 03:06:33
+[window] localeval arm dev-r1 up 2026-10-22 03:06:46
+[window] localeval arm dev-r1 exit 143 2026-10-22 03:07:41
+[window] starting radiance 2026-10-22 03:07:42
+[window] radiance answers (after 25 s) 2026-10-22 03:08:04

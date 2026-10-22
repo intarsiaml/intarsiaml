@@ -1,0 +1,11 @@
+fleetq: #3694 waiting (#14 in line): in line behind #3674 "dashcntrl sweep handoff" (claude-0fb7de14) on endor
+fleetq: #3694 waiting (#13 in line): in line behind #3675 "dashcntrl bl47 e2e iterate+sweep" (claude-121fea2b) on endor
+fleetq: #3694 waiting (#12 in line): in line behind #3669 "m35: 35B metal per-kernel profile prefill 2k (diagnostic)" (claude-f31ccf91) on endor
+fleetq:   #3669 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=3669 set, or it will wait for #3669 to be released.
+fleetq: #3694 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rp/e-check.sh
+   Compiling zerocopy-derive v0.8.62
+    Checking zerocopy v0.8.62
+    Checking half v2.7.1
+    Checking intarsia-core v0.0.1 (/opt/code/wt-rp/crates/intarsia-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.74s
+fleetq: #3694 done (exit 0)

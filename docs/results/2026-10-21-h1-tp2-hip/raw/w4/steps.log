@@ -1,0 +1,5 @@
+18:28:39 hiptest all exit 0: 93 passed, 0 failed, 10 ignored 
+18:28:42 hiptest comm-1 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:46 hiptest comm-2 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:50 hiptest comm-3 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:50 done
