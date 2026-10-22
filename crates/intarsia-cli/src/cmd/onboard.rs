@@ -781,6 +781,10 @@ fn run_qualify(c: &mut Ctx, st: &OnbState, quick_only: bool, stem: &str) -> Resu
     }
     if let Some(g) = &c.a.golden_from {
         args.extend(golden_flags(g)?);
+        if g.starts_with("http://") || g.starts_with("https://") {
+            // a reference server can also make the 4k golden, so the in-depth tier runs `acc-4k` instead of skipping it
+            args.push("--make-golden-4k".into());
+        }
     }
     if let Some(u) = &c.a.push_metrics {
         args.extend(["--push-metrics".into(), u.clone()]);

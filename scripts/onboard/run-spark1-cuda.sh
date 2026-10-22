@@ -20,11 +20,16 @@ mkdir -p "$RAW/$RUN"
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$RAW/$RUN/steps.log"; }
 OUT='$HOME/onboard-runs/'$RUN
 log "preflight"
-rsh "which uv python3; python3 -c 'import numpy, safetensors; print(\"py deps ok\")' 2>&1 | tail -1; df -h \$HOME | tail -1; free -g | sed -n 2p; ls \$HOME/intarsiaml-golden 2>&1 | head -20" 2>&1 | tee -a "$RAW/$RUN/steps.log"
+rsh "ls -d \$HOME/.cache/huggingface/hub/models--* \$HOME/models/* 2>&1 | sed 's|.*/||'; which uv python3; python3 -c 'import numpy, safetensors; print(\"py deps ok\")' 2>&1 | tail -1; df -h \$HOME | tail -1; free -g | sed -n 2p; curl -s -m 10 ${GOLDEN_FROM%/}/models | head -c 160; echo" 2>&1 | tee -a "$RAW/$RUN/steps.log"
+if ! rsh "python3 -c 'import numpy, safetensors' 2>/dev/null || which uv >/dev/null 2>&1"; then log "ABORT: no python with numpy+safetensors and no uv on $HOST: goldens cannot be made"; exit 1; fi
+if ! rsh "curl -sf -m 10 ${GOLDEN_FROM%/}/models >/dev/null"; then log "ABORT: reference server $GOLDEN_FROM does not answer"; exit 1; fi
 T0=$(date +%s)
 log "build tree $TREE"
 "$REPO/scripts/cuda-decode/build.sh" "$TREE" 2>&1 | tee "$RAW/$RUN/build.log" | tail -8
 T1=$(date +%s); log "build_seconds=$((T1 - T0))"
+log "cargo test -p intarsia-cli --lib (separate target dir, CPU)"
+rsh "cd \$HOME/intarsia-decfuse/$TREE && CARGO_BUILD_JOBS=6 CARGO_TARGET_DIR=target/unit cargo test --release -p intarsia-cli --lib 2>&1 | grep -E '^test result|FAILED|panicked|^error' | tail -6" 2>&1 | tee -a "$RAW/$RUN/steps.log"
+T1=$(date +%s)
 rsh "rm -rf $OUT; mkdir -p $OUT/golden-fresh"
 log "onboard start"
 rsh "cd \$HOME/intarsia-decfuse/$TREE && date -u +%FT%TZ > $OUT/start.txt && timeout ${CAP_MIN}m target/acc/release/intarsia onboard --model $M35 --backend cuda --golden-from $GOLDEN_FROM --mem-budget 38 --out $OUT/report -- --golden-dir $OUT/golden-fresh --no-unim > $OUT/driver.log 2>&1 < /dev/null; echo exit=\$? >> $OUT/driver.log; date -u +%FT%TZ > $OUT/end.txt; tail -30 $OUT/driver.log" 2>&1 | tee -a "$RAW/$RUN/steps.log"

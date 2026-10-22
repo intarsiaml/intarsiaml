@@ -66,6 +66,11 @@ pub struct QualifyArgs {
     /// error alone, at the activation-precision class. Default: `<model>-formatref...` found by name; none is made.
     #[arg(long)]
     pub format_golden: Option<PathBuf>,
+    /// With a `--reference` server URL, make the 4k golden (tools/golden_vllm.py on tools/prompts/golden_4k.jsonl) when
+    /// none is found. Off by default: with it `acc-4k` runs instead of skipping, and `acc-long` then runs `--mode both`.
+    /// `intarsia onboard --golden-from <URL>` passes it.
+    #[arg(long)]
+    pub make_golden_4k: bool,
     /// Directory to search for goldens (repeatable; default: ./golden, /models/golden, $INTARSIA_GOLDEN_DIR, the repo's
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
@@ -1232,6 +1237,25 @@ fn longest_golden_prompt(golden: &Path) -> Option<usize> {
         .max()
 }
 
+/// The interpreter for `tools/golden_vllm.py`, which needs only numpy and safetensors: a `python3` that has both, else
+/// `uv run --project tools` (which installs torch and transformers too, a large download), else plain `python3`.
+fn golden_vllm_python(repo: &Path) -> Command {
+    let py_ok = Command::new("python3")
+        .args(["-c", "import numpy, safetensors"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !py_ok && have_cmd("uv") {
+        let mut c = Command::new("uv");
+        c.args(["run", "--project"]).arg(repo.join("tools")).arg("python");
+        c
+    } else {
+        Command::new("python3")
+    }
+}
+
 fn have_cmd(name: &str) -> bool {
     Command::new(name)
         .arg("--version")
@@ -1305,12 +1329,14 @@ impl Ctx {
         if let Some(g) = facts::find_golden_4k(&self.name, &dirs) {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
-        // With a reference server the 4k golden is cheap (one request per prompt, no HF fp32 run), so make it.
-        if let Some(g) = self.make_golden_4k()? {
-            return Ok(g);
+        // With a reference server the 4k golden is cheap (one request per prompt, no HF fp32 run); opt-in.
+        if self.a.make_golden_4k {
+            if let Some(g) = self.make_golden_4k()? {
+                return Ok(g);
+            }
         }
         Ok(Golden::None(format!(
-            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR, or --reference <vLLM url> to make one; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
+            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR, or --reference <vLLM url> with --make-golden-4k to make one; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
             self.name,
             dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
         )))
@@ -1325,13 +1351,7 @@ impl Ctx {
         };
         let Some(repo) = facts::repo_root() else { return Ok(None) };
         let out = self.path(&format!("goldens/{}-4k.safetensors", self.name));
-        let mut cmd = if have_cmd("uv") {
-            let mut c = Command::new("uv");
-            c.args(["run", "--project"]).arg(repo.join("tools")).arg("python");
-            c
-        } else {
-            Command::new("python3")
-        };
+        let mut cmd = golden_vllm_python(&repo);
         let base = intarsia_bench::http::api_base(&r);
         let model = self.reference_model(&base)?;
         cmd.arg(repo.join("tools/golden_vllm.py")).args(["--base-url", &base, "--model", &model, "--out"]).arg(&out);
@@ -1368,22 +1388,11 @@ impl Ctx {
         };
         let key = if long { "golden_long" } else { "golden_short" };
         let out = self.path(&format!("goldens/{}-{}.safetensors", self.name, if long { "long" } else { "short" }));
-        let python: Vec<String> = if have_cmd("uv") {
-            vec![
-                "uv".into(),
-                "run".into(),
-                "--project".into(),
-                repo.join("tools").display().to_string(),
-                "python".into(),
-            ]
-        } else {
-            vec!["python3".into()]
-        };
-        let mut cmd = Command::new(&python[0]);
-        cmd.args(&python[1..]);
         let mut desc;
+        let mut cmd;
         match self.a.reference.clone() {
             Some(r) if r.starts_with("http://") || r.starts_with("https://") => {
+                cmd = golden_vllm_python(&repo);
                 let base = intarsia_bench::http::api_base(&r);
                 let model = self.reference_model(&base)?;
                 cmd.arg(repo.join("tools/golden_vllm.py"))
@@ -1396,6 +1405,13 @@ impl Ctx {
                 desc = format!("made from the reference server {base} (top-20 prompt_logprobs)");
             }
             other => {
+                cmd = if have_cmd("uv") {
+                    let mut c = Command::new("uv");
+                    c.args(["run", "--project"]).arg(repo.join("tools")).arg("python");
+                    c
+                } else {
+                    Command::new("python3")
+                };
                 let model_dir = other.map(PathBuf::from).unwrap_or(self.a.model.clone());
                 let cfg = read_json(&model_dir.join("config.json"))?;
                 let wf = facts::weight_facts(&model_dir, &cfg)?;
