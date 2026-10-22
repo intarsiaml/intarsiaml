@@ -142,3 +142,21 @@
 3.03.889.405 I slot print_timing: id  2 | task 6027 | n_gen =    317, tg =  34.96 t/s, tg_3s =  35.18 t/s
 3.06.912.699 I slot print_timing: id  2 | task 6027 | n_gen =    423, tg =  34.98 t/s, tg_3s =  35.06 t/s
 3.09.918.846 I slot print_timing: id  2 | task 6027 | n_gen =    528, tg =  34.97 t/s, tg_3s =  34.93 t/s
+3.11.989.443 I slot print_timing: id  2 | task 6027 | prompt eval time =      35.92 ms /     7 tokens (    5.13 ms per token,   194.87 tokens per second)
+3.11.989.446 I slot print_timing: id  2 | task 6027 |        eval time =   17139.53 ms /   600 tokens (   28.61 ms per token,    34.95 tokens per second)
+3.11.989.447 I slot print_timing: id  2 | task 6027 |       total time =   17175.45 ms /   607 tokens
+3.11.989.448 I slot print_timing: id  2 | task 6027 |    graphs reused =       6572
+3.11.989.455 I slot      release: id  2 | task 6027 | stop processing: n_tokens = 606, truncated = 0
+3.11.990.463 I slot get_availabl: id  2 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 0.012
+3.11.990.480 I slot launch_slot_: id  2 | task 6628 | processing task, is_child = 0
+3.15.030.169 I slot print_timing: id  2 | task 6628 | n_gen =    107, tg =  35.29 t/s, tg_3s =  35.62 t/s
+3.18.049.876 I slot print_timing: id  2 | task 6628 | n_gen =    214, tg =  35.36 t/s, tg_3s =  35.43 t/s
+3.21.057.293 I slot print_timing: id  2 | task 6628 | n_gen =    320, tg =  35.32 t/s, tg_3s =  35.25 t/s
+3.24.082.459 I slot print_timing: id  2 | task 6628 | n_gen =    426, tg =  35.25 t/s, tg_3s =  35.04 t/s
+3.27.104.654 I slot print_timing: id  2 | task 6628 | n_gen =    531, tg =  35.15 t/s, tg_3s =  34.74 t/s
+3.29.082.209 I slot print_timing: id  2 | task 6628 | prompt eval time =      35.80 ms /     7 tokens (    5.11 ms per token,   195.51 tokens per second)
+3.29.082.212 I slot print_timing: id  2 | task 6628 |        eval time =   17055.92 ms /   600 tokens (   28.47 ms per token,    35.12 tokens per second)
+3.29.082.212 I slot print_timing: id  2 | task 6628 |       total time =   17091.72 ms /   607 tokens
+3.29.082.212 I slot print_timing: id  2 | task 6628 |    graphs reused =       7168
+3.29.082.218 I slot      release: id  2 | task 6628 | stop processing: n_tokens = 606, truncated = 0
+3.29.093.647 I srv    operator(): operator(): cleaning up before exit...

@@ -23,3 +23,6 @@ fleetq: #4197 went ahead of the line and must end within 53m (by Thu 11:30); it 
 {"rep": 0, "tokens": 600, "events": 600, "cons_tok_s": 35.333935839518475, "greedy_tok_s": 34.70629439564457, "sampled_tok_s": 34.6714026669175, "cons_s": 17.006683826446533, "greedy_s": 17.29473900794983, "sampled_s": 17.31648898124695}
 {"rep": 1, "tokens": 600, "events": 600, "cons_tok_s": 34.97301502560543, "greedy_tok_s": 35.19311805149221, "sampled_tok_s": 35.11709169279064, "cons_s": 17.16525387763977, "greedy_s": 17.05958604812622, "sampled_s": 17.0932719707489}
 {"rep": 2, "tokens": 600, "events": 600, "cons_tok_s": 35.060987288252555, "greedy_tok_s": 35.23104187535708, "sampled_tok_s": 35.219395218270165, "cons_s": 17.119680643081665, "greedy_s": 17.037346839904785, "sampled_s": 17.042774200439453}
+{"rep": 3, "tokens": 600, "events": 600, "cons_tok_s": 35.06184893962594, "greedy_tok_s": 34.9484088570905, "sampled_tok_s": 35.1198612968586, "cons_s": 17.120741844177246, "greedy_s": 17.17612600326538, "sampled_s": 17.09242272377014}
+== done Thu Oct 22 10:47:47 EDT 2026
+fleetq: #4197 done (exit 0)

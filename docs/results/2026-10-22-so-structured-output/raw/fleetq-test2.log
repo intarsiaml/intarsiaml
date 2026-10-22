@@ -4,3 +4,48 @@ fleetq: #4202 waiting (#5 in line): in line behind #4197 "so: constrained decode
 fleetq:   #4197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4197 set, or it will wait for #4197 to be released.
 fleetq: #4202 waiting (#4 in line): endor is held exclusively by #4197 "so: constrained decode profile + A/B vs main + llama.cpp (exclusive, short)" (claude-f31ccf91-so); then in line behind #4198 "fx4 build new+base with metal" (claude-f31ccf91) on endor
 fleetq:   #4197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4197 set, or it will wait for #4197 to be released.
+fleetq: #4202 running on endor: env SKIP_BASE=1 zsh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/test.sh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/raw/test2
+fleetq: #4202 went ahead of the line and must end within 29m (by Thu 11:17); it is stopped then
+== head structured + microbench Thu Oct 22 10:47:47 EDT 2026
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+test structured::tests::constrained_step_phases ... phase mask compute                 n=2000  mean      2.3 us  p50      1.2  p99     29.3  max     93.4
+phase apply (old per-bit loop)     n=2000  mean     17.7 us  p50     15.5  p99     55.8  max     74.9
+phase apply (fill form)            n=2000  mean     30.3 us  p50     29.1  p99     56.6  max     85.3
+phase argmax (151936)              n=2000  mean    144.8 us  p50    143.5  p99    170.7  max    273.8
+phase commit                       n=2000  mean      0.7 us  p50      0.5  p99      4.9  max     11.5
+phase thread per step (spawn+recv) n=400   mean     17.5 us  p50     15.2  p99     49.1  max     90.7
+phase persistent worker wake+recv  n=400   mean      4.3 us  p50      4.1  p99      7.8  max     19.8
+mean allowed tokens per step: 142923
+digest nested c2f2146cc7161b78
+digest enum 29c3e9c34bcf5e37
+digest array 0489a17db0ea47d8
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.25s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== head workspace Thu Oct 22 10:47:54 EDT 2026
+workspace exit 0
+   1 test all_gather_concatenates_in_rank_order_and_a_failed_rank_releases_the_others ... ok
+   1 test cmd::onboard::tests::a_failed_gate_is_final_but_an_error_runs_again ... ok
+   1 test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+   1 test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+   1 test failed_forward_resets_recurrent_state ... ok
+   1 test health_503_when_failed_or_stalled ... ok
+   1 test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+  57 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   6 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+   1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+   1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+fleetq: #4202 done (exit 0)
