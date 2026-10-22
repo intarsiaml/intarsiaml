@@ -64,6 +64,7 @@ fn v3_is_bitwise_v2() {
     for (t, e, k, h, i) in [
         (1usize, 256usize, 8usize, 2048usize, 512usize),
         (2, 256, 8, 2048, 512),
+        (1, 256, 8, 2048, 256), // the 35B tp=2 shard (lane H1)
         (2, 64, 8, 2048, 512),
         (1, 32, 4, 256, 48),
         (1, 16, 2, 4112, 160),

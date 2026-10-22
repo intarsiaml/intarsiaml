@@ -1,0 +1,10 @@
+[window] job 3262 w4; stopping radiance 2026-10-21 18:26:25
+[window] radiance stopped 2026-10-21 18:26:27
+18:28:39 hiptest all exit 0: 93 passed, 0 failed, 10 ignored 
+18:28:42 hiptest comm-1 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:46 hiptest comm-2 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:50 hiptest comm-3 exit 0: 5 passed, 0 failed, 1 ignored 
+18:28:50 done
+[window] stages done 2026-10-21 18:28:50 (exit 0)
+[window] starting radiance 2026-10-21 18:28:50
+[window] radiance answers 2026-10-21 18:29:00 (after 15 s)
