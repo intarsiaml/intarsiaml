@@ -3,3 +3,18 @@ fleetq: #4160 waiting (#10 in line): in line behind #4129 "fx4 final: Qwen3 no-o
 fleetq: #4160 waiting (#7 in line): in line behind #4135 "ck: prefill chunk 2048/4096/8192 Metal acc+speed (exclusive)" (claude-f31ccf91-ck) on endor
 fleetq: #4160 waiting (#6 in line): in line behind #4148 "fx5c: Metal 35B reuse gate with the oracle-relative continue rule + mutation (non-exclusive, numerics only)" (claude-f31ccf91-fx5c) on endor
 fleetq: #4160 waiting (#5 in line): in line behind #4156 "mdl: Metal decode folds A/B speed n=3 main vs head + dispatches/token (exclusive)" (claude-f31ccf91-mdl) on endor
+fleetq: #4160 waiting (#3 in line): in line behind #4158 "dashcntrl statusbar/polish e2e rerun (cpu only)" (claude-a6841651) on endor
+fleetq: #4160 waiting (#1 in line): needs endor to itself; running there: #4158 "dashcntrl statusbar/polish e2e rerun (cpu only)" (claude-a6841651), #4159 "so: build base/prof/head Metal binaries (non-exclusive)" (claude-f31ccf91-so)
+fleetq:   #4159 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4159 set, or it will wait for #4159 to be released.
+fleetq: #4160 waiting (#1 in line): needs endor to itself; running there: #4158 "dashcntrl statusbar/polish e2e rerun (cpu only)" (claude-a6841651)
+fleetq: #4160 running on endor: zsh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/run.sh /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/raw/run
+fleetq: #4160 went ahead of the line and must end within 76m (by Thu 11:30); it is stopped then
+== profile Thu Oct 22 10:13:42 EDT 2026
+/opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/run.sh:51: no such file or directory: uv run --script /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/ssbench.py
+== round 1 base Thu Oct 22 10:14:30 EDT 2026
+/opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/run.sh:62: no such file or directory: uv run --script /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/ssbench.py
+== round 1 head Thu Oct 22 10:15:17 EDT 2026
+/opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/run.sh:62: no such file or directory: uv run --script /opt/code/wt-so/docs/results/2026-10-22-so-structured-output/scripts/ssbench.py
+== round 2 head Thu Oct 22 10:15:59 EDT 2026
+fleetq: stopping processes the command left running
+fleetq: #4160 done (exit -15)

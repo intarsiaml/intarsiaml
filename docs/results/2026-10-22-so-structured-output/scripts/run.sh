@@ -43,12 +43,12 @@ warm() {
   curl -sf http://127.0.0.1:$PORT/v1/completions -H 'content-type: application/json' \
     -d '{"prompt":"Hello","max_tokens":16,"temperature":0}' > /dev/null < /dev/null
 }
-SS="uv run --script $H/ssbench.py"
+SS=(uv run --script $H/ssbench.py)
 
 echo "== profile $(date)" | tee -a $OUT/job.log
 serve prof $HEAD INTARSIA_CONSTRAIN_PROFILE=1 && {
   warm
-  $SS speed --url http://127.0.0.1:$PORT --reps 3 --label prof --out $OUT/prof-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
+  ${SS[@]} speed --url http://127.0.0.1:$PORT --reps 3 --label prof --out $OUT/prof-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
 }
 stop
 
@@ -59,8 +59,8 @@ for r in {1..$ROUNDS}; do
     bin=$BASE; [[ $arm == head ]] && bin=$HEAD
     serve $arm-r$r $bin || continue
     warm
-    $SS speed --url http://127.0.0.1:$PORT --reps $REPS --label $arm-r$r --out $OUT/ab-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
-    (( r <= 2 )) && $SS identity --url http://127.0.0.1:$PORT --out $OUT/identity-$arm-r$r.json < /dev/null > $OUT/identity-$arm-r$r.log 2>&1
+    ${SS[@]} speed --url http://127.0.0.1:$PORT --reps $REPS --label $arm-r$r --out $OUT/ab-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
+    (( r <= 2 )) && ${SS[@]} identity --url http://127.0.0.1:$PORT --out $OUT/identity-$arm-r$r.json < /dev/null > $OUT/identity-$arm-r$r.log 2>&1
     stop
   done
 done
@@ -72,7 +72,7 @@ up=0
 for i in {1..240}; do curl -sf http://127.0.0.1:8091/health > /dev/null 2>&1 && { up=1; break; }; sleep 1; done
 if [[ $up == 1 ]]; then
   curl -sf http://127.0.0.1:8091/v1/completions -H 'content-type: application/json' -d '{"prompt":"Hello","max_tokens":16,"temperature":0}' > /dev/null < /dev/null
-  $SS speed --url http://127.0.0.1:8091 --engine llama --reps $(( ROUNDS * REPS )) --label llama --out $OUT/llama-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
+  ${SS[@]} speed --url http://127.0.0.1:8091 --engine llama --reps $(( ROUNDS * REPS )) --label llama --out $OUT/llama-speed.jsonl < /dev/null 2>&1 | tee -a $OUT/job.log
 fi
 stop
 echo "== done $(date)" | tee -a $OUT/job.log
