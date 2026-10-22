@@ -2060,6 +2060,12 @@ impl Model {
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
+                if f.down.format == crate::quant::MXFP4 {
+                    // the MXFP4 matmul writes the f32 partial itself (Qwen3.8-27B tp=2; the shard holds whole 32-groups of
+                    // the intermediate columns, `Mxfp4::load`)
+                    self.proj(&a, &f.down, &part, profile)?;
+                    return self.all_reduce(&part, out, profile);
+                }
                 if !bf16(&f.down) {
                     return Err(Error::Unsupported(format!("tensor-parallel dense FFN with {} weights", f.down.format)));
                 }

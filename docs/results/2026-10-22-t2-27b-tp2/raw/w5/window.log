@@ -1,0 +1,32 @@
+[window] job 3751 w5; stopping radiance 2026-10-22 00:36:49
+[window] radiance stopped 2026-10-22 00:36:52
+00:37:03 ids-27-tp1-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 189 ms (63.4 tok/s) | decode 7825 ms (32.59 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+00:37:03 ids 27-tp1-short md5 2086b6a4
+00:37:17 ids-27-tp1-4k exit 0: finish=length prompt=4408 (cached 0) completion=256 | prefill 4704 ms (937.0 tok/s) | decode 8008 ms (31.84 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+00:37:17 ids 27-tp1-4k md5 ef88d237
+00:37:27 ids-27-tp2g-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 150 ms (80.0 tok/s) | decode 5992 ms (42.56 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:37:27 ids 27-tp2g-short md5 2086b6a4
+00:37:39 ids-27-tp2gf-4k exit 0 [INTARSIA_TP_FUSION=1]: finish=length prompt=4408 (cached 0) completion=256 | prefill 3276 ms (1345.5 tok/s) | decode 5598 ms (45.55 tok/s)|steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35072 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:37:39 ids 27-tp2gf-4k md5 ef88d237
+00:37:47 ids-35-tp1-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (205.3 tok/s) | decode 1600 ms (159.40 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+00:37:47 ids 35-tp1-short md5 7f8d5c3b
+00:37:53 ids-35-tp2-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 59 ms (202.2 tok/s) | decode 1842 ms (138.40 tok/s)|steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+00:37:53 ids 35-tp2-short md5 1475a36c
+00:38:05 ids-8-tp1-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 69 ms (174.6 tok/s) | decode 6577 ms (38.77 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+00:38:05 ids 8-tp1-short md5 e61a780f
+00:38:12 ids-8-tp2-short exit 0: finish=length prompt=12 (cached 0) completion=256 | prefill 54 ms (222.1 tok/s) | decode 4216 ms (60.48 tok/s)|steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18432 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+00:38:12 ids 8-tp2-short md5 808d679a
+00:38:12 SAME 27B tp=1 short vs w2 (ids-27-tp1-short-head.ids == ids-27-tp1-short.ids)
+00:38:12 SAME 27B tp=1 4k vs w2 (ids-27-tp1-4k-head.ids == ids-27-tp1-4k.ids)
+00:38:12 SAME 27B tp=2 graphs short vs w2 tp=1 (ids-27-tp1-short-head.ids == ids-27-tp2g-short.ids)
+00:38:12 SAME 27B tp=2 graphs+fusion 4k vs w2 tp=1 (ids-27-tp2gf-4k.ids == ids-27-tp1-4k-head.ids)
+00:38:12 SAME 35-tp1-short vs w2 (ids-35-tp1-short-head.ids == ids-35-tp1-short.ids)
+00:38:12 SAME 35-tp2-short vs w2 (ids-35-tp2-short-head.ids == ids-35-tp2-short.ids)
+00:38:12 SAME 8-tp1-short vs w2 (ids-8-tp1-short-head.ids == ids-8-tp1-short.ids)
+00:38:12 SAME 8-tp2-short vs w2 (ids-8-tp2-short-head.ids == ids-8-tp2-short.ids)
+00:38:12 HIP crate GPU tests
+00:40:32 hiptest exit 0: 95 passed, 0 failed
+00:40:32 done
+[window] stages done 2026-10-22 00:40:32 (exit 0)
+[window] starting radiance 2026-10-22 00:40:32
+[window] radiance answers 2026-10-22 00:40:47 (after 20 s)

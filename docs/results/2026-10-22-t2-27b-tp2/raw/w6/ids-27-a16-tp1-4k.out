@@ -1,0 +1,30 @@
+...
+
+## 4. Model recipes
+
+A recipe is a TOML file describing a model as a stack of blocks over the block library. No per-model engine code.
+
+```toml
+[recipe]
+name = "qwen3.5-35b-a3b"
+arch = "Qwen3_5MoeForCausalLM"
+block_lib = "intarsia-core"
+
+[config]
+hidden = 2048
+layers = 40
+kv_heads = 2
+q_heads = 16
+head_dim = 256
+vocab = 248320
+moe_experts = 256
+moe_topk = 8
+moe_inter = 512
+shared_expert_inter = 1024
+linear_attn_layers = 30        # GatedDeltaNet
+full_attn_layers = 10
+mtp_layers = 1
+
+[quant]
+linear = "nvfp4"               # or exl3, mxfp4, fp8, bf16, gguf:q4_k_m, awq, gptq
+kv = "fp8"
