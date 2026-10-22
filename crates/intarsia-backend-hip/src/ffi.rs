@@ -124,6 +124,7 @@ extern "C" {
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash_v2(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_hip_flash_hpb() -> c_int;
+    pub fn ik_hip_flash_vp() -> c_int;
     pub fn ik_hip_moe_mw(pairs: c_int) -> c_int;
     pub fn ik_hip_moe_mw_down(pairs: c_int) -> c_int;
     pub fn ik_hip_split_pieces(est_us: c_double, max_pieces: i64) -> c_int;
