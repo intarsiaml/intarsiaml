@@ -18,6 +18,10 @@ run() { # label, extra args...
   echo "exit $?" | tee -a "$RAW/$label.log"
   grep -a -e 'continue judged' -e 'prefix-reuse' -e '^long_\|^chat_' "$RAW/$label.log" | cut -c1-260 | tail -25
 }
+if [[ "${QUICK:-0}" == 1 ]]; then   # only the case the oracle-relative rule judges, at both chunks (the other cases are unchanged code)
+  for c in 1024 2048; do echo "=== reuse long_docs_4k, chunk $c"; MAXSEQ=8192 run reuse-q-c$c --prefill-chunk $c --reuse-prompt long_docs_4k; done
+  exit 0
+fi
 for c in 1024 2048; do echo "=== reuse long golden, chunk $c"; run reuse-c$c --prefill-chunk $c --reuse-require-all; done
 echo "=== mutation: warm logits x1.2, long_docs_4k, chunk 1024"
 INTARSIA_REUSE_TEST_BUG=scale:1.2 run mut-x1.2 --prefill-chunk 1024 --reuse-prompt long_docs_4k
