@@ -45,7 +45,7 @@ registration, and the new cases use that unchanged.
 |---|---|---|---|
 | Metal | endor, fleetq slot | `kernels test --backend metal --quick` | 28 kernels, 121 cases (was 84), 0 FAIL, 0 NO CASES. Raw: `raw/2026-10-22-kq/metal-guard-quick.log` |
 | HIP | tatooine, build + window, ref `882aa27b` | `deploy.sh tatooine --backend hip` smoke = `kernels test --quick` | 54 kernels, 288 cases, 0 FAIL, 0 NO CASES, `doctor` rc 0. Raw: `raw/2026-10-22-kq/quick-hip.log` |
-| CUDA | spark1 (GB10), ref `86a89163`, fleetq #3758 | `deploy.sh spark1 --backend cuda` smoke = `kernels test --quick` | 54 kernels, 362 cases (was 51 kernels / 149 cases; 3 more kernels are now registered on main), 0 FAIL, 0 NO CASES, `doctor` rc 0, 1.3 s. All 10 former gaps ADMITTED. Raw: `raw/2026-10-22-kq/quick-cuda.log` |
+| CUDA | spark1 (GB10), ref `86a89163`, fleetq #3758 | `deploy.sh spark1 --backend cuda` smoke = `kernels test --quick` | 54 kernels, 362 cases (was 51 kernels / 149 cases; the count differs from the 2026-10-21 report because main and the sweep moved since; not itemised), 0 FAIL, 0 NO CASES, `doctor` rc 0, 1.3 s. All 10 former gaps ADMITTED. Raw: `raw/2026-10-22-kq/quick-cuda.log` |
 | Guard test, all 3 | endor | `cargo test -p intarsia-backend-{cuda,hip,metal} --test quick_coverage` | 3 passed. `cargo test -p intarsia-core --lib`: 97 passed |
 
 CUDA was run on the final head. `882aa27b` is a first commit of the same crate changes that also carried a build directory by mistake; the code under
