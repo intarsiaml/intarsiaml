@@ -1,0 +1,20 @@
+[window] job 3842; pass p6; arms: llama-vk4 hipfire llama-hip intarsia llama-vk; window cap 1140 s; stopping radiance 2026-10-22 01:51:19
+[window] radiance stopped; gpu: card0: sclk=1: 685Mhz *  temp_mC=37000 vram_used=59912192 busy=13 | card1: sclk=1: 685Mhz *  temp_mC=44000 vram_used=93114368 busy=13 |  2026-10-22 01:51:23
+[window] visit llama-vk4-p6: starting server (1136 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=37000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=44000 vram_used=93114368 busy=0 |  2026-10-22 01:51:23
+[window] visit llama-vk4-p6: server up (1128 s left) 2026-10-22 01:51:31
+[window] visit llama-vk4-p6: localeval speed exit 0 (1085 s left) 2026-10-22 01:52:14
+[window] visit hipfire-p6: starting server (1080 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=35000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=54000 vram_used=93114368 busy=0 |  2026-10-22 01:52:19
+[window] visit hipfire-p6: server up (1069 s left) 2026-10-22 01:52:30
+[window] visit hipfire-p6: localeval speed exit 0 (1008 s left) 2026-10-22 01:53:31
+[window] visit llama-hip-p6: starting server (1005 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=33000 vram_used=59912192 busy=0 | card1: sclk=1: 286Mhz *  temp_mC=54000 vram_used=93114368 busy=0 |  2026-10-22 01:53:35
+[window] visit llama-hip-p6: server up (999 s left) 2026-10-22 01:53:40
+[window] visit llama-hip-p6: localeval speed exit 0 (956 s left) 2026-10-22 01:54:23
+[window] visit intarsia-p6: starting server (953 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=54000 vram_used=93114368 busy=0 |  2026-10-22 01:54:27
+[window] visit intarsia-p6: server up (935 s left) 2026-10-22 01:54:44
+[window] visit intarsia-p6: localeval speed exit 0 (914 s left) 2026-10-22 01:55:05
+[window] visit llama-vk-p6: starting server (910 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=31000 vram_used=59912192 busy=0 | card1: sclk=1: 295Mhz *  temp_mC=53000 vram_used=93114368 busy=8 |  2026-10-22 01:55:09
+[window] visit llama-vk-p6: server up (901 s left) 2026-10-22 01:55:18
+[window] visit llama-vk-p6: localeval speed exit 0 (862 s left) 2026-10-22 01:55:57
+[window] arms done 2026-10-22 01:56:03
+[window] starting radiance 2026-10-22 01:56:03
+[window] radiance answers (after 20 s); window total 300 s 2026-10-22 01:56:19

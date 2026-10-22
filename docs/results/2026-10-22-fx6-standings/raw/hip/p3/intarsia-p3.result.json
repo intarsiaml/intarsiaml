@@ -1,0 +1,256 @@
+{
+ "run_id": "20261022-014008-adhoc-fx6-intarsia-p3",
+ "kind": "speed",
+ "label": "fx6-intarsia-p3",
+ "started_at": "2026-10-22T01:40:08-04:00",
+ "finished_at": "2026-10-22T01:40:27-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://tatooine:8090/v1",
+  "model": "qwen36-35b-intarsia-hip",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false
+ },
+ "harness": {
+  "localeval": "0.3.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b-intarsia-hip --sizes 128,1024,4096,16384 --gen 128 --reps 3 --thinking off --label fx6-intarsia-p3",
+  "git": "1b02605"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "qwen36-35b-intarsia-hip"
+   ],
+   "root": "Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 17408
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.06,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 114,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.085,
+     "min": 0.081,
+     "max": 0.086,
+     "n": 3,
+     "spread_pct": 5.8
+    },
+    "prefill_tok_s": {
+     "median": 1325.106,
+     "min": 1313.473,
+     "max": 1443.378,
+     "n": 3,
+     "spread_pct": 9.8
+    },
+    "decode_tok_s": {
+     "median": 159.278,
+     "min": 159.202,
+     "max": 159.461,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 161.3,
+     "min": 160.7,
+     "max": 176.1,
+     "n": 3,
+     "spread_pct": 9.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 990,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.175,
+     "min": 0.173,
+     "max": 0.176,
+     "n": 3,
+     "spread_pct": 1.7
+    },
+    "prefill_tok_s": {
+     "median": 5657.377,
+     "min": 5623.633,
+     "max": 5729.45,
+     "n": 3,
+     "spread_pct": 1.9
+    },
+    "decode_tok_s": {
+     "median": 158.887,
+     "min": 158.88,
+     "max": 159.087,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 160.9,
+     "min": 160.8,
+     "max": 161.2,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 9733.3,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.451,
+     "min": 0.45,
+     "max": 0.454,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "prefill_tok_s": {
+     "median": 9068.056,
+     "min": 9017.667,
+     "max": 9077.389,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "decode_tok_s": {
+     "median": 155.651,
+     "min": 155.373,
+     "max": 155.667,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 157.8,
+     "min": 157.5,
+     "max": 158.5,
+     "n": 3,
+     "spread_pct": 0.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 11231.9
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16656,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.153,
+     "min": 2.152,
+     "max": 2.153,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "prefill_tok_s": {
+     "median": 7736.013,
+     "min": 7733.489,
+     "max": 7740.923,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "decode_tok_s": {
+     "median": 141.382,
+     "min": 141.122,
+     "max": 141.585,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "peak_decode_tok_s": {
+     "median": 146.1,
+     "min": 143.0,
+     "max": 149.5,
+     "n": 3,
+     "spread_pct": 4.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 7383.1
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "qwen36-35b-intarsia-hip",
+  "activity_checks": {
+   "idle": 13,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=114 ttft=0.11s prefill=1059 tok/s decode=33.1 tok/s peak=33.5 tok/s out=256
+[localeval]    128 tok rep 2/3: prompt=112 ttft=0.09s prefill=1231 tok/s decode=33.1 tok/s peak=33.6 tok/s out=256
+[localeval]    128 tok rep 3/3: prompt=113 ttft=0.09s prefill=1198 tok/s decode=32.6 tok/s peak=33.1 tok/s out=256
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.44s prefill=2217 tok/s decode=32.7 tok/s peak=33.2 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.46s prefill=2128 tok/s decode=32.8 tok/s peak=33.2 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=988 ttft=0.46s prefill=2158 tok/s decode=31.4 tok/s peak=32.9 tok/s out=256
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=2.78s prefill=1468 tok/s decode=30.5 tok/s peak=31.4 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4090 ttft=2.63s prefill=1555 tok/s decode=30.6 tok/s peak=31.3 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4087 ttft=2.60s prefill=1569 tok/s decode=31.3 tok/s peak=32.1 tok/s out=256
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=13.34s prefill=1248 tok/s decode=27.7 tok/s peak=28.4 tok/s out=256
+[localeval]  16384 tok rep 2/3: prompt=16654 ttft=13.01s prefill=1280 tok/s decode=28.0 tok/s peak=28.8 tok/s out=256
+[localeval]  16384 tok rep 3/3: prompt=16655 ttft=12.92s prefill=1289 tok/s decode=28.5 tok/s peak=29.0 tok/s out=256
+# localeval: adhoc — 2026-10-22T01:57
+
+- model: `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf` on ? (?), url `http://127.0.0.1:8091/v1`
+- thinking: off; run kind: speed; label: gate-llamacpp
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 1f24e53
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:8091/v1 --model /Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf --sizes 128,1024,4096,16384 --gen 256 --reps 3 --thinking off --label gate-llamacpp`
+- result file: `results/20261022-015758-adhoc-gate-llamacpp/result.json`
+
+## Speed sweep
+
+served `/Users/josef/models/Qwen3-8B-GGUF/Qwen3-8B-BF16.gguf`, fingerprint `b11429-d81235049`, ctx 20480, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 113 | 0.09 | 1198 (1059–1231) * | - | 33.1 (32.6–33.1) | 33.5 (33.1–33.6) | 1240 | 33.1 | 256 |
+| 989 | 0.46 | 2158 (2128–2217) * | 2400 | 32.7 (31.4–32.8) | 33.2 (32.9–33.2) | 2175 | 32.7 | 256 |
+| 4088 | 2.63 | 1555 (1468–1569) | 1427 | 30.6 (30.5–31.3) | 31.4 (31.3–32.1) | 1558 | 30.6 | 256 |
+| 16655 | 13.01 | 1280 (1248–1289) | 1211 | 28.0 (27.7–28.5) | 28.8 (28.4–29.0) | 1282 | 28.0 | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261022-015758-adhoc-gate-llamacpp/result.json
+[localeval] logged to unanimis: 30fdedfd-cfc0-4af7-b57c-494f31fd30c7
