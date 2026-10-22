@@ -1,0 +1,55 @@
+# Qwen2 / Qwen2.5 dense decoder (Qwen2ForCausalLM): GQA with q / k / v projection biases (no config key; Qwen2 hard-codes them), no qk-norm,
+# SwiGLU FFN. Written by `intarsia recipe new`, then checked in with the [accuracy] table added by hand.
+[model]
+match.architectures = ["Qwen2ForCausalLM"]      # from config.json architectures
+family = "qwen2"                                # from config.json model_type
+chat_template = "hf"                            # default: the model's own jinja template (chat_template.jinja or tokenizer_config.json)
+# reasoning_parser / tool_parser: optional, not inferable from the checkpoint (see an existing recipe of the same lineage)
+# norm_offset: standard RMSNorm (x * w) assumed; zero-centred (x * (1 + w)) models set norm_offset = 1.0
+
+[layer]
+pattern = ["attn", "ffn"]                       # from tensors: blocks found in layer 0 (attn + ffn)
+
+[layer.attn]
+kind = "gqa"                                    # from tensors: q/k/v/o_proj under model.layers.0.self_attn
+q = "model.layers.{i}.self_attn.q_proj"         # from tensors: model.layers.0.self_attn.q_proj.weight
+k = "model.layers.{i}.self_attn.k_proj"         # from tensors: model.layers.0.self_attn.k_proj.weight
+v = "model.layers.{i}.self_attn.v_proj"         # from tensors: model.layers.0.self_attn.v_proj.weight
+o = "model.layers.{i}.self_attn.o_proj"         # from tensors: model.layers.0.self_attn.o_proj.weight
+q_bias = "model.layers.{i}.self_attn.q_proj.bias"  # from tensors: model.layers.0.self_attn.q_proj.bias
+k_bias = "model.layers.{i}.self_attn.k_proj.bias"  # from tensors: model.layers.0.self_attn.k_proj.bias
+v_bias = "model.layers.{i}.self_attn.v_proj.bias"  # from tensors: model.layers.0.self_attn.v_proj.bias
+# no q_norm / k_norm tensors under model.layers.0.self_attn in layer 0: qk-norm is not applied
+rope = "default"                                # from config.json (no rope scaling key)
+# gated = false (from tensors: model.layers.0.self_attn.q_proj.weight has 3584 rows = 28 heads x head_dim 128)
+
+[layer.ffn]
+kind = "dense"                                  # from tensors: gate_proj / up_proj / down_proj under model.layers.0.mlp
+act = "silu_glu"                                # from text_config.hidden_act = "silu"
+gate = "model.layers.{i}.mlp.gate_proj"         # from tensors: model.layers.0.mlp.gate_proj.weight
+up = "model.layers.{i}.mlp.up_proj"             # from tensors: model.layers.0.mlp.up_proj.weight
+down = "model.layers.{i}.mlp.down_proj"         # from tensors: model.layers.0.mlp.down_proj.weight
+
+[layer.norms]
+pre_attn = "model.layers.{i}.input_layernorm"   # from tensors: model.layers.0.input_layernorm.weight
+pre_ffn = "model.layers.{i}.post_attention_layernorm"  # from tensors: model.layers.0.post_attention_layernorm.weight
+
+[top]
+embed = "model.embed_tokens"                    # from tensors: model.embed_tokens.weight
+final_norm = "model.norm"                       # from tensors: model.norm.weight
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }  # from tensors: lm_head.weight; tied_to is used when the tensor is absent or the config ties the embeddings
+
+[defaults]
+kv_dtype = "bf16"                               # default: bf16 KV cache (fp8_e4m3 KV is accepted by the cpu oracle only)
+max_batch = 8                                   # from closest recipe builtin:qwen3 (same block set)
+
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML).
+[accuracy]
+# Top-1 floor (percent) = min(99.5, top-1 of HF transformers bf16 against its own fp32 golden - 0.5). Measured 2026-10-22 on the
+# Qwen2.5-7B-Instruct short + long golden set (tools/golden.py, CPU, same ids): 98.74% (1416/1434 rows), so 98.24%.
+# A bf16 forward cannot reach the 99.5% class default on this model; docs/results/2026-10-22-fx4-rope-bias.md, docs/decisions/LOG.md.
+min_top1 = 98.24
+# Decode top-1 on the default 16 positions per prompt (160 rows) was 97.50% (156/160), 4 rows under the floor; over every
+# position of the same golden (1424 rows) it is 98.95%. The floor is unchanged; the sample is bigger (2026-10-22, user-approved 13:08).
+decode_positions = 1000
+chat_turns = "chatml"

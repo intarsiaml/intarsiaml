@@ -1,0 +1,6 @@
+prefill chunk 4096 (recipe qwen3, cuda)
+loaded Qwen/Qwen3-8B on NVIDIA GB10 in 29.9s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 17408 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 5686 tokens
+ids: [678, 34534, 5823, 9248, 91, 3070, 27502, 5538, 3059, 334, 320, 60073, 488, 4718, 488, 39975, 285, 8, 760, 220, 16, 1308, 760, 1959, 9248, 91, 3070, 27502, 1614, 334, 320, 983, 1565, 6507, 14, 7808, 448, 11116, 11, 14324, 11, 41338, 5952, 11, 323, 678, 18422, 8, 760, 220, 16, 1308, 760, 1959, 35721, 44364, 565, 220, 23, 13, 13474, 287, 271, 91]
+finish=length prompt=5686 (cached 0) completion=64 | prefill 1584 ms (3590.7 tok/s) | decode 4250 ms (14.83 tok/s)
+steps=65 graph replays=63 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/2268 attn_prefill=0ms/72 embedding=0ms/65 kv_append=0ms/4680

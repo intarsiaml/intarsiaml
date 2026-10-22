@@ -1,0 +1,18 @@
+prefill chunk 256 (default)
+loaded Llama-3.1-8B-Instruct on Apple M5 Max in 0.4s: 32 layers, hidden 4096, act bf16, kv bf16, weights 16.06 GB, context 8192 tokens (recipe builtin:llama, chat template chat_template.jinja)
+prompt: 3681 tokens
+finish=length prompt=3681 (cached 0) completion=1 | prefill 2248 ms (1637.8 tok/s) | decode 0 ms (0.00 tok/s)
+op table (estimated ms over all launches; total 2241.9 ms):
+op                               ms  share%    calls   timed
+matmul_pair                  683.75   30.50      960     960
+matmul                       643.99   28.73     1440    1440
+rmsnorm_add                  283.54   12.65      960     960
+attn_prefill                 171.28    7.64      480     480
+kv_append                    162.82    7.26      960     960
+rope_scaled                  153.59    6.85      960     960
+silu_glu                      91.08    4.06      480     480
+embedding                     46.28    2.06       15      15
+rmsnorm                        2.72    0.12       15      15
+logits                         2.66    0.12        1       1
+argmax                         0.18    0.01        1       1
+steps=15 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: matmul_pair=684ms/960 matmul=644ms/1440 rmsnorm_add=284ms/960 attn_prefill=171ms/480 kv_append=163ms/960

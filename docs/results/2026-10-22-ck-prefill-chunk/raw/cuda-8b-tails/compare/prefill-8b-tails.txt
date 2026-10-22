@@ -1,0 +1,13 @@
+docs/results/2026-10-22-ck-prefill-chunk/raw/cuda-8b-tails/acc/8b-tails: prefill, reference chunk 256, 8 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+  4096long_docs_4k        4064      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_code_4k        4064      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_reuse_4k       4557      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4101          4101      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4200          4200      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_5686          5686     54      NO  5.852e-01  5.64e-03  2.11e-06     0
+  4096synth_8200          8200      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_16036        16036      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+aggregate over all prompts (row-weighted mean KL):
+  chunk 4096: rows 50908, rows differing 54, max|dlp| 5.852e-01, max KL 5.64e-03, mean KL 2.35e-07, flips 0
+ALL BITWISE: NO  (chunks compared: [4096])

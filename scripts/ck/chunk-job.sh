@@ -70,7 +70,7 @@ esac
 # model id -> path, budget, goldens
 mpath() { [[ $1 == 35b ]] && echo "$M35" || echo "$M8"; }
 mbud() { [[ $1 == 35b ]] && echo "$B35" || echo "$B8"; }
-goldens() { if [[ $1 == 35b ]]; then echo "all:$GD/qwen36-35b-s16k.safetensors"; else echo "short:$GD/qwen3-8b-short.safetensors 4k:$GD/qwen3-8b-4k-s16k.safetensors"; fi; }
+goldens() { if [[ -n ${TAILS:-} ]]; then echo "tails:$GD/qwen3-8b-tails.safetensors"; elif [[ $1 == 35b ]]; then echo "all:$GD/qwen36-35b-s16k.safetensors"; else echo "short:$GD/qwen3-8b-short.safetensors 4k:$GD/qwen3-8b-4k-s16k.safetensors"; fi; }
 gclass() { [[ $1 == 35b ]] && echo 4bit || echo bf16; }
 echo "== chunk-job $BE start $(ts) host $(hostname) steps '$STEPS' chunks '$CHUNKS' job ${FLEETQ_JOB:-none}" | tee -a "$OUT/steps.log"
 if [[ $BE == cuda ]]; then free -g | sed -n 2p | tee -a "$OUT/steps.log"; nvidia-smi --query-gpu=clocks.sm,temperature.gpu,utilization.gpu,memory.used --format=csv,noheader | tee -a "$OUT/steps.log"; fi

@@ -142,6 +142,47 @@ kernel void rope_bf16(device const ushort* x [[buffer(0)]],
     out[p.s1 + gid] = f2bf(i < half_ ? x1 * c - x2 * s : x2 * c + x1 * s);
 }
 
+// ---- RopeScaled: `Rope` with a caller-supplied frequency table (llama3 / yarn scaling) and a cos / sin multiplier ---------
+// bind: 0 x [T,N,D], 1 out, 2 pos (i32 [1], read when `e` != 0), 3 inv_freq (f32 [rd/2]). a = T, b = N, c = D, d = rd
+// (rotary dim, resolved), e = use device position, f = host pos0, f1 = mscale (attention factor, 1.0 for llama3).
+// s0 / s1 skips of x / out. angle = (pos0 + t) * inv_freq[k]; cos / sin are f32 and scaled by mscale before use.
+kernel void rope_scaled_bf16(device const ushort* x [[buffer(0)]],
+                             device ushort* out [[buffer(1)]],
+                             device const int* posbuf [[buffer(2)]],
+                             device const float* inv_freq [[buffer(3)]],
+                             constant OpP& p [[buffer(4)]],
+                             uint gid [[thread_position_in_grid]]) {
+    const uint d = p.c;
+    if (gid >= p.a * p.b * d) return;
+    const uint i = gid % d;
+    const uint head = gid / d;  // t * N + n
+    const uint rd = p.d;
+    if (i >= rd) {
+        out[p.s1 + gid] = x[p.s0 + gid];
+        return;
+    }
+    const uint t = head / p.b;
+    const uint half_ = rd / 2;
+    const uint k = i < half_ ? i : i - half_;
+    const uint pos0 = p.e != 0 ? (uint)posbuf[0] : p.f;
+    const float ang = (float)(pos0 + t) * inv_freq[k];
+    const float s = precise::sin(ang) * p.f1, c = precise::cos(ang) * p.f1;
+    const ulong hb = (ulong)head * d;
+    const float x1 = bf2f(x[p.s0 + hb + k]), x2 = bf2f(x[p.s0 + hb + k + half_]);
+    out[p.s1 + gid] = f2bf(i < half_ ? x1 * c - x2 * s : x2 * c + x1 * s);
+}
+
+// ---- AddBias: out[r, c] = x[r, c] + bias[c] (one bf16 rounding; out may be x) ------------------------------------------------
+// bind: 0 x [R,N], 1 bias [N], 2 out. a = R * N, b = N. s0 / s1 / s2 skips of x / bias / out.
+kernel void add_bias_bf16(device const ushort* x [[buffer(0)]],
+                          device const ushort* bias [[buffer(1)]],
+                          device ushort* out [[buffer(2)]],
+                          constant OpP& p [[buffer(3)]],
+                          uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a) return;
+    out[p.s2 + gid] = f2bf(bf2f(x[p.s0 + gid]) + bf2f(bias[p.s1 + gid % p.b]));
+}
+
 // ---- KvAppend: cache[h, pos0 + t, :] = new[t, h, :] (in place; other rows keep their bits) ------------------------------
 // bind: 0 new [T,Nkv,D], 1 cache [Nkv,cap,D], 2 pos (i32 [1], read when `e` != 0). a = T, b = Nkv, c = D, d = cap,
 // e = use device position, f = host pos0. s0 / s1 skips of new / cache.
