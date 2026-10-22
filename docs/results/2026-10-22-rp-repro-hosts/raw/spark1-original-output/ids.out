@@ -1,0 +1,5 @@
+ A hash table is a data structure that maps keys to values using a hash function. When two different keys produce the same hash value, a collision occurs. There are several methods to handle collisions in a hash table:
+
+1. **Separate Chaining**: Each bucket in the hash table contains a linked list (or another data structure) of entries that have the same hash value. When a collision occurs, the new entry is added to the linked list. This method is efficient and can handle a large number of collisions.
+
+2. **Open Addressing**: When a collision occurs, the hash table searches for the next available slot in the array

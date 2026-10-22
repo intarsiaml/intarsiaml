@@ -1,0 +1,7 @@
+[window] job 3278 w6; stopping radiance 2026-10-21 18:38:43
+[window] radiance stopped 2026-10-21 18:38:46
+18:38:55 self-dev-tp2gf-vs-dev-tp2g-short exit 0 [INTARSIA_TP_FUSION=1]: SELF-STATS mode=prefill positions=1441 mean_kl21=2.262626e-13 max_kl21=1.759315e-10 flips=0 flip_pct=0.0000 tail_abs=3.670859e-9 worst_prompt_kl21=3.315740e-12|SELF-STATS mode=decode positions=160 mean_kl21=1.591146e-12 max_kl21=2.310667e-10 flips=0 flip_pct=0.0000 tail_abs=5.415819e-9 worst_prompt_kl21=1.445398e-11|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+18:38:55 done
+[window] stages done 2026-10-21 18:38:55 (exit 0)
+[window] starting radiance 2026-10-21 18:38:55
+[window] radiance answers 2026-10-21 18:39:05 (after 15 s)

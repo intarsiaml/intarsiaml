@@ -1,0 +1,32 @@
+kernel total 798.0 ms
+moe_w4a16_kernel<                                                           280.0 ms  35.1 %    160 calls
+gdn_delta_split_kernel<                                                     116.2 ms  14.6 %     90 calls
+nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bx_TNNN                     63.5 ms   8.0 %     80 calls
+moe_mma_kernel<                                                              53.6 ms   6.7 %     80 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bx_TNNN                      36.3 ms   4.6 %     80 calls
+moe_reduce_kernel<__nv_bfloat16>                                             29.7 ms   3.7 %    120 calls
+flash_kernel<                                                                24.4 ms   3.1 %     30 calls
+nvjet_sm121_tst_mma_192x160x64_2_48x80x64_tmaAB_bx_TNNN                      24.2 ms   3.0 %     60 calls
+rmsnorm_kernel<                                                              22.6 ms   2.8 %    303 calls
+actq_alpha_kernel                                                            22.2 ms   2.8 %    260 calls
+gdn_conv_kernel                                                              22.0 ms   2.8 %     90 calls
+e4m3_to_bf16_kernel                                                          18.9 ms   2.4 %    130 calls
+nvfp4_reg_kernel<                                                            17.3 ms   2.2 %    160 calls
+gated_rmsnorm_kernel<                                                        13.9 ms   1.7 %     90 calls
+wq::wq_gemm_kernel<                                                          13.6 ms   1.7 %    250 calls
+moe_combine_kernel<__nv_bfloat16>                                             6.0 ms   0.8 %    120 calls
+gate_split_kernel                                                             5.8 ms   0.7 %     30 calls
+rope_kernel                                                                   4.9 ms   0.6 %     60 calls
+sigmoid_mul_kernel                                                            4.0 ms   0.5 %     30 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                         4.0 ms   0.5 %    120 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128        3.2 ms   0.4 %     80 calls
+nvjet_sm121_tst_mma_128x192x64_2_32x96x64_tmaAB_bx_TNNN                       2.3 ms   0.3 %     40 calls
+moe_topk_kernel                                                               2.0 ms   0.2 %    120 calls
+rope_pass_kernel                                                              1.6 ms   0.2 %     60 calls
+window: 3406 kernels, span 1218.01 ms, busy 797.52 ms, idle 420.50 ms
+gaps < 20 us: 2859 totalling 6.05 ms (mean 2.1 us); >= 20 us: 40 totalling 414.45 ms
+  gap  327669.7 us before nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bx_TNNN
+  gap   23701.6 us before void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat1
+  gap   13800.3 us before <unnamed>::moe_group_tiles_kernel(const int *, int, int, int, int *, int *, int *, int2 *)
+  gap   13658.0 us before void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __n
+  gap   11778.5 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo

@@ -291,7 +291,16 @@ fn bad_decode_row_fails_only_its_request() {
     assert!(eng.failed().is_none(), "{:?}", eng.failed());
     let again = collect(&eng.submit(mk(3)).unwrap()).unwrap();
     assert_eq!(again, Out { cached_tokens: again.cached_tokens, ..clone_out(&want[3]) });
-    let m = eng.metrics();
+    // the scheduler counts a request as finished after it has sent `Done`, so the last count trails the reply we just
+    // read: wait for it (bounded) instead of reading the metrics at once
+    let mut m = eng.metrics();
+    for _ in 0..500 {
+        if m.failed + m.finished >= 4 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+        m = eng.metrics();
+    }
     assert_eq!((m.failed, m.finished), (1, 3), "{m:?}");
     std::thread::sleep(Duration::from_millis(100));
     let snap = tel.snapshot();

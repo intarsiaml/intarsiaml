@@ -1,0 +1,268 @@
+fleetq: #3890 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-pf/docs/results/2026-10-22-pf-prefill-ctx/raw/w4 'STAGES=bitwise ids ids8 profdev ab ab8' 'VARMS=x 0 1' IDV=x LOC=2 BUDGET=2400 bash scripts/hip-decode/pf-window.sh
+active
+[window] job 3890; stages: bitwise ids ids8 profdev ab ab8; stopping radiance 2026-10-22 02:46:14
+[window] radiance stopped 2026-10-22 02:46:17
+################ stage bitwise start 02:46:17 (budget left 2400 s)
+--- test flash_v2 VP=x (/target/release/deps/flash_v2-073cbe32b53e1a48) 02:46:17
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=None INTARSIA_HIP_FLASH_VP=None
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.04s
+--- test flash_v2 VP=0 (/target/release/deps/flash_v2-073cbe32b53e1a48) 02:46:20
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=None INTARSIA_HIP_FLASH_VP=Some("0")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s
+--- test flash_v2 VP=1 (/target/release/deps/flash_v2-073cbe32b53e1a48) 02:46:24
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=None INTARSIA_HIP_FLASH_VP=Some("1")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.05s
+--- test attention VP=x (/target/release/deps/attention-3141cbf87c98b4a4) 02:46:27
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.76s
+--- test attention VP=0 (/target/release/deps/attention-3141cbf87c98b4a4) 02:47:13
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.76s
+--- test attention VP=1 (/target/release/deps/attention-3141cbf87c98b4a4) 02:47:59
+test attention_causal_and_chunk_edges_are_exact ... edge cases per kernel: {"attn_decode_bf16": 585, "attn_decode_bf16_splitkv": 585, "attn_prefill_bf16": 5351, "attn_prefill_bf16_flash": 3310, "attn_prefill_bf16_flash_v2": 3310, "attn_prefill_bf16_splitkv": 2041}
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 40, "attn_decode_bf16_splitkv": 40, "attn_prefill_bf16": 125, "attn_prefill_bf16_flash": 46, "attn_prefill_bf16_flash_v2": 46, "attn_prefill_bf16_splitkv": 72}
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.87s
+--- test flash_v2 HPB=2 VP=x 02:48:46
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("2") INTARSIA_HIP_FLASH_VP=None
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.05s
+--- test flash_v2 HPB=2 VP=0 02:48:49
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("2") INTARSIA_HIP_FLASH_VP=Some("0")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.09s
+--- test flash_v2 HPB=2 VP=1 02:48:53
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("2") INTARSIA_HIP_FLASH_VP=Some("1")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.04s
+--- test flash_v2 HPB=1 VP=x 02:48:56
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("1") INTARSIA_HIP_FLASH_VP=None
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+--- test flash_v2 HPB=1 VP=0 02:48:59
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("1") INTARSIA_HIP_FLASH_VP=Some("0")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+--- test flash_v2 HPB=1 VP=1 02:49:03
+test flash_v2_is_bitwise_v1 ... INTARSIA_HIP_FLASH_HPB=Some("1") INTARSIA_HIP_FLASH_VP=Some("1")
+flash v2 bitwise v1 on 56 cases
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+################ stage bitwise end 02:49:06
+################ stage ids start 02:49:06 (budget left 2231 s)
+--- ids 4096 02:49:06
+base: prompt: 4096 tokens
+base: finish=length prompt=4096 (cached 0) completion=256 | prefill 431 ms (9505.2 tok/s) | decode 1637 ms (155.75 tok/s)
+d0: prompt: 4096 tokens
+d0: finish=length prompt=4096 (cached 0) completion=256 | prefill 432 ms (9491.1 tok/s) | decode 1639 ms (155.58 tok/s)
+d1: prompt: 4096 tokens
+d1: finish=length prompt=4096 (cached 0) completion=256 | prefill 419 ms (9771.6 tok/s) | decode 1632 ms (156.22 tok/s)
+ids 4096: 255 commas in base
+IDS 4096: base == dev VP=0
+IDS 4096: base == dev VP=x
+--- ids 16384 02:49:21
+base: prompt: 16384 tokens
+base: finish=length prompt=16384 (cached 0) completion=256 | prefill 2009 ms (8157.3 tok/s) | decode 1797 ms (141.94 tok/s)
+d0: prompt: 16384 tokens
+d0: finish=length prompt=16384 (cached 0) completion=256 | prefill 2012 ms (8144.8 tok/s) | decode 1798 ms (141.85 tok/s)
+d1: prompt: 16384 tokens
+d1: finish=length prompt=16384 (cached 0) completion=256 | prefill 1839 ms (8909.0 tok/s) | decode 1799 ms (141.77 tok/s)
+ids 16384: 255 commas in base
+IDS 16384: base == dev VP=0
+IDS 16384: base == dev VP=x
+--- ids 16654 02:49:41
+base: prompt: 16654 tokens
+base: finish=length prompt=16654 (cached 0) completion=256 | prefill 2129 ms (7821.8 tok/s) | decode 1799 ms (141.78 tok/s)
+d0: prompt: 16654 tokens
+d0: finish=length prompt=16654 (cached 0) completion=256 | prefill 2134 ms (7803.2 tok/s) | decode 1799 ms (141.75 tok/s)
+d1: prompt: 16654 tokens
+d1: finish=length prompt=16654 (cached 0) completion=256 | prefill 1942 ms (8575.2 tok/s) | decode 1801 ms (141.55 tok/s)
+ids 16654: 255 commas in base
+IDS 16654: base == dev VP=0
+IDS 16654: base == dev VP=x
+################ stage ids end 02:50:01
+################ stage ids8 start 02:50:01 (budget left 2176 s)
+--- ids8 02:50:01
+8b base: prompt: 3997 tokens
+8b base: finish=length prompt=3997 (cached 0) completion=256 | prefill 934 ms (4279.9 tok/s) | decode 6881 ms (37.06 tok/s)
+8b dev: prompt: 3997 tokens
+8b dev: finish=length prompt=3997 (cached 0) completion=256 | prefill 923 ms (4330.5 tok/s) | decode 6878 ms (37.07 tok/s)
+ids8: 255 commas in base
+IDS8: base == dev VP=x
+################ stage ids8 end 02:50:24
+################ stage profdev start 02:50:24 (budget left 2153 s)
+--- op_table 4096 (intarsia-cargo-target-pf-dev, --profile-every 1) 02:50:24
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 453 ms (9042.9 tok/s) | decode 0 ms (0.00 tok/s)
+--- op_table 16384 (intarsia-cargo-target-pf-dev, --profile-every 1) 02:50:27
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1910 ms (8578.1 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 intarsia-cargo-target-pf-dev 4096 02:50:32
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 432 ms (9485.6 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 intarsia-cargo-target-pf-dev 16384 02:50:36
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1867 ms (8776.7 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 intarsia-cargo-target-pf-dev 4089 02:50:41
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4089 tokens
+finish=length prompt=4089 (cached 0) completion=1 | prefill 432 ms (9455.8 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+--- rocprofv3 intarsia-cargo-target-pf-dev 16654 02:50:44
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1961 ms (8491.2 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+################ stage profdev end 02:50:49
+################ stage ab start 02:50:49 (budget left 2128 s)
+--- ab rep 1 02:50:49
+base-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 441 ms (9283.1 tok/s) | decode 0 ms (0.00 tok/s)
+devx-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 428 ms (9564.7 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 442 ms (9274.7 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 429 ms (9545.7 tok/s) | decode 0 ms (0.00 tok/s)
+base-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2037 ms (8041.5 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1859 ms (8814.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2042 ms (8025.1 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1875 ms (8738.8 tok/s) | decode 0 ms (0.00 tok/s)
+base-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2149 ms (7748.5 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1957 ms (8510.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2153 ms (7735.8 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1970 ms (8452.5 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab rep 2 02:51:42
+base-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 445 ms (9209.5 tok/s) | decode 0 ms (0.00 tok/s)
+devx-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 430 ms (9532.3 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 443 ms (9256.4 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 428 ms (9572.1 tok/s) | decode 0 ms (0.00 tok/s)
+base-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2039 ms (8034.3 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1859 ms (8814.1 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2041 ms (8029.4 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1875 ms (8737.2 tok/s) | decode 0 ms (0.00 tok/s)
+base-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2152 ms (7740.3 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1954 ms (8524.7 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2151 ms (7742.3 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1972 ms (8446.8 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab rep 3 02:52:35
+base-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 443 ms (9239.9 tok/s) | decode 0 ms (0.00 tok/s)
+devx-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 430 ms (9521.1 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 443 ms (9251.4 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-4096: prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 429 ms (9544.9 tok/s) | decode 0 ms (0.00 tok/s)
+base-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2039 ms (8035.4 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1859 ms (8813.5 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 2041 ms (8026.6 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16384: prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1876 ms (8732.7 tok/s) | decode 0 ms (0.00 tok/s)
+base-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2150 ms (7744.3 tok/s) | decode 0 ms (0.00 tok/s)
+devx-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1956 ms (8516.2 tok/s) | decode 0 ms (0.00 tok/s)
+dev0-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 2149 ms (7749.8 tok/s) | decode 0 ms (0.00 tok/s)
+dev1-16654: prompt: 16654 tokens
+finish=length prompt=16654 (cached 0) completion=1 | prefill 1970 ms (8452.1 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage ab end 02:53:27
+################ stage ab8 start 02:53:27 (budget left 1970 s)
+--- ab8 rep 1 02:53:27
+8b base-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 949 ms (4212.5 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 926 ms (4317.0 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 946 ms (4227.1 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 925 ms (4320.4 tok/s) | decode 0 ms (0.00 tok/s)
+8b base-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 5013 ms (3189.0 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4805 ms (3327.3 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 5026 ms (3180.7 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4768 ms (3352.5 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab8 rep 2 02:54:02
+8b base-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 956 ms (4181.4 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 929 ms (4300.8 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 941 ms (4248.8 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 918 ms (4355.6 tok/s) | decode 0 ms (0.00 tok/s)
+8b base-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 5014 ms (3188.2 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4794 ms (3334.5 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4987 ms (3205.8 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4755 ms (3361.8 tok/s) | decode 0 ms (0.00 tok/s)
+--- ab8 rep 3 02:54:37
+8b base-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 934 ms (4281.6 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 914 ms (4372.8 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 952 ms (4200.0 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-4096: prompt: 3997 tokens
+finish=length prompt=3997 (cached 0) completion=1 | prefill 914 ms (4372.9 tok/s) | decode 0 ms (0.00 tok/s)
+8b base-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4962 ms (3221.8 tok/s) | decode 0 ms (0.00 tok/s)
+8b devx-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4743 ms (3370.7 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev0-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4997 ms (3199.4 tok/s) | decode 0 ms (0.00 tok/s)
+8b dev1-16384: prompt: 15986 tokens
+finish=length prompt=15986 (cached 0) completion=1 | prefill 4762 ms (3356.6 tok/s) | decode 0 ms (0.00 tok/s)
+################ stage ab8 end 02:55:11
+[window] localeval arm base-r1 up 2026-10-22 02:55:24
+[window] localeval arm base-r1 exit 0 2026-10-22 03:06:33
+[window] localeval arm dev-r1 up 2026-10-22 03:06:46
+scripts/hip-decode/pf-window.sh: line 37: 97659 Terminated: 15          ( cd /opt/code/deepeval && uv run localeval run --url "http://$T:8090/v1" --model qwen36-35b-intarsia-hip --sizes 4096,16384 --gen 128 --reps 3 --thinking off --label "pf-$label" ) > "$OUT/loc-$label.txt" 2>&1
+[window] localeval arm dev-r1 exit 143 2026-10-22 03:07:41
+[window] starting radiance 2026-10-22 03:07:42
+[window] radiance answers (after 25 s) 2026-10-22 03:08:04
+fleetq: #3890 done (exit -15); radiance-rank0, radiance-rank1 must come back before others can use it

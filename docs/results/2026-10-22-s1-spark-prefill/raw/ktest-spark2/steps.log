@@ -1,0 +1,14 @@
+02:36:06 == remote.sh STEPS='tests ktest' MemAvailable 48 GB
+02:36:06 bin s1-base: intarsia 0.0.1; pair syms 0; glu syms 0
+02:36:06 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+02:36:06 test --lib exit 0: test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|
+02:36:12 test --test fp8_gemm_reg exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.81s|
+02:36:13 test --test nvfp4_gemm_reg exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s|
+02:36:19 test --test quantmoe exit 0: test result: ok. 12 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 5.92s|
+02:36:25 test fp8_gemm_reg (cuBLAS on) exit 0: test fp8_gemm_cublas_is_bitwise_gemm_reg ... fp8_gemm_cublas: 72 cases bitwise|test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.10s|
+02:36:32 test fp8_gemm_reg cfg 0 exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.79s|
+02:37:13 kernels test dev exit 0: op             kernel                      cases   fail     max_abs      rel_l2  result|58 kernels, 1081 cases in 41.2s|
+matmul_nvfp4   matmul_nvfp4_gemm_reg           2      0    2.392e-3    4.431e-5  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemm_reg        3      0    3.623e-3    5.730e-5  ADMITTED
+matmul_nvfp4_glu matmul_nvfp4_glu_gemm           1      0    1.953e-3    8.532e-5  ADMITTED
+02:37:13 == remote.sh done

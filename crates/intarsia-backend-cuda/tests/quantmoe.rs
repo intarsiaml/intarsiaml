@@ -446,7 +446,7 @@ fn bench_wq_prefill_shapes() {
     ];
     let nv = [("shared gate/up", 512usize, 2048usize, 80usize), ("shared down", 2048, 512, 40)];
     for &m in &ms {
-        for kern in kernels.iter().filter(|k| k.starts_with("matmul_fp8")) {
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_fp8") && !k.contains("pair")) {
             let mut total = 0.0;
             for (name, n, k, calls) in fp8 {
                 let hc = matmul_fp8_case(&mut rng, m, n, k, true, DType::Bf16, DType::Bf16);
@@ -457,7 +457,7 @@ fn bench_wq_prefill_shapes() {
             }
             println!("M={m} fp8 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
         }
-        for kern in kernels.iter().filter(|k| k.starts_with("matmul_nvfp4")) {
+        for kern in kernels.iter().filter(|k| k.starts_with("matmul_nvfp4") && !k.contains("glu")) {
             let mut total = 0.0;
             for (name, n, k, calls) in nv {
                 let hc = matmul_nvfp4_case(&mut rng, m, n, k, DType::Bf16, DType::Bf16);
@@ -467,6 +467,74 @@ fn bench_wq_prefill_shapes() {
                 println!("M={m} {name:<18} {kern:<22} {:>9.1} us {:>6.1} TFLOPS", s * 1e6, tf);
             }
             println!("M={m} nvfp4 per-chunk total {kern:<22} {:>9.1} us", total * 1e6);
+        }
+        // lane S1: cuBLAS bf16 GEMM (nvjet) at the same shapes, as the bf16 tensor-core reference for gemm_reg's ceiling
+        if kernels.iter().any(|k| k == "matmul_bf16") {
+            let mut total = 0.0;
+            for (name, n, k, calls) in fp8 {
+                let mut r = SplitMix64::new(5);
+                let mut v = |len: usize| (0..len).map(|_| (r.next_f32() - 0.5) * 0.25).collect::<Vec<f32>>();
+                let hc = HostCall {
+                    op: Op::Matmul,
+                    inputs: vec![
+                        HostTensor::from_f32_as(DType::Bf16, &[m, k], &v(m * k)),
+                        HostTensor::from_f32_as(DType::Bf16, &[n, k], &v(n * k)),
+                    ],
+                    outputs: vec![OutSpec::new(DType::Bf16, &[m, n])],
+                    attrs: Default::default(),
+                };
+                let s = time("matmul_bf16", &hc);
+                total += s * calls as f64;
+                println!("M={m} {name:<18} {:<22} {:>9.1} us {:>6.1} TFLOPS", "matmul_bf16 (cuBLAS)", s * 1e6, 2.0 * (m * n * k) as f64 / s / 1e12);
+            }
+            println!("M={m} bf16 cuBLAS per-chunk total {:>9.1} us", total * 1e6);
+        }
+        // lane S1: the prefill pair (GDN qkv + z, attention k + v; equal input scales as in the 35B) and the shared-expert
+        // GLU against the calls they replace
+        if kernels.iter().any(|k| k == "matmul_fp8_pair_gemm_reg") {
+            for (name, n0, n1, k, calls) in [("gdn qkv+z pair", 8192usize, 4096usize, 2048usize, 30usize), ("attn k+v pair", 512, 512, 2048, 10)] {
+                let mut hc = intarsia_core::quant::cases::matmul_fp8_pair_case(&mut rng, m, n0, n1, k, true, true, DType::Bf16, DType::Bf16);
+                let mut s1 = hc.inputs[4].to_f32();
+                s1[1] = hc.inputs[2].to_f32()[1];
+                hc.inputs[4] = HostTensor::from_f32_as(hc.inputs[4].dtype, &hc.inputs[4].shape, &s1);
+                let single = |w: usize, out: usize| HostCall {
+                    op: Op::MatmulFp8,
+                    inputs: vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[w + 1].clone()],
+                    outputs: vec![hc.outputs[out].clone()],
+                    attrs: hc.attrs.clone(),
+                };
+                let two = time("matmul_fp8_gemm_reg", &single(1, 0)) + time("matmul_fp8_gemm_reg", &single(3, 1));
+                let pair = time("matmul_fp8_pair_gemm_reg", &hc);
+                println!(
+                    "M={m} {name:<18} two calls {:>9.1} us  pair {:>9.1} us  saved per chunk {:>8.1} us",
+                    two * 1e6,
+                    pair * 1e6,
+                    (two - pair) * calls as f64 * 1e6
+                );
+            }
+        }
+        if kernels.iter().any(|k| k == "matmul_nvfp4_glu_gemm") {
+            let hc = intarsia_core::quant::cases::matmul_nvfp4_glu_case(&mut rng, m, 512, 2048, DType::Bf16, DType::Bf16);
+            let proj = |w: usize| HostCall {
+                op: Op::MatmulNvfp4,
+                inputs: vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[w + 1].clone(), hc.inputs[w + 2].clone()],
+                outputs: vec![OutSpec::new(DType::Bf16, &[m, 512])],
+                attrs: Default::default(),
+            };
+            let glu = HostCall {
+                op: Op::SiluGlu,
+                inputs: vec![HostTensor::zeros(DType::Bf16, &[m, 512]), HostTensor::zeros(DType::Bf16, &[m, 512])],
+                outputs: vec![OutSpec::new(DType::Bf16, &[m, 512])],
+                attrs: Default::default(),
+            };
+            let chain = time("matmul_nvfp4_gemm", &proj(1)) + time("matmul_nvfp4_gemm", &proj(4)) + time("silu_glu_bf16", &glu);
+            let fused = time("matmul_nvfp4_glu_gemm", &hc);
+            println!(
+                "M={m} shared gate+up+glu   chain {:>9.1} us  fused {:>9.1} us  saved per chunk {:>8.1} us",
+                chain * 1e6,
+                fused * 1e6,
+                (chain - fused) * 40.0 * 1e6
+            );
         }
     }
 }
@@ -687,5 +755,52 @@ fn e4m3_gemm_rows_do_not_depend_on_the_call(kern: &str, m: usize, n: usize, k: u
         hc.outputs = vec![OutSpec::new(DType::Bf16, &[rows, n])];
         let got = run_host(&*cuda, kern, &hc).unwrap();
         assert!(got[0].data == all[0].data[r0 * on..(r0 + rows) * on], "{kern}: rows {r0}..{} differ when run as a {rows}-row call", r0 + rows);
+    }
+}
+
+/// Lane S1 probe: does cuBLAS's bf16 GEMM (`matmul_bf16`, cublasGemmEx) give the bytes of `matmul_fp8_gemm_reg` on
+/// e4m3-valued operands (weight-only mode, weight scale 1, so both epilogues are one bf16 rounding of the fp32 sum)?
+/// Prints the number of differing outputs per 35B prefill shape (INTARSIA_BENCH_M, default 2048). Equal bytes would mean
+/// cuBLAS runs the same m16n8k16 accumulation chain there (no split-K, k order); any difference rules it out as a bitwise
+/// replacement at that shape.
+#[test]
+#[ignore]
+fn probe_cublas_bf16_vs_gemm_reg_bits() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(77);
+    let ms: Vec<usize> = std::env::var("INTARSIA_BENCH_M")
+        .unwrap_or_else(|_| "2048".into())
+        .split(',')
+        .filter_map(|v| v.trim().parse().ok())
+        .collect();
+    for &m in &ms {
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+            let mut hc = matmul_fp8_case(&mut rng, m, n, k, false, DType::Bf16, DType::Bf16);
+            // weight scale 1, no input scale: gemm_reg's output is bf16(sum of x * e4m3 weight)
+            hc.inputs[2] = HostTensor::from_f32_as(hc.inputs[2].dtype, &hc.inputs[2].shape, &[1.0, 0.0]);
+            // x on the e4m3 grid (as W8A8 activations are), so both kernels see the same small-mantissa operands
+            // INTARSIA_PROBE_GRID=0 keeps x as full-mantissa bf16 (products of 12 significant bits over a wide exponent range:
+            // the sums then depend on the accumulation order, a sharper test of "same chain")
+            let grid = std::env::var("INTARSIA_PROBE_GRID").map_or(true, |v| v != "0");
+            let xs: Vec<f32> = hc.inputs[0]
+                .to_f32()
+                .iter()
+                .map(|&v| if grid { intarsia_core::dtype::fp8_e4m3_to_f32(intarsia_core::dtype::f32_to_fp8_e4m3(v * 8.0)) } else { v * 8.0 })
+                .collect();
+            hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[m, k], &xs);
+            let wf: Vec<f32> = hc.inputs[1].data.iter().map(|&b| intarsia_core::dtype::fp8_e4m3_to_f32(b)).collect();
+            let bf = HostCall {
+                op: Op::Matmul,
+                inputs: vec![hc.inputs[0].clone(), HostTensor::from_f32_as(DType::Bf16, &[n, k], &wf)],
+                outputs: vec![OutSpec::new(DType::Bf16, &[m, n])],
+                attrs: Default::default(),
+            };
+            let a = run_host(&*cuda, "matmul_fp8_gemm_reg", &hc).unwrap().remove(0);
+            let b = run_host(&*cuda, "matmul_bf16", &bf).unwrap().remove(0);
+            let (fa, fb) = (a.to_f32(), b.to_f32());
+            let diff = fa.iter().zip(&fb).filter(|(x, y)| x.to_bits() != y.to_bits()).count();
+            let maxrel = fa.iter().zip(&fb).map(|(x, y)| ((x - y).abs() / x.abs().max(1e-3))).fold(0f32, f32::max);
+            println!("M={m} N={n} K={k}: {diff} of {} bf16 outputs differ (max rel {maxrel:.2e})", fa.len());
+        }
     }
 }

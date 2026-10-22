@@ -1,0 +1,1211 @@
+{
+  "kind": "intarsia-qualify",
+  "schema_version": 1,
+  "section": "full",
+  "model": "Qwen3.6-35B-A3B-NVFP4",
+  "model_dir": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+  "backend": "cuda",
+  "tp": 1,
+  "reference": "http://100.120.88.104:8000/v1",
+  "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+  "version": "0.0.1",
+  "generated_unix": 1792654724,
+  "verdict": "PASS",
+  "exit_code": 0,
+  "headline": {
+    "speed": [
+      {
+        "size": 128,
+        "decode_tok_s": 84.1,
+        "prefill_tok_s": 1282.1,
+        "pct_of_floor": 85.8,
+        "ttft_s": 0.1005
+      },
+      {
+        "size": 1024,
+        "decode_tok_s": 83.63,
+        "prefill_tok_s": 4640.1,
+        "pct_of_floor": 85.3,
+        "ttft_s": 0.2187
+      },
+      {
+        "size": 4096,
+        "decode_tok_s": 81.14,
+        "prefill_tok_s": 5383.1,
+        "pct_of_floor": 82.8,
+        "ttft_s": 0.7818
+      }
+    ],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 441,
+            "top1_pct": 96.82539682539682,
+            "mean_kl": 0.007653762902614817,
+            "mean_kl21": 0.007648615804393168,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 128,
+            "top1_pct": 98.4375,
+            "mean_kl": 0.011948978036706704,
+            "mean_kl21": 0.012801892609919967,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "acc-long",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 97.84871616932686,
+            "mean_kl": 0.005560716710149241,
+            "mean_kl21": 0.0051259985392848725,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 500,
+            "top1_pct": 97.4,
+            "mean_kl": 0.01014609307565376,
+            "mean_kl21": 0.010228956119249092,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "acc-4k",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 12759,
+            "top1_pct": 92.39752331687436,
+            "mean_kl": 0.09082838075445077,
+            "mean_kl21": 0.10590897465924504,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 192,
+            "top1_pct": 97.91666666666669,
+            "mean_kl": 0.009529190918983963,
+            "mean_kl21": 0.0084883638232251,
+            "floor_pass": true
+          }
+        ]
+      }
+    ],
+    "quick_gate": {
+      "perplexity": 1.218,
+      "perplexity_line": "1.218 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+      "sanity_ok": 5,
+      "sanity_failed": 0
+    }
+  },
+  "failures": [],
+  "warnings": [],
+  "skipped": [
+    {
+      "stage": "acc-format",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)"
+    },
+    {
+      "stage": "ab",
+      "reason": "localeval is not at /opt/code/deepeval (--localeval-dir); the A/B must run through localeval, never an ad-hoc script"
+    },
+    {
+      "stage": "tp",
+      "reason": "--tp not given (or 1)"
+    }
+  ],
+  "wall_s": {
+    "quick": 349.953449976,
+    "full": 479.750329748,
+    "total": 829.703779724
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "NVIDIA GB10 (sm_121), 54 kernels registered",
+      "wall_s": 0.759174141,
+      "started_unix": 1792653894,
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "spark-4e77",
+          "os": "Ubuntu 24.04.4 LTS",
+          "kernel": "Linux 6.17.0-1029-nvidia",
+          "arch": "aarch64",
+          "cpu_model": "Cortex-A725",
+          "logical_cores": 20,
+          "physical_cores": 20,
+          "ram_total_bytes": 130663231488,
+          "ram_available_bytes": 39999258624,
+          "swap_total_bytes": 17179865088
+        },
+        "device": {
+          "name": "NVIDIA GB10",
+          "backend": "cuda",
+          "arch": "sm_121",
+          "total_mem": 130663231488,
+          "free_mem": 22437912576,
+          "unified": true,
+          "bandwidth_gbs": 221.59255304944148
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 59.4,
+          "device_to_host_gbs": 59.6,
+          "device_copy_gbs": 224.8,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": [
+          "disk_free:.: 271.5 GB free of 4032 GB (7% free)",
+          "disk_free:/home/nvidia: 271.5 GB free of 4032 GB (7% free)"
+        ]
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia doctor --backend cuda --device 0 --out /home/nvidia/onboard-runs/35b-cuda/report/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": [
+        "warning disk_free:.: 271.5 GB free of 4032 GB (7% free)",
+        "warning disk_free:/home/nvidia: 271.5 GB free of 4032 GB (7% free)"
+      ]
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "wall_s": 0.365466264,
+      "started_unix": 1792653894,
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3_5MoeForConditionalGeneration"
+        ],
+        "templates_resolved": [
+          61,
+          61
+        ],
+        "quant": "nvfp4+fp8",
+        "notes": [
+          "config.json: architectures [\"Qwen3_5MoeForConditionalGeneration\"], family \"qwen3_5_moe\" (config.json model_type); text model settings merged from text_config",
+          "tensors: model.safetensors.index.json (124468 tensors) + 3/3 shard headers",
+          "layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)",
+          "quantisation: nvfp4+fp8",
+          "hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)",
+          "closest existing recipe: builtin:qwen3_5_moe (blocks {\"attn\", \"gdn\", \"moe\"} vs inferred {\"attn\", \"gdn\", \"moe\"}; 61/61 tensor templates resolve; covers this model)",
+          "ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (15), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)"
+        ],
+        "todos": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "recipe::analyse(/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5)"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "36 ops resolved, exactness fast, loaded in 69.9s",
+      "wall_s": 69.884552633,
+      "started_unix": 1792653895,
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+        "device": "NVIDIA GB10",
+        "exactness": "fast",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 2048,
+        "prefill_chunk_source": "recipe qwen3_5_moe, cuda",
+        "scratch_bytes": 83963392,
+        "reference_only": false,
+        "layers": 40,
+        "layer_blocks": [
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 11
+          },
+          {
+            "op": "qk_norm",
+            "kernel": "qk_norm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 20
+          },
+          {
+            "op": "rope",
+            "kernel": "rope_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 20
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16",
+            "exactness": "fast",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "kv_append",
+            "kernel": "kv_append_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 20
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_flash",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemm",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemm_reg",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 20
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_gemm",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 41
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_topk",
+            "kernel": "moe_topk_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_decode_v2_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_mma_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_w4a16_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_combine",
+            "kernel": "moe_combine_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "gate_split",
+            "kernel": "gate_split_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "sigmoid_mul",
+            "kernel": "sigmoid_mul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "gdn_conv",
+            "kernel": "gdn_conv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "gdn_delta_rule",
+            "kernel": "gdn_delta_rule_bf16_split",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8_pair",
+            "kernel": "matmul_fp8_pair_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "matmul_nvfp4_glu",
+            "kernel": "matmul_nvfp4_glu_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "gated_rmsnorm",
+            "kernel": "gated_rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "rmsnorm_add_matmul_pair",
+            "kernel": "rmsnorm_add_matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 69
+          },
+          {
+            "op": "gated_rmsnorm_matmul_fp8",
+            "kernel": "gated_rmsnorm_matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          }
+        ],
+        "load_s": 69.856121978
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia plan show --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --admit --json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "54 kernels, 1056 cases in 43.5s",
+      "wall_s": 44.16983465,
+      "started_unix": 1792653965,
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "54 kernels, 1056 cases in 43.5s"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia kernels test --backend cuda --device 0 --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows",
+      "wall_s": 74.383138136,
+      "started_unix": 1792654009,
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.218,
+        "perplexity_line": "1.218 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --quick --max-seq 2048"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+      "wall_s": 0.000233151,
+      "started_unix": 1792654244,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 96.83% KL 7.65e-3; decode top-1 98.44% KL 1.19e-2",
+      "wall_s": 69.26347857,
+      "started_unix": 1792654083,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:341d966a1d32c76c size:79004",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 441,
+            "top1_pct": 96.82539682539682,
+            "mean_kl": 0.007653762902614817,
+            "mean_kl21": 0.007648615804393168,
+            "top5_pct": 95.19274376417232,
+            "tail_ref": 0.02831831439095884,
+            "tail_ours": 0.027774691541653365,
+            "max_kl": 0.25290615308291364,
+            "max_kl21": 0.2528385571133948,
+            "tail_abs": 0.001840561082106882,
+            "nonfinite": 0,
+            "greedy_match_pct": 32.6530612244898,
+            "floor_pass": true,
+            "mean_kl_scored": 0.004665501402923643,
+            "mean_kl21_scored": 0.004592042296761914,
+            "scored_positions": 279
+          },
+          {
+            "mode": "decode",
+            "positions": 128,
+            "top1_pct": 98.4375,
+            "mean_kl": 0.011948978036706704,
+            "mean_kl21": 0.012801892609919967,
+            "top5_pct": 95.15625,
+            "tail_ref": 0.03236371497665586,
+            "tail_ours": 0.029296891605698396,
+            "max_kl": 0.4128717613523838,
+            "max_kl21": 0.4128414268078381,
+            "tail_abs": 0.004328457675987471,
+            "nonfinite": 0,
+            "greedy_match_pct": 78.125,
+            "floor_pass": true,
+            "mean_kl_scored": 0.012599169733760927,
+            "mean_kl21_scored": 0.012456093998365258,
+            "scored_positions": 86
+          }
+        ],
+        "run_s": 69.240068945
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "decode 84.1 tok/s at 128 tokens (86% of the byte floor)",
+      "wall_s": 91.127572431,
+      "started_unix": 1792654152,
+      "artifacts": [
+        "bench/qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 131.0,
+            "ttft_s": 0.1005,
+            "prefill_tok_s": 1282.1,
+            "decode_tok_s": 84.1,
+            "decode_stdev": 4.21,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 85.8,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1015.0,
+            "ttft_s": 0.2187,
+            "prefill_tok_s": 4640.1,
+            "decode_tok_s": 83.63,
+            "decode_stdev": 0.17,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 85.3,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4185.0,
+            "ttft_s": 0.7818,
+            "prefill_tok_s": 5383.1,
+            "decode_tok_s": 81.14,
+            "decode_stdev": 0.21,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 82.8,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 384,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 2.254637784,
+        "bandwidth_gbs": 221.0,
+        "floor_inputs": "gb/token: estimated from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 221 GB/s, the GB10 measured figure",
+        "server_load_s": 70.058494247,
+        "label": "qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia serve --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3.6-35B-A3B-NVFP4 --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3.6-35B-A3B-NVFP4 --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench --out-dir /home/nvidia/onboard-runs/35b-cuda/report/qualify/bench --tp 1 --fingerprint model=Qwen3.6-35B-A3B-NVFP4 --fingerprint backend=cuda --fingerprint build=head=716b4e4 code-tree=79c4400f0040 dirty=no --timeout-s 900 --gb-per-token 2.2546 --bandwidth-gbs 221 --fingerprint-file /home/nvidia/onboard-runs/35b-cuda/report/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-long",
+      "title": "accuracy --mode all on the long golden (prefill, decode, prefix reuse)",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "prefill top-1 97.85% KL 5.56e-3; decode top-1 97.40% KL 1.01e-2",
+      "wall_s": 78.580439596,
+      "started_unix": 1792654244,
+      "artifacts": [
+        "logs/acc-long.out",
+        "baselines/acc-long.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-long-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:50e5b3723243d904 size:246860",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 97.84871616932686,
+            "mean_kl": 0.005560716710149241,
+            "mean_kl21": 0.0051259985392848725,
+            "top5_pct": 91.93615544760584,
+            "tail_ref": 0.01721239752446174,
+            "tail_ours": 0.017190632236915426,
+            "max_kl": 0.8657737663677099,
+            "max_kl21": 0.38564212831026623,
+            "tail_abs": 0.0014750595721451318,
+            "nonfinite": 0,
+            "greedy_match_pct": 9.368494101318529,
+            "floor_pass": true,
+            "mean_kl_scored": 0.004631098405635666,
+            "mean_kl21_scored": 0.0041103195065784635,
+            "scored_positions": 1279
+          },
+          {
+            "mode": "decode",
+            "positions": 500,
+            "top1_pct": 97.4,
+            "mean_kl": 0.01014609307565376,
+            "mean_kl21": 0.010228956119249092,
+            "top5_pct": 93.36,
+            "tail_ref": 0.017154256456372415,
+            "tail_ours": 0.017894532946104626,
+            "max_kl": 0.510024880839336,
+            "max_kl21": 0.5042888728758964,
+            "tail_abs": 0.0017043929870234089,
+            "nonfinite": 0,
+            "greedy_match_pct": 65.4,
+            "floor_pass": true,
+            "mean_kl_scored": 0.005321880596691459,
+            "mean_kl21_scored": 0.005309639943978816,
+            "scored_positions": 367
+          }
+        ],
+        "run_s": 78.567044476
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-long-top20.safetensors --mode both --decode-positions 64 --max-seq 8192 --write-baseline /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-long.baseline.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": [
+        "prefix reuse is gated in acc-4k, on the 4k golden"
+      ]
+    },
+    {
+      "id": "acc-4k",
+      "title": "accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "prefill top-1 92.40% KL 9.08e-2; decode top-1 97.92% KL 9.53e-3",
+      "wall_s": 119.556747535,
+      "started_unix": 1792654322,
+      "artifacts": [
+        "logs/acc-4k.out",
+        "baselines/acc-4k.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-4k-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:761e39d9698831b8 size:2100484",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 12759,
+            "top1_pct": 92.39752331687436,
+            "mean_kl": 0.09082838075445077,
+            "mean_kl21": 0.10590897465924504,
+            "top5_pct": 89.89732737675367,
+            "tail_ref": 0.06674528954174731,
+            "tail_ours": 0.07412726071156639,
+            "max_kl": 21.01531200341275,
+            "max_kl21": 24.524605255332027,
+            "tail_abs": 0.012719414551593734,
+            "nonfinite": 0,
+            "greedy_match_pct": 0.2351281448389372,
+            "floor_pass": true,
+            "mean_kl_scored": 0.01359229280132778,
+            "mean_kl21_scored": 0.01234494718095483,
+            "scored_positions": 8221
+          },
+          {
+            "mode": "decode",
+            "positions": 192,
+            "top1_pct": 97.91666666666669,
+            "mean_kl": 0.009529190918983963,
+            "mean_kl21": 0.0084883638232251,
+            "top5_pct": 91.25,
+            "tail_ref": 0.021558911835070298,
+            "tail_ours": 0.020347334684395816,
+            "max_kl": 0.2640468670706093,
+            "max_kl21": 0.1880709421416571,
+            "tail_abs": 0.003021203433294249,
+            "nonfinite": 0,
+            "greedy_match_pct": 85.9375,
+            "floor_pass": true,
+            "mean_kl_scored": 0.009529190918983963,
+            "mean_kl21_scored": 0.0084883638232251,
+            "scored_positions": 192
+          }
+        ],
+        "run_s": 119.540439033
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": [
+        "no baseline for backend cuda next to the 4k golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"
+      ]
+    },
+    {
+      "id": "envelope",
+      "title": "noise envelope and baseline for regression gating",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "baseline and envelope (chunk + attn-simt) written; they gate this build: PASS",
+      "wall_s": 199.578073398,
+      "started_unix": 1792654442,
+      "artifacts": [
+        "baselines/acc-short.baseline.json",
+        "baselines/envelope.json",
+        "logs/baseline-selfcheck.out"
+      ],
+      "metrics": {
+        "baseline": "baselines/acc-short.baseline.json",
+        "envelope": "baselines/envelope.json",
+        "perturbations": [
+          {
+            "perturbation": "chunk",
+            "wall_s": 77.479362846
+          },
+          {
+            "perturbation": "attn-simt",
+            "wall_s": 65.622014169
+          }
+        ],
+        "selfcheck_verdict_line": "floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS",
+        "use": "intarsia accuracy --model <dir> --backend cuda --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors --baseline baselines/acc-short.baseline.json --noise-envelope baselines/envelope.json  (copy both files next to the golden, e.g. golden/baselines/)"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --noise-ref /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-short.baseline.json --noise-perturb chunk --write-noise-envelope /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/envelope.json --allow-same-code",
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --noise-ref /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-short.baseline.json --noise-perturb attn-simt --write-noise-envelope /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/envelope.json --allow-same-code",
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --golden /home/nvidia/onboard-runs/35b-cuda/golden-fresh/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --baseline /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-short.baseline.json --noise-envelope /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/envelope.json --allow-same-code --pre-change 716b4e4"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench-long",
+      "title": "long-context bench up to 16k",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "decode 82.9 tok/s at 1024 tokens (84% of the byte floor)",
+      "wall_s": 82.034805107,
+      "started_unix": 1792654642,
+      "artifacts": [
+        "bench/qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench-long.json",
+        "logs/bench-long-bench.out",
+        "logs/bench-long-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 1024,
+            "prompt_tokens": 1020.0,
+            "ttft_s": 0.2191,
+            "prefill_tok_s": 4653.2,
+            "decode_tok_s": 82.86,
+            "decode_stdev": 0.01,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 84.5,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 128,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4078.0,
+            "ttft_s": 0.7013,
+            "prefill_tok_s": 5814.6,
+            "decode_tok_s": 80.56,
+            "decode_stdev": 0.08,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 82.2,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 128,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 16384,
+            "prompt_tokens": 16721.0,
+            "ttft_s": 3.1132,
+            "prefill_tok_s": 5370.9,
+            "decode_tok_s": 72.86,
+            "decode_stdev": 0.07,
+            "floor_tok_s": 98.02,
+            "pct_of_floor": 74.3,
+            "reps_ok": 2,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 128,
+              "captures": 0,
+              "eager_steps": 0,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 2.254637784,
+        "bandwidth_gbs": 221.0,
+        "floor_inputs": "gb/token: estimated from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 221 GB/s, the GB10 measured figure",
+        "server_load_s": 62.043798571,
+        "label": "qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench-long"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia serve --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 38 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3.6-35B-A3B-NVFP4 --max-seq 17152 --profile-every 0 --no-supervisor --no-ui",
+          "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3.6-35B-A3B-NVFP4 --sizes 1024,4096,16384 --gen 64 --reps 2 --warmup 1 --thinking off --label qualify-Qwen3.6-35B-A3B-NVFP4-cuda-bench-long --out-dir /home/nvidia/onboard-runs/35b-cuda/report/qualify/bench --tp 1 --fingerprint model=Qwen3.6-35B-A3B-NVFP4 --fingerprint backend=cuda --fingerprint build=head=716b4e4 code-tree=79c4400f0040 dirty=no --timeout-s 900 --gb-per-token 2.2546 --bandwidth-gbs 221 --fingerprint-file /home/nvidia/onboard-runs/35b-cuda/report/qualify/doctor.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "ab",
+      "title": "A/B against the reference server via localeval",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "localeval is not at /opt/code/deepeval (--localeval-dir); the A/B must run through localeval, never an ad-hoc script",
+      "wall_s": 0.000263584,
+      "started_unix": 1792654724,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "tp",
+      "title": "tensor-parallel variant",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "--tp not given (or 1)",
+      "wall_s": 5.28e-7,
+      "started_unix": 1792654724,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=716b4e4 code-tree=79c4400f0040 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/on/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "3892"
+        }
+      },
+      "notes": []
+    }
+  ],
+  "hooks": []
+}

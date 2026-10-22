@@ -233,4 +233,16 @@ impl Comm for P2pComm {
     fn note_timed(&self, d: Duration) {
         self.counters.timed(d);
     }
+
+    /// Yes: a collective is kernel launches on the caller's stream and nothing else (no host synchronisation, no event,
+    /// no allocation), and everything the kernel keeps between calls lives on the device: the per-block launch counters
+    /// (which pick the scratch parity and the flag value at run time, so a replayed launch takes the next sequence
+    /// number like an eager one, and replays and eager calls can interleave), the flags and the fixed scratch slots. A
+    /// recorded launch therefore stays valid for every replay. The f32 partial and the output are the model's
+    /// workspace, so there is no comm-owned buffer that could grow and nothing to reserve. What a replay skips is the
+    /// host-side `aborted` check; a replayed collective whose peer never arrives traps after the bounded wait, as an
+    /// eager one already in the kernel does.
+    fn capture_safe(&self) -> bool {
+        true
+    }
 }

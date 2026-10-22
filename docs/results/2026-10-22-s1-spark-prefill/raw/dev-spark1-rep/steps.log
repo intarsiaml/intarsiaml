@@ -1,0 +1,26 @@
+22:56:03 == remote.sh STEPS='bench' MemAvailable 46 GB
+22:56:03 bin s1-base: /home/nvidia/intarsia-decfuse/s1-dev/scripts/s1/remote.sh: line 31: /home/nvidia/intarsia-decfuse/s1-base/target/acc/release/intarsia: No such file or directory; pair syms ; glu syms 
+22:56:03 bin s1-dev: intarsia 0.0.1; pair syms 1; glu syms 1
+22:56:09 bench cfg 0 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 165430.3 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 82347.0 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41509.2 us|
+22:56:16 bench cfg 1 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 157814.5 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 79533.7 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 43517.9 us|
+22:56:22 bench cfg 4 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 168995.9 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 84574.9 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41759.8 us|
+22:56:28 bench cfg 0 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 166724.7 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 82469.1 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41234.2 us|
+22:56:34 bench cfg 1 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 160666.0 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 86080.7 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 43944.1 us|
+22:56:40 bench cfg 4 exit 0: M=4096 fp8 per-chunk total matmul_fp8_gemm_reg 169057.8 us|M=2048 fp8 per-chunk total matmul_fp8_gemm_reg 85216.7 us|M=1024 fp8 per-chunk total matmul_fp8_gemm_reg 41368.2 us|
+22:56:46 bench new exit 0
+M=4096 nvfp4 per-chunk total matmul_nvfp4_gemm        21798.3 us
+M=4096 nvfp4 per-chunk total matmul_nvfp4_gemm_reg    15852.1 us
+M=4096 gdn qkv+z pair     two calls    3078.6 us  pair    2917.3 us  saved per chunk   4839.8 us
+M=4096 attn k+v pair      two calls     487.9 us  pair     413.1 us  saved per chunk    748.1 us
+M=4096 shared gate+up+glu   chain     365.6 us  fused     260.3 us  saved per chunk   4211.6 us
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm        11027.5 us
+M=2048 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     9836.6 us
+M=2048 gdn qkv+z pair     two calls    1547.2 us  pair    1480.2 us  saved per chunk   2008.6 us
+M=2048 attn k+v pair      two calls     238.2 us  pair     180.5 us  saved per chunk    577.0 us
+M=2048 shared gate+up+glu   chain     187.5 us  fused     135.8 us  saved per chunk   2068.0 us
+M=1024 nvfp4 per-chunk total matmul_nvfp4_gemm         7073.8 us
+M=1024 nvfp4 per-chunk total matmul_nvfp4_gemm_reg     5041.1 us
+M=1024 gdn qkv+z pair     two calls     772.8 us  pair     748.0 us  saved per chunk    742.9 us
+M=1024 attn k+v pair      two calls     103.0 us  pair      98.7 us  saved per chunk     43.2 us
+M=1024 shared gate+up+glu   chain     129.6 us  fused      89.9 us  saved per chunk   1585.6 us
+22:56:46 == remote.sh done
