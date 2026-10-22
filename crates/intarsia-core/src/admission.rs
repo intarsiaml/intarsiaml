@@ -106,11 +106,27 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            // g4: `scale != 1.0` (Gemma's embedding scale sqrt(2816) = 53.0 in bf16): selects `.ext()` kernels only
+            for &t in rows {
+                for dt in act_dtypes() {
+                    let ids: Vec<i32> = (0..t).map(|_| (rng.next_u64() % v as u64) as i32).collect();
+                    let table = rand_t(&mut rng, dt, &[v, hs[0]], 1.0);
+                    push(
+                        format!("T={t} V={v} H={} {dt} scale=53", hs[0]),
+                        HostCall {
+                            op,
+                            inputs: vec![HostTensor::from_i32(&[t], &ids), table],
+                            outputs: vec![OutSpec::new(dt, &[t, hs[0]])],
+                            attrs: OpAttrs { scale: 53.0, ..attrs() },
+                        },
+                    );
+                }
+            }
         }
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             let mut hs2 = hs.clone();
             // `intermediate` is 0 for MoE-only checkpoints (no dense FFN, e.g. Qwen3.6-35B-A3B): no dense width to sweep.
-            if op == Op::SiluGlu && !quick && cfg.intermediate > 0 {
+            if matches!(op, Op::SiluGlu | Op::GeluGlu) && !quick && cfg.intermediate > 0 {
                 hs2.push(cfg.intermediate);
             }
             for &r in rows {
@@ -132,6 +148,25 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                             format!("R={r} H={h} {dt}{}", if woff != 0.0 { " w_offset=1" } else { "" }),
                             HostCall { op, inputs, outputs, attrs: OpAttrs { eps: 1e-6, w_offset: woff, ..attrs() } },
                         );
+                    }
+                }
+            }
+            // g4: `Add` with `scale != 1.0` (Gemma's layer_scalar: out = round(f32(a + b) * scale)), `.ext()` kernels only
+            if op == Op::Add {
+                for &r in rows {
+                    for &h in &hs {
+                        for dt in act_dtypes() {
+                            let (a, b) = (rand_t(&mut rng, dt, &[r, h], 1.0), rand_t(&mut rng, dt, &[r, h], 1.0));
+                            push(
+                                format!("R={r} H={h} {dt} scale=53"),
+                                HostCall {
+                                    op,
+                                    inputs: vec![a, b],
+                                    outputs: vec![OutSpec::new(dt, &[r, h])],
+                                    attrs: OpAttrs { scale: 53.0, ..attrs() },
+                                },
+                            );
+                        }
                     }
                 }
             }
@@ -167,6 +202,36 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                     },
                                 },
                             );
+                        }
+                    }
+                }
+            }
+            // g4: proportional rope (Gemma 4 global layers): pairs (j, j + D/2) for j < rotary_dim / 2 rotated by
+            // pos * theta^(-2j/D), the rest copied; `.ext()` kernels only
+            if op == Op::Rope {
+                let pdims: &[(usize, usize, usize)] = if quick { &[(4, 512, 128)] } else { &[(4, 512, 128), (2, 64, 16), (8, 256, 64)] };
+                for &t in rows {
+                    for &(n, d, rdim) in pdims {
+                        for &p in pos0s {
+                            for dt in act_dtypes() {
+                                let x = rand_t(&mut rng, dt, &[t, n, d], 1.0);
+                                push(
+                                    format!("T={t} N={n} D={d} pos0={p} {dt} rot={rdim} prop"),
+                                    HostCall {
+                                        op,
+                                        inputs: vec![x],
+                                        outputs: vec![OutSpec::new(dt, &[t, n, d])],
+                                        attrs: OpAttrs {
+                                            pos0: p,
+                                            theta: cfg.rope_theta,
+                                            head_dim: d,
+                                            rotary_dim: rdim,
+                                            rope_prop: true,
+                                            ..attrs()
+                                        },
+                                    },
+                                );
+                            }
                         }
                     }
                 }
@@ -404,6 +469,50 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                 },
                             },
                         );
+                    }
+                }
+            }
+            // g4 (Gemma 4): head_dim up to 512 (global layers 16/2 x 512, sliding layers 16/8 x 256) and the sliding window
+            // (the query at absolute position p attends keys max(0, p + 1 - window)..=p); softmax scale 1.0; `.ext()` kernels only.
+            // q is scaled so the logits stay moderate (a softmax saturated on one key would hide a wrong window or tile).
+            {
+                let eheads: &[(usize, usize, usize)] = &[(16, 2, 512), (16, 8, 256), (4, 2, 64)];
+                let ewin: &[usize] = if quick { &[5, 1024] } else { &[0, 5, 1024] };
+                let etp: Vec<(usize, usize)> = if op == Op::AttnDecode {
+                    if quick { vec![(1, 7), (1, 40)] } else { vec![(1, 7), (1, 40), (1, 1500)] }
+                } else if quick {
+                    vec![(20, 30)]
+                } else {
+                    vec![(20, 30), (20, 1100), (5, 0)]
+                };
+                for &(n, nkv, d) in eheads {
+                    for &w in ewin {
+                        for &(t, p) in &etp {
+                            for dt in act_dtypes() {
+                                let cap = p + t + 3;
+                                let q = rand_t(&mut rng, dt, &[t, n, d], 2.0 / (d as f32).sqrt());
+                                let kc = rand_t(&mut rng, dt, &[nkv, cap, d], 1.0);
+                                let vc = rand_t(&mut rng, dt, &[nkv, cap, d], 1.0);
+                                push(
+                                    format!("T={t} pos0={p} N={n} Nkv={nkv} D={d} q={dt} kv={dt} window={w} scale=1"),
+                                    HostCall {
+                                        op,
+                                        inputs: vec![q, kc, vc],
+                                        outputs: vec![OutSpec::new(dt, &[t, n, d])],
+                                        attrs: OpAttrs {
+                                            pos0: p,
+                                            scale: 1.0,
+                                            n_heads: n,
+                                            n_kv_heads: nkv,
+                                            head_dim: d,
+                                            kv_cap: cap,
+                                            window: w,
+                                            ..attrs()
+                                        },
+                                    },
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -949,7 +1058,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
     // the signatures this builder was written for; an op whose arity changed falls back to the
     // kernel's own sweep instead of being graded on a case that does not match what the kernel gets
     let known = match call.op {
-        Op::Embedding | Op::RmsNorm | Op::Add | Op::QkNorm | Op::Matmul | Op::Logits | Op::SiluGlu => (2, 1),
+        Op::Embedding | Op::RmsNorm | Op::Add | Op::QkNorm | Op::Matmul | Op::Logits | Op::SiluGlu | Op::GeluGlu => (2, 1),
         Op::RmsNormAdd => (3, 2),
         Op::Rope | Op::KvAppend | Op::Argmax => (1, 1),
         Op::AttnPrefill | Op::AttnDecode => (3, 1),
@@ -973,7 +1082,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
             i[1].shape[1],
             i[1].dtype
         ),
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             format!("R={} H={} {} off={}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype, a.w_offset)
         }
         Op::QkNorm => format!(
@@ -1127,7 +1236,7 @@ pub fn case_from_call(call: &crate::ops::OpCall, caps: &ShapeCaps, rng: &mut Spl
                 attrs: a.clone(),
             }
         }
-        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu => {
+        Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu => {
             let (r, h, dt) = (i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype);
             let x = rand_t(rng, dt, &[r, h], 1.0);
             let (inputs, outputs) = match op {

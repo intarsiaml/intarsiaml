@@ -94,6 +94,14 @@ extern "C" {
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;
+
+    // ---- g4 (Gemma 4) extended-attribute launchers (kernels/cuda/ik_cuda_abi_g4.h) ----
+    pub fn ik_gelu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
+    pub fn ik_rope_prop_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
+    pub fn ik_add_scaled_bf16(a: T, b: T, out: TM, scale: f32, s: S) -> c_int;
+    pub fn ik_embedding_scaled_bf16(ids: T, table: T, out: TM, scale: f32, s: S) -> c_int;
+    pub fn ik_attn_prefill_bf16_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16_ext(q: T, kc: T, vc: T, pos0: i64, scale: f32, window: i64, out: TM, pos: T, s: S) -> c_int;
 }
 
 /// Name of an `enum ik_status` value.

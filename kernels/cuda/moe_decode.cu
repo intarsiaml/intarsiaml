@@ -19,7 +19,7 @@ constexpr int kMaxK = 16;  // experts per token held in registers by the down ke
 
 IK_DEVI float round_bf16(float v) { return ik_b2f(ik_f2b(v)); }
 
-template <int U>
+template <int U, bool GELU>
 __global__ void __launch_bounds__(kRowWarps * IK_WARP)
 moe_dec_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
                        const float* __restrict__ gscales, const int* __restrict__ ids, ik_bf16* __restrict__ h, int E,
@@ -64,7 +64,7 @@ moe_dec_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     }
     const float g = round_bf16(ik_warp_sum(ag) * gscales[e * 3 + 0]);
     const float u = round_bf16(ik_warp_sum(au) * gscales[e * 3 + 1]);
-    const float a = round_bf16(g / (1.f + expf(-g)));
+    const float a = round_bf16(GELU ? ik_gelu_tanh(g) : g / (1.f + expf(-g)));
     if (lane == 0) h[(int64_t)p * I + r] = ik_f2b(a * u);
 }
 
@@ -208,11 +208,11 @@ int knob(const char* name, int dflt, int a, int b, int c, int d) {
     return dflt;
 }
 
-template <int U>
+template <int U, bool GELU>
 void launch_gate_up(const ik_tensor* x, const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* gscales,
                     const ik_tensor* ids, ik_bf16* hbuf, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K,
                     cudaStream_t s) {
-    moe_dec_gate_up_kernel<U><<<dim3((unsigned)P, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+    moe_dec_gate_up_kernel<U, GELU><<<dim3((unsigned)P, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                                 (size_t)H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
                                                     (const uint8_t*)gate_up_s->data, (const float*)gscales->data,
                                                     (const int*)ids->data, hbuf, (int)E, (int)H, (int)I, (int)K);
@@ -230,7 +230,7 @@ void launch_down_v2(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tenso
 // Shared by both entry points: validation, scratch, and the two launches. v2 selects the restructured down kernel.
 int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
                   const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
-                  ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2) {
+                  ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2, bool gelu) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -257,10 +257,19 @@ int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wei
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
     ik_bf16* hbuf = (ik_bf16*)scratch->data;
     cudaStream_t s = IK_STREAM(stream);
-    switch (v2 ? knob("INTARSIA_MOE_GU_UNROLL", 2, 1, 2, 4, 4) : 2) {
-        case 1: launch_gate_up<1>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
-        case 4: launch_gate_up<4>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
-        default: launch_gate_up<2>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+    const int gu_unroll = v2 ? knob("INTARSIA_MOE_GU_UNROLL", 2, 1, 2, 4, 4) : 2;
+    if (gelu) {
+        switch (gu_unroll) {
+            case 1: launch_gate_up<1, true>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+            case 4: launch_gate_up<4, true>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+            default: launch_gate_up<2, true>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+        }
+    } else {
+        switch (gu_unroll) {
+            case 1: launch_gate_up<1, false>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+            case 4: launch_gate_up<4, false>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+            default: launch_gate_up<2, false>(x, gate_up_w, gate_up_s, gscales, ids, hbuf, P, E, H, I, K, s); break;
+        }
     }
     IK_TRY(ik_launch_status());
     if (v2) {
@@ -288,7 +297,7 @@ int ik_moe_experts_decode_bf16(const ik_tensor* x, const ik_tensor* ids, const i
                                const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                                const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                const ik_scratch* scratch, void* stream) {
-    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false);
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false, false);
 }
 
 // The same op and the same bits with the restructured down projection (moe_dec_down_v2_kernel).
@@ -296,7 +305,22 @@ int ik_moe_experts_decode_v2_bf16(const ik_tensor* x, const ik_tensor* ids, cons
                                   const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                                   const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                   const ik_scratch* scratch, void* stream) {
-    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, false);
+}
+
+// gelu_tanh in the expert activation (OpAttrs::gelu): h = bf16(round_bf16(gelu_tanh(g)) * u). Otherwise the same bits.
+int ik_moe_experts_decode_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                    const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                    const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                    const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false, true);
+}
+
+int ik_moe_experts_decode_v2_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                       const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                       const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                       const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true);
 }
 
 }  // extern "C"
