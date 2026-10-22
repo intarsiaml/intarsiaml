@@ -1,0 +1,86 @@
+# HELP intarsia_qualify_decode_tok_s Single-stream decode tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_decode_tok_s gauge
+intarsia_qualify_decode_tok_s{size="128"} 35.6
+intarsia_qualify_decode_tok_s{size="1024"} 35.78
+intarsia_qualify_decode_tok_s{size="4096"} 34.14
+# HELP intarsia_qualify_prefill_tok_s Prefill tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_prefill_tok_s gauge
+intarsia_qualify_prefill_tok_s{size="128"} 2346.7
+intarsia_qualify_prefill_tok_s{size="1024"} 4027.6
+intarsia_qualify_prefill_tok_s{size="4096"} 3245.9
+# HELP intarsia_qualify_pct_of_floor Decode speed as a percentage of the memory-bandwidth byte floor.
+# TYPE intarsia_qualify_pct_of_floor gauge
+intarsia_qualify_pct_of_floor{size="128"} 87.8
+intarsia_qualify_pct_of_floor{size="1024"} 88.2
+intarsia_qualify_pct_of_floor{size="4096"} 84.2
+# HELP intarsia_qualify_accuracy_top1_pct Top-1 agreement with the golden, percent.
+# TYPE intarsia_qualify_accuracy_top1_pct gauge
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="prefill"} 100
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="decode"} 100
+intarsia_qualify_accuracy_top1_pct{stage="acc-long",mode="prefill"} 99.721059972106
+intarsia_qualify_accuracy_top1_pct{stage="acc-long",mode="decode"} 99.8
+intarsia_qualify_accuracy_top1_pct{stage="acc-4k",mode="prefill"} 99.2826172644856
+intarsia_qualify_accuracy_top1_pct{stage="acc-4k",mode="decode"} 98.95833333333331
+# HELP intarsia_qualify_accuracy_mean_kl Mean KL(reference || ours), nats.
+# TYPE intarsia_qualify_accuracy_mean_kl gauge
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="prefill"} 0.00028316280453343173
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="decode"} 0.00033129300408174647
+intarsia_qualify_accuracy_mean_kl{stage="acc-long",mode="prefill"} 0.00036994445317094254
+intarsia_qualify_accuracy_mean_kl{stage="acc-long",mode="decode"} 0.000353758012548721
+intarsia_qualify_accuracy_mean_kl{stage="acc-4k",mode="prefill"} 0.00024405971228733345
+intarsia_qualify_accuracy_mean_kl{stage="acc-4k",mode="decode"} 0.000257258218596502
+# HELP intarsia_qualify_stage_pass 1 when the stage passed, 0 when it failed or errored (skipped stages are absent).
+# TYPE intarsia_qualify_stage_pass gauge
+intarsia_qualify_stage_pass{stage="doctor"} 1
+intarsia_qualify_stage_pass{stage="recipe"} 1
+intarsia_qualify_stage_pass{stage="plan"} 1
+intarsia_qualify_stage_pass{stage="kernels"} 1
+intarsia_qualify_stage_pass{stage="gate"} 1
+intarsia_qualify_stage_pass{stage="acc-short"} 1
+intarsia_qualify_stage_pass{stage="bench"} 1
+intarsia_qualify_stage_pass{stage="acc-long"} 1
+intarsia_qualify_stage_pass{stage="acc-4k"} 1
+intarsia_qualify_stage_pass{stage="envelope"} 1
+intarsia_qualify_stage_pass{stage="bench-long"} 1
+# HELP intarsia_qualify_stage_seconds Wall time of a stage.
+# TYPE intarsia_qualify_stage_seconds gauge
+intarsia_qualify_stage_seconds{stage="doctor"} 0.612293875
+intarsia_qualify_stage_seconds{stage="recipe"} 0.001360416
+intarsia_qualify_stage_seconds{stage="plan"} 43.954213458
+intarsia_qualify_stage_seconds{stage="kernels"} 45.183350042
+intarsia_qualify_stage_seconds{stage="gate"} 9.9457145
+intarsia_qualify_stage_seconds{stage="acc-short"} 8.261434792
+intarsia_qualify_stage_seconds{stage="bench"} 86.632052917
+intarsia_qualify_stage_seconds{stage="acc-long"} 24.052973959
+intarsia_qualify_stage_seconds{stage="acc-4k"} 81.105348
+intarsia_qualify_stage_seconds{stage="envelope"} 14.433877625
+intarsia_qualify_stage_seconds{stage="bench-long"} 73.296557417
+intarsia_qualify_stage_seconds{stage="ab"} 0.000022083
+intarsia_qualify_stage_seconds{stage="tp"} 0.000002084
+# HELP intarsia_qualify_exit_code Exit code qualify would return for this section (0 pass, 1 gate failed, 2 pipeline failed or incomplete).
+# TYPE intarsia_qualify_exit_code gauge
+intarsia_qualify_exit_code{section="full"} 0
+# HELP intarsia_qualify_section_seconds Wall time of the quick and the in-depth section.
+# TYPE intarsia_qualify_section_seconds gauge
+intarsia_qualify_section_seconds{section="quick"} 194.59042
+intarsia_qualify_section_seconds{section="full"} 192.88878116799998
+# HELP intarsia_qualify_last_run_timestamp_seconds Unix time of the report.
+# TYPE intarsia_qualify_last_run_timestamp_seconds gauge
+intarsia_qualify_last_run_timestamp_seconds 1792622403
+# HELP intarsia_onboard_published_timestamp_seconds Unix time the report of this tier was written.
+# TYPE intarsia_onboard_published_timestamp_seconds gauge
+intarsia_onboard_published_timestamp_seconds{model="Qwen3-8B",backend="metal",tier="in-depth"} 1792622403
+# HELP intarsia_onboard_stage_seconds Wall time of an onboard stage.
+# TYPE intarsia_onboard_stage_seconds gauge
+intarsia_onboard_stage_seconds{model="Qwen3-8B",backend="metal",stage="recipe",tier="prepare",verdict="PASS"} 0.0
+intarsia_onboard_stage_seconds{model="Qwen3-8B",backend="metal",stage="smoke",tier="prepare",verdict="PASS"} 1.2
+intarsia_onboard_stage_seconds{model="Qwen3-8B",backend="metal",stage="quick",tier="quick",verdict="PASS"} 194.7
+intarsia_onboard_stage_seconds{model="Qwen3-8B",backend="metal",stage="publish-quick",tier="quick",verdict="PASS"} 0.0
+intarsia_onboard_stage_seconds{model="Qwen3-8B",backend="metal",stage="in-depth",tier="in-depth",verdict="PASS"} 73.4
+# HELP intarsia_onboard_stage_end_timestamp_seconds Unix time an onboard stage ended.
+# TYPE intarsia_onboard_stage_end_timestamp_seconds gauge
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3-8B",backend="metal",stage="recipe"} 1792621984
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3-8B",backend="metal",stage="smoke"} 1792621986
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3-8B",backend="metal",stage="quick"} 1792622180
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3-8B",backend="metal",stage="publish-quick"} 1792622180
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3-8B",backend="metal",stage="in-depth"} 1792622403
