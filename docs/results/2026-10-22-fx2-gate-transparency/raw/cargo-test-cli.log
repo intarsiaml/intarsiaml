@@ -1,0 +1,30 @@
+test cmd::onboard::tests::timeline_has_start_end_duration_and_iso_times ... ok
+test cmd::recipe::tests::mixed_fp8_nvfp4_moe_from_an_index_alone_is_covered_by_qwen3_5_moe ... ok
+test cmd::onboard::tests::a_failed_gate_is_final_but_an_error_runs_again ... ok
+test cmd::recipe::tests::unknown_architecture_with_qwen3_layout_gets_a_clean_scaffold ... ok
+test cmd::onboard::tests::a_finished_halting_stage_still_stops_a_resumed_run ... ok
+test cmd::onboard::tests::a_stopped_run_does_not_read_as_pass ... ok
+test cmd::onboard::tests::redo_and_refresh_rerun_the_stage_and_its_report ... ok
+test cmd::onboard::tests::a_resumed_stage_remembers_when_its_first_attempt_started ... ok
+
+test result: ok. 146 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/main.rs (target/debug/deps/intarsia-b897205b39574c90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_model.rs (target/debug/deps/real_model-c7a3e226294bc65c)
+
+running 1 test
+test counts_up_on_real_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
