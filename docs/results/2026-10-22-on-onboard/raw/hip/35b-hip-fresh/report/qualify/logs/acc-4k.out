@@ -1,0 +1,36 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.33   1.890e-2   1.674e-2   1.674e-2    2.846e0   0.0944   0.0969    90.82    0/4064      0
+long_code_4k        4064  4064    97.05   8.380e-3   7.676e-3   7.676e-3   8.967e-1   0.0372   0.0379    91.87   10/4064      0
+chat_reuse_4k       4631  4631    88.40   2.202e-1   2.572e-1   1.008e-2    2.129e1   0.0684   0.0848    87.89   64/4631      0
+OVERALL                  12759    92.73   8.860e-2   1.011e-1   1.218e-2    2.129e1   0.0667   0.0737    90.09      0.6%      0
+prefill floor [4bit]: top-1 (all rows) 92.73% (need >= 0) ok | 21-way KL (scored rows, n=8221) 1.218e-2 (need <= 3.0e-2) ok [all rows, n=12759: 1.011e-1, reported only] | tail mass (all rows) ours 0.0737 vs ref 0.0667, excess +0.0070 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.218e-2 PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.548e-2   1.435e-2   1.435e-2   2.504e-1   0.0223   0.0208    91.56     51/64      0
+long_code_4k        4064    64    96.88   1.129e-2   9.252e-3   9.252e-3   2.345e-1   0.0424   0.0380    90.00     38/64      0
+chat_reuse_4k       4631    64    98.44   2.515e-3   2.516e-3   2.516e-3   3.145e-2   0.0000   0.0000    93.12     51/64      0
+OVERALL                    192    96.88   9.761e-3   8.707e-3   8.707e-3   2.504e-1   0.0216   0.0196    91.56     72.9%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.88% (need >= 0) ok | 21-way KL (scored rows, n=192) 8.707e-3 (need <= 3.0e-2) ok [all rows, n=192: 8.707e-3, reported only] | tail mass (all rows) ours 0.0196 vs ref 0.0216, excess -0.0020 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 8.707e-3 PASS
+greedy-match [prefill]: mean 0.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 72.9% of positions before the first argmax divergence, worst prompt 59.4% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 4096 (recipe qwen3_5_moe, hip); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+long_code_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+chat_reuse_4k      continue    4521   4647    4536      0      5/32  FAIL (streams diverge beyond rounding at token 5: warm took 10033 cold took 7276; shared rows differ by 0.969 (before) / 0.342 (here) nats of log-probability, KL up to 1.8e-2; fixed rounding scale 0.250 nats, KL 1e-2 (built-in); warm margin 0.122, cold margin 0.160)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 2 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 4096 (recipe qwen3_5_moe, hip): long_docs_4k, long_code_4k; 1 judged
+prefix-reuse gate: FAIL
+
+wrote baseline /work/onboard-runs/35b-hip-fresh/report/qualify/baselines/acc-4k.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL

@@ -1,0 +1,234 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "qualify-Qwen3.6-35B-A3B-NVFP4-hip-bench",
+  "timestamp_unix": 1792654894,
+  "url": "http://127.0.0.1:8090",
+  "model": "qualify-Qwen3.6-35B-A3B-NVFP4",
+  "config": {
+    "sizes": [
+      128,
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 3,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": 2.2546,
+    "bandwidth_gbs": 627.0
+  },
+  "calibration": {
+    "base_prompt_tokens": 46.0,
+    "tokens_per_filler_sentence": 21.41
+  },
+  "fingerprint": {
+    "host": {
+      "kind": "intarsia-doctor",
+      "schema_version": 1,
+      "timestamp_unix": 1792654818,
+      "intarsia_version": "0.0.1",
+      "cuda_feature": false,
+      "hip_feature": true,
+      "metal_feature": false,
+      "host": {
+        "hostname": "e9bb15c81f67",
+        "os": "Ubuntu 24.04.4 LTS",
+        "kernel": "Linux 7.0.0-38-generic",
+        "arch": "x86_64",
+        "cpu_model": "AMD Ryzen 9 9900X 12-Core Processor",
+        "logical_cores": 24,
+        "physical_cores": 12,
+        "ram_total_bytes": 66458861568,
+        "ram_available_bytes": 60487995392,
+        "swap_total_bytes": 8589930496
+      },
+      "gpu": {
+        "nvidia_smi": null,
+        "proc_driver_nvidia": null,
+        "nvcc": null,
+        "cuda_toolkit_version": null,
+        "rocm_version": "7.2.4",
+        "hipcc": "HIP version: 7.2.53211-97f5574fe2"
+      },
+      "backend": {
+        "requested": "hip",
+        "name": "hip",
+        "device": {
+          "name": "AMD Radeon Graphics",
+          "backend": "hip",
+          "arch": "gfx1201",
+          "total_mem": 34208743424,
+          "free_mem": 33952890880,
+          "unified": false,
+          "bandwidth_gbs": 515.4588601017682
+        },
+        "kernel_count": 54,
+        "kernels_by_arch": {
+          "gfx1201": 54
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 28.6,
+          "device_to_host_gbs": 28.0,
+          "device_copy_gbs": 592.8,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        }
+      },
+      "checks": [
+        {
+          "id": "sm_121_target",
+          "status": "info",
+          "detail": "no NVIDIA GPU visible (nvidia-smi missing or failing)",
+          "fix": null
+        },
+        {
+          "id": "hip_arch_target",
+          "status": "ok",
+          "detail": "GPU is gfx1201 and 54 kernels are built for it",
+          "fix": null
+        },
+        {
+          "id": "transparent_hugepages",
+          "status": "ok",
+          "detail": "THP = madvise (kernel: always [madvise] never)",
+          "fix": null
+        },
+        {
+          "id": "disk_free:.",
+          "status": "ok",
+          "detail": "51.8 GB free of 244 GB (21% free)",
+          "fix": null
+        },
+        {
+          "id": "disk_free:/tmp",
+          "status": "ok",
+          "detail": "51.8 GB free of 244 GB (21% free)",
+          "fix": null
+        },
+        {
+          "id": "hip_gpu_max_hw_queues",
+          "status": "info",
+          "detail": "GPU_MAX_HW_QUEUES=1 (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+          "fix": null
+        },
+        {
+          "id": "serve_port",
+          "status": "ok",
+          "detail": "port 8090 is free",
+          "fix": null
+        },
+        {
+          "id": "bandwidth",
+          "status": "info",
+          "detail": "host->device 28.6 GB/s, device->host 28.0 GB/s, device copy 592.8 GB/s (read+write)",
+          "fix": null
+        }
+      ]
+    },
+    "model": "Qwen3.6-35B-A3B-NVFP4",
+    "backend": "hip",
+    "build": "head=4d3e38e code-tree=9cc7bec56a44 dirty=no"
+  },
+  "graph": {
+    "available": true,
+    "replays": 1152,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 128,
+      "prompt_tokens": 132.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.0673,
+      "prefill_tok_s": 1959.1,
+      "decode_tok_s": 159.79,
+      "decode_tok_s_reps": [
+        159.49,
+        159.79,
+        159.86
+      ],
+      "decode_tok_s_min": 159.49,
+      "decode_tok_s_max": 159.86,
+      "decode_tok_s_stdev": 0.2,
+      "bandwidth_floor_tok_s": 278.1,
+      "pct_of_floor": 57.5,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 384,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 1028.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1283,
+      "prefill_tok_s": 8084.9,
+      "decode_tok_s": 159.34,
+      "decode_tok_s_reps": [
+        159.38,
+        159.34,
+        159.28
+      ],
+      "decode_tok_s_min": 159.28,
+      "decode_tok_s_max": 159.38,
+      "decode_tok_s_stdev": 0.05,
+      "bandwidth_floor_tok_s": 278.1,
+      "pct_of_floor": 57.3,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 384,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4185.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.4797,
+      "prefill_tok_s": 8725.0,
+      "decode_tok_s": 155.06,
+      "decode_tok_s_reps": [
+        155.07,
+        155.06,
+        154.98
+      ],
+      "decode_tok_s_min": 154.98,
+      "decode_tok_s_max": 155.07,
+      "decode_tok_s_stdev": 0.05,
+      "bandwidth_floor_tok_s": 278.1,
+      "pct_of_floor": 55.8,
+      "reps_ok": 3,
+      "errors": 0,
+      "at_most": false,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 384,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

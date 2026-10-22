@@ -1,0 +1,39 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.50   1.870e-2   1.685e-2   1.685e-2    2.697e0   0.0944   0.0963    90.81    0/4064      0
+long_code_4k        4064  4064    97.39   8.556e-3   7.881e-3   7.881e-3    1.513e0   0.0372   0.0378    91.93   10/4064      0
+chat_reuse_4k       4631  4631    87.04   2.263e-1   2.701e-1   1.035e-2    2.102e1   0.0684   0.0866    87.31   20/4631      0
+OVERALL                  12759    92.40   9.083e-2   1.059e-1   1.234e-2    2.102e1   0.0667   0.0741    89.90      0.2%      0
+prefill floor [4bit]: top-1 (all rows) 92.40% (need >= 0) ok | 21-way KL (scored rows, n=8221) 1.234e-2 (need <= 3.0e-2) ok [all rows, n=12759: 1.059e-1, reported only] | tail mass (all rows) ours 0.0741 vs ref 0.0667, excess +0.0074 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.234e-2 PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    95.31   1.482e-2   1.394e-2   1.394e-2   1.870e-1   0.0223   0.0217    90.00     51/64      0
+long_code_4k        4064    64    98.44   1.115e-2   8.903e-3   8.903e-3   2.640e-1   0.0424   0.0393    91.88     50/64      0
+chat_reuse_4k       4631    64   100.00   2.621e-3   2.621e-3   2.621e-3   4.150e-2   0.0000   0.0000    91.88     64/64      0
+OVERALL                    192    97.92   9.529e-3   8.488e-3   8.488e-3   2.640e-1   0.0216   0.0203    91.25     85.9%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.92% (need >= 0) ok | 21-way KL (scored rows, n=192) 8.488e-3 (need <= 3.0e-2) ok [all rows, n=192: 8.488e-3, reported only] | tail mass (all rows) ours 0.0203 vs ref 0.0216, excess -0.0012 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 8.488e-3 PASS
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 85.9% of positions before the first argmax divergence, worst prompt 78.1% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 2048 (recipe qwen3_5_moe, cuda); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       continue    3072   4080    3087      0     32/32  ok
+long_docs_4k       restore     3072   4064    2048      0     32/32  ok
+long_docs_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k       continue    3072   4080    3087      0     32/32  ok
+long_code_4k       restore     3072   4064    2048      0     32/32  ok
+long_code_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+prefix-reuse gate: PASS
+
+wrote baseline /home/nvidia/onboard-runs/35b-cuda/report/qualify/baselines/acc-4k.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: PASS

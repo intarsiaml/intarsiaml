@@ -1,0 +1,10 @@
+server max_model_len=32768
+[0] count               38 tokens (38+0)  top1_last=220 lp=-0.012  7s
+[1] story               39 tokens (39+0)  top1_last=32577 lp=-1.605  8s
+[2] code                87 tokens (87+0)  top1_last=262 lp=-0.000  8s
+[3] science             79 tokens (79+0)  top1_last=264 lp=-1.778  9s
+[4] chat_short          18 tokens (18+0)  top1_last=248068 lp=-0.000  9s
+[5] chat_system         32 tokens (32+0)  top1_last=248068 lp=-0.001  9s
+[6] chat_multiturn      58 tokens (58+0)  top1_last=248068 lp=-0.000  10s
+[7] chat_reasoning      90 tokens (90+0)  top1_last=248068 lp=-0.000  10s
+wrote docs/results/2026-10-22-on-onboard/raw/cuda/35b-cuda/goldens/Qwen3.6-35B-A3B-NVFP4-vllm-top20.safetensors (0.08 MB, 8 prompts, 0 skipped) in 10s

@@ -1,0 +1,65 @@
+# HELP intarsia_qualify_decode_tok_s Single-stream decode tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_decode_tok_s gauge
+intarsia_qualify_decode_tok_s{size="128"} 160.32
+intarsia_qualify_decode_tok_s{size="1024"} 160.01
+intarsia_qualify_decode_tok_s{size="4096"} 155.38
+# HELP intarsia_qualify_prefill_tok_s Prefill tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_prefill_tok_s gauge
+intarsia_qualify_prefill_tok_s{size="128"} 1968
+intarsia_qualify_prefill_tok_s{size="1024"} 6534.6
+intarsia_qualify_prefill_tok_s{size="4096"} 8684.5
+# HELP intarsia_qualify_pct_of_floor Decode speed as a percentage of the memory-bandwidth byte floor.
+# TYPE intarsia_qualify_pct_of_floor gauge
+intarsia_qualify_pct_of_floor{size="128"} 57.6
+intarsia_qualify_pct_of_floor{size="1024"} 57.5
+intarsia_qualify_pct_of_floor{size="4096"} 55.9
+# HELP intarsia_qualify_accuracy_top1_pct Top-1 agreement with the golden, percent.
+# TYPE intarsia_qualify_accuracy_top1_pct gauge
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="prefill"} 98.6120749479528
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="decode"} 98.75
+# HELP intarsia_qualify_accuracy_mean_kl Mean KL(reference || ours), nats.
+# TYPE intarsia_qualify_accuracy_mean_kl gauge
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="prefill"} 0.007625840211595139
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="decode"} 0.011755706856344646
+# HELP intarsia_qualify_stage_pass 1 when the stage passed, 0 when it failed or errored (skipped and report-only WARN stages are absent).
+# TYPE intarsia_qualify_stage_pass gauge
+intarsia_qualify_stage_pass{stage="doctor"} 1
+intarsia_qualify_stage_pass{stage="recipe"} 1
+intarsia_qualify_stage_pass{stage="plan"} 1
+intarsia_qualify_stage_pass{stage="kernels"} 1
+intarsia_qualify_stage_pass{stage="gate"} 1
+intarsia_qualify_stage_pass{stage="acc-short"} 1
+intarsia_qualify_stage_pass{stage="bench"} 1
+# HELP intarsia_qualify_stage_seconds Wall time of a stage.
+# TYPE intarsia_qualify_stage_seconds gauge
+intarsia_qualify_stage_seconds{stage="doctor"} 0.300522
+intarsia_qualify_stage_seconds{stage="recipe"} 0.30060597
+intarsia_qualify_stage_seconds{stage="plan"} 9.309627835
+intarsia_qualify_stage_seconds{stage="kernels"} 38.730551921
+intarsia_qualify_stage_seconds{stage="gate"} 6.007217014
+intarsia_qualify_stage_seconds{stage="acc-format"} 0.006437411
+intarsia_qualify_stage_seconds{stage="acc-short"} 8.114463828
+intarsia_qualify_stage_seconds{stage="bench"} 16.772019426
+# HELP intarsia_qualify_exit_code Exit code qualify would return for this section (0 pass, 1 gate failed, 2 pipeline failed or incomplete).
+# TYPE intarsia_qualify_exit_code gauge
+intarsia_qualify_exit_code{section="quick"} 0
+# HELP intarsia_qualify_section_seconds Wall time of the quick and the in-depth section.
+# TYPE intarsia_qualify_section_seconds gauge
+intarsia_qualify_section_seconds{section="quick"} 79.54144540499999
+intarsia_qualify_section_seconds{section="full"} -0.0
+# HELP intarsia_qualify_last_run_timestamp_seconds Unix time of the report.
+# TYPE intarsia_qualify_last_run_timestamp_seconds gauge
+intarsia_qualify_last_run_timestamp_seconds 1792640924
+# HELP intarsia_onboard_published_timestamp_seconds Unix time the report of this tier was written.
+# TYPE intarsia_onboard_published_timestamp_seconds gauge
+intarsia_onboard_published_timestamp_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",tier="quick"} 1792640924
+# HELP intarsia_onboard_stage_seconds Wall time of an onboard stage.
+# TYPE intarsia_onboard_stage_seconds gauge
+intarsia_onboard_stage_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="recipe",tier="prepare",verdict="PASS"} 0.2
+intarsia_onboard_stage_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="smoke",tier="prepare",verdict="PASS"} 3.0
+intarsia_onboard_stage_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="quick",tier="quick",verdict="PASS"} 79.7
+# HELP intarsia_onboard_stage_end_timestamp_seconds Unix time an onboard stage ended.
+# TYPE intarsia_onboard_stage_end_timestamp_seconds gauge
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="recipe"} 1792640841
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="smoke"} 1792640844
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.6-35B-A3B-NVFP4",backend="hip",stage="quick"} 1792640924

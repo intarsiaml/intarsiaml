@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/models/Qwen3.6-35B-A3B-NVFP4",
+    "backend": "hip"
+  },
+  "created_unix": 1792639736,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_moe covers the model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "started_unix": 1792639736,
+      "ended_unix": 1792639736,
+      "wall_s": 0.199819373,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_moe",
+        "family": "qwen3_5_moe",
+        "quant": "nvfp4+fp8"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris, a city renowned for its iconic landmarks such as the Eiffel Tower,\"",
+      "started_unix": 1792639736,
+      "ended_unix": 1792639739,
+      "wall_s": 3.004776468,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 160.16,
+        "completion": "Paris, a city renowned for its iconic landmarks such as the Eiffel Tower,",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "error",
+      "reason": "qualify exit 2: acc-short ERROR: accuracy exit 1: prefill chunk 4096; longest prompt 700; prompts spanning more than one chunk: 0/10 [qualify     64s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)\n[qualify     75s] bench: PASS in 16.8s (decode 159.9 tok/s at 128 tokens (58% of the byte floor))\n[qualify     75s] exit code 2",
+      "started_unix": 1792639739,
+      "ended_unix": 1792639814,
+      "wall_s": 75.192881018,
+      "halted": true,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 2
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-22T03:30:14Z",
+      "started_unix": 1792639814,
+      "ended_unix": 1792639814,
+      "wall_s": 0.000418447,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792639814
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    }
+  ]
+}

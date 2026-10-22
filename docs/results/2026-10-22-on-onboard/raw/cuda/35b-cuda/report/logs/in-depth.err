@@ -1,0 +1,24 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/onboard-runs/35b-cuda/report/qualify
+[qualify      0s] doctor: already done (PASS), not run again
+[qualify      0s] recipe: already done (PASS), not run again
+[qualify      0s] plan: already done (PASS), not run again
+[qualify      0s] kernels: already done (PASS), not run again
+[qualify      0s] gate: already done (PASS), not run again
+[qualify      0s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify      0s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify      0s] acc-short: already done (PASS), not run again
+[qualify      0s] bench: already done (PASS), not run again
+[qualify      0s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify     79s] acc-long: PASS in 78.6s (prefill top-1 97.85% KL 5.56e-3; decode top-1 97.40% KL 1.01e-2)
+[qualify     79s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    198s] acc-4k: PASS in 119.6s (prefill top-1 92.40% KL 9.08e-2; decode top-1 97.92% KL 9.53e-3)
+[qualify    198s] == envelope [noise envelope and baseline for regression gating]
+[qualify    398s] envelope: PASS in 199.6s (baseline and envelope (chunk + attn-simt) written; they gate this build: PASS)
+[qualify    398s] == bench-long [long-context bench up to 16k]
+[qualify    460s] server up in 62s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    480s] bench-long: PASS in 82.0s (decode 82.9 tok/s at 1024 tokens (84% of the byte floor))
+[qualify    480s] == ab [A/B against the reference server via localeval]
+[qualify    480s] ab: SKIP in 0.0s (localeval is not at /opt/code/deepeval (--localeval-dir); the A/B must run through localeval, never an ad-hoc script)
+[qualify    480s] == tp [tensor-parallel variant]
+[qualify    480s] tp: SKIP in 0.0s (--tp not given (or 1))
+[qualify    480s] exit code 0
