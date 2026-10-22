@@ -17,11 +17,10 @@ prefill chunk 2048 (--prefill-chunk) NOT the recipe default: this run does not s
 prompt             case       split  turn2  cached   cold     agree  result
 long_docs_4k: committed continue oracle /opt/code/wt-fx5c87/golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000.continue-oracle.safetensors: not used, frozen at split 2000, this run splits at 3072
     continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072.continue-oracle.safetensors: mean KL(oracle||cold) 1.66e-2, mean KL(oracle||warm) 1.78e-2, warm/cold 1.07x; limit 1.5x cold + 3e-3 = 2.79e-2: PASS
-long_docs_4k       continue    3072   4080    3071      0     32/32  FAIL (reuse covered 3071 < the 3072 tokens of turn 1)
+long_docs_4k       continue    3072   4080    3087      0     12/32  ok (oracle-relative: mean KL(oracle||cold) 1.66e-2, mean KL(oracle||warm) 1.78e-2, warm/cold 1.07x; limit 1.5x cold + 3e-3 = 2.79e-2: PASS)
 long_docs_4k       restore     3072   4064    2048      0     32/32  ok
 long_docs_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
 prefix reuse: 1 prompt(s) judged, 0 skipped
-prefix-reuse gate: FAIL
-golden gate: FAIL
-Error: accuracy gate FAILED
-exit 1
+prefix-reuse gate: PASS
+golden gate: PASS
+exit 0

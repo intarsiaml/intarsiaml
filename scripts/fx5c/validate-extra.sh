@@ -26,6 +26,7 @@ rsync -a "$HOST:intarsia-decfuse/out/fx5c/extra/" "$RAW/"
 grep -a -e 'continue' -e 'oracle' -e '^exit' -e 'prefix-reuse' "$RAW/reuse-8b.log" | cut -c1-260 | tail -12
 echo "=== CUDA direct reuse gate, chunks 1024 + 2048, mutation, fallback (validate-cuda.sh)"
 HOST=$HOST RAW="$REPO/docs/results/2026-10-22-fx5c-oracle-gate/raw/cuda" "$REPO/scripts/fx5c/validate-cuda.sh" 2>&1 | tail -30
+[[ "${QUALIFY:-1}" == 1 ]] || exit 0
 echo "=== qualify acc-long 35B"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 G='$HOME/intarsiaml-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors'

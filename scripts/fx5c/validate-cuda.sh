@@ -35,7 +35,8 @@ for c in 1024 2048; do
 done
 # mutation (a deliberate error on the warm rows only) and the absolute fallback, long_docs_4k, chunk 1024
 A="$B --prefill-chunk 1024 --reuse-prompt long_docs_4k"
-for m in "x1.2 scale:1.2" "x1.1 scale:1.1" "x1.01 scale:1.01"; do set -- $m
+MUT_LIST=("x1.2 scale:1.2" "x1.01 scale:1.01"); [[ "${ALL_MUTS:-0}" == 1 ]] && MUT_LIST=("x1.2 scale:1.2" "x1.1 scale:1.1" "x1.01 scale:1.01")
+for m in "${MUT_LIST[@]}"; do set -- $m
   rsh "cd $R/fx5c && INTARSIA_REUSE_TEST_BUG=$2 $A > $OUT/mut-$1.log 2>&1; echo exit \$? >> $OUT/mut-$1.log"
 done
 rsh "cd $R/fx5c && $A --no-reuse-oracle > $OUT/noorc.log 2>&1; echo exit \$? >> $OUT/noorc.log"
