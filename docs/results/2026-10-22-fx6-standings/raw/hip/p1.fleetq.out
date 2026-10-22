@@ -1,0 +1,19 @@
+fleetq: #3817 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-fx6/docs/results/2026-10-22-fx6-standings/raw/hip/p1 'ARMS=intarsia llama-vk hipfire llama-hip' PASS=p1 bash scripts/standings-fx6/hip-window.sh
+[window] job 3817; pass p1; arms: intarsia llama-vk hipfire llama-hip; window cap 1140 s; stopping radiance 2026-10-22 01:29:54
+[window] radiance stopped; gpu: card0: sclk=S: 0Mhz *  temp_mC=36000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=36000 vram_used=93114368 busy=0 |  2026-10-22 01:29:57
+[window] visit intarsia-p1: starting server (1137 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=35000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=35000 vram_used=93114368 busy=0 |  2026-10-22 01:29:58
+[window] visit intarsia-p1: server up (1119 s left) 2026-10-22 01:30:15
+[window] visit intarsia-p1: localeval speed exit 0 (1098 s left) 2026-10-22 01:30:36
+[window] visit llama-vk-p1: starting server (1094 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=1: 298Mhz *  temp_mC=47000 vram_used=93114368 busy=8 |  2026-10-22 01:30:40
+[window] visit llama-vk-p1: server up (1086 s left) 2026-10-22 01:30:48
+[window] visit llama-vk-p1: localeval speed exit 0 (1047 s left) 2026-10-22 01:31:27
+[window] visit hipfire-p1: starting server (1041 s left); gpu: card0: sclk=S: 2Mhz *  temp_mC=32000 vram_used=59912192 busy=0 | card1: sclk=S: 146Mhz *  temp_mC=55000 vram_used=93114368 busy=5 |  2026-10-22 01:31:33
+[window] visit hipfire-p1: server up (1030 s left) 2026-10-22 01:31:44
+[window] visit hipfire-p1: localeval speed exit 0 (969 s left) 2026-10-22 01:32:45
+[window] visit llama-hip-p1: starting server (966 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=30000 vram_used=59912192 busy=0 | card1: sclk=1: 289Mhz *  temp_mC=56000 vram_used=93114368 busy=0 |  2026-10-22 01:32:48
+[window] visit llama-hip-p1: server up (957 s left) 2026-10-22 01:32:57
+[window] visit llama-hip-p1: localeval speed exit 0 (914 s left) 2026-10-22 01:33:40
+[window] arms done 2026-10-22 01:33:44
+[window] starting radiance 2026-10-22 01:33:44
+[window] radiance answers (after 20 s); window total 247 s 2026-10-22 01:34:01
+fleetq: #3817 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

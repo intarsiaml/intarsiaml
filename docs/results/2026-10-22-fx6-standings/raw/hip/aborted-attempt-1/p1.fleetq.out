@@ -1,0 +1,20 @@
+fleetq: #3815 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 68% busy with work fleetq does not track
+fleetq: #3815 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-fx6/docs/results/2026-10-22-fx6-standings/raw/hip/p1 'ARMS=intarsia llama-vk hipfire llama-hip' PASS=p1 bash scripts/standings-fx6/hip-window.sh
+[window] job 3815; pass p1; arms: intarsia llama-vk hipfire llama-hip; window cap 1140 s; stopping radiance 2026-10-22 01:27:19
+[window] radiance stopped; gpu: card0: sclk=1: 674Mhz *  temp_mC=35000 vram_used=59912192 busy=14 | card1: sclk=1: 672Mhz *  temp_mC=34000 vram_used=93114368 busy=15 |  2026-10-22 01:27:22
+[window] visit intarsia-p1: starting server (1137 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=35000 vram_used=59912192 busy=0 | card1: sclk=S: 0Mhz *  temp_mC=34000 vram_used=93114368 busy=0 |  2026-10-22 01:27:22
+[window] visit intarsia-p1: server up (1116 s left) 2026-10-22 01:27:43
+[window] visit intarsia-p1: localeval speed exit 1 (1116 s left) 2026-10-22 01:27:43
+[window] visit llama-vk-p1: starting server (1113 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=33000 vram_used=59912192 busy=0 | card1: sclk=1: 286Mhz *  temp_mC=33000 vram_used=93114368 busy=7 |  2026-10-22 01:27:47
+[window] visit llama-vk-p1: server up (1101 s left) 2026-10-22 01:27:58
+[window] visit llama-vk-p1: localeval speed exit 1 (1101 s left) 2026-10-22 01:27:58
+[window] visit hipfire-p1: starting server (1095 s left); gpu: card0: sclk=S: 2Mhz *  temp_mC=33000 vram_used=59912192 busy=0 | card1: sclk=S: 136Mhz *  temp_mC=33000 vram_used=93114368 busy=4 |  2026-10-22 01:28:04
+[window] visit hipfire-p1: server up (1086 s left) 2026-10-22 01:28:13
+[window] visit hipfire-p1: localeval speed exit 143 (1036 s left) 2026-10-22 01:29:03
+[window] visit llama-hip-p1: starting server (1032 s left); gpu: card0: sclk=S: 0Mhz *  temp_mC=31000 vram_used=59912192 busy=0 | card1: sclk=1: 264Mhz *  temp_mC=31000 vram_used=93114368 busy=0 |  2026-10-22 01:29:07
+[window] visit llama-hip-p1: server up (1023 s left) 2026-10-22 01:29:16
+[window] visit llama-hip-p1: localeval speed exit 1 (1023 s left) 2026-10-22 01:29:16
+[window] arms done 2026-10-22 01:29:19
+[window] starting radiance 2026-10-22 01:29:20
+[window] radiance answers (after 30 s); window total 147 s 2026-10-22 01:29:46
+fleetq: #3815 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

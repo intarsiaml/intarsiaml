@@ -199,7 +199,11 @@ int launch_flash(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16
 // as many waves at the same shared-memory footprint (the 35B's D = 256 tile is ~37 KB, which bounded flash_kernel to a
 // few blocks per WGP). Each wave runs exactly flash_kernel's instructions for its 16 rows (same Q fragments, same tiles,
 // same WMMA and softmax order), so the output is bitwise flash_kernel's.
-template <int D, int BK, int HPB>
+// VPM (INTARSIA_HIP_FLASH_VP, bit mask; every value gives flash_kernel's bits):
+//   bit 0 (1)  V^T staged by (key pair, chunk) with 4 B LDS stores, bank-spread (see the stage code below)
+//   bit 1 (2)  the next tile's K / V global loads are issued before this tile's math (register prefetch; implies bit 0's layout)
+//   bit 2 (4)  skip the o *= cr rescale when cr == 1.0f in every lane of the wave (multiplying by exactly 1.0f is the identity)
+template <int D, int BK, int HPB, int VPM>
 __global__ void __launch_bounds__(kThreads * HPB)
 flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
                  ik_bf16* __restrict__ out, int T, int N, int G, int64_t cap, int64_t pos0, float sl2) {
@@ -246,22 +250,81 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
         for (int e = 0; e < 8; ++e) o[i][e] = 0.f;
     float m = -INFINITY, l = 0.f;
 
+    constexpr bool VP = (VPM & 3) != 0, PF = (VPM & 2) != 0, SK = (VPM & 4) != 0;
+    constexpr int P = BK / 2;                      // key pairs per tile
+    constexpr int NKI = (BK * CH + NT - 1) / NT;   // K chunks (16 B) per thread and tile
+    constexpr int NVI = (P * CH + NT - 1) / NT;    // V (key pair, chunk) units per thread and tile
+    uint4 rk[NKI], ra[NVI], rb[NVI];
+    // K is staged as one 16 B chunk per (key, chunk), coalesced rows. V is staged by (key pair, chunk): a thread reads keys 2p
+    // and 2p + 1 of one 16 B chunk and writes 8 dword pairs of V^T (dims ch * 8 .. + 7, keys 2p / 2p + 1) with 4 B stores.
+    // Lanes of a wave then differ in p (the dword column), so the 32 stores of one instruction hit 16 distinct banks (2-way)
+    // instead of one bank (the 2 B stores of the other path: 32 lanes = 32 chunks of the same key, whose rows are 8 * LDV * 2 B
+    // = a multiple of the bank stride apart: 32-way). The same bytes land in Ks / Vt.
+    auto load_regs = [&](int t) {
+#pragma unroll
+        for (int i = 0; i < NKI; ++i) {
+            const int idx = tid + i * NT, r = idx / CH, ch = idx % CH;
+            const int64_t key = (int64_t)t * BK + r;
+            rk[i] = make_uint4(0, 0, 0, 0);
+            if (idx < BK * CH && key < kv_end) rk[i] = *reinterpret_cast<const uint4*>(kb + key * D + ch * 8);
+        }
+#pragma unroll
+        for (int i = 0; i < NVI; ++i) {
+            const int u = tid + i * NT, p = u % P, ch = u / P;
+            const int64_t k0 = (int64_t)t * BK + 2 * p;
+            ra[i] = make_uint4(0, 0, 0, 0);
+            rb[i] = make_uint4(0, 0, 0, 0);
+            if (u < P * CH && k0 < kv_end) ra[i] = *reinterpret_cast<const uint4*>(vb + k0 * D + ch * 8);
+            if (u < P * CH && k0 + 1 < kv_end) rb[i] = *reinterpret_cast<const uint4*>(vb + (k0 + 1) * D + ch * 8);
+        }
+    };
+    auto store_regs = [&]() {
+#pragma unroll
+        for (int i = 0; i < NKI; ++i) {
+            const int idx = tid + i * NT, r = idx / CH, ch = idx % CH;
+            if (idx < BK * CH) *reinterpret_cast<uint4*>(&Ks[r * LDK + ch * 8]) = rk[i];
+        }
+#pragma unroll
+        for (int i = 0; i < NVI; ++i) {
+            const int u = tid + i * NT, p = u % P, ch = u / P;
+            if (u < P * CH) {
+                const uint32_t a[4] = {ra[i].x, ra[i].y, ra[i].z, ra[i].w}, b[4] = {rb[i].x, rb[i].y, rb[i].z, rb[i].w};
+#pragma unroll
+                for (int e = 0; e < 4; ++e) {
+                    *reinterpret_cast<uint32_t*>(&Vt[(ch * 8 + 2 * e) * LDV + 2 * p]) = (a[e] & 0xffffu) | (b[e] << 16);
+                    *reinterpret_cast<uint32_t*>(&Vt[(ch * 8 + 2 * e + 1) * LDV + 2 * p]) = (a[e] >> 16) | (b[e] & 0xffff0000u);
+                }
+            }
+        }
+    };
+    if constexpr (PF) {
+        if (ntiles > 0) load_regs(0);
+    }
+
     for (int kt = 0; kt < ntiles; ++kt) {
         __syncthreads();
-        for (int idx = tid; idx < BK * CH; idx += NT) {
-            const int r = idx / CH, ch = idx % CH;
-            const int64_t key = (int64_t)kt * BK + r;
-            uint4 kv = make_uint4(0, 0, 0, 0), vv = make_uint4(0, 0, 0, 0);
-            if (key < kv_end) {
-                kv = *reinterpret_cast<const uint4*>(kb + key * D + ch * 8);
-                vv = *reinterpret_cast<const uint4*>(vb + key * D + ch * 8);
-            }
-            *reinterpret_cast<uint4*>(&Ks[r * LDK + ch * 8]) = kv;
-            const uint32_t vw[4] = {vv.x, vv.y, vv.z, vv.w};
+        if constexpr (PF) {
+            store_regs();
+            if (kt + 1 < ntiles) load_regs(kt + 1);  // in flight during the barrier and this tile's math
+        } else if constexpr (VP) {
+            load_regs(kt);
+            store_regs();
+        } else {
+            for (int idx = tid; idx < BK * CH; idx += NT) {
+                const int r = idx / CH, ch = idx % CH;
+                const int64_t key = (int64_t)kt * BK + r;
+                uint4 kv = make_uint4(0, 0, 0, 0), vv = make_uint4(0, 0, 0, 0);
+                if (key < kv_end) {
+                    kv = *reinterpret_cast<const uint4*>(kb + key * D + ch * 8);
+                    vv = *reinterpret_cast<const uint4*>(vb + key * D + ch * 8);
+                }
+                *reinterpret_cast<uint4*>(&Ks[r * LDK + ch * 8]) = kv;
+                const uint32_t vw[4] = {vv.x, vv.y, vv.z, vv.w};
 #pragma unroll
-            for (int e = 0; e < 4; ++e) {
-                Vt[(ch * 8 + 2 * e) * LDV + r] = (uint16_t)(vw[e] & 0xffffu);
-                Vt[(ch * 8 + 2 * e + 1) * LDV + r] = (uint16_t)(vw[e] >> 16);
+                for (int e = 0; e < 4; ++e) {
+                    Vt[(ch * 8 + 2 * e) * LDV + r] = (uint16_t)(vw[e] & 0xffffu);
+                    Vt[(ch * 8 + 2 * e + 1) * LDV + r] = (uint16_t)(vw[e] >> 16);
+                }
             }
         }
         __syncthreads();
@@ -313,10 +376,12 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
             pb[b] = ik_pack8(pv);
         }
         l = l * cr + ps;
+        if (!SK || __any(cr != 1.0f)) {
 #pragma unroll
-        for (int i = 0; i < NDB; ++i)
+            for (int i = 0; i < NDB; ++i)
 #pragma unroll
-            for (int e = 0; e < 8; ++e) o[i][e] *= cr;
+                for (int e = 0; e < 8; ++e) o[i][e] *= cr;
+        }
 
 #pragma unroll
         for (int b = 0; b < NKB; ++b) {
@@ -350,6 +415,9 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
 // gives the same bits. Default 4 since round 6 (docs/results/2026-10-19-hip-round6.md): at the 35B's D = 256 the HPB 2 kernel
 // spills (236 B scratch per lane), HPB 4 does not, and the 4408-token prefill's flash time drops 54 -> 37 ms.
 constexpr int kFlashHpbDefault = 4;
+// Default 5 = V pair staging + skipped no-op rescale (docs/results/2026-10-22-pf-prefill-ctx.md): bitwise the 0 kernel, the 16k
+// prefill's flash time 469 -> 272 ms. 0 is the pre-2026-10-22 kernel.
+constexpr int kFlashVpDefault = 5;
 int flash_hpb() {
     static const int v = [] {
         const char* e = getenv("INTARSIA_HIP_FLASH_HPB");
@@ -357,6 +425,34 @@ int flash_hpb() {
         return (x == 1 || x == 2 || x == 4) ? x : kFlashHpbDefault;
     }();
     return v;
+}
+
+// INTARSIA_HIP_FLASH_VP = 0 | 1 | 3 | 5 | 7: staging / math variants of flash v2 (bit mask, see flash_hpb_kernel); all give the same bits.
+int flash_vp() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_FLASH_VP");
+        char* end = nullptr;
+        const long x = (e && *e) ? strtol(e, &end, 10) : -1;  // 0 is a valid value: "" and "x" must not parse as 0
+        const bool ok = e && *e && end && *end == '\0' && (x == 0 || x == 1 || x == 3 || x == 5 || x == 7);
+        return ok ? (int)x : kFlashVpDefault;
+    }();
+    return v;
+}
+
+template <int D, int BK, int HPB>
+int launch_hpb(const dim3& grid, int vp, const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_bf16* out, int T, int N,
+               int G, int64_t cap, int64_t pos0, float sl2, hipStream_t s) {
+#define IK_FLASH_HPB_CASE(VPM) \
+    case VPM: flash_hpb_kernel<D, BK, HPB, VPM><<<grid, kThreads * HPB, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2); break;
+    switch (vp) {
+        IK_FLASH_HPB_CASE(1)
+        IK_FLASH_HPB_CASE(3)
+        IK_FLASH_HPB_CASE(5)
+        IK_FLASH_HPB_CASE(7)
+        default: flash_hpb_kernel<D, BK, HPB, 0><<<grid, kThreads * HPB, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    }
+#undef IK_FLASH_HPB_CASE
+    return ik_launch_status();
 }
 
 template <int D, int BK>
@@ -368,11 +464,13 @@ int launch_flash_v2(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, ik_b
     const dim3 grid((T + kBQ - 1) / kBQ, N / hpb);
     const float sl2 = scale * kLog2e;
     ik_rt_stamp(s, "flash", -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
-    if (hpb == 4) flash_hpb_kernel<D, BK, 4><<<grid, kThreads * 4, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
-    else if (hpb == 2) flash_hpb_kernel<D, BK, 2><<<grid, kThreads * 2, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
-    else flash_hpb_kernel<D, BK, 1><<<grid, kThreads, 0, s>>>(q, kc, vc, out, T, N, G, cap, pos0, sl2);
+    const int vp = flash_vp();
+    int st;
+    if (hpb == 4) st = launch_hpb<D, BK, 4>(grid, vp, q, kc, vc, out, T, N, G, cap, pos0, sl2, s);
+    else if (hpb == 2) st = launch_hpb<D, BK, 2>(grid, vp, q, kc, vc, out, T, N, G, cap, pos0, sl2, s);
+    else st = launch_hpb<D, BK, 1>(grid, vp, q, kc, vc, out, T, N, G, cap, pos0, sl2, s);
     ik_rt_stamp(s, "flash", 0);
-    return ik_launch_status();
+    return st;
 }
 
 }  // namespace
@@ -420,6 +518,7 @@ extern "C" int ik_attn_prefill_bf16_flash(const ik_tensor* q, const ik_tensor* k
 }
 
 extern "C" int ik_hip_flash_hpb(void) { return flash_hpb(); }  // ik_hip_abi.h (registry pin)
+extern "C" int ik_hip_flash_vp(void) { return flash_vp(); }    // ik_hip_abi.h (registry pin)
 
 // v2 (HIP only, ik_hip_abi.h): flash_hpb_kernel, bitwise ik_attn_prefill_bf16_flash
 extern "C" int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,

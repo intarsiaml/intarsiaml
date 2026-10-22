@@ -36,7 +36,7 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
                               const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
 /* attn_prefill_bf16_flash_v2 (docs/results/2026-10-19-hip-round5.md): ik_attn_prefill_bf16_flash with INTARSIA_HIP_FLASH_HPB
- * (default 2) query heads of one kv head per block, so a K / V tile is staged once for all of them; every wave runs the
+ * (default 4) query heads of one kv head per block, so a K / V tile is staged once for all of them; every wave runs the
  * v1 kernel's instructions for its rows, so bitwise v1. */
 int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                                   ik_tensor* out, void* stream);
@@ -45,6 +45,9 @@ int ik_attn_prefill_bf16_flash_v2(const ik_tensor* q, const ik_tensor* kc, const
  * pair tile of `pairs` (INTARSIA_HIP_MOE_MW), gate_up and down (round 7 defaults: 45 / 25 at 64 pairs, 0 / 41 at 32).
  * Host-only, no device needed. */
 int ik_hip_flash_hpb(void);
+/* The staging / math variant flash v2 runs (INTARSIA_HIP_FLASH_VP, a bit mask, default 5; docs/results/2026-10-22-pf-prefill-ctx.md):
+ * every value gives the same bits. Host-only. */
+int ik_hip_flash_vp(void);
 int ik_hip_moe_mw(int pairs);
 int ik_hip_moe_mw_down(int pairs);
 /* round 9 (docs/results/2026-10-19-hip-round9.md): the number of launch pieces ik_split_pieces (ik_hip.h) gives a launch

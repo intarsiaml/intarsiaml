@@ -1,0 +1,104 @@
+{
+  "format": "intarsia-kl-verdict-v1",
+  "kind": "golden",
+  "golden": {
+    "file": "qwen3-8b-fp32.safetensors",
+    "fnv1a64": "6054fa6dbcbd50d2",
+    "size": 131886928,
+    "positions": 434
+  },
+  "ref_noise_origin": null,
+  "ref_noise": null,
+  "verdicts": [
+    {
+      "mode": "prefill",
+      "kl_metric": "full-vocab KL",
+      "kl": 0.0002817446245216803,
+      "static_floor": 0.001,
+      "ref_noise": null,
+      "ref_noise_rows": null,
+      "kl_on_noise_rows": null,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": null,
+      "effective_threshold": 0.001,
+      "bound_by": "static",
+      "pass": true,
+      "factor_needed": null,
+      "prompt_checks": null,
+      "definition_changes": [
+        {
+          "gate": "kl_floor",
+          "changed_on": "2026-10-21",
+          "log_ref": [
+            "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+            "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+          ],
+          "metrics": {
+            "all_rows_kl": 0.00028316280453343173,
+            "scored_rows_kl": 0.0002817446245216803
+          },
+          "old_def": {
+            "definition": "full-vocab KL over all rows <= static floor",
+            "metric_name": "all_rows_kl",
+            "metric": 0.00028316280453343173,
+            "limit": 0.001,
+            "verdict": "PASS"
+          },
+          "current_def": {
+            "definition": "full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+            "metric_name": "scored_rows_kl",
+            "metric": 0.0002817446245216803,
+            "limit": 0.001,
+            "verdict": "PASS"
+          }
+        }
+      ]
+    },
+    {
+      "mode": "decode",
+      "kl_metric": "full-vocab KL",
+      "kl": 0.0003070196616947271,
+      "static_floor": 0.001,
+      "ref_noise": null,
+      "ref_noise_rows": null,
+      "kl_on_noise_rows": null,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": null,
+      "effective_threshold": 0.001,
+      "bound_by": "static",
+      "pass": true,
+      "factor_needed": null,
+      "prompt_checks": null,
+      "definition_changes": [
+        {
+          "gate": "kl_floor",
+          "changed_on": "2026-10-21",
+          "log_ref": [
+            "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+            "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+          ],
+          "metrics": {
+            "all_rows_kl": 0.00033129300408174647,
+            "scored_rows_kl": 0.0003070196616947271
+          },
+          "old_def": {
+            "definition": "full-vocab KL over all rows <= static floor",
+            "metric_name": "all_rows_kl",
+            "metric": 0.00033129300408174647,
+            "limit": 0.001,
+            "verdict": "PASS"
+          },
+          "current_def": {
+            "definition": "full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+            "metric_name": "scored_rows_kl",
+            "metric": 0.0003070196616947271,
+            "limit": 0.001,
+            "verdict": "PASS"
+          }
+        }
+      ]
+    }
+  ]
+}
