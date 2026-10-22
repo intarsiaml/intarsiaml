@@ -11,3 +11,4 @@ gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), k
 prefill chunk 256; longest prompt 4631; prompts spanning more than one chunk: 3/3
 reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
 this build: head ec603e1 code-tree 6eac9c190c06 clean
+Error: accuracy gate FAILED

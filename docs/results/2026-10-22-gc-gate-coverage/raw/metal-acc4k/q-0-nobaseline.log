@@ -7,3 +7,6 @@
 [qualify      9s] plan: PASS in 7.8s (21 ops resolved, exactness deterministic, loaded in 7.8s)
 QUICK DONE: /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/quick-report.md
 [qualify      9s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    135s] acc-4k: FAIL in 126.2s (prefix reuse differs from a cold run)
+FULL DONE: /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/full-report.md
+[qualify    135s] exit code 1

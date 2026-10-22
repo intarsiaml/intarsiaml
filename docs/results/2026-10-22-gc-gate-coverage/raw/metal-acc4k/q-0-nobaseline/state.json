@@ -570,6 +570,270 @@
       "metrics": null,
       "facts": {},
       "notes": []
+    },
+    {
+      "id": "acc-4k",
+      "title": "accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)",
+      "section": "full",
+      "verdict": "fail",
+      "reason": "prefix reuse differs from a cold run",
+      "started_unix": 1792679420,
+      "wall_s": 126.188560167,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=ec603e1 code-tree=6eac9c190c06 dirty=no",
+        "binary": "/opt/code/wt-gc-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 45 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc",
+          "FLEETQ_JOB": "4196"
+        }
+      },
+      "artifacts": [
+        "logs/acc-4k.out",
+        "baselines/acc-4k.baseline.json"
+      ],
+      "metrics": {
+        "golden": "golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:27195b6f4d50d2e6 size:2100484",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 12759,
+            "top1_pct": 93.142095775531,
+            "mean_kl": 0.08138691639189179,
+            "mean_kl21": 0.09088838734745672,
+            "top5_pct": 90.18261619249158,
+            "tail_ref": 0.06709213063970995,
+            "tail_ours": 0.07299916957933715,
+            "max_kl": 20.673896443508795,
+            "max_kl21": 22.10225226797241,
+            "tail_abs": 0.011468557269132491,
+            "nonfinite": 0,
+            "greedy_match_pct": 0.8307861117642449,
+            "floor_pass": true,
+            "mean_kl_scored": 0.013935535146567344,
+            "mean_kl21_scored": 0.012435983909215992,
+            "scored_positions": 8221,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.09088838734745672,
+                  "scored_rows_kl": 0.012435983909215992
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.09088838734745672,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.012435983909215992,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 192,
+            "top1_pct": 98.95833333333331,
+            "mean_kl": 0.00722336544635151,
+            "mean_kl21": 0.006904209972490877,
+            "top5_pct": 90.625,
+            "tail_ref": 0.01432701461854899,
+            "tail_ours": 0.014911656084680217,
+            "max_kl": 0.1193197571127066,
+            "max_kl21": 0.1116882935698078,
+            "tail_abs": 0.0017948568105848872,
+            "nonfinite": 0,
+            "greedy_match_pct": 91.66666666666669,
+            "floor_pass": true,
+            "mean_kl_scored": 0.00722336544635151,
+            "mean_kl21_scored": 0.006904209972490877,
+            "scored_positions": 192,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.006904209972490877,
+                  "scored_rows_kl": 0.006904209972490877
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.006904209972490877,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.006904209972490877,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 126.184829958
+      },
+      "facts": {
+        "4k_baseline": "baselines/acc-4k.baseline.json"
+      },
+      "notes": [
+        "no baseline for backend metal next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"
+      ]
+    },
+    {
+      "id": "envelope",
+      "title": "noise envelope and baseline for regression gating",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=ec603e1 code-tree=6eac9c190c06 dirty=no",
+        "binary": "/opt/code/wt-gc-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 45 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc",
+          "FLEETQ_JOB": "4196"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "bench-long",
+      "title": "long-context bench up to 16k",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=ec603e1 code-tree=6eac9c190c06 dirty=no",
+        "binary": "/opt/code/wt-gc-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 45 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc",
+          "FLEETQ_JOB": "4196"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "ab",
+      "title": "A/B against the reference server via localeval",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=ec603e1 code-tree=6eac9c190c06 dirty=no",
+        "binary": "/opt/code/wt-gc-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 45 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc",
+          "FLEETQ_JOB": "4196"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
+    },
+    {
+      "id": "tp",
+      "title": "tensor-parallel variant",
+      "section": "full",
+      "verdict": "skip",
+      "reason": "skipped by --skip",
+      "started_unix": 0,
+      "wall_s": 0.0,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=ec603e1 code-tree=6eac9c190c06 dirty=no",
+        "binary": "/opt/code/wt-gc-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 45 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json --min-top1 0"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc",
+          "FLEETQ_JOB": "4196"
+        }
+      },
+      "artifacts": [],
+      "metrics": null,
+      "facts": {},
+      "notes": []
     }
   ],
   "hooks": []
