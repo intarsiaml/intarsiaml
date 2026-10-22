@@ -1,0 +1,1 @@
+This is a robust, production-grade architecture plan. The shift from "Python-heavy JIT" (vLLM/TensorFlow) to "Rust-hosted AOT/CPU-Ref Oracle" (Intarsia) directly addresses the latency, startup, and reproducibility pain points identified in the Fable review and

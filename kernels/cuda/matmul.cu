@@ -305,6 +305,27 @@ int ik_rmsnorm_add_matmul_pair_bf16_gemv(const ik_tensor* x, const ik_tensor* re
     return norm_pair(x, res, w, eps, w_offset, w0, w1, normed, sum, out0, out1, stream);
 }
 
+/* Lane S1 (docs/results/2026-10-22-s1-spark-prefill.md): row-major out[M,N] (bf16) = alpha * x[M,K] @ w[N,K]^T on the
+ * shared handle, alpha and beta read from device memory (beta must be 0: out is not read). The fp8 prefill GEMM
+ * `matmul_fp8_gemm_cublas` feeds it e4m3-valued bf16 operands. */
+int ik_cublas_gemm_bf16_devalpha(const void* x, const void* w, void* out, int64_t M, int64_t N, int64_t K,
+                                 const float* alpha_beta_dev, void* stream) {
+    if (M > 0x7fffffffLL || K > 0x7fffffffLL || N > 0x7fffffffLL) return IK_ERR_SHAPE;
+    int dev = 0;
+    if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= kMaxDevices) return IK_ERR_LAUNCH;
+    DevState& d = g_dev[dev];
+    std::lock_guard<std::mutex> lock(d.mu);
+    if (!d.h) return IK_ERR_UNSUPPORTED;
+    if (cublasSetStream(d.h, IK_STREAM(stream)) != CUBLAS_STATUS_SUCCESS) return IK_ERR_LAUNCH;
+    if (cublasSetWorkspace(d.h, d.ws, kWorkspaceBytes) != CUBLAS_STATUS_SUCCESS) return IK_ERR_LAUNCH;
+    if (cublasSetPointerMode(d.h, CUBLAS_POINTER_MODE_DEVICE) != CUBLAS_STATUS_SUCCESS) return IK_ERR_LAUNCH;
+    const cublasStatus_t st = cublasGemmEx(d.h, CUBLAS_OP_T, CUBLAS_OP_N, (int)N, (int)M, (int)K, alpha_beta_dev, w,
+                                           CUDA_R_16BF, (int)K, x, CUDA_R_16BF, (int)K, alpha_beta_dev + 1, out, CUDA_R_16BF,
+                                           (int)N, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+    cublasSetPointerMode(d.h, CUBLAS_POINTER_MODE_HOST);  // every other call passes host scalars
+    return st == CUBLAS_STATUS_SUCCESS ? IK_OK : IK_ERR_LAUNCH;
+}
+
 int ik_cublas_init(int device) {
     if (device < 0 || device >= kMaxDevices) return IK_ERR_INVALID_ARG;
     DevState& d = g_dev[device];

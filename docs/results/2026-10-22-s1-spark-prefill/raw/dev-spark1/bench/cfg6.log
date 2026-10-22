@@ -1,0 +1,60 @@
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:107:49
+    |
+107 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+107 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+107 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:142:49
+    |
+142 |         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                                 ^           ^
+    |
+help: remove these parentheses
+    |
+142 -         let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+142 +         let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: unnecessary parentheses around closure body
+   --> crates/intarsia-backend-cuda/tests/quantmoe.rs:211:45
+    |
+211 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+    |                                             ^           ^
+    |
+help: remove these parentheses
+    |
+211 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+211 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+    |
+
+warning: `intarsia-backend-cuda` (test "quantmoe") generated 3 warnings (run `cargo fix --test "quantmoe"` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/quantmoe.rs (target/acc/release/deps/quantmoe-439a89bc59bc20c7)
+
+running 1 test
+test bench_wq_prefill_shapes ... M=2048 gdn in_proj_qkv    matmul_fp8_gemm_reg       1024.0 us   67.1 TFLOPS
+M=2048 gdn in_proj_z      matmul_fp8_gemm_reg        540.8 us   63.5 TFLOPS
+M=2048 gdn out_proj       matmul_fp8_gemm_reg        643.1 us   53.4 TFLOPS
+M=2048 attn q_proj+gate   matmul_fp8_gemm_reg       1009.5 us   68.1 TFLOPS
+M=2048 attn k/v_proj      matmul_fp8_gemm_reg        122.2 us   35.2 TFLOPS
+M=2048 attn o_proj        matmul_fp8_gemm_reg        670.2 us   51.3 TFLOPS
+M=2048 fp8 per-chunk total matmul_fp8_gemm_reg      85475.3 us
+M=1024 gdn in_proj_qkv    matmul_fp8_gemm_reg        506.6 us   67.8 TFLOPS
+M=1024 gdn in_proj_z      matmul_fp8_gemm_reg        276.8 us   62.1 TFLOPS
+M=1024 gdn out_proj       matmul_fp8_gemm_reg        307.4 us   55.9 TFLOPS
+M=1024 attn q_proj+gate   matmul_fp8_gemm_reg        507.0 us   67.8 TFLOPS
+M=1024 attn k/v_proj      matmul_fp8_gemm_reg         56.6 us   37.9 TFLOPS
+M=1024 attn o_proj        matmul_fp8_gemm_reg        306.7 us   56.0 TFLOPS
+M=1024 fp8 per-chunk total matmul_fp8_gemm_reg      41992.8 us
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.89s
+

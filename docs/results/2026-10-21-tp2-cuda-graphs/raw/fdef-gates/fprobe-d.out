@@ -1,0 +1,2 @@
+This is a highly ambitious and technically rigorous architecture plan. The shift from a Python-heavy serving stack (like vLLM) to a Rust host with native C
+NCCL version 2.30.7+cuda13.3

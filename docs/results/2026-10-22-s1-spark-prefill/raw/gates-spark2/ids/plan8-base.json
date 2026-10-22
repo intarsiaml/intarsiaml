@@ -1,0 +1,483 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "backend": "cuda",
+  "device": {
+    "name": "NVIDIA GB10",
+    "mem_total": 130663231488,
+    "arch": "sm_121"
+  },
+  "tp": null,
+  "exactness": "fast",
+  "layers": [
+    {
+      "index": 0,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 1,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 2,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 3,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 4,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 5,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 6,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 7,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 8,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 9,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 10,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 11,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 12,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 13,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 14,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 15,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 16,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 17,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 18,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 19,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 20,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 21,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 22,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 23,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 24,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 25,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 26,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 27,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 28,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 29,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 30,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 31,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 32,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 33,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 34,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    },
+    {
+      "index": 35,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "dense_ffn"
+      ]
+    }
+  ],
+  "ops": [
+    {
+      "op": "embedding",
+      "kernel": "embedding_bf16",
+      "backend": "cuda",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm",
+      "kernel": "rmsnorm_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm_add",
+      "kernel": "rmsnorm_add_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 72,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "qk_norm",
+      "kernel": "qk_norm_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 72,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rope",
+      "kernel": "rope_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 72,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul",
+      "kernel": "matmul_bf16",
+      "backend": "cuda",
+      "exactness": "fast",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul",
+      "kernel": "matmul_bf16_gemv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 108,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "logits",
+      "kernel": "logits_bf16",
+      "backend": "cuda",
+      "exactness": "fast",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "logits",
+      "kernel": "logits_bf16_gemv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "kv_append",
+      "kernel": "kv_append_bf16",
+      "backend": "cuda",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 72,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_prefill",
+      "kernel": "attn_prefill_bf16_flash",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_prefill",
+      "kernel": "attn_prefill_bf16_splitkv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 748800
+    },
+    {
+      "op": "attn_decode",
+      "kernel": "attn_decode_bf16_splitkv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 36,
+      "scratch_bytes": 532480
+    },
+    {
+      "op": "silu_glu",
+      "kernel": "silu_glu_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 36,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "argmax",
+      "kernel": "argmax_f32",
+      "backend": "cuda",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul_pair",
+      "kernel": "matmul_pair_bf16_gemv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 72,
+      "scratch_bytes": 0
+    }
+  ],
+  "act_dtype": "bf16",
+  "kv_dtype": "bf16",
+  "scratch_bytes": 748800,
+  "prefill_chunk": 256,
+  "probed_sizes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    31,
+    32,
+    33,
+    63,
+    64,
+    65,
+    127,
+    128,
+    129,
+    255,
+    256
+  ],
+  "require_admitted": false,
+  "reference_only": false,
+  "prefill_chunk_source": "default"
+}
