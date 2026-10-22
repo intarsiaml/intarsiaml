@@ -182,6 +182,15 @@ pub fn fp8_pair_reg() -> bool {
 /// (the bytes of `matmul_fp8_gemm_reg` where cuBLAS runs the same m16n8k16 chain; docs/results/2026-10-22-s1-spark-prefill.md).
 /// `INTARSIA_CUDA_FP8_CUBLAS=1` turns it on (and the gemm_reg pair off: the two single calls then run on cuBLAS); off with an
 /// opt-in e4m3 GEMM, which serves those calls instead.
+pub fn fp8_cublas_priority(on: i32) -> i32 {
+    if fp8_cublas() {
+        on
+    } else {
+        -10
+    }
+}
+
+/// Whether `matmul_fp8_gemm_cublas` is selected (see `fp8_cublas_priority`).
 pub fn fp8_cublas() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| {

@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
+    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -334,11 +334,11 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemm_cublas" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| fp8_cublas() && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0 && s.out == Some(DType::Bf16))
+                    .when(|s| s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(|s| 256 + 2 * s.m * s.k)
-                    .priority(16),
+                    .priority(fp8_cublas_priority(16)),
                 "matmul_fp8_pair_gemm_reg" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
