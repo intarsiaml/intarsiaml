@@ -29,6 +29,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 /// profiled step is an eager one (844 synchronised launches on the 35B model).
 pub(super) const PROFILE_STRETCH: u64 = 8;
 
+/// Solo decode recordings kept at once (one per sequence slot of a batched server).
+const SOLO_GRAPHS_MAX: usize = 32;
+
 struct Captured {
     state_id: u64,
     graph: GraphHandle,
@@ -40,7 +43,10 @@ struct Captured {
 
 pub(super) struct GraphState {
     enabled: AtomicBool,
-    captured: Mutex<Option<Captured>>,
+    /// Solo decode steps: one recording per (sequence state, head) because a solo recording names that state's own buffers.
+    /// Several states alternating (a batched server with one running row at a time) keep one recording each instead of
+    /// re-recording at every switch (Fable review m3); the table is cleared at `SOLO_GRAPHS_MAX` entries.
+    captured: Mutex<std::collections::HashMap<(u64, bool), Captured>>,
     /// Batched decode steps (R3c): one recording per row count, valid for any set of sequences because every state buffer a
     /// batched step touches is named by the row table the host rewrites before each replay (`Model::row_tab`).
     batched: Mutex<std::collections::HashMap<usize, Captured>>,
@@ -70,7 +76,7 @@ impl GraphState {
     pub(super) fn new(enabled: bool) -> GraphState {
         GraphState {
             enabled: AtomicBool::new(enabled),
-            captured: Mutex::new(None),
+            captured: Mutex::new(Default::default()),
             batched: Mutex::new(Default::default()),
             batched_off: AtomicBool::new(false),
             state_bound: AtomicBool::new(false),
@@ -83,7 +89,7 @@ impl GraphState {
 
     /// Drop the recording (scratch moved, kernels re-resolved, state gone).
     pub(super) fn invalidate(&self) {
-        *self.captured.lock().unwrap() = None;
+        self.captured.lock().unwrap().clear();
         self.batched.lock().unwrap().clear();
     }
 
@@ -196,11 +202,14 @@ impl Model {
         self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), 0)?;
         self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), 0)?;
         let mut cache = self.graphs.captured.lock().unwrap();
-        if cache.as_ref().map(|c| c.state_id) != Some(st.id) {
-            *cache = None; // a recording of another state's buffers is of no use
+        let key = (st.id, head);
+        if !cache.contains_key(&key) {
+            if cache.len() >= SOLO_GRAPHS_MAX {
+                cache.clear(); // recordings of states that are gone, or too many alternating ones
+            }
             match self.capture_decode(st, head) {
                 Ok(c) => {
-                    *cache = Some(c);
+                    cache.insert(key, c);
                     self.graphs.captures.fetch_add(1, Ordering::Relaxed);
                     self.telemetry.graph_event(false);
                 }
@@ -219,7 +228,7 @@ impl Model {
                 }
             }
         }
-        let c = cache.as_ref().expect("captured above");
+        let c = cache.get(&key).expect("captured above");
         self.backend.graph_replay(&c.graph, 0)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);

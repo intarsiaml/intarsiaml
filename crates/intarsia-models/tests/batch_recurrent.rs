@@ -21,7 +21,7 @@
 mod common;
 use common::ByteCodec;
 use intarsia_core::dtype::f32_to_fp8_e4m3;
-use intarsia_core::model::{LoadOptions, Model};
+use intarsia_core::model::{HeadMode, LoadOptions, Model};
 use intarsia_core::quant::{nvfp4, Fp8Act};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
@@ -391,10 +391,51 @@ fn check_cuda_batch_picks(m: &Model, v: Variant) {
         assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains("decode_v2_rows")), "{:?}", picks(&rec, Op::MoeExperts));
         assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
     }
-    // the per-row ops are the solo step's own kernels
+    // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
+    // kernel's one-row call on every row in one launch (`<solo kernel>_rows`, bitwise the solo kernel, tests/row_tables.rs)
     for op in [Op::GdnDeltaRule, Op::AttnDecode] {
-        assert_eq!(picks(&rec, op), picks(&dec, op), "{v:?} {op}");
+        let solo = picks(&dec, op);
+        for k in picks(&rec, op) {
+            let twin = k.strip_suffix("_rows").is_some_and(|base| solo.iter().any(|s| s == base));
+            assert!(solo.contains(&k) || twin, "{v:?} {op}: batched {k}, solo {solo:?}");
+        }
     }
+}
+
+/// R3c / Fable m3: decode graphs are recorded per row count (batched) and per sequence state (solo), not per step. Batches of
+/// changing sizes over a rotating window of sequences, and single rows alternating between sequences, record each shape once.
+/// (CUDA only: other backends replay no graphs, and the check is vacuous there.)
+#[test]
+fn alternating_rows_and_batches_do_not_recapture() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    let tel = Arc::new(Telemetry::new());
+    let m = model(VARIANTS[VARIANTS.len() - 1], max_rows(), true, &tel);
+    if !m.graph_stats().enabled {
+        return;
+    }
+    let lens: Vec<usize> = (0..4).map(|i| 4 + 3 * i).collect();
+    let cfg = batch_identity::Cfg { lens, batches: vec![2, 3, 4, 2, 3, 4, 3, 2], steps: 6, vocab_range: (1, VOCAB - 1) };
+    let before = m.graph_stats();
+    let n = batch_identity::run(&m, &cfg);
+    assert_eq!(n, (2 + 3 + 4 + 2 + 3 + 4 + 3 + 2) * 6);
+    let st = m.graph_stats();
+    // three row counts: at most three recordings however the sequences rotate (the eager comparison steps in the harness are solo)
+    assert!(st.batch_captures - before.batch_captures <= 3, "batched recordings {st:?}");
+    // solo steps of four states, interleaved one by one: one recording per state, however often they alternate
+    let mut states: Vec<_> = (0..4).map(|_| m.new_state().unwrap()).collect();
+    for s in states.iter_mut() {
+        m.forward(s, &[1, 2, 3], HeadMode::None, None).unwrap();
+    }
+    let c0 = m.graph_stats().captures;
+    for step in 0..12u32 {
+        for s in states.iter_mut() {
+            m.forward(s, &[1 + step % 7], HeadMode::LastArgmax, None).unwrap();
+        }
+    }
+    let c1 = m.graph_stats().captures;
+    assert!(c1 - c0 <= 4, "solo recordings for 4 alternating states: {}", c1 - c0);
 }
 
 #[test]
@@ -557,7 +598,10 @@ fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them()
         let keep = m.batch_snapshots();
         assert_eq!(keep, if on_cuda() { 0 } else { 4 }, "the prefix store stays at batch 1 on cuda");
         let extra = (rows as u64 - 1) * rec * (1 + keep as u64);
-        assert_eq!(m.plan.workspace_bytes, solo.plan.workspace_bytes + extra, "{v:?}: workspace");
+        // the recurrent states of the extra slots, plus (row tables) the kernel scratch of the multi-row attention launch, which is
+        // sized for `rows` rows of split-KV partials instead of one
+        let ws = m.plan.workspace_bytes;
+        assert!(ws >= solo.plan.workspace_bytes + extra && ws - (solo.plan.workspace_bytes + extra) < (64 << 20), "{v:?}: workspace {ws}");
         assert!(m.plan.notes.iter().any(|n| n.contains("recurrent state of 4 batched sequences")), "{:?}", m.plan.notes);
         // a slot holds its snapshot buffers from the start ...
         let mut st = m.new_state().unwrap();

@@ -281,10 +281,8 @@ impl Model {
         for r in 0..b {
             self.check_batch_row(states[r], ids[r], modes[r])?;
         }
-        // one row is the solo step itself, except where row tables are on: then it is a batched step of one row, so that a
-        // server whose sequences alternate replays one recording for any sequence instead of re-recording the solo graph at
-        // every switch (bitwise the solo step: the `_rows` kernels at M = 1 are the one-row kernels, G-B)
-        if b == 1 && self.row_tab.is_none() {
+        // one row is the solo step itself (its graph is kept per sequence state, so alternating single rows do not re-record)
+        if b == 1 {
             return Ok(vec![self.forward(states[0], ids, modes[0], None)?]);
         }
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
