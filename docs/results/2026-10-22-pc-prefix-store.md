@@ -223,7 +223,18 @@ less. That is why `roles=assistant` is a knob and not the default. Metal: METALW
 
 ## 5. Dead-tail skip in non-final chunks
 
-DEADTAIL
+Opt-in, `INTARSIA_PREFILL_SKIP_DEAD=1` (`Model::set_skip_dead`), single sequence, tp=1, not during plan recording. A
+prefill chunk that feeds no head (every chunk but the last of a prompt) runs the last layer only up to its cache write:
+for a full-attention last layer (the 35B's layer 39, Qwen3-8B's layer 35) the q/k/v projections, q/k norm, RoPE and the
+KV write run (`attn_block_kv_only`); the attention core, the output projection, the FFN / MoE and the final norm do
+not. A GDN last layer would still run in full (its recurrent state is needed). Nothing reads the skipped values: the next
+chunk starts from the KV cache and the recurrent state, never from the previous chunk's hidden state.
+
+Bitwise by construction (the kept ops are the same calls with the same inputs) and by test:
+`hybrid_skip_dead_tail_is_bitwise` and `dense_skip_dead_tail_is_bitwise` (`crates/intarsia-models/tests/prefix_store.rs`)
+compare every state byte after three non-final chunks, the last chunk's logits and the final state, skip on vs off, on
+cpu: equal. Expected gain is small, about one layer in 40 (35B) or 36 (8B) of each non-final chunk's work, so it is
+opt-in until it is measured on a GPU. Metal: METALDEAD
 
 ## 6. Metrics
 
