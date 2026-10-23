@@ -466,6 +466,9 @@ pub(crate) struct SeqStore {
     pol: StorePolicy,
     /// Positions `i` (`0 < i < plen`) where the prompt holds a boundary token: the state for `prompt[..i]` is stored.
     boundaries: Vec<usize>,
+    /// The cuts right after a message header (`<|im_start|>role\n`): where entries are stored. The cut before the
+    /// header is a chunk end only (an entry there would hold nearly the same tokens for another 63 MiB of recurrent state).
+    headers: Vec<usize>,
     /// The prompt's cold chunk schedule (every chunk end; `plen - 1` for a recurrent state): the lengths a restore may
     /// return to when prefill is chunk-sensitive.
     points: std::collections::BTreeSet<usize>,
@@ -478,6 +481,7 @@ impl SeqStore {
         let plen = prompt.len();
         // cuts: before every message start, and after the end of its header
         let mut boundaries = Vec::new();
+        let mut headers = Vec::new();
         let mut in_header = false;
         for (i, t) in prompt.iter().enumerate() {
             if pol.boundary_ids.contains(t) {
@@ -488,6 +492,7 @@ impl SeqStore {
             } else if in_header && pol.header_end_ids.contains(t) {
                 if i + 1 < plen {
                     boundaries.push(i + 1);
+                    headers.push(i + 1);
                 }
                 in_header = false;
             }
@@ -507,7 +512,7 @@ impl SeqStore {
                 break;
             }
         }
-        SeqStore { pol, boundaries, points, last_insert: 0 }
+        SeqStore { pol, boundaries, headers, points, last_insert: 0 }
     }
 
     /// A length `st` can return to bitwise, at most `cap` (already capped at the prefill-clean watermark): on a
@@ -1448,8 +1453,12 @@ impl Seq {
         if pos < ps.pol.min_tokens || st.clean < pos || st.len != pos || !fresh {
             return Ok(());
         }
-        let boundary = ps.boundaries.binary_search(&pos).is_ok();
-        if !(boundary || last || pos - ps.last_insert >= ps.pol.grid_tokens) {
+        // after a message header: the last one of the prompt always (the next turn of a chat restores it), the others
+        // when at least `min_tokens` past the previous entry (an agent loop's short tool messages)
+        let header = ps.headers.binary_search(&pos).is_ok();
+        let last_header = ps.headers.last() == Some(&pos);
+        let spaced = pos - ps.last_insert >= ps.pol.min_tokens;
+        if !(last || last_header || (header && spaced) || pos - ps.last_insert >= ps.pol.grid_tokens) {
             return Ok(());
         }
         let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());

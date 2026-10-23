@@ -93,7 +93,37 @@ Default off (`--prefix-store on` or `INTARSIA_PREFIX_STORE=on`).
 
 ## 3. Byte identity
 
-IDENTITY
+Two different questions, reported separately:
+
+- **(a) restored vs cold, store on**: the guarantee the design gives on every backend.
+- **(b) store on vs store off**: only bitwise where prefill is chunk-invariant (the store moves chunk boundaries).
+
+| backend, model | (a) restored vs cold, store on | (b) vs store off | how |
+|---|---|---|---|
+| cpu, tiny dense (tests/common) | bitwise (logits of every step + ids) | bitwise | `prefix_store.rs`: 2-3 turn chats at chunk 8 and 64, interleaved with another chat; shared prefix after a pinned prewarm |
+| cpu, tiny GatedDeltaNet hybrid (`tiny_qwen3_5`, f32) | bitwise | **not bitwise**, ids equal in every case | same tests, plus grid points inside a long message and a restore from the disk tier after an engine restart |
+| metal, Qwen3-8B BF16 | METAL8_A | METAL8_B | `prefix_store_metal.rs`, fleetq #4322 |
+| metal, Qwen3.6-35B-A3B NVFP4 | METAL35_A | METAL35_B | `prefix_store_metal.rs`, fleetq #4322 |
+| hip, cuda | not run | not run | tatooine held by the hp lane; spark1/spark2 busy (see Limits) |
+
+**The brief's premise "cpu chunking is bitwise" does not hold for the hybrid.** `hybrid_cpu_prefill_chunk_sensitivity`
+runs the same 40 tokens through the tiny hybrid on cpu as 8x5 rows and as 5+19+16 rows: the states (KV + GatedDeltaNet)
+differ bitwise. The dense tiny model's are equal (its store-on vs store-off comparison is bitwise). This is the tiny
+f32 fixture; the 35B on cpu was not run (too slow for the night), and the recipe's claim that the 35B is chunk-invariant
+on HIP (`recipes/qwen3_5_moe.toml` [tuning.hip]) was not re-checked. Consequence: enabling the store is a
+numerics-affecting knob for the hybrid, of the same kind as `--prefill-chunk`; it stays default-off everywhere and the PR
+stays a draft.
+
+Store mechanics (cpu, `prefix_store.rs`): restored bytes equal captured bytes (KV rows + recurrent); a longer prefix
+shares the shorter one's full pages (only 18 new rows + the recurrent blob copied); LRU eviction keeps a pinned entry over
+a younger one; the device tier demotes to host and restores bit-exact from there; the disk tier survives a restart and
+reports `tier=disk` hits; another build's directory is never read; a flipped byte in an object file is rejected (state
+left reset, entry dropped, `rejected_total` = 1); a manifest of another format version is rejected on load; a state of
+another slot layout is refused. HTTP (`crates/intarsia-server/tests/prefix_store.rs`): a partial prewarm (159 tokens),
+then an unrelated request, then the finished message: 129 of 195 prompt tokens restored (the whole 123-token history
+plus the new message's header), answer equal to a cold engine's; `/metrics` and `/v1/intarsia/prefix-store` show it.
+
+`cargo test --workspace` on cpu (fleetq #4315): 794 passed, 0 failed.
 
 ## 4. Workloads: TTFT and prefill tokens computed
 
