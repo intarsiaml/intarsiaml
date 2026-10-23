@@ -761,7 +761,7 @@ fails.
 ### Quick gate (`--quick`)
 
 * Perplexity over `tools/prompts/ppl.txt` (about 1.2k tokens of public-domain English, embedded in the
-  binary; override with `--ppl-file`); must be <= `--max-ppl` (default 40), and no logits row may be non-finite.
+  binary; override with `--ppl-file`); must be <= `--max-ppl` (default 40, or the recipe's `[accuracy] max_ppl`; a recipe with `ppl_form = "chat"` runs it on `tools/prompts/ppl_chat.json` through the model's chat template instead, assistant tokens only, and sends the sanity prompts as user turns; `tools/chat_ppl.py` gives a reference's number on the same text), and no logits row may be non-finite.
 * Five greedy sanity prompts (counting, story, a completion, and two fact prompts: "The capital of France is" must answer Paris and "...two hydrogen atoms and one" oxygen, within the first 16 tokens), `--sanity-tokens` (48) each: output must be
   non-blank and no 4-gram of generated token ids may occur more than 3 times (fact prompts are exempt from the repeat check).
 

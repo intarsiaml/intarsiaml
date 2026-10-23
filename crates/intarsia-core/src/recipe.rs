@@ -56,6 +56,34 @@ pub struct AccuracySpec {
     /// length - 1). Raise it for a model whose decode top-1 is noisy at the default 16 positions per prompt (160 rows on
     /// the short golden); the gate is unchanged. Unset: 16.
     pub decode_positions: Option<usize>,
+    /// `intarsia accuracy --quick` (the `gate` stage of `qualify` / `onboard`): the form of the perplexity text and of the
+    /// greedy sanity prompts. `"raw"` (the built-in): `tools/prompts/ppl.txt` as plain text and the five completion
+    /// prompts. `"chat"`: for an instruction-only model that has no usable raw-text distribution (Gemma-4: HF bf16 520,
+    /// vLLM 402 on the raw text): the fixed conversation `tools/prompts/ppl_chat.json` rendered with the model's own chat
+    /// template, perplexity over the assistant tokens only, and the sanity prompts sent as user turns. `--ppl-form`
+    /// wins. Unset: `"raw"`.
+    pub ppl_form: Option<String>,
+    /// Quick gate: the largest perplexity (`--max-ppl` wins). Measured per form and model, with the reference's own
+    /// number on the same text cited in a comment next to it. Unset: 40.
+    pub max_ppl: Option<f64>,
+}
+
+/// The two forms of the quick gate's perplexity text (`[accuracy] ppl_form`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PplForm {
+    Raw,
+    Chat,
+}
+
+impl AccuracySpec {
+    /// `ppl_form` as an enum; an unknown name is an error (a typo must not silently keep the raw gate).
+    pub fn ppl_form(&self) -> Result<PplForm> {
+        match self.ppl_form.as_deref().map(str::trim) {
+            None | Some("raw") => Ok(PplForm::Raw),
+            Some("chat") => Ok(PplForm::Chat),
+            Some(o) => Err(Error::model(format!("[accuracy] ppl_form = {o:?}: expected \"raw\" or \"chat\""))),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -390,6 +418,10 @@ impl Recipe {
         let chunks = self.tuning.prefill_chunk.iter().chain(self.tuning.backends.values().filter_map(|b| b.prefill_chunk.as_ref()));
         if chunks.into_iter().any(|&c| c == 0) {
             return Err(Error::model("recipe [tuning] prefill_chunk must be at least 1"));
+        }
+        self.accuracy.ppl_form()?;
+        if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
+            return Err(Error::model("recipe [accuracy] max_ppl must be a positive number"));
         }
         if self.layer.pattern.is_empty() {
             return Err(Error::model("recipe layer.pattern is empty"));

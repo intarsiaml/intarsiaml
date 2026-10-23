@@ -34,3 +34,17 @@ w4a4_as_w4a16 = true   # the checkpoint declares NVFP4 W4A4; the experts run wei
 
 [tuning.cuda]
 prefill_chunk = 1024
+
+# `intarsia accuracy` only (docs/recipes.md "[accuracy]"). Three opt-in keys for this model, each recipe-scoped so no other model's
+# verdict changes (lane g4g, docs/results/2026-10-22-g4g-gemma4-gates.md, docs/decisions/LOG.md 2026-10-22 "Gemma-4 gates").
+[accuracy]
+# Quick gate in chat form: tools/prompts/ppl_chat.json through this model's own chat template, perplexity over the assistant tokens,
+# sanity prompts as user turns. The raw-text gate cannot be met by this instruction-only model (HF bf16 520, vLLM 402, engine 533).
+ppl_form = "chat"
+# Chat-form perplexity on the same 320 assistant tokens, measured 2026-10-22: HF transformers bf16 35.14 (tools/chat_ppl.py hf),
+# engine 35.97 (`accuracy --quick`), so 2.4% apart; vLLM: see the results doc. 60 = 1.7x the reference; a wrong forward is far above it.
+max_ppl = 60.0
+# Factor on the measured reference noise of the HF bf16 golden (golden/ref_noise/gemma4-26b-a4b-nvfp4-hfbf16.safetensors.json: HF bf16
+# vs HF f32 on the same prompts, KL21 2.227e-1). The engine sits at 1.33x (prefill) and 1.50x (decode) of it: bf16 MoE router top-8
+# flips. 1.6 = the largest measured ratio plus about 6%. Applies only when that record exists for the golden in use.
+ref_noise_factor = 1.6
