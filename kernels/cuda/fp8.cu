@@ -9,7 +9,6 @@
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
 #include "ik_launch.h"
 #include "ik_quant.cuh"
-#include <atomic>
 
 namespace {
 
@@ -163,102 +162,84 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
 // ---- Row-exact multi-row GEMV (G-B) ---------------------------------------------------------------------------------
 //
 // out[m, n] of an M-row call is bitwise out[0, n] of the M = 1 call on row m alone (fp8_gemv_kernel<1>), for every M up to
-// kRowsMax: a warp owns an output row and walks the K axis lane-strided in the SAME order as fp8_gemv_body, with the same
-// fmaf chain per 16 elements and the same `acc += s`; M only adds more independent accumulators. What differs is where x
-// lives. fp8_gemv_body stages bf16 (M * K * 2 bytes: 128 KB at M = 16, K = 4096), which no block can hold. Here the staged
-// activations are the e4m3 BYTES (M * K bytes, 64 KB at that worst case): the value fp8_gemv_body stages in bf16 is e4m3 exactly
-// (bf16 holds every e4m3 value), so reading the byte back (e4m3 -> f32 is exact) gives the same f32 operand.
-// W8A16 (input_scale == 0, the activations are genuine bf16 and nothing can be staged as a byte): the kernel branches on the
-// device scale, uniformly, and reads x from global memory instead, one 32-byte slice per (row, 16 columns) like nvfp4_gemv_kernel;
-// the f32 operands are the bf16 values, as in the staged path. So W8A8 and W8A16 are both bitwise the 1-row kernel and a
-// launch never reads the scale tensor on the host. The staging is sized M * K bytes for either mode.
+// kRowsMax. The arithmetic IS fp8_gemv_body's: a warp owns an output row and walks the K axis lane-strided (lane l takes the
+// 16-element blocks u = l, l + 32, ...), the same fmaf chain per block, the same `acc += s`, the same warp tree; M only adds
+// independent accumulators. The staged activations are the same bf16 values too (xq in W8A8, x itself in W8A16). What differs
+// is how much of x is staged at a time: fp8_gemv_body keeps all of M * K * 2 bytes in shared memory (128 KB at M = 16, K = 4096),
+// which no block can hold, so this kernel stages K in chunks of KC elements (a multiple of 512 = 32 lanes * 16, so a lane's
+// block sequence u = l, l + 32, ... is the same sequence, chunk after chunk, in the same order). Any K % 16 == 0 therefore
+// works at any M <= 16, W8A8 and W8A16 alike, with at most 32 KB of shared memory per block.
+// Layout of a staged chunk: [m][half][u] 16-byte vectors, so a warp reads 32 consecutive vectors (no bank conflicts).
 constexpr int kRowsMax = 16;
-constexpr size_t kRowsSmemMax = 96 * 1024;  // <= cudaDevAttrMaxSharedMemoryPerBlockOptin on every sm_12x (99 KB)
 
-template <int M, bool Q, typename OutT>
-__device__ __forceinline__ void fp8_rows_dot(const ik_bf16* __restrict__ x, const unsigned char* __restrict__ xq,
-                                             const uint8_t* __restrict__ w, OutT* __restrict__ out, int N, int K, int64_t n,
-                                             float s_out) {
-    const int lane = threadIdx.x % IK_WARP;
-    const uint4* wr = reinterpret_cast<const uint4*>(w + n * K);
-    float acc[M];
-#pragma unroll
-    for (int m = 0; m < M; ++m) acc[m] = 0.f;
-    constexpr int UN = M <= 4 ? 4 : 2;
-#pragma unroll UN
-    for (int u = lane; u < K / 16; u += IK_WARP) {
-        float wf[16];
-        ik_fp8x16_to_f32(__ldcs(wr + u), wf);
-#pragma unroll
-        for (int m = 0; m < M; ++m) {
-            float xf[16];
-            if constexpr (Q) {
-                ik_fp8x16_to_f32(*reinterpret_cast<const uint4*>(xq + (int64_t)m * K + u * 16), xf);
-            } else {
-                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + u * 16);
-                ik_unpack8(__ldg(xp), xf);
-                ik_unpack8(__ldg(xp + 1), xf + 8);
-            }
-            float s = 0.f;
-#pragma unroll
-            for (int e = 0; e < 16; ++e) s = fmaf(wf[e], xf[e], s);
-            acc[m] += s;
-        }
-    }
-#pragma unroll
-    for (int m = 0; m < M; ++m) {
-        const float s = ik_warp_sum(acc[m]);
-        if (lane == 0) ik_store(out + (int64_t)m * N + n, s * s_out);
-    }
+template <int M>
+constexpr int rows_chunk() {
+    return (16384 / M / 512 > 0 ? 16384 / M / 512 : 1) * 512;  // M * chunk * 2 bytes <= 32 KB
 }
 
 template <int M, typename OutT>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
                      OutT* __restrict__ out, int N, int K) {
-    extern __shared__ __align__(16) unsigned char smem[];  // [M][K] e4m3 bytes (W8A8 only)
+    extern __shared__ __align__(16) unsigned char smem[];
+    constexpr int KC = rows_chunk<M>();
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][KC / 16]
     const bool actq = sc[1] > 0.f;
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = sc[0] * s_in;
-    if (actq) {  // block-uniform
-        for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
-            float f[8];
-            ik_unpack8(__ldg(reinterpret_cast<const uint4*>(x) + i8), f);
-            uint32_t lo = 0, hi = 0;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const bool live = n < N;  // a dead warp still takes part in the staging and the barriers
+    const uint4* wr = reinterpret_cast<const uint4*>(w + (live ? n : 0) * K);
+    float acc[M];
 #pragma unroll
-            for (int e = 0; e < 4; ++e) {
-                lo |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[e], s_in)) << (8 * e);
-                hi |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 + e], s_in)) << (8 * e);
+    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    for (int c0 = 0; c0 < K; c0 += KC) {
+        const int kc = K - c0 < KC ? K - c0 : KC;  // a multiple of 16
+        const int ub = c0 / 16;                      // a multiple of 32
+        __syncthreads();                             // the previous chunk is consumed
+        for (int i = threadIdx.x; i < M * (kc / 8); i += blockDim.x) {
+            const int m = i / (kc / 8), j = i % (kc / 8);  // j: 8-element piece of the chunk
+            uint4 v = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K + c0) + j);
+            if (actq) {
+                float f[8];
+                ik_unpack8(v, f);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
+                v = ik_pack8(f);  // fp8 values are exact in bf16
             }
-            reinterpret_cast<uint2*>(smem)[i8] = make_uint2(lo, hi);
+            xs[(m * 2 + (j & 1)) * (KC / 16) + (j >> 1)] = v;
         }
         __syncthreads();
+        if (live) {
+#pragma unroll 2
+            for (int u = lane; u < kc / 16; u += IK_WARP) {
+                float wf[16];
+                ik_fp8x16_to_f32(__ldcs(wr + ub + u), wf);
+#pragma unroll
+                for (int m = 0; m < M; ++m) {
+                    float xf[16];
+                    ik_unpack8(xs[(m * 2) * (KC / 16) + u], xf);
+                    ik_unpack8(xs[(m * 2 + 1) * (KC / 16) + u], xf + 8);
+                    float sdot = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[e], xf[e], sdot);
+                    acc[m] += sdot;
+                }
+            }
+        }
     }
-    const int warp = threadIdx.x / IK_WARP;
-    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
-    if (n >= N) return;
-    if (actq) fp8_rows_dot<M, true, OutT>(x, smem, w, out, N, K, n, s_out);
-    else fp8_rows_dot<M, false, OutT>(x, smem, w, out, N, K, n, s_out);
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        const float t = ik_warp_sum(acc[m]);  // all 32 lanes call it (full-mask shuffles)
+        if (live && lane == 0) ik_store(out + (int64_t)m * N + n, t * s_out);
+    }
 }
 
-// The dynamic-shared-memory opt-in is a function attribute of the CURRENT device's context, so rows_run remembers per device
-// (one flag word per kernel instantiation) that it has been set. Setting it is not a stream operation: it is legal while a
-// stream is being captured into a graph.
 template <int M, typename OutT>
 int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
-    const size_t smem = (size_t)M * K;
-    if (smem > kRowsSmemMax) return IK_ERR_SHAPE;
-    static std::atomic<uint32_t> attr_devices{0};  // bit d: the opt-in is set for device d
-    int dev = 0;
-    if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= 32) return IK_ERR_LAUNCH;
-    if (!(attr_devices.load() & (1u << dev))) {
-        if (cudaFuncSetAttribute(reinterpret_cast<const void*>(fp8_gemv_rows_kernel<M, OutT>),
-                                 cudaFuncAttributeMaxDynamicSharedMemorySize, (int)kRowsSmemMax) != cudaSuccess)
-            return IK_ERR_LAUNCH;
-        attr_devices.fetch_or(1u << dev);
-    }
     const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
-    fp8_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, (int)K);
+    fp8_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, (size_t)M * rows_chunk<M>() * 2, s>>>(x, w, sc, out, (int)N, (int)K);
     return ik_launch_status();
 }
 
@@ -409,7 +390,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     const float* sp = (const float*)scales->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (rows) {
-        if (M > kRowsMax || (size_t)M * K > kRowsSmemMax) return IK_ERR_SHAPE;
+        if (M > kRowsMax) return IK_ERR_SHAPE;
         if (!ik_aligned16(x->data) || !ik_aligned16(w->data)) return IK_ERR_SHAPE;
         return f32o ? rows_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
                     : rows_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);

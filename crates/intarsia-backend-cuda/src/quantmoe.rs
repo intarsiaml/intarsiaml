@@ -101,9 +101,6 @@ pub const NVFP4_REG_MIN_TOKENS: usize = 256;
 /// Most tokens for which the two-launch decode experts kernel is preferred (45 us vs 59 us at 1 token; slower than
 /// the grouping kernel from 2 tokens on, 130 us vs 119 us).
 const DECODE_MAX_TOKENS: usize = 1;
-/// Most elements of the e4m3 staging of `matmul_fp8_gemv_rows` (M * K bytes of dynamic shared memory; kernels/cuda/fp8.cu
-/// `kRowsSmemMax`): 96 KiB, within the 99 KB per-block opt-in of sm_12x.
-const FP8_ROWS_SMEM: usize = 96 * 1024;
 
 /// Tolerance of `moe_experts_nvfp4_mma_bf16` against the bf16-activation reference (`ref_moe_experts`). The kernel
 /// quantises the activations to e2m1 (a 3-bit value grid), so it is not within `TOL` of the reference; the bound is
@@ -155,13 +152,12 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
-                // Row-exact twin (`rows_exact`: selected only by an `exact_rows` call): any M in 1..=16, row m bitwise the M = 1
-                // GEMV on row m alone. The activations are staged as e4m3 bytes (M * K bytes within the 96 KiB dynamic-smem opt-in;
-                // W8A16 reads x from global memory), see kernels/cuda/fp8.cu.
+                // Row-exact twin (`rows_exact`: selected only by an `exact_rows` call): any M in 1..=16, any K % 16 == 0, row m
+                // bitwise the M = 1 GEMV on row m alone (K staged in chunks that keep every lane's block order; kernels/cuda/fp8.cu).
                 "matmul_fp8_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.m * s.k <= FP8_ROWS_SMEM)
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)

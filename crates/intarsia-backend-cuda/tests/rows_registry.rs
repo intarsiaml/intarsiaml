@@ -126,7 +126,7 @@ fn default_env() -> bool {
     !std::env::vars().any(|(k, _)| k.starts_with("INTARSIA_CUDA_"))
 }
 
-/// Generated on 6167babd (no `rows_exact` kernel in the CUDA table) with INTARSIA_PRINT_PINS=1, and pasted.
+/// Generated on 6167babd (no `rows_exact` kernel in the CUDA table) with `print_tables`, and pasted.
 const ORDINARY_PINS: &str = "matmul bf16 k=2048 -> bf16: 1..=4 matmul_bf16_gemv; 5..=4096 matmul_bf16;
 matmul bf16 k=4104 -> bf16: 1..=4 matmul_bf16_gemv; 5..=4096 matmul_bf16;
 logits bf16 k=4096 -> f32: 1..=4 logits_bf16_gemv; 5..=4096 logits_bf16;
@@ -186,13 +186,11 @@ fn exact_rows_calls_pick_the_rows_kernels_only() {
     assert_eq!(lines(&table(true)), lines(ROWS_PINS), "the exact_rows selection moved");
 }
 
-/// Prints both tables (INTARSIA_PRINT_PINS=1 cargo test -p intarsia-backend-cuda --test rows_registry -- --nocapture).
+/// Prints both tables (cargo test -p intarsia-backend-cuda --test rows_registry -- --ignored --nocapture): how the pins above
+/// are regenerated.
 #[test]
+#[ignore = "prints the pin tables"]
 fn print_tables() {
-    if std::env::var("INTARSIA_PRINT_PINS").is_ok() {
-        println!("ORDINARY
-{}", table(false));
-        println!("EXACT_ROWS
-{}", table(true));
-    }
+    println!("ORDINARY\n{}", table(false));
+    println!("EXACT_ROWS\n{}", table(true));
 }

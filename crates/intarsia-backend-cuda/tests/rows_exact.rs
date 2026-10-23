@@ -281,8 +281,8 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
     let Some(rig) = Rig::new("fp8_rows_are_bitwise_the_one_row_gemv") else { return };
     let mut rng = SplitMix64::new(801);
     // (n, k): Qwen3.6-35B-A3B GDN in_qkv 8192x2048, in_z / attention q 4096x2048, k / v 512x2048, GDN out + o_proj 2048x4096,
-    // plus edges: n not a multiple of the 8 warps, K = 16, K with a ragged lane tail (129 blocks of 16), one row, the widest K
-    // the 96 KiB staging allows at M = 16 (6144)
+    // plus edges: n not a multiple of the 8 warps, K = 16, K with a ragged lane tail (129 blocks of 16), one row, K spanning
+    // several staging chunks at M = 16 (1024 elements each: 6144, and 16400 = 16 chunks + a tail of 16), a K just past one chunk
     let shapes = [
         (8192usize, 2048usize),
         (4096, 2048),
@@ -293,6 +293,8 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
         (33, 2064),
         (1, 4096),
         (64, 6144),
+        (16, 16400),
+        (8, 1040),
     ];
     for (n, k) in shapes {
         // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
