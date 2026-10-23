@@ -92,6 +92,24 @@ pub trait BatchModel {
     /// (the chunk size is part of numerical identity, design 4.5 item 1). `mode = None`: KV only, returns `None`;
     /// `Some(m)`: the last position's head output in mode `m` (the request's first token).
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<Self::Mode>) -> Result<Option<Self::Out>>;
+    /// Overlap (R3d): the model can run a prefill chunk on its own thread and stream while decode steps go on
+    /// ([`BatchModel::prefill_begin`]). Default false: chunks run to completion before the iteration goes on.
+    fn overlap(&self) -> bool {
+        false
+    }
+    /// Start the same chunk [`BatchModel::prefill_chunk`] runs, in the background; at most one is in flight, and nothing may
+    /// touch `slot` until [`BatchModel::prefill_end`] returns.
+    fn prefill_begin(&mut self, _slot: usize, _tokens: &[u32], _mode: Option<Self::Mode>) -> Result<()> {
+        Err(Error::Unsupported("prefill overlap".into()))
+    }
+    /// Whether the chunk in flight has finished (true when none is).
+    fn prefill_done(&self) -> bool {
+        true
+    }
+    /// Wait for the chunk in flight and return what `prefill_chunk` would have returned.
+    fn prefill_end(&mut self) -> Result<Option<Self::Out>> {
+        Err(Error::Unsupported("prefill overlap".into()))
+    }
     /// One decode token for each row in one batched pass (`1..=max_batch` rows, distinct slots); each slot grows by
     /// one. Inner `Err`: that row failed alone (the request fails, the batch goes on). Outer `Err`: the pass failed as
     /// a whole; the scheduler treats it as fatal for every in-flight request (design 2.5).
@@ -439,6 +457,27 @@ pub struct BatchMetrics {
     pub step_ewma_ms: f64,
 }
 
+/// One prefill chunk in progress: which request, where it starts, how long, and when it started.
+struct Chunk {
+    id: RequestId,
+    pos: usize,
+    len: usize,
+    last: bool,
+    /// the request's chunk size (the schedule's `C`)
+    chunk: usize,
+    t0: Instant,
+}
+
+/// What one decode phase did.
+struct DecodeOut {
+    /// the engine failed: end the iteration
+    fatal: bool,
+    /// sequences that were decoding when the phase began
+    decoding: usize,
+    /// a batched step ran
+    stepped: bool,
+}
+
 enum Phase {
     /// `pos`: prompt tokens in the slot; `chunk`: the size chosen at the first chunk.
     Prefilling {
@@ -703,7 +742,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             .max_by(|a, b| a.1.cmp(&b.1).then(self.last_used[b.0].cmp(&self.last_used[a.0])).then(b.0.cmp(&a.0)))
     }
 
-    /// One scheduler iteration: reap, admit, one batched decode step, prefill chunk(s). Returns whether anything ran.
+    /// One scheduler iteration: reap, admit, one batched decode step, prefill chunk(s) (with overlap: the chunk starts first and
+    /// decode steps run while it is in flight). Returns whether anything ran.
     pub fn step(&mut self) -> bool {
         if self.failed.is_some() {
             return false;
@@ -787,12 +827,109 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
 
-        // 3. decode: every decoding sequence advances one token (decode-first)
+        // 3. decode: every decoding sequence advances one token (decode-first). With overlap (a decode twin on its own
+        // stream), the iteration's prefill chunk starts FIRST and decode steps run while it is in flight (phase 4 below).
+        let mut stepped = false;
+        let mut decoding_n = self.active.iter().filter(|a| matches!(a.phase, Phase::Decoding)).count();
+        // The first chunk of a request picks its chunk size by whether decode rows are running AFTER this iteration's decode
+        // step (`prefill_one`); overlap starts the chunk before that step, so it is used for a first chunk only where both
+        // sizes are the same (the default), and always for the later chunks (the size is sticky from the first).
+        let overlap_chunk = self.model.overlap()
+            && self.cfg.busy_chunks_per_iter == 1
+            && decoding_n > 0
+            && self.active.iter().find(|a| matches!(a.phase, Phase::Prefilling { .. })).is_some_and(|a| {
+                matches!(a.phase, Phase::Prefilling { chunk: Some(_), .. }) || self.cfg.busy_chunk == self.cfg.solo_chunk
+            });
+        if !overlap_chunk {
+            let out = self.decode_phase();
+            if out.decoding > 0 {
+                did = true;
+            }
+            if out.fatal {
+                return true;
+            }
+            stepped = out.stepped;
+            decoding_n = out.decoding;
+        }
+
+        // 4. prefill: the oldest prefilling sequence gets its next chunk(s)
+        let n_decoding = self.active.iter().filter(|a| matches!(a.phase, Phase::Decoding)).count();
+        let per_iter = if n_decoding > 0 { self.cfg.busy_chunks_per_iter } else { 1 };
+        let mut chunked = false;
+        if overlap_chunk {
+            // the chunk runs on its own thread and stream while the decode rows keep stepping; the schedule (which chunk, how
+            // long, with what head) is the one `prefill_one` would run, and the chunk is the same call, so the prefill is
+            // bit for bit what it is without overlap
+            let i = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })).expect("checked above");
+            did = true;
+            chunked = true;
+            let (slot, c, mode) = self.prefill_plan(i, n_decoding);
+            let id = c.id;
+            let begun = {
+                let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
+                self.model.prefill_begin(slot, &tokens, mode)
+            };
+            let res = match begun {
+                Err(e) => Err(e),
+                Ok(()) => {
+                    loop {
+                        let out = self.decode_phase();
+                        if out.decoding > 0 {
+                            decoding_n = decoding_n.max(out.decoding);
+                        }
+                        stepped |= out.stepped;
+                        if out.fatal {
+                            let _ = self.model.prefill_end();
+                            return true;
+                        }
+                        if out.decoding == 0 || self.model.prefill_done() {
+                            break;
+                        }
+                    }
+                    self.model.prefill_end()
+                }
+            };
+            let i = self.index_of(id).expect("a prefilling request stays live while its chunk runs");
+            self.prefill_finish(i, c, res);
+            if self.failed.is_some() {
+                return true;
+            }
+        }
+        for _ in 0..if overlap_chunk { 0 } else { per_iter } {
+            let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
+            did = true;
+            chunked = true;
+            if self.prefill_one(i, n_decoding) {
+                break;
+            }
+            if self.failed.is_some() {
+                return true;
+            }
+        }
+
+        let mut m = self.metrics.lock().unwrap();
+        m.iterations += 1;
+        if chunked && decoding_n > 0 {
+            m.mixed_iterations += 1;
+        }
+        m.running = self.active.len();
+        if stepped {
+            let d = t_iter.elapsed();
+            m.step.record(d);
+            let ms = d.as_secs_f64() * 1e3;
+            m.step_ewma_ms = if m.decode_steps == 1 { ms } else { 0.9 * m.step_ewma_ms + 0.1 * ms };
+        }
+        did
+    }
+
+
+    /// Phase 3, decode: every decoding sequence advances one token (decode-first). Reports what happened; `fatal`: the
+    /// engine failed (every request has been failed) and the iteration must end.
+    fn decode_phase(&mut self) -> DecodeOut {
         let decoding: Vec<usize> =
             (0..self.active.len()).filter(|&i| matches!(self.active[i].phase, Phase::Decoding)).collect();
         let mut stepped = false;
         if !decoding.is_empty() {
-            did = true;
             let b = decoding.len();
             let spec_allowed = b < self.cfg.spec_off_at;
             if self.cfg.trace_stderr {
@@ -825,7 +962,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 if let Some(i) = self.index_of(id) {
                     self.fail_active(i, e);
                     if self.failed.is_some() {
-                        return true;
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
                     }
                 }
             }
@@ -855,11 +992,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     Ok(o) if o.len() == rows.len() => o,
                     Ok(o) => {
                         self.fail_all(&format!("decode step returned {} rows for {}", o.len(), rows.len()));
-                        return true;
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
                     }
                     Err(e) => {
                         self.fail_all(&e.to_string());
-                        return true;
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
                     }
                 };
                 stepped = true;
@@ -876,7 +1013,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                         Err(e) => {
                             self.fail_active(i, e);
                             if self.failed.is_some() {
-                                return true;
+                                return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
                             }
                         }
                     }
@@ -889,40 +1026,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 let i = self.index_of(id).expect("ready request is live");
                 self.token_done(i, now);
                 if self.failed.is_some() {
-                    return true;
+                    return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
                 }
             }
         }
-
-        // 4. prefill: the oldest prefilling sequence gets its next chunk(s)
-        let n_decoding = self.active.iter().filter(|a| matches!(a.phase, Phase::Decoding)).count();
-        let per_iter = if n_decoding > 0 { self.cfg.busy_chunks_per_iter } else { 1 };
-        let mut chunked = false;
-        for _ in 0..per_iter {
-            let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
-            did = true;
-            chunked = true;
-            if self.prefill_one(i, n_decoding) {
-                break;
-            }
-            if self.failed.is_some() {
-                return true;
-            }
-        }
-
-        let mut m = self.metrics.lock().unwrap();
-        m.iterations += 1;
-        if chunked && !decoding.is_empty() {
-            m.mixed_iterations += 1;
-        }
-        m.running = self.active.len();
-        if stepped {
-            let d = t_iter.elapsed();
-            m.step.record(d);
-            let ms = d.as_secs_f64() * 1e3;
-            m.step_ewma_ms = if m.decode_steps == 1 { ms } else { 0.9 * m.step_ewma_ms + 0.1 * ms };
-        }
-        did
+        DecodeOut { fatal: false, decoding: decoding.len(), stepped }
     }
 
     fn index_of(&self, id: RequestId) -> Option<usize> {
@@ -951,6 +1059,17 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// the request ended), so a following chunk of this iteration goes to the next prefilling request only from the
     /// next iteration on (one request's prefill completion per iteration).
     fn prefill_one(&mut self, i: usize, n_decoding: usize) -> bool {
+        let (slot, c, mode) = self.prefill_plan(i, n_decoding);
+        let res = {
+            let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
+            self.model.prefill_chunk(slot, tokens, mode)
+        };
+        self.prefill_finish(i, c, res)
+    }
+
+    /// The next chunk of active request `i`: which tokens, whether it is the last, with what head. Starts the request's
+    /// prefill (chunk size chosen by whether decode rows are running) on its first chunk.
+    fn prefill_plan(&mut self, i: usize, n_decoding: usize) -> (usize, Chunk, Option<M::Mode>) {
         let (pos, chunk) = match self.active[i].phase {
             Phase::Prefilling { pos, chunk } => (pos, chunk),
             Phase::Decoding => unreachable!(),
@@ -972,14 +1091,16 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let slot = self.active[i].slot;
         let id = self.active[i].id;
         self.ev(TraceEvent::Chunk { iter: self.iter, id, start: pos, len, last });
-        let t_chunk = Instant::now();
-        let res = {
-            let tokens = &self.active[i].seq.prompt()[pos..pos + len];
-            self.model.prefill_chunk(slot, tokens, mode)
-        };
+        (slot, Chunk { id, pos, len, last, chunk, t0: Instant::now() }, mode)
+    }
+
+    /// The chunk of active request `i` has run (`res`): account it and advance the request. Returns true when this ended
+    /// its prefill (see [`Scheduler::prefill_one`]).
+    fn prefill_finish(&mut self, i: usize, c: Chunk, res: Result<Option<M::Out>>) -> bool {
+        let Chunk { pos, len, last, chunk, t0, .. } = c;
         {
             let mut m = self.metrics.lock().unwrap();
-            m.chunk.record(t_chunk.elapsed());
+            m.chunk.record(t0.elapsed());
             m.prefill_chunks += 1;
             m.prefill_tokens += len as u64;
         }

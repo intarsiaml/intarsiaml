@@ -136,7 +136,15 @@ impl CudaBackend {
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
             // SAFETY: valid out-pointer; the device is bound by the caller.
-            check("cudaStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
+            // stream 0 carries the ordinary work; every other stream is the decode lane (R3d): highest priority
+            let id_new = s.len();
+            check("cudaStreamCreate", unsafe {
+                if id_new == 0 {
+                    ffi::ik_rt_stream_create(&mut h)
+                } else {
+                    ffi::ik_rt_stream_create_high_priority(&mut h)
+                }
+            })?;
             s.push(h as usize);
         }
         Ok(s[id as usize] as *mut c_void)

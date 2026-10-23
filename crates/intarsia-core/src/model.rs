@@ -102,6 +102,7 @@ impl Default for LoadOptions {
 }
 
 /// The finished frequency table of a scaled rotary embedding on the device ([`crate::rope::RopeScaling::freqs`]).
+#[derive(Clone)]
 struct RopeTable {
     /// f32 `[rotary_dim / 2]`.
     inv_freq: TensorRef,
@@ -270,7 +271,7 @@ pub struct Model {
     final_norm: TensorRef,
     /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
     lm_head: Option<QTensor>,
-    layers: Vec<Vec<Block>>,
+    layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
     slot_specs: Vec<SlotSpec>,
@@ -325,6 +326,8 @@ pub struct Model {
     /// state buffers (entries `2j`, `2j + 1` of row `r`: recurrent buffer of slot `j`, or its K and V cache), and `i32
     /// [BATCH_MAX_ROWS]` positions. Rewritten by the host before each batched step, so one recording of the step (a graph)
     /// serves any set of sequences. `Some` only on a backend that supports them and unless `INTARSIA_ROW_TABLES=0`.
+    /// The backend stream this model's work is enqueued on: 0, or 1 on a decode twin ([`Model::decode_twin`]).
+    stream: crate::backend::StreamId,
     row_tab: Option<Buffer>,
     batch_pos: Option<Buffer>,
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
@@ -964,7 +967,7 @@ impl Model {
             embed,
             final_norm,
             lm_head,
-            layers,
+            layers: Arc::new(layers),
             gemma: gemma_ws,
             slot_specs,
             ws,
@@ -991,6 +994,7 @@ impl Model {
             batch_rows: 0,
             recurrent_batch: false,
             batch_tok: None,
+            stream: 0,
             row_tab: None,
             batch_pos: None,
             topk: None,
@@ -1148,7 +1152,7 @@ impl Model {
             }
         };
         let mut b = vec![0u8; q * 4];
-        self.backend.download(tok, 0, &mut b, 0)?;
+        self.backend.download(tok, 0, &mut b, self.stream)?;
         st.commit(ids);
         if recurrent {
             st.spec_rows.saved = q - 1;
@@ -1719,12 +1723,12 @@ impl Model {
         }
         if profile {
             // drain queued work first, or the previous op's (or an async upload's) time lands on this op
-            self.backend.synchronize(0)?;
+            self.backend.synchronize(self.stream)?;
         }
         let t0 = Instant::now();
-        self.backend.launch(&kernel.name, &call, 0)?;
+        self.backend.launch(&kernel.name, &call, self.stream)?;
         if profile {
-            self.backend.synchronize(0)?;
+            self.backend.synchronize(self.stream)?;
             self.telemetry.record_op(op, Some(t0.elapsed()));
         } else if let Some(ops) = self.capture_ops.lock().unwrap().as_mut() {
             ops.push(op); // being captured: nothing ran, each replay counts these
@@ -1777,7 +1781,7 @@ impl Model {
 
         if upload_ids && !self.recorder.lock().unwrap().is_some() {
             let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
-            self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
+            self.backend.upload(&ws.ids, 0, &ids_i32, self.stream)?;
             for &i in ids {
                 if i as usize >= d.vocab {
                     return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
@@ -2602,12 +2606,12 @@ impl Model {
             }
         }
         if profile {
-            self.backend.synchronize(0)?;
+            self.backend.synchronize(self.stream)?;
         }
         let t0 = Instant::now();
         comm.all_reduce_sum_into(partial, out, 0)?;
         if profile {
-            self.backend.synchronize(0)?;
+            self.backend.synchronize(self.stream)?;
             let d = t0.elapsed();
             comm.note_timed(d);
             self.telemetry.record_comm(Some(d));
@@ -2622,9 +2626,9 @@ impl Model {
 
     /// `INTARSIA_TP_TEST_BUG`: multiply a partial by `f` through the host (slow; a deliberate bug for gate sensitivity runs).
     fn scale_partial(&self, partial: &TensorRef, f: f32) -> Result<()> {
-        self.backend.synchronize(0)?;
+        self.backend.synchronize(self.stream)?;
         let mut bytes = vec![0u8; partial.nbytes()];
-        self.backend.download(&partial.buf, partial.offset, &mut bytes, 0)?;
+        self.backend.download(&partial.buf, partial.offset, &mut bytes, self.stream)?;
         match partial.dtype {
             DType::F32 => {
                 for c in bytes.chunks_exact_mut(4) {
@@ -2642,8 +2646,8 @@ impl Model {
             }
             d => return Err(Error::invalid(format!("INTARSIA_TP_TEST_BUG: partial dtype {d:?} not supported"))),
         }
-        self.backend.upload(&partial.buf, partial.offset, &bytes, 0)?;
-        self.backend.synchronize(0)
+        self.backend.upload(&partial.buf, partial.offset, &bytes, self.stream)?;
+        self.backend.synchronize(self.stream)
     }
 
     /// Logits for rows `[r0, r0+c)` of the normed hidden states, row-major f32 `[c, vocab]`.
@@ -2656,7 +2660,7 @@ impl Model {
             return Ok(Vec::new());
         }
         let mut bytes = vec![0u8; c * v * 4];
-        self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
+        self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
         let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
         // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
@@ -2687,7 +2691,7 @@ impl Model {
             return Ok(0);
         }
         let mut b = [0u8; 4];
-        self.backend.download(&self.ws.tok, 0, &mut b, 0)?;
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
         Ok(i32::from_le_bytes(b) as u32)
     }
 

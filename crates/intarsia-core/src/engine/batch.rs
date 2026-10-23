@@ -56,6 +56,9 @@ pub struct BatchedOptions {
     /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
     #[doc(hidden)]
     pub row_fault: Option<(usize, usize, u32)>,
+    /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP`): batched decode runs on a decode twin of the model (own stream, own
+    /// workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit; CUDA only.
+    pub overlap: bool,
 }
 
 impl BatchedOptions {
@@ -83,16 +86,66 @@ impl BatchedOptions {
             spec_off_at: SPEC_OFF_AT_DEFAULT,
             busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
+            overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
         }
     }
 }
 
 /// The model side of the scheduler: one KV slot per `SequenceState`.
 pub(crate) struct SlotModel {
-    model: Model,
+    model: Arc<Model>,
+    /// The decode twin (R3d, `BatchedOptions::overlap`): batched decode steps run on it, on their own stream with their own
+    /// workspace, so a prefill chunk of `model` can be in flight beside them. `None`: decode runs on `model`.
+    twin: Option<Model>,
     states: Vec<SequenceState>,
-    /// [`BatchedOptions::row_fault`], cleared once it fired.
+    /// [`BatchedOptions::row_fault`], cleared once fired.
     row_fault: Option<(usize, usize, u32)>,
+    /// The prefill chunk running in the background (`BatchModel::prefill_begin`), if any.
+    inflight: Option<Inflight>,
+}
+
+/// A prefill chunk on its own thread. The slot's state travels with it (a placeholder holds the slot meanwhile) and comes back
+/// at `prefill_end`, so no state is shared between the threads.
+struct Inflight {
+    slot: usize,
+    done: Arc<std::sync::atomic::AtomicBool>,
+    handle: std::thread::JoinHandle<(SequenceState, Result<Option<StepOut>>)>,
+}
+
+/// One prefill chunk of `st` (the body of [`BatchModel::prefill_chunk`], also what the background thread runs).
+fn run_prefill(model: &Model, st: &mut SequenceState, tokens: &[u32], mode: Option<HeadMode>) -> Result<Option<StepOut>> {
+    if st.has_recurrent() {
+        // the solo schedule of a recurrent state (`Seq::prefill_step`): a snapshot after every non-final chunk, and
+        // before the final chunk's last token, which runs alone (so a repeated prompt reuses all but that token)
+        let keep = model.batch_snapshots();
+        return Ok(match mode {
+            None => {
+                if !matches!(model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                    return Err(Error::Other("a headless prefill pass returned an output".into()));
+                }
+                st.snapshot(&*model.backend, keep)?;
+                None
+            }
+            Some(m) => {
+                if tokens.len() > 1 {
+                    // nothing is asked of this pass: a head output here would be a bug, not a result to drop
+                    if !matches!(model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
+                        return Err(Error::Other("a headless prefill pass returned an output".into()));
+                    }
+                    st.snapshot(&*model.backend, keep)?;
+                }
+                match model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
+                    StepOut::None => None,
+                    o => Some(o),
+                }
+            }
+        });
+    }
+    let out = model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
+    Ok(match out {
+        StepOut::None => None,
+        o => Some(o),
+    })
 }
 
 impl SlotModel {
@@ -124,42 +177,45 @@ impl BatchModel for SlotModel {
         self.states[slot].restorable_len(want)
     }
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<Option<StepOut>> {
-        let st = &mut self.states[slot];
-        if st.has_recurrent() {
-            // the solo schedule of a recurrent state (`Seq::prefill_step`): a snapshot after every non-final chunk, and
-            // before the final chunk's last token, which runs alone (so a repeated prompt reuses all but that token)
-            let keep = self.model.batch_snapshots();
-            return Ok(match mode {
-                None => {
-                    if !matches!(self.model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
-                        return Err(Error::Other("a headless prefill pass returned an output".into()));
-                    }
-                    st.snapshot(&*self.model.backend, keep)?;
-                    None
-                }
-                Some(m) => {
-                    if tokens.len() > 1 {
-                        // nothing is asked of this pass: a head output here would be a bug, not a result to drop
-                        if !matches!(
-                            self.model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?,
-                            StepOut::None
-                        ) {
-                            return Err(Error::Other("a headless prefill pass returned an output".into()));
-                        }
-                        st.snapshot(&*self.model.backend, keep)?;
-                    }
-                    match self.model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
-                        StepOut::None => None,
-                        o => Some(o),
-                    }
-                }
-            });
+        run_prefill(&self.model, &mut self.states[slot], tokens, mode)
+    }
+    fn overlap(&self) -> bool {
+        self.twin.is_some()
+    }
+    fn prefill_begin(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
+        if self.inflight.is_some() {
+            return Err(Error::Other("a prefill chunk is already in flight".into()));
         }
-        let out = self.model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
-        Ok(match out {
-            StepOut::None => None,
-            o => Some(o),
-        })
+        let placeholder = self.model.placeholder_state();
+        let mut st = std::mem::replace(&mut self.states[slot], placeholder);
+        let model = self.model.clone();
+        let tokens = tokens.to_vec();
+        let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = done.clone();
+        let handle = std::thread::Builder::new()
+            .name("intarsia-prefill".into())
+            .spawn(move || {
+                let r = run_prefill(&model, &mut st, &tokens, mode);
+                flag.store(true, std::sync::atomic::Ordering::Release);
+                (st, r)
+            })
+            .map_err(|e| Error::Other(format!("cannot start the prefill thread: {e}")))?;
+        self.inflight = Some(Inflight { slot, done, handle });
+        Ok(())
+    }
+    fn prefill_done(&self) -> bool {
+        self.inflight.as_ref().is_none_or(|f| f.done.load(std::sync::atomic::Ordering::Acquire))
+    }
+    fn prefill_end(&mut self) -> Result<Option<StepOut>> {
+        let f = self.inflight.take().ok_or_else(|| Error::Other("no prefill chunk in flight".into()))?;
+        match f.handle.join() {
+            Ok((st, r)) => {
+                self.states[f.slot] = st;
+                r
+            }
+            // the slot's state died with the thread: the engine goes down with it, as for any panic of its own thread
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
     fn avoid_single_row_prefill(&self) -> bool {
         // the backend flag (Metal), except for recurrent state (never batched; mirrors `Seq::prefill_step`)
@@ -169,6 +225,7 @@ impl BatchModel for SlotModel {
         self.model.tail_merge()
     }
     fn decode_step(&mut self, rows: &[Row<HeadMode>]) -> Result<Vec<Result<StepOut>>> {
+        let dm: &Model = self.twin.as_ref().unwrap_or(&self.model);
         // split borrows: one `&mut SequenceState` per row, in row order, from the slot vector
         let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
         let mut refs: Vec<&mut SequenceState> = Vec::with_capacity(rows.len());
@@ -192,7 +249,7 @@ impl BatchModel for SlotModel {
                 }
             }
             tokens.push(token);
-            match self.model.check_batch_row(&*refs[r], token, row.mode) {
+            match dm.check_batch_row(&*refs[r], token, row.mode) {
                 Ok(()) => good.push(r),
                 Err(e) => res[r] = Some(Err(e)),
             }
@@ -203,7 +260,7 @@ impl BatchModel for SlotModel {
             let mut slots: Vec<Option<&mut SequenceState>> = refs.into_iter().map(Some).collect();
             let mut grefs: Vec<&mut SequenceState> = good.iter().map(|&r| slots[r].take().expect("row once")).collect();
             // an error here is a device / pass failure: fatal for the whole batch (the scheduler fails every request)
-            let outs = self.model.forward_batch(&mut grefs, &ids, &modes)?;
+            let outs = dm.forward_batch(&mut grefs, &ids, &modes)?;
             for (&r, o) in good.iter().zip(outs) {
                 res[r] = Some(Ok(o));
             }
@@ -281,7 +338,8 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         spec_allowed: bool,
         busy: bool,
     ) -> Result<SeqStep<HeadMode>> {
-        let SlotModel { model, states, .. } = model;
+        let SlotModel { model, twin, states, .. } = model;
+        let model: &Model = twin.as_ref().unwrap_or(&**model);
         let seq = self.seq()?;
         seq.set_spec_allowed(spec_allowed, busy);
         Ok(match seq.prepare(model, &mut states[slot])? {
@@ -452,7 +510,21 @@ impl BatchedEngine {
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
-        let engine = BatchEngine::spawn(SlotModel { model, states, row_fault: opts.row_fault }, cfg)?;
+        let twin = if opts.overlap {
+            match model.decode_twin(opts.max_batch) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    eprintln!("prefill/decode overlap unavailable ({e}); chunks run to completion before decode steps");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let engine = BatchEngine::spawn(
+            SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None },
+            cfg,
+        )?;
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent })
     }
 

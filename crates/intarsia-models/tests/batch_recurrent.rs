@@ -268,10 +268,15 @@ fn solo(v: Variant) -> LocalEngine {
 }
 
 fn batched(v: Variant, rows: usize, reuse: bool) -> (BatchedEngine, Arc<Telemetry>) {
+    batched_overlap(v, rows, reuse, false)
+}
+
+fn batched_overlap(v: Variant, rows: usize, reuse: bool, overlap: bool) -> (BatchedEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let m = model(v, rows, true, &tel);
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = reuse;
+    o.overlap = overlap;
     (BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap(), tel)
 }
 
@@ -479,11 +484,45 @@ fn batched_hybrid_decode_beside_prefill_chunks() {
     }
 }
 
+/// R3d: decode steps on the decode twin (own stream and workspace) beside a prefill chunk on another thread, in the same GPU
+/// at the same time: every decode row bitwise its solo step, the chunked prefill bitwise the prefill alone. CUDA only.
+#[test]
+fn decode_twin_beside_a_running_prefill_is_bitwise_solo() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    for v in VARIANTS {
+        let tel = Arc::new(Telemetry::new());
+        let m = model(v, max_rows().min(8), true, &tel);
+        let twin = m.decode_twin(m.batch_rows()).unwrap();
+        let (compared, during) = batch_identity::run_overlapped(&m, &twin, &[5, 20, 33], 120, 16, (1, VOCAB - 1), 2);
+        assert!(compared >= 3 * 2 * 120usize.div_ceil(16), "{v:?}: {compared}");
+        eprintln!("{v:?}: {compared} decode rows bitwise solo, {during} batched steps begun while a chunk was running");
+    }
+}
+
+/// The batched engine with overlap on equals the solo engine over 128 tokens (CUDA only).
+#[test]
+fn batched_engine_with_overlap_equals_solo_over_128_tokens() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    for v in VARIANTS {
+        for rows in [2usize, 4, 8] {
+            check_engine_overlap(v, rows, 2 * rows + 3, false, true);
+        }
+    }
+}
+
 fn check_engine(v: Variant, rows: usize, n_cases: usize, reuse: bool) {
+    check_engine_overlap(v, rows, n_cases, reuse, false)
+}
+
+fn check_engine_overlap(v: Variant, rows: usize, n_cases: usize, reuse: bool, overlap: bool) {
     let reference = solo(v);
     let want: Vec<Out> = cases(n_cases).into_iter().map(|r| run_solo(&reference, r)).collect();
     assert!(want.iter().all(|w| w.completion_tokens >= 128), "the comparison needs >= 128 generated tokens");
-    let (eng, tel) = batched(v, rows, reuse);
+    let (eng, tel) = batched_overlap(v, rows, reuse, overlap);
     // all at once: more requests than slots, so they queue, overlap, finish at different times, and slots are recycled
     let rxs: Vec<_> = cases(n_cases).into_iter().map(|r| eng.submit(r).unwrap()).collect();
     for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {

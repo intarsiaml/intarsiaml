@@ -189,8 +189,8 @@ impl Model {
             }
             p.extend_from_slice(&(st.len as i32).to_le_bytes());
         }
-        self.backend.upload(tab, 0, &t, 0)?;
-        self.backend.upload(pos, 0, &p, 0)
+        self.backend.upload(tab, 0, &t, self.stream)?;
+        self.backend.upload(pos, 0, &p, self.stream)
     }
 
     /// Row table of a call over `rows` rows whose state is slot `slot`: entry `2 * slot + sub`.
@@ -303,7 +303,7 @@ impl Model {
         let v = self.dims.vocab;
         let mut toks = vec![0u8; b * 4];
         if modes.contains(&HeadMode::LastArgmax) {
-            self.backend.download(tok, 0, &mut toks, 0)?;
+            self.backend.download(tok, 0, &mut toks, self.stream)?;
         }
         // device-side sampling (R3b): the top-k of every row that asked, one kernel for the step, three small downloads
         let kmax = modes.iter().filter_map(|m| if let HeadMode::LastTopK(k) = m { Some(*k) } else { None }).max().unwrap_or(0);
@@ -321,7 +321,7 @@ impl Model {
             }
             let (lo, n) = (want[i], want[j] + 1 - want[i]);
             let mut bytes = vec![0u8; n * v * 4];
-            self.backend.download(&self.ws.logits, lo * v * 4, &mut bytes, 0)?;
+            self.backend.download(&self.ws.logits, lo * v * 4, &mut bytes, self.stream)?;
             runs.push((lo, bytes));
             i = j + 1;
         }
@@ -365,9 +365,9 @@ impl Model {
         let scratch = self.view(&t.scratch, DType::U8, &[need]);
         self.backend.topk_rows(&logits, kmax, &ids, &vals, &nan, &scratch, 0)?;
         let (mut i, mut x, mut n) = (vec![0u8; b * kmax * 4], vec![0u8; b * kmax * 4], vec![0u8; b * 4]);
-        self.backend.download(&t.ids, 0, &mut i, 0)?;
-        self.backend.download(&t.vals, 0, &mut x, 0)?;
-        self.backend.download(&t.nan, 0, &mut n, 0)?;
+        self.backend.download(&t.ids, 0, &mut i, self.stream)?;
+        self.backend.download(&t.vals, 0, &mut x, self.stream)?;
+        self.backend.download(&t.nan, 0, &mut n, self.stream)?;
         let f = |c: &[u8]| [c[0], c[1], c[2], c[3]];
         Ok((
             i.chunks_exact(4).map(|c| i32::from_le_bytes(f(c)) as u32).collect(),
@@ -589,5 +589,118 @@ impl Model {
             eprintln!("batched step: row-table path unavailable for {what}; per-row launches");
             seen.push(what.to_string());
         }
+    }
+
+    /// The decode twin (R3d): a second `Model` over the SAME weights, kernels and plan, with its own small workspace, kernel
+    /// scratch, recorded graphs, row tables and sampling buffers, enqueueing on stream 1 (the backend's high-priority lane). A
+    /// batched decode step on the twin and a prefill chunk on this model touch disjoint buffers (the twin never reads or writes
+    /// this model's workspace, and a sequence is either prefilling or decoding), so the two can be in flight at once on two
+    /// threads; each is the very computation it would be alone, bit for bit. `rows`: batched rows the twin runs.
+    pub fn decode_twin(&self, rows: usize) -> Result<Model> {
+        if self.batch_rows == 0 || rows == 0 || rows > self.batch_rows {
+            return Err(Error::invalid("decode_twin needs a batch-enabled model and 1..=batch_rows rows"));
+        }
+        if !self.peers.is_empty() || self.tp.world > 1 || self.mtp.is_some() || self.gemma.is_some() {
+            return Err(Error::Unsupported("decode twin: single-rank models without MTP or Gemma 4 layers".into()));
+        }
+        let (d, act) = (&self.ldims, self.act);
+        let (qdim, kvdim, esz) = (d.n_heads * d.head_dim, d.n_kv_heads * d.head_dim, act.size_bytes());
+        let mt = rows.max(Self::BATCH_MAX_ROWS);
+        let mut bytes = 0u64;
+        let mut wb = |n: usize| -> Result<Buffer> {
+            bytes += n as u64;
+            self.backend.alloc(n.max(16), MemKind::Device)
+        };
+        let (has_gdn, has_gated) = self.layers.iter().flatten().fold((false, false), |(g, a), blk| match blk {
+            Block::Gdn(_) => (true, a),
+            Block::Attn(x) => (g, a || x.gated),
+            _ => (g, a),
+        });
+        let x = gdn_block::alloc_extra(&mut wb, mt, esz, d, has_gdn, has_gated)?;
+        let moe = match d.moe.as_ref().filter(|_| self.layers.iter().flatten().any(|bl| matches!(bl, Block::Moe(_)))) {
+            Some(mc) => Some(MoeScratch::new(&*self.backend, mc, mt, act)?),
+            None => None,
+        };
+        let ws = Workspace {
+            max_tokens: mt,
+            ids: wb(mt * 4)?,
+            h: [wb(mt * d.hidden * esz)?, wb(mt * d.hidden * esz)?],
+            n: wb(mt * d.hidden * esz)?,
+            blk: wb(mt * d.hidden * esz)?,
+            q: [wb(mt * qdim * esz)?, wb(mt * qdim * esz)?],
+            k: [wb(mt * kvdim * esz)?, wb(mt * kvdim * esz)?],
+            v: wb(mt * kvdim * esz)?,
+            g: wb(mt * d.intermediate * esz)?,
+            u: wb(mt * d.intermediate * esz)?,
+            a: wb(mt * d.intermediate * esz)?,
+            logits: wb(LOGIT_ROWS * d.vocab * 4)?,
+            tok: wb(16)?,
+            part: None,
+            pos: wb(16)?,
+            x,
+            moe,
+        };
+        let mut registry = Registry::new(self.backend.name(), &self.backend.info(), self.backend.kernels());
+        registry.adopt_status(&self.registry);
+        let mut plan = self.plan.clone();
+        plan.workspace_bytes = bytes;
+        let mut t = Model {
+            backend: self.backend.clone(),
+            registry,
+            dims: self.dims.clone(),
+            ldims: self.ldims.clone(),
+            recipe: self.recipe.clone(),
+            act: self.act,
+            kv: self.kv,
+            plan,
+            weights_bytes: self.weights_bytes,
+            embed: self.embed.clone(),
+            final_norm: self.final_norm.clone(),
+            lm_head: self.lm_head.clone(),
+            layers: self.layers.clone(),
+            gemma: None,
+            slot_specs: self.slot_specs.clone(),
+            ws,
+            telemetry: self.telemetry.clone(),
+            profile_every: 0,
+            scratch: None,
+            recorder: Mutex::new(None),
+            resolved: Default::default(),
+            graphs: GraphState::new(self.graphs.configured()),
+            capture_ops: Mutex::new(None),
+            capture_comms: std::sync::atomic::AtomicU64::new(0),
+            rope_table: self.rope_table.clone(),
+            tp_fusion: false,
+            tp: self.tp.clone(),
+            no_comm: self.no_comm,
+            test_bug: self.test_bug.clone(),
+            peers: Vec::new(),
+            remote: None,
+            exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tok: None,
+            verify_rows: 0,
+            batch_rows: 0,
+            recurrent_batch: self.recurrent_batch,
+            batch_tok: None,
+            stream: 1,
+            row_tab: None,
+            batch_pos: None,
+            topk: None,
+            token_feedback: std::sync::atomic::AtomicBool::new(false),
+            feedback_hold: self.feedback_hold,
+            tail_merge: 0,
+            skip_dead: std::sync::atomic::AtomicBool::new(false),
+            tail_dead: std::sync::atomic::AtomicBool::new(false),
+            mtp: None,
+            mtp_k: self.mtp_k,
+        };
+        t.enable_batch(rows)?;
+        crate::plan::resolve(&mut t)?;
+        Ok(t)
+    }
+
+    /// A stand-in for a slot whose state is away on another thread (phantom buffers: no device memory).
+    pub fn placeholder_state(&self) -> SequenceState {
+        crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, 0)
     }
 }

@@ -87,6 +87,11 @@ impl GraphState {
         }
     }
 
+    /// Whether graphs were requested for this model (before the backend / plan conditions of `usable`).
+    pub(super) fn configured(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
     /// Drop the recording (scratch moved, kernels re-resolved, state gone).
     pub(super) fn invalidate(&self) {
         self.captured.lock().unwrap().clear();
@@ -158,13 +163,13 @@ impl Model {
         let v = self.dims.vocab;
         if want_logits {
             let mut bytes = vec![0u8; v * 4];
-            self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
+            self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
             Ok(Some(StepOut::Logits(
                 bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect(),
             )))
         } else {
             let mut b = [0u8; 4];
-            self.backend.download(&self.ws.tok, 0, &mut b, 0)?;
+            self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
             Ok(Some(StepOut::Token(i32::from_le_bytes(b) as u32)))
         }
     }
@@ -199,8 +204,8 @@ impl Model {
             return Err(Error::BadRequest(format!("token id {id} >= vocab {}", self.dims.vocab)));
         }
         // the step's device inputs
-        self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), 0)?;
-        self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), 0)?;
+        self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), self.stream)?;
+        self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), self.stream)?;
         let mut cache = self.graphs.captured.lock().unwrap();
         let key = (st.id, head);
         if !cache.contains_key(&key) {
@@ -229,7 +234,7 @@ impl Model {
             }
         }
         let c = cache.get(&key).expect("captured above");
-        self.backend.graph_replay(&c.graph, 0)?;
+        self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
         for &op in &c.ops {
@@ -263,14 +268,14 @@ impl Model {
         }
         // the step's device inputs: tokens, then the row table and positions (stream-ordered before the replay)
         let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
-        self.backend.upload(&self.ws.ids, 0, &ids_i32, 0)?;
+        self.backend.upload(&self.ws.ids, 0, &ids_i32, self.stream)?;
         self.upload_row_table(states)?;
         let mut cache = self.graphs.batched.lock().unwrap();
         if !cache.contains_key(&b) {
             *self.capture_ops.lock().unwrap() = Some(Vec::new());
             self.graphs.state_bound.store(false, Ordering::Relaxed);
             let zeros = vec![0u32; b];
-            let graph = self.backend.graph_capture(0, &mut || {
+            let graph = self.backend.graph_capture(self.stream, &mut || {
                 // only the row count matters: tokens are read from ws.ids, state buffers and positions from the tables
                 let refs: Vec<&SequenceState> = states.to_vec();
                 let hn = self.run_layers(Seqs::Batch(&refs), &zeros, false, None, false, None)?;
@@ -297,7 +302,7 @@ impl Model {
             }
         }
         let c = cache.get(&b).expect("captured above");
-        self.backend.graph_replay(&c.graph, 0)?;
+        self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
         for &op in &c.ops {
@@ -310,7 +315,7 @@ impl Model {
         let pos = self.view(&self.ws.pos, DType::I32, &[1]);
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
-        let graph = self.backend.graph_capture(0, &mut || {
+        let graph = self.backend.graph_capture(self.stream, &mut || {
             // only the length of `ids` matters: the token is read from ws.ids, the position from ws.pos
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
             if head {

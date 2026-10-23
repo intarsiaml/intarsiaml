@@ -56,6 +56,7 @@ extern "C" {
     pub fn ik_rt_memcpy_d2d(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
     pub fn ik_rt_memset(dst: *mut c_void, value: c_int, n: usize, stream: S) -> c_int;
     pub fn ik_rt_stream_create(stream: *mut S) -> c_int;
+    pub fn ik_rt_stream_create_high_priority(stream: *mut S) -> c_int;
     pub fn ik_rt_stream_sync(stream: S) -> c_int;
     pub fn ik_rt_f32_round(src: *const c_void, dst: *mut c_void, n: usize, dst_dtype: c_int, stream: S) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
