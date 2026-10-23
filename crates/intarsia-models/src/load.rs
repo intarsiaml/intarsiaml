@@ -219,7 +219,8 @@ pub fn serve_remote_rank(
     let (recipe_source, recipe, dims, _cfg) = read_model_spec(dir, opts)?;
     let weights = SchemedSource::open(dir)?;
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backend.name());
-    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
+    let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
+    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, mtp: opts.load.mtp || mtp, ..opts.load.clone() };
     let tp = intarsia_core::model::TpRank { rank, world, comm: Some(comm) };
     let mut model = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, Arc::new(Telemetry::new()), tp)?;
     let fp = tp_fingerprint(dir, &recipe_source, &load_opts, opts, world);
@@ -325,8 +326,16 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
     if opts.spec.enabled() {
-        // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only
-        if model.backend.name() != "metal" || model.tp_world() > 1 {
+        // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
+        // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
+        // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
+        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
+            eprintln!(
+                "--spec mtp on {}: no row-exact verify kernels here, so greedy output can differ from --spec off where a \
+                 verify row's argmax differs from the single-row decode's",
+                model.backend.name()
+            );
+        } else if model.backend.name() != "metal" || model.tp_world() > 1 {
             return Err(Error::Unsupported(format!(
                 "--spec {:?} needs the Metal backend without tensor parallelism (backend {}, tp {})",
                 opts.spec.mode,

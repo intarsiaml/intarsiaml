@@ -186,24 +186,20 @@ impl Model {
         }
         // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
         let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
-        // the conv folded into the delta rule (`GdnConvDelta`: the conv output is never stored) when the backend has it;
-        // otherwise the two ops as before, in the same order
-        let folded = self.try_fused(
-            Op::GdnConvDelta,
-            vec![qkv.clone(), g.conv.clone(), a.clone(), b.clone(), g.a_log.clone(), g.dt_bias.clone()],
-            vec![core.clone(), s_state.clone(), conv_state.clone()],
-            delta_attrs.clone(),
-            profile,
-        )?;
-        if !folded {
-            self.exec(
-                Op::GdnConv,
-                vec![qkv, g.conv.clone()],
-                vec![conv.clone(), conv_state],
-                OpAttrs::default(),
-                profile,
-            )?;
-            self.exec(Op::GdnDeltaRule, vec![conv, a, b, g.a_log.clone(), g.dt_bias.clone()], vec![core.clone(), s_state], delta_attrs, profile)?;
+        if self.verifying() && t > 1 {
+            // speculative verify: one row at a time (each call is the decode step's), and the slot's state after every row
+            // but the last saved for the rollback (`SequenceState::spec_rollback`)
+            let save = st.spec_rows.bufs.len() >= t - 1 && self.recorder.lock().unwrap().is_none();
+            let off = st.recurrent_offset(g.slot);
+            for r in 0..t {
+                let (qkv, a, b, conv, core) = (qkv.rows(r, 1), a.rows(r, 1), b.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
+                self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
+                if save && r + 1 < t {
+                    self.backend.copy(&st.spec_rows.bufs[r], off, &rec.buf, 0, rec.bytes, 0)?;
+                }
+            }
+        } else {
+            self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
         }
         // gated RMSNorm: rmsnorm(core, w) * silu(z), over rows of dv (the weight is never zero-centred)
         let rows = [t * hv, dv];
@@ -249,5 +245,41 @@ impl Model {
         // row-parallel under tensor parallelism (out_proj holds this rank's value heads' columns): the partial sum, then
         // the all-reduce; without it, exactly the projection
         self.proj_reduce(&core.reshaped(&[t, vdim]), &g.out, out, t, profile)
+    }
+
+    /// The conv and the delta rule of a block's `qkv` rows: folded into one launch (`GdnConvDelta`: the conv output is never
+    /// stored) when the backend has it, otherwise the two ops, in that order.
+    #[allow(clippy::too_many_arguments)]
+    fn conv_delta(
+        &self,
+        g: &GdnBlock,
+        qkv: &TensorRef,
+        a: &TensorRef,
+        b: &TensorRef,
+        conv: &TensorRef,
+        core: &TensorRef,
+        s_state: &TensorRef,
+        conv_state: &TensorRef,
+        delta_attrs: &OpAttrs,
+        profile: bool,
+    ) -> Result<()> {
+        let folded = self.try_fused(
+            Op::GdnConvDelta,
+            vec![qkv.clone(), g.conv.clone(), a.clone(), b.clone(), g.a_log.clone(), g.dt_bias.clone()],
+            vec![core.clone(), s_state.clone(), conv_state.clone()],
+            delta_attrs.clone(),
+            profile,
+        )?;
+        if !folded {
+            self.exec(Op::GdnConv, vec![qkv.clone(), g.conv.clone()], vec![conv.clone(), conv_state.clone()], OpAttrs::default(), profile)?;
+            self.exec(
+                Op::GdnDeltaRule,
+                vec![conv.clone(), a.clone(), b.clone(), g.a_log.clone(), g.dt_bias.clone()],
+                vec![core.clone(), s_state.clone()],
+                delta_attrs.clone(),
+                profile,
+            )?;
+        }
+        Ok(())
     }
 }

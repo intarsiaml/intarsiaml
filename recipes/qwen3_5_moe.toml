@@ -1,7 +1,8 @@
 # Qwen3.5 / Qwen3.6 hybrid MoE (Qwen3_5MoeForConditionalGeneration, e.g. Qwen3.6-35B-A3B): GatedDeltaNet layers and
 # gated full-attention layers interleaved by config.json text_config.layer_types (3x linear_attention, then 1x
 # full_attention), zero-centred RMSNorm, partial rotary (0.25 of head_dim), sparse MoE FFN with a gated shared expert.
-# Text weights live under model.language_model.*; the vision tower and the MTP head are ignored.
+# Text weights live under model.language_model.*; the vision tower is ignored, the MTP head ([mtp]) is loaded only for
+# `--spec mtp`.
 # Quantisation (FP8 projections, NVFP4 routed experts) is detected per tensor from the checkpoint, not named here.
 [model]
 match.architectures = ["Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausalLM"]
@@ -84,3 +85,12 @@ prefill_chunk = 4096
 # (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8: on this model decode-written KV moves the rows more than that).
 [accuracy]
 chat_turns = "chatml"
+
+# Multi-token-prediction head (`mtp.*`, bf16 in the NVFP4 checkpoint): fc over [norm(embed) | norm(hidden)], one gated
+# full-attention + MoE layer, a final norm, the model's lm_head. Read only by `--spec mtp` (speculative decoding with
+# the head as drafter, docs/results/2026-10-22-mtp-spec-decode.md); without that flag nothing under `mtp.*` is loaded.
+
+[mtp]
+
+kind = "qwen3_5_mtp"
+prefix = "mtp"

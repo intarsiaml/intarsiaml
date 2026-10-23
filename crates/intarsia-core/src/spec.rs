@@ -15,6 +15,10 @@ pub enum SpecMode {
     Off,
     /// Prompt-lookup drafting over prompt + generated ids, verified in one multi-row pass.
     Ngram,
+    /// The checkpoint's multi-token-prediction head drafts (`crate::model::mtp`, recipe `[mtp]`), verified the same way.
+    /// Works on models with recurrent state: the verify pass keeps the state after every row
+    /// (`crate::state::SpecRows`).
+    Mtp,
 }
 
 /// Longest suffix the drafter matches.
@@ -55,7 +59,8 @@ impl SpecConfig {
         let mode = match mode {
             "off" | "none" | "" => SpecMode::Off,
             "ngram" => SpecMode::Ngram,
-            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off or ngram)"))),
+            "mtp" => SpecMode::Mtp,
+            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram or mtp)"))),
         };
         if !(1..=SPEC_K_MAX).contains(&k) {
             return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={SPEC_K_MAX}")));
@@ -334,6 +339,7 @@ mod tests {
         assert!(SpecConfig::parse("ngram", 7).is_err());
         assert!(SpecConfig::parse("ngram", 0).is_err());
         assert!(SpecConfig::parse("draft", 4).is_err());
+        assert_eq!(SpecConfig::parse("mtp", 2).unwrap(), SpecConfig { mode: SpecMode::Mtp, k: 2 });
     }
 
     fn gate(fails: u32, skip0: u32, skip_max: u32) -> SpecGate {
