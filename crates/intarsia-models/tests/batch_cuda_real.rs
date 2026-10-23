@@ -254,6 +254,51 @@ fn real_35b_batch_step_timing() {
     }
 }
 
+/// B2 (Fable review): the cost of a batched step whose rows are SAMPLED, on the host path (`LastLogits`: one [B, V] download and a
+/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only, `INTARSIA_DEVICE_SAMPLING=1`).
+/// Same seeds, so the two draw the same tokens when the states are the same; the token parity is gated by the engine test
+/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with the knob on).
+#[test]
+#[ignore]
+fn real_35b_batch_step_sampled_timing() {
+    use intarsia_core::model::{HeadMode, StepOut};
+    use intarsia_core::sampler::{Sampler, SamplingParams};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    std::env::set_var("INTARSIA_DEVICE_SAMPLING", "1");
+    let m = load(&dir, be, 16, 2048);
+    let params = SamplingParams { temperature: 0.8, top_k: 40, top_p: 0.9 };
+    let mut states: Vec<_> = (0..16)
+        .map(|i| {
+            let mut st = m.new_state().unwrap();
+            let p: Vec<u32> = (0..900 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
+            m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+            st
+        })
+        .collect();
+    let steps = 24;
+    for b in [4usize, 16] {
+        for device in [false, true] {
+            let mut samplers: Vec<Sampler> = (0..b).map(|i| Sampler::new(params.clone(), Some(7 + i as u64))).collect();
+            let mut toks: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
+            let modes = vec![if device { HeadMode::LastTopK(40) } else { HeadMode::LastLogits }; b];
+            let t0 = std::time::Instant::now();
+            for _ in 0..steps {
+                let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+                let out = m.forward_batch(&mut refs, &toks, &modes).unwrap();
+                for (r, o) in out.iter().enumerate() {
+                    toks[r] = match o {
+                        StepOut::Logits(l) => samplers[r].sample(l) as u32,
+                        StepOut::TopK { ids, vals } => samplers[r].sample_topk(ids, vals) as u32,
+                        o => panic!("unexpected {o:?}"),
+                    };
+                }
+            }
+            let ms = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
+            eprintln!("TIMING sampled B={b:>2} {}: {ms:.2} ms/step incl. host sampling, {:.1} tok/s aggregate", if device { "device top-k" } else { "host      " }, b as f64 * 1e3 / ms);
+        }
+    }
+}
+
 /// Per-op calls and time of 8 profiled batched steps at B = 4 and at B = 16 (profiling syncs after each op, so the sum
 /// is above the unprofiled step; the shares are what to read).
 #[test]
