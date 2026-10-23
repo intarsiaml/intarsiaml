@@ -62,9 +62,8 @@ Implementation (`crates/intarsia-core/src/model/mtp.rs`):
   That holds where each op of the verify pass has a `rows_exact` kernel. The cpu backend loops over rows, so it holds there.
 - Metal registers `rows_exact` kernels only for bf16 GEMV / pair / logits and split-KV attention. CUDA registers none.
   So on the 35B (FP8 projections, NVFP4 experts and head, GatedDeltaNet), `--spec mtp` on a GPU emits the verify path's
-  argmax. Where that differs from the M = 1 path, the output would differ. On 12 (prompt, k) cases, 3,072 tokens, it
-  never did; the row-level mismatch rate is not yet measured (3.1).
-  The logit-level comparison was deferred.
+  argmax. Where that differs from the M = 1 path, the output would differ. Measured on CUDA: 6,430 of 6,430 verify rows
+  bitwise equal to the M = 1 rows (3.1). That comes from the current small-M kernel selection, not a registry guarantee.
 - The GatedDeltaNet conv and delta rule run one row at a time inside a verify pass (below). That keeps those two ops
   bitwise equal to decode on every backend.
 
@@ -163,32 +162,86 @@ Acceptance rates are identical to 3.0 to the decimal. Drafts and verify argmaxes
 empty. The box then rebooted without a clean shutdown and was back up at 23:01:52. The journal of that boot ends at
 22:49:14, so its last ten minutes were never flushed. spark1 went down without a shutdown twice more: the next boot's
 journal ends at 23:07:32 (back up 23:23:31), and the one after at 23:38:24 (back up 23:45:11). None of my jobs had a
-process on the box at those times. The cause is not established: the new driver, the diagnostic run, or both.
+process on the box at those times. **Cause (coordinator, unanimis 3c990acc):** the hardware watchdog. `sbsa_gwdt` was
+blacklisted by Tegra packages that came in with #4301, so every boot reset about 21 min in. Fixed at 00:07. It was not
+the diagnostic run; the check later ran clean on spark1 (3.1).
 
-### 3.1 What the identity runs show, and what they don't (logit-level check deferred)
+### 3.1 Verify rows vs single-row decode: measured bitwise (spark1, `INTARSIA_MTP_VERIFY_CHECK`)
 
-**Claim.** `--spec mtp` on CUDA is *self-consistent greedy over the verify rows*: every emitted token is the argmax of a
-verify row. It was *empirically identical* to `--spec off` on 12 (prompt, k) cases, 3,072 emitted tokens. The
-*row-level argmax mismatch rate against the M = 1 path is not yet measured.*
+**Result:** **6,430 of 6,430 verify rows are bitwise equal to the single-row decode step: max |dlogit| = 0.** That is 0
+argmax mismatches. The 5,081 rows that chose an emitted token (every earlier draft accepted) also have 0 mismatches. 23
+rows (18 of them deciding) had a top-2 logit margin under 1e-2, so near-ties were present, and still bitwise. Runs
+without the check produce the same greedy tokens as `--spec off` in all 12 (prompt, k) cases plus the k=2 re-check (3.0,
+3.0b, F).
 
-- **Not structural.** CUDA has no row-exact verify kernels. Only the GatedDeltaNet conv and delta rule run as t = 1
-  launches inside a verify pass. Attention runs `attn_prefill` (split-KV) over q rows, the MoE runs its grouped multi-row
-  path, and the projections run GEMM where decode runs GEMV. A different accumulation order can flip a near-tie argmax,
-  after which the output diverges from `--spec off`. It stays valid greedy output over the verify path.
-- **What the evidence is.** 3.0 and 3.0b ran the same 12 cases (4 short prompts x k = 1..3, 256 tokens) twice and gave
-  byte-identical acceptance counts. So "24/24" is 12 independent cases run twice: 3,072 emitted tokens per run set, 2,496
-  verify passes over both sets. Short low-entropy prompts and 256 tokens cannot bound a near-tie flip rate. A 4k-token
-  prose generation could diverge.
-- **Deferred.** `INTARSIA_MTP_VERIFY_CHECK=1` measures it: each verify pass's rows are re-run as single-row decode steps
-  from the same state, with max |dlogit| and argmax agreement per row. Its first run was in progress when spark1 crashed
-  (3.0b), so the coordinator deferred it and it was not run on spark2. To run it later: >= 2k tokens on a high-entropy
-  prompt; report the max |dlogit| distribution, the argmax mismatch count, and the count of rows with a top-2 margin
-  under 1e-2.
-- **Diagnostic caveats.** It takes a recurrent snapshot per pass, which evicts prompt-chunk snapshots, so prefix reuse
-  differs while it is on. Its output per row is `max|dlogit|:argmax-agrees:top-2 margin:decides` (single-row logits; `decides` = every earlier
-  draft was accepted, so the row chose an emitted token).
+**Setup:**
+- fleetq #4414, spark1 after its watchdog fix (unanimis 3c990acc), quiet slot, commit baff10f0 (0211d16f + the
+  diagnostic's margin output).
+- k = 2. The 4 identity prompts x 256 tokens plus two high-entropy prose prompts x 2,048 tokens (a short story, a free
+  essay; 60.0% and 71.7% acceptance).
+- Each verify pass's 3 rows are re-run as single-row decode steps from the same state (graph-replayed M = 1 path, logits
+  downloaded) and compared element-wise. Rows 0 / 1 / 2: 2,144 / 2,144 / 2,142, all bitwise.
+- spark1 stayed up through the run (uptime 1:25 -> 1:32).
+- Raw: `raw/verify-check/` (`summary.json`, per-prompt stderr with every `spec-check:` line), `raw/verify-check.log`.
+  Script: `scripts/verify-check.sh`.
 
-### 3.4 What a pass costs, and when a draft pays
+**Why bitwise without `rows_exact` kernels:**
+- At q <= 3 rows the CUDA registry selects the GEMV kernels for every projection. The verify-pass kernel line in
+  `raw/speed/serve-*-mtp2.log` reads `matmul_fp8=matmul_fp8_gemv matmul=matmul_bf16_gemv matmul_nvfp4=matmul_nvfp4_gemv`.
+  Each row is computed as in the M = 1 launch.
+- The MoE path and the split-KV `attn_prefill` row loop give the same per-row arithmetic at this size, and the
+  GatedDeltaNet runs one row per call (1.4).
+- So this is a property of the current kernel selection, measured, not a registry guarantee. A future kernel or
+  selection change for small M could break it, and nothing in the build would fail. The startup warning
+  (`--spec mtp on cuda: no row-exact verify kernels…`) stays.
+- To make it structural, mark these CUDA kernels `rows_exact` (as Metal's are) so the verify dry-run fails the load when
+  a non-exact kernel would be chosen. Follow-up.
+
+**Correction.** The Fable review's premise that projections run GEMM in the verify pass does not hold at q <= 3.
+Its recommendation to measure rather than assume stands, and this is that measurement.
+
+**Diagnostic caveats.** `INTARSIA_MTP_VERIFY_CHECK` takes a recurrent snapshot per pass, which evicts prompt-chunk
+snapshots, so prefix reuse differs while it is on. It slows decode to about 26 tok/s. Its output per row is
+`max|dlogit|:argmax-agrees:top-2 margin:decides`.
+
+### 3.2 localeval window: decode tok/s at 128 / 1k / 4k, k sweep (spark2, quiet slot, retro down)
+
+- **Setup.** fleetq #4399 on spark2, commit 0211d16f. `retro` vLLM was stopped for the window (00:42:05-01:03:38, 21
+  min, `raw/downtime.log`), so the slot was quiet. `intarsia serve --backend cuda --max-seq 20480 --mem-budget 30
+  --profile-every 0 [--spec mtp --spec-k K]` and `localeval speed --sizes 128,1024,4096 --gen 128 --reps 3 --thinking
+  off`.
+- **Order.** Three passes, arms interleaved: p1 off, 1, 2, 3; p2 3, 2, 1, off; p3 2, off, 3, 1. Each cell is the median
+  of the three passes' medians, with the range across passes.
+- **Lanes.** The MTP arms are labelled `spec-mtp-k<K>-p<N>` (composer: spec lane). The off arm is plain decode.
+- **Raw.** `raw/speed/localeval-*.txt`, `metrics-*.txt` (server spec counters) and `serve-*.log`.
+
+| arm | 128 | 1k | 4k | acceptance (all sizes) | tokens / pass |
+|---|---|---|---|---|---|
+| off | 84.3 (84.1-84.4) | 83.8 (83.6-83.8) | 81.2 (81.2-81.3) | - | 1 |
+| k=1 | 86.0 (85.4-86.1) | 84.7 (83.3-86.5) | 87.2 (87.0-88.2) | 76.9% | 1.77 |
+| k=2 | 86.3 (85.2-86.7) | 87.8 (82.9-89.3) | 88.5 (83.3-93.3) | 62.8% | 2.25 |
+| k=3 | 75.3 (74.7-79.8) | 80.4 (80.3-82.3) | 87.0 (77.9-90.8) | 51.6% | 2.54 |
+
+- **Gain at k=2:** +2.4% at 128, +4.8% at 1k, +9.0% at 4k against off.
+- **Noise.** Under the composer's 5% decode floor at 128 and 1k, with overlapping ranges at 1k: a **tie** at 128 and 1k.
+  A small win at 4k, where plain decode slows with context but a verify pass amortises its attention over 2.25 tokens.
+- **Why so much less than the code / arithmetic prompts of 3.0b** (+16-33% at k=2): localeval's speed prompts accept far
+  less. 62.8% of drafts at k=2 against 70-93%, so 2.25 tokens per pass against 2.4-2.85. At pass(2) ≈ 25 ms vs 11.6 ms
+  per plain step (3.3), break-even is 2.16 tokens per pass. 2.25 predicts about +4%, as measured.
+- **The gain depends on content.** It needs acceptance above about 0.45 per draft position. Ideas A and C (section 4)
+  lower that threshold.
+- **localeval run ids** (`/opt/code/deepeval/results/`, all also logged to unanimis):
+  - off: 20261023-004820-adhoc-mtp-lane-plain-off-p1, -005554-…-p2, -005758-…-p3
+  - k=1: 20261023-004928-adhoc-spec-mtp-k1-p1, -005457-…-p2, -010007-…-p3
+  - k=2: 20261023-005029-adhoc-spec-mtp-k2-p1, -005351-…-p2, -005702-…-p3
+  - k=3: 20261023-005136-adhoc-spec-mtp-k3-p1, -005244-…-p2, -005900-…-p3
+- **k default.** k = 2 is the best fixed choice. It is never worse than k = 1 by more than the noise, wins at 1k and 4k,
+  and k = 3 loses at 128 and 1k. `MTP_K_DEFAULT = 2` stays.
+- **First attempt.** A first window (#4371 at ef518fd7, 10 min of retro downtime) aborted on its first MTP arm. The
+  server refused the head's `Add` with "no kernel … [admitted kernels only]", because the plan dry-run never ran the head
+  (review finding 5). The window script's guard stopped it before any wrong number was recorded. Fixed in 56e453b3.
+
+### 3.3 What a pass costs, and when a draft pays
 
 From the committed logs. Off-arm decode is 2963-2999 ms for 256 steps, about **11.6 ms per step**. 256 of 257 steps are
 graph replays (`raw/identity/p*-off.err`).
@@ -216,44 +269,7 @@ token download, so host time is device time there.
 - **The localeval window must confirm this** with the 128/1k/4k numbers (3.2). The default k = 2 is the best fixed choice
   under this cost. Idea C (section 4) makes the fixed choice moot.
 
-### 3.2 localeval window: decode tok/s at 128 / 1k / 4k, k sweep (spark2, quiet slot, retro down)
-
-- **Setup.** fleetq #4399 on spark2, commit 0211d16f. `retro` vLLM was stopped for the window (00:42:05-01:03:38, 21
-  min, `raw/downtime.log`), so the slot was quiet. `intarsia serve --backend cuda --max-seq 20480 --mem-budget 30
-  --profile-every 0 [--spec mtp --spec-k K]` and `localeval speed --sizes 128,1024,4096 --gen 128 --reps 3 --thinking
-  off`.
-- **Order.** Three passes, arms interleaved: p1 off, 1, 2, 3; p2 3, 2, 1, off; p3 2, off, 3, 1. Each cell is the median
-  of the three passes' medians, with the range across passes.
-- **Lanes.** The MTP arms are labelled `spec-mtp-k<K>-p<N>` (composer: spec lane). The off arm is plain decode.
-- **Raw.** `raw/speed/localeval-*.txt`, `metrics-*.txt` (server spec counters) and `serve-*.log`.
-
-| arm | 128 | 1k | 4k | acceptance (all sizes) | tokens / pass |
-|---|---|---|---|---|---|
-| off | 84.3 (84.1-84.4) | 83.8 (83.6-83.8) | 81.2 (81.2-81.3) | - | 1 |
-| k=1 | 86.0 (85.4-86.1) | 84.7 (83.3-86.5) | 87.2 (87.0-88.2) | 76.9% | 1.77 |
-| k=2 | 86.3 (85.2-86.7) | 87.8 (82.9-89.3) | 88.5 (83.3-93.3) | 62.8% | 2.25 |
-| k=3 | 75.3 (74.7-79.8) | 80.4 (80.3-82.3) | 87.0 (77.9-90.8) | 51.6% | 2.54 |
-
-- **Gain at k=2:** +2.4% at 128, +4.8% at 1k, +9.0% at 4k against off.
-- **Noise.** Under the composer's 5% decode floor at 128 and 1k, with overlapping ranges at 1k: a **tie** at 128 and 1k.
-  A small win at 4k, where plain decode slows with context but a verify pass amortises its attention over 2.25 tokens.
-- **Why so much less than the code / arithmetic prompts of 3.0b** (+16-33% at k=2): localeval's speed prompts accept far
-  less. 62.8% of drafts at k=2 against 70-93%, so 2.25 tokens per pass against 2.4-2.85. At pass(2) ≈ 25 ms vs 11.6 ms
-  per plain step (3.4), break-even is 2.16 tokens per pass. 2.25 predicts about +4%, as measured.
-- **The gain depends on content.** It needs acceptance above about 0.45 per draft position. Ideas A and C (section 4)
-  lower that threshold.
-- **localeval run ids** (`/opt/code/deepeval/results/`, all also logged to unanimis):
-  - off: 20261023-004820-adhoc-mtp-lane-plain-off-p1, -005554-…-p2, -005758-…-p3
-  - k=1: 20261023-004928-adhoc-spec-mtp-k1-p1, -005457-…-p2, -010007-…-p3
-  - k=2: 20261023-005029-adhoc-spec-mtp-k2-p1, -005351-…-p2, -005702-…-p3
-  - k=3: 20261023-005136-adhoc-spec-mtp-k3-p1, -005244-…-p2, -005900-…-p3
-- **k default.** k = 2 is the best fixed choice. It is never worse than k = 1 by more than the noise, wins at 1k and 4k,
-  and k = 3 loses at 128 and 1k. `MTP_K_DEFAULT = 2` stays.
-- **First attempt.** A first window (#4371 at ef518fd7, 10 min of retro downtime) aborted on its first MTP arm. The
-  server refused the head's `Add` with "no kernel … [admitted kernels only]", because the plan dry-run never ran the head
-  (review finding 5). The window script's guard stopped it before any wrong number was recorded. Fixed in 56e453b3.
-
-### 3.3 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
+### 3.4 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
 
 ## 4. Next (not in this PR)
 
