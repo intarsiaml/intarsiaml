@@ -118,6 +118,90 @@ main, so batching-off and lt-off output is trivially main's.
    from the lt build, which is the user's call.
 3. Default-on, and the chunk 8192 recipe change, remain the user's calls (LOG 2026-10-23 15:40).
 
+## Option (A), user-chosen 2026-10-23: CPU oracles for the failing `continue` rows
+
+**With the new oracles, every arm passes the prefix-reuse gate at every chunk run: default, lt and f8 at chunks 1024, 1536,
+2048 and 4096 (15/15 rows; 9/9 at 4096, where the two 4k prompts are skipped). This covers lt's three formerly failing
+cells.** The rule and its constants are unchanged: oracle-relative, warm <= 1.5 x cold + 3e-3. The oracles only change which
+judge applies to `chat_reuse_4k` and `long_code_4k`, as `long_docs_4k` already had.
+
+New committed oracles in `golden/oracle/` (f64 CPU, fx1/fx5c recipe: chunk 256, top-64; spark1; 15.4 to 17.8 min and 37.8 GB
+RSS each):
+
+| file | split | frozen at chunk | sha256 |
+|---|---|---|---|
+| `qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors` | 4521 | 2048 | `cb8f9cad3fe3a341d9c5688055720018ec7780f4f33d73637baa2267545ea515` |
+| `qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors` | 2000 | 1024 | `a86435dc358ebc1565d5035bd9cd6a4823d601b5298470e1217c8edbde82a7d2` |
+| `qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors` | 3072 | 2048 | `9fc22c46158512f753652a73724eac529c46376c4074df753e950fa85d3a3169` |
+
+The sequences are the default CUDA build's cold greedy stream (`scripts/lt/dump.sh`, fleetq #4700; seq.json and logs in
+`raw/oracle/`). The oracles are fleetq #4704 (`scripts/lt/oracle.sh`), packed by `scripts/fx5c/make_continue_oracle.py`.
+
+**Drift relative to the reference, per row** (`raw/g/`, fleetq #4711 on spark1 and #4712 on spark2). Each cell gives the
+mean KL(oracle || cold), then the mean KL(oracle || warm), then the warm/cold ratio, over 32 teacher-forced rows. All cells
+PASS.
+
+| prompt | chunk | default | lt | f8 |
+|---|---|---|---|---|
+| chat_reuse_4k | 1024 | 4.70e-3, 5.50e-3, 1.17x | 4.38e-3, 4.86e-3, 1.11x | 6.20e-3, 7.90e-3, 1.27x |
+| chat_reuse_4k | 1536 | 5.32e-3, 4.83e-3, 0.91x | 6.23e-3, 6.98e-3, 1.12x | 5.67e-3, 6.36e-3, 1.12x |
+| chat_reuse_4k | 2048 | 5.05e-3, 6.50e-3, 1.29x | 5.07e-3, 4.38e-3, 0.86x | 4.67e-3, 3.01e-3, 0.64x |
+| chat_reuse_4k | 4096 | 5.63e-3, 2.66e-3, 0.47x | 3.69e-3, 5.54e-3, 1.50x (limit 8.53e-3) | 4.54e-3, 6.50e-3, 1.43x |
+| long_code_4k | 1024 | 2.80e-3, 3.09e-3, 1.10x | 4.55e-3, 2.30e-3, 0.51x | 4.51e-3, 3.02e-3, 0.67x |
+| long_code_4k | 1536 | 8.45e-3, 1.94e-3, 0.23x | 4.94e-3, 2.10e-3, 0.43x | 3.12e-3, 1.77e-3, 0.57x |
+| long_code_4k | 2048 | 7.23e-3, 1.02e-2, 1.41x | 1.03e-2, 1.25e-2, 1.22x | 9.18e-3, 8.37e-3, 0.91x |
+| long_docs_4k | 1024 | 1.83e-2, 1.52e-2, 0.83x | 1.62e-2, 1.28e-2, 0.79x | 1.85e-2, 1.90e-2, 1.02x |
+| long_docs_4k | 1536 | 1.85e-2, 1.40e-2, 0.76x | 1.61e-2, 1.49e-2, 0.92x | 1.59e-2, 1.83e-2, 1.16x |
+| long_docs_4k | 2048 | 1.40e-2, 1.59e-2, 1.13x | 1.72e-2, 1.53e-2, 0.89x | 1.44e-2, 2.11e-2, 1.46x |
+
+The oracle answers the question point 3 left open: lt's warm runs are no further from the truth than the default's.
+- **Warm/cold ratio:** lt ranges from 0.43x to 1.50x (median 0.90x), the default from 0.23x to 1.41x (median 0.97x) and f8
+  from 0.57x to 1.46x.
+- **Absolute distance:** lt's cold and warm distances to the oracle fall in the default's range on every prompt.
+- **lt's highest ratio:** `chat_reuse_4k` at 4096 (1.50x) passes on the 3e-3 floor, at a cold KL (3.69e-3) lower than the
+  default's.
+- **The 12k prompts** have no oracle and still pass by the absolute rule for every arm. lt at 4096 diverges at token 28 on
+  `long_docs_12k`, inside the 16-token grace rule.
+
+**Recommendation on default-on.**
+- **Reuse:** lt now passes every prefix-reuse row. Its drift against the reference cannot be told from the default's.
+- **KL goldens:** inside their floors, and equal to the default's.
+- **acc-short absolute floor:** passes.
+- **What blocks default-on:** only `acc-short`'s baseline-relative gate. That gate is relative to main's exact numerics. The
+  user said not to re-record it, and any other accumulation fails it too (f8, by more than lt).
+- **Recommended:** make lt default-on at the chunk the user picks (8192 gives +8.6 % / +6.4 % against vLLM at 4k / 16k),
+  with the acc-short baseline re-recorded from the lt build as part of that same change.
+- **Until then:** lt stays opt-in.
+
+Not covered: the acc-4k stage's reuse runs on the 4k golden, which needs `-g4k` variants of these oracles (fx5c's naming).
+They were not built. Chunk 8192 judges only the two 12k prompts.
+
+## Handoff (2026-10-23 19:05 EDT, before the 23:00 rack move)
+
+**Done:**
+- the three oracles, committed;
+- 12 judging runs, all PASS;
+- results above;
+- all fleetq jobs released.
+
+**Left:**
+1. **The user decides** on default-on and the acc-short baseline.
+2. **Optional:** build `-g4k` oracles for the acc-4k golden, so that qualify's acc-4k reuse also uses the oracle rule.
+   - Same commands as below, with
+     `--golden .../qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors` in `scripts/lt/dump.sh`.
+   - Then pass that golden to `make_oracle_input.py` and `make_continue_oracle.py`.
+   - Then rename the output with fx5c's `-g4k` suffix.
+3. **Optional:** a chunk 8192 judging run.
+
+**Commands** (spark1 and spark2 both have `lt-base` = main 240e9d2a and the oracles in `~/intarsia-decfuse/pf-golden/oracle/`):
+```
+FLEETQ_OWNER=claude-f31ccf91-lt fleetq run --host spark1 --quiet gpu,cpu --mem 45 --expect 15 -- scripts/lt/rjob.sh spark1 lt/dump.sh o1 lt-base chat_reuse_4k:2048 long_code_4k:1024 long_code_4k:2048
+uv run --project tools python scripts/fx5c/make_oracle_input.py <seq.json> golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors <input.safetensors>   # then rsync to out/o1/<name>/
+FLEETQ_OWNER=claude-f31ccf91-lt fleetq run --host spark1 --load cpu --mem 40 --expect 75 -- scripts/lt/rjob.sh spark1 lt/oracle.sh o1 lt-base chat_reuse_4k-c2048 long_code_4k-c1024 long_code_4k-c2048
+uv run --project tools python scripts/fx5c/make_continue_oracle.py <seq.json> <oracle.dump.safetensors> golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors <prompt> golden/oracle --machine ... --run ...
+FLEETQ_OWNER=claude-f31ccf91-lt fleetq run --host spark1 --quiet gpu,cpu --mem 45 --expect 55 -- scripts/lt/rjob.sh spark1 lt/reuse.sh g1 def1024:lt-base:1024 lt1024:lt-base:1024:INTARSIA_CUDA_FP8_GEMM_LT=1 f81024:lt-base:1024:INTARSIA_CUDA_FP8_GEMM_F8=1 ...
+```
+
 ## fleetq jobs (owner `claude-f31ccf91-lt`)
 
 | job | what |
@@ -131,3 +215,7 @@ main, so batching-off and lt-off output is trivially main's.
 | #4679 | acc-short attempt, which errored: unstamped baseline |
 | #4690 | acc-short as2 |
 | #4691 | GPU tests, `docs_env_vars` and `kernels test --quick` |
+| #4697 | `kernels test --quick` FAIL count |
+| #4700 | sequence dumps |
+| #4704 | CPU oracles |
+| #4711, #4712 | oracle judging |
