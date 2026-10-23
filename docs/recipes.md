@@ -163,6 +163,16 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 | `decode_positions` | int | `16` | `intarsia qualify` quick tier (`acc-short`): teacher-forced decode positions per prompt, clamped to the prompt length - 1. Raise it for a model whose decode top-1 is noisy at 16 positions (160 rows on the short golden); the gate is unchanged. |
 | `ref_noise_prompt_factor` | float | `3.0` | `--self-golden --self-vs-ref-noise`: how many times the reference noise the worst prompt's mean KL may be. A per-golden value wins. |
 
+### `[mtp]` (multi-token-prediction head; read only by `--spec mtp`)
+
+The checkpoint's MTP head, used as the speculative drafter by `--spec mtp` (docs/results/2026-10-22-mtp-spec-decode.md).
+Without that flag nothing under the prefix is loaded and the table has no effect.
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `kind` | string | required | `"qwen3_5_mtp"`: `fc` over `[norm(embed(token)) \| norm(hidden)]`, one gated full-attention + MoE decoder layer, a final norm, the model's own `lm_head` (vLLM `Qwen3NextMultiTokenPredictor`). |
+| `prefix` | string | required | Tensor-name prefix (`"mtp"`): `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`, `{prefix}.layers.0.*`. |
+
 ## Worked example 1: a dense model (Qwen3-8B)
 
 Pure GQA plus SwiGLU, qk-norm, one block pattern for every layer. This is `recipes/qwen3.toml` without the tuning
