@@ -42,7 +42,7 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mtp/spec-decode",
   "base_commit": "a92267b038f942466c77a5572a7750440eb9d59e",
-  "head_commit": "68093b40",
+  "head_commit": "baff10f0",
   "pr": "https://github.com/intarsiaml/intarsiaml/pull/110",
   "files": [
    "crates/intarsia-cli/src/common.rs",
