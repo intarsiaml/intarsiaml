@@ -64,6 +64,9 @@ pub struct EngineOptions {
     pub spec_off_at: Option<usize>,
     /// The server's `--busy-chunk` (batched engine only; `None`: the scheduler default, 256).
     pub busy_chunk: Option<usize>,
+    /// Content-addressed prefix store (`--prefix-store`, docs/results/2026-10-22-pc-prefix-store.md). `None`: the
+    /// `INTARSIA_PREFIX_STORE` environment variable decides (unset: off). Single-sequence engine only.
+    pub prefix_store: Option<intarsia_core::prefix_store::PrefixStoreConfig>,
 }
 
 fn read_json(p: &Path) -> Result<Value> {
@@ -424,7 +427,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         eos_ids: eos_ids(dir, &cfg),
         reasoning_parser: recipe.model.reasoning_parser.clone(),
         tool_parser: recipe.model.tool_parser.clone(),
+        prefix_store: match &opts.prefix_store {
+            Some(c) => Some(c.clone()),
+            None => intarsia_core::prefix_store::PrefixStoreConfig::from_env()?,
+        },
     };
+    if meta.prefix_store.is_some() && max_batch.value > 1 {
+        return Err(Error::invalid("the prefix store needs the single-sequence engine (--max-batch 1)"));
+    }
     let engine: Arc<dyn Engine> = if max_batch.value > 1 {
         // the server admits at most max_queue + max_batch requests, so a queue of that size never fills first
         let queue = batch_queue(opts.max_queue, max_batch.value);

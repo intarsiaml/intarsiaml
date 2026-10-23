@@ -88,6 +88,10 @@ pub struct TelemetrySnapshot {
 
     /// Per-op cumulative time and call counts, keyed by op id (`rmsnorm`, `matmul`, ...).
     pub ops: BTreeMap<String, OpStat>,
+
+    /// Prefix store counters (`crate::prefix_store`); `None` when the store is off.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prefix_store: Option<crate::prefix_store::PrefixStoreSnapshot>,
 }
 
 struct Inner {
@@ -128,6 +132,8 @@ pub struct Telemetry {
     comm: Mutex<OpStat>,
     /// Free-memory probe for live device numbers (set by the engine).
     device_probe: Mutex<Option<Box<dyn Fn() -> DeviceInfo + Send + Sync>>>,
+    /// Latest prefix store counters (set by the engine after every store operation).
+    prefix_store: Mutex<Option<crate::prefix_store::PrefixStoreSnapshot>>,
 }
 
 fn now_ms() -> u64 {
@@ -175,6 +181,7 @@ impl Telemetry {
             }),
             comm: Mutex::new(OpStat::default()),
             device_probe: Mutex::new(None),
+            prefix_store: Mutex::new(None),
         }
     }
 
@@ -352,7 +359,13 @@ impl Telemetry {
                 }
                 ops
             },
+            prefix_store: self.prefix_store.lock().unwrap().clone(),
         }
+    }
+
+    /// Publish the prefix store's counters (the engine calls this after every store operation).
+    pub fn set_prefix_store(&self, s: crate::prefix_store::PrefixStoreSnapshot) {
+        *self.prefix_store.lock().unwrap() = Some(s);
     }
 }
 

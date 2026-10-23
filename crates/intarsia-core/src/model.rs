@@ -316,6 +316,12 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
+    /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
+    /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
+    skip_dead: std::sync::atomic::AtomicBool,
+    /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
+    tail_dead: std::sync::atomic::AtomicBool,
     /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
     mtp: Option<mtp::MtpHead>,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
@@ -371,6 +377,11 @@ impl Model {
     /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
     pub fn prefill_chunk(&self) -> usize {
         self.ws.max_tokens
+    }
+
+    /// Turn the dead-tail skip of non-final prefill chunks on or off (`INTARSIA_PREFILL_SKIP_DEAD`).
+    pub fn set_skip_dead(&self, on: bool) {
+        self.skip_dead.store(on, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Opt-in tail merge threshold in rows (`INTARSIA_PREFILL_TAIL_MERGE`; 0 = off, the default). See
@@ -961,6 +972,8 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
+            skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
+            tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: mtp_head,
             mtp_k,
         };
@@ -1167,6 +1180,16 @@ impl Model {
                     .collect()
             })
             .collect()
+    }
+
+    /// The slots a sequence state of this model holds (rank 0's; `crate::prefix_store` lays its entries out by them).
+    pub fn slot_specs(&self) -> &[SlotSpec] {
+        &self.slot_specs
+    }
+
+    /// Whether this model runs tensor-parallel (local peers or a remote rank).
+    pub fn is_tp(&self) -> bool {
+        !self.peers.is_empty() || self.remote.is_some()
     }
 
     /// Allocate a fresh sequence state with the planned KV capacity.
@@ -1554,7 +1577,17 @@ impl Model {
             if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
                 self.telemetry.decode_eager_step(profile);
             }
-            let hn = self.run_chunk(st, chunk, profile)?;
+            // a chunk whose rows feed no head: the last layer's work after its cache writes is dead (opt-in)
+            let feeds_head = match mode {
+                HeadMode::None => false,
+                HeadMode::LastLogits | HeadMode::LastArgmax => last,
+                HeadMode::AllLogits => true,
+            };
+            let dead = !feeds_head && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
+            self.tail_dead.store(dead, std::sync::atomic::Ordering::Relaxed);
+            let hn = self.run_chunk(st, chunk, profile);
+            self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+            let hn = hn?;
             match mode {
                 HeadMode::None => {}
                 HeadMode::LastLogits if last => {
@@ -1758,8 +1791,19 @@ impl Model {
             f
         };
 
-        for blocks in &self.layers {
+        // the dead tail (`Model::skip_dead`): one sequence, not a plan recording
+        let dead_tail = matches!(seqs, Seqs::One(_))
+            && dpos.is_none()
+            && self.tail_dead.load(std::sync::atomic::Ordering::Relaxed)
+            && !self.recorder.lock().unwrap().is_some();
+        let n_layers = self.layers.len();
+        for (li, blocks) in self.layers.iter().enumerate() {
+            let tail = dead_tail && li + 1 == n_layers;
             for block in blocks {
+                if tail && !matches!(block, Block::Attn(_) | Block::Gdn(_)) {
+                    // the last layer's FFN / MoE feeds only the final norm and the head
+                    continue;
+                }
                 match block {
                     Block::Gemma(g) => {
                         // a whole layer with its own residual handling: nothing is pending before or after it
@@ -1784,6 +1828,7 @@ impl Model {
                             norm_in(&a.pre_norm, pending, &mut cur)?;
                         }
                         match seqs {
+                            Seqs::One(st) if tail => self.attn_block_kv_only(a, st, &nv, t, pos0, kv_done, profile)?,
                             Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, kv_done, profile)?,
                             Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, profile)?,
                         }
@@ -1833,6 +1878,10 @@ impl Model {
                 }
                 pending = true;
             }
+        }
+        if dead_tail {
+            // nothing reads the hidden state of a chunk that feeds no head
+            return Ok(nv);
         }
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
@@ -2204,11 +2253,30 @@ impl Model {
         a: &AttnBlock,
         slot: &crate::state::AttnKvState,
         bufs: &AttnBufs,
+        qc: usize,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+        prologue: Option<OpCall>,
+        profile: bool,
+    ) -> Result<(TensorRef, usize)> {
+        self.attn_rows_core(a, slot, bufs, qc, t, pos0, dpos, prologue, true, profile)
+    }
+
+    /// [`Model::attn_rows`]; `core: false` stops after the KV append (the dead tail, [`Model::attn_block_kv_only`]):
+    /// the cache is written by exactly the same ops, the attention itself does not run.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_rows_core(
+        &self,
+        a: &AttnBlock,
+        slot: &crate::state::AttnKvState,
+        bufs: &AttnBufs,
         mut qc: usize,
         t: usize,
         pos0: usize,
         dpos: Option<&TensorRef>,
         prologue: Option<OpCall>,
+        core: bool,
         profile: bool,
     ) -> Result<(TensorRef, usize)> {
         let d = &self.ldims;
@@ -2276,6 +2344,9 @@ impl Model {
         }
 
         let attn_out = bufs.q[1 - qc].clone();
+        if !core {
+            return Ok((attn_out, qc));
+        }
         let attrs = OpAttrs {
             pos0,
             scale: 1.0 / (hd as f32).sqrt(),
@@ -2376,6 +2447,28 @@ impl Model {
         let (qc, gate) = self.attn_project(a, n, t, kv_done, prologue.is_some(), profile)?;
         let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, prologue, profile)?;
         self.attn_out_proj(a, &attn_out, gate, qc, out, t, profile)
+    }
+
+    /// [`Model::attn_block`] for the last layer of a chunk that feeds no head: the projections and the prologue that
+    /// writes the cache (k/v projection, k-norm, rope, KV append, or the fused gated prologue) run exactly as there; the
+    /// attention core and the output projection, whose results nothing reads, do not. (The q projection still runs: the
+    /// fused prologue takes q+gate as its input, and replacing it by the unfused k path could change the cache bits.)
+    fn attn_block_kv_only(
+        &self,
+        a: &AttnBlock,
+        st: &SequenceState,
+        n: &TensorRef,
+        t: usize,
+        pos0: usize,
+        kv_done: bool,
+        profile: bool,
+    ) -> Result<()> {
+        let slot = Self::attn_slot(st, a)?;
+        let bufs = self.attn_bufs(t);
+        let prologue = self.gate_qkv_call(a, slot, &bufs, t, pos0, None).filter(|c| self.fused_ok(c));
+        let (qc, _gate) = self.attn_project(a, n, t, kv_done, prologue.is_some(), profile)?;
+        let _ = self.attn_rows_core(a, slot, &bufs, qc, t, pos0, None, prologue, false, profile)?;
+        Ok(())
     }
 
     /// The KV cache slot attention block `a` reads and writes in `st`.

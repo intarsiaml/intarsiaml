@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" font-family="ui-sans-serif, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9aa4b2"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5fd3a0"/>
+    </marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#f2b45c"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="700" fill="#0f1218"/>
+  <text x="30" y="40" fill="#e6e9ef" font-size="20" font-weight="600">intarsiaml prefix store: tiers and request flow</text>
+  <text x="30" y="62" fill="#9aa4b2">content-addressed by (build fingerprint, token ids); only prefill-written state at points of the prompt's own chunk schedule</text>
+
+  <!-- clients -->
+  <rect x="30" y="90" width="230" height="150" rx="10" fill="#171c25" stroke="#2c3443"/>
+  <text x="45" y="115" fill="#e6e9ef" font-weight="600">clients</text>
+  <text x="45" y="140" fill="#c3cad5">POST /v1/chat/completions</text>
+  <text x="45" y="162" fill="#c3cad5">POST /v1/intarsia/prefill</text>
+  <text x="60" y="180" fill="#9aa4b2" font-size="12">(prewarm while typing, pin at startup)</text>
+  <text x="45" y="202" fill="#c3cad5">GET /metrics, /v1/intarsia/prefix-store</text>
+  <text x="45" y="224" fill="#c3cad5">built-in UI: Prefix store card</text>
+
+  <!-- engine -->
+  <rect x="300" y="90" width="430" height="300" rx="10" fill="#171c25" stroke="#2c3443"/>
+  <text x="315" y="115" fill="#e6e9ef" font-weight="600">LocalEngine worker (one SequenceState)</text>
+  <rect x="315" y="128" width="400" height="58" rx="6" fill="#1e2532" stroke="#3a4558"/>
+  <text x="327" y="150" fill="#e6e9ef">1. Seq::new: local reuse (common prefix, capped at the</text>
+  <text x="327" y="170" fill="#e6e9ef">   prefill-clean watermark and the schedule points)</text>
+  <rect x="315" y="194" width="400" height="58" rx="6" fill="#1e2532" stroke="#5fd3a0"/>
+  <text x="327" y="216" fill="#e6e9ef">2. store lookup: longest entry that is a prefix of the</text>
+  <text x="327" y="236" fill="#e6e9ef">   prompt; restore it if it beats the local prefix</text>
+  <rect x="315" y="260" width="400" height="58" rx="6" fill="#1e2532" stroke="#f2b45c"/>
+  <text x="327" y="282" fill="#e6e9ef">3. prefill_step: chunk = min(chunk, next boundary);</text>
+  <text x="327" y="302" fill="#e6e9ef">   insert at boundaries, grid points, prewarm end</text>
+  <rect x="315" y="326" width="400" height="50" rx="6" fill="#1e2532" stroke="#3a4558"/>
+  <text x="327" y="348" fill="#e6e9ef">4. last token + decode (decode-written rows never</text>
+  <text x="327" y="366" fill="#e6e9ef">   enter the store: watermark stops at the prompt)</text>
+
+  <path d="M260,165 L300,165" stroke="#9aa4b2" stroke-width="2" fill="none" marker-end="url(#a)"/>
+
+  <!-- prompt schedule -->
+  <rect x="30" y="420" width="700" height="250" rx="10" fill="#171c25" stroke="#2c3443"/>
+  <text x="45" y="445" fill="#e6e9ef" font-weight="600">one prompt (Qwen3.6 ChatML), its chunk schedule and its entries</text>
+  <g font-size="12">
+    <rect x="45" y="465" width="120" height="34" fill="#2a3a55"/><text x="52" y="487" fill="#e6e9ef">system + tools</text>
+    <rect x="165" y="465" width="150" height="34" fill="#25453b"/><text x="172" y="487" fill="#e6e9ef">user 1 (+ documents)</text>
+    <rect x="315" y="465" width="95" height="34" fill="#4a3d26"/><text x="322" y="487" fill="#e6e9ef">assistant 1</text>
+    <rect x="410" y="465" width="140" height="34" fill="#25453b"/><text x="417" y="487" fill="#e6e9ef">user 2</text>
+    <rect x="550" y="465" width="80" height="34" fill="#4a3d26"/><text x="555" y="487" fill="#e6e9ef">asst &lt;think&gt;</text>
+    <rect x="630" y="465" width="80" height="34" fill="#333"/><text x="640" y="487" fill="#9aa4b2">decode</text>
+    <!-- boundaries -->
+    <g stroke="#5fd3a0" stroke-width="2">
+      <line x1="165" y1="458" x2="165" y2="510"/>
+      <line x1="315" y1="458" x2="315" y2="510"/>
+      <line x1="410" y1="458" x2="410" y2="510"/>
+      <line x1="550" y1="458" x2="550" y2="510"/>
+      <line x1="600" y1="458" x2="600" y2="510"/>
+    </g>
+    <g stroke="#f2b45c" stroke-width="2" stroke-dasharray="4 3">
+      <line x1="240" y1="458" x2="240" y2="510"/>
+    </g>
+    <text x="45" y="530" fill="#5fd3a0">green: after a message header (&lt;|im_start|&gt;role\n), and before message 2: a chunk ends here; entries after headers</text>
+    <text x="45" y="550" fill="#f2b45c">orange: grid point (a chunk end inside a long message, grid_tokens apart): an entry for pasted documents</text>
+    <text x="45" y="575" fill="#c3cad5">turn 3 shares this prompt up to "&lt;|im_start|&gt;assistant\n" of turn 2 (the template drops earlier &lt;think&gt;),</text>
+    <text x="45" y="593" fill="#c3cad5">so the entry before &lt;think&gt; is the one it restores. A cut is a function of the tokens before it only, so every</text>
+    <text x="45" y="611" fill="#c3cad5">prompt sharing a prefix runs the same chunks up to it: restored == cold, bit for bit, on any backend with the</text>
+    <text x="45" y="629" fill="#c3cad5">store on; == store-off cold only where prefill is chunk-invariant (measured: dense on cpu and Metal).</text>
+    <text x="45" y="655" fill="#9aa4b2">entry = token ids (checked in full on a hit) + recurrent blob (GDN + conv, all layers) + KV pages (shared across entries)</text>
+  </g>
+
+  <!-- store -->
+  <rect x="770" y="90" width="300" height="580" rx="10" fill="#171c25" stroke="#2c3443"/>
+  <text x="785" y="115" fill="#e6e9ef" font-weight="600">PrefixStore (Arc&lt;Mutex&gt;)</text>
+  <text x="785" y="137" fill="#9aa4b2" font-size="12">key = hash(build, tokens[..len]), 128 bit</text>
+  <text x="785" y="153" fill="#9aa4b2" font-size="12">build = model, recipe, dtypes, resolved kernels,</text>
+  <text x="785" y="169" fill="#9aa4b2" font-size="12">backend fingerprint, chunk, page, boundaries, exe</text>
+
+  <rect x="785" y="185" width="270" height="95" rx="8" fill="#1d2a3d" stroke="#5b8def"/>
+  <text x="800" y="208" fill="#e6e9ef" font-weight="600">device tier</text>
+  <text x="800" y="230" fill="#c3cad5" font-size="13">backend buffers, device-to-device copy</text>
+  <text x="800" y="250" fill="#c3cad5" font-size="13">default 0 (outside the memory plan)</text>
+  <text x="800" y="270" fill="#9aa4b2" font-size="12">LRU demotes to host</text>
+
+  <rect x="785" y="300" width="270" height="95" rx="8" fill="#1f3329" stroke="#5fd3a0"/>
+  <text x="800" y="323" fill="#e6e9ef" font-weight="600">host tier</text>
+  <text x="800" y="345" fill="#c3cad5" font-size="13">Vec&lt;u8&gt;, upload on restore</text>
+  <text x="800" y="365" fill="#c3cad5" font-size="13">default 8 GiB; pinned entries stay</text>
+  <text x="800" y="385" fill="#9aa4b2" font-size="12">LRU drops (copy already on disk) or evicts</text>
+
+  <rect x="785" y="415" width="270" height="110" rx="8" fill="#33291a" stroke="#f2b45c"/>
+  <text x="800" y="438" fill="#e6e9ef" font-weight="600">disk tier (NVMe)</text>
+  <text x="800" y="460" fill="#c3cad5" font-size="13">write-through, background writer</text>
+  <text x="800" y="480" fill="#c3cad5" font-size="13">&lt;dir&gt;/&lt;build&gt;/o-KEY.bin, e-KEY.entry</text>
+  <text x="800" y="500" fill="#c3cad5" font-size="13">header: magic, version, build, key,</text>
+  <text x="800" y="518" fill="#c3cad5" font-size="13">length, checksum; survives restarts</text>
+
+  <rect x="785" y="545" width="270" height="110" rx="8" fill="#1e2532" stroke="#3a4558"/>
+  <text x="800" y="568" fill="#e6e9ef" font-weight="600">35B entry at 4k tokens</text>
+  <text x="800" y="590" fill="#c3cad5" font-size="13">GDN 30 x 32x128x128 f32 ~ 60 MiB</text>
+  <text x="800" y="610" fill="#c3cad5" font-size="13">+ conv ~ 3 MB (per entry)</text>
+  <text x="800" y="630" fill="#c3cad5" font-size="13">+ KV 10 layers, 20 KiB/token ~ 80 MiB</text>
+  <text x="800" y="648" fill="#9aa4b2" font-size="12">(pages shared by every entry of a chat)</text>
+
+  <path d="M715,223 L785,240" stroke="#5fd3a0" stroke-width="2" fill="none" marker-end="url(#g)"/>
+  <text x="722" y="212" fill="#5fd3a0" font-size="12">restore</text>
+  <path d="M715,290 L785,350" stroke="#f2b45c" stroke-width="2" fill="none" marker-end="url(#o)"/>
+  <text x="720" y="335" fill="#f2b45c" font-size="12">insert</text>
+  <path d="M920,280 L920,300" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M920,395 L920,415" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+</svg>

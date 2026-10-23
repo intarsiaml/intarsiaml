@@ -1,0 +1,264 @@
+{
+  "kind": "reuse",
+  "model": "m",
+  "url": "http://127.0.0.1:8197",
+  "max_tokens": 64,
+  "replayed": true,
+  "workloads": {
+    "chat": {
+      "requests": 8,
+      "prompt_tokens": 15654,
+      "cached_tokens": 8698,
+      "computed_tokens": 6956,
+      "ttft_ms": {
+        "mean": 330.6,
+        "median": 316.6,
+        "p90": 339.5,
+        "n": 8
+      },
+      "ttft_ms_total": 2644.7,
+      "wall_s": 14.74,
+      "rows": [
+        {
+          "conv": "chat-0",
+          "prompt_tokens": 451,
+          "cached_tokens": 0,
+          "computed_tokens": 451,
+          "ttft_ms": 484.8,
+          "e2e_ms": 1732.6
+        },
+        {
+          "conv": "chat-1",
+          "prompt_tokens": 539,
+          "cached_tokens": 3,
+          "computed_tokens": 536,
+          "ttft_ms": 237.4,
+          "e2e_ms": 1480.8
+        },
+        {
+          "conv": "chat-0",
+          "prompt_tokens": 1407,
+          "cached_tokens": 449,
+          "computed_tokens": 958,
+          "ttft_ms": 307.5,
+          "e2e_ms": 2139.7
+        },
+        {
+          "conv": "chat-1",
+          "prompt_tokens": 1486,
+          "cached_tokens": 537,
+          "computed_tokens": 949,
+          "ttft_ms": 309.7,
+          "e2e_ms": 1674.4
+        },
+        {
+          "conv": "chat-0",
+          "prompt_tokens": 2372,
+          "cached_tokens": 1405,
+          "computed_tokens": 967,
+          "ttft_ms": 313.8,
+          "e2e_ms": 1682.1
+        },
+        {
+          "conv": "chat-1",
+          "prompt_tokens": 2452,
+          "cached_tokens": 1484,
+          "computed_tokens": 968,
+          "ttft_ms": 316.6,
+          "e2e_ms": 2148.7
+        },
+        {
+          "conv": "chat-0",
+          "prompt_tokens": 3414,
+          "cached_tokens": 2370,
+          "computed_tokens": 1044,
+          "ttft_ms": 335.4,
+          "e2e_ms": 2109.3
+        },
+        {
+          "conv": "chat-1",
+          "prompt_tokens": 3533,
+          "cached_tokens": 2450,
+          "computed_tokens": 1083,
+          "ttft_ms": 339.5,
+          "e2e_ms": 1768.8
+        }
+      ]
+    },
+    "agent": {
+      "requests": 8,
+      "prompt_tokens": 8574,
+      "cached_tokens": 6554,
+      "computed_tokens": 2020,
+      "ttft_ms": {
+        "mean": 249.5,
+        "median": 185.9,
+        "p90": 207.7,
+        "n": 8
+      },
+      "ttft_ms_total": 1996.0,
+      "wall_s": 10.93,
+      "rows": [
+        {
+          "conv": "agent-0",
+          "prompt_tokens": 949,
+          "cached_tokens": 0,
+          "computed_tokens": 949,
+          "ttft_ms": 974.1,
+          "e2e_ms": 2605.1
+        },
+        {
+          "conv": "agent-0",
+          "prompt_tokens": 1158,
+          "cached_tokens": 945,
+          "computed_tokens": 213,
+          "ttft_ms": 185.2,
+          "e2e_ms": 1229.0
+        },
+        {
+          "conv": "agent-1",
+          "prompt_tokens": 950,
+          "cached_tokens": 925,
+          "computed_tokens": 25,
+          "ttft_ms": 87.3,
+          "e2e_ms": 743.2
+        },
+        {
+          "conv": "agent-1",
+          "prompt_tokens": 1193,
+          "cached_tokens": 946,
+          "computed_tokens": 247,
+          "ttft_ms": 189.0,
+          "e2e_ms": 1875.2
+        },
+        {
+          "conv": "agent-2",
+          "prompt_tokens": 948,
+          "cached_tokens": 925,
+          "computed_tokens": 23,
+          "ttft_ms": 82.8,
+          "e2e_ms": 1110.2
+        },
+        {
+          "conv": "agent-2",
+          "prompt_tokens": 1166,
+          "cached_tokens": 944,
+          "computed_tokens": 222,
+          "ttft_ms": 185.9,
+          "e2e_ms": 1432.2
+        },
+        {
+          "conv": "agent-3",
+          "prompt_tokens": 948,
+          "cached_tokens": 925,
+          "computed_tokens": 23,
+          "ttft_ms": 84.1,
+          "e2e_ms": 877.4
+        },
+        {
+          "conv": "agent-3",
+          "prompt_tokens": 1262,
+          "cached_tokens": 944,
+          "computed_tokens": 318,
+          "ttft_ms": 207.7,
+          "e2e_ms": 1054.4
+        }
+      ]
+    },
+    "rag": {
+      "requests": 4,
+      "prompt_tokens": 21714,
+      "cached_tokens": 12354,
+      "computed_tokens": 9360,
+      "ttft_ms": {
+        "mean": 483.9,
+        "median": 289.8,
+        "p90": 1067.8,
+        "n": 4
+      },
+      "ttft_ms_total": 1935.8,
+      "wall_s": 5.96,
+      "rows": [
+        {
+          "conv": "rag-0",
+          "prompt_tokens": 5430,
+          "cached_tokens": 0,
+          "computed_tokens": 5430,
+          "ttft_ms": 1067.8,
+          "e2e_ms": 3459.8
+        },
+        {
+          "conv": "rag-1",
+          "prompt_tokens": 5427,
+          "cached_tokens": 4118,
+          "computed_tokens": 1309,
+          "ttft_ms": 289.8,
+          "e2e_ms": 865.6
+        },
+        {
+          "conv": "rag-2",
+          "prompt_tokens": 5428,
+          "cached_tokens": 4118,
+          "computed_tokens": 1310,
+          "ttft_ms": 289.4,
+          "e2e_ms": 1098.8
+        },
+        {
+          "conv": "rag-3",
+          "prompt_tokens": 5429,
+          "cached_tokens": 4118,
+          "computed_tokens": 1311,
+          "ttft_ms": 288.8,
+          "e2e_ms": 537.6
+        }
+      ]
+    }
+  },
+  "prefix_store": {
+    "stats": {
+      "build": "867467e80419129f",
+      "entries": 31,
+      "pinned_entries": 0,
+      "lookups": 20,
+      "hits": 6,
+      "misses": 4,
+      "local_wins": 10,
+      "tokens_saved": 8695,
+      "bytes_restored": 573255680,
+      "restore_seconds_total": 0.035103702,
+      "last_restore_ms": 7.305134,
+      "inserts": 31,
+      "insert_bytes": 2403696640,
+      "insert_seconds_total": 12.323083752000002,
+      "rejected": 0,
+      "ttft_saved_seconds_total": 4.050440171984281,
+      "prefill_tok_s": 3570.9439326213924,
+      "device": {
+        "objects": 0,
+        "bytes": 0,
+        "budget_bytes": 0,
+        "hits": 0,
+        "evictions": 116
+      },
+      "host": {
+        "objects": 116,
+        "bytes": 2403696640,
+        "budget_bytes": 8589934592,
+        "hits": 6,
+        "evictions": 0
+      },
+      "disk": {
+        "objects": 0,
+        "bytes": 0,
+        "budget_bytes": 0,
+        "hits": 0,
+        "evictions": 0
+      }
+    },
+    "boundary_ids": [
+      248045
+    ],
+    "chunk_invariant": false,
+    "enabled": true
+  }
+}

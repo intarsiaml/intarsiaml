@@ -48,6 +48,16 @@ pub struct GenRequest {
     /// The constrained steps take the host-logits path; speculative decoding is off for the request. `None` (the
     /// default) leaves the request on the unconstrained path, unchanged.
     pub constraint: Option<Arc<dyn crate::constrain::ConstraintSpec>>,
+    /// Prefix store prewarm (`POST /v1/intarsia/prefill`): prefill the prompt into the store and generate nothing. `None`
+    /// (the default): a normal request.
+    pub prewarm: Option<Prewarm>,
+}
+
+/// A prewarm request ([`GenRequest::prewarm`]).
+#[derive(Clone, Debug, Default)]
+pub struct Prewarm {
+    /// Pin the stored prefix under this name (never evicted).
+    pub pin: Option<String>,
 }
 
 impl Default for GenRequest {
@@ -66,6 +76,7 @@ impl Default for GenRequest {
             cancel: None,
             trace_logits: None,
             constraint: None,
+            prewarm: None,
         }
     }
 }
@@ -258,6 +269,11 @@ pub trait Engine: Send + Sync {
         None
     }
 
+    /// The prefix store's counters and entries (`GET /v1/intarsia/prefix-store`); `Null` when it is off.
+    fn prefix_store(&self) -> Value {
+        Value::Null
+    }
+
     /// The execution plan (served at `GET /v1/intarsia/plan`); `Null` when the engine has none.
     fn plan(&self) -> Value {
         Value::Null
@@ -380,6 +396,8 @@ pub struct EngineMeta {
     /// Speculative decoding (`--spec`; default off). On needs `Model::enable_verify` before the plan is configured
     /// (`intarsia_models::load_engine` does both, and only on the Metal backend).
     pub spec: crate::spec::SpecConfig,
+    /// Content-addressed prefix store (`crate::prefix_store`); `None` (the default): off. Single-sequence engine only.
+    pub prefix_store: Option<crate::prefix_store::PrefixStoreConfig>,
 }
 
 struct Inner {
@@ -395,7 +413,182 @@ struct Shared {
     spec: crate::spec::SpecConfig,
     /// Set when the worker panicked: the engine accepts no more work.
     failed: Mutex<Option<String>>,
+    /// The prefix store and how requests use it (`EngineMeta::prefix_store`).
+    store: Option<StorePolicy>,
 }
+
+/// How the single-sequence engine uses its prefix store.
+#[derive(Clone)]
+pub(crate) struct StorePolicy {
+    pub(crate) store: Arc<Mutex<crate::prefix_store::PrefixStore>>,
+    /// Token ids that start a message boundary (each position holding one is a chunk end and an entry).
+    pub(crate) boundary_ids: Vec<u32>,
+    /// Token ids that end a message header: a cut right after the first one following a boundary token.
+    pub(crate) header_end_ids: Vec<u32>,
+    /// `PrefixStoreConfig::cut_roles`, tokenized (empty: every header is a cut).
+    pub(crate) cut_roles: Vec<Vec<u32>>,
+    /// Prefill is bitwise the same however the prompt is chunked on this backend (cpu, hip): any prefill-written length
+    /// is a valid restore point. Otherwise only points of the prompt's own chunk schedule are.
+    pub(crate) chunk_invariant: bool,
+    pub(crate) min_tokens: usize,
+    pub(crate) grid_tokens: usize,
+}
+
+impl StorePolicy {
+    fn new(model: &Model, codec: &dyn TextCodec, meta: &EngineMeta, st: &SequenceState) -> Result<Option<StorePolicy>> {
+        let Some(cfg) = meta.prefix_store.clone() else { return Ok(None) };
+        if model.is_tp() {
+            return Err(Error::Unsupported("the prefix store with tensor parallelism".into()));
+        }
+        let one = |list: &[String]| -> Vec<u32> {
+            let mut out = Vec::new();
+            for t in list {
+                match codec.encode(t, false) {
+                    Ok(ids) if ids.len() == 1 => out.push(ids[0]),
+                    _ => eprintln!("prefix store: {t:?} is not one token of this tokenizer; ignored"),
+                }
+            }
+            out
+        };
+        let boundary_ids = one(&cfg.boundary_tokens);
+        let header_end_ids = one(&cfg.header_end_tokens);
+        let cut_roles: Vec<Vec<u32>> = cfg.cut_roles.iter().filter_map(|r| codec.encode(r, false).ok()).collect();
+        // chunk invariance is a property of backend and model (the hybrid's GatedDeltaNet is chunk-sensitive even on
+        // cpu): restore only at schedule points unless the operator says otherwise
+        let chunk_invariant = cfg.any_cut;
+        let desc = crate::prefix_store::describe_build(model, &meta.id, &cfg);
+        let (min_tokens, grid_tokens) = (cfg.min_tokens, cfg.grid_tokens);
+        let store = crate::prefix_store::PrefixStore::new(cfg, model.slot_specs(), &desc)?;
+        let _ = st;
+        Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, cut_roles, chunk_invariant, min_tokens, grid_tokens }))
+    }
+}
+
+/// A request's view of the prefix store ([`Seq`]): its prompt's boundaries and schedule points.
+pub(crate) struct SeqStore {
+    pol: StorePolicy,
+    /// Positions `i` (`0 < i < plen`) where the prompt holds a boundary token: the state for `prompt[..i]` is stored.
+    boundaries: Vec<usize>,
+    /// The cuts right after a message header (`<|im_start|>role\n`), and the prompt's end when a header ends it: where
+    /// entries are stored. The cut before the header is a chunk end only (an entry there would hold nearly the same
+    /// tokens for another 63 MiB of recurrent state).
+    headers: Vec<usize>,
+    /// Message starts in the prompt (a pinned prewarm of one message ends where the next request cuts: message 2).
+    messages: usize,
+    /// The prompt's cold chunk schedule (every chunk end; `plen - 1` for a recurrent state): the lengths a restore may
+    /// return to when prefill is chunk-sensitive.
+    points: std::collections::BTreeSet<usize>,
+    /// Length of the last entry this request stored (grid spacing).
+    last_insert: usize,
+}
+
+impl SeqStore {
+    fn new(pol: StorePolicy, prompt: &[u32], recurrent: bool, chunk: usize) -> SeqStore {
+        let plen = prompt.len();
+        // cuts: after the end of every message header (`<|im_start|>role\n`), and before the start of the second
+        // message (where a pinned system prompt ends). Not before every message start: on a MoE every chunk reads all
+        // experts once, so a 3-token chunk per message costs a decode step each (measured on CUDA, results doc).
+        let mut boundaries = Vec::new();
+        let mut headers = Vec::new();
+        let mut in_header = false;
+        let mut starts = 0usize;
+        let mut hdr_start = 0usize;
+        for (i, t) in prompt.iter().enumerate() {
+            if pol.boundary_ids.contains(t) {
+                starts += 1;
+                hdr_start = i;
+                if starts == 2 && i > 0 {
+                    boundaries.push(i);
+                }
+                in_header = true;
+            } else if in_header && pol.header_end_ids.contains(t) {
+                let role = &prompt[hdr_start + 1..i];
+                let wanted = pol.cut_roles.is_empty() || starts == 2 || pol.cut_roles.iter().any(|r| r[..] == *role);
+                if wanted && i + 1 < plen {
+                    boundaries.push(i + 1);
+                }
+                if wanted {
+                    // a header ending the prompt is no cut (the last pass ends there anyway) but still an entry point
+                    headers.push(i + 1);
+                }
+                in_header = false;
+            }
+        }
+        let mut points = std::collections::BTreeSet::new();
+        let mut pos = 0;
+        while pos < plen {
+            let rem = plen - pos;
+            let n = Self::chunk_end(&boundaries, pos, rem.min(chunk), chunk) - pos;
+            if n < rem {
+                pos += n;
+                points.insert(pos);
+            } else {
+                // no `plen - 1` point: with the store on the last chunk runs whole (a regenerate restores the entry
+                // after the last header instead), which saves a pass per request; on a MoE a pass reads every expert
+                let _ = recurrent;
+                break;
+            }
+        }
+        SeqStore { pol, boundaries, headers, messages: starts, points, last_insert: 0 }
+    }
+
+    /// A length `st` can return to bitwise, at most `cap` (already capped at the prefill-clean watermark): on a
+    /// chunk-sensitive backend a point of this prompt's schedule only.
+    fn local_reuse(&self, st: &SequenceState, cap: usize) -> usize {
+        let ok = |l: usize| l == 0 || self.pol.chunk_invariant || self.points.contains(&l);
+        if !st.has_recurrent() {
+            return if self.pol.chunk_invariant { cap } else { self.points.range(..=cap).next_back().copied().unwrap_or(0) };
+        }
+        let mut best = 0;
+        for l in st.snapshots.iter().map(|s| s.len).chain(std::iter::once(st.len)) {
+            if l <= cap && l > best && ok(l) && st.restorable_len(l) == l {
+                best = l;
+            }
+        }
+        best
+    }
+
+    /// Restore the longest stored prefix of `prompt` (at most `max_len` tokens) when it beats the `local` length the
+    /// state already holds: `Some((length, time))`, or `None` (nothing restored, the caller truncates to `local`).
+    fn restore(
+        &self,
+        model: &Model,
+        st: &mut SequenceState,
+        prompt: &[u32],
+        local: usize,
+        max_len: usize,
+        tel: &Telemetry,
+    ) -> Result<Option<(usize, Duration)>> {
+        let mut store = self.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+        let hit = store.lookup_filtered(prompt, max_len, |l| self.pol.chunk_invariant || self.points.contains(&l) || l == prompt.len());
+        let out = match hit {
+            Some(h) if h.len > local => {
+                let r = store.restore(&*model.backend, st, h);
+                tel.set_prefix_store(store.snapshot());
+                let r = r?;
+                Some((r.len, r.elapsed))
+            }
+            Some(_) => {
+                store.note_local_win();
+                None
+            }
+            None => None,
+        };
+        tel.set_prefix_store(store.snapshot());
+        Ok(out)
+    }
+
+    /// End of the next prefill chunk from `pos` (the engine's rule, cut at the next boundary): a function of the prompt
+    /// tokens and `pos` only, so a restored run and a cold run cut the same chunks after any schedule point.
+    fn chunk_end(boundaries: &[usize], pos: usize, n: usize, chunk: usize) -> usize {
+        let i = boundaries.partition_point(|&b| b <= pos);
+        match boundaries.get(i) {
+            Some(&b) if b < pos + n => pos + (b - pos).min(chunk),
+            _ => pos + n,
+        }
+    }
+}
+
 
 impl Shared {
     fn failure(&self) -> Option<String> {
@@ -526,6 +719,19 @@ impl LocalEngine {
         telemetry.set_device_probe(Box::new(move || backend.info()));
         telemetry.set_kv(0, state.total_bytes() as u64, 0, state.cap as u64);
 
+        let store = StorePolicy::new(&model, &*codec, &meta, &state)?;
+        if let Some(s) = &store {
+            let mut g = s.store.lock().unwrap();
+            telemetry.set_prefix_store(g.snapshot());
+            eprintln!(
+                "prefix store: on (build {}, {} entries loaded, boundaries {:?}, chunk-invariant backend: {})",
+                g.snapshot().build,
+                g.snapshot().entries,
+                s.boundary_ids,
+                s.chunk_invariant
+            );
+            drop(g);
+        }
         let shared = Arc::new(Shared {
             inner: Mutex::new(Inner { model, state }),
             telemetry,
@@ -533,6 +739,7 @@ impl LocalEngine {
             eos: meta.eos_ids,
             spec: meta.spec,
             failed: Mutex::new(None),
+            store,
         });
         let (tx, rx) = channel::<Job>();
         let sh = shared.clone();
@@ -679,6 +886,17 @@ impl Engine for LocalEngine {
 
     fn plan(&self) -> Value {
         self.plan.clone()
+    }
+
+    fn prefix_store(&self) -> Value {
+        let Some(pol) = &self.shared.store else { return Value::Null };
+        let mut s = pol.store.lock().unwrap_or_else(|e| e.into_inner());
+        serde_json::json!({
+            "stats": s.snapshot(),
+            "boundary_ids": pol.boundary_ids,
+            "chunk_invariant": pol.chunk_invariant,
+            "entries": s.entries(),
+        })
     }
 
     fn telemetry(&self) -> TelemetrySnapshot {
@@ -907,6 +1125,11 @@ pub(crate) struct Seq {
     gate: crate::spec::SpecGate,
     /// The request's constraint state (`GenRequest::constraint`), or why it could not start (reported by `admit`).
     cons: Option<std::result::Result<crate::constrain::ConstraintRun, String>>,
+    /// The prefix store's view of this request (single-sequence engine with the store on); `None`: the store is off and
+    /// prefill runs exactly as without it.
+    ps: Option<SeqStore>,
+    /// Time spent restoring a stored prefix (part of the time to first token).
+    restore_time: Duration,
 }
 
 /// Reject prompts a sequence of capacity `cap` cannot take.
@@ -925,28 +1148,78 @@ fn check_prompt(plen: usize, cap: usize) -> Result<()> {
 impl Seq {
     /// Validate the request and reuse the KV prefix `st` holds (truncating it to what is reused).
     fn new(sh: &Shared, model: &Model, st: &mut SequenceState, req: GenRequest, tx: Sender<GenEvent>) -> Result<Seq> {
+        let t_start = Instant::now();
         let plen = req.prompt.len();
         check_prompt(plen, st.cap)?;
+        let recurrent = st.has_recurrent();
+        // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
+        let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
+        let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
+        // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
+        let drafting = seq.spec_on && seq.spec_mtp;
+        // the prefix store restores the main model's state only, never the MTP head's cache: a drafting request on a
+        // model with an MTP head bypasses the store (the store stays off for it, prefill runs exactly as without it)
+        let ps = sh
+            .store
+            .as_ref()
+            .filter(|_| !(drafting && st.mtp.is_some()))
+            .map(|pol| SeqStore::new(pol.clone(), &seq.req.prompt, recurrent, model.prefill_chunk().max(1)));
 
         // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
-        let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
-        if st.has_recurrent() {
+        let mut p = common_prefix(&st.tokens, &seq.req.prompt).min(plen - 1);
+        if let Some(ps) = &ps {
+            // bitwise reuse only: what prefill wrote, at a point of this prompt's own chunk schedule
+            p = ps.local_reuse(st, p.min(st.clean));
+        } else if recurrent {
             // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
             // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
             p = st.restorable_len(p);
         }
-        let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), st.has_recurrent());
-        // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
-        // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
-        let drafting = seq.spec_on && seq.spec_mtp;
         if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) {
             p = 0;
         }
-        st.truncate(p, &*model.backend)?;
+        let mut restored = Duration::ZERO;
+        if let Some(ps) = &ps {
+            // inserts during this prefill copy device-to-device and leave the host copy for later
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            store.settle(&*model.backend);
+            store.set_defer(true);
+        }
+        if let Some(ps) = &ps {
+            match ps.restore(model, st, &seq.req.prompt, p, max_reuse, &sh.telemetry) {
+                Ok(Some((len, took))) => {
+                    p = len;
+                    restored = took;
+                }
+                Ok(None) => st.truncate(p, &*model.backend)?,
+                Err(e) => {
+                    // a rejected entry (corrupt file, layout mismatch): run cold
+                    eprintln!("prefix store: restore failed ({e}); prefilling from scratch");
+                    st.truncate(0, &*model.backend)?;
+                    p = 0;
+                }
+            }
+        } else {
+            st.truncate(p, &*model.backend)?;
+        }
         if let Some(m) = st.mtp.as_mut() {
             m.active = drafting;
         }
+        if seq.req.prewarm.is_some() {
+            // a prewarm is admitted for its prefill only
+            seq.req.max_tokens = 1;
+        }
         seq.admit(p, st.cap)?;
+        seq.ps = ps;
+        if let Some(ps) = &mut seq.ps {
+            ps.last_insert = p;
+        }
+        seq.restore_time = restored;
+        if seq.ps.is_some() {
+            // the time to first token includes the lookup and the restore
+            seq.t0 = t_start;
+        }
         Ok(seq)
     }
 
@@ -1011,6 +1284,8 @@ impl Seq {
             telemetry: env.telemetry.clone(),
             req,
             tx,
+            ps: None,
+            restore_time: Duration::ZERO,
         }
     }
 
@@ -1022,7 +1297,7 @@ impl Seq {
         if let Some(Err(e)) = &self.cons {
             return Err(Error::BadRequest(format!("structured output: {e}")));
         }
-        debug_assert!(cached < self.plen);
+        debug_assert!(cached < self.plen || (self.req.prewarm.is_some() && cached == self.plen));
         self.max_new = self.req.max_tokens.min(cap - self.plen);
         self.cached = cached;
         self.pos = cached;
@@ -1159,7 +1434,11 @@ impl Seq {
     /// Run the next prompt chunk (all but the last chunk first, so a cancel is noticed between chunks), then the final
     /// one with the first token sampled from it.
     pub(crate) fn prefill_step(&mut self, model: &Model, st: &mut SequenceState) -> Result<PrefillStep> {
-        if self.max_new == 0 {
+        let prewarm = self.req.prewarm.is_some();
+        if prewarm && self.ps.is_none() {
+            return Err(Error::BadRequest("prewarm needs the prefix store (--prefix-store)".into()));
+        }
+        if self.max_new == 0 && !prewarm {
             return Ok(PrefillStep::Finished(Outcome {
                 reason: FinishReason::Length,
                 stop_sequence: None,
@@ -1174,9 +1453,19 @@ impl Seq {
         if self.cancelled() {
             return Ok(PrefillStep::Finished(self.cancel_outcome()));
         }
-        // recurrent states keep the plain chunking (their last token runs alone below, for the snapshot rule)
+        if prewarm && self.pos == self.plen {
+            // the whole prompt was already stored (restored): only pin it
+            self.store_at(model, st, true)?;
+            return Ok(PrefillStep::Finished(self.prewarm_outcome()));
+        }
         let remaining = self.plen - self.pos;
-        let n = if st.has_recurrent() {
+        let n = if let Some(ps) = &self.ps {
+            // prefix store on: the plain chunk cut at the next message boundary, a function of the prompt and the
+            // position only (no tail merge, no 1-row avoidance: both depend on the prompt's length), so the state at
+            // any chunk end is the state any other prompt with the same prefix computes there
+            SeqStore::chunk_end(&ps.boundaries, self.pos, remaining.min(chunk), chunk) - self.pos
+        } else if st.has_recurrent() {
+            // recurrent states keep the plain chunking (their last token runs alone below, for the snapshot rule)
             // (a tail merge folds a short remainder into the last chunk: `remaining` runs in one pass)
             if crate::scheduler::next_prefill_chunk_tm(remaining, chunk, false, model.tail_merge()) == remaining {
                 remaining
@@ -1191,28 +1480,122 @@ impl Seq {
                 model.tail_merge(),
             )
         };
-        if n < remaining {
+        if n < remaining || prewarm {
+            let start = self.pos;
             match model.forward(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {
                 StepOut::None => {}
                 _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
             }
             self.pos += n;
             st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+            if st.clean == start {
+                st.clean = st.len;
+            }
+            let last = self.pos == self.plen;
+            self.store_at(model, st, last)?;
+            if last {
+                return Ok(PrefillStep::Finished(self.prewarm_outcome()));
+            }
             return Ok(PrefillStep::Chunk);
         }
-        if st.has_recurrent() && self.plen - self.pos > 1 {
+        if st.has_recurrent() && self.plen - self.pos > 1 && self.ps.is_none() {
             // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
             // but its last token, as with an attention-only cache
+            let start = self.pos;
             model.forward(st, &self.req.prompt[self.pos..self.plen - 1], HeadMode::None, None)?;
             self.pos = self.plen - 1;
             st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+            if st.clean == start {
+                st.clean = st.len;
+            }
         }
+        let start = self.pos;
         let mode = self.head_mode(1);
         let out = model.forward(st, &self.req.prompt[self.pos..], mode, None)?;
+        if st.clean == start {
+            st.clean = st.len;
+        }
+        if self.ps.as_ref().is_some_and(|ps| ps.headers.last() == Some(&self.plen)) {
+            // the prompt ends at its last message header (Qwen3's generation prompt `<|im_start|>assistant\n`, no
+            // `<think>` after it): this final pass is that cut's chunk, so store its state (the next turn restores it).
+            // The head adds ops after the last layer and writes no state, so the state is the one a plain chunk
+            // ending here writes.
+            let at = std::mem::replace(&mut self.pos, self.plen);
+            let stored = self.store_at(model, st, false);
+            self.pos = at;
+            stored?;
+        }
         self.tok = self.token_from(out, 1)?;
         self.prefill = self.t0.elapsed();
         self.t_dec = Instant::now();
+        if let Some(ps) = &self.ps {
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            store.note_prefill(self.plen - self.cached, self.prefill.saturating_sub(self.restore_time));
+            self.telemetry.set_prefix_store(store.snapshot());
+        }
         Ok(PrefillStep::Started)
+    }
+
+    /// After a prefill chunk ended at `self.pos` (prefix store on): store the state there when it is a message boundary,
+    /// a grid point (`grid_tokens` past the last entry) or the end of a prewarm, and only if it is prefill-clean and
+    /// newly computed. `last`: the end of a prewarm (pinned when asked).
+    fn store_at(&mut self, model: &Model, st: &mut SequenceState, last: bool) -> Result<()> {
+        let Some(ps) = &mut self.ps else { return Ok(()) };
+        let pos = self.pos;
+        let pin = if last { self.req.prewarm.as_ref().and_then(|p| p.pin.clone()) } else { None };
+        let fresh = pos > self.cached || pin.is_some();
+        if pos < ps.pol.min_tokens || st.clean < pos || st.len != pos || !fresh {
+            return Ok(());
+        }
+        // after a message header: the last one of the prompt always (the next turn of a chat restores it), the others
+        // when at least `min_tokens` past the previous entry (an agent loop's short tool messages)
+        let header = ps.headers.binary_search(&pos).is_ok();
+        let last_header = ps.headers.last() == Some(&pos);
+        let spaced = pos - ps.last_insert >= ps.pol.min_tokens;
+        if !(last || last_header || (header && spaced) || pos - ps.last_insert >= ps.pol.grid_tokens) {
+            return Ok(());
+        }
+        let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+        // the chunk ends that wrote rows 0..pos: this prompt's schedule points (they are the same for every prompt that
+        // shares the prefix up to a point, which is what makes a stored page reusable)
+        let ends: Vec<usize> = ps.points.range(..pos).copied().chain(std::iter::once(pos)).collect();
+        // a failed copy (out of memory) costs the entry, never the request
+        if let Err(e) = store.insert(&*model.backend, st, pos, pin.as_deref(), &ends) {
+            eprintln!("prefix store: insert at {pos} tokens failed: {e}");
+        }
+        if let (Some(name), true) = (&pin, ps.messages >= 2 && ps.last_insert > 0 && ps.last_insert < pos) {
+            // a pinned prewarm also pins its last header entry: a later request restores that one when the prewarm's
+            // end is not a cut of its own schedule (a prefix of several messages)
+            store.pin(&st.tokens[..ps.last_insert], name);
+        }
+        ps.last_insert = pos;
+        self.telemetry.set_prefix_store(store.snapshot());
+        Ok(())
+    }
+
+    /// Move the entries this request captured on the device to their tier ([`crate::prefix_store::PrefixStore::settle`]).
+    pub(crate) fn settle_store(&self, model: &Model) {
+        if let Some(ps) = &self.ps {
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            if store.deferring() {
+                store.settle(&*model.backend);
+                self.telemetry.set_prefix_store(store.snapshot());
+            }
+        }
+    }
+
+    /// The end of a prewarm request: no token generated, the prompt counted as processed.
+    fn prewarm_outcome(&mut self) -> Outcome {
+        self.prefill = self.t0.elapsed();
+        Outcome {
+            reason: FinishReason::Length,
+            stop_sequence: None,
+            prompt_tokens: self.plen,
+            completion_tokens: 0,
+            cached_tokens: self.cached,
+            prefill: self.prefill,
+            decode: Duration::ZERO,
+        }
     }
 
     /// Account for `self.tok`: EOS / stop ids, incremental detokenisation, stop strings, streaming, `max_tokens`,
@@ -1511,7 +1894,10 @@ fn generate_one(
 ) -> Result<Outcome> {
     let Inner { model, state: st } = g;
     let mut seq = Seq::new(sh, model, st, req, tx)?;
-    match run_seq(&mut seq, model, st) {
+    let r = run_seq(&mut seq, model, st);
+    // entries captured on the device during this request go to their tier now (a no-op when already settled)
+    seq.settle_store(model);
+    match r {
         Ok(Some(o)) => Ok(o),
         Ok(None) => {
             let n = seq.generated;
@@ -1538,7 +1924,17 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
             PrefillStep::Finished(o) => return Ok(Some(o)),
         }
     }
-    while !seq.on_token()? {
+    let mut first = true;
+    loop {
+        let done = seq.on_token()?;
+        if first {
+            // after the first token went out: the prefix store's device-to-host copies stay off the time to first token
+            seq.settle_store(model);
+            first = false;
+        }
+        if done {
+            break;
+        }
         if seq.feedback_ok(model, st) {
             seq.run_feedback(model, st)?;
             break;

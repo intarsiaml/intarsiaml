@@ -22,5 +22,7 @@ libc = { workspace = true }
 llguidance = { workspace = true }
 
 [dev-dependencies]
+intarsia-models = { workspace = true }
+intarsia-backend-cpu = { workspace = true }
 tower = { workspace = true }
 http-body-util = { workspace = true }

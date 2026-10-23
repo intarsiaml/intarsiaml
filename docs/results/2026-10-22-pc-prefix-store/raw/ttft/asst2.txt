@@ -1,0 +1,5 @@
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  731.6  767.8          5.85
+agent     8  8854  6554  2300  339.9  201.7          2.72
+rag       4  21714  16194  5520  1173.2  135.3          4.69
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/asst2.json
