@@ -2005,7 +2005,7 @@ impl Model {
         a: &AttnBlock,
         slot: &crate::state::AttnKvState,
         bufs: &AttnBufs,
-        mut qc: usize,
+        qc: usize,
         t: usize,
         pos0: usize,
         dpos: Option<&TensorRef>,
