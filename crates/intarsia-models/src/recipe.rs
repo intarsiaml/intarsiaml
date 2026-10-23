@@ -236,7 +236,7 @@ lm_head = { tensor = "h" }
         let g = pick("Gemma4ForConditionalGeneration");
         assert_eq!(g.accuracy.ppl_form().unwrap(), PplForm::Chat);
         assert!(g.accuracy.max_ppl.is_some());
-        assert_eq!(g.accuracy.ref_noise_factor, Some(1.6));
+        assert_eq!(g.accuracy.ref_noise_factor, Some(1.1));
         // every other built-in keeps the raw gate and the default factor of 1.0
         for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "LlamaForCausalLM", "Qwen2ForCausalLM"] {
             let r = pick(arch);
