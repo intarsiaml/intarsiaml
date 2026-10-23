@@ -248,7 +248,31 @@ NOOP
 
 ## 9. Not done, limits, next
 
-LIMITS
+Not done or not proven:
+- **HIP not run.** tatooine was held by the hp lane all night (never touched), so neither byte identity nor TTFT is
+  measured on the R9700s, and the cache-affinity router stays a prototype.
+- **Default-on nowhere.** On every GPU backend measured, store-on prefill differs bitwise from store-off from the first
+  logit, because the store cuts chunks at message headers and those backends are chunk-sensitive. On the cpu hybrid too
+  (section 3). By the brief's rule the store stays opt-in and the PR stays a draft. The tokens agree in every comparison
+  run. The cuts would no longer matter if prefill were made chunk-invariant (a fixed internal GDN sub-chunk grid and
+  M-independent GEMM tiles). That is a separate project.
+- **Page-key fix not proven on cpu.** A reviewer found that a KV page shared between entries could hold rows written by
+  a chunk that ended elsewhere. Page keys now include the end of the chunk that wrote them (`page_keys`). The regression
+  test `hybrid_partial_prewarm_then_turns_is_bitwise` passes with and without the fix on cpu: there a row's bits depend
+  on its chunk's start, not its end. So the fix is defensive for GPU kernels whose tiles depend on the row count.
+- **`accuracy --mode prefix-reuse` was not extended.** The engine-level tests above make the same comparison (restored
+  vs cold, logits of every step) through the real engine.
+- **No pinned (page-locked) host memory.** The backend trait has no pinned allocator. Restores upload from plain host
+  memory: 104 MB in 7 ms on the GB10.
+- **Known rough edges:**
+  - A disk object evicted while its write is still queued can leave an orphan file until the next start.
+  - A disk entry rejected on restore also discards the local reuse (the request runs fully cold).
+  - The device tier (`device_mb`) is tested on cpu only.
+- **Measurements:**
+  - TTFT numbers come from one GB10 and one Metal machine, a fresh server per pass, and 2-3 passes. Spread is in the raw
+    files.
+  - The RAG workload sends its questions back to back, which favours store-off (section 4).
+
 
 ## Reproduce
 
