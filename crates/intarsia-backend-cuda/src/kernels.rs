@@ -252,12 +252,18 @@ pub fn fp8_gemm_f8_priority(on: i32) -> i32 {
     }
 }
 
-/// `INTARSIA_CUDA_FP8_GEMM_LT=1` selects the cuBLASLt e4m3 W8A8 GEMM (`matmul_fp8_gemm_lt`, every M >= 5) for the fp8
-/// projections. OPT-IN: same e4m3 activations as the default path, different accumulation, so not bitwise; its KL is
-/// gated against vLLM's own run-to-run KL in docs/results/2026-10-21-cuda-round7.md.
+/// The cuBLASLt e4m3 W8A8 GEMM (`matmul_fp8_gemm_lt`, every M >= 5) for the fp8 projections. DEFAULT ON since 2026-10-23
+/// (user decision 19:15, docs/results/2026-10-23-lt-fp8-lt-reuse.md): same e4m3 activations as the bf16-mma path, different
+/// accumulation, so not bitwise with it. `INTARSIA_CUDA_FP8_GEMM_LT=0` switches it off (the pre-flip path, bitwise main
+/// before the flip); an explicit opt-in to another fp8 GEMM (`INTARSIA_CUDA_FP8_GEMM_F8=1`, `INTARSIA_CUDA_FAST_PREFILL=1`,
+/// `INTARSIA_CUDA_FP8_CUBLAS=1`) also turns it off unless `INTARSIA_CUDA_FP8_GEMM_LT=1` is set as well.
 pub fn fp8_gemm_lt() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1"))
+    *ON.get_or_init(|| match std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").as_deref() {
+        Ok("1") => true,
+        Ok("0") => false,
+        _ => !fp8_gemm_f8() && !std::env::var("INTARSIA_CUDA_FP8_CUBLAS").is_ok_and(|v| v == "1"),
+    })
 }
 
 /// Priority of the cuBLASLt e4m3 GEMM: `on` when `fp8_gemm_lt()`, below everything otherwise.
@@ -613,8 +619,9 @@ mod tests {
         }
     }
 
-    /// The opt-in cuBLASLt e4m3 GEMM's own range, whatever the environment: every M from 5 (the gemv keeps 1..4), K a
-    /// multiple of 128, N a multiple of 16; off (below every other fp8 kernel) unless INTARSIA_CUDA_FP8_GEMM_LT=1.
+    /// The cuBLASLt e4m3 GEMM's own range, whatever the environment: every M from 5 (the gemv keeps 1..4), K a multiple of
+    /// 128, N a multiple of 16; on by default, off (below every other fp8 kernel) with INTARSIA_CUDA_FP8_GEMM_LT=0 or another
+    /// explicit fp8 GEMM opt-in (`fp8_gemm_lt`).
     #[test]
     fn fp8_gemm_lt_range() {
         let lt = all().into_iter().find(|k| k.name == "matmul_fp8_gemm_lt").expect("registered");
@@ -633,11 +640,18 @@ mod tests {
         }
         assert!(!lt.accepts(&s(2048, 8192, 2112)), "K % 128");
         assert!(!lt.accepts(&s(2048, 8200, 2048)), "N % 16");
-        let on = std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1");
+        let env = |v: &str| std::env::var(v).ok();
+        let on = match env("INTARSIA_CUDA_FP8_GEMM_LT").as_deref() {
+            Some("1") => true,
+            Some("0") => false,
+            _ => ["INTARSIA_CUDA_FP8_GEMM_F8", "INTARSIA_CUDA_FAST_PREFILL", "INTARSIA_CUDA_FP8_CUBLAS"].iter().all(|v| env(v).as_deref() != Some("1")),
+        };
+        assert_eq!(on, fp8_gemm_lt());
         assert_eq!(lt.priority, if on { 25 } else { -10 });
     }
 
-    /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096): the gemv for 1..4 tokens, the mma
+    /// The fp8 GEMM the registry picks for the 35B W8A8 projections (K 2048 / 4096). By default (since 2026-10-23) the cuBLASLt
+    /// e4m3 GEMM from 5 tokens; with `INTARSIA_CUDA_FP8_GEMM_LT=0`: the gemv for 1..4 tokens, the mma
     /// kernel for 5..32, `matmul_fp8_gemm` for 33..255, `matmul_fp8_gemm_reg` from 256 (the 2048-token chunk included), unless
     /// switched off (`INTARSIA_CUDA_FP8_GEMM_REG=0`: `matmul_fp8_gemm`) or overridden by `INTARSIA_CUDA_FP8_GEMM_F8=1` / `INTARSIA_CUDA_FAST_PREFILL=1` (then `matmul_fp8_gemm_f8` from 5). The
     /// kernel is bitwise `matmul_fp8_gemm`, so no accuracy gate can tell which one ran: this pins it.
@@ -661,8 +675,8 @@ mod tests {
             }
             best.map(|k| k.name.to_string())
         };
-        if std::env::var("INTARSIA_CUDA_FP8_GEMM_LT").is_ok_and(|v| v == "1") {
-            // the cuBLASLt e4m3 GEMM serves every M the gemv does not, above the f8 kernel when both are on
+        if fp8_gemm_lt() {
+            // the cuBLASLt e4m3 GEMM (default) serves every M the gemv does not, above the f8 kernel when both are on
             for k in [2048, 4096] {
                 assert_eq!(pick(4, k).as_deref(), Some("matmul_fp8_gemv"));
                 for m in [5, 32, 33, 255, 256, 2048, 4096] {
@@ -729,7 +743,7 @@ mod tests {
             best.map(|k| k.name.to_string())
         };
         let env_on = |v: &str| std::env::var(v).is_ok_and(|x| x == "1");
-        let off = env_on("INTARSIA_CUDA_FP8_GEMM_LT")
+        let off = fp8_gemm_lt()
             || env_on("INTARSIA_CUDA_FP8_GEMM_F8")
             || env_on("INTARSIA_CUDA_FAST_PREFILL")
             || std::env::var("INTARSIA_CUDA_FP8_GEMM_REG").is_ok_and(|v| v == "0")

@@ -79,7 +79,7 @@ int ik_matmul_nvfp4_glu_gemm(const ik_tensor* x, const ik_tensor* w_gate, const 
 
 /* matmul_fp8_gemm_lt: matmul_fp8_gemm (same arguments, same scratch) with the W8A8 products on cuBLASLt's e4m3 tensor-core
  * GEMM: the same e4m3 activations, a different accumulation (not bitwise the default kernels), one pinned algorithm per
- * (N, K) so rows do not depend on M; see kernels/cuda/fp8_gemm_lt.cu. OPT-IN (INTARSIA_CUDA_FP8_GEMM_LT=1). Needs
+ * (N, K) so rows do not depend on M; see kernels/cuda/fp8_gemm_lt.cu. DEFAULT ON since 2026-10-23 (INTARSIA_CUDA_FP8_GEMM_LT=0 switches it off). Needs
  * K % 128 == 0, N % 16 == 0. */
 int ik_matmul_fp8_gemm_lt(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                           const ik_scratch* scratch, void* stream);

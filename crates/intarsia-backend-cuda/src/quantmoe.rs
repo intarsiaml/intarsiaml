@@ -193,7 +193,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(fp8_gemm_f8_priority(20)),
-                // OPT-IN (INTARSIA_CUDA_FP8_GEMM_LT=1, see `kernels::fp8_gemm_lt`): the same W8A8 op on cuBLASLt's e4m3 GEMM
+                // DEFAULT ON since 2026-10-23 (INTARSIA_CUDA_FP8_GEMM_LT=0 switches it off, see `kernels::fp8_gemm_lt`): the same W8A8 op on cuBLASLt's e4m3 GEMM
                 // (kernels/cuda/fp8_gemm_lt.cu), docs/results/2026-10-21-cuda-round7.md. Same e4m3 activations as the default
                 // path, different accumulation. Serves every M the gemv does not (one pinned algorithm per (N, K): a tail
                 // chunk's rows get the bits a full chunk gives them). Above `matmul_fp8_gemm_f8` when both are on.
