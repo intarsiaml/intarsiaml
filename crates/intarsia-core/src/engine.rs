@@ -510,9 +510,9 @@ impl SeqStore {
                 pos += n;
                 points.insert(pos);
             } else {
-                if recurrent && rem > 1 {
-                    points.insert(plen - 1);
-                }
+                // no `plen - 1` point: with the store on the last chunk runs whole (a regenerate restores the entry
+                // after the last header instead), which saves a pass per request; on a MoE a pass reads every expert
+                let _ = recurrent;
                 break;
             }
         }
@@ -1424,7 +1424,7 @@ impl Seq {
             }
             return Ok(PrefillStep::Chunk);
         }
-        if st.has_recurrent() && self.plen - self.pos > 1 {
+        if st.has_recurrent() && self.plen - self.pos > 1 && self.ps.is_none() {
             // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
             // but its last token, as with an attention-only cache
             let start = self.pos;

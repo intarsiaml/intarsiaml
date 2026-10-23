@@ -355,7 +355,8 @@ impl Tier {
 }
 
 enum Mem {
-    Device(Buffer),
+    /// A range of a device allocation (one per insert, shared by that insert's objects) starting at the offset.
+    Device(Buffer, usize),
     Host(Arc<Vec<u8>>),
 }
 
@@ -374,7 +375,7 @@ struct Obj {
 impl Obj {
     fn tier(&self) -> Tier {
         match &self.mem {
-            Some(Mem::Device(_)) => Tier::Device,
+            Some(Mem::Device(..)) => Tier::Device,
             Some(Mem::Host(_)) => Tier::Host,
             None => Tier::Disk,
         }
@@ -637,8 +638,9 @@ impl PrefixStore {
         }
         let mut copied = 0u64;
         let pinned = pin.is_some();
-        // pages: only the ones no other entry already holds
+        // pages: only the ones no other entry already holds; then the recurrent blob (this entry's only)
         let mut pages = Vec::new();
+        let mut todo: Vec<(Key, Vec<(&Buffer, usize, usize)>, usize)> = Vec::new();
         for (pk, start, end) in page_keys(self.build, tokens, self.cfg.page_tokens) {
             pages.push(pk);
             if let Some(o) = self.objs.get_mut(&pk) {
@@ -647,23 +649,17 @@ impl PrefixStore {
                 o.last_use = now;
                 continue;
             }
-            let segs = self.layout.segments(st, start, end);
-            let bytes = self.layout.page_bytes(end - start);
-            let mem = self.capture(backend, &segs, bytes)?;
-            copied += bytes as u64;
-            self.add_obj(pk, bytes, mem, now, pinned);
+            todo.push((pk, self.layout.segments(st, start, end), self.layout.page_bytes(end - start)));
         }
-        let rec = if self.layout.rec_bytes > 0 {
-            // the recurrent blob belongs to this entry only (its key is the entry key in the page domain's complement)
-            let rk = key ^ (u128::MAX >> 1);
-            let segs = self.layout.rec_segments(st);
-            let mem = self.capture(backend, &segs, self.layout.rec_bytes)?;
-            copied += self.layout.rec_bytes as u64;
-            self.add_obj(rk, self.layout.rec_bytes, mem, now, pinned);
-            Some(rk)
-        } else {
-            None
-        };
+        let rec = (self.layout.rec_bytes > 0).then(|| key ^ (u128::MAX >> 1));
+        if let Some(rk) = rec {
+            todo.push((rk, self.layout.rec_segments(st), self.layout.rec_bytes));
+        }
+        let mems = self.capture_all(backend, &todo)?;
+        for ((k, _, bytes), mem) in todo.iter().zip(mems) {
+            copied += *bytes as u64;
+            self.add_obj(*k, *bytes, mem, now, pinned);
+        }
         self.entries.insert(
             key,
             Entry {
@@ -686,39 +682,53 @@ impl PrefixStore {
         Ok(copied)
     }
 
-    /// Copy `segs` out of the state into a new object in the highest tier with room.
-    fn capture(&mut self, backend: &dyn Backend, segs: &[(&Buffer, usize, usize)], bytes: usize) -> Result<Mem> {
-        let defer = self.defer && self.deferred + bytes as u64 <= DEFER_CAP;
-        if defer {
-            self.deferred += bytes as u64;
+    /// Copy each object's segments out of the state into new objects in the highest tier with room: on the device one
+    /// allocation for all of them (device-to-device copies, nothing waits), else one host buffer each.
+    fn capture_all(&mut self, backend: &dyn Backend, todo: &[(Key, Vec<(&Buffer, usize, usize)>, usize)]) -> Result<Vec<Mem>> {
+        let total: usize = todo.iter().map(|t| t.2).sum();
+        if total == 0 {
+            return Ok(Vec::new());
         }
-        if defer || self.cfg.device_bytes >= bytes as u64 {
-            let buf = backend.alloc(bytes.max(16), MemKind::Device)?;
+        let defer = self.defer && self.deferred + total as u64 <= DEFER_CAP;
+        if defer {
+            self.deferred += total as u64;
+        }
+        if defer || self.cfg.device_bytes >= total as u64 {
+            let buf = backend.alloc(total.max(16), MemKind::Device)?;
+            let mut out = Vec::with_capacity(todo.len());
+            let mut off = 0;
+            for (_, segs, bytes) in todo {
+                out.push(Mem::Device(buf.clone(), off));
+                for &(src, so, n) in segs {
+                    backend.copy(&buf, off, src, so, n, 0)?;
+                    off += n;
+                }
+                let _ = bytes;
+            }
+            return Ok(out);
+        }
+        let mut out = Vec::with_capacity(todo.len());
+        for (_, segs, bytes) in todo {
+            let mut v = vec![0u8; *bytes];
             let mut off = 0;
             for &(src, so, n) in segs {
-                backend.copy(&buf, off, src, so, n, 0)?;
+                backend.download(src, so, &mut v[off..off + n], 0)?;
                 off += n;
             }
-            return Ok(Mem::Device(buf));
+            out.push(Mem::Host(Arc::new(v)));
         }
-        let mut v = vec![0u8; bytes];
-        let mut off = 0;
-        for &(src, so, n) in segs {
-            backend.download(src, so, &mut v[off..off + n], 0)?;
-            off += n;
-        }
-        Ok(Mem::Host(Arc::new(v)))
+        Ok(out)
     }
 
     fn add_obj(&mut self, k: Key, bytes: usize, mem: Mem, now: u64, pinned: bool) {
         let tier = match &mem {
-            Mem::Device(_) => Tier::Device,
+            Mem::Device(..) => Tier::Device,
             Mem::Host(_) => Tier::Host,
         };
         self.used[tier_idx(tier)] += bytes as u64;
         let host = match &mem {
             Mem::Host(v) => Some(v.clone()),
-            Mem::Device(_) => None,
+            Mem::Device(..) => None,
         };
         let mut o = Obj { bytes, mem: Some(mem), disk: None, staged: None, last_use: now, refs: 1, pins: pinned as u32 };
         if let Some(v) = host {
@@ -918,13 +928,13 @@ impl PrefixStore {
     /// objects are deleted. Pinned objects never leave memory.
     fn enforce(&mut self, backend: &dyn Backend) {
         while self.used[0] > self.cfg.device_bytes && !self.defer {
-            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(_)))) else { break };
+            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(..)))) else { break };
             let mut o = self.objs.remove(&k).unwrap();
-            let Some(Mem::Device(buf)) = o.mem.take() else { unreachable!() };
+            let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
             let mut v = vec![0u8; o.bytes];
-            if backend.download(&buf, 0, &mut v, 0).is_err() {
+            if backend.download(&buf, boff, &mut v, 0).is_err() {
                 self.objs.insert(k, o);
                 self.drop_obj(k);
                 continue;
@@ -985,7 +995,7 @@ impl PrefixStore {
 
     fn release_obj(&mut self, o: Obj) {
         match &o.mem {
-            Some(Mem::Device(_)) => self.used[0] -= o.bytes as u64,
+            Some(Mem::Device(..)) => self.used[0] -= o.bytes as u64,
             Some(Mem::Host(_)) => self.used[1] -= o.bytes as u64,
             None => {}
         }
@@ -1218,7 +1228,7 @@ fn put(backend: &dyn Backend, o: &Obj, loaded: Option<&Arc<Vec<u8>>>, segs: &[(&
     let mut off = 0;
     for &(dst, doff, n) in segs {
         match (&o.mem, loaded) {
-            (Some(Mem::Device(b)), _) => backend.copy(dst, doff, b, off, n, 0)?,
+            (Some(Mem::Device(b, boff)), _) => backend.copy(dst, doff, b, boff + off, n, 0)?,
             (Some(Mem::Host(v)), _) => backend.upload(dst, doff, &v[off..off + n], 0)?,
             (None, Some(v)) => backend.upload(dst, doff, &v[off..off + n], 0)?,
             (None, None) => return Err(Error::invalid("prefix store: object not loaded")),
