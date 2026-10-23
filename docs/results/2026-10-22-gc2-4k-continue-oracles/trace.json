@@ -1,0 +1,166 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:gc2:20261023-0050",
+ "project": "intarsiaml",
+ "lane_id": "gc2",
+ "follows": [],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-22T19:42:00-04:00",
+ "ended": "2026-10-23T00:50:00-04:00",
+ "brief": "(1) Metal 35B prefill chunk 2048 recipe change on PR #104 (user-delegated 19:41), measured; (2) build fx5c continue oracles for the 4k golden's long_docs_4k at both split points, commit on #104, rerun Metal 35B qualify on #104 (chunk 256) and #109 (chunk 2048), no tolerance loosened.",
+ "hypothesis": "Chunk 2048 clears the long_docs_4k continue failure and speeds up prefill; if not, the failure is a near-tie judged by an absolute tolerance and an oracle-relative rule with matching oracle files will pass it.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "Apple M5 Max (endor)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "quality",
+  "buckets": [
+   "4k"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "prefill-chunk-2048-metal-moe",
+   "role": "refuted"
+  },
+  {
+   "id": "fx5c-continue-oracle-gate",
+   "role": "applied"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-gc/coverage (#104) + lane-gc2/metal35-chunk2048 (#109)",
+  "base_commit": "a92267b0",
+  "head_commit": "283a546c",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/109",
+  "files": [
+   "recipes/qwen3_5_moe.toml",
+   "golden/oracle/*-g4k.continue-oracle.safetensors(.json)",
+   "golden/baselines/qwen36-35b*.metal.* (#109, re-recorded at 2048)",
+   "docs/adding-a-model.md",
+   "docs/decisions/LOG.md"
+  ],
+  "diff_stat": null,
+  "default_changed": true,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "cargo test models/core/cli",
+   "command": "cargo test --release -p intarsia-models -p intarsia-core -p intarsia-cli",
+   "result": "pass",
+   "detail": "fleetq #4261, cpu"
+  },
+  {
+   "name": "qualify Metal 35B at chunk 2048, no 4k oracle",
+   "command": "intarsia qualify --backend metal ... (q-1-verdict)",
+   "result": "fail",
+   "detail": "acc-4k prefix reuse: long_docs_4k continue diverges at token 8 (chunk 2048 split 3072; chunk 1024 split 2000; same as chunk 256); fleetq #4263"
+  },
+  {
+   "name": "256 greedy ids main vs chunk 2048",
+   "command": "intarsia generate --show-ids --max-tokens 256",
+   "result": "pass",
+   "detail": "identical on 16-token and 5822-token prompts; fleetq #4263"
+  },
+  {
+   "name": "Qwen3-8B Metal plan show main vs branch",
+   "command": "intarsia plan show --json",
+   "result": "pass",
+   "detail": "identical, 0 diff lines; fleetq #4263"
+  },
+  {
+   "name": "qualify Metal 35B on #104 alone (chunk 256) with 4k continue oracles",
+   "command": "intarsia qualify --backend metal ... --skip envelope --skip bench-long --skip ab --skip tp",
+   "result": "pass",
+   "detail": "exit 0; continue split 2000 oracle ratio 0.99x; fleetq #4380, quiet non-exclusive"
+  },
+  {
+   "name": "qualify Metal 35B on #109 (chunk 2048) with 4k continue oracles",
+   "command": "same",
+   "result": "pass",
+   "detail": "exit 0; continue split 2000 0.99x, split 3072 1.16x (limit 1.5x cold + 3e-3); fleetq #4380"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": 1,
+   "before": 1323.85,
+   "after": 1675.5,
+   "unit": "tok/s",
+   "n": 2,
+   "spread_pct": 3.6,
+   "slot": "quiet",
+   "fleetq_job": 4263,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "ttft_s",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": 1,
+   "before": 3.19,
+   "after": 2.52,
+   "unit": "s",
+   "n": 2,
+   "spread_pct": null,
+   "slot": "quiet",
+   "fleetq_job": 4263,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "kl_oracle_warm_over_cold",
+   "bucket": "4k",
+   "prompt_tokens": 4080,
+   "streams": 1,
+   "before": null,
+   "after": 1.16,
+   "unit": "ratio (split 3072, chunk 2048)",
+   "n": 32,
+   "spread_pct": null,
+   "slot": "quiet",
+   "fleetq_job": 4380,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "qualify (acc-short, acc-oracle, acc-long, acc-4k incl. oracle-relative prefix reuse)",
+  "verdict": "pass",
+  "bitwise": false,
+  "run_ids": []
+ },
+ "verdict": "neutral",
+ "summary": "Chunk 2048 for the Metal 35B recipe gives +26% prefill at 4k (1300/1347 -> 1674/1677 tok/s, quiet slot, two runs each) but does not fix long_docs_4k continue: it is a near-tie that diverges at token 8 at chunk 256, 1024 and 2048. Building continue oracles for the 4k golden's prompt ids (frozen Metal stream, CPU f64 oracle on endor, splits 2000 and 3072) made Metal 35B qualify PASS (exit 0) on #104 at chunk 256 and on #109 at chunk 2048 with the oracle-relative rule unchanged (ratios 0.99x and 1.16x, limit 1.5x + 3e-3).",
+ "lessons": [
+  "Metal baselines, envelope and CPU-oracle self-golden are chunk-tied; changing a recipe chunk means re-recording them (accuracy/baseline.rs strict config check).",
+  "qualify's reuse gate runs at min(plan chunk, 1024), accuracy --mode all at the plan chunk, so the 4k golden needs continue oracles at splits 2000 and 3072.",
+  "Oracle files for a new golden must be named distinctly (-g4k): same model/prompt/split as the long golden's files.",
+  "The continue oracle needs only a frozen token list, so the stream can come from Metal and the oracle from endor CPU (14-18 min, 38.7 GB RSS) when spark1 is down; the gate margin at split 3072 is 1.16x vs 1.5x with n=32 rows.",
+  "Endor's queue was blocked ~2h by an overdue quiet job (#4256) and then memory (42 GB asked vs 40 free); ask for the RSS you need, not budget+margin."
+ ],
+ "cost": {
+  "wall_min": 308,
+  "gpu_slot_min": 69,
+  "fleetq_jobs": [
+   4261,
+   4263,
+   4316,
+   4380
+  ],
+  "tokens": null
+ }
+}

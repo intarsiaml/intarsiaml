@@ -1,0 +1,1317 @@
+{
+  "kind": "intarsia-qualify",
+  "schema_version": 1,
+  "section": "full",
+  "model": "Qwen3.6-35B-A3B-NVFP4",
+  "model_dir": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+  "backend": "metal",
+  "tp": 1,
+  "reference": null,
+  "build_stamp": "unstamped",
+  "version": "0.0.1",
+  "generated_unix": 1792730478,
+  "verdict": "PASS",
+  "exit_code": 0,
+  "headline": {
+    "speed": [
+      {
+        "size": 128,
+        "decode_tok_s": 125.49,
+        "prefill_tok_s": 950.1,
+        "pct_of_floor": 46.1,
+        "ttft_s": 0.1389
+      },
+      {
+        "size": 1024,
+        "decode_tok_s": 123.97,
+        "prefill_tok_s": 1677.2,
+        "pct_of_floor": 45.5,
+        "ttft_s": 0.6075
+      },
+      {
+        "size": 4096,
+        "decode_tok_s": 120.63,
+        "prefill_tok_s": 1762.8,
+        "pct_of_floor": 44.3,
+        "ttft_s": 2.3534
+      }
+    ],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.33448993754337,
+            "mean_kl": 0.007041065770097358,
+            "mean_kl21": 0.006913605512058896,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 98.75,
+            "mean_kl": 0.011114750764410234,
+            "mean_kl21": 0.01164277761251118,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "acc-long",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 36887,
+            "top1_pct": 94.25000677745548,
+            "mean_kl": 0.040347009571460174,
+            "mean_kl21": 0.042593494835457435,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 320,
+            "top1_pct": 96.25,
+            "mean_kl": 0.00950505906345987,
+            "mean_kl21": 0.008828920423978474,
+            "floor_pass": true
+          }
+        ]
+      },
+      {
+        "stage": "acc-4k",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 12759,
+            "top1_pct": 93.142095775531,
+            "mean_kl": 0.08138691639189179,
+            "mean_kl21": 0.09088838734745672,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 192,
+            "top1_pct": 98.95833333333331,
+            "mean_kl": 0.00722336544635151,
+            "mean_kl21": 0.006904209972490877,
+            "floor_pass": true
+          }
+        ]
+      }
+    ],
+    "quick_gate": {
+      "perplexity": 1.214,
+      "perplexity_line": "1.214 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+      "sanity_ok": 5,
+      "sanity_failed": 0
+    }
+  },
+  "failures": [],
+  "warnings": [],
+  "skipped": [
+    {
+      "stage": "acc-format",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)"
+    },
+    {
+      "stage": "envelope",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "bench-long",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "ab",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "tp",
+      "reason": "skipped by --skip"
+    }
+  ],
+  "wall_s": {
+    "quick": 114.418783956,
+    "full": 310.217399709,
+    "total": 424.636183665
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "Apple M5 Max (applegpu_g17s), 41 kernels registered",
+      "wall_s": 0.463416167,
+      "started_unix": 1792730054,
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "endor.kuepker.haus",
+          "os": "macOS 27.0",
+          "kernel": "Darwin 27.0.0",
+          "arch": "aarch64",
+          "cpu_model": "Apple M5 Max",
+          "logical_cores": 18,
+          "physical_cores": 18,
+          "ram_total_bytes": 137438953472,
+          "ram_available_bytes": 27780907008,
+          "swap_total_bytes": 47244640256
+        },
+        "device": {
+          "name": "Apple M5 Max",
+          "backend": "metal",
+          "arch": "applegpu_g17s",
+          "total_mem": 115448725504,
+          "free_mem": 115442761728,
+          "unified": true,
+          "bandwidth_gbs": 549.755813888
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 70.1,
+          "device_to_host_gbs": 70.5,
+          "device_copy_gbs": 294.6,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": null,
+        "arch": null,
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia doctor --backend metal --device 0 --out /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/doctor.json"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8)",
+      "wall_s": 0.259579166,
+      "started_unix": 1792730054,
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Qwen3_5MoeForConditionalGeneration"
+        ],
+        "templates_resolved": [
+          61,
+          61
+        ],
+        "quant": "nvfp4+fp8",
+        "notes": [
+          "config.json: architectures [\"Qwen3_5MoeForConditionalGeneration\"], family \"qwen3_5_moe\" (config.json model_type); text model settings merged from text_config",
+          "tensors: model.safetensors.index.json (124468 tensors) + 3/3 shard headers",
+          "layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)",
+          "quantisation: nvfp4+fp8",
+          "hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)",
+          "closest existing recipe: builtin:qwen3_5_moe (blocks {\"attn\", \"gdn\", \"moe\"} vs inferred {\"attn\", \"gdn\", \"moe\"}; 61/61 tensor templates resolve; covers this model)",
+          "ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (15), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)"
+        ],
+        "todos": []
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "recipe::analyse(/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4)"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "21 ops resolved, exactness deterministic, loaded in 7.3s",
+      "wall_s": 7.25532775,
+      "started_unix": 1792730054,
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Qwen3.6-35B-A3B-NVFP4",
+        "device": "Apple M5 Max",
+        "exactness": "deterministic",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 2048,
+        "prefill_chunk_source": "recipe qwen3_5_moe, metal",
+        "scratch_bytes": 83954176,
+        "reference_only": false,
+        "layers": 40,
+        "layer_blocks": [
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe",
+          "gated_delta_net+moe",
+          "attention+moe"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 31
+          },
+          {
+            "op": "rmsnorm_add",
+            "kernel": "rmsnorm_add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 80
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_flash",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "silu_glu",
+            "kernel": "silu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 70
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 130
+          },
+          {
+            "op": "matmul_fp8",
+            "kernel": "matmul_fp8_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 121
+          },
+          {
+            "op": "matmul_nvfp4",
+            "kernel": "matmul_nvfp4_mma",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "moe_topk",
+            "kernel": "moe_topk_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "moe_combine",
+            "kernel": "moe_combine_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 40
+          },
+          {
+            "op": "gate_split",
+            "kernel": "gate_split_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "sigmoid_mul",
+            "kernel": "sigmoid_mul_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "gdn_conv",
+            "kernel": "gdn_conv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "gdn_delta_rule",
+            "kernel": "gdn_delta_rule_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 70
+          },
+          {
+            "op": "matmul_pair",
+            "kernel": "matmul_pair_bf16_nax",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "qk_norm_rope_kv",
+            "kernel": "qk_norm_rope_kv_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          }
+        ],
+        "load_s": 7.254576375
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia plan show --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --admit --json"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "41 kernels, 714 cases in 20.5s; incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)",
+      "wall_s": 20.660813916,
+      "started_unix": 1792730062,
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "41 kernels, 714 cases in 20.5s"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia kernels test --backend metal --device 0 --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows",
+      "wall_s": 9.134575125,
+      "started_unix": 1792730082,
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 1.214,
+        "perplexity_line": "1.214 over 1179 tokens (need <= 40), non-finite rows 0 ok",
+        "sanity_ok": 5,
+        "sanity_failed": 0
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --quick --max-seq 2048"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+      "wall_s": 0.000516541,
+      "started_unix": 1792730092,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 98.33% KL 7.04e-3; decode top-1 98.75% KL 1.11e-2",
+      "wall_s": 10.988622,
+      "started_unix": 1792730092,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/opt/code/wt-gc2/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+        "golden_how": "given with --golden",
+        "golden_fingerprint": "fnv1a64:cd6ef94b3dcd4c82 size:246804",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.33448993754337,
+            "mean_kl": 0.007041065770097358,
+            "mean_kl21": 0.006913605512058896,
+            "top5_pct": 91.29770992366412,
+            "tail_ref": 0.017574283359717616,
+            "tail_ours": 0.01749285079541094,
+            "max_kl": 0.7960212501991013,
+            "max_kl21": 0.7959394484441225,
+            "tail_abs": 0.0017501987187925866,
+            "nonfinite": 0,
+            "greedy_match_pct": 6.59264399722415,
+            "floor_pass": true,
+            "mean_kl_scored": 0.005971940055173444,
+            "mean_kl21_scored": 0.005780890243843295,
+            "scored_positions": 1279,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.006913605512058896,
+                  "scored_rows_kl": 0.005780890243843295
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.006913605512058896,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.005780890243843295,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 98.75,
+            "mean_kl": 0.011114750764410234,
+            "mean_kl21": 0.01164277761251118,
+            "top5_pct": 92.25,
+            "tail_ref": 0.025770566161384394,
+            "tail_ours": 0.024305640595770096,
+            "max_kl": 0.4656128879146473,
+            "max_kl21": 0.4651365221892114,
+            "tail_abs": 0.0031602790808432876,
+            "nonfinite": 0,
+            "greedy_match_pct": 88.75,
+            "floor_pass": true,
+            "mean_kl_scored": 0.01179579431438072,
+            "mean_kl21_scored": 0.011689649366431827,
+            "scored_positions": 118,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.01164277761251118,
+                  "scored_rows_kl": 0.011689649366431827
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.01164277761251118,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.011689649366431827,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 10.98612075
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden /opt/code/wt-gc2/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-short.baseline.json --baseline /opt/code/wt-gc2/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.baseline.json --noise-envelope /opt/code/wt-gc2/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.envelope.json --allow-same-code --allow-unstamped"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": [
+        "gated against the recorded baseline /opt/code/wt-gc2/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.baseline.json (commit unstamped) and its noise envelope"
+      ]
+    },
+    {
+      "id": "acc-oracle",
+      "title": "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 96.26% KL 1.09e-2",
+      "wall_s": 35.711846625,
+      "started_unix": 1792730103,
+      "artifacts": [
+        "logs/acc-oracle.out",
+        "baselines/acc-oracle.baseline.json",
+        "baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors"
+      ],
+      "metrics": {
+        "golden": "/opt/code/wt-gc2/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors",
+        "golden_how": "given with --oracle-golden",
+        "golden_fingerprint": "fnv1a64:27f686cb0bbb8579 size:2853428",
+        "gate_class": "bf16",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 5505,
+            "top1_pct": 96.25794732061762,
+            "mean_kl": 0.010898542883785502,
+            "mean_kl21": 0.01007112586329509,
+            "top5_pct": 92.3088101725704,
+            "tail_ref": 0.04538240502743794,
+            "tail_ours": 0.04560019578078947,
+            "max_kl": 1.1090502898537224,
+            "max_kl21": 1.108815430796654,
+            "tail_abs": 0.003179612984008213,
+            "nonfinite": 0,
+            "greedy_match_pct": 5.2679382379654855,
+            "floor_pass": true,
+            "mean_kl_scored": 0.010865990405674635,
+            "mean_kl21_scored": 0.01001405836177541,
+            "scored_positions": 5343,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.01007112586329509,
+                  "scored_rows_kl": 0.01001405836177541
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.01007112586329509,
+                  "limit": 0.02,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.01001405836177541,
+                  "limit": 0.02,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 19.398709834
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden /opt/code/wt-gc2/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors --mode prefill --decode-positions 16 --max-seq 4352 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-oracle.baseline.json --gate-class bf16 --max-mean-kl 2e-2 --min-top1 0 --no-ref-noise --model-id Qwen3.6-35B-A3B-NVFP4 --write-self-golden /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --self-golden /opt/code/wt-gc2/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allow-same-code --allow-unstamped"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": [
+        "floor: mean KL(oracle || engine) over the oracle's top-64 + tail, scored prefill rows, <= 2.0e-2 (measured, docs/results/2026-10-22-fx1-oracle-gate.md); top-1 not gated. The floor guards absolute accuracy; it does not see a 1 % scale bug, the drift check does",
+        "drift check: logits unchanged against the recorded dump /opt/code/wt-gc2/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors"
+      ]
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "decode 125.5 tok/s at 128 tokens (46% of the byte floor)",
+      "wall_s": 29.944086666,
+      "started_unix": 1792730138,
+      "artifacts": [
+        "bench/qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 132.0,
+            "ttft_s": 0.1389,
+            "prefill_tok_s": 950.1,
+            "decode_tok_s": 125.49,
+            "decode_stdev": 0.24,
+            "floor_tok_s": 272.33,
+            "pct_of_floor": 46.1,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 384,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1025.0,
+            "ttft_s": 0.6075,
+            "prefill_tok_s": 1677.2,
+            "decode_tok_s": 123.97,
+            "decode_stdev": 0.21,
+            "floor_tok_s": 272.33,
+            "pct_of_floor": 45.5,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 384,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4157.0,
+            "ttft_s": 2.3534,
+            "prefill_tok_s": 1762.8,
+            "decode_tok_s": 120.63,
+            "decode_stdev": 0.25,
+            "floor_tok_s": 272.33,
+            "pct_of_floor": 44.3,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 384,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 2.254637784,
+        "bandwidth_gbs": 614.0,
+        "floor_inputs": "gb/token: estimated from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 614 GB/s, the Apple M5 Max (40-core GPU) spec figure of docs/decisions/0009-native-metal-backend.md",
+        "server_load_s": 6.020391167,
+        "label": "qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia serve --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --host 127.0.0.1 --port 8090 --served-model-name qualify-Qwen3.6-35B-A3B-NVFP4 --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/opt/code/wt-gc2-target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-Qwen3.6-35B-A3B-NVFP4 --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench --out-dir /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/bench --tp 1 --fingerprint model=Qwen3.6-35B-A3B-NVFP4 --fingerprint backend=metal --fingerprint build=unstamped --timeout-s 900 --gb-per-token 2.2546 --bandwidth-gbs 614 --fingerprint-file /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/doctor.json"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": [
+        "bench warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    },
+    {
+      "id": "acc-long",
+      "title": "accuracy --mode all on the long golden (prefill, decode, prefix reuse)",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3",
+      "wall_s": 118.164774542,
+      "started_unix": 1792730168,
+      "artifacts": [
+        "logs/acc-long.out",
+        "baselines/acc-long.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:1c62c8e49c68fe34 size:6061444",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 36887,
+            "top1_pct": 94.25000677745548,
+            "mean_kl": 0.040347009571460174,
+            "mean_kl21": 0.042593494835457435,
+            "top5_pct": 90.37004906877762,
+            "tail_ref": 0.061147522379764195,
+            "tail_ours": 0.06380438803542769,
+            "max_kl": 22.439601561121957,
+            "max_kl21": 22.309274226344968,
+            "tail_abs": 0.007465077915597691,
+            "nonfinite": 0,
+            "greedy_match_pct": 0.32802884485048933,
+            "floor_pass": true,
+            "mean_kl_scored": 0.01576339724049363,
+            "mean_kl21_scored": 0.014297853622222,
+            "scored_positions": 32349,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.042593494835457435,
+                  "scored_rows_kl": 0.014297853622222
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.042593494835457435,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.014297853622222,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 320,
+            "top1_pct": 96.25,
+            "mean_kl": 0.00950505906345987,
+            "mean_kl21": 0.008828920423978474,
+            "top5_pct": 89.75,
+            "tail_ref": 0.023018183032261424,
+            "tail_ours": 0.023774009815094747,
+            "max_kl": 0.14634874703612316,
+            "max_kl21": 0.14395655261172083,
+            "tail_abs": 0.002816221072623886,
+            "nonfinite": 0,
+            "greedy_match_pct": 48.125,
+            "floor_pass": true,
+            "mean_kl_scored": 0.00950505906345987,
+            "mean_kl21_scored": 0.008828920423978474,
+            "scored_positions": 320,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.008828920423978474,
+                  "scored_rows_kl": 0.008828920423978474
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.008828920423978474,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.008828920423978474,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 118.156774959
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --decode-positions 64 --max-seq 12288 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-long.baseline.json"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": [
+        "prefix reuse is gated in acc-4k, on the 4k golden"
+      ]
+    },
+    {
+      "id": "acc-4k",
+      "title": "accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)",
+      "section": "full",
+      "verdict": "PASS",
+      "reason": "prefill top-1 93.14% KL 8.14e-2; decode top-1 98.96% KL 7.22e-3",
+      "wall_s": 192.052625167,
+      "started_unix": 1792730286,
+      "artifacts": [
+        "logs/acc-4k.out",
+        "baselines/acc-4k.baseline.json",
+        "logs/acc-4k-reuse.out"
+      ],
+      "metrics": {
+        "golden": "golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:27195b6f4d50d2e6 size:2100484",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 12759,
+            "top1_pct": 93.142095775531,
+            "mean_kl": 0.08138691639189179,
+            "mean_kl21": 0.09088838734745672,
+            "top5_pct": 90.18261619249158,
+            "tail_ref": 0.06709213063970995,
+            "tail_ours": 0.07299916957933715,
+            "max_kl": 20.673896443508795,
+            "max_kl21": 22.10225226797241,
+            "tail_abs": 0.011468557269132491,
+            "nonfinite": 0,
+            "greedy_match_pct": 0.8307861117642449,
+            "floor_pass": true,
+            "mean_kl_scored": 0.013935535146567344,
+            "mean_kl21_scored": 0.012435983909215992,
+            "scored_positions": 8221,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.09088838734745672,
+                  "scored_rows_kl": 0.012435983909215992
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.09088838734745672,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.012435983909215992,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 192,
+            "top1_pct": 98.95833333333331,
+            "mean_kl": 0.00722336544635151,
+            "mean_kl21": 0.006904209972490877,
+            "top5_pct": 90.625,
+            "tail_ref": 0.01432701461854899,
+            "tail_ours": 0.014911656084680217,
+            "max_kl": 0.1193197571127066,
+            "max_kl21": 0.1116882935698078,
+            "tail_abs": 0.0017948568105848872,
+            "nonfinite": 0,
+            "greedy_match_pct": 91.66666666666669,
+            "floor_pass": true,
+            "mean_kl_scored": 0.00722336544635151,
+            "mean_kl21_scored": 0.006904209972490877,
+            "scored_positions": 192,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.006904209972490877,
+                  "scored_rows_kl": 0.006904209972490877
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.006904209972490877,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.006904209972490877,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 114.811414333,
+        "reuse": {
+          "stem": "acc-4k-reuse",
+          "prefill_chunk": 1024,
+          "plan_prefill_chunk": 2048,
+          "judged": 3,
+          "skipped": 0,
+          "require_all": true,
+          "verdict": "PASS"
+        }
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k.baseline.json --min-top1 0 --baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json --allow-same-code --allow-unstamped",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode reuse --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k-reuse.baseline.json --prefill-chunk 1024 --reuse-require-all"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": [
+        "prefix reuse at chunk 1024: 3 judged, 0 skipped",
+        "gated against the recorded baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json (commit unstamped), no noise envelope"
+      ]
+    },
+    {
+      "id": "envelope",
+      "title": "noise envelope and baseline for regression gating",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k.baseline.json --min-top1 0 --baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json --allow-same-code --allow-unstamped",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode reuse --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k-reuse.baseline.json --prefill-chunk 1024 --reuse-require-all"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench-long",
+      "title": "long-context bench up to 16k",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k.baseline.json --min-top1 0 --baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json --allow-same-code --allow-unstamped",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode reuse --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k-reuse.baseline.json --prefill-chunk 1024 --reuse-require-all"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "ab",
+      "title": "A/B against the reference server via localeval",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k.baseline.json --min-top1 0 --baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json --allow-same-code --allow-unstamped",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode reuse --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k-reuse.baseline.json --prefill-chunk 1024 --reuse-require-all"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "tp",
+      "title": "tensor-parallel variant",
+      "section": "full",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/opt/code/wt-gc2-target/release/intarsia",
+        "host": "endor.kuepker.haus",
+        "backend": "metal",
+        "device": "Apple M5 Max",
+        "arch": "applegpu_g17s",
+        "model": "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+        "model_fingerprint": "fnv1a64:9ca75aef5131bb81",
+        "commands": [
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode all --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k.baseline.json --min-top1 0 --baseline golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json --allow-same-code --allow-unstamped",
+          "/opt/code/wt-gc2-target/release/intarsia accuracy --model /Users/josef/Models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --mem-budget 40 --golden golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors --mode reuse --decode-positions 64 --max-seq 8192 --write-baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/baselines/acc-4k-reuse.baseline.json --prefill-chunk 1024 --reuse-require-all"
+        ],
+        "env": {
+          "INTARSIA_REPO": "/opt/code/wt-gc2",
+          "FLEETQ_JOB": "4380"
+        }
+      },
+      "notes": []
+    }
+  ],
+  "hooks": []
+}

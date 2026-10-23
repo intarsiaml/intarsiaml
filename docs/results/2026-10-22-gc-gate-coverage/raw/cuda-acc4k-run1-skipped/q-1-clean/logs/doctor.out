@@ -1,0 +1,18 @@
+intarsia doctor  (spark-4e77 aarch64, backend cuda)
+  os      Ubuntu 24.04.4 LTS
+  cpu     Cortex-A725 (20 threads)
+  ram     130.7 GB total, 40.4 GB available
+  device  NVIDIA GB10 [cuda sm_121] free 27.0 GB
+
+[ ok ] sm_121_target: GPU is compute 12.1 and 58 kernels are built for sm_121
+[ ok ] cuda_toolkit: CUDA toolkit 13.0.3 supports sm_121
+[ ok ] transparent_hugepages: THP = madvise (kernel: always [madvise] never)
+[warn] disk_free:.: 227.0 GB free of 4032 GB (6% free)
+         fix: free space before downloading models or building (target/ dirs are large); keep result files small
+[warn] disk_free:/home/nvidia: 227.0 GB free of 4032 GB (6% free)
+         fix: free space before downloading models or building (target/ dirs are large); keep result files small
+[info] hip_gpu_max_hw_queues: GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)
+[ ok ] serve_port: port 8090 is free
+[info] bandwidth: host->device 59.4 GB/s, device->host 59.6 GB/s, device copy 228.8 GB/s (read+write)
+
+fingerprint written to /home/nvidia/gc/q/q-1-clean/doctor.json

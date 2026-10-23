@@ -1,0 +1,98 @@
+{
+  "format": "intarsia-accuracy-baseline-v2",
+  "created_unix": 1792730035,
+  "tool_version": "0.0.1",
+  "code": {
+    "head": "",
+    "code_tree": "",
+    "dirty": false,
+    "overlay": []
+  },
+  "exec": {
+    "cmdline": [
+      "/opt/code/wt-gc-target/release/intarsia",
+      "accuracy",
+      "--model",
+      "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
+      "--backend",
+      "metal",
+      "--device",
+      "0",
+      "--mem-budget",
+      "40",
+      "--golden",
+      "golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
+      "--mode",
+      "reuse",
+      "--decode-positions",
+      "64",
+      "--max-seq",
+      "8192",
+      "--write-baseline",
+      "/opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-104/baselines/acc-4k-reuse.baseline.json",
+      "--prefill-chunk",
+      "256",
+      "--reuse-require-all"
+    ],
+    "disable_list": "",
+    "fault": "",
+    "kernels": {
+      "argmax": "argmax_f32",
+      "attn_decode": "attn_decode_bf16_splitkv",
+      "attn_prefill": "attn_prefill_bf16_flash",
+      "embedding": "embedding_bf16",
+      "gate_split": "gate_split_bf16",
+      "gdn_conv": "gdn_conv_bf16",
+      "gdn_delta_rule": "gdn_delta_rule_bf16",
+      "matmul_fp8": "matmul_fp8_gemv+matmul_fp8_mma",
+      "matmul_nvfp4": "matmul_nvfp4_gemv+matmul_nvfp4_mma",
+      "matmul_pair": "matmul_pair_bf16_gemv+matmul_pair_bf16_nax",
+      "moe_combine": "moe_combine_bf16",
+      "moe_experts": "moe_experts_bf16",
+      "moe_topk": "moe_topk_bf16",
+      "qk_norm_rope_kv": "qk_norm_rope_kv_bf16",
+      "rmsnorm": "rmsnorm_bf16",
+      "rmsnorm_add": "rmsnorm_add_bf16",
+      "sigmoid_mul": "sigmoid_mul_bf16",
+      "silu_glu": "silu_glu_bf16"
+    }
+  },
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
+    "fnv1a64": "27195b6f4d50d2e6",
+    "size": 2100484,
+    "format": "intarsia-golden-topk-v1",
+    "prompts": 3,
+    "positions": 12759,
+    "topk": 20,
+    "engine": "vllm",
+    "engine_version": "0.26.1rc1.dev602+g65b7662d3",
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "model_revision": "not in the model root path",
+    "kv_dtype": "fp8"
+  },
+  "run": {
+    "model": "Qwen3.6-35B-A3B-NVFP4",
+    "backend": "metal",
+    "device": "Apple M5 Max",
+    "kv_dtype": "bf16",
+    "act_dtype": "bf16",
+    "fp8_act": "recipe default",
+    "prefill_chunk": 256,
+    "prefill_chunk_source": "--prefill-chunk",
+    "decode_positions": 64,
+    "gate_class": "4bit"
+  },
+  "modes": [],
+  "reuse": {
+    "passed": true,
+    "prefill_chunk": 256,
+    "prefill_chunk_source": "--prefill-chunk",
+    "ran": [
+      "long_docs_4k",
+      "long_code_4k",
+      "chat_reuse_4k"
+    ],
+    "skipped": []
+  }
+}
