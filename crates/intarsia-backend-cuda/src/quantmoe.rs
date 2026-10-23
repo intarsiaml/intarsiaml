@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -14,12 +14,15 @@ use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
+    // row-exact twins (`rows_exact`, M = 1..=16, bitwise the 1-row GEMV per row; tests/rows_exact.rs)
+    ("matmul_fp8_gemv_rows", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_gemm", Op::MatmulFp8),
     ("matmul_fp8_gemm_f8", Op::MatmulFp8),
     ("matmul_fp8_gemm_lt", Op::MatmulFp8),
     ("matmul_fp8_gemm_reg", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
+    ("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemm", Op::MatmulNvfp4),
     // prefill (M >= 256): weights dequantised in registers, bitwise `matmul_nvfp4_gemm` (kernels/cuda/nvfp4_gemm_reg.cu)
@@ -30,6 +33,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_decode_bf16", Op::MoeExperts),
     ("moe_experts_decode_v2_bf16", Op::MoeExperts),
+    ("moe_experts_decode_v2_rows_bf16", Op::MoeExperts),
     ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_experts_nvfp4_mma_bf16", Op::MoeExperts),
     ("moe_experts_w4a16_bf16", Op::MoeExperts),
@@ -39,6 +43,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_w4a16_gelu_bf16", Op::MoeExperts),
     ("moe_experts_decode_gelu_bf16", Op::MoeExperts),
     ("moe_experts_decode_v2_gelu_bf16", Op::MoeExperts),
+    ("moe_experts_decode_v2_gelu_rows_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
@@ -147,6 +152,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
+                // Row-exact twin (`rows_exact`: selected only by an `exact_rows` call): any M in 1..=16, any K % 16 == 0, row m
+                // bitwise the M = 1 GEMV on row m alone (K staged in chunks that keep every lane's block order; kernels/cuda/fp8.cu).
+                "matmul_fp8_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "matmul_fp8_mma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
@@ -225,6 +241,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
+                "matmul_nvfp4_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "matmul_nvfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -278,6 +303,24 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_decode_scratch)
                     .priority(20),
+                // Row-exact multi-token twin of the v2 pair (`rows_exact`, T = 1..=16): token t bitwise the T = 1 call on token t alone
+                // (the kernels index by pair and by token only). The ordinary registrations above keep T <= DECODE_MAX_TOKENS.
+                "moe_experts_decode_v2_rows_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        (1..=ROWS_MAX).contains(&s.m)
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(20)
+                    .rows_exact(),
                 // grouped tensor-core experts for batches (prefill): H % 128, I % 128, at least 32 tokens so a typical
                 // active expert sees several pairs; decode and tiny batches keep the warp-per-row kernel
                 "moe_experts_mma_bf16" => k
@@ -359,6 +402,24 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(moe_experts_decode_scratch)
                     .priority(20)
                     .ext(),
+                // gelu twin of the row-exact experts: a gelu `exact_rows` call (Gemma-4) must still find a row-exact kernel
+                "moe_experts_decode_v2_gelu_rows_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        (1..=ROWS_MAX).contains(&s.m)
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(19)
+                    .ext()
+                    .rows_exact(),
                 "moe_experts_mma_gelu_bf16" => k
                     .acts(bf)
                     .weights([DType::U8])

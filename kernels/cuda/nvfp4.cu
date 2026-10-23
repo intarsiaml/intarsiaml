@@ -118,6 +118,15 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, cons
         case 6: gemv_run<6>(x, w, bs, gs, out, N, K, s); break;
         case 7: gemv_run<7>(x, w, bs, gs, out, N, K, s); break;
         case 8: gemv_run<8>(x, w, bs, gs, out, N, K, s); break;
+        // 9..16: only the row-exact launcher (`launch` refuses M > 8 for the decode GEMV); the same kernel template, M more accumulators
+        case 9: gemv_run<9>(x, w, bs, gs, out, N, K, s); break;
+        case 10: gemv_run<10>(x, w, bs, gs, out, N, K, s); break;
+        case 11: gemv_run<11>(x, w, bs, gs, out, N, K, s); break;
+        case 12: gemv_run<12>(x, w, bs, gs, out, N, K, s); break;
+        case 13: gemv_run<13>(x, w, bs, gs, out, N, K, s); break;
+        case 14: gemv_run<14>(x, w, bs, gs, out, N, K, s); break;
+        case 15: gemv_run<15>(x, w, bs, gs, out, N, K, s); break;
+        case 16: gemv_run<16>(x, w, bs, gs, out, N, K, s); break;
         default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
@@ -229,7 +238,7 @@ int mma_by_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float*
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs, ik_tensor* out,
-           void* stream, bool gemv) {
+           void* stream, bool gemv, int max_gemv_rows = 8) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 8));
     IK_TRY(ik_check_a(bs, IK_DTYPE_FP8_E4M3, 2, 1));
@@ -250,7 +259,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik
     const float* gp = (const float*)gs->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
-        if (M > 8) return IK_ERR_SHAPE;
+        if (M > max_gemv_rows) return IK_ERR_SHAPE;
         return f32o ? gemv_by_m((int)M, xp, wp, bp, gp, (float*)out->data, N, K, s)
                     : gemv_by_m((int)M, xp, wp, bp, gp, (ik_bf16*)out->data, N, K, s);
     }
@@ -294,6 +303,12 @@ int ik_matmul_nvfp4_glu_gemv(const ik_tensor* x, const ik_tensor* w_gate, const 
 int ik_matmul_nvfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                          const ik_tensor* global_scale, ik_tensor* out, void* stream) {
     return launch(x, w, block_scales, global_scale, out, stream, true);
+}
+// Row-exact multi-row GEMV: row m of an M-row call (M <= 16) is bitwise the M = 1 `ik_matmul_nvfp4_gemv` call on row m alone
+// (same kernel template: a warp per output row, the same lane-strided walk and fma chain per row, M independent accumulators).
+int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                              const ik_tensor* global_scale, ik_tensor* out, void* stream) {
+    return launch(x, w, block_scales, global_scale, out, stream, true, 16);
 }
 int ik_matmul_nvfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                         const ik_tensor* global_scale, ik_tensor* out, void* stream) {

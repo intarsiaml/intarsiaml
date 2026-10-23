@@ -43,8 +43,9 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
 
-/// Hard cap on `max_batch` (operator decision 8.1: exact kernels only, 8 rows; `Model::BATCH_MAX_ROWS`).
-pub const MAX_BATCH_CAP: usize = 8;
+/// Hard cap on `max_batch`: the most rows any backend serves (`Model::BATCH_MAX_ROWS`). The cap of one backend is
+/// `Backend::batch_row_cap` (operator decisions: exact kernels only; Metal 8 rows (8.1), CUDA 16 (2026-10-23)).
+pub const MAX_BATCH_CAP: usize = 16;
 /// Default `spec_off_at` (design 6: speculation off at B >= 4).
 pub const SPEC_OFF_AT_DEFAULT: usize = 4;
 
@@ -81,6 +82,12 @@ pub trait BatchModel {
     fn slot_tokens(&self, slot: usize) -> &[u32];
     /// Shorten slot `slot` to its first `len` tokens (`SequenceState::truncate`). `len = 0` invalidates it.
     fn truncate(&mut self, slot: usize, len: usize) -> Result<()>;
+    /// The largest length `<= want` that slot `slot` can be truncated to. Default: any (attention KV only shortens). A
+    /// slot with recurrent state returns only to its current length, to a snapshot, or to 0
+    /// (`SequenceState::restorable_len`), so admission asks before it promises a reused prefix.
+    fn restorable_len(&self, _slot: usize, want: usize) -> usize {
+        want
+    }
     /// Prefill `tokens` into slot `slot` at its current length, as one forward pass of exactly `tokens.len()` rows
     /// (the chunk size is part of numerical identity, design 4.5 item 1). `mode = None`: KV only, returns `None`;
     /// `Some(m)`: the last position's head output in mode `m` (the request's first token).
@@ -686,7 +693,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             .filter(|&s| !self.busy[s])
             .map(|s| {
                 let cached = if self.cfg.prefix_reuse {
-                    common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max)
+                    let want = common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max);
+                    self.model.restorable_len(s, want)
                 } else {
                     0
                 };

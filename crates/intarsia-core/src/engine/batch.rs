@@ -120,8 +120,42 @@ impl BatchModel for SlotModel {
     fn truncate(&mut self, slot: usize, len: usize) -> Result<()> {
         self.states[slot].truncate(len, &*self.model.backend)
     }
+    fn restorable_len(&self, slot: usize, want: usize) -> usize {
+        self.states[slot].restorable_len(want)
+    }
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<Option<StepOut>> {
-        let out = self.model.forward(&mut self.states[slot], tokens, mode.unwrap_or(HeadMode::None), None)?;
+        let st = &mut self.states[slot];
+        if st.has_recurrent() {
+            // the solo schedule of a recurrent state (`Seq::prefill_step`): a snapshot after every non-final chunk, and
+            // before the final chunk's last token, which runs alone (so a repeated prompt reuses all but that token)
+            let keep = self.model.batch_snapshots();
+            return Ok(match mode {
+                None => {
+                    if !matches!(self.model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                        return Err(Error::Other("a headless prefill pass returned an output".into()));
+                    }
+                    st.snapshot(&*self.model.backend, keep)?;
+                    None
+                }
+                Some(m) => {
+                    if tokens.len() > 1 {
+                        // nothing is asked of this pass: a head output here would be a bug, not a result to drop
+                        if !matches!(
+                            self.model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?,
+                            StepOut::None
+                        ) {
+                            return Err(Error::Other("a headless prefill pass returned an output".into()));
+                        }
+                        st.snapshot(&*self.model.backend, keep)?;
+                    }
+                    match self.model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
+                        StepOut::None => None,
+                        o => Some(o),
+                    }
+                }
+            });
+        }
+        let out = self.model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
         Ok(match out {
             StepOut::None => None,
             o => Some(o),
@@ -331,6 +365,8 @@ pub struct BatchedEngine {
     plan: Value,
     vocab: usize,
     verify_rows: usize,
+    /// The slots hold recurrent state (hybrid opt-in): no sequence drafts (`Seq::build`).
+    recurrent: bool,
 }
 
 impl BatchedEngine {
@@ -374,8 +410,17 @@ impl BatchedEngine {
         for _ in 0..opts.max_batch {
             states.push(model.new_state()?);
         }
-        if states[0].has_recurrent() {
-            return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
+        let recurrent = states[0].has_recurrent();
+        if recurrent {
+            // opt-in cpu prototype (`Model::allow_recurrent_batch`, docs/results/2026-10-23-rb-recurrent-batching.md)
+            if !model.recurrent_batch() {
+                return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
+            }
+            if meta.spec.enabled() {
+                return Err(Error::Unsupported(
+                    "speculative decoding on a model with recurrent state needs the single-sequence engine (--max-batch 1)".into(),
+                ));
+            }
         }
         let cap = states[0].cap;
         let total_kv: u64 = states.iter().map(|s| s.total_bytes() as u64).sum();
@@ -391,12 +436,17 @@ impl BatchedEngine {
         telemetry.set_kv(0, total_kv, 0, cap as u64 * opts.max_batch as u64);
 
         let solo_chunk = model.prefill_chunk().max(1);
-        let cfg = opts.scheduler_config(solo_chunk);
+        let mut cfg = opts.scheduler_config(solo_chunk);
+        if recurrent && model.batch_snapshots() == 0 {
+            // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse
+            // candidate (every request starts from an empty slot)
+            cfg.prefix_reuse = false;
+        }
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
         let engine = BatchEngine::spawn(SlotModel { model, states, row_fault: opts.row_fault }, cfg)?;
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent })
     }
 
     /// The scheduler's metrics (batch-size histogram, queue depth, TTFT / inter-token latency, ...).
@@ -436,7 +486,7 @@ impl Engine for BatchedEngine {
         }
         let (etx, erx) = channel();
         let plen = req.prompt.len();
-        let seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, false);
+        let seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);
         let adapter = SeqAdapter {
             seq: Some(seq),
             tx: etx,

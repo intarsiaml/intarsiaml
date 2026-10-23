@@ -269,18 +269,27 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     };
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
-    let max_batch = recipe.resolve_max_batch(
-        opts.max_batch,
-        if opts.max_batch.is_some() { intarsia_core::engine::SERVE_MAX_BATCH } else { 1 },
-    )?;
+    // The most rows are the backend's (`Backend::batch_row_cap`: Metal 8, CUDA 16).
+    let backend_name = backends.first().map_or("cpu", |b| b.name());
+    let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
+    let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
+    // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA whenever `--max-batch N` asks (its `_rows` kernels are
+    // proven row-exact, docs/results/2026-10-23-rb2-cuda-batching.md); the cpu reference needs the explicit opt-in
+    // `INTARSIA_RECURRENT_BATCH=1` (docs/results/2026-10-23-rb-recurrent-batching.md). Every other backend is refused.
+    let hybrid_opt_in = std::env::var("INTARSIA_RECURRENT_BATCH").is_ok_and(|v| v == "1");
+    let hybrid_batch = backend_name == "cuda" || (hybrid_opt_in && backend_name == "cpu");
     if max_batch.value > 1 {
-        // fail before reading any weights: continuous batching is Metal only (row-exact multi-row kernels)
-        let b = backends.first().map_or("cpu", |b| b.name());
-        if b != "metal" {
+        // fail before reading any weights: continuous batching needs row-exact multi-row kernels (Metal, CUDA)
+        if !matches!(backend_name, "metal" | "cuda") && !hybrid_batch {
             return Err(Error::Unsupported(format!(
-                "--max-batch {} needs the Metal backend (row-exact multi-row kernels; backend is {b}); use --max-batch 1",
+                "--max-batch {} needs the Metal or CUDA backend (row-exact multi-row kernels; backend is {backend_name}); use --max-batch 1",
                 max_batch.value
             )));
+        }
+        // MTP drafting and the prefix store stay at one sequence (needs per-row hidden outputs and k x 63 MB of spec rows per
+        // sequence): refuse before the weights are read, not after
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp {
+            return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
         }
     }
     let weights = SchemedSource::open(dir)?;
@@ -337,7 +346,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
-        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
+        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
+            // CUDA since lane rb2: the verify rows take the `_rows` kernels (G-B: bitwise the one-row kernel per row)
+            eprintln!("--spec mtp on {}: verify rows run the row-exact kernels (bitwise the single-row decode per row)", model.backend.name());
+        } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
             eprintln!(
                 "--spec mtp on {}: no row-exact verify kernels here, so greedy output can differ from --spec off where a \
                  verify row's argmax differs from the single-row decode's",
@@ -354,12 +366,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
-        // Batching needs the row-exact multi-row kernels (Metal). `enable_batch` exempts the cpu backend (its kernels
+        if hybrid_batch {
+            model.allow_recurrent_batch()?;
+        }
+        // Batching needs the row-exact multi-row kernels (Metal, CUDA). `enable_batch` exempts the cpu backend (its kernels
         // loop over rows), but the batched engine serves only backends that register them.
-        if !model.batch_capable() {
+        if !model.batch_capable() && !(hybrid_opt_in && model.backend.name() == "cpu") {
             return Err(Error::Unsupported(format!(
                 "--max-batch {} needs row-exact multi-row kernels, which the {} backend does not provide (continuous \
-                 batching is Metal only); use --max-batch 1",
+                 batching is Metal and CUDA only); use --max-batch 1",
                 max_batch.value,
                 model.backend.name()
             )));
@@ -429,8 +444,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
+        } else if model.recurrent_batch() && backend_name == "cuda" {
+            // The busy chunk is the solo chunk (2048 for the 35B): then a request that prefills beside decoding sequences
+            // runs the same chunk schedule as its solo run, and its state, and every token after it, is bitwise the solo
+            // engine's for every prompt length. A smaller busy chunk changes the GEMM tiling of the prefill: 1024 against 2048
+            // measured mean 21-way KL 7.87e-3 on the 35B (2.5x the acc-short ref-noise floor 3.161e-3, 4.1% top-1 flips),
+            // docs/results/2026-10-23-rb2-cuda-batching.md section 11. `--busy-chunk 1024` is the opt-in speed knob.
+            bo.busy_chunk = model.prefill_chunk();
         }
-        eprintln!("continuous batching: up to {} sequences ({})", max_batch.value, max_batch.source);
+        eprintln!("continuous batching: up to {} sequences ({}), busy prefill chunk {}", max_batch.value, max_batch.source, bo.busy_chunk);
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
     } else {
         Arc::new(LocalEngine::new(model, Arc::new(codec), meta, telemetry)?)

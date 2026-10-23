@@ -29,6 +29,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 mod batch;
+mod gdn_batch;
 mod gdn_block;
 mod gemma;
 pub(crate) mod feedback;
@@ -301,6 +302,10 @@ pub struct Model {
     verify_rows: usize,
     /// Most sequences of a batched decode step ([`Model::forward_batch`]); 0 = batching off (the default).
     batch_rows: usize,
+    /// Opt-in (`Model::allow_recurrent_batch`, cpu backend only): batched decode of hybrid models, i.e. GatedDeltaNet
+    /// (recurrent) blocks, mixture-of-experts blocks and gated attention. Off by default: `enable_batch` then accepts
+    /// dense attention-only models exactly as before.
+    recurrent_batch: bool,
     /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
     batch_tok: Option<Buffer>,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
@@ -962,6 +967,7 @@ impl Model {
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
+            recurrent_batch: false,
             batch_tok: None,
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
@@ -1189,6 +1195,11 @@ impl Model {
     /// Allocate a fresh sequence state with the planned KV capacity.
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
+        if self.batch_rows > 0 {
+            // a batching engine's slots hold their recurrent snapshots from the start (reserved in `enable_batch`'s memory
+            // plan): no device allocation inside the scheduler loop
+            st.reserve_snapshots(&*self.backend, self.batch_snapshots())?;
+        }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
             // allocated once here (and reserved in the memory plan), not in the first verify pass
@@ -1822,23 +1833,34 @@ impl Model {
                             Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, profile)?,
                         }
                     }
-                    Block::Gdn(g) => {
-                        let Seqs::One(st) = seqs else {
+                    Block::Gdn(g) => match seqs {
+                        Seqs::Batch(sts) if self.recurrent_batch => {
+                            // one decode token of each sequence: the projections run once on all rows, the conv + delta
+                            // rule once per row on that row's own recurrent state (`model/gdn_batch.rs`)
+                            let f = pending.then(|| fold(&g.pre_norm, &mut cur));
+                            if f.is_none() {
+                                norm_in(&g.pre_norm, false, &mut cur)?;
+                            }
+                            self.gdn_block_batch(g, sts, &nv, &blkv, profile, f.as_ref())?;
+                        }
+                        Seqs::Batch(_) => {
                             norm_in(&g.pre_norm, pending, &mut cur)?;
                             return Err(Error::Unsupported("batched decode of a recurrent block".into()));
-                        };
-                        let f = pending.then(|| fold(&g.pre_norm, &mut cur));
-                        if f.is_none() {
-                            norm_in(&g.pre_norm, false, &mut cur)?;
                         }
-                        self.gdn_block(g, st, &nv, &blkv, t, profile, f.as_ref())?;
-                    }
+                        Seqs::One(st) => {
+                            let f = pending.then(|| fold(&g.pre_norm, &mut cur));
+                            if f.is_none() {
+                                norm_in(&g.pre_norm, false, &mut cur)?;
+                            }
+                            self.gdn_block(g, st, &nv, &blkv, t, profile, f.as_ref())?;
+                        }
+                    },
                     Block::Ffn(f) => {
                         norm_in(&f.pre_norm, pending, &mut cur)?;
                         self.ffn_block(f, &nv, &blkv, t, profile)?;
                     }
                     Block::Moe(m) => {
-                        if matches!(seqs, Seqs::Batch(_)) {
+                        if matches!(seqs, Seqs::Batch(_)) && !self.recurrent_batch {
                             norm_in(&m.pre_norm, pending, &mut cur)?;
                             return Err(Error::Unsupported("batched decode of a mixture-of-experts block".into()));
                         }
