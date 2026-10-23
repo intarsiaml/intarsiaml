@@ -51,14 +51,14 @@ stage_prof() {
   local w=${1%%:*} envv=x tag; [[ "$1" == *:* ]] && envv=${1#*:} && envv=${envv//,/ }
   tag=$w; [ "$envv" != x ] && tag="$w-$(echo "$envv" | tr -c 'A-Za-z0-9=' '_' | sed 's/INTARSIA_HIP_//g')"
   local n
-  for n in 4096 16384; do
+  for n in ${PROF_NS:-4096 16384}; do
     need 120 "optab $tag $n" || continue
     echo "--- op table $tag $n $(ts)"
     mkgen "$w" "optab-$tag-$n" $n 1 "$envv" --profile-every 1 --op-table
     dv "$w" bash -c "bash /work/bench-out/hp/gen-optab-$tag-$n.sh" > "$OUT/optab-$tag-$n.out" 2> "$OUT/optab-$tag-$n.err"
     grep -aE "prompt:|finish=" "$OUT/optab-$tag-$n.err"
   done
-  for n in 4096 16384; do
+  for n in ${PROF_NS:-4096 16384}; do
     need 150 "rocprof $tag $n" || continue
     echo "--- rocprofv3 $tag $n $(ts)"
     mkgen "$w" "tb-$tag-$n" $n 1 "$envv" --profile-every 0

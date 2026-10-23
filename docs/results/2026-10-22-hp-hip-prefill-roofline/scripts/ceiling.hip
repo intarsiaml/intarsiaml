@@ -31,6 +31,39 @@ typedef int v2i __attribute__((ext_vector_type(2)));
 
 constexpr int kAcc = 8;  // independent accumulators per wave (WMMA latency hiding)
 
+// W4A8 pricing (lane hp): MODE 2 = an fp8 WMMA into a zeroed temporary, then 8 FMAs folding it into the accumulator with a
+// per-(n, 16-k block) scale (what an NVFP4-scale-exact fp8 expert GEMM must do per WMMA); MODE 0 / 1 = bf16 / fp8 peak.
+template <int MODE>
+__global__ void __launch_bounds__(256) wmma_scaled_peak(const uint4* in, float* out, int iters) {
+    const int lane = threadIdx.x & 31;
+    uint4 a = in[lane], b = in[32 + lane];
+    float sc = __uint_as_float(0x3f800000u + (lane & 7));
+    v8f acc[kAcc];
+#pragma unroll
+    for (int i = 0; i < kAcc; ++i)
+#pragma unroll
+        for (int e = 0; e < 8; ++e) acc[i][e] = 0.f;
+    for (int it = 0; it < iters; ++it) {
+#pragma unroll
+        for (int i = 0; i < kAcc; ++i) {
+            v8f z;
+#pragma unroll
+            for (int e = 0; e < 8; ++e) z[e] = 0.f;
+            z = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(
+                __builtin_bit_cast(v2i, make_uint2(a.x, a.y)), __builtin_bit_cast(v2i, make_uint2(b.x, b.y)), z);
+#pragma unroll
+            for (int e = 0; e < 8; ++e) acc[i][e] = __builtin_fmaf(z[e], sc, acc[i][e]);
+        }
+        sc += 1e-7f;
+    }
+    float s = 0.f;
+#pragma unroll
+    for (int i = 0; i < kAcc; ++i)
+#pragma unroll
+        for (int e = 0; e < 8; ++e) s += acc[i][e];
+    if (s == 12345.f) out[threadIdx.x] = s;
+}
+
 template <bool FP8>
 __global__ void __launch_bounds__(256) wmma_peak(const uint4* in, float* out, int iters) {
     const int lane = threadIdx.x & 31;
@@ -57,6 +90,32 @@ __global__ void __launch_bounds__(256) wmma_peak(const uint4* in, float* out, in
 #pragma unroll
         for (int e = 0; e < 8; ++e) s += acc[i][e];
     if (s == 12345.f) out[threadIdx.x] = s;  // never true for the inputs used; keeps the loop alive
+}
+
+double peak_scaled(int cus) {
+    uint4* in;
+    float* out;
+    CK(hipMalloc(&in, 64 * sizeof(uint4)));
+    CK(hipMalloc(&out, 256 * sizeof(float)));
+    std::vector<uint32_t> h(256, 0x30303030u);
+    CK(hipMemcpy(in, h.data(), 64 * sizeof(uint4), hipMemcpyHostToDevice));
+    const int iters = 4096, blocks = cus * 16;
+    hipEvent_t e0, e1;
+    CK(hipEventCreate(&e0));
+    CK(hipEventCreate(&e1));
+    wmma_scaled_peak<2><<<blocks, 256>>>(in, out, 64);
+    CK(hipDeviceSynchronize());
+    double best = 0;
+    for (int r = 0; r < 5; ++r) {
+        CK(hipEventRecord(e0));
+        wmma_scaled_peak<2><<<blocks, 256>>>(in, out, iters);
+        CK(hipEventRecord(e1));
+        CK(hipEventSynchronize(e1));
+        float ms;
+        CK(hipEventElapsedTime(&ms, e0, e1));
+        best = fmax(best, (double)blocks * 8 * iters * kAcc * 16 * 16 * 16 * 2 / (ms * 1e-3) / 1e12);
+    }
+    return best;
 }
 
 template <bool FP8>
@@ -219,6 +278,7 @@ int main(int argc, char** argv) {
     printf("device %s, %d CUs, clock %d MHz (prop)\n", pr.name, pr.multiProcessorCount, pr.clockRate / 1000);
     printf("WMMA issue peak bf16 %.1f TFLOPS\n", peak<false>(pr.multiProcessorCount));
     printf("WMMA issue peak fp8  %.1f TFLOPS\n", peak<true>(pr.multiProcessorCount));
+    printf("WMMA fp8 + per-WMMA scale (8 FMA) %.1f TFLOPS\n", peak_scaled(pr.multiProcessorCount));
 
     // M tokens x N out x K in: the 35B's dense fp8 projections at a 4096-token chunk, and the routed experts as if every
     // (token, expert) pair of a 4096-token chunk were one dense GEMM (the grouped-GEMM ideal: 4096 * 8 pairs)

@@ -18,6 +18,8 @@ Together they take HIP prefill of Qwen3.6-35B-A3B NVFP4 on one R9700 to the spee
 | 4k | 9314 / 9340 | 9748 / 9658 | **+4.2 %** |
 | 16k | 8451 / 8438 | 8827 / 8840 | **+4.6 %** |
 
+The brief quoted 5753 / 9106 / 7739 from fx6 (origin/main cd617de2, same `--max-seq 17408` serve flags). Main measured today in the same slot as the lane (a92267b0) gives 5797 / 9327 / 8445. So the lane's own gain is +4.2 / +4.6 %, not the +14 % at 16k a comparison with fx6 would suggest. The 16k difference between the two mains was not investigated.
+
 Decode is unchanged (155.2-155.4 vs 155.2 tok/s at 4k, 141.4-142.0 vs 141.5-141.6 at 16k). Engine prefill-only timing (`generate --max-tokens 1`, two runs each) moves from 428 / 429 to 407 / 408 ms at 4096 (+5.2 %) and from 1860 / 1861 to 1775 / 1778 ms at 16384 (+4.8 %).
 
 The measured roofline (section 2) is what limits further bitwise work:
@@ -166,7 +168,7 @@ Shipped: for M >= 2048, (4,4,4,2) at N >= 8192 and (4,4,2,4) otherwise. Below th
 | 683 | 0.790 | 1.365 | 1.677 | **0.698** | 1.320 |
 | 4096 | 0.709 | 1.101 (prep 1875 + state 2345 µs) | 1.596 | 1.102 | 1.239 |
 
-On GB10 the CUDA version won because its fp32 dense products were cheap relative to that GPU's scan. On gfx1201 the prep kernel (the 64 x 64 Gram matrices and the triangular inverse, in f32 VALU) alone costs about as much as the whole v2 scan. A WY version would need WMMA for its matrix products to win. The Gram and inverse would then run in bf16 or fp8, which is a numerics change for an opt-in path, and porting it is bigger than this lane. Left as a lead: section 8.
+This port keeps the CUDA thread maps untuned. Its prep kernel runs at only about 5-10 % of the f32 VALU peak, so the measured time is not a hardware limit of the WY form. The arithmetic still bounds it: in f32 the WY form does about 20 GFLOP per layer at 4k against v2's about 15, so even a tuned f32 port would at best tie. A WY version wins only with its matrix products on WMMA, a numerics change for an opt-in path. This lane does not close that family (section 8).
 
 ## 7. Phase 3: A/B, gates, profile after
 
@@ -216,12 +218,29 @@ This is expected for a bitwise change. Because qualify does not end in PASS, eve
 | w9 GPU tests + benches | #4354 | 22:57:31 | 22:58:43 | 72 s |
 | w10 Phase 3 A/B (00:00, uncapped hours) | #4356 | 00:00:00 | 00:06:37 | 6.6 min |
 | w11 qualify main + accuracy A/B | #4379 | 00:12:03 | 00:13:55 | 1.9 min |
+| w12 W4A8 pricing + 1k profile | #4386 | 00:21:41 | 00:22:13 | 32 s |
 
-Total radiance downtime is 12.5 min: 4.0 min before 00:00, the rest inside the uncapped 00:00-07:00 hours. That is far under the caps (3 h per role per day, windows of at most 30 min). Several of the windows w3 to w8 were less than 5 minutes apart, which breaks the burn-rules gap and the "few, long slots" instruction. The rest of the lane uses one batched window after 00:00.
+Total radiance downtime is 13.0 min: 4.0 min before 00:00, the rest inside the uncapped 00:00-07:00 hours. That is far under the caps (3 h per role per day, windows of at most 30 min). Several of the windows w3 to w8 were less than 5 minutes apart, which breaks the burn-rules gap and the "few, long slots" instruction. The rest of the lane uses one batched window after 00:00.
+
+### 1k profile and a W4A8 price check (raw/w12, job #4386)
+
+**1k profile.** At 1024 tokens (lane: span 147.3 ms, idle 12.2 %) the routed experts are 39 % of the span at 35-38 TFLOPS:
+
+| class | ms | share |
+|---|---:|---:|
+| routed experts, gate_up | 39.1 | 30 % |
+| routed experts, down | 18.1 | 14 % |
+| GDN scan | 21.3 | 17 % |
+| dense fp8 | 16.4 | 13 % |
+| idle gaps | 18.0 | 12 % |
+
+The experts already pick their 32 / 64-pair tiles per call (round 8). Round 7 measured them as dequant-bound, at about 8 VALU per WMMA. Their weight-streaming floor (1.5 MB per expert x 256 x 40 layers, about 15 GB at about 640 GB/s, 24 ms per chunk) is below the measured 57 ms, so the gap is decode, not bytes.
+
+**W4A8 price.** A register-only microbenchmark in `ceiling.hip` runs one fp8 WMMA plus 8 FMAs per WMMA (the per-(n, 16-k) NVFP4 scale fold an exact W4A8 kernel needs) at **360.7 TFLOPS**, against 372.0 for fp8 alone and 192.4 for bf16. The FMAs co-issue with the WMMA, so the scale fold by itself is affordable. But an exact W4A8 kernel would still spend about 8 FMA plus 2-3 decode VALU per WMMA, against today's about 8 VALU per WMMA, in a kernel that is VALU-bound rather than WMMA-bound. The expected gain is small for a numerics change, so W4A8 was not started tonight.
 
 ## 8. Leads for the next lane (not done here)
 
-1. **Routed experts on the fp8 WMMA, opt-in.** e2m1 values (+-0, 0.5, 1, 1.5, 2, 3, 4, 6) are exact in e4m3. An NVFP4 block scale covers 16 elements of K, which is exactly the K of one `v_wmma_f32_16x16x16_fp8_fp8`. So a W4A8 kernel could decode weights to e4m3 without loss and apply each block scale to that WMMA's partial sum. The cost is quantising the activations to e4m3, a numerics change to be measured against the 35B goldens. The ceiling says fp8 runs about 1.75x bf16 at these shapes (306 vs 171 dense ideal).
+1. **Routed experts on the fp8 WMMA, opt-in. Priced above as doubtful: the kernel is VALU-bound and the scale fold costs as many VALU as today's decode.** e2m1 values (+-0, 0.5, 1, 1.5, 2, 3, 4, 6) are exact in e4m3. An NVFP4 block scale covers 16 elements of K, which is exactly the K of one `v_wmma_f32_16x16x16_fp8_fp8`. So a W4A8 kernel could decode weights to e4m3 without loss and apply each block scale to that WMMA's partial sum. The cost is quantising the activations to e4m3, a numerics change to be measured against the 35B goldens. The ceiling says fp8 runs about 1.75x bf16 at these shapes (306 vs 171 dense ideal).
 2. **WMMA chunked GatedDeltaNet, opt-in.** The fp32 SIMT WY form is slower on gfx1201 (section 6). Its Gram, inverse and state products on bf16 / fp8 WMMA would be a numerics change, but they could take most of the 87 ms per 4k chunk (22 %).
 3. **Flash attention at 16k** is 16 % of the span at 39-43 % of the bf16 issue peak. hipBLASLt runs the QK^T product alone at 99 TFLOPS, so at most about 20 % is left there.
 4. **Skip the last layer's MoE / o_proj for non-final rows** (section 5): about 1.4-2.4 %, a shared-graph change.

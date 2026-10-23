@@ -5,7 +5,7 @@
  "lane_id": "hp",
  "agent_model": "claude-opus-5-5",
  "started": "2026-10-22T22:09:48-04:00",
- "ended": "2026-10-23T00:25:00-04:00",
+ "ended": "2026-10-23T00:35:00-04:00",
  "brief": "scratchpad/lane-preamble-evening.md with the coordinator's changes (hard stop 09:00 EDT 2026-10-23, lane hp, branch lane-hp/hip-prefill-roofline): max out R9700 HIP prefill of Qwen3.6-35B-A3B NVFP4 tp=1; Phase 1 measured ceiling + per-kernel roofline at 4k/16k, Phase 2 biggest bitwise lever, Phase 3 localeval 1k/4k/16k, greedy ids, qualify, Qwen3-8B no-op; draft PR unless faster and qualify PASS",
  "hypothesis": "A measured roofline would show which kernel class is furthest from the card's real ceiling; expected the routed-expert GEMMs, but the profile put the latency-bound GatedDeltaNet scan first, so the levers became a bitwise scan reschedule (+CU mode) and larger f8 GEMM tiles.",
  "target": {
@@ -21,11 +21,7 @@
   "lane": "plain",
   "regime_cell": null
  },
- "techniques": [
-  "gdn-delta-scan-reschedule-v3",
-  "hip-cu-mode-lds-bound-kernels",
-  "f8-wmma-prefill-tile-16-waves"
- ],
+ "techniques": [],
  "code": {
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-hp/hip-prefill-roofline",
@@ -183,10 +179,22 @@
    "slot": "exclusive",
    "fleetq_job": 4356,
    "run_id": null
+  },
+  {
+   "metric": "wmma_fp8_plus_scale_fma_tflops",
+   "bucket": "n/a",
+   "before": 372.0,
+   "after": 360.7,
+   "unit": "TFLOPS (register-only microbench: plain fp8 WMMA vs fp8 WMMA + 8 FMA)",
+   "n": 5,
+   "spread": "best of 5",
+   "slot": "exclusive",
+   "fleetq_job": 4386,
+   "run_id": null
   }
  ],
  "accuracy": {
-  "gate": "greedy ids (5 lengths + 8B), accuracy --mode both, qualify quick",
+  "gate": "greedy ids (35B at 5 lengths + Qwen3-8B) and accuracy --mode both vs qwen36-35b-a3b-nvfp4-vllm-top20-meta golden; qualify quick not passable on tatooine (acc-short env ERROR on main too, see checks)",
   "verdict": "pass",
   "bitwise": true
  },
@@ -195,15 +203,16 @@
  "lessons": [
   "The GDN delta-rule scan is bound by its per-token LDS reads of q/k plus the latency chain: removing the LDS reads halves it (0.32 us/token/layer), and CU mode alone is -13 %.",
   "One-lane-per-row scan variants (128 state registers per lane: v3r, DPP broadcast v4/v6-v8, scalar-load v5) all spill on gfx12 and are 1.4-7x slower; hipcc does not fold a DPP move into v_fmac (inline asm v_fmac_f32_dpp works but still spills).",
-  "The fp32 SIMT chunked (WY) GDN that won on GB10 is slower than the sequential scan on gfx1201 (1.10 vs 0.71 us/token at T=4096); a WY port needs WMMA (numerics change).",
-  "Routed experts already beat per-expert hipBLASLt by 1.8x at the real ~128 pairs/expert; the next big lever there is a W4A8 path on the fp8 WMMA (e2m1 exact in e4m3, one NVFP4 scale block = one fp8 WMMA K of 16).",
+  "The faithful fp32 SIMT port of the CUDA chunked (WY) GDN is slower than v2 on gfx1201 (1.10 vs 0.71 us/token at T=4096), but its prep runs at only ~5-10 % of f32 VALU peak (untuned CUDA thread maps); f32 WY is ~20 vs ~15 GFLOP/layer at 4k so at best a tie; a win needs WMMA (numerics change). Family not closed.",
+  "Routed experts already beat per-expert hipBLASLt by 1.8x at ~128 pairs/expert and are dequant(VALU)-bound (round 7: ~8 VALU/WMMA). W4A8 priced: fp8 WMMA + 8 scale FMAs runs at 360.7 TFLOPS (FMAs co-issue), but an exact W4A8 kernel still needs ~8 FMA + 2-3 decode VALU per WMMA in a VALU-bound kernel, so the expected gain is small; not started.",
   "f8 tiles: the 128x256 tile underfills the GPU at small N (k/v, M 2049: +56 %), so it is gated on >= 64 blocks; any tile gives the same bits because the k order does not depend on the tile.",
   "qualify on tatooine currently cannot PASS for the 35B: repo golden/ref_noise sidecar was measured on a different golden hash than /data/models/intarsia/golden.",
-  "Many 15-s GPU windows in a row (w3-w8) break the 5-min gap rule; batch microbenchmarks into one window."
+  "Many 15-s GPU windows in a row (w3-w8) break the 5-min gap rule; batch microbenchmarks into one window.",
+  "Brief baseline 5753/9106/7739 (fx6, main cd617de2) vs main a92267b0 measured same-slot today 5797/9327/8445: compare against same-slot main, not fx6."
  ],
  "cost": {
-  "wall_min": 135,
-  "gpu_slot_min": 12.5,
+  "wall_min": 145,
+  "gpu_slot_min": 13.0,
   "fleetq_jobs": [
    4305,
    4311,
@@ -226,7 +235,8 @@
    4354,
    4355,
    4356,
-   4379
+   4379,
+   4386
   ]
  },
  "merged": false,
