@@ -216,7 +216,42 @@ token download, so host time is device time there.
 - **The localeval window must confirm this** with the 128/1k/4k numbers (3.2). The default k = 2 is the best fixed choice
   under this cost. Idea C (section 4) makes the fixed choice moot.
 
-### 3.2 Exclusive localeval window: decode tok/s at 128 / 1k / 4k, k sweep (pending)
+### 3.2 localeval window: decode tok/s at 128 / 1k / 4k, k sweep (spark2, quiet slot, retro down)
+
+- **Setup.** fleetq #4399 on spark2, commit 0211d16f. `retro` vLLM was stopped for the window (00:42:05-01:03:38, 21
+  min, `raw/downtime.log`), so the slot was quiet. `intarsia serve --backend cuda --max-seq 20480 --mem-budget 30
+  --profile-every 0 [--spec mtp --spec-k K]` and `localeval speed --sizes 128,1024,4096 --gen 128 --reps 3 --thinking
+  off`.
+- **Order.** Three passes, arms interleaved: p1 off, 1, 2, 3; p2 3, 2, 1, off; p3 2, off, 3, 1. Each cell is the median
+  of the three passes' medians, with the range across passes.
+- **Lanes.** The MTP arms are labelled `spec-mtp-k<K>-p<N>` (composer: spec lane). The off arm is plain decode.
+- **Raw.** `raw/speed/localeval-*.txt`, `metrics-*.txt` (server spec counters) and `serve-*.log`.
+
+| arm | 128 | 1k | 4k | acceptance (all sizes) | tokens / pass |
+|---|---|---|---|---|---|
+| off | 84.3 (84.1-84.4) | 83.8 (83.6-83.8) | 81.2 (81.2-81.3) | - | 1 |
+| k=1 | 86.0 (85.4-86.1) | 84.7 (83.3-86.5) | 87.2 (87.0-88.2) | 76.9% | 1.77 |
+| k=2 | 86.3 (85.2-86.7) | 87.8 (82.9-89.3) | 88.5 (83.3-93.3) | 62.8% | 2.25 |
+| k=3 | 75.3 (74.7-79.8) | 80.4 (80.3-82.3) | 87.0 (77.9-90.8) | 51.6% | 2.54 |
+
+- **Gain at k=2:** +2.4% at 128, +4.8% at 1k, +9.0% at 4k against off.
+- **Noise.** Under the composer's 5% decode floor at 128 and 1k, with overlapping ranges at 1k: a **tie** at 128 and 1k.
+  A small win at 4k, where plain decode slows with context but a verify pass amortises its attention over 2.25 tokens.
+- **Why so much less than the code / arithmetic prompts of 3.0b** (+16-33% at k=2): localeval's speed prompts accept far
+  less. 62.8% of drafts at k=2 against 70-93%, so 2.25 tokens per pass against 2.4-2.85. At pass(2) ≈ 25 ms vs 11.6 ms
+  per plain step (3.4), break-even is 2.16 tokens per pass. 2.25 predicts about +4%, as measured.
+- **The gain depends on content.** It needs acceptance above about 0.45 per draft position. Ideas A and C (section 4)
+  lower that threshold.
+- **localeval run ids** (`/opt/code/deepeval/results/`, all also logged to unanimis):
+  - off: 20261023-004820-adhoc-mtp-lane-plain-off-p1, -005554-…-p2, -005758-…-p3
+  - k=1: 20261023-004928-adhoc-spec-mtp-k1-p1, -005457-…-p2, -010007-…-p3
+  - k=2: 20261023-005029-adhoc-spec-mtp-k2-p1, -005351-…-p2, -005702-…-p3
+  - k=3: 20261023-005136-adhoc-spec-mtp-k3-p1, -005244-…-p2, -005900-…-p3
+- **k default.** k = 2 is the best fixed choice. It is never worse than k = 1 by more than the noise, wins at 1k and 4k,
+  and k = 3 loses at 128 and 1k. `MTP_K_DEFAULT = 2` stays.
+- **First attempt.** A first window (#4371 at ef518fd7, 10 min of retro downtime) aborted on its first MTP arm. The
+  server refused the head's `Add` with "no kernel … [admitted kernels only]", because the plan dry-run never ran the head
+  (review finding 5). The window script's guard stopped it before any wrong number was recorded. Fixed in 56e453b3.
 
 ### 3.3 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
 

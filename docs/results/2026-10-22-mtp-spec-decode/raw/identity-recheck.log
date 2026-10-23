@@ -18,3 +18,14 @@ deploy: running in spark2:~/intarsia-deploy/mtp (INTARSIA_BIN=target/release/int
 mtp tensors in checkpoint: 19
 p0 off exit 0 finish=length prompt=40 (cached 0) completion=256 | prefill 282 ms (141.9 tok/s) | decode 3022 ms (84.39 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
 p0 mtp2 exit 0 --spec mtp on cuda: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's finish=length prompt=40 (cached 0) completion=256 | prefill 319 ms (125.6 tok/s) | decode 2376 ms (107.34 tok/s) spec: verify passes=89 p
+p1 off exit 0 finish=length prompt=35 (cached 0) completion=256 | prefill 288 ms (121.6 tok/s) | decode 2994 ms (85.16 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+p1 mtp2 exit 0 --spec mtp on cuda: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's finish=length prompt=35 (cached 0) completion=256 | prefill 281 ms (124.4 tok/s) | decode 2680 ms (95.14 tok/s) spec: verify passes=106 p
+p2 off exit 0 finish=length prompt=31 (cached 0) completion=256 | prefill 301 ms (103.0 tok/s) | decode 3005 ms (84.87 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+p2 mtp2 exit 0 --spec mtp on cuda: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's finish=length prompt=31 (cached 0) completion=256 | prefill 417 ms (74.3 tok/s) | decode 2588 ms (98.53 tok/s) spec: verify passes=101 pr
+p3 off exit 0 finish=length prompt=57 (cached 0) completion=256 | prefill 340 ms (167.5 tok/s) | decode 3077 ms (82.86 tok/s) steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570 
+p3 mtp2 exit 0 --spec mtp on cuda: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's finish=length prompt=57 (cached 0) completion=256 | prefill 324 ms (175.7 tok/s) | decode 2483 ms (102.68 tok/s) spec: verify passes=90 p
+p0 mtp2 IDENTICAL
+p1 mtp2 IDENTICAL
+p2 mtp2 IDENTICAL
+p3 mtp2 IDENTICAL
+deploy: outputs in spark2:intarsia-deploy/mtp/replay-out/20261023T043011Z
