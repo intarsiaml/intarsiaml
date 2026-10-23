@@ -462,8 +462,9 @@ impl Model {
 
     /// Diagnostic (`INTARSIA_MTP_VERIFY_CHECK`): run `ids` through k + 1 single-row decode steps and through one verify
     /// pass from the same state, and compare the rows. Leaves `st` as it was (a recurrent snapshot at the current length
-    /// is taken for the restore). Returns per row: (max |logit diff|, single-step argmax, verify argmax).
-    pub fn verify_check(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<(f32, u32, u32)>> {
+    /// is taken for the restore). Returns per row: (max |logit diff|, single-step argmax, verify argmax, single-step top-2
+    /// logit margin).
+    pub fn verify_check(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<(f32, u32, u32, f32)>> {
         let len0 = st.len;
         let v = self.dims.vocab;
         let argmax = |r: &[f32]| {
@@ -490,8 +491,16 @@ impl Model {
             .map(|(r, s)| {
                 let row = &vl[r * v..(r + 1) * v];
                 let d = s.iter().zip(row).fold(0f32, |m, (a, b)| m.max((a - b).abs()));
-                debug_assert_eq!(argmax(row), out[r]);
-                (d, argmax(s), out[r])
+                let (mut a, mut b) = (f32::NEG_INFINITY, f32::NEG_INFINITY);
+                for &x in s.iter() {
+                    if x > a {
+                        b = a;
+                        a = x;
+                    } else if x > b {
+                        b = x;
+                    }
+                }
+                (d, argmax(s), out[r], a - b)
             })
             .collect())
     }

@@ -185,7 +185,8 @@ verify row. It was *empirically identical* to `--spec off` on 12 (prompt, k) cas
   prompt; report the max |dlogit| distribution, the argmax mismatch count, and the count of rows with a top-2 margin
   under 1e-2.
 - **Diagnostic caveats.** It takes a recurrent snapshot per pass, which evicts prompt-chunk snapshots, so prefix reuse
-  differs while it is on. Its `debug_assert` on the device-vs-host argmax can fire on exact ties in debug builds.
+  differs while it is on. Its output per row is `max|dlogit|:argmax-agrees:top-2 margin:decides` (single-row logits; `decides` = every earlier
+  draft was accepted, so the row chose an emitted token).
 
 ### 3.4 What a pass costs, and when a draft pays
 

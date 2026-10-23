@@ -1331,7 +1331,13 @@ impl Seq {
                     let mut ids = vec![self.tok];
                     ids.extend_from_slice(&drafts);
                     let rows = model.verify_check(st, &ids)?;
-                    let line: Vec<String> = rows.iter().map(|(d, a, b)| format!("{d:.3e}:{}", u8::from(a == b))).collect();
+                    // a row decides an emitted token when every draft before it was accepted
+                    let decides = |r: usize| (0..r).all(|i| drafts[i] == rows[i].2);
+                    let line: Vec<String> = rows
+                        .iter()
+                        .enumerate()
+                        .map(|(r, (d, a, b, m))| format!("{d:.3e}:{}:{m:.3e}:{}", u8::from(a == b), u8::from(decides(r))))
+                        .collect();
                     eprintln!("spec-check: rows {} {}", rows.len(), line.join(" "));
                 }
                 let t1 = Instant::now();
