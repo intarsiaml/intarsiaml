@@ -362,10 +362,16 @@ alone (a bigger chunk and a 1-row call give the same bits there); that rule is a
 (`GatedRmsnormMatmulFp8`) has a **one-row kernel only**, so a 2-row batched step ran two separate ops where the solo step runs one. The prototype runs the fold per row in that case (the same op, the weights read once per row). This is
 the CPU instance of the CUDA finding in section 9: today's fused decode ops are one-row kernels, and every one of them needs a multi-row form (K1) or a per-row run before a batched step is both exact and fast.
 
-**Default path.** With the switch off, the flag-gated code is not reached: `enable_batch` and `check_batch_row` keep their old predicates, `gdn_block` and its callers are untouched, the new `run_layers` arm is under `Seqs::Batch`
-and the switch, `restorable_len` defaults to the old behaviour for attention-only slots, and the `attn_block_batch` change builds no prologue for a non-gated block (the block is not gated, so the old call sequence is the one that
-runs). Checked by the existing suites running unchanged and green: `cargo test -p intarsia-core -p intarsia-models -p intarsia-cli` (all test binaries, including `batch`, `batch_engine`, `hybrid`, `plan`, `spec`, `docs_env_vars`):
-the closing run is in the table below.
+**Default path.** With the switch off the flag-gated code is not reached: `enable_batch` and `check_batch_row` keep their old predicates, `gdn_block` and its callers are untouched, the new `run_layers` arm is under `Seqs::Batch`
+and the switch, `restorable_len` defaults to the old behaviour, and `attn_block_batch` builds its fused gate prologue only for a gated block (an ungated block takes the call sequence it always did, including the `exact_rows` mark).
+Evidence:
+
+| check | result |
+|---|---|
+| `cargo test -p intarsia-core -p intarsia-models -p intarsia-cli --no-fail-fast` (cpu, 46 test binaries incl. `batch`, `batch_engine`, `hybrid`, `plan`, `spec`, `docs_env_vars`) | 454 passed, 0 failed, 2 ignored |
+| re-run of `batch`, `batch_engine`, `hybrid`, `batch_recurrent`, `batch_recurrent_load` after the last `attn_block_batch` guard | all pass |
+| **Metal default path**, `INTARSIA_TEST_REAL_MODEL=1 cargo test -p intarsia-models --release --test batch_metal` on this Mac (not a fleet box), Qwen3-8B BF16, `~/Models/Qwen3-8B` | pass: 138 (row, step) pairs bitwise identical to solo, 48 decode rows bitwise identical beside 256-token prefill chunks |
+| `plan show` + 256 greedy ids, origin/main vs HEAD at `--max-batch 2` (G-E) | **not run**; the Metal batched bitwise gate above is the check on the changed default path |
 
 **Test output.**
 

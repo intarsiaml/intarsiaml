@@ -193,7 +193,9 @@ impl Model {
                 _ => {
                     let mut bytes = vec![0u8; v * 4];
                     self.backend.download(&self.ws.logits, r * v * 4, &mut bytes, 0)?;
-                    StepOut::Logits(bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
+                    StepOut::Logits(
+                        bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect(),
+                    )
                 }
             });
         }
@@ -242,14 +244,18 @@ impl Model {
         // (`attn_block`): decided here, before the q projection the split follows. Evaluated with the row-exact mark off, as
         // the per-row attention calls below run. The calls read row `r` of the q+gate projection and write row `r` of the
         // gate buffer.
-        let prologues: Vec<Option<OpCall>> = {
+        // (only a gated block has one: an ungated block takes exactly the calls it always did)
+        let prologues: Vec<Option<OpCall>> = if !a.gated {
+            vec![None; b]
+        } else {
             let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
             let calls = sts
                 .iter()
                 .enumerate()
                 .map(|(r, st)| {
                     let slot = Self::attn_slot(st, a).ok()?;
-                    let mut call = self.gate_qkv_call(a, slot, &bufs.row(r), 1, st.len, None).filter(|c| self.fused_ok(c))?;
+                    let mut call =
+                        self.gate_qkv_call(a, slot, &bufs.row(r), 1, st.len, None).filter(|c| self.fused_ok(c))?;
                     let d = &self.ldims;
                     let (qg, gate) = self.gated_q_buffers(b);
                     call.inputs[0] = qg.reshaped(&[b, d.n_heads, 2 * d.head_dim]).rows(r, 1);
@@ -260,10 +266,13 @@ impl Model {
             self.exact_rows.store(mark, std::sync::atomic::Ordering::Relaxed);
             calls
         };
-        let folded = prologues.iter().all(Option::is_some) && !prologues.is_empty();
+        let folded = a.gated && prologues.iter().all(Option::is_some);
         let prologues: Vec<Option<OpCall>> = if folded { prologues } else { vec![None; b] };
         let (qc0, gate) = self.attn_project(a, n, b, kv_done, folded, profile)?;
-        debug_assert!(gate.is_none() || self.recurrent_batch, "enable_batch rejects gated attention without the hybrid opt-in");
+        debug_assert!(
+            gate.is_none() || self.recurrent_batch,
+            "enable_batch rejects gated attention without the hybrid opt-in"
+        );
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let rows = (|| -> Result<usize> {
