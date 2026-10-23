@@ -161,8 +161,19 @@ pub struct ExpertsRef<'a> {
     pub gscales: &'a [f32],
 }
 
+/// `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`.
+#[inline]
+pub fn gelu_tanh(x: f64) -> f64 {
+    0.5 * x * (1.0 + ((2.0 / std::f64::consts::PI).sqrt() * (x + 0.044715 * x * x * x)).tanh())
+}
+
 /// One (token, expert) pair: `down(silu(gate(x)) * up(x))` with HF's bf16 rounding points (`dt`).
 pub fn expert_forward(ex: &ExpertsRef, expert: usize, x: &[f32], dt: DType) -> Vec<f64> {
+    expert_forward_act(ex, expert, x, dt, false)
+}
+
+/// `expert_forward` with the expert activation selectable: `gelu` = tanh-GELU instead of SiLU.
+pub fn expert_forward_act(ex: &ExpertsRef, expert: usize, x: &[f32], dt: DType, gelu: bool) -> Vec<f64> {
     let (h, i) = (ex.h, ex.i);
     let gw = &ex.gate_up_w[expert * 2 * i * (h / 2)..(expert + 1) * 2 * i * (h / 2)];
     let gsb = &ex.gate_up_s[expert * 2 * i * (h / GROUP)..(expert + 1) * 2 * i * (h / GROUP)];
@@ -176,7 +187,7 @@ pub fn expert_forward(ex: &ExpertsRef, expert: usize, x: &[f32], dt: DType) -> V
         let g = round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
         nvfp4_row(gw, gsb, g3[1], i + r, h, &mut row);
         let u = round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
-        let a = round(dt, g / (1.0 + (-g).exp()));
+        let a = round(dt, if gelu { gelu_tanh(g) } else { g / (1.0 + (-g).exp()) });
         act[r] = round(dt, a * u);
     }
     let mut y = vec![0f64; h];
@@ -196,12 +207,25 @@ pub fn moe_experts_token(
     dt: DType,
     out_dt: DType,
 ) -> Vec<f64> {
+    moe_experts_token_act(ex, x, ids, weights, dt, out_dt, false)
+}
+
+/// `moe_experts_token` with the expert activation selectable: `gelu` = tanh-GELU instead of SiLU.
+pub fn moe_experts_token_act(
+    ex: &ExpertsRef,
+    x: &[f32],
+    ids: &[i32],
+    weights: &[f32],
+    dt: DType,
+    out_dt: DType,
+    gelu: bool,
+) -> Vec<f64> {
     let mut acc = vec![0f64; ex.h];
     for (&id, &w) in ids.iter().zip(weights) {
         if id < 0 || id as usize >= ex.e {
             continue;
         }
-        let y = expert_forward(ex, id as usize, x, dt);
+        let y = expert_forward_act(ex, id as usize, x, dt, gelu);
         for (a, v) in acc.iter_mut().zip(&y) {
             *a += round(dt, v * w as f64);
         }

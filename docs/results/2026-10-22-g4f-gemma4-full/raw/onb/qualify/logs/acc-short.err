@@ -1,0 +1,14 @@
+prefill chunk 1024 (recipe gemma4, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Gemma-4-26B-A4B-NVFP4 on NVIDIA GB10 (vocab 262144, weights/act/kv bf16/bf16)
+KL row mask: no turn format (the golden names no known `template` and the recipe has no `[accuracy] chat_turns`): ALL rows are scored
+golden: /home/nvidia/g4-full/gemma4-26b.golden.safetensors (10 prompts, 1468 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.6.2, torch 2.14.1+cu130 | model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template hf
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 1024; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+Error: accuracy gate FAILED

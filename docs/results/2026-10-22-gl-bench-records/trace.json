@@ -1,0 +1,123 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:gl:20261022-2230",
+ "project": "intarsiaml",
+ "lane_id": "gl",
+ "follows": [],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-22T22:30:00-04:00",
+ "ended": "2026-10-22T23:41-04:00",
+ "brief": "Overnight lane gl (CPU-only): build `intarsia bench --emit-record` (benchmark-record v1 lines per measured cell) and tools/composer/gap_to_lane.py (list every cell where IntarsiaML is not the winner or could win a tie, same-quant only, with lane briefs, plus measure-first cells), from the model-benchmarks composer/schema docs. Draft PR unless both checks pass; do not merge.",
+ "hypothesis": "Records emitted by the engine's own bench, in the shared schema, let the site and composer count IntarsiaML runs without a localeval export; a gap list recomputed against IntarsiaML's own quant gives later lanes a ranked, sourced target list (it should find the Spark 35B prefill gap, vLLM +16.2% at 4k and +15.9% at 16k).",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "infra",
+  "buckets": [],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": "2026-10-22T23:34-04:00"
+ },
+ "techniques": [
+  {
+   "id": "vllm-gb10-w8a8-fp8-projection-gemm",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-gl/bench-records",
+  "base_commit": "a312a7948a4ec39cd9cb8715eb9d9807df29153a",
+  "head_commit": "3d11f7541267344f66a846e8a3ac843eaa92bc63",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/112",
+  "files": [
+   "crates/intarsia-bench/src/lib.rs",
+   "crates/intarsia-bench/src/record.rs",
+   "crates/intarsia-cli/src/cmd/bench.rs",
+   "docs/benchmarking.md",
+   "docs/composer/gaps.md",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-22-gl-bench-records.md",
+   "docs/results/2026-10-22-gl-bench-records/raw/cpu-smoke-records.jsonl",
+   "docs/results/2026-10-22-gl-bench-records/raw/gl-bench3.log",
+   "docs/results/2026-10-22-gl-bench-records/raw/gl-cpu-smoke3.json",
+   "tools/composer/gap_to_lane.py",
+   "tools/composer/test_gap_to_lane.py",
+   "tools/composer/testdata/catalog-sample.json",
+   "tools/composer/testdata/regimes-sample.json"
+  ],
+  "diff_stat": "14 files changed, 2621 insertions(+)",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "bench crate unit tests",
+   "command": "cargo test -p intarsia-bench",
+   "result": "pass",
+   "detail": "24 passed, 12 new in record::tests; fleetq #4346 and #4363 (--load cpu), re-run after rebase on origin/main a312a794"
+  },
+  {
+   "name": "docs_env_vars",
+   "command": "cargo test -p intarsia-cli --test docs_env_vars",
+   "result": "pass",
+   "detail": "flag reads no INTARSIA_* variable; fleetq #4362"
+  },
+  {
+   "name": "workspace check",
+   "command": "cargo check --workspace --locked",
+   "result": "pass",
+   "detail": "fleetq #4346 and #4362"
+  },
+  {
+   "name": "real CPU bench records validate",
+   "command": "intarsia bench speed --emit-record ... then uv run --with jsonschema python3 /opt/code/model-benchmarks/schema/validate.py <file>",
+   "result": "pass",
+   "detail": "Qwen2.5-0.5B BF16 on the CPU backend, 3 records, 0 schema errors; records incomplete only on model.family (Unknown); docs/results/2026-10-22-gl-bench-records/raw/"
+  },
+  {
+   "name": "gap_to_lane tests",
+   "command": "python3 -m unittest discover -s tools/composer -p 'test_*.py'",
+   "result": "pass",
+   "detail": "13 tests incl. live regimes.json assertion for the 4k/16k Spark gap"
+  },
+  {
+   "name": "Metal/CUDA/HIP builds",
+   "command": null,
+   "result": "skip",
+   "detail": "client-only code; CI covers them"
+  }
+ ],
+ "measurements": [],
+ "accuracy": {
+  "gate": null,
+  "verdict": "n/a",
+  "bitwise": null,
+  "run_ids": []
+ },
+ "verdict": "neutral",
+ "summary": "Both tools delivered (PR #112). gap_to_lane finds four same-quant gaps on the live data (Spark 35B concurrent 16x +40.7%, concurrent 4x +40.3%, prefill 4k +16.2%, prefill 16k +15.9%), 5 ties, 36 measure-first cells; --emit-record writes schema-valid records. No engine speed or accuracy number moved, so the verdict is neutral.",
+ "lessons": [
+  "The cell's same_quant_* fields are relative to the winner's quant (on tatooine they compare llama.cpp MXFP4), so a gap list must recompute the margin from contenders[] against IntarsiaML's own quant.",
+  "Every gap on the Spark 35B setup carries IntarsiaML quality drop:gsm8k@n1319:0.240<0.281; settle quality before treating the speed gaps as targets.",
+  "The two concurrent gaps (+40%) have no catalog technique for IntarsiaML and are probably structural: serve --max-batch is Metal only.",
+  "Qwen3-Reranker-0.6B cannot calibrate the bench (its chat template yields a fixed 73-token prompt); Qwen2.5-0.5B serves on the CPU backend and works for smoke runs.",
+  "A bench client cannot know the server's version, commit, quant or hardware; the record takes them from /v1/models, /metrics intarsia_info and flags, and leaves the rest Unknown/null (incomplete, kept).",
+  "Queueing: endor's quiet gpu,cpu benchmark job (#4284) kept a --load cpu cargo lease waiting about 1h20m; run jobs backfill ahead only after it ends."
+ ],
+ "cost": {
+  "wall_min": null,
+  "gpu_slot_min": 0,
+  "slot_jobs": [
+   4346,
+   4362,
+   4363
+  ],
+  "tokens": null
+ }
+}

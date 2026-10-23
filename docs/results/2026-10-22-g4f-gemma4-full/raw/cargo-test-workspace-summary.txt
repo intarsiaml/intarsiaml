@@ -1,0 +1,238 @@
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_backend_cpu-a07a20e520f8ad29)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/admission.rs (/home/nvidia/g4f-test-target/debug/deps/admission-44461946f2737ba0)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.01s
+     Running tests/admission_budgets.rs (/home/nvidia/g4f-test-target/debug/deps/admission_budgets-ac3db8ff62c217dd)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/g4_ext.rs (/home/nvidia/g4f-test-target/debug/deps/g4_ext-ea3301c3a9f97012)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/gdn.rs (/home/nvidia/g4f-test-target/debug/deps/gdn-b6a14e81071820ef)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+     Running tests/ops.rs (/home/nvidia/g4f-test-target/debug/deps/ops-4fc6335ec404b199)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+     Running tests/quant_exl3.rs (/home/nvidia/g4f-test-target/debug/deps/quant_exl3-2c9e9169576401ae)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/quant_hf.rs (/home/nvidia/g4f-test-target/debug/deps/quant_hf-5350edac24dc4965)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+     Running tests/quant_mxfp4.rs (/home/nvidia/g4f-test-target/debug/deps/quant_mxfp4-6c3aa01ddbbfeace)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/quant_mxfp4_tp.rs (/home/nvidia/g4f-test-target/debug/deps/quant_mxfp4_tp-e9b068ba4f8a3fb2)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_backend_cuda-faa6f75e044f599f)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/admission.rs (/home/nvidia/g4f-test-target/debug/deps/admission-ef1bb3fe513cf3c4)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 124.70s
+     Running tests/attention.rs (/home/nvidia/g4f-test-target/debug/deps/attention-917186c388dbe402)
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.65s
+     Running tests/attn_f8kv.rs (/home/nvidia/g4f-test-target/debug/deps/attn_f8kv-2b6c4d329e77832f)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 21.10s
+     Running tests/exl3.rs (/home/nvidia/g4f-test-target/debug/deps/exl3-30753c4c33231185)
+test result: ok. 8 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 6.54s
+     Running tests/flash_bq.rs (/home/nvidia/g4f-test-target/debug/deps/flash_bq-31210080a227f55c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.08s
+     Running tests/fp8_gemm_reg.rs (/home/nvidia/g4f-test-target/debug/deps/fp8_gemm_reg-3ada718ed89c4d74)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.64s
+     Running tests/fused_decode.rs (/home/nvidia/g4f-test-target/debug/deps/fused_decode-b17d138d1e5b1d69)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.01s
+     Running tests/gdn_lanes.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_lanes-72dcb47b5b8cd1e1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+     Running tests/gdn_split.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_split-0be6a0c3eb747e4a)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+     Running tests/gdn_timing.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_timing-c354a14ffb41ac19)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+     Running tests/gpu_skipped_report.rs (/home/nvidia/g4f-test-target/debug/deps/gpu_skipped_report-8ce9d5699d1a5c03)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/graph_pos.rs (/home/nvidia/g4f-test-target/debug/deps/graph_pos-5e4e1f75f3c1ed05)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+     Running tests/moe_nvfp4.rs (/home/nvidia/g4f-test-target/debug/deps/moe_nvfp4-7763306b237b6759)
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.28s
+     Running tests/moe_nvfp4_cpu.rs (/home/nvidia/g4f-test-target/debug/deps/moe_nvfp4_cpu-df1ab025d6708b31)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.69s
+     Running tests/moe_w4a16.rs (/home/nvidia/g4f-test-target/debug/deps/moe_w4a16-a6bededda0067c2b)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.02s
+     Running tests/nvfp4_gemm_reg.rs (/home/nvidia/g4f-test-target/debug/deps/nvfp4_gemm_reg-bacd0ac5531dce77)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+     Running tests/quantmoe.rs (/home/nvidia/g4f-test-target/debug/deps/quantmoe-3a71c350a5a12f87)
+test result: ok. 12 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 4.07s
+     Running tests/quick_coverage.rs (/home/nvidia/g4f-test-target/debug/deps/quick_coverage-107b78b1b95a6c54)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.50s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_backend_hip-d7aa4b78f516e665)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/admission.rs (/home/nvidia/g4f-test-target/debug/deps/admission-7e754b8a0d379f87)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/attention.rs (/home/nvidia/g4f-test-target/debug/deps/attention-a5960afb6b13596a)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/comm.rs (/home/nvidia/g4f-test-target/debug/deps/comm-fae0563cb9febcb5)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/decode_v2.rs (/home/nvidia/g4f-test-target/debug/deps/decode_v2-c9c43420c72d33f8)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/device_pos.rs (/home/nvidia/g4f-test-target/debug/deps/device_pos-3b23ad0be1b67638)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/flash_v2.rs (/home/nvidia/g4f-test-target/debug/deps/flash_v2-8b206df91ecb4751)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fp8_f8.rs (/home/nvidia/g4f-test-target/debug/deps/fp8_f8-ca8a26bca8080270)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fp8_mma_v2.rs (/home/nvidia/g4f-test-target/debug/deps/fp8_mma_v2-03f974767a5cbb63)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fp8_pair_shapes.rs (/home/nvidia/g4f-test-target/debug/deps/fp8_pair_shapes-be6a97babfb3b30c)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fused_decode.rs (/home/nvidia/g4f-test-target/debug/deps/fused_decode-31ac1970199548cd)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fusion_p1.rs (/home/nvidia/g4f-test-target/debug/deps/fusion_p1-4055e8661a5010b8)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fusion_p2.rs (/home/nvidia/g4f-test-target/debug/deps/fusion_p2-5eef8acd849a7b6b)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gdn_timing.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_timing-f40bc55f0c28b7d3)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gdn_v2.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_v2-ed7d29fb0e60af26)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/matmul_bench.rs (/home/nvidia/g4f-test-target/debug/deps/matmul_bench-2bb6bfb86f9496a7)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/moe_block.rs (/home/nvidia/g4f-test-target/debug/deps/moe_block-d00a7b55bb68d7ce)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/moe_pairs.rs (/home/nvidia/g4f-test-target/debug/deps/moe_pairs-75290fc17949c281)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/moe_v3.rs (/home/nvidia/g4f-test-target/debug/deps/moe_v3-10e42e6231a771fb)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/mxfp4_decode.rs (/home/nvidia/g4f-test-target/debug/deps/mxfp4_decode-a951a6ae62417c5c)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/pf_flash_vp.rs (/home/nvidia/g4f-test-target/debug/deps/pf_flash_vp-ad8aa45372e84cff)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/qk_rope_kv.rs (/home/nvidia/g4f-test-target/debug/deps/qk_rope_kv-47e0227d511c90c3)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/quantmoe.rs (/home/nvidia/g4f-test-target/debug/deps/quantmoe-fcdabcbea06347f8)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/quick_coverage.rs (/home/nvidia/g4f-test-target/debug/deps/quick_coverage-1d53efd4825a2a61)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s
+     Running tests/round6_selection.rs (/home/nvidia/g4f-test-target/debug/deps/round6_selection-354c62ee35d95d19)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/split_trigger.rs (/home/nvidia/g4f-test-target/debug/deps/split_trigger-61f59469832adab6)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/splitkv_occ.rs (/home/nvidia/g4f-test-target/debug/deps/splitkv_occ-81941d0491af81b0)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/splitkv_r8.rs (/home/nvidia/g4f-test-target/debug/deps/splitkv_r8-3053b2dee15fdb72)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/staging.rs (/home/nvidia/g4f-test-target/debug/deps/staging-5f1bebbcb1e82e6d)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_bench-f99f21b5ab75bb2d)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_cli-f3b38442d28a25c9)
+test result: ok. 164 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running unittests src/main.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia-3ebd71195f0d2ffa)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/docs_env_vars.rs (/home/nvidia/g4f-test-target/debug/deps/docs_env_vars-babb0c8ff73a7923)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/real_model.rs (/home/nvidia/g4f-test-target/debug/deps/real_model-bbfaab47a4b03643)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_core-69c3b081111f1b3b)
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.72s
+     Running tests/fault_inject.rs (/home/nvidia/g4f-test-target/debug/deps/fault_inject-3a833c8e05fb0a38)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gdn_hf.rs (/home/nvidia/g4f-test-target/debug/deps/gdn_hf-92131960a902a0be)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/scheduler.rs (/home/nvidia/g4f-test-target/debug/deps/scheduler-cbda4cc67eb59ed5)
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_models-fc1b4f793cede49e)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/batch.rs (/home/nvidia/g4f-test-target/debug/deps/batch-11fb68871988827a)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+     Running tests/batch_engine.rs (/home/nvidia/g4f-test-target/debug/deps/batch_engine-903edb748a2dc392)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.94s
+     Running tests/batch_metal.rs (/home/nvidia/g4f-test-target/debug/deps/batch_metal-1b2343fd9b983fc0)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/chat_templates_real.rs (/home/nvidia/g4f-test-target/debug/deps/chat_templates_real-d537c6e798b01201)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/config.rs (/home/nvidia/g4f-test-target/debug/deps/config-09d9d41750adaa5c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/constrain.rs (/home/nvidia/g4f-test-target/debug/deps/constrain-6801d32d259394ea)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/engine.rs (/home/nvidia/g4f-test-target/debug/deps/engine-fad46ed46bd14feb)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/engine_panic.rs (/home/nvidia/g4f-test-target/debug/deps/engine_panic-3891027678cc8809)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/engine_robust.rs (/home/nvidia/g4f-test-target/debug/deps/engine_robust-d6431593e0094a6f)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/exl3_model.rs (/home/nvidia/g4f-test-target/debug/deps/exl3_model-de574cd82d48aea3)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/fusion_p1.rs (/home/nvidia/g4f-test-target/debug/deps/fusion_p1-15918864ca8c7edf)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/fusion_p2.rs (/home/nvidia/g4f-test-target/debug/deps/fusion_p2-f9649cafa6684d27)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests/fusion_p2prime.rs (/home/nvidia/g4f-test-target/debug/deps/fusion_p2prime-6dca9ad64d7dd1d1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/gemma4_real.rs (/home/nvidia/g4f-test-target/debug/deps/gemma4_real-7dfcea267a2552ea)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gemma4_tiny.rs (/home/nvidia/g4f-test-target/debug/deps/gemma4_tiny-fd6d896b4a50a702)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/graphs.rs (/home/nvidia/g4f-test-target/debug/deps/graphs-4289908d75a10219)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/head_and_scheme.rs (/home/nvidia/g4f-test-target/debug/deps/head_and_scheme-02f33036c6c31afe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/hybrid.rs (/home/nvidia/g4f-test-target/debug/deps/hybrid-e0c5475a3373e421)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+     Running tests/hybrid_mxfp4.rs (/home/nvidia/g4f-test-target/debug/deps/hybrid_mxfp4-886e37f7f7960b8a)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/hybrid_real.rs (/home/nvidia/g4f-test-target/debug/deps/hybrid_real-b206db2dd951175e)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/min_tokens.rs (/home/nvidia/g4f-test-target/debug/deps/min_tokens-b53bab8c9a372091)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/model.rs (/home/nvidia/g4f-test-target/debug/deps/model-31e6665497d41853)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/plan.rs (/home/nvidia/g4f-test-target/debug/deps/plan-c70fceedd585142e)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/quark_scheme.rs (/home/nvidia/g4f-test-target/debug/deps/quark_scheme-677665c072c1295d)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/recipes_doc.rs (/home/nvidia/g4f-test-target/debug/deps/recipes_doc-f3bb83df30fd589d)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/rope_bias.rs (/home/nvidia/g4f-test-target/debug/deps/rope_bias-5810e22f37dc9206)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/spec.rs (/home/nvidia/g4f-test-target/debug/deps/spec-d54437c66b74aff1)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.26s
+     Running tests/tail_merge.rs (/home/nvidia/g4f-test-target/debug/deps/tail_merge-161a1c91484eb644)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/token_feedback.rs (/home/nvidia/g4f-test-target/debug/deps/token_feedback-4d10a4d07dd8d8df)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/tp.rs (/home/nvidia/g4f-test-target/debug/deps/tp-8660b056d6f820d7)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/tp_hybrid.rs (/home/nvidia/g4f-test-target/debug/deps/tp_hybrid-18cb2b0b971c2e53)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+     Running tests/tp_mxfp4.rs (/home/nvidia/g4f-test-target/debug/deps/tp_mxfp4-b91abdff08bc5211)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+     Running tests/tp_remote_acks.rs (/home/nvidia/g4f-test-target/debug/deps/tp_remote_acks-0d0ee7a085f4d5d5)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/tp_test_bug.rs (/home/nvidia/g4f-test-target/debug/deps/tp_test_bug-13aca119cdc7edd1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_server-1c418cf4e6c95a22)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+     Running tests/api.rs (/home/nvidia/g4f-test-target/debug/deps/api-2691b2ee7cb9dd8e)
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_tui-fc983ddc8c6d3b7d)
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/render.rs (/home/nvidia/g4f-test-target/debug/deps/render-17b5772d7ebc3af3)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsia_ui-1c4f7c358495d87b)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (/home/nvidia/g4f-test-target/debug/deps/intarsiaml-9700c0d18c8bc391)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_backend_cpu
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_backend_cuda
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_backend_hip
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_bench
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_cli
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_core
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_models
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_server
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_tui
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsia_ui
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests intarsiaml
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

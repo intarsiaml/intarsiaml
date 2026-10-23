@@ -57,4 +57,9 @@ static inline unsigned ik_round_up(unsigned v, unsigned m) { return (v + m - 1) 
  * into their epilogue (nvfp4.cu glu, norm.cu gated rmsnorm) must produce its bits. */
 IK_DEVI float ik_silu(float g) { return g / (1.f + expf(-g)); }
 
+/* gelu_tanh(x) = 0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3))), in f32. Gemma-4's expert / dense GLU activation. */
+IK_DEVI float ik_gelu_tanh(float x) {
+    return 0.5f * x * (1.f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x)));
+}
+
 #endif /* IK_LAUNCH_H */

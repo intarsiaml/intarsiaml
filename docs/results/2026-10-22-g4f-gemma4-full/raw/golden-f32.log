@@ -1,0 +1,14 @@
+Thu Oct 22 08:20:40 PM EDT 2026
+[load] /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 dequantised 11520 NVFP4 tensors in 117s; missing=[]
+[0] count               38 tokens (38+0)  vocab=262144  argmax_last=236743  1s
+[1] story               39 tokens (39+0)  vocab=262144  argmax_last=6976  2s
+[2] code                95 tokens (95+0)  vocab=262144  argmax_last=140  4s
+[3] science             76 tokens (76+0)  vocab=262144  argmax_last=506  4s
+[4] chat_short          23 tokens (23+0)  vocab=262144  argmax_last=46297  5s
+[5] chat_system         37 tokens (37+0)  vocab=262144  argmax_last=818  6s
+[6] chat_multiturn      63 tokens (63+0)  vocab=262144  argmax_last=818  7s
+[7] chat_reasoning      97 tokens (97+0)  vocab=262144  argmax_last=2021  8s
+[8] long_prose_300     300 tokens (300+0)  vocab=262144  argmax_last=784  12s
+[9] long_prose_700     700 tokens (700+0)  vocab=262144  argmax_last=5737  17s
+wrote /home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors (0.2 MB) in 17s
+Thu Oct 22 08:23:01 PM EDT 2026

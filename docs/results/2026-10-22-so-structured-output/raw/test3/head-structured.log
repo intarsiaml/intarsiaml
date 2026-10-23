@@ -1,0 +1,88 @@
+   Compiling intarsia-core v0.0.1 (/opt/code/wt-so/crates/intarsia-core)
+   Compiling intarsia-server v0.0.1 (/opt/code/wt-so/crates/intarsia-server)
+    Finished `release` profile [optimized] target(s) in 6.10s
+     Running unittests src/lib.rs (target-test/release/deps/intarsia_core-28da59589e609e14)
+
+running 3 tests
+test constrain::tests::full_words_keep_logits ... ok
+test constrain::tests::mask_bits_and_apply ... ok
+test constrain::tests::prefetch_matches_sync ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.00s
+
+     Running tests/fault_inject.rs (target-test/release/deps/fault_inject-0e9b61d88dbdf3c0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gdn_hf.rs (target-test/release/deps/gdn_hf-e0a11cceaaaccd5e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/scheduler.rs (target-test/release/deps/scheduler-698f98c72b742b8c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target-test/release/deps/intarsia_server-162cd2e61a80ed1c)
+
+running 13 tests
+test structured::tests::auto_tools_are_lazy ... ok
+test structured::tests::constrained_step_phases ... phase mask compute                 n=2000  mean      1.9 us  p50      0.9  p99     27.2  max     84.7
+phase apply (old per-bit loop)     n=2000  mean     15.9 us  p50     14.8  p99     42.2  max     57.9
+phase apply (fill form)            n=2000  mean     30.9 us  p50     30.8  p99     50.1  max     69.1
+phase argmax (151936)              n=2000  mean    139.1 us  p50    139.7  p99    161.8  max    230.3
+phase commit                       n=2000  mean      0.7 us  p50      0.5  p99      4.1  max     14.8
+phase thread per step (spawn+recv) n=400   mean     20.1 us  p50     20.0  p99     34.5  max     78.8
+phase persistent worker wake+recv  n=400   mean      3.1 us  p50      2.0  p99      7.6  max     11.7
+mean allowed tokens per step: 142923
+ok
+test structured::tests::invalid_schemas_are_errors ... ok
+test structured::tests::json_object_and_eos_only_when_complete ... ok
+test structured::tests::json_schema_outputs_validate ... ok
+test structured::tests::mask_digests_are_stable ... digest base c2de089bb7602251
+digest nested c2f2146cc7161b78
+digest enum 29c3e9c34bcf5e37
+digest array 0489a17db0ea47d8
+ok
+test structured::tests::parallel_false_allows_one_call ... ok
+test structured::tests::qwen3_token_table ... token table + factory: 202.805292ms
+compile: 239.958µs
+seed 0: {"answer": 60} (worst mask 30.791µs)
+seed 1: {"answer": -174} (worst mask 11.791µs)
+seed 2: {"answer": 931} (worst mask 11.791µs)
+seed 3: {"answer": -885} (worst mask 25.542µs)
+seed 4: {"answer": 698} (worst mask 13.417µs)
+ok
+test structured::tests::reasoning_parser_splits_at_the_close_tag_however_it_is_chunked ... ok
+test structured::tests::required_tool_calls_parse_and_validate ... ok
+test structured::tests::think_gate_leaves_the_think_section_unconstrained_then_applies_the_grammar ... ok
+test structured::tests::tool_parser_streams ... ok
+test structured::tests::tool_request_errors ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.14s
+
+     Running tests/api.rs (target-test/release/deps/api-6aed870f0200e642)
+
+running 2 tests
+test response_format_json_schema_constrains_chat_and_completions ... ok
+test structured_output_errors_are_400 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.01s
+
+   Doc-tests intarsia_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+   Doc-tests intarsia_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

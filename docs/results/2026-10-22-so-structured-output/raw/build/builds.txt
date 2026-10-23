@@ -1,0 +1,2 @@
+wt-so-base 82abb7bce783adae20016dd1d258fe99 exit 0
+wt-so 4ba36d3a55ab56ce00783432971cdaa4 exit 0
