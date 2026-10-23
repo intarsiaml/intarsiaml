@@ -1,0 +1,203 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:hb-hip-hybrid-batching:20261023-1255",
+ "project": "intarsiaml",
+ "lane_id": "hb-hip-hybrid-batching",
+ "follows": [
+  "intarsiaml:rb2-cuda-batching:20261023-0641"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T12:55:00-04:00",
+ "ended": "2026-10-23T14:30:00-04:00",
+ "brief": "Lane hb: stages R0-R2 of hybrid continuous batching for Qwen3.6-35B-A3B (NVFP4) on HIP (AMD Radeon AI PRO R9700, gfx1201, tatooine), mirroring rb2 on CUDA: G-B row-exact kernels for every decode kernel the 35B uses at M = 1..16, rows_exact registered on HIP for what passes, cap from G-B and VRAM, batched logits bitwise equal to solo (G-C), batched engine bitwise to LocalEngine, batching-off no-op, localeval speed at 1/4/16 streams.",
+ "hypothesis": "The HIP 1-row decode kernels are row-independent in their arithmetic and only their dispatch is M-dependent (instantiations stop at M = 4 / 8, WMMA above), so row-exact _rows twins are cheap; batching dense projections and MoE tokens with GDN and attention per row should lift 4- and 16-stream aggregate decode well above the single-sequence 135 tok/s with every row bitwise the solo step.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "AMD Radeon AI PRO R9700 (gfx1201)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "AMD Radeon AI PRO R9700 · Qwen3.6-35B-A3B | plain | concurrent | 4x",
+   "AMD Radeon AI PRO R9700 · Qwen3.6-35B-A3B | plain | concurrent | 16x"
+  ],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-hb/hip-hybrid-batching",
+  "base_commit": "240e9d2a",
+  "head_commit": "3d1c3f301e4eb9db2df39a07e911336e85277328",
+  "pr": "120",
+  "files": [
+   "docs/results/2026-10-23-hb-hip-hybrid-batching.md",
+   "kernels/hip/fp8.hip",
+   "kernels/hip/nvfp4.hip",
+   "kernels/hip/matmul.hip",
+   "kernels/hip/moe.hip",
+   "kernels/hip/ik_hip_abi.h",
+   "crates/intarsia-backend-hip/src/quantmoe.rs",
+   "crates/intarsia-backend-hip/src/kernels.rs",
+   "crates/intarsia-backend-hip/src/device.rs",
+   "crates/intarsia-backend-hip/src/ffi.rs",
+   "crates/intarsia-backend-hip/tests/rows_exact.rs",
+   "crates/intarsia-backend-hip/tests/rows_registry.rs",
+   "crates/intarsia-core/src/fusion.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-models/src/load.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "crates/intarsia-models/tests/batch_cuda_real.rs"
+  ],
+  "diff_stat": "see PR #120",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-exact (HIP)",
+   "command": "INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_exact -- --test-threads=1",
+   "result": "pass",
+   "detail": "fp8 M1-16 132 cases/M, nvfp4 32, bf16 matmul 22, logits 21, MoE decode T1-16 16: row r == row 0 of the 1-row kernel bitwise; row-parallel ops (11 kernels) at M=16; negative controls (fp8 mma_f8, nvfp4 mma, bf16/logits WMMA, MoE v2 at T=16) each FAIL; fleetq 4592"
+  },
+  {
+   "name": "HIP registry pins",
+   "command": "cargo test -p intarsia-backend-hip --test rows_registry",
+   "result": "pass",
+   "detail": "ordinary calls pick what they picked before; exact_rows calls pick the _rows kernels for M 1..16, none above; no GPU"
+  },
+  {
+   "name": "HIP kernel test files",
+   "command": "cargo test --release -p intarsia-backend-hip --tests",
+   "result": "pass",
+   "detail": "admission, quick_coverage, moe_block, fused_decode, fusion_p1, fusion_p2, decode_v2, rows_exact, rows_registry and the rest; fleetq 4592"
+  },
+  {
+   "name": "G-C tiny hybrid on HIP",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=hip cargo test --release -p intarsia-models --test batch_recurrent",
+   "result": "pass",
+   "detail": "7 of 7 (forward_batch N up to 16 x 130 steps on 3 variants, engine vs solo, prefill chunks, prefix reuse, memory plan); fleetq 4620"
+  },
+  {
+   "name": "G-C 35B on HIP",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=hip cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched_decode_is_bitwise_the_solo_step",
+   "result": "pass",
+   "detail": "every N 2..16, 130 steps: 17550 (row, step) pairs bitwise identical; decode beside 256-token chunks bitwise; fleetq 4620"
+  },
+  {
+   "name": "35B batched engine == LocalEngine",
+   "command": "cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched_engine_equals_the_local_engine; ... real_35b_batched_engine_long_prompts_equal_the_local_engine --ignored",
+   "result": "pass",
+   "detail": "20 requests on 4 and 16 slots token-identical; 4096/2600/16384-token prompts beside a decoder identical (busy chunk = solo chunk 4096; control 1024 also identical); fleetq 4620"
+  },
+  {
+   "name": "No-op, HIP batching off",
+   "command": "intarsia plan show [--json] and generate --max-tokens 256 --temperature 0 --show-ids, branch vs origin/main 240e9d2a",
+   "result": "pass",
+   "detail": "plan show JSON/text and 256 ids byte-identical (12961/3184/1036 B); --spec mtp --spec-k 2 ids identical to main and to spec off; fleetq 4592, 4620"
+  },
+  {
+   "name": "Mac workspace tests",
+   "command": "cargo test --no-fail-fast -p intarsia-core -p intarsia-models -p intarsia-cli -p intarsia-backend-hip -p intarsia-server -p intarsia-backend-cpu",
+   "result": "pass",
+   "detail": "634 passed, 0 failed"
+  },
+  {
+   "name": "Qwen3-8B dense on HIP",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=hip ... real_qwen3_8b_batched_decode_is_bitwise_the_solo_step",
+   "result": "not run to completion",
+   "detail": "no output after the memory plan for 8 minutes, killed by PID; open; fleetq 4592"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 158.2,
+   "after": 157.8,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4620,
+   "before_run_id": "20261023-135539-adhoc-hb-main-off",
+   "after_run_id": "20261023-141304-adhoc-hb2-on16"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 134.7,
+   "after": 195.2,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4620,
+   "before_run_id": "20261023-135539-adhoc-hb-main-off",
+   "after_run_id": "20261023-141304-adhoc-hb2-on16"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 135.0,
+   "after": 234.7,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4620,
+   "before_run_id": "20261023-135539-adhoc-hb-main-off",
+   "after_run_id": "20261023-141304-adhoc-hb2-on16"
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-exact kernels M 1..16; G-C batched == solo bitwise on tiny hybrid and the 35B (every N 2..16, 130 steps); batched engine == LocalEngine (short prompts, 4 and 16 slots; 2.6k-16k prompts beside a decoder); HIP batching-off no-op plan show + 256 ids identical, also with --spec mtp k=2.",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "HIP now batches the hybrid 35B with every row bitwise the solo step: five rows_exact kernels (fp8, nvfp4, bf16, logits GEMV, MoE experts) pass G-B at M 1..16, G-C is 17550 identical (row, step) pairs for N 2..16, the batched engine equals LocalEngine, and batching off is byte-identical to main. localeval aggregate decode with --max-batch 16: 157.8 / 195.2 / 234.7 tok/s at 1 / 4 / 16 streams against 158.2 / 134.7 / 135.0 on main (x1.45 at 4, x1.74 at 16). The step is eager and the fp8/nvfp4 multi-row GEMVs are ALU-bound past 4 rows, so 16 streams stay far from the bandwidth bound.",
+ "lessons": [
+  "A test that sets INTARSIA_BATCH_TEST_BACKEND outside the dev container runs the cpu path: dev.sh forwards only INTARSIA_HIP_* and INTARSIA_TP_* variables, so a first all-green run proved nothing. Set the variable inside the container.",
+  "Fusions without a fusion-table entry are taken away from the solo step when batching is on (the row-count probe in fused_ok): a single stream lost 11% until the HIP phase-1 folds got entries. Check the single-stream number with batching on, not only the aggregate.",
+  "The HIP v2 nvfp4 GEMV is 4x slower per row at M = 8 than at M = 4 (register footprint); grouping rows by 4 beat one M = 8 launch (head: 1.5 ms against 3.3 ms), and row-exactness makes the grouping free.",
+  "HIP's tensor-core MoE path starts at 16 tokens and is not row-exact against T = 1 (57 of 2048 elements differ): the rows entry must never take it, whatever INTARSIA_HIP_MOE_WMMA says.",
+  "Busy prefill chunk 1024 was also identical to the solo chunk on HIP on four long prompts; the default stays the solo chunk (bitwise by construction), so this is not evidence the stall can be shortened."
+ ],
+ "cost": {
+  "wall_min": 95,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4567,
+   4592,
+   4619,
+   4620
+  ],
+  "tokens": null
+ }
+}
