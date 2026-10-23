@@ -1,0 +1,220 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:rb2-cuda-batching:20261023-0641",
+ "project": "intarsiaml",
+ "lane_id": "rb2-cuda-batching",
+ "follows": [
+  "intarsiaml:rb-recurrent-batching:20261022-2330"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T06:41:00-04:00",
+ "ended": "2026-10-23T09:50:00-04:00",
+ "brief": "Lane rb2: implement stages R0-R2 of hybrid continuous batching for Qwen3.6-35B-A3B (NVFP4) on CUDA (DGX Spark GB10): row-exact (G-B) kernels, plan/memory/engine plumbing, CUDA bring-up with batched logits bitwise equal to solo (G-C), cap 16, MTP and prefix store stay at batch 1. User approval 06:41 EDT: 'start R0-R2 recurrent batching, cap 16 on CUDA'.",
+ "hypothesis": "The 35B serves one sequence at a time because the batched engine refused recurrent state and CUDA registered no row-exact multi-row kernels. The CUDA decode GEMVs are warp-per-row with a fixed K partition, so row-exact multi-row twins are cheap; batching the dense projections and the MoE (row, expert) pairs, with GDN and attention per row, should lift 4-stream aggregate decode from 75.2 toward 140 tok/s with every row bitwise the solo step.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 4x",
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 16x"
+  ],
+  "rival": "vLLM · NVFP4",
+  "gap_pct_at_start": 40.3,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-rb2/recurrent-batching-cuda",
+  "base_commit": "b745e978",
+  "head_commit": "a5698ccfd5e1f3158e03487d4949de51d0c92a25",
+  "pr": null,
+  "files": [
+   "docs/results/2026-10-23-rb2-cuda-batching.md",
+   "kernels/cuda/fp8.cu",
+   "kernels/cuda/nvfp4.cu",
+   "kernels/cuda/moe_decode.cu",
+   "crates/intarsia-backend-cuda/src/quantmoe.rs",
+   "crates/intarsia-backend-cuda/tests/rows_exact.rs",
+   "crates/intarsia-core/src/fusion.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/model/gdn_batch.rs",
+   "crates/intarsia-core/src/engine/batch.rs",
+   "crates/intarsia-core/src/state.rs",
+   "crates/intarsia-models/src/load.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "crates/intarsia-models/tests/batch_cuda_real.rs"
+  ],
+  "diff_stat": "see the PR",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-exact kernels (CUDA)",
+   "command": "cargo test -p intarsia-backend-cuda --release --test rows_exact --test rows_registry",
+   "result": "pass",
+   "detail": "fp8 M1-16 x 132 cases/M, nvfp4 M1-16 x 32, bf16 matmul 22, logits 21, MoE decode v2 T1-16 x 16 (+ gelu x 8): every row bitwise the M=1 row; row-parallel ops independent at M=16; fleetq 4526"
+  },
+  {
+   "name": "CUDA backend suite + kernels test --quick",
+   "command": "cargo test -p intarsia-backend-cuda --release; intarsia kernels test --backend cuda --quick",
+   "result": "pass",
+   "detail": "all tests pass; 77 kernels, 534 cases, 0 rejected; fleetq 4525"
+  },
+  {
+   "name": "G-C tiny hybrid on CUDA (bf16, dense, MoE W8A16, MoE W8A8)",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=cuda cargo test -p intarsia-models --release --test batch_recurrent",
+   "result": "pass",
+   "detail": "7 of 7: batched == solo bitwise N=2..16 x 130 steps, engine == single-sequence engine, kernel-pick assertions; fleetq 4507 4508 4536"
+  },
+  {
+   "name": "G-C Qwen3.6-35B NVFP4 on CUDA, forward_batch",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_decode",
+   "result": "pass",
+   "detail": "N=2,3,4,8,16 x 130 steps, 4290 (row,step) pairs bitwise identical incl. decode beside prefill chunks; fleetq 4511 4532"
+  },
+  {
+   "name": "G-C Qwen3-8B BF16 on CUDA, forward_batch",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b",
+   "result": "pass",
+   "detail": "4290 pairs bitwise identical; fleetq 4512 4536"
+  },
+  {
+   "name": "batched engine equals LocalEngine on the 35B",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_engine",
+   "result": "pass",
+   "detail": "20 requests (greedy and seeded-sampled, 130 tokens) alone vs 4 and 16 slots, one at a time and all at once: all identical; fleetq 4513 4532"
+  },
+  {
+   "name": "no-op CUDA, batching off",
+   "command": "plan show (json+text) + generate 256 greedy ids, Qwen3-8B and 35B, branch vs origin/main b745e978",
+   "result": "pass",
+   "detail": "six of six comparisons byte-identical; fleetq 4516"
+  },
+  {
+   "name": "no-op Metal",
+   "command": "plan show + 256 ids Qwen3-8B vs main; INTARSIA_TEST_REAL_MODEL=1 cargo test --release --test batch_metal",
+   "result": "pass",
+   "detail": "identical; 138 pairs + 48 rows bitwise; fleetq 4518 4519"
+  },
+  {
+   "name": "workspace tests",
+   "command": "cargo test --workspace --no-fail-fast (endor)",
+   "result": "pass",
+   "detail": "0 failed; fleetq 4524"
+  },
+  {
+   "name": "KL gate busy-chunk vs solo-chunk prefill",
+   "command": null,
+   "result": "skip",
+   "detail": "not run; prompts in the identity gates are one chunk or share the schedule"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 75.2,
+   "after": 122.9,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4531,
+   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 75.2,
+   "after": 166.5,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4531,
+   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 73.6,
+   "after": 73.6,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4531,
+   "before_run_id": "20261023-084926-adhoc-rb2-off",
+   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 16, 130 steps); batched engine == LocalEngine on the 35B; no-op plan show + 256 ids identical (CUDA, Metal). Busy-chunk prefill vs solo-chunk prefill is KL-gated, not bitwise, and not run here.",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "R0-R2 done and gated; speed target missed. Row-exact CUDA GEMV and MoE decode kernels (M up to 16) registered rows_exact, a kernel-pick plan check with a proven-fusion table, per-backend cap 16, recurrent state in the memory plan, and a CUDA bring-up of hybrid batching. Every decode row is bitwise the solo step (4290 row-steps each on the 35B and Qwen3-8B), the batched engine equals LocalEngine, and plan show + 256 ids are unchanged with batching off. 35B aggregate decode in the composer cell: 122.9 at 4 streams (75.2 before, target about 140) and 166.5 at 16 (75.2); 1 stream unchanged (73.6). Verdict win against the baseline (x1.63 at 4, x2.21 at 16, nothing lost at 1) but the lane's stated 4-stream target is not met; the next cost is per-row GDN and attention launches (25% of a B=4 step, 42% at B=16) and an eager, graph-less batched step.",
+ "lessons": [
+  "Raising the busy prefill chunk from 256 to 1024 for the MoE hybrid was worth +18% at 4 streams and +30% at 16 (104 to 123, 128 to 167): an MoE prefill chunk reads nearly all experts at any size, so stalls dominate a short-output concurrent benchmark.",
+  "check_batch_ops must compare kernel picks, not op multisets: the CUDA MoE switches kernel under one Op between m <= 1 and m >= 2, which the multiset rule cannot see.",
+  "On the Spark the CUDA free figure after loading a 20 GB model is MemFree, not MemAvailable: page cache from other models' files left 1.9 GB for KV and recurrent state of a 16-slot engine; evict other files' cache (dd iflag=nocache count=0) before benchmarks, or the plan caps the context.",
+  "The 35B model-loop step at B=4 is 25.4 ms (158 tok/s) and at B=16 65.3 ms (245 tok/s) eager; the serve aggregate is lower by prefill stalls and per-step engine overhead."
+ ],
+ "cost": {
+  "wall_min": 190,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4507,
+   4508,
+   4511,
+   4512,
+   4513,
+   4516,
+   4518,
+   4519,
+   4521,
+   4522,
+   4523,
+   4524,
+   4525,
+   4526,
+   4527,
+   4529,
+   4531,
+   4532,
+   4536
+  ],
+  "tokens": null
+ }
+}
