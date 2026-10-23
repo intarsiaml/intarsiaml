@@ -1,5 +1,7 @@
 # g4: Gemma-4-26B-A4B-NVFP4 through `intarsia onboard` (no existing recipe)
 
+> **Update, same evening (lane g4f): the full 26B was run through `onboard --quick-only` on CUDA; see `docs/results/2026-10-22-g4f-gemma4-full.md`. The "no full-model number" and "Not done" statements below are from the morning and are superseded.**
+
 Lane g4, branch `lane-g4/gemma4`, fleetq owner `claude-f31ccf91-g4`. T0 = 09:11:56 EDT 2026-10-22 (weights already on spark1:
 `~/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4`, 2 shards, 18.8 GB). Hard stop 11:30.
 

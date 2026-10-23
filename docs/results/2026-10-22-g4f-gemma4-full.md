@@ -2,7 +2,8 @@
 
 Lane g4f (follow-up of lane g4, docs/results/2026-10-22-g4-gemma4-onboard.md), branch `lane-g4/gemma4` = PR #101 (draft), fleetq owner
 `claude-f31ccf91-g4f`, lease #4260 on spark2 (64 GB, `--quiet gpu,cpu`, NOT exclusive; spark2's vLLM service was up and idle,
-GPU 0 % busy at the start). Raw logs and goldens: `docs/results/2026-10-22-g4f-gemma4-full/raw/`. Clock: 19:42 start, 20:35 this
+GPU 0 % busy at the start). Raw logs and goldens: `docs/results/2026-10-22-g4f-gemma4-full/raw/`. The CUDA binary of every run here was built from merge
+commit 16c2205f (later commits only add HIP `UNIMPLEMENTED`, tools, docs and LOG rows). Clock: 19:42 start, 20:35 this
 text (T = EDT 2026-10-22).
 
 ## Verdict
@@ -54,28 +55,33 @@ coordinator (LOG row 2026-10-22 "Gemma-4 quick gate"). The ppl <= 40 floor itsel
 ## Why acc-short fails: bf16 noise of a router-sensitive MoE, measured
 
 Reference ids are the 10 prompts of `golden.jsonl` + `golden_long.jsonl` (1468 prefill positions, 160 decode rows), `--template hf`.
-Three references of the same checkpoint, all on identical ids (`tools/golden_cmp.py`, `intarsia accuracy`):
+Three references of the same checkpoint, all on identical ids (`tools/golden_cmp.py`, `intarsia accuracy`, `intarsia ref-noise`):
 
 | Reference | How | Engine vs it: prefill 21-way KL / top-1 | HF bf16 vs it |
 |---|---|---|---|
 | HF bf16 (the golden the quick tier uses) | GPU, NVFP4 experts dequantised to bf16 in memory, `tools/gemma4_nvfp4_golden.py` | **2.95e-1 / 83.0 %** (decode 3.35e-1 / 80.6 %) | |
-| HF f32 compute | same weights; non-expert tensors f32, experts bf16-dequantised and cast per expert (`--dtype float32`, ~60 GB) | **2.38e-1 / 86.7 %** (decode 2.02e-1 / 89.4 %) | 2.23e-1 (`intarsia ref-noise`, precision_spread) / 83.9 % |
-| vLLM (nightly 3f1bcfd8, W4A4) | prompt_logprobs on the HF ids (`tools/golden_vllm.py --ids-from`) | 7.9e-1 / 73.0 % | 5.5e-1 (supp.) / 75.3 %; vs f32 6.3e-1 / 73.1 % |
+| HF f32 compute | same weights; non-expert tensors f32, experts bf16-dequantised and cast per expert (`--dtype float32`, ~60 GB) | **2.38e-1 / 86.7 %** (`accuracy`; decode 2.02e-1 / 89.4 %) | 2.54e-1 / 83.9 % (`golden_cmp`, same pair) |
+| vLLM (nightly 3f1bcfd8, W4A4) | prompt_logprobs on the HF ids (`tools/golden_vllm.py --ids-from`) | 7.9e-1 / 73.0 % | vs HF bf16 5.5e-1 / 75.3 %; vs f32 6.3e-1 / 73.1 % |
 
-Reading: **the engine is as far from the f32 reference as HF's own bf16 forward is** (2.4e-1 against 2.2e-1; top-1 86.7 % against
-83.9 %), and engine-versus-bf16-golden (2.95e-1) is what two independent bf16 draws of this model give, 1.33 times the measured
-reference noise of 2.23e-1 (the existing `--ref-noise` rule, `docs/accuracy.md`: with the sidecar the floor becomes 2.23e-1 and the
-run still FAILs, "KL / ref noise = 1.326"; `raw/acc-noise.log`). The cause is the router: top-8 of 128 experts per layer over 30 layers
-flips on near ties under bf16 rounding, and the off-template raw prompts (story 1.5, code 0.51, long_prose_300 0.49) are the most
-sensitive; chat prompts are 0.04 to 0.26 (chat_system 4.2e-2, chat_multiturn 7.9e-2). vLLM is farther from everything because it
-runs the declared W4A4 (per-expert `input_scale` activation quantisation), which the engine does not (LOG 2026-10-22, W4A4 as
-W4A16). The 2-layer real-weight slice of lane g4 (KL 3.5e-3) did not see this because two layers cannot flip a router often.
-I did not lower the 3.0e-2 floor and did not change the ref-noise factor (factor 1.33 would pass; that is the user's decision).
+The two f32 comparisons use different estimators (`accuracy` scores the engine's full-vocabulary logits against the f32 top-20;
+`ref-noise` and `golden_cmp` compare two top-20 lists), so the like-for-like pair is `intarsia ref-noise --golden f32 --other X
+--method precision_spread` for both X (`raw/ref-noise-f32-matched.txt`; X = the engine's own top-20 from `accuracy
+--write-self-golden`): **engine 2.08e-1, HF bf16 2.36e-1** (`golden_cmp`: 2.39e-1 against 2.54e-1; top-1 86.7 % against 83.9 %).
+
+Reading: **the engine is no farther from the f32 reference than HF's own bf16 forward is** (0.88 times its distance under one
+estimator), and engine-versus-bf16-golden (2.95e-1) is what two independent bf16 draws of this model give: 1.25 times the measured
+reference noise of 2.36e-1 (or 1.33 times 2.23e-1 in the direction `ref-noise --golden bf16 --other f32`; the sidecar written from
+that run, `raw/ref_noise/`, makes the floor 2.23e-1 and the run still FAILs, "KL / ref noise = 1.326", `raw/acc-noise.log`). The
+cause is the router: top-8 of 128 experts per layer over 30 layers flips on near ties under bf16 rounding, and the off-template raw
+prompts (story 1.1 to 1.5, code 0.49 to 0.59, long_prose_300 0.43 to 0.49) are the most sensitive; chat prompts are 0.04 to 0.26
+(engine vs f32: chat_system 3.7e-2, chat_multiturn 7.1e-2). vLLM is farther from everything because it runs the declared W4A4
+(per-expert `input_scale` activation quantisation), which the engine does not (LOG 2026-10-22, W4A4 as W4A16). The 2-layer
+real-weight slice of lane g4 (KL 3.5e-3) did not see this because two layers cannot flip a router often. I did not lower the 3.0e-2
+floor and did not change the ref-noise factor (a factor of 1.33 would pass; that is the user's decision).
 
 Limits: the f32 reference still rounds the experts' weights to bf16 (relative 2^-9, deterministic, not router-flipping) and uses the
 bf16-rounded embedding scale 53.0 (as the engine does); it is not an exact fp32 forward of the dequantised NVFP4 weights, and no
-second independent f32 implementation exists. `acc-oracle` (f64 CPU oracle) was not made: the CPU reference at 26B did not fit the
-time. Multi-chunk prefill is untested (longest golden prompt 700 tokens < chunk 1024).
+second independent f32 implementation exists. `acc-oracle` (f64 CPU oracle) was not attempted. Multi-chunk prefill is untested (longest golden prompt 700 tokens < chunk 1024).
 
 ## Speed (onboard `bench`, quick tier; slot: non-exclusive `--quiet gpu,cpu` lease on spark2, nothing else of this lane running)
 
@@ -84,6 +90,10 @@ time. Multi-chunk prefill is untested (longest golden prompt 700 tokens < chunk 
 | 128 | 34.3 (274 %) | 634 |
 | 1024 | 31.1 (248 %) | 536 |
 | 4096 | 24.6 (196 %) | 366 |
+
+A second `onboard --quick-only` run of the same binary against the f32 golden (`raw/onb-f32/`, same lease, 20:35-20:42; its
+`gate` / `acc-short` verdicts are FAIL as above, acc-short KL 2.38e-1 prefill / 2.02e-1 decode) measured 34.5 / 31.3 / 24.7
+decode and 630 / 534 / 372 prefill tok/s: the two samples agree within 2 %.
 
 These are NOT tuned numbers and not exclusive-slot numbers: Gemma layers are not CUDA-graph captured (decode "ran eagerly"), the
 MoE prefill uses the generic GELU kernel (`moe_intermediate_size` 704 is not a multiple of 128, so the mma / w4a16 GELU kernels do
