@@ -475,7 +475,16 @@ pub struct PrefixStore {
     used: [u64; 3],
     stats: PrefixStoreSnapshot,
     writer: Option<DiskWriter>,
+    /// Inserts go to the device whatever its budget, and the device tier is not brought within budget, until
+    /// [`PrefixStore::settle`] (the engine defers the device-to-host copies until the first token went out: a download
+    /// synchronises the device, which would stall the prefill that queued the next chunk).
+    defer: bool,
+    /// Device bytes captured while deferring (capped at [`DEFER_CAP`]; past it inserts copy to host directly).
+    deferred: u64,
 }
+
+/// Most device memory the deferred captures of one request may hold.
+const DEFER_CAP: u64 = 1 << 30;
 
 struct DiskWriter {
     dir: PathBuf,
@@ -509,6 +518,8 @@ impl PrefixStore {
             used: [0; 3],
             stats,
             writer: None,
+            defer: false,
+            deferred: 0,
         };
         if let (Some(dir), true) = (s.cfg.disk_dir.clone(), s.cfg.disk_bytes > 0) {
             let dir = dir.join(format!("{build:016x}"));
@@ -677,7 +688,11 @@ impl PrefixStore {
 
     /// Copy `segs` out of the state into a new object in the highest tier with room.
     fn capture(&mut self, backend: &dyn Backend, segs: &[(&Buffer, usize, usize)], bytes: usize) -> Result<Mem> {
-        if self.cfg.device_bytes >= bytes as u64 {
+        let defer = self.defer && self.deferred + bytes as u64 <= DEFER_CAP;
+        if defer {
+            self.deferred += bytes as u64;
+        }
+        if defer || self.cfg.device_bytes >= bytes as u64 {
             let buf = backend.alloc(bytes.max(16), MemKind::Device)?;
             let mut off = 0;
             for &(src, so, n) in segs {
@@ -812,6 +827,25 @@ impl PrefixStore {
         Ok(Restored { len: hit.len, bytes, elapsed, tier: slowest })
     }
 
+    /// Start or stop deferring device-to-host copies (see `defer`).
+    pub fn set_defer(&mut self, on: bool) {
+        self.defer = on;
+    }
+
+    pub fn deferring(&self) -> bool {
+        self.defer
+    }
+
+    /// Stop deferring and bring every tier within budget (device captures move to host, and to disk when it is on).
+    pub fn settle(&mut self, backend: &dyn Backend) {
+        self.defer = false;
+        self.deferred = 0;
+        let t0 = Instant::now();
+        self.enforce(backend);
+        self.stats.insert_seconds_total += t0.elapsed().as_secs_f64();
+        self.refresh_counts();
+    }
+
     /// Feed the cold prefill rate the TTFT-saved estimate uses (tokens computed, time they took).
     pub fn note_prefill(&mut self, tokens: usize, elapsed: Duration) {
         let s = elapsed.as_secs_f64();
@@ -883,7 +917,7 @@ impl PrefixStore {
     /// Bring every tier within its budget: device objects move to host, host objects to disk (or are dropped), disk
     /// objects are deleted. Pinned objects never leave memory.
     fn enforce(&mut self, backend: &dyn Backend) {
-        while self.used[0] > self.cfg.device_bytes {
+        while self.used[0] > self.cfg.device_bytes && !self.defer {
             let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(_)))) else { break };
             let mut o = self.objs.remove(&k).unwrap();
             let Some(Mem::Device(buf)) = o.mem.take() else { unreachable!() };

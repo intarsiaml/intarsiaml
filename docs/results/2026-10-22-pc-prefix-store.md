@@ -185,4 +185,16 @@ LIMITS
 
 ## Reproduce
 
-REPRO
+```bash
+# cpu: store mechanics, engine byte identity, dead tail, HTTP, template cuts (fleetq --load cpu on endor)
+CARGO_TARGET_DIR=target-test cargo test -p intarsia-models --test prefix_store --test prefix_boundaries_template -- --nocapture
+CARGO_TARGET_DIR=target-test cargo test -p intarsia-server --test prefix_store -- --nocapture
+python3 -I docs/results/2026-10-22-pc-prefix-store/scripts/affinity_router.py --self-test
+# metal (exclusive endor slot): no-op, identity (8B + 35B), reuse workloads, dead tail
+FLEETQ_JOB=<id> bash docs/results/2026-10-22-pc-prefix-store/scripts/metal-window.sh all
+# a server with the store, a pinned system prompt, a prewarm, the counters
+intarsia serve --model M --prefix-store on,host_mb=16384 --prefix-store-pin pins.json
+curl -s localhost:8090/v1/intarsia/prefill -d '{"messages":[...],"partial":true}'
+curl -s localhost:8090/metrics | grep intarsia_prefix_store
+intarsia bench reuse --url http://127.0.0.1:8090 --model m --record DIR   # then --replay DIR, store on vs off
+```

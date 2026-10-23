@@ -479,13 +479,17 @@ pub(crate) struct SeqStore {
 impl SeqStore {
     fn new(pol: StorePolicy, prompt: &[u32], recurrent: bool, chunk: usize) -> SeqStore {
         let plen = prompt.len();
-        // cuts: before every message start, and after the end of its header
+        // cuts: after the end of every message header (`<|im_start|>role\n`), and before the start of the second
+        // message (where a pinned system prompt ends). Not before every message start: on a MoE every chunk reads all
+        // experts once, so a 3-token chunk per message costs a decode step each (measured on CUDA, results doc).
         let mut boundaries = Vec::new();
         let mut headers = Vec::new();
         let mut in_header = false;
+        let mut starts = 0usize;
         for (i, t) in prompt.iter().enumerate() {
             if pol.boundary_ids.contains(t) {
-                if i > 0 {
+                starts += 1;
+                if starts == 2 && i > 0 {
                     boundaries.push(i);
                 }
                 in_header = true;
@@ -1117,6 +1121,12 @@ impl Seq {
         }
         let mut restored = Duration::ZERO;
         if let Some(ps) = &ps {
+            // inserts during this prefill copy device-to-device and leave the host copy for later
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            store.settle(&*model.backend);
+            store.set_defer(true);
+        }
+        if let Some(ps) = &ps {
             match ps.restore(model, st, &req.prompt, p, max_reuse, &sh.telemetry) {
                 Ok(Some((len, took))) => {
                     p = len;
@@ -1471,6 +1481,17 @@ impl Seq {
         Ok(())
     }
 
+    /// Move the entries this request captured on the device to their tier ([`crate::prefix_store::PrefixStore::settle`]).
+    pub(crate) fn settle_store(&self, model: &Model) {
+        if let Some(ps) = &self.ps {
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            if store.deferring() {
+                store.settle(&*model.backend);
+                self.telemetry.set_prefix_store(store.snapshot());
+            }
+        }
+    }
+
     /// The end of a prewarm request: no token generated, the prompt counted as processed.
     fn prewarm_outcome(&mut self) -> Outcome {
         self.prefill = self.t0.elapsed();
@@ -1740,7 +1761,10 @@ fn generate_one(
 ) -> Result<Outcome> {
     let Inner { model, state: st } = g;
     let mut seq = Seq::new(sh, model, st, req, tx)?;
-    match run_seq(&mut seq, model, st) {
+    let r = run_seq(&mut seq, model, st);
+    // entries captured on the device during this request go to their tier now (a no-op when already settled)
+    seq.settle_store(model);
+    match r {
         Ok(Some(o)) => Ok(o),
         Ok(None) => {
             let n = seq.generated;
@@ -1767,7 +1791,17 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
             PrefillStep::Finished(o) => return Ok(Some(o)),
         }
     }
-    while !seq.on_token()? {
+    let mut first = true;
+    loop {
+        let done = seq.on_token()?;
+        if first {
+            // after the first token went out: the prefix store's device-to-host copies stay off the time to first token
+            seq.settle_store(model);
+            first = false;
+        }
+        if done {
+            break;
+        }
         if seq.feedback_ok(model, st) {
             seq.run_feedback(model, st)?;
             break;
