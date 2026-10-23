@@ -1,0 +1,39 @@
+Thu Oct 22 08:35:28 PM EDT 2026
+[onboard      0s] gemma4-26b-a4b-nvfp4 on cuda, report directory /home/nvidia/g4-full/onb-f32
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /home/nvidia/g4-full/onb-f32/logs/smoke.err
+[onboard] smoke: PASS in 28s (generated: "a로.\n- - - - - - - - - - - -")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard     28s] log: /home/nvidia/g4-full/onb-f32/logs/quick.err
+[onboard] quick: FAIL in 6m29s (qualify exit 1 (a gate failed): gate FAIL: perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty | sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact ("blue"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact ("paris"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact ("oxygen"): NO; acc-short FAIL: prefill: 21-way KL (scored rows, n=1468) 2.384e-1 (need <= 3.0e-2); decode: 21-way KL (scored rows, n=160) 2.024e-1 (need <= 3.0e-2))
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /home/nvidia/g4-full/onb-f32/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-23T00:42:26Z)
+ONBOARD FAIL (exit 1) in 6m57s
+Command exited with non-zero status 1
+	Command being timed: "/home/nvidia/g4-main-target/release/intarsia onboard --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cuda --golden-from /home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors --mem-budget 40 --out /home/nvidia/g4-full/onb-f32 --model-name gemma4-26b-a4b-nvfp4 --quick-only"
+	User time (seconds): 488.20
+	System time (seconds): 72.07
+	Percent of CPU this job got: 134%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:57.77
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 17978052
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 250
+	Minor (reclaiming a frame) page faults: 35480623
+	Voluntary context switches: 38274
+	Involuntary context switches: 15930
+	Swaps: 0
+	File system inputs: 55048
+	File system outputs: 1128
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+Thu Oct 22 08:42:26 PM EDT 2026

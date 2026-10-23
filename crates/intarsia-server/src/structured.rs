@@ -930,6 +930,9 @@ mod tests {
                "required": ["answer", "unit", "ok", "tags"], "additionalProperties": false})
     }
 
+    const EXPECTED_DIGESTS: [&str; 4] =
+        ["base=c2de089bb7602251", "nested=c2f2146cc7161b78", "enum=29c3e9c34bcf5e37", "array=0489a17db0ea47d8"];
+
     #[test]
     fn json_schema_outputs_validate() {
         let e = env();
@@ -943,6 +946,77 @@ mod tests {
             // compact separators, no free whitespace
             assert!(text.starts_with("{\"answer\": "), "{text}");
         }
+    }
+
+    /// FNV-1a over every mask word and every chosen token of a seeded walk: pins the allowed-token set at each step
+    /// (and so the greedy output), not just the validity of the final text.
+    fn walk_digest(spec: &Arc<dyn ConstraintSpec>, seeds: std::ops::Range<u64>) -> (u64, Vec<String>) {
+        let mut h: u64 = 0xcbf29ce484222325;
+        let mut eat = |x: u32| {
+            for b in x.to_le_bytes() {
+                h = (h ^ u64::from(b)).wrapping_mul(0x100000001b3);
+            }
+        };
+        let mut texts = Vec::new();
+        for seed in seeds {
+            let mut c = spec.start().unwrap();
+            let mut rng = SplitMix64::new(seed);
+            let mut out = Vec::new();
+            for _ in 0..600 {
+                let mut l: Vec<f32> = (0..300).map(|_| rng.next_f32() * 4.0).collect();
+                l[256] += 1.0;
+                let m = c.compute_mask().unwrap();
+                m.words.iter().for_each(|&w| eat(w));
+                assert!(m.apply(&mut l));
+                let t = intarsia_core::sampler::argmax(&l) as u32;
+                eat(t);
+                if t == 256 {
+                    break;
+                }
+                c.commit(t).unwrap();
+                out.extend(bytes_of(t));
+            }
+            texts.push(String::from_utf8_lossy(&out).into_owned());
+        }
+        (h, texts)
+    }
+
+    /// Allowed-token sets and outputs are pinned (digests recorded on main before the 2026-10-22 mask-path changes) for
+    /// the schema above and three more shapes: a nested object, an enum, an array of objects.
+    #[test]
+    fn mask_digests_are_stable() {
+        let nested = json!({"type": "object", "properties": {
+            "user": {"type": "object", "properties": {
+                "name": {"type": "string", "maxLength": 6},
+                "address": {"type": "object", "properties": {
+                    "zip": {"type": "integer", "minimum": 0, "maximum": 99999}, "city": {"type": "string", "maxLength": 5}},
+                    "required": ["zip", "city"], "additionalProperties": false}},
+                "required": ["name", "address"], "additionalProperties": false}},
+            "required": ["user"], "additionalProperties": false});
+        let en = json!({"type": "object", "properties": {
+            "answer": {"type": "string", "enum": ["A", "B", "C", "D"]},
+            "level": {"enum": ["low", "mid", "high", 7, null]}},
+            "required": ["answer", "level"], "additionalProperties": false});
+        let arr = json!({"type": "object", "properties": {"items": {"type": "array", "minItems": 1, "maxItems": 3,
+            "items": {"type": "object", "properties": {
+                "id": {"type": "integer", "minimum": 1, "maximum": 99},
+                "tag": {"type": "string", "enum": ["x", "yy"]}},
+                "required": ["id", "tag"], "additionalProperties": false}}},
+            "required": ["items"], "additionalProperties": false});
+        let e = env();
+        let cases = [("base", schema()), ("nested", nested), ("enum", en), ("array", arr)];
+        let mut got = Vec::new();
+        for (name, sc) in &cases {
+            let spec = e.compile(&Plan::Json(sc.clone())).unwrap();
+            let (h, texts) = walk_digest(&spec, 0..8);
+            for (i, t) in texts.iter().enumerate() {
+                let v: Value = serde_json::from_str(t).unwrap_or_else(|e| panic!("{name} seed {i}: {e}: {t:?}"));
+                assert!(validates(sc, &v), "{name} seed {i}: {t}");
+            }
+            eprintln!("digest {name} {h:016x}");
+            got.push((*name, h));
+        }
+        assert_eq!(got.iter().map(|(n, h)| format!("{n}={h:016x}")).collect::<Vec<_>>(), EXPECTED_DIGESTS);
     }
 
     #[test]
@@ -1155,6 +1229,128 @@ mod tests {
             let v: Value = serde_json::from_str(&s).unwrap_or_else(|e| panic!("{e}: {s:?}"));
             assert!(v["answer"].is_i64() || v["answer"].is_u64(), "{s}");
         }
+    }
+
+    /// Per-phase CPU cost of one constrained step on the real Qwen3 vocabulary (fruits-40 schema, a seeded random
+    /// "model"; prints, asserts only validity). Phases: mask, apply (old per-bit loop and the fill form), argmax,
+    /// commit, and the cost of a thread per step against a woken persistent worker. Skips without a tokenizer.
+    /// Run: `INTARSIA_TEST_TOKENIZER=<Qwen3-8B>/tokenizer.json cargo test --release -p intarsia-server
+    /// constrained_step_phases -- --nocapture`.
+    #[test]
+    fn constrained_step_phases() {
+        let path = std::env::var("INTARSIA_TEST_TOKENIZER").unwrap_or_else(|_| {
+            format!("{}/models/Qwen3-8B/tokenizer.json", std::env::var("HOME").unwrap_or_default())
+        });
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            eprintln!("skip: no {path}");
+            return;
+        };
+        let tj: Value = serde_json::from_str(&text).unwrap();
+        let bytes = llguidance::token_bytes_from_tokenizer_json(&tj).unwrap();
+        let e = GrammarEnv::from_parts(bytes, 151936, &[151645, 151643], Box::new(|_| None)).unwrap();
+        let schema = json!({"type": "object", "properties": {"fruits": {"type": "array", "items": {"type": "string"},
+                            "minItems": 40, "maxItems": 40}}, "required": ["fruits"], "additionalProperties": false});
+        let spec = e.compile(&Plan::Json(schema.clone())).unwrap();
+        let trie = e.factory.tok_env().tok_trie().clone();
+        // the pre-2026-10-22 apply, for comparison
+        let apply_old = |m: &TokenMask, logits: &mut [f32]| {
+            for (wi, chunk) in logits.chunks_mut(32).enumerate() {
+                let w = m.words.get(wi).copied().unwrap_or(0);
+                if w == u32::MAX {
+                    continue;
+                }
+                for (b, x) in chunk.iter_mut().enumerate() {
+                    if w >> b & 1 == 0 {
+                        *x = f32::NEG_INFINITY;
+                    }
+                }
+            }
+        };
+        let us = |d: std::time::Duration| d.as_secs_f64() * 1e6;
+        let (mut t_mask, mut t_old, mut t_new, mut t_arg, mut t_commit) = (vec![], vec![], vec![], vec![], vec![]);
+        let mut allowed = vec![];
+        for seed in 0..5u64 {
+            let mut c = spec.start().unwrap();
+            let mut rng = SplitMix64::new(seed);
+            let mut out = Vec::new();
+            for _ in 0..400 {
+                let l0: Vec<f32> = (0..151936).map(|_| rng.next_f32() * 4.0).collect();
+                let t = std::time::Instant::now();
+                let m = c.compute_mask().unwrap();
+                t_mask.push(us(t.elapsed()));
+                allowed.push(m.words.iter().map(|w| w.count_ones() as f64).sum::<f64>());
+                let mut a = l0.clone();
+                let t = std::time::Instant::now();
+                apply_old(&m, &mut a);
+                t_old.push(us(t.elapsed()));
+                let mut l = l0;
+                let t = std::time::Instant::now();
+                assert!(m.apply(&mut l));
+                t_new.push(us(t.elapsed()));
+                assert!(a.iter().zip(&l).all(|(x, y)| x.to_bits() == y.to_bits()), "apply forms differ");
+                l[151645] += 1.0;
+                let t = std::time::Instant::now();
+                let tok = intarsia_core::sampler::argmax(&l) as u32;
+                t_arg.push(us(t.elapsed()));
+                if tok == 151645 || tok == 151643 {
+                    break;
+                }
+                let t = std::time::Instant::now();
+                c.commit(tok).unwrap();
+                t_commit.push(us(t.elapsed()));
+                out.extend_from_slice(trie.token(tok));
+            }
+            // a random "model" rarely finishes forty strings in 400 tokens; the text only has to stay a valid prefix
+            assert!(std::str::from_utf8(&out).is_ok_and(|t| t.starts_with("{\"fruits\": [")), "seed {seed}");
+        }
+        // a thread per step (spawn + result channel + join) against one worker woken per step
+        let (mut t_spawn, mut t_wake) = (vec![], vec![]);
+        for _ in 0..400 {
+            let t = std::time::Instant::now();
+            let (tx, rx) = std::sync::mpsc::channel();
+            let h = std::thread::Builder::new().spawn(move || {
+                let _ = tx.send(1u32);
+            });
+            let _ = rx.recv();
+            drop(h);
+            t_spawn.push(us(t.elapsed()));
+        }
+        let (wtx, wrx) = std::sync::mpsc::channel::<()>();
+        let (dtx, drx) = std::sync::mpsc::channel::<u32>();
+        let h = std::thread::spawn(move || {
+            while wrx.recv().is_ok() {
+                if dtx.send(1).is_err() {
+                    break;
+                }
+            }
+        });
+        for _ in 0..400 {
+            let t = std::time::Instant::now();
+            wtx.send(()).unwrap();
+            let _ = drx.recv();
+            t_wake.push(us(t.elapsed()));
+        }
+        drop(wtx);
+        let _ = h.join();
+        let stat = |name: &str, v: &mut Vec<f64>| {
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let mean = v.iter().sum::<f64>() / v.len() as f64;
+            eprintln!(
+                "phase {name:<28} n={:<5} mean {mean:8.1} us  p50 {:8.1}  p99 {:8.1}  max {:8.1}",
+                v.len(),
+                v[v.len() / 2],
+                v[(v.len() * 99 / 100).min(v.len() - 1)],
+                v[v.len() - 1]
+            );
+        };
+        stat("mask compute", &mut t_mask);
+        stat("apply (old per-bit loop)", &mut t_old);
+        stat("apply (fill form)", &mut t_new);
+        stat("argmax (151936)", &mut t_arg);
+        stat("commit", &mut t_commit);
+        stat("thread per step (spawn+recv)", &mut t_spawn);
+        stat("persistent worker wake+recv", &mut t_wake);
+        eprintln!("mean allowed tokens per step: {:.0}", allowed.iter().sum::<f64>() / allowed.len() as f64);
     }
 
     fn split_stream(chunks: &[&str]) -> (String, String) {

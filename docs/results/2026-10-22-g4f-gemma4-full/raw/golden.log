@@ -1,0 +1,13 @@
+Thu Oct 22 07:51:41 PM EDT 2026
+[0] count               38 tokens (38+0)  vocab=262144  argmax_last=236743  2s
+[1] story               39 tokens (39+0)  vocab=262144  argmax_last=506  3s
+[2] code                95 tokens (95+0)  vocab=262144  argmax_last=140  4s
+[3] science             76 tokens (76+0)  vocab=262144  argmax_last=506  4s
+[4] chat_short          23 tokens (23+0)  vocab=262144  argmax_last=46297  5s
+[5] chat_system         37 tokens (37+0)  vocab=262144  argmax_last=818  5s
+[6] chat_multiturn      63 tokens (63+0)  vocab=262144  argmax_last=818  6s
+[7] chat_reasoning      97 tokens (97+0)  vocab=262144  argmax_last=2021  6s
+[8] long_prose_300     300 tokens (300+0)  vocab=262144  argmax_last=784  9s
+[9] long_prose_700     700 tokens (700+0)  vocab=262144  argmax_last=13997  13s
+wrote /home/nvidia/g4-full/gemma4-26b.golden.safetensors (0.2 MB) in 13s
+Thu Oct 22 07:54:31 PM EDT 2026

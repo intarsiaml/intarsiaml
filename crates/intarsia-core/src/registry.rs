@@ -88,6 +88,8 @@ pub struct KernelImpl {
     /// decode launch at that row's position. Selected only for calls with `OpCall::exact_rows` set (and then
     /// exclusively, for the ops that have one); ordinary calls never pick it.
     pub rows_exact: bool,
+    /// Implements the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`). Off by default; see `ShapeInfo::ext`.
+    pub ext: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -111,7 +113,14 @@ impl KernelImpl {
             priority: 0,
             scratch: None,
             rows_exact: false,
+            ext: false,
         }
+    }
+
+    /// Mark the kernel as implementing the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`).
+    pub fn ext(mut self) -> Self {
+        self.ext = true;
+        self
     }
 
     // Builder methods named after the `register_kernel!` fields.
@@ -197,7 +206,7 @@ impl KernelImpl {
     pub fn accepts(&self, s: &ShapeInfo) -> bool {
         let act_ok = self.acts.is_empty() || s.act.is_none_or(|d| self.acts.contains(&d));
         let w_ok = self.weights.is_empty() || s.weight.is_none_or(|d| self.weights.contains(&d));
-        act_ok && w_ok && (self.when)(s)
+        act_ok && w_ok && (self.ext || !s.ext) && (self.when)(s)
     }
 }
 

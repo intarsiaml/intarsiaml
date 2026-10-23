@@ -1,0 +1,37 @@
+[onboard      0s] gemma4-2L-nvfp4-fn on cuda, report directory /home/nvidia/g4-trunc/onb
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /home/nvidia/g4-trunc/onb/logs/smoke.err
+[onboard] smoke: PASS in 8s (generated: "own else러쇠로서는 ownраا\u{64b}ا\u{64b}ا\u{64b}ا\u{64b}ا\u{64b}ا\u{64b}ا\u{64b}ا\u{64b}")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard      8s] log: /home/nvidia/g4-trunc/onb/logs/quick.err
+[onboard] quick: FAIL in 3m34s (qualify exit 1 (a gate failed): gate FAIL: perplexity: 13537942442.414 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 23: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 5: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 37: non-empty, answers the fact ("paris"): NO; acc-short MISSING-BASELINE: MISSING-BASELINE: no baseline for backend cuda next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated. gemma4-2L-nvfp4-fn has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so acc-short's floor alone does not gate it (it read: prefill top-1 95.16% KL 3.99e-3; decode top-1 98.44% KL 2.54e-3); record one with the envelope stage and commit it to golden/baselines/; acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'gemma4-2L-nvfp4-fn' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). gemma4-2L-nvfp4-fn has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /home/nvidia/g4-trunc/gemma4-2L-nvfp4-fn --backend cpu --golden /home/nvidia/g4-trunc/gemma4-2L-fn.golden.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id gemma4-2L-nvfp4-fn --write-self-golden golden/oracle/gemma4-2l-nvfp4-fn-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /home/nvidia/g4-trunc/onb/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-22T14:23:39Z)
+ONBOARD FAIL (exit 1) in 3m42s
+Command exited with non-zero status 1
+	Command being timed: "/home/nvidia/g4-main-target/release/intarsia onboard --model /home/nvidia/g4-trunc/gemma4-2L-nvfp4-fn --backend cuda --golden-from /home/nvidia/g4-trunc/gemma4-2L-fn.golden.safetensors --mem-budget 8 --out /home/nvidia/g4-trunc/onb --quick-only"
+	User time (seconds): 347.46
+	System time (seconds): 46.44
+	Percent of CPU this job got: 176%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:42.72
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 3617788
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 70
+	Minor (reclaiming a frame) page faults: 25878870
+	Voluntary context switches: 40282
+	Involuntary context switches: 18081
+	Swaps: 0
+	File system inputs: 16392
+	File system outputs: 1424
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

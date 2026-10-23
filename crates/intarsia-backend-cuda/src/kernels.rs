@@ -30,6 +30,16 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_prefill_f8kv_splitkv", Op::AttnPrefill),
     ("attn_decode_f8kv_splitkv", Op::AttnDecode),
     ("silu_glu_bf16", Op::SiluGlu),
+    // g4 (Gemma 4): the extended attributes (OpAttrs::window / rope_prop / scale on Add and Embedding, Op::GeluGlu), each a
+    // separate launcher so the plain ones keep their bits; registered `.ext()`, see `all()`
+    ("gelu_glu_bf16", Op::GeluGlu),
+    ("rope_prop_bf16", Op::Rope),
+    ("add_scaled_bf16", Op::Add),
+    ("embedding_scaled_bf16", Op::Embedding),
+    ("attn_prefill_bf16_ext", Op::AttnPrefill),
+    ("attn_decode_bf16_ext", Op::AttnDecode),
+    ("attn_prefill_bf16_splitkv_ext", Op::AttnPrefill),
+    ("attn_decode_bf16_splitkv_ext", Op::AttnDecode),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("gdn_conv_bf16", Op::GdnConv),
@@ -330,6 +340,41 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10)
+                .scratch(splitkv_scratch),
+            // g4 (Gemma 4) extended kernels. All `.ext()`: only a call that uses the extended attributes (or, for the attention,
+            // a head_dim the plain kernels do not take) can pick them, and at priority -1 they sit below every plain kernel, so
+            // a plain call selects exactly what it did before.
+            "gelu_glu_bf16" => k.acts(bf).ext().exact(Exactness::Deterministic).tol(BF16_TOL),
+            // proportional rope: pairs (j, j + D/2) for j < rotary_dim / 2, exponent denominator D
+            "rope_prop_bf16" => k
+                .acts(bf)
+                .ext()
+                .when(|s| s.head_dim % 2 == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1),
+            "add_scaled_bf16" | "embedding_scaled_bf16" => {
+                k.acts(bf).ext().exact(Exactness::Deterministic).tol(BF16_TOL).priority(-1)
+            }
+            // SIMT attention, head_dim <= 512 and the sliding window; correctness first (one block per query row and head)
+            "attn_prefill_bf16_ext" | "attn_decode_bf16_ext" => k
+                .acts(bf)
+                .weights(bf)
+                .ext()
+                .when(|s| s.head_dim > 0 && s.head_dim <= 512 && s.head_dim % 2 == 0 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1),
+            // the split-KV kernels with the sliding window (decode and short q_len); like the plain split-KV ones they need scratch.
+            // Priority 9: below the plain split-KV kernels (10, which never accept an ext call), above the SIMT ones (-1)
+            "attn_decode_bf16_splitkv_ext" | "attn_prefill_bf16_splitkv_ext" => k
+                .acts(bf)
+                .weights(bf)
+                .ext()
+                .when(|s| splitkv_ok(s) && s.m <= SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(9)
                 .scratch(splitkv_scratch),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
@@ -755,6 +800,7 @@ mod tests {
         let hdr = [
             include_str!("../../../kernels/abi/ik_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_g4.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -898,7 +944,72 @@ mod tests {
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));
         }
-        assert_eq!(got, MAIN_KERNEL_LIST);
+        // the g4 (Gemma 4) kernels are all `.ext()` (see `g4_kernels_are_ext_and_never_picked_by_plain_calls`); the rest is main's list
+        let (g4, main): (Vec<String>, Vec<String>) = got.into_iter().partition(|n| G4_KERNELS.contains(&n.as_str()));
+        assert_eq!(main, MAIN_KERNEL_LIST);
+        assert_eq!(g4, G4_KERNELS);
+    }
+
+    /// The kernels g4 (Gemma 4) added, name and op, sorted.
+    const G4_KERNELS: &[&str] = &[
+        "add_scaled_bf16:add",
+        "attn_decode_bf16_ext:attn_decode",
+        "attn_decode_bf16_splitkv_ext:attn_decode",
+        "attn_prefill_bf16_ext:attn_prefill",
+        "attn_prefill_bf16_splitkv_ext:attn_prefill",
+        "embedding_scaled_bf16:embedding",
+        "gelu_glu_bf16:gelu_glu",
+        "moe_experts_decode_gelu_bf16:moe_experts",
+        "moe_experts_decode_v2_gelu_bf16:moe_experts",
+        "moe_experts_gelu_bf16:moe_experts",
+        "moe_experts_mma_gelu_bf16:moe_experts",
+        "moe_experts_w4a16_gelu_bf16:moe_experts",
+        "rope_prop_bf16:rope",
+    ];
+
+    /// Every g4 kernel is registered `.ext()` (the registry would otherwise offer a kernel that ignores `window`, `rope_prop`,
+    /// `gelu` or `scale`), and a call that uses no extended attribute selects the same kernel as without them: the
+    /// attention at the Qwen3.6-35B-A3B shapes and the rope / add / embedding / glu ops.
+    #[test]
+    fn g4_kernels_are_ext_and_never_picked_by_plain_calls() {
+        let ks = all();
+        for name in G4_KERNELS {
+            let name = name.split(':').next().unwrap();
+            assert!(ks.iter().find(|k| k.name == name).expect("registered").ext, "{name} must be .ext()");
+        }
+        let bf = Some(DType::Bf16);
+        let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.clone())
+        };
+        let att = |m: usize, n: usize, nkv: usize, d: usize, ext: bool| ShapeInfo {
+            m, n_heads: n, n_kv_heads: nkv, head_dim: d, k: d, act: bf, out: bf, weight: bf, ext, ..Default::default()
+        };
+        // plain calls: the pre-g4 choice; Gemma's shapes (window / D = 512) get the ext kernels
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, false)).as_deref(), Some("attn_decode_bf16_splitkv"));
+        assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 2, 256, false)).as_deref(), Some("attn_prefill_bf16_flash"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 8, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(8, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, true)).as_deref(), Some("attn_decode_bf16_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, false)).as_deref(), Some("attn_decode_bf16_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(20, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_ext"));
+        let el = |ext: bool| ShapeInfo { m: 4, k: 64, head_dim: 64, act: bf, out: bf, ext, ..Default::default() };
+        for (op, plain, extk) in [
+            (Op::Rope, "rope_bf16", "rope_prop_bf16"),
+            (Op::Add, "add_bf16", "add_scaled_bf16"),
+            (Op::Embedding, "embedding_bf16", "embedding_scaled_bf16"),
+        ] {
+            assert_eq!(pick(op, &el(false)).as_deref(), Some(plain));
+            assert_eq!(pick(op, &el(true)).as_deref(), Some(extk));
+        }
+        assert_eq!(pick(Op::GeluGlu, &el(false)).as_deref(), Some("gelu_glu_bf16"));
     }
 
     const PHASE2_PINS: &[&str] = &[

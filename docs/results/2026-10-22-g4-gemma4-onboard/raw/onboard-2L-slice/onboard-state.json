@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/home/nvidia/g4-trunc/gemma4-2L-nvfp4-fn",
+    "backend": "cuda"
+  },
+  "created_unix": 1792678797,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4)",
+      "started_unix": 1792678797,
+      "ended_unix": 1792678797,
+      "wall_s": 0.006744621,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:gemma4",
+        "family": "gemma4",
+        "quant": "nvfp4"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"own else러쇠로서는 ownраا\\u{64b}ا\\u{64b}ا\\u{64b}ا\\u{64b}ا\\u{64b}ا\\u{64b}ا\\u{64b}ا\\u{64b}\"",
+      "started_unix": 1792678797,
+      "ended_unix": 1792678805,
+      "wall_s": 8.124250146,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 127.11,
+        "completion": "own else러쇠로서는 ownраاًاًاًاًاًاًاًاً",
+        "mentions_paris": false
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): gate FAIL: perplexity: 13537942442.414 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 23: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 5: non-empty | sanity FAIL: 48 tokens, max 4-gram repeat 37: non-empty, answers the fact (\"paris\"): NO; acc-short MISSING-BASELINE: MISSING-BASELINE: no baseline for backend cuda next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated. gemma4-2L-nvfp4-fn has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so acc-short's floor alone does not gate it (it read: prefill top-1 95.16% KL 3.99e-3; decode top-1 98.44% KL 2.54e-3); record one with the envelope stage and commit it to golden/baselines/; acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'gemma4-2L-nvfp4-fn' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). gemma4-2L-nvfp4-fn has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /home/nvidia/g4-trunc/gemma4-2L-nvfp4-fn --backend cpu --golden /home/nvidia/g4-trunc/gemma4-2L-fn.golden.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id gemma4-2L-nvfp4-fn --write-self-golden golden/oracle/gemma4-2l-nvfp4-fn-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main",
+      "started_unix": 1792678805,
+      "ended_unix": 1792679019,
+      "wall_s": 214.533085726,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-22T14:23:39Z",
+      "started_unix": 1792679019,
+      "ended_unix": 1792679019,
+      "wall_s": 0.001734124,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792679019
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    }
+  ]
+}

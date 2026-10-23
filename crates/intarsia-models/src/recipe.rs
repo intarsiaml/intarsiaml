@@ -11,6 +11,7 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
     ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
     ("qwen3_5_vl", include_str!("../../../recipes/qwen3_5_vl.toml")),
+    ("gemma4", include_str!("../../../recipes/gemma4.toml")),
     ("llama", include_str!("../../../recipes/llama.toml")),
     ("qwen2", include_str!("../../../recipes/qwen2.toml")),
 ];
@@ -206,6 +207,44 @@ lm_head = { tensor = "h" }
         assert_eq!(got(&none, None, "cuda"), (256, "default".into()));
         assert_eq!(both.resolve_prefill_chunk(None, "cuda").describe(), "2048 (recipe x, cuda)");
         assert!(parse_recipe(&format!("{TUNED}[tuning.cuda]\nprefill_chunk = 0\n")).is_err());
+    }
+
+    #[test]
+    fn ppl_form_and_max_ppl_parse_and_default_to_todays_raw_gate() {
+        use intarsia_core::recipe::PplForm;
+        // absent keys: the raw gate with the built-in limit, for a recipe without [accuracy] and for every other built-in
+        let plain = parse_recipe(TUNED).unwrap();
+        assert_eq!((plain.accuracy.ppl_form.clone(), plain.accuracy.max_ppl), (None, None));
+        assert_eq!(plain.accuracy.ppl_form().unwrap(), PplForm::Raw);
+        for arch in ["Qwen3ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "LlamaForCausalLM", "Qwen2ForCausalLM"] {
+            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+            assert_eq!((r.accuracy.ppl_form.as_deref(), r.accuracy.max_ppl), (None, None), "{arch}");
+        }
+        // the keys parse
+        let chat = parse_recipe(&format!("{TUNED}[accuracy]\nppl_form = \"chat\"\nmax_ppl = 12.5\n")).unwrap();
+        assert_eq!((chat.accuracy.ppl_form().unwrap(), chat.accuracy.max_ppl), (PplForm::Chat, Some(12.5)));
+        assert_eq!(parse_recipe(&format!("{TUNED}[accuracy]\nppl_form = \"raw\"\n")).unwrap().accuracy.ppl_form().unwrap(), PplForm::Raw);
+        // a typo or a non-positive limit is a load error, not a silent raw gate
+        assert!(parse_recipe(&format!("{TUNED}[accuracy]\nppl_form = \"chatml\"\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[accuracy]\nmax_ppl = 0.0\n")).is_err());
+    }
+
+    #[test]
+    fn only_gemma4_opts_into_the_chat_gate_and_a_noise_factor_above_one() {
+        use intarsia_core::recipe::PplForm;
+        let pick = |a: &str| select_recipe(&serde_json::json!({"architectures": [a]}), &[]).unwrap().1;
+        let g = pick("Gemma4ForConditionalGeneration");
+        assert_eq!(g.accuracy.ppl_form().unwrap(), PplForm::Chat);
+        assert!(g.accuracy.max_ppl.is_some());
+        assert_eq!(g.accuracy.ref_noise_factor, Some(1.1));
+        // every other built-in keeps the raw gate and the default factor of 1.0
+        for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "LlamaForCausalLM", "Qwen2ForCausalLM"] {
+            let r = pick(arch);
+            assert_eq!(r.accuracy.ppl_form().unwrap(), PplForm::Raw, "{arch}");
+            assert_eq!(r.accuracy.ref_noise_factor, None, "{arch}");
+        }
+        // Qwen2.5's [accuracy] decode_positions key still parses
+        assert_eq!(pick("Qwen2ForCausalLM").accuracy.decode_positions, Some(1000));
     }
 
     #[test]
