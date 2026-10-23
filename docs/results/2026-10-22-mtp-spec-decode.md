@@ -285,7 +285,7 @@ will open a follow-up lane for A + C.
 | E | Tree / multi-candidate drafting | not worth it here | Each extra verify row's cost is dominated by MoE expert reads |
 
 Also open:
-- The logit-level verify-row check (3.1).
+- Mark the CUDA small-M kernels `rows_exact` so verify bitwise equality is enforced at load, not just measured (3.1).
 - One GPU multi-turn run (a stop id inside a run, then prefix reuse after a rollback) to cover the real-buffer
   `truncate` / snapshot path that only the CPU tests exercise.
 - A Metal / HIP run.
