@@ -1,24 +1,15 @@
 
 running 1 test
 prefill chunk 2048 (recipe qwen3, metal)
-prefix store: on (build 1a43a8230614400f, 0 entries loaded, boundaries [151644], chunk-invariant backend: false)
+prefix store: on (build 716bfba9cd4ea428, 0 entries loaded, boundaries [151644], chunk-invariant backend: false)
 prefill chunk 2048 (recipe qwen3, metal)
-prefix store: on (build 1a43a8230614400f, 0 entries loaded, boundaries [151644], chunk-invariant backend: false)
+prefix store: on (build 716bfba9cd4ea428, 0 entries loaded, boundaries [151644], chunk-invariant backend: false)
 prefill chunk 2048 (recipe qwen3, metal)
-PREFIX-STORE-METAL model /Users/josef/models/Qwen3-8B turn1 1822 tok (2031 ms), other 856 tok, turn2 2468 tok: restored 0 cached in 2165 ms vs cold 2310 ms (store on) / 2024 ms (store off)
+PREFIX-STORE-METAL model /Users/josef/models/Qwen3-8B turn1 1822 tok (2085 ms), other 856 tok, turn2 2468 tok: restored 1822 cached in 1569 ms vs cold 2400 ms (store on) / 2092 ms (store off)
 PREFIX-STORE-METAL restored vs cold(store on): bitwise true (first differing step None)
 PREFIX-STORE-METAL restored vs cold(store off): bitwise true (first differing step None); ids equal true
-PREFIX-STORE-METAL store: {"build":"1a43a8230614400f","entries":2,"pinned_entries":0,"lookups":3,"hits":0,"misses":3,"local_wins":0,"tokens_saved":0,"bytes_restored":0,"restore_seconds_total":0.0,"last_restore_ms":0.0,"inserts":2,"insert_bytes":280903680,"insert_seconds_total":0.029505165,"settle_seconds_total":0.026499289999999998,"rejected":0,"ttft_saved_seconds_total":0.0,"prefill_tok_s":2677.4057588939777,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":9},"host":{"objects":9,"bytes":280903680,"budget_bytes":17179869184,"hits":0,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+PREFIX-STORE-METAL store: {"build":"716bfba9cd4ea428","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1822,"bytes_restored":268664832,"restore_seconds_total":0.014219333,"last_restore_ms":14.219333,"inserts":4,"insert_bytes":506806272,"insert_seconds_total":0.07710824799999999,"settle_seconds_total":0.07272524899999999,"rejected":0,"ttft_saved_seconds_total":0.7089876293253043,"prefill_tok_s":2580.7788729548765,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":16},"host":{"objects":16,"bytes":506806272,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+test prefix_store_restore_is_bitwise_cold_metal ... ok
 
-thread 'prefix_store_restore_is_bitwise_cold_metal' (169069432) panicked at crates/intarsia-models/tests/prefix_store_metal.rs:131:5:
-turn 2 restored only 0 tokens
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-test prefix_store_restore_is_bitwise_cold_metal ... FAILED
-
-failures:
-
-failures:
-    prefix_store_restore_is_bitwise_cold_metal
-
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.08s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.75s
 

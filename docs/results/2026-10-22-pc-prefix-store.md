@@ -3,7 +3,10 @@
 Date 2026-10-22/23 (EDT). Branch `lane-pc/prefix-store` off origin/main a92267b0. Machine for every GPU number: endor
 (Apple M5 Max, Metal), fleetq slots named next to each number. Decisions: user-approved 22:09 (LOG rows).
 
-**Result in one line:** RESULTS_LINE
+**Result in one line:** with the store on, a multi-turn chat with thinking computes 56 % fewer prompt tokens and its
+total TTFT falls 49 % on Metal and 25-36 % on CUDA (35B); an agent loop computes 34-76 % fewer; restored output is bitwise
+the cold output on cpu, CUDA and Metal (8B and 35B). Store-on vs store-off is bitwise only for dense models (cpu, Metal 8B),
+so the store stays opt-in.
 
 ![tiers and request flow](2026-10-22-pc-prefix-store/architecture.svg)
 
@@ -113,8 +116,8 @@ Two different questions, reported separately:
 |---|---|---|---|
 | cpu, tiny dense (tests/common) | bitwise (logits of every step + ids) | bitwise | `prefix_store.rs`: 2-3 turn chats at chunk 8 and 64, interleaved with another chat; shared prefix after a pinned prewarm |
 | cpu, tiny GatedDeltaNet hybrid (`tiny_qwen3_5`, f32) | bitwise | **not bitwise**, ids equal in every case | same tests, plus grid points inside a long message and a restore from the disk tier after an engine restart |
-| metal, Qwen3-8B BF16 | METAL8_A | METAL8_B | `prefix_store_metal.rs`, fleetq #4322 |
-| metal, Qwen3.6-35B-A3B NVFP4 | METAL35_A | METAL35_B | `prefix_store_metal.rs`, fleetq #4322 |
+| metal (M5 Max), Qwen3-8B | **bitwise** (48 steps of logits + ids), fleetq #4472 | **bitwise** | `prefix_store_metal.rs`: turn 1 (1822 tok), an unrelated chat (856), turn 2 (2468 tok) restores 1822 tokens. In the 04:00 window (#4322) it restored 0 and failed: Qwen3's generation prompt ends at the assistant header, which only the final pass reached, and that pass stored nothing. Fixed in `439a1415` (test `multi_turn_prompt_ending_at_the_header`, fails without the fix) |
+| metal (M5 Max), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), #4322 and #4472 | not bitwise from step 0, ids equal | same test: turn 2 (2531 tok) restores 1871 tokens (104 MB in 6 ms) |
 | cuda (GB10), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), v1 #4382, v2 #4398, v3 #4406 | not bitwise from step 0 (CUDA prefill is chunk-sensitive), ids equal | `prefix_store_cuda.rs`: turn 1 (1873 tok), an unrelated chat (878), turn 2 (2531 tok) restores 1871 tokens (104 MB in 7 ms) |
 | hip | not run | not run | tatooine was held by the hp lane all night; not touched |
 
@@ -219,7 +222,27 @@ store off would lose that reuse; this run does not measure that case.
 rows it has. Off-runs: 539 tokens 168 ms, 1407 tokens 283 ms, 2372 tokens 483 ms. A restored chat request still runs 2
 or 3 passes: the new messages up to the last header, then `<think>\n`. So its TTFT is mostly pass count. Fewer cuts give
 fewer passes (v4). The cost is that a prewarm of a half-typed message, or a divergence inside a user message, restores
-less. That is why `roles=assistant` is a knob and not the default. Metal: METALW
+less. That is why `roles=assistant` is a knob and not the default. **Metal, Qwen3.6-35B-A3B NVFP4, endor (M5 Max).** Head `0556872c`, every header cut, exclusive slot #4322 (record, then
+store on / off interleaved x3; the off passes 1-2 were lost to a script bug, see `metal-window.sh`, and re-run in quiet
+slot #4472 on the same recording; the third off pass is from #4322 and agrees with them):
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15656 | 15656 -> 6961 (-56 %) | 12.07 -> 6.14 (-49 %) | 1509 -> 768 | 1810 -> 794 |
+| agent | 8 | 8854 | 3478 -> 2300 (-34 %) | 3.36 -> 2.85 (-15 %) | 420 -> 357 | 343 -> 253 |
+| rag | 4 | 21714 | 5586 -> 5520 (-1 %) | 4.72 -> 4.71 (-0 %) | 1179 -> 1177 | 115 -> 135 |
+
+all workloads, TTFT total per rep (s): off [20.35, 20.41, 19.71], on [13.70, 13.71, 13.70]
+
+`roles=assistant` (2 passes): chat 12.07 -> 5.85 s (-52 %), agent 3.36 -> 2.72 s (-19 %), rag 4.72 -> 4.69 s.
+One store-on pass's counters (`raw/ttft/on1.metrics`): 6 hits, all from the host tier, 8695 tokens not recomputed,
+restores 19 ms in total, TTFT saved 8.6 s by the server's own estimate, storing 0.28 s, all of it after the first token
+(`settle_seconds_total`).
+
+Metal prefill is slower than the GB10's (about 1200 tok/s at 4k against 2800), so the same saved tokens are worth more:
+chat TTFT halves. Store-off reuses more on Metal than on CUDA (agent 3478 computed against 8574): the 35B runs Metal at
+the default 256-token chunk, so the main engine has a recurrent snapshot inside the shared system prompt; on CUDA the
+2048 chunk has none.
 
 ## 5. Dead-tail skip in non-final chunks
 
@@ -234,7 +257,9 @@ Bitwise by construction (the kept ops are the same calls with the same inputs) a
 `hybrid_skip_dead_tail_is_bitwise` and `dense_skip_dead_tail_is_bitwise` (`crates/intarsia-models/tests/prefix_store.rs`)
 compare every state byte after three non-final chunks, the last chunk's logits and the final state, skip on vs off, on
 cpu: equal. Expected gain is small, about one layer in 40 (35B) or 36 (8B) of each non-final chunk's work, so it is
-opt-in until it is measured on a GPU. Metal: METALDEAD
+opt-in until it is measured on a GPU. Metal (35B, 4062-token prompt, 64 tokens, 3 interleaved pairs in #4322): ids identical in all 3 pairs;
+prefill 3319 / 3379 / 4199 ms without the skip, 3290 / 3936 / 4730 ms with it. No gain is visible above the spread,
+which is consistent with the 1/40 estimate, so the skip stays opt-in.
 
 ## 6. Metrics
 
@@ -279,16 +304,23 @@ router in front, `intarsia bench reuse` with the chat workload at 4 conversation
 
 ## 8. No-op with the store off
 
-NOOP
+Qwen3-8B on Metal, store off (the default), base `a92267b0` (origin/main) vs head `439a1415`, fleetq #4472 (and the same
+result at `0556872c` in #4322): `plan show` output identical; 256 greedy ids identical for the short prompt (md5 prefix
+36901faa) and the 4k prompt (2b487584). Raw: `raw/noop/`. With the store off the engine builds no `SeqStore`, so every
+store path is skipped; the remaining changes on the off path are the dead-tail skip (off unless
+`INTARSIA_PREFILL_SKIP_DEAD=1`) and the no-store branch of the chunk loop, which is main's code.
 
 ## 9. Not done, limits, next
 
 Not done or not proven:
 - **HIP not run.** tatooine was held by the hp lane all night (never touched), so neither byte identity nor TTFT is
   measured on the R9700s, and the cache-affinity router stays a prototype.
-- **Default-on nowhere.** On every GPU backend measured, store-on prefill differs bitwise from store-off from the first
-  logit, because the store cuts chunks at message headers and those backends are chunk-sensitive. On the cpu hybrid too
-  (section 3). By the brief's rule the store stays opt-in and the PR stays a draft. The tokens agree in every comparison
+- **Default-on nowhere.** For the hybrid 35B, store-on prefill differs bitwise from store-off from the first logit on
+  CUDA and Metal, because the store cuts chunks at message headers and those backends are chunk-sensitive for it. On the
+  cpu hybrid too (section 3). The dense Qwen3-8B on Metal passes both checks (restored vs cold and store on vs off,
+  bitwise), as does the cpu dense fixture; that is one model and one conversation, and the continuous-batching engine
+  that dense models normally run on is not wired to the store, so it is not made default-on there either. It is the
+  first candidate. By the brief's rule the store stays opt-in and the PR stays a draft. The tokens agree in every comparison
   run. The cuts would no longer matter if prefill were made chunk-invariant (a fixed internal GDN sub-chunk grid and
   M-independent GEMM tiles). That is a separate project.
 - **Page-key fix not proven on cpu.** A reviewer found that a KV page shared between entries could hold rows written by

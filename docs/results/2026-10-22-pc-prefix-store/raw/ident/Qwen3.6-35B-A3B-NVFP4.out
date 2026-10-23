@@ -2,17 +2,17 @@
 running 1 test
 prefill chunk 256 (default)
 quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
-prefix store: on (build fcce13313d691da9, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: on (build fe84ae968efc97b4, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
 prefill chunk 256 (default)
 quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
-prefix store: on (build fcce13313d691da9, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: on (build fe84ae968efc97b4, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
 prefill chunk 256 (default)
 quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
-PREFIX-STORE-METAL model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 turn1 1873 tok (2969 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 1030 ms vs cold 2942 ms (store on) / 2575 ms (store off)
+PREFIX-STORE-METAL model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 turn1 1873 tok (3315 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 1034 ms vs cold 3022 ms (store on) / 2665 ms (store off)
 PREFIX-STORE-METAL restored vs cold(store on): bitwise true (first differing step None)
 PREFIX-STORE-METAL restored vs cold(store off): bitwise false (first differing step Some(0)); ids equal true
-PREFIX-STORE-METAL store: {"build":"fcce13313d691da9","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":104181760,"restore_seconds_total":0.00558725,"last_restore_ms":5.58725,"inserts":4,"insert_bytes":337510400,"insert_seconds_total":0.038106208,"settle_seconds_total":0.037384417,"rejected":0,"ttft_saved_seconds_total":2.241622912729439,"prefill_tok_s":883.8849770731695,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":20},"host":{"objects":20,"bytes":337510400,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+PREFIX-STORE-METAL store: {"build":"fe84ae968efc97b4","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":104181760,"restore_seconds_total":0.005719417,"last_restore_ms":5.719417,"inserts":4,"insert_bytes":337510400,"insert_seconds_total":0.039364249,"settle_seconds_total":0.038624417,"rejected":0,"ttft_saved_seconds_total":2.448249364888064,"prefill_tok_s":827.4426498798656,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":20},"host":{"objects":20,"bytes":337510400,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
 test prefix_store_restore_is_bitwise_cold_metal ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.51s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.25s
 
