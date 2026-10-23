@@ -210,7 +210,7 @@ checkpoint that carries a projection bias the recipe does not map.
 then 256; a backend without a table falls back to the base value. Load prints the result and its source (`prefill chunk
 2048 (recipe qwen3_5_moe, cuda)`), `intarsia plan show --json` carries `prefill_chunk` and `prefill_chunk_source`, and
 `accuracy` records both in baselines and self-goldens. Only tune a chunk with measurements behind it and cite them in a
-comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA (`docs/results/2026-10-13-prefill-cuda.md`) and 4096 on HIP
+comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA (`docs/results/2026-10-13-prefill-cuda.md`), 2048 on Metal (`docs/results/2026-10-22-gc2-metal-35b-chunk2048.md`) and 4096 on HIP
 (`docs/results/2026-10-17-hip-prefill.md`; it fits a 32 GB R9700 at `--max-seq` 17408), `recipes/qwen3.toml` sets 2048 on Metal and HIP and 4096 on CUDA (`docs/results/2026-10-22-ck-cuda8b-chunk.md`), because the
 chunk changes rounding (prefix-reuse and baseline results are chunk-sensitive). (Updated 2026-10-21: this paragraph used to say
 CUDA only and that 2048 on the 35B was not shown to fit an R9700.) A baseline recorded at another chunk is refused with a message naming the recipe default;
@@ -414,5 +414,21 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   `crates/intarsia-core/src/model.rs`, its op(s) to `ops.rs` with a cpu-ref reference, and a
   `SlotSpec` if it carries state (`Recurrent` for GDN/Mamba). Then `intarsia kernels test` covers it.
 * New kernel for an existing op: `kernels/README.md`.
+* A whole new decoder-layer structure (Gemma 4, lane g4, `docs/results/2026-10-22-g4-gemma4-onboard.md`): do not try to express
+  it as `attn` + `ffn` with pre-norms. Gemma 4 is one block per layer (`Block::Gemma`, `crates/intarsia-core/src/model/gemma.rs`)
+  because it has sandwich norms (a norm on each block's OUTPUT before the residual add), a dense MLP and a MoE in parallel, a
+  per-layer scalar on the whole residual stream, and per-layer-type attention. The recipe stays small (`recipes/gemma4.toml`:
+  prefix, `norm_offset`, tied head) and the config-derived numbers live in `ModelDims::gemma`. Order of work that paid off:
+  read the HF `modeling_*.py` of the pinned transformers version first (it is the only spec; `pip download transformers==X
+  --no-deps` and unzip the wheel), list every difference from the engine as a table (the `recipe new` TODO list is a subset),
+  then (1) fold constants at load time instead of adding ops (`router.scale`, `per_expert_scale` into existing weights),
+  (2) put new behaviour behind an op attribute plus the `.ext()` kernel flag (`KernelImpl::ext`, `ShapeInfo::ext`): a call that
+  uses `OpAttrs::window`, `rope_prop`, `gelu` or a non-1 `scale` on `Add` / `Embedding` is accepted only by kernels that
+  registered `.ext()`, so a backend that ignores the attribute fails with `NoKernel` instead of running wrong, (3) validate the
+  architecture on a tiny random-weight checkpoint against HF (`tools/gemma4_tiny.py`, `tests/gemma4_tiny.rs`) before touching the
+  real weights, because that needs neither a GPU nor a golden, then (4) validate on a 2-layer slice of the REAL checkpoint
+  (`tools/gemma4_slice/`; <= 12 GB, which a fleetq backfill admits when a full-model lease does not) against an HF golden
+  of the same slice: rescale the final norm if the truncated model saturates a logit soft-cap, or the comparison is vacuous.
+  A checkpoint that declares plain `NVFP4` (W4A4) is refused until the recipe says `[defaults] w4a4_as_w4a16 = true`.
 
 `recipe new` names these cases in its TODO list; `qualify`'s `plan` stage names the ops that have no kernel.

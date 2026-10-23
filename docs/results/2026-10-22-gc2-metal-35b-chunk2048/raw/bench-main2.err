@@ -1,0 +1,6 @@
+target http://127.0.0.1:18116/v1/chat/completions  model g
+server context window: 6144 tokens
+calibration: 49 base tokens, 21.07 tokens per filler sentence
+  size   4096 rep: prompt=4215 gen=16 ttft=3.13s prefill=1347 tok/s decode=121.7 tok/s
+  size   4096 rep: prompt=4233 gen=16 ttft=3.15s prefill=1345 tok/s decode=121.1 tok/s
+  size   4096 rep: prompt=4250 gen=16 ttft=3.15s prefill=1347 tok/s decode=119.5 tok/s

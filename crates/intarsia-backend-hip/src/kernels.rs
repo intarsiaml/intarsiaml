@@ -25,6 +25,7 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
     "INTARSIA_HIP_GDN_PD",
+    "INTARSIA_HIP_GDN_V3",
     "INTARSIA_HIP_FLASH_HPB",
     "INTARSIA_HIP_FLASH_VP",
     "INTARSIA_HIP_MOE_V3",
@@ -77,6 +78,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_v2", Op::GdnDeltaRule),
+    ("gdn_delta_rule_bf16_v3", Op::GdnDeltaRule),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("argmax_f32", Op::Argmax),
@@ -90,7 +92,7 @@ pub const TABLE: &[(&str, Op)] = &[
 /// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate; `RopeScaled` (llama3 / yarn
 /// rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs them fails at load with
 /// `NoKernel`, it never runs the unscaled rope).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3, Op::RopeScaled, Op::AddBias];
+pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3, Op::RopeScaled, Op::AddBias, Op::GeluGlu];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.
@@ -107,6 +109,20 @@ fn base(name: &str, op: Op) -> KernelImpl {
 
 /// Fewest tokens `gdn_delta_rule_bf16_v2` takes: every call, decode steps included (6.2 vs 9.2 us per decode launch).
 pub const GDN_V2_MIN_TOKENS: usize = 1;
+
+/// Fewest tokens `gdn_delta_rule_bf16_v3` takes (lane hp): prefill chunks; shorter calls (decode, verify rows, the fused
+/// P3 chunks of up to 32 tokens) keep v2. v3 gives v2's bits at every T (tests/gdn_v2.rs), so the bound is speed only.
+pub const GDN_V3_MIN_TOKENS: usize = 64;
+
+/// `gdn_delta_rule_bf16_v3` is on unless INTARSIA_HIP_GDN_V3 is exactly "0" (the kill switch; bitwise v2 either way).
+pub fn gdn_v3_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| gdn_v3_from(std::env::var("INTARSIA_HIP_GDN_V3").ok().as_deref()))
+}
+/// The value of INTARSIA_HIP_GDN_V3 -> v3 selectable: only exactly "0" disables.
+pub fn gdn_v3_from(v: Option<&str>) -> bool {
+    v != Some("0")
+}
 
 /// Most query rows the split-KV kernels take per launch (above this the flash prefill kernel wins).
 const SPLITKV_MAX_ROWS: usize = 16;
@@ -241,6 +257,20 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
+            // lane hp: v2 rescheduled, bitwise v2 (tests/gdn_v2.rs); prefill chunks (T >= GDN_V3_MIN_TOKENS), dk = 128
+            "gdn_delta_rule_bf16_v3" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    gdn_v3_enabled()
+                        && s.head_dim == 128
+                        && s.m >= GDN_V3_MIN_TOKENS
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(11),
             // P4a: gate_split_bf16 + qk_norm_rope_kv_bf16 in one launch, bitwise those two (tests/fusion_p2.rs); the prologue's
             // constraints (head_dim is the split-off query's)
             "gate_split_qk_norm_rope_kv_bf16" => k
@@ -378,10 +408,22 @@ mod tests {
             weight: bf,
             ..Default::default()
         };
-        for m in [1usize, 2, 7, 312, 4096] {
-            assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some("gdn_delta_rule_bf16_v2"), "m={m}");
+        for m in [1usize, 2, 7, 63, 64, 312, 4096] {
+            // lane hp: v3 (bitwise v2) from GDN_V3_MIN_TOKENS on, unless INTARSIA_HIP_GDN_V3=0
+            let want = if m >= GDN_V3_MIN_TOKENS && gdn_v3_enabled() { "gdn_delta_rule_bf16_v3" } else { "gdn_delta_rule_bf16_v2" };
+            assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some(want), "m={m}");
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 64)).as_deref(), Some("gdn_delta_rule_bf16"), "m={m} dk=64");
         }
+    }
+
+    /// INTARSIA_HIP_GDN_V3: only exactly "0" disables v3.
+    #[test]
+    fn gdn_v3_knob() {
+        assert!(gdn_v3_from(None));
+        assert!(gdn_v3_from(Some("1")));
+        assert!(gdn_v3_from(Some("")));
+        assert!(!gdn_v3_from(Some("0")));
+        assert_eq!(gdn_v3_enabled(), std::env::var("INTARSIA_HIP_GDN_V3").as_deref() != Ok("0"));
     }
 
     /// Round 5: prefill attention chunks (> 16 rows) go to flash v2 at the 35B's and the 8B's shapes, decode and verify rows

@@ -1,0 +1,115 @@
+
+qkv / q+gate M=4096 N=8192 K=2048
+  default       935.1 us   147.0 TFLOPS bitwise
+  4,2,2,4       895.9 us   153.4 TFLOPS bitwise
+  2,4,4,2       974.2 us   141.1 TFLOPS bitwise
+  2,2,4,4      1291.4 us   106.4 TFLOPS bitwise
+  4,2,4,2       976.0 us   140.8 TFLOPS bitwise
+  2,4,2,4      1617.1 us    85.0 TFLOPS bitwise
+  4,2,4,4       793.4 us   173.2 TFLOPS bitwise
+  2,4,4,4      1063.8 us   129.2 TFLOPS bitwise
+  4,4,2,4       876.8 us   156.8 TFLOPS bitwise
+  4,4,4,2       777.2 us   176.8 TFLOPS bitwise
+  4,4,2,2       870.4 us   157.9 TFLOPS bitwise
+  2,2,4,8     10129.3 us    13.6 TFLOPS bitwise
+  2,2,8,4     10157.9 us    13.5 TFLOPS bitwise
+  4,2,2,8       894.2 us   153.7 TFLOPS bitwise
+  2,4,8,2       851.8 us   161.4 TFLOPS bitwise
+  8,1,2,8       802.3 us   171.3 TFLOPS bitwise
+  1,8,8,2      1214.8 us   113.1 TFLOPS bitwise
+  4,1,4,8     10173.9 us    13.5 TFLOPS bitwise
+  1,4,8,4     10350.5 us    13.3 TFLOPS bitwise
+  2,1,8,8     16157.2 us     8.5 TFLOPS bitwise
+  1,2,8,8     15232.9 us     9.0 TFLOPS bitwise
+
+z M=4096 N=4096 K=2048
+  default       386.2 us   177.9 TFLOPS bitwise
+  4,2,2,4       405.8 us   169.3 TFLOPS bitwise
+  2,4,4,2       417.1 us   164.8 TFLOPS bitwise
+  2,2,4,4       456.8 us   150.4 TFLOPS bitwise
+  4,2,4,2       476.6 us   144.2 TFLOPS bitwise
+  2,4,2,4       531.3 us   129.4 TFLOPS bitwise
+  4,2,4,4       386.4 us   177.8 TFLOPS bitwise
+  2,4,4,4       421.3 us   163.1 TFLOPS bitwise
+  4,4,2,4       376.5 us   182.5 TFLOPS bitwise
+  4,4,4,2       391.8 us   175.4 TFLOPS bitwise
+  4,4,2,2       386.1 us   178.0 TFLOPS bitwise
+  2,2,4,8      5095.5 us    13.5 TFLOPS bitwise
+  2,2,8,4      4995.2 us    13.8 TFLOPS bitwise
+  4,2,2,8       389.4 us   176.5 TFLOPS bitwise
+  2,4,8,2       417.5 us   164.6 TFLOPS bitwise
+  8,1,2,8       399.6 us   172.0 TFLOPS bitwise
+  1,8,8,2       449.8 us   152.8 TFLOPS bitwise
+  4,1,4,8      4998.5 us    13.7 TFLOPS bitwise
+  1,4,8,4      5129.9 us    13.4 TFLOPS bitwise
+  2,1,8,8      7894.9 us     8.7 TFLOPS bitwise
+  1,2,8,8      7410.0 us     9.3 TFLOPS bitwise
+
+o / out_proj M=4096 N=2048 K=4096
+  default       385.6 us   178.2 TFLOPS bitwise
+  4,2,2,4       410.7 us   167.3 TFLOPS bitwise
+  2,4,4,2       410.9 us   167.3 TFLOPS bitwise
+  2,2,4,4       438.0 us   156.9 TFLOPS bitwise
+  4,2,4,2       467.2 us   147.1 TFLOPS bitwise
+  2,4,2,4       479.6 us   143.3 TFLOPS bitwise
+  4,2,4,4       385.8 us   178.1 TFLOPS bitwise
+  2,4,4,4       398.7 us   172.4 TFLOPS bitwise
+  4,4,2,4       365.3 us   188.1 TFLOPS bitwise
+  4,4,4,2       386.8 us   177.7 TFLOPS bitwise
+  4,4,2,2       389.7 us   176.4 TFLOPS bitwise
+  2,2,4,8      5335.4 us    12.9 TFLOPS bitwise
+  2,2,8,4      5180.8 us    13.3 TFLOPS bitwise
+  4,2,2,8       375.0 us   183.2 TFLOPS bitwise
+  2,4,8,2       389.3 us   176.5 TFLOPS bitwise
+  8,1,2,8       398.5 us   172.5 TFLOPS bitwise
+  1,8,8,2       403.4 us   170.4 TFLOPS bitwise
+  4,1,4,8      5266.5 us    13.0 TFLOPS bitwise
+  1,4,8,4      5384.3 us    12.8 TFLOPS bitwise
+  2,1,8,8      7954.4 us     8.6 TFLOPS bitwise
+  1,2,8,8      7915.8 us     8.7 TFLOPS bitwise
+
+k / v M=4096 N=512 K=2048
+  default        60.2 us   142.7 TFLOPS bitwise
+  4,2,2,4        55.1 us   155.9 TFLOPS bitwise
+  2,4,4,2        57.9 us   148.5 TFLOPS bitwise
+  2,2,4,4        71.5 us   120.2 TFLOPS bitwise
+  4,2,4,2        62.0 us   138.5 TFLOPS bitwise
+  2,4,2,4        63.8 us   134.7 TFLOPS bitwise
+  4,2,4,4        53.7 us   160.1 TFLOPS bitwise
+  2,4,4,4        54.8 us   156.9 TFLOPS bitwise
+  4,4,2,4        52.8 us   162.6 TFLOPS bitwise
+  4,4,4,2        54.9 us   156.3 TFLOPS bitwise
+  4,4,2,2        56.1 us   153.2 TFLOPS bitwise
+  2,2,4,8       603.2 us    14.2 TFLOPS bitwise
+  2,2,8,4       589.1 us    14.6 TFLOPS bitwise
+  4,2,2,8        53.9 us   159.5 TFLOPS bitwise
+  2,4,8,2        53.4 us   160.8 TFLOPS bitwise
+  8,1,2,8        54.9 us   156.4 TFLOPS bitwise
+  1,8,8,2        55.5 us   154.8 TFLOPS bitwise
+  4,1,4,8       596.7 us    14.4 TFLOPS bitwise
+  1,4,8,4       600.0 us    14.3 TFLOPS bitwise
+  2,1,8,8      1120.3 us     7.7 TFLOPS bitwise
+  1,2,8,8      1100.1 us     7.8 TFLOPS bitwise
+
+tail 312 M=312 N=8192 K=2048
+  default        72.9 us   143.5 TFLOPS bitwise
+  4,2,2,4        74.5 us   140.5 TFLOPS bitwise
+  2,4,4,2        76.7 us   136.5 TFLOPS bitwise
+  2,2,4,4        81.8 us   127.9 TFLOPS bitwise
+  4,2,4,2        83.8 us   124.9 TFLOPS bitwise
+  2,4,2,4       113.6 us    92.1 TFLOPS bitwise
+  4,2,4,4        77.8 us   134.6 TFLOPS bitwise
+  2,4,4,4        94.6 us   110.7 TFLOPS bitwise
+  4,4,2,4        88.1 us   118.8 TFLOPS bitwise
+  4,4,4,2        75.0 us   139.6 TFLOPS bitwise
+  4,4,2,2        73.8 us   141.8 TFLOPS bitwise
+  2,2,4,8      1454.7 us     7.2 TFLOPS bitwise
+  2,2,8,4       847.6 us    12.4 TFLOPS bitwise
+  4,2,2,8        88.3 us   118.6 TFLOPS bitwise
+  2,4,8,2        80.0 us   130.9 TFLOPS bitwise
+  8,1,2,8        94.6 us   110.7 TFLOPS bitwise
+  1,8,8,2        95.7 us   109.4 TFLOPS bitwise
+  4,1,4,8       856.1 us    12.2 TFLOPS bitwise
+  1,4,8,4      1448.6 us     7.2 TFLOPS bitwise
+  2,1,8,8      1675.7 us     6.2 TFLOPS bitwise
+  1,2,8,8      1947.8 us     5.4 TFLOPS bitwise

@@ -30,11 +30,13 @@ use std::time::Instant;
 
 mod batch;
 mod gdn_block;
+mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
 pub(crate) mod mtp;
 pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
+use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
 /// Rows of logits computed/downloaded at a time when all positions are requested.
@@ -146,6 +148,8 @@ enum Block {
     Gdn(GdnBlock),
     Ffn(FfnBlock),
     Moe(MoeBlock),
+    /// A whole Gemma 4 decoder layer (`model/gemma.rs`): attention, dense MLP and MoE with sandwich norms.
+    Gemma(GemmaLayer),
 }
 
 struct Workspace {
@@ -253,6 +257,8 @@ pub struct Model {
     /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
     lm_head: Option<QTensor>,
     layers: Vec<Vec<Block>>,
+    /// Scratch of the Gemma 4 layers (`None` for every other model).
+    gemma: Option<GemmaWs>,
     slot_specs: Vec<SlotSpec>,
     ws: Workspace,
     telemetry: Arc<Telemetry>,
@@ -648,6 +654,105 @@ impl Model {
                         weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
                         blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
                     }
+                    "gemma" => {
+                        let (Some(gd), Some(mc)) = (dims.gemma.as_ref(), dims.moe.as_ref()) else {
+                            return Err(Error::model("the recipe has a gemma block but config.json is not a gemma4_text config"));
+                        };
+                        if tp.world > 1 {
+                            return Err(Error::Unsupported("tensor parallelism of Gemma 4".into()));
+                        }
+                        let gcfg = recipe.layer.other.get("gemma").ok_or_else(|| Error::model("recipe [layer.gemma] missing"))?;
+                        if gcfg.get("kind").and_then(|v| v.as_str()) != Some("gemma4") {
+                            return Err(Error::Unsupported(format!("gemma block kind {:?}", gcfg.get("kind"))));
+                        }
+                        let ptmpl = gcfg
+                            .get("prefix")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| Error::model("recipe [layer.gemma] needs a prefix (the layer module, `...layers.{i}`)"))?;
+                        let lp = Recipe::expand(ptmpl, li);
+                        let global = dims.layer_types.get(li).map(String::as_str) == Some("full_attention");
+                        if !global && dims.layer_types.get(li).map(String::as_str) != Some("sliding_attention") {
+                            return Err(Error::model(format!("gemma4 layer {li} has type {:?} (sliding_attention or full_attention)", dims.layer_types.get(li))));
+                        }
+                        let (nh, nkv, hd) = if global { (dims.n_heads, gd.global_kv_heads, gd.global_head_dim) } else { (dims.n_heads, dims.n_kv_heads, dims.head_dim) };
+                        let h = dims.hidden;
+                        let norm = |suffix: &str| load(&format!("{lp}.{suffix}"), li, Some(&[h]));
+                        let lq = |suffix: &str, n: usize, k: usize| load_q(&format!("{lp}.{suffix}"), li, n, k);
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::AttnKv { n_kv_heads: nkv, head_dim: hd, dtype: kv });
+                        let v_in_ckpt = src.info(&format!("{lp}.self_attn.v_proj.weight")).is_some();
+                        let wv = if global && gd.k_eq_v {
+                            if v_in_ckpt {
+                                return Err(Error::model(format!("{lp}.self_attn.v_proj exists but config says attention_k_eq_v")));
+                            }
+                            None
+                        } else {
+                            Some(lq("self_attn.v_proj", nkv * hd, h)?)
+                        };
+                        let ones = {
+                            let bytes = gemma::encode_floats(act, &vec![1.0f32; hd])?;
+                            TensorRef::new(crate::backend::upload_new(b, &bytes)?, act, &[hd])
+                        };
+                        // router input norm weight = router.scale * hidden^-0.5 (HF applies both after a scale-less RMSNorm)
+                        let router_norm = {
+                            let name = format!("{lp}.router.scale");
+                            let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                            if info.shape != [h] {
+                                return Err(Error::model(format!("tensor '{name}' is {:?}, expected [{h}]", info.shape)));
+                            }
+                            let root = (h as f32).powf(-0.5);
+                            let v: Vec<f32> = crate::weights::to_f32_vec(info.dtype, src.bytes(&name)?)?.into_iter().map(|x| x * root).collect();
+                            let bytes = gemma::encode_floats(act, &v)?;
+                            TensorRef::new(crate::backend::upload_new(b, &bytes)?, act, &[h])
+                        };
+                        let layer_scalar = {
+                            let name = format!("{lp}.layer_scalar");
+                            let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                            crate::weights::to_f32_vec(info.dtype, src.bytes(&name)?)?.first().copied().ok_or_else(|| Error::model(format!("tensor '{name}' is empty")))?
+                        };
+                        if let Some(scheme) = src.quant_scheme() {
+                            let m = format!("{lp}.experts.0.gate_proj");
+                            let declared = scheme.algo_of(&m).map(crate::quant::scheme::Algo::parse);
+                            if declared == Some(crate::quant::scheme::Algo::Nvfp4W4A4) && !recipe.defaults.w4a4_as_w4a16 {
+                                return Err(Error::Unsupported(format!(
+                                    "'{m}' is declared quant_algo NVFP4 (weights AND 4-bit activations) in hf_quant_config.json; this engine \
+                                     runs it weight-only (W4A16), different from the declared scheme and from vLLM. Set \
+                                     [defaults] w4a4_as_w4a16 = true in the recipe to accept that"
+                                )));
+                            }
+                        }
+                        let moe = MoeWeights::load_gemma(b, src, &lp, mc, &qopts)?;
+                        weights_bytes.set(weights_bytes.get() + moe.weight_bytes() as u64);
+                        blocks.push(Block::Gemma(GemmaLayer {
+                            nh,
+                            nkv,
+                            hd,
+                            rotary_dim: if global { (gd.global_rotary_factor * hd as f32) as usize } else { 0 },
+                            theta: if global { gd.global_theta } else { dims.rope_theta },
+                            window: if global { 0 } else { gd.sliding_window },
+                            slot,
+                            input_norm: load(pre, li, Some(&[h]))?,
+                            post_attn_norm: norm("post_attention_layernorm")?,
+                            pre_ffn_norm: norm("pre_feedforward_layernorm")?,
+                            post_ffn_norm: norm("post_feedforward_layernorm")?,
+                            pre_ffn2_norm: norm("pre_feedforward_layernorm_2")?,
+                            post_ffn1_norm: norm("post_feedforward_layernorm_1")?,
+                            post_ffn2_norm: norm("post_feedforward_layernorm_2")?,
+                            q_norm: load(&format!("{lp}.self_attn.q_norm"), li, Some(&[hd]))?,
+                            k_norm: load(&format!("{lp}.self_attn.k_norm"), li, Some(&[hd]))?,
+                            ones,
+                            wq: lq("self_attn.q_proj", nh * hd, h)?,
+                            wk: lq("self_attn.k_proj", nkv * hd, h)?,
+                            wv,
+                            wo: lq("self_attn.o_proj", h, nh * hd)?,
+                            gate: lq("mlp.gate_proj", dims.intermediate, h)?,
+                            up: lq("mlp.up_proj", dims.intermediate, h)?,
+                            down: lq("mlp.down_proj", h, dims.intermediate)?,
+                            router_norm,
+                            moe,
+                            layer_scalar,
+                        }));
+                    }
                     "ffn" => {
                         let f = recipe.layer.ffn.as_ref().unwrap();
                         if f.kind != "dense" || f.act != "silu_glu" {
@@ -744,6 +849,10 @@ impl Model {
             }
             None => None,
         };
+        let gemma_ws = match &dims.gemma {
+            Some(gd) if layers.iter().flatten().any(|bl| matches!(bl, Block::Gemma(_))) => Some(GemmaWs::alloc(&mut wb, mt, esz, dims, gd)?),
+            _ => None,
+        };
         let ws = Workspace {
             max_tokens: chunk,
             ids: wb(mt * 4)?,
@@ -818,6 +927,7 @@ impl Model {
             final_norm,
             lm_head,
             layers,
+            gemma: gemma_ws,
             slot_specs,
             ws,
             telemetry,
@@ -826,7 +936,8 @@ impl Model {
             recorder: Mutex::new(None),
             resolved: Default::default(),
             // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
-            graphs: GraphState::new(opts.graphs),
+            // Gemma 4 runs its layers eagerly (no captured decode step yet)
+            graphs: GraphState::new(opts.graphs && dims.gemma.is_none()),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table,
@@ -1045,6 +1156,7 @@ impl Model {
                         Block::Gdn(_) => "gated_delta_net",
                         Block::Ffn(_) => "dense_ffn",
                         Block::Moe(_) => "moe",
+                        Block::Gemma(_) => "gemma4_layer",
                     })
                     .collect()
             })
@@ -1603,7 +1715,7 @@ impl Model {
             Op::Embedding,
             vec![ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![hv(cur)],
-            OpAttrs::default(),
+            OpAttrs { scale: d.gemma.as_ref().map_or(1.0, |g| g.embed_scale), ..Default::default() },
             profile,
         )?;
 
@@ -1638,6 +1750,19 @@ impl Model {
         for blocks in &self.layers {
             for block in blocks {
                 match block {
+                    Block::Gemma(g) => {
+                        // a whole layer with its own residual handling: nothing is pending before or after it
+                        let Seqs::One(st) = seqs else {
+                            return Err(Error::Unsupported("batched decode of a Gemma 4 layer".into()));
+                        };
+                        if dpos.is_some() {
+                            return Err(Error::Unsupported("captured decode steps of a Gemma 4 layer".into()));
+                        }
+                        debug_assert!(!pending);
+                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, profile)?;
+                        cur = 1 - cur;
+                        continue;
+                    }
                     Block::Attn(a) => {
                         // the residual add + norm folded into the k / v projections when the backend has the fused op (one
                         // decision for the solo and the batched step: the call is the same, `t` rows of `n`)
@@ -2382,7 +2507,14 @@ impl Model {
         }
         let mut bytes = vec![0u8; c * v * 4];
         self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
-        Ok(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
+        let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+        // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
+        if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
+            for x in out.iter_mut() {
+                *x = cap * (*x / cap).tanh();
+            }
+        }
+        Ok(out)
     }
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.

@@ -1,0 +1,21 @@
+== profile Thu Oct 22 10:36:49 EDT 2026
+{"rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.465383100713524, "greedy_tok_s": 37.07920480458108, "sampled_tok_s": 26.480385884593698, "cons_s": 5.146344900131226, "greedy_s": 4.774217844009399, "sampled_s": 6.684205055236816}
+{"rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.29050551563837, "greedy_tok_s": 37.19312689650572, "sampled_tok_s": 26.381750799969794, "cons_s": 4.878586769104004, "greedy_s": 4.759737014770508, "sampled_s": 6.708884000778198}
+== round 1 base Thu Oct 22 10:38:05 EDT 2026
+{"rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.41523988012989, "greedy_tok_s": 37.04523106526627, "sampled_tok_s": 26.26761430614122, "cons_s": 5.14596700668335, "greedy_s": 4.77871298789978, "sampled_s": 6.738225936889648}
+{"rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.3554539456417, "greedy_tok_s": 37.012978553057394, "sampled_tok_s": 26.306102362871137, "cons_s": 4.86980414390564, "greedy_s": 4.782886028289795, "sampled_s": 6.72895073890686}
+== round 1 head Thu Oct 22 10:39:55 EDT 2026
+{"rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.3997383990969, "greedy_tok_s": 37.02295998011125, "sampled_tok_s": 26.290478070917718, "cons_s": 5.153010845184326, "greedy_s": 4.781458854675293, "sampled_s": 6.731725692749023}
+{"rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.64987453963789, "greedy_tok_s": 37.30319071712367, "sampled_tok_s": 26.348428918751335, "cons_s": 4.831153154373169, "greedy_s": 4.745592832565308, "sampled_s": 6.719680070877075}
+== round 2 head Thu Oct 22 10:41:44 EDT 2026
+{"rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.37915037707271, "greedy_tok_s": 36.90657575212776, "sampled_tok_s": 26.352228894906155, "cons_s": 5.154558420181274, "greedy_s": 4.797440767288208, "sampled_s": 6.716019868850708}
+{"rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.39105438406178, "greedy_tok_s": 37.23648384711986, "sampled_tok_s": 26.285816959152264, "cons_s": 4.865334987640381, "greedy_s": 4.7538721561431885, "sampled_s": 6.738142967224121}
+== round 2 base Thu Oct 22 10:42:59 EDT 2026
+{"rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.35658662077501, "greedy_tok_s": 37.02774005074252, "sampled_tok_s": 26.233211336524093, "cons_s": 5.1637420654296875, "greedy_s": 4.780684232711792, "sampled_s": 6.748566150665283}
+{"rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.59719014580576, "greedy_tok_s": 37.27668335572282, "sampled_tok_s": 26.2363869494183, "cons_s": 4.838287115097046, "greedy_s": 4.748696804046631, "sampled_s": 6.745726823806763}
+== llama.cpp Thu Oct 22 10:44:14 EDT 2026
+{"rep": 0, "tokens": 600, "events": 600, "cons_tok_s": 35.333935839518475, "greedy_tok_s": 34.70629439564457, "sampled_tok_s": 34.6714026669175, "cons_s": 17.006683826446533, "greedy_s": 17.29473900794983, "sampled_s": 17.31648898124695}
+{"rep": 1, "tokens": 600, "events": 600, "cons_tok_s": 34.97301502560543, "greedy_tok_s": 35.19311805149221, "sampled_tok_s": 35.11709169279064, "cons_s": 17.16525387763977, "greedy_s": 17.05958604812622, "sampled_s": 17.0932719707489}
+{"rep": 2, "tokens": 600, "events": 600, "cons_tok_s": 35.060987288252555, "greedy_tok_s": 35.23104187535708, "sampled_tok_s": 35.219395218270165, "cons_s": 17.119680643081665, "greedy_s": 17.037346839904785, "sampled_s": 17.042774200439453}
+{"rep": 3, "tokens": 600, "events": 600, "cons_tok_s": 35.06184893962594, "greedy_tok_s": 34.9484088570905, "sampled_tok_s": 35.1198612968586, "cons_s": 17.120741844177246, "greedy_s": 17.17612600326538, "sampled_s": 17.09242272377014}
+== done Thu Oct 22 10:47:47 EDT 2026

@@ -1,0 +1,18 @@
+[23:37:43] s2000: Metal cold stream, chunk 1024
+[23:38:37] s2000 dump exit 0
+split 2000 chunk 1024 m 32 row0 4079 turn2 4080
+/opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw/s2000/oracle-input.safetensors: 1 prompt, 4112 tokens (turn2 4080 + stream 32), rows of interest 4079..4110
+[23:57:13] s2000 oracle exit 1 1116 s;          38677823488  maximum resident set size
+/opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw/oracle-files/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000.continue-oracle.safetensors 6b033b05a86defde6a26632cd70a925502a375c8c51bea9695879984447c17a6 17520 bytes
+[23:57:13] s3072: Metal cold stream, chunk 2048
+[23:57:50] s3072 dump exit 0
+split 3072 chunk 2048 m 32 row0 4079 turn2 4080
+/opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw/s3072/oracle-input.safetensors: 1 prompt, 4112 tokens (turn2 4080 + stream 32), rows of interest 4079..4110
+[00:14:48] s3072 oracle exit 1 1018 s;          38664126464  maximum resident set size
+/opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw/oracle-files/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072.continue-oracle.safetensors 52a088e17060e49a11753b6f4fb2ee087faac2ea219cb311b37d2136c362dd34 17536 bytes
+total 96
+-rw-r--r--@ 1 josef  wheel  17520 Oct 22 23:57 qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors
+-rw-r--r--@ 1 josef  wheel    942 Oct 23 00:14 qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors.json
+-rw-r--r--@ 1 josef  wheel  17536 Oct 23 00:14 qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072-g4k.continue-oracle.safetensors
+-rw-r--r--@ 1 josef  wheel    942 Oct 23 00:14 qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072-g4k.continue-oracle.safetensors.json
+[00:14:48] done

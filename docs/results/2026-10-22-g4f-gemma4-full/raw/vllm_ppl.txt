@@ -1,0 +1,3 @@
+vllm ppl over 1023 tokens (bos=None): 402.09
+vllm ppl over 1023 tokens (bos=2): 6676.00
+(vllm/vllm-openai:nightly-3f1bcfd8, vllm 0.32.0rc1.dev190, --gpu-memory-utilization 0.25, tools/vllm_ppl.py, tools/prompts/ppl.txt first 6000 chars)

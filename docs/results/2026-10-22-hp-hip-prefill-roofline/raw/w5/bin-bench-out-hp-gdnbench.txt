@@ -1,0 +1,33 @@
+T=1      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=2      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=3      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=4      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=5      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=6      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=7      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=9      v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=31     v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=32     v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=33     v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=63     v2 bitwise  v3i bitwise  v5 bitwise  v5pf bitwise
+T=64     v2     58.4 us (0.912 us/tok) bitwise  v3i     58.8 us (0.918 us/tok) bitwise  v5    140.6 us (2.196 us/tok) bitwise  v5pf    346.2 us (5.409 us/tok) bitwise
+T=65     v2     63.3 us (0.974 us/tok) bitwise  v3i     68.1 us (1.047 us/tok) bitwise  v5    142.8 us (2.197 us/tok) bitwise  v5pf    348.8 us (5.366 us/tok) bitwise
+T=97     v2     88.6 us (0.913 us/tok) bitwise  v3i     92.6 us (0.955 us/tok) bitwise  v5    198.8 us (2.050 us/tok) bitwise  v5pf    506.8 us (5.225 us/tok) bitwise
+T=683    v2    509.9 us (0.747 us/tok) bitwise  v3i    491.4 us (0.719 us/tok) bitwise  v5   1126.4 us (1.649 us/tok) bitwise  v5pf   3306.5 us (4.841 us/tok) bitwise
+T=4096   v2   2957.4 us (0.722 us/tok) bitwise  v3i   2873.4 us (0.702 us/tok) bitwise  v5   8094.2 us (1.976 us/tok) bitwise  v5pf  21586.5 us (5.270 us/tok) bitwise
+ALL BITWISE
+probe heads=32 waves=256 v2 T=683: 0.750 us/tok
+probe heads=32 waves=256 v3i T=683: 0.732 us/tok
+probe heads=32 waves=256 v3i-nolds T=683: 0.407 us/tok
+probe heads=32 waves=256 v5 T=683: 1.723 us/tok
+probe heads=32 waves=256 v5pf T=683: 4.896 us/tok
+probe heads=16 waves=128 v2 T=683: 0.588 us/tok
+probe heads=16 waves=128 v3i T=683: 0.542 us/tok
+probe heads=16 waves=128 v3i-nolds T=683: 0.350 us/tok
+probe heads=16 waves=128 v5 T=683: 1.649 us/tok
+probe heads=16 waves=128 v5pf T=683: 4.812 us/tok
+probe heads= 8 waves= 64 v2 T=683: 0.517 us/tok
+probe heads= 8 waves= 64 v3i T=683: 0.482 us/tok
+probe heads= 8 waves= 64 v3i-nolds T=683: 0.255 us/tok
+probe heads= 8 waves= 64 v5 T=683: 1.659 us/tok
+probe heads= 8 waves= 64 v5pf T=683: 4.763 us/tok

@@ -1,0 +1,28 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on metal, report directory /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-104
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 41 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     26s] plan: PASS in 25.0s (21 ops resolved, exactness deterministic, loaded in 25.0s)
+[qualify     26s] == kernels [kernels test on the model's shapes]
+[qualify     48s] kernels: PASS in 21.8s (41 kernels, 714 cases in 21.6s; incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+[qualify     48s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     57s] gate: PASS in 9.7s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     57s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     57s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     57s] == acc-short [short accuracy against a golden]
+[qualify     68s] acc-short: PASS in 11.0s (prefill top-1 98.33% KL 7.04e-3; decode top-1 98.75% KL 1.11e-2)
+[qualify     68s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    104s] acc-oracle: PASS in 35.9s (prefill top-1 96.26% KL 1.09e-2)
+[qualify    104s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    110s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    138s] bench: PASS in 33.8s (decode 125.0 tok/s at 128 tokens (46% of the byte floor))
+QUICK DONE: /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-104/quick-report.md
+[qualify    138s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    269s] acc-long: PASS in 131.4s (prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3)
+[qualify    269s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    478s] acc-4k: PASS in 208.3s (prefill top-1 93.14% KL 8.14e-2; decode top-1 98.96% KL 7.22e-3)
+FULL DONE: /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-104/full-report.md
+[qualify    478s] exit code 0

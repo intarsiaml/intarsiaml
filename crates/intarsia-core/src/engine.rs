@@ -1134,8 +1134,19 @@ impl Seq {
                     }
                 }
                 if let Some(Ok(c)) = &mut self.cons {
-                    if c.active() && !c.mask()?.apply(&mut l) {
-                        return Err(Error::Other("structured output: the constraint allows no token here".into()));
+                    if c.active() {
+                        let m = c.mask()?;
+                        let t = crate::constrain::prof::t0();
+                        let ok = m.apply(&mut l);
+                        crate::constrain::prof::add(&crate::constrain::prof::APPLY, t);
+                        if !ok {
+                            return Err(Error::Other("structured output: the constraint allows no token here".into()));
+                        }
+                        let t = crate::constrain::prof::t0();
+                        let tok = self.sampler.sample(&l) as u32;
+                        crate::constrain::prof::add(&crate::constrain::prof::SAMPLE, t);
+                        crate::constrain::prof::step();
+                        return Ok(tok);
                     }
                 }
                 Ok(self.sampler.sample(&l) as u32)

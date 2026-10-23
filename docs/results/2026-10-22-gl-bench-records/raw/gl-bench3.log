@@ -1,0 +1,21 @@
+target http://127.0.0.1:18190/v1/chat/completions  model Qwen/Qwen2.5-0.5B
+server context window: 1024 tokens
+calibration: 53 base tokens, 19.85 tokens per filler sentence
+  size    128 rep: prompt=130 gen=8 ttft=1.92s prefill=68 tok/s decode=2.8 tok/s
+  size    128 rep: prompt=137 gen=8 ttft=1.92s prefill=71 tok/s decode=4.1 tok/s
+  size    256 rep: prompt=250 gen=8 ttft=3.20s prefill=78 tok/s decode=4.1 tok/s
+  size    256 rep: prompt=254 gen=8 ttft=2.90s prefill=88 tok/s decode=4.7 tok/s
+concurrency 2 at ~128 prompt tokens
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/gl-bench-out/gl-cpu-smoke3.json
+gl-cpu-smoke3  model=Qwen/Qwen2.5-0.5B  gen=8  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+     128      134     1.920           70         3.4        8
+     256      252     3.053           83         4.4        8
+
+ streams    TTFT s per-stream t/s  aggregate t/s
+       2     3.183            4.1            2.6
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 128: the timing includes 14 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 256: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 256: the timing includes 14 profiled eager steps (per-op profiling synchronises around every op)
+appended 3 benchmark record(s) to /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/gl-records.jsonl (trust measured-here, lane plain; 3 incomplete, missing ["model.family"])

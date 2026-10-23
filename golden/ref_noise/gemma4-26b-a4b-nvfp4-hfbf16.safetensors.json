@@ -1,0 +1,59 @@
+{
+  "format": "intarsia-ref-noise-v1",
+  "golden": {
+    "file": "gemma4-26b-a4b-nvfp4-hfbf16.safetensors",
+    "fnv1a64": "fc511251c94ca54f",
+    "size": 249928,
+    "positions": 1468
+  },
+  "method": "precision_spread",
+  "kl21_mean": 0.2226827140436393,
+  "n": 1468,
+  "runs": 2,
+  "date": "2026-10-23",
+  "how": "same model, HF transformers: bf16 forward (golden) vs f32 compute (experts bf16-dequantised weights, cast per expert)",
+  "estimator": "kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule)",
+  "source": "docs/results/2026-10-22-g4f-gemma4-full.md (measured), docs/results/2026-10-22-g4g-gemma4-gates.md (committed with the golden)",
+  "prompts": {
+    "chat_multiturn": {
+      "kl21_mean": 0.06289954813026634,
+      "n": 63
+    },
+    "chat_reasoning": {
+      "kl21_mean": 0.1434775707601083,
+      "n": 97
+    },
+    "chat_short": {
+      "kl21_mean": 0.12974627596225033,
+      "n": 23
+    },
+    "chat_system": {
+      "kl21_mean": 0.10503709788857303,
+      "n": 37
+    },
+    "code": {
+      "kl21_mean": 0.5417643612509825,
+      "n": 95
+    },
+    "count": {
+      "kl21_mean": 0.06017430828190649,
+      "n": 38
+    },
+    "long_prose_300": {
+      "kl21_mean": 0.4987765367285765,
+      "n": 300
+    },
+    "long_prose_700": {
+      "kl21_mean": 0.07246329140822501,
+      "n": 700
+    },
+    "science": {
+      "kl21_mean": 0.17666463155902265,
+      "n": 76
+    },
+    "story": {
+      "kl21_mean": 0.8874275978139615,
+      "n": 39
+    }
+  }
+}

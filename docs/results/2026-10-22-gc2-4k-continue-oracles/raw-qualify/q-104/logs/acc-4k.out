@@ -1,0 +1,93 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.82   2.010e-2   1.767e-2   1.767e-2    3.458e0   0.0944   0.0960    90.69   32/4064      0
+long_code_4k        4064  4064    96.90   7.802e-3   7.195e-3   7.195e-3   3.690e-1   0.0368   0.0379    91.76   10/4064      0
+chat_reuse_4k       4631  4631    89.25   1.997e-1   2.286e-1   1.265e-2    2.067e1   0.0697   0.0837    88.35   64/4631      0
+OVERALL                  12759    93.14   8.139e-2   9.089e-2   1.244e-2    2.067e1   0.0671   0.0730    90.18      0.8%      0
+prefill floor [4bit]: top-1 (all rows) 93.14% (need >= 0) ok | 21-way KL (scored rows, n=8221) 1.244e-2 (need <= 3.0e-2) ok [all rows, n=12759: 9.089e-2, reported only] | tail mass (all rows) ours 0.0730 vs ref 0.0671, excess +0.0059 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.244e-2 PASS
+gate-definition: kl_floor [prefill]: old def: FAIL 9.089e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.244e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    98.44   1.480e-2   1.417e-2   1.417e-2   1.193e-1   0.0150   0.0149    90.31     52/64      0
+long_code_4k        4064    64    98.44   5.118e-3   4.792e-3   4.792e-3   2.971e-2   0.0280   0.0298    89.69     60/64      0
+chat_reuse_4k       4631    64   100.00   1.753e-3   1.753e-3   1.753e-3   2.777e-2   0.0000   0.0000    91.88     64/64      0
+OVERALL                    192    98.96   7.223e-3   6.904e-3   6.904e-3   1.193e-1   0.0143   0.0149    90.62     91.7%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.96% (need >= 0) ok | 21-way KL (scored rows, n=192) 6.904e-3 (need <= 3.0e-2) ok [all rows, n=192: 6.904e-3, reported only] | tail mass (all rows) ours 0.0149 vs ref 0.0143, excess +0.0006 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 6.904e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 6.904e-3 (21-way KL over all rows <= static floor) | current def: PASS 6.904e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.8% of positions before the first argmax divergence, worst prompt 0.2% (informational)
+greedy-match [decode (teacher-forced)]: mean 91.7% of positions before the first argmax divergence, worst prompt 81.2% (informational)
+
+baseline: golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json (recorded 1792679546, golden qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors hash 27195b6f4d50d2e6); margins: top-1 -0.3 pt (>= 1 position), KL x1.15 (+1e-6), top-5 -0.5 pt, tail +0.002
+
+baseline gate, prefill (12759 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.31421e1    9.31421e1    9.28421e1  >= ok
+  mean KL            8.13869e-2   8.13869e-2   9.35950e-2  <= ok
+  tail-bucket KL     9.08884e-2   9.08884e-2   1.04522e-1  <= ok
+  tail-bucket KL scored   1.24360e-2   1.24360e-2   1.43014e-2  <= ok
+  top-5 %             9.01826e1    9.01826e1    8.96826e1  >= ok
+  |tail excess|      5.90704e-3   5.90704e-3   7.90704e-3  <= ok
+  mean |tail diff|   1.14686e-2   1.14686e-2   1.34686e-2  <= ok
+  max KL(21-way)      2.21023e1    2.21023e1    5.52566e1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 3 prompts (fixed margins only, no noise envelope; fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    long_docs_4k       prompt KL(21-way)     1.7672e-2   1.7672e-2 <=  3.094e-2  fixed             -       -  ok
+    long_docs_4k       prompt top-1 %         9.3824e1    9.3824e1 >=   9.282e1  fixed             -       -  ok
+    long_docs_4k       prompt |tail diff|    8.1583e-3   8.1583e-3 <=  1.016e-2  fixed             -       -  ok
+    long_code_4k       prompt KL(21-way)     7.1947e-3   7.1947e-3 <=  1.260e-2  fixed             -       -  ok
+    long_code_4k       prompt top-1 %         9.6900e1    9.6900e1 >=   9.590e1  fixed             -       -  ok
+    long_code_4k       prompt |tail diff|    2.9027e-3   2.9027e-3 <=  4.903e-3  fixed             -       -  ok
+    chat_reuse_4k      prompt KL(21-way)     2.2859e-1   2.2859e-1 <=  4.000e-1  fixed             -       -  ok
+    chat_reuse_4k      prompt top-1 %         8.9246e1    8.9246e1 >=   8.825e1  fixed             -       -  ok
+    chat_reuse_4k      prompt |tail diff|    2.1891e-2   2.1891e-2 <=  2.389e-2  fixed             -       -  ok
+  per-prompt gate: ok
+
+baseline gate, decode (teacher-forced) (192 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.89583e1    9.89583e1    9.84375e1  >= ok
+  mean KL            7.22337e-3   7.22337e-3   8.30687e-3  <= ok
+  tail-bucket KL     6.90421e-3   6.90421e-3   7.93984e-3  <= ok
+  tail-bucket KL scored   6.90421e-3   6.90421e-3   7.93984e-3  <= ok
+  top-5 %             9.06250e1    9.06250e1    9.01042e1  >= ok
+  |tail excess|      5.84641e-4   5.84641e-4   2.58464e-3  <= ok
+  mean |tail diff|   1.79486e-3   1.79486e-3   3.79486e-3  <= ok
+  max KL(21-way)     1.11688e-1   1.11688e-1   2.80221e-1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 3 prompts (fixed margins only, no noise envelope; fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    long_docs_4k       prompt KL(21-way)     1.4168e-2   1.4168e-2 <=  2.480e-2  fixed             -       -  ok
+    long_docs_4k       prompt top-1 %         9.8438e1    9.8438e1 >=   9.688e1  fixed             -       -  ok
+    long_docs_4k       prompt |tail diff|    2.1762e-3   2.1762e-3 <=  4.176e-3  fixed             -       -  ok
+    long_code_4k       prompt KL(21-way)     4.7919e-3   4.7919e-3 <=  8.396e-3  fixed             -       -  ok
+    long_code_4k       prompt top-1 %         9.8438e1    9.8438e1 >=   9.688e1  fixed             -       -  ok
+    long_code_4k       prompt |tail diff|    3.2045e-3   3.2045e-3 <=  5.205e-3  fixed             -       -  ok
+    chat_reuse_4k      prompt KL(21-way)     1.7531e-3   1.7531e-3 <=  3.078e-3  fixed             -       -  ok
+    chat_reuse_4k      prompt top-1 %         1.0000e2    1.0000e2 >=   9.844e1  fixed             -       -  ok
+    chat_reuse_4k      prompt |tail diff|    3.8787e-6   3.8787e-6 <=  2.004e-3  fixed             -       -  ok
+  per-prompt gate: ok
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 256 (default); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: mean KL(oracle||cold) 1.26e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 0.99x; limit 1.5x cold + 3e-3 = 2.20e-2: PASS
+long_docs_4k       continue    2000   4080    2015      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.26e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 0.99x; limit 1.5x cold + 3e-3 = 2.20e-2: PASS)
+long_docs_4k       restore     2000   4064    1792      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k       continue    2000   4080    2015      0     32/32  ok
+long_code_4k       restore     2000   4064    1792      0     32/32  ok
+long_code_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok
+chat_reuse_4k      restore     4521   4631    4352      0     32/32  ok
+chat_reuse_4k      aligned     4352   4631    4352      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 3 prompt(s) judged, 0 skipped
+prefix-reuse gate: PASS
+
+wrote baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-104/baselines/acc-4k.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS   prefix-reuse verdict: PASS
+golden gate: PASS

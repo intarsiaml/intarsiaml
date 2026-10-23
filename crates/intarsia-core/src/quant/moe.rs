@@ -207,7 +207,7 @@ impl MoeWeights {
         if (router.n, router.k) != (cfg.experts, cfg.hidden) {
             return Err(Error::model(format!("{prefix}.gate is [{}, {}], expected [{}, {}]", router.n, router.k, cfg.experts, cfg.hidden)));
         }
-        let experts = load_experts(backend, src, prefix, cfg, rank, world)?;
+        let experts = load_experts(backend, src, prefix, cfg, rank, world, None)?;
         let shared = if cfg.shared_inter > 0 {
             let sp = format!("{prefix}.shared_expert");
             let gate = load_linear(src, &format!("{sp}.gate_proj"), backend, &rows)?;
@@ -226,6 +226,25 @@ impl MoeWeights {
             None
         };
         Ok(MoeWeights { cfg: cfg.clone(), router, experts, shared })
+    }
+
+    /// One Gemma 4 MoE layer (no shared expert): the router is `<layer>.router.proj` (dense bf16), the experts are
+    /// `<layer>.experts.{e}.*`, and `per_expert_scale` (`<layer>.router.per_expert_scale`, applied by HF to the renormalised top-k
+    /// weights) is folded into each expert's down-projection global scale, which the kernels apply in f32 after accumulation.
+    pub fn load_gemma(backend: &dyn Backend, src: &dyn WeightSource, layer: &str, cfg: &MoeConfig, opts: &QuantLoadOpts) -> Result<MoeWeights> {
+        let repl = QuantLoadOpts { shard: None, ..opts.clone() };
+        let router = load_linear(src, &format!("{layer}.router.proj"), backend, &repl)?;
+        if (router.n, router.k) != (cfg.experts, cfg.hidden) {
+            return Err(Error::model(format!("{layer}.router.proj is [{}, {}], expected [{}, {}]", router.n, router.k, cfg.experts, cfg.hidden)));
+        }
+        let pes_name = format!("{layer}.router.per_expert_scale");
+        let info = expert_info(src, &pes_name)?;
+        if info.shape != [cfg.experts] {
+            return Err(Error::model(format!("tensor '{pes_name}' is {:?}, expected [{}]", info.shape, cfg.experts)));
+        }
+        let pes = crate::weights::to_f32_vec(info.dtype, src.bytes(&pes_name)?)?;
+        let experts = load_experts(backend, src, layer, cfg, 0, 1, Some(&pes))?;
+        Ok(MoeWeights { cfg: cfg.clone(), router, experts, shared: None })
     }
 
     /// Bytes of weights on the device.
@@ -376,7 +395,15 @@ fn expert_info(src: &dyn WeightSource, name: &str) -> Result<WeightInfo> {
 }
 
 /// Stack `cfg.experts` per-expert NVFP4 tensors into the kernel layout (one upload per tensor, no host staging).
-fn load_experts(backend: &dyn Backend, src: &dyn WeightSource, prefix: &str, cfg: &MoeConfig, rank: usize, world: usize) -> Result<Experts> {
+fn load_experts(
+    backend: &dyn Backend,
+    src: &dyn WeightSource,
+    prefix: &str,
+    cfg: &MoeConfig,
+    rank: usize,
+    world: usize,
+    down_scale: Option<&[f32]>,
+) -> Result<Experts> {
     // `i`: this rank's width (the config is the rank's); `ig`: the checkpoint's (`i * world`)
     let (e, h, i) = (cfg.experts, cfg.hidden, cfg.inter);
     let ig = i * world;
@@ -419,7 +446,11 @@ fn load_experts(backend: &dyn Backend, src: &dyn WeightSource, prefix: &str, cfg
             if info.dtype != DType::F32 || info.shape.iter().product::<usize>() != 1 {
                 return Err(Error::model(format!("tensor '{name}' must be a single f32")));
             }
-            gs[(x * 3 + j) * 4..(x * 3 + j) * 4 + 4].copy_from_slice(&src.bytes(&name)?[..4]);
+            let mut g = f32::from_le_bytes(src.bytes(&name)?[..4].try_into().unwrap());
+            if let (2, Some(s)) = (j, down_scale) {
+                g *= s[x]; // Gemma 4 `per_expert_scale`: linear in the expert's output, folded into its down projection's global scale
+            }
+            gs[(x * 3 + j) * 4..(x * 3 + j) * 4 + 4].copy_from_slice(&g.to_le_bytes());
         }
     }
     let gst = upload_new(backend, &gs)?;

@@ -1,0 +1,11 @@
+# compare: 20261022-223913-adhoc-qg-intarsia-gsm8k-n1319 → 20261022-223913-adhoc-qg-vllm-gsm8k-n1319
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| benchmark | A | B | Δ | 2·SE | verdict |
+|---|---:|---:|---:|---:|---|
+| gsm8k_flexible | 0.683 (n=1319) | 0.582 (n=1319) | -0.101 | ±0.037 | worse |
+| gsm8k_strict | 0.240 (n=1319) | 0.271 (n=1319) | +0.031 | ±0.034 | noise |
+
+- A: `intarsia` @ http://spark-fa00:8190/v1 thinking=off (2026-10-22T22:39:13-04:00)
+- B: `guidance` @ http://spark-fa00:8000/v1 thinking=off (2026-10-22T22:39:13-04:00)

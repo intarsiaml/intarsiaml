@@ -26,7 +26,7 @@ live in `recipes/*.toml` and are compiled in by `crates/intarsia-models/src/reci
 **Errors you will meet.** An unknown key is rejected with the list of valid ones (`unknown field `kv_dtyp`, expected
 one of `kv_dtype`, `max_batch`, `fp8_act``) in every table with a fixed set of keys. Three places still accept names
 they do not know: `[layer.norms]` (a map: a misspelled `pre_ffn` is a norm that is never applied), `[layer.by_type]`
-(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` is read, the rest
+(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` and `[layer.gemma]` are read, the rest
 fail at build). A recipe in `--recipe-dir` that does not parse is skipped when choosing by architecture, and the "no
 recipe matches" error now lists each skipped file with its parse error, so a typo shows up there instead of as a silent
 miss. `intarsia plan show` is the quickest way to see a load error with the model's real `config.json`.
@@ -100,6 +100,13 @@ missing feature.
 | `kind` | string | required | `"qwen3_5_moe"` (the only MoE layout implemented: routed experts plus a gated shared expert). |
 | `prefix` | string | required | Tensor prefix of the MoE block, e.g. `"model.language_model.layers.{i}.mlp"`; the loader finds router, experts and shared expert under it. Expert counts and widths come from `config.json`. |
 
+### `[layer.gemma]` (Gemma 4 decoder layer, one block per layer)
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `kind` | string | required | `"gemma4"` (the only layout implemented). |
+| `prefix` | string | required | Tensor prefix of the whole layer, e.g. `"model.language_model.layers.{i}"`. Everything under it (attention, dense MLP, router, experts, the five norms, `layer_scalar`) is found by the fixed Gemma 4 names. Head sizes, KV heads, sliding window, rope tables, soft-cap and expert counts come from `config.json` (`ModelDims::gemma`, `layer_types`). Use `pattern = ["gemma"]` and `[layer.norms] pre_gemma = <input_layernorm>`. |
+
 ### `[top]` (required)
 
 | Key | Type | Default | What it controls |
@@ -116,6 +123,7 @@ missing feature.
 | `kv_dtype` | string | `"bf16"` | KV cache dtype: `bf16`, `f16`, `f32` or `fp8_e4m3`. Override per run with `--kv-dtype`. Anything but `bf16` changes numerics ([tuning.md](tuning.md)). |
 | `max_batch` | int | `1` | Most sequences a run may decode together. `--max-batch N` above it is refused; without the flag the value is clamped to what the engine implements (continuous batching is Metal only, up to 8). |
 | `fp8_act` | string | `"static"` | FP8 checkpoints: `"static"` quantises activations with the checkpoint's `input_scale` (W8A8), `"none"` keeps them 16-bit (W8A16). No effect on other formats. See [quant-moe.md](quant-moe.md). Override with `--fp8-act`. |
+| `w4a4_as_w4a16` | bool | `false` | A checkpoint that declares plain `NVFP4` (weights AND 4-bit activations, W4A4) is refused by the loader (`Gemma4` layers) and not covered by the recipe in `recipe new` / `onboard`, because the engine runs NVFP4 weight-only (W4A16): a deviation from the declared scheme and from vLLM. `true` accepts that knowingly (Gemma-4 NVFP4 does). |
 
 ### `[tuning]` and `[tuning.<backend>]`
 
@@ -158,7 +166,9 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 | `chat_turns` | string | none | Turn format of the model's chat template (`"chatml"`): which rows of a chat prompt the model is asked to predict; the KL floor skips system and user turns. Fallback for a golden whose metadata names no known format. |
 | `reuse_logit_tol` | float | built-in constant | Prefix-reuse judge: rounding scale in nats of log-probability over the top-5 tokens within which a warm and a cold distribution count as one. Measure once on a known-good build, never derive per run. |
 | `reuse_kl_tol` | float | built-in constant | Prefix-reuse judge: largest KL(cold ‖ warm) in nats that still counts as rounding. |
-| `ref_noise_factor` | float | `1.0` | Factor on the measured reference noise of the golden for the KL floor. A per-golden value wins. |
+| `ref_noise_factor` | float | `1.0` | Factor on the measured reference noise of the golden for the KL floor (floor = max(class floor, factor × noise)). A per-golden value wins. It only does anything when a noise record exists for the golden in use (`golden/ref_noise/<golden file>.json`, the golden's metadata, or `--ref-noise`); without one the floor is the class floor alone. Set it from a measured ratio of engine KL to the noise, plus margin, and cite both in a comment. `gemma4` sets 1.1 against its HF f32-compute golden (the rule "engine-vs-f32 KL <= factor x HF-bf16-vs-f32 KL": the record `golden/ref_noise/gemma4-26b-a4b-nvfp4-fp32.safetensors.json` is HF's own bf16 forward measured against that golden, 2.362e-1; the engine reads 1.01x prefill and 0.86x decode of it; docs/results/2026-10-22-g4g-gemma4-gates.md). Both goldens and both records ship in `golden/`, and `onboard` / `qualify` find the f32 one by model name (names containing `fp32` outrank others) |
+| `ppl_form` | `"raw"` or `"chat"` | `"raw"` | `intarsia accuracy --quick` (the `gate` stage): the form of the perplexity text and the sanity prompts. `"chat"` is for an instruction-only model with no usable raw-text distribution: `tools/prompts/ppl_chat.json` (a fixed three-turn conversation) goes through the model's own chat template, one forward per assistant turn (the prompt as served, then the turn), perplexity over the assistant tokens only; the sanity prompts are sent as user turns. `--ppl-form` wins. An unknown value is a recipe load error. |
+| `max_ppl` | float | `40` | The quick gate's perplexity limit (`--max-ppl` wins). Measure it per form and model against the reference's own number on the same text and cite both. `gemma4`: 60 for chat form (HF bf16 35.1, engine 36.0). |
 | `min_top1` | float (percent) | the gate class default (99.5 for bf16) | Absolute top-1 floor for a model whose bf16 forward cannot reach the class default against the fp32 golden. The gate uses `min(min_top1, class default)`; `--min-top1` wins; ignored for format-reference goldens (top-1 not gated). Derive it from a measurement and cite it in a comment: top-1 of the reference's own bf16 forward vs the fp32 golden, minus 0.5 points (Llama-3.1-8B-Instruct 98.72, Qwen2.5-7B-Instruct 98.24). |
 | `decode_positions` | int | `16` | `intarsia qualify` quick tier (`acc-short`): teacher-forced decode positions per prompt, clamped to the prompt length - 1. Raise it for a model whose decode top-1 is noisy at 16 positions (160 rows on the short golden); the gate is unchanged. |
 | `ref_noise_prompt_factor` | float | `3.0` | `--self-golden --self-vs-ref-noise`: how many times the reference noise the worst prompt's mean KL may be. A per-golden value wins. |
