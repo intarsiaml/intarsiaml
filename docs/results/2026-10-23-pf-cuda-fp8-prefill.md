@@ -236,4 +236,4 @@ fleetq run ... -- scripts/pf/rjob.sh spark1 pf/acc.sh a3 def2k:pf-base:2048 lt2k
 
 Builds #4555 (spark1), #4573 (spark2), #4584, #4624, #4630, #4640, #4658; profile #4574; localeval windows #4575 (w1), #4607 (w2);
 MoE microbench #4599, ncu attempt #4601; qualify #4602, #4623; accuracy #4604 (a1), #4627 (a2), #4641 (a3); MoE-branch gates
-and no-op #4654; MoE IP test #4656. All owner `claude-f31ccf91-pf`, all released.
+and no-op #4654; MoE IP test #4656; `docs_env_vars` on this branch #4664 (endor, pass). All owner `claude-f31ccf91-pf`, all released.

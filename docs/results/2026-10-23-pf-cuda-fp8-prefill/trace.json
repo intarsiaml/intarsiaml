@@ -6,7 +6,7 @@
  "follows": [],
  "agent_model": "claude-sonnet-5-5",
  "started": "2026-10-23T12:30:00-04:00",
- "ended": "2026-10-23T16:30:00-04:00",
+ "ended": "2026-10-23T16:00:00-04:00",
  "brief": "Close the same-quant 35B NVFP4 CUDA prefill gap to vLLM on GB10 (vLLM +16.2 % at 4k, +15.9 % at 16k in gaps.md) with an fp8 W8A8 projection GEMM; profile and roofline first, gate on accuracy, opt-in until gated.",
  "hypothesis": "vLLM's CUTLASS e4m3 projection GEMM explains about 83 % of the gap (49 ms per 2048-token chunk); an e4m3 tensor-core prefill GEMM with the checkpoint's static input scales should recover it.",
  "target": {
@@ -42,8 +42,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-pf/cuda-fp8-prefill",
   "base_commit": "055775da",
-  "head_commit": "null",
-  "pr": "null",
+  "head_commit": "a279508d",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/122",
   "files": [
    "docs/decisions/LOG.md",
    "docs/results/2026-10-23-pf-cuda-fp8-prefill.md",
