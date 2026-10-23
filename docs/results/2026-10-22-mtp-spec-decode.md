@@ -122,3 +122,29 @@ The tests:
   - k = 3: 459 passes, 551 of 1344 accepted.
 
 These prove the engine logic (drafting, verify, rollback, finish, reuse), not a GPU backend's numerics.
+
+## 3. CUDA on spark1 (35B NVFP4)
+
+### 3.0 Preliminary: shared (non-exclusive) slot, before the kernel/driver upgrade
+
+fleetq #4296, commit a6d5ad19, before spark1's kernel 6.17.0-1032 / driver 580.178.04 upgrade (#4301). `intarsia generate`, a
+chat prompt plus `--no-think`, 256 greedy tokens with `--ignore-eos`, four prompts. The slot was shared and vLLM was up, so
+these are **not** the gate numbers. The exclusive localeval window (3.2) replaces them.
+Raw: `2026-10-22-mtp-spec-decode/raw/identity-nonexcl/`. Script: `scripts/identity.sh`.
+
+| prompt | off tok/s | k=1 tok/s (acc.) | k=2 tok/s (acc.) | k=3 tok/s (acc.) |
+|---|---|---|---|---|
+| p0 code | 82.6 | 95.9 (96.2%) | 110.5 (92.7%) | 103.0 (85.1%) |
+| p1 prose | 83.1 | 89.9 (81.4%) | 94.5 (70.1%) | 84.1 (53.6%) |
+| p2 list | 84.1 | 93.4 (88.9%) | 101.1 (76.6%) | 93.9 (62.6%) |
+| p3 arithmetic | 83.9 | 97.3 (97.7%) | 110.7 (91.1%) | 119.3 (90.7%) |
+
+**Token identity.** All 12 MTP runs (4 prompts x k = 1..3) are token-identical to `--spec off` over 256 greedy tokens.
+This is evidence, not proof, that the verify path's argmax matches the decode path on CUDA. 3.1 measures the row logits
+directly. Acceptance is per draft token; tokens per pass = 1 + accepted / passes.
+
+### 3.1 Verify rows vs single-row decode (pending, `INTARSIA_MTP_VERIFY_CHECK`)
+
+### 3.2 Exclusive localeval window: decode tok/s at 128 / 1k / 4k, k sweep (pending)
+
+### 3.3 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
