@@ -195,7 +195,7 @@ In the engine, v3 runs 5 token pieces per layer instead of 6, because its launch
 | workspace tests (no GPU) | `cargo test --release --workspace --exclude intarsia-backend-metal` | pass (116 test binaries); Metal not built here (its test target does not compile on Linux; not checked) |
 | qualify quick, 35B HIP | `qual:dev:35` | doctor / recipe / plan / kernels (1083 cases) / gate / bench PASS; **acc-short ERROR** (see below); exit 2 |
 
-The acc-short ERROR comes from the test environment, not from this change. The ref-noise sidecar in the repo (`golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json`) was measured on golden hash cd6ef94b. The golden file on tatooine is b58845c3, and accuracy refuses the mismatch. Main's qualify in w11 (job #4357) fails the same way: acc-short ERROR, exit 2, every other stage PASS. A direct `intarsia accuracy --golden qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --mode both` (the accuracy part of acc-short, without the sidecar) passes on both. The lane's KL table equals main's to every printed digit:
+The acc-short ERROR comes from the test environment, not from this change. The ref-noise sidecar in the repo (`golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json`) was measured on golden hash cd6ef94b. The golden file on tatooine is b58845c3, and accuracy refuses the mismatch. Main's qualify in w11 (job #4379) fails the same way: acc-short ERROR, exit 2, every other stage PASS. A direct `intarsia accuracy --golden qwen36-35b-a3b-nvfp4-vllm-top20-meta.safetensors --mode both` (the accuracy part of acc-short, without the sidecar) passes on both. The lane's KL table equals main's to every printed digit:
 - prefill: 21-way KL 5.978e-3 over 1279 scored rows, against a floor of 3.0e-2; top-1 98.61 %;
 - decode: 21-way KL 1.214e-2, top-1 98.75 %.
 
@@ -207,18 +207,17 @@ This is expected for a bitwise change. Because qualify does not end in PASS, eve
 |---|---|---|---|---|
 | w1 ceiling + profile | #4314 | 22:11:42 | 22:12:21 | 39 s |
 | w2 f8 tile sweep | #4318 | 22:14:45 | 22:15:18 | 33 s |
-| w3 GDN variants | | 22:21:00 | 22:21:17 | 17 s |
-| w4 GDN probe | | 22:22:08 | 22:22:24 | 16 s |
-| w5 GDN WGP vs CU | | 22:30:38 | 22:30:55 | 17 s |
-| w6 GDN v6 | | 22:33:14 | 22:33:30 | 16 s |
-| w7 GDN v7 | | 22:34:36 | 22:34:51 | 15 s |
-| w8 GDN v8 | | 22:36:34 | 22:36:49 | 15 s |
-
+| w3 GDN variants | #4321 | 22:21:00 | 22:21:17 | 17 s |
+| w4 GDN probe | #4324 | 22:22:08 | 22:22:24 | 16 s |
+| w5 GDN WGP vs CU | #4330 | 22:30:38 | 22:30:55 | 17 s |
+| w6 GDN v6 | #4333 | 22:33:14 | 22:33:30 | 16 s |
+| w7 GDN v7 | #4335 | 22:34:36 | 22:34:51 | 15 s |
+| w8 GDN v8 | #4338 | 22:36:34 | 22:36:49 | 15 s |
 | w9 GPU tests + benches | #4354 | 22:57:31 | 22:58:43 | 72 s |
 | w10 Phase 3 A/B (00:00, uncapped hours) | #4356 | 00:00:00 | 00:06:37 | 6.6 min |
-| w11 qualify main + accuracy A/B | #4357 | 00:12:03 | 00:13:55 | 1.9 min |
+| w11 qualify main + accuracy A/B | #4379 | 00:12:03 | 00:13:55 | 1.9 min |
 
-Before 00:00 the total was about 4 min, far under the 60-min per-lane cap. Several of the windows w3 to w8 were less than 5 minutes apart, which breaks the burn-rules gap and the "few, long slots" instruction. The rest of the lane uses one batched window after 00:00.
+Total radiance downtime is 12.5 min: 4.0 min before 00:00, the rest inside the uncapped 00:00-07:00 hours. That is far under the caps (3 h per role per day, windows of at most 30 min). Several of the windows w3 to w8 were less than 5 minutes apart, which breaks the burn-rules gap and the "few, long slots" instruction. The rest of the lane uses one batched window after 00:00.
 
 ## 8. Leads for the next lane (not done here)
 
