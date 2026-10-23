@@ -1,0 +1,94 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:qn:20261023-0020",
+ "project": "intarsiaml",
+ "lane_id": "qn",
+ "follows": [],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T00:20:00-04:00",
+ "ended": "2026-10-23T00:50:00-04:00",
+ "brief": "`intarsia qualify` quick for the Qwen3.6-35B-A3B NVFP4 model on tatooine (HIP) exits 2: acc-short is ERROR, on main too. Make acc-short PASS or FAIL, fix the cause.",
+ "hypothesis": "The ref-noise record in the repo is bound to a golden hash that differs from the golden tatooine's qualify picks; bringing tatooine's golden in line with the one CUDA and Metal use removes the ERROR without touching code or records.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "tatooine R9700 (gfx1201), tp=1",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "infra",
+  "buckets": [],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-qn/ref-noise",
+  "base_commit": "a312a794",
+  "head_commit": null,
+  "pr": null,
+  "files": [
+   "docs/results/2026-10-23-qn-ref-noise.md",
+   "docs/results/2026-10-23-qn-ref-noise/trace.json",
+   "docs/decisions/LOG.md"
+  ],
+  "diff_stat": "docs and results only; the fix is a data change on tatooine (/data/models/intarsia/golden)",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "golden hashes across hosts",
+   "command": "FNV-1a 64 of every qwen36-35b short/long vllm-top20 golden on endor, spark2, tatooine (scratch h.py, same function as baseline::fnv1a64)",
+   "result": "pass",
+   "detail": "short cd6ef94b3dcd4c82 and long 1c62c8e49c68fe34 everywhere, except tatooine's /data/models/intarsia/golden short file (b58845c3cb8a3cb6) before the fix"
+  },
+  {
+   "name": "qualify quick, 35B, tatooine HIP, origin/main a312a794",
+   "command": "intarsia qualify --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --quick-only --gen 128 --reps 5 --no-unim --mem-budget 29 (fleetq #4396, card 0)",
+   "result": "pass",
+   "detail": "exit 0: doctor/recipe/plan/kernels/gate/acc-short/acc-oracle/bench PASS, acc-format SKIP"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "decode_tps",
+   "bucket": "128",
+   "prompt_tokens": null,
+   "streams": 1,
+   "before": null,
+   "after": 160.5,
+   "unit": "tok/s",
+   "n": 5,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 4396,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "qualify acc-short vs vllm top20 golden (HIP)",
+  "verdict": "pass",
+  "bitwise": null,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "qualify acc-short on tatooine was ERROR because the golden directory held a stale 10-12 golden (b58845c3) under the canonical name while the rebuilt one (cd6ef94b, the golden endor and spark2 hold and the repo's ref-noise and baselines are bound to) sat beside it as '-meta', which qualify skips. Replaced the stale file by the canonical one on tatooine (stale kept as .stale-b58845c3); qualify quick for the 35B on origin/main now exits 0 with acc-short PASS (prefill KL 7.63e-3 top-1 98.61 %, decode KL 1.18e-2 top-1 98.75 %). No code or record change.",
+ "lessons": [
+  "qualify matches goldens by name and ignores any file with 'meta' in it: never park a rebuilt golden beside the old one under a different name, replace it.",
+  "The ref-noise binding error names the golden hash; the 'golden: <path>' line printed just before it names the file qualify picked.",
+  "qualify --golden-dir replaces the default search list, so the checkout's golden/oracle/ is not searched and acc-oracle is MISSING-BASELINE (exit 1); omit it on tatooine."
+ ],
+ "cost": {
+  "wall_min": 30,
+  "gpu_slot_min": 5,
+  "slot_jobs": [
+   4395,
+   4396
+  ]
+ }
+}
