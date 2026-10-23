@@ -605,3 +605,31 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
     }
     assert!(failures.is_empty(), "{failures:?}");
 }
+
+/// Diagnostic (ignored): the ops and kernels of one solo decode step and of a 4-row and a 16-row batched step of the 35B, with
+/// their call counts. What the R3 work replaces (per-row launches) is the difference between the two lists.
+#[test]
+#[ignore]
+fn real_35b_batch_op_listing() {
+    use intarsia_core::plan::Phase;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 2048);
+    let count = |rec: &intarsia_core::plan::Recorder| {
+        let mut v: std::collections::BTreeMap<(String, String), usize> = Default::default();
+        for c in rec.calls.iter().filter(|c| !c.extra) {
+            *v.entry((c.call.op.to_string(), c.kernel.clone())).or_default() += 1;
+        }
+        v
+    };
+    for (name, phase, rows) in
+        [("solo", Phase::Decode, 1usize), ("batch4", Phase::Batch, 4), ("batch16", Phase::Batch, 16)]
+    {
+        let rec = m.dry_run(phase, rows, 100).unwrap();
+        let v = count(&rec);
+        let total: usize = v.values().sum();
+        eprintln!("OPLIST {name}: {total} launches");
+        for ((op, k), n) in &v {
+            eprintln!("OPLIST   {name:<8} {n:>5} x {op:<26} {k}");
+        }
+    }
+}
