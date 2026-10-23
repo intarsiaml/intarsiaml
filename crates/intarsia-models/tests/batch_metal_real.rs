@@ -307,11 +307,11 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 }
 // ---- engine identity on prompts longer than the solo chunk ----------------------------------------------------------------
 
-/// The busy chunk of the batching engine defaults to the solo chunk (2048) for the hybrid 35B, so a request that prefills while
+/// The busy chunk of the batching engine defaults to the solo chunk (2048 for the 35B on Metal too) for the hybrid 35B, so a request that prefills while
 /// others decode runs the solo chunk schedule: its output must be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
 /// and 16k tokens (more than one chunk), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
 /// generating while the long prompts prefill (checked from the scheduler's mixed-iteration counter). Control, printed and not
-/// asserted: the same scenario with `--busy-chunk 256` (the dense Metal default), to see whether the smaller chunk is bitwise here.
+/// asserted: the same scenario with `--busy-chunk 64` (smaller than the solo chunk, 2048), to show the test can see a schedule mismatch.
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
@@ -417,12 +417,13 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
             }
         }
     }
-    // control: busy chunk 256
-    let (outs, _) = scenario(4, &[0, 1, 2, 3], Some(256));
+    assert!(failures.is_empty(), "{failures:?}");
+    // control: busy chunk 64
+    let (outs, _) = scenario(4, &[0, 1, 2, 3], Some(64));
     for (k, i) in [0usize, 1, 2, 3].iter().enumerate() {
         let first = outs[k].ids.iter().zip(&reference[*i].ids).position(|(a, b)| a != b);
         eprintln!(
-            "LONGENG control busy chunk 256: {} : {}",
+            "LONGENG control busy chunk 64: {} : {}",
             reqs()[*i].0,
             match first {
                 None => "identical".to_string(),
@@ -430,5 +431,4 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
             }
         );
     }
-    assert!(failures.is_empty(), "{failures:?}");
 }

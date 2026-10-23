@@ -34,7 +34,11 @@ fn tally(rows: usize) {
 }
 
 fn report(name: &str) {
-    eprintln!("{name}: {} cases, {} rows compared bitwise", CASES.swap(0, Ordering::Relaxed), ROWS.swap(0, Ordering::Relaxed));
+    eprintln!(
+        "{name}: {} cases, {} rows compared bitwise",
+        CASES.swap(0, Ordering::Relaxed),
+        ROWS.swap(0, Ordering::Relaxed)
+    );
 }
 
 fn put_bytes(be: &MetalBackend, off: usize, data: &[u8]) -> Buffer {
@@ -65,7 +69,12 @@ fn t(buf: &Buffer, off: usize, dt: DType, shape: &[usize]) -> TensorRef {
 fn same(a: &[u8], b: &[u8], what: &str) {
     assert_eq!(a.len(), b.len(), "{what}: length");
     if let Some(i) = a.iter().zip(b).position(|(x, y)| x != y) {
-        panic!("{what}: first differing byte {i} of {} (one-row launches {:#04x}, M-row launch {:#04x})", a.len(), a[i], b[i]);
+        panic!(
+            "{what}: first differing byte {i} of {} (one-row launches {:#04x}, M-row launch {:#04x})",
+            a.len(),
+            a[i],
+            b[i]
+        );
     }
 }
 
@@ -131,7 +140,18 @@ const FP8_SHAPES: &[(usize, usize)] =
     &[(8192, 2048), (4096, 2048), (512, 2048), (2048, 4096), (130, 512), (33, 48), (65, 16), (4096, 4096)];
 
 #[allow(clippy::too_many_arguments)]
-fn fp8_case(be: &MetalBackend, w: &Buffer, w_off: usize, n: usize, k: usize, m: usize, is: f32, f32_out: bool, x_off: usize, seed: u64) {
+fn fp8_case(
+    be: &MetalBackend,
+    w: &Buffer,
+    w_off: usize,
+    n: usize,
+    k: usize,
+    m: usize,
+    is: f32,
+    f32_out: bool,
+    x_off: usize,
+    seed: u64,
+) {
     let x = act_rows(m, k, seed);
     let xb = put_bytes(be, x_off, &bf16_bytes(&x));
     let sb = put_bytes(be, 4, &f32_bytes(&[0.0123, is]));
@@ -142,7 +162,9 @@ fn fp8_case(be: &MetalBackend, w: &Buffer, w_off: usize, n: usize, k: usize, m: 
     let wt = t(w, w_off, DType::Fp8E4m3, &[n, k]);
     let st = t(&sb, 4, DType::F32, &[2]);
     let (yst, ymt) = (t(&ys, yo, odt, &[m, n]), t(&ym, yo, odt, &[m, n]));
-    let call = |x: TensorRef, y: TensorRef| OpCall::new(Op::MatmulFp8, vec![x, wt.clone(), st.clone()], vec![y], OpAttrs::default());
+    let call = |x: TensorRef, y: TensorRef| {
+        OpCall::new(Op::MatmulFp8, vec![x, wt.clone(), st.clone()], vec![y], OpAttrs::default())
+    };
     for r in 0..m {
         be.launch("matmul_fp8_gemv", &call(xt.rows(r, 1), yst.rows(r, 1)), 0).unwrap();
     }
@@ -194,15 +216,28 @@ fn rand_block_scales(n: usize, seed: u64) -> Vec<u8> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn nv_case(be: &MetalBackend, bufs: &(Buffer, Buffer, Buffer), w_off: usize, n: usize, k: usize, m: usize, f32_out: bool, x_off: usize, seed: u64) {
+fn nv_case(
+    be: &MetalBackend,
+    bufs: &(Buffer, Buffer, Buffer),
+    w_off: usize,
+    n: usize,
+    k: usize,
+    m: usize,
+    f32_out: bool,
+    x_off: usize,
+    seed: u64,
+) {
     let x = act_rows(m, k, seed);
     let xb = put_bytes(be, x_off, &bf16_bytes(&x));
     let (odt, esz) = if f32_out { (DType::F32, 4) } else { (DType::Bf16, 2) };
     let yo = 8usize;
     let (ys, ym) = (guarded(be, yo, m * n * esz), guarded(be, yo, m * n * esz));
     let xt = t(&xb, x_off, DType::Bf16, &[m, k]);
-    let (wt, bt, gt) =
-        (t(&bufs.0, w_off, DType::U8, &[n, k / 2]), t(&bufs.1, 3, DType::Fp8E4m3, &[n, k / 16]), t(&bufs.2, 4, DType::F32, &[1]));
+    let (wt, bt, gt) = (
+        t(&bufs.0, w_off, DType::U8, &[n, k / 2]),
+        t(&bufs.1, 3, DType::Fp8E4m3, &[n, k / 16]),
+        t(&bufs.2, 4, DType::F32, &[1]),
+    );
     let (yst, ymt) = (t(&ys, yo, odt, &[m, n]), t(&ym, yo, odt, &[m, n]));
     let call = |x: TensorRef, y: TensorRef| {
         OpCall::new(Op::MatmulNvfp4, vec![x, wt.clone(), bt.clone(), gt.clone()], vec![y], OpAttrs::default())
@@ -228,7 +263,8 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
         let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 32) as u8).collect();
         let bs = rand_block_scales(n * k / 16, 910 + si as u64);
         for w_off in [8usize, 16] {
-            let bufs = (put_bytes(&be, w_off, &w), put_bytes(&be, 3, &bs), put_bytes(&be, 4, &0.00071f32.to_le_bytes()));
+            let bufs =
+                (put_bytes(&be, w_off, &w), put_bytes(&be, 3, &bs), put_bytes(&be, 4, &0.00071f32.to_le_bytes()));
             for m in 2..=8usize {
                 for f32_out in [false, true] {
                     let x_off = if m % 2 == 0 { 0 } else { 2 };
@@ -398,7 +434,8 @@ fn bf16_pair_rows_at_the_35b_pairs() {
                     let (s0t, s1t) = (t(&s0, 0, DType::Bf16, &[m, n0]), t(&s1, 0, DType::Bf16, &[m, n1]));
                     let (m0t, m1t) = (t(&m0, 0, DType::Bf16, &[m, n0]), t(&m1, 0, DType::Bf16, &[m, n1]));
                     for r in 0..m {
-                        be.launch("matmul_pair_bf16_gemv", &call(xt.rows(r, 1), s0t.rows(r, 1), s1t.rows(r, 1)), 0).unwrap();
+                        be.launch("matmul_pair_bf16_gemv", &call(xt.rows(r, 1), s0t.rows(r, 1), s1t.rows(r, 1)), 0)
+                            .unwrap();
                     }
                     be.launch("matmul_pair_bf16_gemv_rows", &call(xt.clone(), m0t, m1t), 0).unwrap();
                     same(
@@ -465,7 +502,14 @@ fn row_parallel_kernels_do_not_depend_on_the_row_count() {
                     eps.clone(),
                 )
             };
-            serial_vs_rows(&be, "rmsnorm_bf16", m, &[(rows_per * h, DType::Bf16)], &mk, &format!("h={h} rows/seq={rows_per}"));
+            serial_vs_rows(
+                &be,
+                "rmsnorm_bf16",
+                m,
+                &[(rows_per * h, DType::Bf16)],
+                &mk,
+                &format!("h={h} rows/seq={rows_per}"),
+            );
         }
         // rmsnorm_add at hidden 2048 (the block fold)
         {
@@ -493,7 +537,10 @@ fn row_parallel_kernels_do_not_depend_on_the_row_count() {
             let mk = |rows: usize, r0: usize, o: &[Buffer]| {
                 OpCall::new(
                     Op::SiluGlu,
-                    vec![t(&a, r0 * per * 2, DType::Bf16, &[rows, per]), t(&b, r0 * per * 2, DType::Bf16, &[rows, per])],
+                    vec![
+                        t(&a, r0 * per * 2, DType::Bf16, &[rows, per]),
+                        t(&b, r0 * per * 2, DType::Bf16, &[rows, per]),
+                    ],
                     vec![t(&o[0], r0 * per * 2, DType::Bf16, &[rows, per])],
                     OpAttrs::default(),
                 )
@@ -600,7 +647,12 @@ fn row_parallel_kernels_do_not_depend_on_the_row_count() {
             let lb = put_bytes(&be, 0, &raw);
             let esz = dt.size_bytes();
             let mk = |rows: usize, r0: usize, o: &[Buffer]| {
-                OpCall::new(Op::Argmax, vec![t(&lb, r0 * v * esz, dt, &[rows, v])], vec![t(&o[0], r0 * 4, DType::I32, &[rows])], OpAttrs::default())
+                OpCall::new(
+                    Op::Argmax,
+                    vec![t(&lb, r0 * v * esz, dt, &[rows, v])],
+                    vec![t(&o[0], r0 * 4, DType::I32, &[rows])],
+                    OpAttrs::default(),
+                )
             };
             let kernel = if dt == DType::F32 { "argmax_f32" } else { "argmax_bf16" };
             serial_vs_rows(&be, kernel, m, &[(1, DType::I32)], &mk, &format!("vocab={v}"));
@@ -639,7 +691,16 @@ fn rows_exact_registrations_are_pinned() {
         let kern = be.kernels().into_iter().find(|x| x.name == name).unwrap();
         assert_eq!(kern.op, op);
         for m in 1..=9usize {
-            let s = ShapeInfo { m, k, n: 512, act: Some(DType::Bf16), weight: Some(wdt), experts: E, top_k: K, ..ShapeInfo::default() };
+            let s = ShapeInfo {
+                m,
+                k,
+                n: 512,
+                act: Some(DType::Bf16),
+                weight: Some(wdt),
+                experts: E,
+                top_k: K,
+                ..ShapeInfo::default()
+            };
             assert_eq!(kern.accepts(&s), (2..=8).contains(&m), "{name} K={k} M={m}");
         }
     }
@@ -675,43 +736,83 @@ fn timing_rows() {
         for m in [1usize, 2, 4, 8] {
             let xb = put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9)));
             let y = guarded(&be, 8, m * n * 2);
-            let (xt, wt, st, yt) = (t(&xb, 0, DType::Bf16, &[m, k]), t(&w, 8, DType::Fp8E4m3, &[n, k]), t(&sb, 4, DType::F32, &[2]), t(&y, 8, DType::Bf16, &[m, n]));
-            let call = |x: TensorRef, y: TensorRef| OpCall::new(Op::MatmulFp8, vec![x, wt.clone(), st.clone()], vec![y], OpAttrs::default());
+            let (xt, wt, st, yt) = (
+                t(&xb, 0, DType::Bf16, &[m, k]),
+                t(&w, 8, DType::Fp8E4m3, &[n, k]),
+                t(&sb, 4, DType::F32, &[2]),
+                t(&y, 8, DType::Bf16, &[m, n]),
+            );
+            let call = |x: TensorRef, y: TensorRef| {
+                OpCall::new(Op::MatmulFp8, vec![x, wt.clone(), st.clone()], vec![y], OpAttrs::default())
+            };
             let serial = time_us(&be, 200, || {
                 for r in 0..m {
                     be.launch("matmul_fp8_gemv", &call(xt.rows(r, 1), yt.rows(r, 1)), 0).unwrap();
                 }
             });
-            let rows = if m >= 2 { time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &call(xt.clone(), yt.clone()), 0).unwrap()) } else { serial };
-            eprintln!("TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)", serial / rows);
+            let rows = if m >= 2 {
+                time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &call(xt.clone(), yt.clone()), 0).unwrap())
+            } else {
+                serial
+            };
+            eprintln!(
+                "TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)",
+                serial / rows
+            );
         }
     }
     {
         let (n, k) = (512usize, 2048usize);
         let mut r = Rng(5);
         let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 32) as u8).collect();
-        let (wb, bb, gb) = (put_bytes(&be, 8, &w), put_bytes(&be, 3, &rand_block_scales(n * k / 16, 6)), put_bytes(&be, 4, &0.00071f32.to_le_bytes()));
+        let (wb, bb, gb) = (
+            put_bytes(&be, 8, &w),
+            put_bytes(&be, 3, &rand_block_scales(n * k / 16, 6)),
+            put_bytes(&be, 4, &0.00071f32.to_le_bytes()),
+        );
         for m in [1usize, 2, 4, 8] {
             let xb = put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9)));
             let y = guarded(&be, 8, m * n * 2);
             let (xt, yt) = (t(&xb, 0, DType::Bf16, &[m, k]), t(&y, 8, DType::Bf16, &[m, n]));
-            let (wt, bt, gt) = (t(&wb, 8, DType::U8, &[n, k / 2]), t(&bb, 3, DType::Fp8E4m3, &[n, k / 16]), t(&gb, 4, DType::F32, &[1]));
-            let call = |x: TensorRef, y: TensorRef| OpCall::new(Op::MatmulNvfp4, vec![x, wt.clone(), bt.clone(), gt.clone()], vec![y], OpAttrs::default());
+            let (wt, bt, gt) = (
+                t(&wb, 8, DType::U8, &[n, k / 2]),
+                t(&bb, 3, DType::Fp8E4m3, &[n, k / 16]),
+                t(&gb, 4, DType::F32, &[1]),
+            );
+            let call = |x: TensorRef, y: TensorRef| {
+                OpCall::new(Op::MatmulNvfp4, vec![x, wt.clone(), bt.clone(), gt.clone()], vec![y], OpAttrs::default())
+            };
             let serial = time_us(&be, 200, || {
                 for r in 0..m {
                     be.launch("matmul_nvfp4_gemv", &call(xt.rows(r, 1), yt.rows(r, 1)), 0).unwrap();
                 }
             });
-            let rows = if m >= 2 { time_us(&be, 200, || be.launch("matmul_nvfp4_gemv_rows", &call(xt.clone(), yt.clone()), 0).unwrap()) } else { serial };
-            eprintln!("TIMING nvfp4 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)", serial / rows);
+            let rows = if m >= 2 {
+                time_us(&be, 200, || be.launch("matmul_nvfp4_gemv_rows", &call(xt.clone(), yt.clone()), 0).unwrap())
+            } else {
+                serial
+            };
+            eprintln!(
+                "TIMING nvfp4 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)",
+                serial / rows
+            );
         }
     }
     // moe_experts at 35B shapes, random routing (so ~57 of 64 pairs are distinct experts at T = 8) and identical routing
     let mut rng = SplitMix64::new(0x71_3e);
     let ex = random_experts(&mut rng, E, H, I);
-    let (guw, gus, dw, ds, gs) = (put_host(&be, &ex.gate_up_w, 8), put_host(&be, &ex.gate_up_s, 0), put_host(&be, &ex.down_w, 8), put_host(&be, &ex.down_s, 0), put_host(&be, &ex.gscales, 0));
+    let (guw, gus, dw, ds, gs) = (
+        put_host(&be, &ex.gate_up_w, 8),
+        put_host(&be, &ex.gate_up_s, 0),
+        put_host(&be, &ex.down_w, 8),
+        put_host(&be, &ex.down_s, 0),
+        put_host(&be, &ex.gscales, 0),
+    );
     let ks = be.kernels();
-    let (solo, rows_k) = (ks.iter().find(|k| k.name == "moe_experts_bf16").unwrap(), ks.iter().find(|k| k.name == "moe_experts_bf16_rows").unwrap());
+    let (solo, rows_k) = (
+        ks.iter().find(|k| k.name == "moe_experts_bf16").unwrap(),
+        ks.iter().find(|k| k.name == "moe_experts_bf16_rows").unwrap(),
+    );
     for m in [1usize, 2, 4, 8] {
         let x = HostTensor::from_f32_as(DType::Bf16, &[m, H], &rng.normal_vec(m * H, 1.0));
         let xr = put_host(&be, &x, 0);
@@ -722,7 +823,16 @@ fn timing_rows() {
             let mk = |rows: usize, r0: usize, kern: &intarsia_core::KernelImpl| {
                 let mut c = OpCall::new(
                     Op::MoeExperts,
-                    vec![xr.rows(r0, rows), idt.rows(r0, rows), wst.rows(r0, rows), guw.clone(), gus.clone(), dw.clone(), ds.clone(), gs.clone()],
+                    vec![
+                        xr.rows(r0, rows),
+                        idt.rows(r0, rows),
+                        wst.rows(r0, rows),
+                        guw.clone(),
+                        gus.clone(),
+                        dw.clone(),
+                        ds.clone(),
+                        gs.clone(),
+                    ],
                     vec![t(&ys, r0 * H * 2, DType::Bf16, &[rows, H])],
                     OpAttrs { top_k: K, ..OpAttrs::default() },
                 );
