@@ -1,0 +1,25 @@
+To determine the arrival time, we need to calculate the total travel time by breaking the journey into two parts and then adding that time to the departure time.
+
+### Step 1: Calculate the time for the first part of the journey
+
+**Given:**
+*   Distance ($d_1$) = $245$ km
+*   Speed ($v_1$) = $70$ km/h
+
+**Formula:**
+$$ \text{Time} = \frac{\text{Distance}}{\text{Speed}} $$
+
+**Calculation:**
+$$ t_1 = \frac{245}{70} $$
+$$ t_1 = 3.5 \text{ hours} $$
+
+So, the first part of the journey takes **3 hours and 30 minutes** (since $0.5$ hours $= 30$ minutes).
+
+### Step 2: Calculate the time for the second part of the journey
+
+**Given:**
+*   Distance ($d_2$) = $120$ km
+*   Speed ($v_2$) = $80$ km/h
+
+**Calculation:**
+$$ t_2 = \frac{120}{8
