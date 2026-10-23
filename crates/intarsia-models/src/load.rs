@@ -346,7 +346,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
-        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
+        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
+            // CUDA since lane rb2: the verify rows take the `_rows` kernels (G-B: bitwise the one-row kernel per row)
+            eprintln!("--spec mtp on {}: verify rows run the row-exact kernels (bitwise the single-row decode per row)", model.backend.name());
+        } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
             eprintln!(
                 "--spec mtp on {}: no row-exact verify kernels here, so greedy output can differ from --spec off where a \
                  verify row's argmax differs from the single-row decode's",

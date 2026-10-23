@@ -36,7 +36,7 @@ impl Model {
     /// On the cpu backend every multi-row kernel computes each row with the one-row loop, so a batched row is the solo row
     /// by construction; any other backend needs registered row-exact kernels ([`Model::batch_capable`]: CUDA's `_rows`
     /// GEMVs and MoE decode kernels, proven bitwise the one-row kernels by `tests/rows_exact.rs`), and the plan check
-    /// ([`crate::plan`], `check_batch_picks`) refuses whatever else would pick a different kernel from the solo step.
+    /// ([`crate::plan`], `check_batch_ops`) refuses whatever else would pick a different kernel from the solo step.
     /// Call before [`Model::enable_batch`]; without it `enable_batch` is exactly what it was.
     pub fn allow_recurrent_batch(&mut self) -> Result<()> {
         let ok = match self.backend.name() {

@@ -136,14 +136,14 @@
    "bucket": "4x",
    "prompt_tokens": 1024,
    "streams": 4,
-   "before": 75.2,
+   "before": 74.1,
    "after": 122.9,
    "unit": "tok/s",
    "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4531,
-   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "before_run_id": "20261023-084926-adhoc-rb2-off",
    "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
   },
   {
@@ -151,14 +151,14 @@
    "bucket": "16x",
    "prompt_tokens": 1024,
    "streams": 16,
-   "before": 75.2,
+   "before": 74.2,
    "after": 166.5,
    "unit": "tok/s",
    "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4531,
-   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "before_run_id": "20261023-084926-adhoc-rb2-off",
    "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
   },
   {
@@ -184,12 +184,12 @@
   "run_ids": []
  },
  "verdict": "win",
- "summary": "R0-R2 done and gated; speed target missed. Row-exact CUDA GEMV and MoE decode kernels (M up to 16) registered rows_exact, a kernel-pick plan check with a proven-fusion table, per-backend cap 16, recurrent state in the memory plan, and a CUDA bring-up of hybrid batching. Every decode row is bitwise the solo step (4290 row-steps each on the 35B and Qwen3-8B), the batched engine equals LocalEngine, and plan show + 256 ids are unchanged with batching off. 35B aggregate decode in the composer cell: 122.9 at 4 streams (75.2 before, target about 140) and 166.5 at 16 (75.2); 1 stream unchanged (73.6). Verdict win against the baseline (x1.63 at 4, x2.21 at 16, nothing lost at 1) but the lane's stated 4-stream target is not met; the next cost is per-row GDN and attention launches (25% of a B=4 step, 42% at B=16) and an eager, graph-less batched step.",
+ "summary": "R0-R2 done and gated; speed target missed. Row-exact CUDA GEMV and MoE decode kernels (M up to 16) registered rows_exact, a kernel-pick plan check with a proven-fusion table, per-backend cap 16, recurrent state in the memory plan, and a CUDA bring-up of hybrid batching. Every decode row is bitwise the solo step (4290 row-steps each on the 35B and Qwen3-8B), the batched engine equals LocalEngine, and plan show + 256 ids are unchanged with batching off. 35B aggregate decode in the composer cell, same build with batching off as 'before': 122.9 at 4 streams (74.1; the 10-22 baseline was 75.2; target about 140) and 166.5 at 16 (74.2); 1 stream unchanged (73.6). Verdict win against the baseline (x1.63 at 4, x2.21 at 16, nothing lost at 1) but the lane's stated 4-stream target is not met; at 4 streams the step already runs at model-loop speed (25.7 vs 25.4 ms) and the burst is 0.9 s of serialized prefill plus 127 steps, so 140 needs a step about 15% cheaper or prefill overlapped with decode; per-row GDN and attention launches (25% of a B=4 step, 42% at B=16) and the eager batched step are the lever at 16 streams.",
  "lessons": [
   "Raising the busy prefill chunk from 256 to 1024 for the MoE hybrid was worth +18% at 4 streams and +30% at 16 (104 to 123, 128 to 167): an MoE prefill chunk reads nearly all experts at any size, so stalls dominate a short-output concurrent benchmark.",
   "check_batch_ops must compare kernel picks, not op multisets: the CUDA MoE switches kernel under one Op between m <= 1 and m >= 2, which the multiset rule cannot see.",
   "On the Spark the CUDA free figure after loading a 20 GB model is MemFree, not MemAvailable: page cache from other models' files left 1.9 GB for KV and recurrent state of a 16-slot engine; evict other files' cache (dd iflag=nocache count=0) before benchmarks, or the plan caps the context.",
-  "The 35B model-loop step at B=4 is 25.4 ms (158 tok/s) and at B=16 65.3 ms (245 tok/s) eager; the serve aggregate is lower by prefill stalls and per-step engine overhead."
+  "At 4 streams the serve burst (4.17 s) is 0.90 s of serialized 1k-token prefill plus 127 steps of 25.7 ms, equal to the model-loop step (25.4 ms): the gap to 140 is prefill time and the step, not engine overhead. At 16 streams 3.93 s of prefill plus 127 steps of 65.9 ms (model loop 65.3)."
  ],
  "cost": {
   "wall_min": 190,

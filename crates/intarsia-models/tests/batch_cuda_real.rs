@@ -231,7 +231,9 @@ fn real_35b_batch_step_timing() {
     let steps = 24;
     let t0 = std::time::Instant::now();
     for _ in 0..steps {
-        let StepOut::Token(_) = m.forward(&mut states[0], &[tok(0)], HeadMode::LastArgmax, None).unwrap() else { panic!() };
+        let StepOut::Token(_) = m.forward(&mut states[0], &[tok(0)], HeadMode::LastArgmax, None).unwrap() else {
+            panic!()
+        };
     }
     let solo = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
     eprintln!("TIMING solo step {solo:.2} ms ({:.1} tok/s)", 1e3 / solo);
@@ -244,7 +246,11 @@ fn real_35b_batch_step_timing() {
             m.forward_batch(&mut refs, &ids, &modes).unwrap();
         }
         let ms = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
-        eprintln!("TIMING batch B={b:>2}: {ms:.2} ms/step, {:.1} tok/s aggregate ({:.2}x solo step)", b as f64 * 1e3 / ms, ms / solo);
+        eprintln!(
+            "TIMING batch B={b:>2}: {ms:.2} ms/step, {:.1} tok/s aggregate ({:.2}x solo step)",
+            b as f64 * 1e3 / ms,
+            ms / solo
+        );
     }
 }
 

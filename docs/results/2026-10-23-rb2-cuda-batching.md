@@ -14,6 +14,7 @@ S1 to S5 plan of PR #114 where the two differ (decision rows in `docs/decisions/
 | aggregate tok/s, 16 streams | 75.2 | **166.5** (x2.21) | |
 | decode row r of a B-row step vs the solo step of that sequence | n/a (one sequence) | **bitwise identical**, B = 2 to 16, 130 steps | 35B, Qwen3-8B, tiny hybrid |
 | `plan show` + 256 greedy ids vs main, batching off | | **identical** | 35B and Qwen3-8B on CUDA, Qwen3-8B on Metal |
+| `--spec mtp` k=2, 256 ids vs main and vs `--spec off` | | **identical**; decode +6 to +8% | 35B on CUDA, section 5 |
 
 Cell: 1024-token prompt, 128 generated tokens, localeval `speed --concurrency 1,4,16`, the same cell as the baseline run
 `20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`. Exactness is **decode-exact within the batch path**. Prefill of a busy engine
@@ -95,6 +96,7 @@ so busy and solo chunk schedules coincide and the whole output is compared.
 | CUDA, batching off: `plan show` (JSON and text) and 256 greedy ids, Qwen3-8B and 35B, branch vs `origin/main` b745e978 | all six comparisons byte-identical (8,758 / 1,478 / 1,436 B and 14,659 / 3,729 / 1,401 B) | #4516 |
 | Metal, Qwen3-8B (core and models code changed): `plan show` and 256 ids | identical (8,371 / 1,342 / 1,439 B) | #4518 |
 | Metal, `batch_metal` (dense batched identity, real Qwen3-8B, the plan check changed) | 138 pairs and 48 rows beside prefill bitwise identical | #4519 |
+| **`--spec mtp --spec-k 2` on CUDA** (registering `_rows` kernels moved the verify pass, M = k + 1, onto them: fp8 `mma` -> `gemv_rows`, grouped `moe_experts_bf16` -> `decode_v2_rows`), 4 chat prompts, 256 greedy ids, 35B | main and branch ids identical, and identical to `--spec off`, for all four; acceptance identical (92.7 / 70.1 / 76.6 / 91.1%); decode 113.8 / 93.6 / 101.1 / 111.5 tok/s on main against **120.9 / 101.3 / 108.7 / 119.3** on the branch (+6 to +8%, one run each, noise about 5%); `INTARSIA_MTP_VERIFY_CHECK`: 647 verify-row cells over 163 passes, max logit difference to the single-row decode **0.0** | #4537 |
 | `cargo test --workspace` (endor) | all pass, 0 failed | #4524 |
 
 ## 6. Speed (localeval, intarsia serve on spark1, 35B NVFP4, 1024-token prompt, 128 generated, 3 reps / one run per stream count)
@@ -121,11 +123,16 @@ eager, all rows greedy, 900-token contexts):
 | 8 | 38.6 | 207 | 1.95 |
 | 16 | 65.3 | 245 | 3.30 |
 
-At 4 streams the burst is 4 prefills of 1000 tokens (about 0.9 s at 4.4k tok/s) plus 128 steps of about 31 ms, which gives the
-measured 4.9 s; a 256-token output instead of 128 would hide more of the prefill share (derived, not measured). Raising the busy
-chunk from 256 to 1024 removed most of the stall (104 to 123 at 4, 128 to 167 at 16, review finding M5). The remaining
-cost, from the profiled step (`real_35b_batch_step_profile`, op time per step, profiling syncs after each op so the sum is above the
-real step):
+The burst at 4 streams (final run, `20261023-092106-adhoc-rb2-final2-on16`) takes 512 / 122.9 = 4.17 s: the four 1k-token prefills run one
+after another (0.22 s each; the last stream's first token arrives at 0.90 s), then all four decode, and (4.17 - 0.90) / 127 steps =
+25.7 ms per step, which is the model-loop step (25.4 ms, table above). So at 4 streams **the step already runs at model-loop speed and
+the gap to 140 is 0.9 s of serialized prefill inside a 128-token burst plus the step itself**: 140 tok/s needs a 3.66 s burst, which is
+either a step of about 21.7 ms (15% cheaper, with the prefill time unchanged) or less prefill time, and prefill (4.4k tok/s) is compute-bound, so
+it can only be hidden by overlapping it with decode, not shortened by batching. At 16 streams the same split is 12.3 s = 3.93 s of prefill phase
+plus 127 steps of 65.9 ms (model loop: 65.3 ms), so the step matters more there. (With the busy chunk at 256 the same split gives
+4.92 s and 31 ms steps: the earlier 104 tok/s; the stalls of small chunks, not the step, were what the chunk change removed.) The
+cost inside the step, from the profiled step (`real_35b_batch_step_profile`, op time per step, profiling syncs after each op so the sum is
+above the real step):
 
 | op | B = 4 ms | B = 16 ms |
 |---|---|---|
@@ -138,8 +145,9 @@ real step):
 | sum | 27.6 | 70.9 |
 
 The per-row GDN and attention launches are 25% of the step at B = 4 and 42% at B = 16, and the batched step is eager (no CUDA
-graph; the solo step replays one). Those two are the next work (review R3 / R5: a multi-state GDN kernel taking an array of state
-pointers, per-row attention tables, a graph per batch bucket); none of it is in R0 to R2. The expert reads are bandwidth-bound
+graph; the solo step replays one). Halving the per-row part would take about 12% off a B = 4 step (short of the 15% that 140 needs by the step
+alone) and about 21% off a B = 16 step; with prefill overlap or a graph on top, 140 at 4 streams is in reach. That is review R3 / R5 (a multi-state
+GDN kernel taking an array of state pointers, per-row attention tables, a graph per batch bucket) and prefill/decode overlap; none of it is in R0 to R2. The expert reads are bandwidth-bound
 (about 14 MB per token per layer when routing does not overlap).
 
 ## 7. Decisions
@@ -171,7 +179,7 @@ INTARSIA_QWEN36_DIR=<35B dir> INTARSIA_QWEN3_DIR=<8B dir> INTARSIA_REQUIRE_GPU=1
   planned about 1.5k tokens of KV per slot. The speed runs and tests evicted other models' cached files first
   (`dd iflag=nocache count=0`); a plain `intarsia serve --max-batch 16` on a box with a warm cache gets a short context or a memory
   error. Fixing it in the loader would change `plan show`, so it is left as an open question.
-- MTP and the prefix store are refused or bypassed at batch > 1, not implemented. MXFP4 and Gemma arms are untouched and refused.
+- MTP and the prefix store are refused or bypassed at batch > 1, not implemented (MTP at batch 1 on CUDA is checked in section 5; the `--spec mtp` startup note now says the verify rows run row-exact kernels). MXFP4 and Gemma arms are untouched and refused.
 - Runs were on spark1 with the shared vLLM tenant resident (34 GB) in `--quiet gpu,cpu` slots; no comparison against vLLM or SGLang was repeated.
 - The R0 worker's negative controls and the registry-pin tests were not rerun by me.
 
