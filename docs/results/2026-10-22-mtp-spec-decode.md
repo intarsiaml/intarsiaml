@@ -62,7 +62,8 @@ Implementation (`crates/intarsia-core/src/model/mtp.rs`):
   That holds where each op of the verify pass has a `rows_exact` kernel. The cpu backend loops over rows, so it holds there.
 - Metal registers `rows_exact` kernels only for bf16 GEMV / pair / logits and split-KV attention. CUDA registers none.
   So on the 35B (FP8 projections, NVFP4 experts and head, GatedDeltaNet), `--spec mtp` on a GPU emits the verify path's
-  argmax. Where that differs from the M = 1 path, the output would differ. In 24 of 24 CUDA runs it never did (3.1).
+  argmax. Where that differs from the M = 1 path, the output would differ. On 12 (prompt, k) cases, 3,072 tokens, it
+  never did; the row-level mismatch rate is not yet measured (3.1).
   The logit-level comparison was deferred.
 - The GatedDeltaNet conv and delta rule run one row at a time inside a verify pass (below). That keeps those two ops
   bitwise equal to decode on every backend.
@@ -81,7 +82,7 @@ A GatedDeltaNet slot is updated in place (conv state [C, 3] f32 plus delta state
 C is `SpecRows` in `crates/intarsia-core/src/state.rs` and the verify branch of `gdn_block`. Rollback is
 `SequenceState::spec_rollback(keep)`. It is also used by `Seq::finish` when a stop id, stop string or `max_tokens` lands
 inside an accepted run, so a finished request leaves the state where sequential decode leaves it, and prefix reuse
-stays exact. The per-row copies cost k x 63 MB of device traffic per pass, about 0.25 ms per row at Spark's ~270 GB/s (read
+stays exact. The per-row copies cost k x 63 MB of device traffic per pass, about 0.5 ms per row at Spark's ~270 GB/s (63 MB read plus 63 MB written; an earlier estimate of 0.25 ms counted the read only) (read
 plus write). Measured cost is in section 3.
 
 The head's own KV cache is attention-only and rolls back by truncation. Its queue of pending hidden rows
@@ -140,14 +141,13 @@ Raw: `2026-10-22-mtp-spec-decode/raw/identity-nonexcl/`. Script: `scripts/identi
 | p2 list | 84.1 | 93.4 (88.9%) | 101.1 (76.6%) | 93.9 (62.6%) |
 | p3 arithmetic | 83.9 | 97.3 (97.7%) | 110.7 (91.1%) | 119.3 (90.7%) |
 
-**Token identity.** All 12 MTP runs (4 prompts x k = 1..3) are token-identical to `--spec off` over 256 greedy tokens.
-This is evidence, not proof, that the verify path's argmax matches the decode path on CUDA. 3.1 measures the row logits
-directly. Acceptance is per draft token; tokens per pass = 1 + accepted / passes.
+**Token identity.** All 12 MTP runs (4 prompts x k = 1..3) produce the same 256 greedy tokens as `--spec off`.
+This is empirical evidence, not a structural property (3.1). Acceptance is per draft token; tokens per pass = 1 + accepted / passes.
 
 ### 3.0b Identity re-run after the driver upgrade (shared slot)
 
 fleetq #4349, commit 8e1fa857, CUDA build 56239424 bytes, GB10 on driver 580.178.04 / kernel 6.17.0-1032. Same script
-and prompts as 3.0. All 12 MTP runs are token-identical to `--spec off` over 256 greedy tokens.
+and prompts as 3.0. All 12 MTP runs produce the same 256 greedy tokens as `--spec off` (empirical, 3.1).
 Raw: `raw/identity/`.
 
 | prompt | off tok/s | k=1 tok/s (acc.) | k=2 tok/s (acc.) | k=3 tok/s (acc.) |
@@ -165,22 +165,76 @@ empty. The box then rebooted without a clean shutdown and was back up at 23:01:5
 journal ends at 23:07:32 (back up 23:23:31), and the one after at 23:38:24 (back up 23:45:11). None of my jobs had a
 process on the box at those times. The cause is not established: the new driver, the diagnostic run, or both.
 
-### 3.1 Verify rows vs single-row decode: deferred
+### 3.1 What the identity runs show, and what they don't (logit-level check deferred)
 
-On CUDA the bitwise claim rests on **24 of 24** token-identical runs: 4 prompts x k = 1..3 x 256 greedy tokens, once
-before the driver upgrade (3.0) and once after it (3.0b). Together that is 2,496 verify passes and 7,056 verify rows
-(counted from the `spec:` lines in `raw/identity*/p*-mtp*.err`). No emitted token disagreed with `--spec off`.
+**Claim.** `--spec mtp` on CUDA is *self-consistent greedy over the verify rows*: every emitted token is the argmax of a
+verify row. It was *empirically identical* to `--spec off` on 12 (prompt, k) cases, 3,072 emitted tokens. The
+*row-level argmax mismatch rate against the M = 1 path is not yet measured.*
 
-The logit-level check was deferred. `INTARSIA_MTP_VERIFY_CHECK=1` runs each verify pass's rows as single-row decode steps
-from the same state and reports the max abs logit difference and argmax agreement per row. Its first run was in progress
-when spark1 crashed (3.0b), and spark1 has been unstable since the driver upgrade. The coordinator decided not to run it
-on spark2 either. The diagnostic is in the code for a later run.
+- **Not structural.** CUDA has no row-exact verify kernels. Only the GatedDeltaNet conv and delta rule run as t = 1
+  launches inside a verify pass. Attention runs `attn_prefill` (split-KV) over q rows, the MoE runs its grouped multi-row
+  path, and the projections run GEMM where decode runs GEMV. A different accumulation order can flip a near-tie argmax,
+  after which the output diverges from `--spec off`. It stays valid greedy output over the verify path.
+- **What the evidence is.** 3.0 and 3.0b ran the same 12 cases (4 short prompts x k = 1..3, 256 tokens) twice and gave
+  byte-identical acceptance counts. So "24/24" is 12 independent cases run twice: 3,072 emitted tokens per run set, 2,496
+  verify passes over both sets. Short low-entropy prompts and 256 tokens cannot bound a near-tie flip rate. A 4k-token
+  prose generation could diverge.
+- **Deferred.** `INTARSIA_MTP_VERIFY_CHECK=1` measures it: each verify pass's rows are re-run as single-row decode steps
+  from the same state, with max |dlogit| and argmax agreement per row. Its first run was in progress when spark1 crashed
+  (3.0b), so the coordinator deferred it and it was not run on spark2. To run it later: >= 2k tokens on a high-entropy
+  prompt; report the max |dlogit| distribution, the argmax mismatch count, and the count of rows with a top-2 margin
+  under 1e-2.
+- **Diagnostic caveats.** It takes a recurrent snapshot per pass, which evicts prompt-chunk snapshots, so prefix reuse
+  differs while it is on. Its `debug_assert` on the device-vs-host argmax can fire on exact ties in debug builds.
 
-So it is **not measured** whether CUDA verify logits are bitwise equal to the M = 1 path. CUDA registers no `rows_exact`
-kernels, so the verify GEMMs may round differently from the GEMVs. Greedy correctness therefore relies on accepting a
-draft only on an exact argmax match. The emitted token is the verify row's argmax, and in these 24 runs it always equalled
-the M = 1 argmax. `--spec mtp` prints this caveat on a backend without row-exact kernels.
+### 3.4 What a pass costs, and when a draft pays
+
+From the committed logs. Off-arm decode is 2963-2999 ms for 256 steps, about **11.6 ms per step**. 256 of 257 steps are
+graph replays (`raw/identity/p*-off.err`).
+
+MTP ms per pass is decode time / verify passes in `raw/identity/p*-mtp*.err` (fleetq #4349, spark1, post-upgrade). It is
+the same across all 4 prompts to within 0.5 ms:
+
+| k | ms per pass | from the spark2 trace: draft (head) / verify + rollback, median ms |
+|---|---|---|
+| 1 | 19.5-19.7 | 1.83 / 17.99 |
+| 2 | 24.9-25.1 | 3.60 / 21.41 |
+| 3 | 29.8-30.4 | 5.36 / 24.84 |
+
+The trace column is `raw/phases/trace-mtp*.err`, `INTARSIA_SPEC_TRACE=1`, spark2, fleetq #4371. Each phase ends in a
+token download, so host time is device time there.
+
+- **Fit:** pass(k) ≈ **14.3 + 5.3·k ms**. The Fable review derived 14.4 + 5.0·k from the same logs.
+- **Fixed part.** About 2.7 ms over a replayed decode step: the verify pass and the head run eagerly (`graph replays=2`
+  per run).
+- **Per draft:** about 1.8 ms of head pass (one gated-attention + MoE layer, the full-vocabulary lm_head, the argmax
+  download), plus about 3.4 ms for the extra verify row. The extra row costs its share of the MoE expert reads (up to 8
+  new experts x 40 layers), 30 per-row GatedDeltaNet state copies (126 MB of traffic), and 30 more conv/delta launches.
+- **Break-even.** Drafting at depth i pays only if P(accept_i | accepted all earlier) > 5.3 / 11.6 ≈ **0.43-0.46**. That
+  is why k = 3 wins on the code and arithmetic prompts (85-91% total acceptance) and loses on prose (54-63%).
+- **The localeval window must confirm this** with the 128/1k/4k numbers (3.2). The default k = 2 is the best fixed choice
+  under this cost. Idea C (section 4) makes the fixed choice moot.
 
 ### 3.2 Exclusive localeval window: decode tok/s at 128 / 1k / 4k, k sweep (pending)
 
 ### 3.3 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
+
+## 4. Next (not in this PR)
+
+Ideas from the Fable review of #110 (`scratchpad/reviews/fable-pr110-mtp-review.md`), with its estimates. The coordinator
+will open a follow-up lane for A + C.
+
+| | Idea | Expected | Notes |
+|---|---|---|---|
+| A | Graph-capture the verify pass (per q in 2..=k+1) and the one-row head pass | ~+20% tok/s (pass(k=2) 25 -> ~20 ms) | Removes the eager floor. Needs `spec_rows` preallocated (done), a device-side head position, fixed ids/hidden buffers |
+| B | Zero-copy rollback: out-of-place recurrent state in verify rows (`state_in` / `state_out`) | ~5% at k=2, ~8% at k=3 | Same arithmetic, so bitwise. Accept-all then costs nothing, a rejection one 63 MB copy. Each backend's GDN kernels gain a pointer |
+| C | Adaptive depth from a per-position acceptance EMA, or the draft's top-2 logit margin | +5-10% average | Threshold = marginal cost / step (0.43 now, ~0.2 after A + B). Removes the need for a fixed `MTP_K_DEFAULT` |
+| D | Draft-only reduced-vocabulary lm_head (top ~32k tokens) | ~3-4% at k=2 | The verify pass keeps the full head, so output is unchanged. Check the acceptance loss on code identifiers |
+| E | Tree / multi-candidate drafting | not worth it here | Each extra verify row's cost is dominated by MoE expert reads |
+
+Also open:
+- The logit-level verify-row check (3.1).
+- One GPU multi-turn run (a stop id inside a run, then prefix reuse after a rollback) to cover the real-buffer
+  `truncate` / snapshot path that only the CPU tests exercise.
+- A Metal / HIP run.
+

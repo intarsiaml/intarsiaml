@@ -601,3 +601,32 @@ fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
         }
     }
 }
+
+#[test]
+fn non_drafting_requests_skip_the_head_and_leave_greedy_ones_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let (on, tel) = engine(&w, Some(2));
+    let p = PROMPTS[0];
+    // a sampled request never drafts: same output as off with the same seed, and no verify pass
+    let sampled = || GenRequest { temperature: 0.8, seed: Some(5), ..req(p, 40) };
+    let before = tel.snapshot().spec_steps;
+    assert_eq!(run(&off, sampled()), run(&on, sampled()), "sampled request");
+    assert_eq!(tel.snapshot().spec_steps, before, "a sampled request ran no verify pass");
+    // a greedy follow-up that would reuse the sampled request's prefix: the head did not follow that request, so the
+    // engine starts it from an empty sequence; output identical to off, and it drafts again
+    let s = run(&off, sampled());
+    let mut next = p.to_vec();
+    next.extend(&s.ids);
+    next.push(9);
+    let (a, b) = (run(&off, req(&next, 48)), run(&on, req(&next, 48)));
+    assert_eq!(a.ids, b.ids, "greedy follow-up after a sampled request");
+    assert!(tel.snapshot().spec_steps > before, "the greedy follow-up drafted");
+    assert_eq!(b.cached_tokens, 0, "the follow-up did not reuse a prefix the head never saw");
+    // and a second greedy follow-up reuses the prefix again (the head followed the first one)
+    let mut next2 = next.clone();
+    next2.extend(&b.ids);
+    next2.push(3);
+    let (a2, b2) = (run(&off, req(&next2, 32)), run(&on, req(&next2, 32)));
+    assert_eq!(a2, b2, "second greedy follow-up, prefix reused on both");
+}
