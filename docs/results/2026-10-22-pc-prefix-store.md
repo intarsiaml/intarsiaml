@@ -56,21 +56,31 @@ rejected before the state is touched, the entry is dropped, `rejected_total` cou
 "Pinned host RAM" in the CUDA/HIP sense (page-locked) is not used: the backend trait has no pinned allocator; `upload`
 from a plain host buffer is what the engine does today.
 
-**Where entries come from (item 2).** With the store on, `prefill_step` ends a chunk at every *cut*: right before each
-`<|im_start|>`, and right after the first `\n` that follows it (the end of the role header). Between cuts the plain
-chunk rule applies (`chunk` rows from the previous cut). An entry is stored after every message header (the last one of the prompt always, the others
-when `min` = 32 tokens past the previous entry), every `grid` = 2048 tokens inside one long message, and at the end of a
-prewarm. The cut before a header is a chunk end but no entry: it would hold 3 tokens less for another 63 MiB. The template check below decides why the header end matters:
-the Qwen3.6 template drops the `<think>` block of every assistant turn before the last user query, and the generation
-prompt is `<|im_start|>assistant\n<think>\n`; so turn N+1 shares turn N's prompt exactly up to
-`<|im_start|>assistant\n` and no further. `crates/intarsia-models/tests/prefix_boundaries_template.rs` renders 3 turns
-with the real tokenizer and template (thinking on, thinking off, with tools) and checks the shared prefix ends on a cut:
-it does in all 6 transitions (0 tokens lost; e.g. turn 1 -> 2 shares 26 of 28 tokens, with tools 270 of 272).
+**Where entries come from (item 2).** With the store on, `prefill_step` ends a chunk at every *cut*: right after the
+first `\n` that follows each `<|im_start|>` (the end of the role header), and right before the second `<|im_start|>`
+(where a pinned system prompt ends). Between cuts the plain chunk rule applies (`chunk` rows from the previous cut). An
+entry is stored after every message header (the last one of the prompt always, the others when `min` = 32 tokens past
+the previous entry), every `grid` = 2048 tokens inside one long message, and at the end of a prewarm. The template check
+below decides where the cut must be: the Qwen3.6 template drops the `<think>` block of every assistant turn before the
+last user query, and the generation prompt is `<|im_start|>assistant\n<think>\n`; so turn N+1 shares turn N's prompt
+exactly up to `<|im_start|>assistant\n` and no further. `crates/intarsia-models/tests/prefix_boundaries_template.rs`
+renders 3 turns with the real tokenizer and template (thinking on, thinking off, with tools) and checks the shared prefix
+ends on a cut: it does in all 6 transitions (0 tokens lost; e.g. turn 1 -> 2 shares 26 of 28 tokens, with tools 270 of
+272).
+
+**What a cut costs (measured on CUDA, section 4).** On the MoE every forward pass reads nearly all expert weights, so a
+pass has a fixed cost (about 30 ms on the GB10) whatever its row count. The first version also cut before every
+`<|im_start|>` (a 3-token pass per message), kept the engine's `plen - 1` pass, and copied each entry to host memory
+inside the prefill (each `download` synchronises the stream, so the GPU idled while the CPU waited): store-on TTFT was
+3x store-off. Now: no cut before a message start except message 2; no `plen - 1` pass with the store on (a regenerate
+restores the entry after the last header, 2 tokens back); and an insert copies device-to-device into one allocation per
+insert, with the device-to-host copies deferred until the request's first token went out (`PrefixStore::settle`; capped
+at 1 GiB per request, past it inserts copy to host directly).
 
 **Why every reuse path is bitwise: the schedule rule.** A cut is a function of the tokens before it only, and the
 chunks between cuts depend only on the previous cut. So any two prompts that share a prefix run *the same forward passes*
 over it, and the state at a shared cut is the same bits in both runs. A request restores only an entry whose length is a
-point of its *own* cold schedule (`SeqStore::points`: every chunk end, plus `plen - 1` for recurrent states). Restored
+point of its *own* cold schedule (`SeqStore::points`: every chunk end). Restored
 then continues with exactly the passes the cold run would run. The same rule caps the engine's local reuse (the state
 it already holds) at the prefill-clean watermark (`SequenceState::clean`: decode-written rows never count) and at a
 schedule point. Tail merge and 1-row avoidance are not applied with the store on (both depend on the prompt's length,
