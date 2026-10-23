@@ -51,17 +51,13 @@ DEFAULT_WEIGHTS = {"decode": 1.0, "prefill": 1.0, "concurrent": 0.5}
 BACKEND_OF = [("DGX Spark", "cuda"), ("2x DGX Spark", "cuda"), ("Radeon", "hip"), ("M5", "metal"), ("Apple", "metal")]
 
 # Cells the model-benchmarks session asked us not to build plain lanes against (coordinator message, 2026-10-22).
+# The mislabelled-spec cells (TensorFold DSV4.1 TP2, Flare Bolt) were fixed upstream and now sit in spec lanes.
 # Each rule: (reason, predicate(cell)).
 EXCLUDE_RUN = "20261022-074221-adhoc-tc-off-r1"
 EXCLUSIONS = [
     ("did not reproduce: its own reps ran 141.6-150.1 tok/s, a 28% spread (the same config repeated gives 141.2-141.8); "
      "extraction-2026-10-22.json, intarsiaml unexplained",
      lambda c: any(k["run_id"] == EXCLUDE_RUN for k in c["contenders"])),
-    ("labelled plain but really spec decode (TensorFold DSV4.1 TP2 decode)",
-     lambda c: c["family"] == "DeepSeek V4.1 Flash" and c["hardware"].startswith("2x DGX Spark")
-     and c["phase"] == "decode"),
-    ("labelled plain but really spec decode (Flare Bolt decode 1k/16k)",
-     lambda c: c["family"].startswith("Nemotron 3.5 Bolt") and c["phase"] == "decode" and c["bucket"] in ("1k", "16k")),
 ]
 STOP = set("the a an of and or to in for on with by is are at as from per vs it its this that into over than not "
            "only each via using use one two all".split())
