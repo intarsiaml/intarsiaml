@@ -84,7 +84,10 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
         if let Some(name) = gpu() {
             let made = match name {
                 "hip" => intarsia_backend_hip::create(0),
+                #[cfg(target_os = "macos")]
                 "metal" => intarsia_backend_metal::MetalBackend::arc(),
+                #[cfg(not(target_os = "macos"))]
+                "metal" => Err(intarsia_core::Error::Unsupported("metal needs macOS".into())),
                 _ => intarsia_backend_cuda::create(0),
             };
             match made {
