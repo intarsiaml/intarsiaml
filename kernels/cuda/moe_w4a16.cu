@@ -65,7 +65,7 @@ IK_DEVI uint32_t scale_pair(float f) {
 // Block = R / (8 JW) warps, each owning 8 * JW weight rows (MODE 0: JW/2 gate n8 tiles and the matching JW/2 up tiles) and
 // all BM = 16 * MT pairs of the tile; R weight rows per block (MODE 0: R/2 gate + the matching R/2 up rows).
 // Pipeline lookahead: A(s + LA) and the packed unit of step s + LR are requested at iteration s (LR even, LR >= LA).
-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU>
+template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU, bool IP = false>
 __global__ void __launch_bounds__(R * 4 / JW, MINB)
 moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                  const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -214,10 +214,15 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
                 for (int j = 0; j < JW; ++j) {
                     // each k16 product sum is formed from zero and added to the running sum with a normal fp32 add (the
                     // reason is in moe_grouped.cu; bitwise the same sums as that kernel)
-                    float tt[4] = {0.f, 0.f, 0.f, 0.f};
-                    ik_mma_bf16_16816(tt, a0, a1, a2, a3, b[j][0], b[j][1]);
+                    if constexpr (IP) {
+                        // OPT-IN (INTARSIA_CUDA_MOE_W4A16_IP=1): accumulate inside the mma (no separate fp32 add per k16): not bitwise
+                        ik_mma_bf16_16816(acc[i][j], a0, a1, a2, a3, b[j][0], b[j][1]);
+                    } else {
+                        float tt[4] = {0.f, 0.f, 0.f, 0.f};
+                        ik_mma_bf16_16816(tt, a0, a1, a2, a3, b[j][0], b[j][1]);
 #pragma unroll
-                    for (int v = 0; v < 4; ++v) acc[i][j][v] += tt[v];
+                        for (int v = 0; v < 4; ++v) acc[i][j][v] += tt[v];
+                    }
                 }
             }
         }
@@ -305,29 +310,29 @@ int pick_bm(int64_t P, int64_t E) {
     return (double)P / (double)E <= 56.0 ? 32 : 64;
 }
 
-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU>
+template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU, bool IP>
 void launch_w4(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
                const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
                int K, cudaStream_t s) {
     constexpr size_t smem = (size_t)((LA + 1) * 16 * MT) * LDS * 2 + (size_t)(LR / 2 + 1) * R * kRawStride;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, IP>),
                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, IP>),
                              cudaFuncAttributePreferredSharedMemoryCarveout, 100);
         return true;
     }();
     (void)attr_set;
     const unsigned ny = MODE == 0 ? (unsigned)(I / (R / 2)) : (unsigned)(H / R);
-    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
+    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, IP><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
 }
 
-template <int R, int MT, int JW, int MINB, int LA, int LR, bool GELU>
+template <int R, int MT, int JW, int MINB, int LA, int LR, bool GELU, bool IP>
 void run_gemms(const ik_bf16* x, const uint8_t* guw, const uint8_t* gus, const uint8_t* dnw, const uint8_t* dns,
                const float* gs, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* hbuf,
                ik_bf16* ybuf, unsigned tiles_ub, int H, int I, int K, cudaStream_t s) {
-    launch_w4<R, MT, JW, 0, MINB, LA, LR, GELU>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
-    launch_w4<R, MT, JW, 1, MINB, LA, LR, GELU>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
+    launch_w4<R, MT, JW, 0, MINB, LA, LR, GELU, IP>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
+    launch_w4<R, MT, JW, 1, MINB, LA, LR, GELU, IP>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
 }
 
 int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
@@ -379,19 +384,16 @@ int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     const uint8_t* dnw = (const uint8_t*)down_w->data;
     const uint8_t* dns = (const uint8_t*)down_s->data;
     const float* gs = (const float*)gscales->data;
+    static const bool ip = [] { const char* v = getenv("INTARSIA_CUDA_MOE_W4A16_IP"); return v && v[0] == '1' && !v[1]; }();
+#define IK_RUN(G, IPV, MT_) run_gemms<128, MT_, 4, 2, 2, 2, G, IPV>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s)
     if (gelu) {
-        if (BM == 32) {
-            run_gemms<128, 2, 4, 2, 2, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        } else {
-            run_gemms<128, 4, 4, 2, 2, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        }
+        if (BM == 32) IK_RUN(true, false, 2); else IK_RUN(true, false, 4);
+    } else if (ip) {
+        if (BM == 32) IK_RUN(false, true, 2); else IK_RUN(false, true, 4);
     } else {
-        if (BM == 32) {
-            run_gemms<128, 2, 4, 2, 2, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        } else {
-            run_gemms<128, 4, 4, 2, 2, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        }
+        if (BM == 32) IK_RUN(false, false, 2); else IK_RUN(false, false, 4);
     }
+#undef IK_RUN
     IK_TRY(ik_launch_status());
     moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
         ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
