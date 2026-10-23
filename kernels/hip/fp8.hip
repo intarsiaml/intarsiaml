@@ -11,6 +11,7 @@
 // TensorFold's NVFP4 kernels (MIT, Copyright (c) 2026 TensorFold contributors, see ik_quant.h and
 // LICENSES/TensorFold-MIT.txt). gfx12 also has an fp8 x fp8 WMMA (v_wmma_f32_16x16x16_fp8_fp8) that would
 // serve the W8A8 case natively; not used yet (docs/results/2026-10-13-phase2a-hip.md).
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -398,6 +399,31 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
     return ik_launch_status();
 }
 
+// ---- row-exact multi-row GEMV (matmul_fp8_gemv_rows; lane hb, batched decode) ---------------------------------------
+// The default v2 kernel (2 rows per warp, staging Q = 2) for M = 1..kRowsGroup rows in one launch: the kernel's arithmetic for
+// output (m, n) is its one-row arithmetic (a lane's u = lane + 32 i walk, one fdot2 / fma chain per row, one warp sum), M only
+// sizes the staged activations and the accumulator array. gemv_by_m stops at 4 rows (the ordinary decode registrations);
+// this table goes up to the most rows whose staged x (M * K * 2 bytes) fits the 48 KiB the kernel is allowed. The launcher
+// below splits a larger M into near-equal groups of at most that many rows (a group is a launch; the weights are read once
+// per group, so M = 16 at K = 2048 is two weight passes, at K = 4096 three).
+constexpr int kRowsGroup = 12;
+constexpr int kRowsMax = 16;
+
+template <typename OutT>
+int gemv_rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K,
+                   hipStream_t s) {
+    switch (M) {
+#define IK_FP8_ROWS_CASE(MV) \
+    case MV: gemv_run_r<MV, 2, OutT, 2>(x, w, sc, out, N, K, s); break;
+        IK_FP8_ROWS_CASE(1) IK_FP8_ROWS_CASE(2) IK_FP8_ROWS_CASE(3) IK_FP8_ROWS_CASE(4) IK_FP8_ROWS_CASE(5) IK_FP8_ROWS_CASE(6)
+        IK_FP8_ROWS_CASE(7) IK_FP8_ROWS_CASE(8) IK_FP8_ROWS_CASE(9) IK_FP8_ROWS_CASE(10) IK_FP8_ROWS_CASE(11)
+        IK_FP8_ROWS_CASE(12)
+#undef IK_FP8_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+    return ik_launch_status();
+}
+
 // ---- MMA policy (weights dequantised to bf16 tiles) ---------------------------------------------------------------
 
 struct Fp8Policy {
@@ -509,6 +535,32 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     if (f32o) dq_gemm_run<Fp8Policy>(a, (float*)out->data, s);
     else dq_gemm_run<Fp8Policy>(a, (ik_bf16*)out->data, s);
     return ik_launch_status();
+}
+
+// matmul_fp8_gemv_rows (HIP only: declared in ik_hip_abi.h): M = 1..kRowsMax rows, row m bitwise the one-row
+// ik_matmul_fp8_gemv_v2 on row m alone (tests/rows_exact.rs). K % 16 == 0 and K * 2 <= 48 KiB as the one-row kernel.
+int launch_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    IK_TRY(check(x, w, scales, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0) return IK_OK;
+    if (K == 0) return launch(x, w, scales, out, stream, 2);
+    if (M > kRowsMax || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    const int64_t gmax = std::min<int64_t>(kRowsGroup, 49152 / (K * 2));
+    if (gmax < 1) return IK_ERR_SHAPE;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const float* sp = (const float*)scales->data;
+    const bool f32o = out->dtype == IK_DTYPE_F32;
+    const int64_t groups = (M + gmax - 1) / gmax;
+    int64_t r0 = 0;
+    for (int64_t g = 0; g < groups; ++g) {
+        const int64_t m = (M - r0 + (groups - g) - 1) / (groups - g);  // near-equal groups, each at most gmax rows
+        IK_TRY(f32o ? gemv_rows_by_m((int)m, xp + r0 * K, wp, sp, (float*)out->data + r0 * N, N, K, s)
+                    : gemv_rows_by_m((int)m, xp + r0 * K, wp, sp, (ik_bf16*)out->data + r0 * N, N, K, s));
+        r0 += m;
+    }
+    return IK_OK;
 }
 
 // matmul_fp8_mma_f8 (HIP only: declared in ik_hip_abi.h): the W8A8 GEMM on the fp8 x fp8 WMMA (ik_f8_gemm.h). input_scale > 0 is known only on the device, so one
@@ -831,6 +883,9 @@ int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* 
 }
 int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 2);
+}
+int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return launch_rows(x, w, scales, out, stream);
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 0);

@@ -5,18 +5,21 @@
 //! Selection: `*_gemv` (priority 10) serves decode shapes, `*_mma` (priority 0) every other shape, so each
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
-use crate::kernels::ARCH;
+use crate::kernels::{ARCH, ROWS_MAX};
 use intarsia_core::quant::ops::{moe_block_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
+    // row-exact twins (`rows_exact`, M = 1..=ROWS_MAX, bitwise the one-row v2 GEMV per row; tests/rows_exact.rs)
+    ("matmul_fp8_gemv_rows", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_mma_f8", Op::MatmulFp8),
     ("matmul_fp8_mma_v2", Op::MatmulFp8),
     ("matmul_nvfp4_gemv", Op::MatmulNvfp4),
     ("matmul_nvfp4_gemv_v2", Op::MatmulNvfp4),
+    ("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4),
     ("matmul_nvfp4_mma", Op::MatmulNvfp4),
     // M1 drill (kernels/hip/mxfp4.hip): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
@@ -27,6 +30,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_bf16_v2", Op::MoeExperts),
     ("moe_experts_bf16_v3", Op::MoeExperts),
+    ("moe_experts_bf16_rows", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // P2' (docs/results/2026-10-19-p2prime-moeblock.md): default ON, INTARSIA_HIP_MOE_BLOCK=0 disables
     ("moe_block_bf16", Op::MoeBlock),
@@ -169,6 +173,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(20),
+                // Row-exact twin (`rows_exact`: selected only by an `exact_rows` call): M in 1..=ROWS_MAX, row m bitwise the
+                // one-row v2 GEMV on row m alone (the launcher splits M past the 48 KiB staging limit into groups).
+                "matmul_fp8_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "matmul_fp8_mma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
@@ -219,6 +234,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(20),
+                "matmul_nvfp4_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "matmul_nvfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -286,6 +310,23 @@ pub fn all() -> Vec<KernelImpl> {
                         "moe_experts_bf16_v2" => 10,
                         _ => 0,
                     }),
+                // Row-exact multi-token twin of the v2 experts (`rows_exact`, T = 1..=ROWS_MAX): token t bitwise the T = 1 call on
+                // token t alone, never the tensor-core path (tests/rows_exact.rs). The ordinary registrations keep every T.
+                "moe_experts_bf16_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        (1..=ROWS_MAX).contains(&s.m)
+                            && s.experts <= 1024
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && 32768 / (2 * s.k.max(s.n).max(1)) >= 1
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_scratch)
+                    .priority(-1)
+                    .rows_exact(),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 // P2' (kernels/hip/moe_block.hip, tests/moe_block.rs): ON by default (INTARSIA_HIP_MOE_BLOCK=0 disables), see `moe_block_enabled`. Bitwise the chain
                 // moe_topk_bf16_v2 -> moe_experts_bf16_v2 -> matmul_nvfp4_glu_gemv (gate / up gemv + silu_glu at T > 1) ->
@@ -385,7 +426,7 @@ mod tests {
     /// accept it (ties: registration order).
     fn pick(ks: &[KernelImpl], s: &ShapeInfo) -> String {
         let mut best: Option<&KernelImpl> = None;
-        for k in ks.iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(s)) {
+        for k in ks.iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(s) && !k.rows_exact) {
             if best.is_none_or(|b| k.priority > b.priority) {
                 best = Some(k);
             }
@@ -531,7 +572,7 @@ mod tests {
         for t in [1usize, 2, 3, 5, 16, 312, 4096] {
             let m = ShapeInfo { m: t, n: 512, k: 2048, experts: 256, top_k: 8, act: Some(DType::Bf16), ..Default::default() };
             let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&m)) {
+            for k in ks.iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&m) && !k.rows_exact) {
                 if best.is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }

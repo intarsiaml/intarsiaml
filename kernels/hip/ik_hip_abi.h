@@ -68,6 +68,23 @@ int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_te
                            const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                            const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* Row-exact multi-row twins of the decode kernels (lane hb, hybrid continuous batching on HIP, docs/results/2026-10-23-hb-hip-hybrid-batching.md):
+ * row m (token t of the MoE) of an M-row call is BITWISE the one-row kernel on row m alone, for every M from 1 to 16
+ * (G-B, crates/intarsia-backend-hip/tests/rows_exact.rs). Registered `rows_exact`: only a batched step's calls pick them.
+ *   matmul_fp8_gemv_rows    = ik_matmul_fp8_gemv_v2 per row (K % 16 == 0, K * 2 <= 48 KiB; M > 4 in groups of at most 48 KiB / (K * 2)
+ *                             and 12 rows)
+ *   matmul_nvfp4_gemv_rows  = ik_matmul_nvfp4_gemv_v2 per row (M > 8 in two groups)
+ *   matmul_bf16_gemv_rows / logits_bf16_gemv_rows = ik_matmul_bf16_gemv / ik_logits_bf16_gemv per row (any K, M rows in one launch)
+ *   moe_experts_bf16_rows   = ik_moe_experts_bf16_v2 per token, never the tensor-core path (T <= 16) */
+int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                              const ik_tensor* global_scale, ik_tensor* out, void* stream);
+int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+int ik_moe_experts_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                             const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
+                             const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
 /* Core-op fusion phase 1 (docs/results/2026-10-19-core-op-fusion-p1.md): three row-local folds, no cross-block wait, each
  * bitwise the two launches it replaces. M == 1 (decode) for the fp8 ones, 1 <= M <= 8 for the nvfp4 one; bf16 activations.
  *   rmsnorm_add_matmul_fp8_pair_gemv (P5, fp8.hip): ik_rmsnorm_add_bf16 then ik_matmul_fp8_pair_gemv on the normed row

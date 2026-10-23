@@ -116,6 +116,8 @@ extern "C" {
     pub fn ik_matmul_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_logits_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
@@ -189,11 +191,13 @@ extern "C" {
     ) -> c_int;
     pub fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_gemv_v2(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_fp8_gemv_rows(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma_f8(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma_v2(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_gemv_v2(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_nvfp4_gemv_rows(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_nvfp4_mma(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_mma(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
@@ -216,6 +220,20 @@ extern "C" {
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_moe_experts_bf16_v2(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: SC,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_moe_experts_bf16_rows(
         x: T,
         ids: T,
         weights: T,
