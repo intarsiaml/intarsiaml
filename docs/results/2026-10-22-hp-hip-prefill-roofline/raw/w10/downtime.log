@@ -1,0 +1,14 @@
+active
+[window] job 4356; stages: test:--test,gdn_v2 test:--test,fp8_f8 bin:bench-out-hp-f8sweep ids:base:1024 ids:dev:1024 ids:base:4089 ids:dev:4089 ids:base:4096 ids:dev:4096 ids:base:16384 ids:dev:16384 ids:base:16654 ids:dev:16654 ids8:base ids8:dev prof:dev pf:base:1 pf:dev:1 pf:base:1 pf:dev:1 qual:dev:35; stopping radiance 2026-10-23 00:00:00
+[window] radiance stopped 2026-10-23 00:00:03
+[window] localeval arm base-r1 up 2026-10-23 00:04:36
+[window] localeval arm base-r1 exit 0 2026-10-23 00:04:54
+[window] localeval arm dev-r1 up 2026-10-23 00:05:07
+[window] localeval arm dev-r1 exit 0 2026-10-23 00:05:25
+[window] localeval arm base-r2 up 2026-10-23 00:05:38
+[window] localeval arm base-r2 exit 0 2026-10-23 00:05:55
+[window] localeval arm dev-r2 up 2026-10-23 00:06:08
+[window] localeval arm dev-r2 exit 0 2026-10-23 00:06:25
+[window] stages done 2026-10-23 00:06:26
+[window] starting radiance 2026-10-23 00:06:27
+[window] radiance answers (after 15 s) 2026-10-23 00:06:37

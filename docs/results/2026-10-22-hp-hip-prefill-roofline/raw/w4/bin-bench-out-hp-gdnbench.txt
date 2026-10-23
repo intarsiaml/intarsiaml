@@ -1,0 +1,33 @@
+T=1      v2 bitwise  v3i bitwise  v3r bitwise
+T=2      v2 bitwise  v3i bitwise  v3r bitwise
+T=3      v2 bitwise  v3i bitwise  v3r bitwise
+T=4      v2 bitwise  v3i bitwise  v3r bitwise
+T=5      v2 bitwise  v3i bitwise  v3r bitwise
+T=6      v2 bitwise  v3i bitwise  v3r bitwise
+T=7      v2 bitwise  v3i bitwise  v3r bitwise
+T=9      v2 bitwise  v3i bitwise  v3r bitwise
+T=31     v2 bitwise  v3i bitwise  v3r bitwise
+T=32     v2 bitwise  v3i bitwise  v3r bitwise
+T=33     v2 bitwise  v3i bitwise  v3r bitwise
+T=63     v2 bitwise  v3i bitwise  v3r bitwise
+T=64     v2     58.5 us (0.914 us/tok) bitwise  v3i     57.3 us (0.895 us/tok) bitwise  v3r    321.4 us (5.021 us/tok) bitwise
+T=65     v2     63.4 us (0.975 us/tok) bitwise  v3i     67.5 us (1.038 us/tok) bitwise  v3r    372.0 us (5.723 us/tok) bitwise
+T=97     v2     87.6 us (0.903 us/tok) bitwise  v3i     90.5 us (0.933 us/tok) bitwise  v3r    498.1 us (5.135 us/tok) bitwise
+T=683    v2    498.4 us (0.730 us/tok) bitwise  v3i    473.2 us (0.693 us/tok) bitwise  v3r   3245.9 us (4.752 us/tok) bitwise
+T=4096   v2   2913.8 us (0.711 us/tok) bitwise  v3i   2784.2 us (0.680 us/tok) bitwise  v3r  21484.4 us (5.245 us/tok) bitwise
+ALL BITWISE
+probe heads=32 waves=256 v2 T=683: 0.740 us/tok
+probe heads=32 waves=256 v3i T=683: 0.710 us/tok
+probe heads=32 waves=256 v3i-nolds T=683: 0.324 us/tok
+probe heads=16 waves=128 v2 T=683: 0.590 us/tok
+probe heads=16 waves=128 v3i T=683: 0.495 us/tok
+probe heads=16 waves=128 v3i-nolds T=683: 0.262 us/tok
+probe heads= 8 waves= 64 v2 T=683: 0.519 us/tok
+probe heads= 8 waves= 64 v3i T=683: 0.486 us/tok
+probe heads= 8 waves= 64 v3i-nolds T=683: 0.256 us/tok
+probe heads= 4 waves= 32 v2 T=683: 0.510 us/tok
+probe heads= 4 waves= 32 v3i T=683: 0.476 us/tok
+probe heads= 4 waves= 32 v3i-nolds T=683: 0.254 us/tok
+probe heads= 2 waves= 16 v2 T=683: 0.513 us/tok
+probe heads= 2 waves= 16 v3i T=683: 0.477 us/tok
+probe heads= 2 waves= 16 v3i-nolds T=683: 0.252 us/tok

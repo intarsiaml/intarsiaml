@@ -13,6 +13,7 @@
 #include "ik_hip.h"
 #include <math.h>
 #include <stdlib.h>
+#include <type_traits>
 
 namespace {
 
@@ -449,6 +450,179 @@ __global__ void __launch_bounds__(32) gdn_delta_rows_v2_kernel(
     }
 }
 
+// ---- delta rule v3 (lane hp, docs/results/2026-10-22-hp-hip-prefill-roofline.md): v2 rescheduled ---------------------
+// v2's lane map (one wave = 16 value rows, two lanes per row, 64 state elements per lane) and v2's float
+// operations in v2's order, scheduled differently:
+//  * the output dot of token t and the k dot of token t + 1 read the same state (after t's update, then decayed by t + 1's
+//    gate), so they run in one loop over the state: two independent dependency chains instead of two loops in series;
+//  * q / k of a token are normalised and staged into LDS two tokens ahead, in a ring of four buffers, so the warp sums,
+//    rsqrt and LDS round trip of a token are off the state's critical path; the block is one wave and LDS operations of
+//    one wave are performed in order, so no barrier orders the ring (a buffer is rewritten two tokens after its last read);
+//  * raw inputs are loaded four tokens ahead of their staging (ring of four).
+template <int DK>
+__global__ void __launch_bounds__(32) gdn_delta_rows_v3_kernel(const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a,
+                                                      const ik_bf16* __restrict__ b, const ik_bf16* __restrict__ a_log,
+                                                      const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+                                                      float* __restrict__ state, int64_t T, int Hk, int Hv, int dv) {
+    constexpr int SPLIT = 2, PL = DK / 32, EL = DK / SPLIT, ROWS = 32 / SPLIT, NB = 4;
+    __shared__ __align__(16) float sq[NB][DK];
+    __shared__ __align__(16) float sk[NB][DK];
+    const int lane = threadIdx.x;
+    const int part = lane % SPLIT;
+    const int j = blockIdx.x * ROWS + lane / SPLIT;
+    const bool valid = j < dv;
+    const int jl = valid ? j : dv - 1;
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+    const int64_t last = T - 1;
+
+    float s[EL];
+    float4* sv = reinterpret_cast<float4*>(s);
+    if (valid) {
+        const float4* src = reinterpret_cast<const float4*>(state + ((int64_t)h * dv + j) * DK + part * EL);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) sv[i] = src[i];
+    }
+    auto load = [&](GdnRaw<PL>& r, int64_t t) {
+        const ik_bf16* row = qkv + (t < last ? t : last) * C;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            r.q[i] = row[kh * DK + lane + 32 * i];
+            r.k[i] = row[Hk * DK + kh * DK + lane + 32 * i];
+        }
+        r.v = row[2 * Hk * DK + h * dv + jl];
+    };
+    ik_bf16 ga, gb;
+    auto load_gates = [&](int64_t g0) {
+        const int64_t t = g0 + lane < last ? g0 + lane : last;
+        ga = a[t * Hv + h];
+        gb = b[t * Hv + h];
+    };
+    float cbeta, cdecay, nbeta, ndecay;  // gates of the current 32-token batch and of the next one (lane l: token l)
+    auto gate_vals = [&](float& beta, float& decay) {
+        const float ar = ik_b2f(ga), br = ik_b2f(gb);
+        beta = sigmoidf(br);
+        decay = expf(neg_a * softplus(ar + dtb));
+    };
+
+    GdnRaw<PL> ring[NB];
+    float vr[NB];
+    // stage token u (raw slot u & 3) into LDS buffer u & 3, keep its v, refill the slot with token u + 4
+    auto stage = [&](int slot, int64_t u) {
+        GdnRaw<PL>& r = ring[slot];
+        float qr[PL], kr[PL];
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qr[i] = ik_b2f(r.q[i]);
+            kr[i] = ik_b2f(r.k[i]);
+        }
+        vr[slot] = valid ? ik_b2f(r.v) : 0.f;
+        load(r, u + NB);
+        float qq = 0.f, kk = 0.f;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qq += qr[i] * qr[i];
+            kk += kr[i] * kr[i];
+        }
+        qq = gdn_warp_sum(qq);
+        kk = gdn_warp_sum(kk);
+        const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            sq[slot][lane + 32 * i] = qr[i] * qn;
+            sk[slot][lane + 32 * i] = kr[i] * kn;
+        }
+    };
+
+#pragma unroll
+    for (int d = 0; d < NB; ++d) load(ring[d], d);
+    load_gates(0);
+    gate_vals(cbeta, cdecay);
+    load_gates(32);
+    gate_vals(nbeta, ndecay);
+    load_gates(64);
+
+    float4 kreg[EL / 4];
+    float kv = 0.f;
+    stage(0, 0);
+    stage(1, 1);
+    {  // token 0's decay and k dot
+        const float decay = __int_as_float(__builtin_amdgcn_readlane(__float_as_int(cdecay), 0));
+        const float4* k4 = reinterpret_cast<const float4*>(sk[0]) + part * (EL / 4);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) {
+            const float4 kk4 = k4[i];
+            kreg[i] = kk4;
+            sv[i].x *= decay; sv[i].y *= decay; sv[i].z *= decay; sv[i].w *= decay;
+            kv += gdn_dot4(sv[i], kk4);
+        }
+    }
+
+    // token t (slot t & 3): stage t + 2, finish t's k dot, update, output dot; with NEXT, t + 1's decay and k dot
+    auto step = [&](int slot, int64_t t, auto next_c) {
+        constexpr bool NEXT = decltype(next_c)::value;
+        stage((slot + 2) & 3, t + 2);
+        const int gl = (int)(t & 31);
+        const float beta = __int_as_float(__builtin_amdgcn_readlane(__float_as_int(cbeta), gl));
+        const int gn = (int)((t + 1) & 31);
+        const float decn = gn == 0 ? __int_as_float(__builtin_amdgcn_readlane(__float_as_int(ndecay), 0))
+                                   : __int_as_float(__builtin_amdgcn_readlane(__float_as_int(cdecay), gn));
+        kv += gdn_xorrow<1>(kv);
+        const float delta = (vr[slot] - kv) * beta;
+        float out = 0.f, kvn = 0.f;
+        const float4* q4 = reinterpret_cast<const float4*>(sq[slot]) + part * (EL / 4);
+        const float4* k4n = reinterpret_cast<const float4*>(sk[(slot + 1) & 3]) + part * (EL / 4);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) {
+            const float4 kk4 = kreg[i], qq4 = q4[i];
+            sv[i].x = __builtin_fmaf(kk4.x, delta, sv[i].x);
+            sv[i].y = __builtin_fmaf(kk4.y, delta, sv[i].y);
+            sv[i].z = __builtin_fmaf(kk4.z, delta, sv[i].z);
+            sv[i].w = __builtin_fmaf(kk4.w, delta, sv[i].w);
+            out += gdn_dot4(sv[i], qq4);
+            if constexpr (NEXT) {
+                const float4 kn4 = k4n[i];
+                kreg[i] = kn4;
+                sv[i].x *= decn; sv[i].y *= decn; sv[i].z *= decn; sv[i].w *= decn;
+                kvn += gdn_dot4(sv[i], kn4);
+            }
+        }
+        out += gdn_xorrow<1>(out);
+        if (valid && part == 0) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+        kv = kvn;
+    };
+    auto batch = [&](int64_t t0) {  // at a 32-token batch start (t0 > 0): shift the gates by one batch
+        if ((t0 & 31) == 0 && t0 > 0) {
+            cbeta = nbeta;
+            cdecay = ndecay;
+            gate_vals(nbeta, ndecay);
+            load_gates(t0 + 64);
+        }
+    };
+    const int64_t full = ((T - 1) / NB) * NB;  // tokens [0, full) all have a next token
+    for (int64_t t0 = 0; t0 < full; t0 += NB) {
+        batch(t0);
+#pragma unroll
+        for (int d = 0; d < NB; ++d) step(d, t0 + d, std::integral_constant<bool, true>{});
+    }
+    batch(full);
+#pragma unroll
+    for (int d = 0; d < NB; ++d) {
+        const int64_t t = full + d;
+        if (t + 1 < T) step(d, t, std::integral_constant<bool, true>{});
+        else if (t < T) step(d, t, std::integral_constant<bool, false>{});
+    }
+    if (valid) {
+        float4* dst = reinterpret_cast<float4*>(state + ((int64_t)h * dv + j) * DK + part * EL);
+#pragma unroll
+        for (int i = 0; i < EL / 4; ++i) dst[i] = sv[i];
+    }
+}
+
 }  // namespace
 
 extern "C" {
@@ -579,6 +753,50 @@ int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik
         else if (pd == 4) IK_GDN_V2(4);
         else IK_GDN_V2(2);
 #undef IK_GDN_V2
+        ik_rt_stamp(s, "gdn_delta", i);
+    }
+    return ik_launch_status();
+}
+
+// gdn_delta_rows_v3_kernel<128>: v2's bits, rescheduled (output dot of t and k dot of t + 1 in one loop, q / k staged two
+// tokens ahead without a barrier); dk = 128 only. The same round-8 token-range split as v2 (each piece continues the
+// in-place state), estimated at v3's ~0.62 us per token at 256 waves.
+int ik_gdn_delta_rule_bf16_v3(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                              const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream) {
+    IK_TRY(ik_check(qkv, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a_log, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(dt_bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(o, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(state, IK_DTYPE_F32, 3));
+    const int64_t T = qkv->shape[0], C = qkv->shape[1];
+    const int64_t Hv = o->shape[1], dv = o->shape[2], dk = state->shape[2];
+    if (dk == 0 || dv == 0 || Hv == 0 || C <= Hv * dv || (C - Hv * dv) % (2 * dk) != 0) return IK_ERR_SHAPE;
+    const int64_t Hk = (C - Hv * dv) / (2 * dk);
+    if (Hv % Hk != 0 || o->shape[0] != T || state->shape[0] != Hv || state->shape[1] != dv ||
+        a->shape[0] != T || a->shape[1] != Hv || b->shape[0] != T || b->shape[1] != Hv || a_log->shape[0] != Hv ||
+        dt_bias->shape[0] != Hv)
+        return IK_ERR_SHAPE;
+    if (dk != 128) return IK_ERR_UNSUPPORTED;
+    if (T == 0) return IK_OK;
+    constexpr int ROWS = 16;
+    const dim3 grid((unsigned)((dv + ROWS - 1) / ROWS), (unsigned)Hv);
+    hipStream_t s = IK_STREAM(stream);
+    const double waves = (double)grid.x * (double)grid.y;
+    const double est_us = (double)T * 0.62 * (waves > 256.0 ? waves / 256.0 : 1.0);
+    const int pieces = ik_split_pieces(est_us, T);
+    const ik_bf16* qkvp = (const ik_bf16*)qkv->data;
+    const ik_bf16* ap = (const ik_bf16*)a->data;
+    const ik_bf16* bp = (const ik_bf16*)b->data;
+    ik_bf16* op = (ik_bf16*)o->data;
+    ik_rt_stamp(s, "gdn_delta", -1);
+    for (int i = 0; i < pieces; ++i) {
+        const int64_t t0 = T * i / pieces, t1 = T * (i + 1) / pieces;
+        gdn_delta_rows_v3_kernel<128><<<grid, 32, 0, s>>>(qkvp + t0 * C, ap + t0 * Hv, bp + t0 * Hv,
+                                                           (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps,
+                                                           op + t0 * Hv * dv, (float*)state->data, t1 - t0, (int)Hk,
+                                                           (int)Hv, (int)dv);
         ik_rt_stamp(s, "gdn_delta", i);
     }
     return ik_launch_status();

@@ -1,0 +1,86 @@
+=== ceiling [00:21:44, 400 s left]
+--- ceiling 00:21:44
+device AMD Radeon Graphics, 32 CUs, clock 2350 MHz (prop)
+WMMA issue peak bf16 192.4 TFLOPS
+WMMA issue peak fp8  372.0 TFLOPS
+WMMA fp8 + per-WMMA scale (8 FMA) 360.7 TFLOPS
+
+shape                                 M      N      K hipBLASLt bf16 hipBLASLt fp8      ours f8
+qkv / q+gate                       4096   8192   2048    166.4 (16)    269.3 (16)        187.4
+z                                  4096   4096   2048    167.5 (16)    300.9 (16)        201.3
+o / out_proj                       4096   2048   4096    134.8 (16)    308.6 (16)        214.9
+k / v                              4096    512   2048    155.0 (16)    245.2 (16)        187.2
+experts gate_up (dense ideal)     32768   1024   2048    170.3 (16)    305.5 (16)        173.4
+experts down (dense ideal)        32768   2048    512    124.7 (16)    195.5 (16)         84.5
+shared expert gate_up              4096   1024   2048    160.4 (16)    273.6 (16)        210.1
+shared expert down                 4096   2048    512    121.6 (16)    178.4 (16)        156.5
+one expert gate_up M=128            128   1024   2048     33.7 (16)     56.4 (16)         23.7
+one expert down M=128               128   2048    512     32.7 (16)     42.8 (16)         28.6
+one expert gate_up M=512            512   1024   2048     94.2 (16)    159.6 (16)         96.4
+one expert down M=512               512   2048    512     77.9 (16)    101.1 (16)         95.8
+attn QK^T 4096x4096x256            4096   4096    256    100.4 (16)    130.4 (16)        111.1
+attn PV 4096x256x4096              4096    256   4096    145.4 (16)    239.1 (16)        144.2
+(TFLOPS = 2 M N K / time; hipBLASLt: best of the heuristic's algos (count in parentheses), 20 reps each)
+=== prof:base [00:21:49, 395 s left]
+--- op table base 1024 00:21:49
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 171 ms (5988.7 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 base 1024 00:21:52
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 149 ms (6855.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernels in main burst: 1491 (of 2053), span 149.0 ms, kernel time 132.5 ms, idle 11.0 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    38.08    952.0  28.7%  65536x8x1 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 30    25.88    862.7  19.5%  256x32x1 x 32
+moe_wmma_kernel_r7<false, 64, 25>                                                   40    18.06    451.4  13.6%  65536x8x1 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   130    16.28    125.2  12.3%  2048x64x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      120     7.66     63.9   5.8%  2048x4x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 140     5.30     37.8   4.0%  2048x1x1 x 256
+gdn_conv_kernel<false>                                                              30     2.27     75.8   1.7%  8192x32x1 x 128
+moe_reduce_v8_kernel                                                                40     2.09     52.4   1.6%  261888x1x1 x 256
+moe_block_kernel<4, 8>                                                              40     1.97     49.2   1.5%  212992x1x1 x 256
+f8_actq_kernel                                                                     130     1.76     13.5   1.3%  261888x1x1 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     10     1.72    172.1   1.3%  8192x4x1 x 512
+gated_rmsnorm_kernel<true>                                                          30     1.54     51.4   1.2%  1047552x1x1 x 32
+rmsnorm_kernel<true, true>                                                          81     1.50     18.6   1.1%  261888x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.32     44.1   1.0%  393216x1x1 x 256
+moe_combine_kernel<bf16>                                                            40     1.22     30.5   0.9%  2095104x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   20     0.83     41.6   0.6%  294624x2x1 x 288
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.6   0.4%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               40     0.53     13.2   0.4%  65536x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.47     15.6   0.4%  8192x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    460.8   0.3%  7946240x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      10     0.31     31.5   0.2%  131072x1x1 x 256
+=== prof:dev [00:21:55, 389 s left]
+--- op table dev 1024 00:21:55
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 170 ms (6016.9 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 dev 1024 00:21:59
+prompt: 1024 tokens
+finish=length prompt=1024 (cached 0) completion=1 | prefill 148 ms (6926.6 tok/s) | decode 0 ms (0.00 tok/s)
+kernels in main burst: 1491 (of 2053), span 147.3 ms, kernel time 129.4 ms, idle 12.2 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    39.06    976.5  30.2%  65536x8x1 x 256
+gdn_delta_rows_v3_kernel<128>                                                       30    21.28    709.5  16.5%  256x32x1 x 32
+moe_wmma_kernel_r7<false, 64, 25>                                                   40    18.09    452.3  14.0%  65536x8x1 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   130    16.36    125.9  12.6%  2048x64x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      120     7.67     63.9   5.9%  2048x4x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 140     5.35     38.2   4.1%  2048x1x1 x 256
+moe_reduce_v8_kernel                                                                40     2.10     52.5   1.6%  261888x1x1 x 256
+gdn_conv_kernel<false>                                                              30     2.09     69.5   1.6%  8192x32x1 x 128
+f8_actq_kernel                                                                     130     1.99     15.3   1.5%  261888x1x1 x 256
+moe_block_kernel<4, 8>                                                              40     1.97     49.2   1.5%  212992x1x1 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     10     1.85    184.9   1.4%  8192x4x1 x 512
+rmsnorm_kernel<true, true>                                                          81     1.53     18.9   1.2%  261888x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          30     1.52     50.7   1.2%  1047552x1x1 x 32
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.33     44.2   1.0%  393216x1x1 x 256
+moe_combine_kernel<bf16>                                                            40     1.22     30.5   0.9%  2095104x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   20     0.89     44.4   0.7%  294624x2x1 x 288
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.5   0.5%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               40     0.53     13.3   0.4%  65536x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.49     16.2   0.4%  8192x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    459.6   0.4%  7946240x1x1 x 256
+sigmoid_mul_kernel                                                                  10     0.33     33.1   0.3%  4190208x1x1 x 256
+=== stages done [00:22:02]

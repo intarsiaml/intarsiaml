@@ -1,0 +1,30 @@
+T=1      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=2      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=3      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=4      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=5      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=6      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=7      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=9      v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=31     v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=32     v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=33     v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=63     v2 bitwise  v3i bitwise  v6 bitwise  v7 bitwise
+T=64     v2     59.8 us (0.934 us/tok) bitwise  v3i     56.4 us (0.881 us/tok) bitwise  v6     68.1 us (1.064 us/tok) bitwise  v7     68.3 us (1.067 us/tok) bitwise
+T=65     v2     58.7 us (0.903 us/tok) bitwise  v3i     66.5 us (1.023 us/tok) bitwise  v6     84.6 us (1.301 us/tok) bitwise  v7     85.3 us (1.313 us/tok) bitwise
+T=97     v2    122.1 us (1.259 us/tok) bitwise  v3i     88.9 us (0.917 us/tok) bitwise  v6    115.0 us (1.186 us/tok) bitwise  v7    115.2 us (1.188 us/tok) bitwise
+T=683    v2    499.1 us (0.731 us/tok) bitwise  v3i    482.2 us (0.706 us/tok) bitwise  v6    601.4 us (0.880 us/tok) bitwise  v7    589.9 us (0.864 us/tok) bitwise
+T=4096   v2   2925.8 us (0.714 us/tok) bitwise  v3i   2803.1 us (0.684 us/tok) bitwise  v6   4197.4 us (1.025 us/tok) bitwise  v7   4176.1 us (1.020 us/tok) bitwise
+ALL BITWISE
+probe heads=32 waves=256 v2 T=683: 0.734 us/tok
+probe heads=32 waves=256 v3i T=683: 0.697 us/tok
+probe heads=32 waves=256 v6 T=683: 0.916 us/tok
+probe heads=32 waves=256 v7 T=683: 0.918 us/tok
+probe heads=16 waves=128 v2 T=683: 0.590 us/tok
+probe heads=16 waves=128 v3i T=683: 0.497 us/tok
+probe heads=16 waves=128 v6 T=683: 0.916 us/tok
+probe heads=16 waves=128 v7 T=683: 0.915 us/tok
+probe heads= 8 waves= 64 v2 T=683: 0.518 us/tok
+probe heads= 8 waves= 64 v3i T=683: 0.481 us/tok
+probe heads= 8 waves= 64 v6 T=683: 0.915 us/tok
+probe heads= 8 waves= 64 v7 T=683: 0.916 us/tok
