@@ -131,16 +131,39 @@ fn to_fp8(w: &mut MemWeights, prefix: &str, input_scale: Option<f32>) {
     }
 }
 
+/// The checked-in f32 fixture, as the CUDA kernels take it: every float tensor in bf16 (they register no f32 weights).
+/// `keep`: which tensors to take. The cpu run keeps the f32 tensors as they are.
+fn fixture_tensors(keep: impl Fn(&str) -> bool) -> Vec<(String, HostTensor)> {
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    src.names()
+        .into_iter()
+        .filter(|n| keep(n))
+        .map(|name| {
+            let info = src.info(&name).unwrap();
+            let t = HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap();
+            let t = if on_cuda() && t.dtype == DType::F32 {
+                HostTensor::from_f32_as(DType::Bf16, &t.shape.clone(), &t.to_f32())
+            } else {
+                t
+            };
+            (name, t)
+        })
+        .collect()
+}
+
+/// The fixture with its tensors in the dtype the backend takes (cuda: bf16), not renamed.
+fn dense_weights() -> MemWeights {
+    let mut w = MemWeights::new();
+    for (name, t) in fixture_tensors(|_| true) {
+        w.insert(&name, t);
+    }
+    w
+}
+
 /// The fixture's attention-free MLP tensors dropped, random fp8 projections and NVFP4 experts in their place.
 fn moe_weights(input_scale: Option<f32>) -> MemWeights {
-    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
     let mut w = MemWeights::new();
-    for name in src.names() {
-        if name.contains(".mlp.") {
-            continue;
-        }
-        let info = src.info(&name).unwrap();
-        let t = HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap();
+    for (name, t) in fixture_tensors(|n| !n.contains(".mlp.")) {
         let renamed = if let Some(rest) = name.strip_prefix("model.") {
             format!("model.language_model.{rest}")
         } else {
@@ -201,8 +224,8 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         mem_budget: Some(4 << 30),
         prefill_chunk: CHUNK,
         // the cpu reference runs in f32; the CUDA kernels are bf16
-        act_dtype: (!on_cuda()).then_some(DType::F32),
-        kv_dtype: (!on_cuda()).then_some(DType::F32),
+        act_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
+        kv_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
         fp8_act: match v {
             Variant::Dense => None,
             Variant::Moe => Some(Fp8Act::None),
@@ -211,9 +234,10 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         ..Default::default()
     };
     match v {
-        Variant::Dense => {
+        Variant::Dense if !on_cuda() => {
             Model::load(backend, &recipe, &dims, &SafeTensors::open_dir(&dir).unwrap(), &opts, tel.clone())
         }
+        Variant::Dense => Model::load(backend, &recipe, &dims, &dense_weights(), &opts, tel.clone()),
         Variant::Moe => Model::load(backend, &recipe, &dims, &moe_weights(None), &opts, tel.clone()),
         Variant::MoeA8 => Model::load(backend, &recipe, &dims, &moe_weights(Some(0.35)), &opts, tel.clone()),
     }
@@ -341,6 +365,38 @@ fn hybrid_batching_is_refused_without_the_opt_in() {
     assert!(BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel, BatchedOptions::new(2, 4)).is_err());
 }
 
+/// Distinct kernels `rec` picked for `op`, sorted.
+fn picks(rec: &intarsia_core::plan::Recorder, op: intarsia_core::Op) -> Vec<String> {
+    let mut v: Vec<String> = rec.calls.iter().filter(|c| c.call.op == op).map(|c| c.kernel.clone()).collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
+/// On CUDA the batched plan must really run the row-exact `_rows` kernels (and the solo step's own for the per-row ops):
+/// a green identity test over a plan that silently picked something else would prove nothing.
+fn check_cuda_batch_picks(m: &Model, v: Variant) {
+    use intarsia_core::plan::Phase;
+    use intarsia_core::Op;
+    let (rec, dec) = (m.dry_run(Phase::Batch, 4, 10).unwrap(), m.dry_run(Phase::Decode, 1, 10).unwrap());
+    for op in [Op::Matmul, Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeExperts, Op::Logits, Op::GdnDeltaRule, Op::AttnDecode] {
+        eprintln!("{v:?} {op}: decode {:?} | batch(4) {:?}", picks(&dec, op), picks(&rec, op));
+    }
+    for op in [Op::Matmul, Op::MatmulFp8, Op::MatmulNvfp4, Op::MoeExperts] {
+        for k in picks(&rec, op) {
+            assert!(k.contains("rows"), "{v:?}: batched {op} runs {k}, not a row-exact kernel");
+        }
+    }
+    if matches!(v, Variant::Moe | Variant::MoeA8) {
+        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains("decode_v2_rows")), "{:?}", picks(&rec, Op::MoeExperts));
+        assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
+    }
+    // the per-row ops are the solo step's own kernels
+    for op in [Op::GdnDeltaRule, Op::AttnDecode] {
+        assert_eq!(picks(&rec, op), picks(&dec, op), "{v:?} {op}");
+    }
+}
+
 #[test]
 fn batched_hybrid_decode_is_bitwise_the_solo_step() {
     if backend().is_none() {
@@ -349,6 +405,9 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
     for v in VARIANTS {
         let tel = Arc::new(Telemetry::new());
         let m = model(v, max_rows(), true, &tel);
+        if on_cuda() {
+            check_cuda_batch_picks(&m, v);
+        }
         // N = 2, 3 and 4 sequences of different prompt lengths (on the GPU also 8 and 16), 130 consecutive batched steps each
         // (the fixture's context is 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the
         // on-device argmax path, odd rows sample
