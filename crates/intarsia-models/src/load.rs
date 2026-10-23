@@ -366,7 +366,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
-        if hybrid_batch {
+        // Metal: only the hybrid 35B opts in (row-exact fp8 / nvfp4 / expert-grouped kernels, lane mb); a dense model keeps the
+        // path it always had
+        if hybrid_batch || (backend_name == "metal" && model.has_hybrid_blocks()) {
             model.allow_recurrent_batch()?;
         }
         // Batching needs the row-exact multi-row kernels (Metal, CUDA, HIP). `enable_batch` exempts the cpu backend (its kernels
@@ -444,8 +446,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
-        } else if model.recurrent_batch() && matches!(backend_name, "cuda" | "hip") {
-            // The busy chunk is the solo chunk (2048 for the 35B on CUDA, 4096 on HIP, lane hb): then a request that prefills beside decoding sequences
+        } else if model.recurrent_batch() && matches!(backend_name, "cuda" | "hip" | "metal") {
+            // The busy chunk is the solo chunk (2048 for the 35B on CUDA and Metal, 4096 on HIP, lane hb): then a request that prefills beside decoding sequences
             // runs the same chunk schedule as its solo run, and its state, and every token after it, is bitwise the solo
             // engine's for every prompt length. A smaller busy chunk changes the GEMM tiling of the prefill: 1024 against 2048
             // measured mean 21-way KL 7.87e-3 on the 35B (2.5x the acc-short ref-noise floor 3.161e-3, 4.1% top-1 flips),
