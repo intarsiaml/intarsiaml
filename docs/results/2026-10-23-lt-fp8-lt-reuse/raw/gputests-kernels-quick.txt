@@ -1,0 +1,39 @@
+fleetq: #4691 waiting (#1 in line): needs gpu quiet on spark1, but #4686 "rb3 jobB4: final CUDA no-op + speed matrix 3 reps (main/rowoff/gphoff/full/overlap)" (claude-f31ccf91-rb3) loads it
+fleetq: #4691 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #4691 running on spark1: scripts/lt/rjob.sh spark1 lt/gputests.sh lt-base fp8_gemm_lt quick
+== cargo test --test quantmoe fp8_gemm_lt 17:01:06
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... matmul_fp8_gemm_lt act_quant=true M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 8.106e-5; elements off: 0.0000 / 0.0010
+matmul_fp8_gemm_lt act_quant=true M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_lt act_quant=true M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 9.662e-5 e4m3 gemm 7.084e-5; elements off: 0.0011 / 0.0008
+matmul_fp8_gemm_lt act_quant=true M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 9.340e-7 e4m3 gemm 5.712e-7; elements off: 0.9799 / 0.9711
+matmul_fp8_gemm_lt act_quant=true M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 3.178e-5 e4m3 gemm 1.567e-5; elements off: 0.0003 / 0.0002
+matmul_fp8_gemm_lt act_quant=true M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.450e-4 e4m3 gemm 1.104e-4; elements off: 0.0021 / 0.0013
+matmul_fp8_gemm_lt act_quant=false M=5 N=192 K=256 Bf16: rel_l2 bf16 gemm 0.000e0 e4m3 gemm 0.000e0; elements off: 0.0000 / 0.0000
+matmul_fp8_gemm_lt act_quant=false M=33 N=192 K=256 Bf16: rel_l2 bf16 gemm 7.225e-6 e4m3 gemm 7.225e-6; elements off: 0.0003 / 0.0003
+matmul_fp8_gemm_lt act_quant=false M=100 N=512 K=2048 Bf16: rel_l2 bf16 gemm 7.812e-5 e4m3 gemm 7.812e-5; elements off: 0.0018 / 0.0018
+matmul_fp8_gemm_lt act_quant=false M=256 N=384 K=1024 F32: rel_l2 bf16 gemm 1.217e-6 e4m3 gemm 1.217e-6; elements off: 0.9889 / 0.9889
+matmul_fp8_gemm_lt act_quant=false M=1100 N=256 K=512 Bf16: rel_l2 bf16 gemm 6.703e-5 e4m3 gemm 6.703e-5; elements off: 0.0005 / 0.0005
+matmul_fp8_gemm_lt act_quant=false M=256 N=2048 K=4096 Bf16: rel_l2 bf16 gemm 1.631e-4 e4m3 gemm 1.631e-4; elements off: 0.0029 / 0.0029
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 2.17s
+== cargo test -p intarsia-cli --test docs_env_vars 17:01:09
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+== kernels test --quick env='' 17:01:09
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 534 cases in 5.5s
+== kernels test --quick env='INTARSIA_CUDA_FP8_GEMM_LT=1' 17:01:15
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.4s
+SKIPPED: kernel matmul_fp8_pair_gemm_reg ran 0 cases on backend 'cuda'
+incomplete: 1 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== done 17:01:20
+fleetq: #4691 done (exit 0)
