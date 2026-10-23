@@ -807,6 +807,13 @@ fn spec_verify(
     Ok(step)
 }
 
+/// `INTARSIA_MTP_VERIFY_CHECK=1`: before every `--spec mtp` verify pass, run its rows as single decode steps too and print
+/// the max |logit difference| and whether the argmax agrees, per row ([`Model::verify_check`]). Diagnostic, slow.
+fn mtp_verify_check() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_MTP_VERIFY_CHECK").is_ok_and(|v| !v.is_empty() && v != "0"))
+}
+
 /// Cut the state back to `keep` tokens after (or inside) the last verify pass: a recurrent or MTP state through the
 /// verify pass's per-row record ([`SequenceState::spec_rollback`]), an attention-only one by truncation.
 fn spec_cut(model: &Model, st: &mut SequenceState, keep: usize) -> Result<()> {
@@ -1231,11 +1238,11 @@ impl Seq {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
             if self.spec_mtp {
-                // MTP drafts are always available. Not inside the min_tokens window (a masked stop on row 0 would have to
-                // roll the recurrent state back to before the pass), and no drafts past max_tokens (a pass emits up to
-                // k + 1 tokens).
+                // MTP drafts are always available. Not inside a min_tokens window that masks stop ids (a masked stop on
+                // row 0 would have to roll the recurrent state back to before the pass; with no stop ids, e.g.
+                // ignore_eos, nothing is masked), and no drafts past max_tokens (a pass emits up to k + 1 tokens).
                 let k = self.spec_k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
-                if k > 0 && self.generated >= self.req.min_tokens {
+                if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
                     return Next::Draft(k);
                 }
                 return Next::Plain;
@@ -1305,6 +1312,13 @@ impl Seq {
             Next::Draft(k) => {
                 let t0 = Instant::now();
                 let drafts = model.mtp_draft(st, self.tok, k)?;
+                if mtp_verify_check() {
+                    let mut ids = vec![self.tok];
+                    ids.extend_from_slice(&drafts);
+                    let rows = model.verify_check(st, &ids)?;
+                    let line: Vec<String> = rows.iter().map(|(d, a, b)| format!("{d:.3e}:{}", u8::from(a == b))).collect();
+                    eprintln!("spec-check: rows {} {}", rows.len(), line.join(" "));
+                }
                 let t1 = Instant::now();
                 self.verify(model, st, &drafts)?;
                 if crate::spec::trace_enabled() {

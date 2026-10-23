@@ -348,6 +348,39 @@ impl Model {
         Ok(drafts)
     }
 
+    /// Diagnostic (`INTARSIA_MTP_VERIFY_CHECK`): run `ids` through k + 1 single-row decode steps and through one verify
+    /// pass from the same state, and compare the rows. Leaves `st` as it was (a recurrent snapshot at the current length
+    /// is taken for the restore). Returns per row: (max |logit diff|, single-step argmax, verify argmax).
+    pub fn verify_check(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<(f32, u32, u32)>> {
+        let len0 = st.len;
+        let v = self.dims.vocab;
+        let argmax = |r: &[f32]| r.iter().enumerate().fold((0usize, f32::NEG_INFINITY), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0 as u32;
+        st.snapshot(&*self.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+        let mut steps = Vec::with_capacity(ids.len());
+        for &id in ids {
+            match self.forward(st, &[id], HeadMode::LastLogits, None)? {
+                StepOut::Logits(l) => steps.push(l),
+                _ => return Err(Error::invalid("verify_check: no logits from a decode step")),
+            }
+        }
+        st.truncate(len0, &*self.backend)?;
+        let out = self.forward_verify(st, ids)?;
+        let mut vl = vec![0u8; ids.len() * v * 4];
+        self.backend.download(&self.ws.logits, 0, &mut vl, 0)?;
+        st.truncate(len0, &*self.backend)?;
+        let vl: Vec<f32> = vl.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        Ok(steps
+            .iter()
+            .enumerate()
+            .map(|(r, s)| {
+                let row = &vl[r * v..(r + 1) * v];
+                let d = s.iter().zip(row).fold(0f32, |m, (a, b)| m.max((a - b).abs()));
+                debug_assert_eq!(argmax(row), out[r]);
+                (d, argmax(s), out[r])
+            })
+            .collect())
+    }
+
     /// Tests: draft with `f` instead of the head's argmax (the head still runs, so its cache and queue behave as in
     /// real use). Exercises every acceptance pattern of the verify and rollback path with known drafts.
     #[doc(hidden)]

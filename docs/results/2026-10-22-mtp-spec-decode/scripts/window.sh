@@ -24,5 +24,10 @@ for arm in $ARMS; do
      --sizes "$SIZES" --gen 128 --reps "$REPS" --label "mtp-$PASS-$arm" 2>&1) | tee "$OUT/localeval-$PASS-$arm.txt" | grep -E "^\|.*[0-9]|run id|result|unanimis" | head -20
   curl -s -m 5 "http://$MACHINE:$PORT/metrics" | grep -E "^intarsia_spec" | tee "$OUT/metrics-$PASS-$arm.txt"
   stop
+  if [[ $arm == mtp* ]] && ! grep -qE '^intarsia_spec_steps_total [1-9]' "$OUT/metrics-$PASS-$arm.txt"; then
+    echo "$arm: no verify passes ran (intarsia_spec_steps_total 0): the arm measured plain decode; aborting the pass"
+    rsh "cat \$HOME/mtp-run/serve-$PASS-$arm.log" > "$OUT/serve-$PASS-$arm.log" 2>&1
+    exit 3
+  fi
   rsh "cat \$HOME/mtp-run/serve-$PASS-$arm.log" > "$OUT/serve-$PASS-$arm.log" 2>&1
 done

@@ -525,3 +525,30 @@ fn scripted_drafts_hit_every_acceptance_pattern_and_stay_identical() {
         assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
     }
 }
+
+#[test]
+fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 80));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        let (on, tel) = engine_with(&w, Some(k), Some(scripted(truth.clone(), 7 + k as u64)));
+        for p in PROMPTS {
+            // localeval speed's request shape: ignore_eos + min_tokens = max_tokens; nothing to mask, so spec runs
+            let before = tel.snapshot().spec_steps;
+            let r = || GenRequest { min_tokens: 64, ..req(p, 64) };
+            assert_eq!(run(&off, r()), run(&on, r()), "k {k} min_tokens, no stop ids");
+            assert!(tel.snapshot().spec_steps > before, "k {k}: speculation ran inside min_tokens without stop ids");
+            // stop ids inside the min_tokens window are masked: spec waits for the window to end
+            let full = run(&off, req(p, 60));
+            let r = || GenRequest { min_tokens: 12, stop_ids: vec![full.ids[5], full.ids[20]], ..req(p, 60) };
+            assert_eq!(run(&off, r()), run(&on, r()), "k {k} min_tokens with stop ids");
+        }
+    }
+}

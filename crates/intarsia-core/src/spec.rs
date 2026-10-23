@@ -30,6 +30,9 @@ pub const NGRAM_MIN: usize = 1;
 pub const SPEC_K_MAX: usize = 6;
 /// Default `--spec-k`.
 pub const SPEC_K_DEFAULT: usize = 4;
+/// Default `--spec-k` for `--spec mtp` when none is given: the k = 1..3 sweep on spark1
+/// (docs/results/2026-10-22-mtp-spec-decode.md section 3).
+pub const MTP_K_DEFAULT: usize = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SpecConfig {

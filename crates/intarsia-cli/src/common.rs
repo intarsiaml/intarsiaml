@@ -102,8 +102,9 @@ pub struct ModelArgs {
     #[arg(long, default_value = "off")]
     pub spec: String,
     /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
-    #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
-    pub spec_k: usize,
+    /// Default: 4 for `ngram`, 2 for `mtp`.
+    #[arg(long)]
+    pub spec_k: Option<usize>,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
     /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
     #[arg(skip)]
@@ -304,7 +305,15 @@ impl ModelArgs {
                 cache_dir: None,
                 no_cache: self.no_admission_cache,
             },
-            spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
+            spec: intarsia_core::spec::SpecConfig::parse(
+                &self.spec,
+                self.spec_k.unwrap_or(if self.spec == "mtp" {
+                    intarsia_core::spec::MTP_K_DEFAULT
+                } else {
+                    intarsia_core::spec::SPEC_K_DEFAULT
+                }),
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?,
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,
