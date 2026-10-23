@@ -1,0 +1,15 @@
+pf-vllm-r1: - result file: `results/20261023-131109-adhoc-pf-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131109-adhoc-pf-vllm-r1/result.json 
+pf-def-r1: - result file: `results/20261023-131220-adhoc-pf-def-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131220-adhoc-pf-def-r1/result.json 
+pf-lt-r1: - result file: `results/20261023-131327-adhoc-pf-lt-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131327-adhoc-pf-lt-r1/result.json 
+pf-lt4k-r1: - result file: `results/20261023-131432-adhoc-pf-lt4k-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131432-adhoc-pf-lt4k-r1/result.json 
+pf-lt8k-r1: - result file: `results/20261023-131540-adhoc-pf-lt8k-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131540-adhoc-pf-lt8k-r1/result.json 
+pf-lt8k-r2: - result file: `results/20261023-131644-adhoc-pf-lt8k-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131644-adhoc-pf-lt8k-r2/result.json 
+pf-lt4k-r2: - result file: `results/20261023-131751-adhoc-pf-lt4k-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131751-adhoc-pf-lt4k-r2/result.json 
+pf-lt-r2: - result file: `results/20261023-131858-adhoc-pf-lt-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-131858-adhoc-pf-lt-r2/result.json 
+pf-def-r2: - result file: `results/20261023-132006-adhoc-pf-def-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132006-adhoc-pf-def-r2/result.json 
+pf-vllm-r2: - result file: `results/20261023-132036-adhoc-pf-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132036-adhoc-pf-vllm-r2/result.json 
+pf-vllm-r3: - result file: `results/20261023-132103-adhoc-pf-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132103-adhoc-pf-vllm-r3/result.json 
+pf-def-r3: - result file: `results/20261023-132212-adhoc-pf-def-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132212-adhoc-pf-def-r3/result.json 
+pf-lt-r3: - result file: `results/20261023-132319-adhoc-pf-lt-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132319-adhoc-pf-lt-r3/result.json 
+pf-lt4k-r3: - result file: `results/20261023-132426-adhoc-pf-lt4k-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132426-adhoc-pf-lt4k-r3/result.json 
+pf-lt8k-r3: - result file: `results/20261023-132532-adhoc-pf-lt8k-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-132532-adhoc-pf-lt8k-r3/result.json 

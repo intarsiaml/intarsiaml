@@ -1,0 +1,55 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=131072
+[localeval]   1024 tok rep 1/3: prompt=987 ttft=0.18s prefill=5483 tok/s decode=78.5 tok/s peak=79.9 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=994 ttft=0.18s prefill=5374 tok/s decode=78.9 tok/s peak=79.4 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.18s prefill=5390 tok/s decode=78.9 tok/s peak=79.9 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=0.64s prefill=6364 tok/s decode=77.1 tok/s peak=78.3 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=0.64s prefill=6390 tok/s decode=77.5 tok/s peak=78.3 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.63s prefill=6450 tok/s decode=77.5 tok/s peak=78.0 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16655 ttft=2.64s prefill=6315 tok/s decode=74.5 tok/s peak=75.7 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16657 ttft=2.64s prefill=6310 tok/s decode=74.8 tok/s peak=76.3 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=2.64s prefill=6307 tok/s decode=74.9 tok/s peak=76.2 tok/s out=128
+# localeval: adhoc — 2026-10-23T13:49
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8000/v1`
+- thinking: off; run kind: speed; label: pf-vllm-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 3622c22
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8000/v1 --model guidance --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3 --label pf-vllm-r1 --no-unim --recipe vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --enable-prefix-caching (box launcher missioncntrl-guidance-run.sh)`
+- result file: `results/20261023-134947-adhoc-pf-vllm-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --enable-prefix-caching (box launcher missioncntrl-guidance-run.sh)
+````
+
+server-reported (version):
+
+````json
+{"version":{"version":"0.26.1rc1.dev602+g65b7662d3"}}
+````
+
+## Speed sweep
+
+served `guidance`, fingerprint `vllm-0.26.1rc1.dev602+g65b7662d3-9e4897ff`, ctx 131072, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.18 | 5390 (5374–5483) * | - | 78.9 (78.5–78.9) | 79.9 (79.4–79.9) | - | - | 128 |
+| 4089 | 0.64 | 6390 (6364–6450) | 6798 | 77.5 (77.1–77.5) | 78.3 (78.0–78.3) | - | - | 128 |
+| 16655 | 2.64 | 6310 (6307–6315) | 6280 | 74.8 (74.5–74.9) | 76.2 (75.7–76.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261023-134947-adhoc-pf-vllm-r1/result.json
+[localeval] not logged to unanimis (--no-unim)

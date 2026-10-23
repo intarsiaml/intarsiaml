@@ -326,6 +326,36 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
     return ik_launch_status();
 }
 
+// ---- row-exact multi-row GEMV (matmul_bf16_gemv_rows, logits_bf16_gemv_rows; lane hb, batched decode) -----------------
+// M = 1..kRowsMax rows in one launch, row m bitwise what the one-row GEMV above computes on row m alone. The kernels already
+// take M as a template argument and every row's lane order (idx ascending per lane, one warp-sum) does not depend on it; the
+// only thing the ordinary launcher refuses past M = 4 is the instantiation. The activations are read from global memory (no
+// shared-memory stage), so there is no K limit either. Tested bitwise for M = 1..16 in tests/rows_exact.rs (G-B).
+constexpr int kRowsMax = 16;
+
+template <typename OutT>
+int gemv_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M < 1 || M > kRowsMax) return IK_ERR_SHAPE;
+    const bool vec = K % 8 == 0 && ik_aligned16(x->data) && ik_aligned16(w->data);
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const ik_bf16* wp = (const ik_bf16*)w->data;
+    OutT* op = (OutT*)out->data;
+    bool launched = false;
+    switch (M) {
+#define IK_ROWS_CASE(MV) \
+    case MV: launched = gemv_dispatch<MV, OutT>(xp, wp, op, N, K, vec, s); break;
+        IK_ROWS_CASE(1) IK_ROWS_CASE(2) IK_ROWS_CASE(3) IK_ROWS_CASE(4) IK_ROWS_CASE(5) IK_ROWS_CASE(6) IK_ROWS_CASE(7)
+        IK_ROWS_CASE(8) IK_ROWS_CASE(9) IK_ROWS_CASE(10) IK_ROWS_CASE(11) IK_ROWS_CASE(12) IK_ROWS_CASE(13) IK_ROWS_CASE(14)
+        IK_ROWS_CASE(15) IK_ROWS_CASE(16)
+#undef IK_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+    if (!launched) return IK_ERR_INVALID_ARG;
+    return ik_launch_status();
+}
+
 // ---- WMMA GEMM ---------------------------------------------------------------------------
 // D[n, m] = sum_k w[n, k] x[m, k]: the weights are the A operand (rows = output features) and the activations
 // the B operand, so the accumulator layout (lane = column m, 8 consecutive rows n) lets each lane write 16
@@ -535,6 +565,17 @@ int mm(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, boo
     return f32_out ? gemm_launch<float>(x, w, out, stream) : gemm_launch<ik_bf16>(x, w, out, stream);
 }
 
+// the row-exact twin of mm(..., gemv = true): M = 1..kRowsMax
+int mm_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, bool f32_out) {
+    IK_TRY(check_mm(x, w, out, f32_out ? IK_DTYPE_F32 : IK_DTYPE_BF16));
+    if (ik_numel(out) == 0) return IK_OK;
+    if (x->shape[1] == 0)
+        return hipMemsetAsync(out->data, 0, ik_numel(out) * (f32_out ? 4 : 2), IK_STREAM(stream)) == hipSuccess
+                   ? IK_OK
+                   : IK_ERR_LAUNCH;
+    return f32_out ? gemv_rows_launch<float>(x, w, out, stream) : gemv_rows_launch<ik_bf16>(x, w, out, stream);
+}
+
 // ---- pair launcher (M == 1, vector path only) -----------------------------------------------
 int pair_check(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, const ik_tensor* o0, const ik_tensor* o1) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
@@ -635,6 +676,12 @@ int ik_logits_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void*
 }
 int ik_logits_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, true, true);
+}
+int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return mm_rows(x, w, out, stream, false);
+}
+int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return mm_rows(x, w, out, stream, true);
 }
 
 }  // extern "C"

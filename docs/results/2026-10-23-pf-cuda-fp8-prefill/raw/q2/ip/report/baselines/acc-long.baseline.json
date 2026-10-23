@@ -1,0 +1,326 @@
+{
+  "format": "intarsia-accuracy-baseline-v2",
+  "created_unix": 1792779455,
+  "tool_version": "0.0.1",
+  "code": {
+    "head": "",
+    "code_tree": "",
+    "dirty": false,
+    "overlay": []
+  },
+  "exec": {
+    "cmdline": [
+      "/home/nvidia/intarsia-decfuse/pf-dev/target/acc/release/intarsia",
+      "accuracy",
+      "--model",
+      "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+      "--backend",
+      "cuda",
+      "--device",
+      "0",
+      "--mem-budget",
+      "45",
+      "--golden",
+      "/home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+      "--mode",
+      "both",
+      "--decode-positions",
+      "64",
+      "--max-seq",
+      "12288",
+      "--write-baseline",
+      "/home/nvidia/intarsia-decfuse/out/q2/ip/report/baselines/acc-long.baseline.json"
+    ],
+    "disable_list": "",
+    "fault": "",
+    "kernels": {
+      "argmax": "argmax_f32",
+      "attn_decode": "attn_decode_bf16_splitkv",
+      "attn_prefill": "attn_prefill_bf16_flash+attn_prefill_bf16_splitkv",
+      "embedding": "embedding_bf16",
+      "gate_split": "gate_split_bf16",
+      "gated_rmsnorm": "gated_rmsnorm_bf16",
+      "gated_rmsnorm_matmul_fp8": "gated_rmsnorm_matmul_fp8_gemv",
+      "gdn_conv": "gdn_conv_bf16",
+      "gdn_delta_rule": "gdn_delta_rule_bf16_split",
+      "kv_append": "kv_append_bf16",
+      "matmul": "matmul_bf16+matmul_bf16_gemv",
+      "matmul_fp8": "matmul_fp8_gemm+matmul_fp8_gemm_reg+matmul_fp8_gemv+matmul_fp8_mma",
+      "matmul_fp8_pair": "matmul_fp8_pair_gemm_reg+matmul_fp8_pair_gemv",
+      "matmul_nvfp4": "matmul_nvfp4_gemm+matmul_nvfp4_gemm_reg+matmul_nvfp4_gemv+matmul_nvfp4_mma",
+      "matmul_nvfp4_glu": "matmul_nvfp4_glu_gemm+matmul_nvfp4_glu_gemv",
+      "matmul_pair": "matmul_pair_bf16_gemv",
+      "moe_combine": "moe_combine_bf16",
+      "moe_experts": "moe_experts_bf16+moe_experts_decode_v2_bf16+moe_experts_mma_bf16+moe_experts_w4a16_bf16",
+      "moe_topk": "moe_topk_bf16",
+      "qk_norm": "qk_norm_bf16",
+      "rmsnorm": "rmsnorm_bf16",
+      "rmsnorm_add": "rmsnorm_add_bf16",
+      "rmsnorm_add_matmul_pair": "rmsnorm_add_matmul_pair_bf16_gemv",
+      "rope": "rope_bf16",
+      "sigmoid_mul": "sigmoid_mul_bf16",
+      "silu_glu": "silu_glu_bf16"
+    }
+  },
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+    "fnv1a64": "1c62c8e49c68fe34",
+    "size": 6061444,
+    "format": "intarsia-golden-topk-v1",
+    "prompts": 5,
+    "positions": 36887,
+    "topk": 20,
+    "engine": "vllm",
+    "engine_version": "0.26.1rc1.dev602+g65b7662d3",
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "model_revision": "not in the model root path",
+    "kv_dtype": "fp8"
+  },
+  "run": {
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "backend": "cuda",
+    "device": "NVIDIA GB10",
+    "kv_dtype": "bf16",
+    "act_dtype": "bf16",
+    "fp8_act": "recipe default",
+    "prefill_chunk": 2048,
+    "prefill_chunk_source": "recipe qwen3_5_moe, cuda",
+    "decode_positions": 64,
+    "gate_class": "4bit"
+  },
+  "modes": [
+    {
+      "overall": {
+        "mode": "prefill",
+        "positions": 36887,
+        "top1_pct": 94.08734784612466,
+        "mean_kl": 0.04563211397573237,
+        "mean_kl21": 0.049332933499638666,
+        "top5_pct": 90.29956353186759,
+        "tail_ref": 0.061147522379764195,
+        "tail_ours": 0.06450905064710269,
+        "max_kl": 25.97412396786378,
+        "max_kl21": 25.44748487549834,
+        "tail_abs": 0.007926012135124989,
+        "nonfinite": 0,
+        "greedy_match_pct": 0.28465312982893703,
+        "floor_pass": true,
+        "mean_kl_scored": 0.016000309999222893,
+        "mean_kl21_scored": 0.014509564262055182,
+        "scored_positions": 32349,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.049332933499638666,
+              "scored_rows_kl": 0.014509564262055182
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.049332933499638666,
+              "limit": 0.03,
+              "verdict": "FAIL"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.014509564262055182,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
+      },
+      "prompts": [
+        {
+          "name": "long_docs_4k",
+          "positions": 4064,
+          "top1_pct": 93.89763779527559,
+          "mean_kl": 0.019621287995080998,
+          "mean_kl21": 0.01750903850653307,
+          "top5_pct": 90.70866141732283,
+          "tail_excess": 0.002232750462912002,
+          "max_kl21": 2.3627141546161425,
+          "tail_abs": 0.008391929809516297,
+          "mean_kl21_scored": 0.01750903850653307,
+          "scored_positions": 4064
+        },
+        {
+          "name": "long_code_4k",
+          "positions": 4064,
+          "top1_pct": 97.26870078740157,
+          "mean_kl": 0.007958646714288779,
+          "mean_kl21": 0.007164249620267368,
+          "top5_pct": 91.71259842519684,
+          "tail_excess": 0.0010995081373506423,
+          "max_kl21": 0.597865661937783,
+          "tail_abs": 0.002923022398492616,
+          "mean_kl21_scored": 0.007164249620267368,
+          "scored_positions": 4064
+        },
+        {
+          "name": "chat_reuse_4k",
+          "positions": 4631,
+          "top1_pct": 86.3096523429065,
+          "mean_kl": 0.25197589336443466,
+          "mean_kl21": 0.29186910967877966,
+          "top5_pct": 87.02656013819909,
+          "tail_excess": 0.020183883191521555,
+          "max_kl21": 25.44748487549834,
+          "tail_abs": 0.026553705555388347,
+          "mean_kl21_scored": 0.013675518650321435,
+          "scored_positions": 93
+        },
+        {
+          "name": "long_docs_12k",
+          "positions": 12064,
+          "top1_pct": 93.10344827586206,
+          "mean_kl": 0.02463080409146029,
+          "mean_kl21": 0.022243908026582663,
+          "top5_pct": 90.3066976127321,
+          "tail_excess": 0.0010537910974332775,
+          "max_kl21": 11.078600480245987,
+          "tail_abs": 0.007455497780931992,
+          "mean_kl21_scored": 0.022243908026582663,
+          "scored_positions": 12064
+        },
+        {
+          "name": "long_code_12k",
+          "positions": 12064,
+          "top1_pct": 97.04907161803713,
+          "mean_kl": 0.008877698179201539,
+          "mean_kl21": 0.008245633429934758,
+          "top5_pct": 90.93501326259947,
+          "tail_excess": 0.000353936951796749,
+          "max_kl21": 1.2834449529942238,
+          "tail_abs": 0.002774329260513948,
+          "mean_kl21_scored": 0.008245633429934758,
+          "scored_positions": 12064
+        }
+      ]
+    },
+    {
+      "overall": {
+        "mode": "decode",
+        "positions": 320,
+        "top1_pct": 96.5625,
+        "mean_kl": 0.010418279843026393,
+        "mean_kl21": 0.00964571210430567,
+        "top5_pct": 90.125,
+        "tail_ref": 0.023018183032261424,
+        "tail_ours": 0.023551836755554396,
+        "max_kl": 0.4072628007142881,
+        "max_kl21": 0.34619914674673635,
+        "tail_abs": 0.002997116997163462,
+        "nonfinite": 0,
+        "greedy_match_pct": 37.5,
+        "floor_pass": true,
+        "mean_kl_scored": 0.010418279843026393,
+        "mean_kl21_scored": 0.00964571210430567,
+        "scored_positions": 320,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.00964571210430567,
+              "scored_rows_kl": 0.00964571210430567
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.00964571210430567,
+              "limit": 0.03,
+              "verdict": "PASS"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.00964571210430567,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
+      },
+      "prompts": [
+        {
+          "name": "long_docs_4k",
+          "positions": 64,
+          "top1_pct": 95.3125,
+          "mean_kl": 0.015390953705243217,
+          "mean_kl21": 0.01511624175820298,
+          "top5_pct": 91.25,
+          "tail_excess": 0.0014796140638010727,
+          "max_kl21": 0.34619914674673635,
+          "tail_abs": 0.0024116145239443604,
+          "mean_kl21_scored": 0.01511624175820298,
+          "scored_positions": 64
+        },
+        {
+          "name": "long_code_4k",
+          "positions": 64,
+          "top1_pct": 93.75,
+          "mean_kl": 0.014199105592332279,
+          "mean_kl21": 0.0112443072804897,
+          "top5_pct": 90.9375,
+          "tail_excess": -0.0007801331418865673,
+          "max_kl21": 0.269391802655137,
+          "tail_abs": 0.006318909961595014,
+          "mean_kl21_scored": 0.0112443072804897,
+          "scored_positions": 64
+        },
+        {
+          "name": "chat_reuse_4k",
+          "positions": 64,
+          "top1_pct": 98.4375,
+          "mean_kl": 0.002990672474738373,
+          "mean_kl21": 0.0029922807792518665,
+          "top5_pct": 91.25,
+          "tail_excess": 8.194048549406347e-6,
+          "max_kl21": 0.046582847370984136,
+          "tail_abs": 8.613551130887669e-6,
+          "mean_kl21_scored": 0.0029922807792518665,
+          "scored_positions": 64
+        },
+        {
+          "name": "long_docs_12k",
+          "positions": 64,
+          "top1_pct": 96.875,
+          "mean_kl": 0.015255358704336678,
+          "mean_kl21": 0.014710485821143156,
+          "top5_pct": 88.125,
+          "tail_excess": 0.0022802916582994534,
+          "max_kl21": 0.21386536701538553,
+          "tail_abs": 0.00538651563364141,
+          "mean_kl21_scored": 0.014710485821143156,
+          "scored_positions": 64
+        },
+        {
+          "name": "long_code_12k",
+          "positions": 64,
+          "top1_pct": 98.4375,
+          "mean_kl": 0.004255308738481422,
+          "mean_kl21": 0.004165244882440648,
+          "top5_pct": 89.0625,
+          "tail_excess": -0.000319698012298494,
+          "max_kl21": 0.05525680443161561,
+          "tail_abs": 0.0008599313155056361,
+          "mean_kl21_scored": 0.004165244882440648,
+          "scored_positions": 64
+        }
+      ]
+    }
+  ],
+  "reuse": null
+}

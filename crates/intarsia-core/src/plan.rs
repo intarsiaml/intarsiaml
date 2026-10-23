@@ -953,11 +953,11 @@ mod tests {
         let rows = |k: &str| k.ends_with("_rows");
         check_batch_ops("cuda", &rows, &decode, &batch(3), 3).unwrap();
         // a backend with no registered fusion keeps the strict op multiset
-        assert!(check_batch_ops("hip", &rows, &decode, &batch(3), 3).is_err());
+        assert!(check_batch_ops("metal", &rows, &decode, &batch(3), 3).is_err());
         // the same batch with the work counts matching and no unproven kernel left is refused by the multiset rule alone
         let solo_unfused = calls(&[(Op::MatmulFp8Pair, "matmul_fp8_pair_gemv")]);
         let two = calls(&[(Op::MatmulFp8, "matmul_fp8_gemv_rows"), (Op::MatmulFp8, "matmul_fp8_gemv_rows")]);
-        let e = check_batch_ops("hip", &rows, &solo_unfused, &two, 2).unwrap_err().to_string();
+        let e = check_batch_ops("metal", &rows, &solo_unfused, &two, 2).unwrap_err().to_string();
         assert!(e.contains("fuse differently"), "{e}");
         check_batch_ops("cuda", &rows, &solo_unfused, &two, 2).unwrap();
         // a missing per-row call (the delta rule ran fewer times than rows) is refused too

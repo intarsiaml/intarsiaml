@@ -1975,7 +1975,10 @@ impl Model {
         // instead of failing the plan load. Applies to the ops `OpCall::with_rows` knows (the phase-1 folds); the older
         // fused ops keep their behaviour.
         // (A batched pass marks its calls `exact_rows`, so the multi-row probes select the way it does.)
-        if self.batch_rows >= 2 {
+        // A fusion with a registered bitwise-equivalence entry (`crate::fusion`, e.g. HIP's folds, lane hb) needs no such probe:
+        // the batched step may run its unfused chain, which the table proves is the same arithmetic, so the solo step keeps
+        // the fused kernel at every batch size and a single stream does not pay for batching being on.
+        if self.batch_rows >= 2 && crate::fusion::fusion(self.backend.name(), call.op).is_none() {
             for r in 2..=self.batch_rows {
                 if let Some(mut c) = call.with_rows(r) {
                     c.exact_rows = true;
