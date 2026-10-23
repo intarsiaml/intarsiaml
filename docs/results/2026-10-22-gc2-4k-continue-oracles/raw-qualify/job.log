@@ -1,0 +1,43 @@
+[00:25:51] == #104 in /opt/code/wt-gc at 283a546c (lane-gc/coverage)
+    Finished `release` profile [optimized] target(s) in 6.48s
+[00:33:55] qualify #104 exit 0 478 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 41 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify     26s] plan: PASS in 25.0s (21 ops resolved, exactness deterministic, loaded in 25.0s)
+[qualify     48s] kernels: PASS in 21.8s (41 kernels, 714 cases in 21.6s; incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+[qualify     57s] gate: PASS in 9.7s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     57s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     68s] acc-short: PASS in 11.0s (prefill top-1 98.33% KL 7.04e-3; decode top-1 98.75% KL 1.11e-2)
+[qualify    104s] acc-oracle: PASS in 35.9s (prefill top-1 96.26% KL 1.09e-2)
+[qualify    138s] bench: PASS in 33.8s (decode 125.0 tok/s at 128 tokens (46% of the byte floor))
+[qualify    269s] acc-long: PASS in 131.4s (prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3)
+[qualify    478s] acc-4k: PASS in 208.3s (prefill top-1 93.14% KL 8.14e-2; decode top-1 98.96% KL 7.22e-3)
+long_docs_4k       continue    2000   4080    2015      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.26e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 0.99x; limit 1.5x cold + 3e-3 = 2.20e-2: PASS)
+long_docs_4k       restore     2000   4064    1792      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+long_docs_4k       continue    2000   4080    2015      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.26e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 0.99x; limit 1.5x cold + 3e-3 = 2.20e-2: PASS)
+long_docs_4k       restore     2000   4064    1792      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+[00:33:55] == #109 in /opt/code/wt-gc2 at c67228e4 (lane-gc2/metal35-chunk2048)
+    Finished `release` profile [optimized] target(s) in 18.41s
+[00:41:18] qualify #109 exit 0 424 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 41 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      8s] plan: PASS in 7.3s (21 ops resolved, exactness deterministic, loaded in 7.3s)
+[qualify     29s] kernels: PASS in 20.7s (41 kernels, 714 cases in 20.5s; incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+[qualify     38s] gate: PASS in 9.1s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     38s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     49s] acc-short: PASS in 11.0s (prefill top-1 98.33% KL 7.04e-3; decode top-1 98.75% KL 1.11e-2)
+[qualify     85s] acc-oracle: PASS in 35.7s (prefill top-1 96.26% KL 1.09e-2)
+[qualify    114s] bench: PASS in 29.9s (decode 125.5 tok/s at 128 tokens (46% of the byte floor))
+[qualify    233s] acc-long: PASS in 118.2s (prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3)
+[qualify    425s] acc-4k: PASS in 192.1s (prefill top-1 93.14% KL 8.14e-2; decode top-1 98.96% KL 7.22e-3)
+long_docs_4k       continue    2000   4080    2015      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.26e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 0.99x; limit 1.5x cold + 3e-3 = 2.20e-2: PASS)
+long_docs_4k       restore     2000   4064    1024      0     32/32  ok
+long_docs_4k       aligned     1024   4064    1024      0     32/32  ok (logits bit-identical to the cold run)
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: not used, frozen at split 2000, this run splits at 3072
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000.continue-oracle.safetensors: not used, frozen at split 2000, this run splits at 3072
+long_docs_4k       continue    3072   4080    3087      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.00e-2, mean KL(oracle||warm) 1.17e-2, warm/cold 1.16x; limit 1.5x cold + 3e-3 = 1.81e-2: PASS)
+long_docs_4k       restore     3072   4064    2048      0     32/32  ok
+long_docs_4k       aligned     2048   4064    2048      0     32/32  ok (logits bit-identical to the cold run)
+[00:41:18] done
