@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Summarise `intarsia bench reuse` runs: store on vs off, per workload (mean of the reps), as a markdown table.
-usage: summarize.py RAWDIR   (reads on*.json and off*.json)"""
+usage: summarize.py RAWDIR [ON_PREFIX]   (reads ON_PREFIX*.json, default on, and off*.json)"""
 import glob, json, statistics, sys
 
 d = sys.argv[1]
-runs = {k: [json.load(open(f)) for f in sorted(glob.glob(f"{d}/{k}[0-9]*.json"))] for k in ("on", "off")}
+onp = sys.argv[2] if len(sys.argv) > 2 else "on"
+runs = {k: [json.load(open(f)) for f in sorted(glob.glob(f"{d}/{p}[0-9]*.json"))] for k, p in (("on", onp), ("off", "off"))}
 print(f"reps: store on {len(runs['on'])}, store off {len(runs['off'])}\n")
 print("| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |")
 print("|---|---|---|---|---|---|---|")
