@@ -188,6 +188,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         cap,
         tokens: vec![0; len],
         snapshots: Vec::new(),
+        snap_pool: Vec::new(),
         peers: Vec::new(),
         remote: None,
         mtp: None,
@@ -242,7 +243,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
     }
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize);
-    let mut decode0: Vec<Op> = Vec::new();
+    let mut decode0: Vec<(Op, String)> = Vec::new();
     // op -> (shapes without a kernel, first description, where it is needed)
     let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
     for (phase, t, pos0) in probes {
@@ -252,11 +253,13 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
         }
         let rec = model.dry_run(phase, t, pos0)?;
         if phase == Phase::Decode && pos0 == 0 {
-            decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| c.call.op).collect();
+            decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
         }
         if phase == Phase::Batch && pos0 == 0 && rec.missing.is_empty() {
-            let batch: Vec<Op> = rec.calls.iter().filter(|c| !c.extra).map(|c| c.call.op).collect();
-            check_batch_ops(&decode0, &batch, t)?;
+            let batch: Vec<(Op, String)> =
+                rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
+            let rows_exact = |k: &str| model.registry.kernel(k).is_some_and(|k| k.rows_exact);
+            check_batch_ops(model.backend.name(), &rows_exact, &decode0, &batch, t)?;
         }
         for (op, m) in rec.missing {
             let e = missing.entry(op).or_insert_with(|| (BTreeSet::new(), m.clone(), BTreeSet::new()));
@@ -310,26 +313,92 @@ const PER_ROW_OPS: [Op; 10] = [
     Op::GdnConvDelta,
 ];
 
+/// Ops whose every output row depends on its own input row alone (no reduction across rows, no per-token state): a call
+/// over `B` rows is `B` calls over one row. They need no `rows_exact` registration; their kernel must still be the solo
+/// step's wherever the solo step runs the op itself (`check_batch_ops`).
+const ROW_PARALLEL_OPS: [Op; 13] = [
+    Op::Embedding,
+    Op::RmsNorm,
+    Op::RmsNormAdd,
+    Op::Add,
+    Op::SiluGlu,
+    Op::GeluGlu,
+    Op::GatedRmsnorm,
+    Op::SigmoidMul,
+    Op::GateSplit,
+    Op::AddBias,
+    Op::MoeTopk,
+    Op::MoeCombine,
+    Op::Argmax,
+];
+
 /// Ops the batched hybrid step may run either once for all rows (a multi-row kernel exists) or once per row (only the
 /// solo step's one-row kernel exists: the rows then run it one after another, bitwise the solo step but without sharing the
 /// weight read).
 const WIDE_OR_PER_ROW_OPS: [Op; 1] = [Op::GatedRmsnormMatmulFp8];
 
-/// A batched step must be the solo decode step with its row-parallel ops widened: the same op multiset, the per-row
-/// attention ops `rows` times. A different fusion choice (a fused pair in the solo step, two projections in the batch)
-/// would change the arithmetic and with it the bits, so it fails the load rather than the identity.
-fn check_batch_ops(decode: &[Op], batch: &[Op], rows: usize) -> Result<()> {
+/// A batched step must be the solo decode step with its row-parallel ops widened. `decode` and `batch` are the
+/// `(op, kernel)` calls of the solo step and of a `rows`-row batched step, both at position 0. Two rules:
+///
+/// 1. **Same kernels.** Every kernel the batched step picks for an op is either one the solo step picks for that op
+///    (row-parallel ops: norms, embedding, activation, the per-row attention and GDN calls) or a `rows_exact`
+///    registration, whose rows are proven bitwise the one-row kernel (G-B, the backend's `tests/rows_exact.rs`). A different
+///    kernel for the same op (the MoE `m <= 1` decode kernel against the grouped warp-per-row kernel at `m >= 2`) has a
+///    different reduction order, so rows would not be bitwise the solo step, and fails the load. (Comparing op multisets
+///    alone cannot see this: the op is the same.)
+/// 2. **Same work.** Both step lists, with every fused op that has a proven bitwise fusion on this backend
+///    ([`crate::fusion::FUSIONS`]) replaced by its chain, have the same op multiset, the per-sequence ops (attention core,
+///    GatedDeltaNet conv and delta rule) `rows` times. A fused pair in the solo step and two projections in the batch are the
+///    same work only for a registered fusion; anything else is a different arithmetic and fails the load rather than the
+///    identity test.
+fn check_batch_ops(
+    backend: &str,
+    rows_exact: &dyn Fn(&str) -> bool,
+    decode: &[(Op, String)],
+    batch: &[(Op, String)],
+    rows: usize,
+) -> Result<()> {
+    // 1. kernel picks
+    let solo_ops = crate::fusion::reachable(backend, &decode.iter().map(|(o, _)| *o).collect::<Vec<_>>());
+    for (op, kernel) in batch {
+        if rows_exact(kernel) {
+            continue;
+        }
+        let solo: BTreeSet<&str> = decode.iter().filter(|(o, _)| o == op).map(|(_, k)| k.as_str()).collect();
+        if solo.contains(kernel.as_str()) {
+            continue;
+        }
+        // An op the solo step runs only inside a proven fused kernel (the chain of a fusion in `crate::fusion`) has no solo
+        // pick to compare with; a row-parallel one (every output row is a function of its own input row alone) takes its
+        // ordinary kernel, which is what the fusion's equivalence test compares the fused kernel with.
+        if solo.is_empty() && ROW_PARALLEL_OPS.contains(op) && solo_ops.contains(op) {
+            continue;
+        }
+        let solo = if solo.is_empty() {
+            "none (the solo step runs it only inside a fused kernel)".to_string()
+        } else {
+            solo.into_iter().collect::<Vec<_>>().join(", ")
+        };
+        return Err(Error::Unsupported(format!(
+            "a {rows}-row batched step runs {op} on {kernel}, which is not a row-exact (`rows_exact`) kernel and not the \
+             solo step's ({solo}): a different kernel reduces in a different order, so rows would not be bitwise the solo step"
+        )));
+    }
+    // 2. op multisets
+    let ops = |v: &[(Op, String)]| crate::fusion::expand(backend, &v.iter().map(|(o, _)| *o).collect::<Vec<_>>());
+    let (decode, batch) = (ops(decode), ops(batch));
     let count = |v: &[Op], op: Op| v.iter().filter(|&&o| o == op).count();
-    let mut all: Vec<Op> = decode.iter().chain(batch).copied().collect();
+    let mut all: Vec<Op> = decode.iter().chain(&batch).copied().collect();
     all.sort();
     all.dedup();
     for op in all {
-        let (d, b) = (count(decode, op), count(batch, op));
+        let (d, b) = (count(&decode, op), count(&batch, op));
         let want = if PER_ROW_OPS.contains(&op) { d * rows } else { d };
         if b != want && !(WIDE_OR_PER_ROW_OPS.contains(&op) && b == d * rows) {
             return Err(Error::Unsupported(format!(
                 "a {rows}-row batched step runs {op} {b} times where {want} follow from the solo decode step ({d}): \
-                 the two would fuse differently, so rows would not be bitwise the solo step"
+                 the two would fuse differently, so rows would not be bitwise the solo step (a fusion is interchangeable \
+                 with its unfused chain only if it has a registered bitwise-equivalence test, crate::fusion)"
             )));
         }
     }
@@ -824,6 +893,69 @@ mod tests {
             position_diff(&by_pos).unwrap(),
             "ops differ between pos 0 and pos 4096: attn_decode: attn_decode_bf16 vs attn_decode_splitkv_bf16"
         );
+    }
+
+    fn calls(v: &[(Op, &str)]) -> Vec<(Op, String)> {
+        v.iter().map(|(o, k)| (*o, k.to_string())).collect()
+    }
+
+    /// B1 of the rb review: the CUDA MoE decode kernel is picked for `m <= 1` and the grouped warp-per-row kernel for
+    /// `m in 2..32`: the same `Op`, so the op-multiset rule passed it, but the reduction order differs. The kernel-pick rule
+    /// must catch it unless the batched pick is a `rows_exact` registration.
+    #[test]
+    fn batch_check_catches_a_kernel_switch_under_one_op() {
+        let decode = calls(&[(Op::MoeExperts, "moe_experts_decode_v2_bf16"), (Op::Matmul, "matmul_bf16_gemv")]);
+        let batch = calls(&[(Op::MoeExperts, "moe_experts_bf16"), (Op::Matmul, "matmul_bf16_gemv")]);
+        let none = |_: &str| false;
+        let e = check_batch_ops("cuda", &none, &decode, &batch, 2).unwrap_err().to_string();
+        assert!(e.contains("moe_experts_bf16") && e.contains("moe_experts_decode_v2_bf16"), "{e}");
+        // the op multiset alone is equal: that is the old rule's blind spot
+        let ops = |v: &[(Op, String)]| v.iter().map(|(o, _)| *o).collect::<Vec<_>>();
+        assert_eq!(ops(&decode), ops(&batch));
+        // a row-exact registration for the batched pick is exempt (its rows are proven bitwise the solo kernel)
+        let batch = calls(&[(Op::MoeExperts, "moe_experts_decode_v2_rows_bf16"), (Op::Matmul, "matmul_bf16_gemv_rows")]);
+        let rows = |k: &str| k.ends_with("_rows") || k.ends_with("_rows_bf16");
+        check_batch_ops("cuda", &rows, &decode, &batch, 2).unwrap();
+        // but only the registration is exempt, not an ordinary kernel next to it
+        let batch = calls(&[(Op::MoeExperts, "moe_experts_decode_v2_rows_bf16"), (Op::Matmul, "matmul_bf16_mma")]);
+        assert!(check_batch_ops("cuda", &rows, &decode, &batch, 2).is_err());
+    }
+
+    /// A fused op of the solo step may become its unfused chain in the batch only where the fusion is registered with a
+    /// bitwise-equivalence test; the per-sequence ops run once per row.
+    #[test]
+    fn batch_check_accepts_only_proven_fusions() {
+        let decode = calls(&[
+            (Op::MatmulFp8Pair, "matmul_fp8_pair_gemv"),
+            (Op::GatedRmsnormMatmulFp8, "gated_rmsnorm_matmul_fp8_gemv"),
+            (Op::GdnDeltaRule, "gdn_delta_rule_bf16_split"),
+            (Op::RmsNorm, "rmsnorm_bf16"),
+            (Op::SiluGlu, "silu_glu_bf16"),
+        ]);
+        let batch = |rows: usize| {
+            let mut v = calls(&[
+                (Op::MatmulFp8, "matmul_fp8_gemv_rows"),
+                (Op::MatmulFp8, "matmul_fp8_gemv_rows"),
+                (Op::GatedRmsnorm, "gated_rmsnorm_bf16"),
+                (Op::MatmulFp8, "matmul_fp8_gemv_rows"),
+                (Op::RmsNorm, "rmsnorm_bf16"),
+                (Op::SiluGlu, "silu_glu_bf16"),
+            ]);
+            v.extend(std::iter::repeat((Op::GdnDeltaRule, "gdn_delta_rule_bf16_split".to_string())).take(rows));
+            v
+        };
+        let rows = |k: &str| k.ends_with("_rows");
+        check_batch_ops("cuda", &rows, &decode, &batch(3), 3).unwrap();
+        // a backend with no registered fusion keeps the strict op multiset
+        assert!(check_batch_ops("hip", &rows, &decode, &batch(3), 3).is_err());
+        // the same batch with the work counts matching and no unproven kernel left is refused by the multiset rule alone
+        let solo_unfused = calls(&[(Op::MatmulFp8Pair, "matmul_fp8_pair_gemv")]);
+        let two = calls(&[(Op::MatmulFp8, "matmul_fp8_gemv_rows"), (Op::MatmulFp8, "matmul_fp8_gemv_rows")]);
+        let e = check_batch_ops("hip", &rows, &solo_unfused, &two, 2).unwrap_err().to_string();
+        assert!(e.contains("fuse differently"), "{e}");
+        check_batch_ops("cuda", &rows, &solo_unfused, &two, 2).unwrap();
+        // a missing per-row call (the delta rule ran fewer times than rows) is refused too
+        assert!(check_batch_ops("cuda", &rows, &decode, &batch(2), 3).is_err());
     }
 
     #[test]

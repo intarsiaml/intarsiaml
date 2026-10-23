@@ -1172,6 +1172,11 @@ impl Model {
     /// Allocate a fresh sequence state with the planned KV capacity.
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
+        if self.batch_rows > 0 {
+            // a batching engine's slots hold their recurrent snapshots from the start (reserved in `enable_batch`'s memory
+            // plan): no device allocation inside the scheduler loop
+            st.reserve_snapshots(&*self.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+        }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
             // allocated once here (and reserved in the memory plan), not in the first verify pass

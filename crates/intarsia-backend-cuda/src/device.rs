@@ -407,6 +407,11 @@ impl Backend for CudaBackend {
         true
     }
 
+    /// 16 rows: the `_rows` GEMV / MoE kernels are proven row-exact up to M = 16 (tests/rows_exact.rs, G-B).
+    fn batch_row_cap(&self) -> usize {
+        16
+    }
+
     /// The fused decode kernels take head counts and widths from the call (checked on the 35B tp=2 shard shapes by
     /// admission, docs/results/2026-10-21-tp2-cuda-graphs.md).
     fn fusion_under_tp(&self) -> bool {

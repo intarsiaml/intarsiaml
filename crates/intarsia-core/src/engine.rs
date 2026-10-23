@@ -770,10 +770,11 @@ struct SpecStep {
     plain_next: bool,
 }
 
-/// Most sequences `--max-batch` may ask for: the batching scheduler (docs/research/continuous-batching-design.md, M1)
-/// decodes up to `Model::BATCH_MAX_ROWS` together on backends with row-exact multi-row kernels (Metal); `--max-batch 1`
-/// keeps the single-sequence `LocalEngine`.
-pub const SERVE_MAX_BATCH: usize = crate::scheduler::MAX_BATCH_CAP;
+/// Most sequences `--max-batch` may ask for on a backend that does not state its own cap (`Backend::batch_row_cap`
+/// default; Metal's): the batching scheduler (docs/research/continuous-batching-design.md, M1) decodes up to that many
+/// together on backends with row-exact multi-row kernels (Metal, CUDA); `--max-batch 1` keeps the single-sequence
+/// `LocalEngine`. The CUDA backend states 16.
+pub const SERVE_MAX_BATCH: usize = 8;
 
 /// One verify pass over `[last, drafts...]` at `st.len` (token `generated + 1` is row 0's), greedy acceptance, KV
 /// rollback of the rejected rows. Inside the `min_tokens` window the sequential path masks the stop ids before its

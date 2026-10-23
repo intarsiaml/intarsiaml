@@ -14,6 +14,7 @@ pub mod error;
 pub mod exec;
 #[cfg(feature = "fault-inject")]
 pub mod fault;
+pub mod fusion;
 pub mod gdn;
 pub mod memplan;
 pub mod model;

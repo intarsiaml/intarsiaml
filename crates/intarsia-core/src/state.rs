@@ -121,6 +121,9 @@ pub struct SequenceState {
     /// Recurrent-state snapshots, oldest first; each is valid for `tokens[..len]` as long as that
     /// prefix is unchanged (dropped when the state is truncated below `len`).
     pub snapshots: Vec<RecurrentSnapshot>,
+    /// Free snapshot buffers kept for reuse (`SequenceState::reserve_snapshots`): a batching engine allocates them once
+    /// when it creates its slots, so serving never allocates device memory for a snapshot. Dropped snapshots return here.
+    pub snap_pool: Vec<Buffer>,
     /// Tensor parallelism: the state of ranks 1.. (this struct is rank 0's). Created, truncated and snapshotted
     /// together with the primary; advanced by the rank's own forward pass.
     pub peers: Vec<PeerState>,
@@ -167,6 +170,7 @@ impl SequenceState {
             cap,
             tokens: Vec::new(),
             snapshots: Vec::new(),
+            snap_pool: Vec::new(),
             peers: Vec::new(),
             remote: None,
             mtp: None,
@@ -224,9 +228,16 @@ impl SequenceState {
             return Ok(());
         }
         if let Some(i) = self.snapshots.iter().position(|s| s.len == self.len) {
-            self.snapshots.remove(i);
+            let old = self.snapshots.remove(i);
+            self.snap_pool.push(old.buf);
         }
-        let reuse = if self.snapshots.len() >= keep { Some(self.snapshots.remove(0).buf) } else { None };
+        // at most `keep` snapshots: the oldest ones' buffers become free ...
+        while self.snapshots.len() >= keep {
+            let old = self.snapshots.remove(0);
+            self.snap_pool.push(old.buf);
+        }
+        // ... and a free buffer is reused before any device allocation (none while serving, once reserved)
+        let reuse = self.snap_pool.pop();
         let buf = match reuse {
             Some(b) if b.bytes() >= total => b,
             _ => backend.alloc(total, MemKind::Device)?,
@@ -253,6 +264,32 @@ impl SequenceState {
             None => None,
         };
         self.snapshots.push(RecurrentSnapshot { len: self.len, buf, mtp });
+        Ok(())
+    }
+
+    /// Drop the snapshots taken past `len` tokens; their buffers go back to the free pool.
+    fn drop_snapshots_above(&mut self, len: usize) {
+        let mut i = 0;
+        while i < self.snapshots.len() {
+            if self.snapshots[i].len > len {
+                let s = self.snapshots.remove(i);
+                self.snap_pool.push(s.buf);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /// Allocate the snapshot buffers up front so that `keep` snapshots (plus the live state) exist without any device
+    /// allocation while serving (the batching engine's slots; no-op without recurrent slots). Idempotent.
+    pub fn reserve_snapshots(&mut self, backend: &dyn Backend, keep: usize) -> Result<()> {
+        let total = self.recurrent_bytes();
+        if total == 0 {
+            return Ok(());
+        }
+        while self.snap_pool.len() + self.snapshots.len() < keep {
+            self.snap_pool.push(backend.alloc(total, MemKind::Device)?);
+        }
         Ok(())
     }
 
@@ -299,7 +336,7 @@ impl SequenceState {
             // the live state is now row m - 1's; the rows before it can still be returned to (a stop inside the run)
             self.spec_rows.saved = m - 1;
         }
-        self.snapshots.retain(|s| s.len <= keep);
+        self.drop_snapshots_above(keep);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = keep;
@@ -397,7 +434,7 @@ impl SequenceState {
             }
         }
         self.spec_rows.saved = 0;
-        self.snapshots.retain(|s| s.len <= len);
+        self.drop_snapshots_above(len);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = len;

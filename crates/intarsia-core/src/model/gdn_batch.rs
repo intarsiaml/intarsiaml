@@ -90,44 +90,52 @@ impl Model {
             self.proj(n, &g.in_a, &a, profile)?;
         }
 
-        // conv + delta rule: one T = 1 call per row, on that row's own recurrent slot
-        let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
-        for (r, st) in sts.iter().enumerate() {
-            let rec = match &st.slots[g.slot] {
-                StateSlot::Recurrent(r) => r,
-                StateSlot::AttnKv(_) => {
-                    return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot"))
-                }
-            };
-            let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
-            let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
-            s_state.offset = state_s_offset(l);
-            let (qkv_r, a_r, b_r, conv_r, core_r) =
-                (qkv.rows(r, 1), a.rows(r, 1), bg.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
-            let folded = self.try_fused(
-                Op::GdnConvDelta,
-                vec![qkv_r.clone(), g.conv.clone(), a_r.clone(), b_r.clone(), g.a_log.clone(), g.dt_bias.clone()],
-                vec![core_r.clone(), s_state.clone(), conv_state.clone()],
-                delta_attrs.clone(),
-                profile,
-            )?;
-            if !folded {
-                self.exec(
-                    Op::GdnConv,
-                    vec![qkv_r, g.conv.clone()],
-                    vec![conv_r.clone(), conv_state],
-                    OpAttrs::default(),
-                    profile,
-                )?;
-                self.exec(
-                    Op::GdnDeltaRule,
-                    vec![conv_r, a_r, b_r, g.a_log.clone(), g.dt_bias.clone()],
-                    vec![core_r, s_state],
+        // conv + delta rule: one T = 1 call per row, on that row's own recurrent slot. These are the solo step's one-row
+        // calls, so the row-exact mark is off for them (as for the per-row attention in `attn_block_batch`): a backend
+        // that registers row-exact kernels for other ops must not restrict these to them.
+        let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+        let per_row = (|| -> Result<()> {
+            let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+            for (r, st) in sts.iter().enumerate() {
+                let rec = match &st.slots[g.slot] {
+                    StateSlot::Recurrent(r) => r,
+                    StateSlot::AttnKv(_) => {
+                        return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot"))
+                    }
+                };
+                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                s_state.offset = state_s_offset(l);
+                let (qkv_r, a_r, b_r, conv_r, core_r) =
+                    (qkv.rows(r, 1), a.rows(r, 1), bg.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
+                let folded = self.try_fused(
+                    Op::GdnConvDelta,
+                    vec![qkv_r.clone(), g.conv.clone(), a_r.clone(), b_r.clone(), g.a_log.clone(), g.dt_bias.clone()],
+                    vec![core_r.clone(), s_state.clone(), conv_state.clone()],
                     delta_attrs.clone(),
                     profile,
                 )?;
+                if !folded {
+                    self.exec(
+                        Op::GdnConv,
+                        vec![qkv_r, g.conv.clone()],
+                        vec![conv_r.clone(), conv_state],
+                        OpAttrs::default(),
+                        profile,
+                    )?;
+                    self.exec(
+                        Op::GdnDeltaRule,
+                        vec![conv_r, a_r, b_r, g.a_log.clone(), g.dt_bias.clone()],
+                        vec![core_r, s_state],
+                        delta_attrs.clone(),
+                        profile,
+                    )?;
+                }
             }
-        }
+            Ok(())
+        })();
+        self.exact_rows.store(mark, std::sync::atomic::Ordering::Relaxed);
+        per_row?;
 
         // gated RMSNorm over rows of dv and the output projection, over all rows
         let nrows = [rows * hv, dv];
@@ -149,30 +157,43 @@ impl Model {
             if folded {
                 return Ok(());
             }
-            // the solo step folds the norm into the fp8 out-projection with a one-row kernel; where no multi-row form exists
-            // the fold runs once per row (same op, same bits, the weights read once per row: the correct-but-slow stage S2 of
-            // the design), so the batched step makes the solo step's fusion decision
-            let row = [hv, dv];
-            let one_row = |r: usize| {
-                OpCall::new(
-                    Op::GatedRmsnormMatmulFp8,
-                    vec![
-                        core.rows(r, 1).reshaped(&row),
-                        z.rows(r, 1).reshaped(&row),
-                        g.norm.clone(),
-                        g.out.parts[0].clone(),
-                        g.out.parts[1].clone(),
-                    ],
-                    vec![out.rows(r, 1)],
-                    norm_attrs.clone(),
-                )
-            };
-            if self.fused_ok(&one_row(0)) {
-                for r in 0..rows {
-                    let c = one_row(r);
-                    self.exec(c.op, c.inputs, c.outputs, c.attrs, profile)?;
+            // The solo step folds the norm into the fp8 out-projection with a one-row kernel. Where no multi-row form exists
+            // the rows run the unfused chain below (the norm over all rows, then the row-exact projection: the weights are
+            // read once) if the fusion is a registered bitwise equivalent of that chain (`crate::fusion`, CUDA); only for a
+            // fusion without that proof does the fold run once per row (same op, same bits, the weights read once per row:
+            // the correct-but-slow stage S2 of the rb design).
+            if crate::fusion::fusion(self.backend.name(), Op::GatedRmsnormMatmulFp8).is_none() {
+                let row = [hv, dv];
+                let one_row = |r: usize| {
+                    OpCall::new(
+                        Op::GatedRmsnormMatmulFp8,
+                        vec![
+                            core.rows(r, 1).reshaped(&row),
+                            z.rows(r, 1).reshaped(&row),
+                            g.norm.clone(),
+                            g.out.parts[0].clone(),
+                            g.out.parts[1].clone(),
+                        ],
+                        vec![out.rows(r, 1)],
+                        norm_attrs.clone(),
+                    )
+                };
+                let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+                let usable = self.fused_ok(&one_row(0));
+                let ran = (|| -> Result<()> {
+                    if usable {
+                        for r in 0..rows {
+                            let c = one_row(r);
+                            self.exec(c.op, c.inputs, c.outputs, c.attrs, profile)?;
+                        }
+                    }
+                    Ok(())
+                })();
+                self.exact_rows.store(mark, std::sync::atomic::Ordering::Relaxed);
+                ran?;
+                if usable {
+                    return Ok(());
                 }
-                return Ok(());
             }
         }
         let gated = self.try_fused(

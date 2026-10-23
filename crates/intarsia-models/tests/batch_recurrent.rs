@@ -13,6 +13,11 @@
 //!   `LocalEngine` one at a time, over >= 128 generated tokens, with more requests than slots (slot reuse, so a
 //!   recycled slot starts from zero state), prefix reuse off and on (restore from a snapshot);
 //! * with the opt-in off, nothing changed: `enable_batch` still refuses the hybrid model.
+//!
+//! The same file is the CUDA gate G-C on the tiny hybrid (docs/results/2026-10-23-rb2-cuda-batching.md): with
+//! `INTARSIA_BATCH_TEST_BACKEND=cuda` the model runs on the CUDA backend in bf16 (activations and KV), and the batched
+//! step and engine must still be bitwise the solo step with the real `_rows` kernels (G-B) and the unfused chains of the
+//! solo step's fusions in the multi-row plan; N goes up to 16. Without a GPU the CUDA run skips.
 mod common;
 use common::ByteCodec;
 use intarsia_core::dtype::f32_to_fp8_e4m3;
@@ -49,10 +54,49 @@ fn fixture_dir() -> PathBuf {
 #[derive(Clone, Copy, Debug)]
 enum Variant {
     Dense,
+    /// fp8 projections without activation quantisation (W8A16)
     Moe,
+    /// the 35B recipe: W8A8, activations quantised with the static `input_scale` of every fp8 projection
+    MoeA8,
 }
 
-const VARIANTS: [Variant; 2] = [Variant::Dense, Variant::Moe];
+const VARIANTS: [Variant; 3] = [Variant::Dense, Variant::Moe, Variant::MoeA8];
+
+/// `INTARSIA_BATCH_TEST_BACKEND=cuda` runs the file on the CUDA backend (bf16), anything else on the cpu backend (f32).
+fn on_cuda() -> bool {
+    std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "cuda")
+}
+
+/// The backend every model of the process runs on (one CUDA context for all of them); `None`: no GPU, the test skips.
+fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
+    static B: std::sync::OnceLock<Option<Arc<dyn intarsia_core::backend::Backend>>> = std::sync::OnceLock::new();
+    B.get_or_init(|| {
+        if on_cuda() {
+            match intarsia_backend_cuda::create(0) {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    eprintln!("SKIPPED: no usable CUDA device ({e})");
+                    if std::env::var("INTARSIA_REQUIRE_GPU").is_ok_and(|v| v == "1") {
+                        panic!("INTARSIA_REQUIRE_GPU=1 but no CUDA device: {e}");
+                    }
+                    None
+                }
+            }
+        } else {
+            Some(intarsia_backend_cpu::CpuBackend::arc())
+        }
+    })
+    .clone()
+}
+
+/// Most batched sequences the file exercises: 4 on the cpu reference, the CUDA cap on the GPU.
+fn max_rows() -> usize {
+    if on_cuda() {
+        16
+    } else {
+        4
+    }
+}
 
 const E: usize = 8;
 const TOP_K: usize = 2;
@@ -72,7 +116,7 @@ fn bf16(rng: &mut SplitMix64, shape: &[usize], scale: f32) -> HostTensor {
 }
 
 /// `{prefix}.weight` as e4m3 with a per-tensor `{prefix}.weight_scale` (amax / 448).
-fn to_fp8(w: &mut MemWeights, prefix: &str) {
+fn to_fp8(w: &mut MemWeights, prefix: &str, input_scale: Option<f32>) {
     let name = format!("{prefix}.weight");
     let info = w.info(&name).unwrap_or_else(|| panic!("{name} missing"));
     let t = HostTensor::new(info.dtype, info.shape.clone(), w.bytes(&name).unwrap().to_vec()).unwrap();
@@ -82,10 +126,13 @@ fn to_fp8(w: &mut MemWeights, prefix: &str) {
     let data: Vec<u8> = v.iter().map(|x| f32_to_fp8_e4m3(x / ws)).collect();
     w.insert(&name, HostTensor::new(DType::Fp8E4m3, info.shape, data).unwrap());
     w.insert(&format!("{prefix}.weight_scale"), HostTensor::from_f32(&[], &[ws]));
+    if let Some(s) = input_scale {
+        w.insert(&format!("{prefix}.input_scale"), HostTensor::from_f32(&[], &[s]));
+    }
 }
 
 /// The fixture's attention-free MLP tensors dropped, random fp8 projections and NVFP4 experts in their place.
-fn moe_weights() -> MemWeights {
+fn moe_weights(input_scale: Option<f32>) -> MemWeights {
     let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
     let mut w = MemWeights::new();
     for name in src.names() {
@@ -108,7 +155,7 @@ fn moe_weights() -> MemWeights {
         let gdn = [".linear_attn.in_proj_qkv", ".linear_attn.in_proj_z", ".linear_attn.out_proj"];
         for s in attn.iter().chain(&gdn) {
             if w.info(&format!("{p}{s}.weight")).is_some() {
-                to_fp8(&mut w, &format!("{p}{s}"));
+                to_fp8(&mut w, &format!("{p}{s}"), input_scale);
             }
         }
         let p = format!("{p}.mlp");
@@ -128,12 +175,13 @@ fn moe_weights() -> MemWeights {
 
 /// The tiny hybrid model, loaded and not yet planned.
 fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
+    let backend = backend().expect("a backend (tests skip first when there is none)");
     let dir = fixture_dir();
     let mut cfg: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
     let recipe_src = match v {
         Variant::Dense => include_str!("../../../recipes/qwen3_5.toml"),
-        Variant::Moe => {
+        Variant::Moe | Variant::MoeA8 => {
             cfg["architectures"] = serde_json::json!(["Qwen3_5MoeForCausalLM"]);
             cfg["num_experts"] = E.into();
             cfg["num_experts_per_tok"] = TOP_K.into();
@@ -152,17 +200,22 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         // a budget that holds MAX_SEQ tokens for every batched slot (the plan otherwise shrinks the context to share the KV budget)
         mem_budget: Some(4 << 30),
         prefill_chunk: CHUNK,
-        act_dtype: Some(DType::F32),
-        kv_dtype: Some(DType::F32),
-        fp8_act: matches!(v, Variant::Moe).then_some(Fp8Act::None),
+        // the cpu reference runs in f32; the CUDA kernels are bf16
+        act_dtype: (!on_cuda()).then_some(DType::F32),
+        kv_dtype: (!on_cuda()).then_some(DType::F32),
+        fp8_act: match v {
+            Variant::Dense => None,
+            Variant::Moe => Some(Fp8Act::None),
+            Variant::MoeA8 => Some(Fp8Act::Static),
+        },
         ..Default::default()
     };
-    let backend = intarsia_backend_cpu::CpuBackend::arc();
     match v {
         Variant::Dense => {
             Model::load(backend, &recipe, &dims, &SafeTensors::open_dir(&dir).unwrap(), &opts, tel.clone())
         }
-        Variant::Moe => Model::load(backend, &recipe, &dims, &moe_weights(), &opts, tel.clone()),
+        Variant::Moe => Model::load(backend, &recipe, &dims, &moe_weights(None), &opts, tel.clone()),
+        Variant::MoeA8 => Model::load(backend, &recipe, &dims, &moe_weights(Some(0.35)), &opts, tel.clone()),
     }
     .unwrap()
 }
@@ -267,6 +320,9 @@ fn cases(n: usize) -> Vec<GenRequest> {
 
 #[test]
 fn hybrid_batching_is_refused_without_the_opt_in() {
+    if backend().is_none() {
+        return;
+    }
     let tel = Arc::new(Telemetry::new());
     // the default path: exactly the old refusal
     let mut m = load_model(Variant::Dense, &tel);
@@ -287,13 +343,21 @@ fn hybrid_batching_is_refused_without_the_opt_in() {
 
 #[test]
 fn batched_hybrid_decode_is_bitwise_the_solo_step() {
+    if backend().is_none() {
+        return;
+    }
     for v in VARIANTS {
         let tel = Arc::new(Telemetry::new());
-        let m = model(v, 4, true, &tel);
-        // N = 2, 3 and 4 sequences of different prompt lengths, 130 consecutive batched steps each (the fixture's context is
-        // 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the on-device argmax path, odd
-        // rows sample
-        for lens in [vec![3usize, 9], vec![5, 11, 20], vec![4, 8, 13, 22]] {
+        let m = model(v, max_rows(), true, &tel);
+        // N = 2, 3 and 4 sequences of different prompt lengths (on the GPU also 8 and 16), 130 consecutive batched steps each
+        // (the fixture's context is 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the
+        // on-device argmax path, odd rows sample
+        let mut sets = vec![vec![3usize, 9], vec![5, 11, 20], vec![4, 8, 13, 22]];
+        if on_cuda() {
+            sets.push((0..8).map(|i| 3 + 5 * i).collect());
+            sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
+        }
+        for lens in sets {
             let n = lens.len();
             let cfg = batch_identity::Cfg { lens, batches: vec![n], steps: 130, vocab_range: (1, VOCAB - 1) };
             assert_eq!(batch_identity::run(&m, &cfg), n * 130, "{v:?}");
@@ -303,9 +367,12 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
 
 #[test]
 fn batched_hybrid_decode_beside_prefill_chunks() {
+    if backend().is_none() {
+        return;
+    }
     for v in VARIANTS {
         let tel = Arc::new(Telemetry::new());
-        let m = model(v, 4, true, &tel);
+        let m = model(v, max_rows().min(8), true, &tel);
         // 3 decoding sequences with a 120-token prompt prefilled in chunks of 16 beside them
         let n = batch_identity::run_with_prefill(&m, &[5, 20, 33], 120, 16, (1, VOCAB - 1));
         assert_eq!(n, 3 * 2 * 120usize.div_ceil(16), "{v:?}");
@@ -337,25 +404,43 @@ fn check_engine(v: Variant, rows: usize, n_cases: usize, reuse: bool) {
 
 #[test]
 fn batched_engine_equals_solo_over_128_tokens() {
+    if backend().is_none() {
+        return;
+    }
     for v in VARIANTS {
         for rows in [2usize, 3, 4] {
             check_engine(v, rows, 9, false);
+        }
+        if on_cuda() {
+            // more slots, more requests than slots
+            for rows in [8usize, 16] {
+                check_engine(v, rows, 2 * rows + 3, false);
+            }
         }
     }
 }
 
 #[test]
 fn batched_engine_with_prefix_reuse_equals_solo() {
+    if backend().is_none() {
+        return;
+    }
     // reuse on: a recycled slot restores a snapshot (or its own held sequence) instead of starting from zero
     for v in VARIANTS {
         for rows in [2usize, 4] {
             check_engine(v, rows, 9, true);
+        }
+        if on_cuda() {
+            check_engine(v, 8, 19, true);
         }
     }
 }
 
 #[test]
 fn prefix_reuse_restores_recurrent_state_from_a_snapshot() {
+    if backend().is_none() {
+        return;
+    }
     for v in VARIANTS {
         prefix_reuse_case(v);
     }
@@ -388,5 +473,44 @@ fn prefix_reuse_case(v: Variant) {
             );
         }
         assert!(reused >= 2, "{v:?}, rows {rows}: only {reused} of {} requests reused a prefix", seq.len());
+    }
+}
+
+/// m4 of the rb review: the recurrent state of every batched slot (live copy + snapshots) is counted in the memory plan and
+/// allocated when the slot is created, not lazily inside the scheduler loop.
+#[test]
+fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them() {
+    if backend().is_none() {
+        return;
+    }
+    use intarsia_core::state::RECURRENT_SNAPSHOTS as KEEP;
+    for v in VARIANTS {
+        let tel = Arc::new(Telemetry::new());
+        let solo = model(v, 1, false, &tel);
+        let rec = solo.recurrent_bytes_per_state();
+        assert!(rec > 0, "{v:?}: the hybrid has recurrent state");
+        let rows = 4;
+        let m = model(v, rows, true, &tel);
+        let extra = (rows as u64 - 1) * rec * (1 + KEEP as u64);
+        assert_eq!(m.plan.workspace_bytes, solo.plan.workspace_bytes + extra, "{v:?}: workspace");
+        assert!(m.plan.notes.iter().any(|n| n.contains("recurrent state of 4 batched sequences")), "{:?}", m.plan.notes);
+        // a slot holds its snapshot buffers from the start ...
+        let mut st = m.new_state().unwrap();
+        assert_eq!(st.snap_pool.len(), KEEP, "{v:?}");
+        // ... and a long run of snapshots (more than it keeps) reuses them: pool + snapshots never grow past `KEEP`
+        let be = backend().unwrap();
+        for i in 0..3 * KEEP {
+            m.forward(&mut st, &[1 + (i as u32 % 90)], intarsia_core::model::HeadMode::None, None).unwrap();
+            st.snapshot(&*be, KEEP).unwrap();
+            assert_eq!(st.snap_pool.len() + st.snapshots.len(), KEEP, "{v:?}: after snapshot {i}");
+            assert!(st.snapshots.len() <= KEEP);
+        }
+        // truncating below the snapshots returns their buffers to the pool
+        let keep_len = st.snapshots[0].len;
+        st.truncate(keep_len, &*be).unwrap();
+        assert_eq!(st.snap_pool.len() + st.snapshots.len(), KEEP, "{v:?}: after truncate");
+        // a solo (non-batching) model allocates lazily, as before
+        let lazy = solo.new_state().unwrap();
+        assert!(lazy.snap_pool.is_empty());
     }
 }

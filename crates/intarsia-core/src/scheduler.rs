@@ -43,8 +43,9 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
 
-/// Hard cap on `max_batch` (operator decision 8.1: exact kernels only, 8 rows; `Model::BATCH_MAX_ROWS`).
-pub const MAX_BATCH_CAP: usize = 8;
+/// Hard cap on `max_batch`: the most rows any backend serves (`Model::BATCH_MAX_ROWS`). The cap of one backend is
+/// `Backend::batch_row_cap` (operator decisions: exact kernels only; Metal 8 rows (8.1), CUDA 16 (2026-10-23)).
+pub const MAX_BATCH_CAP: usize = 16;
 /// Default `spec_off_at` (design 6: speculation off at B >= 4).
 pub const SPEC_OFF_AT_DEFAULT: usize = 4;
 

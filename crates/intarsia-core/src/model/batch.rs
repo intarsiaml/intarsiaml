@@ -17,9 +17,10 @@
 use super::*;
 
 impl Model {
-    /// Most sequences one batched step takes (operator decision: exact kernels only, 8 rows; the multi-row GEMVs cost
-    /// 1.2x a one-row launch at 8 rows and 2.6x at 16, docs/research/continuous-batching-design.md section 4).
-    pub const BATCH_MAX_ROWS: usize = 8;
+    /// Most sequences any backend takes in one batched step (operator decisions: exact kernels only; Metal 8 rows, the
+    /// multi-row GEMVs cost 1.2x a one-row launch at 8 rows and 2.6x at 16, docs/research/continuous-batching-design.md
+    /// section 4; CUDA 16, 2026-10-23). A backend's own cap is [`Backend::batch_row_cap`].
+    pub const BATCH_MAX_ROWS: usize = 16;
 
     /// Whether the backend registers row-exact kernels for the projections and the head (`Matmul`, `Logits`), which a
     /// batched step needs. Without them `exact_rows` would silently select the ordinary kernels, whose output depends
@@ -31,14 +32,21 @@ impl Model {
     }
 
     /// Opt in to batched decode of hybrid models: GatedDeltaNet (recurrent-state) blocks, mixture-of-experts blocks and
-    /// gated attention (docs/results/2026-10-23-rb-recurrent-batching.md). **Prototype: the cpu backend only**, where every
-    /// multi-row kernel computes each row with the one-row loop, so a batched row is the solo row by construction. Any
-    /// other backend registers no verified row-exact kernels for these blocks and is refused. Call before
-    /// [`Model::enable_batch`]; without it `enable_batch` is exactly what it was.
+    /// gated attention (docs/results/2026-10-23-rb-recurrent-batching.md, docs/results/2026-10-23-rb2-cuda-batching.md).
+    /// On the cpu backend every multi-row kernel computes each row with the one-row loop, so a batched row is the solo row
+    /// by construction; any other backend needs registered row-exact kernels ([`Model::batch_capable`]: CUDA's `_rows`
+    /// GEMVs and MoE decode kernels, proven bitwise the one-row kernels by `tests/rows_exact.rs`), and the plan check
+    /// ([`crate::plan`], `check_batch_picks`) refuses whatever else would pick a different kernel from the solo step.
+    /// Call before [`Model::enable_batch`]; without it `enable_batch` is exactly what it was.
     pub fn allow_recurrent_batch(&mut self) -> Result<()> {
-        if self.backend.name() != "cpu" {
+        let ok = match self.backend.name() {
+            "cpu" => true,
+            "cuda" => self.batch_capable(),
+            _ => false,
+        };
+        if !ok {
             return Err(Error::Unsupported(format!(
-                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is a cpu-backend prototype; the {} backend has no verified row-exact kernels for it",
+                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda backend (and the cpu reference); the {} backend has no verified row-exact kernels for it",
                 self.backend.name()
             )));
         }
@@ -85,14 +93,29 @@ impl Model {
                 self.backend.name()
             )));
         }
-        let most = Self::BATCH_MAX_ROWS.min(LOGIT_ROWS).min(self.ws.max_tokens);
+        let most = self.backend.batch_row_cap().min(Self::BATCH_MAX_ROWS).min(LOGIT_ROWS).min(self.ws.max_tokens);
         if !(2..=most).contains(&max_rows) {
             return Err(Error::invalid(format!("batch rows {max_rows} outside 2..={most}")));
         }
+        // Recurrent state: every slot holds a live copy and up to `RECURRENT_SNAPSHOTS` snapshots, all allocated when the
+        // slot is created (`Model::new_state`). The plan's workspace already holds one sequence's worth of them; the other
+        // `max_rows - 1` come out of the KV budget.
+        let per_state = self.recurrent_bytes_per_state() * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+        let rec_extra = (max_rows as u64 - 1) * per_state;
+        if rec_extra > 0 {
+            self.plan.workspace_bytes += rec_extra;
+            self.plan.notes.push(format!(
+                "{} MiB of the KV budget reserved for the recurrent state of {max_rows} batched sequences (live + {} snapshots each, {} MiB per sequence)",
+                rec_extra >> 20,
+                crate::state::RECURRENT_SNAPSHOTS,
+                per_state >> 20
+            ));
+        }
+        let kv_budget = self.plan.kv_budget_bytes.saturating_sub(rec_extra);
         let bpt = self.kv_bytes_per_token();
         let mut cap = self.plan.kv_cap_tokens;
         if bpt > 0 {
-            let by_budget = (self.plan.kv_budget_bytes / (max_rows as u64 * bpt)) as usize;
+            let by_budget = (kv_budget / (max_rows as u64 * bpt)) as usize;
             if by_budget < cap {
                 self.plan.notes.push(format!(
                     "context clamped from {cap} to {by_budget} tokens per sequence: {max_rows} batched sequences share the KV budget"
@@ -103,7 +126,7 @@ impl Model {
         if cap < 16 {
             return Err(Error::Memory(format!(
                 "{max_rows} batched sequences leave {cap} tokens of KV each ({} MiB budget, {bpt} bytes per token)",
-                self.plan.kv_budget_bytes >> 20
+                kv_budget >> 20
             )));
         }
         self.plan.kv_cap_tokens = cap;
@@ -114,6 +137,17 @@ impl Model {
         self.batch_rows = max_rows;
         self.graphs.invalidate();
         Ok(())
+    }
+
+    /// Bytes of the recurrent (GatedDeltaNet) state of one sequence: what its live copy and each snapshot hold.
+    pub fn recurrent_bytes_per_state(&self) -> u64 {
+        self.slot_specs
+            .iter()
+            .map(|s| match s {
+                SlotSpec::Recurrent { bytes } => *bytes as u64,
+                _ => 0,
+            })
+            .sum()
     }
 
     /// Most sequences a batched step may have (0: batching not enabled).
@@ -267,7 +301,15 @@ impl Model {
             self.exact_rows.store(mark, std::sync::atomic::Ordering::Relaxed);
             calls
         };
+        // The solo step decides the fold per sequence. The rows share one projection call, so they must all decide alike:
+        // a mixed decision would silently run some rows unfused where their solo step fuses (the shapes are the same for
+        // every row today, so this is an assertion, not a fallback).
         let folded = a.gated && prologues.iter().all(Option::is_some);
+        if a.gated && !folded && prologues.iter().any(Option::is_some) {
+            return Err(Error::invalid(
+                "batched gated-attention rows disagree on the fused gate-split prologue: a row's bits would depend on its neighbours",
+            ));
+        }
         let prologues: Vec<Option<OpCall>> = if folded { prologues } else { vec![None; b] };
         let (qc0, gate) = self.attn_project(a, n, b, kv_done, folded, profile)?;
         debug_assert!(

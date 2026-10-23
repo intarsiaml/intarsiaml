@@ -131,13 +131,21 @@ impl BatchModel for SlotModel {
             let keep = crate::state::RECURRENT_SNAPSHOTS;
             return Ok(match mode {
                 None => {
-                    self.model.forward(st, tokens, HeadMode::None, None)?;
+                    if !matches!(self.model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                        return Err(Error::Other("a headless prefill pass returned an output".into()));
+                    }
                     st.snapshot(&*self.model.backend, keep)?;
                     None
                 }
                 Some(m) => {
                     if tokens.len() > 1 {
-                        self.model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?;
+                        // nothing is asked of this pass: a head output here would be a bug, not a result to drop
+                        if !matches!(
+                            self.model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?,
+                            StepOut::None
+                        ) {
+                            return Err(Error::Other("a headless prefill pass returned an output".into()));
+                        }
                         st.snapshot(&*self.model.backend, keep)?;
                     }
                     match self.model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
