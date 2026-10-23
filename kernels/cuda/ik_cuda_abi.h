@@ -119,6 +119,12 @@ int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, c
                                      const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
                                      const ik_tensor* pos, void* stream);
 
+/* topk_f32 (R3b, kernels/cuda/topk.cu): the k largest values of each f32 row [R, V] in the sampler's order (value descending, ties by
+ * ascending index, -0.0 == +0.0), with their indices: ids i32 [R, k], vals f32 [R, k]; nan i32 [R] is 1 for a row that holds a NaN (its
+ * entries are not meaningful). 1 <= k <= 64. Scratch: R * 32 * k * 8 bytes. Not an op: the model calls it for device-side sampling. */
+int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* vals, ik_tensor* nan, const ik_scratch* scratch,
+                void* stream);
+
 /* matmul_mxfp4 (M1 drill, kernels/cuda/mxfp4.cu): Op::MatmulMxfp4, OCP MXFP4 weights (u8 e2m1 pairs [N, K/2], u8 e8m0
  * scales [N, K/32]) and act f32 [1] (0: bf16 activations, 1: dynamic MXFP4 QDQ, Quark "even"). Any M (GEMV per 8 rows). */
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,

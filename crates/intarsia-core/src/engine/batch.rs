@@ -285,7 +285,14 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let seq = self.seq()?;
         seq.set_spec_allowed(spec_allowed, busy);
         Ok(match seq.prepare(model, &mut states[slot])? {
-            Some((tok, mode)) => SeqStep::Plain(tok, mode),
+            Some((tok, mode)) => {
+                // device-side sampling: a sampled row asks for the top-k candidates instead of the whole logits row
+                let mode = match (mode, model.device_sampling()) {
+                    (HeadMode::LastLogits, true) => seq.topk_for(seq.generated + 1).map_or(mode, HeadMode::LastTopK),
+                    _ => mode,
+                };
+                SeqStep::Plain(tok, mode)
+            }
             None => SeqStep::Ready,
         })
     }

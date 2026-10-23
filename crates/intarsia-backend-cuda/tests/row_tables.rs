@@ -327,3 +327,78 @@ fn rope_with_one_position_per_row_is_the_solo_rope() {
     }
     println!("G-B rope_bf16 (one position per row): {total} bytes identical to the solo launches (M 2..=16, 3 shapes)");
 }
+
+/// R3b: the device top-k is the host sampler's candidate list (value descending, ties by ascending index, -0.0 == +0.0): ids and
+/// values equal to a host sort, for rows with many bf16-grid ties, signed zeros and -inf, k from 1 to 64, R 1..=16, V = 248320 (the
+/// 35B vocabulary) and odd sizes; a row with a NaN is flagged.
+#[test]
+fn device_topk_is_the_host_candidate_order() {
+    let Some(rig) = Rig::new("topk") else { return };
+    let mut rng = SplitMix64::new(16);
+    let mut checked = 0usize;
+    for v in [248320usize, 151936, 1000, 70] {
+        for (rows, k) in [(1usize, 1usize), (3, 20), (16, 40), (16, 64), (5, 64.min(v - 1))] {
+            let mut data = Vec::new();
+            for r in 0..rows {
+                // bf16-grid logits (many exact ties), skewed like a real row; some special values
+                let mut row: Vec<f32> = (0..v)
+                    .map(|i| {
+                        let x = rng.normal_vec(1, 3.0)[0] + if i % 97 == 0 { 9.0 } else { 0.0 };
+                        f32::from_bits(x.to_bits() & 0xffff_0000)
+                    })
+                    .collect();
+                if r % 3 == 1 {
+                    for (i, x) in row.iter_mut().enumerate() {
+                        match i % 11 {
+                            1 => *x = 0.0,
+                            2 => *x = -0.0,
+                            3 => *x = f32::NEG_INFINITY,
+                            _ => {}
+                        }
+                    }
+                }
+                if r % 5 == 4 {
+                    row.iter_mut().for_each(|x| *x = 2.0); // all tied: the k lowest indices
+                }
+                data.extend(row);
+            }
+            let logits = rig.f32s(&data, &[rows, v]);
+            let ids = rig.poison(rows * k * 4, DType::I32, &[rows, k]);
+            let vals = rig.poison(rows * k * 4, DType::F32, &[rows, k]);
+            let nan = rig.poison(rows * 4, DType::I32, &[rows]);
+            let sbuf = rig.put_bytes(&vec![0u8; rows * 32 * k * 8], DType::U8, &[rows * 32 * k * 8]);
+            rig.be.topk_rows(&logits, k, &ids, &vals, &nan, &sbuf, 0).unwrap();
+            rig.be.synchronize(0).unwrap();
+            let (gi, gv, gn) = (rig.down(&ids), rig.down(&vals), rig.down(&nan));
+            for r in 0..rows {
+                let row = &data[r * v..(r + 1) * v];
+                let mut order: Vec<u32> = (0..v as u32).collect();
+                let cmp = |a: &u32, b: &u32| row[*b as usize].partial_cmp(&row[*a as usize]).unwrap().then(a.cmp(b));
+                order.select_nth_unstable_by(k - 1, cmp);
+                order.truncate(k);
+                order.sort_unstable_by(cmp);
+                assert_eq!(i32::from_le_bytes(gn[r * 4..r * 4 + 4].try_into().unwrap()), 0, "no NaN in row {r}");
+                for j in 0..k {
+                    let id = i32::from_le_bytes(gi[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+                    let val = f32::from_le_bytes(gv[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+                    assert_eq!(id as u32, order[j], "v {v} rows {rows} k {k} row {r} rank {j}");
+                    assert_eq!(val.to_bits(), row[order[j] as usize].to_bits(), "v {v} rows {rows} k {k} row {r} rank {j} value");
+                    checked += 1;
+                }
+            }
+        }
+    }
+    // a NaN anywhere in a row flags that row
+    let mut data = vec![1.0f32; 2 * 500];
+    data[500 + 321] = f32::NAN;
+    let logits = rig.f32s(&data, &[2, 500]);
+    let ids = rig.poison(2 * 8 * 4, DType::I32, &[2, 8]);
+    let vals = rig.poison(2 * 8 * 4, DType::F32, &[2, 8]);
+    let nan = rig.poison(8, DType::I32, &[2]);
+    let sbuf = rig.put_bytes(&vec![0u8; 2 * 32 * 8 * 8], DType::U8, &[2 * 32 * 8 * 8]);
+    rig.be.topk_rows(&logits, 8, &ids, &vals, &nan, &sbuf, 0).unwrap();
+    rig.be.synchronize(0).unwrap();
+    let gn = rig.down(&nan);
+    assert_eq!((i32::from_le_bytes(gn[0..4].try_into().unwrap()), i32::from_le_bytes(gn[4..8].try_into().unwrap())), (0, 1));
+    println!("G-B topk_f32: {checked} (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged");
+}

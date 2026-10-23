@@ -278,6 +278,33 @@ impl Backend for CudaBackend {
         true
     }
 
+    fn supports_topk(&self) -> bool {
+        true
+    }
+
+    fn topk_rows(
+        &self,
+        logits: &TensorRef,
+        k: usize,
+        ids: &TensorRef,
+        vals: &TensorRef,
+        nan: &TensorRef,
+        scratch: &TensorRef,
+        stream: StreamId,
+    ) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let (l, i, v, n) = (Self::tensor(logits)?, Self::tensor(ids)?, Self::tensor(vals)?, Self::tensor(nan)?);
+        let scr = ffi::IkScratch { data: Self::ptr(&scratch.buf, scratch.offset, scratch.nbytes())? as *mut c_void, bytes: scratch.nbytes() as i64 };
+        let (mut i, mut v, mut n) = (i, v, n);
+        // SAFETY: tensors are bounds-checked views of live device buffers; the launcher validates shapes and the scratch size.
+        let st = unsafe { ffi::ik_topk_f32(&l, k as i64, &mut i, &mut v, &mut n, &scr, s) };
+        if st != 0 {
+            return Err(Error::backend(format!("topk_f32: {}", ffi::status_name(st))));
+        }
+        Ok(())
+    }
+
     fn device_address(&self, buf: &Buffer) -> Option<u64> {
         Self::ptr(buf, 0, 0).ok().map(|p| p as u64)
     }

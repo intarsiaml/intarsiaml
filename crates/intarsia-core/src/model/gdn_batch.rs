@@ -119,14 +119,21 @@ impl Model {
                     delta_attrs.clone(),
                 );
                 dc.rows = Some(delta_tab);
-                if [&cc, &dc].iter().all(|x| x.check().is_ok() && self.registry.select(x).is_ok()) {
-                    self.exec_call(cc, profile)?;
-                    self.exec_call(dc, profile)?;
-                    table_done = true;
+                let bad = [&cc, &dc].into_iter().find_map(|x| x.check().and_then(|_| self.registry.select(x).map(|_| ())).err().map(|e| format!("GatedDeltaNet {}: {e}", x.op)));
+                match bad {
+                    None => {
+                        self.exec_call(cc, profile)?;
+                        self.exec_call(dc, profile)?;
+                        table_done = true;
+                    }
+                    Some(why) => self.row_table_fallback(&why),
                 }
             }
         }
         let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+        if !table_done {
+            self.mark_state_bound();
+        }
         let per_row = (|| -> Result<()> {
             if table_done {
                 return Ok(());

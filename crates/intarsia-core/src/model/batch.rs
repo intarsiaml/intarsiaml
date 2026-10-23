@@ -140,6 +140,15 @@ impl Model {
             self.row_tab = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 2 * self.slot_specs.len().max(1) * 8, MemKind::Device)?);
             self.batch_pos = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 4, MemKind::Device)?);
         }
+        if self.topk.is_none() && self.backend.supports_topk() && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1") {
+            let m = Self::BATCH_MAX_ROWS;
+            self.topk = Some(TopkBufs {
+                ids: self.backend.alloc(m * Self::TOPK_MAX * 4, MemKind::Device)?,
+                vals: self.backend.alloc(m * Self::TOPK_MAX * 4, MemKind::Device)?,
+                nan: self.backend.alloc(m * 4, MemKind::Device)?,
+                scratch: self.backend.alloc(m * 32 * Self::TOPK_MAX * 8, MemKind::Device)?,
+            });
+        }
         self.batch_rows = max_rows;
         self.graphs.invalidate();
         Ok(())
@@ -160,7 +169,7 @@ impl Model {
 
     /// Write the row table and the position vector of a batched step (`states[r]` is row `r`): the device address of every
     /// state buffer of every row, and each row's current length. Stream-ordered before the step's launches.
-    fn upload_row_table(&self, states: &[&SequenceState]) -> Result<()> {
+    pub(super) fn upload_row_table(&self, states: &[&SequenceState]) -> Result<()> {
         let (Some(tab), Some(pos)) = (&self.row_tab, &self.batch_pos) else { return Ok(()) };
         let stride = 2 * self.slot_specs.len().max(1);
         let addr = |b: &Buffer| -> Result<u64> {
@@ -227,10 +236,14 @@ impl Model {
     /// The pre-GPU checks of one `forward_batch` row. A caller that wants a bad row to fail alone (the continuous-batching
     /// adapter) runs this per row first and passes only the rows that pass.
     pub fn check_batch_row(&self, st: &SequenceState, id: u32, mode: HeadMode) -> Result<()> {
-        if !matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
-            return Err(Error::invalid("forward_batch rows return logits or a token"));
+        let topk_ok = match mode {
+            HeadMode::LastTopK(k) => self.topk.is_some() && (1..=Self::TOPK_MAX).contains(&k) && k < self.dims.vocab,
+            _ => false,
+        };
+        if !matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && !topk_ok {
+            return Err(Error::invalid("forward_batch rows return logits, a token or (device sampling) the top-k"));
         }
-        Self::check_forward(st, &[id], mode, false)?;
+        Self::check_forward(st, &[id], if topk_ok { HeadMode::LastLogits } else { mode }, false)?;
         if !st.peers.is_empty() || (st.has_recurrent() && !self.recurrent_batch) {
             return Err(Error::Unsupported("batched decode of a recurrent or tensor-parallel state".into()));
         }
@@ -268,7 +281,10 @@ impl Model {
         for r in 0..b {
             self.check_batch_row(states[r], ids[r], modes[r])?;
         }
-        if b == 1 {
+        // one row is the solo step itself, except where row tables are on: then it is a batched step of one row, so that a
+        // server whose sequences alternate replays one recording for any sequence instead of re-recording the solo graph at
+        // every switch (bitwise the solo step: the `_rows` kernels at M = 1 are the one-row kernels, G-B)
+        if b == 1 && self.row_tab.is_none() {
             return Ok(vec![self.forward(states[0], ids, modes[0], None)?]);
         }
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
@@ -276,6 +292,9 @@ impl Model {
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
+            if !profile && self.graph_batch_step(&refs, ids)? {
+                return Ok(());
+            }
             self.upload_row_table(&refs)?;
             let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true, None)?;
             self.batch_head(&hn, b, profile)
@@ -288,6 +307,26 @@ impl Model {
         if modes.contains(&HeadMode::LastArgmax) {
             self.backend.download(tok, 0, &mut toks, 0)?;
         }
+        // device-side sampling (R3b): the top-k of every row that asked, one kernel for the step, three small downloads
+        let kmax = modes.iter().filter_map(|m| if let HeadMode::LastTopK(k) = m { Some(*k) } else { None }).max().unwrap_or(0);
+        let top = if kmax > 0 { Some(self.batch_topk(b, kmax)?) } else { None };
+        // the rows that want the whole logits row come back in ONE download of the `[b, V]` block when several do (rows are
+        // contiguous in `ws.logits`), not one transfer per row
+        let want: Vec<usize> = (0..b).filter(|&r| modes[r] == HeadMode::LastLogits || top.as_ref().is_some_and(|t| t.2[r] != 0 && matches!(modes[r], HeadMode::LastTopK(_)))).collect();
+        // one download per run of consecutive wanted rows (rows are contiguous in `ws.logits`)
+        let mut runs: Vec<(usize, Vec<u8>)> = Vec::new();
+        let mut i = 0;
+        while i < want.len() {
+            let mut j = i;
+            while j + 1 < want.len() && want[j + 1] == want[j] + 1 {
+                j += 1;
+            }
+            let (lo, n) = (want[i], want[j] + 1 - want[i]);
+            let mut bytes = vec![0u8; n * v * 4];
+            self.backend.download(&self.ws.logits, lo * v * 4, &mut bytes, 0)?;
+            runs.push((lo, bytes));
+            i = j + 1;
+        }
         let mut out = Vec::with_capacity(b);
         for r in 0..b {
             out.push(match modes[r] {
@@ -295,12 +334,15 @@ impl Model {
                     let c = &toks[r * 4..r * 4 + 4];
                     StepOut::Token(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32)
                 }
+                HeadMode::LastTopK(k) if top.as_ref().is_some_and(|t| t.2[r] == 0) => {
+                    let (ids, vals, _) = top.as_ref().expect("checked");
+                    StepOut::TopK { ids: ids[r * kmax..r * kmax + k].to_vec(), vals: vals[r * kmax..r * kmax + k].to_vec() }
+                }
                 _ => {
-                    let mut bytes = vec![0u8; v * 4];
-                    self.backend.download(&self.ws.logits, r * v * 4, &mut bytes, 0)?;
-                    StepOut::Logits(
-                        bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect(),
-                    )
+                    // LastLogits, or a top-k row whose logits hold a NaN (the host sampler's comparator path decides then)
+                    let (lo, run) = runs.iter().rev().find(|(lo, _)| *lo <= r).expect("row was downloaded");
+                    let bytes = &run[(r - lo) * v * 4..(r - lo + 1) * v * 4];
+                    StepOut::Logits(bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
                 }
             });
         }
@@ -311,9 +353,39 @@ impl Model {
         Ok(out)
     }
 
+    /// Most candidates device-side sampling returns per row.
+    pub const TOPK_MAX: usize = 64;
+
+    /// Top-`kmax` of rows `[0, b)` of `ws.logits` on the device; returns (ids, values, NaN flag) of every row, `kmax` per row.
+    fn batch_topk(&self, b: usize, kmax: usize) -> Result<(Vec<u32>, Vec<f32>, Vec<i32>)> {
+        let t = self.topk.as_ref().ok_or_else(|| Error::invalid("device-side sampling is off"))?;
+        let v = self.dims.vocab;
+        let logits = self.view(&self.ws.logits, DType::F32, &[b, v]);
+        let (ids, vals, nan) =
+            (self.view(&t.ids, DType::I32, &[b, kmax]), self.view(&t.vals, DType::F32, &[b, kmax]), self.view(&t.nan, DType::I32, &[b]));
+        let need = b * 32 * kmax * 8;
+        let scratch = self.view(&t.scratch, DType::U8, &[need]);
+        self.backend.topk_rows(&logits, kmax, &ids, &vals, &nan, &scratch, 0)?;
+        let (mut i, mut x, mut n) = (vec![0u8; b * kmax * 4], vec![0u8; b * kmax * 4], vec![0u8; b * 4]);
+        self.backend.download(&t.ids, 0, &mut i, 0)?;
+        self.backend.download(&t.vals, 0, &mut x, 0)?;
+        self.backend.download(&t.nan, 0, &mut n, 0)?;
+        let f = |c: &[u8]| [c[0], c[1], c[2], c[3]];
+        Ok((
+            i.chunks_exact(4).map(|c| i32::from_le_bytes(f(c)) as u32).collect(),
+            x.chunks_exact(4).map(|c| f32::from_le_bytes(f(c))).collect(),
+            n.chunks_exact(4).map(|c| i32::from_le_bytes(f(c))).collect(),
+        ))
+    }
+
+    /// Whether batched rows may ask for device-side top-k sampling (`HeadMode::LastTopK`).
+    pub fn device_sampling(&self) -> bool {
+        self.topk.is_some()
+    }
+
     /// lm_head of rows `[0, b)` into `ws.logits` (`[b, V]` f32) and their argmax into `batch_tok` (`i32 [b]`), on the
     /// row-exact kernels (the `exact_rows` mark is on for the whole pass but the per-row attention).
-    fn batch_head(&self, hn: &TensorRef, b: usize, profile: bool) -> Result<()> {
+    pub(super) fn batch_head(&self, hn: &TensorRef, b: usize, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("batch head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[b, v]);
@@ -395,6 +467,7 @@ impl Model {
             }
         }
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
+        self.mark_state_bound();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let rows = (|| -> Result<usize> {
             let mut qc_end = None;
@@ -429,6 +502,7 @@ impl Model {
     ) -> Result<Option<usize>> {
         let Some(pos) = self.batch_pos.as_ref() else { return Ok(None) };
         if self.rope_table.is_some() {
+            self.row_table_fallback("attention (scaled rope)");
             return Ok(None);
         }
         let b = sts.len();
@@ -477,7 +551,8 @@ impl Model {
         let mut rope_c = OpCall::new(Op::Rope, vec![bufs.q[0].clone()], vec![bufs.q[1].clone()], rope.clone());
         rope_c.pos = Some(pos.clone());
         for c in [&ka, &va, &at, &rope_c] {
-            if c.check().is_err() || self.registry.select(c).is_err() {
+            if let Err(e) = c.check().and_then(|_| self.registry.select(c).map(|_| ())) {
+                self.row_table_fallback(&format!("attention {}: {e}", c.op));
                 return Ok(None);
             }
         }
@@ -498,5 +573,23 @@ impl Model {
         self.exec_call(va, profile)?;
         self.exec_call(at, profile)?;
         Ok(Some(qc))
+    }
+
+    /// A batched step is about to launch something bound to one sequence's buffers (a per-row fallback): a recording being made
+    /// right now cannot serve other sequences.
+    pub(super) fn mark_state_bound(&self) {
+        if self.capture_ops.lock().unwrap().is_some() {
+            self.graphs.state_bound.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    /// A batched block fell back to its per-row launches although row tables are on (a call without kernel): said once per reason.
+    pub(super) fn row_table_fallback(&self, what: &str) {
+        static SEEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        let mut seen = SEEN.lock().unwrap();
+        if !seen.iter().any(|w| w == what) {
+            eprintln!("batched step: row-table path unavailable for {what}; per-row launches");
+            seen.push(what.to_string());
+        }
     }
 }

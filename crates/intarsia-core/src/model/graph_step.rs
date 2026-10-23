@@ -41,6 +41,16 @@ struct Captured {
 pub(super) struct GraphState {
     enabled: AtomicBool,
     captured: Mutex<Option<Captured>>,
+    /// Batched decode steps (R3c): one recording per row count, valid for any set of sequences because every state buffer a
+    /// batched step touches is named by the row table the host rewrites before each replay (`Model::row_tab`).
+    batched: Mutex<std::collections::HashMap<usize, Captured>>,
+    /// A recording of a batched step found a launch bound to one sequence's buffers (a per-row fallback): batched graphs are
+    /// off for this model.
+    batched_off: AtomicBool,
+    /// Set by the per-row fallbacks of a batched step while a recording is being made.
+    pub(super) state_bound: AtomicBool,
+    batch_captures: AtomicU64,
+    batch_replays: AtomicU64,
     captures: AtomicU64,
     replays: AtomicU64,
 }
@@ -51,6 +61,9 @@ pub struct GraphStats {
     pub enabled: bool,
     pub captures: u64,
     pub replays: u64,
+    /// Batched-step recordings (one per row count) and replays (`INTARSIA_BATCH_GRAPHS`, R3c).
+    pub batch_captures: u64,
+    pub batch_replays: u64,
 }
 
 impl GraphState {
@@ -58,6 +71,11 @@ impl GraphState {
         GraphState {
             enabled: AtomicBool::new(enabled),
             captured: Mutex::new(None),
+            batched: Mutex::new(Default::default()),
+            batched_off: AtomicBool::new(false),
+            state_bound: AtomicBool::new(false),
+            batch_captures: AtomicU64::new(0),
+            batch_replays: AtomicU64::new(0),
             captures: AtomicU64::new(0),
             replays: AtomicU64::new(0),
         }
@@ -66,6 +84,7 @@ impl GraphState {
     /// Drop the recording (scratch moved, kernels re-resolved, state gone).
     pub(super) fn invalidate(&self) {
         *self.captured.lock().unwrap() = None;
+        self.batched.lock().unwrap().clear();
     }
 
     /// Graphs requested, supported by the backend, and valid at every position for this plan. Under tensor
@@ -108,6 +127,8 @@ impl Model {
             enabled: self.graphs.usable(self),
             captures: self.graphs.captures.load(Ordering::Relaxed),
             replays: self.graphs.replays.load(Ordering::Relaxed),
+            batch_captures: self.graphs.batch_captures.load(Ordering::Relaxed),
+            batch_replays: self.graphs.batch_replays.load(Ordering::Relaxed),
         }
     }
 
@@ -207,6 +228,71 @@ impl Model {
         }
         for _ in 0..c.comms {
             self.telemetry.record_comm(None);
+        }
+        Ok(true)
+    }
+
+    /// A batched decode step (`states[r]` fed `ids[r]`, head included: logits `[b, V]` and the argmax tokens) through the graph
+    /// recorded for this row count. `Ok(false)`: not applicable (graphs off, a per-row fallback in the step, capture failed);
+    /// nothing ran and the caller runs the step eagerly. Like the solo step, the recording is made by the step that needs it
+    /// and replayed once; capture executes nothing.
+    pub(super) fn graph_batch_step(&self, states: &[&SequenceState], ids: &[u32]) -> Result<bool> {
+        let b = ids.len();
+        if !self.graphs.usable(self)
+            || self.graphs.batched_off.load(Ordering::Relaxed)
+            || self.row_tab.is_none()
+            || self.recorder.lock().unwrap().is_some()
+            || self.tp.world > 1
+            || std::env::var("INTARSIA_BATCH_GRAPHS").is_ok_and(|v| v == "0")
+        {
+            return Ok(false);
+        }
+        for &i in ids {
+            if i as usize >= self.dims.vocab {
+                return Err(Error::BadRequest(format!("token id {i} >= vocab {}", self.dims.vocab)));
+            }
+        }
+        // the step's device inputs: tokens, then the row table and positions (stream-ordered before the replay)
+        let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+        self.backend.upload(&self.ws.ids, 0, &ids_i32, 0)?;
+        self.upload_row_table(states)?;
+        let mut cache = self.graphs.batched.lock().unwrap();
+        if !cache.contains_key(&b) {
+            *self.capture_ops.lock().unwrap() = Some(Vec::new());
+            self.graphs.state_bound.store(false, Ordering::Relaxed);
+            let zeros = vec![0u32; b];
+            let graph = self.backend.graph_capture(0, &mut || {
+                // only the row count matters: tokens are read from ws.ids, state buffers and positions from the tables
+                let refs: Vec<&SequenceState> = states.to_vec();
+                let hn = self.run_layers(Seqs::Batch(&refs), &zeros, false, None, false, None)?;
+                self.batch_head(&hn, b, false)
+            });
+            let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
+            if self.graphs.state_bound.swap(false, Ordering::Relaxed) {
+                // a launch of this step names one sequence's buffers: the recording would replay on that sequence only
+                eprintln!("batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly");
+                self.graphs.batched_off.store(true, Ordering::Relaxed);
+                return Ok(false);
+            }
+            match graph {
+                Ok(graph) => {
+                    cache.insert(b, Captured { state_id: 0, graph, ops, comms: 0 });
+                    self.graphs.batch_captures.fetch_add(1, Ordering::Relaxed);
+                    self.telemetry.graph_event(false);
+                }
+                Err(e) => {
+                    eprintln!("batched decode graph capture failed ({e}); batched steps run eagerly from here on");
+                    self.graphs.batched_off.store(true, Ordering::Relaxed);
+                    return Ok(false);
+                }
+            }
+        }
+        let c = cache.get(&b).expect("captured above");
+        self.backend.graph_replay(&c.graph, 0)?;
+        self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
+        self.telemetry.graph_event(true);
+        for &op in &c.ops {
+            self.telemetry.record_op(op, None);
         }
         Ok(true)
     }

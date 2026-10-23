@@ -297,6 +297,29 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Device-side sampling (R3b): the `k` largest values of each f32 row of `logits` `[R, V]` in the sampler's order (value
+    /// descending, ties by ascending index; `sampler::sample_row` walks the same order), as `ids` i32 `[R, k]` and `vals` f32
+    /// `[R, k]`; `nan` i32 `[R]` is 1 for a row holding a NaN (its entries mean nothing). `scratch`: `R * 32 * k * 8` bytes,
+    /// `k <= 64`. Not a registered op; a backend without it returns `Unsupported` and the caller samples on the host.
+    #[allow(clippy::too_many_arguments)]
+    fn topk_rows(
+        &self,
+        _logits: &TensorRef,
+        _k: usize,
+        _ids: &TensorRef,
+        _vals: &TensorRef,
+        _nan: &TensorRef,
+        _scratch: &TensorRef,
+        _stream: StreamId,
+    ) -> Result<()> {
+        Err(Error::Unsupported(format!("{}: device-side top-k", self.name())))
+    }
+
+    /// Does `topk_rows` work on this backend?
+    fn supports_topk(&self) -> bool {
+        false
+    }
+
     /// The device address of the first byte of `buf`, for a row table (`OpCall::rows`). `None`: the backend has none.
     fn device_address(&self, _buf: &Buffer) -> Option<u64> {
         None

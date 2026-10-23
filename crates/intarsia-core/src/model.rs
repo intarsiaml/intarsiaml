@@ -203,6 +203,10 @@ pub enum HeadMode {
     LastArgmax,
     /// Logits of every position, streamed through a callback.
     AllLogits,
+    /// Batched decode rows only (`Model::forward_batch`, device-side sampling, R3b): the `k` largest logits of the last position
+    /// and their token ids, in the sampler's order (`StepOut::TopK`), instead of the whole `[V]` row. Exact for a sampler with
+    /// `top_k == k`: `Sampler::sample_topk` draws the token host sampling would.
+    LastTopK(usize),
 }
 
 #[derive(Debug)]
@@ -210,12 +214,21 @@ pub enum StepOut {
     None,
     Logits(Vec<f32>),
     Token(u32),
+    /// The `k` largest logits of the row and their token ids, best first (`HeadMode::LastTopK`).
+    TopK { ids: Vec<u32>, vals: Vec<f32> },
 }
 
 pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
 
 /// Views of the attention scratch for some rows: the two ping-pong q buffers `[t, n_heads, head_dim]`, the two k
 /// buffers and the v buffer `[t, n_kv_heads, head_dim]` (see [`Model::attn_rows`]).
+pub(super) struct TopkBufs {
+    ids: Buffer,
+    vals: Buffer,
+    nan: Buffer,
+    scratch: Buffer,
+}
+
 struct AttnBufs {
     q: [TensorRef; 2],
     k: [TensorRef; 2],
@@ -314,6 +327,9 @@ pub struct Model {
     /// serves any set of sequences. `Some` only on a backend that supports them and unless `INTARSIA_ROW_TABLES=0`.
     row_tab: Option<Buffer>,
     batch_pos: Option<Buffer>,
+    /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
+    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING=1` (opt-in).
+    topk: Option<TopkBufs>,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
@@ -977,6 +993,7 @@ impl Model {
             batch_tok: None,
             row_tab: None,
             batch_pos: None,
+            topk: None,
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
@@ -1397,6 +1414,9 @@ impl Model {
                 st.cap
             )));
         }
+        if matches!(mode, HeadMode::LastTopK(_)) {
+            return Err(Error::invalid("LastTopK is a batched-decode head (Model::forward_batch)"));
+        }
         if mode == HeadMode::AllLogits && !has_row_cb {
             return Err(Error::invalid("AllLogits needs a row callback"));
         }
@@ -1590,6 +1610,7 @@ impl Model {
                 HeadMode::None => false,
                 HeadMode::LastLogits | HeadMode::LastArgmax => last,
                 HeadMode::AllLogits => true,
+                HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
             let dead = !feeds_head && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
             self.tail_dead.store(dead, std::sync::atomic::Ordering::Relaxed);
