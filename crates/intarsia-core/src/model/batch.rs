@@ -41,12 +41,12 @@ impl Model {
     pub fn allow_recurrent_batch(&mut self) -> Result<()> {
         let ok = match self.backend.name() {
             "cpu" => true,
-            "cuda" => self.batch_capable(),
+            "cuda" | "metal" => self.batch_capable(),
             _ => false,
         };
         if !ok {
             return Err(Error::Unsupported(format!(
-                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda backend (and the cpu reference); the {} backend has no verified row-exact kernels for it",
+                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda and metal backends (and the cpu reference); the {} backend has no verified row-exact kernels for it",
                 self.backend.name()
             )));
         }
@@ -55,6 +55,16 @@ impl Model {
         }
         self.recurrent_batch = true;
         Ok(())
+    }
+
+    /// Whether the model has blocks only [`Model::allow_recurrent_batch`] lets a batched step run: GatedDeltaNet,
+    /// mixture-of-experts or gated attention.
+    pub fn has_hybrid_blocks(&self) -> bool {
+        self.layers.iter().flatten().any(|b| match b {
+            Block::Attn(a) => a.gated,
+            Block::Gdn(_) | Block::Moe(_) => true,
+            Block::Ffn(_) | Block::Gemma(_) => false,
+        })
     }
 
     /// Whether [`Model::allow_recurrent_batch`] was called.

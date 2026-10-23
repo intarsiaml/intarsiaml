@@ -728,16 +728,18 @@ impl Backend for MetalBackend {
         if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
             return self.launch_moe_topk(call);
         }
-        if kernel == moe::MOE_EXPERTS_BF16 && call.op == Op::MoeExperts {
-            return self.launch_moe_experts(call);
+        if (kernel == moe::MOE_EXPERTS_BF16 || kernel == moe::MOE_EXPERTS_BF16_ROWS) && call.op == Op::MoeExperts {
+            return self.launch_moe_experts(call, kernel == moe::MOE_EXPERTS_BF16_ROWS);
         }
         if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
             return self.launch_moe_combine(call);
         }
-        if (kernel == fp8::MATMUL_FP8_GEMV || kernel == fp8::MATMUL_FP8_MMA) && call.op == Op::MatmulFp8 {
+        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
             return self.launch_fp8(kernel, call);
         }
-        if (kernel == nvfp4::MATMUL_NVFP4_GEMV || kernel == nvfp4::MATMUL_NVFP4_MMA) && call.op == Op::MatmulNvfp4 {
+        if matches!(kernel, nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_GEMV_ROWS)
+            && call.op == Op::MatmulNvfp4
+        {
             return self.launch_nvfp4(kernel, call);
         }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {

@@ -367,6 +367,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::MATMUL_FP8_MMA, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
     (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
+    (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
+    (crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS, Op::MatmulNvfp4),
+    (crate::moe::MOE_EXPERTS_BF16_ROWS, Op::MoeExperts),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -609,6 +612,40 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .priority(0),
+                // Row-exact multi-row forms for batched decode of the hybrid 35B (rows_exact: only `OpCall::exact_rows` calls
+                // select them): row r bitwise the M = 1 serving kernel on row r alone, M = 2..=8 (tests/rows_exact.rs).
+                crate::fp8::MATMUL_FP8_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                crate::moe::MOE_EXPERTS_BF16_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        (2..=crate::moe::ROWS_MAX).contains(&s.m)
+                            && s.experts <= crate::moe::MAX_EXPERTS
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_TOL)
+                    .priority(-1)
+                    .rows_exact()
+                    .scratch(intarsia_core::quant::ops::moe_experts_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -734,15 +771,18 @@ mod tests {
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_nax:matmul",
         "matmul_fp8_gemv:matmul_fp8",
+        "matmul_fp8_gemv_rows:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_gemv_rows:matmul_nvfp4",
         "matmul_nvfp4_mma:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",
         "moe_combine_bf16:moe_combine",
         "moe_experts_bf16:moe_experts",
+        "moe_experts_bf16_rows:moe_experts",
         "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",

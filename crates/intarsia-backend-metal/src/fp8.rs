@@ -13,10 +13,13 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 /// `KernelImpl::name` of the kernels.
 pub const MATMUL_FP8_GEMV: &str = "matmul_fp8_gemv";
 pub const MATMUL_FP8_MMA: &str = "matmul_fp8_mma";
+/// `rows_exact` multi-row GEMV (continuous batching of the hybrid 35B, docs/results/2026-10-23-mb-metal-hybrid-batching.md):
+/// row r of an M-row launch (M = 2..=8) is bitwise the M = 1 `matmul_fp8_gemv` launch on row r alone (tests/rows_exact.rs).
+pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 
 const XPREP: &str = "fp8_xprep_bf16";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 7] = [
+pub const SHADERS: [&str; 9] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -24,6 +27,8 @@ pub const SHADERS: [&str; 7] = [
     "fp8_gemv_f32_m8",
     "fp8_mma_bf16",
     "fp8_mma_f32",
+    "fp8_gemv_bf16_m4",
+    "fp8_gemv_f32_m4",
 ];
 
 /// Simdgroups per GEMV threadgroup (`FP8_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
@@ -39,6 +44,12 @@ const MMA_THREADS: usize = 128;
 /// Largest M of the decode GEMV for K: the staged activations (`M * K` bf16) must fit threadgroup memory.
 pub fn gemv_ok(s: &ShapeInfo) -> bool {
     (1..=GEMV_MB).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= GEMV_TG_BYTES
+}
+
+/// The row-exact multi-row GEMV serves 2..=8 rows; 4 rows of activations must fit threadgroup memory (K <= 4096), 8 rows
+/// are staged in one pass up to K = 2048 and in two passes of 4 (the `_m4` shader) above.
+pub fn rows_ok(s: &ShapeInfo) -> bool {
+    (2..=GEMV_MB).contains(&s.m) && s.k % 16 == 0 && 4 * s.k * 2 <= GEMV_TG_BYTES
 }
 
 /// GEMM scratch: the QDQ'd activations as bf16 `[M,K]`.
@@ -86,23 +97,36 @@ impl MetalBackend {
             )));
         }
         let pdims = [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0];
-        if kernel == MATMUL_FP8_GEMV {
-            if m > GEMV_MB || m * k * 2 > GEMV_TG_BYTES {
-                return Err(Error::invalid(format!("metal matmul_fp8_gemv: M = {m}, K = {k} does not fit")));
+        if kernel == MATMUL_FP8_GEMV || kernel == MATMUL_FP8_GEMV_ROWS {
+            let rows = kernel == MATMUL_FP8_GEMV_ROWS;
+            if m > GEMV_MB || m * k * 2 > GEMV_TG_BYTES && !(rows && 4 * k * 2 <= GEMV_TG_BYTES) {
+                return Err(Error::invalid(format!("metal {kernel}: M = {m}, K = {k} does not fit")));
             }
-            let (name, rs) = match (f32_out, m == 1) {
-                (false, true) => (SHADERS[1], GEMV_RS[0]),
-                (false, false) => (SHADERS[2], GEMV_RS[1]),
-                (true, true) => (SHADERS[3], GEMV_RS[0]),
-                (true, false) => (SHADERS[4], GEMV_RS[1]),
+            if rows && m < 2 {
+                return Err(Error::invalid(format!("metal {kernel}: M = {m} (2..=8 rows)")));
+            }
+            // activation rows per threadgroup: the serving GEMV 1 / 8; the row-exact form 8, or 4 where 8 rows do not fit
+            let mb = if m == 1 {
+                1
+            } else if rows && m * k * 2 > GEMV_TG_BYTES {
+                4
+            } else {
+                GEMV_MB
+            };
+            let (name, rs) = match (f32_out, mb) {
+                (false, 1) => (SHADERS[1], GEMV_RS[0]),
+                (false, 4) => (SHADERS[7], GEMV_RS[1]),
+                (false, _) => (SHADERS[2], GEMV_RS[1]),
+                (true, 1) => (SHADERS[3], GEMV_RS[0]),
+                (true, 4) => (SHADERS[8], GEMV_RS[1]),
+                (true, _) => (SHADERS[4], GEMV_RS[1]),
             };
             let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
             if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
                 return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
             }
             let p = OpP { dims: pdims, skips: [xb.skip, ob.skip, 0, 0, 0], ..Default::default() };
-            let mb = if m == 1 { 1 } else { GEMV_MB };
-            let tg_bytes = (m * k * 2).next_multiple_of(16); // the staged rows: M <= MB
+            let tg_bytes = (m.min(mb) * k * 2).next_multiple_of(16); // the staged rows of one threadgroup
             return self.with_encoder(|enc| {
                 // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`).
                 unsafe {
