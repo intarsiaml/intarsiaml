@@ -1,0 +1,6 @@
+plan 8 main exit 0
+plan 8 br exit 0
+plan 8 diff exit 0 (       0 lines)
+plan 35 main exit 0
+plan 35 br exit 0
+plan 35 diff exit 1 (      31 lines)

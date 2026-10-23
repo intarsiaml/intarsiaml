@@ -1,0 +1,12 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (recipe qwen3_5_moe): 162 of 5505 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /opt/code/wt-gc/golden/oracle/qwen36-35b-a3b-nvfp4-cpu-oracle.safetensors (11 prompts, 5505 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+gates: class bf16 (--gate-class); top-1 (all rows) >= 0%, 21-way KL (scored rows: outside system and user turns) <= 2.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 4064; prompts spanning more than one chunk: 1/11
+reference noise: ignored (--no-ref-noise): the KL floor is the class floor alone
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
