@@ -1,0 +1,26 @@
+expert bytes MB 1.7694726562499996 dense total MB 1688.0 {'gdn': 1016.5, 'attn': 272.7, 'shared': 70.8, 'router': 41.9, 'head': 286.1}
+state r+w per seq MB 131.72736 one state MiB 62.8125
+N=1 bytes MB 2406.93013 effective GB/s 194.01339110108012 peak 273 -> 0.7106717622750187
+host ms/step at N=1 1.0710889487870605
+ctx 1024
+ grouped  N= 1 bytes=   2407 MB  gpu=  12.4 ms  step=  13.5 ms  agg=  74.2 tok/s  x1.00   distinct/layer=8.0
+ grouped  N= 2 bytes=   3108 MB  gpu=  16.0 ms  step=  17.1 ms  agg= 116.7 tok/s  x1.57   distinct/layer=15.8
+ grouped  N= 4 bytes=   4460 MB  gpu=  23.0 ms  step=  24.2 ms  agg= 165.2 tok/s  x2.23   distinct/layer=30.5
+ grouped  N= 8 bytes=   6974 MB  gpu=  35.9 ms  step=  37.4 ms  agg= 214.1 tok/s  x2.89   distinct/layer=57.4
+ grouped  N=16 bytes=  11348 MB  gpu=  58.5 ms  step=  60.3 ms  agg= 265.3 tok/s  x3.58   distinct/layer=102.0
+ pair     N= 1 bytes=   2407 MB  gpu=  12.4 ms  step=  13.5 ms  agg=  74.2 tok/s  x1.00   distinct/layer=8.0
+ pair     N= 2 bytes=   3126 MB  gpu=  16.1 ms  step=  17.2 ms  agg= 116.1 tok/s  x1.56   distinct/layer=15.8
+ pair     N= 4 bytes=   4564 MB  gpu=  23.5 ms  step=  24.7 ms  agg= 161.7 tok/s  x2.18   distinct/layer=30.5
+ pair     N= 8 bytes=   7439 MB  gpu=  38.3 ms  step=  39.8 ms  agg= 201.2 tok/s  x2.71   distinct/layer=57.4
+ pair     N=16 bytes=  13191 MB  gpu=  68.0 ms  step=  69.8 ms  agg= 229.2 tok/s  x3.09   distinct/layer=102.0
+ctx 4096
+ grouped  N= 1 bytes=   2470 MB  gpu=  12.7 ms  step=  13.8 ms  agg=  72.5 tok/s  x0.98   distinct/layer=8.0
+ grouped  N= 2 bytes=   3234 MB  gpu=  16.7 ms  step=  17.8 ms  agg= 112.4 tok/s  x1.52   distinct/layer=15.8
+ grouped  N= 4 bytes=   4711 MB  gpu=  24.3 ms  step=  25.5 ms  agg= 156.8 tok/s  x2.11   distinct/layer=30.5
+ grouped  N= 8 bytes=   7477 MB  gpu=  38.5 ms  step=  40.0 ms  agg= 200.2 tok/s  x2.70   distinct/layer=57.4
+ grouped  N=16 bytes=  12355 MB  gpu=  63.7 ms  step=  65.5 ms  agg= 244.3 tok/s  x3.29   distinct/layer=102.0
+ pair     N= 1 bytes=   2470 MB  gpu=  12.7 ms  step=  13.8 ms  agg=  72.5 tok/s  x0.98   distinct/layer=8.0
+ pair     N= 2 bytes=   3252 MB  gpu=  16.8 ms  step=  17.9 ms  agg= 111.8 tok/s  x1.51   distinct/layer=15.8
+ pair     N= 4 bytes=   4815 MB  gpu=  24.8 ms  step=  26.0 ms  agg= 153.6 tok/s  x2.07   distinct/layer=30.5
+ pair     N= 8 bytes=   7943 MB  gpu=  40.9 ms  step=  42.4 ms  agg= 188.9 tok/s  x2.55   distinct/layer=57.4
+ pair     N=16 bytes=  14198 MB  gpu=  73.2 ms  step=  75.0 ms  agg= 213.3 tok/s  x2.88   distinct/layer=102.0

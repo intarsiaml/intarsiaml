@@ -173,6 +173,14 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
+    /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
+    /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above
+    /// [`crate::scheduler::MAX_BATCH_CAP`].
+    fn batch_row_cap(&self) -> usize {
+        crate::engine::SERVE_MAX_BATCH
+    }
+
     /// Can this backend's fused decode ops run on one rank's shard under tensor parallelism ("row-local fusion")? True
     /// when every fused kernel takes its head counts and widths from the call (the rank's local dims), never from the
     /// unsharded model. The model still keeps the fused ops that would swallow a collective off (`Model::fused_ok`),

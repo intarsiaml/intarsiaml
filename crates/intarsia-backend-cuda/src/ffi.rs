@@ -80,8 +80,10 @@ extern "C" {
     pub fn ik_gdn_delta_rule_bf16_split(qkv: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, s: S) -> c_int;
     pub fn ik_matmul_bf16(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_logits_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;

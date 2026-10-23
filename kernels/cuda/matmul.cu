@@ -163,10 +163,11 @@ void gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int
     else gemv_kernel<M, OutT, false><<<grid, block, 0, s>>>(x, w, out, N, K);
 }
 
+// max_rows: 4 for the decode GEMV, 16 for the row-exact twin (same kernel template, more accumulators)
 template <typename OutT>
-int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, int64_t max_rows = 4) {
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
-    if (M < 1 || M > 4) return IK_ERR_SHAPE;
+    if (M < 1 || M > max_rows) return IK_ERR_SHAPE;
     const bool vec = K % 8 == 0 && ik_aligned16(x->data) && ik_aligned16(w->data);
     cudaStream_t s = IK_STREAM(stream);
     const ik_bf16* xp = (const ik_bf16*)x->data;
@@ -176,7 +177,20 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
         case 1: gemv_dispatch<1, OutT>(xp, wp, op, N, K, vec, s); break;
         case 2: gemv_dispatch<2, OutT>(xp, wp, op, N, K, vec, s); break;
         case 3: gemv_dispatch<3, OutT>(xp, wp, op, N, K, vec, s); break;
-        default: gemv_dispatch<4, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 4: gemv_dispatch<4, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 5: gemv_dispatch<5, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 6: gemv_dispatch<6, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 7: gemv_dispatch<7, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 8: gemv_dispatch<8, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 9: gemv_dispatch<9, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 10: gemv_dispatch<10, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 11: gemv_dispatch<11, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 12: gemv_dispatch<12, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 13: gemv_dispatch<13, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 14: gemv_dispatch<14, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 15: gemv_dispatch<15, OutT>(xp, wp, op, N, K, vec, s); break;
+        case 16: gemv_dispatch<16, OutT>(xp, wp, op, N, K, vec, s); break;
+        default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
 }
@@ -281,12 +295,13 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
     return ik_launch_status();
 }
 
-int mm(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, bool f32_out, bool gemv) {
+int mm(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, bool f32_out, bool gemv, int64_t gemv_rows = 4) {
     IK_TRY(check_mm(x, w, out, f32_out ? IK_DTYPE_F32 : IK_DTYPE_BF16));
     if (ik_numel(out) == 0) return IK_OK;
     if (x->shape[1] == 0) return cudaMemsetAsync(out->data, 0, ik_numel(out) * (f32_out ? 4 : 2), IK_STREAM(stream)) ==
                                          cudaSuccess ? IK_OK : IK_ERR_LAUNCH;
-    if (gemv) return f32_out ? gemv_launch<float>(x, w, out, stream) : gemv_launch<ik_bf16>(x, w, out, stream);
+    if (gemv)
+        return f32_out ? gemv_launch<float>(x, w, out, stream, gemv_rows) : gemv_launch<ik_bf16>(x, w, out, stream, gemv_rows);
     return cublas_launch(x, w, out, stream, f32_out);
 }
 
@@ -360,6 +375,13 @@ int ik_matmul_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void*
 }
 int ik_matmul_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, false, true);
+}
+// Row-exact twins of the decode GEMVs: M <= 16, row m bitwise the M = 1 call on row m alone (tests/rows_exact.rs).
+int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return mm(x, w, out, stream, false, true, 16);
+}
+int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return mm(x, w, out, stream, true, true, 16);
 }
 int ik_logits_bf16(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
     return mm(x, w, out, stream, true, false);

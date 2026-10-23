@@ -851,15 +851,15 @@ fn config_limits() {
     let m = || MockModel::new(8, 64);
     assert!(Scheduler::<MockModel, MockSeq>::new(m(), SchedulerConfig { max_batch: 0, ..Default::default() }).is_err());
     assert!(Scheduler::<MockModel, MockSeq>::new(
-        MockModel::new(9, 64),
-        SchedulerConfig { max_batch: 9, ..Default::default() }
+        MockModel::new(17, 64),
+        SchedulerConfig { max_batch: 17, ..Default::default() }
     )
     .is_err());
     let d = SchedulerConfig::default();
     assert_eq!((d.max_batch, d.solo_chunk, d.busy_chunk, d.busy_chunks_per_iter, d.spec_off_at), (1, 2048, 256, 1, 4));
     assert!(!d.trace && !d.trace_stderr, "tracing is off by default");
     let ok = |n| SchedulerConfig { spec_off_at: n, ..Default::default() }.validate();
-    assert!(ok(0).is_ok() && ok(9).is_ok() && ok(10).is_err());
+    assert!(ok(0).is_ok() && ok(17).is_ok() && ok(18).is_err());
 }
 
 /// The main property test: staggered arrivals, cancellations at random iterations, client disconnects, mixed lengths,

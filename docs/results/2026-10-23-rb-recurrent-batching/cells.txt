@@ -1,0 +1,52 @@
+2x DGX Spark GB10 (TP2) · Qwen3.6-35B-A3B | plain | decode | 1k
+    IntarsiaML · NVFP4 · TP2 95.2 20261021-152359-adhoc-intarsia-35b-tp2-graphs-xhost unverified
+2x DGX Spark GB10 (TP2) · Qwen3.6-35B-A3B | plain | decode | 4k
+    IntarsiaML · NVFP4 · TP2 94.3 20261021-152359-adhoc-intarsia-35b-tp2-graphs-xhost unverified
+2x DGX Spark GB10 (TP2) · Qwen3.6-35B-A3B | plain | decode | 16k
+    IntarsiaML · NVFP4 · TP2 86.6 20261021-152359-adhoc-intarsia-35b-tp2-graphs-xhost unverified
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 1x
+    IntarsiaML · NVFP4 74.2 20261022-050829-adhoc-fx3-35b-intarsia-p1-conc ok
+    vLLM · NVFP4 69.7 20261022-050949-adhoc-fx3-35b-vllm-p1-conc drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    SGLang 68.1 20261022-055557-adhoc-fx3-35b-sglang-r24-conc ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 2x
+    vLLM · NVFP4 105.9 20261012-190031-spark-capcom-qwen36-nvfp4-baseline drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    TensorFold · MLX 4-bit 78.6 20261013-003923-adhoc-tf-qwen36-mlx4-serial no-peer
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 4x
+    SGLang 157.5 20261022-055557-adhoc-fx3-35b-sglang-r24-conc ok
+    vLLM · NVFP4 105.5 20261022-050949-adhoc-fx3-35b-vllm-p1-conc drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    IntarsiaML · NVFP4 75.2 20261022-050829-adhoc-fx3-35b-intarsia-p1-conc ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 16x
+    SGLang 219.9 20261022-055053-adhoc-fx3-35b-sglang-r23-conc ok
+    vLLM · NVFP4 105.8 20261022-052558-adhoc-fx3-35b-vllm-p3-conc drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    IntarsiaML · NVFP4 75.2 20261022-050829-adhoc-fx3-35b-intarsia-p1-conc ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | decode | 1k
+    TensorFold · MLX 4-bit 93.1 20261013-003923-adhoc-tf-qwen36-mlx4-serial no-peer
+    IntarsiaML · NVFP4 85.8 20261022-050755-adhoc-fx3-35b-intarsia-p1-speed ok
+    vLLM · NVFP4 80.7 20261022-220038-spark-guidance-k1029-drv173-spark1-pre drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    SGLang 75.0 20261022-054309-adhoc-fx3-35b-sglang-r21-speed ok
+    llama.cpp · NVFP4 56.3 20261022-051926-adhoc-fx3-35b-llamacpp-p2-speed ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | decode | 4k
+    TensorFold · MLX 4-bit 87.5 20261013-003923-adhoc-tf-qwen36-mlx4-serial no-peer
+    IntarsiaML · NVFP4 82.9 20261022-050755-adhoc-fx3-35b-intarsia-p1-speed ok
+    vLLM · NVFP4 81.4 20261015-122034-spark-guidance-bolt-ab-qwen36-off drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    SGLang 73.8 20261022-054309-adhoc-fx3-35b-sglang-r21-speed ok
+    llama.cpp · NVFP4 55.5 20261022-051926-adhoc-fx3-35b-llamacpp-p2-speed ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | decode | 16k
+    TensorFold · MLX 4-bit 79.1 20261013-003923-adhoc-tf-qwen36-mlx4-serial no-peer
+    vLLM · NVFP4 76.6 20261022-222802-adhoc-k1032-drv178-spark2 drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+    IntarsiaML · NVFP4 75.7 20261019-054642-adhoc-intarsia-round5-f8 ok
+    SGLang 71.4 20261022-054309-adhoc-fx3-35b-sglang-r21-speed ok
+    llama.cpp · NVFP4 52.0 20261022-051926-adhoc-fx3-35b-llamacpp-p2-speed ok
+DGX Spark GB10 · Qwen3.6-35B-A3B | plain | decode | 64k+
+    vLLM · NVFP4 63.3 20261010-110524-adhoc-fp8-cutlass-fix drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+DGX Spark GB10 · Qwen3.6-35B-A3B | spec | concurrent | 2x
+    TensorFold · MLX 4-bit 177.1 20261013-201320-adhoc-ab-new-native-qwen36-drafted no-peer
+DGX Spark GB10 · Qwen3.6-35B-A3B | spec | decode | 1k
+    TensorFold · MLX 4-bit 157.8 20261013-201346-adhoc-ab-new-native-qwen36-drafted-r2 no-peer
+    vLLM · NVFP4 101.4 20261015-213458-adhoc-qwen36-3f1bcfd8-mtp drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+DGX Spark GB10 · Qwen3.6-35B-A3B | spec | decode | 4k
+    TensorFold · MLX 4-bit 173.5 20261013-004715-adhoc-tf-qwen36-mlx4-mtp-parallel2 no-peer
+    vLLM · NVFP4 92.8 20261015-214542-adhoc-qwen36-3f1bcfd8-dflash2 drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]
+DGX Spark GB10 · Qwen3.6-35B-A3B | spec | decode | 16k
+    TensorFold · MLX 4-bit 150.3 20261013-180430-adhoc-final-native-qwen36-drafted-r2 no-peer
+    vLLM · NVFP4 81.9 20261015-214009-adhoc-qwen36-3f1bcfd8-dflash drop:gsm8k@n1319:0.582<0.683 [peer = spark2 retro vLLM (median 4 completion tokens, bare answers), not production; rerun on production pending]

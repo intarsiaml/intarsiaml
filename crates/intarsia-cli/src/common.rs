@@ -602,10 +602,11 @@ mod tests {
     #[test]
     fn busy_chunk_is_a_serve_flag_with_a_checked_range() {
         let s = Srv::try_parse_from(["t", "-m", "/m"]).unwrap().a;
-        assert_eq!(usize::from(s.busy_chunk), intarsia_core::engine::BUSY_PREFILL_CHUNK);
-        assert_eq!(s.busy_chunk, 256, "default stays 256");
+        // unset: the engine's default (256; 1024 for hybrid MoE on CUDA, resolved at load)
+        assert_eq!(s.busy_chunk, None);
+        assert_eq!(intarsia_core::engine::BUSY_PREFILL_CHUNK, 256);
         let s = Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "320"]).unwrap().a;
-        assert_eq!(s.busy_chunk, 320);
+        assert_eq!(s.busy_chunk, Some(320));
         assert!(Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "15"]).is_err());
         assert!(Srv::try_parse_from(["t", "-m", "/m", "--busy-chunk", "2049"]).is_err());
         assert!(Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--busy-chunk", "320"]).is_err());
