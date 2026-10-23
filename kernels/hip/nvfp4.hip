@@ -361,21 +361,24 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik
 }
 
 // matmul_nvfp4_gemv_rows (HIP only: declared in ik_hip_abi.h; lane hb, batched decode): M = 1..16 rows, row m bitwise the
-// one-row ik_matmul_nvfp4_gemv_v2 on row m alone (tests/rows_exact.rs). The v2 GEMV takes 1..8 rows per launch (its register
-// footprint grows with M); more rows go in near-equal groups of at most 8, one weight pass per group. A row's arithmetic
-// (lane order, one fma chain per 16-element block, one warp sum) does not depend on the launch's M.
+// one-row ik_matmul_nvfp4_gemv_v2 on row m alone (tests/rows_exact.rs). The v2 GEMV takes 1..8 rows per launch, but its time
+// is not linear in M: on the R9700 the 248320 x 2048 head takes 410 us at M = 1, 759 us at M = 4 and 3214 us at M = 8 (the
+// register footprint of the M = 8 instantiation), so rows go in near-equal groups of at most kRowsGroup = 4: one weight
+// pass per group, 16 rows = 4 launches of 4 (about 3.0 ms against 6.4 ms for two groups of 8). A row's arithmetic (lane
+// order, one fma chain per 16-element block, one warp sum) does not depend on the launch's M, so the grouping is invisible.
+constexpr int kRowsGroup = 4;
 int launch_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik_tensor* gs, ik_tensor* out,
                 void* stream) {
     const int64_t M = x->shape[0];
     if (M < 1 || M > 16) return IK_ERR_SHAPE;
-    if (M <= 8) return launch(x, w, bs, gs, out, stream, 2);
+    if (M <= kRowsGroup) return launch(x, w, bs, gs, out, stream, 2);
     // shapes are validated by launch() on each group; the views below carry the same dtypes and a row-sliced shape
     const int64_t K = x->shape[1], N = w->shape[0];
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check(out, out->dtype, 2));
     if (out->shape[0] != M || out->shape[1] != N) return IK_ERR_SHAPE;
     const int64_t esz = out->dtype == IK_DTYPE_F32 ? 4 : 2;
-    const int64_t groups = (M + 7) / 8;
+    const int64_t groups = (M + kRowsGroup - 1) / kRowsGroup;
     int64_t r0 = 0;
     for (int64_t g = 0; g < groups; ++g) {
         const int64_t m = (M - r0 + (groups - g) - 1) / (groups - g);

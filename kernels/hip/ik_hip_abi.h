@@ -73,7 +73,7 @@ int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_te
  * (G-B, crates/intarsia-backend-hip/tests/rows_exact.rs). Registered `rows_exact`: only a batched step's calls pick them.
  *   matmul_fp8_gemv_rows    = ik_matmul_fp8_gemv_v2 per row (K % 16 == 0, K * 2 <= 48 KiB; M > 4 in groups of at most 48 KiB / (K * 2)
  *                             and 12 rows)
- *   matmul_nvfp4_gemv_rows  = ik_matmul_nvfp4_gemv_v2 per row (M > 8 in two groups)
+ *   matmul_nvfp4_gemv_rows  = ik_matmul_nvfp4_gemv_v2 per row (M > 4 in groups of at most 4: the M = 8 instantiation is 4x slower than M = 4)
  *   matmul_bf16_gemv_rows / logits_bf16_gemv_rows = ik_matmul_bf16_gemv / ik_logits_bf16_gemv per row (any K, M rows in one launch)
  *   moe_experts_bf16_rows   = ik_moe_experts_bf16_v2 per token, never the tensor-core path (T <= 16) */
 int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
