@@ -1,0 +1,154 @@
+== chunk-job metal start 09:51:40 host endor.kuepker.haus steps 'acc speed' chunks '2048 4096 8192' job 4135
+acc 35b all chunk 2048 exit 1 95 s 15600216 bytes
+acc 35b all chunk 4096 exit 1 93 s 15600216 bytes
+acc 35b all chunk 8192 exit 1 91 s 15600216 bytes
+acc 8b short chunk 2048 exit 0 4 s 230488 bytes
+acc 8b short chunk 4096 exit 0 2 s 230488 bytes
+acc 8b short chunk 8192 exit 0 2 s 230488 bytes
+acc 8b 4k chunk 2048 exit 1 59 s 14809676 bytes
+acc 8b 4k chunk 4096 exit 1 57 s 14809676 bytes
+acc 8b 4k chunk 8192 exit 1 56 s 14809676 bytes
+--- 35b chunk 2048 serve [09:59:20]
+up after ~12 s
+  size   4096 rep: prompt=3977 gen=16 ttft=2.23s prefill=1785 tok/s decode=119.9 tok/s
+  size  16384 rep: prompt=16424 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16201 gen=16 ttft=10.53s prefill=1539 tok/s decode=109.3 tok/s
+  size  16384 rep: prompt=16282 gen=16 ttft=10.59s prefill=1538 tok/s decode=109.1 tok/s
+  size  16384 rep: prompt=16254 gen=16 ttft=10.59s prefill=1535 tok/s decode=109.6 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/35b/ck-metal-35b-c2048.json
+ck-metal-35b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3960     2.204         1795       120.0       16
+   16384    16254    10.587         1538       109.3       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 35b chunk 4096 serve [10:00:37]
+up after ~9 s
+  size   4096 rep: prompt=3966 gen=16 ttft=2.19s prefill=1814 tok/s decode=120.7 tok/s
+  size   4096 rep: prompt=3957 gen=16 ttft=2.18s prefill=1811 tok/s decode=120.0 tok/s
+  size  16384 rep: prompt=16158 gen=16 ttft=10.07s prefill=1605 tok/s decode=108.7 tok/s
+  size  16384 rep: prompt=16186 gen=16 ttft=10.13s prefill=1598 tok/s decode=106.3 tok/s
+  size  16384 rep: prompt=16175 gen=16 ttft=10.08s prefill=1604 tok/s decode=109.0 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/35b/ck-metal-35b-c4096.json
+ck-metal-35b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3957     2.185         1814       120.0       16
+   16384    16175    10.085         1604       108.7       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 35b chunk 8192 serve [10:01:36]
+up after ~9 s
+  size   4096 rep: prompt=3947 gen=16 ttft=2.18s prefill=1813 tok/s decode=120.3 tok/s
+  size   4096 rep: prompt=3988 gen=16 ttft=2.19s prefill=1818 tok/s decode=119.9 tok/s
+  size  16384 rep: prompt=16320 gen=16 ttft=9.73s prefill=1677 tok/s decode=101.9 tok/s
+  size  16384 rep: prompt=16215 gen=16 ttft=9.81s prefill=1653 tok/s decode=105.3 tok/s
+  size  16384 rep: prompt=16323 gen=16 ttft=9.80s prefill=1666 tok/s decode=108.0 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/35b/ck-metal-35b-c8192.json
+ck-metal-35b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3979     2.193         1813       120.0       16
+   16384    16320     9.799         1666       105.3       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 35b chunk 2048 serve [10:02:34]
+up after ~9 s
+  size  16384 rep: prompt=16400 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16374 gen=16 ttft=10.64s prefill=1539 tok/s decode=108.5 tok/s
+  size  16384 rep: prompt=16369 gen=16 ttft=10.64s prefill=1539 tok/s decode=108.2 tok/s
+  size  16384 rep: prompt=16429 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16364 gen=16 ttft=10.62s prefill=1541 tok/s decode=108.4 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/35b/ck-metal-35b-c2048.json
+ck-metal-35b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4003     2.233         1792       119.4       16
+   16384    16369    10.639         1539       108.4       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 8b chunk 2048 serve [10:04:09]
+up after ~48 s
+  size   4096 rep: prompt=4008 gen=16 ttft=1.04s prefill=3872 tok/s decode=35.3 tok/s
+  size  16384 rep: prompt=16428 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16238 gen=16 ttft=5.92s prefill=2744 tok/s decode=32.3 tok/s
+  size  16384 rep: prompt=16303 gen=16 ttft=6.08s prefill=2682 tok/s decode=32.4 tok/s
+  size  16384 rep: prompt=16264 gen=16 ttft=5.99s prefill=2716 tok/s decode=32.4 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c2048.json
+ck-metal-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4004     1.035         3867        35.7       16
+   16384    16264     5.987         2716        32.4       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 8b chunk 4096 serve [10:05:33]
+up after ~42 s
+  size   4096 rep: prompt=3954 gen=16 ttft=0.99s prefill=3975 tok/s decode=35.7 tok/s
+  size  16384 rep: prompt=16341 gen=16 ttft=6.10s prefill=2679 tok/s decode=31.7 tok/s
+  size  16384 rep: prompt=16407 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16272 gen=16 ttft=6.78s prefill=2398 tok/s decode=31.2 tok/s
+  size  16384 rep: prompt=16303 gen=16 ttft=6.80s prefill=2397 tok/s decode=31.2 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c4096.json
+ck-metal-8b-c4096  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4010     1.026         3924        35.6       16
+   16384    16303     6.785         2398        31.2       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 8b chunk 8192 serve [10:06:54]
+up after ~42 s
+  size   4096 rep: prompt=3987 gen=16 ttft=1.03s prefill=3878 tok/s decode=35.8 tok/s
+  size  16384 rep: prompt=16313 gen=16 ttft=7.70s prefill=2118 tok/s decode=31.1 tok/s
+  size  16384 rep: prompt=16414 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16282 gen=16 ttft=8.16s prefill=1996 tok/s decode=30.7 tok/s
+  size  16384 rep: prompt=16324 gen=16 ttft=8.73s prefill=1869 tok/s decode=31.1 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c8192.json
+ck-metal-8b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3987     1.028         3879        35.8       16
+   16384    16313     8.157         1996        31.1       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+--- 8b chunk 2048 serve [10:08:22]
+up after ~42 s
+  size  16384 rep: prompt=16435 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16401 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16297 gen=16 ttft=6.16s prefill=2644 tok/s decode=32.2 tok/s
+  size  16384 rep: prompt=16361 gen=16 ttft=6.26s prefill=2612 tok/s decode=32.2 tok/s
+  size  16384 rep: prompt=16327 gen=16 ttft=6.16s prefill=2651 tok/s decode=32.1 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c2048.json
+ck-metal-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4000     1.034         3868        35.5       16
+   16384    16327     6.165         2644        32.2       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+== chunk-job metal done 10:09:47
+== chunk-job metal start 10:24:26 host endor.kuepker.haus steps 'gen accdec' chunks '2048 4096 8192' job 4190
+gen 35b 20000 chars chunk 2048 exit 0 14 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 3552 ms (1638.9 tok/s) | decode 533 ms (118.25 tok/s) ids c873e36b top 54c7858b
+gen 35b 20000 chars chunk 4096 exit 0 13 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 3374 ms (1725.8 tok/s) | decode 531 ms (118.60 tok/s) ids c873e36b top 54c7858b
+gen 35b 20000 chars chunk 8192 exit 0 12 s: finish=length prompt=5822 (cached 0) completion=64 | prefill 3472 ms (1676.7 tok/s) | decode 532 ms (118.39 tok/s) ids c873e36b top 54c7858b
+  gen 35b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 35b 54000 chars chunk 2048 exit 0 35 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 11416 ms (1402.7 tok/s) | decode 578 ms (108.92 tok/s) ids b2a8de89 top bb36efcf
+gen 35b 54000 chars chunk 4096 exit 0 31 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 10579 ms (1513.8 tok/s) | decode 585 ms (107.73 tok/s) ids b2a8de89 top bb36efcf
+gen 35b 54000 chars chunk 8192 exit 0 31 s: finish=length prompt=16014 (cached 0) completion=64 | prefill 9936 ms (1611.8 tok/s) | decode 580 ms (108.69 tok/s) ids b2a8de89 top bb36efcf
+  gen 35b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 35b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 8b 20000 chars chunk 2048 exit 0 9 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 71 ms (14.0 tok/s) | decode 1787 ms (35.26 tok/s) ids c2e98162 top 6839dc2a
+gen 8b 20000 chars chunk 4096 exit 0 7 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 69 ms (14.4 tok/s) | decode 1786 ms (35.27 tok/s) ids c2e98162 top 6839dc2a
+gen 8b 20000 chars chunk 8192 exit 0 8 s: finish=length prompt=5686 (cached 5685) completion=64 | prefill 190 ms (5.3 tok/s) | decode 1810 ms (34.81 tok/s) ids c2e98162 top 6839dc2a
+  gen 8b 20000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 20000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+gen 8b 54000 chars chunk 2048 exit 0 17 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 74 ms (13.5 tok/s) | decode 1946 ms (32.38 tok/s) ids 7912d97a top 9bfe1f8b
+gen 8b 54000 chars chunk 4096 exit 0 17 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 189 ms (5.3 tok/s) | decode 1947 ms (32.36 tok/s) ids 7912d97a top 9bfe1f8b
+gen 8b 54000 chars chunk 8192 exit 0 18 s: finish=length prompt=15652 (cached 15651) completion=64 | prefill 182 ms (5.5 tok/s) | decode 1944 ms (32.41 tok/s) ids 7912d97a top 9bfe1f8b
+  gen 8b 54000 chars: chunk 4096 vs 2048: ids identical, first-token top-20 logits identical
+  gen 8b 54000 chars: chunk 8192 vs 2048: ids identical, first-token top-20 logits identical
+accdec 35b all decode chunk 2048 exit 1 27 s 15719112 bytes
+accdec 35b all decode chunk 4096 exit 1 26 s 15719112 bytes
+accdec 35b all decode chunk 8192 exit 1 26 s 15719112 bytes
+accdec 8b short decode chunk 2048 exit 0 5 s 298376 bytes
+accdec 8b short decode chunk 4096 exit 0 6 s 298376 bytes
+accdec 8b short decode chunk 8192 exit 0 5 s 298376 bytes
+accdec 8b 4k decode chunk 2048 exit 1 12 s 14843636 bytes
+accdec 8b 4k decode chunk 4096 exit 1 12 s 14843636 bytes
+accdec 8b 4k decode chunk 8192 exit 1 14 s 14843636 bytes
+== chunk-job metal done 10:30:11

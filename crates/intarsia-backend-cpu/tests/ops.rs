@@ -143,6 +143,80 @@ fn rope_neox_known_angles() {
 }
 
 #[test]
+fn rope_scaled_llama3_known_angles() {
+    // D=4, theta=100, llama3 factor 8 / low 1 / high 4 / original 64: low_wavelen 64, high_wavelen 16.
+    // pair 0: inv 1, wavelen 6.28 < 16 -> kept. pair 1: inv 0.1, wavelen 62.83 (medium):
+    //   smooth = (64 / 62.83 - 1) / 3 = 0.006187; inv = (1 - smooth) * 0.1 / 8 + smooth * 0.1 = 0.013043
+    let s = intarsia_core::rope::RopeScaling::Llama3 { factor: 8.0, low_freq_factor: 1.0, high_freq_factor: 4.0, original_max: 64.0 };
+    let f = s.freqs(100.0, 4).unwrap();
+    assert!((f.inv_freq[0] - 1.0).abs() < 1e-7 && (f.inv_freq[1] - 0.013043).abs() < 1e-5, "{:?}", f.inv_freq);
+    let x = [1.0f32, 2.0, 3.0, 4.0];
+    let (c0, s0) = (2f32.cos(), 2f32.sin());
+    let a1 = 2.0 * f.inv_freq[1];
+    let (c1, s1) = (a1.cos(), a1.sin());
+    let want = [x[0] * c0 - x[2] * s0, x[1] * c1 - x[3] * s1, x[2] * c0 + x[0] * s0, x[3] * c1 + x[1] * s1];
+    let table = f32t(&[2], &f.inv_freq);
+    let hc = call(
+        Op::RopeScaled,
+        vec![f32t(&[1, 1, 4], &x), table.clone()],
+        vec![OutSpec::new(DType::F32, &[1, 1, 4])],
+        OpAttrs { pos0: 2, ..Default::default() },
+    );
+    for r in both(&hc) {
+        assert_close(&r[0].to_f32(), &want, 1e-5, "rope_scaled llama3");
+    }
+    // the attention factor multiplies cos and sin (YaRN): the rotated pair scales by it
+    let m = 1.25f32;
+    let hc = call(
+        Op::RopeScaled,
+        vec![f32t(&[1, 1, 4], &x), table],
+        vec![OutSpec::new(DType::F32, &[1, 1, 4])],
+        OpAttrs { pos0: 2, rope_mscale: m, ..Default::default() },
+    );
+    let scaled: Vec<f32> = want.iter().map(|v| v * m).collect();
+    for r in both(&hc) {
+        assert_close(&r[0].to_f32(), &scaled, 1e-5, "rope_scaled mscale");
+    }
+}
+
+#[test]
+fn rope_scaled_with_the_default_table_is_rope() {
+    // partial rotary (rotary_dim 4 of head_dim 8), several tokens and heads: the plain frequencies as a table
+    let (t, n, d, rd) = (3usize, 2usize, 8usize, 4usize);
+    let x: Vec<f32> = (0..t * n * d).map(|i| ((i * 37 % 19) as f32 - 9.0) * 0.25).collect();
+    let theta = 10000.0f64;
+    let table: Vec<f32> = (0..rd / 2).map(|i| theta.powf(-2.0 * i as f64 / rd as f64) as f32).collect();
+    let plain = call(
+        Op::Rope,
+        vec![f32t(&[t, n, d], &x)],
+        vec![OutSpec::new(DType::F32, &[t, n, d])],
+        OpAttrs { pos0: 5, theta: theta as f32, rotary_dim: rd, ..Default::default() },
+    );
+    let scaled = call(
+        Op::RopeScaled,
+        vec![f32t(&[t, n, d], &x), f32t(&[rd / 2], &table)],
+        vec![OutSpec::new(DType::F32, &[t, n, d])],
+        OpAttrs { pos0: 5, rotary_dim: rd, ..Default::default() },
+    );
+    for (p, s) in both(&plain).iter().zip(both(&scaled)) {
+        assert_close(&s[0].to_f32(), &p[0].to_f32(), 1e-5, "rope_scaled vs rope");
+    }
+}
+
+#[test]
+fn add_bias_broadcasts_over_rows() {
+    let hc = call(
+        Op::AddBias,
+        vec![f32t(&[2, 3], &[1., 2., 3., 4., 5., 6.]), f32t(&[3], &[10., 20., 30.])],
+        vec![OutSpec::new(DType::F32, &[2, 3])],
+        OpAttrs::default(),
+    );
+    for r in both(&hc) {
+        assert_eq!(r[0].to_f32(), vec![11., 22., 33., 14., 25., 36.]);
+    }
+}
+
+#[test]
 fn matmul_is_x_times_w_transposed() {
     let x = [1.0f32, 2.0, 3.0, 0.5, -1.0, 2.0];
     let w = [1.0f32, 0.0, 1.0, 2.0, 1.0, -1.0, 0.5, 0.5, 0.5, 0.0, 0.0, 1.0];

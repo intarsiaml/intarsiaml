@@ -1,0 +1,42 @@
+prefill chunk 8192 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 4700 of 30200 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /home/nvidia/ck/golden/qwen36-35b-s16k.safetensors (14 prompts, 30200 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (--gate-class); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 8192; longest prompt 16000; prompts spanning more than one chunk: 1/14
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   2.069e-3   2.379e-3   2.379e-3   1.609e-2   0.0209   0.0225    91.25     16/16      0
+story                 39    16   100.00   9.057e-3   8.517e-3   8.517e-3   3.552e-2   0.0971   0.0936    96.25     16/16      0
+code                  87    16   100.00   4.922e-4   4.959e-4   4.959e-4   2.490e-3   0.0007   0.0007    95.00     16/16      0
+science               79    16    87.50   1.053e-2   1.010e-2   1.010e-2   2.445e-2   0.0460   0.0452    96.25     14/16      0
+chat_short            18    16    93.75   8.243e-3   9.548e-3   8.487e-3   4.929e-2   0.0476   0.0434    96.25      0/16      0
+chat_system           32    16   100.00   1.806e-2   2.234e-2   1.863e-2   1.366e-1   0.0421   0.0272    87.50     16/16      0
+chat_multiturn        58    16   100.00   8.659e-2   8.662e-2   2.727e-1    1.329e0   0.0014   0.0010    93.75     16/16      0
+chat_reasoning        90    16   100.00   1.462e-2   1.469e-2   6.156e-3   1.108e-1   0.0011   0.0008    96.25     16/16      0
+long_prose_300       300    16   100.00   2.369e-4   2.403e-4   2.403e-4   2.611e-3   0.0002   0.0002    88.75     16/16      0
+long_prose_700       700    16   100.00   3.863e-3   3.890e-3   3.890e-3   2.103e-2   0.0007   0.0005    86.25     16/16      0
+long_docs_4k        4064    16    87.50   3.490e-2   3.343e-2   3.343e-2   1.896e-1   0.0512   0.0533    92.50      3/16      0
+long_code_4k        4064    16    93.75   1.864e-2   1.325e-2   1.325e-2   1.461e-1   0.0922   0.0857    86.25      2/16      0
+chat_reuse_4k       4631    16   100.00   6.217e-3   6.220e-3   6.220e-3   4.860e-2   0.0000   0.0001    95.00     16/16      0
+synth_16k          16000    16     0.00    0.000e0    1.390e1    1.390e1    0.000e0   0.0043   1.0000     0.00      0/16      0
+OVERALL                    224    90.18   1.525e-2    1.008e0    1.237e0    1.329e0   0.0290   0.0981    85.80     72.8%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 90.18% (not gated for this class) ok | 21-way KL (scored rows, n=182) 1.237e0 (need <= 3.0e-2) FAIL [all rows, n=224: 1.008e0, reported only] | tail mass (all rows) ours 0.0981 vs ref 0.0290, excess +0.0692 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.237e0 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 1.008e0 (21-way KL over all rows <= static floor) | current def: FAIL 1.237e0 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [decode (teacher-forced)]: mean 72.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /home/nvidia/ck/out/run-102007/acc/35b-all/decode-c8192.safetensors (top-64 rows of modes decode for 14 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

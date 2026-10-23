@@ -129,6 +129,42 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             wr(&o[0], &out)
         }
+        Op::RopeScaled => {
+            // `Rope` with the angle `pos * inv_freq[k]` (table from the caller) and cos / sin scaled by `rope_mscale`
+            let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let x = rd(&i[0])?;
+            let inv_freq = rd(&i[1])?;
+            let rd_ = if a.rotary_dim == 0 { d } else { a.rotary_dim };
+            let half = rd_ / 2;
+            let mscale = a.rope_mscale as f64;
+            let mut out = x.clone();
+            for ti in 0..t {
+                let pos = (a.pos0 + ti) as f64;
+                for h in 0..n {
+                    let base = (ti * n + h) * d;
+                    for k in 0..half {
+                        let (s, c) = (pos * inv_freq[k]).sin_cos();
+                        // narrowing cos/sin (times the attention factor) to f32 like every real kernel does with its tables
+                        let (s, c) = ((s * mscale) as f32 as f64, (c * mscale) as f32 as f64);
+                        out[base + k] = x[base + k] * c - x[base + k + half] * s;
+                        out[base + k + half] = x[base + k + half] * c + x[base + k] * s;
+                    }
+                }
+            }
+            wr(&o[0], &out)
+        }
+        Op::AddBias => {
+            let (rows, cols) = (i[0].shape[0], i[0].shape[1]);
+            let x = rd(&i[0])?;
+            let b = rd(&i[1])?;
+            let mut out = x;
+            for r in 0..rows {
+                for c in 0..cols {
+                    out[r * cols + c] += b[c];
+                }
+            }
+            wr(&o[0], &out)
+        }
         Op::Matmul | Op::Logits => {
             let (m, k) = (i[0].shape[0], i[0].shape[1]);
             let n = i[1].shape[0];

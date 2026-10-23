@@ -1,0 +1,12 @@
+  size   4096 rep: prompt=4031 gen=16 ttft=0.87s prefill=4634 tok/s decode=37.0 tok/s
+  size   4096 rep: prompt=4071 gen=16 ttft=0.88s prefill=4642 tok/s decode=37.0 tok/s
+  size   4096 rep: prompt=3996 gen=16 ttft=0.87s prefill=4611 tok/s decode=37.0 tok/s
+  size  16384 rep: prompt=16522 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16334 gen=16 ttft=4.62s prefill=3532 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16327 gen=16 ttft=4.63s prefill=3524 tok/s decode=33.2 tok/s
+  size  16384 rep: prompt=16354 gen=16 ttft=4.66s prefill=3508 tok/s decode=33.2 tok/s
+wrote /work/ck-out/speed8-092747/speed8/speed/8b/ck-hip-8b-c8192.json
+ck-hip-8b-c8192  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4031     0.870         4634        37.0       16
+   16384    16334     4.633         3524        33.2       16

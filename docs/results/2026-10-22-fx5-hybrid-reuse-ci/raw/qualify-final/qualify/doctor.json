@@ -1,0 +1,108 @@
+{
+  "kind": "intarsia-doctor",
+  "schema_version": 1,
+  "timestamp_unix": 1792657939,
+  "intarsia_version": "0.0.1",
+  "cuda_feature": true,
+  "hip_feature": false,
+  "metal_feature": false,
+  "host": {
+    "hostname": "spark-4e77",
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux 6.17.0-1029-nvidia",
+    "arch": "aarch64",
+    "cpu_model": "Cortex-A725",
+    "logical_cores": 20,
+    "physical_cores": 20,
+    "ram_total_bytes": 130663231488,
+    "ram_available_bytes": 50051686400,
+    "swap_total_bytes": 17179865088
+  },
+  "gpu": {
+    "nvidia_smi": {
+      "name": "NVIDIA GB10",
+      "driver_version": "580.173.02",
+      "compute_cap": "12.1",
+      "memory_total": "[N/A]"
+    },
+    "proc_driver_nvidia": "NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  580.173.02  Release Build  (dvs-builder@U22-A24-5-4)  Tue Jun 23 08:34:19 UTC 2026",
+    "nvcc": "Cuda compilation tools, release 13.0, V13.0.88",
+    "cuda_toolkit_version": "13.0.3",
+    "rocm_version": null,
+    "hipcc": null
+  },
+  "backend": {
+    "requested": "cuda",
+    "name": "cuda",
+    "device": {
+      "name": "NVIDIA GB10",
+      "backend": "cuda",
+      "arch": "sm_121",
+      "total_mem": 130663231488,
+      "free_mem": 21717094400,
+      "unified": true,
+      "bandwidth_gbs": 240.1685652924342
+    },
+    "kernel_count": 54,
+    "kernels_by_arch": {
+      "sm_121": 54
+    },
+    "bandwidth": {
+      "buffer_mib": 256,
+      "host_to_device_gbs": 59.1,
+      "device_to_host_gbs": 59.4,
+      "device_copy_gbs": 242.0,
+      "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+    }
+  },
+  "checks": [
+    {
+      "id": "sm_121_target",
+      "status": "ok",
+      "detail": "GPU is compute 12.1 and 54 kernels are built for sm_121",
+      "fix": null
+    },
+    {
+      "id": "cuda_toolkit",
+      "status": "ok",
+      "detail": "CUDA toolkit 13.0.3 supports sm_121",
+      "fix": null
+    },
+    {
+      "id": "transparent_hugepages",
+      "status": "ok",
+      "detail": "THP = madvise (kernel: always [madvise] never)",
+      "fix": null
+    },
+    {
+      "id": "disk_free:.",
+      "status": "warn",
+      "detail": "272.2 GB free of 4032 GB (7% free)",
+      "fix": "free space before downloading models or building (target/ dirs are large); keep result files small"
+    },
+    {
+      "id": "disk_free:/home/nvidia",
+      "status": "warn",
+      "detail": "272.2 GB free of 4032 GB (7% free)",
+      "fix": "free space before downloading models or building (target/ dirs are large); keep result files small"
+    },
+    {
+      "id": "hip_gpu_max_hw_queues",
+      "status": "info",
+      "detail": "GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+      "fix": null
+    },
+    {
+      "id": "serve_port",
+      "status": "ok",
+      "detail": "port 8090 is free",
+      "fix": null
+    },
+    {
+      "id": "bandwidth",
+      "status": "info",
+      "detail": "host->device 59.1 GB/s, device->host 59.4 GB/s, device copy 242.0 GB/s (read+write)",
+      "fix": null
+    }
+  ]
+}

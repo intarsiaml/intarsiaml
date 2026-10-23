@@ -297,6 +297,86 @@ fn engine_continues_a_conversation_without_recomputing_the_history() {
     assert_eq!(g2, run(&engine(8), &second, 5).0);
 }
 
+/// Greedy run of `n` tokens recording the logits row of every step: (tokens, cached prompt tokens, rows).
+fn traced(e: &LocalEngine, prompt: &[u32], n: usize) -> (Vec<u32>, usize, Vec<Vec<f32>>) {
+    let trace: Arc<std::sync::Mutex<Vec<Vec<f32>>>> = Default::default();
+    let (mut ids, mut cached) = (vec![], 0);
+    e.generate(
+        GenRequest { prompt: prompt.to_vec(), max_tokens: n, ignore_eos: true, trace_logits: Some(trace.clone()), ..Default::default() },
+        &mut |ev| match ev {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { cached_tokens, completion_tokens, .. } => {
+                cached = cached_tokens;
+                ids.truncate(completion_tokens);
+            }
+            GenEvent::Error { message } => panic!("engine error: {message}"),
+        },
+    )
+    .unwrap();
+    let rows = trace.lock().unwrap().clone();
+    (ids, cached, rows)
+}
+
+fn max_diff(a: &[Vec<f32>], b: &[Vec<f32>]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b).flat_map(|(x, y)| x.iter().zip(y).map(|(p, q)| (p - q).abs())).fold(0.0, f32::max)
+}
+
+/// A warm run (prefix restored through `Seq::new` + `restorable_len` + `SequenceState::truncate`) must produce the
+/// logits of a cold run on a fresh engine. On the cpu backend in f32 the only difference is the order of float
+/// operations, so the budget is tight: a restore to the wrong length or from the wrong snapshot moves logits by
+/// O(1) on this random model (the CI mutant check in docs/results/2026-10-22-fx5-hybrid-reuse-ci.md).
+#[test]
+fn hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind() {
+    const TOL: f32 = 1e-4;
+    let (ids, _) = golden();
+    let prompt: Vec<u32> = ids[..22].to_vec();
+    let e = engine(8); // snapshots at 8 and 16 (chunk boundaries) and 21 (one before the end)
+    let (cold_t, cold_c, cold_rows) = traced(&engine(8), &prompt, 6);
+    assert_eq!(cold_c, 0);
+
+    // 1. identical prompt: restore at the end-of-prompt snapshot (21)
+    let (t0, c0, r0) = traced(&e, &prompt, 6);
+    assert_eq!((c0, &t0), (0, &cold_t));
+    assert!(max_diff(&r0, &cold_rows) <= TOL);
+    let (t1, c1, r1) = traced(&e, &prompt, 6);
+    assert_eq!(c1, 21, "whole prompt but its last token comes from the snapshot");
+    assert_eq!(t1, cold_t);
+    let d = max_diff(&r1, &cold_rows);
+    assert!(d <= TOL, "identical-prompt warm vs cold logits differ by {d}");
+
+    // 2. diverges at every offset: the restore must land on the largest snapshot at or below the common prefix
+    //    (8, 16, 21 or nothing) and replay the rest exactly
+    for (split, want_cached) in [(5, 0), (8, 8), (12, 8), (16, 16), (18, 16), (21, 21)] {
+        let mut other = prompt[..split].to_vec();
+        other.extend((0..7).map(|i| (ids[(split + i) % ids.len()] + 7 + i as u32) % 90));
+        // same donor state every time: forget everything, then prefill the full prompt (snapshots 8, 16, 21)
+        traced(&e, &[(prompt[0] + 1) % 96, 3, 4, 5, 6, 7, 8, 9], 1);
+        traced(&e, &prompt, 1);
+        let (wt, wc, wrows) = traced(&e, &other, 6);
+        let (ct, cc, crows) = traced(&engine(8), &other, 6);
+        assert_eq!(cc, 0);
+        assert_eq!(wc, want_cached, "split {split}: reused prompt tokens");
+        assert_eq!(wt, ct, "split {split}: tokens");
+        let d = max_diff(&wrows, &crows);
+        assert!(d <= TOL, "split {split}: warm vs cold logits differ by {d}");
+    }
+
+    // 3. continuation: previous prompt + its reply + new tokens (the state holds the whole prefix, no snapshot needed)
+    let first: Vec<u32> = ids[..14].to_vec();
+    let e2 = engine(8);
+    let (reply, _, _) = traced(&e2, &first, 5);
+    let mut second = first.clone();
+    second.extend_from_slice(&reply);
+    second.extend_from_slice(&[30, 31, 32]);
+    let (wt, wc, wrows) = traced(&e2, &second, 6);
+    assert_eq!(wc, first.len() + reply.len() - 1);
+    let (ct, _, crows) = traced(&engine(8), &second, 6);
+    assert_eq!(wt, ct);
+    let d = max_diff(&wrows, &crows);
+    assert!(d <= TOL, "continue: warm vs cold logits differ by {d}");
+}
+
 // ---------------------------------------------------------------------------
 // CUDA (skipped without a device): the same tiny hybrid model in bf16
 // ---------------------------------------------------------------------------

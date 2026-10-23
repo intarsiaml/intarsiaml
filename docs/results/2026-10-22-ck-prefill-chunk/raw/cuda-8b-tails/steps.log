@@ -1,0 +1,8 @@
+== chunk-job cuda start 12:04:33 host spark-fa00 steps 'acc accdec' chunks '256 4096' job 4234
+Mem:             121          67          22           0          33          54
+2398 MHz, 52, 0 %, [N/A]
+acc 8b tails prefill chunk 256 exit 1 138 s 26278176 bytes
+acc 8b tails prefill chunk 4096 exit 1 122 s 26278176 bytes
+accdec 8b tails decode chunk 256 exit 1 66 s 26346184 bytes
+accdec 8b tails decode chunk 4096 exit 1 59 s 26346192 bytes
+== chunk-job cuda done 12:10:58

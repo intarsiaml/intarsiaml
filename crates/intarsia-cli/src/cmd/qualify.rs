@@ -756,8 +756,20 @@ impl Ctx {
         } else if long {
             64
         } else {
-            16
+            self.recipe_decode_positions().unwrap_or(16)
         }
+    }
+    /// The recipe's `[accuracy] decode_positions` (quick tier only): more teacher-forced decode rows for a model whose
+    /// decode top-1 is too noisy at 16 per prompt. The recipe is the explicit `--recipe` or the one matched on `config.json`.
+    fn recipe_decode_positions(&self) -> Option<usize> {
+        let r = match &self.a.recipe {
+            Some(p) => intarsia_models::recipe::load_recipe_file(p).ok()?,
+            None => {
+                let cfg: Value = serde_json::from_str(&std::fs::read_to_string(self.a.model.join("config.json")).ok()?).ok()?;
+                intarsia_models::recipe::select_recipe(&cfg, &self.a.recipe_dir).ok()?.1
+            }
+        };
+        r.accuracy.decode_positions.filter(|n| *n > 0)
     }
     fn acc_max_seq(&self, long: bool) -> usize {
         if long && !self.smoke() {
@@ -1551,6 +1563,13 @@ fn acc_fail_digest(text: &str) -> Vec<String> {
         if l.contains("baseline verdict") && l.contains(": FAIL") && !l.contains("not requested") {
             out.push("baseline gate failed".to_string());
         }
+        if let Some(w) = l.strip_prefix("prefix-reuse gate: FAIL") {
+            // the reason in parentheses (a skipped prompt under --reuse-require-all, nothing ran), else the plain mismatch
+            out.push(match w.trim().strip_prefix('(') {
+                Some(r) => format!("prefix reuse: {}", r.split(';').next().unwrap_or(r).trim_end_matches(')')),
+                None => "prefix reuse differs from a cold run".to_string(),
+            });
+        }
         if l.contains("prefix-reuse verdict: FAIL") {
             out.push("prefix reuse differs from a cold run".to_string());
         }
@@ -2083,6 +2102,8 @@ fn st_acc_long(c: &mut Ctx) -> Result<Out> {
     let mut o = c.acc_out(a, &g, &how, "long");
     if reuse_in_4k {
         o.notes.push("prefix reuse is gated in acc-4k, on the 4k golden".into());
+    } else {
+        c.reuse_at_capped_chunk(&mut o, "acc-long-reuse", &g)?;
     }
     Ok(o)
 }
@@ -2109,7 +2130,8 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     let have = !extra.is_empty();
     extra.splice(0..0, ["--min-top1".to_string(), "0".to_string()]);
     let a = c.accuracy("acc-4k", &g, "all", true, 1, &extra)?;
-    let o = c.acc_out(a, &g, &how, "4k");
+    let mut o = c.acc_out(a, &g, &how, "4k");
+    c.reuse_at_capped_chunk(&mut o, "acc-4k-reuse", &g)?;
     Ok(baseline_verdict(o, note, needs && !have, &c.name, "acc-4k"))
 }
 
@@ -2134,7 +2156,90 @@ fn baseline_verdict(mut o: Out, note: String, missing: bool, model: &str, stage:
     o
 }
 
+/// The prefill chunk of the reuse run: the plan's, at most this. The default chunk of a backend can be larger than every
+/// prompt-split the golden offers (HIP: 4096, so the 4k prompts' `continue` cases were skipped, docs/results/
+/// 2026-10-21-m3-accuracy-debt.md section 2.8), which would leave the reuse gate with nothing to judge.
+const REUSE_CHUNK_CAP: u64 = 1024;
+
+/// Token counts of a golden's prompts, from the `prompts` metadata of its safetensors header (`n_tokens`: the length of the
+/// ids the reuse gate splits). `None`: unreadable, or no such metadata.
+fn golden_prompt_lengths(golden: &Path) -> Option<Vec<usize>> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(golden).ok()?;
+    let mut n = [0u8; 8];
+    f.read_exact(&mut n).ok()?;
+    let n = u64::from_le_bytes(n) as usize;
+    if n == 0 || n > 64 << 20 {
+        return None;
+    }
+    let mut h = vec![0u8; n];
+    f.read_exact(&mut h).ok()?;
+    let h: Value = serde_json::from_slice(&h).ok()?;
+    let p: Value = serde_json::from_str(h["__metadata__"]["prompts"].as_str()?).ok()?;
+    p.as_array()?.iter().map(|x| x["n_tokens"].as_u64().map(|v| v as usize)).collect()
+}
+
+/// `--reuse-require-all` applies when every prompt of the golden can cross a chunk boundary at `chunk` (the gate skips a
+/// prompt of at most `chunk + 2` tokens). Unknown lengths: not required (the skipped count is still recorded).
+fn reuse_requires_all(lens: Option<&[usize]>, chunk: usize) -> bool {
+    lens.is_some_and(|l| !l.is_empty() && l.iter().all(|&n| n > chunk + 2))
+}
+
+/// `(judged, skipped)` prompts of a reuse gate, from its "prefix reuse: J prompt(s) judged, S skipped" line.
+fn reuse_counts(text: &str) -> Option<(usize, usize)> {
+    text.lines().find_map(|l| {
+        let rest = l.strip_prefix("prefix reuse: ")?;
+        let (j, rest) = rest.split_once(" prompt(s) judged, ")?;
+        let (s, _) = rest.split_once(" skipped")?;
+        Some((j.trim().parse().ok()?, s.trim().parse().ok()?))
+    })
+}
+
 impl Ctx {
+    /// The prefix-reuse gate on `golden` at `min(plan chunk, 1024)` as its own `accuracy --mode reuse` run, merged into
+    /// the stage's result: the stage fails when the gate fails, or when it left any prompt out (`--reuse-require-all`: a
+    /// skipped prompt tests no restore and is not a pass). The judged and skipped counts go to the stage's metrics.
+    fn reuse_at_capped_chunk(&mut self, o: &mut Out, stem: &str, golden: &Path) -> Result<()> {
+        let plan_chunk = self.state.get("plan").and_then(|s| s.metrics["prefill_chunk"].as_u64());
+        let chunk = plan_chunk.map_or(REUSE_CHUNK_CAP, |c| c.min(REUSE_CHUNK_CAP));
+        // Prompts shorter than a chunk can never cross a boundary at any chunk: a golden that mixes them with long ones
+        // (the standard `golden_long`: eight 18-90 token prompts and two of 300 / 700) keeps its skips as a reported count;
+        // only a golden whose every prompt can be judged at this chunk must judge them all.
+        let lens = golden_prompt_lengths(golden);
+        let require_all = reuse_requires_all(lens.as_deref(), chunk as usize);
+        let mut extra = vec!["--prefill-chunk".to_string(), chunk.to_string()];
+        if require_all {
+            extra.push("--reuse-require-all".to_string());
+        }
+        let a = self.accuracy(stem, golden, "reuse", true, 1, &extra)?;
+        let counts = std::fs::read_to_string(&a.out).ok().and_then(|t| reuse_counts(&t));
+        let (judged, skipped) = counts.map_or((Value::Null, Value::Null), |(j, s)| (json!(j), json!(s)));
+        if o.metrics.is_null() {
+            o.metrics = json!({});
+        }
+        o.metrics["reuse"] = json!({"stem": stem, "prefill_chunk": chunk, "plan_prefill_chunk": plan_chunk, "judged": judged, "skipped": skipped, "require_all": require_all, "verdict": a.verdict.label()});
+        o.artifacts.push(self.rel(&a.out));
+        let what = format!("prefix reuse at chunk {chunk}: {} judged, {} skipped{}", judged, skipped, if require_all { "" } else { " (the golden holds prompts too short to cross a chunk boundary: skips are reported, not failed)" });
+        match a.verdict {
+            Verdict::Pass if counts.is_some() && (!require_all || counts.is_some_and(|(_, s)| s == 0)) => o.notes.push(what),
+            Verdict::Pass => {
+                // a pass that did not report its skipped count is not trusted
+                o.verdict = Verdict::Fail;
+                o.reason = format!("{what}: the reuse gate printed no count of skipped prompts");
+            }
+            v => {
+                let why = if v == Verdict::Fail { format!("{what}: {}", a.reason) } else { a.reason };
+                if o.verdict == Verdict::Pass || v == Verdict::Error {
+                    o.verdict = v;
+                    o.reason = why;
+                } else {
+                    o.reason = format!("{}; {why}", o.reason);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// `accuracy` flags that gate `golden` against the backend's recorded baseline (and noise envelope), and a note that
     /// says which baseline; `Err` says why there is none. A baseline that does not apply to this run (other chunk, decode
     /// window or golden file) is not used: `acc-4k` then gates without it, `acc-short` of a model that needs one reports
@@ -2661,6 +2766,49 @@ mod tests {
         let s = chrono_stamp();
         assert_eq!(s.len(), 15);
         assert_eq!(&s[8..9], "-");
+    }
+
+    #[test]
+    fn the_reuse_gate_counts_and_skip_failures_are_read_back() {
+        let t = "x\nprefix reuse: 3 prompt(s) judged, 0 skipped\nprefix-reuse gate: PASS\n";
+        assert_eq!(reuse_counts(t), Some((3, 0)));
+        let t = "prefix reuse: 1 prompt(s) judged, 2 skipped\nprefix reuse: 2 prompt(s) skipped, none of their splits\n";
+        assert_eq!(reuse_counts(t), Some((1, 2)));
+        assert_eq!(reuse_counts("no gate here"), None);
+        let f = "prefix-reuse gate: FAIL (--reuse-require-all: 2 prompt(s) skipped, none of their splits crosses a chunk boundary: a, b; a smaller --prefill-chunk or a golden of longer prompts)\nprefix-reuse gate: FAIL\n";
+        assert_eq!(
+            acc_fail_digest(f),
+            vec![
+                "prefix reuse: --reuse-require-all: 2 prompt(s) skipped, none of their splits crosses a chunk boundary: a, b".to_string(),
+                "prefix reuse differs from a cold run".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn require_all_applies_only_to_goldens_whose_prompts_can_all_cross_a_boundary() {
+        // 35B long golden: 4k and 12k prompts; standard golden_long: short prompts plus 300 / 700 tokens
+        assert!(reuse_requires_all(Some(&[4064, 4064, 4631, 12064, 12064]), 1024));
+        assert!(!reuse_requires_all(Some(&[38, 39, 80, 79, 18, 32, 58, 90, 300, 700]), 1024));
+        assert!(!reuse_requires_all(Some(&[4064, 1026]), 1024)); // 1026 <= chunk + 2: skipped by the gate
+        assert!(reuse_requires_all(Some(&[4064, 1027]), 1024));
+        assert!(!reuse_requires_all(Some(&[]), 1024));
+        assert!(!reuse_requires_all(None, 1024));
+    }
+
+    #[test]
+    fn prompt_lengths_are_read_from_the_golden_header() {
+        let prompts = serde_json::to_string(&json!([{"name": "a", "n_prompt": 4000, "n_tokens": 4064}, {"name": "b", "n_tokens": 38}])).unwrap();
+        let h = serde_json::to_vec(&json!({"__metadata__": {"prompts": prompts}})).unwrap();
+        let mut bytes = (h.len() as u64).to_le_bytes().to_vec();
+        bytes.extend(h);
+        let p = std::env::temp_dir().join(format!("fx5-golden-header-{}.safetensors", std::process::id()));
+        std::fs::write(&p, &bytes).unwrap();
+        assert_eq!(golden_prompt_lengths(&p), Some(vec![4064, 38]));
+        std::fs::write(&p, b"nope").unwrap();
+        assert_eq!(golden_prompt_lengths(&p), None);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(golden_prompt_lengths(Path::new("/nonexistent/g.safetensors")), None);
     }
 
     #[test]

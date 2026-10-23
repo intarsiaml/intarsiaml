@@ -1,0 +1,63 @@
+prefill chunk 4096 (recipe qwen3, cuda)
+accuracy: Qwen/Qwen3-8B on NVIDIA GB10 (vocab 151936, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 434 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/qwen3-8b-fp32.safetensors (8 prompts, 434 positions, full-vocabulary log-probs; the 21-way KL / tail use the reference top-20 as support)
+  reference: engine hf-transformers transformers 5.15.1, torch 2.13.0+cu129 | model /hf/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 | revision b968826d9c46dd6066d109eabc6255188de91218 | dtype float32 | KV dtype f32 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class bf16 (--gate-class); top-1 (all rows) >= 99.5%, KL (scored rows: outside system and user turns) <= 1.0e-3, |tail excess| (all rows) <= 0.02
+prefill chunk 4096; longest prompt 90; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 30 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.821e-4   1.077e-4   1.077e-4   5.191e-3   0.0324   0.0317    99.47     38/38      0
+story                 39    39   100.00   4.332e-4   2.729e-4   2.729e-4   9.476e-3   0.0400   0.0394    97.95     39/39      0
+code                  80    80   100.00   1.085e-4   5.485e-5   5.485e-5   5.603e-3   0.0142   0.0140    99.75     80/80      0
+science               79    79   100.00   2.376e-4   1.515e-4   1.515e-4   1.263e-2   0.0168   0.0162    98.73     79/79      0
+chat_short            18    18   100.00   3.741e-4   3.274e-4   6.385e-4   1.842e-3   0.1108   0.1112   100.00     18/18      0
+chat_system           32    32   100.00   6.502e-4   5.317e-4   6.762e-4   9.178e-3   0.0841   0.0845    98.12     32/32      0
+chat_multiturn        58    58   100.00   4.257e-4   4.051e-4   1.752e-4   1.486e-2   0.0340   0.0340    98.62     58/58      0
+chat_reasoning        90    90   100.00   2.471e-4   2.365e-4   1.611e-3   7.033e-3   0.0243   0.0243    98.67     90/90      0
+OVERALL                    434   100.00   2.897e-4   2.276e-4   1.853e-4   1.486e-2   0.0325   0.0323    98.89    100.0%      0
+prefill floor [bf16]: top-1 (all rows) 100.00% (need >= 99.5) ok | full-vocab KL (scored rows, n=272) 2.625e-4 (need <= 1.0e-3) ok [all rows, n=434: 2.897e-4, reported only] | tail mass (all rows) ours 0.0323 vs ref 0.0325, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [full-vocab KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 2.625e-4 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 2.897e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 2.625e-4 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   8.039e-6   7.025e-6   7.025e-6   7.498e-5   0.0029   0.0029    98.75     16/16      0
+story                 39    16   100.00   2.212e-4   2.090e-4   2.090e-4   1.334e-3   0.0237   0.0238   100.00     16/16      0
+code                  80    16   100.00   1.342e-5   1.341e-5   1.341e-5   5.751e-5   0.0000   0.0000   100.00     16/16      0
+science               79    16   100.00   1.349e-4   1.311e-4   1.311e-4   6.817e-4   0.0104   0.0104    98.75     16/16      0
+chat_short            18    16   100.00   6.929e-4   6.602e-4   8.604e-4   4.273e-3   0.0621   0.0625    98.75     16/16      0
+chat_system           32    16   100.00   9.168e-4   6.690e-4   9.166e-4   6.841e-3   0.0736   0.0734    97.50     16/16      0
+chat_multiturn        58    16   100.00   2.140e-4   2.057e-4   4.504e-4   1.265e-3   0.0076   0.0076   100.00     16/16      0
+chat_reasoning        90    16   100.00   3.890e-4   3.707e-4   9.671e-4   2.816e-3   0.0099   0.0098   100.00     16/16      0
+OVERALL                    128   100.00   3.238e-4   2.833e-4   2.741e-4   6.841e-3   0.0238   0.0238    99.22    100.0%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 100.00% (need >= 99.5) ok | full-vocab KL (scored rows, n=86) 2.854e-4 (need <= 1.0e-3) ok [all rows, n=128: 3.238e-4, reported only] | tail mass (all rows) ours 0.0238 vs ref 0.0238, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [full-vocab KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 2.854e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 3.238e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 2.854e-4 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 4096 (recipe qwen3, cuda); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, recipe qwen3): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      SKIPPED: a prompt of 38 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+story              both      SKIPPED: a prompt of 39 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+code               both      SKIPPED: a prompt of 80 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+science            both      SKIPPED: a prompt of 79 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+chat_short         both      SKIPPED: a prompt of 18 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+chat_system        both      SKIPPED: a prompt of 32 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+chat_multiturn     both      SKIPPED: a prompt of 58 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+chat_reasoning     both      SKIPPED: a prompt of 90 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+prefix reuse: 0 prompt(s) judged, 8 skipped
+prefix reuse: 8 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 4096 (recipe qwen3, cuda): count, story, code, science, chat_short, chat_system, chat_multiturn, chat_reasoning; 0 judged
+prefix-reuse gate: FAIL (nothing ran: no prompt can cross a chunk boundary at prefill chunk 4096, so no restore was tested and this is not a pass; use a golden with longer prompts, or a smaller --prefill-chunk)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED

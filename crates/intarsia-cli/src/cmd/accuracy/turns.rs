@@ -36,10 +36,16 @@ pub struct TurnFormat {
 pub const CHATML: TurnFormat =
     TurnFormat { name: "chatml", open: "<|im_start|>", close: "<|im_end|>", hidden_roles: &["system", "user"] };
 
+/// Llama 3 / 3.1: `<|start_header_id|>role<|end_header_id|>\n\ncontent<|eot_id|>`. The role follows the open marker directly; the
+/// header-close token and the blank line after it are inside the hidden span (open .. close).
+pub const LLAMA3: TurnFormat =
+    TurnFormat { name: "llama3", open: "<|start_header_id|>", close: "<|eot_id|>", hidden_roles: &["system", "user"] };
+
 /// Turn format by name (the golden's `template` metadata or the recipe's `chat_turns`).
 pub fn format_named(name: &str) -> Option<&'static TurnFormat> {
     match name.trim().to_ascii_lowercase().as_str() {
         "chatml" => Some(&CHATML),
+        "llama3" => Some(&LLAMA3),
         _ => None,
     }
 }
@@ -129,6 +135,22 @@ mod tests {
 
     fn turns() -> Turns {
         CHATML.resolve(&tok).unwrap()
+    }
+
+    #[test]
+    fn llama3_format_is_named_and_resolves_to_its_markers() {
+        let f = format_named("Llama3").unwrap();
+        assert_eq!((f.name, f.open, f.close), ("llama3", "<|start_header_id|>", "<|eot_id|>"));
+        let tok = |text: &str| -> Result<Vec<u32>> {
+            Ok(match text {
+                "<|start_header_id|>" => vec![OPEN],
+                "<|eot_id|>" => vec![CLOSE],
+                "<|start_header_id|>system" => vec![OPEN, SYSTEM],
+                "<|start_header_id|>user" => vec![OPEN, USER],
+                other => bail!("unexpected {other:?}"),
+            })
+        };
+        assert_eq!(f.resolve(&tok).unwrap().format, "llama3");
     }
 
     /// ChatML render of `(role, body)` turns: `<|im_start|>role \n body <|im_end|> \n`.

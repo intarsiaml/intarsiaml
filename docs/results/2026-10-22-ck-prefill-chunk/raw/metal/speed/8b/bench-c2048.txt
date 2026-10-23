@@ -1,0 +1,24 @@
+  size   4096 rep: prompt=4008 gen=16 ttft=1.04s prefill=3872 tok/s decode=35.3 tok/s
+  size  16384 rep: prompt=16428 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16238 gen=16 ttft=5.92s prefill=2744 tok/s decode=32.3 tok/s
+  size  16384 rep: prompt=16303 gen=16 ttft=6.08s prefill=2682 tok/s decode=32.4 tok/s
+  size  16384 rep: prompt=16264 gen=16 ttft=5.99s prefill=2716 tok/s decode=32.4 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c2048.json
+ck-metal-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4004     1.035         3867        35.7       16
+   16384    16264     5.987         2716        32.4       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)
+  size  16384 rep: prompt=16435 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16401 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16297 gen=16 ttft=6.16s prefill=2644 tok/s decode=32.2 tok/s
+  size  16384 rep: prompt=16361 gen=16 ttft=6.26s prefill=2612 tok/s decode=32.2 tok/s
+  size  16384 rep: prompt=16327 gen=16 ttft=6.16s prefill=2651 tok/s decode=32.1 tok/s
+wrote /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/ck/out-metal/speed/8b/ck-metal-8b-c2048.json
+ck-metal-8b-c2048  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     4000     1.034         3868        35.5       16
+   16384    16327     6.165         2644        32.2       16
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 16384: 0 graph replays during the measured reps (decode ran eagerly)

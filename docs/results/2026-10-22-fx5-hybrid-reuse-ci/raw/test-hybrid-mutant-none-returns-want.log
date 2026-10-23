@@ -1,0 +1,50 @@
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-core)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-backend-cuda)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/fx5-test/crates/intarsia-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.29s
+     Running tests/hybrid.rs (target/debug/deps/hybrid-64491e201d1923e3)
+
+running 11 tests
+test layer_kinds_follow_the_config ... ok
+test argmax_decode_path_agrees ... ok
+test one_shot_prefill_matches_hf ... ok
+test recurrent_snapshots_restore_exactly ... FAILED
+test failed_forward_resets_recurrent_state ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... FAILED
+test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... FAILED
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+
+failures:
+
+---- recurrent_snapshots_restore_exactly stdout ----
+first pass: 14 rows, worst max abs 9.78e-6, worst rel l2 2.40e-6
+
+thread 'recurrent_snapshots_restore_exactly' panicked at crates/intarsia-models/tests/hybrid.rs:187:5:
+assertion `left == right` failed
+  left: 11
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine stdout ----
+
+thread 'engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine' panicked at crates/intarsia-models/tests/hybrid.rs:251:40:
+engine error: unsupported: cannot roll recurrent state back to 3 tokens (no snapshot there; length 29)
+
+---- hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind stdout ----
+
+thread 'hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind' panicked at crates/intarsia-models/tests/hybrid.rs:312:44:
+engine error: unsupported: cannot roll recurrent state back to 5 tokens (no snapshot there; length 22)
+
+
+failures:
+    engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine
+    hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind
+    recurrent_snapshots_restore_exactly
+
+test result: FAILED. 8 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+error: test failed, to rerun pass `-p intarsia-models --test hybrid`
