@@ -62,12 +62,12 @@
     <g stroke="#f2b45c" stroke-width="2" stroke-dasharray="4 3">
       <line x1="240" y1="458" x2="240" y2="510"/>
     </g>
-    <text x="45" y="530" fill="#5fd3a0">green: message boundary (&lt;|im_start|&gt; or the generation prompt's &lt;think&gt;): a chunk ends here, an entry is stored</text>
+    <text x="45" y="530" fill="#5fd3a0">green: after a message header (&lt;|im_start|&gt;role\n), and before message 2: a chunk ends here; entries after headers</text>
     <text x="45" y="550" fill="#f2b45c">orange: grid point (a chunk end inside a long message, grid_tokens apart): an entry for pasted documents</text>
     <text x="45" y="575" fill="#c3cad5">turn 3 shares this prompt up to "&lt;|im_start|&gt;assistant\n" of turn 2 (the template drops earlier &lt;think&gt;),</text>
     <text x="45" y="593" fill="#c3cad5">so the entry before &lt;think&gt; is the one it restores. A cut is a function of the tokens before it only, so every</text>
     <text x="45" y="611" fill="#c3cad5">prompt sharing a prefix runs the same chunks up to it: restored == cold, bit for bit, on any backend with the</text>
-    <text x="45" y="629" fill="#c3cad5">store on; and == store-off cold on chunk-invariant backends (cpu, hip).</text>
+    <text x="45" y="629" fill="#c3cad5">store on; == store-off cold only where prefill is chunk-invariant (measured: dense on cpu and Metal).</text>
     <text x="45" y="655" fill="#9aa4b2">entry = token ids (checked in full on a hit) + recurrent blob (GDN + conv, all layers) + KV pages (shared across entries)</text>
   </g>
 

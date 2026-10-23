@@ -1,7 +1,7 @@
 # Lane pc: a content-addressed prefix store ("rainbow table for prompt processing")
 
-Date 2026-10-22/23 (EDT). Branch `lane-pc/prefix-store` off origin/main a92267b0. Machine for every GPU number: endor
-(Apple M5 Max, Metal), fleetq slots named next to each number. Decisions: user-approved 22:09 (LOG rows).
+Date 2026-10-22/23 (EDT). Branch `lane-pc/prefix-store` off origin/main a92267b0. Machines: endor (Apple M5 Max, Metal)
+and spark2 (DGX Spark GB10, CUDA); fleetq slot and slot type named next to each number. Decisions: user-approved 22:09 (LOG rows).
 
 **Result in one line:** with the store on, a multi-turn chat with thinking computes 56 % fewer prompt tokens and its
 total TTFT falls 49 % on Metal and 25-36 % on CUDA (35B); an agent loop computes 34-76 % fewer; restored output is bitwise
@@ -118,7 +118,7 @@ Two different questions, reported separately:
 | cpu, tiny GatedDeltaNet hybrid (`tiny_qwen3_5`, f32) | bitwise | **not bitwise**, ids equal in every case | same tests, plus grid points inside a long message and a restore from the disk tier after an engine restart |
 | metal (M5 Max), Qwen3-8B | **bitwise** (48 steps of logits + ids), fleetq #4472 | **bitwise** | `prefix_store_metal.rs`: turn 1 (1822 tok), an unrelated chat (856), turn 2 (2468 tok) restores 1822 tokens. In the 04:00 window (#4322) it restored 0 and failed: Qwen3's generation prompt ends at the assistant header, which only the final pass reached, and that pass stored nothing. Fixed in `439a1415` (test `multi_turn_prompt_ending_at_the_header`, fails without the fix) |
 | metal (M5 Max), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), #4322 and #4472 | not bitwise from step 0, ids equal | same test: turn 2 (2531 tok) restores 1871 tokens (104 MB in 6 ms) |
-| cuda (GB10), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), v1 #4382, v2 #4398, v3 #4406 | not bitwise from step 0 (CUDA prefill is chunk-sensitive), ids equal | `prefix_store_cuda.rs`: turn 1 (1873 tok), an unrelated chat (878), turn 2 (2531 tok) restores 1871 tokens (104 MB in 7 ms) |
+| cuda (GB10), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), v1 #4382, v2 #4398, v3 #4406, final `fa9a08e9` #4442 (the later fix `439a1415` only acts on a prompt that ends at a header; the Qwen3.6 template always appends `<think>\n` or an empty think block after it, `chat_template.jinja:147-153`) | not bitwise from step 0 (CUDA prefill is chunk-sensitive), ids equal | `prefix_store_cuda.rs`: turn 1 (1873 tok), an unrelated chat (878), turn 2 (2531 tok) restores 1871 tokens (104 MB in 7 ms) |
 | hip | not run | not run | tatooine was held by the hp lane all night; not touched |
 
 **The brief's premise "cpu chunking is bitwise" does not hold for the hybrid.** `hybrid_cpu_prefill_chunk_sensitivity`
@@ -236,7 +236,9 @@ all workloads, TTFT total per rep (s): off [20.35, 20.41, 19.71], on [13.70, 13.
 
 `roles=assistant` (2 passes): chat 12.07 -> 5.85 s (-52 %), agent 3.36 -> 2.72 s (-19 %), rag 4.72 -> 4.69 s.
 One store-on pass's counters (`raw/ttft/on1.metrics`): 6 hits, all from the host tier, 8695 tokens not recomputed,
-restores 19 ms in total, TTFT saved 8.6 s by the server's own estimate, storing 0.28 s, all of it after the first token
+restores 19 ms in total, TTFT saved 8.6 s by the server's own estimate (the measured all-workload delta is
+6.6 s, so the dashboard's estimate overstates by about 30 %: it prices restored tokens at the cold prefill rate, and the
+restored request still pays its extra passes), storing 0.28 s, all of it after the first token
 (`settle_seconds_total`).
 
 Metal prefill is slower than the GB10's (about 1200 tok/s at 4k against 2800), so the same saved tokens are worth more:
