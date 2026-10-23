@@ -14,6 +14,7 @@
 //! Opt-in (loads 22 GB onto the GPU: take a fleetq slot on endor first): `INTARSIA_QWEN36_DIR` (35B checkpoint, default
 //! `~/models/Qwen3.6-35B-A3B-NVFP4` when `INTARSIA_TEST_REAL_MODEL=1`); without it a test prints SKIPPED (and panics under
 //! `INTARSIA_REQUIRE_GPU=1`).
+#![cfg(target_os = "macos")]
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
