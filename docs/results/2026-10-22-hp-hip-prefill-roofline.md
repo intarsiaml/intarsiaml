@@ -31,6 +31,18 @@ Source: `scripts/ceiling.hip`, raw/w1/ceiling.txt, fleetq #4314, exclusive slot.
 
 So the achievable ceiling on this card is about 170 TFLOPS for bf16 WMMA GEMMs at prefill shapes, which is 88% of the issue peak, and about 300 TFLOPS for fp8 (80%).
 
+A second run (raw/w9/ceiling.txt, job #4354) repeated these within 1-9 % and added the shapes the roofline needs to be honest about:
+
+| shape | hipBLASLt bf16 | hipBLASLt fp8 |
+|---|---:|---:|
+| one routed expert's share of a 4k chunk: gate_up M=128 x 1024 x 2048 | 33.8 | 53.9 |
+| one expert, down M=128 x 2048 x 512 | 33.2 | 44.3 |
+| one expert at 4x that, gate_up M=512 | 92.9 | 159.4 |
+| attention QK^T as a GEMM, 4096 x 4096 x 256 (one head, one 4k key block) | 99.2 | 126.9 |
+| attention PV, 4096 x 256 x 4096 | 144.6 | 236.0 |
+
+The routed experts therefore have two ceilings. Run expert by expert at the average 128 pairs per expert, the vendor GEMM gets about 34 TFLOPS, and our grouped `moe_wmma_kernel_r7` (62 TFLOPS) is already 1.8x that. Run as one dense GEMM over all pairs, the ideal is 171. The table uses the dense ideal, which is an upper bound that no per-expert schedule reaches. Flash attention (81 TFLOPS) is at 82 % of what hipBLASLt does for its QK^T product alone.
+
 ## 2. Per-kernel prefill profile and roofline (Phase 1b)
 
 Method: rocprofv3 `--kernel-trace` of one `generate --max-tokens 1` prefill of an exact 4096- and 16384-token prompt on origin/main a92267b0, with default knobs (chunk 4096). Raw data: raw/w1/prof/base-*/ and the engine op table in raw/w1/optab-base-*.err. The table comes from `scripts/roofline.py` (raw/w1/roofline-*.md).
@@ -126,9 +138,16 @@ Shipped: for M >= 2048, (4,4,4,2) at N >= 8192 and (4,4,2,4) otherwise. Below th
   - Estimated gain is about 1.4% at 4k and 2.4% at 16k, from 1/40 of MoE + o_proj + attention per prefill.
 - **Chunked (WY) GDN, opt-in.** See section 6.
 
-## 6. Chunked (WY) GatedDeltaNet, opt-in candidate
+## 6. Chunked (WY) GatedDeltaNet: measured slower, not integrated
 
-(Pending: HIP port of the CUDA fp32 SIMT kernel from 287c371 in `scripts/gdnwy.hip`; measured in the 00:00 window.)
+`scripts/gdnwy.hip` is a HIP port of the CUDA fp32 SIMT chunked kernels from git 287c371 (`kernels/cuda/gdn_chunked.cu`). It is templated on chunk 64 / 32 and on 32 / 16 value columns per state block. Accuracy against v2 is fine (output rel_l2 4.6e-5, state 1e-6), but every variant is slower than the token-sequential v2 at every T (raw/w9/bin-bench-out-hp-gdnwy.txt):
+
+| T | v2 µs/token | wy64 | wy64 c16 | wy32 | wy32 c16 |
+|---:|---:|---:|---:|---:|---:|
+| 683 | 0.790 | 1.365 | 1.677 | **0.698** | 1.320 |
+| 4096 | 0.709 | 1.101 (prep 1875 + state 2345 µs) | 1.596 | 1.102 | 1.239 |
+
+On GB10 the CUDA version won because its fp32 dense products were cheap relative to that GPU's scan. On gfx1201 the prep kernel (the 64 x 64 Gram matrices and the triangular inverse, in f32 VALU) alone costs about as much as the whole v2 scan. A WY version would need WMMA for its matrix products to win. The Gram and inverse would then run in bf16 or fp8, which is a numerics change for an opt-in path, and porting it is bigger than this lane. Left as a lead: section 8.
 
 ## 7. Gates, A/B, downtime, decisions
 

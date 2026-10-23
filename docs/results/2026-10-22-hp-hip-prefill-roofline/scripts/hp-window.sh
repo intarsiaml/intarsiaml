@@ -52,7 +52,9 @@ ssh $T 'systemctl --user stop radiance' < /dev/null
 sleep 2
 say "radiance stopped"
 ssh $T "BUDGET=${BUDGET:-1500} bash ~/intarsiaml-hp/docs/results/2026-10-22-hp-hip-prefill-roofline/scripts/hp-stages.sh $STAGES" < /dev/null 2>&1 | tee "$OUT/window.log"
-if [ "${LOC:-0}" -gt 0 ]; then
+if [ "${LOC:-0}" -gt 0 ] && ssh $T 'test -e ~/intarsiaml-hp/bench-out/hp/out/ABORT' < /dev/null; then
+  say "stages aborted (a test failed): localeval skipped"
+elif [ "${LOC:-0}" -gt 0 ]; then
   for r in $(seq 1 "$LOC"); do
     loc_arm "base-r$r" intarsiaml-hpbase intarsia-cargo-target-hp-base
     loc_arm "dev-r$r" intarsiaml-hp intarsia-cargo-target-hp-dev "${LOC_ENV:-}"

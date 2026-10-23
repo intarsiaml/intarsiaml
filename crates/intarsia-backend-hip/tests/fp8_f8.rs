@@ -128,7 +128,7 @@ fn f8_prefill_tiles_match_small_calls() {
         let big = case(&mut rng, m, n, k, DType::Bf16, 1.3, 0.2);
         let whole = run_host(&*hip, "matmul_fp8_mma_f8", &big).unwrap().remove(0);
         let rowb = k * 2;
-        for r0 in [0usize, 1999, m - 300] {
+        for r0 in [0usize, 1999.min(m - 300), m - 300] {
             let mm = 300;
             let mut part = big.clone();
             part.inputs[0] = HostTensor::new(DType::Bf16, vec![mm, k], big.inputs[0].data[r0 * rowb..(r0 + mm) * rowb].to_vec()).unwrap();

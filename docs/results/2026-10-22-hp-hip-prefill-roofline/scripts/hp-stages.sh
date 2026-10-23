@@ -133,5 +133,10 @@ for st in "$@"; do
   name=${st%%:*}; arg=""; [[ "$st" == *:* ]] && arg=${st#*:}
   echo "=== $st [$(ts), $(left) s left]"
   "stage_$name" "$arg"
+  if [ "$name" = test ] && grep -q "test result: FAILED\|error: test failed\|could not compile" "$OUT/test.txt" 2>/dev/null; then
+    echo "ABORT: a test failed; the remaining stages are skipped"
+    touch "$OUT/ABORT"
+    break
+  fi
 done
 echo "=== stages done [$(ts)]"
