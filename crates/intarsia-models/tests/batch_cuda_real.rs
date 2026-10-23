@@ -57,18 +57,29 @@ fn cuda() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
 
 /// The model of `dir` on the GPU with batching enabled for `rows` sequences of `max_seq` tokens.
 fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
+    load_with(dir, backend, rows, max_seq, 0).0
+}
+
+fn load_with(
+    dir: &PathBuf,
+    backend: Arc<dyn intarsia_core::backend::Backend>,
+    rows: usize,
+    max_seq: usize,
+    profile_every: u32,
+) -> (Model, Arc<Telemetry>) {
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, "cuda").value;
     let opts = LoadOptions {
         max_seq,
         prefill_chunk: chunk,
-        profile_every: 0,
+        profile_every,
         // the Spark's `free` after the weights is the page-cache-reduced figure (about 2 GB on a shared box): take most of it
         kv_fraction: 0.95,
         ..Default::default()
     };
-    let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    let tel = Arc::new(Telemetry::new());
+    let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
     assert!(m.batch_capable(), "the cuda backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
@@ -78,7 +89,7 @@ fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: 
     // neither the solo step's nor a row-exact one fails here (`plan::check_batch_ops`)
     m.configure_plan(&Default::default(), None).unwrap();
     assert!(m.plan.kv_cap_tokens >= max_seq, "{} tokens per sequence", m.plan.kv_cap_tokens);
-    m
+    (m, tel)
 }
 
 fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_range: (u32, u32)) {
@@ -194,6 +205,89 @@ fn real_35b_batched_engine_equals_the_local_engine() {
             // prefill of a request that starts while others decode runs in busy chunks; a prompt this short is one chunk
             // either way, so the whole output is compared
             assert_eq!(&got, want, "concurrent request {i} on {slots} slots");
+        }
+    }
+}
+
+// ---- timing (not a gate): `cargo test ... -- --ignored --nocapture real_35b_batch_step_timing` --------------------------
+
+/// Wall time of `forward_batch` (all rows `LastArgmax`, the serving mode) at B = 1, 2, 4, 8, 16 over 24 steps, the solo
+/// `forward` step beside it, and the per-op profile of one profiled B = 4 and B = 16 step.
+#[test]
+#[ignore]
+fn real_35b_batch_step_timing() {
+    use intarsia_core::model::{HeadMode, StepOut};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 2048);
+    let tok = |i: usize| 1000 + 37 * i as u32;
+    let mut states: Vec<_> = (0..16)
+        .map(|i| {
+            let mut st = m.new_state().unwrap();
+            let p: Vec<u32> = (0..900 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
+            m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+            st
+        })
+        .collect();
+    let steps = 24;
+    let t0 = std::time::Instant::now();
+    for _ in 0..steps {
+        let StepOut::Token(_) = m.forward(&mut states[0], &[tok(0)], HeadMode::LastArgmax, None).unwrap() else { panic!() };
+    }
+    let solo = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
+    eprintln!("TIMING solo step {solo:.2} ms ({:.1} tok/s)", 1e3 / solo);
+    for b in [2usize, 4, 8, 16] {
+        let ids: Vec<u32> = (0..b).map(tok).collect();
+        let modes = vec![HeadMode::LastArgmax; b];
+        let t0 = std::time::Instant::now();
+        for _ in 0..steps {
+            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+        }
+        let ms = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
+        eprintln!("TIMING batch B={b:>2}: {ms:.2} ms/step, {:.1} tok/s aggregate ({:.2}x solo step)", b as f64 * 1e3 / ms, ms / solo);
+    }
+}
+
+/// Per-op calls and time of 8 profiled batched steps at B = 4 and at B = 16 (profiling syncs after each op, so the sum
+/// is above the unprofiled step; the shares are what to read).
+#[test]
+#[ignore]
+fn real_35b_batch_step_profile() {
+    use intarsia_core::model::HeadMode;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let (m, tel) = load_with(&dir, be, 16, 2048, 1);
+    let mut states: Vec<_> = (0..16)
+        .map(|i| {
+            let mut st = m.new_state().unwrap();
+            let p: Vec<u32> = (0..900 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
+            m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+            st
+        })
+        .collect();
+    for b in [1usize, 4, 16] {
+        let before = tel.snapshot().ops;
+        let ids: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
+        let modes = vec![HeadMode::LastArgmax; b];
+        let t0 = std::time::Instant::now();
+        for _ in 0..8 {
+            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+        }
+        let wall = t0.elapsed().as_secs_f64() * 1e3 / 8.0;
+        let after = tel.snapshot().ops;
+        let mut rows: Vec<(String, u64, f64)> = after
+            .iter()
+            .map(|(k, a)| {
+                let b0 = before.get(k);
+                (k.clone(), a.calls - b0.map_or(0, |x| x.calls), a.time_ms - b0.map_or(0.0, |x| x.time_ms))
+            })
+            .filter(|r| r.1 > 0)
+            .collect();
+        rows.sort_by(|x, y| y.2.partial_cmp(&x.2).unwrap());
+        let tot: f64 = rows.iter().map(|r| r.2).sum::<f64>() / 8.0;
+        eprintln!("PROFILE B={b}: wall {wall:.2} ms/step (profiled), op time sum {tot:.2} ms/step");
+        for (k, calls, ms) in rows.iter().take(14) {
+            eprintln!("PROFILE B={b}   {k:<28} {:>6.1} calls/step {:>7.3} ms/step", *calls as f64 / 8.0, ms / 8.0);
         }
     }
 }
