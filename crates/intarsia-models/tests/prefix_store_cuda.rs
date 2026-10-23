@@ -137,3 +137,42 @@ fn prefix_store_restore_is_bitwise_cold_cuda() {
     assert_eq!(cold_on.cached, 0);
     assert!(eq_on, "restored turn 2 differs from cold (store on) at step {d_on:?}");
 }
+
+/// How fast a device-to-host copy is on this machine (the prefix store's settle cost): 64 MiB into a fresh `Vec`, into
+/// a touched `Vec`, and as 512 segments of 128 KiB. Opt-in like the gate.
+#[test]
+fn cuda_d2h_bandwidth_report() {
+    if !enabled() || !intarsia_backend_cuda::AVAILABLE {
+        return;
+    }
+    use intarsia_core::backend::MemKind;
+    let b = intarsia_backend_cuda::create(0).unwrap();
+    let n = 64 << 20;
+    let buf = b.alloc(n, MemKind::Device).unwrap();
+    b.upload(&buf, 0, &vec![7u8; n], 0).unwrap();
+    b.synchronize(0).unwrap();
+    let t = Instant::now();
+    let mut v = vec![0u8; n];
+    b.download(&buf, 0, &mut v, 0).unwrap();
+    let fresh = t.elapsed().as_secs_f64();
+    let t = Instant::now();
+    b.download(&buf, 0, &mut v, 0).unwrap();
+    let touched = t.elapsed().as_secs_f64();
+    let t = Instant::now();
+    for i in 0..512 {
+        b.download(&buf, i << 17, &mut v[i << 17..(i + 1) << 17], 0).unwrap();
+    }
+    let seg = t.elapsed().as_secs_f64();
+    let t = Instant::now();
+    let mut w = vec![0u8; n];
+    w.copy_from_slice(&v);
+    let memcpy = t.elapsed().as_secs_f64();
+    let gb = n as f64 / 1e9;
+    println!(
+        "D2H 64 MiB: fresh Vec {:.2} GB/s, touched Vec {:.2} GB/s, 512 x 128 KiB {:.2} GB/s; host memcpy {:.2} GB/s",
+        gb / fresh,
+        gb / touched,
+        gb / seg,
+        gb / memcpy
+    );
+}

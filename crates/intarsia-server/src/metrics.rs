@@ -304,6 +304,7 @@ pub fn render_prefix_store(s: &intarsia_core::prefix_store::PrefixStoreSnapshot)
     metric(&mut o, "intarsia_prefix_store_inserts_total", c, "Entries stored.", s.inserts);
     metric(&mut o, "intarsia_prefix_store_insert_bytes_total", c, "Bytes copied into the store.", s.insert_bytes);
     metric(&mut o, "intarsia_prefix_store_insert_seconds_total", c, "Time spent storing.", s.insert_seconds_total);
+    metric(&mut o, "intarsia_prefix_store_settle_seconds_total", c, "Part of the storing time spent after the first token, moving captures off the device.", s.settle_seconds_total);
     metric(&mut o, "intarsia_prefix_store_rejected_total", c, "Entries rejected on restore or load (corrupt, foreign build).", s.rejected);
     metric(&mut o, "intarsia_prefix_store_entries", g, "Entries held.", s.entries);
     metric(&mut o, "intarsia_prefix_store_pinned_entries", g, "Pinned entries held.", s.pinned_entries);

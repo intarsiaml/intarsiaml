@@ -459,6 +459,8 @@ pub struct PrefixStoreSnapshot {
     pub inserts: u64,
     pub insert_bytes: u64,
     pub insert_seconds_total: f64,
+    /// Part of `insert_seconds_total` spent after the first token, moving deferred captures off the device.
+    pub settle_seconds_total: f64,
     /// Restores rejected because an object failed its checks (corrupt or foreign file); the request ran cold.
     pub rejected: u64,
     /// Estimated time to first token saved: tokens restored at the measured cold prefill rate, minus restore time.
@@ -925,8 +927,14 @@ impl PrefixStore {
         self.defer = false;
         self.deferred = 0;
         let t0 = Instant::now();
+        let before = self.used[0];
         self.enforce(backend);
-        self.stats.insert_seconds_total += t0.elapsed().as_secs_f64();
+        let took = t0.elapsed().as_secs_f64();
+        self.stats.insert_seconds_total += took;
+        self.stats.settle_seconds_total += took;
+        if std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some() {
+            eprintln!("prefix store: settle moved {} MiB off the device in {:.1} ms", (before - self.used[0]) >> 20, took * 1e3);
+        }
         self.refresh_counts();
     }
 
@@ -1007,8 +1015,19 @@ impl PrefixStore {
             let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
+            let ta = Instant::now();
             let mut v = vec![0u8; o.bytes];
-            if backend.download(&buf, boff, &mut v, 0).is_err() {
+            let tb = Instant::now();
+            let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
+            if std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some() {
+                eprintln!(
+                    "prefix store: demote {} KiB: alloc {:.2} ms, download {:.2} ms",
+                    o.bytes >> 10,
+                    (tb - ta).as_secs_f64() * 1e3,
+                    tb.elapsed().as_secs_f64() * 1e3
+                );
+            }
+            if !ok {
                 self.objs.insert(k, o);
                 self.drop_obj(k);
                 continue;

@@ -185,6 +185,30 @@ v4 = v3 with `--prefix-store on,roles=assistant` (cuts only after assistant head
 | rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.81 -> 1.93 (+7 %) | 452 -> 483 | 283 -> 291 |
 all workloads, TTFT total per rep (s): off [7.709], on [5.5923, 5.777100000000001]
 
+Final head `fa9a08e9` (review fixes: page keys, refs, per-object device allocations), every header cut, fleetq #4442
+(`raw/cuda-final`, 2 store-on and 2 store-off passes interleaved):
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15654 | 15654 -> 6956 (-56 %) | 3.33 -> 2.50 (-25 %) | 416 -> 313 | 477 -> 315 |
+| agent | 8 | 8574 | 8574 -> 2020 (-76 %) | 2.56 -> 2.01 (-22 %) | 320 -> 251 | 252 -> 188 |
+| rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.80 -> 1.97 (+9 %) | 451 -> 491 | 282 -> 293 |
+
+all workloads, TTFT total per rep (s): off [7.64, 7.75], on [6.38, 6.57]
+
+Same head with `roles=assistant`, fleetq #4445 (`raw/cuda-final-assistant`, 2 on, 1 off):
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15654 | 15654 -> 6959 (-56 %) | 3.29 -> 2.12 (-36 %) | 411 -> 265 | 478 -> 245 |
+| agent | 8 | 8574 | 8574 -> 2020 (-76 %) | 2.52 -> 1.77 (-30 %) | 315 -> 221 | 250 -> 134 |
+| rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.80 -> 1.93 (+7 %) | 451 -> 483 | 282 -> 293 |
+
+all workloads, TTFT total per rep (s): off [7.61], on [5.86, 5.79]
+
+The final head reproduces v3/v4 within run-to-run spread, and #4442 re-ran the byte-identity test on it
+(`raw/cuda-final/ident-35b.out`): restored vs cold, store on, bitwise true.
+
 Per request (v4, chat, 8 requests): TTFT 220, 245, 223, 223, 228, 231, 244, 249 ms with the store, against 428, 166,
 279, 285, 479, 486, 616, 626 ms without it. With the store, TTFT stays flat as the conversation grows. Agent follow-ups
 take 83-149 ms against 219-260 ms. On RAG the store does not help in this benchmark: store off already reuses 4096 of
