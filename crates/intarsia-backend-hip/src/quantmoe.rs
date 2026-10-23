@@ -83,6 +83,15 @@ pub fn fp8_staging_default() -> bool {
     })
 }
 
+/// Whether INTARSIA_HIP_FP8_Q is at its default (2, or unset). The row-exact fp8 GEMV (`matmul_fp8_gemv_rows`) runs the default
+/// staging only, so with Q moved (Q = 3 quantises with a reciprocal and an fma correction, which can differ from the division
+/// in a rare rounding) it is not accepted: a batched plan then fails to load instead of running a different arithmetic from
+/// the one-row kernel the solo step runs.
+pub fn fp8_q_is_default() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| fp8_staging_default_from(std::env::var("INTARSIA_HIP_FP8_Q").ok().as_deref(), None))
+}
+
 /// [`fp8_staging_default`] on given values: Q is 2 unless it parses to 1 or 3 (the C++ rule); PAIR is the default unless it
 /// parses as two integers other than (1, 8).
 pub fn fp8_staging_default_from(q: Option<&str>, pair: Option<&str>) -> bool {
@@ -178,7 +187,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152)
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -372,8 +381,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(10),
                 // norm prologue + pair GEMV: the row is staged in LDS (K <= 8192, K % 8 == 0); bitwise rmsnorm_add + pair
                 // phase-1 folds. The fp8 ones serve one row (decode; the LDS holds the row, K <= 24576), the nvfp4 one the
-                // 1..=8 rows of matmul_nvfp4_gemv_v2. HIP has no batched step (no row-exact kernels), so the one-row limit
-                // never meets the batch-consistency rule; a row count without a kernel runs the unfused ops.
+                // 1..=8 rows of matmul_nvfp4_gemv_v2. With batching on (`--max-batch`, lane hb) the limits meet the batch-consistency rule
+                // (`OpCall::with_rows`): a fold with no kernel at some row count is not taken by the solo step either; a row count
+                // without a kernel runs the unfused ops.
                 "rmsnorm_add_matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])

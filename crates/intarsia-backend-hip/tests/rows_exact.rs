@@ -206,6 +206,15 @@ fn clip_of(scales: &HostTensor) -> f32 {
     }
 }
 
+/// Negative controls (recorded in the results doc, not a gate): `INTARSIA_HIP_GB_CONTROL=matmul_fp8_gemv_rows=matmul_fp8_mma_f8,...`
+/// runs the named ordinary kernel where the driver would run the `_rows` one; the driver must then FAIL, which shows the test can.
+fn control(rows: &str) -> String {
+    std::env::var("INTARSIA_HIP_GB_CONTROL")
+        .ok()
+        .and_then(|v| v.split(',').find_map(|p| p.split_once('=').filter(|(a, _)| *a == rows).map(|(_, b)| b.to_string())))
+        .unwrap_or_else(|| rows.to_string())
+}
+
 // ---- the G-B driver for the matmul-like ops ---------------------------------------------------------------------------
 
 /// `weights`: the inputs after x (w, scales ... as the op takes them). `solo`: the 1-row kernel, `rows`: the row-exact one.
@@ -222,6 +231,8 @@ fn gb_matmul(
     label: &str,
     caps: usize,
 ) {
+    let rows_s = control(rows);
+    let rows = rows_s.as_str();
     let k = x_rows[0].len();
     let a = OpAttrs::default();
     let osz = out_dt.size_bytes();
@@ -463,6 +474,8 @@ fn wide_experts(rng: &mut SplitMix64, e: usize, h: usize, i: usize) -> intarsia_
 }
 
 fn gb_moe(rig: &Rig, solo: &str, rows: &str, attrs: &OpAttrs, e: usize, topk: usize, h: usize, i: usize, seed: u64, wide: bool) {
+    let rows_s = control(rows);
+    let rows = rows_s.as_str();
     let mut rng = SplitMix64::new(seed);
     let ex = if wide { wide_experts(&mut rng, e, h, i) } else { random_experts(&mut rng, e, h, i) };
     let w: Vec<TensorRef> = [&ex.gate_up_w, &ex.gate_up_s, &ex.down_w, &ex.down_s, &ex.gscales].iter().map(|t| rig.put(t)).collect();
