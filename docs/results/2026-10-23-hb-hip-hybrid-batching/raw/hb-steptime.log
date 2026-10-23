@@ -1,0 +1,14 @@
+
+running 1 test
+test real_35b_batch_step_timing ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960563744, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+TIMING solo step 57.34 ms (17.4 tok/s)
+TIMING batch B= 2: 9.55 ms/step, 209.5 tok/s aggregate (0.17x solo step)
+TIMING batch B= 4: 14.33 ms/step, 279.1 tok/s aggregate (0.25x solo step)
+TIMING batch B= 8: 24.09 ms/step, 332.1 tok/s aggregate (0.42x solo step)
+TIMING batch B=16: 45.83 ms/step, 349.1 tok/s aggregate (0.80x solo step)
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 7.23s
+
+GC2_DONE

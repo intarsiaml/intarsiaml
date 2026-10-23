@@ -15,7 +15,7 @@
 //! * with the opt-in off, nothing changed: `enable_batch` still refuses the hybrid model.
 //!
 //! The same file is the CUDA gate G-C on the tiny hybrid (docs/results/2026-10-23-rb2-cuda-batching.md): with
-//! `INTARSIA_BATCH_TEST_BACKEND=cuda` the model runs on the CUDA backend in bf16 (activations and KV), and the batched
+//! `INTARSIA_BATCH_TEST_BACKEND=cuda` (or `hip`, lane hb) the model runs on the CUDA (HIP) backend in bf16 (activations and KV), and the batched
 //! step and engine must still be bitwise the solo step with the real `_rows` kernels (G-B) and the unfused chains of the
 //! solo step's fusions in the multi-row plan; N goes up to 16. Without a GPU the CUDA run skips.
 mod common;
@@ -62,32 +62,37 @@ enum Variant {
 
 const VARIANTS: [Variant; 3] = [Variant::Dense, Variant::Moe, Variant::MoeA8];
 
-/// `INTARSIA_BATCH_TEST_BACKEND=cuda` (or `metal`, docs/results/2026-10-23-mb-metal-hybrid-batching.md) runs the file on that
-/// GPU backend (bf16), anything else on the cpu backend (f32).
-fn on_gpu() -> bool {
-    gpu_name().is_some()
+/// `INTARSIA_BATCH_TEST_BACKEND=cuda` / `hip` / `metal` runs the file on that GPU backend (bf16), anything else on the cpu backend (f32).
+fn gpu() -> Option<&'static str> {
+    match std::env::var("INTARSIA_BATCH_TEST_BACKEND").as_deref() {
+        Ok("cuda") => Some("cuda"),
+        Ok("hip") => Some("hip"),
+        Ok("metal") => Some("metal"),
+        _ => None,
+    }
 }
 
-fn gpu_name() -> Option<String> {
-    std::env::var("INTARSIA_BATCH_TEST_BACKEND").ok().filter(|v| v == "cuda" || v == "metal")
+/// On a GPU backend (cuda or hip) rather than the cpu reference.
+fn on_cuda() -> bool {
+    gpu().is_some()
 }
 
-/// The backend every model of the process runs on (one CUDA context for all of them); `None`: no GPU, the test skips.
+/// The backend every model of the process runs on (one GPU context for all of them); `None`: no GPU, the test skips.
 fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     static B: std::sync::OnceLock<Option<Arc<dyn intarsia_core::backend::Backend>>> = std::sync::OnceLock::new();
     B.get_or_init(|| {
-        if let Some(gpu) = gpu_name() {
-            let made = if gpu == "metal" {
-                intarsia_backend_metal::MetalBackend::arc()
-            } else {
-                intarsia_backend_cuda::create(0)
+        if let Some(name) = gpu() {
+            let made = match name {
+                "hip" => intarsia_backend_hip::create(0),
+                "metal" => intarsia_backend_metal::MetalBackend::arc(),
+                _ => intarsia_backend_cuda::create(0),
             };
             match made {
                 Ok(b) => Some(b),
                 Err(e) => {
-                    eprintln!("SKIPPED: no usable {gpu} device ({e})");
+                    eprintln!("SKIPPED: no usable {name} device ({e})");
                     if std::env::var("INTARSIA_REQUIRE_GPU").is_ok_and(|v| v == "1") {
-                        panic!("INTARSIA_REQUIRE_GPU=1 but no {gpu} device: {e}");
+                        panic!("INTARSIA_REQUIRE_GPU=1 but no {name} device: {e}");
                     }
                     None
                 }
@@ -99,11 +104,11 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     .clone()
 }
 
-/// Most batched sequences the file exercises: 4 on the cpu reference, the backend's cap on a GPU (CUDA 16, Metal 8).
+/// Most batched sequences the file exercises: 4 on the cpu reference, the backend's cap on a GPU (CUDA and HIP 16, Metal 8).
 fn max_rows() -> usize {
-    match gpu_name().as_deref() {
-        Some("cuda") => 16,
-        Some(_) => 8,
+    match gpu() {
+        Some("metal") => 8,
+        Some(_) => 16,
         None => 4,
     }
 }
@@ -151,7 +156,7 @@ fn fixture_tensors(keep: impl Fn(&str) -> bool) -> Vec<(String, HostTensor)> {
         .map(|name| {
             let info = src.info(&name).unwrap();
             let t = HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap();
-            let t = if on_gpu() && t.dtype == DType::F32 {
+            let t = if on_cuda() && t.dtype == DType::F32 {
                 HostTensor::from_f32_as(DType::Bf16, &t.shape.clone(), &t.to_f32())
             } else {
                 t
@@ -234,8 +239,8 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         mem_budget: Some(4 << 30),
         prefill_chunk: CHUNK,
         // the cpu reference runs in f32; the CUDA kernels are bf16
-        act_dtype: Some(if on_gpu() { DType::Bf16 } else { DType::F32 }),
-        kv_dtype: Some(if on_gpu() { DType::Bf16 } else { DType::F32 }),
+        act_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
+        kv_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
         fp8_act: match v {
             Variant::Dense => None,
             Variant::Moe => Some(Fp8Act::None),
@@ -244,7 +249,7 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         ..Default::default()
     };
     match v {
-        Variant::Dense if !on_gpu() => {
+        Variant::Dense if !on_cuda() => {
             Model::load(backend, &recipe, &dims, &SafeTensors::open_dir(&dir).unwrap(), &opts, tel.clone())
         }
         Variant::Dense => Model::load(backend, &recipe, &dims, &dense_weights(), &opts, tel.clone()),
@@ -398,7 +403,7 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
         }
     }
     if matches!(v, Variant::Moe | Variant::MoeA8) {
-        let want = if m.backend.name() == "metal" { "moe_experts_bf16_rows" } else { "decode_v2_rows" };
+        let want = if m.backend.name() == "metal" { "moe_experts_bf16_rows" } else { "rows" };
         assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)), "{:?}", picks(&rec, Op::MoeExperts));
         assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
     }
@@ -416,14 +421,14 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
     for v in VARIANTS {
         let tel = Arc::new(Telemetry::new());
         let m = model(v, max_rows(), true, &tel);
-        if on_gpu() {
+        if on_cuda() {
             check_gpu_batch_picks(&m, v);
         }
         // N = 2, 3 and 4 sequences of different prompt lengths (on the GPU also 8 and 16), 130 consecutive batched steps each
         // (the fixture's context is 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the
         // on-device argmax path, odd rows sample
         let mut sets = vec![vec![3usize, 9], vec![5, 11, 20], vec![4, 8, 13, 22]];
-        if on_gpu() {
+        if on_cuda() {
             sets.push((0..8).map(|i| 3 + 5 * i).collect());
             if max_rows() >= 16 {
                 sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
@@ -483,7 +488,7 @@ fn batched_engine_equals_solo_over_128_tokens() {
         for rows in [2usize, 3, 4] {
             check_engine(v, rows, 9, false);
         }
-        if on_gpu() {
+        if on_cuda() {
             // more slots, more requests than slots
             for rows in [8usize, 16].into_iter().filter(|&r| r <= max_rows()) {
                 check_engine(v, rows, 2 * rows + 3, false);
@@ -502,7 +507,7 @@ fn batched_engine_with_prefix_reuse_equals_solo() {
         for rows in [2usize, 4] {
             check_engine(v, rows, 9, true);
         }
-        if on_gpu() {
+        if on_cuda() {
             check_engine(v, 8, 19, true);
         }
     }
@@ -519,7 +524,7 @@ fn prefix_reuse_restores_recurrent_state_from_a_snapshot() {
 }
 
 fn prefix_reuse_case(v: Variant) {
-    if on_gpu() {
+    if on_cuda() {
         // the prefix store stays at batch 1: the batched engine never reuses a recurrent slot (checked in `check_engine`:
         // cached_tokens is 0 with reuse requested)
         return;
@@ -568,7 +573,7 @@ fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them()
         let rows = 4;
         let m = model(v, rows, true, &tel);
         let keep = m.batch_snapshots();
-        assert_eq!(keep, if on_gpu() { 0 } else { 4 }, "the prefix store stays at batch 1 on cuda");
+        assert_eq!(keep, if on_cuda() { 0 } else { 4 }, "the prefix store stays at batch 1 on cuda");
         let extra = (rows as u64 - 1) * rec * (1 + keep as u64);
         assert_eq!(m.plan.workspace_bytes, solo.plan.workspace_bytes + extra, "{v:?}: workspace");
         assert!(m.plan.notes.iter().any(|n| n.contains("recurrent state of 4 batched sequences")), "{:?}", m.plan.notes);

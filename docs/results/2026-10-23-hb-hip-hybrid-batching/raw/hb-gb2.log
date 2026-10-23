@@ -1,0 +1,9 @@
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:21/21/853388 2:21/42/1706776 3:21/63/2560164 4:21/84/3413552 5:21/105/4266940 6:2
+test fp8_rows_are_bitwise_the_one_row_gemv ... G-B fp8 matmul_fp8_gemv_rows: M:cases/rows/bytes 1:132/132/550044 2:132/264/1100088 3:132/396/1650132 4:132/528/2200176 5:132/660/2750220 6:132/792/33002
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... G-B moe moe_experts_bf16_rows: M:cases/rows/bytes 1:16/16/34816 2:16/32/69632 3:16/48/104448 4:16/64/139264 5:16/80/174080 6:16/96/208896 7:16
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... G-B nvfp4 matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:32/32/6006480 2:32/64/12012960 3:32/96/18019440 4:32/128/24025920 5:32/160/30032400 6:32/192/360
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+test timing_gemv_rows ... ignored, micro-timing
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.49s
+GB_DONE
+T_DONE

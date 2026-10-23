@@ -606,6 +606,8 @@ impl Backend for HipBackend {
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
                 "logits_bf16_gemv" => ffi::ik_logits_bf16_gemv(i(0), i(1), o, s),
+                "matmul_bf16_gemv_rows" => ffi::ik_matmul_bf16_gemv_rows(i(0), i(1), o, s),
+                "logits_bf16_gemv_rows" => ffi::ik_logits_bf16_gemv_rows(i(0), i(1), o, s),
                 "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, pos, s),
                 "attn_prefill_bf16" => ffi::ik_attn_prefill_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, pos, s),
@@ -670,11 +672,13 @@ impl Backend for HipBackend {
                 }
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
+                "matmul_fp8_gemv_rows" => ffi::ik_matmul_fp8_gemv_rows(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma" => ffi::ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma_f8" => ffi::ik_matmul_fp8_mma_f8(i(0), i(1), i(2), o, sc, s),
                 "matmul_fp8_mma_v2" => ffi::ik_matmul_fp8_mma_v2(i(0), i(1), i(2), o, sc, s),
                 "matmul_nvfp4_gemv" => ffi::ik_matmul_nvfp4_gemv(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_gemv_v2" => ffi::ik_matmul_nvfp4_gemv_v2(i(0), i(1), i(2), i(3), o, s),
+                "matmul_nvfp4_gemv_rows" => ffi::ik_matmul_nvfp4_gemv_rows(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_mma" => ffi::ik_matmul_nvfp4_mma(i(0), i(1), i(2), i(3), o, s),
                 "matmul_mxfp4_gemv" => ffi::ik_matmul_mxfp4_gemv(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
@@ -686,6 +690,9 @@ impl Backend for HipBackend {
                 }
                 "moe_experts_bf16_v2" => {
                     ffi::ik_moe_experts_bf16_v2(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
+                }
+                "moe_experts_bf16_rows" => {
+                    ffi::ik_moe_experts_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
                 }
                 "moe_experts_bf16_v3" => {
                     ffi::ik_moe_experts_bf16_v3(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), o, sc, s)
@@ -779,6 +786,11 @@ impl Backend for HipBackend {
 
     fn supports_graphs(&self) -> bool {
         true
+    }
+
+    /// 16 rows: the `_rows` GEMV / MoE kernels are proven row-exact up to M = 16 (tests/rows_exact.rs, G-B).
+    fn batch_row_cap(&self) -> usize {
+        crate::kernels::ROWS_MAX
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {

@@ -41,15 +41,21 @@ impl Model {
     pub fn allow_recurrent_batch(&mut self) -> Result<()> {
         let ok = match self.backend.name() {
             "cpu" => true,
-            "cuda" | "metal" => self.batch_capable(),
+            "cuda" | "hip" | "metal" => self.batch_capable(),
             _ => false,
         };
         if !ok {
             return Err(Error::Unsupported(format!(
-                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda and metal backends (and the cpu reference); the {} backend has no verified row-exact kernels for it",
+                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda, hip and metal backends (and the cpu reference); the {} backend has no verified row-exact kernels for it",
                 self.backend.name()
             )));
         }
+        let hybrid_block = self.layers.iter().flatten().any(|b| match b {
+            Block::Attn(a) => a.gated,
+            Block::Gdn(_) | Block::Moe(_) => true,
+            Block::Ffn(_) | Block::Gemma(_) => false,
+        });
+        hip_batch_needs_hybrid(self.backend.name(), hybrid_block)?;
         if self.batch_rows != 0 {
             return Err(Error::invalid("allow_recurrent_batch after enable_batch"));
         }
@@ -355,5 +361,30 @@ impl Model {
         let attn_out = bufs.q[1 - qc].clone();
         // the output gate (gated attention, hybrid opt-in only; `None` otherwise) is applied once for all rows, as in the solo step
         self.attn_out_proj(a, &attn_out, gate, qc, out, b, profile)
+    }
+}
+
+/// HIP batches only the hybrid recipes its gates cover (lane hb, `docs/results/2026-10-23-hb-hip-hybrid-batching.md`): the dense
+/// Qwen3-8B batching test did not finish on HIP (no output after the memory plan), so a dense model is refused until that is fixed.
+fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+    if backend == "hip" && !hybrid_block {
+        return Err(Error::Unsupported(
+            "--max-batch N (N > 1) on the hip backend is supported only for the gated hybrid recipes (GatedDeltaNet / mixture-of-experts / gated attention); dense models are not yet verified on HIP; use --max-batch 1".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod hip_guard_tests {
+    use super::hip_batch_needs_hybrid;
+
+    #[test]
+    fn hip_refuses_dense_batching_only() {
+        let e = hip_batch_needs_hybrid("hip", false).unwrap_err().to_string();
+        assert!(e.contains("gated hybrid recipes"), "{e}");
+        hip_batch_needs_hybrid("hip", true).unwrap();
+        hip_batch_needs_hybrid("cuda", false).unwrap();
+        hip_batch_needs_hybrid("metal", false).unwrap();
     }
 }

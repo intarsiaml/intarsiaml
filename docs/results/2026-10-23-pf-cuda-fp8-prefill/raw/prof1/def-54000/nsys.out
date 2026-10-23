@@ -1,0 +1,6 @@
+u
+Collecting data...
+Generating '/tmp/nsys-report-a876.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [===22%                      ] nsys.nsys-rep[1/1] [=17%                        ] nsys.nsys-rep[1/1] [14%                         ] nsys.nsys-rep[1/1] [====27%                     ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=17%                        ] nsys.nsys-rep[1/1] [====25%                     ] nsys.nsys-rep[1/1] [======33%                   ] nsys.nsys-rep[1/1] [========41%                 ] nsys.nsys-rep[1/1] [==========49%               ] nsys.nsys-rep[1/1] [============57%             ] nsys.nsys-rep[1/1] [===============65%          ] nsys.nsys-rep[1/1] [=================73%        ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/prof1/def-54000/nsys.nsys-rep

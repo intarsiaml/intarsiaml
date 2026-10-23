@@ -1,0 +1,6 @@
+layer
+Collecting data...
+Generating '/tmp/nsys-report-190f.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [===22%                      ] nsys.nsys-rep[1/1] [==18%                       ] nsys.nsys-rep[1/1] [=15%                        ] nsys.nsys-rep[1/1] [13%                         ] nsys.nsys-rep[1/1] [===23%                      ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [==19%                       ] nsys.nsys-rep[1/1] [====28%                     ] nsys.nsys-rep[1/1] [=======37%                  ] nsys.nsys-rep[1/1] [=========46%                ] nsys.nsys-rep[1/1] [============55%             ] nsys.nsys-rep[1/1] [==============64%           ] nsys.nsys-rep[1/1] [=================73%        ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/prof1/lt-14000/nsys.nsys-rep

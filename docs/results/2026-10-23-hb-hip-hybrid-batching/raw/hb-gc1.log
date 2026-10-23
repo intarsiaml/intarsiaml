@@ -1,0 +1,34 @@
+
+running 7 tests
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+Dense matmul_fp8: decode [] | batch(4) []
+Dense matmul_nvfp4: decode [] | batch(4) []
+Dense moe_experts: decode [] | batch(4) []
+Dense logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+Dense gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+Dense attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv"]
+Moe matmul: decode [] | batch(4) ["matmul_bf16_gemv_rows"]
+Moe matmul_fp8: decode ["matmul_fp8_gemv_v2"] | batch(4) ["matmul_fp8_gemv_rows"]
+Moe matmul_nvfp4: decode ["matmul_nvfp4_gemv_v2"] | batch(4) ["matmul_nvfp4_gemv_rows"]
+Moe moe_experts: decode ["moe_experts_bf16_v2"] | batch(4) ["moe_experts_bf16_rows"]
+Moe logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+Moe gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+Moe attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv"]
+MoeA8 matmul: decode [] | batch(4) ["matmul_bf16_gemv_rows"]
+MoeA8 matmul_fp8: decode ["matmul_fp8_gemv_v2"] | batch(4) ["matmul_fp8_gemv_rows"]
+MoeA8 matmul_nvfp4: decode ["matmul_nvfp4_gemv_v2"] | batch(4) ["matmul_nvfp4_gemv_rows"]
+MoeA8 moe_experts: decode ["moe_experts_bf16_v2"] | batch(4) ["moe_experts_bf16_rows"]
+MoeA8 logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+MoeA8 gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+MoeA8 attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv"]
+ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.44s
+
+GC2_DONE
