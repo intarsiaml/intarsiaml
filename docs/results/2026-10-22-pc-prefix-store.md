@@ -138,7 +138,7 @@ another slot layout is refused. HTTP (`crates/intarsia-server/tests/prefix_store
 then an unrelated request, then the finished message: 129 of 195 prompt tokens restored (the whole 123-token history
 plus the new message's header), answer equal to a cold engine's; `/metrics` and `/v1/intarsia/prefix-store` show it.
 
-`cargo test --workspace` on cpu: 794 passed, 0 failed (fleetq #4315); at the final head (`--release --no-fail-fast`, fleetq #4449) 796 passed, 0 failed, 3 ignored.
+`cargo test --workspace` on cpu: 794 passed, 0 failed (fleetq #4315); at the final head (`--release --no-fail-fast`, fleetq #4474, `9521099e`) 797 passed, 0 failed, 3 ignored.
 
 ## 4. Workloads: TTFT and prefill tokens computed
 
