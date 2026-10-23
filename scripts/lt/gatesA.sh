@@ -15,7 +15,7 @@ timeout 1500 $B accuracy --model $M35 --backend cuda --device 0 --mem-budget 40 
 echo "exit $?"; grep -aE "this build|wrote baseline|verdict" $O/record.log | cut -c1-200
 echo "== acc-short against the new baseline $(date +%T)"
 timeout 1500 $B accuracy --model $M35 --backend cuda --device 0 --mem-budget 40 --golden $GD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both \
-  --decode-positions 16 --max-seq 4096 --baseline $O/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json < /dev/null > $O/accshort.log 2>&1
+  --decode-positions 16 --max-seq 4096 --baseline $O/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json ${PRE_CHANGE:+--pre-change $PRE_CHANGE} < /dev/null > $O/accshort.log 2>&1
 echo "exit $?"; grep -aE "^  mean KL|per-prompt gate:|verdict" $O/accshort.log | cut -c1-200
 for g in qwen36-35b-a3b-nvfp4-vllm-top20 qwen36-35b-a3b-nvfp4-vllm-long-top20 qwen36-35b-a3b-nvfp4-vllm-4k-top20; do
   echo "== KL golden $g chunk 2048 $(date +%T)"
