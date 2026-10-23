@@ -1,0 +1,319 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:rb3-batching-r3:20261023-1300",
+ "project": "intarsiaml",
+ "lane_id": "rb3-batching-r3",
+ "follows": [
+  "intarsiaml:rb2-cuda-batching:20261023-0641"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T13:00:00-04:00",
+ "ended": "2026-10-23T18:30:00-04:00",
+ "brief": "Lane rb3: R3 of hybrid continuous batching for Qwen3.6-35B-A3B NVFP4 on CUDA (DGX Spark GB10): (a) one GDN and attention launch for all batch rows with per-row state tables, (b) device-side top-k sampling, (c) CUDA graph per row count and per-state solo graphs, (d) prefill/decode overlap; decode stays row-exact (bitwise to solo). Targets: above 140 tok/s at 4 streams, about 200 at 16. User approved R3 and the loader free-memory PR; busy chunk 2048 default.",
+ "hypothesis": "After rb2 the batched step ran at model-loop speed but 25% (B=4) and 42% (B=16) of it were per-row GDN/attention launches and the step was eager; one row-table launch per op plus a graph per row count should cut the step by about 15% at B=4 and 20% at B=16, enough for 140 and 200 tok/s, with every row still bitwise the solo step.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 \u00b7 Qwen3.6-35B-A3B | plain | concurrent | 4x",
+   "DGX Spark GB10 \u00b7 Qwen3.6-35B-A3B | plain | concurrent | 16x"
+  ],
+  "rival": "vLLM \u00b7 NVFP4",
+  "gap_pct_at_start": 40.3,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-rb3/r3-batched-graphs",
+  "base_commit": "240e9d2a",
+  "head_commit": "be37b89f71761c7cc5331c3cef6792082e063b32",
+  "pr": "121",
+  "files": [
+   "crates/intarsia-backend-cuda/src/device.rs",
+   "crates/intarsia-backend-cuda/src/ffi.rs",
+   "crates/intarsia-backend-cuda/src/kernels.rs",
+   "crates/intarsia-backend-cuda/tests/row_tables.rs",
+   "crates/intarsia-core/src/admission.rs",
+   "crates/intarsia-core/src/backend.rs",
+   "crates/intarsia-core/src/engine.rs",
+   "crates/intarsia-core/src/engine/batch.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/model/gdn_batch.rs",
+   "crates/intarsia-core/src/model/graph_step.rs",
+   "crates/intarsia-core/src/ops.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-core/src/registry.rs",
+   "crates/intarsia-core/src/sampler.rs",
+   "crates/intarsia-core/src/scheduler.rs",
+   "crates/intarsia-core/tests/scheduler.rs",
+   "crates/intarsia-models/tests/batch_cuda_real.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "crates/intarsia-models/tests/common/batch_identity.rs",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-23-rb3-batching-r3.md",
+   "docs/results/2026-10-23-rb3-batching-r3/step.svg",
+   "docs/tuning.md",
+   "kernels/cuda/attention_splitkv.cu",
+   "kernels/cuda/elementwise.cu",
+   "kernels/cuda/gdn.cu",
+   "kernels/cuda/ik_cuda_abi.h",
+   "kernels/cuda/ik_runtime.cu",
+   "kernels/cuda/ik_runtime.h",
+   "kernels/cuda/topk.cu"
+  ],
+  "diff_stat": "32 files changed, 2747 insertions(+), 174 deletions(-)",
+  "default_changed": true,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-table kernels (CUDA)",
+   "command": "cargo test -p intarsia-backend-cuda --release --test row_tables",
+   "result": "pass",
+   "detail": "attention decode, gdn conv, gdn delta rule, kv_append, rope per-row positions, topk_f32: byte-identical to the solo launches for M 1..16; fleetq 4676 4702"
+  },
+  {
+   "name": "G-B R0 regression",
+   "command": "cargo test -p intarsia-backend-cuda --release --test rows_exact --test rows_registry",
+   "result": "pass",
+   "detail": "fleetq 4676 4702"
+  },
+  {
+   "name": "G-C tiny hybrid on CUDA",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=cuda cargo test -p intarsia-models --release --test batch_recurrent",
+   "result": "pass",
+   "detail": "10 of 10 incl. decode twin beside a running prefill, engine with overlap, no recapture when rows alternate; fleetq 4645 4698 4702"
+  },
+  {
+   "name": "G-C Qwen3.6-35B NVFP4, forward_batch",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_decode",
+   "result": "pass",
+   "detail": "N=2..16 x 130 steps, 4290 (row,step) pairs bitwise identical; fleetq 4638 4676 4702"
+  },
+  {
+   "name": "G-C Qwen3-8B BF16, forward_batch",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b",
+   "result": "pass",
+   "detail": "4290 pairs bitwise identical (after evicting the page cache; with it warm the test fails at the kv_cap assert, the loader free-memory bug of PR 119); fleetq 4645 4702"
+  },
+  {
+   "name": "35B engine == LocalEngine, seeded-sampled requests",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_engine_equals",
+   "result": "pass",
+   "detail": "4 and 16 slots, 20 requests; default (device sampling on), overlap on, device sampling off; fleetq 4687 4698 4702"
+  },
+  {
+   "name": "35B long prompts 2.6k-16k, engine == LocalEngine",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_engine_long_prompts -- --ignored",
+   "result": "pass",
+   "detail": "overlap off and on; fleetq 4687 4698 4702"
+  },
+  {
+   "name": "serve parity, 16 requests alone vs all at once",
+   "command": "deploy/localeval/serve-and-bench.sh ... python3 srv_parity.py",
+   "result": "pass",
+   "detail": "48..2675 prompt tokens, greedy and sampled (seeded), default / device sampling / overlap / both: identical in every cell and across configs; fleetq 4692 4701"
+  },
+  {
+   "name": "CUDA no-op, batching off",
+   "command": "intarsia plan show + generate 256 greedy ids, 8B and 35B, rb3 vs main",
+   "result": "pass",
+   "detail": "plan show json/txt and ids IDENTICAL; fleetq 4638 4686 4699"
+  },
+  {
+   "name": "Metal no-op (shared core changed)",
+   "command": "plan show, 256 ids short and 4k, goldens qwen3-8b-fp32 and -long, kernels test, workspace tests",
+   "result": "pass",
+   "detail": "identical; kernels 41/778; workspace 817 passed, 0 failed, final head af1bc4d3 vs main 6ca51a19; fleetq 4703 (and 4685 on c4947850)"
+  },
+  {
+   "name": "loader free-memory PR 119 verification",
+   "command": "serve --max-batch 16 with warm page cache, main vs branch; plan show + 256 ids with and without --mem-budget",
+   "result": "pass",
+   "detail": "context 498 tokens on main, 4096 on the branch; 12 comparisons IDENTICAL; fleetq 4638"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 73.2,
+   "after": 73.3,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.0,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172308-adhoc-rb3-main6-1024-x1-b1",
+   "after_run_id": "20261023-172602-adhoc-rb3-full6-1024-x1-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 122.4,
+   "after": 141.2,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 3.7,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172318-adhoc-rb3-main6-1024-x4-b1",
+   "after_run_id": "20261023-172611-adhoc-rb3-full6-1024-x4-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 167.1,
+   "after": 194.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.7,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172343-adhoc-rb3-main6-1024-x16-b1",
+   "after_run_id": "20261023-172635-adhoc-rb3-full6-1024-x16-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 83.0,
+   "after": 91.3,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.4,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172432-adhoc-rb3-main6-4096-x4-b1",
+   "after_run_id": "20261023-172719-adhoc-rb3-full6-4096-x4-b1"
+  },
+  {
+   "metric": "itl_ms_mean",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 25.0,
+   "after": 21.7,
+   "unit": "ms",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172318-adhoc-rb3-main6-1024-x4-b1",
+   "after_run_id": "20261023-172611-adhoc-rb3-full6-1024-x4-b1"
+  },
+  {
+   "metric": "itl_ms_mean",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 74.9,
+   "after": 62.5,
+   "unit": "ms",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172343-adhoc-rb3-main6-1024-x16-b1",
+   "after_run_id": "20261023-172635-adhoc-rb3-full6-1024-x16-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 122.4,
+   "after": 129.8,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.8,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172318-adhoc-rb3-main6-1024-x4-b1",
+   "after_run_id": "20261023-172854-adhoc-rb3-overlap6-1024-x4-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 167.1,
+   "after": 174.8,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.7,
+   "slot": "quiet",
+   "slot_job": 4699,
+   "before_run_id": "20261023-172343-adhoc-rb3-main6-1024-x16-b1",
+   "after_run_id": "20261023-172919-adhoc-rb3-overlap6-1024-x16-b1"
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-table kernels bitwise to the solo launches; G-C batched == solo bitwise on the tiny hybrid, 35B and Qwen3-8B (N 2..16, 130 steps); device top-k sampling equals the host sampler token for token (unit, kernel, 35B engine, serve); engine == LocalEngine incl. long prompts with overlap; CUDA and Metal no-op identical with batching off",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "R3 (a)+(c) done and gated: one row-table launch per op for all batch rows (GDN conv/delta rule, KV append, rope, split-KV attention) and a CUDA graph per row count, every row still bitwise the solo step. 35B aggregate decode, 1k prompt, 3 bursts, same session, main 6ca51a19 as baseline: 4 streams 122.4 to 141.2 tok/s (above the 140 target on the mean, worst burst 139.3), 16 streams 167.1 to 194.6 (target about 200), 4 streams with 4k prompts 83.0 to 91.3, 1 stream 73.2 to 73.3 (no regression). Device top-k sampling (b) is exact and on by default: a sampled batched step is 33% (B=4) and 25% (B=16) cheaper. Prefill/decode overlap (d) is bitwise and cuts ITL p99 at 16 streams from 500 to 75-150 ms but costs 8-15% aggregate, so it stays opt-in. The first speed run showed no gain because serve selects admitted kernels only and the row-table twins were never swept; fixed by inheriting the twin's admission.",
+ "lessons": [
+  "Run the speed matrix through serve before believing a kernel PR: tests run without admission, serve selects admitted kernels only, and the new row-table kernels silently fell back to per-row launches until they inherited their twin's admission.",
+  "On the GB10 a prefill chunk and decode both stream the weights, so overlapping them lowers aggregate throughput (4 streams 141 to 130 tok/s, last prefill done at 1.38 s instead of 0.88 s) while improving ITL; the shared resource is memory bandwidth, not the schedule.",
+  "A CUDA graph capture on a decode stream tolerates ordinary calls from a prefill thread; the failure was the test running solo reference steps (same stream, own graphs) in the prefill process. Hard-coded stream 0 in one launch (top-k) produced garbage only under overlap.",
+  "Device top-k sampling is exact when the kernel returns the sampler's own candidate order (value descending, ties by index) because the host walk touches only those k candidates; a sampled step at B=16 drops from 72.7 to 54.9 ms.",
+  "localeval aggregates one burst per invocation: run each multi-stream cell as separate invocations to see the spread (4 streams spans 139.3 to 144.5 here), a single burst cannot decide a 140 target."
+ ],
+ "cost": {
+  "wall_min": 330,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4638,
+   4645,
+   4646,
+   4655,
+   4659,
+   4661,
+   4669,
+   4676,
+   4678,
+   4685,
+   4686,
+   4687,
+   4692,
+   4695,
+   4698,
+   4699,
+   4701,
+   4702,
+   4703
+  ],
+  "tokens": null
+ }
+}

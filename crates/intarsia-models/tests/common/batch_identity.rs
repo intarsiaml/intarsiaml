@@ -64,6 +64,11 @@ fn make_seqs(model: &Model, lens: &[usize], vocab_range: (u32, u32)) -> Vec<Seq>
 
 /// One batched step of `idxs` against the same solo steps; panics at the first bit that differs. Returns rows compared.
 fn step(model: &Model, seqs: &mut [Seq], idxs: &[usize], step: usize) -> usize {
+    step_on(model, model, seqs, idxs, step)
+}
+
+/// [`step`] with the batched pass on `bm` (a decode twin of `model`) and the solo reference on `model`.
+fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: usize) -> usize {
     let b = idxs.len();
     let modes: Vec<HeadMode> = idxs
         .iter()
@@ -85,7 +90,7 @@ fn step(model: &Model, seqs: &mut [Seq], idxs: &[usize], step: usize) -> usize {
     // one batched step
     let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
     let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
-    let batched = model.forward_batch(&mut refs, &ids, &modes).unwrap();
+    let batched = bm.forward_batch(&mut refs, &ids, &modes).unwrap();
     drop(refs);
     assert_eq!(batched.len(), b);
 
@@ -196,4 +201,150 @@ pub fn run_with_prefill(model: &Model, decode_lens: &[usize], prefill_len: usize
         tok = argmax(&x) as u32;
     }
     compared
+}
+
+/// R3d: batched decode steps on the decode twin `twin` (its own stream and workspace) while each prefill chunk of a `prefill_len`
+/// prompt runs on ANOTHER THREAD of `model` (stream 0), so the two are really in flight together (there is no ordering between
+/// them but the join at the end of each chunk). Decode rows must still equal their solo steps (on `model`, afterwards, so the
+/// reference is not concurrent), the prefilled state must equal the same prompt prefilled alone chunk by chunk (last chunk's
+/// logits bit for bit, then three decode steps that read its KV). At least `min_steps` batched steps run per chunk. Returns the
+/// number of decode rows compared and the number of batched steps that began while a chunk was still running.
+pub fn run_overlapped(
+    model: &Model,
+    twin: &Model,
+    decode_lens: &[usize],
+    prefill_len: usize,
+    chunk: usize,
+    vocab_range: (u32, u32),
+    min_steps: usize,
+) -> (usize, usize) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let mut seqs = make_seqs(model, decode_lens, vocab_range);
+    let idxs: Vec<usize> = (0..seqs.len()).collect();
+    let p = prompt(99, prefill_len, vocab_range);
+    let (mut alone, mut mixed) = (model.new_state().unwrap(), model.new_state().unwrap());
+    let pieces: Vec<&[u32]> = p.chunks(chunk).collect();
+    let mut want = None;
+    for (k, c) in pieces.iter().enumerate() {
+        let last = k + 1 == pieces.len();
+        let out = model.forward(&mut alone, c, if last { HeadMode::LastLogits } else { HeadMode::None }, None).unwrap();
+        if last {
+            want = Some(out);
+        }
+    }
+    // phase 1 (concurrent): the batched steps on the twin, recorded. No solo step runs here: a solo step on `model` would share
+    // stream 0 (and its graphs, captured on that stream) with the prefill thread.
+    struct Rec {
+        idxs: Vec<usize>,
+        ids: Vec<u32>,
+        modes: Vec<HeadMode>,
+        out: Vec<StepOut>,
+        next: Vec<u32>,
+        ctx: Vec<usize>,
+    }
+    let mut recs: Vec<Rec> = Vec::new();
+    let (mut during, mut s) = (0, 0);
+    let mut got = None;
+    for (k, c) in pieces.iter().enumerate() {
+        let last = k + 1 == pieces.len();
+        let done = AtomicBool::new(false);
+        let out = std::thread::scope(|sc| {
+            let h = sc.spawn(|| {
+                let r = model.forward(&mut mixed, c, if last { HeadMode::LastLogits } else { HeadMode::None }, None).unwrap();
+                done.store(true, Ordering::Release);
+                r
+            });
+            let mut n = 0;
+            while n < min_steps || !done.load(Ordering::Acquire) {
+                if !done.load(Ordering::Acquire) {
+                    during += 1;
+                }
+                if s < 100 {
+                    // the fixture's context bounds the steps; the chunk is joined below
+                    let modes: Vec<HeadMode> = idxs
+                        .iter()
+                        .map(|&i| if seqs[i].sampled || s % 2 == 0 { HeadMode::LastLogits } else { HeadMode::LastArgmax })
+                        .collect();
+                    let ids: Vec<u32> = idxs.iter().map(|&i| seqs[i].tok).collect();
+                    let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].batch.len).collect();
+                    let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|q| Some(&mut q.batch)).collect();
+                    let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
+                    let out = twin.forward_batch(&mut refs, &ids, &modes).unwrap();
+                    drop(refs);
+                    let mut next = Vec::new();
+                    for (r, &i) in idxs.iter().enumerate() {
+                        let t = match &out[r] {
+                            StepOut::Token(t) => *t,
+                            StepOut::Logits(l) => {
+                                let q = &mut seqs[i];
+                                if q.sampled {
+                                    q.sampler_batch.sample(l) as u32
+                                } else {
+                                    argmax(l) as u32
+                                }
+                            }
+                            o => panic!("unexpected output {o:?}"),
+                        };
+                        seqs[i].tok = t;
+                        next.push(t);
+                    }
+                    recs.push(Rec { idxs: idxs.clone(), ids, modes, out, next, ctx });
+                    s += 1;
+                } else {
+                    std::thread::yield_now();
+                }
+                n += 1;
+                if s >= 100 && n >= min_steps && done.load(Ordering::Acquire) {
+                    break;
+                }
+            }
+            h.join().unwrap()
+        });
+        if last {
+            got = Some(out);
+        }
+    }
+    // phase 2 (nothing else in flight): the solo steps with the same inputs, compared bit for bit
+    let mut compared = 0;
+    for (n, rec) in recs.iter().enumerate() {
+        for (r, &i) in rec.idxs.iter().enumerate() {
+            let what = format!("overlapped step {n} row {r} (sequence {i}, context {} -> {})", rec.ctx[r], rec.ctx[r] + 1);
+            let solo = model.forward(&mut seqs[i].solo, &[rec.ids[r]], rec.modes[r], None).unwrap();
+            let next_solo = match (&solo, &rec.out[r]) {
+                (StepOut::Token(a), StepOut::Token(c)) => {
+                    assert_eq!(a, c, "{what}: argmax token");
+                    *a
+                }
+                (StepOut::Logits(a), StepOut::Logits(c)) => {
+                    assert_eq!(bits(a), bits(c), "{what}: logits");
+                    if seqs[i].sampled {
+                        seqs[i].sampler_solo.sample(a) as u32
+                    } else {
+                        argmax(a) as u32
+                    }
+                }
+                (a, c) => panic!("{what}: output kinds differ: solo {a:?} batch {c:?}"),
+            };
+            assert_eq!(next_solo, rec.next[r], "{what}: next token");
+            compared += 1;
+        }
+    }
+    for q in &seqs {
+        assert_eq!(q.solo.len, q.batch.len, "state length");
+        assert_eq!(q.solo.tokens, q.batch.tokens, "state tokens");
+    }
+    let (Some(StepOut::Logits(a)), Some(StepOut::Logits(b))) = (want, got) else { panic!("no prefill logits") };
+    assert_eq!(bits(&a), bits(&b), "prefill chunk logits differ from the solo prefill");
+    assert_eq!(alone.len, mixed.len);
+    let mut tok = argmax(&a) as u32;
+    for i in 0..3 {
+        let (x, y) = (
+            model.forward(&mut alone, &[tok], HeadMode::LastLogits, None).unwrap(),
+            model.forward(&mut mixed, &[tok], HeadMode::LastLogits, None).unwrap(),
+        );
+        let (StepOut::Logits(x), StepOut::Logits(y)) = (x, y) else { panic!() };
+        assert_eq!(bits(&x), bits(&y), "decode step {i} after the overlapped prefill");
+        tok = argmax(&x) as u32;
+    }
+    (compared, during)
 }

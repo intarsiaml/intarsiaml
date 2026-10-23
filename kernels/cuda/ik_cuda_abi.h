@@ -100,6 +100,31 @@ int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const 
 int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                                ik_tensor* out, void* stream);
 
+/* Row-table launches (batched decode, `OpCall::rows`, R3): one launch for the T = 1 decode call of every row of a batched step.
+ * `tab` is u8 [rows, stride, 8] (little-endian u64 device addresses, 8-byte aligned); the per-sequence state tensor arguments
+ * (`state0`, `cache0`, `kc0`/`vc0`) are row 0's buffers, shape / dtype carriers only. Sequence r's state is the buffer at entry
+ * [r][index] of the table (`byte_off` bytes in for the delta-rule state); the attention kernel reads the K cache at that entry and
+ * the V cache at the next one. `pos` is i32 [rows]: the position of each row's token (the cache length before the append).
+ * Row r is BITWISE the one-row launch it twins (tests/row_tables.rs): ik_gdn_conv_bf16 (conv + state update in one launch),
+ * ik_gdn_delta_rule_bf16_split, ik_kv_append_bf16, ik_attn_decode_bf16_splitkv (same scratch, `rows` rows of it). Rope with a
+ * device position of one entry per token (ik_rope_bf16's `pos` of numel T) is the same table-free extension. */
+int ik_gdn_conv_bf16_rows(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* state0, const ik_tensor* tab,
+                          int64_t stride, int64_t index, void* stream);
+int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                                      const ik_tensor* dt_bias, float eps, ik_tensor* o, const ik_tensor* state0,
+                                      const ik_tensor* tab, int64_t stride, int64_t index, int64_t byte_off, void* stream);
+int ik_kv_append_bf16_rows(const ik_tensor* new_kv, const ik_tensor* cache0, const ik_tensor* tab, int64_t stride,
+                           int64_t index, const ik_tensor* pos, void* stream);
+int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale, ik_tensor* out,
+                                     const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
+                                     const ik_tensor* pos, void* stream);
+
+/* topk_f32 (R3b, kernels/cuda/topk.cu): the k largest values of each f32 row [R, V] in the sampler's order (value descending, ties by
+ * ascending index, -0.0 == +0.0), with their indices: ids i32 [R, k], vals f32 [R, k]; nan i32 [R] is 1 for a row that holds a NaN (its
+ * entries are not meaningful). 1 <= k <= 64. Scratch: R * 32 * k * 8 bytes. Not an op: the model calls it for device-side sampling. */
+int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* vals, ik_tensor* nan, const ik_scratch* scratch,
+                void* stream);
+
 /* matmul_mxfp4 (M1 drill, kernels/cuda/mxfp4.cu): Op::MatmulMxfp4, OCP MXFP4 weights (u8 e2m1 pairs [N, K/2], u8 e8m0
  * scales [N, K/32]) and act f32 [1] (0: bf16 activations, 1: dynamic MXFP4 QDQ, Quark "even"). Any M (GEMV per 8 rows). */
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,

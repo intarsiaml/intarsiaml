@@ -83,17 +83,34 @@ struct KvLoad<uint8_t> {
     }
 };
 
-template <int GP, int TPK, int KB, typename KT = ik_bf16>
+//
+// ROWS (batched decode, row-table launch, `OpCall::rows`): grid.z is the SEQUENCE, each a T = 1 decode call: its position is
+// `pos_dev[z]`, its K / V caches are the buffers whose addresses are entries [z][tindex] and [z][tindex + 1] of the row table
+// `tab`, and its split policy is the one-query-row decode policy (`tq = 1`, not grid.z). The query row, the partials and the
+// output row of sequence z are row z, as for z query rows of one sequence. All other code is shared, so sequence z is
+// bitwise the one-row launch on it (the scratch holds `rows` rows of partials, one row's worth each).
+template <int GP, int TPK, int KB, typename KT = ik_bf16, bool ROWS = false>
 __global__ void __launch_bounds__(kBlock)
 splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT* __restrict__ vc,
                float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
-               float qscale, int nsplit, int64_t window, const int32_t* pos_dev) {
+               float qscale, int nsplit, int64_t window, const int32_t* pos_dev, const uint8_t* tab = nullptr,
+               int64_t tstride = 0, int64_t tindex = 0) {
     // `nsplit` is the grid's split count and the stride of the partials. The splits actually used follow from the key
     // count alone (device position when given), so the grid may be launched at its maximum (decode, CUDA graphs) and
     // the surplus blocks leave at once: the partitioning, and so every bit of the result, is the same either way.
-    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
-    const int64_t kv_len = pos0 + gridDim.z;
-    const int nsplit_eff = splitkv_count(kv_len, gridDim.y, gridDim.z);
+    int64_t tq = gridDim.z;  // query rows of the sequence
+    int64_t pos0;
+    if constexpr (ROWS) {
+        tq = 1;
+        pos0 = (int64_t)pos_dev[blockIdx.z];
+        const uint64_t* tp = reinterpret_cast<const uint64_t*>(tab) + (int64_t)blockIdx.z * tstride + tindex;
+        kc = reinterpret_cast<const KT*>(tp[0]);
+        vc = reinterpret_cast<const KT*>(tp[1]);
+    } else {
+        pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    }
+    const int64_t kv_len = pos0 + tq;
+    const int nsplit_eff = splitkv_count(kv_len, gridDim.y, tq);
     const int64_t chunk = splitkv_chunk(kv_len, nsplit_eff);
     if ((int)blockIdx.x >= nsplit_eff) return;
     constexpr int D = TPK * 8;
@@ -103,7 +120,7 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
 
     const int sp = blockIdx.x, kvh = blockIdx.y, t = blockIdx.z;
     const int c = threadIdx.x % TPK, gk = threadIdx.x / TPK;
-    const int64_t visible = pos0 + t + 1;
+    const int64_t visible = ROWS ? pos0 + 1 : pos0 + t + 1;
     // sliding window (window > 0): the query attends keys max(0, visible - window)..visible only; a split wholly outside
     // it is empty (m = -inf), which the lane merge and the combine already handle. window 0 leaves `start` untouched.
     const int64_t lo = (window > 0 && visible > window) ? visible - window : 0;
@@ -224,13 +241,15 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
     }
 }
 
-template <int D>
+// ROWS: `T` rows are sequences of one query row each (stage 1's ROWS), row `t * N + h` belongs to sequence `t = row / N`.
+template <int D, bool ROWS = false>
 __global__ void __launch_bounds__(D)
 combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, ik_bf16* __restrict__ out, int nsplit,
-               int T, int NKV, int64_t pos0_host, const int32_t* pos_dev) {
+               int T, int NKV, int64_t pos0_host, const int32_t* pos_dev, int N = 0) {
     const int64_t row = blockIdx.x;  // t * N + h
-    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
-    const int nsplit_eff = splitkv_count(pos0 + T, NKV, T);  // same count as the stage-1 blocks used
+    const int64_t pos0 = ROWS ? (int64_t)pos_dev[row / N] : (pos_dev ? (int64_t)*pos_dev : pos0_host);
+    const int64_t tq = ROWS ? 1 : T;
+    const int nsplit_eff = splitkv_count(pos0 + tq, NKV, tq);  // same count as the stage-1 blocks used
     const float2* ml = pml + row * nsplit;
     const float* acc = pacc + row * nsplit * D;
     float M = -INFINITY;
@@ -246,21 +265,24 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
     out[row * D + threadIdx.x] = ik_f2b(A / L);
 }
 
-template <int GP, int TPK, int KB, typename KT>
+template <int GP, int TPK, int KB, typename KT, bool ROWS = false>
 void launch_split(const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml, int64_t T,
                   int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
-                  int64_t window, const int32_t* pos_dev, cudaStream_t s) {
+                  int64_t window, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab = nullptr,
+                  int64_t tstride = 0, int64_t tindex = 0) {
     dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
-    splitkv_kernel<GP, TPK, KB, KT><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
-                                                        qscale, nsplit, window, pos_dev);
+    splitkv_kernel<GP, TPK, KB, KT, ROWS><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
+                                                              qscale, nsplit, window, pos_dev, tab, tstride, tindex);
 }
 
-template <int TPK, typename KT>
+template <int TPK, typename KT, bool ROWS = false>
 int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml,
                    int64_t T, int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
-                   int64_t window, const int32_t* pos_dev, cudaStream_t s) {
+                   int64_t window, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab = nullptr,
+                   int64_t tstride = 0, int64_t tindex = 0) {
 #define IK_SPLIT_CASE(GPV, KBV)                                                                                \
-    launch_split<GPV, TPK, KBV, KT>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s);       \
+    launch_split<GPV, TPK, KBV, KT, ROWS>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s, \
+                                          tab, tstride, tindex);                                                   \
     return IK_OK;
     if (G <= 1) { IK_SPLIT_CASE(1, 4) }
     if (G <= 2) { IK_SPLIT_CASE(2, 4) }
@@ -335,6 +357,63 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
     return ik_launch_status();
 }
 
+// Row-table decode (`OpCall::rows`): `rows` sequences of one query row each (q [rows, N, D]); `kc0` / `vc0` are row 0's caches
+// ([NKV, cap, D], shape carriers); sequence r's caches are the buffers at entries [r][index] and [r][index + 1] of `tab`,
+// its position is pos[r]. Same grid policy as the one-row decode launch (the maximum split count), `rows` rows of scratch.
+int splitkv_launch_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale, ik_tensor* out,
+                        const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
+                        const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(kc0, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(vc0, IK_DTYPE_BF16, 3));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
+    const int64_t R = q->shape[0], N = q->shape[1], D = q->shape[2];
+    const int64_t NKV = kc0->shape[0], cap = kc0->shape[1];
+    if (vc0->shape[0] != NKV || vc0->shape[1] != cap || vc0->shape[2] != D || kc0->shape[2] != D) return IK_ERR_SHAPE;
+    if (out->shape[0] != R || out->shape[1] != N || out->shape[2] != D) return IK_ERR_SHAPE;
+    if (NKV <= 0 || N % NKV != 0 || R > kMaxRows || N / NKV > kMaxGroup) return IK_ERR_SHAPE;
+    if (D != 32 && D != 64 && D != 128 && D != 256) return IK_ERR_SHAPE;
+    if (!pos || !pos->data || pos->dtype != IK_DTYPE_I32 || ik_numel(pos) != R) return IK_ERR_INVALID_ARG;
+    if (!tab || !tab->data || tab->dtype != IK_DTYPE_U8 || tab->ndim != 3 || tab->shape[0] != R || tab->shape[1] != stride ||
+        tab->shape[2] != 8 || index < 0 || index + 1 >= stride || (reinterpret_cast<uintptr_t>(tab->data) & 7u))
+        return IK_ERR_INVALID_ARG;
+    if (R == 0 || N == 0) return IK_OK;
+    const int32_t* pos_dev = (const int32_t*)pos->data;
+    const int nsplit = splitkv_count(INT64_MAX / 2, NKV, 1);  // the one-row decode launch's grid
+    const int64_t need = splitkv_scratch_bytes(R, N, D, nsplit);
+    if (!scratch || !scratch->data || scratch->bytes < need) return IK_ERR_INVALID_ARG;
+    float* pacc = (float*)scratch->data;
+    float2* pml = (float2*)((char*)scratch->data + R * N * nsplit * D * 4);
+    cudaStream_t s = IK_STREAM(stream);
+    const ik_bf16* qp = (const ik_bf16*)q->data;
+    const ik_bf16* kp = (const ik_bf16*)kc0->data;
+    const ik_bf16* vp = (const ik_bf16*)vc0->data;
+    const uint8_t* tp = (const uint8_t*)tab->data;
+    const float qscale = scale * kLog2e;
+    int rc = IK_ERR_SHAPE;
+#define IK_ROWS_DISPATCH(DV, TPKV)                                                                                          \
+    case DV: rc = dispatch_group<TPKV, ik_bf16, true>((int)(N / NKV), qp, kp, vp, pacc, pml, R, N, NKV, cap, 0, qscale, nsplit, \
+                                                      0, pos_dev, s, tp, stride, index); break;
+    switch (D) {
+        IK_ROWS_DISPATCH(32, 4)
+        IK_ROWS_DISPATCH(64, 8)
+        IK_ROWS_DISPATCH(128, 16)
+        IK_ROWS_DISPATCH(256, 32)
+    }
+#undef IK_ROWS_DISPATCH
+    if (rc != IK_OK) return rc;
+    IK_TRY(ik_launch_status());
+    ik_bf16* op = (ik_bf16*)out->data;
+    const unsigned rows = (unsigned)(R * N);
+    switch (D) {
+        case 32: combine_kernel<32, true><<<rows, 32, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
+        case 64: combine_kernel<64, true><<<rows, 64, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
+        case 128: combine_kernel<128, true><<<rows, 128, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
+        case 256: combine_kernel<256, true><<<rows, 256, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
+    }
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -348,6 +427,12 @@ int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const i
 int ik_attn_prefill_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
                                  float scale, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false);
+}
+
+int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale,
+                                     ik_tensor* out, const ik_scratch* scratch, const ik_tensor* tab, int64_t stride,
+                                     int64_t index, const ik_tensor* pos, void* stream) {
+    return splitkv_launch_rows(q, kc0, vc0, scale, out, scratch, tab, stride, index, pos, stream);
 }
 
 // g4 (Gemma 4) sliding window: the bf16 kernels above with `window` (the query at absolute position p attends keys

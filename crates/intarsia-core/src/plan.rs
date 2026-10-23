@@ -257,9 +257,14 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
             decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
         }
         if phase == Phase::Batch && pos0 == 0 && rec.missing.is_empty() {
-            let batch: Vec<(Op, String)> =
-                rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
-            let rows_exact = |k: &str| model.registry.kernel(k).is_some_and(|k| k.rows_exact);
+            // a row-table call (or a per-row op over a `[B, ...]` batch) stands for `B` of the solo step's one-row calls
+            let batch: Vec<(Op, String)> = rec
+                .calls
+                .iter()
+                .filter(|c| !c.extra)
+                .flat_map(|c| std::iter::repeat((c.call.op, c.kernel.clone())).take(c.call.row_weight()))
+                .collect();
+            let rows_exact = |k: &str| model.registry.kernel(k).is_some_and(|k| k.rows_exact || k.row_table);
             check_batch_ops(model.backend.name(), &rows_exact, &decode0, &batch, t)?;
         }
         for (op, m) in rec.missing {

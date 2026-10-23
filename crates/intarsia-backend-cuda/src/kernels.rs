@@ -48,6 +48,12 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_split", Op::GdnDeltaRule),
+    // row-table twins (`row_table`, batched decode, `OpCall::rows`): the T = 1 call of the kernel named without `_rows` on all
+    // rows of a step at once, each with its own state; row r bitwise the one-row kernel (tests/row_tables.rs)
+    ("gdn_conv_bf16_rows", Op::GdnConv),
+    ("gdn_delta_rule_bf16_split_rows", Op::GdnDeltaRule),
+    ("kv_append_bf16_rows", Op::KvAppend),
+    ("attn_decode_bf16_splitkv_rows", Op::AttnDecode),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -86,6 +92,13 @@ pub fn splitkv_parts(kv_len: usize, n_kv_heads: usize, rows: usize) -> usize {
 /// short chunk at a long position can never need more than a plan probe at a short one reserved.
 fn splitkv_scratch(s: &ShapeInfo) -> usize {
     let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, s.m);
+    s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
+}
+
+/// Scratch of the row-table decode twin: `s.m` rows of one query row each, every row with the one-row decode launch's split
+/// count (`splitkv_parts(.., 1)`), not the `s.m`-row prefill / verify policy `splitkv_scratch` bounds.
+fn splitkv_rows_scratch(s: &ShapeInfo) -> usize {
+    let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, 1);
     s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
 }
 
@@ -441,6 +454,43 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(gdn_split_priority(5)),
+            // Row-table twins. Each accepts exactly the shapes (and environment) for which the registry gives the SOLO one-row call
+            // the kernel it twins, so a batched step never swaps a kernel: the delta rule only while the split kernel is the one in
+            // use (not under INTARSIA_CUDA_GDN_SPLIT=0 / GDN_LANES / FAST_PREFILL), the attention only where the bf16 split-KV
+            // decode kernel is selected for one row (it wins for every shape splitkv_ok takes). Rows 1..=ROWS_MAX.
+            "gdn_conv_bf16_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (2..=8).contains(&s.k) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .row_table(),
+            "gdn_delta_rule_bf16_split_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    gdn_split()
+                        && !gdn_lanes()
+                        && (1..=ROWS_MAX).contains(&s.m)
+                        && matches!(s.head_dim, 64 | 128)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .row_table(),
+            "kv_append_bf16_rows" => k.acts(bf).when(|s| (1..=ROWS_MAX).contains(&s.m)).exact(Exactness::Exact).tol(Tol::EXACT).priority(-1).row_table(),
+            "attn_decode_bf16_splitkv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| splitkv_ok(s) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .scratch(splitkv_rows_scratch)
+                .priority(-1)
+                .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
@@ -496,7 +546,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -536,7 +586,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -604,7 +654,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -671,7 +721,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -711,7 +761,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -758,7 +808,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -904,6 +954,7 @@ mod tests {
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
+        "attn_decode_bf16_splitkv_rows:attn_decode",
         "attn_decode_f8kv_splitkv:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
@@ -915,10 +966,13 @@ mod tests {
         "gated_rmsnorm_bf16:gated_rmsnorm",
         "gated_rmsnorm_matmul_fp8_gemv:gated_rmsnorm_matmul_fp8",
         "gdn_conv_bf16:gdn_conv",
+        "gdn_conv_bf16_rows:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_lanes:gdn_delta_rule",
         "gdn_delta_rule_bf16_split:gdn_delta_rule",
+        "gdn_delta_rule_bf16_split_rows:gdn_delta_rule",
         "kv_append_bf16:kv_append",
+        "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
@@ -966,7 +1020,7 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
-    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md).
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

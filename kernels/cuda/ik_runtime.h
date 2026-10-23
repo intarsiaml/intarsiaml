@@ -33,6 +33,7 @@ int ik_rt_memcpy_d2h(void* dst, const void* src, size_t n, void* stream); /* blo
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream);
 int ik_rt_memset(void* dst, int value, size_t n, void* stream);
 int ik_rt_stream_create(void** stream);
+int ik_rt_stream_create_high_priority(void** stream);
 int ik_rt_stream_sync(void* stream);
 /* D2D copy bandwidth in GB/s (one read + one write counted once per byte copied), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);

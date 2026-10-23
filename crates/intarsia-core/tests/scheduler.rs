@@ -31,6 +31,19 @@ fn avoid() -> bool {
     AVOID.with(|a| a.get())
 }
 
+thread_local! {
+    /// `BatchModel::overlap` of every `MockModel` created on this test thread.
+    static OVERLAP: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Run `f` with the mock models' overlap flag set to `v`.
+fn with_overlap<R>(v: bool, f: impl FnOnce() -> R) -> R {
+    let old = OVERLAP.with(|a| a.replace(v));
+    let r = f();
+    OVERLAP.with(|a| a.set(old));
+    r
+}
+
 /// Run `f` with the mock models' flag set to `v`.
 fn with_avoid<R>(v: bool, f: impl FnOnce() -> R) -> R {
     let old = AVOID.with(|a| a.replace(v));
@@ -96,6 +109,10 @@ struct MockModel {
     rec: Arc<Mutex<Rec>>,
     /// `BatchModel::avoid_single_row_prefill`.
     avoid: bool,
+    /// `BatchModel::overlap`: a chunk begun with `prefill_begin` runs (in the mock: completes) after three decode steps.
+    overlap: bool,
+    /// The chunk in flight: slot, tokens, head, decode steps taken when it began.
+    inflight: Option<(usize, Vec<u32>, Option<Mode>, usize)>,
     /// While `false`, every `prefill_chunk` and `decode_step` blocks (a long step, for the live-gauge test).
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
 }
@@ -116,6 +133,8 @@ impl MockModel {
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
             avoid: avoid(),
+            overlap: OVERLAP.with(|a| a.get()),
+            inflight: None,
             gate: None,
         }
     }
@@ -188,7 +207,25 @@ impl BatchModel for MockModel {
         }
         Ok(mode.map(|m| (mix(h, mode_code(m)), m)))
     }
+    fn overlap(&self) -> bool {
+        self.overlap
+    }
+    fn prefill_begin(&mut self, slot: usize, tokens: &[u32], mode: Option<Mode>) -> Result<()> {
+        assert!(self.inflight.is_none(), "two chunks in flight");
+        self.inflight = Some((slot, tokens.to_vec(), mode, self.steps));
+        Ok(())
+    }
+    fn prefill_done(&self) -> bool {
+        self.inflight.as_ref().is_none_or(|f| self.steps >= f.3 + 3)
+    }
+    fn prefill_end(&mut self) -> Result<Option<Out>> {
+        let (slot, tokens, mode, _) = self.inflight.take().expect("a chunk in flight");
+        self.prefill_chunk(slot, &tokens, mode)
+    }
     fn decode_step(&mut self, rows: &[Row<Mode>]) -> Result<Vec<Result<Out>>> {
+        if let Some(f) = &self.inflight {
+            assert!(rows.iter().all(|r| r.slot != f.0), "a decode row on the slot whose chunk is in flight");
+        }
         self.wait_gate();
         assert!(!rows.is_empty() && rows.len() <= self.max_rows);
         let mut seen: Vec<usize> = rows.iter().map(|r| r.slot).collect();
@@ -664,7 +701,10 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
                 assert_eq!(*spec_allowed, ids.len() < cfg.spec_off_at, "speculation gate");
                 decode_in_iter.insert(*iter, ids.clone());
                 for id in ids {
-                    decode_iters.entry(*id).or_default().push(*iter);
+                    let v = decode_iters.entry(*id).or_default();
+                    if v.last() != Some(iter) {
+                        v.push(*iter); // overlap: several decode steps in one iteration
+                    }
                 }
             }
             TraceEvent::Finished { .. } => {}
@@ -896,6 +936,36 @@ fn batched_equals_solo_randomized_body() {
     assert!(cov.exact >= 500 && cov.prefix >= 50 && cov.reused >= 50 && cov.busy_chunk >= 50, "{cov:?}");
     assert!(cov.multi_chunk >= 50 && cov.errors >= 20 && cov.sampled >= 100 && cov.min_tokens >= 50, "{cov:?}");
     assert!(cov.stopped >= 50, "{cov:?}");
+}
+
+/// R3d: with overlap (a prefill chunk begun before the iteration's decode steps and ended after them), every request still equals
+/// its solo reference: same chunk schedule, same tokens, same events; and decode steps really ran while chunks were in flight.
+#[test]
+fn batched_equals_solo_randomized_with_overlap() {
+    for flag in [false, true] {
+        with_avoid(flag, || with_overlap(true, || {
+            let cap = 4096;
+            let mut cov = Cov::default();
+            let (mut steps_in_chunk_iters, mut chunk_iters) = (0u64, 0u64);
+            for &b in &[2usize, 3, 4, 8] {
+                for seed in 0..6u64 {
+                    let mut rng = SplitMix64::new(seed * 1000 + b as u64 + 77);
+                    let reqs = random_reqs(&mut rng, 24, cap);
+                    let cfg = SchedulerConfig { max_batch: b, max_queue: 1000, ..Default::default() };
+                    let run = run_batched(cfg.clone(), cap, &reqs, false);
+                    check_trace(&run, &cfg);
+                    let mm = check_identity_cov(&run, &reqs, &cfg, cap, &mut cov);
+                    assert_eq!(mm, 0, "overlap, B = {b}, seed {seed}: {mm} requests differ from their solo reference");
+                    steps_in_chunk_iters += run.metrics.decode_steps;
+                    chunk_iters += run.metrics.mixed_iterations;
+                }
+            }
+            eprintln!("overlap coverage: {cov:?}, {steps_in_chunk_iters} decode steps over {chunk_iters} mixed iterations");
+            assert!(chunk_iters >= 20, "the randomized runs never mixed a chunk with decode rows");
+            assert!(steps_in_chunk_iters > chunk_iters, "overlap ran no extra decode steps beside chunks");
+            assert!(cov.exact >= 100 && cov.multi_chunk >= 20, "{cov:?}");
+        }));
+    }
 }
 
 /// Same with two chunks per iteration under load and a small busy chunk (budget 2 x 64).
