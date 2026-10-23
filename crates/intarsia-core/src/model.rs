@@ -295,8 +295,8 @@ pub struct Model {
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
-    /// the last layer's work after its last cache write (attention output projection, the FFN / MoE block, the final
-    /// norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
+    /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
+    /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
     skip_dead: std::sync::atomic::AtomicBool,
     /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
     tail_dead: std::sync::atomic::AtomicBool,
@@ -2012,6 +2012,25 @@ impl Model {
         prologue: Option<OpCall>,
         profile: bool,
     ) -> Result<(TensorRef, usize)> {
+        self.attn_rows_core(a, slot, bufs, qc, t, pos0, dpos, prologue, true, profile)
+    }
+
+    /// [`Model::attn_rows`]; `core: false` stops after the KV append (the dead tail, [`Model::attn_block_kv_only`]):
+    /// the cache is written by exactly the same ops, the attention itself does not run.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_rows_core(
+        &self,
+        a: &AttnBlock,
+        slot: &crate::state::AttnKvState,
+        bufs: &AttnBufs,
+        mut qc: usize,
+        t: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+        prologue: Option<OpCall>,
+        core: bool,
+        profile: bool,
+    ) -> Result<(TensorRef, usize)> {
         let d = &self.ldims;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
@@ -2077,6 +2096,9 @@ impl Model {
         }
 
         let attn_out = bufs.q[1 - qc].clone();
+        if !core {
+            return Ok((attn_out, qc));
+        }
         let attrs = OpAttrs {
             pos0,
             scale: 1.0 / (hd as f32).sqrt(),
@@ -2179,8 +2201,10 @@ impl Model {
         self.attn_out_proj(a, &attn_out, gate, qc, out, t, profile)
     }
 
-    /// [`Model::attn_block`] for the last layer of a chunk that feeds no head: the projections and the attention rows
-    /// (which write the cache) run exactly as there; the output projection, whose result nothing reads, does not.
+    /// [`Model::attn_block`] for the last layer of a chunk that feeds no head: the projections and the prologue that
+    /// writes the cache (k/v projection, k-norm, rope, KV append, or the fused gated prologue) run exactly as there; the
+    /// attention core and the output projection, whose results nothing reads, do not. (The q projection still runs: the
+    /// fused prologue takes q+gate as its input, and replacing it by the unfused k path could change the cache bits.)
     fn attn_block_kv_only(
         &self,
         a: &AttnBlock,
@@ -2195,7 +2219,7 @@ impl Model {
         let bufs = self.attn_bufs(t);
         let prologue = self.gate_qkv_call(a, slot, &bufs, t, pos0, None).filter(|c| self.fused_ok(c));
         let (qc, _gate) = self.attn_project(a, n, t, kv_done, prologue.is_some(), profile)?;
-        let _ = self.attn_rows(a, slot, &bufs, qc, t, pos0, None, prologue, profile)?;
+        let _ = self.attn_rows_core(a, slot, &bufs, qc, t, pos0, None, prologue, false, profile)?;
         Ok(())
     }
 

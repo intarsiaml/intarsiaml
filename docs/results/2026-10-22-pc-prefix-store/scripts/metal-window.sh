@@ -2,6 +2,7 @@
 # Exclusive endor window for lane pc (prefix store). Runs inside the fleetq reservation (FLEETQ_JOB set by the caller):
 #   FLEETQ_JOB=<id> bash docs/results/2026-10-22-pc-prefix-store/scripts/metal-window.sh <step>
 # Steps: noop (Qwen3-8B plan show + 256 greedy ids, base vs head, store off), ident (byte-identity test, 8B and 35B),
+# dead (35B 4k generate, INTARSIA_PREFILL_SKIP_DEAD unset vs 1, x3 interleaved: ids and prefill ms),
 # ttft (35B reuse workloads: record with the store off, then store on / off replays interleaved x3), all.
 # Binaries are built beforehand (non-exclusive slot): head $W/target-metal/release/intarsia and the test binary,
 # base $S/base/target/release/intarsia (main a92267b0).
@@ -28,7 +29,7 @@ noop() {
         --prompt "$(cat $P/prompt-$p.txt)" > $O/$n-gen-$p.out 2> $O/$n-gen-$p.err; echo "$n gen-$p rc=$?"
     done
   done
-  cmp -s $O/base-plan.out $O/head-plan.out && echo "plan: identical" || echo "plan: DIFFERS"
+  cmp -s $O/base-plan.out $O/head-plan.out && echo "plan: identical" || { echo "plan: DIFFERS"; diff $O/base-plan.out $O/head-plan.out | head -20; }
   for p in short 4k; do
     b=$(grep '^ids:' $O/base-gen-$p.err | md5 -q); h=$(grep '^ids:' $O/head-gen-$p.err | md5 -q)
     [ "$b" = "$h" ] && echo "ids $p: identical (${b:0:8})" || echo "ids $p: DIFFER"
@@ -45,10 +46,25 @@ ident() {
   done
 }
 
+dead() {
+  O=$R/dead; mkdir -p $O
+  for i in 1 2 3; do
+    for v in 0 1; do
+      INTARSIA_PREFILL_SKIP_DEAD=$v $HEAD generate --model $M35 --backend metal --max-seq 8192 --temperature 0 --max-tokens 64 \
+        --ignore-eos --show-ids --profile-every 0 --prompt "$(cat $P/prompt-4k.txt)" > $O/skip$v-$i.out 2> $O/skip$v-$i.err
+      echo "skip=$v rep $i rc=$? $(grep -i 'prefill' $O/skip$v-$i.err | tail -1)"
+    done
+  done
+  for i in 1 2 3; do
+    a=$(grep '^ids:' $O/skip0-$i.err | md5 -q); b=$(grep '^ids:' $O/skip1-$i.err | md5 -q)
+    [ "$a" = "$b" ] && echo "dead rep $i ids identical (${a:0:8})" || echo "dead rep $i ids DIFFER"
+  done
+}
+
 serve() { # $1 = on|off, $2 = log
   local extra=""
   [ "$1" = on ] && extra="--prefix-store on"
-  $HEAD serve --model $M35 --backend metal --port $PORT --no-supervisor --max-seq 16384 --profile-every 0 $extra \
+  $HEAD serve --model $M35 --backend metal --port $PORT --no-supervisor --max-seq 16384 --profile-every 0 --served-model-name m $extra \
     > $2 2>&1 < /dev/null &
   SPID=$!
   for i in $(seq 1 240); do
@@ -68,7 +84,8 @@ ttft() {
   run() { # $1 label, $2 on|off, $3 record|replay
     serve $2 $O/$1-serve.log || return 1
     if [ "$3" = record ]; then
-      $HEAD bench reuse --url http://127.0.0.1:$PORT --model m --corpus $W/tools/prompts/corpus_docs.txt --record $REC --out $O/$1.json > $O/$1.txt 2>&1
+      # longer answers on the recording run: the history of the replays then holds real answers, not cut-off thinking
+      $HEAD bench reuse --url http://127.0.0.1:$PORT --model m --corpus $W/tools/prompts/corpus_docs.txt --max-tokens 512 --record $REC --out $O/$1.json > $O/$1.txt 2>&1
     else
       $HEAD bench reuse --url http://127.0.0.1:$PORT --model m --corpus $W/tools/prompts/corpus_docs.txt --replay $REC --out $O/$1.json > $O/$1.txt 2>&1
     fi
@@ -87,7 +104,8 @@ date +%T
 case $step in
   noop) noop ;;
   ident) ident ;;
+  dead) dead ;;
   ttft) ttft ;;
-  all) noop; ident; ttft ;;
+  all) noop; ident; ttft; dead ;;
 esac
 date +%T

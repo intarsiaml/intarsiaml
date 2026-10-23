@@ -704,5 +704,10 @@ fn hybrid_cpu_prefill_chunk_sensitivity() {
     let mut st4 = m.new_state().unwrap();
     for c in [&ids[..5], &ids[5..24], &ids[24..39]] { m.forward(&mut st4, c, HeadMode::None, None).unwrap(); }
     let StepOut::Logits(l4) = m.forward(&mut st4, &ids[39..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    // the state itself after the same 40 tokens in 8 x 5 rows vs 5 + 19 + 16 rows (no 1-row pass in either)
+    let (mut sa, mut sb) = (m.new_state().unwrap(), m.new_state().unwrap());
+    for c in ids.chunks(8) { m.forward(&mut sa, c, HeadMode::None, None).unwrap(); }
+    for c in [&ids[..5], &ids[5..24], &ids[24..40]] { m.forward(&mut sb, c, HeadMode::None, None).unwrap(); }
+    println!("CHUNK-SENSITIVITY cpu hybrid (tiny fixture): state after 40 tokens, 8x5 vs 5+19+16 rows, bitwise equal: {}", dump(b, &sa) == dump(b, &sb));
     println!("CHUNK-SENSITIVITY cpu hybrid: chunks (5, 19, 15, 1) vs (8 x 5) bitwise equal: {}", l3 == l4);
 }
