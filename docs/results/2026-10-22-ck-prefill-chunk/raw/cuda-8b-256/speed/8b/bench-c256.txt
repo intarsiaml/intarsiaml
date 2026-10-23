@@ -1,0 +1,24 @@
+calibration: 47 base tokens, 20.99 tokens per filler sentence
+  size   4096 rep: prompt=3963 gen=16 ttft=1.64s prefill=2415 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3927 gen=16 ttft=1.63s prefill=2411 tok/s decode=14.8 tok/s
+  size   4096 rep: prompt=3949 gen=16 ttft=1.64s prefill=2410 tok/s decode=14.8 tok/s
+  size  16384 rep: prompt=16256 gen=16 ttft=7.45s prefill=2182 tok/s decode=13.3 tok/s
+  size  16384 rep: prompt=16292 gen=16 ttft=7.43s prefill=2192 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16180 gen=16 ttft=7.42s prefill=2181 tok/s decode=13.4 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c256.json
+ck-cuda-8b-c256  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3949     1.639         2411        14.8       16
+   16384    16256     7.431         2182        13.4       16
+calibration: 44 base tokens, 20.98 tokens per filler sentence
+  size   4096 rep: prompt=3970 gen=16 ttft=1.64s prefill=2416 tok/s decode=14.9 tok/s
+  size   4096 rep: prompt=3969 gen=16 ttft=1.65s prefill=2406 tok/s decode=14.9 tok/s
+  size   4096 rep: prompt=3986 gen=16 ttft=1.65s prefill=2422 tok/s decode=14.9 tok/s
+  size  16384 rep: prompt=16284 gen=16 ttft=7.45s prefill=2186 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16227 gen=16 ttft=7.45s prefill=2178 tok/s decode=13.4 tok/s
+  size  16384 rep: prompt=16185 gen=16 ttft=7.44s prefill=2175 tok/s decode=13.3 tok/s
+wrote /home/nvidia/ck/out/run-114802/speed/8b/ck-cuda-8b-c256.json
+ck-cuda-8b-c256  model=ck-m  gen=16  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    4096     3970     1.646         2416        14.9       16
+   16384    16227     7.450         2178        13.4       16

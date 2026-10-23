@@ -61,7 +61,8 @@ def main():
     tensors, meta_prompts = {}, []
     t0 = time.time()
     vocab = 0
-    tokenize = lambda t: tok(t, add_special_tokens=True).input_ids
+    # a rendered chat template that already starts with the BOS token (Llama 3: <|begin_of_text|>) must not get a second one
+    tokenize = lambda t: tok(t, add_special_tokens=not (tok.bos_token and t.startswith(tok.bos_token))).input_ids
     for i, p in enumerate(prompts):
         ids, text = gl.prompt_ids(p, tokenize, args.template, apply_template)
         n_prompt = len(ids)

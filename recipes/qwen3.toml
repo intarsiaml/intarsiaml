@@ -47,7 +47,7 @@ kv_dtype = "bf16"
 # is opt-in: without `--max-batch` the engine serves one sequence at a time.
 max_batch = 8
 
-# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CUDA/HIP/CPU are unchanged).
+# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CPU is unchanged).
 # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k
 # (4062 tokens), 12998 -> 12532 ms at 16k (medians of 3), for about +220 MiB peak process footprint at max-seq 18432; 1024
 # is within noise of 2048 at 1k and 4k (docs/results/2026-10-14-metal-prefill-p3-final.md). The chunk is part of the
@@ -62,6 +62,14 @@ prefill_chunk = 2048
 # (docs/results/2026-10-17-hip-prefill.md).
 [tuning.hip]
 prefill_chunk = 2048
+
+# 4096 on CUDA (GB10, Qwen3-8B BF16; user-approved 2026-10-22 13:08): prefill goes 2414 -> 4197 tok/s at 4k and 2180 -> 3631 at 16k vs the old
+# 256 (+74 % / +67 %, exclusive slot), for about +0.5 GB workspace. Not bitwise vs 256 on a prompt whose length mod 256 is below 128 (the 256
+# schedule's short tail: that tail's rows move, max row KL 5.6e-3, 0 argmax flips; decode-mode logits move by up to 2e-3 KL on some long
+# prompts). Prompts with a 128+ row tail match exactly (docs/results/2026-10-22-ck-cuda8b-chunk.md). This recipe is shared by every dense
+# Qwen3; only the 8B was measured. The 35B (qwen3_5_moe.toml) keeps 2048 on CUDA: it is not bitwise above 2048.
+[tuning.cuda]
+prefill_chunk = 4096
 
 # `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). The reuse
 # tolerances are the fixed rounding scale of the prefix-reuse judge, measured once on Qwen3-8B / HIP, where decode-written

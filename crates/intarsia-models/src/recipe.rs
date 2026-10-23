@@ -11,6 +11,8 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
     ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
     ("qwen3_5_vl", include_str!("../../../recipes/qwen3_5_vl.toml")),
+    ("llama", include_str!("../../../recipes/llama.toml")),
+    ("qwen2", include_str!("../../../recipes/qwen2.toml")),
 ];
 
 pub fn parse_recipe(text: &str) -> Result<Recipe> {
@@ -227,6 +229,29 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
+    fn llama_and_qwen2_recipes_select_by_architecture_and_map_what_they_need() {
+        let pick = |arch: &str| select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+        let (src, llama) = pick("LlamaForCausalLM");
+        assert_eq!(src, "builtin:llama");
+        let a = llama.layer.attn.as_ref().unwrap();
+        assert!(a.q_norm.is_none() && a.k_norm.is_none() && a.q_bias.is_none() && !a.gated);
+        assert_eq!(llama.accuracy.chat_turns.as_deref(), Some("llama3"));
+        let (src, qwen2) = pick("Qwen2ForCausalLM");
+        assert_eq!(src, "builtin:qwen2");
+        let a = qwen2.layer.attn.as_ref().unwrap();
+        assert!(a.q_norm.is_none() && a.k_norm.is_none() && !a.gated);
+        assert_eq!(
+            (a.q_bias.as_deref(), a.k_bias.as_deref(), a.v_bias.as_deref()),
+            (
+                Some("model.layers.{i}.self_attn.q_proj.bias"),
+                Some("model.layers.{i}.self_attn.k_proj.bias"),
+                Some("model.layers.{i}.self_attn.v_proj.bias")
+            )
+        );
+        assert_eq!(qwen2.accuracy.chat_turns.as_deref(), Some("chatml"));
+    }
+
+    #[test]
     fn qwen3_5_moe_chunk_is_2048_on_cuda_and_4096_on_hip() {
         let cfg = serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]});
         let (_, r) = select_recipe(&cfg, &[]).unwrap();
@@ -236,10 +261,12 @@ lm_head = { tensor = "h" }
         assert_eq!(r.resolve_prefill_chunk(Some(256), "hip").value, 256);
         assert_eq!(r.resolve_prefill_chunk(None, "cpu").value, 256);
         assert_eq!(r.resolve_prefill_chunk(Some(256), "cuda").value, 256);
-        // the other built-ins stay at 256 everywhere
-        for arch in ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM"] {
-            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
-            assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 256, "{arch}");
-        }
+        // the dense Qwen3 recipe has 4096 on CUDA (user-approved 2026-10-22 13:08); CPU and the hybrid dense recipe stay at 256
+        let (_, q3) = select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap();
+        let c = q3.resolve_prefill_chunk(None, "cuda");
+        assert_eq!((c.value, c.source.as_str()), (4096, "recipe qwen3, cuda"));
+        assert_eq!(q3.resolve_prefill_chunk(None, "cpu").value, 256);
+        let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
+        assert_eq!(q35.resolve_prefill_chunk(None, "cuda").value, 256);
     }
 }

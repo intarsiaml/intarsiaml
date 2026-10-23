@@ -1,0 +1,37 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38    97.37   4.311e-3   3.902e-3   3.902e-3   1.081e-1   0.0232   0.0214    96.32      0/38      0
+story                 39    39    97.44   4.014e-3   2.769e-3   2.769e-3   1.505e-1   0.0460   0.0471    99.49      0/39      0
+code                  80    80   100.00   5.844e-4   3.262e-4   3.262e-4   4.281e-2   0.0166   0.0156    99.00     80/80      0
+science               79    79    97.47   1.123e-2   9.876e-3   9.876e-3   8.722e-1   0.0427   0.0441    99.49      0/79      0
+chat_short            18    18    88.89   4.263e-2   2.187e-2   2.488e-3   7.496e-1   0.1569   0.1661    96.67      1/18      0
+chat_system           32    32    93.75   2.738e-2   1.662e-2   3.309e-3   8.174e-1   0.1268   0.1372    96.25      2/32      0
+chat_multiturn        58    58    94.83   1.357e-2   7.034e-3   3.820e-4   7.496e-1   0.0735   0.0760    98.28      1/58      0
+chat_reasoning        90    90    96.67   8.739e-3   4.588e-3   2.186e-3   7.496e-1   0.0297   0.0313    99.11      1/90      0
+long_prose_300       300   300   100.00   3.396e-4   2.600e-4   2.600e-4   6.013e-2   0.0120   0.0121    97.87   300/300      0
+long_prose_700       700   700    99.57   6.366e-4   5.361e-4   5.361e-4   2.556e-1   0.0149   0.0146    97.60    27/700      0
+OVERALL                   1434    98.81   3.500e-3   2.275e-3   1.234e-3   8.722e-1   0.0246   0.0250    97.94     28.7%      0
+prefill floor [bf16]: top-1 (all rows) 98.81% (need >= 99.5) FAIL | full-vocab KL (scored rows, n=1272) 1.471e-3 (need <= 1.4e-3) ok [all rows, n=1434: 3.500e-3, reported only] | tail mass (all rows) ours 0.0250 vs ref 0.0246, excess +0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [full-vocab KL]: static floor 1.000e-3 | ref noise 1.355e-3 (scored rows) x factor 1 (default) = 1.355e-3 => effective 1.355e-3 bound by ref noise; KL 1.471e-3 PASS | KL / ref noise = 0.910 on scored rows (the factor at which the noise term passes)
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   7.648e-4   5.649e-4   5.649e-4   4.563e-3   0.0129   0.0129    92.50     16/16      0
+story                 39    16   100.00   3.061e-4   2.677e-4   2.677e-4   9.178e-4   0.0559   0.0561   100.00     16/16      0
+code                  80    16   100.00   7.072e-5   7.057e-5   7.057e-5   5.440e-4   0.0003   0.0003    98.75     16/16      0
+science               79    16   100.00   2.707e-4   2.372e-4   2.372e-4   9.269e-4   0.0944   0.0935   100.00     16/16      0
+chat_short            18    16    87.50   3.458e-2   1.805e-2   6.082e-4   5.477e-1   0.1235   0.1339    97.50      0/16      0
+chat_system           32    16   100.00   2.699e-3   2.074e-3   3.665e-3   2.903e-2   0.1208   0.1235    97.50     16/16      0
+chat_multiturn        58    16    93.75   8.309e-4   6.086e-4   1.131e-3   8.904e-3   0.0416   0.0410    98.75      6/16      0
+chat_reasoning        90    16    93.75   1.814e-3   1.782e-3   5.492e-3   2.070e-2   0.0186   0.0185   100.00     12/16      0
+long_prose_300       300    16   100.00   2.405e-5   2.400e-5   2.400e-5   3.401e-4   0.0000   0.0000   100.00     16/16      0
+long_prose_700       700    16   100.00   5.750e-4   5.381e-4   5.381e-4   2.592e-3   0.0047   0.0043    98.75     16/16      0
+OVERALL                    160    97.50   4.194e-3   2.421e-3   7.546e-4   5.477e-1   0.0473   0.0484    98.38     81.2%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 97.50% (need >= 99.5) FAIL | full-vocab KL (scored rows, n=118) 9.184e-4 (need <= 1.4e-3) ok [all rows, n=160: 4.194e-3, reported only] | tail mass (all rows) ours 0.0484 vs ref 0.0473, excess +0.0011 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [full-vocab KL]: static floor 1.000e-3 | ref noise 1.355e-3 (scored rows) x factor 1 (default) = 1.355e-3 => effective 1.355e-3 bound by ref noise; KL 9.184e-4 PASS | KL / ref noise = 0.557 on scored rows (the factor at which the noise term passes)
+greedy-match [prefill]: mean 21.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 81.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL

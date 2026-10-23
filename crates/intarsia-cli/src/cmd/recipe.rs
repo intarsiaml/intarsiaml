@@ -366,6 +366,10 @@ struct AttnT {
     o: String,
     q_norm: Option<String>,
     k_norm: Option<String>,
+    /// Module names (`<parent>.q_proj`, ...) whose `.bias` tensor exists: Qwen2-style projection biases.
+    q_bias: Option<String>,
+    k_bias: Option<String>,
+    v_bias: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -525,6 +529,7 @@ fn detect_layer(view: &LayerView) -> LayerDet {
         if l("q_proj") && l("k_proj") && l("v_proj") && l("o_proj") {
             if attn.is_none() {
                 let opt = |x: &str| l(x).then(|| child(x));
+                let has_bias = |x: &str| mods.get(&child(x)).is_some_and(|s| s.contains("bias")).then(|| child(x));
                 attn = Some(AttnT {
                     parent: p.clone(),
                     q: child("q_proj"),
@@ -533,6 +538,9 @@ fn detect_layer(view: &LayerView) -> LayerDet {
                     o: child("o_proj"),
                     q_norm: opt("q_norm"),
                     k_norm: opt("k_norm"),
+                    q_bias: has_bias("q_proj"),
+                    k_bias: has_bias("k_proj"),
+                    v_bias: has_bias("v_proj"),
                 });
             }
         } else if l("in_proj_qkv")
@@ -606,10 +614,11 @@ fn detect_layer(view: &LayerView) -> LayerDet {
         {
             claimed.insert(m.clone());
         }
-        if [&a.q, &a.k, &a.v, &a.o].iter().any(|m| mods.get(*m).is_some_and(|s| s.contains("bias"))) {
+        // q / k / v biases are mapped in the recipe (`q_bias` / `k_bias` / `v_bias`); an o_proj bias is not implemented
+        if mods.get(&a.o).is_some_and(|s| s.contains("bias")) {
             issues.push(issue(
                 "attn",
-                format!("layer.attn: projection bias tensors present ({}.q_proj.bias, ...; text_config.attention_bias): attention biases are not implemented, the gqa block and AttnSpec need a bias field", a.parent),
+                format!("layer.attn: {}.bias present (o_proj bias, text_config.attention_bias): the output projection bias is not implemented", a.o),
             ));
         }
         mixers.push(Blk::Attn(a));
@@ -1341,7 +1350,8 @@ fn config_issues(tc: &Value) -> ConfigIssues {
     for what in ["rope_parameters", "rope_scaling"] {
         if let Some(v) = tc.get(what).filter(|v| !v.is_null()) {
             let ty = v.get("rope_type").or_else(|| v.get("type")).and_then(Value::as_str);
-            if let Some(t) = ty.filter(|t| *t != "default") {
+            // llama3 and yarn scaling is implemented (read from config.json at load); the rest is not
+            if let Some(t) = ty.filter(|t| !matches!(*t, "default" | "llama3" | "yarn")) {
                 rope = Some((t.to_string(), format!("text_config.{what}.rope_type = \"{t}\"")));
                 break;
             }
@@ -1771,11 +1781,16 @@ fn emit(cx: &EmitCtx) -> (String, Vec<String>, Vec<String>) {
         o.raw("[layer.attn]");
         o.issues(&det.issues, "attn");
         if ci.attention_bias && !det.issues.iter().any(|i| i.at == "attn" && i.text.contains("bias")) {
-            o.todo("layer.attn: text_config.attention_bias = true; projection biases are not implemented, the gqa block and AttnSpec need a bias field");
+            o.todo("layer.attn: text_config.attention_bias = true; the output projection bias is not implemented (q / k / v biases are mapped with q_bias / k_bias / v_bias)");
         }
         o.field("kind", &s("gqa"), &format!("from tensors: q/k/v/o_proj under {}", g.concrete(l, &a.parent)));
         for (k, m) in [("q", &a.q), ("k", &a.k), ("v", &a.v), ("o", &a.o)] {
             o.field(k, &s(&g.template(m)), &tsrc(l, &format!("{m}.weight")));
+        }
+        for (key, m) in [("q_bias", &a.q_bias), ("k_bias", &a.k_bias), ("v_bias", &a.v_bias)] {
+            if let Some(m) = m {
+                o.field(key, &s(&format!("{}.bias", g.template(m))), &tsrc(l, &format!("{m}.bias")));
+            }
         }
         match (&a.q_norm, &a.k_norm) {
             (Some(q), Some(k)) => {
@@ -1801,13 +1816,19 @@ fn emit(cx: &EmitCtx) -> (String, Vec<String>, Vec<String>) {
             None => {
                 let rt = ["rope_parameters", "rope_scaling"]
                     .iter()
-                    .find_map(|w| tc.get(*w).filter(|v| v.is_object()).map(|_| format!("text_config.{w}")));
+                    .find_map(|w| tc.get(*w).filter(|v| v.is_object()).map(|v| (format!("text_config.{w}"), v)));
+                let scaled = rt.as_ref().and_then(|(_, v)| {
+                    v.get("rope_type").or_else(|| v.get("type")).and_then(Value::as_str).filter(|t| matches!(*t, "llama3" | "yarn"))
+                });
                 o.field(
                     "rope",
                     &s("default"),
-                    &match rt {
-                        Some(w) => format!("from {w} (rope_type absent or \"default\")"),
-                        None => "from config.json (no rope scaling key)".to_string(),
+                    &match (rt.as_ref(), scaled) {
+                        (Some((w, _)), Some(t)) => {
+                            format!("from {w}: rope_type \"{t}\", the frequency scaling is applied from config.json at load")
+                        }
+                        (Some((w, _)), None) => format!("from {w} (rope_type absent or \"default\")"),
+                        (None, _) => "from config.json (no rope scaling key)".to_string(),
                     },
                 );
             }
@@ -2315,12 +2336,12 @@ mod tests {
     }
 
     #[test]
-    fn llama_like_model_with_gelu_yarn_bias_and_unknown_quant_lists_every_todo() {
+    fn llama_like_model_with_gelu_dynamic_rope_bias_and_unknown_quant_lists_every_todo() {
         let d = tmpdir("llama");
         let mut cfg = qwen3_config("LlamaForCausalLM", "llama");
         cfg["hidden_act"] = json!("gelu");
         cfg["attention_bias"] = json!(true);
-        cfg["rope_scaling"] = json!({"rope_type": "yarn", "factor": 4.0});
+        cfg["rope_scaling"] = json!({"rope_type": "dynamic", "factor": 4.0});
         cfg["quantization_config"] = json!({"quant_method": "gptq", "bits": 4});
         write_json(&d, "config.json", &cfg);
         let mut ts = qwen3_tensors(2);
@@ -2336,7 +2357,7 @@ mod tests {
         let all = an.todos.join("\n");
         for needle in [
             "hidden_act = \"gelu\"",
-            "rope_type = \"yarn\"",
+            "rope_type = \"dynamic\"",
             "bias",
             "quant_method = \"gptq\"",
             "post_attention_layernorm",
@@ -2365,6 +2386,38 @@ mod tests {
             )
         );
         assert_eq!(std::fs::read_to_string(&out).unwrap(), an.toml);
+    }
+
+    /// Qwen2-style attention biases (q / k / v only, no config key) and llama3 rope scaling scaffold without a TODO.
+    #[test]
+    fn qkv_biases_and_llama3_rope_scaffold_cleanly() {
+        let d = tmpdir("qwen2like");
+        let mut cfg = qwen3_config("Qwen2ForCausalLM", "qwen2");
+        cfg.as_object_mut().unwrap().remove("attention_bias");
+        cfg["rope_scaling"] = json!({"rope_type": "llama3", "factor": 8.0, "low_freq_factor": 1.0, "high_freq_factor": 4.0, "original_max_position_embeddings": 64});
+        write_json(&d, "config.json", &cfg);
+        let mut ts = qwen3_tensors(2);
+        ts.retain(|x| !x.name.contains("q_norm") && !x.name.contains("k_norm"));
+        for l in 0..2 {
+            ts.push(t(format!("model.layers.{l}.self_attn.q_proj.bias"), "BF16", &[8]));
+            ts.push(t(format!("model.layers.{l}.self_attn.k_proj.bias"), "BF16", &[4]));
+            ts.push(t(format!("model.layers.{l}.self_attn.v_proj.bias"), "BF16", &[4]));
+        }
+        write_st(&d.join("model.safetensors"), &ts);
+        let an = analyse(&d, &[]).unwrap();
+        assert!(an.todos.is_empty(), "{:?}", an.todos);
+        for needle in [
+            "q_bias = \"model.layers.{i}.self_attn.q_proj.bias\"",
+            "k_bias = \"model.layers.{i}.self_attn.k_proj.bias\"",
+            "v_bias = \"model.layers.{i}.self_attn.v_proj.bias\"",
+        ] {
+            assert!(an.toml.contains(needle), "missing {needle}:\n{}", an.toml);
+        }
+        assert!(an.toml.contains("rope_type \"llama3\""), "{}", an.toml);
+        let r = parse_recipe(&an.toml).unwrap();
+        let a = r.layer.attn.as_ref().unwrap();
+        assert_eq!(a.q_bias.as_deref(), Some("model.layers.{i}.self_attn.q_proj.bias"));
+        assert!(a.q_norm.is_none() && a.k_norm.is_none());
     }
 
     #[test]
