@@ -27,8 +27,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-qn/ref-noise",
   "base_commit": "a312a794",
-  "head_commit": null,
-  "pr": null,
+  "head_commit": "2d576974",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/116",
   "files": [
    "docs/results/2026-10-23-qn-ref-noise.md",
    "docs/results/2026-10-23-qn-ref-noise/trace.json",
