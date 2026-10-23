@@ -31,9 +31,10 @@ pub struct ServeArgs {
     /// With `--max-batch`: prefill chunk (tokens) of a prompt that starts prefilling while other sequences decode
     /// (16..=2048, capped at the model's `--prefill-chunk`). A prompt that starts while nothing decodes uses the model
     /// chunk. Smaller chunks stall the decoding streams less per iteration; larger ones finish the prompt in fewer
-    /// iterations. No effect without `--max-batch`.
-    #[arg(long, default_value_t = intarsia_core::engine::BUSY_PREFILL_CHUNK as u16, value_parser = clap::value_parser!(u16).range(16..=2048))]
-    pub busy_chunk: u16,
+    /// iterations. No effect without `--max-batch`. Default 256; 1024 for the hybrid mixture-of-experts models on CUDA, whose
+    /// prefill chunk costs almost the same at any size (docs/results/2026-10-23-rb2-cuda-batching.md).
+    #[arg(long, value_parser = clap::value_parser!(u16).range(16..=2048))]
+    pub busy_chunk: Option<u16>,
     /// `max_tokens` for requests that name none, also bounded by the context (0 = only the context).
     #[arg(long, default_value_t = 4096)]
     pub default_max_tokens: usize,
@@ -77,7 +78,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
     let mut model = args.model.clone();
     model.max_batch = args.max_batch;
     model.spec_off_at = Some(usize::from(args.spec_off_at));
-    model.busy_chunk = Some(usize::from(args.busy_chunk));
+    model.busy_chunk = args.busy_chunk.map(usize::from);
     model.max_queue = Some(args.max_queue);
     let loaded = match model.for_serving().load() {
         Ok(l) => l,
