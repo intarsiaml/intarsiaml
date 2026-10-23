@@ -1,0 +1,31 @@
+413c413
+<       "scratch_bytes": 2097168
+---
+>       "scratch_bytes": 16777232
+449c449
+<       "scratch_bytes": 10496512
+---
+>       "scratch_bytes": 83954176
+526,527c526,527
+<   "scratch_bytes": 10496512,
+<   "prefill_chunk": 256,
+---
+>   "scratch_bytes": 83954176,
+>   "prefill_chunk": 2048,
+555c555,564
+<     256
+---
+>     256,
+>     257,
+>     511,
+>     512,
+>     513,
+>     1023,
+>     1024,
+>     1025,
+>     2047,
+>     2048
+559c568
+<   "prefill_chunk_source": "default"
+---
+>   "prefill_chunk_source": "recipe qwen3_5_moe, metal"

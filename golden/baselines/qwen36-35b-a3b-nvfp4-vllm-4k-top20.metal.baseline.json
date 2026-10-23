@@ -1,10 +1,10 @@
 {
   "format": "intarsia-accuracy-baseline-v2",
-  "created_unix": 1792679546,
+  "created_unix": 1792720779,
   "tool_version": "0.0.1",
   "code": {
-    "head": "ec603e1",
-    "code_tree": "6eac9c190c06",
+    "head": "",
+    "code_tree": "",
     "dirty": false,
     "overlay": []
   },
@@ -19,7 +19,7 @@
       "--device",
       "0",
       "--mem-budget",
-      "45",
+      "40",
       "--golden",
       "golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
       "--mode",
@@ -29,7 +29,7 @@
       "--max-seq",
       "8192",
       "--write-baseline",
-      "/opt/code/wt-gc/docs/results/2026-10-22-gc-gate-coverage/raw/metal-acc4k/q-0-nobaseline/baselines/acc-4k.baseline.json",
+      "/opt/code/wt-gc/docs/results/2026-10-22-gc2-metal-35b-chunk2048/raw/q-0-record/baselines/acc-4k.baseline.json",
       "--min-top1",
       "0"
     ],
@@ -77,8 +77,8 @@
     "kv_dtype": "bf16",
     "act_dtype": "bf16",
     "fp8_act": "recipe default",
-    "prefill_chunk": 256,
-    "prefill_chunk_source": "default",
+    "prefill_chunk": 2048,
+    "prefill_chunk_source": "recipe qwen3_5_moe, metal",
     "decode_positions": 64,
     "gate_class": "4bit"
   },
@@ -266,8 +266,8 @@
   ],
   "reuse": {
     "passed": false,
-    "prefill_chunk": 256,
-    "prefill_chunk_source": "default",
+    "prefill_chunk": 2048,
+    "prefill_chunk_source": "recipe qwen3_5_moe, metal",
     "ran": [
       "long_docs_4k",
       "long_code_4k",

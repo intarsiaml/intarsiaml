@@ -1,0 +1,16 @@
+ gates pass |
+| publish deep results | 1 min | — |
+
+The quick publish is a hard requirement: a model that fails deep is still useful if the quick numbers are good.
+
+## 8. Observability, UI and metrics
+
+- **Metrics**: Prometheus `/metrics` (step time, decode/prefill throughput, KV cache usage, spec acceptance, memory, errors), OTLP traces, `/events` (SSE) for the UI.
+- **UI**: embedded web UI (Rust `minijinja` + `dioxus`/`leptos`), chat, live dashboard (step time, throughput, KV usage, spec acceptance, errors), live architecture map (click a node → see kernel, exactness, tuning DB entry, latency).
+- **TUI**: `ratatui` for headless.
+- **Config**: TOML, hot-reloadable for scheduler/quant overrides; model config is baked into the plan (immutable).
+
+## 9. Packaging and distribution
+
+- **Static binaries**: `intarsia serve`, `intarsia bench`, `intarsia accuracy`, `intarsia plan`, `intarsia kernels test`, `intarsia onboard`.
+

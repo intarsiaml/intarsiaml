@@ -1,0 +1,13 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 48 base tokens, 21.33 tokens per filler sentence
+  size    128 rep: prompt=135 gen=128 ttft=0.14s prefill=964 tok/s decode=124.1 tok/s
+  size    128 rep: prompt=129 gen=128 ttft=0.13s prefill=1015 tok/s decode=123.0 tok/s
+  size    128 rep: prompt=127 gen=128 ttft=0.13s prefill=1000 tok/s decode=123.2 tok/s
+  size   1024 rep: prompt=1011 gen=128 ttft=0.60s prefill=1673 tok/s decode=122.5 tok/s
+  size   1024 rep: prompt=1019 gen=128 ttft=0.61s prefill=1669 tok/s decode=122.4 tok/s
+  size   1024 rep: prompt=1027 gen=128 ttft=0.66s prefill=1548 tok/s decode=121.8 tok/s
+  size   4096 rep: prompt=4203 gen=128 ttft=2.39s prefill=1758 tok/s decode=118.4 tok/s
+  size   4096 rep: prompt=4183 gen=128 ttft=2.42s prefill=1727 tok/s decode=119.8 tok/s
+  size   4096 rep: prompt=4203 gen=128 ttft=2.38s prefill=1764 tok/s decode=119.8 tok/s
+wrote /opt/code/wt-gc/docs/results/2026-10-22-gc2-metal-35b-chunk2048/raw/q-1-verdict/bench/qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench.json

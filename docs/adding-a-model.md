@@ -210,7 +210,7 @@ checkpoint that carries a projection bias the recipe does not map.
 then 256; a backend without a table falls back to the base value. Load prints the result and its source (`prefill chunk
 2048 (recipe qwen3_5_moe, cuda)`), `intarsia plan show --json` carries `prefill_chunk` and `prefill_chunk_source`, and
 `accuracy` records both in baselines and self-goldens. Only tune a chunk with measurements behind it and cite them in a
-comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA (`docs/results/2026-10-13-prefill-cuda.md`) and 4096 on HIP
+comment: `recipes/qwen3_5_moe.toml` sets 2048 on CUDA (`docs/results/2026-10-13-prefill-cuda.md`), 2048 on Metal (`docs/results/2026-10-22-gc2-metal-35b-chunk2048.md`) and 4096 on HIP
 (`docs/results/2026-10-17-hip-prefill.md`; it fits a 32 GB R9700 at `--max-seq` 17408), `recipes/qwen3.toml` sets 2048 on Metal and HIP and 4096 on CUDA (`docs/results/2026-10-22-ck-cuda8b-chunk.md`), because the
 chunk changes rounding (prefix-reuse and baseline results are chunk-sensitive). (Updated 2026-10-21: this paragraph used to say
 CUDA only and that 2048 on the 35B was not shown to fit an R9700.) A baseline recorded at another chunk is refused with a message naming the recipe default;
