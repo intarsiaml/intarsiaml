@@ -1,0 +1,34 @@
+Traceback (most recent call last):
+  File "/opt/code/deepeval/src/localeval/cli.py", line 131, in _run
+    run["speed"] = run_sweep(t, _ints(args.sizes) or None, args.gen, args.reps, _ints(args.concurrency),
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/speed.py", line 80, in run_sweep
+    raise RuntimeError(f"{target.name}: calibration failed: {base.error or cal.error or 'no usage reported'}")
+RuntimeError: adhoc: calibration failed: RuntimeError: stream error: {"message": "no kernel for add on cuda/sm_121 (m=51 n=0 k=2048 act=Some(Bf16) w=None) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+[localeval] RuntimeError: adhoc: calibration failed: RuntimeError: stream error: {"message": "no kernel for add on cuda/sm_121 (m=51 n=0 k=2048 act=Some(Bf16) w=None) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+# localeval: adhoc — 2026-10-23T00:12
+
+- model: `intarsia-35b` on ? (?), url `http://spark-fa00:8191/v1`
+- thinking: off; run kind: speed; label: spec-mtp-k1-p1
+- harness: localeval 0.3.0, deepeval 4.2.6, runner endor.kuepker.haus, git 98707d5
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8191/v1 --model intarsia-35b --thinking off --sizes 128,1024,4096 --gen 128 --reps 3 --label spec-mtp-k1-p1 --recipe intarsia serve --backend cuda --max-seq 20480 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 1 (lane-mtp ef518fd7)`
+- result file: `results/20261023-001202-adhoc-spec-mtp-k1-p1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --max-seq 20480 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 1 (lane-mtp ef518fd7)
+````
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: adhoc: calibration failed: RuntimeError: stream error: {"message": "no kernel for add on cuda/sm_121 (m=51 n=0 k=2048 act=Some(Bf16) w=None) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261023-001202-adhoc-spec-mtp-k1-p1/result.json
+[localeval] not logged to unanimis (nothing measured)

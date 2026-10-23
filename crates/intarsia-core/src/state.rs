@@ -78,6 +78,13 @@ pub struct MtpState {
     pub cap_rows: usize,
     /// Bytes of one hidden row.
     pub row_bytes: usize,
+    /// The current request drafts (`Seq::spec_on`): only then does each pass queue rows and run the head. A request
+    /// that never drafts (sampled, constrained, traced) skips the head entirely and leaves the state unsynced.
+    pub active: bool,
+    /// `kv.len + pending_rows == st.len` with valid pending rows. False once a pass ran without the head (inactive) or
+    /// a head pass failed; only an empty sequence (`truncate(0)`) syncs it again, so a drafting request on an unsynced
+    /// state starts from an empty cache (`Seq::new`).
+    pub synced: bool,
 }
 
 /// Recurrent state after each row of the last speculative verify pass (`Model::forward_verify` on a model with
@@ -366,6 +373,9 @@ impl SequenceState {
                 if len == 0 {
                     m.kv.truncate(0, backend)?;
                     m.pending_rows = 0;
+                    m.synced = true;
+                } else if !m.synced {
+                    // nothing to keep consistent: the next drafting request starts from an empty sequence
                 } else if let Some(ms) = snap.filter(|ms| ms.kv_len + ms.rows == len && ms.rows <= m.cap_rows) {
                     m.kv.truncate(ms.kv_len.min(m.kv.len), backend)?;
                     if m.kv.len != ms.kv_len {

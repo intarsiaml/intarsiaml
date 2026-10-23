@@ -72,6 +72,10 @@ pub struct LoadOptions {
     /// Load the checkpoint's multi-token-prediction head (recipe `[mtp]`) as the `--spec mtp` drafter. Off: nothing under
     /// the head's prefix is read and the model is exactly the one without it.
     pub mtp: bool,
+    /// Most drafts per verify pass the MTP drafter is sized for (`--spec-k`): the per-row recurrent state buffers of a
+    /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
+    /// largest k ([`crate::spec::SPEC_K_MAX`]).
+    pub mtp_k: usize,
 }
 
 impl Default for LoadOptions {
@@ -89,6 +93,7 @@ impl Default for LoadOptions {
             graphs: true,
             tp_fusion: false,
             mtp: false,
+            mtp_k: 0,
         }
     }
 }
@@ -302,6 +307,8 @@ pub struct Model {
     tail_merge: usize,
     /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
     mtp: Option<mtp::MtpHead>,
+    /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
+    mtp_k: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -689,6 +696,7 @@ impl Model {
         let mt = chunk + tail_merge;
         let esz = act.size_bytes();
         // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
+        let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
         let mtp_head = if opts.mtp {
             let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
             if tp.world > 1 {
@@ -767,7 +775,7 @@ impl Model {
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
         if mtp_head.is_some() {
             // per-row recurrent states of a verify pass (up to SPEC_K_MAX saved rows) and the drafter's hidden-row queue
-            ws_bytes += rec_bytes * crate::spec::SPEC_K_MAX as u64;
+            ws_bytes += rec_bytes * mtp_k as u64;
             ws_bytes += ((mt + Self::VERIFY_MAX_ROWS + 1) * dims.hidden * esz) as u64;
         }
 
@@ -837,6 +845,7 @@ impl Model {
             feedback_hold,
             tail_merge,
             mtp: mtp_head,
+            mtp_k,
         };
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
@@ -889,6 +898,8 @@ impl Model {
                 return self.batch_probe(t, pos0);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
+            // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
+            self.mtp_dry_run(t, pos0)?;
             if verify {
                 return self.verify_head(&hn, t, false);
             }
@@ -1044,6 +1055,13 @@ impl Model {
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
+        if st.mtp.is_some() && st.has_recurrent() {
+            // allocated once here (and reserved in the memory plan), not in the first verify pass
+            let need = st.recurrent_bytes().max(16);
+            for _ in 0..self.mtp_k {
+                st.spec_rows.bufs.push(self.backend.alloc(need, MemKind::Device)?);
+            }
+        }
         for p in &self.peers {
             st.peers.push(PeerState {
                 backend: p.backend.clone(),

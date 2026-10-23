@@ -797,6 +797,13 @@ fn spec_verify(
     let j = crate::spec::accept(drafts, &out);
     let masked_stop =
         (0..=j).find(|&i| generated + 1 + i <= min_tokens && !stop_ids.is_empty() && stop_ids.contains(&out[i]));
+    // A masked stop on row 0 keeps nothing of the pass (`keep == len0`). A recurrent or MTP state cannot roll back to
+    // before the pass (`SequenceState::spec_rollback` keeps at least one row), so `Seq::plan_step` never drafts with
+    // `--spec mtp` inside a min_tokens window that masks stop ids. Relaxing that guard needs a pre-pass state copy.
+    debug_assert!(
+        masked_stop != Some(0) || !(st.has_recurrent() || st.mtp.is_some()),
+        "masked stop on verify row 0 of a recurrent/MTP state: plan_step's min_tokens guard was bypassed"
+    );
     let step = match masked_stop {
         // rows 0..i emitted d_1..d_i; row i (fed d_i) is recomputed by the plain step, so its KV row goes too
         Some(i) => SpecStep { emit: out[..i].to_vec(), accepted: i, plain_next: true },
@@ -927,9 +934,17 @@ impl Seq {
             // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
             p = st.restorable_len(p);
         }
-        st.truncate(p, &*model.backend)?;
-
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), st.has_recurrent());
+        // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
+        // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
+        let drafting = seq.spec_on && seq.spec_mtp;
+        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) {
+            p = 0;
+        }
+        st.truncate(p, &*model.backend)?;
+        if let Some(m) = st.mtp.as_mut() {
+            m.active = drafting;
+        }
         seq.admit(p, st.cap)?;
         Ok(seq)
     }

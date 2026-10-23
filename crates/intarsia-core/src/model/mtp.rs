@@ -250,6 +250,8 @@ impl Model {
             pending_rows: 0,
             cap_rows: head.pending_rows,
             row_bytes,
+            active: true,
+            synced: true,
         })))
     }
 
@@ -265,7 +267,23 @@ impl Model {
         catch_up: bool,
         profile: bool,
     ) -> Result<()> {
-        let Some(m) = st.mtp.as_ref() else { return Ok(()) };
+        let Some(m) = st.mtp.as_mut() else { return Ok(()) };
+        if !m.active || !m.synced {
+            // a request that never drafts does not pay for the head (its rows are not queued)
+            m.synced = false;
+            return Ok(());
+        }
+        let r = self.mtp_queue(st, hn, t, catch_up, profile);
+        if r.is_err() {
+            if let Some(m) = st.mtp.as_mut() {
+                m.synced = false;
+            }
+        }
+        r
+    }
+
+    fn mtp_queue(&self, st: &mut SequenceState, hn: &TensorRef, t: usize, catch_up: bool, profile: bool) -> Result<()> {
+        let m = st.mtp.as_ref().unwrap();
         if m.pending_rows + t > m.cap_rows {
             // cannot happen with the sizes `Model::load` gives the queue (a prefill chunk + a verify pass); stay correct
             let n = m.pending_rows;
@@ -360,11 +378,25 @@ impl Model {
             return Ok(Vec::new());
         }
         let n = m.pending_rows;
-        if n == 0 || m.kv.len + n != st.len {
-            return Err(Error::invalid(format!("MTP state at {} + {n} queued rows, sequence at {}", m.kv.len, st.len)));
+        if !m.active || !m.synced || n == 0 || m.kv.len + n != st.len {
+            return Err(Error::invalid(format!(
+                "MTP state at {} + {n} queued rows (active {}, synced {}), sequence at {}",
+                m.kv.len, m.active, m.synced, st.len
+            )));
         }
         let profile = false;
-        let mut drafts = vec![self.mtp_run_pending(st, n, Some(next), profile)?];
+        let first = self.mtp_run_pending(st, n, Some(next), profile);
+        let first = match first {
+            Ok(t) => t,
+            Err(e) => {
+                // the head cache and queue may be part-way through the catch-up
+                if let Some(m) = st.mtp.as_mut() {
+                    m.synced = false;
+                }
+                return Err(e);
+            }
+        };
+        let mut drafts = vec![first];
         let mut m = st.mtp.take().unwrap();
         let base = m.kv.len;
         let r = (|| -> Result<()> {
@@ -379,11 +411,17 @@ impl Model {
                     self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;
                 }
             }
-            // the chained rows were speculative: the head re-runs those positions from the verified tokens
-            m.kv.truncate(base, &*self.backend)
+            Ok(())
         })();
+        // the chained rows were speculative (and on an error, part-way): the head re-runs those positions from the
+        // verified tokens, so its cache goes back to the committed length on both paths
+        let cut = m.kv.truncate(base, &*self.backend);
+        if cut.is_err() {
+            m.synced = false;
+        }
         st.mtp = Some(m);
         r?;
+        cut?;
         if let Some(f) = head.script.lock().unwrap().as_ref() {
             let mut ctx = st.tokens.clone();
             ctx.push(next);
@@ -394,6 +432,32 @@ impl Model {
             }
         }
         Ok(drafts)
+    }
+
+    /// Plan dry-run (`Model::dry_run`, recorder installed): record the head's ops over `t` rows at `pos0`, so plan
+    /// resolution and admission cover them (a server with `--require-admitted` would otherwise refuse the head's first
+    /// pass at run time). Nothing without the head. The calls are marked `extra` (not part of the per-step op list).
+    pub(super) fn mtp_dry_run(&self, t: usize, pos0: usize) -> Result<()> {
+        let Some(head) = &self.mtp else { return Ok(()) };
+        if self.recorder.lock().unwrap().is_none() {
+            return Err(Error::invalid("mtp_dry_run outside a dry run"));
+        }
+        let spec = SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv };
+        let kv = crate::plan::phantom_state(&[spec], self.plan.kv_cap_tokens, pos0);
+        let ids = vec![0u32; t];
+        let hid = self.view(&self.ws.blk, self.act, &[t, self.dims.hidden]);
+        let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.extra = true;
+        }
+        // the head never runs inside a verify pass, so it selects ordinary (not row-exact) kernels
+        let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+        let out = self.mtp_layer(head, &kv, &ids, &hid, false);
+        self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.extra = extra;
+        }
+        out.map(|_| ())
     }
 
     /// Diagnostic (`INTARSIA_MTP_VERIFY_CHECK`): run `ids` through k + 1 single-row decode steps and through one verify

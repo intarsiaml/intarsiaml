@@ -572,7 +572,15 @@ fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
         truth.lock().unwrap().push(s);
     }
     for k in 1..=3 {
-        let (on, tel) = engine_with(&w, Some(k), Some(scripted(truth.clone(), 7 + k as u64)));
+        // record the context length of every draft (prompt + generated tokens, the next one included)
+        let seen: Arc<Mutex<Vec<usize>>> = Arc::new(Mutex::new(Vec::new()));
+        let inner = scripted(truth.clone(), 7 + k as u64);
+        let rec = seen.clone();
+        let script: DraftScript = Box::new(move |ctx: &[u32], k: usize| {
+            rec.lock().unwrap().push(ctx.len());
+            inner(ctx, k)
+        });
+        let (on, tel) = engine_with(&w, Some(k), Some(script));
         for p in PROMPTS {
             // localeval speed's request shape: ignore_eos + min_tokens = max_tokens; nothing to mask, so spec runs
             let before = tel.snapshot().spec_steps;
@@ -582,7 +590,14 @@ fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
             // stop ids inside the min_tokens window are masked: spec waits for the window to end
             let full = run(&off, req(p, 60));
             let r = || GenRequest { min_tokens: 12, stop_ids: vec![full.ids[5], full.ids[20]], ..req(p, 60) };
+            seen.lock().unwrap().clear();
             assert_eq!(run(&off, r()), run(&on, r()), "k {k} min_tokens with stop ids");
+            let gens: Vec<usize> = seen.lock().unwrap().iter().map(|&n| n - p.len()).collect();
+            assert!(!gens.is_empty(), "k {k}: speculation resumed after the min_tokens window");
+            assert!(
+                gens.iter().all(|&g| g >= 12),
+                "k {k}: drafted inside the min_tokens window with stop ids: {gens:?}"
+            );
         }
     }
 }

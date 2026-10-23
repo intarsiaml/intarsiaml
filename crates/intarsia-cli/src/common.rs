@@ -97,8 +97,10 @@ pub struct ModelArgs {
     pub require_admitted: bool,
     /// Speculative decoding: `off` (default), `ngram` (prompt lookup over prompt + generated ids, verified in one
     /// multi-row pass whose rows are bitwise the sequential decode steps; Metal only) or `mtp` (the checkpoint's
-    /// multi-token-prediction head drafts, recipe `[mtp]`; Qwen3.5/3.6 MoE; single sequence, any backend, bitwise only
-    /// where the backend has row-exact verify kernels). Greedy requests only (sampled requests fall back to plain decode).
+    /// multi-token-prediction head drafts, recipe `[mtp]`; Qwen3.5/3.6 MoE; single sequence; CUDA and CPU measured,
+    /// Metal and HIP untested; bitwise to `off` by construction only where the backend has row-exact verify kernels,
+    /// elsewhere self-consistent greedy over the verify rows). Greedy requests only (sampled requests fall back to plain
+    /// decode).
     #[arg(long, default_value = "off")]
     pub spec: String,
     /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
@@ -292,6 +294,7 @@ impl ModelArgs {
                 graphs: !self.no_graphs,
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
                 mtp: self.spec == "mtp",
+                mtp_k: 0, // set from --spec-k by the loader
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
