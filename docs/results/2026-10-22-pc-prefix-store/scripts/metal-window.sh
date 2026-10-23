@@ -63,7 +63,7 @@ dead() {
 
 serve() { # $1 = on|off, $2 = log
   local extra=""
-  [ "$1" = on ] && extra="--prefix-store on"
+  [ "$1" = on ] && extra="--prefix-store ${STORE:-on}"
   $HEAD serve --model $M35 --backend metal --port $PORT --no-supervisor --max-seq 16384 --profile-every 0 --served-model-name m $extra \
     > $2 2>&1 < /dev/null &
   SPID=$!
@@ -98,6 +98,8 @@ ttft() {
     run on$i on replay
     run off$i off replay
   done
+  # the cut-roles variant: cuts only after assistant headers (fewer passes)
+  for i in 1 2; do STORE=on,roles=assistant run asst$i on replay; done
 }
 
 date +%T
