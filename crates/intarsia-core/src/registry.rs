@@ -309,6 +309,17 @@ impl Registry {
         &self.arch
     }
 
+    /// A row-table kernel (`OpCall::rows`) takes the admission of the kernel it twins (its name without `_rows`): the sweep has
+    /// no case with a table of device addresses, so the row-table kernel is never tested there; its own gate is the backend's
+    /// bitwise test against the one-row kernel (`tests/row_tables.rs`). Without this, `serve` (admitted kernels only) would
+    /// never select the row-table twins.
+    fn effective_admission(&self, k: &KernelImpl, own: Admission) -> Admission {
+        if !k.row_table {
+            return own;
+        }
+        k.name.strip_suffix("_rows").and_then(|base| self.admission(base)).unwrap_or(own)
+    }
+
     pub fn set_admission(&mut self, name: &str, a: Admission) {
         for (k, st) in self.entries.iter_mut() {
             if k.name == name {
@@ -335,7 +346,7 @@ impl Registry {
             if self.reference_only && !k.is_reference {
                 continue;
             }
-            match adm {
+            match self.effective_admission(k, *adm) {
                 Admission::Rejected => continue,
                 Admission::Untested if self.require_admitted => continue,
                 _ => {}
@@ -397,6 +408,22 @@ mod tests {
         s.m = 1;
         s.act = Some(DType::F32);
         assert!(!k.accepts(&s));
+    }
+
+    #[test]
+    fn a_row_table_kernel_takes_the_admission_of_the_kernel_it_twins() {
+        let base = KernelImpl::new(Op::GdnConv, "gdn_conv_x", "b");
+        let twin = KernelImpl::new(Op::GdnConv, "gdn_conv_x_rows", "b").row_table();
+        let other = KernelImpl::new(Op::Matmul, "mm_rows", "b").rows_exact();
+        let entries = vec![(base, Admission::Untested), (twin.clone(), Admission::Untested), (other.clone(), Admission::Untested)];
+        let mut reg = Registry { backend: "b".into(), arch: "any".into(), entries, require_admitted: true, reference_only: false };
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Untested);
+        reg.set_admission("gdn_conv_x", Admission::Admitted);
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Admitted);
+        reg.set_admission("gdn_conv_x", Admission::Rejected);
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Rejected);
+        // a rows-exact kernel is swept on its own, so its own admission stands
+        assert_eq!(reg.effective_admission(&other, Admission::Untested), Admission::Untested);
     }
 
     #[test]
