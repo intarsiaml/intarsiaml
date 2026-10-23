@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 target/
 golden/*.safetensors
+!golden/gemma4-26b-a4b-nvfp4-hfbf16.safetensors
+!golden/gemma4-26b-a4b-nvfp4-fp32.safetensors
 tools/.venv/
 .playwright-mcp/
 reports/

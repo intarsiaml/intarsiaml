@@ -1,0 +1,19 @@
+Id) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream:
+
+
+user
+assistant
+<think>
+
+</think>
+
+Based on the provided text, here is the continuation of the **IntarsiaML architecture plan (v0.2)**. The text cuts off at the end of section 3.3, so I will complete that section and proceed with the remaining sections of the architecture plan (4. Engine Core, 5. Recipes & Blocks, 6. Observability, 7. Phased Rollout, 8. Risk & Mitigation).
+
+---
+
+**Block-scope fused ops** are defined in the recipe to reduce kernel launch overhead and memory traffic. For example, a `linear_attention` block might fuse `rmsnorm -> qkv_proj -> gdn_conv -> gdn_delta_rule -> rmsnorm -> out_proj` into a single kernel launch if the shapes allow, or split into two if memory bandwidth is the bottleneck. The plan compiler decides the fusion granularity based on the kernel registry’s capabilities and the current batch size.
+
+### 3.4 Quantization formats
+
+Quantization is handled at the **kernel registry** level. Each kernel implementation

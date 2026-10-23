@@ -29,6 +29,16 @@ pub trait WeightSource: Send + Sync {
     }
 }
 
+/// Decode a float tensor's raw little-endian bytes (bf16 / f16 / f32) to f32 on the host.
+pub fn to_f32_vec(dtype: DType, bytes: &[u8]) -> Result<Vec<f32>> {
+    if !matches!(dtype, DType::Bf16 | DType::F16 | DType::F32) {
+        return Err(Error::invalid(format!("to_f32_vec of {dtype}")));
+    }
+    let mut out = vec![0f32; bytes.len() / dtype.size_bytes()];
+    crate::dtype::decode_to_f32(dtype, bytes, &mut out);
+    Ok(out)
+}
+
 /// Load one named tensor onto the backend (zero-copy when the backend allows it).
 pub fn load_tensor(
     backend: &dyn Backend,

@@ -9,6 +9,8 @@
 //!   shapes are the model's projections and edges (K not a multiple of the 64-byte stage, N not a multiple of the tile, M from 5).
 //! * `f8_rows_do_not_depend_on_m`: a row computed in a call of M = 5, 37, 129 or 300 rows has the bits it has in a call of 300
 //!   (every tile shape and every position in a tile sums k in the same order): this is what keeps a tail chunk equal to a full one.
+//! * `f8_prefill_tiles_match_small_calls` (lane hp): rows of a prefill-size call (M >= 2048, the 256 x 128 / 128 x 256 tiles,
+//!   M and N not multiples of the tile) have the bits the same rows get in a call of 300 rows (the 128 x 128 tile).
 //! * `f8_is_not_the_bf16_path`: the f32 output is within 1e-6 of `matmul_fp8_mma`'s yet differs from it in some bits (a different
 //!   order of additions): the launch really ran the e4m3 kernel, and the weight-only half of the launcher did not overwrite it.
 //! * `f8_weight_only_is_the_bf16_path`: with input_scale 0 the output is bitwise `matmul_fp8_mma`'s (the e4m3 kernel and the
@@ -114,6 +116,26 @@ fn f8_rows_do_not_depend_on_m() {
             let got = run_host(&*hip, "matmul_fp8_mma_f8", &part).unwrap().remove(0);
             let want = &whole.data[r0 * n * 4..(r0 + mm) * n * 4];
             assert!(got.data == want, "n={n} k={k}: rows {r0}..{} computed in a call of {mm} rows differ from the same rows of a call of 300", r0 + mm);
+        }
+    }
+}
+
+#[test]
+fn f8_prefill_tiles_match_small_calls() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(85);
+    for (m, n, k) in [(3000usize, 8192usize, 2048usize), (2049, 4096, 2048), (3000, 2048, 4096), (4089, 512, 2048), (2100, 259, 1040)] {
+        let big = case(&mut rng, m, n, k, DType::Bf16, 1.3, 0.2);
+        let whole = run_host(&*hip, "matmul_fp8_mma_f8", &big).unwrap().remove(0);
+        let rowb = k * 2;
+        for r0 in [0usize, 1999.min(m - 300), m - 300] {
+            let mm = 300;
+            let mut part = big.clone();
+            part.inputs[0] = HostTensor::new(DType::Bf16, vec![mm, k], big.inputs[0].data[r0 * rowb..(r0 + mm) * rowb].to_vec()).unwrap();
+            part.outputs[0].shape = vec![mm, n];
+            let got = run_host(&*hip, "matmul_fp8_mma_f8", &part).unwrap().remove(0);
+            let want = &whole.data[r0 * n * 2..(r0 + mm) * n * 2];
+            assert!(got.data == want, "m={m} n={n} k={k}: rows {r0}..{} of the M={m} call differ from a call of {mm} rows", r0 + mm);
         }
     }
 }

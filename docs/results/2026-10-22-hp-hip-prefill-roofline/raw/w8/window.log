@@ -1,0 +1,33 @@
+=== bin:bench-out-hp-gdnbench [22:36:37, 220 s left]
+--- bin bench-out-hp-gdnbench 22:36:37
+T=1      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=2      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=3      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=4      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=5      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=6      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=7      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=9      v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=31     v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=32     v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=33     v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=63     v2 bitwise  v3i bitwise  v7 bitwise  v8 bitwise
+T=64     v2     59.7 us (0.933 us/tok) bitwise  v3i     56.9 us (0.889 us/tok) bitwise  v7     68.0 us (1.062 us/tok) bitwise  v8     73.4 us (1.148 us/tok) bitwise
+T=65     v2     58.8 us (0.905 us/tok) bitwise  v3i     66.8 us (1.028 us/tok) bitwise  v7     85.5 us (1.316 us/tok) bitwise  v8     92.9 us (1.429 us/tok) bitwise
+T=97     v2    122.9 us (1.267 us/tok) bitwise  v3i     89.2 us (0.920 us/tok) bitwise  v7    115.5 us (1.191 us/tok) bitwise  v8    126.8 us (1.308 us/tok) bitwise
+T=683    v2    500.1 us (0.732 us/tok) bitwise  v3i    484.4 us (0.709 us/tok) bitwise  v7    600.8 us (0.880 us/tok) bitwise  v8    655.4 us (0.960 us/tok) bitwise
+T=4096   v2   2889.9 us (0.706 us/tok) bitwise  v3i   2801.4 us (0.684 us/tok) bitwise  v7   4177.5 us (1.020 us/tok) bitwise  v8   4801.9 us (1.172 us/tok) bitwise
+ALL BITWISE
+probe heads=32 waves=256 v2 T=683: 0.730 us/tok
+probe heads=32 waves=256 v3i T=683: 0.698 us/tok
+probe heads=32 waves=256 v7 T=683: 0.915 us/tok
+probe heads=32 waves=256 v8 T=683: 1.026 us/tok
+probe heads=16 waves=128 v2 T=683: 0.596 us/tok
+probe heads=16 waves=128 v3i T=683: 0.503 us/tok
+probe heads=16 waves=128 v7 T=683: 0.917 us/tok
+probe heads=16 waves=128 v8 T=683: 1.025 us/tok
+probe heads= 8 waves= 64 v2 T=683: 0.519 us/tok
+probe heads= 8 waves= 64 v3i T=683: 0.483 us/tok
+probe heads= 8 waves= 64 v7 T=683: 0.913 us/tok
+probe heads= 8 waves= 64 v8 T=683: 1.025 us/tok
+=== stages done [22:36:38]

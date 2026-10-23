@@ -1,0 +1,35 @@
+prefill chunk 1024 (recipe gemma4, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: gemma4-26b-a4b-nvfp4 on NVIDIA GB10 (vocab 262144, weights/act/kv bf16/bf16)
+KL row mask: no turn format (the golden names no known `template` and the recipe has no `[accuracy] chat_turns`): ALL rows are scored
+golden: /home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors (10 prompts, 1468 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.6.2, torch 2.14.1+cu130 | model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 | revision not in the model path | dtype float32 | KV dtype f32 | template hf
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+WARNING: KV dtype mismatch: the reference ran with a f32 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 1024; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   7.231e-3   7.241e-3   7.241e-3   1.130e-1   0.0000   0.0000    68.95     38/38      0
+story                 39    39    56.41    1.407e0    1.496e0    1.496e0    1.098e1   0.0589   0.1764    58.97      2/39      0
+code                  95    95    78.95   5.198e-1   5.135e-1   5.135e-1    7.486e0   0.0418   0.0584    70.32      4/95      0
+science               76    76    85.53   1.614e-1   1.498e-1   1.498e-1    2.199e0   0.0665   0.0669    81.84      6/76      0
+chat_short            23    23    91.30   2.627e-1   2.631e-1   2.631e-1    3.748e0   0.1365   0.1145    90.43     14/23      0
+chat_system           37    37    86.49   4.872e-2   4.175e-2   4.175e-2   3.294e-1   0.1005   0.1131    87.57      2/37      0
+chat_multiturn        63    63    90.48   9.095e-2   7.906e-2   7.906e-2    1.810e0   0.0718   0.0889    86.67     11/63      0
+chat_reasoning        97    97    89.69   2.474e-1   2.064e-1   2.064e-1    1.164e1   0.1422   0.1498    86.39     31/97      0
+long_prose_300       300   300    79.67   3.496e-1   4.906e-1   4.906e-1    6.274e0   0.0331   0.0695    75.07     5/300      0
+long_prose_700       700   700    90.86   7.458e-2   7.347e-2   7.347e-2    1.840e0   0.0246   0.0269    86.00     6/700      0
+OVERALL                   1468    86.65   2.122e-1   2.384e-1   2.384e-1    1.164e1   0.0434   0.0573    81.54      8.1%      0
+prefill floor [4bit]: top-1 (all rows) 86.65% (not gated for this class) ok | 21-way KL (scored rows, n=1468) 2.384e-1 (need <= 3.0e-2) FAIL [all rows, n=1468: 2.384e-1, reported only] | tail mass (all rows) ours 0.0573 vs ref 0.0434, excess +0.0139 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 2.384e-1 FAIL
+gate-definition: kl_floor [prefill]: old def: FAIL 2.384e-1 (21-way KL over all rows <= static floor) | current def: FAIL 2.384e-1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 23.5% of positions before the first argmax divergence, worst prompt 0.9% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED

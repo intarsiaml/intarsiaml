@@ -1,0 +1,7 @@
+[load] /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 dequantised 11520 NVFP4 tensors in 118s; missing=[]
+'The capital of France is' -> ' wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-wonderful-'
+'The sky is' -> 'T de de de de de de de de\n\n de de de \\ de \\ de \\ de \\ de \\ de \\'
+'Water is made of hydrogen and' -> ' hydrogen-water-water-water-hydrogen-hydrogen-hydrogen-hydrogen-hydrogen-hydrogen-hydrogen-hydrogen-'
+'def fibonacci(n):' -> '\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n-'
+chat -> 'Paris<turn|><turn|><eos>'
+ppl over 1023 tokens: 7758.33

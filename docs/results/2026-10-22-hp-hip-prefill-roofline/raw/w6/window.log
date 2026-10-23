@@ -1,0 +1,33 @@
+=== bin:bench-out-hp-gdnbench [22:33:18, 220 s left]
+--- bin bench-out-hp-gdnbench 22:33:18
+T=1      v2 bitwise  v3i bitwise  v6 bitwise
+T=2      v2 bitwise  v3i bitwise  v6 bitwise
+T=3      v2 bitwise  v3i bitwise  v6 bitwise
+T=4      v2 bitwise  v3i bitwise  v6 bitwise
+T=5      v2 bitwise  v3i bitwise  v6 bitwise
+T=6      v2 bitwise  v3i bitwise  v6 bitwise
+T=7      v2 bitwise  v3i bitwise  v6 bitwise
+T=9      v2 bitwise  v3i bitwise  v6 bitwise
+T=31     v2 bitwise  v3i bitwise  v6 bitwise
+T=32     v2 bitwise  v3i bitwise  v6 bitwise
+T=33     v2 bitwise  v3i bitwise  v6 bitwise
+T=63     v2 bitwise  v3i bitwise  v6 bitwise
+T=64     v2     65.7 us (1.027 us/tok) bitwise  v3i     58.3 us (0.911 us/tok) bitwise  v6     69.0 us (1.078 us/tok) bitwise
+T=65     v2     63.4 us (0.975 us/tok) bitwise  v3i     68.1 us (1.047 us/tok) bitwise  v6     85.0 us (1.308 us/tok) bitwise
+T=97     v2     86.8 us (0.894 us/tok) bitwise  v3i     89.1 us (0.918 us/tok) bitwise  v6    114.8 us (1.184 us/tok) bitwise
+T=683    v2    497.2 us (0.728 us/tok) bitwise  v3i    478.1 us (0.700 us/tok) bitwise  v6    599.6 us (0.878 us/tok) bitwise
+T=4096   v2   2928.4 us (0.715 us/tok) bitwise  v3i   2805.5 us (0.685 us/tok) bitwise  v6   4208.3 us (1.027 us/tok) bitwise
+ALL BITWISE
+probe heads=32 waves=256 v2 T=683: 0.728 us/tok
+probe heads=32 waves=256 v3i T=683: 0.696 us/tok
+probe heads=32 waves=256 v3i-nolds T=683: 0.314 us/tok
+probe heads=32 waves=256 v6 T=683: 0.921 us/tok
+probe heads=16 waves=128 v2 T=683: 0.584 us/tok
+probe heads=16 waves=128 v3i T=683: 0.495 us/tok
+probe heads=16 waves=128 v3i-nolds T=683: 0.261 us/tok
+probe heads=16 waves=128 v6 T=683: 0.925 us/tok
+probe heads= 8 waves= 64 v2 T=683: 0.515 us/tok
+probe heads= 8 waves= 64 v3i T=683: 0.481 us/tok
+probe heads= 8 waves= 64 v3i-nolds T=683: 0.252 us/tok
+probe heads= 8 waves= 64 v6 T=683: 0.918 us/tok
+=== stages done [22:33:18]
