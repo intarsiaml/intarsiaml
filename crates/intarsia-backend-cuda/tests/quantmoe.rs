@@ -742,6 +742,16 @@ fn matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call() {
     e4m3_gemm_rows_do_not_depend_on_the_call("matmul_fp8_gemm_lt", 2048, 2048, 4096, rows);
 }
 
+/// Lane lt: every 35B fp8 projection shape (N, K), a 4096-row chunk against the tails the prefix-reuse rows produce
+/// (15 decoded-reply rows, a 111-row turn-2 tail, a 425 / 551-row last chunk, a 2048 chunk at another origin).
+#[test]
+fn matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes() {
+    let rows: &[(usize, usize)] = &[(0, 5), (4521 - 4096, 15), (1000, 111), (7, 425), (2500, 551), (2048, 2048)];
+    for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+        e4m3_gemm_rows_do_not_depend_on_the_call("matmul_fp8_gemm_lt", 4096, n, k, rows);
+    }
+}
+
 fn e4m3_gemm_rows_do_not_depend_on_the_call(kern: &str, m: usize, n: usize, k: usize, slices: &[(usize, usize)]) {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(74);
