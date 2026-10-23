@@ -1,0 +1,91 @@
+   Compiling syn v2.0.119
+   Compiling indexmap v2.14.2
+   Compiling serde v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling smallvec v1.16.3
+   Compiling serde_spanned v1.1.2
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+   Compiling onig v6.5.3
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling spm_precompiled v0.1.4
+   Compiling compact_str v0.9.1
+   Compiling dary_heap v0.3.9
+   Compiling serde_json v1.0.154
+   Compiling minijinja v2.24.0
+   Compiling darling_core v0.20.11
+   Compiling zerocopy-derive v0.8.62
+   Compiling monostate-impl v0.1.18
+   Compiling monostate v0.1.18
+   Compiling darling_macro v0.20.11
+   Compiling zerocopy v0.8.62
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling derive_builder_macro v0.20.2
+   Compiling derive_builder v0.20.2
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling ahash v0.8.12
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-decfuse/lt-dev/crates/intarsia-core)
+   Compiling rand v0.9.5
+   Compiling tokenizers v0.22.2
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-decfuse/lt-dev/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-decfuse/lt-dev/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-hip v0.0.1 (/home/nvidia/intarsia-decfuse/lt-dev/crates/intarsia-backend-hip)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-decfuse/lt-dev/crates/intarsia-models)
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:594:45
+    |
+594 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 11.36s
+     Running tests/batch_cuda_real.rs (target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f)
+
+running 9 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... ok
+
+test result: ok. 3 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 712.98s
+
