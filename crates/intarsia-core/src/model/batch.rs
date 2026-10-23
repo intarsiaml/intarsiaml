@@ -100,14 +100,14 @@ impl Model {
         // Recurrent state: every slot holds a live copy and up to `RECURRENT_SNAPSHOTS` snapshots, all allocated when the
         // slot is created (`Model::new_state`). The plan's workspace already holds one sequence's worth of them; the other
         // `max_rows - 1` come out of the KV budget.
-        let per_state = self.recurrent_bytes_per_state() * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+        let per_state = self.recurrent_bytes_per_state() * (1 + self.batch_snapshots() as u64);
         let rec_extra = (max_rows as u64 - 1) * per_state;
         if rec_extra > 0 {
             self.plan.workspace_bytes += rec_extra;
             self.plan.notes.push(format!(
                 "{} MiB of the KV budget reserved for the recurrent state of {max_rows} batched sequences (live + {} snapshots each, {} MiB per sequence)",
                 rec_extra >> 20,
-                crate::state::RECURRENT_SNAPSHOTS,
+                self.batch_snapshots(),
                 per_state >> 20
             ));
         }
@@ -137,6 +137,17 @@ impl Model {
         self.batch_rows = max_rows;
         self.graphs.invalidate();
         Ok(())
+    }
+
+    /// Recurrent-state snapshots each batched slot keeps for prefix reuse. The cpu reference keeps the solo schedule's
+    /// `RECURRENT_SNAPSHOTS` (its prefix reuse is part of what its tests prove); on every other backend the prefix store stays
+    /// at batch 1 (decision 2026-10-23 06:41): no snapshots, no reuse, so a slot costs one live state (63 MB on the 35B).
+    pub fn batch_snapshots(&self) -> usize {
+        if self.backend.name() == "cpu" {
+            crate::state::RECURRENT_SNAPSHOTS
+        } else {
+            0
+        }
     }
 
     /// Bytes of the recurrent (GatedDeltaNet) state of one sequence: what its live copy and each snapshot hold.

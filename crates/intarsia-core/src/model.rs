@@ -1175,7 +1175,7 @@ impl Model {
         if self.batch_rows > 0 {
             // a batching engine's slots hold their recurrent snapshots from the start (reserved in `enable_batch`'s memory
             // plan): no device allocation inside the scheduler loop
-            st.reserve_snapshots(&*self.backend, crate::state::RECURRENT_SNAPSHOTS)?;
+            st.reserve_snapshots(&*self.backend, self.batch_snapshots())?;
         }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {

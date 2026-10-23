@@ -128,7 +128,7 @@ impl BatchModel for SlotModel {
         if st.has_recurrent() {
             // the solo schedule of a recurrent state (`Seq::prefill_step`): a snapshot after every non-final chunk, and
             // before the final chunk's last token, which runs alone (so a repeated prompt reuses all but that token)
-            let keep = crate::state::RECURRENT_SNAPSHOTS;
+            let keep = self.model.batch_snapshots();
             return Ok(match mode {
                 None => {
                     if !matches!(self.model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
@@ -436,7 +436,12 @@ impl BatchedEngine {
         telemetry.set_kv(0, total_kv, 0, cap as u64 * opts.max_batch as u64);
 
         let solo_chunk = model.prefill_chunk().max(1);
-        let cfg = opts.scheduler_config(solo_chunk);
+        let mut cfg = opts.scheduler_config(solo_chunk);
+        if recurrent && model.batch_snapshots() == 0 {
+            // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse
+            // candidate (every request starts from an empty slot)
+            cfg.prefix_reuse = false;
+        }
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };

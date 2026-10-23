@@ -64,12 +64,14 @@ fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: 
         max_seq,
         prefill_chunk: chunk,
         profile_every: 0,
-        // room for `rows` KV caches and the recurrent state of every slot next to the 20 GB of weights
-        mem_budget: Some(60 << 30),
+        // the Spark's `free` after the weights is the page-cache-reduced figure (about 2 GB on a shared box): take most of it
+        kv_fraction: 0.95,
         ..Default::default()
     };
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
     assert!(m.batch_capable(), "the cuda backend registers the row-exact kernels");
+    eprintln!("plan before batching: {:?}", m.plan);
+    eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(rows).unwrap();
     // plan resolution dry-runs every batch size at both ends of the context: a batched op that would pick a kernel that is
@@ -165,7 +167,7 @@ fn requests(engine: &dyn Engine, n: usize, max_tokens: usize) -> Vec<GenRequest>
 fn real_35b_batched_engine_equals_the_local_engine() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let mk = |max_batch: Option<usize>| EngineOptions {
-        load: LoadOptions { max_seq: 2048, mem_budget: Some(60 << 30), profile_every: 0, ..Default::default() },
+        load: LoadOptions { max_seq: 2048, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
         max_batch,
         ..Default::default()
     };

@@ -506,6 +506,11 @@ fn prefix_reuse_restores_recurrent_state_from_a_snapshot() {
 }
 
 fn prefix_reuse_case(v: Variant) {
+    if on_cuda() {
+        // the prefix store stays at batch 1: the batched engine never reuses a recurrent slot (checked in `check_engine`:
+        // cached_tokens is 0 with reuse requested)
+        return;
+    }
     let reference = solo(v);
     let base = prompt(900, 40);
     let mut b = base[..33].to_vec();
@@ -542,32 +547,38 @@ fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them()
     if backend().is_none() {
         return;
     }
-    use intarsia_core::state::RECURRENT_SNAPSHOTS as KEEP;
-    for v in VARIANTS {
+        for v in VARIANTS {
         let tel = Arc::new(Telemetry::new());
         let solo = model(v, 1, false, &tel);
         let rec = solo.recurrent_bytes_per_state();
         assert!(rec > 0, "{v:?}: the hybrid has recurrent state");
         let rows = 4;
         let m = model(v, rows, true, &tel);
-        let extra = (rows as u64 - 1) * rec * (1 + KEEP as u64);
+        let keep = m.batch_snapshots();
+        assert_eq!(keep, if on_cuda() { 0 } else { 4 }, "the prefix store stays at batch 1 on cuda");
+        let extra = (rows as u64 - 1) * rec * (1 + keep as u64);
         assert_eq!(m.plan.workspace_bytes, solo.plan.workspace_bytes + extra, "{v:?}: workspace");
         assert!(m.plan.notes.iter().any(|n| n.contains("recurrent state of 4 batched sequences")), "{:?}", m.plan.notes);
         // a slot holds its snapshot buffers from the start ...
         let mut st = m.new_state().unwrap();
-        assert_eq!(st.snap_pool.len(), KEEP, "{v:?}");
-        // ... and a long run of snapshots (more than it keeps) reuses them: pool + snapshots never grow past `KEEP`
+        assert_eq!(st.snap_pool.len(), keep, "{v:?}");
+        // ... and a long run of snapshots (more than it keeps) reuses them: pool + snapshots never grow past `keep`
         let be = backend().unwrap();
-        for i in 0..3 * KEEP {
+        for i in 0..3 * keep.max(1) {
             m.forward(&mut st, &[1 + (i as u32 % 90)], intarsia_core::model::HeadMode::None, None).unwrap();
-            st.snapshot(&*be, KEEP).unwrap();
-            assert_eq!(st.snap_pool.len() + st.snapshots.len(), KEEP, "{v:?}: after snapshot {i}");
-            assert!(st.snapshots.len() <= KEEP);
+            st.snapshot(&*be, keep).unwrap();
+            assert_eq!(st.snap_pool.len() + st.snapshots.len(), keep, "{v:?}: after snapshot {i}");
+            assert!(st.snapshots.len() <= keep);
+        }
+        if keep == 0 {
+            // cuda: no snapshots at all, and the engine never reuses a recurrent slot's prefix
+            assert!(st.snapshots.is_empty() && st.snap_pool.is_empty());
+            continue;
         }
         // truncating below the snapshots returns their buffers to the pool
         let keep_len = st.snapshots[0].len;
         st.truncate(keep_len, &*be).unwrap();
-        assert_eq!(st.snap_pool.len() + st.snapshots.len(), KEEP, "{v:?}: after truncate");
+        assert_eq!(st.snap_pool.len() + st.snapshots.len(), keep, "{v:?}: after truncate");
         // a solo (non-batching) model allocates lazily, as before
         let lazy = solo.new_state().unwrap();
         assert!(lazy.snap_pool.is_empty());
