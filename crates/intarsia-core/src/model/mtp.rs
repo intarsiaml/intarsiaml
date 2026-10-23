@@ -66,7 +66,11 @@ pub(super) fn load_head(
     if spec.kind != "qwen3_5_mtp" {
         return Err(Error::Unsupported(format!("[mtp] kind '{}' (this build has qwen3_5_mtp)", spec.kind)));
     }
-    let a = recipe.layer.attn.as_ref().ok_or_else(|| Error::model("[mtp] needs the recipe's [layer.attn] (the head is an attention layer)"))?;
+    let a = recipe
+        .layer
+        .attn
+        .as_ref()
+        .ok_or_else(|| Error::model("[mtp] needs the recipe's [layer.attn] (the head is an attention layer)"))?;
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
     let mc = dims.moe.as_ref().ok_or_else(|| Error::model("[mtp] needs the model's MoE dimensions"))?;
     let (h, p) = (dims.hidden, spec.prefix.as_str());
@@ -79,7 +83,12 @@ pub(super) fn load_head(
     let fc_name = resolve(src, &format!("{p}.fc"))?;
     let info = src.info(&fc_name).ok_or_else(|| Error::model(format!("tensor '{fc_name}' missing")))?;
     if info.dtype != DType::Bf16 || info.shape != [h, 2 * h] {
-        return Err(Error::model(format!("'{fc_name}' is {} {:?}, expected bf16 [{h}, {}]", info.dtype, info.shape, 2 * h)));
+        return Err(Error::model(format!(
+            "'{fc_name}' is {} {:?}, expected bf16 [{h}, {}]",
+            info.dtype,
+            info.shape,
+            2 * h
+        )));
     }
     let raw = src.bytes(&fc_name)?;
     let (mut e, mut hh) = (Vec::with_capacity(h * h * 2), Vec::with_capacity(h * h * 2));
@@ -91,7 +100,13 @@ pub(super) fn load_head(
     let dense = |bytes: &[u8]| -> Result<QTensor> {
         let buf = crate::backend::upload_new(b, bytes)?;
         add_bytes(bytes.len() as u64);
-        Ok(QTensor { format: BF16, n: h, k: h, parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])], act_quant: false })
+        Ok(QTensor {
+            format: BF16,
+            n: h,
+            k: h,
+            parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])],
+            act_quant: false,
+        })
     };
     let (fc_e, fc_h) = (dense(&e)?, dense(&hh)?);
     drop((e, hh));
@@ -102,8 +117,16 @@ pub(super) fn load_head(
         wk: load_q(&format!("{l}.self_attn.k_proj"), kvdim, h)?,
         wv: load_q(&format!("{l}.self_attn.v_proj"), kvdim, h)?,
         wo: load_q(&format!("{l}.self_attn.o_proj"), h, qdim)?,
-        q_norm: a.q_norm.as_ref().map(|_| load(&format!("{l}.self_attn.q_norm"), Some(&[dims.head_dim]))).transpose()?,
-        k_norm: a.k_norm.as_ref().map(|_| load(&format!("{l}.self_attn.k_norm"), Some(&[dims.head_dim]))).transpose()?,
+        q_norm: a
+            .q_norm
+            .as_ref()
+            .map(|_| load(&format!("{l}.self_attn.q_norm"), Some(&[dims.head_dim])))
+            .transpose()?,
+        k_norm: a
+            .k_norm
+            .as_ref()
+            .map(|_| load(&format!("{l}.self_attn.k_norm"), Some(&[dims.head_dim])))
+            .transpose()?,
         q_bias: None,
         k_bias: None,
         v_bias: None,
@@ -111,7 +134,10 @@ pub(super) fn load_head(
         gated: a.gated,
         rotary_dim: main_attn.rotary_dim,
     };
-    let moe = MoeBlock { pre_norm: load(&format!("{l}.post_attention_layernorm"), Some(&[h]))?, w: load_moe(b, src, &format!("{l}.mlp"), mc, load_q, add_bytes)? };
+    let moe = MoeBlock {
+        pre_norm: load(&format!("{l}.post_attention_layernorm"), Some(&[h]))?,
+        w: load_moe(b, src, &format!("{l}.mlp"), mc, load_q, add_bytes)?,
+    };
     let chain = b.alloc((h * 4).max(16), MemKind::Device)?;
     Ok(MtpHead {
         fc_e,
@@ -231,7 +257,14 @@ impl Model {
     /// states in `hn`): queue their hidden rows for the drafter, and with `catch_up` run the head over every queued row
     /// whose next token is known (all but the newest), so the queue holds one row between steps. A verify pass queues
     /// without catching up: its rejected rows are dropped by the rollback, the accepted ones go through with the next draft.
-    pub(super) fn mtp_after_forward(&self, st: &mut SequenceState, hn: &TensorRef, t: usize, catch_up: bool, profile: bool) -> Result<()> {
+    pub(super) fn mtp_after_forward(
+        &self,
+        st: &mut SequenceState,
+        hn: &TensorRef,
+        t: usize,
+        catch_up: bool,
+        profile: bool,
+    ) -> Result<()> {
         let Some(m) = st.mtp.as_ref() else { return Ok(()) };
         if m.pending_rows + t > m.cap_rows {
             // cannot happen with the sizes `Model::load` gives the queue (a prefill chunk + a verify pass); stay correct
@@ -284,7 +317,14 @@ impl Model {
                 if done == n {
                     tok = if next.is_some() { self.head_argmax(&out, c - 1, profile)? } else { 0 };
                     if next.is_some() && self.recorder.lock().unwrap().is_none() {
-                        self.backend.copy(&head.chain, 0, &out.buf, out.offset + (c - 1) * m.row_bytes, m.row_bytes, 0)?;
+                        self.backend.copy(
+                            &head.chain,
+                            0,
+                            &out.buf,
+                            out.offset + (c - 1) * m.row_bytes,
+                            m.row_bytes,
+                            0,
+                        )?;
                     }
                 }
             }
@@ -292,7 +332,14 @@ impl Model {
             if rest > 0 && self.recorder.lock().unwrap().is_none() {
                 for i in 0..rest {
                     // row by row: source and destination never overlap within one copy
-                    self.backend.copy(&m.pending, i * m.row_bytes, &m.pending.clone(), (n + i) * m.row_bytes, m.row_bytes, 0)?;
+                    self.backend.copy(
+                        &m.pending,
+                        i * m.row_bytes,
+                        &m.pending.clone(),
+                        (n + i) * m.row_bytes,
+                        m.row_bytes,
+                        0,
+                    )?;
                 }
             }
             m.pending_rows = rest;
@@ -306,7 +353,8 @@ impl Model {
     /// over the queued rows (the last of which pairs with `next`), its argmax is draft 1; drafts 2.. chain the head on its
     /// own output. Afterwards the head's cache holds the committed positions only (`kv.len == st.len`, empty queue).
     pub fn mtp_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
-        let head = self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
+        let head =
+            self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
         let m = st.mtp.as_ref().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
         if k == 0 {
             return Ok(Vec::new());
@@ -354,7 +402,10 @@ impl Model {
     pub fn verify_check(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<(f32, u32, u32)>> {
         let len0 = st.len;
         let v = self.dims.vocab;
-        let argmax = |r: &[f32]| r.iter().enumerate().fold((0usize, f32::NEG_INFINITY), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0 as u32;
+        let argmax = |r: &[f32]| {
+            r.iter().enumerate().fold((0usize, f32::NEG_INFINITY), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0
+                as u32
+        };
         st.snapshot(&*self.backend, crate::state::RECURRENT_SNAPSHOTS)?;
         let mut steps = Vec::with_capacity(ids.len());
         for &id in ids {
@@ -409,12 +460,22 @@ impl Model {
 
     /// The head over `t` rows at positions `kv.len ..`: tokens `ids` (the token after each row's position) and the main
     /// model's hidden rows `hid` `[t, H]`. Returns its normed output `[t, H]` (in `ws.n`). Uses the main workspace.
-    fn mtp_layer(&self, head: &MtpHead, kv: &SequenceState, ids: &[u32], hid: &TensorRef, profile: bool) -> Result<TensorRef> {
+    fn mtp_layer(
+        &self,
+        head: &MtpHead,
+        kv: &SequenceState,
+        ids: &[u32],
+        hid: &TensorRef,
+        profile: bool,
+    ) -> Result<TensorRef> {
         let t = ids.len();
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
         if t == 0 || t > ws.max_tokens || kv.len + t > kv.cap {
-            return Err(Error::invalid(format!("MTP pass of {t} rows at {} (cap {}, chunk {})", kv.len, kv.cap, ws.max_tokens)));
+            return Err(Error::invalid(format!(
+                "MTP pass of {t} rows at {} (cap {}, chunk {})",
+                kv.len, kv.cap, ws.max_tokens
+            )));
         }
         if self.recorder.lock().unwrap().is_none() {
             for &i in ids {
@@ -428,7 +489,13 @@ impl Model {
         let v = |b: &Buffer| self.view(b, act, &[t, h]);
         let (h0, h1, n, blk) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.n), v(&ws.blk));
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
-        self.exec(Op::Embedding, vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
+        self.exec(
+            Op::Embedding,
+            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![h0.clone()],
+            OpAttrs::default(),
+            profile,
+        )?;
         self.exec(Op::RmsNorm, vec![h0.clone(), head.norm_e.clone()], vec![n.clone()], eps.clone(), profile)?;
         self.exec(Op::RmsNorm, vec![hid.clone(), head.norm_h.clone()], vec![blk.clone()], eps.clone(), profile)?;
         self.proj(&n, &head.fc_e, &h1, profile)?;
@@ -437,7 +504,13 @@ impl Model {
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
         self.attn_block(&head.attn, kv, &n, &blk, t, kv.len, None, false, profile)?;
-        self.exec(Op::RmsNormAdd, vec![blk.clone(), h0.clone(), head.moe.pre_norm.clone()], vec![n.clone(), h1.clone()], eps.clone(), profile)?;
+        self.exec(
+            Op::RmsNormAdd,
+            vec![blk.clone(), h0.clone(), head.moe.pre_norm.clone()],
+            vec![n.clone(), h1.clone()],
+            eps.clone(),
+            profile,
+        )?;
         let mws = ws.moe.as_ref().ok_or_else(|| Error::invalid("MTP MoE block without the MoE workspace"))?;
         head.moe.w.forward(&ExecRunner { m: self, profile }, mws, &n, &blk)?;
         self.exec(Op::RmsNormAdd, vec![blk, h1, head.norm.clone()], vec![n.clone(), h0], eps, profile)?;

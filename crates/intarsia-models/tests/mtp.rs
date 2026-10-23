@@ -22,7 +22,9 @@ use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::spec::{SpecConfig, SpecMode};
 use intarsia_core::weights::{MemWeights, WeightSource};
-use intarsia_core::{DType, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry};
+use intarsia_core::{
+    DType, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry,
+};
 use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -78,7 +80,11 @@ fn weights(seed: u64) -> MemWeights {
         }
         let info = src.info(&name).unwrap();
         let t = HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap();
-        let renamed = if let Some(rest) = name.strip_prefix("model.") { format!("model.language_model.{rest}") } else { name.clone() };
+        let renamed = if let Some(rest) = name.strip_prefix("model.") {
+            format!("model.language_model.{rest}")
+        } else {
+            name.clone()
+        };
         w.insert(&renamed, t);
     }
     let mut rng = SplitMix64::new(0x7b_35);
@@ -108,7 +114,13 @@ fn weights(seed: u64) -> MemWeights {
     let m = "mtp";
     let l = "mtp.layers.0";
     w.insert(&format!("{m}.fc.weight"), bf16(&mut rng, &[H, 2 * H], 0.15));
-    for n in [format!("{m}.pre_fc_norm_embedding"), format!("{m}.pre_fc_norm_hidden"), format!("{m}.norm"), format!("{l}.input_layernorm"), format!("{l}.post_attention_layernorm")] {
+    for n in [
+        format!("{m}.pre_fc_norm_embedding"),
+        format!("{m}.pre_fc_norm_hidden"),
+        format!("{m}.norm"),
+        format!("{l}.input_layernorm"),
+        format!("{l}.post_attention_layernorm"),
+    ] {
         w.insert(&format!("{n}.weight"), bf16(&mut rng, &[H], 0.2));
     }
     w.insert(&format!("{l}.self_attn.q_proj.weight"), bf16(&mut rng, &[NH * HD * 2, H], 0.15));
@@ -169,7 +181,12 @@ fn load(w: &MemWeights, act: DType, mtp: bool, k: Option<usize>) -> Model {
 
 fn f(w: &MemWeights, name: &str) -> Vec<f64> {
     let info = w.info(name).unwrap_or_else(|| panic!("{name}"));
-    HostTensor::new(info.dtype, info.shape.clone(), w.bytes(name).unwrap().to_vec()).unwrap().to_f32().iter().map(|&x| x as f64).collect()
+    HostTensor::new(info.dtype, info.shape.clone(), w.bytes(name).unwrap().to_vec())
+        .unwrap()
+        .to_f32()
+        .iter()
+        .map(|&x| x as f64)
+        .collect()
 }
 
 /// Zero-centred RMSNorm (`x * rsqrt(mean(x^2) + eps) * (1 + w)`, recipe `norm_offset = 1`).
@@ -218,8 +235,10 @@ fn reference(w: &MemWeights, ids: &[u32], hidden: &[f32], theta: f64, rd: usize)
     let lm = f(w, "lm_head.weight");
     let l = "mtp.layers.0";
     let fc = f(w, "mtp.fc.weight");
-    let (ne_w, nh_w, norm_w) = (f(w, "mtp.pre_fc_norm_embedding.weight"), f(w, "mtp.pre_fc_norm_hidden.weight"), f(w, "mtp.norm.weight"));
-    let (ln1, ln2) = (f(w, &format!("{l}.input_layernorm.weight")), f(w, &format!("{l}.post_attention_layernorm.weight")));
+    let (ne_w, nh_w, norm_w) =
+        (f(w, "mtp.pre_fc_norm_embedding.weight"), f(w, "mtp.pre_fc_norm_hidden.weight"), f(w, "mtp.norm.weight"));
+    let (ln1, ln2) =
+        (f(w, &format!("{l}.input_layernorm.weight")), f(w, &format!("{l}.post_attention_layernorm.weight")));
     let (wq, wk, wv, wo) = (
         f(w, &format!("{l}.self_attn.q_proj.weight")),
         f(w, &format!("{l}.self_attn.k_proj.weight")),
@@ -283,8 +302,9 @@ fn reference(w: &MemWeights, ids: &[u32], hidden: &[f32], theta: f64, rd: usize)
         let mut o = Vec::with_capacity(NH * HD);
         for h in 0..NH {
             let g = h / (NH / NKV);
-            let sc: Vec<f64> =
-                (0..=pos).map(|j| qs[pos][h].iter().zip(&ks[j][g]).map(|(a, b)| a * b).sum::<f64>() / (HD as f64).sqrt()).collect();
+            let sc: Vec<f64> = (0..=pos)
+                .map(|j| qs[pos][h].iter().zip(&ks[j][g]).map(|(a, b)| a * b).sum::<f64>() / (HD as f64).sqrt())
+                .collect();
             let mx = sc.iter().cloned().fold(f64::MIN, f64::max);
             let ex: Vec<f64> = sc.iter().map(|s| (s - mx).exp()).collect();
             let z: f64 = ex.iter().sum();
@@ -378,7 +398,8 @@ fn mtp_is_not_loaded_without_the_flag() {
     let run = |m: &Model| {
         let mut st = m.new_state().unwrap();
         let mut ids = vec![];
-        let mut tok = match m.forward(&mut st, &[3, 9, 27, 81, 50, 7, 7, 1, 60, 2], HeadMode::LastArgmax, None).unwrap() {
+        let mut tok = match m.forward(&mut st, &[3, 9, 27, 81, 50, 7, 7, 1, 60, 2], HeadMode::LastArgmax, None).unwrap()
+        {
             StepOut::Token(t) => t,
             o => panic!("{o:?}"),
         };
@@ -406,7 +427,13 @@ fn engine(w: &MemWeights, k: Option<usize>) -> (LocalEngine, Arc<Telemetry>) {
 fn engine_with(w: &MemWeights, k: Option<usize>, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
-    let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), ..Default::default() };
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: k.is_some(),
+        ..Default::default()
+    };
     let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
     let spec = match k {
         Some(k) => {
@@ -419,8 +446,13 @@ fn engine_with(w: &MemWeights, k: Option<usize>, script: Option<DraftScript>) ->
         }
         None => SpecConfig::default(),
     };
-    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
-        .unwrap();
+    let e = LocalEngine::new(
+        m,
+        Arc::new(ByteCodec),
+        EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() },
+        tel.clone(),
+    )
+    .unwrap();
     (e, tel)
 }
 
@@ -436,7 +468,9 @@ fn run(e: &LocalEngine, req: GenRequest) -> Out {
     let (mut ids, mut done) = (vec![], None);
     e.generate(req, &mut |ev| match ev {
         GenEvent::Token { id, .. } => ids.push(id),
-        GenEvent::Done { finish_reason, completion_tokens, cached_tokens, .. } => done = Some((finish_reason, completion_tokens, cached_tokens)),
+        GenEvent::Done { finish_reason, completion_tokens, cached_tokens, .. } => {
+            done = Some((finish_reason, completion_tokens, cached_tokens))
+        }
         GenEvent::Error { message } => panic!("engine error: {message}"),
     })
     .unwrap();

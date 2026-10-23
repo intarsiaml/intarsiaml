@@ -21,6 +21,26 @@ for i in "${!PROMPTS[@]}"; do
     echo "p$i $arm exit $? $(grep -E 'spec:|decode' "$OUT/p$i-$arm.err" | tr '\n' ' ' | cut -c1-300)"
   done
 done
+# verify rows vs single-row decode steps from the same state (INTARSIA_MTP_VERIFY_CHECK): logit differences, argmax agreement
+if [[ ${CHECK:-1} == 1 ]]; then
+  for i in "${!PROMPTS[@]}"; do
+    INTARSIA_MTP_VERIFY_CHECK=1 "$BIN" generate --backend cuda --model "$M" --chat --no-think -p "${PROMPTS[$i]}" --max-tokens 128 \
+      --ignore-eos --max-seq 8192 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 3 > /dev/null 2> "$OUT/check-p$i.err" < /dev/null
+  done
+  python3 - "$OUT" <<'PY'
+import sys, glob, re
+rows = {}
+for f in sorted(glob.glob(f'{sys.argv[1]}/check-p*.err')):
+    for l in open(f):
+        if l.startswith('spec-check: rows'):
+            for r, cell in enumerate(l.split()[3:]):
+                d, ok = cell.split(':')
+                rows.setdefault(r, []).append((float(d), ok == '1'))
+for r in sorted(rows):
+    v = rows[r]; ds = sorted(d for d, _ in v)
+    print(f"verify row {r}: n {len(v)}, bitwise {sum(d == 0 for d in ds)}, max|dlogit| median {ds[len(ds)//2]:.3e} max {ds[-1]:.3e}, argmax differs {sum(not o for _, o in v)}")
+PY
+fi
 # identity: first differing position of each mtp arm against off
 python3 - "$OUT" <<'PY'
 import sys, glob, re, os, json
