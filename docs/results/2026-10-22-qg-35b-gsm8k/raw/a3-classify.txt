@@ -1,0 +1,60 @@
+## /opt/code/wt-qg/docs/results/2026-10-22-qg-35b-gsm8k/raw/a3-intarsia-full.jsonl  n=1319  strict=0.2403  flexible=0.6831
+  fmt-extraction             583  44.2%
+  wrong-answer (direct)      394  29.9%
+  ok-strict                  317  24.0%
+  wrong-answer (cot)          19   1.4%
+  truncated                    6   0.5%
+  replies with >20 completion tokens (worked solution): 603  | with <=20 (bare number): 716
+  flexible acc on bare-number replies 322/716; on worked-solution replies 579/603
+  | q | gold | ct | finish | bucket | reply tail |
+  |---:|---:|---:|---|---|---|
+  | 4 | 20 | 134 | stop | fmt-extraction | `needed for the final meal = 60 - 40 = 20 cups.  20` |
+  | 72 | 221 | 65 | stop | fmt-extraction | `= $92. Total money raised: $129 + $92 = $221.  221` |
+  | 87 | 9360 | 342 | stop | fmt-extraction | `ual salary = $780 * 12 = $9,360.  **Answer**: 9360` |
+  | 199 | 7500 | 287 | stop | fmt-extraction | `gs = $2500 + 5000 = 7500$ cents.  **Answer**: 7500` |
+  | 253 | 18 | 85 | stop | fmt-extraction | ` = 12 + 6 = 18. So, Bill is on the 18th floor.  18` |
+  | 281 | 2450 | 238 | stop | fmt-extraction | `combined. Half of 4900 is $4900 / 2 = 2450$.  2450` |
+  | 287 | 8 | 153 | stop | fmt-extraction | ` 5 to find the number of rows: 40 / 5 = 8 rows.  8` |
+  | 328 | 2 | 2 | stop | wrong-answer (direct) | `1` |
+  | 336 | 72 | 110 | stop | fmt-extraction | `al value is 96 * (1 - 0.25) = 96 * 0.75 = $72.  72` |
+  | 343 | 180000 | 140 | stop | fmt-extraction | ` \times 30 \text{ days} = 180,000$ meters.  180000` |
+  | 402 | 4 | 125 | stop | fmt-extraction | ` bottles.  Difference in quantity: $6 - 2 = 4$.  4` |
+  | 486 | 6 | 72 | stop | fmt-extraction | `r, the total time he runs is 60 / 10 = 6 hours.  6` |
+  | 748 | 336 | 4 | stop | wrong-answer (direct) | `112` |
+  | 790 | 108 | 773 | stop | fmt-extraction | `otal seashells = $54 \times 2 = 108$.  Answer: 108` |
+  | 923 | 2 | 2 | stop | wrong-answer (direct) | `4` |
+  | 963 | 147 | 532 | stop | fmt-extraction | `es the total given.  Stan caught 147 Pokemon.  147` |
+  | 1115 | 5 | 2 | stop | wrong-answer (direct) | `4` |
+  | 1118 | 5 | 245 | stop | fmt-extraction | `emale fishes - Total male fishes = 16 - 11 = 5.  5` |
+  | 1153 | 20 | 90 | stop | fmt-extraction | `eople, each person gets 60 / 3 = 20 seashells.  20` |
+  | 1272 | 296 | 4 | stop | wrong-answer (direct) | `392` |
+## /opt/code/wt-qg/docs/results/2026-10-22-qg-35b-gsm8k/raw/a3-vllm-full.jsonl  n=1319  strict=0.2828  flexible=0.5792
+  wrong-answer (direct)      540  40.9%
+  fmt-extraction             391  29.6%
+  ok-strict                  373  28.3%
+  wrong-answer (cot)          11   0.8%
+  truncated                    4   0.3%
+  replies with >20 completion tokens (worked solution): 400  | with <=20 (bare number): 919
+  flexible acc on bare-number replies 379/919; on worked-solution replies 385/400
+  | q | gold | ct | finish | bucket | reply tail |
+  |---:|---:|---:|---|---|---|
+  | 6 | 260 | 91 | stop | fmt-extraction | `ogether, they have 20 + 80 + 160 = 260 sheep.  260` |
+  | 77 | 100 | 4 | stop | wrong-answer (direct) | `300` |
+  | 94 | 348 | 4 | stop | wrong-answer (direct) | `204` |
+  | 207 | 2600 | 5 | stop | wrong-answer (direct) | `2400` |
+  | 264 | 400 | 93 | stop | fmt-extraction | `$100 + Samantha's $125 + Daisy's $175 = $400.  400` |
+  | 291 | 2 | 82 | stop | fmt-extraction | `er child = 16 bars / 8 children = 2 bars/child.  2` |
+  | 299 | 31800 | 6 | stop | wrong-answer (direct) | `12000` |
+  | 349 | 2640 | 108 | stop | fmt-extraction | `ending: $220/month * 12 months/year = $2640.  2640` |
+  | 355 | 34 | 72 | stop | fmt-extraction | `s twice the combined height: 17 * 2 = 34 feet.  34` |
+  | 362 | 23 | 193 | stop | fmt-extraction | `g needed. Total stuffing = 8 + 15 = 23 pounds.  23` |
+  | 423 | 8 | 3 | stop | wrong-answer (direct) | `12` |
+  | 453 | 6400 | 134 | stop | fmt-extraction | `value of her jewels is $4000 + 2400 = 6400$.  6400` |
+  | 522 | 29 | 121 | stop | fmt-extraction | `they pick 6 + 5 + 10 + 8 = 29 quarts per hour.  29` |
+  | 791 | 100 | 21 | stop | fmt-extraction | `172 - 47 + 13 - 38 = 100` |
+  | 829 | 14,000 | 193 | stop | fmt-extraction | `three weeks: 50,000 - 36,000 = 14,000 bars.  14000` |
+  | 969 | 1800 | 203 | stop | fmt-extraction | `he remaining 2 phones: $1200 + $600 = $1800.  1800` |
+  | 1011 | 6000 | 363 | stop | fmt-extraction | `er needed = 18,000 - 12,000 = 6,000 gallons.  6000` |
+  | 1169 | 2 | 2 | stop | wrong-answer (direct) | `1` |
+  | 1173 | 10 | 3 | stop | wrong-answer (direct) | `12` |
+  | 1215 | 36 | 4 | stop | wrong-answer (direct) | `100` |
