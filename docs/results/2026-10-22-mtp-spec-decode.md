@@ -143,6 +143,27 @@ Raw: `2026-10-22-mtp-spec-decode/raw/identity-nonexcl/`. Script: `scripts/identi
 This is evidence, not proof, that the verify path's argmax matches the decode path on CUDA. 3.1 measures the row logits
 directly. Acceptance is per draft token; tokens per pass = 1 + accepted / passes.
 
+### 3.0b Identity re-run after the driver upgrade (shared slot)
+
+fleetq #4349, commit 8e1fa857, CUDA build 56239424 bytes, GB10 on driver 580.178.04 / kernel 6.17.0-1032. Same script
+and prompts as 3.0. All 12 MTP runs are token-identical to `--spec off` over 256 greedy tokens.
+Raw: `raw/identity/`.
+
+| prompt | off tok/s | k=1 tok/s (acc.) | k=2 tok/s (acc.) | k=3 tok/s (acc.) |
+|---|---|---|---|---|
+| p0 code | 85.8 | 100.5 (96.2%) | 115.1 (92.7%) | 117.5 (85.1%) |
+| p1 prose | 86.1 | 92.5 (81.4%) | 96.2 (70.1%) | 85.7 (53.6%) |
+| p2 list | 86.0 | 96.2 (88.9%) | 101.4 (76.6%) | 96.1 (62.6%) |
+| p3 arithmetic | 85.0 | 100.4 (97.7%) | 112.9 (91.1%) | 121.7 (90.7%) |
+
+Acceptance rates are identical to 3.0 to the decimal. Drafts and verify argmaxes did not change with the driver.
+
+**spark1 crashed during this job.** The first `INTARSIA_MTP_VERIFY_CHECK` run started at 22:59:13, and its stderr stayed
+empty. The box then rebooted without a clean shutdown and was back up at 23:01:52. The journal of that boot ends at
+22:49:14, so its last ten minutes were never flushed. spark1 went down without a shutdown twice more: the next boot's
+journal ends at 23:07:32 (back up 23:23:31), and the one after at 23:38:24 (back up 23:45:11). None of my jobs had a
+process on the box at those times. The cause is not established: the new driver, the diagnostic run, or both.
+
 ### 3.1 Verify rows vs single-row decode (pending, `INTARSIA_MTP_VERIFY_CHECK`)
 
 ### 3.2 Exclusive localeval window: decode tok/s at 128 / 1k / 4k, k sweep (pending)
