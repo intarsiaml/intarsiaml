@@ -33,6 +33,8 @@ mod gdn_block;
 mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
+pub(crate) mod mtp;
+pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
@@ -69,6 +71,13 @@ pub struct LoadOptions {
     /// out, `=1` asks for it anywhere); the library default is off. Measured bitwise to unfused on the 35B tp=2 gates
     /// (docs/results/2026-10-21-tp2-cuda-graphs.md, docs/results/2026-10-21-h1-tp2-hip.md).
     pub tp_fusion: bool,
+    /// Load the checkpoint's multi-token-prediction head (recipe `[mtp]`) as the `--spec mtp` drafter. Off: nothing under
+    /// the head's prefix is read and the model is exactly the one without it.
+    pub mtp: bool,
+    /// Most drafts per verify pass the MTP drafter is sized for (`--spec-k`): the per-row recurrent state buffers of a
+    /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
+    /// largest k ([`crate::spec::SPEC_K_MAX`]).
+    pub mtp_k: usize,
 }
 
 impl Default for LoadOptions {
@@ -85,6 +94,8 @@ impl Default for LoadOptions {
             mxfp4_act: None,
             graphs: true,
             tp_fusion: false,
+            mtp: false,
+            mtp_k: 0,
         }
     }
 }
@@ -300,6 +311,10 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
+    mtp: Option<mtp::MtpHead>,
+    /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
+    mtp_k: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -785,6 +800,35 @@ impl Model {
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
         let mt = chunk + tail_merge;
         let esz = act.size_bytes();
+        // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
+        let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
+        let mtp_head = if opts.mtp {
+            let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
+            if tp.world > 1 {
+                return Err(Error::Unsupported("--spec mtp under tensor parallelism".into()));
+            }
+            let main_attn = layers.iter().flatten().find_map(|b| match b {
+                Block::Attn(a) => Some(a),
+                _ => None,
+            });
+            let t0 = Instant::now();
+            let head = mtp::load_head(
+                spec,
+                b,
+                src,
+                dims,
+                recipe,
+                main_attn,
+                &|name, shape| load(name, 0, shape),
+                &|name, n, k| load_q(name, 0, n, k),
+                &|n| weights_bytes.set(weights_bytes.get() + n),
+                mt + Self::VERIFY_MAX_ROWS + 1,
+            )?;
+            eprintln!("mtp: drafter head '{}' loaded in {:.1} s (routed experts quantised to nvfp4)", spec.prefix, t0.elapsed().as_secs_f64());
+            Some(head)
+        } else {
+            None
+        };
         let mut ws_bytes = 0u64;
         let mut wb = |bytes: usize| -> Result<Buffer> {
             ws_bytes += bytes as u64;
@@ -838,6 +882,11 @@ impl Model {
             .sum();
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+        if mtp_head.is_some() {
+            // per-row recurrent states of a verify pass (up to SPEC_K_MAX saved rows) and the drafter's hidden-row queue
+            ws_bytes += rec_bytes * mtp_k as u64;
+            ws_bytes += ((mt + Self::VERIFY_MAX_ROWS + 1) * dims.hidden * esz) as u64;
+        }
 
         let kv_per_tok: u64 = slot_specs
             .iter()
@@ -847,7 +896,9 @@ impl Model {
                 }
                 _ => 0,
             })
-            .sum();
+            .sum::<u64>()
+            // the drafter head's own attention cache
+            + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 };
         let plan = MemoryPlan::compute_budgeted(
             &b.info(),
             weights_bytes.get(),
@@ -904,6 +955,8 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
+            mtp: mtp_head,
+            mtp_k,
         };
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
@@ -956,6 +1009,8 @@ impl Model {
                 return self.batch_probe(t, pos0);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
+            // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
+            self.mtp_dry_run(t, pos0)?;
             if verify {
                 return self.verify_head(&hn, t, false);
             }
@@ -1018,17 +1073,45 @@ impl Model {
             return Err(Error::invalid(format!("forward_verify of {q} rows (enabled for 2..={})", self.verify_rows)));
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        // recurrent slots (GatedDeltaNet): the delta rule runs row by row and the state after every row but the last is
+        // kept (`SpecRows`), so the caller can roll back to any accepted length (`SequenceState::spec_rollback`)
+        let recurrent = st.has_recurrent();
+        if recurrent {
+            let need = st.recurrent_bytes();
+            st.spec_rows.saved = 0;
+            st.spec_rows.base = st.len;
+            st.spec_rows.bufs.retain(|b| b.bytes() >= need);
+            while st.spec_rows.bufs.len() < q - 1 {
+                let b = self.backend.alloc(need.max(16), MemKind::Device)?;
+                st.spec_rows.bufs.push(b);
+            }
+        }
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        let run = (|| -> Result<()> {
+        let run = (|| -> Result<TensorRef> {
             let hn = self.run_chunk(st, ids, profile)?;
-            self.verify_head(&hn, q, profile)
+            self.verify_head(&hn, q, profile)?;
+            Ok(hn)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-        run?;
+        let hn = match run {
+            Ok(hn) => hn,
+            Err(e) => {
+                if recurrent {
+                    // the recurrent slots were updated in place part-way: they match no token prefix
+                    let _ = st.reset(&*self.backend);
+                }
+                return Err(e);
+            }
+        };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, 0)?;
         st.commit(ids);
+        if recurrent {
+            st.spec_rows.saved = q - 1;
+        }
         self.telemetry.step();
+        // the drafter queues every row; the caller's rollback drops the rejected ones
+        self.mtp_after_forward(st, &hn, q, false, profile)?;
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
@@ -1083,6 +1166,14 @@ impl Model {
     /// Allocate a fresh sequence state with the planned KV capacity.
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
+        st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
+        if st.mtp.is_some() && st.has_recurrent() {
+            // allocated once here (and reserved in the memory plan), not in the first verify pass
+            let need = st.recurrent_bytes().max(16);
+            for _ in 0..self.mtp_k {
+                st.spec_rows.bufs.push(self.backend.alloc(need, MemKind::Device)?);
+            }
+        }
         for p in &self.peers {
             st.peers.push(PeerState {
                 backend: p.backend.clone(),
@@ -1427,11 +1518,18 @@ impl Model {
         mut on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
+        // a plain pass ends the window in which the last verify pass's rows could be rolled back to
+        st.spec_rows.saved = 0;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
         if self.decode_graph_now(st, ids, mode) {
             if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
                 st.commit(ids);
                 self.telemetry.step();
+                if st.mtp.is_some() {
+                    // the captured step leaves its normed hidden row in ws.n, as the eager pass does
+                    let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
+                    self.mtp_after_forward(st, &hn, 1, true, false)?;
+                }
                 return Ok(out);
             }
         }
@@ -1474,6 +1572,9 @@ impl Model {
             }
             st.commit(chunk);
             self.telemetry.step();
+            if st.mtp.is_some() {
+                self.mtp_after_forward(st, &hn, chunk.len(), true, profile)?;
+            }
         }
         Ok(out)
     }

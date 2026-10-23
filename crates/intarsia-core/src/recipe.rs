@@ -26,6 +26,21 @@ pub struct Recipe {
     /// What `intarsia accuracy` needs to know about the model (`[accuracy]`): no effect on loading or serving.
     #[serde(default)]
     pub accuracy: AccuracySpec,
+    /// The checkpoint's multi-token-prediction head (`[mtp]`), loaded only for `--spec mtp`: no effect otherwise.
+    #[serde(default)]
+    pub mtp: Option<MtpSpec>,
+}
+
+/// `[mtp]` table of a recipe: where the checkpoint's MTP head lives (`--spec mtp`, `crate::model::mtp`).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MtpSpec {
+    /// `qwen3_5_mtp`: `fc` over `[norm(embed(token)) | norm(hidden)]`, one gated full-attention + MoE decoder layer,
+    /// a final norm, then the model's own `lm_head` (vLLM `Qwen3NextMultiTokenPredictor`).
+    pub kind: String,
+    /// Tensor-name prefix: `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`,
+    /// `{prefix}.layers.0.{input_layernorm, self_attn.*, post_attention_layernorm, mlp.*}`.
+    pub prefix: String,
 }
 
 /// `[accuracy]` table of a recipe, read only by `intarsia accuracy`.
