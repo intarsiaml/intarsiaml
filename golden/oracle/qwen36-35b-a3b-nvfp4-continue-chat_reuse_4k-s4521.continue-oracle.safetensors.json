@@ -1,0 +1,22 @@
+{
+  "file": "qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors",
+  "sha256": "cb8f9cad3fe3a341d9c5688055720018ec7780f4f33d73637baa2267545ea515",
+  "bytes": 17616,
+  "built_by": "scripts/fx5c/make_continue_oracle.py",
+  "inputs": {
+    "seq": "seq.json",
+    "oracle_dump": "oracle.dump.safetensors",
+    "golden": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors"
+  },
+  "format": "intarsia-continue-oracle-v1",
+  "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+  "prompt": "chat_reuse_4k",
+  "split": "4521",
+  "prompt_ids_fingerprint": "9c72eae410d3c339",
+  "prefill_chunk_when_frozen": "2048",
+  "row0": "4646",
+  "oracle": "intarsia accuracy --backend cpu (f64 CPU oracle, fx1 recipe: prefill chunk 256, top-64), one prefill over turn2 + stream",
+  "oracle_machine": "spark1 (NVIDIA GB10 host, aarch64 Linux CPU)",
+  "oracle_code": "see oracle log",
+  "run": "fleetq #4704, 2026-10-23, lane lt; sequence from CUDA GB10 cold engine (default path, main 240e9d2a), chunk 2048 (fleetq #4700)"
+}
