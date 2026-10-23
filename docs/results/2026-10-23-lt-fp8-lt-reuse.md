@@ -6,8 +6,10 @@ Raw logs: `2026-10-23-lt-fp8-lt-reuse/raw/`. **Measurement only. No engine code 
 
 ## Verdict
 
-**Hypothesis (d) holds. The lt GEMM has no M, chunk or reuse dependence. Both failing gates detect a change of rounding, and
-another accumulation order that is not lt trips them in the same way.** Evidence:
+**The gates fail any change of e4m3 accumulation, lt included.** The lt GEMM has no M, chunk or reuse dependence. Another
+accumulation order that is not lt (f8) trips both gates in the same way. lt (like f8) does move warm-vs-cold drift above the
+default's (point 3), so (d) holds only in its gate form. Whether that extra drift moves away from the truth can be measured
+only against an oracle, and on the one oracle-scored prompt it does not. Evidence:
 
 1. **The same `continue` row fails without lt.** `INTARSIA_CUDA_FP8_GEMM_F8=1` is the repo's own e4m3 mma.sync GEMM: a third
    accumulation order, not cuBLASLt. It fails `chat_reuse_4k` `continue` at chunk 1024 (5/32, cold margin 0.073) by the same
@@ -19,15 +21,20 @@ another accumulation order that is not lt trips them in the same way.** Evidence
    (`nu_max`, REUSE-MEASURE) is 1.08 to 6.49 nats on all 8 non-oracle prompt x chunk cells, against the fixed 0.25. lt
    ranges from 0.64 to 7.43 and f8 from 0.96 to 3.46: the same spread. Which arm fails is decided by whether a near-tie lands
    in the 16-token window. Failing cold margins: 0.067 and 0.281 (lt), 0.008 (lt, `long_code_4k`), 0.073 (f8).
-3. **Teacher-forced warm-vs-cold KL is the same distribution for all three arms** (same context, 32 rows, table below).
-   Means range 1.6e-3 to 4.5e-2 for every arm, with no consistent ordering.
+3. **lt's teacher-forced warm-vs-cold KL cannot be told from f8's, and both sit above the default's** (same context, 32
+   rows, table below). lt is above the default in 9 of 10 prompt x chunk cells (largest gaps: `long_docs_12k` at 1024,
+   4.1e-2 against 3.7e-3; `long_code_4k` at 2048, 1.2e-2 against 4.0e-3). f8 is above the default in 6 of 10, and lt is
+   above f8 in 5 of 10. The decode-written-KV component is the same: lt is above the default in 8 of 10 cells. One reason the
+   default sits lowest may be that its prefill GEMM and decode GEMV share an accumulation chain. This is a hypothesis and was
+   not tested. On `long_docs_4k`, the only prompt with a committed f64 CPU oracle, lt's warm run is no further from the oracle
+   than its cold run (0.79x to 0.92x).
 4. **(a) is ruled out at GEMM level and (b) within a run.** One pinned algorithm per (N, K) gives bit-identical rows for M = 4096
    against slices of 5, 15, 111, 425, 551 and 2048 rows, on all four 35B shapes. The new test is
    `matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes`. The shapes are those the `INTARSIA_LT_DEBUG` plan lines
    show: N x K = 8192x2048 (algo 67 tile 467), 4096x2048 (algo 35 tile 20), 2048x4096 (algo 67 tile 465) and 512x2048 (algo
    67 tile 32). Warm runs repeated within one process are bitwise identical, and so are cold runs (raw/d1, raw/s1, raw/s2).
-5. **(c) is ruled out.** `restore` and `aligned` are bit-identical with lt in every run. The decode-written-KV component
-   ("warm vs warm with prefilled reply") is the same size as the default's: 3.9e-3 against 4.3e-3 on `chat_reuse_4k`.
+5. **(c) is ruled out.** `restore` and `aligned` are bit-identical with lt in every run, and warm and cold reruns are bitwise
+   identical, so neither prefix restore nor offsets interact with lt's workspace or scales.
 6. **`acc-short`'s baseline gate fails for any accumulation change.** The baseline is main's own run: mean KL 5.870e-3, limit
    x1.15 = 6.750e-3. lt gives 6.825e-3, and `INTARSIA_LT_FAST_ACCUM=1` changes nothing on sm_121 (every reported KL identical to lt's). f8
    gives **7.806e-3**: it fails by more than lt. The move (+0.96e-3) is below vLLM's own run-to-run KL on this golden
@@ -51,7 +58,7 @@ other prompts. That would overfit the gate, so it was not done.
 | `acc-short` absolute floor | PASS | PASS | PASS | raw/as2 |
 | KL goldens short / long / 4k (floor 3e-2) | 4.67e-3 / 1.49e-2 / 1.22e-2 | 5.41e-3 / 1.42e-2 / 1.21e-2 | not run | #122 |
 | lt GEMM tests (accuracy, row invariance x2) | n/a | 3/3 pass | n/a | raw/gputests-kernels-quick.txt |
-| `kernels test --quick` | 0 FAIL | 0 FAIL | not run | raw/gputests-kernels-quick.txt |
+| `kernels test --quick` | 0 FAIL (77 admitted) | 0 FAIL (76 admitted; `matmul_fp8_pair_gemm_reg` off with lt, 0 cases) | not run | raw/gputests-kernels-quick.txt |
 
 ## Teacher-forced warm vs cold, same context (`--reuse-diag --reuse-measure`)
 
@@ -82,6 +89,12 @@ No engine code changed, so #122's same-window localeval (window w1, spark2, 2026
 No new window was run. Prefill tok/s against vLLM: default -16.5 % / -9.6 % / -14.0 % (1k / 4k / 16k); lt chunk 2048
 -9.5 % / +1.8 % / -3.8 %; lt chunk 8192 -9.2 % / **+8.6 %** / **+6.4 %**. Decode is unchanged.
 
+## Build used
+
+The measurements ran on `main` 240e9d2a. The PR base also has #120 (HIP hybrid batching). Its core changes (`fusion.rs`,
+`model.rs`, `model/batch.rs`) affect only batched steps (`batch_rows >= 2`) through the HIP fusion table. None of them runs
+on a CUDA single-stream reuse run, so the results stand on the PR base.
+
 ## No-op
 
 This PR changes no engine code: one GPU test, `scripts/lt/`, this document and LOG rows. Every binary path is identical to
@@ -92,9 +105,10 @@ main, so batching-off and lt-off output is trivially main's.
 1. **Reuse `continue` judge.** The fixed 0.25-nat stream rule fails any change of rounding on `chat_reuse_4k` (lt; f8 at 1024)
    and `long_code_4k` (lt at 2048). The default passes because its near-ties fall outside the 16-token window, while its own
    shared rows already differ by 1.1 to 6.5 nats. Options:
-   - (A) Commit f64 CPU `continue` oracles for `chat_reuse_4k` (split 4521) and `long_code_4k` (splits 2000, 3072), so these
+   - (A), the deciding experiment: commit f64 CPU `continue` oracles for `chat_reuse_4k` (split 4521) and `long_code_4k` (splits 2000, 3072), so these
      rows are judged by the existing oracle-relative rule (1.5x + 3e-3), as `long_docs_4k` already is. CPU cost on spark1:
-     about 38 GB RSS per oracle (fx5c).
+     about 38 GB RSS per oracle (fx5c). This is the only measurement that settles whether lt's extra warm/cold drift (point 3)
+     is error or noise.
    - (B) Waive the rule for lt.
    - (C) Keep lt opt-in.
    
