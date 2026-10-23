@@ -1,0 +1,17 @@
+ layer is used by the reference CPU kernels (they link against the same header).
+
+A **kernel pack** is a directory tree under `kernels/` with a `pack.toml` manifest (name, version, license, supported archs, kernel list, autotune DB path). Packs are versioned and shipped as tarballs; the server loads them at startup. The first packs are:
+
+- **TensorFold** (MIT): CUDA kernels for GB10 (sm_121) and sm_90/100/120.
+- **Radiance** (Apache-2.0): HIP kernels for R9700 (gfx1201) and RDNA 4.
+
+### 3.4 Block library (the model is a recipe)
+
+A model is a **recipe** (TOML) that maps each layer index to a block pattern (a list of ops). The engine walks the recipe, builds an op graph, and the plan compiler selects kernels from the registry.
+
+```toml
+[architecture]
+model_type = "Qwen3_5_MoE"
+hidden_size = 4096
+num_hidden_layers = 30
+

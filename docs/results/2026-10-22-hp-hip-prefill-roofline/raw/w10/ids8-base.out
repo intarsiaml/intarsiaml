@@ -1,0 +1,11 @@
+ are generated from the same header. The ABI is shared with TensorFold and radiance, and is the only C ABI in the codebase.
+
+### 3.4 Quant formats
+
+Quant formats are **not** a kernel trait. They are a **kernel argument**. The `ik_quant` struct is the same for all backends. Quant formats are:
+
+- **BF16**: `dtype = 0`, `scales = NULL`, `zeros = NULL`, `group = 1`, `format = 0` (no quant).
+- **FP8E4m3**: `dtype = 1`, `scales = NULL`, `zeros = NULL`, `group = 1`, `format = 1` (no quant).
+- **NVFP4**: `dtype = 2`, `scales = NULL`, `zeros = NULL`, `group = 1`, `format = 2` (no quant).
+- **MXFP4**: `dtype = 3`, `scales = NULL`, `zeros = NULL`, `group = 1`, `format = 3` (no quant).
+- **GGUF k-quants**: `dtype = 4`, `scales = NULL`, `zeros = NULL
