@@ -25,7 +25,7 @@
 
 use crate::common::ModelArgs;
 use anyhow::{anyhow, bail, Context, Result};
-use intarsia_core::engine::{Engine, GenEvent, GenRequest, ScriptStep};
+use intarsia_core::engine::{ChatOpts, Engine, GenEvent, GenRequest, ScriptStep};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -265,9 +265,14 @@ pub struct AccuracyArgs {
     /// from (docs/accuracy.md). Costs two more generations per case; changes no verdict.
     #[arg(long)]
     pub reuse_measure: bool,
-    /// Quick gate: maximum perplexity on the fixed text.
-    #[arg(long, default_value_t = 40.0)]
-    pub max_ppl: f64,
+    /// Quick gate: maximum perplexity on the fixed text. Default: the recipe's `[accuracy] max_ppl`, else 40.
+    #[arg(long)]
+    pub max_ppl: Option<f64>,
+    /// Quick gate: form of the perplexity text and of the sanity prompts, `raw` or `chat` (the fixed conversation
+    /// `tools/prompts/ppl_chat.json` through the model's chat template, assistant tokens only). Default: the recipe's
+    /// `[accuracy] ppl_form`, else `raw`.
+    #[arg(long)]
+    pub ppl_form: Option<String>,
     /// Quick gate: perplexity text file (default: built-in tools/prompts/ppl.txt).
     #[arg(long)]
     pub ppl_file: Option<PathBuf>,
@@ -3157,42 +3162,141 @@ fn max_4gram_repeat(ids: &[u32]) -> usize {
     counts.values().copied().max().unwrap_or(0)
 }
 
-fn quick_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
-    let text = match &args.ppl_file {
-        Some(p) => std::fs::read_to_string(p).with_context(|| p.display().to_string())?,
-        None => PPL_TEXT.to_string(),
-    };
-    let mut ids = engine.tokenize(&text, true).map_err(|e| anyhow!("{e}"))?;
-    ids.truncate(engine.info().context_len.min(2048));
-    if ids.len() < 2 {
-        bail!("perplexity text is too short");
+/// The fixed conversation of the chat-form perplexity (`[accuracy] ppl_form = "chat"`).
+const PPL_CHAT: &str = include_str!("../../../../tools/prompts/ppl_chat.json");
+
+/// The largest perplexity of the quick gate when neither `--max-ppl` nor the recipe's `max_ppl` says otherwise.
+const DEFAULT_MAX_PPL: f64 = 40.0;
+
+/// One forward of the chat perplexity: the token ids of a prompt plus one assistant turn, and the index of the first
+/// token of the turn (the tokens from there on are the ones scored).
+#[derive(Debug, PartialEq, Eq)]
+struct ChatSeq {
+    ids: Vec<u32>,
+    first: usize,
+}
+
+/// The sequences of the chat-form perplexity: for every assistant message `i` of `messages`, the serving form of that
+/// turn, the prompt the model is given (`messages[..i]` rendered with the model's own chat template and its generation
+/// prompt) followed by the tokens the template renders for the turn itself (its content and its turn-close token).
+/// `render(prefix, add_generation_prompt)` renders a message list to ids. No turn format is hard-coded: the turn is what
+/// the template adds to `messages[..i]` to make `messages[..=i]`, starting where the generation prompt and that rendering
+/// stop agreeing. (Gemma-4's generation prompt ends in an empty thought channel that its rendering of a finished turn
+/// omits; the model is scored on the answer that follows the prompt it is served with, not on the history form.) A
+/// rendering that does not extend the shared prefix by at least one token, or that shares almost none of the prompt, is
+/// an error, never a guess.
+fn chat_ppl_seqs(render: &dyn Fn(&[Value], bool) -> Result<Vec<u32>>, messages: &[Value]) -> Result<Vec<ChatSeq>> {
+    let mut out = vec![];
+    for (i, m) in messages.iter().enumerate() {
+        if m["role"] != "assistant" {
+            continue;
+        }
+        let prompt = render(&messages[..i], true)?;
+        let done = render(&messages[..=i], false)?;
+        let shared = prompt.iter().zip(&done).take_while(|(a, b)| a == b).count();
+        if shared == 0 || shared >= done.len() || shared + 8 < prompt.len() {
+            bail!(
+                "chat template: the generation prompt of assistant turn {i} ({} tokens) and the rendered turn ({} tokens) share {shared} tokens: cannot tell where the turn starts",
+                prompt.len(),
+                done.len()
+            );
+        }
+        let first = prompt.len();
+        let mut ids = prompt;
+        ids.extend_from_slice(&done[shared..]);
+        out.push(ChatSeq { ids, first });
     }
+    if out.is_empty() {
+        bail!("the chat perplexity conversation has no assistant turn");
+    }
+    Ok(out)
+}
+
+/// Token ids of a chat conversation through the engine's chat template (the rendered text carries its own BOS).
+fn engine_chat_ids(engine: &dyn Engine, messages: &[Value], add_generation_prompt: bool) -> Result<Vec<u32>> {
+    let opts = ChatOpts { add_generation_prompt, ..Default::default() };
+    let text = engine.apply_chat_template(messages, &opts).map_err(|e| anyhow!("{e}"))?;
+    engine.tokenize(&text, false).map_err(|e| anyhow!("{e}"))
+}
+
+fn quick_gate(engine: &dyn Engine, args: &AccuracyArgs) -> Result<bool> {
+    let recipe = load_recipe(args);
+    let form = match args.ppl_form.as_deref().map(str::trim) {
+        Some("raw") => intarsia_core::recipe::PplForm::Raw,
+        Some("chat") => intarsia_core::recipe::PplForm::Chat,
+        Some(o) => bail!("--ppl-form {o}: expected raw or chat"),
+        None => recipe.as_ref().map_or(Ok(intarsia_core::recipe::PplForm::Raw), |r| r.accuracy.ppl_form()).map_err(|e| anyhow!("{e}"))?,
+    };
+    let chat = form == intarsia_core::recipe::PplForm::Chat;
+    let (max_ppl, max_src) = match (args.max_ppl, recipe.as_ref().and_then(|r| r.accuracy.max_ppl)) {
+        (Some(m), _) => (m, "--max-ppl"),
+        (None, Some(m)) => (m, "recipe [accuracy] max_ppl"),
+        (None, None) => (DEFAULT_MAX_PPL, "default"),
+    };
+    // sequences to run: (ids, index of the first scored token); a raw text is one sequence scored after its first token
+    let seqs: Vec<ChatSeq> = if chat {
+        if args.ppl_file.is_some() {
+            bail!("--ppl-file is a raw text file; it cannot be combined with the chat form (--ppl-form chat / recipe ppl_form)");
+        }
+        let messages: Vec<Value> = serde_json::from_str(PPL_CHAT).context("tools/prompts/ppl_chat.json")?;
+        chat_ppl_seqs(&|m, g| engine_chat_ids(engine, m, g), &messages)?
+    } else {
+        let text = match &args.ppl_file {
+            Some(p) => std::fs::read_to_string(p).with_context(|| p.display().to_string())?,
+            None => PPL_TEXT.to_string(),
+        };
+        let mut ids = engine.tokenize(&text, true).map_err(|e| anyhow!("{e}"))?;
+        ids.truncate(engine.info().context_len.min(2048));
+        vec![ChatSeq { ids, first: 1 }]
+    };
+    let cap = engine.info().context_len.min(2048);
+    if seqs.iter().any(|s| s.ids.len() < 2 || s.ids.len() > cap) {
+        bail!("perplexity text is too short or longer than the context ({cap})");
+    }
+    let n_tokens: usize = seqs.iter().map(|s| s.ids.len()).sum();
     let mut nll = 0.0f64;
     let mut count = 0usize;
     let mut nonfinite = 0usize;
-    engine
-        .forward_logits_each(&ids, &mut |pos, row| {
-            if !is_finite_row(row) {
-                nonfinite += 1;
-            }
-            if let Some(&next) = ids.get(pos + 1) {
-                nll += lse(row.iter().map(|&v| v as f64)) - row[next as usize] as f64;
-                count += 1;
-            }
-            Ok(())
-        })
-        .map_err(|e| anyhow!("{e}"))?;
+    for seq in &seqs {
+        let ids = &seq.ids;
+        engine
+            .forward_logits_each(ids, &mut |pos, row| {
+                if !is_finite_row(row) {
+                    nonfinite += 1;
+                }
+                if pos + 1 >= seq.first {
+                    if let Some(&next) = ids.get(pos + 1) {
+                        nll += lse(row.iter().map(|&v| v as f64)) - row[next as usize] as f64;
+                        count += 1;
+                    }
+                }
+                Ok(())
+            })
+            .map_err(|e| anyhow!("{e}"))?;
+    }
+    if count == 0 {
+        bail!("the perplexity text has no scored token");
+    }
     let ppl = (nll / count as f64).exp();
-    let ppl_ok = ppl.is_finite() && ppl <= args.max_ppl && nonfinite == 0;
+    let ppl_ok = ppl.is_finite() && ppl <= max_ppl && nonfinite == 0;
     println!(
-        "perplexity: {ppl:.3} over {count} tokens (need <= {}), non-finite rows {nonfinite} {}",
-        args.max_ppl,
+        "perplexity form: {} (limit {max_ppl} from {max_src}){}",
+        if chat { "chat" } else { "raw" },
+        if chat { format!(": tools/prompts/ppl_chat.json through the model's chat template, {} assistant turns ({n_tokens} tokens in {} forwards), assistant tokens scored", seqs.len(), seqs.len()) } else { String::new() }
+    );
+    println!(
+        "perplexity: {ppl:.3} over {count} tokens (need <= {max_ppl}), non-finite rows {nonfinite} {}",
         if ppl_ok { "ok" } else { "FAIL" }
     );
 
     let mut all_ok = ppl_ok;
     for (p, expect) in SANITY_PROMPTS {
-        let prompt = engine.tokenize(p, true).map_err(|e| anyhow!("{e}"))?;
+        // chat form: the prompt is a user turn and the model answers; raw form: the text is continued
+        let prompt = if chat {
+            engine_chat_ids(engine, &[serde_json::json!({"role": "user", "content": p})], true)?
+        } else {
+            engine.tokenize(p, true).map_err(|e| anyhow!("{e}"))?
+        };
         let req = GenRequest { prompt, max_tokens: args.sanity_tokens, ..Default::default() };
         let (mut gen, mut err) = (Vec::<u32>::new(), None);
         engine
@@ -3722,6 +3826,91 @@ mod tests {
         }
         use clap::Parser;
         Cli::parse_from(["x", "--model", "/nonexistent"].into_iter().chain(extra.iter().copied())).a
+    }
+
+    /// A ChatML-like renderer over fake token ids: `<s>`=1 `<u>`=2 `<a>`=3 `</t>`=4, one id per content character.
+    fn fake_render(msgs: &[Value], gen: bool) -> Result<Vec<u32>> {
+        let mut ids = vec![1];
+        for m in msgs {
+            ids.push(if m["role"] == "assistant" { 3 } else { 2 });
+            ids.extend(m["content"].as_str().unwrap().bytes().map(|b| 100 + b as u32));
+            ids.push(4);
+        }
+        if gen {
+            ids.push(3);
+        }
+        Ok(ids)
+    }
+
+    #[test]
+    fn chat_ppl_scores_each_assistant_turn_after_its_served_prompt() {
+        let msgs: Vec<Value> = vec![
+            serde_json::json!({"role": "user", "content": "ab"}),
+            serde_json::json!({"role": "assistant", "content": "cd"}),
+            serde_json::json!({"role": "user", "content": "e"}),
+            serde_json::json!({"role": "assistant", "content": "fgh"}),
+        ];
+        let seqs = chat_ppl_seqs(&fake_render, &msgs).unwrap();
+        assert_eq!(seqs.len(), 2);
+        // <s> <u> a b </t> <a> | c d </t>
+        assert_eq!((seqs[0].ids.len(), seqs[0].first), (9, 6));
+        assert_eq!(&seqs[0].ids[6..], &[100 + b'c' as u32, 100 + b'd' as u32, 4]);
+        // <s> <u> a b </t> <a> c d </t> <u> e </t> <a> | f g h </t>: the earlier turn is history, the scored part is the last
+        assert_eq!((seqs[1].ids.len(), seqs[1].first), (17, 13));
+        assert_eq!(seqs[1].ids[13..].len(), 3 + 1);
+    }
+
+    #[test]
+    fn chat_ppl_scores_the_answer_after_the_served_prompt_when_the_prompt_has_a_thought_channel() {
+        // Gemma-4 style: the generation prompt ends in an empty thought channel (ids 7 8) that the finished turn omits
+        let render = |m: &[Value], g: bool| -> Result<Vec<u32>> {
+            let mut v = fake_render(m, false)?;
+            if g {
+                v.extend([3, 7, 8]);
+            }
+            Ok(v)
+        };
+        let msgs: Vec<Value> =
+            vec![serde_json::json!({"role": "user", "content": "ab"}), serde_json::json!({"role": "assistant", "content": "cd"})];
+        let seqs = chat_ppl_seqs(&render, &msgs).unwrap();
+        // the sequence is the prompt as served (<s> <u> a b </t> <a> 7 8) then the answer and its close: c d </t>
+        assert_eq!(seqs, vec![ChatSeq { ids: vec![1, 2, 197, 198, 4, 3, 7, 8, 199, 200, 4], first: 8 }]);
+    }
+
+    #[test]
+    fn chat_ppl_rejects_a_template_whose_turn_does_not_extend_the_prompt() {
+        let msgs: Vec<Value> =
+            vec![serde_json::json!({"role": "user", "content": "ab"}), serde_json::json!({"role": "assistant", "content": "cd"})];
+        // a template that rewrites the start of the conversation once an assistant turn is present
+        let bad = |m: &[Value], g: bool| -> Result<Vec<u32>> {
+            let mut v = fake_render(m, g)?;
+            if !g && m.len() == 2 {
+                v[0] = 9;
+            }
+            Ok(v)
+        };
+        assert!(chat_ppl_seqs(&bad, &msgs).is_err());
+        assert!(chat_ppl_seqs(&fake_render, &msgs[..1]).is_err(), "no assistant turn");
+    }
+
+    #[test]
+    fn the_shipped_chat_conversation_alternates_and_ends_on_an_assistant_turn() {
+        let msgs: Vec<Value> = serde_json::from_str(PPL_CHAT).unwrap();
+        assert!(msgs.len() >= 4 && msgs.len() % 2 == 0);
+        for (i, m) in msgs.iter().enumerate() {
+            assert_eq!(m["role"], if i % 2 == 0 { "user" } else { "assistant" });
+            assert!(!m["content"].as_str().unwrap().is_empty());
+        }
+        assert_eq!(chat_ppl_seqs(&fake_render, &msgs).unwrap().len(), msgs.len() / 2);
+    }
+
+    #[test]
+    fn the_quick_gate_defaults_are_todays_raw_gate() {
+        let a = args_with(&["--quick"]);
+        assert_eq!((a.max_ppl, a.ppl_form.clone()), (None, None));
+        let a = args_with(&["--quick", "--max-ppl", "12", "--ppl-form", "chat"]);
+        assert_eq!((a.max_ppl, a.ppl_form.as_deref()), (Some(12.0), Some("chat")));
+        assert_eq!(DEFAULT_MAX_PPL, 40.0);
     }
 
     #[test]

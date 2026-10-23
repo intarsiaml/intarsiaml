@@ -1,0 +1,13 @@
+[onboard      0s] gemma4-26b-a4b-nvfp4 on cuda, report directory /home/nvidia/g4g-onb2
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /home/nvidia/g4g-onb2/logs/smoke.err
+[onboard] smoke: PASS in 27s (generated: "a로.\n- - - - - - - - - - - -")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard     27s] log: /home/nvidia/g4g-onb2/logs/quick.err
+[onboard] quick: FAIL in 6m14s (qualify exit 1 (a gate failed): acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'gemma4-26b-a4b-nvfp4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). gemma4-26b-a4b-nvfp4 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /mnt/models/hf-hub/models--nvidia--Gemma-4-26B-A4B-NVFP4/snapshots/a19cfe00be84568a6867111c9a68c9c44fdcffe6 --backend cpu --golden golden/gemma4-26b-a4b-nvfp4-hfbf16.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id gemma4-26b-a4b-nvfp4 --write-self-golden golden/oracle/gemma4-26b-a4b-nvfp4-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /home/nvidia/g4g-onb2/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-23T01:40:54Z)
+ONBOARD FAIL (exit 1) in 6m41s

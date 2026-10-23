@@ -1,0 +1,24 @@
+prefill chunk 256 (default)
+model qwen3-8b-12L  backend cuda  device NVIDIA GB10 (124610 MiB)  exactness fast
+act bf16  kv bf16  prefill chunk 256 (default)  scratch 748800 B  require_admitted false  reference_only false
+
+layers (12):
+    0..11  attention+dense_ffn
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        1 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        24 0
+qk_norm        qk_norm_bf16               deterministic no        24 0
+rope           rope_bf16                  deterministic no        24 0
+matmul         matmul_bf16                fast          no        0 0
+matmul         matmul_bf16_gemv           deterministic no        36 0
+logits         logits_bf16                fast          no        0 0
+logits         logits_bf16_gemv           deterministic no        1 0
+kv_append      kv_append_bf16             exact         no        24 0
+attn_prefill   attn_prefill_bf16_flash    deterministic no        0 0
+attn_prefill   attn_prefill_bf16_splitkv  deterministic no        0 748800
+attn_decode    attn_decode_bf16_splitkv   deterministic no        12 532480
+silu_glu       silu_glu_bf16              deterministic no        12 0
+argmax         argmax_f32                 exact         no        1 0
+matmul_pair    matmul_pair_bf16_gemv      deterministic no        24 0

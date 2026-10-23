@@ -87,7 +87,7 @@ template <int GP, int TPK, int KB, typename KT = ik_bf16>
 __global__ void __launch_bounds__(kBlock)
 splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const KT* __restrict__ vc,
                float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int64_t cap, int64_t pos0_host,
-               float qscale, int nsplit, const int32_t* pos_dev) {
+               float qscale, int nsplit, int64_t window, const int32_t* pos_dev) {
     // `nsplit` is the grid's split count and the stride of the partials. The splits actually used follow from the key
     // count alone (device position when given), so the grid may be launched at its maximum (decode, CUDA graphs) and
     // the surplus blocks leave at once: the partitioning, and so every bit of the result, is the same either way.
@@ -104,8 +104,12 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
     const int sp = blockIdx.x, kvh = blockIdx.y, t = blockIdx.z;
     const int c = threadIdx.x % TPK, gk = threadIdx.x / TPK;
     const int64_t visible = pos0 + t + 1;
-    const int64_t start = (int64_t)sp * chunk;
+    // sliding window (window > 0): the query attends keys max(0, visible - window)..visible only; a split wholly outside
+    // it is empty (m = -inf), which the lane merge and the combine already handle. window 0 leaves `start` untouched.
+    const int64_t lo = (window > 0 && visible > window) ? visible - window : 0;
+    int64_t start = (int64_t)sp * chunk;
     int64_t end = start + chunk;
+    if (start < lo) start = lo;
     if (end > visible) end = visible;
 
     const KT* kb = kc + (int64_t)kvh * cap * D + c * 8;
@@ -245,18 +249,18 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
 template <int GP, int TPK, int KB, typename KT>
 void launch_split(const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml, int64_t T,
                   int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
-                  const int32_t* pos_dev, cudaStream_t s) {
+                  int64_t window, const int32_t* pos_dev, cudaStream_t s) {
     dim3 grid(nsplit, (unsigned)NKV, (unsigned)T);
     splitkv_kernel<GP, TPK, KB, KT><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, (int)(N / NKV), cap, pos0,
-                                                        qscale, nsplit, pos_dev);
+                                                        qscale, nsplit, window, pos_dev);
 }
 
 template <int TPK, typename KT>
 int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml,
                    int64_t T, int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
-                   const int32_t* pos_dev, cudaStream_t s) {
+                   int64_t window, const int32_t* pos_dev, cudaStream_t s) {
 #define IK_SPLIT_CASE(GPV, KBV)                                                                                \
-    launch_split<GPV, TPK, KBV, KT>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s);       \
+    launch_split<GPV, TPK, KBV, KT>(q, kc, vc, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s);       \
     return IK_OK;
     if (G <= 1) { IK_SPLIT_CASE(1, 4) }
     if (G <= 2) { IK_SPLIT_CASE(2, 4) }
@@ -268,7 +272,7 @@ int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* p
 
 int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                    ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream, bool decode,
-                   bool f8kv = false) {
+                   bool f8kv = false, int64_t window = 0) {
     IK_TRY(ik_check_pos(pos));
     const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
@@ -281,7 +285,7 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
     if (decode && T != 1) return IK_ERR_SHAPE;
     if (vc->shape[0] != NKV || vc->shape[1] != cap || vc->shape[2] != D || kc->shape[2] != D) return IK_ERR_SHAPE;
     if (out->shape[0] != T || out->shape[1] != N || out->shape[2] != D) return IK_ERR_SHAPE;
-    if (NKV <= 0 || N % NKV != 0 || pos0 < 0 || pos0 + T > cap || T > kMaxRows) return IK_ERR_SHAPE;
+    if (NKV <= 0 || N % NKV != 0 || pos0 < 0 || window < 0 || pos0 + T > cap || T > kMaxRows) return IK_ERR_SHAPE;
     if (N / NKV > kMaxGroup) return IK_ERR_SHAPE;
     if (D != 32 && D != 64 && D != 128 && D != 256) return IK_ERR_SHAPE;
     if (T == 0 || N == 0) return IK_OK;
@@ -304,19 +308,19 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
         const uint8_t* kp = (const uint8_t*)kc->data;
         const uint8_t* vp = (const uint8_t*)vc->data;
         switch (D) {
-            case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-            case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-            case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-            case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+            case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+            case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+            case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+            case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
         }
     }
     const ik_bf16* kp = (const ik_bf16*)kc->data;
     const ik_bf16* vp = (const ik_bf16*)vc->data;
     if (!f8kv) switch (D) {
-        case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-        case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-        case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
-        case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, pos_dev, s); break;
+        case 32: rc = dispatch_group<4>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+        case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+        case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+        case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
     }
     if (rc != IK_OK) return rc;
     IK_TRY(ik_launch_status());
@@ -344,6 +348,20 @@ int ik_attn_decode_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const i
 int ik_attn_prefill_bf16_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
                                  float scale, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false);
+}
+
+// g4 (Gemma 4) sliding window: the bf16 kernels above with `window` (the query at absolute position p attends keys
+// max(0, p + 1 - window)..=p; 0 = all). Registered `.ext()`; the plain launchers keep window 0 and their exact bits.
+int ik_attn_decode_bf16_splitkv_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                    float scale, int64_t window, ik_tensor* out, const ik_scratch* scratch,
+                                    const ik_tensor* pos, void* stream) {
+    return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, pos, stream, true, false, window);
+}
+
+int ik_attn_prefill_bf16_splitkv_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0,
+                                     float scale, int64_t window, ik_tensor* out, const ik_scratch* scratch,
+                                     void* stream) {
+    return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false, false, window);
 }
 
 // fp8_e4m3 KV cache (bf16 q / out), same scratch and grid policy as the two launchers above
