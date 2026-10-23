@@ -536,6 +536,77 @@ fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
     rig.report("moe");
 }
 
+// ---- the ops that need no rows_exact kernel ---------------------------------------------------------------------------
+
+use intarsia_core::exec::HostCall;
+use intarsia_core::quant::cases::{combine_case, gated_rmsnorm_case, topk_case};
+
+fn rows_of(t: &HostTensor, rows: usize) -> Option<usize> {
+    (t.shape.first() == Some(&rows)).then(|| t.data.len() / rows)
+}
+
+/// Row `r` of every tensor whose leading dimension is `rows` (the others, weights and tables, are kept).
+fn slice_row(t: &HostTensor, r: usize, rows: usize) -> HostTensor {
+    match rows_of(t, rows) {
+        Some(rb) => {
+            let mut shape = t.shape.clone();
+            shape[0] = 1;
+            HostTensor::new(t.dtype, shape, t.data[r * rb..(r + 1) * rb].to_vec()).unwrap()
+        }
+        None => t.clone(),
+    }
+}
+
+/// Row-parallel ops keep their ordinary kernel under `exact_rows` (the registry only restricts an op that HAS a row-exact
+/// kernel): the claim is that row r of the R-row call is bitwise the same kernel's 1-row call on row r. Checked for R = 16.
+#[test]
+fn row_parallel_ops_are_row_independent() {
+    let Some(rig) = Rig::new("row_parallel_ops_are_row_independent") else { return };
+    let mut rng = SplitMix64::new(804);
+    let r = CAP;
+    let bf = |rng: &mut SplitMix64, shape: &[usize], s: f32| HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(shape.iter().product(), s));
+    let attrs_eps = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+    let ids: Vec<i32> = (0..r).map(|_| (rng.next_u64() % 1000) as i32).collect();
+    let mut logits: Vec<f32> = rng.normal_vec(r * 5000, 3.0);
+    for row in 0..r {
+        logits[row * 5000 + (row * 37) % 5000] = 50.0; // a clear winner per row; ties are exercised below
+    }
+    let mut calls: Vec<(&str, HostCall)> = vec![
+        ("rmsnorm_bf16", HostCall { op: Op::RmsNorm, inputs: vec![bf(&mut rng, &[r, 2048], 3.0), bf(&mut rng, &[2048], 1.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 2048])], attrs: attrs_eps.clone() }),
+        ("rmsnorm_add_bf16", HostCall { op: Op::RmsNormAdd, inputs: vec![bf(&mut rng, &[r, 2048], 3.0), bf(&mut rng, &[r, 2048], 3.0), bf(&mut rng, &[2048], 1.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 2048]), OutSpec::new(DType::Bf16, &[r, 2048])], attrs: attrs_eps.clone() }),
+        ("add_bf16", HostCall { op: Op::Add, inputs: vec![bf(&mut rng, &[r, 2048], 3.0), bf(&mut rng, &[r, 2048], 3.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 2048])], attrs: OpAttrs::default() }),
+        ("silu_glu_bf16", HostCall { op: Op::SiluGlu, inputs: vec![bf(&mut rng, &[r, 512], 3.0), bf(&mut rng, &[r, 512], 3.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 512])], attrs: OpAttrs::default() }),
+        ("sigmoid_mul_bf16", HostCall { op: Op::SigmoidMul, inputs: vec![bf(&mut rng, &[r, 4096], 3.0), bf(&mut rng, &[r, 4096], 3.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 4096])], attrs: OpAttrs::default() }),
+        ("embedding_bf16", HostCall { op: Op::Embedding, inputs: vec![HostTensor::from_i32(&[r], &ids), bf(&mut rng, &[1000, 2048], 1.0)], outputs: vec![OutSpec::new(DType::Bf16, &[r, 2048])], attrs: OpAttrs::default() }),
+        ("argmax_f32", HostCall { op: Op::Argmax, inputs: vec![HostTensor::from_f32(&[r, 5000], &logits)], outputs: vec![OutSpec::new(DType::I32, &[r])], attrs: OpAttrs::default() }),
+        ("moe_combine_bf16", combine_case(&mut rng, r, 2048, DType::Bf16)),
+        ("gated_rmsnorm_bf16", gated_rmsnorm_case(&mut rng, r, 128, DType::Bf16)),
+    ];
+    for ties in [false, true] {
+        for e in [256usize, 64] {
+            let mut hc = topk_case(&mut rng, r, e, 8, ties, DType::Bf16, true);
+            hc.attrs.top_k = 8;
+            calls.push(("moe_topk_bf16", hc));
+        }
+    }
+    for (kernel, hc) in calls {
+        let ins: Vec<TensorRef> = hc.inputs.iter().map(|t| rig.put(t)).collect();
+        let outs: Vec<(DType, Vec<usize>)> = hc.outputs.iter().map(|o| (o.dtype, o.shape.clone())).collect();
+        let all = rig.run(kernel, hc.op, &ins, &outs, &hc.attrs);
+        for row in 0..r {
+            let ins1: Vec<TensorRef> = hc.inputs.iter().map(|t| rig.put(&slice_row(t, row, r))).collect();
+            let outs1: Vec<(DType, Vec<usize>)> = hc.outputs.iter().map(|o| (o.dtype, std::iter::once(1).chain(o.shape[1..].iter().copied()).collect())).collect();
+            let one = rig.run(kernel, hc.op, &ins1, &outs1, &hc.attrs);
+            for (o, (a, b)) in all.iter().zip(&one).enumerate() {
+                let rb = a.data.len() / r;
+                assert!(a.data[row * rb..(row + 1) * rb] == b.data[..], "{kernel}: output {o} row {row} of the {r}-row call differs from the 1-row call");
+            }
+        }
+        rig.note(kernel, r, r, 0);
+    }
+    rig.report("row-parallel");
+}
+
 // ---- micro-timing (not part of the gate) ---------------------------------------------------------------------------------
 
 impl Rig {
