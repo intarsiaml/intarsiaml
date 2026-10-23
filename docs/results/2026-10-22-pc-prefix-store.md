@@ -138,7 +138,63 @@ plus the new message's header), answer equal to a cold engine's; `/metrics` and 
 
 ## 4. Workloads: TTFT and prefill tokens computed
 
-WORKLOADS
+**Method.** localeval cannot run these workloads: its `speed` mode puts a fresh nonce in front of every prompt to defeat
+prefix caches, and it has no multi-turn mode. So `intarsia bench reuse` (`crates/intarsia-bench/src/reuse.rs`) does it,
+against the OpenAI endpoint, streaming, `temperature 0`, TTFT = time to the first content or reasoning delta,
+`computed = prompt_tokens - usage.prompt_tokens_details.cached_tokens` (the server's own count). Three workloads,
+20 requests, 46k prompt tokens per pass:
+- **chat**: two conversations (different system prompts), 4 turns each, sent interleaved turn by turn (two users or two
+  tabs), thinking on, each user turn quoting ~1500 characters of `tools/prompts/corpus_docs.txt`;
+- **agent**: one system prompt and an 8-tool schema (~900 tokens), 4 tasks of 2 requests (task, then a tool result);
+- **rag**: the same 3 documents (~5.4k tokens) with 4 different questions.
+
+The first pass runs with the store off and `--max-tokens 512` and records every request (with the live answers as the
+history) to `recorded/*.jsonl`; every later pass replays those exact requests with `--max-tokens 64`, so store-on and
+store-off runs send byte-identical requests. Each pass gets a fresh server (store empty at start), interleaved on, off,
+on, off. Store off is main's behaviour: the engine's own prefix reuse with its one held sequence (it serves the RAG
+questions from a snapshot because they arrive back to back).
+
+**CUDA, Qwen3.6-35B-A3B NVFP4, spark2 (GB10), quiet slot.** Four builds in a row, because the first was slower than
+store off (section 2, "What a cut costs"):
+
+v1 (cut before every message start, `plen - 1` pass, copies to host inside the prefill), fleetq #4382:
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15654 | 15654 -> 6959 (-56 %) | 3.38 -> 10.42 (+208 %) | 423 -> 1302 | 478 -> 1449 |
+| agent | 8 | 8574 | 8574 -> 2020 (-76 %) | 2.54 -> 7.71 (+204 %) | 318 -> 964 | 250 -> 760 |
+| rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.80 -> 5.41 (+201 %) | 450 -> 1354 | 281 -> 814 |
+all workloads, TTFT total per rep (s): off [7.8505, 7.5931999999999995], on [24.673599999999997, 22.416600000000003]
+
+v3 (cuts after headers only, no `plen - 1` pass, deferred copies), default `--prefix-store on`, fleetq #4406 (v2, #4398, was within noise of v3):
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15654 | 15654 -> 6956 (-56 %) | 3.32 -> 2.69 (-19 %) | 415 -> 337 | 477 -> 319 |
+| agent | 8 | 8574 | 8574 -> 2020 (-76 %) | 2.59 -> 2.00 (-23 %) | 324 -> 250 | 251 -> 186 |
+| rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.81 -> 1.94 (+7 %) | 451 -> 485 | 284 -> 290 |
+all workloads, TTFT total per rep (s): off [7.7833, 7.6579], on [6.6869000000000005, 6.5765]
+
+v4 = v3 with `--prefix-store on,roles=assistant` (cuts only after assistant headers and message 2's), fleetq #4420:
+
+| workload | requests | prompt tok | computed tok off -> on | TTFT total s off -> on | TTFT mean ms off -> on | TTFT median ms off -> on |
+|---|---|---|---|---|---|---|
+| chat | 8 | 15654 | 15654 -> 6959 (-56 %) | 3.31 -> 1.98 (-40 %) | 413 -> 248 | 479 -> 237 |
+| agent | 8 | 8574 | 8574 -> 2020 (-76 %) | 2.60 -> 1.77 (-32 %) | 324 -> 221 | 251 -> 133 |
+| rag | 4 | 21714 | 9426 -> 9360 (-1 %) | 1.81 -> 1.93 (+7 %) | 452 -> 483 | 283 -> 291 |
+all workloads, TTFT total per rep (s): off [7.709], on [5.5923, 5.777100000000001]
+
+Per request (v4, chat, 8 requests): TTFT 220, 245, 223, 223, 228, 231, 244, 249 ms with the store, against 428, 166,
+279, 285, 479, 486, 616, 626 ms without it. With the store, TTFT stays flat as the conversation grows. Agent follow-ups
+take 83-149 ms against 219-260 ms. On RAG the store does not help in this benchmark: store off already reuses 4096 of
+5.4k tokens from its held sequence, and the store's extra pass costs 7 %. With RAG questions interleaved between users,
+store off would lose that reuse; this run does not measure that case.
+
+**Why TTFT falls less than computed tokens.** On the MoE, a forward pass costs about 30-50 ms on its own, however many
+rows it has. Off-runs: 539 tokens 168 ms, 1407 tokens 283 ms, 2372 tokens 483 ms. A restored chat request still runs 2
+or 3 passes: the new messages up to the last header, then `<think>\n`. So its TTFT is mostly pass count. Fewer cuts give
+fewer passes (v4). The cost is that a prewarm of a half-typed message, or a divergence inside a user message, restores
+less. That is why `roles=assistant` is a knob and not the default. Metal: METALW
 
 ## 5. Dead-tail skip in non-final chunks
 
