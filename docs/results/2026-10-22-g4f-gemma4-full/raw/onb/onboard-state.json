@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+    "backend": "cuda"
+  },
+  "created_unix": 1792713363,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4)",
+      "started_unix": 1792713363,
+      "ended_unix": 1792713363,
+      "wall_s": 0.093072053,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:gemma4",
+        "family": "gemma4",
+        "quant": "nvfp4"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"a로.\\n- - - - - - - - - - - -\"",
+      "started_unix": 1792713363,
+      "ended_unix": 1792713391,
+      "wall_s": 27.808519821,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 34.62,
+        "completion": "a로.\n- - - - - - - - - - - -",
+        "mentions_paris": false
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): gate FAIL: perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty | sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact (\"blue\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact (\"paris\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact (\"oxygen\"): NO; acc-short FAIL: prefill: 21-way KL (scored rows, n=1468) 2.953e-1 (need <= 3.0e-2); decode: 21-way KL (scored rows, n=160) 3.350e-1 (need <= 3.0e-2); acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'gemma4-26b-a4b-nvfp4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). gemma4-26b-a4b-nvfp4 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cpu --golden /home/nvidia/g4-full/gemma4-26b.golden.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id gemma4-26b-a4b-nvfp4 --write-self-golden golden/oracle/gemma4-26b-a4b-nvfp4-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main",
+      "started_unix": 1792713391,
+      "ended_unix": 1792713785,
+      "wall_s": 394.052199078,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-23T00:03:05Z",
+      "started_unix": 1792713785,
+      "ended_unix": 1792713785,
+      "wall_s": 0.001156094,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792713785
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    }
+  ]
+}
