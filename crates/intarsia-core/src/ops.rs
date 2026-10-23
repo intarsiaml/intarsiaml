@@ -357,11 +357,49 @@ pub struct OpCall {
     /// `rows_exact` for this op (and fails if none fits) instead of the ordinary priority order. `false` (every
     /// ordinary call) leaves selection as it was, except that `rows_exact` kernels are never picked.
     pub exact_rows: bool,
+    /// Row-table call (batched decode, CUDA): the call covers `rows.rows` sequences at once, each with its own state buffers.
+    /// See [`RowTab`]. `None` (every ordinary call): the state tensors of the call are the state.
+    pub rows: Option<RowTab>,
+}
+
+/// The per-sequence buffers of a batched decode call, as a table of device addresses that the host rewrites before every step
+/// (so a captured graph replays with any set of sequences). Defined for `GdnConv`, `GdnDeltaRule`, `KvAppend`, `AttnDecode`.
+///
+/// Such a call is the one-row (`T = 1`) call of the solo decode step on each of `rows` rows at once: row `r` of the activations
+/// (`[rows, ...]`) is the single input row of sequence `r`, and the tensors that name a sequence's state (the conv and delta
+/// state, the K / V cache) describe **row 0's buffers** and serve as shape / dtype carriers only: the kernel reads, and for
+/// `GdnConv` / `GdnDeltaRule` / `KvAppend` writes, the buffer whose address is table entry `[r, index]` (plus `byte_off`) for
+/// row `r`. `AttnDecode` reads the K cache at entry `index` and the V cache at `index + 1`. `KvAppend`, `AttnDecode` and
+/// `Rope` also take the per-row positions in `OpCall::pos` (i32 `[rows]`). Row `r` is bitwise the solo one-row call on
+/// sequence `r` (G-B for the row-table kernels, `tests/row_tables.rs`).
+#[derive(Clone, Debug)]
+pub struct RowTab {
+    /// u8 `[rows, stride, 8]`: little-endian u64 device addresses, row-major.
+    pub ptrs: TensorRef,
+    /// Rows of the call (the leading dimension of the activations).
+    pub rows: usize,
+    /// Entries per row of the table.
+    pub stride: usize,
+    /// This call's entry within a row.
+    pub index: usize,
+    /// Bytes added to the table entry (the delta state sits after the conv state in a layer's recurrent buffer).
+    pub byte_off: usize,
 }
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false }
+        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false, rows: None }
+    }
+
+    /// The solo-step calls a call stands for: `rows` for a row-table call and for the per-row ops (`QkNorm`, `Rope`,
+    /// `RopeScaled`) run once over a `[B, ...]` batch, one otherwise. `plan::check_batch_ops` counts a batched step's per-row
+    /// ops with this weight.
+    pub fn row_weight(&self) -> usize {
+        match (&self.rows, self.op) {
+            (Some(r), _) => r.rows,
+            (None, Op::QkNorm | Op::Rope | Op::RopeScaled) => self.inputs.first().map_or(1, |t| t.shape.first().copied().unwrap_or(1)),
+            _ => 1,
+        }
     }
 
     /// The same call on `rows` rows, for the row-local fused decode ops whose activation tensors all lead with the row
@@ -431,8 +469,36 @@ impl OpCall {
             if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
-            if p.dtype != DType::I32 || p.numel() != 1 {
-                return Err(Error::invalid(format!("{}: device position must be i32 [1], got {} {:?}", self.op, p.dtype, p.shape)));
+            // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
+            let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(1);
+            let per_token = p.numel() == t && t > 1 && matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode);
+            if p.dtype != DType::I32 || (p.numel() != 1 && !per_token) {
+                return Err(Error::invalid(format!("{}: device position must be i32 [1] (or [T] for a batch of decode rows), got {} {:?}", self.op, p.dtype, p.shape)));
+            }
+            if per_token && matches!(self.op, Op::KvAppend | Op::AttnDecode) && self.rows.is_none() {
+                return Err(Error::invalid(format!("{}: per-token positions need a row table", self.op)));
+            }
+        }
+        if let Some(r) = &self.rows {
+            r.ptrs.check_bounds()?;
+            if !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode) {
+                return Err(Error::invalid(format!("{}: takes no row table", self.op)));
+            }
+            let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
+            if r.ptrs.dtype != DType::U8
+                || r.ptrs.shape != [r.rows, r.stride, 8]
+                || r.rows != t
+                || r.rows == 0
+                || r.index >= r.stride
+                || (matches!(self.op, Op::AttnDecode) && r.index + 1 >= r.stride)
+            {
+                return Err(Error::invalid(format!(
+                    "{}: row table {:?} {:?} rows {} stride {} index {} does not fit a call over {t} rows",
+                    self.op, r.ptrs.dtype, r.ptrs.shape, r.rows, r.stride, r.index
+                )));
+            }
+            if matches!(self.op, Op::KvAppend | Op::AttnDecode) && self.pos.is_none() {
+                return Err(Error::invalid(format!("{}: a row-table call needs the per-row positions (`pos`)", self.op)));
             }
         }
         let i = &self.inputs;
@@ -557,7 +623,7 @@ impl OpCall {
                 if a.pos0 + t > cap {
                     return bad(format!("pos0 {} + T {t} exceeds cache capacity {cap}", a.pos0));
                 }
-                if self.op == Op::AttnDecode && t != 1 {
+                if self.op == Op::AttnDecode && t != 1 && self.rows.is_none() {
                     return bad("decode requires T == 1".into());
                 }
             }

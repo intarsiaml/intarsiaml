@@ -48,6 +48,12 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_lanes", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_split", Op::GdnDeltaRule),
+    // row-table twins (`row_table`, batched decode, `OpCall::rows`): the T = 1 call of the kernel named without `_rows` on all
+    // rows of a step at once, each with its own state; row r bitwise the one-row kernel (tests/row_tables.rs)
+    ("gdn_conv_bf16_rows", Op::GdnConv),
+    ("gdn_delta_rule_bf16_split_rows", Op::GdnDeltaRule),
+    ("kv_append_bf16_rows", Op::KvAppend),
+    ("attn_decode_bf16_splitkv_rows", Op::AttnDecode),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -86,6 +92,13 @@ pub fn splitkv_parts(kv_len: usize, n_kv_heads: usize, rows: usize) -> usize {
 /// short chunk at a long position can never need more than a plan probe at a short one reserved.
 fn splitkv_scratch(s: &ShapeInfo) -> usize {
     let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, s.m);
+    s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
+}
+
+/// Scratch of the row-table decode twin: `s.m` rows of one query row each, every row with the one-row decode launch's split
+/// count (`splitkv_parts(.., 1)`), not the `s.m`-row prefill / verify policy `splitkv_scratch` bounds.
+fn splitkv_rows_scratch(s: &ShapeInfo) -> usize {
+    let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, 1);
     s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
 }
 
@@ -441,6 +454,40 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(gdn_split_priority(5)),
+            // Row-table twins. Each accepts exactly the shapes (and environment) for which the registry gives the SOLO one-row call
+            // the kernel it twins, so a batched step never swaps a kernel: the delta rule only while the split kernel is the one in
+            // use (not under INTARSIA_CUDA_GDN_SPLIT=0 / GDN_LANES / FAST_PREFILL), the attention only where the bf16 split-KV
+            // decode kernel is selected for one row (it wins for every shape splitkv_ok takes). Rows 1..=ROWS_MAX.
+            "gdn_conv_bf16_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (2..=8).contains(&s.k) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .row_table(),
+            "gdn_delta_rule_bf16_split_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| {
+                    gdn_split()
+                        && !gdn_lanes()
+                        && (1..=ROWS_MAX).contains(&s.m)
+                        && matches!(s.head_dim, 64 | 128)
+                        && s.n_kv_heads > 0
+                        && s.n_heads % s.n_kv_heads == 0
+                })
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .row_table(),
+            "kv_append_bf16_rows" => k.acts(bf).when(|s| (1..=ROWS_MAX).contains(&s.m)).exact(Exactness::Exact).tol(Tol::EXACT).row_table(),
+            "attn_decode_bf16_splitkv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| splitkv_ok(s) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .scratch(splitkv_rows_scratch)
+                .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),

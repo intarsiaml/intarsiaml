@@ -88,6 +88,11 @@ pub struct KernelImpl {
     /// decode launch at that row's position. Selected only for calls with `OpCall::exact_rows` set (and then
     /// exclusively, for the ops that have one); ordinary calls never pick it.
     pub rows_exact: bool,
+    /// Row-table kernel (`OpCall::rows`): runs the one-row (`T = 1`) decode call of the solo step on every row of a batched
+    /// step at once, the rows' state buffers named by a table of device addresses; row `r` is bitwise the solo kernel the
+    /// registration is the twin of (G-B, the backend's `tests/row_tables.rs`). Selected only for calls with a row table, and
+    /// those only select these.
+    pub row_table: bool,
     /// Implements the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`). Off by default; see `ShapeInfo::ext`.
     pub ext: bool,
 }
@@ -113,6 +118,7 @@ impl KernelImpl {
             priority: 0,
             scratch: None,
             rows_exact: false,
+            row_table: false,
             ext: false,
         }
     }
@@ -172,6 +178,11 @@ impl KernelImpl {
     /// Mark as a verify-row kernel (see `KernelImpl::rows_exact`).
     pub fn rows_exact(mut self) -> Self {
         self.rows_exact = true;
+        self
+    }
+    /// Mark as a row-table kernel (see `KernelImpl::row_table`).
+    pub fn row_table(mut self) -> Self {
+        self.row_table = true;
         self
     }
     pub fn priority(mut self, p: i32) -> Self {
@@ -312,13 +323,13 @@ impl Registry {
         let s = ShapeInfo::from_call(call);
         // Verify calls (`exact_rows`) of an op that has row-exact kernels may only take one of those; ops without
         // any (row-parallel norms, embedding, argmax, ...) keep the ordinary choice. Ordinary calls skip them.
-        let rows_only = call.exact_rows && self.entries.iter().any(|(k, _)| k.op == call.op && k.rows_exact);
+        let rows_only = call.exact_rows && call.rows.is_none() && self.entries.iter().any(|(k, _)| k.op == call.op && k.rows_exact);
         let mut best: Option<&KernelImpl> = None;
         for (k, adm) in &self.entries {
             if k.op != call.op || !k.arch_matches(&self.arch) || !k.accepts(&s) {
                 continue;
             }
-            if k.rows_exact != rows_only {
+            if k.rows_exact != rows_only || k.row_table != call.rows.is_some() {
                 continue;
             }
             if self.reference_only && !k.is_reference {

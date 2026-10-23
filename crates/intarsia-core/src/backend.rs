@@ -290,6 +290,18 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Does this backend run batched decode steps with row tables (`OpCall::rows`): `GdnConv`, `GdnDeltaRule`, `KvAppend`
+    /// and `AttnDecode` over all rows of a step in one launch, the sequences' state buffers named by a table of device
+    /// addresses? (CUDA.) Whether a step uses them is the model's decision (`Model::row_tables`).
+    fn supports_row_tables(&self) -> bool {
+        false
+    }
+
+    /// The device address of the first byte of `buf`, for a row table (`OpCall::rows`). `None`: the backend has none.
+    fn device_address(&self, _buf: &Buffer) -> Option<u64> {
+        None
+    }
+
     /// Run `body` with every launch on `stream` *recorded instead of executed*, and return the recording. Nothing
     /// in `body` may synchronise, allocate, or copy from pageable host memory; it must not depend on host state
     /// that changes between replays (position and token ids go through device buffers the caller rewrites).
