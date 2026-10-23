@@ -105,11 +105,44 @@ DEADTAIL
 
 ## 6. Metrics
 
-METRICS
+`GET /metrics` gains (only when the store is on) `intarsia_prefix_store_{lookups,hits,misses,local_wins}_total`,
+`tokens_saved_total`, `bytes_restored_total`, `restore_seconds_total`, `last_restore_seconds`,
+`ttft_saved_seconds_total` (restored tokens at the measured cold prefill rate minus restore time; the rate is a moving
+average of this server's own cold prefills, exported as `prefill_tokens_per_second`), `inserts_total`,
+`insert_bytes_total`, `insert_seconds_total`, `rejected_total`, `entries`, `pinned_entries`, and per tier
+(`tier="device|host|disk"`) `tier_hits_total`, `tier_evictions_total`, `tier_objects`, `tier_bytes`,
+`tier_budget_bytes`. The same counters are in `/v1/intarsia/telemetry` (`prefix_store`) and in the built-in dashboard
+(`web/dashboard.js`): a "Prefix store" card with the hit rate, tokens not recomputed, TTFT saved, last restore time,
+and one bar per tier (bytes / budget, hits). `crates/intarsia-server/tests/prefix_store.rs` checks the families appear
+and move, and that nothing appears with the store off.
 
 ## 7. Cache-affinity routing across two tp=1 replicas (design + prototype)
 
-ROUTING
+Prototype only: `docs/results/2026-10-22-pc-prefix-store/scripts/affinity_router.py` (stdlib Python; not run against
+GPUs: tatooine was held by the hp lane all night, and this lane never touched it). Its self-test passes
+(`python3 -I .../affinity_router.py --self-test`: 4 interleaved conversations x 3 turns over 2 replicas, every
+conversation stays on one replica after its first turn, new conversations spread over both, an overloaded owner hands
+off).
+
+Design for tatooine's two R9700s (two `intarsia serve --backend hip --prefix-store on` at tp=1, `HIP_VISIBLE_DEVICES`
+0 and 1, ports 8091/8092; at tp=1 the 35B NVFP4 fits one 32 GB card at the 29 GB budget the HIP lane uses):
+
+1. **Key on messages, not tokens.** The router hashes every leading run of messages (with the tool schema):
+   `h(tools, m0)`, `h(tools, m0, m1)`, ... It needs no tokenizer and matches the store's cut rule (a cut at every
+   message start), so "replica R served run k" means "R's store holds the state at that cut", modulo eviction.
+2. **Route** to the replica that most recently served the longest run of the request (excluding the new last message),
+   unless it has more than `--imbalance` requests in flight above the least-loaded replica; then the least-loaded one
+   gets it and learns the runs. A system prompt alone is not affinity (every replica pins it at startup with
+   `--prefix-store-pin`), so new conversations spread by load, ties broken by a rendezvous hash of the first user message.
+3. **Optional feedback** (not built): replicas could publish their entry keys (`GET /v1/intarsia/prefix-store`) so the
+   router stops trusting stale ownership after an eviction; with 8 GiB of host store per replica (~50 entries of a 4k
+   chat) the LRU table in the router (4096 runs) is the bigger of the two and staleness only costs a cold prefill.
+4. **Why not one replica at tp=2:** tp=2 halves per-token latency but serves one sequence at a time; two tp=1 replicas
+   with affinity keep each conversation's state hot on its own card and serve two conversations concurrently. With the
+   store, a returning conversation costs one restore (~143 MiB host-to-device at 4k) instead of a full prefill.
+
+What it would take to measure: one fleetq job holding both `tatooine-r9700` and `tatooine-r9700-2`, two servers, the
+router in front, `intarsia bench reuse` with the chat workload at 4 conversations, store on/off x router on/round-robin.
 
 ## 8. No-op with the store off
 
