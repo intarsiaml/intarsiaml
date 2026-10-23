@@ -155,7 +155,7 @@ PASS.
 | long_docs_4k | 2048 | 1.40e-2, 1.59e-2, 1.13x | 1.72e-2, 1.53e-2, 0.89x | 1.44e-2, 2.11e-2, 1.46x |
 
 The oracle answers the question point 3 left open: lt's warm runs are no further from the truth than the default's.
-- **Warm/cold ratio:** lt ranges from 0.43x to 1.50x (median 0.90x), the default from 0.23x to 1.41x (median 0.97x) and f8
+- **Warm/cold ratio:** lt ranges from 0.43x to 1.50x (median 0.90x), the default from 0.23x to 1.41x (median 1.00x) and f8
   from 0.57x to 1.46x.
 - **Absolute distance:** lt's cold and warm distances to the oracle fall in the default's range on every prompt.
 - **lt's highest ratio:** `chat_reuse_4k` at 4096 (1.50x) passes on the 3e-3 floor, at a cold KL (3.69e-3) lower than the
