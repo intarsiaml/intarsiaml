@@ -1,0 +1,84 @@
+=== ceiling [22:11:45, 840 s left]
+--- ceiling 22:11:45
+device AMD Radeon Graphics, 32 CUs, clock 2350 MHz (prop)
+WMMA issue peak bf16 194.1 TFLOPS
+WMMA issue peak fp8  377.3 TFLOPS
+
+shape                                 M      N      K hipBLASLt bf16 hipBLASLt fp8      ours f8
+qkv / q+gate                       4096   8192   2048    167.5 (16)    270.9 (16)        158.4
+z                                  4096   4096   2048    164.2 (16)    296.2 (16)        196.9
+o / out_proj                       4096   2048   4096    134.5 (16)    306.4 (16)        201.5
+k / v                              4096    512   2048    158.0 (16)    244.3 (16)        168.3
+experts gate_up (dense ideal)     32768   1024   2048    171.1 (16)    306.0 (16)        175.2
+experts down (dense ideal)        32768   2048    512    123.2 (16)    191.8 (16)         89.3
+shared expert gate_up              4096   1024   2048    159.9 (16)    276.9 (16)        198.6
+shared expert down                 4096   2048    512    122.6 (16)    179.5 (16)        149.5
+(TFLOPS = 2 M N K / time; hipBLASLt: best of the heuristic's algos (count in parentheses), 20 reps each)
+=== prof:base [22:11:50, 835 s left]
+--- op table base 4096 22:11:50
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 449 ms (9131.5 tok/s) | decode 0 ms (0.00 tok/s)
+--- op table base 16384 22:11:56
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1875 ms (8738.6 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 base 4096 22:12:01
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 421 ms (9732.9 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 1681 (of 2243), span 420.4 ms, kernel time 404.3 ms, idle 3.8 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                180    99.39    552.1  24.6%  256x32x1 x 32
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    88.77   2219.3  22.0%  65536x8x4 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   130    63.84    491.1  15.8%  8192x64x1 x 256
+moe_wmma_kernel_r7<false, 64, 25>                                                   80    48.77    609.7  12.1%  65536x4x4 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      120    20.66    172.2   5.1%  8192x4x1 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     10    17.20   1720.3   4.3%  32768x4x1 x 512
+moe_reduce_v8_kernel                                                                40    10.26    256.4   2.5%  1048320x1x1 x 256
+gdn_conv_kernel<false>                                                              30     8.78    292.7   2.2%  8192x128x1 x 128
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 140     7.73     55.2   1.9%  8192x1x1 x 256
+f8_actq_kernel                                                                     130     6.66     51.2   1.6%  1048320x1x1 x 256
+rmsnorm_kernel<true, true>                                                          81     6.53     80.6   1.6%  1048320x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          30     5.70    190.0   1.4%  4193280x1x1 x 32
+moe_combine_kernel<bf16>                                                            40     5.11    127.7   1.3%  8386560x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   20     3.13    156.7   0.8%  1179360x2x1 x 288
+moe_block_kernel<4, 8>                                                              40     2.06     51.5   0.5%  212992x1x1 x 256
+sigmoid_mul_kernel                                                                  10     1.66    166.3   0.4%  16773120x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.33     44.3   0.3%  393216x1x1 x 256
+moe_topk_v2_kernel                                                                  40     0.85     21.1   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    40     0.79     19.6   0.2%  1024x1x1 x 1024
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.60     20.1   0.1%  32768x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.48     16.1   0.1%  8192x1x1 x 256
+--- rocprofv3 base 16384 22:12:04
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1837 ms (8917.0 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 5830 (of 6392), span 1836.9 ms, kernel time 1792.5 ms, idle 2.4 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                720   397.50    552.1  22.2%  256x32x1 x 32
+moe_wmma_kernel_r7<true, 64, 45>                                                   160   346.00   2162.5  19.3%  65536x8x4 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     40   271.08   6777.0  15.1%  32768x4x1 x 512
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   520   252.48    485.5  14.1%  8192x64x1 x 256
+moe_wmma_kernel_r7<false, 64, 25>                                                  320   202.30    632.2  11.3%  65536x4x4 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      480    82.30    171.5   4.6%  8192x4x1 x 256
+moe_reduce_v8_kernel                                                               160    41.27    257.9   2.3%  1048576x1x1 x 256
+gdn_conv_kernel<false>                                                             120    35.03    291.9   2.0%  8192x128x1 x 128
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 560    30.68     54.8   1.7%  8192x1x1 x 256
+f8_actq_kernel                                                                     520    26.30     50.6   1.5%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         321    26.12     81.4   1.5%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                         120    22.58    188.2   1.3%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           160    20.39    127.4   1.1%  8388608x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   50    12.56    251.1   0.7%  1179648x2x1 x 288
+sigmoid_mul_kernel                                                                  40     6.70    167.4   0.4%  16777216x1x1 x 256
+moe_topk_v2_kernel                                                                 160     3.56     22.2   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                   160     3.24     20.2   0.2%  1024x1x1 x 1024
+moe_block_kernel<4, 8>                                                              40     2.03     50.6   0.1%  212992x1x1 x 256
+silu_glu_kernel<true>                                                              160     1.75     11.0   0.1%  262144x1x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     520     1.61      3.1   0.1%  8192x64x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.32     44.1   0.1%  393216x1x1 x 256
+=== stages done [22:12:09]

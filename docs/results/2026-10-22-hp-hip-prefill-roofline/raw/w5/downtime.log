@@ -1,0 +1,6 @@
+active
+[window] job 4330; stages: bin:bench-out-hp-gdnbench bin:bench-out-hp-gdnbench-cu; stopping radiance 2026-10-22 22:30:38
+[window] radiance stopped 2026-10-22 22:30:41
+[window] stages done 2026-10-22 22:30:43
+[window] starting radiance 2026-10-22 22:30:44
+[window] radiance answers (after 15 s) 2026-10-22 22:30:55

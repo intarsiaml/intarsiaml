@@ -679,10 +679,14 @@ fn gdn_shapes(quick: bool) -> Vec<(usize, usize, usize, usize, usize)> {
 /// chunk lengths: the state must carry).
 fn gdn_sweep(op: Op, cfg: &SweepConfig, rng: &mut SplitMix64) -> Vec<Case> {
     let mut cases = Vec::new();
-    let ts: &[usize] = if cfg.quick { &[1, 5] } else { &[1, 7, 64, 130] };
+    // quick: T = 67 for the delta rule only, so the prefill-only HIP gdn_delta_rule_bf16_v3 (T >= 64) has a case
+    let ts: &[usize] = if cfg.quick { &[1, 5, 67] } else { &[1, 7, 64, 130] };
     for (hk, hv, dk, dv, ks) in gdn_shapes(cfg.quick) {
         let c = 2 * hk * dk + hv * dv;
         for &t in ts {
+            if cfg.quick && t == 67 && op != Op::GdnDeltaRule {
+                continue;
+            }
             for dt in act_dtypes() {
                 let mut push = |label: String, call: HostCall| cases.push(Case { label, call });
                 match op {
