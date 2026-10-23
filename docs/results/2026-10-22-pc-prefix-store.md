@@ -58,8 +58,9 @@ from a plain host buffer is what the engine does today.
 
 **Where entries come from (item 2).** With the store on, `prefill_step` ends a chunk at every *cut*: right before each
 `<|im_start|>`, and right after the first `\n` that follows it (the end of the role header). Between cuts the plain
-chunk rule applies (`chunk` rows from the previous cut). An entry is stored at every cut (and every `grid` = 2048 tokens
-inside one long message, and at the end of a prewarm). The template check below decides why the header end matters:
+chunk rule applies (`chunk` rows from the previous cut). An entry is stored after every message header (the last one of the prompt always, the others
+when `min` = 32 tokens past the previous entry), every `grid` = 2048 tokens inside one long message, and at the end of a
+prewarm. The cut before a header is a chunk end but no entry: it would hold 3 tokens less for another 63 MiB. The template check below decides why the header end matters:
 the Qwen3.6 template drops the `<think>` block of every assistant turn before the last user query, and the generation
 prompt is `<|im_start|>assistant\n<think>\n`; so turn N+1 shares turn N's prompt exactly up to
 `<|im_start|>assistant\n` and no further. `crates/intarsia-models/tests/prefix_boundaries_template.rs` renders 3 turns
