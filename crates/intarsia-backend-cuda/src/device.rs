@@ -349,6 +349,35 @@ impl Backend for CudaBackend {
                 }
                 "attn_prefill_f8kv_flash" => ffi::ik_attn_prefill_f8kv_flash(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
+                "gelu_glu_bf16" => ffi::ik_gelu_glu_bf16(i(0), i(1), o, s),
+                // registered `.ext()`, but the registry also offers it to a plain call (admission): that gets the plain rope
+                "rope_prop_bf16" if a.rope_prop => {
+                    ffi::ik_rope_prop_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s)
+                }
+                "rope_prop_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s),
+                "add_scaled_bf16" => ffi::ik_add_scaled_bf16(i(0), i(1), o, a.scale, s),
+                "embedding_scaled_bf16" => ffi::ik_embedding_scaled_bf16(i(0), i(1), o, a.scale, s),
+                "attn_prefill_bf16_ext" => {
+                    ffi::ik_attn_prefill_bf16_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, s)
+                }
+                "attn_decode_bf16_splitkv_ext" => ffi::ik_attn_decode_bf16_splitkv_ext(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.pos0 as i64,
+                    a.scale,
+                    a.window as i64,
+                    o,
+                    sc,
+                    pos,
+                    s,
+                ),
+                "attn_prefill_bf16_splitkv_ext" => {
+                    ffi::ik_attn_prefill_bf16_splitkv_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, sc, s)
+                }
+                "attn_decode_bf16_ext" => {
+                    ffi::ik_attn_decode_bf16_ext(i(0), i(1), i(2), a.pos0 as i64, a.scale, a.window as i64, o, pos, s)
+                }
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
                 other => return Err(Error::NoKernel(format!("cuda kernel '{other}' has no dispatch entry"))),

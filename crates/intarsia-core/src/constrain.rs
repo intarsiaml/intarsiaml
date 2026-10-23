@@ -6,8 +6,62 @@
 //! module, so their path (and their greedy ids) is unchanged.
 
 use crate::error::{Error, Result};
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
+
+/// Opt-in per-phase timing of the constrained step (`INTARSIA_CONSTRAIN_PROFILE=1`): cumulative nanoseconds in the
+/// mask worker, the wait for it, the thread spawn, `commit`, the mask apply and the sampler, printed to stderr every
+/// 100 constrained steps. Diagnostic only; off it costs one cached bool test per phase.
+pub(crate) mod prof {
+    use super::*;
+
+    pub(crate) static COMPUTE: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static WAIT: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static SPAWN: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static COMMIT: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static APPLY: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static SAMPLE: AtomicU64 = AtomicU64::new(0);
+    pub(crate) static STEPS: AtomicU64 = AtomicU64::new(0);
+
+    pub(crate) fn on() -> bool {
+        static ON: OnceLock<bool> = OnceLock::new();
+        *ON.get_or_init(|| std::env::var("INTARSIA_CONSTRAIN_PROFILE").is_ok_and(|v| v != "0" && !v.is_empty()))
+    }
+
+    /// Start a timer when profiling is on.
+    pub(crate) fn t0() -> Option<Instant> {
+        on().then(Instant::now)
+    }
+
+    /// Add the time since `t` to `acc`.
+    pub(crate) fn add(acc: &AtomicU64, t: Option<Instant>) {
+        if let Some(t) = t {
+            acc.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
+    }
+
+    /// Count a constrained step; every 100th prints the cumulative totals.
+    pub(crate) fn step() {
+        if !on() {
+            return;
+        }
+        let n = STEPS.fetch_add(1, Ordering::Relaxed) + 1;
+        if n % 100 == 0 {
+            let g = |a: &AtomicU64| a.load(Ordering::Relaxed);
+            eprintln!(
+                "constrain-profile steps={n} compute_ns={} wait_ns={} spawn_ns={} commit_ns={} apply_ns={} sample_ns={}",
+                g(&COMPUTE),
+                g(&WAIT),
+                g(&SPAWN),
+                g(&COMMIT),
+                g(&APPLY),
+                g(&SAMPLE)
+            );
+        }
+    }
+}
 
 /// The allowed set for one sampling step: bit `i % 32` of word `i / 32` allows token `i`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,6 +97,10 @@ impl TokenMask {
                 any |= chunk.iter().any(|x| x.is_finite());
                 continue;
             }
+            if w == 0 {
+                chunk.fill(f32::NEG_INFINITY);
+                continue;
+            }
             for (b, x) in chunk.iter_mut().enumerate() {
                 if w >> b & 1 == 0 {
                     *x = f32::NEG_INFINITY;
@@ -75,15 +133,22 @@ pub trait TokenConstraint: Send {
 }
 
 /// A sequence's running constraint: the state plus at most one mask being computed in the background, so the CPU
-/// work overlaps the step's forward pass.
+/// work overlaps the step's forward pass. The mask is computed on one helper thread per sequence, started at the first
+/// prefetch and kept for the sequence's life (a thread per step cost more than the mask itself).
 pub(crate) struct ConstraintRun {
     state: Arc<Mutex<Box<dyn TokenConstraint>>>,
-    job: Option<Receiver<Result<TokenMask>>>,
+    /// Wakes the worker for one mask; dropping it ends the worker.
+    work: Option<Sender<()>>,
+    done: Option<Receiver<Result<TokenMask>>>,
+    /// A mask has been requested and not yet taken.
+    pending: bool,
+    /// No thread could be started: masks are computed inline.
+    inline: bool,
 }
 
 impl ConstraintRun {
     pub(crate) fn new(state: Box<dyn TokenConstraint>) -> ConstraintRun {
-        ConstraintRun { state: Arc::new(Mutex::new(state)), job: None }
+        ConstraintRun { state: Arc::new(Mutex::new(state)), work: None, done: None, pending: false, inline: false }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Box<dyn TokenConstraint>> {
@@ -92,31 +157,61 @@ impl ConstraintRun {
 
     /// Wait for the prefetched mask, if one is being computed.
     fn join(&mut self) -> Result<Option<TokenMask>> {
-        let Some(rx) = self.job.take() else { return Ok(None) };
-        let m = rx.recv().map_err(|_| Error::Other("constraint mask worker died".into()))?;
+        if !self.pending {
+            return Ok(None);
+        }
+        self.pending = false;
+        let t = prof::t0();
+        let m = self
+            .done
+            .as_ref()
+            .and_then(|rx| rx.recv().ok())
+            .ok_or_else(|| Error::Other("constraint mask worker died".into()))?;
+        prof::add(&prof::WAIT, t);
         m.map(Some)
+    }
+
+    fn start_worker(&mut self) -> bool {
+        let (work_tx, work_rx) = channel::<()>();
+        let (done_tx, done_rx) = channel();
+        let st = self.state.clone();
+        let spawned = std::thread::Builder::new().name("intarsia-mask".into()).spawn(move || {
+            while work_rx.recv().is_ok() {
+                let t = prof::t0();
+                let m = st.lock().unwrap_or_else(|e| e.into_inner()).compute_mask();
+                prof::add(&prof::COMPUTE, t);
+                if done_tx.send(m).is_err() {
+                    break;
+                }
+            }
+        });
+        if spawned.is_err() {
+            return false;
+        }
+        self.work = Some(work_tx);
+        self.done = Some(done_rx);
+        true
     }
 
     pub(crate) fn active(&self) -> bool {
         // a mask is only ever prefetched for an active constraint
-        self.job.is_some() || self.lock().active()
+        self.pending || self.lock().active()
     }
 
-    /// Start computing the next step's mask on a helper thread (no-op when inactive or already started; when no thread
-    /// can be started, [`ConstraintRun::mask`] computes it inline).
+    /// Start computing the next step's mask on the helper thread (no-op when inactive or already started; when no
+    /// thread can be started, [`ConstraintRun::mask`] computes it inline).
     pub(crate) fn prefetch(&mut self) {
-        if self.job.is_some() || !self.lock().active() {
+        if self.pending || self.inline || !self.lock().active() {
             return;
         }
-        let (tx, rx) = channel();
-        let st = self.state.clone();
-        let spawned = std::thread::Builder::new().name("intarsia-mask".into()).spawn(move || {
-            let m = st.lock().unwrap_or_else(|e| e.into_inner()).compute_mask();
-            let _ = tx.send(m);
-        });
-        if spawned.is_ok() {
-            self.job = Some(rx);
+        let ts = prof::t0();
+        if self.work.is_none() && !self.start_worker() {
+            self.inline = true;
+            return;
         }
+        let sent = self.work.as_ref().is_some_and(|w| w.send(()).is_ok());
+        prof::add(&prof::SPAWN, ts);
+        self.pending = sent;
     }
 
     /// The mask for this step: the prefetched one, or computed now.
@@ -130,7 +225,10 @@ impl ConstraintRun {
     pub(crate) fn commit(&mut self, tok: u32) -> Result<()> {
         // a prefetched mask nobody took (cannot happen in step order, but never commit under a running worker)
         let _ = self.join();
-        self.lock().commit(tok)
+        let t = prof::t0();
+        let r = self.lock().commit(tok);
+        prof::add(&prof::COMMIT, t);
+        r
     }
 }
 
@@ -208,6 +306,6 @@ mod tests {
         // inactive: no prefetch
         let mut c = ConstraintRun::new(Box::new(Counter { next: 0, on: false }));
         c.prefetch();
-        assert!(!c.active() && c.job.is_none());
+        assert!(!c.active() && !c.pending);
     }
 }

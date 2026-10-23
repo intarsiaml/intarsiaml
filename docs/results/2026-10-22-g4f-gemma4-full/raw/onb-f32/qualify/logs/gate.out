@@ -1,0 +1,12 @@
+perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10," -> " 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,"
+sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty
+    "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who" -> " was a master of the world.\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n***\n\n"
+sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact ("blue"): NO
+    "The three primary colors are red, yellow, and" -> " so0."
+sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact ("paris"): NO
+    "The capital of France is" -> " is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is"
+sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact ("oxygen"): NO
+    "Water is a molecule made of two hydrogen atoms and one" -> " hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one hydrogen atoms and one"
+quick gate: FAIL

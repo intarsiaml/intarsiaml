@@ -1,0 +1,50 @@
+prefill chunk 256 (default)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: gemma4-2L on cpu-ref (Cortex-A725) (vocab 262144, weights/act/kv bf16/bf16)
+KL row mask: all prompts are plain text: all rows scored
+golden: /home/nvidia/g4-trunc/gemma4-2L.golden.safetensors (4 prompts, 248 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.6.2, torch 2.14.1+cu130 | model /home/nvidia/g4-trunc/gemma4-2L-bf16 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template hf
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden4.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 95; prompts spanning more than one chunk: 0/4
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 31 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38     0.00   1.099e-4   4.986e-8   4.986e-8   2.632e-4   0.9998   0.9998    12.63      0/38      0
+story                 39    39     0.00   1.120e-4   5.590e-8   5.590e-8   1.999e-4   0.9998   0.9998     6.15      0/39      0
+code                  95    95     3.16   1.119e-4   6.041e-8   6.041e-8   2.788e-4   0.9998   0.9998    12.63      0/95      0
+science               76    76     2.63   1.320e-4   5.832e-8   5.832e-8   3.511e-4   0.9998   0.9998     2.89      0/76      0
+OVERALL                    248     2.02   1.178e-4   5.744e-8   5.744e-8   3.511e-4   0.9998   0.9998     8.63      0.0%      0
+prefill floor [4bit]: top-1 (all rows) 2.02% (not gated for this class) ok | 21-way KL (scored rows, n=248) 5.744e-8 (need <= 3.0e-2) ok [all rows, n=248: 5.744e-8, reported only] | tail mass (all rows) ours 0.9998 vs ref 0.9998, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.744e-8 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 5.744e-8 (21-way KL over all rows <= static floor) | current def: PASS 5.744e-8 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+	Command being timed: "/home/nvidia/g4-main-target/release/intarsia accuracy --model /home/nvidia/g4-trunc/gemma4-2L-nvfp4 --backend cpu --golden /home/nvidia/g4-trunc/gemma4-2L.golden.safetensors --mode prefill --max-seq 2048 --mem-budget 8 --model-id gemma4-2L"
+	User time (seconds): 81.42
+	System time (seconds): 0.97
+	Percent of CPU this job got: 1226%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:06.71
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 3765848
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 402971
+	Voluntary context switches: 15564
+	Involuntary context switches: 12219
+	Swaps: 0
+	File system inputs: 88
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

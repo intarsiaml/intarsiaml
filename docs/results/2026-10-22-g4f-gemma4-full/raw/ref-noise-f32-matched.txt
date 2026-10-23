@@ -1,0 +1,24 @@
+== golden=f32 other=gemma4-26b.golden.safetensors
+ref noise of gemma4-26b-f32.golden.safetensors (precision_spread): precision_spread, KL21 all rows 2.362e-1 (n=1468), scored rows - (n=?), per-prompt values for 10 prompt(s); 2026-10-23; no source cited; estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule)
+  count                  n=38     KL21 2.8219e-2
+  story                  n=39     KL21 1.1690e0
+  code                   n=95     KL21 5.8840e-1
+  science                n=76     KL21 2.1763e-1
+  chat_short             n=23     KL21 1.6286e-1
+  chat_system            n=37     KL21 1.1622e-1
+  chat_multiturn         n=63     KL21 7.6709e-2
+  chat_reasoning         n=97     KL21 1.4669e-1
+  long_prose_300         n=300    KL21 4.9405e-1
+  long_prose_700         n=700    KL21 7.4636e-2
+== golden=f32 other=engine-self.safetensors
+ref noise of gemma4-26b-f32.golden.safetensors (precision_spread): precision_spread, KL21 all rows 2.079e-1 (n=1468), scored rows - (n=?), per-prompt values for 10 prompt(s); 2026-10-23; no source cited; estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule)
+  count                  n=38     KL21 7.2361e-3
+  story                  n=39     KL21 1.1374e0
+  code                   n=95     KL21 4.8626e-1
+  science                n=76     KL21 1.4208e-1
+  chat_short             n=23     KL21 2.5894e-1
+  chat_system            n=37     KL21 3.7371e-2
+  chat_multiturn         n=63     KL21 7.0965e-2
+  chat_reasoning         n=97     KL21 1.3823e-1
+  long_prose_300         n=300    KL21 4.2880e-1
+  long_prose_700         n=700    KL21 7.1044e-2

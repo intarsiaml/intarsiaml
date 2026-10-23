@@ -1,0 +1,4 @@
+fleetq: #4208 waiting (#5 in line): endor is held exclusively by #4197 "so: constrained decode profile + A/B vs main + llama.cpp (exclusive, short)" (claude-f31ccf91-so); then in line behind #4198 "fx4 build new+base with metal" (claude-f31ccf91) on endor
+fleetq:   #4197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4197 set, or it will wait for #4197 to be released.
+fleetq: #4208 waiting (#2 in line): in line behind #4201 "mdl: fold bisect A/B (35B decode, main vs head vs NO_FOLD), exclusive, ~25 min" (claude-f31ccf91-mdl) on endor
+fleetq: #4208 waiting (#2 in line): in line behind #4201 "mdl: fold bisect A/B (35B decode, main vs head vs NO_FOLD), exclusive, ~25 min" (claude-f31ccf91-mdl) on endor; #4201 has no estimated start, so nothing can go first by ending before it

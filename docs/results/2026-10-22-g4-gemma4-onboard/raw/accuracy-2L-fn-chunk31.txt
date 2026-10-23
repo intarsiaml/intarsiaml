@@ -1,0 +1,38 @@
+prefill chunk 31 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: gemma4-2L on NVIDIA GB10 (vocab 262144, weights/act/kv bf16/bf16)
+KL row mask: all prompts are plain text: all rows scored
+golden: /home/nvidia/g4-trunc/gemma4-2L-fn.golden.safetensors (4 prompts, 248 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers transformers 5.6.2, torch 2.14.1+cu130 | model /home/nvidia/g4-trunc/gemma4-2L-bf16-fn | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template hf
+  sampling/prompts: {"forward": "one full-sequence forward", "continuation": "greedy (generate, do_sample=False)"} | prompt files ["golden4.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 31; longest prompt 95; prompts spanning more than one chunk: 4/4
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38    94.74   2.844e-3   1.983e-3   1.983e-3   5.237e-2   0.1615   0.1605    96.32     17/38      0
+story                 39    39    97.44   2.120e-3   1.860e-3   1.860e-3   2.626e-2   0.1489   0.1490    96.41      4/39      0
+code                  95    95    96.84   4.631e-3   3.996e-3   3.996e-3   8.107e-2   0.1731   0.1737    96.63      6/95      0
+science               76    76    94.74   4.057e-3   3.560e-3   3.560e-3   8.142e-2   0.1490   0.1477    98.16      6/76      0
+OVERALL                    248    95.97   3.786e-3   3.218e-3   3.218e-3   8.142e-2   0.1601   0.1598    97.02     13.3%      0
+prefill floor [4bit]: top-1 (all rows) 95.97% (not gated for this class) ok | 21-way KL (scored rows, n=248) 3.218e-3 (need <= 3.0e-2) ok [all rows, n=248: 3.218e-3, reported only] | tail mass (all rows) ours 0.1598 vs ref 0.1601, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 3.218e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 3.218e-3 (21-way KL over all rows <= static floor) | current def: PASS 3.218e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16    93.75   1.484e-3   8.859e-4   8.859e-4   1.277e-2   0.1607   0.1606    95.00      5/16      0
+story                 39    16   100.00   1.638e-3   1.273e-3   1.273e-3   6.512e-3   0.1806   0.1820    95.00     16/16      0
+code                  95    16   100.00   5.446e-3   4.164e-3   4.164e-3   6.772e-2   0.2071   0.2094   100.00     16/16      0
+science               76    16    93.75   7.577e-3   6.493e-3   6.493e-3   8.202e-2   0.1379   0.1372    96.25      4/16      0
+OVERALL                     64    96.88   4.036e-3   3.204e-3   3.204e-3   8.202e-2   0.1716   0.1723    96.56     64.1%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.88% (not gated for this class) ok | 21-way KL (scored rows, n=64) 3.204e-3 (need <= 3.0e-2) ok [all rows, n=64: 3.204e-3, reported only] | tail mass (all rows) ours 0.1723 vs ref 0.1716, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 3.204e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 3.204e-3 (21-way KL over all rows <= static floor) | current def: PASS 3.204e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 17.3% of positions before the first argmax divergence, worst prompt 6.3% (informational)
+greedy-match [decode (teacher-forced)]: mean 64.1% of positions before the first argmax divergence, worst prompt 25.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
