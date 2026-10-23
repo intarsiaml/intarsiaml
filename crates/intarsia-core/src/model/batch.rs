@@ -156,7 +156,7 @@ impl Model {
             self.row_tab = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 2 * self.slot_specs.len().max(1) * 8, MemKind::Device)?);
             self.batch_pos = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 4, MemKind::Device)?);
         }
-        if self.topk.is_none() && self.backend.supports_topk() && !std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "0") {
+        if self.topk.is_none() && self.backend.supports_topk() && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1") {
             let m = Self::BATCH_MAX_ROWS;
             self.topk = Some(TopkBufs {
                 ids: self.backend.alloc(m * Self::TOPK_MAX * 4, MemKind::Device)?,

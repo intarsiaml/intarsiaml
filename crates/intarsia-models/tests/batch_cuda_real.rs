@@ -264,9 +264,9 @@ fn real_35b_batch_step_timing() {
 }
 
 /// B2 (Fable review): the cost of a batched step whose rows are SAMPLED, on the host path (`LastLogits`: one [B, V] download and a
-/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; on by default, `INTARSIA_DEVICE_SAMPLING=0` turns it off).
+/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; opt-in: `INTARSIA_DEVICE_SAMPLING=1` turns it on).
 /// Same seeds, so the two draw the same tokens when the states are the same; the token parity is gated by the engine test
-/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with the knob on).
+/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with `INTARSIA_DEVICE_SAMPLING=1`).
 #[test]
 #[ignore]
 fn real_35b_batch_step_sampled_timing() {

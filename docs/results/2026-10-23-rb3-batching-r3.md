@@ -79,7 +79,7 @@ off (section 5). Rows with a constraint, `min_tokens`, trace logits, `top_k` out
 | 16 | 72.69 ms, 220.1 tok/s | 54.86 ms, 291.6 tok/s | -25% step time |
 
 This is Fable's B2 (12 to 22% at N = 16 sampled); measured here it is larger because the host download and sort sit in the serialized step.
-Because parity holds, it is **on by default** (`INTARSIA_DEVICE_SAMPLING=0` turns it off); the localeval cells above are greedy and unaffected.
+Because parity holds, it was first made on by default (`INTARSIA_DEVICE_SAMPLING=0` turned it off); user decision 2026-10-23 17:57 made it **opt-in, default off** (`INTARSIA_DEVICE_SAMPLING=1` turns it on); the localeval cells above are greedy and unaffected.
 
 **(c) Graph buckets and the m3 fix.** A batched step of 2 to 16 rows is recorded once per row count as a CUDA graph and replayed (the row
 tables are rewritten before each replay, which is why a recording is valid for any set of sequences). Solo decode graphs are now kept per
