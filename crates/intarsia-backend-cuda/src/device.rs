@@ -190,6 +190,12 @@ impl Backend for CudaBackend {
             total = self.total_at_init;
             free = 0;
         }
+        // unified memory: page cache the kernel gives back to a cudaMalloc counts as free (`hostmem`)
+        let free = if self.integrated {
+            crate::hostmem::effective_free(free, total, true, crate::hostmem::host_mem_available(), crate::hostmem::raw_requested())
+        } else {
+            free
+        };
         DeviceInfo {
             name: self.name.clone(),
             backend: "cuda".into(),

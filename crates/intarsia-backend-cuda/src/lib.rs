@@ -12,6 +12,7 @@
 
 pub mod disable;
 pub mod exl3;
+pub mod hostmem;
 pub mod kernels;
 pub mod quantmoe;
 
