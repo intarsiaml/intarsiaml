@@ -196,7 +196,7 @@ fn sigmoid(x: f64) -> f64 {
 fn rope(x: &mut [f64], pos: usize, rd: usize, theta: f64) {
     let half = rd / 2;
     for i in 0..half {
-        let inv = theta.powf(-(2 * i) as f64 / rd as f64);
+        let inv = theta.powf(-((2 * i) as f64) / rd as f64);
         let (c, s) = ((pos as f64 * inv).cos(), (pos as f64 * inv).sin());
         let (a, b) = (x[i], x[i + half]);
         x[i] = a * c - b * s;

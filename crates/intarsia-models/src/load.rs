@@ -219,8 +219,7 @@ pub fn serve_remote_rank(
     let (recipe_source, recipe, dims, _cfg) = read_model_spec(dir, opts)?;
     let weights = SchemedSource::open(dir)?;
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backend.name());
-    let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
-    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, mtp: opts.load.mtp || mtp, ..opts.load.clone() };
+    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
     let tp = intarsia_core::model::TpRank { rank, world, comm: Some(comm) };
     let mut model = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, Arc::new(Telemetry::new()), tp)?;
     let fp = tp_fingerprint(dir, &recipe_source, &load_opts, opts, world);
@@ -285,7 +284,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
     eprintln!("prefill chunk {}", prefill_chunk.describe());
-    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
+    let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
+    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, mtp: opts.load.mtp || mtp, ..opts.load.clone() };
     let mut model = match group {
         Group::Local(backends, comms) if backends.len() == 1 => {
             let _ = comms;

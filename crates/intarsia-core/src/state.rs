@@ -289,8 +289,8 @@ impl SequenceState {
                     off += r.bytes;
                 }
             }
-            // the states after rows m.. are no longer reachable from here
-            self.spec_rows.saved = 0;
+            // the live state is now row m - 1's; the rows before it can still be returned to (a stop inside the run)
+            self.spec_rows.saved = m - 1;
         }
         self.snapshots.retain(|s| s.len <= keep);
         for s in self.slots.iter_mut() {
