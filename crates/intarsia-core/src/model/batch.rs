@@ -283,7 +283,10 @@ impl Model {
         }
         // one row is the solo step itself (its graph is kept per sequence state, so alternating single rows do not re-record)
         if b == 1 {
-            return Ok(vec![self.forward(states[0], ids, modes[0], None)?]);
+            // the solo step has no device top-k: the whole row comes back and the engine samples it on the host, which is the
+            // same token (`Seq::token_from` takes `Logits` for a sampled request)
+            let mode = if matches!(modes[0], HeadMode::LastTopK(_)) { HeadMode::LastLogits } else { modes[0] };
+            return Ok(vec![self.forward(states[0], ids, mode, None)?]);
         }
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
@@ -363,7 +366,7 @@ impl Model {
             (self.view(&t.ids, DType::I32, &[b, kmax]), self.view(&t.vals, DType::F32, &[b, kmax]), self.view(&t.nan, DType::I32, &[b]));
         let need = b * 32 * kmax * 8;
         let scratch = self.view(&t.scratch, DType::U8, &[need]);
-        self.backend.topk_rows(&logits, kmax, &ids, &vals, &nan, &scratch, 0)?;
+        self.backend.topk_rows(&logits, kmax, &ids, &vals, &nan, &scratch, self.stream)?;
         let (mut i, mut x, mut n) = (vec![0u8; b * kmax * 4], vec![0u8; b * kmax * 4], vec![0u8; b * 4]);
         self.backend.download(&t.ids, 0, &mut i, self.stream)?;
         self.backend.download(&t.vals, 0, &mut x, self.stream)?;
