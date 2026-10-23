@@ -62,11 +62,12 @@ enum Variant {
 
 const VARIANTS: [Variant; 3] = [Variant::Dense, Variant::Moe, Variant::MoeA8];
 
-/// `INTARSIA_BATCH_TEST_BACKEND=cuda` / `hip` runs the file on that GPU backend (bf16), anything else on the cpu backend (f32).
+/// `INTARSIA_BATCH_TEST_BACKEND=cuda` / `hip` / `metal` runs the file on that GPU backend (bf16), anything else on the cpu backend (f32).
 fn gpu() -> Option<&'static str> {
     match std::env::var("INTARSIA_BATCH_TEST_BACKEND").as_deref() {
         Ok("cuda") => Some("cuda"),
         Ok("hip") => Some("hip"),
+        Ok("metal") => Some("metal"),
         _ => None,
     }
 }
@@ -81,7 +82,14 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     static B: std::sync::OnceLock<Option<Arc<dyn intarsia_core::backend::Backend>>> = std::sync::OnceLock::new();
     B.get_or_init(|| {
         if let Some(name) = gpu() {
-            let made = if name == "hip" { intarsia_backend_hip::create(0) } else { intarsia_backend_cuda::create(0) };
+            let made = match name {
+                "hip" => intarsia_backend_hip::create(0),
+                #[cfg(target_os = "macos")]
+                "metal" => intarsia_backend_metal::MetalBackend::arc(),
+                #[cfg(not(target_os = "macos"))]
+                "metal" => Err(intarsia_core::Error::Unsupported("metal needs macOS".into())),
+                _ => intarsia_backend_cuda::create(0),
+            };
             match made {
                 Ok(b) => Some(b),
                 Err(e) => {
@@ -99,12 +107,12 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     .clone()
 }
 
-/// Most batched sequences the file exercises: 4 on the cpu reference, the CUDA cap on the GPU.
+/// Most batched sequences the file exercises: 4 on the cpu reference, the backend's cap on a GPU (CUDA and HIP 16, Metal 8).
 fn max_rows() -> usize {
-    if on_cuda() {
-        16
-    } else {
-        4
+    match gpu() {
+        Some("metal") => 8,
+        Some(_) => 16,
+        None => 4,
     }
 }
 
@@ -388,9 +396,9 @@ fn picks(rec: &intarsia_core::plan::Recorder, op: intarsia_core::Op) -> Vec<Stri
     v
 }
 
-/// On CUDA the batched plan must really run the row-exact `_rows` kernels (and the solo step's own for the per-row ops):
+/// On a GPU the batched plan must really run the row-exact `_rows` kernels (and the solo step's own for the per-row ops):
 /// a green identity test over a plan that silently picked something else would prove nothing.
-fn check_cuda_batch_picks(m: &Model, v: Variant) {
+fn check_gpu_batch_picks(m: &Model, v: Variant) {
     use intarsia_core::plan::Phase;
     use intarsia_core::Op;
     let (rec, dec) = (m.dry_run(Phase::Batch, 4, 10).unwrap(), m.dry_run(Phase::Decode, 1, 10).unwrap());
@@ -403,7 +411,8 @@ fn check_cuda_batch_picks(m: &Model, v: Variant) {
         }
     }
     if matches!(v, Variant::Moe | Variant::MoeA8) {
-        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains("rows")), "{:?}", picks(&rec, Op::MoeExperts));
+        let want = if m.backend.name() == "metal" { "moe_experts_bf16_rows" } else { "rows" };
+        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)), "{:?}", picks(&rec, Op::MoeExperts));
         assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
     }
     // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
@@ -462,7 +471,7 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
         let tel = Arc::new(Telemetry::new());
         let m = model(v, max_rows(), true, &tel);
         if on_cuda() {
-            check_cuda_batch_picks(&m, v);
+            check_gpu_batch_picks(&m, v);
         }
         // N = 2, 3 and 4 sequences of different prompt lengths (on the GPU also 8 and 16), 130 consecutive batched steps each
         // (the fixture's context is 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the
@@ -470,7 +479,9 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
         let mut sets = vec![vec![3usize, 9], vec![5, 11, 20], vec![4, 8, 13, 22]];
         if on_cuda() {
             sets.push((0..8).map(|i| 3 + 5 * i).collect());
-            sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
+            if max_rows() >= 16 {
+                sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
+            }
         }
         for lens in sets {
             let n = lens.len();
@@ -562,7 +573,7 @@ fn batched_engine_equals_solo_over_128_tokens() {
         }
         if on_cuda() {
             // more slots, more requests than slots
-            for rows in [8usize, 16] {
+            for rows in [8usize, 16].into_iter().filter(|&r| r <= max_rows()) {
                 check_engine(v, rows, 2 * rows + 3, false);
             }
         }

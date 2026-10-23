@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 530" width="980" role="img" aria-labelledby="ttl desc">
+<title id="ttl">One batched decode step of Qwen3.6-35B-A3B on Metal (Apple Silicon)</title>
+<desc id="desc">B sequences enter one pass over the weights. Shared projections run as row-exact multi-row GEMVs (fp8 / nvfp4 / bf16); GatedDeltaNet state, KV cache and attention run once per row; MoE experts run as one call over B x 8 pairs, grouped by expert so each distinct expert's weights are read once.</desc>
+<style>
+:root{--bg:#ffffff;--fg:#1f2328;--mut:#59636e;--shared:#ddf4ff;--sharedS:#0969da;--row:#dafbe1;--rowS:#1a7f37;--par:#eaeef2;--parS:#6e7781;--moe:#fff8c5;--moeS:#9a6700;--ln:#8c959f}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--shared:#0c2d6b;--sharedS:#58a6ff;--row:#0f3d1f;--rowS:#3fb950;--par:#21262d;--parS:#8b949e;--moe:#3d2e00;--moeS:#d29922;--ln:#6e7681}}
+.bg{fill:var(--bg)} .t{font:600 13px system-ui,sans-serif;fill:var(--fg)} .s{font:11px system-ui,sans-serif;fill:var(--mut)} .h{font:700 14px system-ui,sans-serif;fill:var(--fg)}
+.shared{fill:var(--shared);stroke:var(--sharedS);stroke-width:1.5} .row{fill:var(--row);stroke:var(--rowS);stroke-width:1.5} .par{fill:var(--par);stroke:var(--parS);stroke-width:1.5} .moe{fill:var(--moe);stroke:var(--moeS);stroke-width:1.5}
+.ln{stroke:var(--ln);stroke-width:1.5;fill:none} .dash{stroke:var(--ln);stroke-width:1;stroke-dasharray:5 4;fill:none}
+</style>
+<rect class="bg" width="980" height="530"/>
+<text x="20" y="28" class="h">One batched decode step, B = 2..8 sequences (x40 layers: 30 GatedDeltaNet + 10 attention, each followed by MoE)</text>
+<rect x="20" y="50" width="150" height="48" rx="6" class="par"/><text x="95.0" y="68" class="t" text-anchor="middle">ids[B], states[B]</text><text x="95.0" y="84" class="s" text-anchor="middle">one token per sequence</text>
+<rect x="20" y="118" width="150" height="48" rx="6" class="par"/><text x="95.0" y="136" class="t" text-anchor="middle">embedding, rmsnorm</text><text x="95.0" y="152" class="s" text-anchor="middle">row-parallel, solo kernels</text>
+<path class="ln" d="M95 98 V118"/>
+<text x="230" y="64" class="h">GatedDeltaNet layer (30)</text>
+<rect x="230" y="76" width="170" height="52" rx="6" class="shared"/><text x="315.0" y="94" class="t" text-anchor="middle">in_qkv, in_z (fp8 rows)</text><text x="315.0" y="110" class="s" text-anchor="middle">in_a, in_b (bf16 rows)</text>
+<rect x="420" y="76" width="190" height="52" rx="6" class="row"/><text x="515.0" y="94" class="t" text-anchor="middle">conv + delta rule, per row</text><text x="515.0" y="110" class="s" text-anchor="middle">own recurrent state, 63 MB/seq</text>
+<rect x="630" y="76" width="150" height="52" rx="6" class="par"/><text x="705.0" y="94" class="t" text-anchor="middle">gated rmsnorm</text><text x="705.0" y="110" class="s" text-anchor="middle">row-parallel</text>
+<rect x="800" y="76" width="160" height="52" rx="6" class="shared"/><text x="880.0" y="94" class="t" text-anchor="middle">out_proj (fp8 rows)</text><text x="880.0" y="110" class="s" text-anchor="middle">weights read once</text>
+<path class="ln" d="M400 102 H420 M610 102 H630 M780 102 H800"/>
+<text x="230" y="168" class="h">Attention layer (10)</text>
+<rect x="230" y="180" width="170" height="52" rx="6" class="shared"/><text x="315.0" y="198" class="t" text-anchor="middle">q,k,v (fp8 rows)</text><text x="315.0" y="214" class="s" text-anchor="middle">gate split per row</text>
+<rect x="420" y="180" width="190" height="52" rx="6" class="row"/><text x="515.0" y="198" class="t" text-anchor="middle">qk_norm, rope, kv, attn per row</text><text x="515.0" y="214" class="s" text-anchor="middle">split-KV over its own KV cache</text>
+<rect x="630" y="180" width="150" height="52" rx="6" class="par"/><text x="705.0" y="198" class="t" text-anchor="middle">sigmoid gate</text><text x="705.0" y="214" class="s" text-anchor="middle">row-parallel</text>
+<rect x="800" y="180" width="160" height="52" rx="6" class="shared"/><text x="880.0" y="198" class="t" text-anchor="middle">o_proj (fp8 rows)</text><text x="880.0" y="214" class="s" text-anchor="middle">weights read once</text>
+<path class="ln" d="M400 206 H420 M610 206 H630 M780 206 H800"/>
+<path class="ln" d="M170 142 H200 V102 H230 M200 142 V206 H230"/>
+<text x="230" y="278" class="h" dy="-4">MoE block (every layer, 40)</text>
+<rect x="230" y="284" width="150" height="52" rx="6" class="shared"/><text x="305.0" y="302" class="t" text-anchor="middle">router (bf16 rows)</text><text x="305.0" y="318" class="s" text-anchor="middle">top-k: row-parallel</text>
+<rect x="400" y="284" width="250" height="52" rx="6" class="moe"/><text x="525.0" y="302" class="t" text-anchor="middle">experts: B x 8 pairs sorted by expert</text><text x="525.0" y="318" class="s" text-anchor="middle">each distinct expert read once, bitwise per pair</text>
+<rect x="670" y="284" width="140" height="52" rx="6" class="shared"/><text x="740.0" y="302" class="t" text-anchor="middle">shared expert</text><text x="740.0" y="318" class="s" text-anchor="middle">nvfp4 rows</text>
+<rect x="830" y="284" width="130" height="52" rx="6" class="par"/><text x="895.0" y="302" class="t" text-anchor="middle">combine, residual</text><text x="895.0" y="318" class="s" text-anchor="middle">row-parallel</text>
+<path class="ln" d="M380 310 H400 M650 310 H670 M810 310 H830"/>
+<path class="ln" d="M960 128 V154 M960 232 V250 M960 250 H215 V310 H230"/>
+<rect x="230" y="364" width="190" height="52" rx="6" class="shared"/><text x="325.0" y="382" class="t" text-anchor="middle">final norm, lm_head</text><text x="325.0" y="398" class="s" text-anchor="middle">bf16 rows, M up to 8</text>
+<rect x="440" y="364" width="170" height="52" rx="6" class="par"/><text x="525.0" y="382" class="t" text-anchor="middle">argmax / sampler</text><text x="525.0" y="398" class="s" text-anchor="middle">per row, on device or host</text>
+<rect x="630" y="364" width="170" height="52" rx="6" class="par"/><text x="715.0" y="382" class="t" text-anchor="middle">StepOut[B]</text><text x="715.0" y="398" class="s" text-anchor="middle">row r == solo step of r</text>
+<path class="ln" d="M420 390 H440 M610 390 H630"/>
+<rect x="20" y="450" width="22" height="16" rx="3" class="shared"/><text x="52" y="463" class="s">shared weights: row-exact multi-row GEMV, read once for B rows (G-B)</text>
+<rect x="490" y="450" width="22" height="16" rx="3" class="row"/><text x="522" y="463" class="s">per sequence: own state or KV, solo kernel, run once per row</text>
+<rect x="20" y="480" width="22" height="16" rx="3" class="moe"/><text x="52" y="493" class="s">routed experts: B x 8 (row, expert) pairs in one launch</text>
+<rect x="490" y="480" width="22" height="16" rx="3" class="par"/><text x="522" y="493" class="s">row-parallel op: output row depends on its input row only</text>
+<text x="20" y="515" class="s">Solo step (B = 1) is unchanged and keeps its fusions; at B >= 2 the fused ops run as their unfused chains where a registered bitwise-equivalence test exists.</text>
+</svg>

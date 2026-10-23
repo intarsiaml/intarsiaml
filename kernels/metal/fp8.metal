@@ -9,8 +9,8 @@
 // (subnormals included); the factor 256 is folded into the final scale. Codes 0x7F / 0xFF (NaN) are caught per word.
 // Entry points:
 //   fp8_xprep_bf16        xs[M,K] (bf16 scratch) = QDQ(x) (exact in bf16) or x; one thread per 8 elements (GEMM only)
-//   fp8_gemv_{bf16,f32}_{m1,m8}
-//                         decode GEMV, M <= 1 / 8 per call. A threadgroup of FP8_SG simdgroups stages its q(x) rows once in
+//   fp8_gemv_{bf16,f32}_{m1,m4,m8}
+//                         decode GEMV, M <= 1 / 4 / 8 per call. A threadgroup of FP8_SG simdgroups stages its q(x) rows once in
 //                         threadgroup memory (bf16, launcher-sized M * K * 2 bytes), each simdgroup owns RS output
 //                         rows (4 for _m1, 2 for _m8; a lane takes 16-element chunks of K, UN of them loaded before any is
 //                         used, 2 x 8-byte loads per row and chunk), f32 accumulate, simd_sum.
@@ -178,6 +178,10 @@ FP8_GEMV(fp8_gemv_bf16_m1, 1, 4, 4, ushort)
 FP8_GEMV(fp8_gemv_bf16_m8, 8, 2, 2, ushort)
 FP8_GEMV(fp8_gemv_f32_m1, 1, 4, 4, float)
 FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
+// _m4: the multi-row form for K up to 4096 (4 rows of q(x) fill the 32 KB of threadgroup memory there, 8 rows only up to
+// K = 2048); `matmul_fp8_gemv_rows` takes it past M = 4 at K = 4096 (the 35B's GDN / attention output projections)
+FP8_GEMV(fp8_gemv_bf16_m4, 4, 2, 2, ushort)
+FP8_GEMV(fp8_gemv_f32_m4, 4, 2, 2, float)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 
