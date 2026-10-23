@@ -115,7 +115,8 @@ Two different questions, reported separately:
 | cpu, tiny GatedDeltaNet hybrid (`tiny_qwen3_5`, f32) | bitwise | **not bitwise**, ids equal in every case | same tests, plus grid points inside a long message and a restore from the disk tier after an engine restart |
 | metal, Qwen3-8B BF16 | METAL8_A | METAL8_B | `prefix_store_metal.rs`, fleetq #4322 |
 | metal, Qwen3.6-35B-A3B NVFP4 | METAL35_A | METAL35_B | `prefix_store_metal.rs`, fleetq #4322 |
-| hip, cuda | not run | not run | tatooine held by the hp lane; spark1/spark2 busy (see Limits) |
+| cuda (GB10), Qwen3.6-35B-A3B NVFP4 | **bitwise** (48 steps of logits + ids), v1 #4382, v2 #4398, v3 #4406 | not bitwise from step 0 (CUDA prefill is chunk-sensitive), ids equal | `prefix_store_cuda.rs`: turn 1 (1873 tok), an unrelated chat (878), turn 2 (2531 tok) restores 1871 tokens (104 MB in 7 ms) |
+| hip | not run | not run | tatooine was held by the hp lane all night; not touched |
 
 **The brief's premise "cpu chunking is bitwise" does not hold for the hybrid.** `hybrid_cpu_prefill_chunk_sensitivity`
 runs the same 40 tokens through the tiny hybrid on cpu as 8x5 rows and as 5+19+16 rows: the states (KV + GatedDeltaNet)
