@@ -1,0 +1,11 @@
+
+running 1 test
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12574523392, weights_bytes: 20825033460, workspace_bytes: 960563744, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11945797072, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan notes: ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+17550 (row, step) pairs bitwise identical in 233.7 s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 238.19s
+
+GC2_DONE

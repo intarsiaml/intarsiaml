@@ -41,9 +41,10 @@ macro_rules! hip_test {
 /// Every proven fusion. CUDA's phase-1 fusions of the 35B and Qwen3-8B decode steps
 /// (docs/results/2026-10-14-cuda-decode-fusion.md), and the six HIP decode fusions of the same names (the HIP backend's
 /// `tests/fused_decode.rs` ports the CUDA tests, bitwise against the same unfused chains); other backends have none registered,
-/// so their batched plans keep the stricter rule (the solo step's op multiset). Also here: HIP's `SharedDownCombine` (rows 1..=8)
-/// and `MoeBlock` (T * top_k <= 16). The HIP fp8 folds (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`) are *not*: they are
-/// one-row kernels (`OpCall::with_rows`), so with batching on the model does not fuse them in the solo step either.
+/// so their batched plans keep the stricter rule (the solo step's op multiset). Also here: HIP's phase-1 folds `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine` and `MoeBlock`. They
+/// are kernels of few rows (1, 1, 1..=8 and T * top_k <= 16); because each has an entry here, `Model::fused_ok` does not take
+/// them away from the solo step when batching is on (without an entry it must: the batched step then could not run the same
+/// work).
 pub const FUSIONS: &[Fusion] = &[
     Fusion {
         backend: "cuda",
@@ -130,6 +131,18 @@ pub const FUSIONS: &[Fusion] = &[
             hip_test!("rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair"),
             hip_test!("rmsnorm_add_matmul_pair_many_rows_bitwise"),
         ],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::RmsNormAddMatmulFp8Pair,
+        chain: &[Op::RmsNormAdd, Op::MatmulFp8Pair],
+        tests: &["crates/intarsia-backend-hip/tests/fusion_p1.rs::rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair"],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::SigmoidMulMatmulFp8,
+        chain: &[Op::SigmoidMul, Op::MatmulFp8],
+        tests: &["crates/intarsia-backend-hip/tests/fusion_p1.rs::sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv"],
     },
     Fusion {
         backend: "hip",
