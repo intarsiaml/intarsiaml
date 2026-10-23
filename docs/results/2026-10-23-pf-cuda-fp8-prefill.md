@@ -155,7 +155,7 @@ default, 9.54e-3 lt.
 | acc-short | PASS | **FAIL** (baseline gate) | floor passes; baseline-relative: mean KL 5.87e-3 -> 6.83e-3 (limit 6.75e-3), tail-bucket KL, and per-prompt |tail diff| for `science` and `chat_system`; top-1 improves 97.92 -> 98.27 |
 | acc-oracle | PASS | **FAIL** | absolute floor PASS (KL 9.24e-3 against 2.0e-2); fails the "logits moved against the recorded main dump" check (mean KL 8.1e-3 against 1e-4): expected for any numerics change, the dump is main's own output |
 | acc-long | PASS | PASS | KL 1.49e-2 / 1.42e-2 |
-| acc-4k | FAIL | FAIL | fails on main too in this setup ("prefix reuse at chunk 1024: 3 judged", cause not investigated); `accuracy --mode reuse` on the same golden passes for the default (below) |
+| acc-4k | FAIL | FAIL | fails on main too in this setup ("prefix reuse at chunk 1024: 3 judged", cause not investigated); the separate `accuracy --mode reuse` runs below use the long golden, not the 4k one, so they do not contradict it |
 | envelope | ERROR | ERROR | unstamped build, both arms |
 
 **Prefix-reuse gate** (`accuracy --mode reuse` on the long golden, 5 prompts x continue / restore / aligned, fixed 0.25-nat
@@ -167,12 +167,14 @@ stream tolerance; raw/a1, a3)
 | lt | FAIL: `chat_reuse_4k` continue (3/32 stream match; diverges at token 3) | FAIL: `chat_reuse_4k` continue (3/32) and `long_code_4k` continue (8/32) | FAIL: `chat_reuse_4k` continue (5/32) |
 
 `restore` and `aligned` rows (bitwise by construction) pass for lt in every case. The failing rows are `continue`, where warm
-and cold runs split the prompt differently; the stream diverges at a position with a small margin (warm margin 0.110 nats,
-cold 0.317) and shared rows differ by 0.5-0.9 nats. This is a chaotic threshold, not a systematic shift: lt together with the
-MoE in-place knob (below) passes the same rows at chunk 1024 / 4096, and chunk 8192 judges 6 rows and none fail. We did not
-find why lt amplifies chunk-split differences more than the default does, although both quantise activations to e4m3 with the
-same rounding. Open hypotheses, untested: accumulation-order sensitivity of the e4m3 MMA at the quantisation boundary; the
-pinned algorithm chosen at M = 2048 behaving differently for the partial last tile.
+and cold runs split the prompt differently. `chat_reuse_4k` continue fails for lt alone at every chunk where that prompt is
+judged (1024 in two builds, 2048, 4096; at chunk 8192 the prompt is not judged, only 6 other rows are, and they pass), so this is
+a consistent failure of lt on that prompt, not a one-off. The diverging stream has a small margin (warm 0.110 nats, cold 0.317)
+and shared rows differ by 0.5-0.9 nats against the 0.25-nat tolerance. Only lt together with the MoE in-place knob (below)
+passes the same rows (chunks 1024, 4096). We did not find the mechanism: both the default and lt quantise activations to e4m3
+with the same rounding, and `matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call` (row slices of 5 to 548 rows out of M = 1100
+and 2048) passes, so a plain M-dependence of the GEMM is ruled out. Untested: accumulation-order sensitivity of the e4m3 MMA at
+the activation-quantisation boundary.
 
 ## No-op (path off)
 
@@ -204,6 +206,9 @@ sum and adding it with a separate fp32 add (kernels/cuda/moe_w4a16.cu; the defau
   8.5e-5 (3.4x, the existing w4a16 bar is 2.5x) and 0.61 % of bf16 outputs off the reference against 0.04 %. End to end KL is
   unchanged within noise (short 4.666e-3, long 1.451e-2, 4k 1.234e-2; with lt: 5.408e-3 / 1.420e-2 / 1.207e-2). With IP alone
   the reuse gate fails `long_docs_4k` continue at chunk 1024 (oracle-relative warm/cold 1.80x, limit 1.5x) and passes at 2048.
+* The unit test `moe_w4a16_ip.rs` first asserted the existing 2.5x bound and failed (#4654, #4656); the bar was then made absolute
+  (rel_l2 < 1e-3, within 6x of the old kernel) and passes in #4658. That job also ran the GPU tests and `kernels test` under `--load cpu`
+  instead of `--quiet gpu,cpu` (seconds of GPU use).
 * So IP is a measured open question, not a proposal: it needs a decision on whether MoE is in scope and whether 3.4x kernel
   error is acceptable for +4 %.
 

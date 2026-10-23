@@ -65,7 +65,7 @@
    "name": "cuda gpu tests incl. matmul_fp8_gemm_lt rows_do_not_depend_on_the_call",
    "command": "scripts/pf/gputests.sh pf-dev",
    "result": "pass",
-   "detail": "moe_w4a16 4, moe_w4a16_ip 2, quantmoe 12 passed (lt accuracy + row independence), docs_env_vars 2; kernels test 71 kernels 509 cases ADMITTED; fleetq #4654 #4658"
+   "detail": "moe_w4a16 4, quantmoe 12 (lt accuracy + row independence), docs_env_vars 2 passed; kernels test 71 kernels 509 cases ADMITTED (#4654, #4658). moe_w4a16_ip FAILED in #4654 and #4656 against the strict 2.5x kernel-accuracy bar (rel_l2 up to 3.4x) and passes (2 tests) in #4658 only after the test bar was made absolute (rel_l2 < 1e-3); #4658 ran GPU tests under --load cpu instead of --quiet gpu,cpu (seconds of GPU use)."
   },
   {
    "name": "qualify acc-short 35B CUDA, lt",
