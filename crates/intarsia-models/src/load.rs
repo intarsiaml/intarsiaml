@@ -273,16 +273,16 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let backend_name = backends.first().map_or("cpu", |b| b.name());
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
-    // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA whenever `--max-batch N` asks (its `_rows` kernels are
+    // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA and HIP whenever `--max-batch N` asks (its `_rows` kernels are
     // proven row-exact, docs/results/2026-10-23-rb2-cuda-batching.md); the cpu reference needs the explicit opt-in
     // `INTARSIA_RECURRENT_BATCH=1` (docs/results/2026-10-23-rb-recurrent-batching.md). Every other backend is refused.
     let hybrid_opt_in = std::env::var("INTARSIA_RECURRENT_BATCH").is_ok_and(|v| v == "1");
-    let hybrid_batch = backend_name == "cuda" || (hybrid_opt_in && backend_name == "cpu");
+    let hybrid_batch = matches!(backend_name, "cuda" | "hip") || (hybrid_opt_in && backend_name == "cpu");
     if max_batch.value > 1 {
-        // fail before reading any weights: continuous batching needs row-exact multi-row kernels (Metal, CUDA)
-        if !matches!(backend_name, "metal" | "cuda") && !hybrid_batch {
+        // fail before reading any weights: continuous batching needs row-exact multi-row kernels (Metal, CUDA, HIP)
+        if !matches!(backend_name, "metal" | "cuda" | "hip") && !hybrid_batch {
             return Err(Error::Unsupported(format!(
-                "--max-batch {} needs the Metal or CUDA backend (row-exact multi-row kernels; backend is {backend_name}); use --max-batch 1",
+                "--max-batch {} needs the Metal, CUDA or HIP backend (row-exact multi-row kernels; backend is {backend_name}); use --max-batch 1",
                 max_batch.value
             )));
         }
@@ -366,15 +366,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
-        if hybrid_batch {
+        // Metal: only the hybrid 35B opts in (row-exact fp8 / nvfp4 / expert-grouped kernels, lane mb); a dense model keeps the
+        // path it always had
+        if hybrid_batch || (backend_name == "metal" && model.has_hybrid_blocks()) {
             model.allow_recurrent_batch()?;
         }
-        // Batching needs the row-exact multi-row kernels (Metal, CUDA). `enable_batch` exempts the cpu backend (its kernels
+        // Batching needs the row-exact multi-row kernels (Metal, CUDA, HIP). `enable_batch` exempts the cpu backend (its kernels
         // loop over rows), but the batched engine serves only backends that register them.
         if !model.batch_capable() && !(hybrid_opt_in && model.backend.name() == "cpu") {
             return Err(Error::Unsupported(format!(
                 "--max-batch {} needs row-exact multi-row kernels, which the {} backend does not provide (continuous \
-                 batching is Metal and CUDA only); use --max-batch 1",
+                 batching is Metal, CUDA and HIP only); use --max-batch 1",
                 max_batch.value,
                 model.backend.name()
             )));
@@ -444,8 +446,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
-        } else if model.recurrent_batch() && backend_name == "cuda" {
-            // The busy chunk is the solo chunk (2048 for the 35B): then a request that prefills beside decoding sequences
+        } else if model.recurrent_batch() && matches!(backend_name, "cuda" | "hip" | "metal") {
+            // The busy chunk is the solo chunk (2048 for the 35B on CUDA and Metal, 4096 on HIP, lane hb): then a request that prefills beside decoding sequences
             // runs the same chunk schedule as its solo run, and its state, and every token after it, is bitwise the solo
             // engine's for every prompt length. A smaller busy chunk changes the GEMM tiling of the prefill: 1024 against 2048
             // measured mean 21-way KL 7.87e-3 on the 35B (2.5x the acc-short ref-noise floor 3.161e-3, 4.1% top-1 flips),

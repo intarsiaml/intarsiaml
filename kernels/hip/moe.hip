@@ -1213,7 +1213,7 @@ int moe_topk_impl(const ik_tensor* logits, int top_k, int norm, ik_tensor* weigh
 int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
                      const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                      const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2,
-                     bool v3 = false) {
+                     bool v3 = false, bool allow_wmma = true) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -1233,6 +1233,7 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
         out->shape[1] != H)
         return IK_ERR_SHAPE;
     if (E < 1 || E > kMaxExperts || K < 1 || K > E) return IK_ERR_SHAPE;
+    if (!allow_wmma && T > 16) return IK_ERR_SHAPE;  // the row-exact entry (ik_moe_experts_bf16_rows): at most 16 tokens
     if (T == 0) return IK_OK;
     const int64_t P = T * K;
     if (P > 0x7fffffffLL || (int64_t)H * T > 0x7fffffffLL * 2) return IK_ERR_SHAPE;
@@ -1326,7 +1327,7 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
                               (reinterpret_cast<uintptr_t>(down_s->data) & 3u) == 0;
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
-    if (T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
+    if (allow_wmma && T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
         const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
         if (moe_pairs(avg) == 64)
             moe_wmma_launch<64>(T, P, E, H, I, K, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
@@ -1384,6 +1385,17 @@ int ik_moe_experts_bf16_v2(const ik_tensor* x, const ik_tensor* ids, const ik_te
                            const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                            const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return moe_experts_impl(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
+}
+// moe_experts_bf16_rows (HIP only, ik_hip_abi.h; lane hb, batched decode): T = 1..16 tokens, token t bitwise the T = 1
+// ik_moe_experts_bf16_v2 call on token t alone. v2's decode path (P = T * K <= 16: the p1 kernels) and its grouped GEMV
+// path (every other P: per-pair accumulation independent of the grouping and of the other tokens) already give a token the
+// bits a lone token gets; what does not is the tensor-core path (T >= 16), which accumulates in another order. This entry
+// never takes it, whatever INTARSIA_HIP_MOE_WMMA says.
+int ik_moe_experts_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                             const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
+                             const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return moe_experts_impl(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, false,
+                            false);
 }
 // v3 (HIP only, ik_hip_abi.h): decode (P <= 16) in one launch, bit-identical to v2; every other shape is v2
 int ik_moe_experts_bf16_v3(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,

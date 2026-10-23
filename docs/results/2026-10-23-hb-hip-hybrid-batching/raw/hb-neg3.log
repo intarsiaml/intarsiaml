@@ -1,0 +1,21 @@
+=== CONTROL matmul_fp8_gemv_rows=matmul_fp8_mma_f8 -> test fp8_rows_are_bitwise_the_one_row_gemv
+test fp8_rows_are_bitwise_the_one_row_gemv ... FAILED
+thread 'fp8_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:268:17:
+G-B FAIL fp8 n=8192 k=2048 wide=false aq=true is=0.125 out=Bf16: matmul_fp8_mma_f8 M=1 row 0 differs from matmul_fp8_gemv_v2 on that row alone in 1 of 8192 elements (first at col 510: [ff, ba] vs [00, bb])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.58s
+=== CONTROL matmul_nvfp4_gemv_rows=matmul_nvfp4_mma -> test nvfp4_rows_are_bitwise_the_one_row_gemv
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... FAILED
+thread 'nvfp4_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:268:17:
+G-B FAIL nvfp4 n=512 k=2048 wide=false F32: matmul_nvfp4_mma M=1 row 0 differs from matmul_nvfp4_gemv_v2 on that row alone in 375 of 512 elements (first at col 1: [54, 52, 83, bf] vs [53, 52, 83, bf])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.19s
+=== CONTROL matmul_bf16_gemv_rows=matmul_bf16,logits_bf16_gemv_rows=logits_bf16 -> test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... FAILED
+thread 'bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:268:17:
+G-B FAIL logits bf16 n=256 k=2048 wide=false: logits_bf16 M=1 row 0 differs from logits_bf16_gemv on that row alone in 227 of 256 elements (first at col 0: [0f, 88, 1a, 3d] vs [1c, 88, 1a, 3d])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.18s
+=== CONTROL moe_experts_bf16_rows=moe_experts_bf16_v2 -> test moe_decode_rows_are_bitwise_the_one_token_kernel
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... FAILED
+thread 'moe_decode_rows_are_bitwise_the_one_token_kernel' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:525:21:
+G-B FAIL moe e=64 top8 h=2048 i=512 wide=false routing=distinct attrs.gelu=false: moe_experts_bf16_v2 T=16 token 3 differs from moe_experts_bf16_v2 on that token alone in 57 of 2048 elements (first at 43: [3a, 4f] vs [36, 4f])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.30s
+NEG_DONE

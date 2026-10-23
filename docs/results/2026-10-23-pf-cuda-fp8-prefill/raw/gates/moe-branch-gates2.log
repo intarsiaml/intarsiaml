@@ -1,0 +1,75 @@
+fleetq: #4658 running on spark2: bash -c 'cd /opt/code/wt-pf && HOST=spark2 SEED_TREE=pf-dev scripts/pf/build.sh pf-dev /private/tmp/claude-501/pfmoe pf-dev-moeip2 && scripts/pf/rjob.sh spark2 pf/build-tests.sh pf-dev && scripts/pf/rjob.sh spark2 pf/iptest.sh pf-dev && scripts/pf/rjob.sh spark2 pf/gputests.sh pf-dev'
+fleetq: #4658 went ahead of the line and must end within 7h25m (by Fri 23:00); it is stopped then
+    Finished `release` profile [optimized] target(s) in 22.02s
+-rwxrwxr-x 2 nvidia nvidia 59929632 Oct 23 15:35 /home/nvidia/intarsia-decfuse/pf-dev/target/acc/release/intarsia
+    Finished `release` profile [optimized] target(s) in 15.38s
+  Executable unittests src/lib.rs (target/test/release/deps/intarsia_backend_cuda-eb13275dd2d9552a)
+  Executable tests/admission.rs (target/test/release/deps/admission-47fa24c8024b63b2)
+  Executable tests/attention.rs (target/test/release/deps/attention-1f3f7fe05bbcd025)
+  Executable tests/attn_f8kv.rs (target/test/release/deps/attn_f8kv-2d8d61154673768f)
+  Executable tests/exl3.rs (target/test/release/deps/exl3-44b3aa20d6c25d10)
+  Executable tests/flash_bq.rs (target/test/release/deps/flash_bq-26d05fd803a991dc)
+  Executable tests/fp8_gemm_reg.rs (target/test/release/deps/fp8_gemm_reg-cae94fa42256b613)
+  Executable tests/fused_decode.rs (target/test/release/deps/fused_decode-e845ae99c338ffe2)
+  Executable tests/gdn_lanes.rs (target/test/release/deps/gdn_lanes-993c94d21620c8e2)
+  Executable tests/gdn_split.rs (target/test/release/deps/gdn_split-1e27769768d3706f)
+  Executable tests/gdn_timing.rs (target/test/release/deps/gdn_timing-6fa7a0b364dde025)
+  Executable tests/gpu_skipped_report.rs (target/test/release/deps/gpu_skipped_report-a0f12e531cbf9de3)
+  Executable tests/graph_pos.rs (target/test/release/deps/graph_pos-6c2d2fcec8ba9d97)
+  Executable tests/moe_nvfp4.rs (target/test/release/deps/moe_nvfp4-5c2e966c9ba36cfe)
+  Executable tests/moe_nvfp4_cpu.rs (target/test/release/deps/moe_nvfp4_cpu-3627d47d6a39d4bf)
+  Executable tests/moe_w4a16.rs (target/test/release/deps/moe_w4a16-b957508e036ce747)
+  Executable tests/moe_w4a16_ip.rs (target/test/release/deps/moe_w4a16_ip-b06b66627c1c388b)
+  Executable tests/nvfp4_gemm_reg.rs (target/test/release/deps/nvfp4_gemm_reg-8e2dad2a7dc0dae2)
+  Executable tests/quantmoe.rs (target/test/release/deps/quantmoe-439a89bc59bc20c7)
+  Executable tests/quick_coverage.rs (target/test/release/deps/quick_coverage-8772f20b462ceef5)
+test moe_w4a16_in_place_rows_do_not_depend_on_the_batch ... ok
+test moe_w4a16_in_place_stays_within_a_quarter_bf16_ulp ... T=128 E=64 BM=32: off-reference old 0.0004 in-place 0.0061; rel_l2 old 8.528e-5 in-place 2.895e-4
+T=128 E=64 BM=64: off-reference old 0.0004 in-place 0.0061; rel_l2 old 8.528e-5 in-place 2.895e-4
+T=512 E=64 BM=32: off-reference old 0.0014 in-place 0.0065; rel_l2 old 1.439e-4 in-place 3.021e-4
+T=512 E=64 BM=64: off-reference old 0.0014 in-place 0.0065; rel_l2 old 1.439e-4 in-place 3.021e-4
+T=1100 E=64 BM=32: off-reference old 0.0011 in-place 0.0063; rel_l2 old 1.228e-4 in-place 2.964e-4
+T=1100 E=64 BM=64: off-reference old 0.0011 in-place 0.0063; rel_l2 old 1.228e-4 in-place 2.964e-4
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.22s
+== cargo test --test moe_w4a16 15:35:41
+test moe_experts_w4a16_is_as_accurate_as_old_kernel ... ok
+test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
+test moe_w4a16_is_bitwise_on_odd_routing ... ok
+test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.53s
+== cargo test --test moe_w4a16_ip 15:35:46
+test moe_w4a16_in_place_rows_do_not_depend_on_the_batch ... ok
+test moe_w4a16_in_place_stays_within_a_quarter_bf16_ulp ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.19s
+== cargo test --test quantmoe 15:35:51
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test probe_cublas_bf16_vs_gemm_reg_bits ... ignored
+test result: ok. 12 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 5.79s
+== cargo test -p intarsia-cli --test docs_env_vars 15:35:57
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+== kernels test (admission, default env) 15:36:09
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+71 kernels, 509 cases in 5.5s
+== done 15:36:15
+fleetq: #4658 done (exit 0)

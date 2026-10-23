@@ -158,6 +158,13 @@ process and the position is a device scalar, so the kernel choice would freeze a
 card, arch, ROCm runtime, compiler, tuning knob or a rebuild for another arch never reuses cached admission results (`~/.cache/intarsia/admission/`, keyed by this string
 plus the executable's size and mtime).
 
+## Row-exact kernels and batched decode (lane hb)
+
+Batched decode of the 35B (`serve --max-batch N`, N <= 16) runs the `_rows` kernels (`matmul_fp8_gemv_rows`, `matmul_nvfp4_gemv_rows`,
+`matmul_bf16_gemv_rows`, `logits_bf16_gemv_rows`, `moe_experts_bf16_rows`, `rows_exact` in the registry): row r of an M-row call is
+bitwise row 0 of the 1-row kernel the solo step runs (G-B, `tests/rows_exact.rs`), and none of them takes a WMMA / mma path
+(those are M-dependent from 16 tokens). Results: `docs/results/2026-10-23-hb-hip-hybrid-batching.md`.
+
 ## MoE and batch size
 
 `moe_experts_bf16` has three internal paths, and a token's result depends on which one it ran in:

@@ -1,0 +1,262 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mb-metal-hybrid-batching:20261023-1340",
+ "project": "intarsiaml",
+ "lane_id": "mb-metal-hybrid-batching",
+ "follows": [
+  "intarsiaml:rb2-cuda-batching:20261023-0641"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T13:40:00-04:00",
+ "ended": "2026-10-23T17:05:00-04:00",
+ "brief": "Lane mb: continuous batching for the hybrid Qwen3.6-35B-A3B (GatedDeltaNet + MoE) on Metal (endor), each sequence's output bitwise identical to solo. Stages: Metal R0 G-B row-exactness tests for every decode kernel at M = 1..8 (rows_exact only for kernels that pass; row-exact variants where cheap); bring-up with G-C (batched logits == solo, N = 2..cap, 130 steps), batched engine == LocalEngine incl. prompts > 2048 tokens, dense batch_metal gate, no-op with batching off (plan show + 256 greedy ids, Qwen3-8B and 35B); localeval aggregate decode tok/s at 1/4/8 streams through intarsia serve. MoE decode at T > 1 de-duplicates expert reads across rows like vLLM while staying bitwise. Hard stop 2026-10-24 12:00 EDT.",
+ "hypothesis": "Metal's decode GEMVs for fp8 and nvfp4 are row-exact by construction (same per-row K order whatever the unroll), so the multi-row shaders can be registered rows_exact after a G-B test; the MoE needs one new expert-grouped kernel. Batching the shared projections, router and experts should lift 4- and 8-stream aggregate decode well above the 78 tok/s that serial serving gives, at the cost of the per-row GDN and attention launches.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "M5 Max 128 GB (endor)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "8x"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mb/metal-hybrid-batching",
+  "base_commit": "240e9d2a",
+  "head_commit": "0361bf24",
+  "pr": null,
+  "files": [
+   "docs/results/2026-10-23-mb-metal-hybrid-batching.md",
+   "kernels/metal/fp8.metal",
+   "kernels/metal/moe.metal",
+   "crates/intarsia-backend-metal/src/fp8.rs",
+   "crates/intarsia-backend-metal/src/nvfp4.rs",
+   "crates/intarsia-backend-metal/src/moe.rs",
+   "crates/intarsia-backend-metal/src/kernels.rs",
+   "crates/intarsia-backend-metal/src/lib.rs",
+   "crates/intarsia-backend-metal/tests/rows_exact.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-models/src/load.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "crates/intarsia-models/tests/batch_metal_real.rs",
+   "docs/decisions/LOG.md",
+   "docs/tuning.md"
+  ],
+  "diff_stat": "350 files changed, 1729 insertions(+), 45246 deletions(-) (code and tests at e65fe4ff, before the docs/trace commit)",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-exact kernels (Metal, 35B decode step)",
+   "command": "cargo test -p intarsia-backend-metal --release --test rows_exact -- --test-threads=1",
+   "result": "pass",
+   "detail": "fp8 M2-8 x 672 cases (3360 rows), nvfp4 168 (840), MoE experts T2-8 168 (840; routings incl. identical, overlapping, invalid ids, repeated expert), bf16 pair 84 (420), row-parallel ops 98 (490): every row bitwise the M=1 launch; negative control (M-dependent fp8 association) fails; fleetq 4613, 4621"
+  },
+  {
+   "name": "G-C tiny hybrid on Metal (bf16; dense, MoE W8A16, MoE W8A8)",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=metal cargo test -p intarsia-models --release --test batch_recurrent",
+   "result": "pass",
+   "detail": "7 of 7: batched == solo N=2..8 x 130 steps, engine == single-sequence engine, kernel-pick assertions; fleetq 4614, 4621"
+  },
+  {
+   "name": "G-C Qwen3.6-35B NVFP4 on Metal, forward_batch",
+   "command": "cargo test -p intarsia-models --release --test batch_metal_real real_35b_batched_decode",
+   "result": "pass",
+   "detail": "N=2..8 x 130 steps, 4550 (row,step) pairs bitwise identical incl. decode beside prefill chunks; fleetq 4621"
+  },
+  {
+   "name": "batched engine equals LocalEngine on the 35B",
+   "command": "cargo test -p intarsia-models --release --test batch_metal_real real_35b_batched_engine",
+   "result": "pass",
+   "detail": "20 requests (greedy and seeded-sampled, 130 tokens), 4 and 8 slots, token- and text-identical to solo; fleetq 4621"
+  },
+  {
+   "name": "35B engine, prompts beyond one chunk",
+   "command": "cargo test -p intarsia-models --release --test batch_metal_real -- --ignored real_35b_batched_engine_long_prompts_equal",
+   "result": "pass",
+   "detail": "2.6k, 4k, 16k (sampled) prompts prefilled beside a decoding 900-token neighbour; 2 slots and 4 slots in two arrival orders; all identical to LocalEngine; control busy chunk 64 also identical (token level); fleetq 4621"
+  },
+  {
+   "name": "dense batch_metal (Qwen3-8B)",
+   "command": "INTARSIA_TEST_REAL_MODEL=1 cargo test -p intarsia-models --release --test batch_metal",
+   "result": "pass",
+   "detail": "138 (row,step) pairs bitwise identical; fleetq 4621"
+  },
+  {
+   "name": "Metal no-op, batching off",
+   "command": "plan show (text, json) and generate --temperature 0 --max-tokens 256 --show-ids, short and ~4.4k-token prompts, Qwen3-8B and 35B, branch vs origin/main; kernels test; accuracy 8B golden; cargo test --workspace",
+   "result": "pass",
+   "detail": "all 4 plan show outputs and all 4 id lists byte-identical; kernels test 44 kernels 817 cases 0 rejected; 8B golden gate PASS base and branch; workspace 861 passed 0 failed; fleetq 4653"
+  },
+  {
+   "name": "CUDA and HIP no-ops",
+   "command": null,
+   "result": "skip",
+   "detail": "not run: shared-code diff beyond PR 117 is Metal-gated (has_hybrid_blocks called only from the Metal arm; metal pattern added beside cuda in two conditions; HIP error text); recorded in LOG.md"
+  },
+  {
+   "name": "post-merge re-run (origin/main 6ca51a19 incl. HIP hybrid batching #120)",
+   "command": "noop.sh + G-B + 35B G-C + engine + dense + tiny on the merge commit",
+   "result": "pass",
+   "detail": "all identical/pass; fleetq 4696"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 78.5,
+   "after": 101.3,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4665,
+   "before_run_id": "20261023-163455-adhoc-mb-main-nobatch",
+   "after_run_id": "20261023-163535-adhoc-mb-branch-maxbatch8"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "prompt_tokens": 1024,
+   "streams": 8,
+   "before": 78.4,
+   "after": 107.5,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4665,
+   "before_run_id": "20261023-163455-adhoc-mb-main-nobatch",
+   "after_run_id": "20261023-163535-adhoc-mb-branch-maxbatch8"
+  },
+  {
+   "metric": "decode_tps",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 124.2,
+   "after": 122.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.2,
+   "slot": "quiet",
+   "slot_job": 4665,
+   "before_run_id": "20261023-163455-adhoc-mb-main-nobatch",
+   "after_run_id": "20261023-163535-adhoc-mb-branch-maxbatch8"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 106.6,
+   "after": 158.4,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4688,
+   "before_run_id": "20261023-165451-adhoc-mb-main-nobatch-gen512",
+   "after_run_id": "20261023-164944-adhoc-mb-branch-maxbatch8-gen512"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "prompt_tokens": 1024,
+   "streams": 8,
+   "before": 105.8,
+   "after": 173.7,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4688,
+   "before_run_id": "20261023-165451-adhoc-mb-main-nobatch-gen512",
+   "after_run_id": "20261023-164944-adhoc-mb-branch-maxbatch8-gen512"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 101.3,
+   "after": 93.5,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4688,
+   "before_run_id": "20261023-163535-adhoc-mb-branch-maxbatch8",
+   "after_run_id": "20261023-165046-adhoc-mb-branch-maxbatch8-busychunk256"
+  },
+  {
+   "metric": "kernel_us",
+   "bucket": null,
+   "prompt_tokens": null,
+   "streams": 8,
+   "before": 231.9,
+   "after": 163.5,
+   "unit": "us",
+   "n": null,
+   "spread_pct": null,
+   "slot": "shared",
+   "slot_job": 4621,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 8, 130 steps); batched engine == LocalEngine on the 35B incl. 2.6k-16k prompts; no-op plan show + 256 ids identical (Metal, Qwen3-8B and 35B); 8B golden gate pass.",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "Hybrid continuous batching works on Metal for the 35B at --max-batch 2..8: every decode row is bitwise the solo step (4,550 row-steps over N=2..8, engine == LocalEngine incl. 16k prompts), G-B passes for all decode kernels with three new rows_exact registrations (fp8 and nvfp4 GEMV reuse the multi-row shaders, a new expert-grouped MoE kernel reads each expert once per step), and batching off is a byte-identical no-op. Aggregate decode through intarsia serve rises from 78.5 / 78.4 (4 / 8 streams, 128 generated, serial serving) to 101.3 / 107.5, and from 106.6 / 105.8 to 158.4 / 173.7 with 512 generated; single stream costs about 1%. The expert de-duplication is bitwise but not faster than serial MoE calls on random routing; the step grows 3.8 ms per extra row because the GDN and attention kernels still launch once per row.",
+ "lessons": [
+  "Metal's fp8 and nvfp4 decode GEMVs were already row-exact by construction (per-row K order is lane + 32n whatever UN and RS are), so G-B passed first time; the work was registration, a K = 4096 instantiation and the test.",
+  "A sort pass (moe_group, one threadgroup with a serial prefix loop) costs more than expert de-duplication saves at 8 tokens; a per-pair leader scan with one simd ballot per 32 ids has no extra pass. De-duplication only paid when tokens share experts (1.08x at T=8, 0.81x on random routing) and did not change the end-to-end step.",
+  "Timing a kernel by repeating one routing measures a warm cache: cycle many routings per measurement.",
+  "Short-output localeval cells are prefill-bound for batched serving (0.6 s of serialized prefill per 1k-token prompt): 128 generated tokens show 101 / 108, 512 show 158 / 174, the decode-only rate is 196 / 224.",
+  "On Metal busy chunk 64 gave the same tokens as chunk 2048 on the 35B (CUDA diverged at 1024); bitwise chunk invariance at the logits level is untested, so the default stays the solo chunk, and 2048 is also faster than 256 here (101.3 vs 93.5 at 4 streams).",
+  "Next lever: the per-row GDN conv / delta-rule and attention launches (about 3.8 ms per extra row): a row axis in those kernels is bitwise by construction and needs one G-B test."
+ ],
+ "cost": {
+  "wall_min": 205,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4613,
+   4614,
+   4621,
+   4653,
+   4665,
+   4688,
+   4694,
+   4696
+  ],
+  "tokens": null
+ }
+}

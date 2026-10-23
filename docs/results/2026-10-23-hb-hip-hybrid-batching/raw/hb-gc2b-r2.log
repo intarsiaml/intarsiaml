@@ -1,0 +1,15 @@
+
+running 1 test
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 49.26s
+
+GC2_DONE

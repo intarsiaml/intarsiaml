@@ -1,0 +1,31 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.80   1.967e-2   1.754e-2   1.754e-2    1.887e0   0.0944   0.0970    90.86    0/4064      0
+long_code_4k        4064  4064    97.02   8.027e-3   7.306e-3   7.306e-3    1.042e0   0.0370   0.0383    91.82   18/4064      0
+chat_reuse_4k       4631  4631    87.39   2.374e-1   2.775e-1   8.541e-3    1.854e1   0.0688   0.0849    87.76    8/4631      0
+long_docs_12k      12064 12064    93.12   2.344e-2   2.099e-2   2.099e-2    1.465e1   0.0839   0.0855    90.23  16/12064      0
+long_code_12k      12064 12064    97.07   9.219e-3   8.577e-3   8.577e-3    1.792e0   0.0323   0.0329    90.93  18/12064      0
+OVERALL                  36887    94.20   4.353e-2   4.725e-2   1.417e-2    1.854e1   0.0611   0.0643    90.39      0.2%      0
+prefill floor [4bit]: top-1 (all rows) 94.20% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.417e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.725e-2, reported only] | tail mass (all rows) ours 0.0643 vs ref 0.0611, excess +0.0031 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.417e-2 PASS | KL / ref noise = 1.684 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: FAIL 4.725e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.417e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    96.88   1.652e-2   1.602e-2   1.602e-2   2.841e-1   0.0185   0.0198    88.12     45/64      0
+long_code_4k        4064    64    96.88   9.266e-3   7.798e-3   7.798e-3   1.117e-1   0.0481   0.0491    90.00     30/64      0
+chat_reuse_4k       4631    64   100.00   3.200e-3   3.201e-3   3.201e-3   1.038e-1   0.0000   0.0000    92.50     64/64      0
+long_docs_12k      12064    64    96.88   1.785e-2   1.671e-2   1.671e-2   1.579e-1   0.0399   0.0421    88.44      0/64      0
+long_code_12k      12064    64   100.00   3.946e-3   3.943e-3   3.943e-3   2.650e-2   0.0085   0.0084    90.62     64/64      0
+OVERALL                    320    98.12   1.016e-2   9.535e-3   9.535e-3   2.841e-1   0.0230   0.0239    89.94     63.4%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.12% (not gated for this class) ok | 21-way KL (scored rows, n=320) 9.535e-3 (need <= 3.0e-2) ok [all rows, n=320: 9.535e-3, reported only] | tail mass (all rows) ours 0.0239 vs ref 0.0230, excess +0.0009 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.535e-3 PASS | KL / ref noise = 0.430 on all rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 9.535e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.535e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.2% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 63.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote baseline /home/nvidia/intarsia-decfuse/out/q1/lt/report/baselines/acc-long.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

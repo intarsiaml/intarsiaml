@@ -66,6 +66,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_bf16_gemv", Op::Matmul),
     ("logits_bf16", Op::Logits),
     ("logits_bf16_gemv", Op::Logits),
+    // row-exact twins (`rows_exact`, M = 1..=ROWS_MAX, bitwise the one-row GEMV per row; tests/rows_exact.rs)
+    ("matmul_bf16_gemv_rows", Op::Matmul),
+    ("logits_bf16_gemv_rows", Op::Logits),
     ("kv_append_bf16", Op::KvAppend),
     ("qk_norm_rope_kv_bf16", Op::QkNormRopeKv),
     ("attn_prefill_bf16", Op::AttnPrefill),
@@ -123,6 +126,10 @@ pub fn gdn_v3_enabled() -> bool {
 pub fn gdn_v3_from(v: Option<&str>) -> bool {
     v != Some("0")
 }
+
+/// Most rows of a row-exact (`rows_exact`) multi-row kernel call (bf16 / fp8 / nvfp4 GEMV rows, MoE decode rows): the cap of
+/// `Model::BATCH_MAX_ROWS` for hybrid batched decode on this backend (the launchers refuse more).
+pub const ROWS_MAX: usize = 16;
 
 /// Most query rows the split-KV kernels take per launch (above this the flash prefill kernel wins).
 const SPLITKV_MAX_ROWS: usize = 16;
@@ -191,6 +198,25 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(F32_TOL)
                 .priority(10),
+            // Row-exact twins of the two GEMVs (`rows_exact`: only a call with `OpCall::exact_rows` selects them, so the priority
+            // is moot). M = 1..=ROWS_MAX, row m bitwise the one-row GEMV on row m alone (tests/rows_exact.rs). M = 1 is
+            // accepted: an `exact_rows` one-row call must still find a kernel once any rows kernel is listed.
+            "matmul_bf16_gemv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .rows_exact(),
+            "logits_bf16_gemv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(F32_TOL)
+                .priority(-1)
+                .rows_exact(),
             // the cache dtype (bf16 or fp8_e4m3) is the output's; the launcher dispatches on it
             "kv_append_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             // qk-norm + rope + kv-append in one launch, bitwise the three unfused launchers (tests/qk_rope_kv.rs), so the
@@ -370,7 +396,7 @@ mod tests {
     fn pick(op: Op, s: &ShapeInfo) -> Option<String> {
         let ks = all();
         let mut best: Option<&KernelImpl> = None;
-        for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+        for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
             if best.is_none_or(|b| k.priority > b.priority) {
                 best = Some(k);
             }
