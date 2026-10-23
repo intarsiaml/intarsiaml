@@ -124,7 +124,7 @@ The tests:
 
 These prove the engine logic (drafting, verify, rollback, finish, reuse), not a GPU backend's numerics.
 
-## 3. CUDA on spark1 (35B NVFP4)
+## 3. CUDA on the Sparks (35B NVFP4)
 
 ### 3.0 Preliminary: shared (non-exclusive) slot, before the kernel/driver upgrade
 
@@ -269,7 +269,22 @@ token download, so host time is device time there.
 - **The localeval window must confirm this** with the 128/1k/4k numbers (3.2). The default k = 2 is the best fixed choice
   under this cost. Idea C (section 4) makes the fixed choice moot.
 
-### 3.4 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0 (pending)
+### 3.4 No-op: Qwen3-8B and 35B with `--spec off`, `plan show` + 256 greedy ids vs main a92267b0
+
+**Result: identical.** For both models, `plan show` (JSON and text) and the 256 greedy ids of `generate` are
+byte-identical between main a92267b0 and the lane at 0211d16f.
+
+| model | plan JSON | plan text | 256 ids |
+|---|---|---|---|
+| Qwen3-8B | identical (8,758 B) | identical (1,478 B) | identical (1,436 B) |
+| Qwen3.6-35B-A3B | identical (14,659 B) | identical (3,729 B) | identical (1,401 B) |
+
+- **Setup.** fleetq #4403 on spark2 (shared slot, retro up), both CUDA binaries built in #4368 / #4392.
+  `--backend cuda --max-seq 8192 --mem-budget 30`, prompt "The history of the printing press begins",
+  `--max-tokens 256 --ignore-eos`. Script `scripts/noop.sh`, raw `raw/noop/`.
+- **Speed is not part of this check.** One run per side in a shared slot. 35B decode was 85.5 tok/s on main and 82.0 on
+  the lane, 8B 15.95 and 15.92. The plain path is unchanged in code (`--spec off` reads nothing under `mtp.*`, and the
+  plan is byte-identical). The localeval off arm (3.2) is the controlled plain-decode number on this build: 83.8 at 1k.
 
 ## 4. Next (not in this PR)
 

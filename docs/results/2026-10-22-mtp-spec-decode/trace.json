@@ -1,0 +1,173 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mtp:20261022-2115",
+ "project": "intarsiaml",
+ "lane_id": "mtp",
+ "follows": [],
+ "agent_model": "claude-opus-5-5",
+ "started": "2026-10-22T21:15:00-04:00",
+ "ended": "2026-10-23T02:00:00-04:00",
+ "brief": "Opt-in MTP speculative decoding for Qwen3.6-35B-A3B using the checkpoint's MTP head; greedy output must stay token-identical to MTP off; design GatedDeltaNet rollback explicitly; reuse the n-gram verify path.",
+ "hypothesis": "vLLM/SGLang report large decode gains from Qwen3.x MTP heads; a k+1-row verify pass reads the weights once, so with high acceptance decode tok/s should rise well above plain decode on GB10 without changing greedy output.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "decode",
+  "buckets": [
+   "1k",
+   "4k"
+  ],
+  "lane": "spec",
+  "regime_cells": [
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | spec | decode | 1k",
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | spec | decode | 4k"
+  ],
+  "rival": "vLLM · NVFP4",
+  "gap_pct_at_start": -16.6,
+  "regimes_built_at": "2026-10-23T00:19:20-04:00"
+ },
+ "techniques": [
+  {
+   "id": "intarsia-qwen36-mtp-head-spec-decode-per-row-gdn-state-gb10",
+   "role": "created"
+  },
+  {
+   "id": "strata-mtp-self-speculation-decode",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mtp/spec-decode",
+  "base_commit": "a92267b038f942466c77a5572a7750440eb9d59e",
+  "head_commit": null,
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/110",
+  "files": [
+   "crates/intarsia-cli/src/common.rs",
+   "crates/intarsia-core/src/engine.rs",
+   "crates/intarsia-core/src/engine/batch.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/model/gdn_block.rs",
+   "crates/intarsia-core/src/model/mtp.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-core/src/recipe.rs",
+   "crates/intarsia-core/src/spec.rs",
+   "crates/intarsia-core/src/state.rs",
+   "crates/intarsia-models/src/load.rs",
+   "crates/intarsia-models/tests/mtp.rs",
+   "crates/intarsia-models/tests/recipes_doc.rs",
+   "recipes/qwen3_5_moe.toml",
+   "docs/recipes.md",
+   "docs/tuning.md",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-22-mtp-spec-decode.md"
+  ],
+  "diff_stat": null,
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "CPU tests: MTP head vs f64 host reference of the vLLM head, token identity on/off 256 greedy k=1..3, scripted acceptance patterns",
+   "command": "cargo test (workspace minus intarsia-backend-metal) at 0211d16f, fleetq #4384",
+   "result": "pass",
+   "detail": "max relative logit difference 2e-4, argmax equal on every row"
+  },
+  {
+   "name": "CUDA 35B token identity --spec mtp vs --spec off, 4 prompts x 256 greedy tokens, k=1..3",
+   "command": "scripts/identity.sh, fleetq #4349 (spark1) and re-check k=2 #4393 (spark2)",
+   "result": "pass",
+   "detail": "12/12 cases identical, 4/4 re-check identical"
+  },
+  {
+   "name": "CUDA verify rows vs single-row decode logits",
+   "command": "INTARSIA_MTP_VERIFY_CHECK=1, scripts/verify-check.sh, fleetq #4414 (spark1, baff10f0)",
+   "result": "pass",
+   "detail": "6,430/6,430 rows bitwise equal, 0 argmax mismatches (5,081 deciding rows), 23 rows with top-2 margin < 1e-2"
+  },
+  {
+   "name": "No-op vs main a92267b0: plan show + 256 greedy ids, Qwen3-8B and 35B, --spec off",
+   "command": "scripts/noop.sh, fleetq #4403 (spark2)",
+   "result": "pass",
+   "detail": "plan JSON, plan text and ids byte-identical for both models"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "decode_tps",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 83.8,
+   "after": 87.8,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 7.3,
+   "slot": "quiet",
+   "slot_job": 4399,
+   "before_run_id": "20261023-005554-adhoc-mtp-lane-plain-off-p2",
+   "after_run_id": "20261023-005351-adhoc-spec-mtp-k2-p2"
+  },
+  {
+   "metric": "decode_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": 1,
+   "before": 81.2,
+   "after": 88.5,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 11.3,
+   "slot": "quiet",
+   "slot_job": 4399,
+   "before_run_id": "20261023-005554-adhoc-mtp-lane-plain-off-p2",
+   "after_run_id": "20261023-005351-adhoc-spec-mtp-k2-p2"
+  }
+ ],
+ "accuracy": {
+  "gate": "greedy token identity --spec mtp vs --spec off (256 tokens, k=1..3) plus verify-row logit bitwise check",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "neutral",
+ "summary": "--spec mtp works opt-in on CUDA with greedy output token-identical to off and verify rows bitwise equal to M=1 decode. In a quiet localeval slot k=2 gives +2.4% / +4.8% / +9.0% at 128 / 1k / 4k (acceptance 62.8%, 2.25 tokens/pass): a tie at 128 and 1k, a small win at 4k. Code/arithmetic prompts with 70-93% acceptance gained 16-33% in a shared slot. The verify pass costs ~25 ms vs 11.6 ms per plain step, so break-even is ~2.16 tokens/pass. vLLM's MTP (101.4 tok/s at 1k) stays ahead in the spec cell.",
+ "lessons": [
+  "On GB10 the eager verify pass (~14 ms fixed + ~5 ms per row) is the limit, not acceptance; graph-capture it before tuning k.",
+  "localeval speed prompts accept far less than code/arithmetic prompts (62.8% vs 70-93% at k=2); quote MTP gains with the acceptance they came from.",
+  "Bitwise verify rows are a property of the current CUDA small-M kernel selection (GEMV at q<=3), measured, not enforced; mark those kernels rows_exact before relying on it.",
+  "A plan dry-run that skips the drafter head lets the server load and then fail on the first spec pass (#4371); dry-run every graph the request can execute.",
+  "decode_tps measurements are medians of 3 interleaved passes per arm; before/after_run_id name the p2 passes, all run ids are in the results doc section 3.2."
+ ],
+ "cost": {
+  "wall_min": 285,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4282,
+   4293,
+   4296,
+   4299,
+   4308,
+   4309,
+   4310,
+   4319,
+   4344,
+   4345,
+   4348,
+   4349,
+   4368,
+   4371,
+   4381,
+   4384,
+   4392,
+   4393,
+   4399,
+   4403,
+   4414
+  ],
+  "tokens": null
+ }
+}
