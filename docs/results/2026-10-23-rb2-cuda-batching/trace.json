@@ -44,8 +44,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-rb2/recurrent-batching-cuda",
   "base_commit": "b745e978",
-  "head_commit": "a5698ccfd5e1f3158e03487d4949de51d0c92a25",
-  "pr": null,
+  "head_commit": "9f3519bac0ae8a1c8bf59e11a052690706343973",
+  "pr": "117",
   "files": [
    "docs/results/2026-10-23-rb2-cuda-batching.md",
    "kernels/cuda/fp8.cu",
@@ -63,7 +63,7 @@
    "crates/intarsia-models/tests/batch_recurrent.rs",
    "crates/intarsia-models/tests/batch_cuda_real.rs"
   ],
-  "diff_stat": "see the PR",
+  "diff_stat": "43 files changed, 4418 insertions(+), 122 deletions(-) (before the trace commit)",
   "default_changed": false,
   "merged": false,
   "merge_commit": null
@@ -128,6 +128,12 @@
    "command": null,
    "result": "skip",
    "detail": "not run; prompts in the identity gates are one chunk or share the schedule"
+  },
+  {
+   "name": "MTP re-check on CUDA (verify rows now on _rows kernels)",
+   "command": "identity.sh main vs branch, --spec mtp --spec-k 2, 4 prompts x 256 ids; INTARSIA_MTP_VERIFY_CHECK",
+   "result": "pass",
+   "detail": "ids identical to main and to --spec off; decode +6..8% (one run each); verify rows max logit diff 0.0 over 647 cells; fleetq 4537"
   }
  ],
  "measurements": [
@@ -213,7 +219,8 @@
    4529,
    4531,
    4532,
-   4536
+   4536,
+   4537
   ],
   "tokens": null
  }
