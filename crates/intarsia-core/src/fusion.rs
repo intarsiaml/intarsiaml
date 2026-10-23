@@ -32,9 +32,18 @@ macro_rules! cuda_test {
     };
 }
 
+macro_rules! hip_test {
+    ($f:literal) => {
+        concat!("crates/intarsia-backend-hip/tests/fused_decode.rs::", $f)
+    };
+}
+
 /// Every proven fusion. CUDA's phase-1 fusions of the 35B and Qwen3-8B decode steps
-/// (docs/results/2026-10-14-cuda-decode-fusion.md); other backends have none registered, so their batched plans keep the
-/// stricter rule (the solo step's op multiset).
+/// (docs/results/2026-10-14-cuda-decode-fusion.md), and the six HIP decode fusions of the same names (the HIP backend's
+/// `tests/fused_decode.rs` ports the CUDA tests, bitwise against the same unfused chains); other backends have none registered,
+/// so their batched plans keep the stricter rule (the solo step's op multiset). The HIP phase-1 folds (`RmsNormAddMatmulFp8Pair`,
+/// `SigmoidMulMatmulFp8`, `SharedDownCombine`) and `MoeBlock` are *not* here: they are one-row kernels (`OpCall::with_rows`), so
+/// with batching on the model does not fuse them in the solo step either.
 pub const FUSIONS: &[Fusion] = &[
     Fusion {
         backend: "cuda",
@@ -77,6 +86,49 @@ pub const FUSIONS: &[Fusion] = &[
         tests: &[
             cuda_test!("rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair"),
             cuda_test!("rmsnorm_add_matmul_pair_many_rows_bitwise"),
+        ],
+    },
+    // ---- HIP (docs/results/2026-10-23-hb-hip-hybrid-batching.md) ----
+    Fusion {
+        backend: "hip",
+        fused: Op::MatmulPair,
+        chain: &[Op::Matmul, Op::Matmul],
+        tests: &[hip_test!("matmul_pair_is_bitwise_two_gemvs")],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::MatmulFp8Pair,
+        chain: &[Op::MatmulFp8, Op::MatmulFp8],
+        tests: &[hip_test!("matmul_fp8_pair_is_bitwise_two_gemvs")],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::MatmulNvfp4Glu,
+        chain: &[Op::MatmulNvfp4, Op::MatmulNvfp4, Op::SiluGlu],
+        tests: &[hip_test!("matmul_nvfp4_glu_is_bitwise_gate_up_silu")],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::GatedRmsnorm,
+        chain: &[Op::RmsNorm, Op::SiluGlu],
+        tests: &[hip_test!("gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu")],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::GatedRmsnormMatmulFp8,
+        chain: &[Op::GatedRmsnorm, Op::MatmulFp8],
+        tests: &[
+            hip_test!("gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv"),
+            hip_test!("gated_rmsnorm_matmul_fp8_many_draws_bitwise"),
+        ],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::RmsNormAddMatmulPair,
+        chain: &[Op::RmsNormAdd, Op::MatmulPair],
+        tests: &[
+            hip_test!("rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair"),
+            hip_test!("rmsnorm_add_matmul_pair_many_rows_bitwise"),
         ],
     },
 ];

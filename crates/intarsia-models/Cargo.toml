@@ -23,6 +23,7 @@ minijinja-contrib = { workspace = true }
 
 [dev-dependencies]
 intarsia-backend-cuda = { workspace = true }
+intarsia-backend-hip = { workspace = true }
 
 # Batched-decode bitwise gate on the real Metal kernels (tests/batch_metal.rs; skips without the model)
 [target.'cfg(target_os = "macos")'.dev-dependencies]

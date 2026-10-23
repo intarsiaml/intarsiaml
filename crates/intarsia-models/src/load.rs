@@ -273,16 +273,16 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let backend_name = backends.first().map_or("cpu", |b| b.name());
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
-    // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA whenever `--max-batch N` asks (its `_rows` kernels are
+    // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA and HIP whenever `--max-batch N` asks (its `_rows` kernels are
     // proven row-exact, docs/results/2026-10-23-rb2-cuda-batching.md); the cpu reference needs the explicit opt-in
     // `INTARSIA_RECURRENT_BATCH=1` (docs/results/2026-10-23-rb-recurrent-batching.md). Every other backend is refused.
     let hybrid_opt_in = std::env::var("INTARSIA_RECURRENT_BATCH").is_ok_and(|v| v == "1");
-    let hybrid_batch = backend_name == "cuda" || (hybrid_opt_in && backend_name == "cpu");
+    let hybrid_batch = matches!(backend_name, "cuda" | "hip") || (hybrid_opt_in && backend_name == "cpu");
     if max_batch.value > 1 {
-        // fail before reading any weights: continuous batching needs row-exact multi-row kernels (Metal, CUDA)
-        if !matches!(backend_name, "metal" | "cuda") && !hybrid_batch {
+        // fail before reading any weights: continuous batching needs row-exact multi-row kernels (Metal, CUDA, HIP)
+        if !matches!(backend_name, "metal" | "cuda" | "hip") && !hybrid_batch {
             return Err(Error::Unsupported(format!(
-                "--max-batch {} needs the Metal or CUDA backend (row-exact multi-row kernels; backend is {backend_name}); use --max-batch 1",
+                "--max-batch {} needs the Metal, CUDA or HIP backend (row-exact multi-row kernels; backend is {backend_name}); use --max-batch 1",
                 max_batch.value
             )));
         }
@@ -369,12 +369,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if hybrid_batch {
             model.allow_recurrent_batch()?;
         }
-        // Batching needs the row-exact multi-row kernels (Metal, CUDA). `enable_batch` exempts the cpu backend (its kernels
+        // Batching needs the row-exact multi-row kernels (Metal, CUDA, HIP). `enable_batch` exempts the cpu backend (its kernels
         // loop over rows), but the batched engine serves only backends that register them.
         if !model.batch_capable() && !(hybrid_opt_in && model.backend.name() == "cpu") {
             return Err(Error::Unsupported(format!(
                 "--max-batch {} needs row-exact multi-row kernels, which the {} backend does not provide (continuous \
-                 batching is Metal and CUDA only); use --max-batch 1",
+                 batching is Metal, CUDA and HIP only); use --max-batch 1",
                 max_batch.value,
                 model.backend.name()
             )));

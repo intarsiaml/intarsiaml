@@ -41,12 +41,12 @@ impl Model {
     pub fn allow_recurrent_batch(&mut self) -> Result<()> {
         let ok = match self.backend.name() {
             "cpu" => true,
-            "cuda" => self.batch_capable(),
+            "cuda" | "hip" => self.batch_capable(),
             _ => false,
         };
         if !ok {
             return Err(Error::Unsupported(format!(
-                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda backend (and the cpu reference); the {} backend has no verified row-exact kernels for it",
+                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is implemented for the cuda and hip backends (and the cpu reference); the {} backend has no verified row-exact kernels for it",
                 self.backend.name()
             )));
         }
