@@ -168,8 +168,8 @@ process on the box at those times. The cause is not established: the new driver,
 ### 3.1 Verify rows vs single-row decode: deferred
 
 On CUDA the bitwise claim rests on **24 of 24** token-identical runs: 4 prompts x k = 1..3 x 256 greedy tokens, once
-before the driver upgrade (3.0) and once after it (3.0b). That is about 3,900 verify rows, each of whose argmax decided
-an emitted token. Not one disagreed with `--spec off`.
+before the driver upgrade (3.0) and once after it (3.0b). Together that is 2,496 verify passes and 7,056 verify rows
+(counted from the `spec:` lines in `raw/identity*/p*-mtp*.err`). No emitted token disagreed with `--spec off`.
 
 The logit-level check was deferred. `INTARSIA_MTP_VERIFY_CHECK=1` runs each verify pass's rows as single-row decode steps
 from the same state and reports the max abs logit difference and argmax agreement per row. Its first run was in progress
