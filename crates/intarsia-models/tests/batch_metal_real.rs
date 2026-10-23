@@ -315,6 +315,17 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
+    long_engine(false);
+}
+
+/// The control alone, in its own process (after three engines in one process the free-memory plan of a fourth reads 0 MiB).
+#[test]
+#[ignore]
+fn real_35b_batched_engine_long_prompts_control_busy_chunk_64() {
+    long_engine(true);
+}
+
+fn long_engine(control_only: bool) {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), metal()) else { return };
     let all = corpus_tokens(&dir);
     let window = |start: usize, len: usize| all[start..start + len].to_vec();
@@ -392,7 +403,9 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
         (outs, l.engine.batch_metrics().expect("a batching engine has metrics"))
     };
     let mut failures = Vec::new();
-    for (slots, which) in [(2usize, vec![0usize, 1]), (4, vec![0, 1, 2, 3]), (4, vec![0, 2, 3, 1])] {
+    let identity_cases: Vec<(usize, Vec<usize>)> =
+        if control_only { vec![] } else { vec![(2, vec![0, 1]), (4, vec![0, 1, 2, 3]), (4, vec![0, 2, 3, 1])] };
+    for (slots, which) in identity_cases {
         let (outs, m) = scenario(slots, &which, None);
         let hist: Vec<String> =
             m.batch_hist.iter().enumerate().filter(|(_, &n)| n > 0).map(|(b, n)| format!("B{b}:{n}")).collect();
@@ -418,6 +431,9 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
         }
     }
     assert!(failures.is_empty(), "{failures:?}");
+    if !control_only {
+        return;
+    }
     // control: busy chunk 64
     let (outs, _) = scenario(4, &[0, 1, 2, 3], Some(64));
     for (k, i) in [0usize, 1, 2, 3].iter().enumerate() {

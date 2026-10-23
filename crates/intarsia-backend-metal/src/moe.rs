@@ -190,21 +190,13 @@ impl MetalBackend {
         };
         let hb = at(&sc, o_h);
         if rows {
-            // every pair of an expert in one tile (8 rows): moe_group sorts them, the two kernels read each expert's weights
-            // once for all of them, moe_gather sums per token in k order (as moe_dec_dn does)
-            let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
-            let mut p = p;
-            p.dims[5] = ROWS_MAX as u32;
-            let gt = self.pso(GROUP).map_or(256, |s| {
-                use objc2_metal::MTLComputePipelineState;
-                s.maxTotalThreadsPerThreadgroup().min(1024)
-            });
-            self.moe_dispatch(GROUP, &[&ib, &pb, &offb, &tb], &p, MTLSize { width: 1, height: 1, depth: 1 }, gt)?;
-            let max_tiles = pairs.div_ceil(ROWS_MAX) + pairs.min(e);
-            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: max_tiles, depth: 1 };
-            self.moe_dispatch(DEC_GU_X, &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
-            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: max_tiles, depth: 1 };
-            self.moe_dispatch(DEC_DN_X, &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
+            // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
+            // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
+            let yb = at(&sc, o_y);
+            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
+            self.moe_dispatch(DEC_GU_X, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: pairs, depth: 1 };
+            self.moe_dispatch(DEC_DN_X, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
             return self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
         }

@@ -813,14 +813,15 @@ fn timing_rows() {
         ks.iter().find(|k| k.name == "moe_experts_bf16").unwrap(),
         ks.iter().find(|k| k.name == "moe_experts_bf16_rows").unwrap(),
     );
+    // 24 routings per kind, cycled call by call: the weights each call reads are mostly not in the cache (a decode step
+    // reads 40 layers x ~57 experts for 8 tokens, far more than the system cache holds)
+    const VARIANTS: usize = 24;
     for m in [1usize, 2, 4, 8] {
         let x = HostTensor::from_f32_as(DType::Bf16, &[m, H], &rng.normal_vec(m * H, 1.0));
         let xr = put_host(&be, &x, 0);
-        for (name, ids, ws) in routings(&mut rng, m).into_iter().take(2) {
-            let idt = put_host(&be, &HostTensor::from_i32(&[m, K], &ids), 0);
-            let wst = put_host(&be, &HostTensor::from_f32(&[m, K], &ws), 0);
+        for (kind, name) in [(0usize, "random"), (1, "identical")] {
             let ys = guarded(&be, 0, m * H * 2);
-            let mk = |rows: usize, r0: usize, kern: &intarsia_core::KernelImpl| {
+            let mk = |idt: &TensorRef, wst: &TensorRef, rows: usize, r0: usize, kern: &intarsia_core::KernelImpl| {
                 let mut c = OpCall::new(
                     Op::MoeExperts,
                     vec![
@@ -840,19 +841,34 @@ fn timing_rows() {
                 c.scratch = Some(TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
                 c
             };
-            let solo_calls: Vec<OpCall> = (0..m).map(|r| mk(1, r, solo)).collect();
-            let serial = time_us(&be, 100, || {
-                for c in &solo_calls {
+            let mut solo_sets: Vec<Vec<OpCall>> = Vec::new();
+            let mut rows_calls: Vec<OpCall> = Vec::new();
+            for _ in 0..VARIANTS {
+                let (_, ids, ws) = routings(&mut rng, m).into_iter().nth(kind).unwrap();
+                let idt = put_host(&be, &HostTensor::from_i32(&[m, K], &ids), 0);
+                let wst = put_host(&be, &HostTensor::from_f32(&[m, K], &ws), 0);
+                solo_sets.push((0..m).map(|r| mk(&idt, &wst, 1, r, solo)).collect());
+                if m >= 2 {
+                    rows_calls.push(mk(&idt, &wst, m, 0, rows_k));
+                }
+            }
+            let mut i = 0usize;
+            let serial = time_us(&be, 96, || {
+                i += 1;
+                for c in &solo_sets[i % VARIANTS] {
                     be.launch("moe_experts_bf16", c, 0).unwrap();
                 }
             });
             let rows = if m >= 2 {
-                let c = mk(m, 0, rows_k);
-                time_us(&be, 100, || be.launch("moe_experts_bf16_rows", &c, 0).unwrap())
+                let mut i = 0usize;
+                time_us(&be, 96, || {
+                    i += 1;
+                    be.launch("moe_experts_bf16_rows", &rows_calls[i % VARIANTS], 0).unwrap()
+                })
             } else {
                 serial
             };
-            eprintln!("TIMING moe_experts T={m} routing={name}: {m} one-token calls {serial:.1} us, rows call {rows:.1} us ({:.2}x)", serial / rows);
+            eprintln!("TIMING moe_experts(cold) T={m} routing={name}: {m} one-token calls {serial:.1} us, rows call {rows:.1} us ({:.2}x)", serial / rows);
         }
     }
 }
