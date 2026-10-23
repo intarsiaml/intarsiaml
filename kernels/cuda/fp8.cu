@@ -9,6 +9,7 @@
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
 #include "ik_launch.h"
 #include "ik_quant.cuh"
+#include <atomic>
 
 namespace {
 
@@ -159,6 +160,121 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
     return ik_launch_status();
 }
 
+// ---- Row-exact multi-row GEMV (G-B) ---------------------------------------------------------------------------------
+//
+// out[m, n] of an M-row call is bitwise out[0, n] of the M = 1 call on row m alone (fp8_gemv_kernel<1>), for every M up to
+// kRowsMax: a warp owns an output row and walks the K axis lane-strided in the SAME order as fp8_gemv_body, with the same
+// fmaf chain per 16 elements and the same `acc += s`; M only adds more independent accumulators. What differs is where x
+// lives. fp8_gemv_body stages bf16 (M * K * 2 bytes: 128 KB at M = 16, K = 4096), which no block can hold. Here the staged
+// activations are the e4m3 BYTES (M * K bytes, 64 KB at that worst case): the value fp8_gemv_body stages in bf16 is e4m3 exactly
+// (bf16 holds every e4m3 value), so reading the byte back (e4m3 -> f32 is exact) gives the same f32 operand.
+// W8A16 (input_scale == 0, the activations are genuine bf16 and nothing can be staged as a byte): the kernel branches on the
+// device scale, uniformly, and reads x from global memory instead, one 32-byte slice per (row, 16 columns) like nvfp4_gemv_kernel;
+// the f32 operands are the bf16 values, as in the staged path. So W8A8 and W8A16 are both bitwise the 1-row kernel and a
+// launch never reads the scale tensor on the host. The staging is sized M * K bytes for either mode.
+constexpr int kRowsMax = 16;
+constexpr size_t kRowsSmemMax = 96 * 1024;  // <= cudaDevAttrMaxSharedMemoryPerBlockOptin on every sm_12x (99 KB)
+
+template <int M, bool Q, typename OutT>
+__device__ __forceinline__ void fp8_rows_dot(const ik_bf16* __restrict__ x, const unsigned char* __restrict__ xq,
+                                             const uint8_t* __restrict__ w, OutT* __restrict__ out, int N, int K, int64_t n,
+                                             float s_out) {
+    const int lane = threadIdx.x % IK_WARP;
+    const uint4* wr = reinterpret_cast<const uint4*>(w + n * K);
+    float acc[M];
+#pragma unroll
+    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    constexpr int UN = M <= 4 ? 4 : 2;
+#pragma unroll UN
+    for (int u = lane; u < K / 16; u += IK_WARP) {
+        float wf[16];
+        ik_fp8x16_to_f32(__ldcs(wr + u), wf);
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            float xf[16];
+            if constexpr (Q) {
+                ik_fp8x16_to_f32(*reinterpret_cast<const uint4*>(xq + (int64_t)m * K + u * 16), xf);
+            } else {
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + u * 16);
+                ik_unpack8(__ldg(xp), xf);
+                ik_unpack8(__ldg(xp + 1), xf + 8);
+            }
+            float s = 0.f;
+#pragma unroll
+            for (int e = 0; e < 16; ++e) s = fmaf(wf[e], xf[e], s);
+            acc[m] += s;
+        }
+    }
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        const float s = ik_warp_sum(acc[m]);
+        if (lane == 0) ik_store(out + (int64_t)m * N + n, s * s_out);
+    }
+}
+
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                     OutT* __restrict__ out, int N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];  // [M][K] e4m3 bytes (W8A8 only)
+    const bool actq = sc[1] > 0.f;
+    const float s_in = actq ? sc[1] : 1.f;
+    const float s_out = sc[0] * s_in;
+    if (actq) {  // block-uniform
+        for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
+            float f[8];
+            ik_unpack8(__ldg(reinterpret_cast<const uint4*>(x) + i8), f);
+            uint32_t lo = 0, hi = 0;
+#pragma unroll
+            for (int e = 0; e < 4; ++e) {
+                lo |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[e], s_in)) << (8 * e);
+                hi |= (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 + e], s_in)) << (8 * e);
+            }
+            reinterpret_cast<uint2*>(smem)[i8] = make_uint2(lo, hi);
+        }
+        __syncthreads();
+    }
+    const int warp = threadIdx.x / IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    if (n >= N) return;
+    if (actq) fp8_rows_dot<M, true, OutT>(x, smem, w, out, N, K, n, s_out);
+    else fp8_rows_dot<M, false, OutT>(x, smem, w, out, N, K, n, s_out);
+}
+
+// The dynamic-shared-memory opt-in is a function attribute of the CURRENT device's context, so rows_run remembers per device
+// (one flag word per kernel instantiation) that it has been set. Setting it is not a stream operation: it is legal while a
+// stream is being captured into a graph.
+template <int M, typename OutT>
+int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)M * K;
+    if (smem > kRowsSmemMax) return IK_ERR_SHAPE;
+    static std::atomic<uint32_t> attr_devices{0};  // bit d: the opt-in is set for device d
+    int dev = 0;
+    if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= 32) return IK_ERR_LAUNCH;
+    if (!(attr_devices.load() & (1u << dev))) {
+        if (cudaFuncSetAttribute(reinterpret_cast<const void*>(fp8_gemv_rows_kernel<M, OutT>),
+                                 cudaFuncAttributeMaxDynamicSharedMemorySize, (int)kRowsSmemMax) != cudaSuccess)
+            return IK_ERR_LAUNCH;
+        attr_devices.fetch_or(1u << dev);
+    }
+    const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
+    fp8_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, (int)K);
+    return ik_launch_status();
+}
+
+template <typename OutT>
+int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_FP8_ROWS_CASE(m) case m: return rows_run<m>(x, w, sc, out, N, K, s);
+        IK_FP8_ROWS_CASE(1) IK_FP8_ROWS_CASE(2) IK_FP8_ROWS_CASE(3) IK_FP8_ROWS_CASE(4)
+        IK_FP8_ROWS_CASE(5) IK_FP8_ROWS_CASE(6) IK_FP8_ROWS_CASE(7) IK_FP8_ROWS_CASE(8)
+        IK_FP8_ROWS_CASE(9) IK_FP8_ROWS_CASE(10) IK_FP8_ROWS_CASE(11) IK_FP8_ROWS_CASE(12)
+        IK_FP8_ROWS_CASE(13) IK_FP8_ROWS_CASE(14) IK_FP8_ROWS_CASE(15) IK_FP8_ROWS_CASE(16)
+#undef IK_FP8_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+}
+
 // ---- MMA (dequantise-to-bf16 tiles) -----------------------------------------------------------------------------
 
 constexpr int BN = 64, BK = 64, LDS = BK + 8;  // LDS: padded row stride in bf16 elements (conflict-free fragment loads)
@@ -279,7 +395,9 @@ int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const
     return IK_OK;
 }
 
-int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, bool gemv) {
+// rows: the row-exact multi-row GEMV (M <= kRowsMax, activations staged as e4m3 bytes), `gemv`: the decode GEMV (M <= 4).
+int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, bool gemv,
+           bool rows = false) {
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0) return IK_OK;
@@ -290,6 +408,12 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
+    if (rows) {
+        if (M > kRowsMax || (size_t)M * K > kRowsSmemMax) return IK_ERR_SHAPE;
+        if (!ik_aligned16(x->data) || !ik_aligned16(w->data)) return IK_ERR_SHAPE;
+        return f32o ? rows_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
+                    : rows_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
+    }
     if (gemv) {
         if (M > 4 || M * K * 2 > 49152) return IK_ERR_SHAPE;
         return f32o ? gemv_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
@@ -363,6 +487,10 @@ int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_te
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, true);
+}
+// Row-exact multi-row GEMV: row m of an M-row call (M <= 16) is bitwise the M = 1 `ik_matmul_fp8_gemv` call on row m alone.
+int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return launch(x, w, scales, out, stream, false, true);
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, false);

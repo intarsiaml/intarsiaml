@@ -329,8 +329,10 @@ impl Backend for CudaBackend {
                 }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
+                "matmul_bf16_gemv_rows" => ffi::ik_matmul_bf16_gemv_rows(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
                 "logits_bf16_gemv" => ffi::ik_logits_bf16_gemv(i(0), i(1), o, s),
+                "logits_bf16_gemv_rows" => ffi::ik_logits_bf16_gemv_rows(i(0), i(1), o, s),
                 "kv_append_bf16" => ffi::ik_kv_append_bf16(i(0), a.pos0 as i64, o, pos, s),
                 "attn_prefill_bf16" => ffi::ik_attn_prefill_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s),
                 "attn_decode_bf16" => ffi::ik_attn_decode_bf16(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, pos, s),

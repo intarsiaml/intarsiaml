@@ -230,7 +230,7 @@ void launch_down_v2(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tenso
 // Shared by both entry points: validation, scratch, and the two launches. v2 selects the restructured down kernel.
 int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
                   const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
-                  ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2, bool gelu) {
+                  ik_tensor* out, const ik_scratch* scratch, void* stream, bool v2, bool gelu, int64_t max_t = 0) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -250,6 +250,7 @@ int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wei
         out->shape[1] != H)
         return IK_ERR_SHAPE;
     if (E < 1 || E > 0x7fffffffLL / 3 || K < 1 || K > E || K > kMaxK) return IK_ERR_SHAPE;
+    if (max_t > 0 && T > max_t) return IK_ERR_SHAPE;
     if (T == 0) return IK_OK;
     const int64_t P = T * K;
     if (P > 0x7fffffffLL / 2 || (size_t)(K * I * 2) > 48 * 1024 || (size_t)(H * 2) > 48 * 1024) return IK_ERR_SHAPE;
@@ -321,6 +322,23 @@ int ik_moe_experts_decode_v2_gelu_bf16(const ik_tensor* x, const ik_tensor* ids,
                                        const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                        const ik_scratch* scratch, void* stream) {
     return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true);
+}
+
+// Row-exact multi-token twins of the v2 launchers (T <= 16): the kernels index only by pair (gate_up: pair = token * K + k)
+// and by token (down), so token t of a T-token call is bitwise the T = 1 call on token t alone (tests/rows_exact.rs). Separate
+// launchers so the registry can mark them `rows_exact` while the ordinary registrations keep their T <= 1 range.
+int ik_moe_experts_decode_v2_rows_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                       const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                       const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                       const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, false, 16);
+}
+
+int ik_moe_experts_decode_v2_gelu_rows_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                            const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                            const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                            const ik_scratch* scratch, void* stream) {
+    return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true, 16);
 }
 
 }  // extern "C"

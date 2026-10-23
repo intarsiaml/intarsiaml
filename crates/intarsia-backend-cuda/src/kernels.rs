@@ -18,8 +18,10 @@ pub const TABLE: &[(&str, Op)] = &[
     ("rope_bf16", Op::Rope),
     ("matmul_bf16", Op::Matmul),
     ("matmul_bf16_gemv", Op::Matmul),
+    ("matmul_bf16_gemv_rows", Op::Matmul),
     ("logits_bf16", Op::Logits),
     ("logits_bf16_gemv", Op::Logits),
+    ("logits_bf16_gemv_rows", Op::Logits),
     ("kv_append_bf16", Op::KvAppend),
     ("attn_prefill_bf16", Op::AttnPrefill),
     ("attn_decode_bf16", Op::AttnDecode),
@@ -58,6 +60,10 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 fn base(name: &str, op: Op) -> KernelImpl {
     KernelImpl::new(op, name, "cuda").arch([ARCH])
 }
+
+/// Most rows of a row-exact (`rows_exact`) multi-row kernel call (bf16 / fp8 / nvfp4 GEMV rows, MoE decode rows): the cap of
+/// `Model::BATCH_MAX_ROWS` for hybrid batched decode on this backend (the launchers refuse more).
+pub const ROWS_MAX: usize = 16;
 
 /// Most query rows the split-KV kernels take per launch (above this the flash prefill kernel wins).
 const SPLITKV_MAX_ROWS: usize = 16;
@@ -297,6 +303,25 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(F32_TOL)
                 .priority(10),
+            // Row-exact twins of the two GEMVs (`rows_exact`: only a call with `OpCall::exact_rows` selects them; the priority
+            // is moot). M = 1..=16, row m bitwise the M = 1 GEMV on row m alone (tests/rows_exact.rs). M = 1 is accepted
+            // (Metal's start at 2): an `exact_rows` one-row call must still find a kernel once any rows kernel is listed.
+            "matmul_bf16_gemv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .rows_exact(),
+            "logits_bf16_gemv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(F32_TOL)
+                .priority(-1)
+                .rows_exact(),
             // the cache dtype (bf16 or fp8_e4m3) is the output's; the launcher dispatches on it
             "kv_append_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             "attn_prefill_bf16" | "attn_decode_bf16" => k
@@ -471,7 +496,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -511,7 +536,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -579,7 +604,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -646,7 +671,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -686,7 +711,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -733,7 +758,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s)) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -842,7 +867,7 @@ mod tests {
         }
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
                 if best.is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -896,8 +921,10 @@ mod tests {
         "kv_append_bf16:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
+        "logits_bf16_gemv_rows:logits",
         "matmul_bf16:matmul",
         "matmul_bf16_gemv:matmul",
+        "matmul_bf16_gemv_rows:matmul",
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
         "matmul_fp8_gemm:matmul_fp8",
@@ -906,6 +933,7 @@ mod tests {
         "matmul_fp8_gemm_lt:matmul_fp8",
         "matmul_fp8_gemm_reg:matmul_fp8",
         "matmul_fp8_gemv:matmul_fp8",
+        "matmul_fp8_gemv_rows:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
         "matmul_fp8_pair_gemm_reg:matmul_fp8_pair",
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
@@ -913,6 +941,7 @@ mod tests {
         "matmul_nvfp4_gemm:matmul_nvfp4",
         "matmul_nvfp4_gemm_reg:matmul_nvfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
+        "matmul_nvfp4_gemv_rows:matmul_nvfp4",
         "matmul_nvfp4_glu_gemm:matmul_nvfp4_glu",
         "matmul_nvfp4_glu_gemv:matmul_nvfp4_glu",
         "matmul_nvfp4_mma:matmul_nvfp4",
@@ -921,6 +950,7 @@ mod tests {
         "moe_experts_bf16:moe_experts",
         "moe_experts_decode_bf16:moe_experts",
         "moe_experts_decode_v2_bf16:moe_experts",
+        "moe_experts_decode_v2_rows_bf16:moe_experts",
         "moe_experts_mma_bf16:moe_experts",
         "moe_experts_nvfp4_mma_bf16:moe_experts",
         "moe_experts_w4a16_bf16:moe_experts",
@@ -961,6 +991,7 @@ mod tests {
         "gelu_glu_bf16:gelu_glu",
         "moe_experts_decode_gelu_bf16:moe_experts",
         "moe_experts_decode_v2_gelu_bf16:moe_experts",
+        "moe_experts_decode_v2_gelu_rows_bf16:moe_experts",
         "moe_experts_gelu_bf16:moe_experts",
         "moe_experts_mma_gelu_bf16:moe_experts",
         "moe_experts_w4a16_gelu_bf16:moe_experts",
@@ -980,7 +1011,7 @@ mod tests {
         let bf = Some(DType::Bf16);
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
                 if best.is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -1049,7 +1080,7 @@ mod tests {
         }
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
                 if best.is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -1132,7 +1163,7 @@ mod tests {
         assert!(!ks.iter().any(|k| k.op == Op::MoeBlock), "MoeBlock is registered: the model would take the fused path here");
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
+            for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
                 if best.is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }

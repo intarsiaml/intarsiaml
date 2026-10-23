@@ -121,6 +121,29 @@ int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_t
 int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* Row-exact multi-row twins of the decode GEMVs (rows_exact kernels, `OpCall::exact_rows`; hybrid continuous batching, stage R0):
+ * the same arguments and launch contract as the 1-row-GEMV launcher named in each comment, any M in 1..=16 (matmul_fp8: also
+ * M * K <= 96 KiB, the e4m3 staging of the activations), and row m of the output is BITWISE the M = 1 call on row m alone
+ * (tests/rows_exact.rs: every M, W8A8 and W8A16, the 35B and 8B shapes). */
+/* = ik_matmul_fp8_gemv */
+int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+/* = ik_matmul_nvfp4_gemv */
+int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
+                              const ik_tensor* global_scale, ik_tensor* out, void* stream);
+/* = ik_matmul_bf16_gemv / ik_logits_bf16_gemv */
+int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+/* = ik_moe_experts_decode_v2_bf16 / ik_moe_experts_decode_v2_gelu_bf16 with T <= 16 tokens; same scratch
+ * (moe_experts_decode_scratch). */
+int ik_moe_experts_decode_v2_rows_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                       const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                       const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                       const ik_scratch* scratch, void* stream);
+int ik_moe_experts_decode_v2_gelu_rows_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                            const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                            const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                            const ik_scratch* scratch, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

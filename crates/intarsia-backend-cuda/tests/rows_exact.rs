@@ -1,0 +1,448 @@
+//! G-B, the row-exactness gate of hybrid continuous batching (stage R0): row r of an M-row call of a `rows_exact` kernel is
+//! BITWISE equal to row 0 of the 1-row kernel the solo decode step runs (`matmul_fp8_gemv`, `matmul_nvfp4_gemv`,
+//! `matmul_bf16_gemv`, `logits_bf16_gemv`, `moe_experts_decode_v2_bf16`) on row r's input alone; for every M from 1 to the cap
+//! (16), every row r, on the real Qwen3.6-35B-A3B and Qwen3-8B projection shapes and on odd edges. No tolerance anywhere:
+//! outputs are compared as bytes.
+//!
+//! Inputs are hand built to be nasty: normal activations, an all-zero row, a row identical to row 0, a row spanning 40 binades,
+//! rows that saturate e4m3 under the W8A8 input scale (and sit exactly at the clip boundary), a single huge element, tiny
+//! magnitudes. W8A8 (input_scale > 0) and W8A16 (input_scale == 0) both. The rows of one call are also run in reversed order.
+//! MoE: distinct routing, all tokens on the same experts, shared experts in different top-k order, invalid ids (-1, >= E), zero
+//! routing weights.
+//!
+//! The negative control (a mutated K partition for m >= 4 must fail these tests) is recorded in the lane report, not committed.
+//! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
+#![cfg(ik_cuda)]
+
+mod common;
+
+use intarsia_core::backend::{Backend, MemKind, TensorRef};
+use intarsia_core::quant::cases::{random_experts, random_routing};
+use intarsia_core::quant::fp8::scales_tensor;
+use intarsia_core::quant::nvfp4;
+use intarsia_core::rng::SplitMix64;
+use intarsia_core::{DType, HostTensor, Op, OpAttrs, OpCall, ShapeInfo};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+const CAP: usize = 16;
+
+struct Rig {
+    be: Arc<dyn Backend>,
+    /// (kernel, M) -> (shape cases, rows compared, bytes compared)
+    seen: std::cell::RefCell<BTreeMap<(String, usize), (usize, usize, usize)>>,
+}
+
+impl Rig {
+    fn new(test: &str) -> Option<Rig> {
+        let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        match intarsia_backend_cuda::create(ord) {
+            Ok(be) => Some(Rig { be, seen: Default::default() }),
+            Err(e) => {
+                common::skip(test, &format!("no usable CUDA device ({e})"));
+                None
+            }
+        }
+    }
+
+    fn put(&self, t: &HostTensor) -> TensorRef {
+        let buf = self.be.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+        self.be.zero(&buf, 0).unwrap();
+        if t.nbytes() > 0 {
+            self.be.upload(&buf, 0, &t.data, 0).unwrap();
+        }
+        TensorRef::new(buf, t.dtype, &t.shape)
+    }
+
+    /// Launch `kernel` on already uploaded inputs; the outputs start as a 0xA5 pattern (a NaN in bf16 / f32), so a row the
+    /// kernel does not write cannot equal a computed one.
+    fn run(&self, kernel: &str, op: Op, inputs: &[TensorRef], outs: &[(DType, Vec<usize>)], attrs: &OpAttrs) -> Vec<HostTensor> {
+        let mut outputs = Vec::new();
+        for (dt, shape) in outs {
+            let mut t = HostTensor::zeros(*dt, shape);
+            t.data.fill(0xA5);
+            outputs.push(self.put(&t));
+        }
+        let mut call = OpCall::new(op, inputs.to_vec(), outputs.clone(), attrs.clone());
+        call.check().unwrap();
+        if let Some(k) = self.be.kernels().iter().find(|k| k.name == kernel && k.op == op) {
+            let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
+            if need > 0 {
+                let buf = self.be.alloc(need.max(16), MemKind::Device).unwrap();
+                call.scratch = Some(TensorRef::new(buf, DType::U8, &[need]));
+            }
+        }
+        self.be.launch(kernel, &call, 0).unwrap_or_else(|e| panic!("{kernel}: {e}"));
+        self.be.synchronize(0).unwrap();
+        let mut res = Vec::new();
+        for (o, (dt, shape)) in outputs.iter().zip(outs) {
+            let mut data = vec![0u8; o.nbytes()];
+            self.be.download(&o.buf, o.offset, &mut data, 0).unwrap();
+            res.push(HostTensor::new(*dt, shape.clone(), data).unwrap());
+        }
+        res
+    }
+
+    fn note(&self, kernel: &str, m: usize, rows: usize, bytes: usize) {
+        let mut s = self.seen.borrow_mut();
+        let e = s.entry((kernel.to_string(), m)).or_default();
+        e.0 += 1;
+        e.1 += rows;
+        e.2 += bytes;
+    }
+
+    fn report(&self, what: &str) {
+        let mut line = String::new();
+        let mut cur = String::new();
+        for ((k, m), (cases, rows, bytes)) in self.seen.borrow().iter() {
+            if *k != cur {
+                if !line.is_empty() {
+                    println!("{line}");
+                }
+                cur = k.clone();
+                line = format!("G-B {what} {k}: M:cases/rows/bytes");
+            }
+            line.push_str(&format!(" {m}:{cases}/{rows}/{bytes}"));
+        }
+        println!("{line}");
+    }
+}
+
+// ---- inputs ---------------------------------------------------------------------------------------------------------
+
+fn bf16_row(vals: &[f32]) -> HostTensor {
+    HostTensor::from_f32_as(DType::Bf16, &[1, vals.len()], vals)
+}
+
+/// Sixteen nasty activation rows of width `k`. `clip` is the value at which e4m3 saturates under the W8A8 input scale in use
+/// (448 * input_scale; pass 448 for W8A16 / unit scale).
+fn nasty_rows(rng: &mut SplitMix64, k: usize, clip: f32) -> Vec<Vec<f32>> {
+    let normal = |rng: &mut SplitMix64, s: f32| rng.normal_vec(k, s);
+    let r0 = normal(rng, 1.0);
+    let mut rows: Vec<Vec<f32>> = vec![r0.clone(), vec![0.0; k], r0.clone()];
+    // 40 binades of dynamic range, both signs
+    let wide: Vec<f32> = (0..k)
+        .map(|_| {
+            let e = (rng.next_u64() % 41) as i32 - 20;
+            let v = rng.normal_vec(1, 1.0)[0];
+            v * (2.0f32).powi(e)
+        })
+        .collect();
+    rows.push(wide);
+    // saturating: |x| up to 20x past the e4m3 clip for W8A8
+    rows.push(rng.normal_vec(k, clip * 6.0));
+    // exactly on the clip boundary and just past it (half-way rounding region), alternating sign
+    rows.push((0..k).map(|i| if i % 2 == 0 { clip } else { -clip * 1.0625 }).collect());
+    // one huge element (last), the rest zero
+    let mut single = vec![0.0f32; k];
+    single[k - 1] = clip * 1000.0;
+    rows.push(single);
+    // tiny magnitudes (underflow of the e4m3 quantiser)
+    rows.push(rng.normal_vec(k, clip * 1e-6));
+    // the rest: random scales over six decades
+    while rows.len() < CAP {
+        let s = (10.0f32).powf((rng.next_f32() - 0.5) * 6.0);
+        rows.push(normal(rng, s));
+    }
+    rows
+}
+
+fn clip_of(scales: &HostTensor) -> f32 {
+    let is = scales.to_f32()[1];
+    if is > 0.0 {
+        448.0 * is
+    } else {
+        448.0
+    }
+}
+
+// ---- the G-B driver for the matmul-like ops ---------------------------------------------------------------------------
+
+/// `weights`: the inputs after x (w, scales ... as the op takes them). `solo`: the 1-row kernel, `rows`: the row-exact one.
+#[allow(clippy::too_many_arguments)]
+fn gb_matmul(
+    rig: &Rig,
+    op: Op,
+    solo: &str,
+    rows: &str,
+    weights: &[TensorRef],
+    x_rows: &[Vec<f32>],
+    n: usize,
+    out_dt: DType,
+    label: &str,
+    caps: usize,
+) {
+    let k = x_rows[0].len();
+    let a = OpAttrs::default();
+    let osz = out_dt.size_bytes();
+    // the solo reference: every row alone through the 1-row kernel
+    let mut want: Vec<Vec<u8>> = Vec::new();
+    for r in 0..caps {
+        let x = rig.put(&bf16_row(&x_rows[r]));
+        let mut ins = vec![x];
+        ins.extend_from_slice(weights);
+        let o = rig.run(solo, op, &ins, &[(out_dt, vec![1, n])], &a);
+        want.push(o[0].data.clone());
+    }
+    let all: Vec<f32> = x_rows[..caps].iter().flatten().copied().collect();
+    let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[caps, k], &all));
+    for m in 1..=caps {
+        let mut ins = vec![x_all.rows(0, m)];
+        ins.extend_from_slice(weights);
+        let o = rig.run(rows, op, &ins, &[(out_dt, vec![m, n])], &a);
+        for r in 0..m {
+            let got = &o[0].data[r * n * osz..(r + 1) * n * osz];
+            if got != &want[r][..] {
+                let bad = got.chunks(osz).zip(want[r].chunks(osz)).enumerate().filter(|(_, (g, w))| g != w).count();
+                let first = got.chunks(osz).zip(want[r].chunks(osz)).position(|(g, w)| g != w).unwrap();
+                panic!(
+                    "G-B FAIL {label}: {rows} M={m} row {r} differs from {solo} on that row alone in {bad} of {n} elements \
+                     (first at col {first}: {:02x?} vs {:02x?})",
+                    &got[first * osz..(first + 1) * osz],
+                    &want[r][first * osz..(first + 1) * osz]
+                );
+            }
+        }
+        rig.note(rows, m, m, m * n * osz);
+    }
+    // the rows of one full call in reversed order: position must not matter
+    let rev: Vec<f32> = x_rows[..caps].iter().rev().flatten().copied().collect();
+    let x_rev = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[caps, k], &rev));
+    let mut ins = vec![x_rev];
+    ins.extend_from_slice(weights);
+    let o = rig.run(rows, op, &ins, &[(out_dt, vec![caps, n])], &a);
+    for r in 0..caps {
+        let got = &o[0].data[r * n * osz..(r + 1) * n * osz];
+        assert!(got == &want[caps - 1 - r][..], "G-B FAIL {label}: {rows} reversed order, row {r}");
+    }
+}
+
+// ---- fp8 -------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn fp8_rows_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("fp8_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(801);
+    // (n, k): Qwen3.6-35B-A3B GDN in_qkv 8192x2048, in_z / attention q 4096x2048, k / v 512x2048, GDN out + o_proj 2048x4096,
+    // plus edges: n not a multiple of the 8 warps, K = 16, K with a ragged lane tail (129 blocks of 16), one row, the widest K
+    // the 96 KiB staging allows at M = 16 (6144)
+    let shapes = [
+        (8192usize, 2048usize),
+        (4096, 2048),
+        (512, 2048),
+        (2048, 4096),
+        (300, 2048),
+        (9, 16),
+        (33, 2064),
+        (1, 4096),
+        (64, 6144),
+    ];
+    for (n, k) in shapes {
+        // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
+        for (aq, is) in [(true, 0.125f32), (true, 0.0117), (true, 3.0), (false, 0.0)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+            let ws = hc.inputs[2].to_f32()[0];
+            let scales = scales_tensor(ws, if aq { is } else { 0.0 });
+            let w = rig.put(&hc.inputs[1]);
+            let sc = rig.put(&scales);
+            let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
+            for out_dt in [DType::Bf16, DType::F32] {
+                let label = format!("fp8 n={n} k={k} aq={aq} is={is} out={out_dt:?}");
+                gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv", "matmul_fp8_gemv_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, CAP);
+            }
+        }
+    }
+    rig.report("fp8");
+}
+
+// ---- nvfp4 -----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("nvfp4_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(802);
+    // (n, k, out): the 35B shared expert (512x2048, 2048x512), its lm_head (248320x2048, f32 logits; a thin-K full-vocab case
+    // for the grid limit on N), odd edges (see tests/fused_decode.rs for the glu shapes)
+    let shapes = [
+        (512usize, 2048usize, DType::Bf16),
+        (2048, 512, DType::Bf16),
+        (248320, 2048, DType::F32),
+        (248320, 64, DType::F32),
+        (300, 4112, DType::Bf16),
+        (9, 16, DType::F32),
+        (1030, 160, DType::Bf16),
+        (1, 16, DType::Bf16),
+    ];
+    for (n, k, out_dt) in shapes {
+        let q = nvfp4::random_rows(&mut rng, n, k);
+        let weights: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
+        let x_rows = nasty_rows(&mut rng, k, 448.0);
+        gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 n={n} k={k} {out_dt:?}"), CAP);
+    }
+    rig.report("nvfp4");
+}
+
+// ---- bf16 matmul / logits -----------------------------------------------------------------------------------------
+
+fn fast_bf16(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {
+    // uniform in (-1, 1) / sqrt(k): cheap enough for the 151936 x 4096 head (the normal generator is not)
+    let s = 1.0 / (k as f32).sqrt();
+    let mut data = Vec::with_capacity(n * k * 2);
+    for _ in 0..n * k {
+        let u = (rng.next_u64() >> 40) as f32 / (1u64 << 24) as f32 * 2.0 - 1.0;
+        let b = (u * s).to_bits() >> 16;
+        data.extend_from_slice(&(b as u16).to_le_bytes());
+    }
+    HostTensor::new(DType::Bf16, vec![n, k], data).unwrap()
+}
+
+#[test]
+fn bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(803);
+    // 35B: router 256x2048, GDN in_a / in_b 32x2048, shared-expert gate 1x2048. 8B: q / o 4096x4096, k / v 1024x4096,
+    // gate / up 12288x4096, down 4096x12288. Edges: K % 8 != 0 (the scalar path), K = 8, a K that is not a multiple of 256
+    for (n, k) in [
+        (256usize, 2048usize),
+        (32, 2048),
+        (1, 2048),
+        (4096, 4096),
+        (1024, 4096),
+        (12288, 4096),
+        (4096, 12288),
+        (64, 4100),
+        (33, 7),
+        (5, 8),
+        (130, 2056),
+    ] {
+        let w = rig.put(&fast_bf16(&mut rng, n, k));
+        let x_rows = nasty_rows(&mut rng, k, 448.0);
+        gb_matmul(&rig, Op::Matmul, "matmul_bf16_gemv", "matmul_bf16_gemv_rows", &[w], &x_rows, n, DType::Bf16, &format!("matmul bf16 n={n} k={k}"), CAP);
+    }
+    // the 8B head and an odd one, f32 logits
+    for (n, k) in [(151936usize, 4096usize), (129, 36), (50000, 2048)] {
+        let w = rig.put(&fast_bf16(&mut rng, n, k));
+        let x_rows = nasty_rows(&mut rng, k, 448.0);
+        gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("logits bf16 n={n} k={k}"), CAP);
+    }
+    rig.report("bf16");
+}
+
+// ---- MoE decode v2 --------------------------------------------------------------------------------------------------
+
+/// Routing for 16 tokens over `e` experts, `k` per token, in the cases listed in the module doc. (ids, weights)
+fn routings(rng: &mut SplitMix64, e: usize, k: usize) -> Vec<(&'static str, Vec<i32>, Vec<f32>)> {
+    let t = CAP;
+    let mut out = Vec::new();
+    let (ids, ws) = random_routing(rng, t, e, k);
+    out.push(("distinct", ids.to_i32().unwrap(), ws.to_f32()));
+    // every token on the same experts, different weights
+    let first: Vec<i32> = ids.to_i32().unwrap()[..k].to_vec();
+    let mut same = Vec::new();
+    for _ in 0..t {
+        same.extend_from_slice(&first);
+    }
+    let (_, ws2) = random_routing(rng, t, e, k);
+    out.push(("same experts", same, ws2.to_f32()));
+    // tokens 2i, 2i + 1 share their experts in different top-k order; the next pair shares half
+    let base = ids.to_i32().unwrap();
+    let mut shared = base.clone();
+    for p in 0..t / 2 {
+        let a: Vec<i32> = base[2 * p * k..(2 * p + 1) * k].to_vec();
+        let mut b = a.clone();
+        b.reverse();
+        if p % 2 == 1 {
+            for j in 0..k / 2 {
+                b[j] = base[((2 * p + 5) % t) * k + j]; // half foreign experts (distinct from `a` is not required)
+            }
+        }
+        shared[2 * p * k..(2 * p + 1) * k].copy_from_slice(&a);
+        shared[(2 * p + 1) * k..(2 * p + 2) * k].copy_from_slice(&b);
+    }
+    out.push(("shared pairs", shared, ws.to_f32()));
+    // invalid ids (-1, e, e + 100, i32::MIN) in some slots; zero routing weights in others
+    let mut bad = base.clone();
+    let mut wz = ws.to_f32();
+    for (i, v) in bad.iter_mut().enumerate() {
+        match i % 11 {
+            3 => *v = -1,
+            5 => *v = e as i32,
+            7 if i % 2 == 0 => *v = e as i32 + 100,
+            9 if i % 3 == 0 => *v = i32::MIN,
+            _ => {}
+        }
+        if i % 13 == 4 {
+            wz[i] = 0.0;
+        }
+    }
+    out.push(("invalid ids / zero weights", bad, wz));
+    out
+}
+
+fn gb_moe(rig: &Rig, solo: &str, rows: &str, attrs: &OpAttrs, e: usize, topk: usize, h: usize, i: usize, seed: u64) {
+    let mut rng = SplitMix64::new(seed);
+    let ex = random_experts(&mut rng, e, h, i);
+    let w: Vec<TensorRef> = [&ex.gate_up_w, &ex.gate_up_s, &ex.down_w, &ex.down_s, &ex.gscales].iter().map(|t| rig.put(t)).collect();
+    let x_rows = nasty_rows(&mut rng, h, 4.0);
+    let x_all: Vec<f32> = x_rows.iter().flatten().copied().collect();
+    for (rname, ids, ws) in routings(&mut rng, e, topk) {
+        let label = format!("moe e={e} top{topk} h={h} i={i} routing={rname} attrs.gelu={}", attrs.gelu);
+        // solo: each token through the T = 1 kernel
+        let mut want: Vec<Vec<u8>> = Vec::new();
+        for t in 0..CAP {
+            let ins = vec![
+                rig.put(&HostTensor::from_f32_as(DType::Bf16, &[1, h], &x_rows[t])),
+                rig.put(&HostTensor::from_i32(&[1, topk], &ids[t * topk..(t + 1) * topk])),
+                rig.put(&HostTensor::from_f32(&[1, topk], &ws[t * topk..(t + 1) * topk])),
+                w[0].clone(),
+                w[1].clone(),
+                w[2].clone(),
+                w[3].clone(),
+                w[4].clone(),
+            ];
+            let o = rig.run(solo, Op::MoeExperts, &ins, &[(DType::Bf16, vec![1, h])], attrs);
+            want.push(o[0].data.clone());
+        }
+        for tcount in 1..=CAP {
+            let ins = vec![
+                rig.put(&HostTensor::from_f32_as(DType::Bf16, &[tcount, h], &x_all[..tcount * h])),
+                rig.put(&HostTensor::from_i32(&[tcount, topk], &ids[..tcount * topk])),
+                rig.put(&HostTensor::from_f32(&[tcount, topk], &ws[..tcount * topk])),
+                w[0].clone(),
+                w[1].clone(),
+                w[2].clone(),
+                w[3].clone(),
+                w[4].clone(),
+            ];
+            let o = rig.run(rows, Op::MoeExperts, &ins, &[(DType::Bf16, vec![tcount, h])], attrs);
+            for t in 0..tcount {
+                let got = &o[0].data[t * h * 2..(t + 1) * h * 2];
+                if got != &want[t][..] {
+                    let bad = got.chunks(2).zip(want[t].chunks(2)).filter(|(g, w)| g != w).count();
+                    let first = got.chunks(2).zip(want[t].chunks(2)).position(|(g, w)| g != w).unwrap();
+                    panic!(
+                        "G-B FAIL {label}: {rows} T={tcount} token {t} differs from {solo} on that token alone in {bad} of {h} elements \
+                         (first at {first}: {:02x?} vs {:02x?})",
+                        &got[first * 2..first * 2 + 2],
+                        &want[t][first * 2..first * 2 + 2]
+                    );
+                }
+            }
+            rig.note(rows, tcount, tcount, tcount * h * 2);
+        }
+    }
+}
+
+#[test]
+fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
+    let Some(rig) = Rig::new("moe_decode_rows_are_bitwise_the_one_token_kernel") else { return };
+    let silu = OpAttrs { top_k: 8, ..OpAttrs::default() };
+    // the 35B layer (hidden 2048, routed intermediate 512, top-8) over 64 of its 256 experts (the kernels only index by
+    // expert id; 256 would be 400 MB of random weights per case), and a small shape with top-4
+    gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &silu, 64, 8, 2048, 512, 901);
+    gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &OpAttrs { top_k: 4, ..OpAttrs::default() }, 8, 4, 128, 64, 902);
+    // Gemma-style gelu twin
+    let gelu = OpAttrs { top_k: 8, gelu: true, ..OpAttrs::default() };
+    gb_moe(&rig, "moe_experts_decode_v2_gelu_bf16", "moe_experts_decode_v2_gelu_rows_bf16", &gelu, 32, 8, 256, 128, 903);
+    rig.report("moe");
+}
