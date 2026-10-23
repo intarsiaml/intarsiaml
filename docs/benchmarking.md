@@ -71,6 +71,50 @@ Other flags: `--thinking off` sends `chat_template_kwargs.enable_thinking=false`
 `--key-env VAR` reads a bearer token from an environment variable; `--timeout-s`; `--warmup N`.
 Plain `http://` only (the client is built without TLS); tunnel for https.
 
+### Benchmark records: `--emit-record`
+
+`bench speed --emit-record [PATH]` appends [benchmark record v1](/opt/code/model-benchmarks/schema/README.md) lines to
+`PATH` (default `/opt/code/model-benchmarks/data/records/intarsia-bench.jsonl`, the file the results site and the
+composer read) after the sweep. It writes one line per measured cell: one per prompt length (a speed point carries
+prefill and decode tok/s together, so it covers both phases of that length) and one per concurrency row. Skipped sizes
+and sizes where every rep failed get no line. The server is probed before the sweep and the run is refused unless it
+reports itself as IntarsiaML (`/v1/models` `owned_by`, `/metrics` `intarsia_info`).
+
+```sh
+fleetq run --host spark1 --expect 15 --quiet gpu,cpu --label "35b nvfp4 records" -- \
+    intarsia bench speed --url http://spark-4e77:8090 --model qwen36-35b --sizes 1024,4096,16384 \
+    --concurrency 1,4 --thinking off --fingerprint-file doctor.json --emit-record \
+    --quant NVFP4 --serve-cmd "intarsia serve --backend cuda --model /models/qwen36-35b-nvfp4 --port 8090"
+```
+
+| Record field | Source |
+|---|---|
+| `run_id` | `intarsia-bench:<label>-<unix time>:p<size>` or `:c<streams>`; `--record-run-id ID` reuses a localeval run id and writes the whole run as ONE record (`schema/validate.py` rejects a run_id repeated within a file) |
+| `provenance.trust`, `measurement.slot` | `measured-here` and the job id when `FLEETQ_JOB` is set; otherwise `external` (self-reported, not counted in regime wins; the schema has no unslotted-local tier) |
+| `hardware.name`, `box` | the server host, mapped to the site's strings (`site/build_data.py` `HOSTS`; two Sparks with `--tp 2` are `2x DGX Spark GB10 (TP2)`); loopback uses this machine's hostname; `--hardware` overrides; unknown is `"Unknown"` |
+| `hardware.driver`, `sku`, `kernel`, `memory_gb` | `--fingerprint-file` (`intarsia doctor --json`) |
+| `engine.version`, `commit` | this binary's version and `git rev-parse HEAD` of the working directory (`+dirty` when tracked files differ); the server does not report them, so pass `--engine-version` / `--engine-commit` when it is another build |
+| `engine.launch` | `--serve-cmd` (command and args), `--serve-env KEY=VALUE`, `--recipe-ref`; api keys and secret-looking env values are redacted; `max_model_len` from `/v1/models` |
+| `model.family`, `repo`, `revision` | `--model-family/--model-repo/--model-revision`, else parsed from the served path (`models--Org--Name/snapshots/<sha>`) and the site's family table; the Python in `build_data.py` is the spec |
+| `quant.format`, `kv_dtype` | `--quant` or derived from the name (NVFP4, MXFP4, INT4, INT8, FP8, BF16); `kv_dtype` from the server's `intarsia_info` metric or `--kv-dtype` |
+| `workload.lane` | `plain`, or `spec:<drafter>` from `--spec` or a `--spec X` inside `--serve-cmd` (`--spec off` is plain). Spec decode is never compared with plain decode |
+| `workload.thinking` | `--thinking` |
+| `completeness` | port of `schema/records.py` `finish()`: a blank (`null`, `""`, `"Unknown"`) hardware, engine, version, family, repo, quant or lane makes the record `incomplete`; it is kept, never dropped, and the missing paths are listed |
+
+The records have `exclusive: null`: the bench cannot see how the slot was taken. Validate a file with
+`uv run --with jsonschema python3 /opt/code/model-benchmarks/schema/validate.py <file>`. The flag reads no
+`INTARSIA_*` variable, so `docs/tuning.md` needs no row; it reads `FLEETQ_JOB` (set by `fleetq run`).
+
+### Composer gaps: `tools/composer/gap_to_lane.py`
+
+Reads model-benchmarks `composer/data/regimes.json` and `catalog.json` (read-only) and writes
+`docs/composer/gaps.md`: every cell where IntarsiaML is behind a rival on **its own quant** beyond the noise, the ties it
+could win, cells where it is `solo` or unmeasured and a competitor has data, and a lane brief per gap (setup, margin vs
+noise, quality of both sides, evidence run ids, catalog techniques, files likely involved by a keyword heuristic, the
+cheapest experiment). Ranking is margin % x a phase weight (decode 1.0, prefill 1.0, concurrent 0.5; a judgement, set
+with `--weight phase=w`). `--lane spec` switches to the speculative lane; `--json [PATH]` emits JSON.
+`python3 -m unittest discover -s tools/composer -p 'test_*.py'` runs the tests.
+
 ### Graph replay, variance and profiling in the result (Phase 1b review findings 4, 5, 6)
 
 `intarsia serve` exports `intarsia_graph_replays_total`, `intarsia_graph_captures_total`,
