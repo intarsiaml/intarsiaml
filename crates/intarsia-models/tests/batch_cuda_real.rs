@@ -110,7 +110,10 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     eprintln!("batch plan notes: {:?}", m.plan.notes);
     // N = 2, 3, 4 (the gate), then 8 and 16; 130 consecutive batched steps per size on the same, growing states
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
-    gate(&m, lens, vec![2, 3, 4, 8, 16], 130, (1000, 30000));
+    // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
+    let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
+    let sizes: Vec<usize> = if hip { (2..=16).collect() } else { vec![2, 3, 4, 8, 16] };
+    gate(&m, lens, sizes, 130, (1000, 30000));
     // decode rows beside prefill chunks (the engine's busy chunk is 256): the decode rows stay bitwise, the prefilled state
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
@@ -122,7 +125,10 @@ fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
-    gate(&m, lens, vec![2, 3, 4, 8, 16], 130, (1000, 30000));
+    // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
+    let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
+    let sizes: Vec<usize> = if hip { (2..=16).collect() } else { vec![2, 3, 4, 8, 16] };
+    gate(&m, lens, sizes, 130, (1000, 30000));
 }
 
 // ---- engine level ---------------------------------------------------------------------------------------------------
