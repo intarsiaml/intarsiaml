@@ -1,0 +1,12 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 37.3s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 4189 tokens
+finish=length prompt=4189 (cached 0) completion=1 | prefill 1086 ms (3857.3 tok/s) | decode 0 ms (0.00 tok/s)
+steps=4 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/1 attn_decode=0ms/10 attn_prefill=0ms/30 embedding=0ms/4 gate_split=0ms/40

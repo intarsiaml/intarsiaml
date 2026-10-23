@@ -1,0 +1,12 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsia-decfuse/pf-golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.cuda.selfgolden.safetensors (11 prompts, 5505 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 4064; prompts spanning more than one chunk: 1/11
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: the self-golden does not record the code that produced it (written by a build without INTARSIA_BUILD_STAMP, or by an older tool): record it again from the pre-change build (--allow-unstamped)
+self-golden written by: UNSTAMPED (built without INTARSIA_BUILD_STAMP) (top-64, modes prefill)
+differences from the self-golden's run (kernels per op, flags): matmul_fp8_pair: matmul_fp8_pair_gemv -> matmul_fp8_pair_gemm_reg+matmul_fp8_pair_gemv; matmul_nvfp4: matmul_nvfp4_gemm+matmul_nvfp4_gemv+matmul_nvfp4_mma -> matmul_nvfp4_gemm+matmul_nvfp4_gemm_reg+matmul_nvfp4_gemv+matmul_nvfp4_mma; matmul_nvfp4_glu: matmul_nvfp4_glu_gemv -> matmul_nvfp4_glu_gemm+matmul_nvfp4_glu_gemv
+self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5

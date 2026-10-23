@@ -1,0 +1,6 @@
+layer
+Collecting data...
+Generating '/tmp/nsys-report-ae16.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [=17%                        ] nsys.nsys-rep[1/1] [14%                         ] nsys.nsys-rep[1/1] [12%                         ] nsys.nsys-rep[1/1] [11%                         ] nsys.nsys-rep[1/1] [==20%                       ] nsys.nsys-rep[1/1] [=====29%                    ] nsys.nsys-rep[1/1] [=======38%                  ] nsys.nsys-rep[1/1] [==========47%               ] nsys.nsys-rep[1/1] [============57%             ] nsys.nsys-rep[1/1] [===============66%          ] nsys.nsys-rep[1/1] [==================75%       ] nsys.nsys-rep[1/1] [==================76%       ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsia-decfuse/out/prof1/lt4k-14000/nsys.nsys-rep
