@@ -29,8 +29,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-qg/gsm8k",
   "base_commit": "a92267b038f942466c77a5572a7750440eb9d59e",
-  "head_commit": null,
-  "pr": null,
+  "head_commit": "82914a21ba5ced40db219cfdb95ee68b7af68a57",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/111",
   "files": [
    "docs/results/2026-10-22-qg-35b-gsm8k.md",
    "docs/decisions/LOG.md"
