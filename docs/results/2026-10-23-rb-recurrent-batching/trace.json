@@ -1,0 +1,152 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:rb-recurrent-batching:20261022-2330",
+ "project": "intarsiaml",
+ "lane_id": "rb-recurrent-batching",
+ "follows": [],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-22T23:30:00-04:00",
+ "ended": "2026-10-23T00:30:00-04:00",
+ "brief": "Lane rb: design continuous batching for models with recurrent state (Qwen3.6-35B-A3B hybrid) and prove the engine logic on the CPU backend behind an opt-in flag. No GPU work.",
+ "hypothesis": "IntarsiaML serves one sequence at a time on the hybrid 35B because the batched engine refuses recurrent state; sharing the 1.69 GB of dense weights across N rows lifts aggregate decode to about x1.75-1.95 at 4 streams and x2.5-2.75 at 16.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 4x",
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | concurrent | 16x"
+  ],
+  "rival": "vLLM · NVFP4",
+  "gap_pct_at_start": 40.3,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  },
+  {
+   "id": "flare-bolt-mamba-replay-ring-rollback",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-rb/recurrent-batching",
+  "base_commit": "a312a7948a4ec39cd9cb8715eb9d9807df29153a",
+  "head_commit": "6419ef81e47186f38ace7356754cedd841ad38ea",
+  "pr": "114",
+  "files": [
+   "docs/results/2026-10-23-rb-recurrent-batching.md",
+   "crates/intarsia-core/src/model/gdn_batch.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/engine/batch.rs",
+   "crates/intarsia-core/src/scheduler.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-models/src/load.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "crates/intarsia-models/tests/batch_recurrent_load.rs"
+  ],
+  "diff_stat": "18 files changed, 1470 insertions(+), 41 deletions(-) (before the trace commit)",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "new tests (cpu, hybrid dense + MoE fixtures)",
+   "command": "cargo test -p intarsia-models --test batch_recurrent --test batch_recurrent_load",
+   "result": "pass",
+   "detail": "7 passed: batched == solo bitwise logits N=2..4 x 130 steps, BatchedEngine == LocalEngine over 130+ tokens, prefix reuse from snapshots, load_engine opt-in"
+  },
+  {
+   "name": "negative controls",
+   "command": "mutate gdn_batch row state / pick_slot restorable_len / recurrent snapshots, rerun",
+   "result": "pass",
+   "detail": "each mutation fails the intended test; reverted"
+  },
+  {
+   "name": "regression, core+models+cli",
+   "command": "cargo test -p intarsia-core -p intarsia-models -p intarsia-cli --no-fail-fast",
+   "result": "pass",
+   "detail": "454 passed, 0 failed, 2 ignored over 46 binaries (cpu)"
+  },
+  {
+   "name": "Metal default path, batched bitwise gate",
+   "command": "INTARSIA_TEST_REAL_MODEL=1 cargo test -p intarsia-models --release --test batch_metal (Qwen3-8B BF16, this Mac)",
+   "result": "pass",
+   "detail": "138 (row, step) pairs bitwise identical to solo; 48 decode rows beside 256-token prefill chunks; G-E plan show + 256 ids not run"
+  },
+  {
+   "name": "GPU kernels / speed",
+   "command": null,
+   "result": "skip",
+   "detail": "design only for GPU; no CUDA/HIP/Metal code or measurement tonight"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": null,
+   "streams": 4,
+   "before": 75.2,
+   "after": null,
+   "unit": "tok/s",
+   "n": null,
+   "spread_pct": null,
+   "slot": "shared",
+   "slot_job": null,
+   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "after_run_id": null
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": null,
+   "streams": 16,
+   "before": 75.2,
+   "after": null,
+   "unit": "tok/s",
+   "n": null,
+   "spread_pct": null,
+   "slot": "shared",
+   "slot_job": null,
+   "before_run_id": "20261022-050829-adhoc-fx3-35b-intarsia-p1-conc",
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "cpu batched-vs-solo identity (engine logic only); Metal dense batched bitwise gate unchanged",
+  "verdict": "n/a",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "neutral",
+ "summary": "Design plus opt-in CPU prototype; no speed change (after = null). Roofline from checkpoint bytes: one step reads 2.4 GB at N=1, of which 1.69 GB dense weights are shared; ceiling x2.2 at 4 streams and x3.1-3.6 at 16 (SGLang's measured 157.5/219.9 is 95%/83% of it). Staged plan S1-S5 about 18.5 working days; expected 130-145 tok/s at 4 and 185-205 at 16 after S5, 105-120 at 4 after S3 (closes the vLLM gap at 4). The prototype lifts the refusal on CPU behind INTARSIA_RECURRENT_BATCH=1 and shows batched greedy output token- and logit-identical to solo; it also found 4 plumbing defects beyond batch.rs:374 (gated attention gate dropped, prefix reuse fails requests on recurrent slots, solo prefill schedule differs, spec flag false).",
+ "lessons": [
+  "The refusal at engine/batch.rs:374 is one of seven blockers; model/batch.rs rejects GDN, MoE and gated attention, and CUDA registers no rows_exact kernels.",
+  "The batch-consistency check (plan::check_batch_ops) fails the load when a batched step's fused-op multiset differs from the solo step: every fused decode op (fp8 pair, gated norm + fp8 out-proj) needs a multi-row form or a per-row run.",
+  "The 35B step is 1.69 GB shared dense weight vs 0.57 GB routed experts and 0.13 GB per-sequence GDN state: expert grouping is worth only +2% at 4 streams, +16% at 16; GDN state must be read in place (gather/scatter would add 3x state traffic).",
+  "vLLM's flat 105 from 2 to 16 streams is its --max-num-seqs 2 production setting, not a limit; the fair bar is SGLang."
+ ],
+ "cost": {
+  "wall_min": 60,
+  "gpu_slot_min": 0,
+  "slot_jobs": [],
+  "tokens": null
+ }
+}

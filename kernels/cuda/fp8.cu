@@ -159,6 +159,103 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
     return ik_launch_status();
 }
 
+// ---- Row-exact multi-row GEMV (G-B) ---------------------------------------------------------------------------------
+//
+// out[m, n] of an M-row call is bitwise out[0, n] of the M = 1 call on row m alone (fp8_gemv_kernel<1>), for every M up to
+// kRowsMax. The arithmetic IS fp8_gemv_body's: a warp owns an output row and walks the K axis lane-strided (lane l takes the
+// 16-element blocks u = l, l + 32, ...), the same fmaf chain per block, the same `acc += s`, the same warp tree; M only adds
+// independent accumulators. The staged activations are the same bf16 values too (xq in W8A8, x itself in W8A16). What differs
+// is how much of x is staged at a time: fp8_gemv_body keeps all of M * K * 2 bytes in shared memory (128 KB at M = 16, K = 4096),
+// which no block can hold, so this kernel stages K in chunks of KC elements (a multiple of 512 = 32 lanes * 16, so a lane's
+// block sequence u = l, l + 32, ... is the same sequence, chunk after chunk, in the same order). Any K % 16 == 0 therefore
+// works at any M <= 16, W8A8 and W8A16 alike, with at most 32 KB of shared memory per block.
+// Layout of a staged chunk: [m][half][u] 16-byte vectors, so a warp reads 32 consecutive vectors (no bank conflicts).
+constexpr int kRowsMax = 16;
+
+template <int M>
+constexpr int rows_chunk() {
+    return (16384 / M / 512 > 0 ? 16384 / M / 512 : 1) * 512;  // M * chunk * 2 bytes <= 32 KB
+}
+
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                     OutT* __restrict__ out, int N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    constexpr int KC = rows_chunk<M>();
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][KC / 16]
+    const bool actq = sc[1] > 0.f;
+    const float s_in = actq ? sc[1] : 1.f;
+    const float s_out = sc[0] * s_in;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
+    const bool live = n < N;  // a dead warp still takes part in the staging and the barriers
+    const uint4* wr = reinterpret_cast<const uint4*>(w + (live ? n : 0) * K);
+    float acc[M];
+#pragma unroll
+    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    for (int c0 = 0; c0 < K; c0 += KC) {
+        const int kc = K - c0 < KC ? K - c0 : KC;  // a multiple of 16
+        const int ub = c0 / 16;                      // a multiple of 32
+        __syncthreads();                             // the previous chunk is consumed
+        for (int i = threadIdx.x; i < M * (kc / 8); i += blockDim.x) {
+            const int m = i / (kc / 8), j = i % (kc / 8);  // j: 8-element piece of the chunk
+            uint4 v = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K + c0) + j);
+            if (actq) {
+                float f[8];
+                ik_unpack8(v, f);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
+                v = ik_pack8(f);  // fp8 values are exact in bf16
+            }
+            xs[(m * 2 + (j & 1)) * (KC / 16) + (j >> 1)] = v;
+        }
+        __syncthreads();
+        if (live) {
+#pragma unroll 2
+            for (int u = lane; u < kc / 16; u += IK_WARP) {
+                float wf[16];
+                ik_fp8x16_to_f32(__ldcs(wr + ub + u), wf);
+#pragma unroll
+                for (int m = 0; m < M; ++m) {
+                    float xf[16];
+                    ik_unpack8(xs[(m * 2) * (KC / 16) + u], xf);
+                    ik_unpack8(xs[(m * 2 + 1) * (KC / 16) + u], xf + 8);
+                    float sdot = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[e], xf[e], sdot);
+                    acc[m] += sdot;
+                }
+            }
+        }
+    }
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        const float t = ik_warp_sum(acc[m]);  // all 32 lanes call it (full-mask shuffles)
+        if (live && lane == 0) ik_store(out + (int64_t)m * N + n, t * s_out);
+    }
+}
+
+template <int M, typename OutT>
+int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
+    fp8_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, (size_t)M * rows_chunk<M>() * 2, s>>>(x, w, sc, out, (int)N, (int)K);
+    return ik_launch_status();
+}
+
+template <typename OutT>
+int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_FP8_ROWS_CASE(m) case m: return rows_run<m>(x, w, sc, out, N, K, s);
+        IK_FP8_ROWS_CASE(1) IK_FP8_ROWS_CASE(2) IK_FP8_ROWS_CASE(3) IK_FP8_ROWS_CASE(4)
+        IK_FP8_ROWS_CASE(5) IK_FP8_ROWS_CASE(6) IK_FP8_ROWS_CASE(7) IK_FP8_ROWS_CASE(8)
+        IK_FP8_ROWS_CASE(9) IK_FP8_ROWS_CASE(10) IK_FP8_ROWS_CASE(11) IK_FP8_ROWS_CASE(12)
+        IK_FP8_ROWS_CASE(13) IK_FP8_ROWS_CASE(14) IK_FP8_ROWS_CASE(15) IK_FP8_ROWS_CASE(16)
+#undef IK_FP8_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+}
+
 // ---- MMA (dequantise-to-bf16 tiles) -----------------------------------------------------------------------------
 
 constexpr int BN = 64, BK = 64, LDS = BK + 8;  // LDS: padded row stride in bf16 elements (conflict-free fragment loads)
@@ -279,7 +376,9 @@ int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const
     return IK_OK;
 }
 
-int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, bool gemv) {
+// rows: the row-exact multi-row GEMV (M <= kRowsMax, activations staged as e4m3 bytes), `gemv`: the decode GEMV (M <= 4).
+int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, bool gemv,
+           bool rows = false) {
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0) return IK_OK;
@@ -290,6 +389,12 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
+    if (rows) {
+        if (M > kRowsMax) return IK_ERR_SHAPE;
+        if (!ik_aligned16(x->data) || !ik_aligned16(w->data)) return IK_ERR_SHAPE;
+        return f32o ? rows_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
+                    : rows_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
+    }
     if (gemv) {
         if (M > 4 || M * K * 2 > 49152) return IK_ERR_SHAPE;
         return f32o ? gemv_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
@@ -363,6 +468,10 @@ int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_te
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, true);
+}
+// Row-exact multi-row GEMV: row m of an M-row call (M <= 16) is bitwise the M = 1 `ik_matmul_fp8_gemv` call on row m alone.
+int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return launch(x, w, scales, out, stream, false, true);
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, false);
