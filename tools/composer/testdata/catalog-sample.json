@@ -1,0 +1,40 @@
+[
+ {
+  "id": "vllm-gb10-w8a8-fp8-projection-gemm",
+  "engine": "vLLM",
+  "version": "nightly-3f1bcfd8 era (2026-10)",
+  "hardware": "DGX Spark GB10 (sm_121)",
+  "family": "Qwen3.6-35B-A3B",
+  "arch": "MoE + gated DeltaNet hybrid",
+  "phase": "prefill",
+  "buckets": [
+   "1k",
+   "4k",
+   "16k"
+  ],
+  "technique": "W8A8 projection GEMMs: activations quantized to fp8 e4m3, CUTLASS cutlass_scaled_mm on fp8 tensor cores",
+  "mechanism": "The attention/MLP projection GEMMs run at 83-135 TFLOPS including activation quant at T=2048, vs a bf16-MMA register GEMM; about 49 ms faster per 2048-token chunk.",
+  "impact": "About 83% of IntarsiaML's localeval 16k prefill gap to vLLM. vLLM's Marlin MoE is only 4-5% faster at T=2048, and GDN is at parity with FLA, so neither is the lever.",
+  "preconditions": [
+   "fp8 tensor cores (sm_89+ / sm_12x)",
+   "per-tensor or static activation scales",
+   "accuracy check: activations quantized, output bits change"
+  ],
+  "transfer_notes": "Port as an opt-in GEMM path for the prefill projections only; decode is bandwidth-bound and gains nothing.",
+  "sources": [
+   {
+    "kind": "doc",
+    "path": "/opt/code/intarsiaml/docs/results/2026-10-19-cuda-round6.md",
+    "lines": "27-28, 211-226, 443"
+   },
+   {
+    "kind": "unanimis",
+    "record": "4ba4daa7-ed0c-47dc-a101-f320c1b87bdd"
+   }
+  ],
+  "source_verified": "doc and microbenchmark; vLLM source not read",
+  "evidence_runs": [],
+  "added": "2026-10-22",
+  "_file": "techniques.jsonl"
+ }
+]

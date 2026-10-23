@@ -1,0 +1,12 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/gc/q/q-0-nobaseline
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 58 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     94s] plan: PASS in 92.7s (39 ops resolved, exactness fast, loaded in 92.7s)
+QUICK DONE: /home/nvidia/gc/q/q-0-nobaseline/quick-report.md
+[qualify     94s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify     94s] acc-4k: SKIP in 0.0s (the 4k golden is the long golden: covered by acc-long)
+FULL DONE: /home/nvidia/gc/q/q-0-nobaseline/full-report.md
+[qualify     94s] exit code 0

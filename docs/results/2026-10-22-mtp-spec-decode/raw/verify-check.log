@@ -1,0 +1,31 @@
+deploy: spark1 (cuda) <- baff10f0502cdfe251a7d5c89ce7cd5805b3382f (mtp diagnostic: verify-check prints the top-2 margin and whether the row decided a token; drop the tie-prone debug_assert; verify-check.sh)
+deploy: synced (0 entries changed)
+
+=== reproducibility stamp (spark1:~/intarsia-deploy/mtp/DEPLOY_STAMP.json) ===
+git        baff10f0502cdfe251a7d5c89ce7cd5805b3382f  (baff10f0; tree 2eb1624af291)
+subject    mtp diagnostic: verify-check prints the top-2 margin and whether the row decided a token; drop the tie-prone debug_assert; verify-check.sh
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock 7723f17b4e7280cb  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     target/release/intarsia  sha256 c9ecdefa9207a452  56241104 bytes  
+smoke      skipped
+deploy: running in spark1:~/intarsia-deploy/mtp (INTARSIA_BIN=target/release/intarsia INTARSIA_REPLAY_OUT=replay-out/20261023T053155Z)
+ 01:31:56 up  1:25,  4 users,  load average: 1.02, 0.30, 0.13
+p0 exit 0 rows 89 spec: verify passes=89 proposed=178 accepted=165 (acceptance 92.7%, 2.85 tokens per pass)
+p1 exit 0 rows 106 spec: verify passes=106 proposed=211 accepted=148 (acceptance 70.1%, 2.40 tokens per pass)
+p2 exit 0 rows 101 spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+p3 exit 0 rows 90 spec: verify passes=90 proposed=180 accepted=164 (acceptance 91.1%, 2.82 tokens per pass)
+p4 exit 0 rows 917 spec: verify passes=917 proposed=1834 accepted=1100 (acceptance 60.0%, 2.20 tokens per pass)
+p5 exit 0 rows 841 spec: verify passes=841 proposed=1682 accepted=1206 (acceptance 71.7%, 2.43 tokens per pass)
+ALL rows 6430 bitwise 6430 max|dlogit| p50 0.000e+00 p90 0.000e+00 p99 0.000e+00 max 0.000e+00 argmax mismatch 0 (0.000%) margin<1e-2 23
+DECIDING rows (all earlier drafts accepted) 5081 argmax mismatch 0 (0.000%) margin<1e-2 18 max|dlogit| 0.000e+00
+Traceback (most recent call last):
+  File "<stdin>", line 29, in <module>
+TypeError: list indices must be integers or slices, not str
+ 01:38:40 up  1:32,  4 users,  load average: 1.51, 1.21, 0.64
+deploy: outputs in spark1:intarsia-deploy/mtp/replay-out/20261023T053155Z

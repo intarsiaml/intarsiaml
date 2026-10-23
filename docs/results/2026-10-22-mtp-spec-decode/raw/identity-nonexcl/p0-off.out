@@ -1,0 +1,32 @@
+```python
+from datetime import datetime
+import unittest
+
+
+def parse_iso8601_date(date_string: str) -> datetime:
+    """
+    Parse an ISO 8601 date string and return a datetime object.
+    
+    Args:
+        date_string: A string in ISO 8601 format (e.g., '2023-10-15', '2023-10-15T14:30:00')
+        
+    Returns:
+        A datetime object parsed from the input string.
+        
+    Raises:
+        ValueError: If the input string is not a valid ISO 8601 date string.
+        TypeError: If the input is not a string.
+    """
+    if not isinstance(date_string, str):
+        raise TypeError("Input must be a string")
+    
+    try:
+        # Try parsing with fromisoformat (available in Python 3.7+)
+        return datetime.fromisoformat(date_string)
+    except ValueError:
+        raise ValueError(f"Invalid ISO 8601 date string: {date_string}")
+
+
+class TestParseISO8601Date(unittest.TestCase):
+    
+

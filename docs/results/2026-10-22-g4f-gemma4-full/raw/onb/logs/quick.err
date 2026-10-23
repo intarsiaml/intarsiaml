@@ -1,0 +1,23 @@
+[qualify] --resume: /home/nvidia/g4-full/onb/qualify has no state yet, starting fresh
+[qualify      0s] gemma4-26b-a4b-nvfp4 on cuda, report directory /home/nvidia/g4-full/onb/qualify
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 0.8s (NVIDIA GB10 (sm_121), 71 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.1s (builtin:gemma4 covers this model (41/41 tensor templates resolve, quant nvfp4))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     73s] plan: PASS in 72.4s (21 ops resolved, exactness fast, loaded in 72.4s)
+[qualify     73s] == kernels [kernels test on the model's shapes]
+[qualify    157s] kernels: PASS in 83.7s (71 kernels, 1425 cases in 83.0s)
+[qualify    157s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    195s] gate: FAIL in 38.2s (perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty | sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact ("blue"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact ("paris"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact ("oxygen"): NO)
+[qualify    195s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify    195s] acc-format: SKIP in 0.0s (no format-reference golden for 'gemma4-26b-a4b-nvfp4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify    195s] == acc-short [short accuracy against a golden]
+[qualify    241s] acc-short: FAIL in 45.7s (prefill: 21-way KL (scored rows, n=1468) 2.953e-1 (need <= 3.0e-2); decode: 21-way KL (scored rows, n=160) 3.350e-1 (need <= 3.0e-2))
+[qualify    241s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    241s] acc-oracle: MISSING-BASELINE in 0.0s (MISSING-BASELINE: no CPU-oracle golden for 'gemma4-26b-a4b-nvfp4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). gemma4-26b-a4b-nvfp4 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cpu --golden /home/nvidia/g4-full/gemma4-26b.golden.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id gemma4-26b-a4b-nvfp4 --write-self-golden golden/oracle/gemma4-26b-a4b-nvfp4-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[qualify    241s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    295s] server up in 54s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    394s] bench: PASS in 152.9s (decode 34.3 tok/s at 128 tokens (274% of the byte floor))
+[qualify    394s] exit code 1

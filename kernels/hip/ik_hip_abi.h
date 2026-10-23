@@ -34,6 +34,11 @@ int ik_qk_norm_rope_kv_bf16(const ik_tensor* q, const ik_tensor* k, const ik_ten
  * ik_gdn_delta_rule_bf16. */
 int ik_gdn_delta_rule_bf16_v2(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                               const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
+/* gdn_delta_rule_bf16_v3 (lane hp, docs/results/2026-10-22-hp-hip-prefill-roofline.md): v2's operations in v2's order,
+ * rescheduled (the output dot of token t and the k dot of t + 1 in one pass over the state; q / k normalised and staged
+ * two tokens ahead in a four-buffer LDS ring with no barrier), so bitwise ik_gdn_delta_rule_bf16_v2; dk = 128. */
+int ik_gdn_delta_rule_bf16_v3(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                              const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
 /* attn_prefill_bf16_flash_v2 (docs/results/2026-10-19-hip-round5.md): ik_attn_prefill_bf16_flash with INTARSIA_HIP_FLASH_HPB
  * (default 4) query heads of one kv head per block, so a K / V tile is staged once for all of them; every wave runs the

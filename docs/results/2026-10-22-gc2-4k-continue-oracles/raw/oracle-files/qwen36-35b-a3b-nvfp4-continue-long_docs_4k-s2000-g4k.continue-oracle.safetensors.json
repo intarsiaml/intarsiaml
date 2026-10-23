@@ -1,0 +1,22 @@
+{
+  "file": "qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors",
+  "sha256": "6b033b05a86defde6a26632cd70a925502a375c8c51bea9695879984447c17a6",
+  "bytes": 17520,
+  "built_by": "scripts/fx5c/make_continue_oracle.py",
+  "inputs": {
+    "seq": "seq.json",
+    "oracle_dump": "oracle.dump.safetensors",
+    "golden": "qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors"
+  },
+  "format": "intarsia-continue-oracle-v1",
+  "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+  "prompt": "long_docs_4k",
+  "split": "2000",
+  "prompt_ids_fingerprint": "9c90e2739690c12b",
+  "prefill_chunk_when_frozen": "1024",
+  "row0": "4079",
+  "oracle": "intarsia accuracy --backend cpu (f64 CPU oracle, fx1 recipe: prefill chunk 256, top-64), one prefill over turn2 + stream",
+  "oracle_machine": "endor (Apple M5 Max, CPU backend)",
+  "oracle_code": "see oracle log",
+  "run": "gc2 raw; frozen stream: Metal cold engine, chunk 1024, 4k golden"
+}

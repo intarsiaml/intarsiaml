@@ -1,0 +1,13 @@
+{
+ "format": "intarsia-golden-provenance-v1",
+ "golden": "qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors",
+ "sha256": "304b3dc7410e4e4223d732eec7773a255986346f348c6b62af0a96f02a015034",
+ "fnv1a64": "27195b6f4d50d2e6",
+ "size": 2100484,
+ "source": "vLLM guidance on spark1 (http://spark-4e77:8000/v1, nvidia/Qwen3.6-35B-A3B-NVFP4, vllm 0.26.1rc1.dev602+g65b7662d3, fp8 KV cache), prompt_logprobs top-20",
+ "prompts": "tools/prompts/golden_4k.jsonl (long_docs_4k, long_code_4k, chat_reuse_4k; continue 64)",
+ "tool": "scripts/onboard/make-goldens.sh (tools/golden_vllm.py), run on the Mac with uv, fleetq job #4144",
+ "date": "2026-10-22",
+ "lane": "gc",
+ "note": "vLLM is not bit-deterministic run to run; ref_noise was not measured for this golden (acc-4k is baseline-gated: see golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.<backend>.baseline.json)"
+}

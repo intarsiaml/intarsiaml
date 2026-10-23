@@ -1,0 +1,50 @@
+[21:54:19] start; left 456 min; branch ae2cca8f
+[22:01:26] qualify 0-record exit 1 397 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 41 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      8s] plan: PASS in 7.2s (21 ops resolved, exactness deterministic, loaded in 7.2s)
+[qualify      8s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     20s] acc-short: MISSING-BASELINE in 12.0s (MISSING-BASELINE: no baseline for backend metal next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated. Qwen3.6-35B-A3B-NVFP4 has no full-precision golden (MoE / hybrid / quantized, golden from a reference
+[qualify     40s] acc-oracle: MISSING-BASELINE in 19.8s (MISSING-BASELINE: no recorded dump qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors in golden/baselines; the oracle floor passed (prefill top-1 96.26% KL 1.09e-2), but on this model only a recorded same-backend dump can see a 1 % s
+[qualify    163s] acc-long: PASS in 122.9s (prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3)
+[qualify    373s] acc-4k: FAIL in 210.8s (prefix reuse differs from a cold run; prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+[qualify    397s] envelope: PASS in 23.5s (baseline and envelope (chunk) written; they gate this build: PASS)
+total 5760
+-rw-r--r--@ 1 josef  wheel     2698 Oct 22 22:01 acc-4k-reuse.baseline.json
+-rw-r--r--@ 1 josef  wheel     9205 Oct 22 21:59 acc-4k.baseline.json
+-rw-r--r--@ 1 josef  wheel    10825 Oct 22 21:57 acc-long.baseline.json
+-rw-r--r--@ 1 josef  wheel     9807 Oct 22 21:55 acc-oracle.baseline.json
+-rw-r--r--@ 1 josef  wheel    15319 Oct 22 21:55 acc-short.baseline.json
+-rw-r--r--@ 1 josef  wheel    34240 Oct 22 22:01 envelope.json
+-rw-r--r--@ 1 josef  wheel  2853452 Oct 22 21:55 qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors
+ M golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.baseline.json
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.envelope.json
+[22:08:19] qualify 1-verdict exit 1 413 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 41 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      5s] plan: PASS in 4.8s (21 ops resolved, exactness deterministic, loaded in 4.8s)
+[qualify     27s] kernels: PASS in 21.1s (41 kernels, 714 cases in 20.9s; incomplete: 1 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+[qualify     36s] gate: PASS in 9.5s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     36s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     47s] acc-short: PASS in 11.1s (prefill top-1 98.33% KL 7.04e-3; decode top-1 98.75% KL 1.11e-2)
+[qualify     84s] acc-oracle: PASS in 36.5s (prefill top-1 96.26% KL 1.09e-2)
+[qualify    114s] bench: PASS in 30.2s (decode 123.2 tok/s at 128 tokens (45% of the byte floor))
+[qualify    233s] acc-long: PASS in 119.3s (prefill top-1 94.25% KL 4.03e-2; decode top-1 96.25% KL 9.51e-3)
+[qualify    413s] acc-4k: FAIL in 180.1s (prefix reuse differs from a cold run; baseline gate failed; prefix reuse differs from a cold run; prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+[22:08:24] gen 0 main: prefill chunk 256 (default) | prompt: 16 tokens | ids md5 4375d4fb353ce60f96196d814026ff4f
+[22:08:30] gen 0 br: prefill chunk 2048 (recipe qwen3_5_moe, metal) | prompt: 16 tokens | ids md5 4375d4fb353ce60f96196d814026ff4f
+[22:08:30]   0: ids identical
+[22:08:40] gen 20000 main: prefill chunk 256 (default) | prompt: 5822 tokens | ids md5 3454fa670b3d359bc649bd1825732c02
+[22:08:49] gen 20000 br: prefill chunk 2048 (recipe qwen3_5_moe, metal) | prompt: 5822 tokens | ids md5 3454fa670b3d359bc649bd1825732c02
+[22:08:49]   20000: ids identical
+prefill chunk 256 (default)
+[22:09:12] bench main1 done (rc 0)
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+[22:09:34] bench br1 done (rc 0)
+prefill chunk 256 (default)
+[22:09:58] bench main2 done (rc 0)
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+[22:10:19] bench br2 done (rc 0)
+[22:10:22] done; left 439 min

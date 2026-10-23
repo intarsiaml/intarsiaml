@@ -702,7 +702,12 @@ impl LocalEngine {
                     model.verify_rows()
                 )));
             }
-            if state.has_recurrent() {
+            let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
+            if mtp && (!model.has_mtp() || state.mtp.is_none()) {
+                return Err(Error::invalid("--spec mtp needs the model loaded with its MTP head (LoadOptions::mtp)"));
+            }
+            // the MTP path keeps per-row recurrent states in its verify passes; n-gram drafting does not
+            if state.has_recurrent() && !mtp {
                 return Err(Error::Unsupported("speculative decoding on a model with recurrent state".into()));
             }
         }
@@ -1010,14 +1015,38 @@ fn spec_verify(
     let j = crate::spec::accept(drafts, &out);
     let masked_stop =
         (0..=j).find(|&i| generated + 1 + i <= min_tokens && !stop_ids.is_empty() && stop_ids.contains(&out[i]));
+    // A masked stop on row 0 keeps nothing of the pass (`keep == len0`). A recurrent or MTP state cannot roll back to
+    // before the pass (`SequenceState::spec_rollback` keeps at least one row), so `Seq::plan_step` never drafts with
+    // `--spec mtp` inside a min_tokens window that masks stop ids. Relaxing that guard needs a pre-pass state copy.
+    debug_assert!(
+        masked_stop != Some(0) || !(st.has_recurrent() || st.mtp.is_some()),
+        "masked stop on verify row 0 of a recurrent/MTP state: plan_step's min_tokens guard was bypassed"
+    );
     let step = match masked_stop {
         // rows 0..i emitted d_1..d_i; row i (fed d_i) is recomputed by the plain step, so its KV row goes too
         Some(i) => SpecStep { emit: out[..i].to_vec(), accepted: i, plain_next: true },
         None => SpecStep { emit: out[..=j].to_vec(), accepted: j, plain_next: false },
     };
     let keep = len0 + if step.plain_next { step.accepted } else { step.accepted + 1 };
-    st.truncate(keep, &*model.backend)?;
+    spec_cut(model, st, keep)?;
     Ok(step)
+}
+
+/// `INTARSIA_MTP_VERIFY_CHECK=1`: before every `--spec mtp` verify pass, run its rows as single decode steps too and print
+/// the max |logit difference| and whether the argmax agrees, per row ([`Model::verify_check`]). Diagnostic, slow.
+fn mtp_verify_check() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_MTP_VERIFY_CHECK").is_ok_and(|v| !v.is_empty() && v != "0"))
+}
+
+/// Cut the state back to `keep` tokens after (or inside) the last verify pass: a recurrent or MTP state through the
+/// verify pass's per-row record ([`SequenceState::spec_rollback`]), an attention-only one by truncation.
+fn spec_cut(model: &Model, st: &mut SequenceState, keep: usize) -> Result<()> {
+    if st.has_recurrent() || st.mtp.is_some() {
+        st.spec_rollback(keep, &*model.backend)
+    } else {
+        st.truncate(keep, &*model.backend)
+    }
 }
 
 /// Result of one [`Seq::prefill_step`].
@@ -1038,6 +1067,8 @@ pub(crate) enum Next {
     Verify(Vec<u32>),
     /// One plain decode step of `[tok]` ([`Seq::head_mode`], [`Seq::token_from`]).
     Plain,
+    /// Draft up to this many tokens with the MTP head after `tok`, then verify them ([`Seq::prepare`]).
+    Draft(usize),
 }
 
 /// One request's generation state machine: sampling, `min_tokens` masking, stop ids / strings, streaming, `max_tokens`,
@@ -1077,6 +1108,8 @@ pub(crate) struct Seq {
     // verify pass yields several tokens; they wait in `pending` and go through the same per-token checks as sequential
     // tokens, so EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly the same way.
     spec_on: bool,
+    /// Drafts from the model's MTP head (`--spec mtp`) instead of prompt lookup.
+    spec_mtp: bool,
     spec_k: usize,
     /// The batching scheduler withholds drafting (batch too large); set per step by [`Seq::set_spec_allowed`].
     spec_paused: bool,
@@ -1118,12 +1151,22 @@ impl Seq {
         let plen = req.prompt.len();
         check_prompt(plen, st.cap)?;
         let recurrent = st.has_recurrent();
-        let ps = sh.store.as_ref().map(|pol| SeqStore::new(pol.clone(), &req.prompt, recurrent, model.prefill_chunk().max(1)));
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
+        let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
+        // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
+        let drafting = seq.spec_on && seq.spec_mtp;
+        // the prefix store restores the main model's state only, never the MTP head's cache: a drafting request on a
+        // model with an MTP head bypasses the store (the store stays off for it, prefill runs exactly as without it)
+        let ps = sh
+            .store
+            .as_ref()
+            .filter(|_| !(drafting && st.mtp.is_some()))
+            .map(|pol| SeqStore::new(pol.clone(), &seq.req.prompt, recurrent, model.prefill_chunk().max(1)));
 
         // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
-        let mut p = common_prefix(&st.tokens, &req.prompt).min(plen - 1);
+        let mut p = common_prefix(&st.tokens, &seq.req.prompt).min(plen - 1);
         if let Some(ps) = &ps {
             // bitwise reuse only: what prefill wrote, at a point of this prompt's own chunk schedule
             p = ps.local_reuse(st, p.min(st.clean));
@@ -1131,6 +1174,9 @@ impl Seq {
             // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
             // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
             p = st.restorable_len(p);
+        }
+        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) {
+            p = 0;
         }
         let mut restored = Duration::ZERO;
         if let Some(ps) = &ps {
@@ -1140,7 +1186,7 @@ impl Seq {
             store.set_defer(true);
         }
         if let Some(ps) = &ps {
-            match ps.restore(model, st, &req.prompt, p, max_reuse, &sh.telemetry) {
+            match ps.restore(model, st, &seq.req.prompt, p, max_reuse, &sh.telemetry) {
                 Ok(Some((len, took))) => {
                     p = len;
                     restored = took;
@@ -1156,8 +1202,9 @@ impl Seq {
         } else {
             st.truncate(p, &*model.backend)?;
         }
-
-        let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        if let Some(m) = st.mtp.as_mut() {
+            m.active = drafting;
+        }
         if seq.req.prewarm.is_some() {
             // a prewarm is admitted for its prefill only
             seq.req.max_tokens = 1;
@@ -1194,11 +1241,12 @@ impl Seq {
             .as_ref()
             .map(|c| c.start().map(crate::constrain::ConstraintRun::new).map_err(|e| e.to_string()));
         // constrained requests take plain steps only (drafts would bypass the mask)
+        let spec_mtp = env.spec.mode == crate::spec::SpecMode::Mtp;
         let spec_on = env.spec.enabled()
             && greedy
             && req.trace_logits.is_none()
             && cons.is_none()
-            && !recurrent
+            && (!recurrent || spec_mtp)
             && verify_rows >= 2;
         let spec_k = env.spec.k.min(verify_rows.saturating_sub(1));
         let ctx: Vec<u32> = if spec_on { req.prompt.clone() } else { Vec::new() };
@@ -1222,6 +1270,7 @@ impl Seq {
             dec: IncrementalDecoder::new(),
             stops,
             spec_on,
+            spec_mtp,
             spec_k,
             spec_paused: false,
             spec_busy: false,
@@ -1360,8 +1409,19 @@ impl Seq {
                     }
                 }
                 if let Some(Ok(c)) = &mut self.cons {
-                    if c.active() && !c.mask()?.apply(&mut l) {
-                        return Err(Error::Other("structured output: the constraint allows no token here".into()));
+                    if c.active() {
+                        let m = c.mask()?;
+                        let t = crate::constrain::prof::t0();
+                        let ok = m.apply(&mut l);
+                        crate::constrain::prof::add(&crate::constrain::prof::APPLY, t);
+                        if !ok {
+                            return Err(Error::Other("structured output: the constraint allows no token here".into()));
+                        }
+                        let t = crate::constrain::prof::t0();
+                        let tok = self.sampler.sample(&l) as u32;
+                        crate::constrain::prof::add(&crate::constrain::prof::SAMPLE, t);
+                        crate::constrain::prof::step();
+                        return Ok(tok);
                     }
                 }
                 Ok(self.sampler.sample(&l) as u32)
@@ -1586,6 +1646,16 @@ impl Seq {
         if self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow(self.spec_busy) {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
+            if self.spec_mtp {
+                // MTP drafts are always available. Not inside a min_tokens window that masks stop ids (a masked stop on
+                // row 0 would have to roll the recurrent state back to before the pass; with no stop ids, e.g.
+                // ignore_eos, nothing is masked), and no drafts past max_tokens (a pass emits up to k + 1 tokens).
+                let k = self.spec_k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
+                    return Next::Draft(k);
+                }
+                return Next::Plain;
+            }
             let drafts = crate::spec::propose_min(&self.ctx, self.spec_k.min(room), self.gate.min_n());
             if !drafts.is_empty() {
                 return Next::Verify(drafts);
@@ -1643,6 +1713,37 @@ impl Seq {
             }
             Next::Verify(drafts) => {
                 self.verify(model, st, &drafts)?;
+                if let Some(t) = self.pending.pop_front() {
+                    self.tok = t;
+                    return Ok(None);
+                }
+            }
+            Next::Draft(k) => {
+                let t0 = Instant::now();
+                let drafts = model.mtp_draft(st, self.tok, k)?;
+                if mtp_verify_check() {
+                    let mut ids = vec![self.tok];
+                    ids.extend_from_slice(&drafts);
+                    let rows = model.verify_check(st, &ids)?;
+                    // a row decides an emitted token when every draft before it was accepted
+                    let decides = |r: usize| (0..r).all(|i| drafts[i] == rows[i].2);
+                    let line: Vec<String> = rows
+                        .iter()
+                        .enumerate()
+                        .map(|(r, (d, a, b, m))| format!("{d:.3e}:{}:{m:.3e}:{}", u8::from(a == b), u8::from(decides(r))))
+                        .collect();
+                    eprintln!("spec-check: rows {} {}", rows.len(), line.join(" "));
+                }
+                let t1 = Instant::now();
+                self.verify(model, st, &drafts)?;
+                if crate::spec::trace_enabled() {
+                    // both phases end in a token download, so host time is device time here
+                    eprintln!(
+                        "spec: mtp draft {:.3} ms, verify + rollback {:.3} ms",
+                        (t1 - t0).as_secs_f64() * 1e3,
+                        t1.elapsed().as_secs_f64() * 1e3
+                    );
+                }
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(None);
@@ -1748,7 +1849,7 @@ impl Seq {
                 );
             }
             if st.len > want {
-                st.truncate(want, &*model.backend)?;
+                spec_cut(model, st, want)?;
             }
         }
         if reason != FinishReason::Cancelled && !self.string_stop {

@@ -181,7 +181,19 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
             }
         });
     }
-    SequenceState { id: 0, slots, len, cap, tokens: vec![0; len], snapshots: Vec::new(), peers: Vec::new(), remote: None, clean: 0 }
+    SequenceState {
+        id: 0,
+        slots,
+        len,
+        cap,
+        tokens: vec![0; len],
+        snapshots: Vec::new(),
+        peers: Vec::new(),
+        remote: None,
+        mtp: None,
+        clean: 0,
+        spec_rows: Default::default(),
+    }
 }
 
 fn shape_str(s: &ShapeInfo) -> String {

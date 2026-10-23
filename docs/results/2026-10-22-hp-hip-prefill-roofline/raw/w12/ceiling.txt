@@ -1,0 +1,21 @@
+device AMD Radeon Graphics, 32 CUs, clock 2350 MHz (prop)
+WMMA issue peak bf16 192.4 TFLOPS
+WMMA issue peak fp8  372.0 TFLOPS
+WMMA fp8 + per-WMMA scale (8 FMA) 360.7 TFLOPS
+
+shape                                 M      N      K hipBLASLt bf16 hipBLASLt fp8      ours f8
+qkv / q+gate                       4096   8192   2048    166.4 (16)    269.3 (16)        187.4
+z                                  4096   4096   2048    167.5 (16)    300.9 (16)        201.3
+o / out_proj                       4096   2048   4096    134.8 (16)    308.6 (16)        214.9
+k / v                              4096    512   2048    155.0 (16)    245.2 (16)        187.2
+experts gate_up (dense ideal)     32768   1024   2048    170.3 (16)    305.5 (16)        173.4
+experts down (dense ideal)        32768   2048    512    124.7 (16)    195.5 (16)         84.5
+shared expert gate_up              4096   1024   2048    160.4 (16)    273.6 (16)        210.1
+shared expert down                 4096   2048    512    121.6 (16)    178.4 (16)        156.5
+one expert gate_up M=128            128   1024   2048     33.7 (16)     56.4 (16)         23.7
+one expert down M=128               128   2048    512     32.7 (16)     42.8 (16)         28.6
+one expert gate_up M=512            512   1024   2048     94.2 (16)    159.6 (16)         96.4
+one expert down M=512               512   2048    512     77.9 (16)    101.1 (16)         95.8
+attn QK^T 4096x4096x256            4096   4096    256    100.4 (16)    130.4 (16)        111.1
+attn PV 4096x256x4096              4096    256   4096    145.4 (16)    239.1 (16)        144.2
+(TFLOPS = 2 M N K / time; hipBLASLt: best of the heuristic's algos (count in parentheses), 20 reps each)

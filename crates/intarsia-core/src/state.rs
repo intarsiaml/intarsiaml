@@ -55,6 +55,47 @@ impl StateSlot {
 pub struct RecurrentSnapshot {
     pub len: usize,
     buf: Buffer,
+    /// The MTP drafter's position at `len` (`--spec mtp`): its KV length and pending hidden rows ([`MtpState`]).
+    mtp: Option<MtpSnap>,
+}
+
+struct MtpSnap {
+    kv_len: usize,
+    rows: usize,
+    buf: Option<Buffer>,
+}
+
+/// State of the MTP drafter (`--spec mtp`, `crate::model::mtp`) beside a sequence. The MTP layer's position `p` reads
+/// the main model's final normed hidden state of position `p` and the token of position `p + 1` (vLLM's convention), so
+/// it trails the main model: `kv.len` positions are in its KV cache, the hidden rows of positions `kv.len .. st.len` wait
+/// in `pending` until the token after them is known. `kv.len + pending_rows == st.len` between passes.
+pub struct MtpState {
+    /// The MTP layer's attention cache (one `AttnKv` slot); `kv.len` = positions it has processed.
+    pub kv: SequenceState,
+    /// `[cap_rows, hidden]` (activation dtype): pending main-model hidden rows, oldest first.
+    pub pending: Buffer,
+    pub pending_rows: usize,
+    pub cap_rows: usize,
+    /// Bytes of one hidden row.
+    pub row_bytes: usize,
+    /// The current request drafts (`Seq::spec_on`): only then does each pass queue rows and run the head. A request
+    /// that never drafts (sampled, constrained, traced) skips the head entirely and leaves the state unsynced.
+    pub active: bool,
+    /// `kv.len + pending_rows == st.len` with valid pending rows. False once a pass ran without the head (inactive) or
+    /// a head pass failed; only an empty sequence (`truncate(0)`) syncs it again, so a drafting request on an unsynced
+    /// state starts from an empty cache (`Seq::new`).
+    pub synced: bool,
+}
+
+/// Recurrent state after each row of the last speculative verify pass (`Model::forward_verify` on a model with
+/// recurrent slots): `bufs[r]` holds every recurrent slot (concatenated, slot order, like a snapshot) as it was after
+/// row `r` of the pass that started at token count `base`; `saved` rows are valid (the pass's last row is the live
+/// state). [`SequenceState::spec_rollback`] restores one of them.
+#[derive(Default)]
+pub struct SpecRows {
+    pub bufs: Vec<Buffer>,
+    pub base: usize,
+    pub saved: usize,
 }
 
 static NEXT_STATE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -90,6 +131,10 @@ pub struct SequenceState {
     /// the engine's chunk schedule, none by a decode step, so their state is what a cold prefill of `tokens[..clean]`
     /// computes. Lowered by [`SequenceState::truncate`], set by [`SequenceState::load_prefix`]; the engine advances it.
     pub clean: usize,
+    /// The MTP drafter's state (`--spec mtp` only).
+    pub mtp: Option<Box<MtpState>>,
+    /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
+    pub spec_rows: SpecRows,
 }
 
 impl SequenceState {
@@ -119,7 +164,19 @@ impl SequenceState {
             });
         }
         let id = NEXT_STATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        Ok(SequenceState { id, slots, len: 0, cap, tokens: Vec::new(), snapshots: Vec::new(), peers: Vec::new(), remote: None, clean: 0 })
+        Ok(SequenceState {
+            id,
+            slots,
+            len: 0,
+            cap,
+            tokens: Vec::new(),
+            snapshots: Vec::new(),
+            peers: Vec::new(),
+            remote: None,
+            clean: 0,
+            mtp: None,
+            spec_rows: SpecRows::default(),
+        })
     }
 
     pub fn total_bytes(&self) -> usize {
@@ -186,7 +243,81 @@ impl SequenceState {
                 off += r.bytes;
             }
         }
-        self.snapshots.push(RecurrentSnapshot { len: self.len, buf });
+        let mtp = match &self.mtp {
+            Some(m) => {
+                let bytes = m.pending_rows * m.row_bytes;
+                let buf = if bytes > 0 {
+                    let b = backend.alloc(bytes, MemKind::Device)?;
+                    backend.copy(&b, 0, &m.pending, 0, bytes, 0)?;
+                    Some(b)
+                } else {
+                    None
+                };
+                Some(MtpSnap { kv_len: m.kv.len, rows: m.pending_rows, buf })
+            }
+            None => None,
+        };
+        self.snapshots.push(RecurrentSnapshot { len: self.len, buf, mtp });
+        Ok(())
+    }
+
+    /// Byte offset of recurrent slot `slot` in a snapshot / [`SpecRows`] buffer (recurrent slots concatenated in slot order).
+    pub fn recurrent_offset(&self, slot: usize) -> usize {
+        self.slots[..slot]
+            .iter()
+            .map(|s| match s {
+                StateSlot::Recurrent(r) => r.bytes,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Roll back to `keep` tokens inside the last speculative verify pass (`base < keep <= len`): attention caches and
+    /// the MTP drafter shorten, recurrent slots take the state saved after row `keep - base - 1` of that pass
+    /// ([`SpecRows`]). Single-rank states only.
+    pub fn spec_rollback(&mut self, keep: usize, backend: &dyn Backend) -> Result<()> {
+        if keep == self.len {
+            return Ok(());
+        }
+        if keep > self.len {
+            return Err(Error::invalid("spec rollback beyond the current length"));
+        }
+        if !self.peers.is_empty() || self.remote.is_some() {
+            return Err(Error::Unsupported("speculative rollback of a tensor-parallel state".into()));
+        }
+        if self.has_recurrent() {
+            let sr = &self.spec_rows;
+            let m = keep.checked_sub(sr.base).filter(|m| (1..=sr.saved).contains(m)).ok_or_else(|| {
+                Error::invalid(format!(
+                    "cannot roll recurrent state back to {keep} tokens (last verify pass from {} saved {} rows)",
+                    sr.base, sr.saved
+                ))
+            })?;
+            let src = &sr.bufs[m - 1];
+            let mut off = 0;
+            for s in &self.slots {
+                if let StateSlot::Recurrent(r) = s {
+                    backend.copy(&r.buf, 0, src, off, r.bytes, 0)?;
+                    off += r.bytes;
+                }
+            }
+            // the live state is now row m - 1's; the rows before it can still be returned to (a stop inside the run)
+            self.spec_rows.saved = m - 1;
+        }
+        self.snapshots.retain(|s| s.len <= keep);
+        for s in self.slots.iter_mut() {
+            if let StateSlot::AttnKv(a) = s {
+                a.len = keep;
+            }
+        }
+        self.len = keep;
+        self.tokens.truncate(keep);
+        if let Some(m) = &mut self.mtp {
+            if m.kv.len > keep {
+                m.kv.truncate(keep, backend)?;
+            }
+            m.pending_rows = keep - m.kv.len;
+        }
         Ok(())
     }
 
@@ -241,6 +372,36 @@ impl SequenceState {
                 }
             }
         }
+        if len != self.len || len == 0 {
+            let snap = self.snapshots.iter().find(|s| s.len == len).and_then(|s| s.mtp.as_ref());
+            if let Some(m) = &mut self.mtp {
+                if len == 0 {
+                    m.kv.truncate(0, backend)?;
+                    m.pending_rows = 0;
+                    m.synced = true;
+                } else if !m.synced {
+                    // nothing to keep consistent: the next drafting request starts from an empty sequence
+                } else if let Some(ms) = snap.filter(|ms| ms.kv_len + ms.rows == len && ms.rows <= m.cap_rows) {
+                    m.kv.truncate(ms.kv_len.min(m.kv.len), backend)?;
+                    if m.kv.len != ms.kv_len {
+                        return Err(Error::invalid("MTP snapshot ahead of the MTP cache"));
+                    }
+                    if let Some(b) = &ms.buf {
+                        backend.copy(&m.pending, 0, b, 0, ms.rows * m.row_bytes, 0)?;
+                    }
+                    m.pending_rows = ms.rows;
+                } else if len >= m.kv.len {
+                    m.pending_rows = len - m.kv.len;
+                } else {
+                    // the hidden row of position len - 1 is gone: the drafter reads a zero row there once (drafts only,
+                    // never the output)
+                    m.kv.truncate(len - 1, backend)?;
+                    backend.zero(&m.pending, 0)?;
+                    m.pending_rows = 1;
+                }
+            }
+        }
+        self.spec_rows.saved = 0;
         self.snapshots.retain(|s| s.len <= len);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
@@ -267,6 +428,10 @@ impl SequenceState {
             }
         }
         self.clean = len;
+        // the restored rows never went through the MTP head: its cache no longer covers the sequence
+        if let Some(m) = &mut self.mtp {
+            m.synced = false;
+        }
     }
 
     /// Whether [`SequenceState::truncate`] to `len` would pass its own checks here and on the in-process peers: not

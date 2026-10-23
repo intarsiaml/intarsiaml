@@ -1,0 +1,15 @@
+### What is the capital of France? Answer in one word.
+Paris
+
+### Name the three primary colors.
+The three primary colors depend on whether you are referring to light or pigment:
+
+1.  **Additive Primaries (Light/Screens):** Red, Green, and Blue (RGB).
+2.  **Subtractive Primaries (Paint/Pigment):** Red, Yellow, and
+
+### Write a Python function that returns the n-th Fibonacci number.
+There are several ways to implement this depending on whether you prioritize readability, memory, or speed. Below are the three most common approaches.
+
+### 1. The Efficient Approach (Iterative)
+This is the best approach for most practical purposes. It uses a loop to calculate the number, resulting
+

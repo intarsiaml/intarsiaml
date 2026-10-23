@@ -1,0 +1,31 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.63   2.012e-2   1.787e-2   1.787e-2    1.955e0   0.0944   0.0961    90.69   32/4064      0
+long_code_4k        4064  4064    96.80   8.144e-3   7.460e-3   7.460e-3   4.399e-1   0.0370   0.0382    91.47   10/4064      0
+chat_reuse_4k       4631  4631    87.54   2.117e-1   2.398e-1   1.953e-2    2.244e1   0.0688   0.0836    88.14   64/4631      0
+long_docs_12k      12064 12064    93.26   2.375e-2   2.140e-2   2.140e-2    1.134e1   0.0839   0.0848    90.23   5/12064      0
+long_code_12k      12064 12064    97.17   8.850e-3   8.254e-3   8.254e-3    1.120e0   0.0323   0.0329    90.89  10/12064      0
+OVERALL                  36887    94.25   4.035e-2   4.259e-2   1.430e-2    2.244e1   0.0611   0.0638    90.37      0.3%      0
+prefill floor [4bit]: top-1 (all rows) 94.25% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.430e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.259e-2, reported only] | tail mass (all rows) ours 0.0638 vs ref 0.0611, excess +0.0027 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.430e-2 PASS | KL / ref noise = 1.699 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: FAIL 4.259e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.430e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    93.75   1.181e-2   1.127e-2   1.127e-2   8.391e-2   0.0185   0.0184    89.69     44/64      0
+long_code_4k        4064    64    93.75   1.058e-2   8.850e-3   8.850e-3   1.242e-1   0.0481   0.0502    89.69     28/64      0
+chat_reuse_4k       4631    64   100.00   3.280e-3   3.281e-3   3.281e-3   9.036e-2   0.0000   0.0000    92.19     64/64      0
+long_docs_12k      12064    64    95.31   1.601e-2   1.501e-2   1.501e-2   1.463e-1   0.0399   0.0418    89.38     15/64      0
+long_code_12k      12064    64    98.44   5.856e-3   5.733e-3   5.733e-3   1.032e-1   0.0085   0.0084    87.81      3/64      0
+OVERALL                    320    96.25   9.505e-3   8.829e-3   8.829e-3   1.463e-1   0.0230   0.0238    89.75     48.1%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.25% (not gated for this class) ok | 21-way KL (scored rows, n=320) 8.829e-3 (need <= 3.0e-2) ok [all rows, n=320: 8.829e-3, reported only] | tail mass (all rows) ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 8.829e-3 PASS | KL / ref noise = 0.398 on all rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 8.829e-3 (21-way KL over all rows <= static floor) | current def: PASS 8.829e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.5% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 48.1% of positions before the first argmax divergence, worst prompt 4.7% (informational)
+
+wrote baseline /opt/code/wt-gc/docs/results/2026-10-22-gc2-metal-35b-chunk2048/raw/q-0-record/baselines/acc-long.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

@@ -172,6 +172,7 @@ IK_DEVI void stage_rows(ik_bf16* dst, const ik_bf16* src, const int* pairs_chunk
     }
 }
 
+template <bool GELU>
 __global__ void __launch_bounds__(kRowWarps * IK_WARP)
 moe_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -232,7 +233,7 @@ moe_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ gu
                 if (q < pc) {
                     const float g = round_bf16(ik_warp_sum(ag[q]) * gg);
                     const float u = round_bf16(ik_warp_sum(au[q]) * gu);
-                    const float a = round_bf16(g / (1.f + expf(-g)));
+                    const float a = round_bf16(GELU ? ik_gelu_tanh(g) : g / (1.f + expf(-g)));
                     if (lane == 0) h[(int64_t)pairs[begin + c0 + q] * I + r] = ik_f2b(a * u);
                 }
             }
@@ -368,9 +369,11 @@ int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* we
     return ik_launch_status();
 }
 
-int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
-                        const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
-                        const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+// Shared by ik_moe_experts_bf16 and ik_moe_experts_gelu_bf16 (gelu_tanh instead of SiLU in the expert activation).
+static int moe_experts_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                              const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                              const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                              const ik_scratch* scratch, void* stream, bool gelu) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -412,10 +415,17 @@ int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tenso
 
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
-    moe_gate_up_kernel<<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
-                         (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
-                                                 (const uint8_t*)gate_up_s->data, (const float*)gscales->data, pairs,
-                                                 offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, PC);
+    if (gelu) {
+        moe_gate_up_kernel<true><<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+                                   (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                                           (const uint8_t*)gate_up_s->data, (const float*)gscales->data,
+                                                           pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, PC);
+    } else {
+        moe_gate_up_kernel<false><<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+                                    (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                                            (const uint8_t*)gate_up_s->data, (const float*)gscales->data,
+                                                            pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, PC);
+    }
     IK_TRY(ik_launch_status());
     moe_down_kernel<<<dim3(slots, (unsigned)((H + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                       (size_t)PC * I * 2, s>>>(hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
@@ -425,6 +435,20 @@ int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tenso
     moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
         ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
     return ik_launch_status();
+}
+
+int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
+                        const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
+                        const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return moe_experts_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false);
+}
+
+// gelu_tanh in the expert activation (OpAttrs::gelu); otherwise the same bits as ik_moe_experts_bf16.
+int ik_moe_experts_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                             const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                             const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch,
+                             void* stream) {
+    return moe_experts_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
 }
 
 int ik_moe_combine_bf16(const ik_tensor* routed, const ik_tensor* shared, const ik_tensor* gate_logit, ik_tensor* out,

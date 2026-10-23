@@ -1,0 +1,29 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Understand User Request:**
+   - **Topic:** B-tree vs. Binary Search Tree (BST)
+   - **Task:** Write a short explanation of how they differ
+   - **Key Requirements:** Concise, clear, highlight main differences
+
+2.  **Identify Core Concepts:**
+   - **Binary Search Tree (BST):**
+     - Each node has at most 2 children
+     - Left child < parent < right child
+     - Height can be O(n) in worst case (unbalanced)
+     - Typically stored in memory (RAM)
+     - Used for in-memory data structures
+   - **B-tree:**
+     - Each node can have multiple children (typically many, defined by order/m)
+     - Each node can store multiple keys
+     - Balanced by design (all leaves at same depth)
+     - Optimized for disk/block storage (minimizes I/O operations)
+     - Used in databases and file systems
+
+3.  **Determine Key Differences to Highlight:**
+   - Node structure (children/key capacity)
+   - Balance guarantee
+   - Storage/optimization context (RAM vs. disk)
+  

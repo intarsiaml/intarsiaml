@@ -1,0 +1,6 @@
+active
+[window] job 4354; stages: test:--test,gdn_v2 test:--test,fp8_f8 test:--test,fusion_p2 bin:bench-out-hp-f8sweep ceiling bin:bench-out-hp-gdnwy; stopping radiance 2026-10-22 22:57:31
+[window] radiance stopped 2026-10-22 22:57:34
+[window] stages done 2026-10-22 22:58:32
+[window] starting radiance 2026-10-22 22:58:32
+[window] radiance answers (after 15 s) 2026-10-22 22:58:43

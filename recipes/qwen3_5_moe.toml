@@ -1,7 +1,8 @@
 # Qwen3.5 / Qwen3.6 hybrid MoE (Qwen3_5MoeForConditionalGeneration, e.g. Qwen3.6-35B-A3B): GatedDeltaNet layers and
 # gated full-attention layers interleaved by config.json text_config.layer_types (3x linear_attention, then 1x
 # full_attention), zero-centred RMSNorm, partial rotary (0.25 of head_dim), sparse MoE FFN with a gated shared expert.
-# Text weights live under model.language_model.*; the vision tower and the MTP head are ignored.
+# Text weights live under model.language_model.*; the vision tower is ignored, the MTP head ([mtp]) is loaded only for
+# `--spec mtp`.
 # Quantisation (FP8 projections, NVFP4 routed experts) is detected per tensor from the checkpoint, not named here.
 [model]
 match.architectures = ["Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausalLM"]
@@ -68,6 +69,13 @@ max_batch = 32
 [tuning.cuda]
 prefill_chunk = 2048
 
+# 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
+# long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert
+# reads the same way as on CUDA. The chunk is part of the accuracy baseline identity: golden/baselines/qwen36-35b*.metal.* were
+# re-recorded with it. Measurements: docs/results/2026-10-22-gc2-metal-35b-chunk2048.md.
+[tuning.metal]
+prefill_chunk = 2048
+
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058
 # at 16k; 4096 fits the 29 GB budget at max-seq 17408. Prefill is chunk-invariant bit for bit on HIP (short and long golden give the
@@ -84,3 +92,12 @@ prefill_chunk = 4096
 # (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8: on this model decode-written KV moves the rows more than that).
 [accuracy]
 chat_turns = "chatml"
+
+# Multi-token-prediction head (`mtp.*`, bf16 in the NVFP4 checkpoint): fc over [norm(embed) | norm(hidden)], one gated
+# full-attention + MoE layer, a final norm, the model's lm_head. Read only by `--spec mtp` (speculative decoding with
+# the head as drafter, docs/results/2026-10-22-mtp-spec-decode.md); without that flag nothing under `mtp.*` is loaded.
+
+[mtp]
+
+kind = "qwen3_5_mtp"
+prefix = "mtp"

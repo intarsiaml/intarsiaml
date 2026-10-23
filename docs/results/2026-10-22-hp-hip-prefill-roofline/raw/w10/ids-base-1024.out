@@ -1,0 +1,30 @@
+ 128, else 4 rows per thread).
+
+## Recipes
+
+`recipes/qwen3_5.toml` (dense FFN):
+
+```toml
+[config]
+name = "Qwen3.5 32B"
+model_type = "qwen3_5"
+layer_types = ["gdn", "moe"]
+```
+
+`recipes/qwen3_5_moe.toml` (MoE FFN):
+
+```toml
+[config]
+name = "Qwen3.5 32B MoE"
+model_type = "qwen3_5_moe"
+layer_types = ["gdn", "moe"]
+```
+
+## Testing
+
+`cargo test --test test_gdn` (f64 reference, f32 CUDA, f16 CUDA).
+
+## Notes
+
+* GatedDeltaNet is a gated state-space model (SSM) with a delta-rule update. The kernel is a causal depthwise conv
+  (K=4, C=8192) followed by the delta-rule. The conv state is `[C, K-1]` (f32), the delta-rule state is `[Hv,

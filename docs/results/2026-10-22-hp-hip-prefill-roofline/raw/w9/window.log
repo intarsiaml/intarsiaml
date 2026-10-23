@@ -1,0 +1,386 @@
+=== test:--test,gdn_v2 [22:57:34, 1000 s left]
+--- cargo test hip --test gdn_v2 22:57:34
+test gdn_v2_is_bitwise_the_rows_kernel ... ok
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.37s
+=== test:--test,fp8_f8 [22:57:36, 998 s left]
+--- cargo test hip --test fp8_f8 22:57:36
+test f8_is_not_the_bf16_path ... ok
+test f8_matches_cpu_reference_tightly ... ok
+test f8_prefill_tiles_match_small_calls ... FAILED
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+thread 'f8_prefill_tiles_match_small_calls' panicked at crates/intarsia-backend-hip/tests/fp8_f8.rs:134:90:
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.05s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test fp8_f8`
+=== test:--test,fusion_p2 [22:57:38, 996 s left]
+--- cargo test hip --test fusion_p2 22:57:38
+test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+test gdn_conv_delta_conv_state_survives_skewed_blocks ... ok
+test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... ok
+test gdn_conv_delta_many_draws_bitwise ... ok
+test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.79s
+=== bin:bench-out-hp-f8sweep [22:57:42, 992 s left]
+--- bin bench-out-hp-f8sweep 22:57:42
+
+qkv / q+gate M=4096 N=8192 K=2048
+  default       810.6 us   169.6 TFLOPS bitwise
+  4,2,2,4       893.4 us   153.8 TFLOPS bitwise
+  2,4,4,2       970.6 us   141.6 TFLOPS bitwise
+  2,2,4,4      1256.2 us   109.4 TFLOPS bitwise
+  4,2,4,2       971.1 us   141.5 TFLOPS bitwise
+  2,4,2,4      1616.5 us    85.0 TFLOPS bitwise
+  4,2,4,4       797.6 us   172.3 TFLOPS bitwise
+  2,4,4,4      1023.0 us   134.3 TFLOPS bitwise
+  4,4,2,4       879.5 us   156.3 TFLOPS bitwise
+  4,4,4,2       779.7 us   176.3 TFLOPS bitwise
+  4,4,2,2       865.6 us   158.8 TFLOPS bitwise
+  2,2,4,8     10117.9 us    13.6 TFLOPS bitwise
+  2,2,8,4     10125.9 us    13.6 TFLOPS bitwise
+  4,2,2,8       889.0 us   154.6 TFLOPS bitwise
+  2,4,8,2       858.0 us   160.2 TFLOPS bitwise
+  8,1,2,8       806.3 us   170.5 TFLOPS bitwise
+  1,8,8,2      1226.6 us   112.0 TFLOPS bitwise
+  4,1,4,8     10155.2 us    13.5 TFLOPS bitwise
+  1,4,8,4     10428.0 us    13.2 TFLOPS bitwise
+  2,1,8,8     16172.2 us     8.5 TFLOPS bitwise
+  1,2,8,8     15209.2 us     9.0 TFLOPS bitwise
+
+z M=4096 N=4096 K=2048
+  default       375.6 us   183.0 TFLOPS bitwise
+  4,2,2,4       389.4 us   176.5 TFLOPS bitwise
+  2,4,4,2       415.5 us   165.4 TFLOPS bitwise
+  2,2,4,4       455.5 us   150.9 TFLOPS bitwise
+  4,2,4,2       476.0 us   144.4 TFLOPS bitwise
+  2,4,2,4       523.2 us   131.3 TFLOPS bitwise
+  4,2,4,4       386.6 us   177.7 TFLOPS bitwise
+  2,4,4,4       420.4 us   163.5 TFLOPS bitwise
+  4,4,2,4       380.4 us   180.7 TFLOPS bitwise
+  4,4,4,2       386.9 us   177.6 TFLOPS bitwise
+  4,4,2,2       382.7 us   179.6 TFLOPS bitwise
+  2,2,4,8      5097.1 us    13.5 TFLOPS bitwise
+  2,2,8,4      4949.1 us    13.9 TFLOPS bitwise
+  4,2,2,8       387.2 us   177.5 TFLOPS bitwise
+  2,4,8,2       400.1 us   171.7 TFLOPS bitwise
+  8,1,2,8       408.4 us   168.3 TFLOPS bitwise
+  1,8,8,2       447.2 us   153.7 TFLOPS bitwise
+  4,1,4,8      4999.8 us    13.7 TFLOPS bitwise
+  1,4,8,4      5173.5 us    13.3 TFLOPS bitwise
+  2,1,8,8      7798.0 us     8.8 TFLOPS bitwise
+  1,2,8,8      7446.2 us     9.2 TFLOPS bitwise
+
+o / out_proj M=4096 N=2048 K=4096
+  default       361.8 us   189.9 TFLOPS bitwise
+  4,2,2,4       400.7 us   171.5 TFLOPS bitwise
+  2,4,4,2       413.5 us   166.2 TFLOPS bitwise
+  2,2,4,4       434.8 us   158.0 TFLOPS bitwise
+  4,2,4,2       462.8 us   148.5 TFLOPS bitwise
+  2,4,2,4       473.1 us   145.3 TFLOPS bitwise
+  4,2,4,4       388.2 us   177.0 TFLOPS bitwise
+  2,4,4,4       400.1 us   171.8 TFLOPS bitwise
+  4,4,2,4       363.7 us   189.0 TFLOPS bitwise
+  4,4,4,2       386.4 us   177.8 TFLOPS bitwise
+  4,4,2,2       389.7 us   176.3 TFLOPS bitwise
+  2,2,4,8      5339.8 us    12.9 TFLOPS bitwise
+  2,2,8,4      5124.7 us    13.4 TFLOPS bitwise
+  4,2,2,8       376.3 us   182.6 TFLOPS bitwise
+  2,4,8,2       391.4 us   175.6 TFLOPS bitwise
+  8,1,2,8       399.4 us   172.1 TFLOPS bitwise
+  1,8,8,2       401.2 us   171.3 TFLOPS bitwise
+  4,1,4,8      5254.8 us    13.1 TFLOPS bitwise
+  1,4,8,4      5408.1 us    12.7 TFLOPS bitwise
+  2,1,8,8      7942.1 us     8.7 TFLOPS bitwise
+  1,2,8,8      7921.1 us     8.7 TFLOPS bitwise
+
+k / v M=4096 N=512 K=2048
+  default        54.7 us   156.9 TFLOPS bitwise
+  4,2,2,4        55.8 us   154.1 TFLOPS bitwise
+  2,4,4,2        56.6 us   151.6 TFLOPS bitwise
+  2,2,4,4        65.2 us   131.6 TFLOPS bitwise
+  4,2,4,2        61.2 us   140.4 TFLOPS bitwise
+  2,4,2,4        63.6 us   135.0 TFLOPS bitwise
+  4,2,4,4        53.5 us   160.6 TFLOPS bitwise
+  2,4,4,4        54.1 us   158.8 TFLOPS bitwise
+  4,4,2,4        52.0 us   165.1 TFLOPS bitwise
+  4,4,4,2        55.1 us   156.0 TFLOPS bitwise
+  4,4,2,2        55.6 us   154.5 TFLOPS bitwise
+  2,2,4,8       604.1 us    14.2 TFLOPS bitwise
+  2,2,8,4       583.0 us    14.7 TFLOPS bitwise
+  4,2,2,8        53.2 us   161.4 TFLOPS bitwise
+  2,4,8,2        53.1 us   161.8 TFLOPS bitwise
+  8,1,2,8        54.2 us   158.6 TFLOPS bitwise
+  1,8,8,2        55.3 us   155.4 TFLOPS bitwise
+  4,1,4,8       597.0 us    14.4 TFLOPS bitwise
+  1,4,8,4       605.5 us    14.2 TFLOPS bitwise
+  2,1,8,8      1129.4 us     7.6 TFLOPS bitwise
+  1,2,8,8      1098.3 us     7.8 TFLOPS bitwise
+
+tail 312 M=312 N=8192 K=2048
+  default        73.9 us   141.7 TFLOPS bitwise
+  4,2,2,4        74.7 us   140.2 TFLOPS bitwise
+  2,4,4,2        76.4 us   137.0 TFLOPS bitwise
+  2,2,4,4        79.7 us   131.4 TFLOPS bitwise
+  4,2,4,2        83.2 us   125.9 TFLOPS bitwise
+  2,4,2,4       114.2 us    91.7 TFLOPS bitwise
+  4,2,4,4        76.8 us   136.2 TFLOPS bitwise
+  2,4,4,4        93.0 us   112.6 TFLOPS bitwise
+  4,4,2,4        87.4 us   119.8 TFLOPS bitwise
+  4,4,4,2        74.9 us   139.7 TFLOPS bitwise
+  4,4,2,2        73.0 us   143.5 TFLOPS bitwise
+  2,2,4,8      1485.0 us     7.0 TFLOPS bitwise
+  2,2,8,4       846.9 us    12.4 TFLOPS bitwise
+  4,2,2,8        87.9 us   119.1 TFLOPS bitwise
+  2,4,8,2        79.3 us   132.0 TFLOPS bitwise
+  8,1,2,8        92.6 us   113.1 TFLOPS bitwise
+  1,8,8,2        95.6 us   109.5 TFLOPS bitwise
+  4,1,4,8       860.9 us    12.2 TFLOPS bitwise
+  1,4,8,4      1460.2 us     7.2 TFLOPS bitwise
+  2,1,8,8      1678.8 us     6.2 TFLOPS bitwise
+  1,2,8,8      1956.5 us     5.4 TFLOPS bitwise
+
+q+gate M 2049 M=2049 N=8192 K=2048
+  default       400.4 us   171.7 TFLOPS bitwise
+  4,2,2,4       419.8 us   163.8 TFLOPS bitwise
+  2,4,4,2       455.2 us   151.0 TFLOPS bitwise
+  2,2,4,4       482.8 us   142.4 TFLOPS bitwise
+  4,2,4,2       514.0 us   133.8 TFLOPS bitwise
+  2,4,2,4       573.9 us   119.8 TFLOPS bitwise
+  4,2,4,4       423.7 us   162.3 TFLOPS bitwise
+  2,4,4,4       465.4 us   147.7 TFLOPS bitwise
+  4,4,2,4       415.3 us   165.5 TFLOPS bitwise
+  4,4,4,2       412.7 us   166.6 TFLOPS bitwise
+  4,4,2,2       410.9 us   167.3 TFLOPS bitwise
+  2,2,4,8      5765.7 us    11.9 TFLOPS bitwise
+  2,2,8,4      5297.8 us    13.0 TFLOPS bitwise
+  4,2,2,8       421.9 us   162.9 TFLOPS bitwise
+  2,4,8,2       445.8 us   154.2 TFLOPS bitwise
+  8,1,2,8       416.0 us   165.3 TFLOPS bitwise
+  1,8,8,2       491.3 us   139.9 TFLOPS bitwise
+  4,1,4,8      5362.5 us    12.8 TFLOPS bitwise
+  1,4,8,4      5964.2 us    11.5 TFLOPS bitwise
+  2,1,8,8      7821.8 us     8.8 TFLOPS bitwise
+  1,2,8,8      8143.0 us     8.4 TFLOPS bitwise
+
+q+gate M 3000 M=3000 N=8192 K=2048
+  default       556.6 us   180.8 TFLOPS bitwise
+  4,2,2,4       687.2 us   146.5 TFLOPS bitwise
+  2,4,4,2       709.9 us   141.8 TFLOPS bitwise
+  2,2,4,4       751.5 us   134.0 TFLOPS bitwise
+  4,2,4,2       696.3 us   144.6 TFLOPS bitwise
+  2,4,2,4       916.0 us   109.9 TFLOPS bitwise
+  4,2,4,4       581.0 us   173.2 TFLOPS bitwise
+  2,4,4,4       718.3 us   140.1 TFLOPS bitwise
+  4,4,2,4       622.4 us   161.7 TFLOPS bitwise
+  4,4,4,2       566.1 us   177.8 TFLOPS bitwise
+  4,4,2,2       640.6 us   157.1 TFLOPS bitwise
+  2,2,4,8      7702.8 us    13.1 TFLOPS bitwise
+  2,2,8,4      7654.1 us    13.2 TFLOPS bitwise
+  4,2,2,8       628.5 us   160.2 TFLOPS bitwise
+  2,4,8,2       610.1 us   165.0 TFLOPS bitwise
+  8,1,2,8       600.5 us   167.6 TFLOPS bitwise
+  1,8,8,2       742.3 us   135.6 TFLOPS bitwise
+  4,1,4,8      7692.2 us    13.1 TFLOPS bitwise
+  1,4,8,4      7974.2 us    12.6 TFLOPS bitwise
+  2,1,8,8     10996.6 us     9.2 TFLOPS bitwise
+  1,2,8,8     11096.8 us     9.1 TFLOPS bitwise
+
+q+gate M 4089 M=4089 N=8192 K=2048
+  default       785.0 us   174.8 TFLOPS bitwise
+  4,2,2,4       933.3 us   147.0 TFLOPS bitwise
+  2,4,4,2       987.6 us   138.9 TFLOPS bitwise
+  2,2,4,4      1271.0 us   108.0 TFLOPS bitwise
+  4,2,4,2       992.6 us   138.2 TFLOPS bitwise
+  2,4,2,4      1608.7 us    85.3 TFLOPS bitwise
+  4,2,4,4       814.4 us   168.5 TFLOPS bitwise
+  2,4,4,4      1066.3 us   128.7 TFLOPS bitwise
+  4,4,2,4       883.1 us   155.4 TFLOPS bitwise
+  4,4,4,2       793.1 us   173.0 TFLOPS bitwise
+  4,4,2,2       877.1 us   156.4 TFLOPS bitwise
+  2,2,4,8     10108.1 us    13.6 TFLOPS bitwise
+  2,2,8,4     10114.6 us    13.6 TFLOPS bitwise
+  4,2,2,8       906.1 us   151.4 TFLOPS bitwise
+  2,4,8,2       868.7 us   157.9 TFLOPS bitwise
+  8,1,2,8       811.7 us   169.0 TFLOPS bitwise
+  1,8,8,2      1259.7 us   108.9 TFLOPS bitwise
+  4,1,4,8     10162.4 us    13.5 TFLOPS bitwise
+  1,4,8,4     10420.2 us    13.2 TFLOPS bitwise
+  2,1,8,8     16200.4 us     8.5 TFLOPS bitwise
+  1,2,8,8     15236.6 us     9.0 TFLOPS bitwise
+
+z M 3000 M=3000 N=4096 K=2048
+  default       279.2 us   180.3 TFLOPS bitwise
+  4,2,2,4       293.5 us   171.5 TFLOPS bitwise
+  2,4,4,2       312.2 us   161.2 TFLOPS bitwise
+  2,2,4,4       340.4 us   147.9 TFLOPS bitwise
+  4,2,4,2       362.6 us   138.8 TFLOPS bitwise
+  2,4,2,4       380.5 us   132.3 TFLOPS bitwise
+  4,2,4,4       295.4 us   170.4 TFLOPS bitwise
+  2,4,4,4       306.9 us   164.0 TFLOPS bitwise
+  4,4,2,4       276.2 us   182.2 TFLOPS bitwise
+  4,4,4,2       295.5 us   170.3 TFLOPS bitwise
+  4,4,2,2       291.9 us   172.4 TFLOPS bitwise
+  2,2,4,8      3838.1 us    13.1 TFLOPS bitwise
+  2,2,8,4      3759.6 us    13.4 TFLOPS bitwise
+  4,2,2,8       289.8 us   173.7 TFLOPS bitwise
+  2,4,8,2       298.8 us   168.5 TFLOPS bitwise
+  8,1,2,8       309.0 us   162.9 TFLOPS bitwise
+  1,8,8,2       320.2 us   157.2 TFLOPS bitwise
+  4,1,4,8      3797.3 us    13.3 TFLOPS bitwise
+  1,4,8,4      3900.8 us    12.9 TFLOPS bitwise
+  2,1,8,8      5366.3 us     9.4 TFLOPS bitwise
+  1,2,8,8      5457.7 us     9.2 TFLOPS bitwise
+
+o M 4089 M=4089 N=2048 K=4096
+  default       363.1 us   188.9 TFLOPS bitwise
+  4,2,2,4       419.2 us   163.7 TFLOPS bitwise
+  2,4,4,2       417.5 us   164.3 TFLOPS bitwise
+  2,2,4,4       439.4 us   156.1 TFLOPS bitwise
+  4,2,4,2       469.4 us   146.2 TFLOPS bitwise
+  2,4,2,4       482.0 us   142.3 TFLOPS bitwise
+  4,2,4,4       390.1 us   175.8 TFLOPS bitwise
+  2,4,4,4       401.5 us   170.9 TFLOPS bitwise
+  4,4,2,4       369.5 us   185.6 TFLOPS bitwise
+  4,4,4,2       390.1 us   175.9 TFLOPS bitwise
+  4,4,2,2       393.2 us   174.5 TFLOPS bitwise
+  2,2,4,8      5330.2 us    12.9 TFLOPS bitwise
+  2,2,8,4      5135.7 us    13.4 TFLOPS bitwise
+  4,2,2,8       382.9 us   179.2 TFLOPS bitwise
+  2,4,8,2       384.3 us   178.5 TFLOPS bitwise
+  8,1,2,8       402.2 us   170.6 TFLOPS bitwise
+  1,8,8,2       405.2 us   169.3 TFLOPS bitwise
+  4,1,4,8      5249.1 us    13.1 TFLOPS bitwise
+  1,4,8,4      5406.3 us    12.7 TFLOPS bitwise
+  2,1,8,8      7964.3 us     8.6 TFLOPS bitwise
+  1,2,8,8      7926.6 us     8.7 TFLOPS bitwise
+
+k/v M 2049 M=2049 N=512 K=2048
+  default        59.3 us    72.5 TFLOPS bitwise
+  4,2,2,4        38.0 us   113.0 TFLOPS bitwise
+  2,4,4,2        39.2 us   109.7 TFLOPS bitwise
+  2,2,4,4        41.3 us   104.0 TFLOPS bitwise
+  4,2,4,2        70.4 us    61.0 TFLOPS bitwise
+  2,4,2,4        60.4 us    71.1 TFLOPS bitwise
+  4,2,4,4        61.7 us    69.6 TFLOPS bitwise
+  2,4,4,4        67.1 us    64.0 TFLOPS bitwise
+  4,4,2,4        54.5 us    78.8 TFLOPS bitwise
+  4,4,4,2        67.1 us    64.1 TFLOPS bitwise
+  4,4,2,2        37.9 us   113.4 TFLOPS bitwise
+  2,2,4,8       241.1 us    17.8 TFLOPS bitwise
+  2,2,8,4       256.9 us    16.7 TFLOPS bitwise
+  4,2,2,8        45.4 us    94.6 TFLOPS bitwise
+  2,4,8,2        46.9 us    91.6 TFLOPS bitwise
+  8,1,2,8        48.5 us    88.6 TFLOPS bitwise
+  1,8,8,2        69.0 us    62.3 TFLOPS bitwise
+  4,1,4,8       244.5 us    17.6 TFLOPS bitwise
+  1,4,8,4       253.4 us    17.0 TFLOPS bitwise
+  2,1,8,8       878.1 us     4.9 TFLOPS bitwise
+  1,2,8,8       880.4 us     4.9 TFLOPS bitwise
+=== ceiling [22:58:25, 949 s left]
+--- ceiling 22:58:25
+device AMD Radeon Graphics, 32 CUs, clock 2350 MHz (prop)
+WMMA issue peak bf16 183.1 TFLOPS
+WMMA issue peak fp8  344.9 TFLOPS
+
+shape                                 M      N      K hipBLASLt bf16 hipBLASLt fp8      ours f8
+qkv / q+gate                       4096   8192   2048    159.5 (16)    259.5 (16)        178.2
+z                                  4096   4096   2048    156.2 (16)    291.4 (16)        195.5
+o / out_proj                       4096   2048   4096    134.9 (16)    300.5 (16)        212.9
+k / v                              4096    512   2048    148.7 (16)    243.9 (16)        184.3
+experts gate_up (dense ideal)     32768   1024   2048    163.9 (16)    292.8 (16)        171.3
+experts down (dense ideal)        32768   2048    512    121.6 (16)    189.3 (16)         84.3
+shared expert gate_up              4096   1024   2048    157.7 (16)    271.5 (16)        204.8
+shared expert down                 4096   2048    512    117.9 (16)    176.5 (16)        152.5
+one expert gate_up M=128            128   1024   2048     33.8 (16)     53.9 (16)         23.6
+one expert down M=128               128   2048    512     33.2 (16)     44.3 (16)         28.3
+one expert gate_up M=512            512   1024   2048     92.9 (16)    159.4 (16)         96.0
+one expert down M=512               512   2048    512     77.6 (16)    100.9 (16)         96.2
+attn QK^T 4096x4096x256            4096   4096    256     99.2 (16)    126.9 (16)        109.0
+attn PV 4096x256x4096              4096    256   4096    144.6 (16)    236.0 (16)        137.0
+(TFLOPS = 2 M N K / time; hipBLASLt: best of the heuristic's algos (count in parentheses), 20 reps each)
+=== bin:bench-out-hp-gdnwy [22:58:30, 944 s left]
+--- bin bench-out-hp-gdnwy 22:58:30
+== random inputs (Hk 16, Hv 32, dk 128, dv 128); diffs are chunked vs v2, us = best of 5 ==
+T=1     v2             23.2 us/call  23.201 us/tok
+T=1     wy64          171.3 us/call 171.284 us/tok (prep 124.2 + state 80.0 us)  out rel_l2 2.29e-07 max_abs 2.38e-07  state rel_l2 4.53e-08 max_abs 8.94e-08  ok
+T=1     wy64c16       236.6 us/call 236.605 us/tok (prep 124.1 + state 117.9 us)  out rel_l2 2.29e-07 max_abs 2.38e-07  state rel_l2 4.53e-08 max_abs 8.94e-08  ok
+T=1     wy32          122.4 us/call 122.363 us/tok (prep 75.5 + state 53.6 us)  out rel_l2 2.29e-07 max_abs 2.38e-07  state rel_l2 4.53e-08 max_abs 8.94e-08  ok
+T=1     wy32c16       141.2 us/call 141.203 us/tok (prep 75.8 + state 72.5 us)  out rel_l2 2.29e-07 max_abs 2.38e-07  state rel_l2 4.53e-08 max_abs 8.94e-08  ok
+T=5     v2             30.7 us/call   6.144 us/tok
+T=5     wy64          205.4 us/call  41.073 us/tok (prep 134.0 + state 85.5 us)  out rel_l2 1.18e-05 max_abs 1.53e-05  state rel_l2 2.74e-07 max_abs 6.56e-07  ok
+T=5     wy64c16       253.7 us/call  50.745 us/tok (prep 134.1 + state 127.0 us)  out rel_l2 1.18e-05 max_abs 1.53e-05  state rel_l2 2.74e-07 max_abs 6.56e-07  ok
+T=5     wy32          122.7 us/call  24.537 us/tok (prep 75.4 + state 54.4 us)  out rel_l2 1.18e-05 max_abs 1.53e-05  state rel_l2 2.74e-07 max_abs 6.56e-07  ok
+T=5     wy32c16       141.7 us/call  28.345 us/tok (prep 41.1 + state 73.5 us)  out rel_l2 1.18e-05 max_abs 1.53e-05  state rel_l2 2.74e-07 max_abs 6.56e-07  ok
+T=63    v2            111.7 us/call   1.773 us/tok
+T=63    wy64          191.1 us/call   3.033 us/tok (prep 130.6 + state 90.4 us)  out rel_l2 3.85e-05 max_abs 6.10e-05  state rel_l2 2.04e-06 max_abs 3.10e-06  ok
+T=63    wy64c16       172.8 us/call   2.742 us/tok (prep 96.2 + state 82.2 us)  out rel_l2 3.85e-05 max_abs 6.10e-05  state rel_l2 2.04e-06 max_abs 3.10e-06  ok
+T=63    wy32          112.3 us/call   1.783 us/tok (prep 65.2 + state 52.7 us)  out rel_l2 3.41e-05 max_abs 6.10e-05  state rel_l2 1.44e-06 max_abs 1.70e-06  ok
+T=63    wy32c16       132.4 us/call   2.102 us/tok (prep 65.2 + state 73.0 us)  out rel_l2 3.41e-05 max_abs 6.10e-05  state rel_l2 1.44e-06 max_abs 1.70e-06  ok
+T=64    v2             67.4 us/call   1.054 us/tok
+T=64    wy64          147.7 us/call   2.308 us/tok (prep 63.8 + state 55.8 us)  out rel_l2 3.83e-05 max_abs 6.10e-05  state rel_l2 1.15e-06 max_abs 1.28e-06  ok
+T=64    wy64c16       172.0 us/call   2.688 us/tok (prep 96.1 + state 81.9 us)  out rel_l2 3.83e-05 max_abs 6.10e-05  state rel_l2 1.15e-06 max_abs 1.28e-06  ok
+T=64    wy32          112.4 us/call   1.757 us/tok (prep 64.9 + state 52.2 us)  out rel_l2 3.39e-05 max_abs 6.10e-05  state rel_l2 5.82e-07 max_abs 5.66e-07  ok
+T=64    wy32c16       132.6 us/call   2.072 us/tok (prep 65.2 + state 73.1 us)  out rel_l2 3.39e-05 max_abs 6.10e-05  state rel_l2 5.82e-07 max_abs 5.66e-07  ok
+T=65    v2             69.6 us/call   1.071 us/tok
+T=65    wy64          185.2 us/call   2.849 us/tok (prep 103.3 + state 86.4 us)  out rel_l2 3.81e-05 max_abs 6.10e-05  state rel_l2 5.82e-07 max_abs 7.45e-07  ok
+T=65    wy64c16       229.0 us/call   3.523 us/tok (prep 102.7 + state 133.5 us)  out rel_l2 3.81e-05 max_abs 6.10e-05  state rel_l2 5.82e-07 max_abs 7.45e-07  ok
+T=65    wy32           93.3 us/call   1.435 us/tok (prep 66.8 + state 66.8 us)  out rel_l2 3.38e-05 max_abs 6.10e-05  state rel_l2 3.14e-07 max_abs 2.83e-07  ok
+T=65    wy32c16       159.6 us/call   2.456 us/tok (prep 67.3 + state 97.4 us)  out rel_l2 3.38e-05 max_abs 6.10e-05  state rel_l2 3.14e-07 max_abs 2.83e-07  ok
+T=200   v2            163.7 us/call   0.819 us/tok
+T=200   wy64          294.9 us/call   1.474 us/tok (prep 163.6 + state 149.8 us)  out rel_l2 3.65e-05 max_abs 6.10e-05  state rel_l2 1.68e-07 max_abs 2.38e-07  ok
+T=200   wy64c16       401.4 us/call   2.007 us/tok (prep 160.0 + state 257.1 us)  out rel_l2 3.65e-05 max_abs 6.10e-05  state rel_l2 1.68e-07 max_abs 2.38e-07  ok
+T=200   wy32          198.7 us/call   0.994 us/tok (prep 80.2 + state 127.4 us)  out rel_l2 3.34e-05 max_abs 6.10e-05  state rel_l2 1.68e-07 max_abs 2.38e-07  ok
+T=200   wy32c16       275.5 us/call   1.378 us/tok (prep 81.5 + state 212.9 us)  out rel_l2 3.34e-05 max_abs 6.10e-05  state rel_l2 1.68e-07 max_abs 2.38e-07  ok
+T=683   v2            539.3 us/call   0.790 us/tok
+T=683   wy64          932.5 us/call   1.365 us/tok (prep 610.0 + state 492.4 us)  out rel_l2 4.70e-05 max_abs 1.22e-04  state rel_l2 9.92e-07 max_abs 9.54e-07  ok
+T=683   wy64c16      1145.2 us/call   1.677 us/tok (prep 476.1 + state 681.5 us)  out rel_l2 4.70e-05 max_abs 1.22e-04  state rel_l2 9.92e-07 max_abs 9.54e-07  ok
+T=683   wy32          477.0 us/call   0.698 us/tok (prep 145.3 + state 368.2 us)  out rel_l2 3.85e-05 max_abs 1.22e-04  state rel_l2 3.00e-07 max_abs 4.47e-07  ok
+T=683   wy32c16       901.6 us/call   1.320 us/tok (prep 210.2 + state 689.8 us)  out rel_l2 3.85e-05 max_abs 1.22e-04  state rel_l2 3.00e-07 max_abs 4.47e-07  ok
+T=4096  v2           2902.3 us/call   0.709 us/tok
+T=4096  wy64         4510.0 us/call   1.101 us/tok (prep 1875.2 + state 2345.1 us)  out rel_l2 4.61e-05 max_abs 1.22e-04  state rel_l2 9.84e-07 max_abs 9.54e-07  ok
+T=4096  wy64c16      6535.8 us/call   1.596 us/tok (prep 1892.8 + state 4189.9 us)  out rel_l2 4.61e-05 max_abs 1.22e-04  state rel_l2 9.84e-07 max_abs 9.54e-07  ok
+T=4096  wy32         4514.7 us/call   1.102 us/tok (prep 997.9 + state 1951.7 us)  out rel_l2 3.89e-05 max_abs 1.22e-04  state rel_l2 7.53e-07 max_abs 1.28e-06  ok
+T=4096  wy32c16      5075.3 us/call   1.239 us/tok (prep 919.8 + state 3544.6 us)  out rel_l2 3.89e-05 max_abs 1.22e-04  state rel_l2 7.53e-07 max_abs 1.28e-06  ok
+== correlated keys inputs (Hk 16, Hv 32, dk 128, dv 128); diffs are chunked vs v2, us = best of 5 ==
+T=1     v2             15.4 us/call  15.361 us/tok
+T=1     wy64          124.2 us/call 124.243 us/tok (prep 81.6 + state 46.9 us)  out rel_l2 0.00e+00 max_abs 0.00e+00  state rel_l2 4.87e-08 max_abs 8.94e-08  ok
+T=1     wy64c16       128.0 us/call 127.963 us/tok (prep 80.6 + state 67.8 us)  out rel_l2 0.00e+00 max_abs 0.00e+00  state rel_l2 4.87e-08 max_abs 8.94e-08  ok
+T=1     wy32           49.7 us/call  49.682 us/tok (prep 53.0 + state 30.2 us)  out rel_l2 0.00e+00 max_abs 0.00e+00  state rel_l2 4.87e-08 max_abs 8.94e-08  ok
+T=1     wy32c16        87.6 us/call  87.602 us/tok (prep 23.7 + state 40.2 us)  out rel_l2 0.00e+00 max_abs 0.00e+00  state rel_l2 4.87e-08 max_abs 8.94e-08  ok
+T=5     v2             18.2 us/call   3.632 us/tok
+T=5     wy64          124.3 us/call  24.857 us/tok (prep 81.0 + state 48.0 us)  out rel_l2 1.78e-06 max_abs 1.91e-06  state rel_l2 3.26e-07 max_abs 5.59e-07  ok
+T=5     wy64c16       126.4 us/call  25.289 us/tok (prep 79.0 + state 70.0 us)  out rel_l2 1.78e-06 max_abs 1.91e-06  state rel_l2 3.26e-07 max_abs 5.59e-07  ok
+T=5     wy32           79.0 us/call  15.792 us/tok (prep 24.2 + state 31.2 us)  out rel_l2 1.78e-06 max_abs 1.91e-06  state rel_l2 3.26e-07 max_abs 5.59e-07  ok
+T=5     wy32c16        89.2 us/call  17.848 us/tok (prep 52.9 + state 41.1 us)  out rel_l2 1.78e-06 max_abs 1.91e-06  state rel_l2 3.26e-07 max_abs 5.59e-07  ok
+T=63    v2             62.2 us/call   0.987 us/tok
+T=63    wy64          130.8 us/call   2.076 us/tok (prep 84.6 + state 50.4 us)  out rel_l2 8.40e-05 max_abs 2.44e-04  state rel_l2 1.22e-06 max_abs 1.40e-06  ok
+T=63    wy64c16       156.2 us/call   2.479 us/tok (prep 84.6 + state 76.3 us)  out rel_l2 8.40e-05 max_abs 2.44e-04  state rel_l2 1.22e-06 max_abs 1.40e-06  ok
+T=63    wy32           96.5 us/call   1.532 us/tok (prep 54.7 + state 46.8 us)  out rel_l2 7.47e-05 max_abs 2.44e-04  state rel_l2 9.84e-07 max_abs 1.19e-06  ok
+T=63    wy32c16       117.7 us/call   1.869 us/tok (prep 54.5 + state 68.0 us)  out rel_l2 7.47e-05 max_abs 2.44e-04  state rel_l2 9.84e-07 max_abs 1.19e-06  ok
+T=64    v2             62.8 us/call   0.982 us/tok
+T=64    wy64          130.3 us/call   2.036 us/tok (prep 84.1 + state 50.8 us)  out rel_l2 8.38e-05 max_abs 2.44e-04  state rel_l2 1.21e-06 max_abs 1.53e-06  ok
+T=64    wy64c16       152.8 us/call   2.388 us/tok (prep 84.8 + state 76.3 us)  out rel_l2 8.38e-05 max_abs 2.44e-04  state rel_l2 1.21e-06 max_abs 1.53e-06  ok
+T=64    wy32           96.2 us/call   1.504 us/tok (prep 54.4 + state 46.4 us)  out rel_l2 7.43e-05 max_abs 2.44e-04  state rel_l2 9.72e-07 max_abs 1.14e-06  ok
+T=64    wy32c16       118.0 us/call   1.844 us/tok (prep 27.6 + state 68.5 us)  out rel_l2 7.43e-05 max_abs 2.44e-04  state rel_l2 9.72e-07 max_abs 1.14e-06  ok
+T=65    v2             64.7 us/call   0.995 us/tok
+T=65    wy64          170.4 us/call   2.621 us/tok (prep 66.2 + state 82.4 us)  out rel_l2 8.33e-05 max_abs 2.44e-04  state rel_l2 5.87e-07 max_abs 5.66e-07  ok
+T=65    wy64c16       216.4 us/call   3.330 us/tok (prep 93.6 + state 127.5 us)  out rel_l2 8.33e-05 max_abs 2.44e-04  state rel_l2 5.87e-07 max_abs 5.66e-07  ok
+T=65    wy32          114.4 us/call   1.760 us/tok (prep 58.3 + state 60.9 us)  out rel_l2 7.38e-05 max_abs 2.44e-04  state rel_l2 5.30e-07 max_abs 5.36e-07  ok
+T=65    wy32c16       146.8 us/call   2.259 us/tok (prep 58.5 + state 93.4 us)  out rel_l2 7.38e-05 max_abs 2.44e-04  state rel_l2 5.30e-07 max_abs 5.36e-07  ok
+T=200   v2            187.2 us/call   0.936 us/tok
+T=200   wy64          312.9 us/call   1.565 us/tok (prep 146.8 + state 152.8 us)  out rel_l2 7.51e-05 max_abs 2.44e-04  state rel_l2 1.04e-06 max_abs 1.25e-06  ok
+T=200   wy64c16       407.9 us/call   2.039 us/tok (prep 168.5 + state 247.5 us)  out rel_l2 7.51e-05 max_abs 2.44e-04  state rel_l2 1.04e-06 max_abs 1.25e-06  ok
+T=200   wy32          157.5 us/call   0.788 us/tok (prep 59.2 + state 121.6 us)  out rel_l2 6.88e-05 max_abs 2.44e-04  state rel_l2 9.59e-07 max_abs 1.19e-06  ok
+T=200   wy32c16       257.2 us/call   1.286 us/tok (prep 59.0 + state 200.2 us)  out rel_l2 6.88e-05 max_abs 2.44e-04  state rel_l2 9.59e-07 max_abs 1.19e-06  ok
+T=683   v2            526.9 us/call   0.771 us/tok
+T=683   wy64          945.7 us/call   1.385 us/tok (prep 569.9 + state 514.8 us)  out rel_l2 8.24e-05 max_abs 2.44e-04  state rel_l2 1.67e-06 max_abs 2.29e-06  ok
+T=683   wy64c16      1169.2 us/call   1.712 us/tok (prep 480.0 + state 658.2 us)  out rel_l2 8.24e-05 max_abs 2.44e-04  state rel_l2 1.67e-06 max_abs 2.29e-06  ok
+T=683   wy32          467.9 us/call   0.685 us/tok (prep 133.0 + state 335.1 us)  out rel_l2 7.55e-05 max_abs 2.44e-04  state rel_l2 1.38e-06 max_abs 2.32e-06  ok
+T=683   wy32c16       740.3 us/call   1.084 us/tok (prep 146.6 + state 593.2 us)  out rel_l2 7.55e-05 max_abs 2.44e-04  state rel_l2 1.38e-06 max_abs 2.32e-06  ok
+T=4096  v2           2987.7 us/call   0.729 us/tok
+T=4096  wy64         4376.5 us/call   1.068 us/tok (prep 1855.2 + state 2389.2 us)  out rel_l2 8.88e-05 max_abs 2.44e-04  state rel_l2 2.43e-06 max_abs 5.48e-06  ok
+T=4096  wy64c16      6457.6 us/call   1.577 us/tok (prep 1927.6 + state 4264.1 us)  out rel_l2 8.88e-05 max_abs 2.44e-04  state rel_l2 2.43e-06 max_abs 5.48e-06  ok
+T=4096  wy32         3651.1 us/call   0.891 us/tok (prep 907.2 + state 1973.5 us)  out rel_l2 8.04e-05 max_abs 2.44e-04  state rel_l2 2.21e-06 max_abs 5.33e-06  ok
+T=4096  wy32c16      5098.6 us/call   1.245 us/tok (prep 901.3 + state 3550.0 us)  out rel_l2 8.04e-05 max_abs 2.44e-04  state rel_l2 2.21e-06 max_abs 5.33e-06  ok
+ALL CLOSE (rel_l2 < 1e-3)
+=== stages done [22:58:32]

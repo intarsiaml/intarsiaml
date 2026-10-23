@@ -30,9 +30,13 @@ use std::time::Instant;
 
 mod batch;
 mod gdn_block;
+mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
+pub(crate) mod mtp;
+pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
+use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
 /// Rows of logits computed/downloaded at a time when all positions are requested.
@@ -67,6 +71,13 @@ pub struct LoadOptions {
     /// out, `=1` asks for it anywhere); the library default is off. Measured bitwise to unfused on the 35B tp=2 gates
     /// (docs/results/2026-10-21-tp2-cuda-graphs.md, docs/results/2026-10-21-h1-tp2-hip.md).
     pub tp_fusion: bool,
+    /// Load the checkpoint's multi-token-prediction head (recipe `[mtp]`) as the `--spec mtp` drafter. Off: nothing under
+    /// the head's prefix is read and the model is exactly the one without it.
+    pub mtp: bool,
+    /// Most drafts per verify pass the MTP drafter is sized for (`--spec-k`): the per-row recurrent state buffers of a
+    /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
+    /// largest k ([`crate::spec::SPEC_K_MAX`]).
+    pub mtp_k: usize,
 }
 
 impl Default for LoadOptions {
@@ -83,6 +94,8 @@ impl Default for LoadOptions {
             mxfp4_act: None,
             graphs: true,
             tp_fusion: false,
+            mtp: false,
+            mtp_k: 0,
         }
     }
 }
@@ -135,6 +148,8 @@ enum Block {
     Gdn(GdnBlock),
     Ffn(FfnBlock),
     Moe(MoeBlock),
+    /// A whole Gemma 4 decoder layer (`model/gemma.rs`): attention, dense MLP and MoE with sandwich norms.
+    Gemma(GemmaLayer),
 }
 
 struct Workspace {
@@ -242,6 +257,8 @@ pub struct Model {
     /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
     lm_head: Option<QTensor>,
     layers: Vec<Vec<Block>>,
+    /// Scratch of the Gemma 4 layers (`None` for every other model).
+    gemma: Option<GemmaWs>,
     slot_specs: Vec<SlotSpec>,
     ws: Workspace,
     telemetry: Arc<Telemetry>,
@@ -300,6 +317,10 @@ pub struct Model {
     skip_dead: std::sync::atomic::AtomicBool,
     /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
     tail_dead: std::sync::atomic::AtomicBool,
+    /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
+    mtp: Option<mtp::MtpHead>,
+    /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
+    mtp_k: usize,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -644,6 +665,105 @@ impl Model {
                         weights_bytes.set(weights_bytes.get() + w.weight_bytes() as u64);
                         blocks.push(Block::Moe(MoeBlock { pre_norm: load(pre, li, Some(&[dims.hidden]))?, w }));
                     }
+                    "gemma" => {
+                        let (Some(gd), Some(mc)) = (dims.gemma.as_ref(), dims.moe.as_ref()) else {
+                            return Err(Error::model("the recipe has a gemma block but config.json is not a gemma4_text config"));
+                        };
+                        if tp.world > 1 {
+                            return Err(Error::Unsupported("tensor parallelism of Gemma 4".into()));
+                        }
+                        let gcfg = recipe.layer.other.get("gemma").ok_or_else(|| Error::model("recipe [layer.gemma] missing"))?;
+                        if gcfg.get("kind").and_then(|v| v.as_str()) != Some("gemma4") {
+                            return Err(Error::Unsupported(format!("gemma block kind {:?}", gcfg.get("kind"))));
+                        }
+                        let ptmpl = gcfg
+                            .get("prefix")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| Error::model("recipe [layer.gemma] needs a prefix (the layer module, `...layers.{i}`)"))?;
+                        let lp = Recipe::expand(ptmpl, li);
+                        let global = dims.layer_types.get(li).map(String::as_str) == Some("full_attention");
+                        if !global && dims.layer_types.get(li).map(String::as_str) != Some("sliding_attention") {
+                            return Err(Error::model(format!("gemma4 layer {li} has type {:?} (sliding_attention or full_attention)", dims.layer_types.get(li))));
+                        }
+                        let (nh, nkv, hd) = if global { (dims.n_heads, gd.global_kv_heads, gd.global_head_dim) } else { (dims.n_heads, dims.n_kv_heads, dims.head_dim) };
+                        let h = dims.hidden;
+                        let norm = |suffix: &str| load(&format!("{lp}.{suffix}"), li, Some(&[h]));
+                        let lq = |suffix: &str, n: usize, k: usize| load_q(&format!("{lp}.{suffix}"), li, n, k);
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::AttnKv { n_kv_heads: nkv, head_dim: hd, dtype: kv });
+                        let v_in_ckpt = src.info(&format!("{lp}.self_attn.v_proj.weight")).is_some();
+                        let wv = if global && gd.k_eq_v {
+                            if v_in_ckpt {
+                                return Err(Error::model(format!("{lp}.self_attn.v_proj exists but config says attention_k_eq_v")));
+                            }
+                            None
+                        } else {
+                            Some(lq("self_attn.v_proj", nkv * hd, h)?)
+                        };
+                        let ones = {
+                            let bytes = gemma::encode_floats(act, &vec![1.0f32; hd])?;
+                            TensorRef::new(crate::backend::upload_new(b, &bytes)?, act, &[hd])
+                        };
+                        // router input norm weight = router.scale * hidden^-0.5 (HF applies both after a scale-less RMSNorm)
+                        let router_norm = {
+                            let name = format!("{lp}.router.scale");
+                            let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                            if info.shape != [h] {
+                                return Err(Error::model(format!("tensor '{name}' is {:?}, expected [{h}]", info.shape)));
+                            }
+                            let root = (h as f32).powf(-0.5);
+                            let v: Vec<f32> = crate::weights::to_f32_vec(info.dtype, src.bytes(&name)?)?.into_iter().map(|x| x * root).collect();
+                            let bytes = gemma::encode_floats(act, &v)?;
+                            TensorRef::new(crate::backend::upload_new(b, &bytes)?, act, &[h])
+                        };
+                        let layer_scalar = {
+                            let name = format!("{lp}.layer_scalar");
+                            let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                            crate::weights::to_f32_vec(info.dtype, src.bytes(&name)?)?.first().copied().ok_or_else(|| Error::model(format!("tensor '{name}' is empty")))?
+                        };
+                        if let Some(scheme) = src.quant_scheme() {
+                            let m = format!("{lp}.experts.0.gate_proj");
+                            let declared = scheme.algo_of(&m).map(crate::quant::scheme::Algo::parse);
+                            if declared == Some(crate::quant::scheme::Algo::Nvfp4W4A4) && !recipe.defaults.w4a4_as_w4a16 {
+                                return Err(Error::Unsupported(format!(
+                                    "'{m}' is declared quant_algo NVFP4 (weights AND 4-bit activations) in hf_quant_config.json; this engine \
+                                     runs it weight-only (W4A16), different from the declared scheme and from vLLM. Set \
+                                     [defaults] w4a4_as_w4a16 = true in the recipe to accept that"
+                                )));
+                            }
+                        }
+                        let moe = MoeWeights::load_gemma(b, src, &lp, mc, &qopts)?;
+                        weights_bytes.set(weights_bytes.get() + moe.weight_bytes() as u64);
+                        blocks.push(Block::Gemma(GemmaLayer {
+                            nh,
+                            nkv,
+                            hd,
+                            rotary_dim: if global { (gd.global_rotary_factor * hd as f32) as usize } else { 0 },
+                            theta: if global { gd.global_theta } else { dims.rope_theta },
+                            window: if global { 0 } else { gd.sliding_window },
+                            slot,
+                            input_norm: load(pre, li, Some(&[h]))?,
+                            post_attn_norm: norm("post_attention_layernorm")?,
+                            pre_ffn_norm: norm("pre_feedforward_layernorm")?,
+                            post_ffn_norm: norm("post_feedforward_layernorm")?,
+                            pre_ffn2_norm: norm("pre_feedforward_layernorm_2")?,
+                            post_ffn1_norm: norm("post_feedforward_layernorm_1")?,
+                            post_ffn2_norm: norm("post_feedforward_layernorm_2")?,
+                            q_norm: load(&format!("{lp}.self_attn.q_norm"), li, Some(&[hd]))?,
+                            k_norm: load(&format!("{lp}.self_attn.k_norm"), li, Some(&[hd]))?,
+                            ones,
+                            wq: lq("self_attn.q_proj", nh * hd, h)?,
+                            wk: lq("self_attn.k_proj", nkv * hd, h)?,
+                            wv,
+                            wo: lq("self_attn.o_proj", h, nh * hd)?,
+                            gate: lq("mlp.gate_proj", dims.intermediate, h)?,
+                            up: lq("mlp.up_proj", dims.intermediate, h)?,
+                            down: lq("mlp.down_proj", h, dims.intermediate)?,
+                            router_norm,
+                            moe,
+                            layer_scalar,
+                        }));
+                    }
                     "ffn" => {
                         let f = recipe.layer.ffn.as_ref().unwrap();
                         if f.kind != "dense" || f.act != "silu_glu" {
@@ -691,6 +811,35 @@ impl Model {
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
         let mt = chunk + tail_merge;
         let esz = act.size_bytes();
+        // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
+        let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
+        let mtp_head = if opts.mtp {
+            let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
+            if tp.world > 1 {
+                return Err(Error::Unsupported("--spec mtp under tensor parallelism".into()));
+            }
+            let main_attn = layers.iter().flatten().find_map(|b| match b {
+                Block::Attn(a) => Some(a),
+                _ => None,
+            });
+            let t0 = Instant::now();
+            let head = mtp::load_head(
+                spec,
+                b,
+                src,
+                dims,
+                recipe,
+                main_attn,
+                &|name, shape| load(name, 0, shape),
+                &|name, n, k| load_q(name, 0, n, k),
+                &|n| weights_bytes.set(weights_bytes.get() + n),
+                mt + Self::VERIFY_MAX_ROWS + 1,
+            )?;
+            eprintln!("mtp: drafter head '{}' loaded in {:.1} s (routed experts quantised to nvfp4)", spec.prefix, t0.elapsed().as_secs_f64());
+            Some(head)
+        } else {
+            None
+        };
         let mut ws_bytes = 0u64;
         let mut wb = |bytes: usize| -> Result<Buffer> {
             ws_bytes += bytes as u64;
@@ -710,6 +859,10 @@ impl Model {
                 Some(MoeScratch::new(b, mc, mt, act)?)
             }
             None => None,
+        };
+        let gemma_ws = match &dims.gemma {
+            Some(gd) if layers.iter().flatten().any(|bl| matches!(bl, Block::Gemma(_))) => Some(GemmaWs::alloc(&mut wb, mt, esz, dims, gd)?),
+            _ => None,
         };
         let ws = Workspace {
             max_tokens: chunk,
@@ -740,6 +893,11 @@ impl Model {
             .sum();
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+        if mtp_head.is_some() {
+            // per-row recurrent states of a verify pass (up to SPEC_K_MAX saved rows) and the drafter's hidden-row queue
+            ws_bytes += rec_bytes * mtp_k as u64;
+            ws_bytes += ((mt + Self::VERIFY_MAX_ROWS + 1) * dims.hidden * esz) as u64;
+        }
 
         let kv_per_tok: u64 = slot_specs
             .iter()
@@ -749,7 +907,9 @@ impl Model {
                 }
                 _ => 0,
             })
-            .sum();
+            .sum::<u64>()
+            // the drafter head's own attention cache
+            + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 };
         let plan = MemoryPlan::compute_budgeted(
             &b.info(),
             weights_bytes.get(),
@@ -778,6 +938,7 @@ impl Model {
             final_norm,
             lm_head,
             layers,
+            gemma: gemma_ws,
             slot_specs,
             ws,
             telemetry,
@@ -786,7 +947,8 @@ impl Model {
             recorder: Mutex::new(None),
             resolved: Default::default(),
             // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
-            graphs: GraphState::new(opts.graphs),
+            // Gemma 4 runs its layers eagerly (no captured decode step yet)
+            graphs: GraphState::new(opts.graphs && dims.gemma.is_none()),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table,
@@ -806,6 +968,8 @@ impl Model {
             tail_merge,
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            mtp: mtp_head,
+            mtp_k,
         };
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
@@ -858,6 +1022,8 @@ impl Model {
                 return self.batch_probe(t, pos0);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
+            // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
+            self.mtp_dry_run(t, pos0)?;
             if verify {
                 return self.verify_head(&hn, t, false);
             }
@@ -920,17 +1086,45 @@ impl Model {
             return Err(Error::invalid(format!("forward_verify of {q} rows (enabled for 2..={})", self.verify_rows)));
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        // recurrent slots (GatedDeltaNet): the delta rule runs row by row and the state after every row but the last is
+        // kept (`SpecRows`), so the caller can roll back to any accepted length (`SequenceState::spec_rollback`)
+        let recurrent = st.has_recurrent();
+        if recurrent {
+            let need = st.recurrent_bytes();
+            st.spec_rows.saved = 0;
+            st.spec_rows.base = st.len;
+            st.spec_rows.bufs.retain(|b| b.bytes() >= need);
+            while st.spec_rows.bufs.len() < q - 1 {
+                let b = self.backend.alloc(need.max(16), MemKind::Device)?;
+                st.spec_rows.bufs.push(b);
+            }
+        }
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        let run = (|| -> Result<()> {
+        let run = (|| -> Result<TensorRef> {
             let hn = self.run_chunk(st, ids, profile)?;
-            self.verify_head(&hn, q, profile)
+            self.verify_head(&hn, q, profile)?;
+            Ok(hn)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-        run?;
+        let hn = match run {
+            Ok(hn) => hn,
+            Err(e) => {
+                if recurrent {
+                    // the recurrent slots were updated in place part-way: they match no token prefix
+                    let _ = st.reset(&*self.backend);
+                }
+                return Err(e);
+            }
+        };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, 0)?;
         st.commit(ids);
+        if recurrent {
+            st.spec_rows.saved = q - 1;
+        }
         self.telemetry.step();
+        // the drafter queues every row; the caller's rollback drops the rejected ones
+        self.mtp_after_forward(st, &hn, q, false, profile)?;
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
@@ -975,6 +1169,7 @@ impl Model {
                         Block::Gdn(_) => "gated_delta_net",
                         Block::Ffn(_) => "dense_ffn",
                         Block::Moe(_) => "moe",
+                        Block::Gemma(_) => "gemma4_layer",
                     })
                     .collect()
             })
@@ -994,6 +1189,14 @@ impl Model {
     /// Allocate a fresh sequence state with the planned KV capacity.
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
+        st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
+        if st.mtp.is_some() && st.has_recurrent() {
+            // allocated once here (and reserved in the memory plan), not in the first verify pass
+            let need = st.recurrent_bytes().max(16);
+            for _ in 0..self.mtp_k {
+                st.spec_rows.bufs.push(self.backend.alloc(need, MemKind::Device)?);
+            }
+        }
         for p in &self.peers {
             st.peers.push(PeerState {
                 backend: p.backend.clone(),
@@ -1338,11 +1541,18 @@ impl Model {
         mut on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
+        // a plain pass ends the window in which the last verify pass's rows could be rolled back to
+        st.spec_rows.saved = 0;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
         if self.decode_graph_now(st, ids, mode) {
             if let Some(out) = self.graph_decode_step(st, ids[0], mode == HeadMode::LastLogits)? {
                 st.commit(ids);
                 self.telemetry.step();
+                if st.mtp.is_some() {
+                    // the captured step leaves its normed hidden row in ws.n, as the eager pass does
+                    let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
+                    self.mtp_after_forward(st, &hn, 1, true, false)?;
+                }
                 return Ok(out);
             }
         }
@@ -1395,6 +1605,9 @@ impl Model {
             }
             st.commit(chunk);
             self.telemetry.step();
+            if st.mtp.is_some() {
+                self.mtp_after_forward(st, &hn, chunk.len(), true, profile)?;
+            }
         }
         Ok(out)
     }
@@ -1535,7 +1748,7 @@ impl Model {
             Op::Embedding,
             vec![ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![hv(cur)],
-            OpAttrs::default(),
+            OpAttrs { scale: d.gemma.as_ref().map_or(1.0, |g| g.embed_scale), ..Default::default() },
             profile,
         )?;
 
@@ -1581,6 +1794,19 @@ impl Model {
                     continue;
                 }
                 match block {
+                    Block::Gemma(g) => {
+                        // a whole layer with its own residual handling: nothing is pending before or after it
+                        let Seqs::One(st) = seqs else {
+                            return Err(Error::Unsupported("batched decode of a Gemma 4 layer".into()));
+                        };
+                        if dpos.is_some() {
+                            return Err(Error::Unsupported("captured decode steps of a Gemma 4 layer".into()));
+                        }
+                        debug_assert!(!pending);
+                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, profile)?;
+                        cur = 1 - cur;
+                        continue;
+                    }
                     Block::Attn(a) => {
                         // the residual add + norm folded into the k / v projections when the backend has the fused op (one
                         // decision for the solo and the batched step: the call is the same, `t` rows of `n`)
@@ -2374,7 +2600,14 @@ impl Model {
         }
         let mut bytes = vec![0u8; c * v * 4];
         self.backend.download(&self.ws.logits, 0, &mut bytes, 0)?;
-        Ok(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
+        let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+        // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
+        if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
+            for x in out.iter_mut() {
+                *x = cap * (*x / cap).tanh();
+            }
+        }
+        Ok(out)
     }
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.

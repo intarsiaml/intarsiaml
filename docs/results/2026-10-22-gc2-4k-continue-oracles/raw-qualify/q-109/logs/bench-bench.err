@@ -1,0 +1,13 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 4608 tokens
+calibration: 45 base tokens, 21.38 tokens per filler sentence
+  size    128 rep: prompt=128 gen=128 ttft=0.13s prefill=1016 tok/s decode=125.5 tok/s
+  size    128 rep: prompt=132 gen=128 ttft=0.14s prefill=950 tok/s decode=125.1 tok/s
+  size    128 rep: prompt=132 gen=128 ttft=0.14s prefill=950 tok/s decode=125.6 tok/s
+  size   1024 rep: prompt=1025 gen=128 ttft=0.61s prefill=1687 tok/s decode=123.9 tok/s
+  size   1024 rep: prompt=1035 gen=128 ttft=0.66s prefill=1563 tok/s decode=124.0 tok/s
+  size   1024 rep: prompt=1017 gen=128 ttft=0.61s prefill=1677 tok/s decode=124.3 tok/s
+  size   4096 rep: prompt=4171 gen=128 ttft=2.37s prefill=1759 tok/s decode=120.2 tok/s
+  size   4096 rep: prompt=4157 gen=128 ttft=2.35s prefill=1766 tok/s decode=120.7 tok/s
+  size   4096 rep: prompt=4142 gen=128 ttft=2.35s prefill=1763 tok/s decode=120.6 tok/s
+wrote /opt/code/wt-gc/docs/results/2026-10-22-gc2-4k-continue-oracles/raw-qualify/q-109/bench/qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench.json
