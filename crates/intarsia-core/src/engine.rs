@@ -1303,8 +1303,18 @@ impl Seq {
                 }
             }
             Next::Draft(k) => {
+                let t0 = Instant::now();
                 let drafts = model.mtp_draft(st, self.tok, k)?;
+                let t1 = Instant::now();
                 self.verify(model, st, &drafts)?;
+                if crate::spec::trace_enabled() {
+                    // both phases end in a token download, so host time is device time here
+                    eprintln!(
+                        "spec: mtp draft {:.3} ms, verify + rollback {:.3} ms",
+                        (t1 - t0).as_secs_f64() * 1e3,
+                        t1.elapsed().as_secs_f64() * 1e3
+                    );
+                }
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(None);
