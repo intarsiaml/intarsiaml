@@ -227,6 +227,11 @@ int main(int argc, char** argv) {
         {"k / v", 4096, 512, 2048},         {"experts gate_up (dense ideal)", 32768, 1024, 2048},
         {"experts down (dense ideal)", 32768, 2048, 512}, {"shared expert gate_up", 4096, 1024, 2048},
         {"shared expert down", 4096, 2048, 512},
+        // one routed expert's share of a 4096-token chunk (4096 * 8 / 256 = 128 pairs on average) and 4x that
+        {"one expert gate_up M=128", 128, 1024, 2048}, {"one expert down M=128", 128, 2048, 512},
+        {"one expert gate_up M=512", 512, 1024, 2048}, {"one expert down M=512", 512, 2048, 512},
+        // flash attention's QK^T / PV at one head and a 4096-key block, bf16 (as plain GEMMs)
+        {"attn QK^T 4096x4096x256", 4096, 4096, 256}, {"attn PV 4096x256x4096", 4096, 256, 4096},
     };
     size_t maxw = 0, maxx = 0, maxy = 0;
     for (auto& s : shapes) {

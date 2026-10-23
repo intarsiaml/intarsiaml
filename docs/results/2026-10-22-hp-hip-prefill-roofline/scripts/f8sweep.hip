@@ -43,6 +43,9 @@ int main() {
     struct S { const char* what; int M, N, K; } shapes[] = {
         {"qkv / q+gate", 4096, 8192, 2048}, {"z", 4096, 4096, 2048}, {"o / out_proj", 4096, 2048, 4096},
         {"k / v", 4096, 512, 2048}, {"tail 312", 312, 8192, 2048},
+        // partial M (not a multiple of the 128 / 256 token tile): edge handling of the prefill tiles, bitwise vs default
+        {"q+gate M 2049", 2049, 8192, 2048}, {"q+gate M 3000", 3000, 8192, 2048}, {"q+gate M 4089", 4089, 8192, 2048},
+        {"z M 3000", 3000, 4096, 2048}, {"o M 4089", 4089, 2048, 4096}, {"k/v M 2049", 2049, 512, 2048},
     };
     size_t maxw = 0, maxx = 0, maxy = 0;
     for (auto& s : shapes) {
