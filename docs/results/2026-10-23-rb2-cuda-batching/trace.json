@@ -127,13 +127,19 @@
    "name": "KL gate busy-chunk vs solo-chunk prefill",
    "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_busy_chunk -- --ignored",
    "result": "fail",
-   "detail": "35B CUDA, 5 prompts 1.5k-16k tokens x 64 decode rows: KL(solo chunk 2048 || busy chunk 1024) mean 21-way 7.87e-3 vs acc-short ref-noise floor 3.161e-3 (2.5x; 4 of 5 prompts above, worst 1.49e-2); full-vocab 9.68e-3; top-1 flips 13/320; control exactly 0; fleetq 4541"
+   "detail": "35B CUDA, 5 prompts 1.5k-16k tokens x 64 decode rows: KL(solo chunk 2048 || busy chunk 1024) mean 21-way 7.87e-3 vs acc-short ref-noise floor 3.161e-3 (2.5x; 4 of 5 prompts above, worst 1.49e-2); full-vocab 9.68e-3; top-1 flips 13/320; control exactly 0; fleetq 4541; resolved: default busy chunk = solo chunk (2048), 1024 opt-in"
   },
   {
    "name": "MTP re-check on CUDA (verify rows now on _rows kernels)",
    "command": "identity.sh main vs branch, --spec mtp --spec-k 2, 4 prompts x 256 ids; INTARSIA_MTP_VERIFY_CHECK",
    "result": "pass",
    "detail": "ids identical to main and to --spec off; decode +6..8% (one run each); verify rows max logit diff 0.0 over 647 cells; fleetq 4537"
+  },
+  {
+   "name": "engine identity beyond the solo chunk (35B, default busy chunk 2048)",
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched_engine_long_prompts -- --ignored",
+   "result": "pass",
+   "detail": "2.6k/4k/16k prompts (16k seeded-sampled), 2 and 4 slots, three arrival orders, beside a decoding neighbour: every request token-identical to LocalEngine; control busy chunk 1024 diverges at token 1/25/51; fleetq 4545"
   }
  ],
  "measurements": [
@@ -143,14 +149,14 @@
    "prompt_tokens": 1024,
    "streams": 4,
    "before": 74.1,
-   "after": 122.9,
+   "after": 123.3,
    "unit": "tok/s",
    "n": 1,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 4531,
+   "slot_job": 4548,
    "before_run_id": "20261023-084926-adhoc-rb2-off",
-   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+   "after_run_id": "bc2048-1024-x4"
   },
   {
    "metric": "aggregate_tps",
@@ -158,14 +164,14 @@
    "prompt_tokens": 1024,
    "streams": 16,
    "before": 74.2,
-   "after": 166.5,
+   "after": 166.6,
    "unit": "tok/s",
    "n": 1,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 4531,
+   "slot_job": 4548,
    "before_run_id": "20261023-084926-adhoc-rb2-off",
-   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+   "after_run_id": "bc2048-1024-x16"
   },
   {
    "metric": "aggregate_tps",
@@ -173,24 +179,39 @@
    "prompt_tokens": 1024,
    "streams": 1,
    "before": 73.6,
-   "after": 73.6,
+   "after": 73.4,
    "unit": "tok/s",
    "n": 1,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 4531,
+   "slot_job": 4548,
    "before_run_id": "20261023-084926-adhoc-rb2-off",
-   "after_run_id": "20261023-092106-adhoc-rb2-final2-on16"
+   "after_run_id": "bc2048-1024-x1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 77.2,
+   "after": 83.2,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4548,
+   "before_run_id": "bc1024-4096-x4",
+   "after_run_id": "bc2048-4096-x4"
   }
  ],
  "accuracy": {
-  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 16, 130 steps); batched engine == LocalEngine on the 35B; no-op plan show + 256 ids identical (CUDA, Metal). Busy-chunk (1024) prefill vs solo-chunk (2048) prefill is KL-gated, not bitwise: run afterwards and FAILED (mean 21-way KL 7.87e-3 vs floor 3.161e-3).",
-  "verdict": "fail",
-  "bitwise": false,
+  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 16, 130 steps); batched engine == LocalEngine on the 35B; no-op plan show + 256 ids identical (CUDA, Metal). Busy-chunk (1024) prefill vs solo-chunk (2048) prefill is KL-gated, not bitwise: run afterwards and FAILED (mean 21-way KL 7.87e-3 vs floor 3.161e-3). Resolved: default busy chunk = solo chunk (2048) makes the whole request bitwise to solo (engine test on 2.6k-16k prompts); 1024 is an opt-in knob.",
+  "verdict": "pass",
+  "bitwise": true,
   "run_ids": []
  },
  "verdict": "win",
- "summary": "R0-R2 done and gated; speed target missed. Row-exact CUDA GEMV and MoE decode kernels (M up to 16) registered rows_exact, a kernel-pick plan check with a proven-fusion table, per-backend cap 16, recurrent state in the memory plan, and a CUDA bring-up of hybrid batching. Every decode row is bitwise the solo step (4290 row-steps each on the 35B and Qwen3-8B), the batched engine equals LocalEngine, and plan show + 256 ids are unchanged with batching off. 35B aggregate decode in the composer cell, same build with batching off as 'before': 122.9 at 4 streams (74.1; the 10-22 baseline was 75.2; target about 140) and 166.5 at 16 (74.2); 1 stream unchanged (73.6). Verdict win against the baseline (x1.63 at 4, x2.21 at 16, nothing lost at 1) but the lane's stated 4-stream target is not met; at 4 streams the step already runs at model-loop speed (25.7 vs 25.4 ms) and the burst is 0.9 s of serialized prefill plus 127 steps, so 140 needs a step about 15% cheaper or prefill overlapped with decode; per-row GDN and attention launches (25% of a B=4 step, 42% at B=16) and the eager batched step are the lever at 16 streams.",
+ "summary": "R0-R2 done and gated; speed target missed. Row-exact CUDA GEMV and MoE decode kernels (M up to 16) registered rows_exact, a kernel-pick plan check with a proven-fusion table, per-backend cap 16, recurrent state in the memory plan, and a CUDA bring-up of hybrid batching. Every decode row is bitwise the solo step (4290 row-steps each on the 35B and Qwen3-8B), the batched engine equals LocalEngine, and plan show + 256 ids are unchanged with batching off. 35B aggregate decode in the composer cell, same build with batching off as 'before': 123.3 at 4 streams (74.1; the 10-22 baseline was 75.2; target about 140) and 166.6 at 16 (74.2); 1 stream unchanged (73.4). Verdict win against the baseline (x1.63 at 4, x2.21 at 16, nothing lost at 1) but the lane's stated 4-stream target is not met; at 4 streams the step already runs at model-loop speed (25.7 vs 25.4 ms) and the burst is 0.9 s of serialized prefill plus 127 steps, so 140 needs a step about 15% cheaper or prefill overlapped with decode; per-row GDN and attention launches (25% of a B=4 step, 42% at B=16) and the eager batched step are the lever at 16 streams. Busy-chunk follow-up: busy chunk 1024 failed the KL gate (mean 21-way KL 7.87e-3 vs 3.161e-3 floor), so the default busy chunk is now the solo chunk (2048): whole requests are token-identical to LocalEngine on 2.6k-16k prompts, with no speed cost on the 1k workload; 1024 stays opt-in.",
  "lessons": [
   "Raising the busy prefill chunk from 256 to 1024 for the MoE hybrid was worth +18% at 4 streams and +30% at 16 (104 to 123, 128 to 167): an MoE prefill chunk reads nearly all experts at any size, so stalls dominate a short-output concurrent benchmark.",
   "check_batch_ops must compare kernel picks, not op multisets: the CUDA MoE switches kernel under one Op between m <= 1 and m >= 2, which the multiset rule cannot see.",
@@ -222,7 +243,10 @@
    4532,
    4536,
    4537,
-   4541
+   4541,
+   4545,
+   4548,
+   4549
   ],
   "tokens": null
  }

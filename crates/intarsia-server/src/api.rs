@@ -455,6 +455,7 @@ impl Sampling {
             cancel: None,
             trace_logits: None,
             constraint: None,
+            prewarm: None,
         })
     }
 }

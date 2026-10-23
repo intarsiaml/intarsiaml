@@ -1,0 +1,84 @@
+04:00:00
+base plan rc=0
+base gen-short rc=0
+base gen-4k rc=0
+head plan rc=0
+head gen-short rc=0
+head gen-4k rc=0
+plan: identical
+ids short: identical (36901faa)
+ids 4k: identical (2b487584)
+ident Qwen3-8B rc=101
+PREFIX-STORE-METAL model /Users/josef/models/Qwen3-8B turn1 1822 tok (2031 ms), other 856 tok, turn2 2468 tok: restored 0 cached in 2165 ms vs cold 2310 ms (store on) / 2024 ms (store off)
+PREFIX-STORE-METAL restored vs cold(store on): bitwise true (first differing step None)
+PREFIX-STORE-METAL restored vs cold(store off): bitwise true (first differing step None); ids equal true
+PREFIX-STORE-METAL store: {"build":"1a43a8230614400f","entries":2,"pinned_entries":0,"lookups":3,"hits":0,"misses":3,"local_wins":0,"tokens_saved":0,"bytes_restored":0,"restore_seconds_total":0.0,"last_restore_ms":0.0,"inserts":2,"insert_bytes":280903680,"insert_seconds_total":0.029505165,"settle_seconds_total":0.026499289999999998,"rejected":0,"ttft_saved_seconds_total":0.0,"prefill_tok_s":2677.4057588939777,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":9},"host":{"objects":9,"bytes":280903680,"budget_bytes":17179869184,"hits":0,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+ident Qwen3.6-35B-A3B-NVFP4 rc=0
+PREFIX-STORE-METAL model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 turn1 1873 tok (2969 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 1030 ms vs cold 2942 ms (store on) / 2575 ms (store off)
+PREFIX-STORE-METAL restored vs cold(store on): bitwise true (first differing step None)
+PREFIX-STORE-METAL restored vs cold(store off): bitwise false (first differing step Some(0)); ids equal true
+PREFIX-STORE-METAL store: {"build":"fcce13313d691da9","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":104181760,"restore_seconds_total":0.00558725,"last_restore_ms":5.58725,"inserts":4,"insert_bytes":337510400,"insert_seconds_total":0.038106208,"settle_seconds_total":0.037384417,"rejected":0,"ttft_saved_seconds_total":2.241622912729439,"prefill_tok_s":883.8849770731695,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":20},"host":{"objects":20,"bytes":337510400,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+rec-off rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  0  15656  1533.6  1800.5         12.27
+agent     8  8854  5376  3478  421.9  342.2          3.37
+rag       4  21714  16128  5586  1184.0  116.2          4.74
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/rec-off.json
+on1 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  767.2  794.4          6.14
+agent     8  8854  6554  2300  356.5  253.1          2.85
+rag       4  21714  16194  5520  1177.5  136.4          4.71
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/on1.json
+off6 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  0  15656  1486.7  1797.8         11.89
+agent     8  8854  5376  3478  407.4  337.6          3.26
+rag       4  21714  16128  5586  1131.9  114.6          4.53
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/off6.json
+on2 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  768.7  793.8          6.15
+agent     8  8854  6554  2300  356.5  252.8          2.85
+rag       4  21714  16194  5520  1176.8  134.9          4.71
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/on2.json
+off6 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  0  15656  1486.8  1797.7         11.89
+agent     8  8854  5376  3478  407.9  336.7          3.26
+rag       4  21714  16128  5586  1134.1  114.8          4.54
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/off6.json
+on3 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  767.5  794.3          6.14
+agent     8  8854  6554  2300  356.6  253.0          2.85
+rag       4  21714  16194  5520  1177.5  134.8          4.71
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/on3.json
+off6 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  0  15656  1486.7  1798.5         11.89
+agent     8  8854  5376  3478  411.0  337.6          3.29
+rag       4  21714  16128  5586  1132.7  114.6          4.53
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/off6.json
+asst1 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  730.9  767.5          5.85
+agent     8  8854  6554  2300  340.4  201.2          2.72
+rag       4  21714  16194  5520  1172.9  136.5          4.69
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/asst1.json
+asst2 rc=0
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15656  8695  6961  731.6  767.8          5.85
+agent     8  8854  6554  2300  339.9  201.7          2.72
+rag       4  21714  16194  5520  1173.2  135.3          4.69
+wrote /opt/code/wt-pc/docs/results/2026-10-22-pc-prefix-store/raw/ttft/asst2.json
+skip=0 rep 1 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/160 embedding=0ms/80 gate_split=0ms/800
+skip=1 rep 1 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/144 embedding=0ms/80 gate_split=0ms/800
+skip=0 rep 2 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/160 embedding=0ms/80 gate_split=0ms/800
+skip=1 rep 2 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/144 embedding=0ms/80 gate_split=0ms/800
+skip=0 rep 3 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/160 embedding=0ms/80 gate_split=0ms/800
+skip=1 rep 3 rc=0 steps=80 graph replays=0 (captures 0) eager decode steps=64 (profiled 0) top ops: argmax=0ms/64 attn_decode=0ms/640 attn_prefill=0ms/144 embedding=0ms/80 gate_split=0ms/800
+dead rep 1 ids identical (fccc4dea)
+dead rep 2 ids identical (fccc4dea)
+dead rep 3 ids identical (fccc4dea)
+04:07:32

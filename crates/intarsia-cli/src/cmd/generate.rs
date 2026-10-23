@@ -132,6 +132,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         cancel: None,
         trace_logits: None,
         constraint: None,
+        prewarm: None,
     };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();

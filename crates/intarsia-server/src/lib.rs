@@ -16,6 +16,7 @@ mod api;
 pub mod health;
 mod metrics;
 mod openai;
+mod prefix;
 mod structured;
 pub mod supervisor;
 
@@ -100,6 +101,8 @@ fn app(state: AppState, ui: bool) -> Router {
         .route("/metrics", get(prometheus))
         .route("/events", get(events))
         .route("/v1/intarsia/plan", get(plan))
+        .route("/v1/intarsia/prefix-store", get(prefix::store_info))
+        .route("/v1/intarsia/prefill", post(prefix::prefill))
         .with_state(state);
     if ui {
         router.merge(intarsia_ui::router())
@@ -209,6 +212,9 @@ async fn prometheus(State(st): State<AppState>) -> Response {
             let mut body = metrics::render(&snap, &info, &st.metrics);
             if let Some(b) = batch {
                 body.push_str(&metrics::render_batch(&b));
+            }
+            if let Some(p) = &snap.prefix_store {
+                body.push_str(&metrics::render_prefix_store(p));
             }
             ([("content-type", "text/plain; version=0.0.4; charset=utf-8")], body).into_response()
         }
