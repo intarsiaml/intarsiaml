@@ -1,0 +1,22 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on cuda, report directory /home/nvidia/intarsia-decfuse/out/q1/def/report
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.4s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     37s] plan: PASS in 36.8s (39 ops resolved, exactness fast, loaded in 36.8s)
+[qualify     37s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     75s] gate: PASS in 37.7s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     75s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     75s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     75s] == acc-short [short accuracy against a golden]
+[qualify    114s] acc-short: PASS in 39.4s (prefill top-1 97.92% KL 5.87e-3; decode top-1 98.12% KL 1.54e-2)
+[qualify    114s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    220s] acc-oracle: PASS in 106.0s (prefill top-1 95.82% KL 1.01e-2)
+QUICK DONE: /home/nvidia/intarsia-decfuse/out/q1/def/report/quick-report.md
+[qualify    220s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    326s] acc-long: PASS in 105.9s (prefill top-1 94.17% KL 4.27e-2; decode top-1 97.19% KL 1.05e-2)
+[qualify    326s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    502s] acc-4k: FAIL in 175.8s (prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+[qualify    502s] == envelope [noise envelope and baseline for regression gating]
+[qualify    539s] envelope: ERROR in 36.7s (measuring the noise envelope with 'chunk' exit 1: Error: the reference baseline or this build carries no code stamp, so they cannot be shown to be one build (build through scripts/phase1b-acceptance.sh, or --allow-unstamped for development))
+FULL DONE: /home/nvidia/intarsia-decfuse/out/q1/def/report/full-report.md
+[qualify    539s] exit code 2

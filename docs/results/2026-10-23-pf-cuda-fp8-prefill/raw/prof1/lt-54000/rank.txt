@@ -1,0 +1,32 @@
+kernel total 2594.8 ms
+moe_w4a16_kernel<                                                          1064.4 ms  41.0 %    640 calls
+gdn_delta_split_kernel<                                                     421.9 ms  16.3 %    240 calls
+flash_kernel<                                                               289.6 ms  11.2 %     80 calls
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                 138.6 ms   5.3 %    320 calls
+moe_reduce_kernel<__nv_bfloat16>                                            102.6 ms   4.0 %    320 calls
+rmsnorm_kernel<                                                              88.3 ms   3.4 %    808 calls
+gdn_conv_kernel                                                              80.2 ms   3.1 %    240 calls
+nvfp4_reg_kernel<                                                            64.8 ms   2.5 %    640 calls
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                  63.0 ms   2.4 %    320 calls
+gated_rmsnorm_kernel<                                                        50.9 ms   2.0 %    240 calls
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_war       47.4 ms   1.8 %    240 calls
+lt_actq8_kernel                                                              42.7 ms   1.6 %   1040 calls
+gate_split_kernel                                                            21.0 ms   0.8 %     80 calls
+moe_combine_kernel<__nv_bfloat16>                                            20.7 ms   0.8 %    320 calls
+rope_kernel                                                                  18.3 ms   0.7 %    160 calls
+nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN                        16.9 ms   0.7 %    480 calls
+sigmoid_mul_kernel                                                           14.7 ms   0.6 %     80 calls
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128       10.0 ms   0.4 %    280 calls
+wq::wq_gemm_kernel<                                                           8.5 ms   0.3 %   1040 calls
+rope_pass_kernel                                                              6.2 ms   0.2 %    160 calls
+nvjet_sm121_qqtst_mma_128x192x128_2_32x96x128_tmaAB_bz_TNNN                   5.3 ms   0.2 %    160 calls
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv        5.2 ms   0.2 %    320 calls
+moe_topk_kernel                                                               4.3 ms   0.2 %    320 calls
+moe_group_tiles_kernel                                                        4.2 ms   0.2 %    320 calls
+window: 9296 kernels, span 2970.24 ms, busy 2594.32 ms, idle 375.92 ms
+gaps < 20 us: 8097 totalling 17.04 ms (mean 2.1 us); >= 20 us: 34 totalling 358.88 ms
+  gap  329985.0 us before nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN
+  gap   10161.4 us before std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv_bfloat16, __nv_bflo
+  gap    5577.4 us before nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN
+  gap    3030.0 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_64x3_tn_align8
+  gap    1729.9 us before void wq::wq_gemm_kernel<(int)1, (int)2, (int)2, __nv_bfloat16>(const __nv_bfloat16 *, cons
