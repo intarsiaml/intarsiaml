@@ -18,6 +18,9 @@ pub struct BenchArgs {
 pub enum BenchCmd {
     /// End-to-end speed sweep (TTFT, prefill tok/s, decode tok/s, % of bandwidth floor).
     Speed(SpeedArgs),
+    /// Prefix-reuse workloads (multi-turn chat with thinking, agent loop with a fixed system prompt and tool schema,
+    /// RAG over the same documents): TTFT and prompt tokens computed vs served from cache, per request.
+    Reuse(ReuseArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -102,6 +105,7 @@ pub struct SpeedArgs {
 pub fn run(args: BenchArgs) -> Result<()> {
     match args.cmd {
         BenchCmd::Speed(a) => speed(a),
+        BenchCmd::Reuse(a) => reuse(a),
     }
 }
 
@@ -188,6 +192,81 @@ fn speed(a: SpeedArgs) -> Result<()> {
     let all_failed = !rows.is_empty() && rows.iter().all(|x| x["reps_ok"].as_u64() == Some(0));
     if all_failed {
         bail!("every call failed; see warnings above");
+    }
+    Ok(())
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ReuseArgs {
+    /// Server base URL (`http://host:port` or `http://host:port/v1`).
+    #[arg(long)]
+    pub url: String,
+    /// Model name sent in requests.
+    #[arg(long)]
+    pub model: String,
+    /// Environment variable holding an API key (sent as a Bearer token).
+    #[arg(long)]
+    pub key_env: Option<String>,
+    /// Workloads, comma-separated: chat, agent, rag.
+    #[arg(long, default_value = "chat,agent,rag", value_delimiter = ',')]
+    pub workloads: Vec<String>,
+    /// Text the workloads are built from.
+    #[arg(long, default_value = "tools/prompts/corpus_docs.txt")]
+    pub corpus: PathBuf,
+    /// Tokens generated per request.
+    #[arg(long, default_value_t = 64)]
+    pub max_tokens: usize,
+    /// Turns per chat conversation (two conversations, interleaved).
+    #[arg(long, default_value_t = 4)]
+    pub turns: usize,
+    /// Agent tasks (two requests each).
+    #[arg(long, default_value_t = 4)]
+    pub tasks: usize,
+    /// RAG questions over the same documents.
+    #[arg(long, default_value_t = 4)]
+    pub questions: usize,
+    /// Characters per RAG document (three documents; a chat turn quotes a quarter of this).
+    #[arg(long, default_value_t = 6000)]
+    pub doc_chars: usize,
+    /// Write the requests sent (with the live answers as history) to DIR/<workload>.jsonl.
+    #[arg(long)]
+    pub record: Option<PathBuf>,
+    /// Send the requests recorded in DIR instead of building them (byte-identical requests across runs).
+    #[arg(long)]
+    pub replay: Option<PathBuf>,
+    /// Per-request timeout in seconds.
+    #[arg(long, default_value_t = 600)]
+    pub timeout_s: u64,
+    /// Write the JSON result here.
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+}
+
+fn reuse(a: ReuseArgs) -> Result<()> {
+    let api_key = match &a.key_env {
+        Some(v) => Some(std::env::var(v).with_context(|| format!("environment variable {v} not set"))?),
+        None => None,
+    };
+    let cfg = intarsia_bench::reuse::ReuseConfig {
+        url: a.url,
+        model: a.model,
+        api_key,
+        workloads: a.workloads,
+        corpus: a.corpus,
+        max_tokens: a.max_tokens,
+        turns: a.turns,
+        tasks: a.tasks,
+        questions: a.questions,
+        doc_chars: a.doc_chars,
+        record: a.record,
+        replay: a.replay,
+        timeout_s: a.timeout_s,
+    };
+    let res = intarsia_bench::reuse::run_reuse(&cfg)?;
+    print!("{}", intarsia_bench::reuse::render_reuse(&res));
+    if let Some(p) = &a.out {
+        std::fs::write(p, serde_json::to_string_pretty(&res)?).with_context(|| format!("writing {}", p.display()))?;
+        eprintln!("wrote {}", p.display());
     }
     Ok(())
 }

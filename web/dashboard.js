@@ -30,6 +30,9 @@ export function mountDashboard(root, bus) {
   const memBar = el('div', { class: 'bar' }), memLegend = el('div', { class: 'legend' }), memSub = sub();
   const reqSub = el('div', { class: 'sub mono' });
   const opsBox = el('div');
+  const psN = num(), psSub = sub(), psTiers = el('div'), psSub2 = sub();
+  const psCard = card('Prefix store', psN, unit('hit rate'), psTiers, psSub, psSub2);
+  psCard.style.display = 'none';
 
   root.append(
     el('div', { class: 'grid g4' },
@@ -42,7 +45,8 @@ export function mountDashboard(root, bus) {
       card('Engine steps', stepN, stepSub, reqSub)),
     el('div', { class: 'grid g2', style: 'margin-top:12px' },
       card('Device memory', memBar, memLegend, memSub),
-      card('Time share per op', opsBox)));
+      card('Time share per op', opsBox)),
+    el('div', { class: 'grid g2', style: 'margin-top:12px' }, psCard));
 
   const MEM = [['weights', 'var(--accent)'], ['KV used', 'var(--good)'], ['KV reserved', 'color-mix(in srgb, var(--good) 35%, var(--heat-0))'], ['other', 'var(--warn)'], ['free', 'var(--heat-0)']];
   memLegend.append(...MEM.map(([n, c]) => el('span', {}, el('i', { style: 'background:' + c }), n)));
@@ -76,6 +80,24 @@ export function mountDashboard(root, bus) {
     parts.forEach((v, i) => { memSegs[i].style.width = total ? (v / total * 100).toFixed(2) + '%' : '0'; });
     memSub.textContent = total ? (d.name || '') + ' (' + d.backend + (d.unified ? ', unified' : '') + ') - ' + fmtBytes(total - d.free_mem_bytes) + ' used of ' + fmtBytes(total) + ' - weights ' + fmtBytes(s.weights_bytes)
       : (d.name || '') + ' - device memory not reported';
+
+    const ps = s.prefix_store;
+    psCard.style.display = ps ? '' : 'none';
+    if (ps) {
+      const looked = ps.hits + ps.misses + ps.local_wins;
+      psN.textContent = looked ? (ps.hits / looked * 100).toFixed(0) + '%' : '-';
+      psSub.textContent = fmtInt(ps.hits) + ' hits / ' + fmtInt(ps.misses) + ' misses - ' + fmtInt(ps.tokens_saved) + ' tokens not recomputed - ~'
+        + fmtMs(ps.ttft_saved_seconds_total * 1e3) + ' TTFT saved - last restore ' + fmtMs(ps.last_restore_ms);
+      psSub2.textContent = fmtInt(ps.entries) + ' entries (' + fmtInt(ps.pinned_entries) + ' pinned) - ' + fmtInt(ps.inserts) + ' stored, '
+        + fmtBytes(ps.bytes_restored) + ' restored' + (ps.rejected ? ' - ' + fmtInt(ps.rejected) + ' rejected' : '');
+      psTiers.replaceChildren(...['device', 'host', 'disk'].filter((t) => ps[t].budget_bytes > 0).map((t) => {
+        const tier = ps[t], f = tier.budget_bytes ? Math.min(1, tier.bytes / tier.budget_bytes) : 0;
+        return el('div', { class: 'oprow' }, el('span', { class: 'mono', text: t }),
+          el('div', { class: 'bar' }, el('i', { style: 'width:' + (f * 100).toFixed(1) + '%' })),
+          el('span', { class: 'v mono', text: fmtBytes(tier.bytes) + ' / ' + fmtBytes(tier.budget_bytes) }),
+          el('span', { class: 'v v2 mono', text: fmtInt(tier.hits) + ' hits' }));
+      }));
+    }
 
     const ops = Object.entries(s.ops || {});
     const tsum = ops.reduce((a, [, v]) => a + v.time_ms, 0);

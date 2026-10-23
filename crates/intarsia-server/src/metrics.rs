@@ -273,6 +273,58 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     o
 }
 
+/// The prefix store's counters (`--prefix-store`; docs/results/2026-10-22-pc-prefix-store.md). Per-tier families carry a
+/// `tier` label (device, host, disk).
+pub fn render_prefix_store(s: &intarsia_core::prefix_store::PrefixStoreSnapshot) -> String {
+    let mut o = String::with_capacity(4096);
+    let c = "counter";
+    let g = "gauge";
+    metric(&mut o, "intarsia_prefix_store_lookups_total", c, "Prefix store lookups (one per request).", s.lookups);
+    metric(&mut o, "intarsia_prefix_store_hits_total", c, "Requests that restored a stored prefix.", s.hits);
+    metric(&mut o, "intarsia_prefix_store_misses_total", c, "Lookups that found no stored prefix.", s.misses);
+    metric(
+        &mut o,
+        "intarsia_prefix_store_local_wins_total",
+        c,
+        "Lookups beaten by a longer prefix the sequence already held.",
+        s.local_wins,
+    );
+    metric(&mut o, "intarsia_prefix_store_tokens_saved_total", c, "Prompt tokens restored instead of prefilled.", s.tokens_saved);
+    metric(&mut o, "intarsia_prefix_store_bytes_restored_total", c, "Bytes of state restored.", s.bytes_restored);
+    metric(&mut o, "intarsia_prefix_store_restore_seconds_total", c, "Time spent restoring.", s.restore_seconds_total);
+    metric(&mut o, "intarsia_prefix_store_last_restore_seconds", g, "Duration of the last restore.", s.last_restore_ms / 1e3);
+    metric(
+        &mut o,
+        "intarsia_prefix_store_ttft_saved_seconds_total",
+        c,
+        "Estimated time to first token saved: restored tokens at the measured cold prefill rate, minus restore time.",
+        s.ttft_saved_seconds_total,
+    );
+    metric(&mut o, "intarsia_prefix_store_prefill_tokens_per_second", g, "Cold prefill rate the estimate uses.", s.prefill_tok_s);
+    metric(&mut o, "intarsia_prefix_store_inserts_total", c, "Entries stored.", s.inserts);
+    metric(&mut o, "intarsia_prefix_store_insert_bytes_total", c, "Bytes copied into the store.", s.insert_bytes);
+    metric(&mut o, "intarsia_prefix_store_insert_seconds_total", c, "Time spent storing.", s.insert_seconds_total);
+    metric(&mut o, "intarsia_prefix_store_rejected_total", c, "Entries rejected on restore or load (corrupt, foreign build).", s.rejected);
+    metric(&mut o, "intarsia_prefix_store_entries", g, "Entries held.", s.entries);
+    metric(&mut o, "intarsia_prefix_store_pinned_entries", g, "Pinned entries held.", s.pinned_entries);
+    let tiers = [("device", &s.device), ("host", &s.host), ("disk", &s.disk)];
+    let fams: [(&str, &str, &str); 5] = [
+        ("intarsia_prefix_store_tier_hits_total", "Restores whose slowest object came from the tier.", c),
+        ("intarsia_prefix_store_tier_evictions_total", "Objects moved out of the tier.", c),
+        ("intarsia_prefix_store_tier_objects", "Objects held in the tier.", g),
+        ("intarsia_prefix_store_tier_bytes", "Bytes held in the tier.", g),
+        ("intarsia_prefix_store_tier_budget_bytes", "Budget of the tier.", g),
+    ];
+    for (i, (name, help, kind)) in fams.iter().enumerate() {
+        let _ = writeln!(o, "# HELP {name} {help}\n# TYPE {name} {kind}");
+        for (tier, t) in tiers {
+            let v = [t.hits, t.evictions, t.objects, t.bytes, t.budget_bytes][i];
+            let _ = writeln!(o, "{name}{{tier=\"{tier}\"}} {v}");
+        }
+    }
+    o
+}
+
 pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String {
     let mut o = String::with_capacity(4096);
     metric(

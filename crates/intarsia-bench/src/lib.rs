@@ -6,5 +6,6 @@
 
 pub mod http;
 pub mod snapshot;
+pub mod reuse;
 pub mod speed;
 pub mod top;

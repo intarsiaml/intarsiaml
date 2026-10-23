@@ -121,6 +121,9 @@ pub struct ModelArgs {
     /// `serve --busy-chunk`, batched engine only. `serve` only.
     #[arg(skip)]
     pub busy_chunk: Option<usize>,
+    /// `serve --prefix-store`. `None`: `INTARSIA_PREFIX_STORE` decides (unset: off).
+    #[arg(skip)]
+    pub prefix_store: Option<intarsia_core::prefix_store::PrefixStoreConfig>,
     /// Where the resolved prefill chunk came from; set by [`ModelArgs::pin_prefill_chunk`] once the model is loaded.
     #[arg(skip)]
     pub prefill_chunk_source: Option<String>,
@@ -307,6 +310,7 @@ impl ModelArgs {
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,
             busy_chunk: self.busy_chunk,
+            prefix_store: self.prefix_store.clone(),
         })
     }
 
