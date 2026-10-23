@@ -62,7 +62,8 @@ Implementation (`crates/intarsia-core/src/model/mtp.rs`):
   That holds where each op of the verify pass has a `rows_exact` kernel. The cpu backend loops over rows, so it holds there.
 - Metal registers `rows_exact` kernels only for bf16 GEMV / pair / logits and split-KV attention. CUDA registers none.
   So on the 35B (FP8 projections, NVFP4 experts and head, GatedDeltaNet), `--spec mtp` on a GPU emits the verify path's
-  argmax. Where that differs from the M = 1 path, the output differs. Section 3 measures how often.
+  argmax. Where that differs from the M = 1 path, the output would differ. In 24 of 24 CUDA runs it never did (3.1).
+  The logit-level comparison was deferred.
 - The GatedDeltaNet conv and delta rule run one row at a time inside a verify pass (below). That keeps those two ops
   bitwise equal to decode on every backend.
 
@@ -164,7 +165,21 @@ empty. The box then rebooted without a clean shutdown and was back up at 23:01:5
 journal ends at 23:07:32 (back up 23:23:31), and the one after at 23:38:24 (back up 23:45:11). None of my jobs had a
 process on the box at those times. The cause is not established: the new driver, the diagnostic run, or both.
 
-### 3.1 Verify rows vs single-row decode (pending, `INTARSIA_MTP_VERIFY_CHECK`)
+### 3.1 Verify rows vs single-row decode: deferred
+
+On CUDA the bitwise claim rests on **24 of 24** token-identical runs: 4 prompts x k = 1..3 x 256 greedy tokens, once
+before the driver upgrade (3.0) and once after it (3.0b). That is about 3,900 verify rows, each of whose argmax decided
+an emitted token. Not one disagreed with `--spec off`.
+
+The logit-level check was deferred. `INTARSIA_MTP_VERIFY_CHECK=1` runs each verify pass's rows as single-row decode steps
+from the same state and reports the max abs logit difference and argmax agreement per row. Its first run was in progress
+when spark1 crashed (3.0b), and spark1 has been unstable since the driver upgrade. The coordinator decided not to run it
+on spark2 either. The diagnostic is in the code for a later run.
+
+So it is **not measured** whether CUDA verify logits are bitwise equal to the M = 1 path. CUDA registers no `rows_exact`
+kernels, so the verify GEMMs may round differently from the GEMVs. Greedy correctness therefore relies on accepting a
+draft only on an exact argmax match. The emitted token is the verify row's argmax, and in these 24 runs it always equalled
+the M = 1 argmax. `--spec mtp` prints this caveat on a backend without row-exact kernels.
 
 ### 3.2 Exclusive localeval window: decode tok/s at 128 / 1k / 4k, k sweep (pending)
 
