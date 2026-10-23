@@ -1,0 +1,40 @@
+kernels in main burst: 1491 (of 2053), span 149.0 ms, kernel time 132.5 ms, idle 11.0 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    38.08    952.0  28.7%  65536x8x1 x 256
+gdn_delta_rows_v2_kernel<128, 2, 2>                                                 30    25.88    862.7  19.5%  256x32x1 x 32
+moe_wmma_kernel_r7<false, 64, 25>                                                   40    18.06    451.4  13.6%  65536x8x1 x 256
+f8_gemm_kernel<4, 2, 2, 4, bf16>                                                   130    16.28    125.2  12.3%  2048x64x1 x 256
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      120     7.66     63.9   5.8%  2048x4x1 x 256
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 140     5.30     37.8   4.0%  2048x1x1 x 256
+gdn_conv_kernel<false>                                                              30     2.27     75.8   1.7%  8192x32x1 x 128
+moe_reduce_v8_kernel                                                                40     2.09     52.4   1.6%  261888x1x1 x 256
+moe_block_kernel<4, 8>                                                              40     1.97     49.2   1.5%  212992x1x1 x 256
+f8_actq_kernel                                                                     130     1.76     13.5   1.3%  261888x1x1 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     10     1.72    172.1   1.3%  8192x4x1 x 512
+gated_rmsnorm_kernel<true>                                                          30     1.54     51.4   1.2%  1047552x1x1 x 32
+rmsnorm_kernel<true, true>                                                          81     1.50     18.6   1.1%  261888x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.32     44.1   1.0%  393216x1x1 x 256
+moe_combine_kernel<bf16>                                                            40     1.22     30.5   0.9%  2095104x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   20     0.83     41.6   0.6%  294624x2x1 x 288
+fp8_gemv_gated_kernel<2, bf16>                                                      30     0.59     19.6   0.4%  32768x1x1 x 256
+silu_glu_kernel<true>                                                               40     0.53     13.2   0.4%  65536x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     0.47     15.6   0.4%  8192x1x1 x 256
+nvfp4_gemv_v2_kernel<1, float, false>                                                1     0.46    460.8   0.3%  7946240x1x1 x 256
+fp8_gemv_kernel<1, 2, bf16, 2>                                                      10     0.31     31.5   0.2%  131072x1x1 x 256
+sigmoid_mul_kernel                                                                  10     0.31     31.3   0.2%  4190208x1x1 x 256
+rmsnorm_add_pair_kernel<1, 8>                                                       69     0.29      4.1   0.2%  8448x1x1 x 256
+moe_group_kernel                                                                    40     0.27      6.8   0.2%  1024x1x1 x 1024
+gdn_conv_delta_kernel<128, 2, 1, 4>                                                 30     0.26      8.7   0.2%  256x32x1 x 32
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     130     0.25      2.0   0.2%  2048x64x1 x 256
+__amd_rocclr_copyBuffer                                                             34     0.25      7.5   0.2%  512x1x1 x 512
+moe_topk_v2_kernel                                                                  40     0.25      6.3   0.2%  32768x1x1 x 128
+fp8_gemv_sigmoid_kernel<2>                                                          10     0.19     18.9   0.1%  32768x1x1 x 256
+splitkv_kernel<8, 32, 2>                                                            10     0.14     14.2   0.1%  16384x2x1 x 256
+rmsnorm_kernel<false, true>                                                          2     0.13     65.2   0.1%  261888x1x1 x 256
+embedding_kernel<true>                                                               2     0.07     36.2   0.1%  261888x1x1 x 256
+fp8_gemv_norm_pair_kernel<1>                                                        10     0.07      7.0   0.1%  32768x1x1 x 256
+gdn_conv_state_kernel                                                               30     0.07      2.3   0.1%  8192x1x1 x 128
+argmax_kernel<float>                                                                 1     0.05     46.2   0.0%  1024x1x1 x 1024
+combine_kernel<256, 16>                                                             10     0.03      2.8   0.0%  4096x1x1 x 256
+gemv_pair_kernel<1, 8, bf16>                                                         1     0.00      2.2   0.0%  2048x1x1 x 256

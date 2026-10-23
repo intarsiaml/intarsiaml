@@ -386,6 +386,9 @@ impl BatchedEngine {
                 opts.max_batch
             )));
         }
+        if meta.spec.mode == crate::spec::SpecMode::Mtp {
+            return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
+        }
         if meta.spec.enabled() && model.verify_rows() < meta.spec.verify_rows() {
             return Err(Error::invalid(format!(
                 "speculative decoding with k = {} needs verify passes of {} rows; the model was prepared for {} \

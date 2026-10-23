@@ -562,6 +562,24 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     push(format!("T={t} E={e} K={k} H={h} I={i} {dt}"), experts_case(&mut rng, t, e, k, h, i, dt));
                 }
             }
+            // g4 (Gemma 4): the experts' activation is tanh-GELU (`OpAttrs::gelu`), `.ext()` kernels only. One small shape per
+            // CUDA kernel family (decode, generic warp-per-row, grouped tensor-core, W4A16 at T >= 768), plus a larger decode
+            // shape; the cpu reference is the arbiter.
+            let mut gshapes: Vec<(usize, usize, usize, usize, usize)> =
+                vec![(1, 8, 2, 64, 32), (5, 16, 4, 128, 48), (36, 16, 4, 128, 128), (1024, 16, 8, 256, 128)];
+            if !quick {
+                gshapes.extend([(1, 64, 8, 2048, 512), (40, 32, 8, 2048, 512)]);
+            }
+            for (t, e, k, h, i) in gshapes {
+                for dt in ACT {
+                    if t >= 1024 && dt != DType::Bf16 {
+                        continue; // the cost of the cpu reference
+                    }
+                    let mut c = experts_case(&mut rng, t, e, k, h, i, dt);
+                    c.attrs.gelu = true;
+                    push(format!("T={t} E={e} K={k} H={h} I={i} {dt} gelu"), c);
+                }
+            }
         }
         Op::MoeCombine => {
             for &t in if quick { &[1usize, 5][..] } else { &[1usize, 5, 33][..] } {

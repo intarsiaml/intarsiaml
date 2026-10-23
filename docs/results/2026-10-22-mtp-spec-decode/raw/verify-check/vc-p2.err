@@ -1,0 +1,111 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv matmul=matmul_bf16_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16 matmul_nvfp4=matmul_nvfp4_gemv silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_prefill=attn_prefill_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 argmax=argmax_f32
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 37.5s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 31 tokens
+spec-check: rows 3 0.000e0:1:4.987e0:1 0.000e0:1:2.894e-1:0 0.000e0:1:3.870e0:0
+spec-check: rows 3 0.000e0:1:1.258e1:1 0.000e0:1:7.831e-1:1 0.000e0:1:3.839e0:0
+spec-check: rows 3 0.000e0:1:8.919e0:1 0.000e0:1:3.190e0:1 0.000e0:1:9.482e-1:1
+spec-check: rows 3 0.000e0:1:5.785e0:1 0.000e0:1:8.522e0:1 0.000e0:1:3.417e0:1
+spec-check: rows 3 0.000e0:1:1.276e0:1 0.000e0:1:2.550e0:1 0.000e0:1:6.303e-1:0
+spec-check: rows 3 0.000e0:1:7.959e0:1 0.000e0:1:4.085e0:1 0.000e0:1:3.242e0:1
+spec-check: rows 3 0.000e0:1:5.696e0:1 0.000e0:1:3.569e0:1 0.000e0:1:2.017e0:1
+spec-check: rows 3 0.000e0:1:8.242e0:1 0.000e0:1:3.526e-1:1 0.000e0:1:6.637e0:0
+spec-check: rows 3 0.000e0:1:9.754e0:1 0.000e0:1:1.166e1:1 0.000e0:1:5.295e-1:1
+spec-check: rows 3 0.000e0:1:1.282e1:1 0.000e0:1:1.003e1:1 0.000e0:1:1.190e1:1
+spec-check: rows 3 0.000e0:1:1.147e1:1 0.000e0:1:1.824e1:1 0.000e0:1:8.358e0:1
+spec-check: rows 3 0.000e0:1:8.796e0:1 0.000e0:1:1.432e1:1 0.000e0:1:4.813e-1:1
+spec-check: rows 3 0.000e0:1:5.513e-1:1 0.000e0:1:5.821e-1:0 0.000e0:1:3.851e0:0
+spec-check: rows 3 0.000e0:1:2.989e0:1 0.000e0:1:7.610e0:1 0.000e0:1:4.187e0:1
+spec-check: rows 3 0.000e0:1:1.066e1:1 0.000e0:1:3.755e0:1 0.000e0:1:5.765e-1:1
+spec-check: rows 3 0.000e0:1:5.127e0:1 0.000e0:1:8.508e0:1 0.000e0:1:1.044e0:1
+spec-check: rows 3 0.000e0:1:2.653e0:1 0.000e0:1:3.199e-1:1 0.000e0:1:3.655e-1:0
+spec-check: rows 3 0.000e0:1:6.721e0:1 0.000e0:1:2.688e-1:1 0.000e0:1:8.959e-2:0
+spec-check: rows 3 0.000e0:1:5.188e0:1 0.000e0:1:1.246e1:1 0.000e0:1:3.626e0:1
+spec-check: rows 3 0.000e0:1:4.439e0:1 0.000e0:1:2.066e0:0 0.000e0:1:2.297e-1:0
+spec-check: rows 3 0.000e0:1:5.984e-1:1 0.000e0:1:1.010e1:0 0.000e0:1:1.507e0:0
+spec-check: rows 3 0.000e0:1:1.233e0:1 0.000e0:1:7.858e0:0 0.000e0:1:1.044e0:0
+spec-check: rows 3 0.000e0:1:1.561e0:1 0.000e0:1:1.029e1:1 0.000e0:1:6.792e-1:1
+spec-check: rows 3 0.000e0:1:7.014e-1:1 0.000e0:1:2.990e0:1 0.000e0:1:3.712e0:1
+spec-check: rows 3 0.000e0:1:2.183e0:1 0.000e0:1:8.058e0:1 0.000e0:1:5.133e0:0
+spec-check: rows 3 0.000e0:1:1.221e1:1 0.000e0:1:9.880e0:1 0.000e0:1:6.013e0:1
+spec-check: rows 3 0.000e0:1:9.505e0:1 0.000e0:1:9.960e0:1 0.000e0:1:1.374e-1:0
+spec-check: rows 3 0.000e0:1:4.740e0:1 0.000e0:1:1.405e1:1 0.000e0:1:1.028e1:1
+spec-check: rows 3 0.000e0:1:9.194e0:1 0.000e0:1:1.202e1:1 0.000e0:1:1.134e1:1
+spec-check: rows 3 0.000e0:1:9.587e0:1 0.000e0:1:4.836e0:1 0.000e0:1:2.780e0:0
+spec-check: rows 3 0.000e0:1:1.160e1:1 0.000e0:1:5.273e0:1 0.000e0:1:2.613e-1:0
+spec-check: rows 3 0.000e0:1:1.363e1:1 0.000e0:1:1.232e1:1 0.000e0:1:1.088e1:1
+spec-check: rows 3 0.000e0:1:8.491e0:1 0.000e0:1:1.003e1:1 0.000e0:1:3.483e0:0
+spec-check: rows 3 0.000e0:1:4.830e0:1 0.000e0:1:1.263e1:1 0.000e0:1:9.364e0:1
+spec-check: rows 3 0.000e0:1:1.228e1:1 0.000e0:1:1.393e1:1 0.000e0:1:9.729e0:1
+spec-check: rows 3 0.000e0:1:4.356e-2:1 0.000e0:1:1.183e1:1 0.000e0:1:1.665e1:1
+spec-check: rows 3 0.000e0:1:1.300e1:1 0.000e0:1:1.051e1:1 0.000e0:1:1.378e1:1
+spec-check: rows 3 0.000e0:1:1.406e1:1 0.000e0:1:1.053e-1:1 0.000e0:1:1.469e-1:0
+spec-check: rows 3 0.000e0:1:2.841e0:1 0.000e0:1:1.028e0:0 0.000e0:1:2.438e0:0
+spec-check: rows 3 0.000e0:1:1.936e0:1 0.000e0:1:2.901e0:1 0.000e0:1:6.219e0:1
+spec-check: rows 3 0.000e0:1:1.262e1:1 0.000e0:1:1.425e1:1 0.000e0:1:1.163e1:1
+spec-check: rows 3 0.000e0:1:4.141e0:1 0.000e0:1:8.844e-1:1 0.000e0:1:7.934e0:0
+spec-check: rows 3 0.000e0:1:8.114e0:1 0.000e0:1:1.763e0:1 0.000e0:1:9.225e0:1
+spec-check: rows 3 0.000e0:1:1.018e1:1 0.000e0:1:4.434e0:1 0.000e0:1:5.664e0:1
+spec-check: rows 3 0.000e0:1:1.148e1:1 0.000e0:1:7.147e0:1 0.000e0:1:4.631e-1:1
+spec-check: rows 3 0.000e0:1:1.019e1:1 0.000e0:1:1.844e0:1 0.000e0:1:4.172e0:1
+spec-check: rows 3 0.000e0:1:3.703e0:1 0.000e0:1:3.059e0:1 0.000e0:1:5.671e0:0
+spec-check: rows 3 0.000e0:1:4.418e0:1 0.000e0:1:5.229e-1:1 0.000e0:1:3.283e0:0
+spec-check: rows 3 0.000e0:1:4.439e-1:1 0.000e0:1:1.249e1:1 0.000e0:1:8.497e0:1
+spec-check: rows 3 0.000e0:1:1.591e1:1 0.000e0:1:2.767e0:1 0.000e0:1:7.695e0:1
+spec-check: rows 3 0.000e0:1:2.262e0:1 0.000e0:1:1.650e0:1 0.000e0:1:3.174e0:1
+spec-check: rows 3 0.000e0:1:7.212e0:1 0.000e0:1:9.417e0:1 0.000e0:1:7.610e-1:1
+spec-check: rows 3 0.000e0:1:1.902e0:1 0.000e0:1:5.866e0:1 0.000e0:1:3.334e0:0
+spec-check: rows 3 0.000e0:1:1.352e0:1 0.000e0:1:2.639e0:1 0.000e0:1:3.770e0:1
+spec-check: rows 3 0.000e0:1:1.042e1:1 0.000e0:1:9.671e0:1 0.000e0:1:9.584e-1:1
+spec-check: rows 3 0.000e0:1:1.498e1:1 0.000e0:1:1.086e1:1 0.000e0:1:3.906e0:1
+spec-check: rows 3 0.000e0:1:6.289e0:1 0.000e0:1:1.300e1:1 0.000e0:1:1.432e1:1
+spec-check: rows 3 0.000e0:1:1.055e1:1 0.000e0:1:4.849e0:1 0.000e0:1:1.105e1:1
+spec-check: rows 3 0.000e0:1:1.178e1:1 0.000e0:1:5.909e0:1 0.000e0:1:1.097e1:1
+spec-check: rows 3 0.000e0:1:1.462e1:1 0.000e0:1:1.761e1:1 0.000e0:1:1.510e1:1
+spec-check: rows 3 0.000e0:1:9.431e0:1 0.000e0:1:1.491e1:1 0.000e0:1:2.994e0:1
+spec-check: rows 3 0.000e0:1:1.087e1:1 0.000e0:1:7.052e0:1 0.000e0:1:8.535e0:1
+spec-check: rows 3 0.000e0:1:3.049e0:1 0.000e0:1:1.083e0:0 0.000e0:1:2.923e0:0
+spec-check: rows 3 0.000e0:1:5.639e0:1 0.000e0:1:2.173e0:1 0.000e0:1:1.113e1:1
+spec-check: rows 3 0.000e0:1:8.745e0:1 0.000e0:1:7.354e0:1 0.000e0:1:8.814e-1:1
+spec-check: rows 3 0.000e0:1:5.716e0:1 0.000e0:1:9.150e-1:1 0.000e0:1:5.694e-1:1
+spec-check: rows 3 0.000e0:1:2.673e0:1 0.000e0:1:2.540e0:1 0.000e0:1:3.606e0:0
+spec-check: rows 3 0.000e0:1:1.172e-1:1 0.000e0:1:5.586e0:1 0.000e0:1:2.987e-1:1
+spec-check: rows 3 0.000e0:1:5.222e0:1 0.000e0:1:2.721e0:1 0.000e0:1:9.437e-1:0
+spec-check: rows 3 0.000e0:1:9.795e0:1 0.000e0:1:1.427e1:1 0.000e0:1:1.090e1:1
+spec-check: rows 3 0.000e0:1:3.945e0:1 0.000e0:1:1.406e1:1 0.000e0:1:1.041e1:1
+spec-check: rows 3 0.000e0:1:3.591e0:1 0.000e0:1:2.251e-1:1 0.000e0:1:4.313e0:0
+spec-check: rows 3 0.000e0:1:5.370e-1:1 0.000e0:1:7.312e0:1 0.000e0:1:3.019e0:1
+spec-check: rows 3 0.000e0:1:1.090e1:1 0.000e0:1:2.996e0:1 0.000e0:1:1.031e1:1
+spec-check: rows 3 0.000e0:1:1.088e1:1 0.000e0:1:7.770e0:1 0.000e0:1:3.845e0:0
+spec-check: rows 3 0.000e0:1:2.637e0:1 0.000e0:1:7.718e0:1 0.000e0:1:3.183e0:1
+spec-check: rows 3 0.000e0:1:2.402e0:1 0.000e0:1:3.058e0:1 0.000e0:1:3.266e0:0
+spec-check: rows 3 0.000e0:1:6.250e0:1 0.000e0:1:8.222e0:0 0.000e0:1:3.172e0:0
+spec-check: rows 3 0.000e0:1:1.078e1:1 0.000e0:1:7.125e0:1 0.000e0:1:5.424e0:1
+spec-check: rows 3 0.000e0:1:1.425e1:1 0.000e0:1:9.388e0:1 0.000e0:1:1.346e1:1
+spec-check: rows 3 0.000e0:1:1.235e1:1 0.000e0:1:1.662e1:1 0.000e0:1:1.618e1:1
+spec-check: rows 3 0.000e0:1:1.377e1:1 0.000e0:1:1.360e1:1 0.000e0:1:1.411e1:1
+spec-check: rows 3 0.000e0:1:6.395e-1:1 0.000e0:1:8.294e0:0 0.000e0:1:1.283e1:0
+spec-check: rows 3 0.000e0:1:1.205e1:1 0.000e0:1:2.867e0:1 0.000e0:1:3.880e-1:0
+spec-check: rows 3 0.000e0:1:8.249e0:1 0.000e0:1:1.097e1:1 0.000e0:1:8.506e0:1
+spec-check: rows 3 0.000e0:1:1.045e0:1 0.000e0:1:8.443e-1:1 0.000e0:1:4.026e0:1
+spec-check: rows 3 0.000e0:1:8.294e0:1 0.000e0:1:1.145e1:1 0.000e0:1:1.027e1:1
+spec-check: rows 3 0.000e0:1:3.181e0:1 0.000e0:1:4.633e0:1 0.000e0:1:2.729e0:1
+spec-check: rows 3 0.000e0:1:6.231e-1:1 0.000e0:1:3.696e0:1 0.000e0:1:8.960e0:1
+spec-check: rows 3 0.000e0:1:4.077e-1:1 0.000e0:1:1.537e-1:1 0.000e0:1:2.388e0:0
+spec-check: rows 3 0.000e0:1:1.314e1:1 0.000e0:1:5.107e0:1 0.000e0:1:3.657e0:0
+spec-check: rows 3 0.000e0:1:7.303e0:1 0.000e0:1:1.336e1:1 0.000e0:1:7.612e0:1
+spec-check: rows 3 0.000e0:1:7.329e0:1 0.000e0:1:8.959e0:1 0.000e0:1:1.167e1:1
+spec-check: rows 3 0.000e0:1:4.774e0:1 0.000e0:1:3.065e0:1 0.000e0:1:1.220e1:0
+spec-check: rows 3 0.000e0:1:1.112e1:1 0.000e0:1:3.622e0:1 0.000e0:1:1.303e1:1
+spec-check: rows 3 0.000e0:1:7.556e0:1 0.000e0:1:9.785e0:1 0.000e0:1:1.451e1:1
+spec-check: rows 3 0.000e0:1:6.501e0:1 0.000e0:1:6.587e0:1 0.000e0:1:9.244e-1:1
+spec-check: rows 3 0.000e0:1:8.899e-2:1 0.000e0:1:1.795e0:0 0.000e0:1:6.205e-1:0
+spec-check: rows 3 0.000e0:1:1.172e0:1 0.000e0:1:1.622e-1:0 0.000e0:1:5.160e0:0
+spec-check: rows 3 0.000e0:1:4.285e0:1 0.000e0:1:4.847e0:1 0.000e0:1:1.302e1:0
+spec-check: rows 2 0.000e0:1:1.361e1:1 0.000e0:1:2.801e-1:1
+finish=length prompt=31 (cached 0) completion=256 | prefill 287 ms (108.2 tok/s) | decode 8724 ms (29.23 tok/s)
+spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+steps=506 graph replays=303 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/404 argmax=0ms/706 attn_decode=0ms/3344 attn_prefill=0ms/2120 embedding=0ms/910

@@ -287,7 +287,13 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
     eprintln!("prefill chunk {}", prefill_chunk.describe());
-    let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
+    let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
+    let load_opts = LoadOptions {
+        prefill_chunk: prefill_chunk.value,
+        mtp: opts.load.mtp || mtp,
+        mtp_k: if mtp { opts.spec.k } else { opts.load.mtp_k },
+        ..opts.load.clone()
+    };
     let mut model = match group {
         Group::Local(backends, comms) if backends.len() == 1 => {
             let _ = comms;
@@ -328,8 +334,16 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
     if opts.spec.enabled() {
-        // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only
-        if model.backend.name() != "metal" || model.tp_world() > 1 {
+        // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
+        // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
+        // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
+        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {
+            eprintln!(
+                "--spec mtp on {}: no row-exact verify kernels here, so greedy output can differ from --spec off where a \
+                 verify row's argmax differs from the single-row decode's",
+                model.backend.name()
+            );
+        } else if model.backend.name() != "metal" || model.tp_world() > 1 {
             return Err(Error::Unsupported(format!(
                 "--spec {:?} needs the Metal backend without tensor parallelism (backend {}, tp {})",
                 opts.spec.mode,

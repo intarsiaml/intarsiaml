@@ -1,0 +1,924 @@
+{
+  "kind": "intarsia-onboard",
+  "schema_version": 1,
+  "section": "quick",
+  "model": "gemma4-26b-a4b-nvfp4",
+  "model_dir": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+  "backend": "cuda",
+  "tp": 1,
+  "reference": "/home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors",
+  "build_stamp": "unstamped",
+  "version": "0.0.1",
+  "generated_unix": 1792716146,
+  "verdict": "FAIL",
+  "exit_code": 1,
+  "headline": {
+    "speed": [
+      {
+        "size": 128,
+        "decode_tok_s": 34.54,
+        "prefill_tok_s": 629.5,
+        "pct_of_floor": 275.7,
+        "ttft_s": 0.2065
+      },
+      {
+        "size": 1024,
+        "decode_tok_s": 31.33,
+        "prefill_tok_s": 533.7,
+        "pct_of_floor": 250.0,
+        "ttft_s": 1.9249
+      },
+      {
+        "size": 4096,
+        "decode_tok_s": 24.68,
+        "prefill_tok_s": 372.0,
+        "pct_of_floor": 197.0,
+        "ttft_s": 11.5521
+      }
+    ],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "FAIL",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1468,
+            "top1_pct": 86.64850136239782,
+            "mean_kl": 0.21218203859948137,
+            "mean_kl21": 0.2384124488837668,
+            "floor_pass": false
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 89.375,
+            "mean_kl": 0.15703747913895816,
+            "mean_kl21": 0.20239378065565344,
+            "floor_pass": false
+          }
+        ]
+      }
+    ],
+    "quick_gate": {
+      "perplexity": 533.484,
+      "perplexity_line": "533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL",
+      "sanity_ok": 1,
+      "sanity_failed": 4
+    }
+  },
+  "failures": [
+    {
+      "stage": "gate",
+      "verdict": "FAIL",
+      "reason": "perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty | sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact (\"blue\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact (\"paris\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact (\"oxygen\"): NO"
+    },
+    {
+      "stage": "acc-short",
+      "verdict": "FAIL",
+      "reason": "prefill: 21-way KL (scored rows, n=1468) 2.384e-1 (need <= 3.0e-2); decode: 21-way KL (scored rows, n=160) 2.024e-1 (need <= 3.0e-2)"
+    }
+  ],
+  "warnings": [],
+  "skipped": [
+    {
+      "stage": "acc-format",
+      "reason": "no format-reference golden for 'gemma4-26b-a4b-nvfp4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)"
+    },
+    {
+      "stage": "acc-oracle",
+      "reason": "no CPU-oracle golden for 'gemma4-26b-a4b-nvfp4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory)"
+    }
+  ],
+  "wall_s": {
+    "quick": 389.131196231,
+    "full": -0.0,
+    "total": 389.131196231
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "NVIDIA GB10 (sm_121), 71 kernels registered",
+      "wall_s": 0.758987285,
+      "started_unix": 1792715757,
+      "artifacts": [
+        "doctor.json"
+      ],
+      "metrics": {
+        "host": {
+          "hostname": "spark-fa00",
+          "os": "Ubuntu 24.04.5 LTS",
+          "kernel": "Linux 6.17.0-1029-nvidia",
+          "arch": "aarch64",
+          "cpu_model": "Cortex-A725",
+          "logical_cores": 20,
+          "physical_cores": 20,
+          "ram_total_bytes": 130663231488,
+          "ram_available_bytes": 86850797568,
+          "swap_total_bytes": 17179865088
+        },
+        "device": {
+          "name": "NVIDIA GB10",
+          "backend": "cuda",
+          "arch": "sm_121",
+          "total_mem": 130663231488,
+          "free_mem": 40049233920,
+          "unified": true,
+          "bandwidth_gbs": 220.26593643307743
+        },
+        "bandwidth": {
+          "buffer_mib": 256,
+          "host_to_device_gbs": 59.0,
+          "device_to_host_gbs": 59.4,
+          "device_copy_gbs": 227.0,
+          "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+        },
+        "failures": [],
+        "warnings": [
+          "disk_free:.: 48.6 GB free of 4032 GB (1% free)",
+          "disk_free:/home/nvidia: 48.6 GB free of 4032 GB (1% free)"
+        ]
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia doctor --backend cuda --device 0 --out /home/nvidia/g4-full/onb-f32/qualify/doctor.json"
+        ],
+        "env": {}
+      },
+      "notes": [
+        "warning disk_free:.: 48.6 GB free of 4032 GB (1% free)",
+        "warning disk_free:/home/nvidia: 48.6 GB free of 4032 GB (1% free)"
+      ]
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "builtin:gemma4 covers this model (41/41 tensor templates resolve, quant nvfp4)",
+      "wall_s": 0.139082909,
+      "started_unix": 1792715758,
+      "artifacts": [],
+      "metrics": {
+        "architectures": [
+          "Gemma4ForConditionalGeneration"
+        ],
+        "templates_resolved": [
+          41,
+          41
+        ],
+        "quant": "nvfp4",
+        "notes": [
+          "config.json: architectures [\"Gemma4ForConditionalGeneration\"], family \"gemma4\" (config.json model_type); text model settings merged from text_config",
+          "tensors: model.safetensors.index.json (47033 tensors) + 2/2 shard headers",
+          "layer prefix model.language_model.layers.{i} (30 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)",
+          "quantisation: nvfp4 (not implemented in full, see TODOs)",
+          "hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)",
+          "closest existing recipe: builtin:gemma4 (blocks {\"gemma\"} vs inferred {\"attn\", \"ffn\"}; 41/41 tensor templates resolve; covers this model)",
+          "ignored non-text tensor groups: model.vision_tower.* (355)"
+        ],
+        "todos": [
+          "model.norm_offset: family \"gemma4\" is of a lineage that uses zero-centred RMSNorm (x * (1 + w)) but no existing recipe of it was found; check the model's RMSNorm in transformers and set norm_offset = 1.0 if so",
+          "layer: sliding-window attention (text_config.sliding_window = 1024 (use_sliding_window absent, so it applies)) is not implemented, a new attention block kind is needed",
+          "layer: sliding-window attention (text_config.layer_types contains sliding_attention) is not implemented, a new attention block kind is needed",
+          "layer: no attention or linear-attention block recognised (module groups in the layer: [\"experts.0\", \"experts.1\", \"experts.10\", \"experts.100\", \"experts.101\", \"experts.102\", \"experts.103\", \"experts.104\", \"experts.105\", \"experts.106\", \"experts.107\", \"experts.108\", \"experts.109\", \"experts.11\", \"experts.110\", \"experts.111\", \"experts.112\", \"experts.113\", \"experts.114\", \"experts.115\", \"experts.116\", \"experts.117\", \"experts.118\", \"experts.119\", \"experts.12\", \"experts.120\", \"experts.121\", \"experts.122\", \"experts.123\", \"experts.124\", \"experts.125\", \"experts.126\", \"experts.127\", \"experts.13\", \"experts.14\", \"experts.15\", \"experts.16\", \"experts.17\", \"experts.18\", \"experts.19\", \"experts.2\", \"experts.20\", \"experts.21\", \"experts.22\", \"experts.23\", \"experts.24\", \"experts.25\", \"experts.26\", \"experts.27\", \"experts.28\", \"experts.29\", \"experts.3\", \"experts.30\", \"experts.31\", \"experts.32\", \"experts.33\", \"experts.34\", \"experts.35\", \"experts.36\", \"experts.37\", \"experts.38\", \"experts.39\", \"experts.4\", \"experts.40\", \"experts.41\", \"experts.42\", \"experts.43\", \"experts.44\", \"experts.45\", \"experts.46\", \"experts.47\", \"experts.48\", \"experts.49\", \"experts.5\", \"experts.50\", \"experts.51\", \"experts.52\", \"experts.53\", \"experts.54\", \"experts.55\", \"experts.56\", \"experts.57\", \"experts.58\", \"experts.59\", \"experts.6\", \"experts.60\", \"experts.61\", \"experts.62\", \"experts.63\", \"experts.64\", \"experts.65\", \"experts.66\", \"experts.67\", \"experts.68\", \"experts.69\", \"experts.7\", \"experts.70\", \"experts.71\", \"experts.72\", \"experts.73\", \"experts.74\", \"experts.75\", \"experts.76\", \"experts.77\", \"experts.78\", \"experts.79\", \"experts.8\", \"experts.80\", \"experts.81\", \"experts.82\", \"experts.83\", \"experts.84\", \"experts.85\", \"experts.86\", \"experts.87\", \"experts.88\", \"experts.89\", \"experts.9\", \"experts.90\", \"experts.91\", \"experts.92\", \"experts.93\", \"experts.94\", \"experts.95\", \"experts.96\", \"experts.97\", \"experts.98\", \"experts.99\", \"mlp\", \"router\", \"self_attn\"]); a new block or a different tensor layout is needed",
+          "layer.ffn.act: text_config.hidden_act = \"gelu_pytorch_tanh\"; only silu (silu_glu) is implemented, a new activation is needed in ops.rs and the ffn block",
+          "top: 1 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. [\"model.embed_vision.embedding_projection.weight\"]; decide whether the model needs them",
+          "layer: 1542 per-layer tensor(s) are claimed by no block, e.g. [\"experts.1.down_proj.input_scale\", \"experts.1.down_proj.weight\", \"experts.1.down_proj.weight_scale\", \"experts.1.down_proj.weight_scale_2\", \"experts.1.gate_proj.input_scale\", \"experts.1.gate_proj.weight\"] ... (relative to model.language_model.layers.<i>.); extra norms, biases or unknown modules need a block or an explicit decision to ignore them",
+          "quant: quant_algo \"NVFP4\" (NVFP4 weights AND 4-bit activations) declared in hf_quant_config.json; the engine implements only weight-only W4A16_NVFP4",
+          "quant: unsupported: 'model.language_model.layers.0.experts.0.gate_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM",
+          "quant: unsupported: 'model.language_model.layers.0.experts.0.up_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM",
+          "quant: unsupported: 'model.language_model.layers.0.experts.0.down_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM"
+        ]
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "recipe::analyse(/home/nvidia/models/Gemma-4-26B-A4B-NVFP4)"
+        ],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "21 ops resolved, exactness fast, loaded in 55.6s",
+      "wall_s": 55.572155551,
+      "started_unix": 1792715758,
+      "artifacts": [
+        "plan.json"
+      ],
+      "metrics": {
+        "model": "Gemma-4-26B-A4B-NVFP4",
+        "device": "NVIDIA GB10",
+        "exactness": "fast",
+        "act_dtype": "bf16",
+        "kv_dtype": "bf16",
+        "prefill_chunk": 1024,
+        "prefill_chunk_source": "recipe gemma4, cuda",
+        "scratch_bytes": 57705984,
+        "reference_only": false,
+        "layers": 30,
+        "layer_blocks": [
+          "gemma4_layer"
+        ],
+        "ops": [
+          {
+            "op": "embedding",
+            "kernel": "embedding_scaled_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "rmsnorm",
+            "kernel": "rmsnorm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 241
+          },
+          {
+            "op": "add",
+            "kernel": "add_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 60
+          },
+          {
+            "op": "add",
+            "kernel": "add_scaled_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "qk_norm",
+            "kernel": "qk_norm_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 90
+          },
+          {
+            "op": "rope",
+            "kernel": "rope_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 50
+          },
+          {
+            "op": "rope",
+            "kernel": "rope_prop_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 10
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16",
+            "exactness": "fast",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "matmul",
+            "kernel": "matmul_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 235
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16",
+            "exactness": "fast",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "logits",
+            "kernel": "logits_bf16_gemv",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "kv_append",
+            "kernel": "kv_append_bf16",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 60
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_ext",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_prefill",
+            "kernel": "attn_prefill_bf16_splitkv_ext",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_ext",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 5
+          },
+          {
+            "op": "attn_decode",
+            "kernel": "attn_decode_bf16_splitkv_ext",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 25
+          },
+          {
+            "op": "argmax",
+            "kernel": "argmax_f32",
+            "exactness": "exact",
+            "admitted": true,
+            "calls_per_decode_step": 1
+          },
+          {
+            "op": "moe_topk",
+            "kernel": "moe_topk_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_decode_v2_gelu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          },
+          {
+            "op": "moe_experts",
+            "kernel": "moe_experts_gelu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 0
+          },
+          {
+            "op": "gelu_glu",
+            "kernel": "gelu_glu_bf16",
+            "exactness": "deterministic",
+            "admitted": true,
+            "calls_per_decode_step": 30
+          }
+        ],
+        "load_s": 55.571683841
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia plan show --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cuda --device 0 --mem-budget 40 --admit --json"
+        ],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "71 kernels, 1425 cases in 82.8s",
+      "wall_s": 83.465858816,
+      "started_unix": 1792715813,
+      "artifacts": [
+        "logs/kernels.out"
+      ],
+      "metrics": {
+        "summary": "71 kernels, 1425 cases in 82.8s"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia kernels test --backend cuda --device 0 --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4"
+        ],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "FAIL",
+      "reason": "perplexity: 533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL | sanity FAIL: 48 tokens, max 4-gram repeat 19: non-empty | sanity FAIL: 3 tokens, max 4-gram repeat 0: non-empty, answers the fact (\"blue\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 45: non-empty, answers the fact (\"paris\"): NO | sanity FAIL: 48 tokens, max 4-gram repeat 12: non-empty, answers the fact (\"oxygen\"): NO",
+      "wall_s": 43.096027324,
+      "started_unix": 1792715897,
+      "artifacts": [
+        "logs/gate.out"
+      ],
+      "metrics": {
+        "perplexity": 533.484,
+        "perplexity_line": "533.484 over 1166 tokens (need <= 40), non-finite rows 0 FAIL",
+        "sanity_ok": 1,
+        "sanity_failed": 4
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia accuracy --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cuda --device 0 --mem-budget 40 --quick --max-seq 2048"
+        ],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "no format-reference golden for 'gemma4-26b-a4b-nvfp4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)",
+      "wall_s": 0.009409153,
+      "started_unix": 1792715940,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "FAIL",
+      "reason": "prefill: 21-way KL (scored rows, n=1468) 2.384e-1 (need <= 3.0e-2); decode: 21-way KL (scored rows, n=160) 2.024e-1 (need <= 3.0e-2)",
+      "wall_s": 46.864622817,
+      "started_unix": 1792715940,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors",
+        "golden_how": "given with --golden",
+        "golden_fingerprint": "fnv1a64:d301a381370f5e2b size:249928",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1468,
+            "top1_pct": 86.64850136239782,
+            "mean_kl": 0.21218203859948137,
+            "mean_kl21": 0.2384124488837668,
+            "top5_pct": 81.53950953678473,
+            "tail_ref": 0.04337229953456528,
+            "tail_ours": 0.05729444612188027,
+            "max_kl": 11.636787018778811,
+            "max_kl21": 19.29941537435756,
+            "tail_abs": 0.023130706275494385,
+            "nonfinite": 0,
+            "greedy_match_pct": 8.106267029972752,
+            "floor_pass": false,
+            "mean_kl_scored": 0.21218203859948137,
+            "mean_kl21_scored": 0.2384124488837668,
+            "scored_positions": 1468,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.2384124488837668,
+                  "scored_rows_kl": 0.2384124488837668
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.2384124488837668,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.2384124488837668,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 89.375,
+            "mean_kl": 0.15703747913895816,
+            "mean_kl21": 0.20239378065565344,
+            "top5_pct": 82.125,
+            "tail_ref": 0.06722521038391294,
+            "tail_ours": 0.08272038356950537,
+            "max_kl": 5.1971743762518425,
+            "max_kl21": 13.52402139191637,
+            "tail_abs": 0.0293750898581795,
+            "nonfinite": 0,
+            "greedy_match_pct": 46.875,
+            "floor_pass": false,
+            "mean_kl_scored": 0.15703747913895816,
+            "mean_kl21_scored": 0.20239378065565344,
+            "scored_positions": 160,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.20239378065565344,
+                  "scored_rows_kl": 0.20239378065565344
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.20239378065565344,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.20239378065565344,
+                  "limit": 0.03,
+                  "verdict": "FAIL"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 46.863126966
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia accuracy --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cuda --device 0 --mem-budget 40 --golden /home/nvidia/g4-full/gemma4-26b-f32.golden.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /home/nvidia/g4-full/onb-f32/qualify/baselines/acc-short.baseline.json"
+        ],
+        "env": {}
+      },
+      "notes": [
+        "no baseline for backend cuda next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated"
+      ]
+    },
+    {
+      "id": "acc-oracle",
+      "title": "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "no CPU-oracle golden for 'gemma4-26b-a4b-nvfp4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory)",
+      "wall_s": 0.009558736,
+      "started_unix": 1792715987,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [],
+        "env": {}
+      },
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "decode 34.5 tok/s at 128 tokens (276% of the byte floor)",
+      "wall_s": 159.21549364,
+      "started_unix": 1792715987,
+      "artifacts": [
+        "bench/qualify-gemma4-26b-a4b-nvfp4-cuda-bench.json",
+        "logs/bench-bench.out",
+        "logs/bench-server.err"
+      ],
+      "metrics": {
+        "rows": [
+          {
+            "size": 128,
+            "prompt_tokens": 130.0,
+            "ttft_s": 0.2065,
+            "prefill_tok_s": 629.5,
+            "decode_tok_s": 34.54,
+            "decode_stdev": 0.03,
+            "floor_tok_s": 12.53,
+            "pct_of_floor": 275.7,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 1024,
+            "prompt_tokens": 1029.0,
+            "ttft_s": 1.9249,
+            "prefill_tok_s": 533.7,
+            "decode_tok_s": 31.33,
+            "decode_stdev": 0.03,
+            "floor_tok_s": 12.53,
+            "pct_of_floor": 250.0,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          },
+          {
+            "size": 4096,
+            "prompt_tokens": 4297.0,
+            "ttft_s": 11.5521,
+            "prefill_tok_s": 372.0,
+            "decode_tok_s": 24.68,
+            "decode_stdev": 0.03,
+            "floor_tok_s": 12.53,
+            "pct_of_floor": 197.0,
+            "reps_ok": 3,
+            "errors": 0,
+            "graph": {
+              "available": true,
+              "replays": 0,
+              "captures": 0,
+              "eager_steps": 381,
+              "profiled_steps": 0
+            }
+          }
+        ],
+        "tp": 1,
+        "gb_per_token": 17.6367719,
+        "bandwidth_gbs": 221.0,
+        "floor_inputs": "gb/token: estimated from checkpoint bytes read per token (experts scaled by top_k/experts, input embedding excluded when the head is separate); bandwidth: 221 GB/s, the GB10 measured figure",
+        "server_load_s": 60.021029005,
+        "label": "qualify-gemma4-26b-a4b-nvfp4-cuda-bench"
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "unstamped",
+        "binary": "/home/nvidia/g4-main-target/release/intarsia",
+        "host": "spark-fa00",
+        "backend": "cuda",
+        "device": "NVIDIA GB10",
+        "arch": "sm_121",
+        "model": "/home/nvidia/models/Gemma-4-26B-A4B-NVFP4",
+        "model_fingerprint": "fnv1a64:18477c8fdb281732",
+        "commands": [
+          "/home/nvidia/g4-main-target/release/intarsia serve --model /home/nvidia/models/Gemma-4-26B-A4B-NVFP4 --backend cuda --device 0 --mem-budget 40 --host 127.0.0.1 --port 8090 --served-model-name qualify-gemma4-26b-a4b-nvfp4 --max-seq 4608 --profile-every 0 --no-supervisor --no-ui",
+          "/home/nvidia/g4-main-target/release/intarsia bench speed --url http://127.0.0.1:8090 --model qualify-gemma4-26b-a4b-nvfp4 --sizes 128,1024,4096 --gen 128 --reps 3 --warmup 1 --thinking off --label qualify-gemma4-26b-a4b-nvfp4-cuda-bench --out-dir /home/nvidia/g4-full/onb-f32/qualify/bench --tp 1 --fingerprint model=gemma4-26b-a4b-nvfp4 --fingerprint backend=cuda --fingerprint build=unstamped --timeout-s 900 --gb-per-token 17.6368 --bandwidth-gbs 221 --fingerprint-file /home/nvidia/g4-full/onb-f32/qualify/doctor.json"
+        ],
+        "env": {}
+      },
+      "notes": [
+        "size 128: 276% of the byte floor is above 100%: the --gb-per-token estimate is too high or the run is not a plain decode (check the floor inputs)",
+        "size 1024: 250% of the byte floor is above 100%: the --gb-per-token estimate is too high or the run is not a plain decode (check the floor inputs)",
+        "size 4096: 197% of the byte floor is above 100%: the --gb-per-token estimate is too high or the run is not a plain decode (check the floor inputs)",
+        "bench warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)",
+        "bench warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)"
+      ]
+    }
+  ],
+  "hooks": [],
+  "qualify_verdict": "FAIL",
+  "tier": "quick",
+  "published_unix": 1792716146,
+  "published": "2026-10-23T00:42:26Z",
+  "onboard": {
+    "started_unix": 1792715728,
+    "started": "2026-10-23T00:35:28Z",
+    "timeline": {
+      "stages": [
+        {
+          "id": "recipe",
+          "tier": "prepare",
+          "verdict": "PASS",
+          "started_unix": 1792715728,
+          "started": "2026-10-23T00:35:28Z",
+          "ended_unix": 1792715729,
+          "ended": "2026-10-23T00:35:29Z",
+          "wall_s": 0.08578154,
+          "first_started_unix": null,
+          "first_started": null
+        },
+        {
+          "id": "smoke",
+          "tier": "prepare",
+          "verdict": "PASS",
+          "started_unix": 1792715729,
+          "started": "2026-10-23T00:35:29Z",
+          "ended_unix": 1792715757,
+          "ended": "2026-10-23T00:35:57Z",
+          "wall_s": 28.262326633,
+          "first_started_unix": null,
+          "first_started": null
+        },
+        {
+          "id": "quick",
+          "tier": "quick",
+          "verdict": "FAIL",
+          "started_unix": 1792715757,
+          "started": "2026-10-23T00:35:57Z",
+          "ended_unix": 1792716146,
+          "ended": "2026-10-23T00:42:26Z",
+          "wall_s": 389.340472255,
+          "first_started_unix": null,
+          "first_started": null
+        }
+      ],
+      "qualify_stages": [
+        {
+          "id": "doctor",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792715757,
+          "started": "2026-10-23T00:35:57Z",
+          "ended_unix": 1792715758,
+          "ended": "2026-10-23T00:35:58Z",
+          "wall_s": 0.758987285
+        },
+        {
+          "id": "recipe",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792715758,
+          "started": "2026-10-23T00:35:58Z",
+          "ended_unix": 1792715758,
+          "ended": "2026-10-23T00:35:58Z",
+          "wall_s": 0.139082909
+        },
+        {
+          "id": "plan",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792715758,
+          "started": "2026-10-23T00:35:58Z",
+          "ended_unix": 1792715814,
+          "ended": "2026-10-23T00:36:54Z",
+          "wall_s": 55.572155551
+        },
+        {
+          "id": "kernels",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792715813,
+          "started": "2026-10-23T00:36:53Z",
+          "ended_unix": 1792715896,
+          "ended": "2026-10-23T00:38:16Z",
+          "wall_s": 83.465858816
+        },
+        {
+          "id": "gate",
+          "section": "quick",
+          "verdict": "FAIL",
+          "started_unix": 1792715897,
+          "started": "2026-10-23T00:38:17Z",
+          "ended_unix": 1792715940,
+          "ended": "2026-10-23T00:39:00Z",
+          "wall_s": 43.096027324
+        },
+        {
+          "id": "acc-format",
+          "section": "quick",
+          "verdict": "SKIP",
+          "started_unix": 1792715940,
+          "started": "2026-10-23T00:39:00Z",
+          "ended_unix": 1792715940,
+          "ended": "2026-10-23T00:39:00Z",
+          "wall_s": 0.009409153
+        },
+        {
+          "id": "acc-short",
+          "section": "quick",
+          "verdict": "FAIL",
+          "started_unix": 1792715940,
+          "started": "2026-10-23T00:39:00Z",
+          "ended_unix": 1792715987,
+          "ended": "2026-10-23T00:39:47Z",
+          "wall_s": 46.864622817
+        },
+        {
+          "id": "acc-oracle",
+          "section": "quick",
+          "verdict": "SKIP",
+          "started_unix": 1792715987,
+          "started": "2026-10-23T00:39:47Z",
+          "ended_unix": 1792715987,
+          "ended": "2026-10-23T00:39:47Z",
+          "wall_s": 0.009558736
+        },
+        {
+          "id": "bench",
+          "section": "quick",
+          "verdict": "PASS",
+          "started_unix": 1792715987,
+          "started": "2026-10-23T00:39:47Z",
+          "ended_unix": 1792716146,
+          "ended": "2026-10-23T00:42:26Z",
+          "wall_s": 159.21549364
+        }
+      ]
+    },
+    "recipe": {
+      "verdict": "PASS",
+      "reason": "builtin:gemma4 covers the model (41/41 tensor templates resolve, quant nvfp4)",
+      "recipe_path": null,
+      "covered_by": "builtin:gemma4"
+    },
+    "smoke": {
+      "verdict": "PASS",
+      "reason": "generated: \"a로.\\n- - - - - - - - - - - -\"",
+      "decode_tok_s": 35.25,
+      "completion": "a로.\n- - - - - - - - - - - -"
+    }
+  }
+}

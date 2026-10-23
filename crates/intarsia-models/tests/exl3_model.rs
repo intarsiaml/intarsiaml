@@ -39,6 +39,7 @@ fn dims() -> ModelDims {
         layer_types: Vec::new(),
         linear: None,
         moe: None,
+        gemma: None,
     }
 }
 

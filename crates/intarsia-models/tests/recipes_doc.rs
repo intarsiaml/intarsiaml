@@ -2,7 +2,7 @@
 //! complete recipe shown there still parses and validates.
 
 use intarsia_core::recipe::{
-    AccuracySpec, AttnSpec, ConfigKeys, Defaults, FfnSpec, GdnSpec, LmHeadSpec, MatchSpec, Recipe, RecipeModel, TopSpec,
+    AccuracySpec, MtpSpec, AttnSpec, ConfigKeys, Defaults, FfnSpec, GdnSpec, LmHeadSpec, MatchSpec, Recipe, RecipeModel, TopSpec,
 };
 use intarsia_models::recipe::{parse_recipe, BUILTIN_RECIPES};
 use std::collections::BTreeSet;
@@ -45,6 +45,7 @@ fn every_schema_key_is_documented() {
     check("defaults", accepted_keys::<Defaults>());
     check("config", accepted_keys::<ConfigKeys>());
     check("accuracy", accepted_keys::<AccuracySpec>());
+    check("mtp", accepted_keys::<MtpSpec>());
     // top-level tables, documented as `### [name]` headings
     for t in accepted_keys::<Recipe>() {
         if !DOC.contains(&format!("[{t}]")) && !DOC.contains(&format!("[{t}.")) {

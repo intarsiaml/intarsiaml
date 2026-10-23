@@ -1,0 +1,9 @@
+qualify-Qwen3.6-35B-A3B-NVFP4-metal-bench  model=qualify-Qwen3.6-35B-A3B-NVFP4  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      125     0.126          982       125.0      128       45.9
+    1024     1003     0.724         1387       124.2      128       45.6
+    4096     4167     3.124         1336       121.1      128       44.5
+bandwidth floor: 272.3 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)

@@ -71,6 +71,7 @@ impl Model {
             Block::Attn(a) => hybrid || !a.gated,
             Block::Ffn(_) => true,
             Block::Gdn(_) | Block::Moe(_) => hybrid,
+            Block::Gemma(_) => false,
         });
         if !dense {
             return Err(Error::Unsupported(

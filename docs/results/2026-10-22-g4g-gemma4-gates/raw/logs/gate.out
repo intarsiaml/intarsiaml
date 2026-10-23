@@ -1,0 +1,13 @@
+perplexity form: chat (limit 60 from recipe [accuracy] max_ppl): tools/prompts/ppl_chat.json through the model's chat template, 3 assistant turns (787 tokens in 3 forwards), assistant tokens scored
+perplexity: 35.971 over 320 tokens (need <= 60), non-finite rows 0 ok
+sanity ok  : 39 tokens, max 4-gram repeat 1: non-empty
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10," -> "11, 12, 13, 14, 15, 16, 17, 18, 19, 20..."
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who" -> "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who was said to be able to mend more than just gears and springs.\n\nHis name was Elias, and his workshop was"
+sanity ok  : 2 tokens, max 4-gram repeat 0: non-empty, answers the fact ("blue"): yes
+    "The three primary colors are red, yellow, and" -> "blue."
+sanity ok  : 8 tokens, max 4-gram repeat 1: non-empty, answers the fact ("paris"): yes
+    "The capital of France is" -> "The capital of France is **Paris**."
+sanity ok  : 16 tokens, max 4-gram repeat 1: non-empty, answers the fact ("oxygen"): yes
+    "Water is a molecule made of two hydrogen atoms and one" -> "Water is a molecule made of two hydrogen atoms and one **oxygen** atom."
+quick gate: PASS

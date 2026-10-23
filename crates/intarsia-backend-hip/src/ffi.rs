@@ -158,6 +158,18 @@ extern "C" {
         s: S,
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
+    pub fn ik_gdn_delta_rule_bf16_v3(
+        qkv: T,
+        a: T,
+        b: T,
+        a_log: T,
+        dt_bias: T,
+        eps: f32,
+        o: TM,
+        state: TM,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
     pub fn ik_qk_norm_rope_kv_bf16(
         q: T,
         k: T,

@@ -33,6 +33,12 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_mma_bf16", Op::MoeExperts),
     ("moe_experts_nvfp4_mma_bf16", Op::MoeExperts),
     ("moe_experts_w4a16_bf16", Op::MoeExperts),
+    // gelu_tanh expert activation (OpAttrs::gelu, Gemma-4): the kernel of the same name without `_gelu`, accepted only as `.ext()`
+    ("moe_experts_gelu_bf16", Op::MoeExperts),
+    ("moe_experts_mma_gelu_bf16", Op::MoeExperts),
+    ("moe_experts_w4a16_gelu_bf16", Op::MoeExperts),
+    ("moe_experts_decode_gelu_bf16", Op::MoeExperts),
+    ("moe_experts_decode_v2_gelu_bf16", Op::MoeExperts),
     ("moe_combine_bf16", Op::MoeCombine),
     // fused decode launchers (docs/results/2026-10-14-cuda-decode-fusion.md): each is bitwise the chain of launches it
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
@@ -309,6 +315,68 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_experts_mma_scratch)
                     .priority(moe_w4a16_priority(15)),
+                // gelu_tanh expert activation (OpAttrs::gelu): the kernels above with the same `when`, scratch, tolerance and
+                // priority, accepted only by a call that asks for the extension (`.ext()`), so a plain call never reaches them
+                "moe_experts_gelu_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.experts <= 1024 && s.k % 16 == 0 && s.n % 16 == 0 && 32768 / (2 * s.k.max(s.n).max(1)) >= 1
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_scratch)
+                    .ext(),
+                "moe_experts_decode_gelu_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.m <= DECODE_MAX_TOKENS
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(10)
+                    .ext(),
+                "moe_experts_decode_v2_gelu_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| {
+                        s.m <= DECODE_MAX_TOKENS
+                            && s.top_k <= 16
+                            && s.k % 16 == 0
+                            && s.n % 16 == 0
+                            && s.top_k * s.n * 2 <= 49152
+                            && s.k * 2 <= 49152
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_decode_scratch)
+                    .priority(20)
+                    .ext(),
+                "moe_experts_mma_gelu_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                                        .when(|s| s.m >= MMA_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_mma_scratch)
+                    .priority(10)
+                    .ext(),
+                "moe_experts_w4a16_gelu_bf16" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                                        .when(|s| s.m >= W4A16_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_experts_mma_scratch)
+                    .priority(moe_w4a16_priority(15))
+                    .ext(),
                 "moe_combine_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(TOL),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces
                 // (tests/fused_decode.rs), so the budget is that of the kernels it is built from.

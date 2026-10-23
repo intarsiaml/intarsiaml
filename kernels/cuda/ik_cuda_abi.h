@@ -17,6 +17,31 @@ int ik_moe_experts_w4a16_bf16(const ik_tensor* x, const ik_tensor* ids, const ik
                               const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                               const ik_scratch* scratch, void* stream);
 
+/* moe_experts_gelu_bf16 / moe_experts_decode_gelu_bf16 / moe_experts_decode_v2_gelu_bf16 / moe_experts_mma_gelu_bf16 /
+ * moe_experts_w4a16_gelu_bf16: the same launchers without the _gelu (same inputs, scratch and shape limits), with gelu_tanh
+ * instead of SiLU in the expert activation: h = bf16(round_bf16(gelu_tanh(g)) * u) (OpAttrs::gelu, Gemma-4). Registered with
+ * `.ext()`; the plain launchers are unchanged. kernels/cuda/moe.cu, moe_decode.cu, moe_grouped.cu, moe_w4a16.cu. */
+int ik_moe_experts_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                             const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                             const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                             const ik_scratch* scratch, void* stream);
+int ik_moe_experts_mma_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                 const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                 const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                 const ik_scratch* scratch, void* stream);
+int ik_moe_experts_w4a16_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                   const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                   const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                   const ik_scratch* scratch, void* stream);
+int ik_moe_experts_decode_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                    const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                    const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                    const ik_scratch* scratch, void* stream);
+int ik_moe_experts_decode_v2_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                       const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                       const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                       const ik_scratch* scratch, void* stream);
+
 /* moe_experts_nvfp4_mma_bf16: moe_experts_mma_bf16 (same inputs, scratch = the grouped layout plus the quantised
  * activations, see kernels/cuda/moe_nvfp4_mma_sm120a.cu) with the expert GEMMs on the block-scaled FP4 tensor core:
  * activations are quantised to e2m1 + one ue4m3 scale per 16 values + one f32 scale per row, so the result differs from

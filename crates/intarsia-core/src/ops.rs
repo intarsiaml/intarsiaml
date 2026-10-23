@@ -18,6 +18,7 @@
 //! | `AttnPrefill` | q `[T,N,D]`, kc, vc `[Nkv,cap,D]` | `[T,N,D]` | pos0, scale, n_heads, n_kv_heads, head_dim, kv_cap |
 //! | `AttnDecode` | as prefill with T == 1 | `[1,N,D]` | same |
 //! | `SiluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` | |
+//! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
@@ -116,10 +117,12 @@ pub enum Op {
     // appended (2026-10-22, rope scaling + attention bias), for the same reason
     RopeScaled,
     AddBias,
+    // appended (2026-10-22, g4 Gemma-4): `SiluGlu` with the tanh-GELU activation (`gelu_pytorch_tanh`), for the same reason
+    GeluGlu,
 }
 
 impl Op {
-    pub const ALL: [Op; 41] = [
+    pub const ALL: [Op; 42] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -161,6 +164,7 @@ impl Op {
         Op::MatmulMxfp4Pair,
         Op::RopeScaled,
         Op::AddBias,
+        Op::GeluGlu,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -207,6 +211,7 @@ impl Op {
             Op::MatmulMxfp4Pair => "matmul_mxfp4_pair",
             Op::RopeScaled => "rope_scaled",
             Op::AddBias => "add_bias",
+            Op::GeluGlu => "gelu_glu",
         }
     }
 
@@ -256,6 +261,7 @@ impl Op {
             Op::MatmulMxfp4Pair => (6, 2),
             Op::RopeScaled => (2, 1),
             Op::AddBias => (2, 1),
+            Op::GeluGlu => (2, 1),
         }
     }
 }
@@ -288,6 +294,21 @@ pub struct OpAttrs {
     pub rope_mscale: f32,
     /// Norm ops: the scale applied is `w + w_offset` (1.0 for zero-centred norms such as Qwen3.5's), added in f32.
     pub w_offset: f32,
+    /// `AttnPrefill` / `AttnDecode`: sliding window. Query at absolute position `p` attends keys `max(0, p + 1 - window)..=p`
+    /// (the last `window` keys including itself, HF `sliding_window` with `sliding_window_mask_function`); 0 = all keys.
+    /// A call with `window > 0` selects only kernels registered `.ext()`.
+    pub window: usize,
+    /// `Rope`: "proportional" rotation (Gemma 4 global layers, HF `rope_type = "proportional"`). Only the first
+    /// `rotary_dim / 2` angles are non-zero: pair `(j, j + D/2)` for `j < rotary_dim / 2` is rotated by `pos * theta^(-2j/D)`
+    /// (the exponent's denominator is the full head dim `D`, not `rotary_dim`), every other value is copied. `rotary_dim` is
+    /// the number of rotated values (`partial_rotary_factor * D`). Selects only `.ext()` kernels.
+    pub rope_prop: bool,
+    /// `Add` / `Embedding` use the existing `scale` attr: `scale != 1.0` multiplies the result (`out = round(f32(a + b) * scale)`,
+    /// `round(f32(table row) * scale)`, one rounding; Gemma's `layer_scalar` and embedding scale) and selects only `.ext()`
+    /// kernels. Attention keeps reading `scale` as its softmax scale; that is not an extended use.
+    ///
+    /// `MoeExperts`: expert activation is tanh-GELU instead of SiLU (`gelu_tanh(gate) * up`). Selects only `.ext()` kernels.
+    pub gelu: bool,
 }
 
 impl Default for OpAttrs {
@@ -308,6 +329,9 @@ impl Default for OpAttrs {
             rotary_dim: 0,
             rope_mscale: 1.0,
             w_offset: 0.0,
+            window: 0,
+            rope_prop: false,
+            gelu: false,
         }
     }
 }
@@ -537,7 +561,7 @@ impl OpCall {
                     return bad("decode requires T == 1".into());
                 }
             }
-            Op::SiluGlu => {
+            Op::SiluGlu | Op::GeluGlu => {
                 if i[0].shape != i[1].shape || o[0].shape != i[0].shape {
                     return bad("shape mismatch".into());
                 }
@@ -647,6 +671,9 @@ pub struct ShapeInfo {
     /// MoE ops: number of routed experts / experts selected per token.
     pub experts: usize,
     pub top_k: usize,
+    /// The call uses an extended attribute (`OpAttrs::window`, `rope_prop`, `gelu`): only kernels registered `.ext()` accept it,
+    /// so a kernel that predates the attribute can never run it silently wrong.
+    pub ext: bool,
 }
 
 impl ShapeInfo {
@@ -656,6 +683,10 @@ impl ShapeInfo {
         let mut s = ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
+            ext: call.attrs.window > 0
+                || call.attrs.rope_prop
+                || call.attrs.gelu
+                || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
             ..Default::default()
         };
         match call.op {
@@ -665,7 +696,7 @@ impl ShapeInfo {
                 s.k = i[1].shape[1];
                 s.act = Some(i[1].dtype);
             }
-            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::AddBias => {
+            Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu | Op::AddBias => {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
             }
@@ -940,12 +971,13 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL.last(), Some(&Op::AddBias), "appended after RopeScaled");
+        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::RopeScaled, "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::AddBias, "appended after RopeScaled");
+        assert_eq!(Op::ALL.last(), Some(&Op::GeluGlu), "appended after AddBias");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

@@ -95,14 +95,18 @@ pub struct ModelArgs {
     /// Only admitted kernels are selectable (set by `serve`).
     #[arg(skip)]
     pub require_admitted: bool,
-    /// Speculative decoding: `off` (default) or `ngram` (prompt lookup over prompt + generated ids, verified in one
-    /// multi-row pass whose rows are bitwise the sequential decode steps). Metal only; greedy requests only (sampled
-    /// requests fall back to plain decode).
+    /// Speculative decoding: `off` (default), `ngram` (prompt lookup over prompt + generated ids, verified in one
+    /// multi-row pass whose rows are bitwise the sequential decode steps; Metal only) or `mtp` (the checkpoint's
+    /// multi-token-prediction head drafts, recipe `[mtp]`; Qwen3.5/3.6 MoE; single sequence; CUDA and CPU measured,
+    /// Metal and HIP untested; bitwise to `off` by construction only where the backend has row-exact verify kernels,
+    /// elsewhere self-consistent greedy over the verify rows). Greedy requests only (sampled requests fall back to plain
+    /// decode).
     #[arg(long, default_value = "off")]
     pub spec: String,
-    /// Most draft tokens per verify pass with `--spec ngram` (1..=6).
-    #[arg(long, default_value_t = intarsia_core::spec::SPEC_K_DEFAULT)]
-    pub spec_k: usize,
+    /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
+    /// Default: 4 for `ngram`, 2 for `mtp`.
+    #[arg(long)]
+    pub spec_k: Option<usize>,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
     /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
     #[arg(skip)]
@@ -289,6 +293,8 @@ impl ModelArgs {
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
+                mtp: self.spec == "mtp",
+                mtp_k: 0, // set from --spec-k by the loader
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
@@ -302,7 +308,15 @@ impl ModelArgs {
                 cache_dir: None,
                 no_cache: self.no_admission_cache,
             },
-            spec: intarsia_core::spec::SpecConfig::parse(&self.spec, self.spec_k).map_err(|e| anyhow::anyhow!("{e}"))?,
+            spec: intarsia_core::spec::SpecConfig::parse(
+                &self.spec,
+                self.spec_k.unwrap_or(if self.spec == "mtp" {
+                    intarsia_core::spec::MTP_K_DEFAULT
+                } else {
+                    intarsia_core::spec::SPEC_K_DEFAULT
+                }),
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?,
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,

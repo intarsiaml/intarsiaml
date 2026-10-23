@@ -10,6 +10,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Translation units compiled in CU mode (`-mcumode`); every other one keeps the WGP-mode default.
+const CU_MODE_SOURCES: &[&str] = &["gdn.hip"];
+
 fn find_hipcc() -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();
     for var in ["ROCM_PATH", "HIP_PATH"] {
@@ -121,8 +124,13 @@ fn main() {
     let mut objects = Vec::new();
     for src in &sources {
         let obj = out.join(src.file_stem().unwrap()).with_extension("o");
+        // CU mode (lane hp, docs/results/2026-10-22-hp-hip-prefill-roofline.md) for the GatedDeltaNet kernels: their
+        // one-wave blocks are LDS-bound, and in CU mode each CU serves its waves from its own LDS half instead of the two
+        // CUs of a WGP sharing one (the delta-rule scan -13 % per token). It changes no instruction's arithmetic.
+        let cu_mode = CU_MODE_SOURCES.iter().any(|f| src.file_name().map(|n| n == *f).unwrap_or(false));
         let child = Command::new(&hipcc)
             .args(["-c", "-O3", "-std=c++17", "-fPIC", "-Wall", "-Wno-unused-function"])
+            .args(if cu_mode { &["-mcumode"][..] } else { &[][..] })
             .arg(format!("--offload-arch={arch}"))
             .arg("-I")
             .arg(&kroot)

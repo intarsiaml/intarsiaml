@@ -1,0 +1,8 @@
+pf base [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 429 ms (9556.3 tok/s) | decode 0 ms (0.00 tok/s) 
+pf base [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1860 ms (8810.9 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 407 ms (10075.7 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1775 ms (9230.8 tok/s) | decode 0 ms (0.00 tok/s) 
+pf base [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 428 ms (9562.0 tok/s) | decode 0 ms (0.00 tok/s) 
+pf base [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1861 ms (8806.1 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 408 ms (10044.3 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1778 ms (9216.3 tok/s) | decode 0 ms (0.00 tok/s) 
