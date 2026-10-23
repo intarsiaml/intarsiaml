@@ -30,6 +30,30 @@ impl Model {
         [Op::Matmul, Op::Logits].iter().all(|op| by_op.get(op).is_some_and(|ks| ks.iter().any(|k| k.rows_exact)))
     }
 
+    /// Opt in to batched decode of hybrid models: GatedDeltaNet (recurrent-state) blocks, mixture-of-experts blocks and
+    /// gated attention (docs/results/2026-10-23-rb-recurrent-batching.md). **Prototype: the cpu backend only**, where every
+    /// multi-row kernel computes each row with the one-row loop, so a batched row is the solo row by construction. Any
+    /// other backend registers no verified row-exact kernels for these blocks and is refused. Call before
+    /// [`Model::enable_batch`]; without it `enable_batch` is exactly what it was.
+    pub fn allow_recurrent_batch(&mut self) -> Result<()> {
+        if self.backend.name() != "cpu" {
+            return Err(Error::Unsupported(format!(
+                "batched decode of recurrent / mixture-of-experts / gated-attention blocks is a cpu-backend prototype; the {} backend has no verified row-exact kernels for it",
+                self.backend.name()
+            )));
+        }
+        if self.batch_rows != 0 {
+            return Err(Error::invalid("allow_recurrent_batch after enable_batch"));
+        }
+        self.recurrent_batch = true;
+        Ok(())
+    }
+
+    /// Whether [`Model::allow_recurrent_batch`] was called.
+    pub fn recurrent_batch(&self) -> bool {
+        self.recurrent_batch
+    }
+
     /// Enable batched decode steps of up to `max_rows` sequences (2..=[`Model::BATCH_MAX_ROWS`]). Call once, before
     /// [`Model::configure_plan`] and before any [`Model::new_state`]: plan resolution then also dry-runs
     /// [`crate::plan::Phase::Batch`] passes (every row count, at the start and the end of the context), so a batched op without a
@@ -42,10 +66,11 @@ impl Model {
         if !self.peers.is_empty() || self.tp.world > 1 || self.lm_head.is_none() {
             return Err(Error::Unsupported("batched decode needs a single-rank model".into()));
         }
+        let hybrid = self.recurrent_batch;
         let dense = self.layers.iter().flatten().all(|b| match b {
-            Block::Attn(a) => !a.gated,
+            Block::Attn(a) => hybrid || !a.gated,
             Block::Ffn(_) => true,
-            Block::Gdn(_) | Block::Moe(_) => false,
+            Block::Gdn(_) | Block::Moe(_) => hybrid,
         });
         if !dense {
             return Err(Error::Unsupported(
@@ -102,7 +127,7 @@ impl Model {
             return Err(Error::invalid("forward_batch rows return logits or a token"));
         }
         Self::check_forward(st, &[id], mode, false)?;
-        if !st.peers.is_empty() || st.has_recurrent() {
+        if !st.peers.is_empty() || (st.has_recurrent() && !self.recurrent_batch) {
             return Err(Error::Unsupported("batched decode of a recurrent or tensor-parallel state".into()));
         }
         if id as usize >= self.dims.vocab {
@@ -212,16 +237,40 @@ impl Model {
         profile: bool,
     ) -> Result<()> {
         let b = sts.len();
-        let (qc0, gate) = self.attn_project(a, n, b, kv_done, false, profile)?;
-        debug_assert!(gate.is_none(), "enable_batch rejects gated attention");
         let bufs = self.attn_bufs(b);
+        // The gated block's split folded into the fused prologue, one call per row exactly as the solo step makes it
+        // (`attn_block`): decided here, before the q projection the split follows. Evaluated with the row-exact mark off, as
+        // the per-row attention calls below run. The calls read row `r` of the q+gate projection and write row `r` of the
+        // gate buffer.
+        let prologues: Vec<Option<OpCall>> = {
+            let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+            let calls = sts
+                .iter()
+                .enumerate()
+                .map(|(r, st)| {
+                    let slot = Self::attn_slot(st, a).ok()?;
+                    let mut call = self.gate_qkv_call(a, slot, &bufs.row(r), 1, st.len, None).filter(|c| self.fused_ok(c))?;
+                    let d = &self.ldims;
+                    let (qg, gate) = self.gated_q_buffers(b);
+                    call.inputs[0] = qg.reshaped(&[b, d.n_heads, 2 * d.head_dim]).rows(r, 1);
+                    call.outputs[1] = gate.rows(r, 1);
+                    Some(call)
+                })
+                .collect();
+            self.exact_rows.store(mark, std::sync::atomic::Ordering::Relaxed);
+            calls
+        };
+        let folded = prologues.iter().all(Option::is_some) && !prologues.is_empty();
+        let prologues: Vec<Option<OpCall>> = if folded { prologues } else { vec![None; b] };
+        let (qc0, gate) = self.attn_project(a, n, b, kv_done, folded, profile)?;
+        debug_assert!(gate.is_none() || self.recurrent_batch, "enable_batch rejects gated attention without the hybrid opt-in");
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let rows = (|| -> Result<usize> {
             let mut qc_end = None;
-            for (r, st) in sts.iter().enumerate() {
+            for ((r, st), prologue) in sts.iter().enumerate().zip(prologues) {
                 let slot = Self::attn_slot(st, a)?;
-                let (_, qc) = self.attn_rows(a, slot, &bufs.row(r), qc0, 1, st.len, None, None, profile)?;
+                let (_, qc) = self.attn_rows(a, slot, &bufs.row(r), qc0, 1, st.len, None, prologue, profile)?;
                 if *qc_end.get_or_insert(qc) != qc {
                     return Err(Error::invalid("batched rows chose different attention paths"));
                 }
@@ -231,6 +280,7 @@ impl Model {
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let qc = rows?;
         let attn_out = bufs.q[1 - qc].clone();
-        self.attn_out_proj(a, &attn_out, None, qc, out, b, profile)
+        // the output gate (gated attention, hybrid opt-in only; `None` otherwise) is applied once for all rows, as in the solo step
+        self.attn_out_proj(a, &attn_out, gate, qc, out, b, profile)
     }
 }

@@ -21,7 +21,7 @@ pub(super) fn state_bytes(l: &LinearDims) -> usize {
     state_s_offset(l) + l.v_heads * l.v_head_dim * l.k_head_dim * 4
 }
 
-fn state_s_offset(l: &LinearDims) -> usize {
+pub(super) fn state_s_offset(l: &LinearDims) -> usize {
     (l.conv_dim() * (l.conv_kernel - 1) * 4).div_ceil(256) * 256
 }
 
@@ -42,14 +42,14 @@ pub(super) struct GdnBlock {
     pub lin: LinearDims,
 }
 
-struct GdnWs {
-    qkv: Buffer,
-    z: Buffer,
-    a: Buffer,
-    b: Buffer,
-    conv: Buffer,
-    core: Buffer,
-    normed: Buffer,
+pub(super) struct GdnWs {
+    pub(super) qkv: Buffer,
+    pub(super) z: Buffer,
+    pub(super) a: Buffer,
+    pub(super) b: Buffer,
+    pub(super) conv: Buffer,
+    pub(super) core: Buffer,
+    pub(super) normed: Buffer,
 }
 
 /// Buffers that only some models need (allocated only when the recipe uses the block).
@@ -57,7 +57,7 @@ pub(super) struct ExtraWs {
     /// Gated attention: the fused q+gate projection `[T, Nh*2*hd]` and the split-off gate `[T, Nh*hd]`.
     qg: Option<Buffer>,
     gate: Option<Buffer>,
-    gdn: Option<GdnWs>,
+    pub(super) gdn: Option<GdnWs>,
 }
 
 pub(super) fn alloc_extra(

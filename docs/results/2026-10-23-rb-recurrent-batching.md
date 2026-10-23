@@ -8,7 +8,10 @@ GPU kernel was written. Every number below is one of: **measured** (cited to a f
 
 **The gap.** The composer (same quant, Spark GB10, Qwen3.6-35B-A3B NVFP4) has IntarsiaML at 74.2 tok/s at 1 stream, 75.2 at 4 and 75.2 at 16
 (`20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`): it serves one sequence at a time. vLLM is 105.5 / 105.8 at 4 / 16 (+40.3% / +40.7%; both rows carry the
-`drop:gsm8k` quality flag, peer-not-production), SGLang 157.5 / 219.9 (quality ok). SGLang is the honest target.
+`drop:gsm8k` quality flag, peer-not-production, and the production vLLM server runs `--max-num-seqs 2`, so it plateaus at about 105 from 4 streams on:
+composer catalog entry `sglang-continuous-batching-uncapped-running-requests`, quoting `2026-10-22-fx3-spark-standings.md`). SGLang, run with
+`--max-running-requests 16`, is 157.5 / 219.9 (quality ok). SGLang is the honest target; on the 8B a vLLM given `--max-num-seqs 16` reached 156 tok/s at 16 streams against SGLang's 91, so a properly
+configured vLLM would not stop at 105 either.
 
 **Root cause is wider than one line.** `engine/batch.rs:374` is the first of seven places that refuse or silently break hybrid batching (section 1). The one that
 decides the speed-up is not a refusal at all: **the speed-up is bounded by what a batched step can share, and on this model that is only the dense weights** (section 2).
@@ -108,7 +111,7 @@ Four consequences that shape the design:
 3. **A batched GDN launch buys launch count, not bandwidth.** The existing single-sequence delta-rule kernel already runs at 187 GB/s, the step's effective bandwidth, so
    N launches cost the same device time as one launch over N states (section 4). The device-side state table that graph capture needs is the real requirement.
 4. **Validation.** SGLang's measured 157.5 (x2.31 over its own 1 stream) and 219.9 (x3.23) against this model's grouped ceiling 165.2 (x2.23) and 265.3 (x3.58): 95% and 83%.
-   vLLM's flat 105.5 / 105.8 from 2 to 16 streams does not follow any bandwidth model and carries a quality flag; do not size against it beyond the +40% headline.
+   vLLM's flat 105.5 / 105.8 from 2 to 16 streams is its `--max-num-seqs 2` production setting, not a bandwidth limit, and carries a quality flag; do not size against it beyond the +40% headline.
 
 Not modelled and called out as risks: (a) multi-row GEMV compute at 16 rows (Metal measured the bf16 multi-row GEMV at 1.2x a 1-row launch at 8 rows and 2.6x at
 16, `docs/research/continuous-batching-design.md` section 4; the CUDA fp8/nvfp4 GEMVs have not been measured with more than 1 row); (b) per-row attention launches (3 per
@@ -318,7 +321,68 @@ add indirection), S5's launch saving shrinks and S4's single-launch kernels matt
 
 ## 12. CPU prototype
 
-(Filled in by the prototype commit; see below.)
+Opt-in, cpu backend only, default off. Nothing in it is a GPU kernel; it is the engine logic of stage S1 and the model-level structure of S2, proven on the cpu backend, whose multi-row kernels compute every row with the
+one-row loop (so a batched row is the solo row by construction there; the tests prove the plumbing, state handling and scheduling, not GPU numerics).
+
+**Switch.** `Model::allow_recurrent_batch()` (cpu only, before `enable_batch`) and `INTARSIA_RECURRENT_BATCH=1`, which `load_engine` reads (`crates/intarsia-models/src/load.rs`) and which lets `--max-batch N` through on the cpu backend. The
+switch is a field on `Model`, not an environment read inside the engine, because tests of one binary run in parallel threads. Without it every refusal of section 1 is unchanged.
+
+**What changed (files).**
+
+| file | change |
+|---|---|
+| `crates/intarsia-core/src/model/gdn_batch.rs` (new) | `gdn_block_batch`: four projections and the gated norm + out-projection on all rows; conv + delta rule once per row as the T = 1 calls of the solo step, on that row's own recurrent slot, in place |
+| `crates/intarsia-core/src/model.rs` | `recurrent_batch` field; `run_layers` arms for `Seqs::Batch` at a GDN block (new path) and at a MoE block (allowed under the switch) |
+| `crates/intarsia-core/src/model/batch.rs` | `allow_recurrent_batch`/`recurrent_batch`; `enable_batch` and `check_batch_row` accept hybrid blocks under the switch; `attn_block_batch` passes the output gate through and makes the solo step's per-row fused gate-split + prologue call |
+| `crates/intarsia-core/src/plan.rs` | the batch-consistency check treats `GdnConv`/`GdnDeltaRule`/`GdnConvDelta` as per-row ops and accepts `GatedRmsnormMatmulFp8` either once (multi-row kernel) or once per row (one-row kernel only) |
+| `crates/intarsia-core/src/scheduler.rs`, `engine/batch.rs` | `BatchModel::restorable_len` (used by `pick_slot`); `SlotModel` prefills recurrent slots with the solo schedule (snapshot after each non-final chunk, last prompt token alone after a snapshot); `BatchedEngine` refuses `--spec` on a recurrent model and passes `recurrent = true` to `Seq::build` |
+| `crates/intarsia-core/src/model/gdn_block.rs` | visibility only (`state_s_offset`, the GDN workspace fields), no behaviour change; `gdn_block` is untouched so PR #110's restructuring does not conflict |
+| `docs/tuning.md` | the `INTARSIA_RECURRENT_BATCH` row (the env-var scanner requires it) |
+
+**Tests** (`crates/intarsia-models/tests/batch_recurrent.rs`, `batch_recurrent_load.rs`; run on two tiny hybrids: the checked-in dense-FFN `tiny_qwen3_5` fixture, and the same fixture with a MoE FFN built the way the 35B's is: fp8 attention/GDN
+projections, NVFP4 routed and shared experts, a shared-expert gate):
+
+| test | what it pins down |
+|---|---|
+| `hybrid_batching_is_refused_without_the_opt_in` | with the switch off `enable_batch` still refuses the hybrid model ("dense attention-only"), the switch must precede `enable_batch`, and no engine can be built over an unbatched model |
+| `batched_hybrid_decode_is_bitwise_the_solo_step` | `Model::forward_batch`, N = 2, 3, 4 sequences, 130 consecutive batched steps each: every row's f32 logits equal the solo step's bit for bit (greedy rows on both `LastLogits` and the on-device `LastArgmax` path, seeded-sampled rows), and tokens, lengths and the later steps that read the recurrent state agree |
+| `batched_hybrid_decode_beside_prefill_chunks` | batched steps interleaved with chunked prefill of another sequence: decode rows still equal solo, and the prefilled state equals the same prompt prefilled alone |
+| `batched_engine_equals_solo_over_128_tokens` | `BatchedEngine` with 2, 3 and 4 slots against `LocalEngine`, 9 requests each (prompts 3 to 64 tokens, 130 to 144 generated tokens, greedy and seeded-sampled), more requests than slots so slots are recycled: ids, text, finish reason and counts identical |
+| `batched_engine_with_prefix_reuse_equals_solo` | the same with idle-slot prefix reuse on |
+| `prefix_reuse_restores_recurrent_state_from_a_snapshot` | whole-prompt reuse, a shared prefix ending between chunk boundaries, an extended prompt and a short prefix, over 2 and 3 slots, with at least 2 requests per run reusing a prefix: output identical to cold solo |
+| `load_engine_batches_a_hybrid_model_only_with_the_env_opt_in` | the CLI path: a model directory with a `tokenizer.json`, `load_engine` with `--max-batch 3`: refused without the variable (and with `0`), served with `1`, three concurrent requests equal the single-sequence engine |
+
+**Negative controls** (each mutation made in the worktree, the failing test noted, then reverted): GDN rows all read `sts[0]`'s state -> `batched_hybrid_decode_is_bitwise_the_solo_step` fails at the first step
+("logits differ at 96 of 96 entries"); `pick_slot` ignores `restorable_len` -> `prefix_reuse_restores_recurrent_state_from_a_snapshot` fails with "cannot roll recurrent state back to 33 tokens (no snapshot there; length 169)"
+(the request fails: the defect section 1 predicted); the recurrent prefill takes no snapshots -> the same test fails with "only 0 of 5 requests reused a prefix". Not observable on the cpu backend: whether the last prompt token runs
+alone (a bigger chunk and a 1-row call give the same bits there); that rule is a GPU gate (G-C/G-D).
+
+**What the batch-consistency check found on the first run** (it fails the load, as designed, when a batched step would not be the solo step's op multiset): (1) the solo step folds the gated-attention split into the per-row prologue
+(`GateSplitQkNormRopeKv`), which the batched step did not, so `attn_block_batch` now makes that call per row; (2) the GDN conv and delta rule are per-row ops in a batched step; (3) the solo step's fp8 out-projection fold
+(`GatedRmsnormMatmulFp8`) has a **one-row kernel only**, so a 2-row batched step ran two separate ops where the solo step runs one. The prototype runs the fold per row in that case (the same op, the weights read once per row). This is
+the CPU instance of the CUDA finding in section 9: today's fused decode ops are one-row kernels, and every one of them needs a multi-row form (K1) or a per-row run before a batched step is both exact and fast.
+
+**Default path.** With the switch off, the flag-gated code is not reached: `enable_batch` and `check_batch_row` keep their old predicates, `gdn_block` and its callers are untouched, the new `run_layers` arm is under `Seqs::Batch`
+and the switch, `restorable_len` defaults to the old behaviour for attention-only slots, and the `attn_block_batch` change builds no prologue for a non-gated block (the block is not gated, so the old call sequence is the one that
+runs). Checked by the existing suites running unchanged and green: `cargo test -p intarsia-core -p intarsia-models -p intarsia-cli` (all test binaries, including `batch`, `batch_engine`, `hybrid`, `plan`, `spec`, `docs_env_vars`):
+the closing run is in the table below.
+
+**Test output.**
+
+```
+$ cargo test -p intarsia-models --test batch_recurrent --test batch_recurrent_load
+     Running tests/batch_recurrent.rs (<scratch>/target/debug/deps/batch_recurrent-313990ed38fa7ce3)
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.37s
+     Running tests/batch_recurrent_load.rs (<scratch>/target/debug/deps/batch_recurrent_load-a4d63c441f98c58e)
+test load_engine_batches_a_hybrid_model_only_with_the_env_opt_in ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+```
 
 ## 13. Risks, open questions, decisions
 
@@ -331,7 +395,7 @@ Risks: (1) row-exactness of the CUDA multi-row kernels (largest); (2) 16 rows of
 2. **Cap 16 on CUDA.** `MAX_BATCH_CAP` and `BATCH_MAX_ROWS` are 8, an operator decision for Metal's exact kernels. The 16-stream row needs 16 on CUDA only; OK to make the cap per backend?
 3. **B = 1 cost of enabling batching.** Keep the batch-consistency rule (solo gives up its fusions until K1 supplies multi-row forms; -12% at B = 1 with `--max-batch > 1`) or relax it on CUDA and gate batched-vs-solo bitwise equality separately?
 4. **MTP and the prefix store at B > 1.** Both are refused at B > 1 in this design until after S5. Agree?
-5. **Which rival number is the target?** vLLM's rows carry a quality flag (`drop:gsm8k`, peer-not-production); this plan treats SGLang (157.5 / 219.9) as the bar and vLLM's +40% as a floor.
+5. **Which rival number is the target?** vLLM's rows carry a quality flag (`drop:gsm8k`, peer-not-production) and come from a server capped at `--max-num-seqs 2`; this plan treats SGLang (157.5 / 219.9) as the bar and vLLM's +40% as a floor. Worth re-running vLLM with `--max-num-seqs 16` before the next composer pass.
 
 **Decisions made in this lane** (rows added to `docs/decisions/LOG.md`): slots as independent `SequenceState`s with in-place state access (no gather/scatter); GDN batched as per-row T = 1 semantics, per-row launches first and a
 device-table kernel later; prefill stays a separate pass; hybrid prefix reuse through `restorable_len` with the solo snapshot schedule; MTP and the prefix store stay B = 1; opt-in flag, CPU only, default off.

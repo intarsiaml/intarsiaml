@@ -120,8 +120,34 @@ impl BatchModel for SlotModel {
     fn truncate(&mut self, slot: usize, len: usize) -> Result<()> {
         self.states[slot].truncate(len, &*self.model.backend)
     }
+    fn restorable_len(&self, slot: usize, want: usize) -> usize {
+        self.states[slot].restorable_len(want)
+    }
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<Option<StepOut>> {
-        let out = self.model.forward(&mut self.states[slot], tokens, mode.unwrap_or(HeadMode::None), None)?;
+        let st = &mut self.states[slot];
+        if st.has_recurrent() {
+            // the solo schedule of a recurrent state (`Seq::prefill_step`): a snapshot after every non-final chunk, and
+            // before the final chunk's last token, which runs alone (so a repeated prompt reuses all but that token)
+            let keep = crate::state::RECURRENT_SNAPSHOTS;
+            return Ok(match mode {
+                None => {
+                    self.model.forward(st, tokens, HeadMode::None, None)?;
+                    st.snapshot(&*self.model.backend, keep)?;
+                    None
+                }
+                Some(m) => {
+                    if tokens.len() > 1 {
+                        self.model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?;
+                        st.snapshot(&*self.model.backend, keep)?;
+                    }
+                    match self.model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
+                        StepOut::None => None,
+                        o => Some(o),
+                    }
+                }
+            });
+        }
+        let out = self.model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
         Ok(match out {
             StepOut::None => None,
             o => Some(o),
@@ -331,6 +357,8 @@ pub struct BatchedEngine {
     plan: Value,
     vocab: usize,
     verify_rows: usize,
+    /// The slots hold recurrent state (hybrid opt-in): no sequence drafts (`Seq::build`).
+    recurrent: bool,
 }
 
 impl BatchedEngine {
@@ -371,8 +399,17 @@ impl BatchedEngine {
         for _ in 0..opts.max_batch {
             states.push(model.new_state()?);
         }
-        if states[0].has_recurrent() {
-            return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
+        let recurrent = states[0].has_recurrent();
+        if recurrent {
+            // opt-in cpu prototype (`Model::allow_recurrent_batch`, docs/results/2026-10-23-rb-recurrent-batching.md)
+            if !model.recurrent_batch() {
+                return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
+            }
+            if meta.spec.enabled() {
+                return Err(Error::Unsupported(
+                    "speculative decoding on a model with recurrent state needs the single-sequence engine (--max-batch 1)".into(),
+                ));
+            }
         }
         let cap = states[0].cap;
         let total_kv: u64 = states.iter().map(|s| s.total_bytes() as u64).sum();
@@ -393,7 +430,7 @@ impl BatchedEngine {
         let verify_rows = model.verify_rows();
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
         let engine = BatchEngine::spawn(SlotModel { model, states, row_fault: opts.row_fault }, cfg)?;
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent })
     }
 
     /// The scheduler's metrics (batch-size histogram, queue depth, TTFT / inter-token latency, ...).
@@ -433,7 +470,7 @@ impl Engine for BatchedEngine {
         }
         let (etx, erx) = channel();
         let plen = req.prompt.len();
-        let seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, false);
+        let seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);
         let adapter = SeqAdapter {
             seq: Some(seq),
             tx: etx,

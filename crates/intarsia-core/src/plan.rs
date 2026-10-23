@@ -283,11 +283,26 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
     Ok((calls, sizes, comm_decode))
 }
 
-/// Ops a batched step runs once per sequence (the attention core on that sequence's own cache); every other op runs once
-/// for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`, so it is listed, although
-/// `Model::enable_batch` rejects gated attention today and no batched plan can contain it.
-const PER_ROW_OPS: [Op; 7] =
-    [Op::QkNormRopeKv, Op::GateSplitQkNormRopeKv, Op::QkNorm, Op::Rope, Op::RopeScaled, Op::KvAppend, Op::AttnDecode];
+/// Ops a batched step runs once per sequence (the attention core on that sequence's own cache, and with the hybrid opt-in
+/// `Model::allow_recurrent_batch` the GatedDeltaNet conv and delta rule on that sequence's own recurrent state); every
+/// other op runs once for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`.
+const PER_ROW_OPS: [Op; 10] = [
+    Op::QkNormRopeKv,
+    Op::GateSplitQkNormRopeKv,
+    Op::QkNorm,
+    Op::Rope,
+    Op::RopeScaled,
+    Op::KvAppend,
+    Op::AttnDecode,
+    Op::GdnConv,
+    Op::GdnDeltaRule,
+    Op::GdnConvDelta,
+];
+
+/// Ops the batched hybrid step may run either once for all rows (a multi-row kernel exists) or once per row (only the
+/// solo step's one-row kernel exists: the rows then run it one after another, bitwise the solo step but without sharing the
+/// weight read).
+const WIDE_OR_PER_ROW_OPS: [Op; 1] = [Op::GatedRmsnormMatmulFp8];
 
 /// A batched step must be the solo decode step with its row-parallel ops widened: the same op multiset, the per-row
 /// attention ops `rows` times. A different fusion choice (a fused pair in the solo step, two projections in the batch)
@@ -300,7 +315,7 @@ fn check_batch_ops(decode: &[Op], batch: &[Op], rows: usize) -> Result<()> {
     for op in all {
         let (d, b) = (count(decode, op), count(batch, op));
         let want = if PER_ROW_OPS.contains(&op) { d * rows } else { d };
-        if b != want {
+        if b != want && !(WIDE_OR_PER_ROW_OPS.contains(&op) && b == d * rows) {
             return Err(Error::Unsupported(format!(
                 "a {rows}-row batched step runs {op} {b} times where {want} follow from the solo decode step ({d}): \
                  the two would fuse differently, so rows would not be bitwise the solo step"

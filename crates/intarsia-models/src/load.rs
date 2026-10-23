@@ -270,10 +270,13 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         opts.max_batch,
         if opts.max_batch.is_some() { intarsia_core::engine::SERVE_MAX_BATCH } else { 1 },
     )?;
+    // Opt-in prototype: `INTARSIA_RECURRENT_BATCH=1` lets the cpu backend batch hybrid models (GatedDeltaNet, MoE, gated
+    // attention); every other backend is refused there (docs/results/2026-10-23-rb-recurrent-batching.md).
+    let hybrid_opt_in = std::env::var("INTARSIA_RECURRENT_BATCH").is_ok_and(|v| v == "1");
     if max_batch.value > 1 {
         // fail before reading any weights: continuous batching is Metal only (row-exact multi-row kernels)
         let b = backends.first().map_or("cpu", |b| b.name());
-        if b != "metal" {
+        if b != "metal" && !(hybrid_opt_in && b == "cpu") {
             return Err(Error::Unsupported(format!(
                 "--max-batch {} needs the Metal backend (row-exact multi-row kernels; backend is {b}); use --max-batch 1",
                 max_batch.value
@@ -337,9 +340,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_verify(opts.spec.verify_rows())?;
     }
     if max_batch.value > 1 {
+        if hybrid_opt_in {
+            model.allow_recurrent_batch()?;
+        }
         // Batching needs the row-exact multi-row kernels (Metal). `enable_batch` exempts the cpu backend (its kernels
         // loop over rows), but the batched engine serves only backends that register them.
-        if !model.batch_capable() {
+        if !model.batch_capable() && !(hybrid_opt_in && model.backend.name() == "cpu") {
             return Err(Error::Unsupported(format!(
                 "--max-batch {} needs row-exact multi-row kernels, which the {} backend does not provide (continuous \
                  batching is Metal only); use --max-batch 1",
