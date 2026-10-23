@@ -142,6 +142,10 @@ Metal arm of `load.rs`), the metal pattern beside cuda in `allow_recurrent_batch
 conditions are the same as before), and the error text of `allow_recurrent_batch` for other backends (HIP). A CUDA or HIP run
 executes none of those differently. Recorded in `docs/decisions/LOG.md`.
 
+Re-run after merging `origin/main` 6ca51a19 (HIP hybrid batching, #120; merge commit 0361bf24), one exclusive slot, fleetq #4696: no-op
+`plan show` x4 and 256 ids x4 byte-identical to the new main; `kernels test` exit 0; G-B 6 of 6; 35B G-C 4,550 pairs; 35B engine
+== `LocalEngine`; dense `batch_metal` 138 pairs; tiny hybrid on Metal 7 of 7.
+
 ## 6. Cap
 
 Metal cap for the 35B: **8** (`Backend::batch_row_cap` default, unchanged).
@@ -231,4 +235,4 @@ cargo test -p intarsia-backend-metal --release --test rows_exact -- --ignored --
 
 ## 10. Jobs
 
-fleetq #4613 (G-B first run), #4614 (tiny hybrid first run), #4621 (35B gates, final-code reruns, timings; released), #4653 (Metal no-op, exclusive), #4665 / #4688 / #4694 (localeval speed arms, `--quiet gpu,cpu`). All released. Owner `claude-f31ccf91-mb`.
+fleetq #4613 (G-B first run), #4614 (tiny hybrid first run), #4621 (35B gates, final-code reruns, timings; released), #4653 (Metal no-op, exclusive), #4696 (post-merge re-run, exclusive), #4665 / #4688 / #4694 (localeval speed arms, `--quiet gpu,cpu`). All released. Owner `claude-f31ccf91-mb`.

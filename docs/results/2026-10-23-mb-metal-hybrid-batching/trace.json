@@ -41,7 +41,7 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mb/metal-hybrid-batching",
   "base_commit": "240e9d2a",
-  "head_commit": "e65fe4ff",
+  "head_commit": "0361bf24",
   "pr": null,
   "files": [
    "docs/results/2026-10-23-mb-metal-hybrid-batching.md",
@@ -113,6 +113,12 @@
    "command": null,
    "result": "skip",
    "detail": "not run: shared-code diff beyond PR 117 is Metal-gated (has_hybrid_blocks called only from the Metal arm; metal pattern added beside cuda in two conditions; HIP error text); recorded in LOG.md"
+  },
+  {
+   "name": "post-merge re-run (origin/main 6ca51a19 incl. HIP hybrid batching #120)",
+   "command": "noop.sh + G-B + 35B G-C + engine + dense + tiny on the merge commit",
+   "result": "pass",
+   "detail": "all identical/pass; fleetq 4696"
   }
  ],
  "measurements": [
@@ -248,7 +254,8 @@
    4653,
    4665,
    4688,
-   4694
+   4694,
+   4696
   ],
   "tokens": null
  }
