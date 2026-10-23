@@ -66,9 +66,6 @@ pub struct EngineOptions {
     pub busy_chunk: Option<usize>,
 }
 
-/// Busy prefill chunk of the batching engine for hybrid MoE models on CUDA (the scheduler default elsewhere is 256).
-const HYBRID_BUSY_CHUNK: usize = 1024;
-
 fn read_json(p: &Path) -> Result<Value> {
     let text = std::fs::read_to_string(p).map_err(|e| Error::model(format!("reading {}: {e}", p.display())))?;
     serde_json::from_str(&text).map_err(|e| Error::model(format!("{}: {e}", p.display())))
@@ -438,11 +435,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
         } else if model.recurrent_batch() && backend_name == "cuda" {
-            // A mixture-of-experts prefill chunk reads nearly all experts whatever its size, so its cost is almost flat in
-            // the chunk size: 1024 instead of 256 cuts the decode stalls of a busy engine 4x for about 1.3x per chunk
-            // (docs/results/2026-10-23-rb2-cuda-batching.md section 8, 122 against 104 tok/s at 4 streams). A prompt of up to
-            // 1024 tokens is then one chunk, as in the solo engine.
-            bo.busy_chunk = HYBRID_BUSY_CHUNK;
+            // The busy chunk is the solo chunk (2048 for the 35B): then a request that prefills beside decoding sequences
+            // runs the same chunk schedule as its solo run, and its state, and every token after it, is bitwise the solo
+            // engine's for every prompt length. A smaller busy chunk changes the GEMM tiling of the prefill: 1024 against 2048
+            // measured mean 21-way KL 7.87e-3 on the 35B (2.5x the acc-short ref-noise floor 3.161e-3, 4.1% top-1 flips),
+            // docs/results/2026-10-23-rb2-cuda-batching.md section 11. `--busy-chunk 1024` is the opt-in speed knob.
+            bo.busy_chunk = model.prefill_chunk();
         }
         eprintln!("continuous batching: up to {} sequences ({}), busy prefill chunk {}", max_batch.value, max_batch.source, bo.busy_chunk);
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)

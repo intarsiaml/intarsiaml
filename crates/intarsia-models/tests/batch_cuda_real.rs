@@ -298,6 +298,22 @@ fn real_35b_batch_step_profile() {
     }
 }
 
+/// The repository's `docs/*.md` as token ids of the model's tokenizer (about 106k tokens): realistic English / markdown text for
+/// prompts of any length up to 100k.
+fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
+    use intarsia_core::engine::TextCodec;
+    let codec = intarsia_models::HfCodec::load(dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let docs = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+    let mut names: Vec<_> = std::fs::read_dir(&docs)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "md"))
+        .collect();
+    names.sort();
+    let text: String = names.iter().map(|p| std::fs::read_to_string(p).unwrap()).collect::<Vec<_>>().join("\n\n");
+    codec.encode(&text, false).unwrap()
+}
+
 // ---- busy-chunk prefill KL gate (not bitwise by design) -------------------------------------------------------------------
 
 /// Gate of the one non-bitwise step of the batching engine: a request that starts prefilling while others decode runs in busy
@@ -460,4 +476,132 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
     assert_eq!(ctl_max, 0.0, "the harness: the solo chunk by hand must equal forward() of the prefix");
     eprintln!("KLGATE full-vocab prompts above the floor: {failed_full:?}");
     assert!(failed.is_empty(), "above the ref-noise floor {FLOOR:.3e}: {failed:?}");
+}
+
+// ---- engine identity on prompts longer than the solo chunk ----------------------------------------------------------------
+
+/// The busy chunk of the batching engine defaults to the solo chunk (2048) for the 35B on CUDA, so a request that prefills while
+/// others decode runs the solo chunk schedule: its output must be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
+/// and 16k tokens (more than one chunk), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
+/// generating while the long prompts prefill (checked from the scheduler's mixed-iteration counter). Control, printed and not
+/// asserted: the same scenario with `--busy-chunk 1024` (the opt-in knob), which is KL-gated and not bitwise.
+#[test]
+#[ignore]
+fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let all = corpus_tokens(&dir);
+    let window = |start: usize, len: usize| all[start..start + len].to_vec();
+    let mk = |max_batch: Option<usize>, busy_chunk: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 16384 + 256, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
+        max_batch,
+        busy_chunk,
+        ..Default::default()
+    };
+    // (name, request): R0 the decoding neighbour, then the long prompts
+    let req = |prompt: Vec<u32>, gen: usize, sampled: Option<u64>| {
+        let mut r = GenRequest { prompt, max_tokens: gen, ignore_eos: true, ..Default::default() };
+        if let Some(seed) = sampled {
+            r.temperature = 0.8;
+            r.top_k = 40;
+            r.top_p = 0.95;
+            r.seed = Some(seed);
+        }
+        r
+    };
+    let reqs = || {
+        vec![
+            ("R0 200 tok, 900 gen", req(window(500, 200), 900, None)),
+            ("R1 4096 tok", req(window(3000, 4096), 130, None)),
+            ("R2 16384 tok (sampled)", req(window(20000, 16384), 130, Some(21))),
+            ("R3 2600 tok", req(window(60000, 2600), 130, None)),
+        ]
+    };
+    let reference: Vec<Out> = {
+        let l = load_engine(&dir, be.clone(), &mk(None, None)).unwrap();
+        assert_eq!(l.max_batch, 1);
+        reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect()
+    };
+    assert!(reference.iter().zip(reqs()).all(|(o, (_, r))| o.ids.len() == r.max_tokens));
+    // `slots` slots; request indices to run (R0 first, the rest together once R0 is decoding)
+    let scenario = |slots: usize,
+                    which: &[usize],
+                    busy_chunk: Option<usize>|
+     -> (Vec<Out>, intarsia_core::scheduler::BatchMetrics) {
+        let l = load_engine(&dir, be.clone(), &mk(Some(slots), busy_chunk)).unwrap();
+        assert_eq!(l.max_batch, slots);
+        let all_reqs = reqs();
+        let rx0 = l.engine.submit(all_reqs[which[0]].1.clone()).unwrap();
+        // R0 decoding: its first token is out
+        let first = rx0.recv_timeout(Duration::from_secs(600)).expect("R0 first token");
+        let rest: Vec<_> = which[1..].iter().map(|&i| l.engine.submit(all_reqs[i].1.clone()).unwrap()).collect();
+        let mut outs = Vec::new();
+        std::thread::scope(|sc| {
+            let h0 = sc.spawn(move || {
+                // the event already taken, then the rest of the stream
+                let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+                let mut ev = Some(first);
+                loop {
+                    let e = ev
+                        .take()
+                        .unwrap_or_else(|| rx0.recv_timeout(Duration::from_secs(600)).expect("engine stalled"));
+                    match e {
+                        GenEvent::Token { id, text: t } => {
+                            ids.push(id);
+                            text.push_str(&t);
+                        }
+                        GenEvent::Done { finish_reason, .. } => {
+                            reason = Some(finish_reason);
+                            break;
+                        }
+                        GenEvent::Error { message } => panic!("request failed: {message}"),
+                    }
+                }
+                Out { ids, text, reason }
+            });
+            let hs: Vec<_> = rest.into_iter().map(|rx| sc.spawn(move || collect(&rx))).collect();
+            outs.push(h0.join().unwrap());
+            outs.extend(hs.into_iter().map(|h| h.join().unwrap()));
+        });
+        (outs, l.engine.batch_metrics().expect("a batching engine has metrics"))
+    };
+    let mut failures = Vec::new();
+    for (slots, which) in [(2usize, vec![0usize, 1]), (4, vec![0, 1, 2, 3]), (4, vec![0, 2, 3, 1])] {
+        let (outs, m) = scenario(slots, &which, None);
+        let hist: Vec<String> =
+            m.batch_hist.iter().enumerate().filter(|(_, &n)| n > 0).map(|(b, n)| format!("B{b}:{n}")).collect();
+        eprintln!(
+            "LONGENG {slots} slots, requests {which:?}, busy chunk default: mixed iterations {}, prefill chunks {}, decode batches {}",
+            m.mixed_iterations, m.prefill_chunks, hist.join(" ")
+        );
+        assert!(
+            m.mixed_iterations > 0,
+            "no iteration prefilled beside decoding: the scenario did not exercise the busy path"
+        );
+        for (k, &i) in which.iter().enumerate() {
+            let same = outs[k] == reference[i];
+            eprintln!(
+                "LONGENG   {} : {}",
+                reqs()[i].0,
+                if same { "IDENTICAL to the LocalEngine run" } else { "DIFFERS" }
+            );
+            if !same {
+                let first = outs[k].ids.iter().zip(&reference[i].ids).position(|(a, b)| a != b);
+                failures.push(format!("{slots} slots, {}: first differing token {first:?}", reqs()[i].0));
+            }
+        }
+    }
+    // control: the opt-in 1024 chunk
+    let (outs, _) = scenario(4, &[0, 1, 2, 3], Some(1024));
+    for (k, i) in [0usize, 1, 2, 3].iter().enumerate() {
+        let first = outs[k].ids.iter().zip(&reference[*i].ids).position(|(a, b)| a != b);
+        eprintln!(
+            "LONGENG control busy chunk 1024: {} : {}",
+            reqs()[*i].0,
+            match first {
+                None => "identical".to_string(),
+                Some(t) => format!("first differing token {t}"),
+            }
+        );
+    }
+    assert!(failures.is_empty(), "{failures:?}");
 }

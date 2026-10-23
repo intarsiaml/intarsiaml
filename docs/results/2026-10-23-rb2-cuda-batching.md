@@ -1,6 +1,6 @@
 # Hybrid continuous batching on CUDA (Qwen3.6-35B-A3B NVFP4, stages R0 to R2), lane rb2, 2026-10-23
 
-**Status: R0, R1 and R2 done and gated; the R2 speed target is missed (122.9 against about 140 tok/s at 4 streams).** Draft PR, do not merge.
+**Status: R0, R1 and R2 done and gated; the R2 speed target is missed (123.3 against about 140 tok/s at 4 streams).** Draft PR, do not merge.
 Branch `lane-rb2/recurrent-batching-cuda`, from `lane-rb/recurrent-batching` (fa596759) with `origin/main` b745e978 merged in. Supersedes the
 S1 to S5 plan of PR #114 where the two differ (decision rows in `docs/decisions/LOG.md`, 2026-10-23 06:41 to 09:20). Every number is
 **measured** with a fleetq job or localeval run id, unless marked derived or estimate.
@@ -9,17 +9,20 @@ S1 to S5 plan of PR #114 where the two differ (decision rows in `docs/decisions/
 
 | | before (main) | now, `serve --max-batch 16` | note |
 |---|---|---|---|
-| aggregate tok/s, 1 stream | 74.2 | **73.6** (batching off: 73.6) | not slower |
-| aggregate tok/s, 4 streams | 75.2 | **122.9** (x1.63) | target about 140: not met |
-| aggregate tok/s, 16 streams | 75.2 | **166.5** (x2.21) | |
+| aggregate tok/s, 1 stream | 74.2 | **73.4** (batching off: 73.6) | not slower |
+| aggregate tok/s, 4 streams | 75.2 | **123.3** (x1.64) | target about 140: not met |
+| aggregate tok/s, 16 streams | 75.2 | **166.6** (x2.22) | default busy chunk = solo chunk (2048); same numbers as with 1024 on this workload (section 6) |
 | decode row r of a B-row step vs the solo step of that sequence | n/a (one sequence) | **bitwise identical**, B = 2 to 16, 130 steps | 35B, Qwen3-8B, tiny hybrid |
+| whole request through the batching engine vs `LocalEngine`, prompts of 2.6k / 4k / 16k tokens, 2 and 4 slots, beside a decoding neighbour | | **token-identical** (section 11.2) | 35B, default busy chunk 2048 |
 | `plan show` + 256 greedy ids vs main, batching off | | **identical** | 35B and Qwen3-8B on CUDA, Qwen3-8B on Metal |
 | `--spec mtp` k=2, 256 ids vs main and vs `--spec off` | | **identical**; decode +6 to +8% | 35B on CUDA, section 5 |
 
 Cell: 1024-token prompt, 128 generated tokens, localeval `speed --concurrency 1,4,16`, the same cell as the baseline run
-`20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`. Exactness is **decode-exact within the batch path**. Prefill of a busy engine
-runs in smaller chunks than a solo prefill, so for a prompt longer than one busy chunk it is **not bitwise the solo prefill**
-(the GEMM tiling depends on the chunk); that is a KL question, not a bitwise one. The KL gate was run afterwards (section 11) and **fails** at busy chunk 1024: mean 21-way KL 7.9e-3 against the 3.16e-3 ref-noise floor. A busy chunk equal to the solo chunk (2048) removes the difference by construction.
+`20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`. Exactness is **bitwise to the solo run for the whole request** at the default setting: decode rows are row-exact (G-B), and the
+busy chunk defaults to the solo chunk (2048 for the 35B on CUDA), so a prompt prefills with the solo chunk schedule whether or not other
+sequences are decoding. A smaller busy chunk (`--busy-chunk 1024`, opt-in) changes the GEMM tiling and is **not bitwise**: the KL gate
+(section 11) measured mean 21-way KL 7.87e-3 against the 3.161e-3 ref-noise floor (2.5x, 4.1% top-1 flips), and the engine test
+diverges from the solo run within 51 tokens on 3 of 4 requests.
 
 ## 1. What a batched step is
 
@@ -107,7 +110,8 @@ so busy and solo chunk schedules coincide and the whole output is compared.
 | this branch, batching off (no `--max-batch`) | 73.6 | 74.1 | 74.2 | `20261023-084926-adhoc-rb2-off` (e59997bc), #4521 |
 | `--max-batch 16`, busy chunk 256 | 73.4 | 104.1 | 128.3 | `20261023-085311-adhoc-rb2-on16` (5b478879), #4522 |
 | `--max-batch 16`, `--busy-chunk 1024` | 73.4 | 122.4 | 166.8 | `20261023-091032-adhoc-rb2-on16-bc1024`, #4527 |
-| **`--max-batch 16`, default (busy chunk 1024 for hybrid MoE on CUDA)** | **73.6** | **122.9** | **166.5** | `20261023-092106-adhoc-rb2-final2-on16` (7bc2abc9), #4531 |
+| `--max-batch 16`, busy chunk 1024 (the default at the time) | 73.6 | 122.9 | 166.5 | `20261023-092106-adhoc-rb2-final2-on16` (7bc2abc9), #4531 |
+| **`--max-batch 16`, default (busy chunk = solo chunk = 2048)** | **73.4** | **123.3** | **166.6** | `bc2048-1024-x{1,4,16}` (section 11.3), #4548 |
 
 Single-stream decode (per-stream decode tok/s, 3 reps): 83.7 to 84.7 with batching off and on; the aggregate differences are inside the
 quoted decode noise of about 5%. Aggregate is completion tokens over the wall time of the whole burst, prefill included. Server flags:
@@ -154,7 +158,7 @@ GDN kernel taking an array of state pointers, per-row attention tables, a graph 
 
 All in `docs/decisions/LOG.md` (2026-10-23 06:41 to 09:20): cap 16 on CUDA per backend; decode row-exact within the batch path and
 M-dependent kernels forbidden; solo keeps its fusions, B >= 2 runs unfused only under a registered equivalence; MTP and the prefix
-store stay at batch 1; `_rows` kernel design; the two-rule plan check; busy chunk 1024 for hybrid MoE on CUDA; the Spark free-memory
+store stay at batch 1; `_rows` kernel design; the two-rule plan check; busy chunk = solo chunk (2048) for hybrid MoE on CUDA, 1024 opt-in; the Spark free-memory
 finding.
 
 ## 8. Reproduce
@@ -171,9 +175,10 @@ INTARSIA_QWEN36_DIR=<35B dir> INTARSIA_QWEN3_DIR=<8B dir> INTARSIA_REQUIRE_GPU=1
 
 ## 9. What this does not show
 
-- **Busy-chunk prefill vs solo-chunk prefill is not bitwise** for a prompt longer than the busy chunk (1024 for the 35B on CUDA, 256
-  elsewhere), because GEMM tiling depends on the chunk. The gates above use prompts of one chunk or identical chunk schedules. The KL
-  gate of busy against solo prefill was run afterwards and fails (section 11).
+- **Busy-chunk prefill vs solo-chunk prefill is not bitwise** when the busy chunk is smaller than the solo chunk, because GEMM tiling
+  depends on the chunk (35B on CUDA: opt-in `--busy-chunk 1024` fails the KL gate, section 11.1; the default busy chunk equals the
+  solo chunk and is bitwise, section 11.2). On other models and backends the busy chunk stays 256: dense Qwen3-8B on CUDA has not been
+  measured for this, and Metal's invariance set is its own.
 - Only greedy and seeded top-k/top-p rows were compared; host sampling cost at 16 sampled rows (review B2) was not measured.
 - Memory: on the Spark the CUDA `free` figure after loading the 35B was 1.9 GB while 60 GB sat in the page cache, so a 16-slot engine
   planned about 1.5k tokens of KV per slot. The speed runs and tests evicted other models' cached files first
@@ -223,10 +228,50 @@ looks like and not a bug in one chunk size. The KL of the prefill-last row alone
 repository docs (markdown and English, with repetitive stretches), the 64 tokens are greedy from the solo state, not a vLLM golden's
 tokens, and the floor is vLLM's spread, not this engine's: a per-prompt ref-noise record for these prompts does not exist.
 
-**What follows.** Where the busy and solo chunk schedules coincide there is no difference: a prompt that fits in one chunk
-(<= 1024 now), and the harness control (exactly 0). So the way to a bitwise busy prefill is a busy chunk **equal to the solo chunk**
-(2048 for the 35B on CUDA): then every prompt has the solo schedule, decode rows and prefill both bitwise, with no KL gate needed.
-That was not measured here (no speed run at `--busy-chunk 2048`, no engine identity test on a prompt over 2048 tokens); the cost is
-decode stalls of one 2048-token chunk (about 0.5 s at 4.4k tok/s) instead of one 1024-token chunk, and the throughput effect of chunk
-size on the 35B was +18% at 4 streams going 256 to 1024. The default stays 1024 in this branch until that decision is made.
+**What follows.** Where the busy and solo chunk schedules coincide there is no difference: a prompt that fits in one chunk, and the
+harness control (exactly 0). So a busy chunk **equal to the solo chunk** (2048 for the 35B on CUDA) gives every prompt the solo
+schedule. Decision (coordinator 12:27, on the user's priority of accuracy over speed; the user may override): that is the default for
+hybrid MoE on CUDA, resolved at load as the model's prefill chunk; `--busy-chunk 1024` stays available as an opt-in speed knob with the
+numbers above (documented in `docs/tuning.md` and the `serve --help` text). Sections 11.2 and 11.3 check the default.
 
+### 11.2 Engine identity beyond the solo chunk (default busy chunk = 2048; fleetq #4545)
+
+`real_35b_batched_engine_long_prompts_equal_the_local_engine` (ignored test, `batch_cuda_real.rs`). Reference: each request alone on
+`LocalEngine`. Batched: R0 (200-token prompt, 900 tokens generated) is submitted first and is decoding when the others arrive; then
+R1 (4,096-token prompt), R2 (16,384 tokens, seeded sampled, temperature 0.8, top-k 40, top-p 0.95) and R3 (2,600 tokens), 130 tokens
+each, windows of the docs text. Three scenarios: 2 slots (R0, R1); 4 slots (R0 then R1, R2, R3 together); 4 slots with the arrival
+order R2, R3, R1.
+
+| scenario | mixed iterations (prefill beside decode) | prefill chunks | decode batches (rows: steps) | result |
+|---|---|---|---|---|
+| 2 slots | 2 | 3 | B1: 770, B2: 129 | R0, R1 token- and text-identical to the solo run |
+| 4 slots, order R1 R2 R3 | 12 | 13 | B1: 760, B2: 10, B3: 10, B4: 119 | all four identical |
+| 4 slots, order R2 R3 R1 | 12 | 13 | B1: 766, B2: 4, B3: 4, B4: 125 | all four identical |
+
+Every request is identical to its solo run, including the sampled 16k one and the neighbour R0 that decodes through all of the
+prefills. The counters show the busy path was exercised (mixed iterations > 0 is asserted). Both schedules agree because the
+scheduler's chunk rule (`next_prefill_chunk_tm`, last prompt token alone for recurrent state, no snapshots on CUDA) is the same
+function the solo engine calls, with chunk 2048, and `avoid_single_row_prefill` is false for recurrent state in both. Control (printed,
+not asserted): the same 4-slot scenario with `--busy-chunk 1024` diverges from the solo run at token 51 (R1), token 1 (R2, sampled) and
+token 25 (R3); R0 (a one-chunk prompt) stays identical. So the test would catch a schedule mismatch.
+
+### 11.3 Speed at busy chunk 2048 against 1024 (localeval, one server per setting, `--reps 1`; fleetq #4548, #4549)
+
+Aggregate decode tok/s from localeval; inter-token latency from the server's `intarsia_batch_itl_seconds` histogram between `/metrics`
+scrapes around each localeval call (per token, all streams; p50 / p99 are the upper bound of the 13-bucket histogram, bounds 20, 35, 50,
+75, 100, 150, 250, 500 ms, and the call also holds one single-stream pass of 127 tokens). Same workload as before (prompt about 1k tokens,
+128 generated), plus 4k-token prompts at 4 streams.
+
+| workload | busy 2048 (default): tok/s | ITL mean / p50 / p99 (ms) | busy 1024 (opt-in): tok/s | ITL mean / p50 / p99 (ms) |
+|---|---|---|---|---|
+| 1 stream, 1k prompt | 73.4 | 12.0 / <=20 / <=20 | 74.2 | 11.8 / <=20 / <=20 |
+| 4 streams, 1k prompt | **123.3** | 24.9 / <=35 / <=35 | 123.8 | 24.8 / <=35 / <=35 |
+| 16 streams, 1k prompt | **166.6** | 75.0 / <=75 / <=500 | 165.8 | 75.4 / <=75 / <=500 |
+| 4 streams, 4k prompt | **83.2** | 29.6 / <=35 / <=500 | 77.2 | 30.9 / <=35 / <=250 |
+
+Earlier 1024-chunk runs: 122.9 / 166.5 (#4531). **On the 1k-token workload the two settings are the same** (a 991-token prompt is one
+chunk at 1024 and at 2048), so the default costs nothing there: 123.3 / 166.6, within noise of the numbers quoted before. With 4k prompts
+the 2048 chunk is 8% faster at 4 streams (83.2 against 77.2: half as many chunks per prompt), and its ITL tail is a bucket worse
+(p99 <= 500 ms against <= 250 ms: one 2048-token chunk stalls the decoding streams for about 0.5 s, one 1024 chunk for about 0.25 s). The
+16-stream p99 of <= 500 ms is the same for both, from the sixteen prompts arriving together. The 140 target at 4 streams is still not met
+(the 4k workload is a different cell, with a longer prefill share).
