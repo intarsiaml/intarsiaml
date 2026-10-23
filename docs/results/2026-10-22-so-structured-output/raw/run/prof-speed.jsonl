@@ -1,0 +1,2 @@
+{"label": "prof", "rep": 0, "tokens": 177, "events": 176, "cons_tok_s": 36.465383100713524, "greedy_tok_s": 37.07920480458108, "sampled_tok_s": 26.480385884593698, "cons_s": 5.146344900131226, "greedy_s": 4.774217844009399, "sampled_s": 6.684205055236816}
+{"label": "prof", "rep": 1, "tokens": 177, "events": 176, "cons_tok_s": 36.29050551563837, "greedy_tok_s": 37.19312689650572, "sampled_tok_s": 26.381750799969794, "cons_s": 4.878586769104004, "greedy_s": 4.759737014770508, "sampled_s": 6.708884000778198}

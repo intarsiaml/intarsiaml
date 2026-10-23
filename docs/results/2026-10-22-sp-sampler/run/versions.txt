@@ -1,0 +1,4 @@
+date: 2026-10-22T11:47:46-04:00 fleetq job: 4228
+/opt/code/wt-sp-base/target-metal/release/intarsia 6dbba264f5fd251d78815b5a7517177a
+/opt/code/intarsiaml/.claude/worktrees/confident-pascal-ee9ba6/target-metal/release/intarsia 5bf00b49015202d303dcc9acf4d741ca
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 
