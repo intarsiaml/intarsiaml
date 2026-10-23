@@ -469,8 +469,9 @@ pub(crate) struct SeqStore {
     pol: StorePolicy,
     /// Positions `i` (`0 < i < plen`) where the prompt holds a boundary token: the state for `prompt[..i]` is stored.
     boundaries: Vec<usize>,
-    /// The cuts right after a message header (`<|im_start|>role\n`): where entries are stored. The cut before the
-    /// header is a chunk end only (an entry there would hold nearly the same tokens for another 63 MiB of recurrent state).
+    /// The cuts right after a message header (`<|im_start|>role\n`), and the prompt's end when a header ends it: where
+    /// entries are stored. The cut before the header is a chunk end only (an entry there would hold nearly the same
+    /// tokens for another 63 MiB of recurrent state).
     headers: Vec<usize>,
     /// Message starts in the prompt (a pinned prewarm of one message ends where the next request cuts: message 2).
     messages: usize,
@@ -505,6 +506,9 @@ impl SeqStore {
                 let wanted = pol.cut_roles.is_empty() || starts == 2 || pol.cut_roles.iter().any(|r| r[..] == *role);
                 if wanted && i + 1 < plen {
                     boundaries.push(i + 1);
+                }
+                if wanted {
+                    // a header ending the prompt is no cut (the last pass ends there anyway) but still an entry point
                     headers.push(i + 1);
                 }
                 in_header = false;
@@ -1449,6 +1453,16 @@ impl Seq {
         let out = model.forward(st, &self.req.prompt[self.pos..], mode, None)?;
         if st.clean == start {
             st.clean = st.len;
+        }
+        if self.ps.as_ref().is_some_and(|ps| ps.headers.last() == Some(&self.plen)) {
+            // the prompt ends at its last message header (Qwen3's generation prompt `<|im_start|>assistant\n`, no
+            // `<think>` after it): this final pass is that cut's chunk, so store its state (the next turn restores it).
+            // The head adds ops after the last layer and writes no state, so the state is the one a plain chunk
+            // ending here writes.
+            let at = std::mem::replace(&mut self.pos, self.plen);
+            let stored = self.store_at(model, st, false);
+            self.pos = at;
+            stored?;
         }
         self.tok = self.token_from(out, 1)?;
         self.prefill = self.t0.elapsed();

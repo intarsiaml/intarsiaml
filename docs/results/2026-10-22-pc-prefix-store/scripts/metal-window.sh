@@ -62,7 +62,7 @@ dead() {
 }
 
 serve() { # $1 = on|off, $2 = log
-  local extra=""
+  local extra="" i
   [ "$1" = on ] && extra="--prefix-store ${STORE:-on}"
   $HEAD serve --model $M35 --backend metal --port $PORT --no-supervisor --max-seq 16384 --profile-every 0 --served-model-name m $extra \
     > $2 2>&1 < /dev/null &
@@ -98,8 +98,21 @@ ttft() {
     run on$i on replay
     run off$i off replay
   done
+  # (until 2026-10-23 04:10 `serve` leaked its loop variable `i` into this loop: the off passes all wrote off6.*, so the
+  # 04:00 window kept only the third; it is raw/ttft/off3.*, and the `offreps` step re-ran off1 and off2)
   # the cut-roles variant: cuts only after assistant headers (fewer passes)
   for i in 1 2; do STORE=on,roles=assistant run asst$i on replay; done
+}
+
+offreps() { # store-off passes only, into the same raw/ttft (replays of the same recording)
+  O=$R/ttft; REC=$O/recorded
+  for i in "$@"; do
+    serve off $O/off$i-serve.log || return 1
+    $HEAD bench reuse --url http://127.0.0.1:$PORT --model m --corpus $W/tools/prompts/corpus_docs.txt --replay $REC --out $O/off$i.json > $O/off$i.txt 2>&1
+    echo "off$i rc=$?"; cat $O/off$i.txt
+    curl -s http://127.0.0.1:$PORT/metrics | grep '^intarsia_prefix_store' > $O/off$i.metrics
+    stop
+  done
 }
 
 date +%T
@@ -108,6 +121,7 @@ case $step in
   ident) ident ;;
   dead) dead ;;
   ttft) ttft ;;
+  offreps) offreps 1 2 ;;
   all) noop; ident; ttft; dead ;;
 esac
 date +%T

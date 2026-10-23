@@ -456,11 +456,14 @@ fn same_bits(a: &Out, b: &Out, what: &str) {
 struct Chat {
     kind: Kind,
     toks: Vec<u32>,
+    /// the generation prompt opens a think block (Qwen3.6's `<think>\n`); false: it ends at the assistant header
+    /// (Qwen3's template with thinking on), so the prompt's last header is its end
+    open_think: bool,
 }
 
 impl Chat {
     fn new(kind: Kind) -> Chat {
-        Chat { kind, toks: Vec::new() }
+        Chat { kind, toks: Vec::new(), open_think: true }
     }
     fn msg(&mut self, seed: u32, n: usize) -> &mut Chat {
         let c = self.kind.codec();
@@ -480,8 +483,10 @@ impl Chat {
         p.push(c.bound);
         p.push(20);
         p.push(c.nl);
-        p.push(c.think);
-        p.push(21);
+        if self.open_think {
+            p.push(c.think);
+            p.push(21);
+        }
         p
     }
     /// append the assistant's answer (without its thinking) to the history
@@ -507,12 +512,18 @@ fn multi_turn_identity(kind: Kind, chunk: usize) {
 }
 
 fn multi_turn_identity_cfg(kind: Kind, chunk: usize, cfg: PrefixStoreConfig) {
+    multi_turn_identity_with(kind, chunk, cfg, true)
+}
+
+fn multi_turn_identity_with(kind: Kind, chunk: usize, cfg: PrefixStoreConfig, open_think: bool) {
     let store_cfg = || cfg.clone();
     let warm = engine(kind, chunk, Some(store_cfg()));
     let mut a = Chat::new(kind);
+    a.open_think = open_think;
     a.msg(1, 23).msg(2, 9);
     let t1 = run(&warm, &a.prompt(), 6);
     let mut b = Chat::new(kind);
+    b.open_think = open_think;
     b.msg(7, 30).msg(8, 5);
     let _ = run(&warm, &b.prompt(), 4);
     a.answer(&t1.ids).msg(3, 11);
@@ -556,6 +567,15 @@ fn dense_multi_turn_restore_is_bitwise_cold() {
     multi_turn_identity(Kind::Dense, 64);
 }
 
+/// Qwen3's template (thinking on) ends the prompt at the assistant header: that header is the prompt's end, which the
+/// final (logits) pass computes, and the next turn must still restore it (Metal 8B gate, 2026-10-23: it did not).
+#[test]
+fn multi_turn_prompt_ending_at_the_header() {
+    for (kind, chunk) in [(Kind::Dense, 8), (Kind::Dense, 64), (Kind::Hybrid, 8), (Kind::Hybrid, 64)] {
+        multi_turn_identity_with(kind, chunk, store_cfg(), false);
+    }
+}
+
 /// The agent / RAG pattern: one long fixed prefix (system prompt, tool schema, documents), many different questions.
 /// The prefix is pinned by a prewarm; every question restores it.
 fn shared_prefix_identity(kind: Kind) {
@@ -568,7 +588,7 @@ fn shared_prefix_identity(kind: Kind) {
     // prewarming again is a hit on the whole prefix
     assert_eq!(prewarm(&warm, &pinned, Some("system")), pinned.len());
     for q in 0..3u32 {
-        let mut c = Chat { kind, toks: pinned.clone() };
+        let mut c = Chat { kind, toks: pinned.clone(), open_think: true };
         c.msg(100 + q, 5 + q as usize * 3);
         let p = c.prompt();
         let r = run(&warm, &p, 6);
