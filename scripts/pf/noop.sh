@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane pf, spark side: no-op check of a dev tree against a base tree with every new knob unset: `plan show` (8B json, 35B text)
 # and greedy ids (256 after a ~1.2k-token prompt, 64 after a ~4k-token prompt) for Qwen3-8B and the 35B. Inside a fleetq slot.
-# Usage: noop.sh <outname> <base tree> <dev tree>
+# Usage: [NOOP_UNSET=<another knob to unset, e.g. the MoE branch's>] noop.sh <outname> <base tree> <dev tree>
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 P=$HOME/intarsia-decfuse; O=$P/out/$1; B=$2; D=$3; mkdir -p $O
@@ -10,7 +10,7 @@ M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/sn
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 CORPUS=$P/pf-base/tools/prompts/corpus_docs.txt
 gen() { # gen <tag> <tree> <model> <chars> <tokens>
-  env -u INTARSIA_CUDA_FP8_GEMM_LT -u INTARSIA_CUDA_MOE_W4A16_IP -u INTARSIA_PREFILL_TAIL_MERGE timeout 900 $P/$2/target/acc/release/intarsia generate -m $3 --backend cuda --mem-budget 30 --max-seq 20480 --chat --no-think \
+  env -u INTARSIA_CUDA_FP8_GEMM_LT -u INTARSIA_PREFILL_TAIL_MERGE ${NOOP_UNSET:+-u $NOOP_UNSET} timeout 900 $P/$2/target/acc/release/intarsia generate -m $3 --backend cuda --mem-budget 30 --max-seq 20480 --chat --no-think \
     --profile-every 0 --ignore-eos --show-ids -p "$(head -c $4 $CORPUS)" --max-tokens $5 < /dev/null > $O/gen-$1.out 2> $O/gen-$1.err
   grep -a '^ids:' $O/gen-$1.err > $O/gen-$1.ids
 }
