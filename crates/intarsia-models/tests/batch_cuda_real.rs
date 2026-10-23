@@ -1,4 +1,4 @@
-//! CUDA gate G-C and the engine-level identity on the real models (docs/results/2026-10-23-rb2-cuda-batching.md):
+//! CUDA (and, with `INTARSIA_BATCH_TEST_BACKEND=hip`, HIP) gate G-C and the engine-level identity on the real models (docs/results/2026-10-23-rb2-cuda-batching.md):
 //!
 //! * `real_35b_batched_decode_is_bitwise_the_solo_step`: Qwen3.6-35B-A3B NVFP4. `Model::forward_batch` of N = 2, 3, 4, 8, 16
 //!   sequences at mixed context lengths, greedy and seeded-sampled rows, 130 consecutive steps each, must return for every
@@ -45,11 +45,14 @@ fn model_dir(var: &str) -> Option<PathBuf> {
     }
 }
 
+/// The GPU backend: CUDA, or HIP with `INTARSIA_BATCH_TEST_BACKEND=hip` (lane hb, docs/results/2026-10-23-hb-hip-hybrid-batching.md).
 fn cuda() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
-    match intarsia_backend_cuda::create(0) {
+    let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
+    let made = if hip { intarsia_backend_hip::create(0) } else { intarsia_backend_cuda::create(0) };
+    match made {
         Ok(b) => Some(b),
         Err(e) => {
-            skip(&format!("no usable CUDA device ({e})"));
+            skip(&format!("no usable {} device ({e})", if hip { "HIP" } else { "CUDA" }));
             None
         }
     }
@@ -69,7 +72,7 @@ fn load_with(
 ) -> (Model, Arc<Telemetry>) {
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
-    let chunk = recipe.resolve_prefill_chunk(None, "cuda").value;
+    let chunk = recipe.resolve_prefill_chunk(None, backend.name()).value;
     let opts = LoadOptions {
         max_seq,
         prefill_chunk: chunk,
@@ -80,7 +83,7 @@ fn load_with(
     };
     let tel = Arc::new(Telemetry::new());
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
-    assert!(m.batch_capable(), "the cuda backend registers the row-exact kernels");
+    assert!(m.batch_capable(), "the GPU backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
     m.allow_recurrent_batch().unwrap();
@@ -107,7 +110,10 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     eprintln!("batch plan notes: {:?}", m.plan.notes);
     // N = 2, 3, 4 (the gate), then 8 and 16; 130 consecutive batched steps per size on the same, growing states
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
-    gate(&m, lens, vec![2, 3, 4, 8, 16], 130, (1000, 30000));
+    // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
+    let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
+    let sizes: Vec<usize> = if hip { (2..=16).collect() } else { vec![2, 3, 4, 8, 16] };
+    gate(&m, lens, sizes, 130, (1000, 30000));
     // decode rows beside prefill chunks (the engine's busy chunk is 256): the decode rows stay bitwise, the prefilled state
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
@@ -119,7 +125,10 @@ fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
-    gate(&m, lens, vec![2, 3, 4, 8, 16], 130, (1000, 30000));
+    // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
+    let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
+    let sizes: Vec<usize> = if hip { (2..=16).collect() } else { vec![2, 3, 4, 8, 16] };
+    gate(&m, lens, sizes, 130, (1000, 30000));
 }
 
 // ---- engine level ---------------------------------------------------------------------------------------------------
