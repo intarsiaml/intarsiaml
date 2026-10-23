@@ -38,6 +38,7 @@ REPO = Path(__file__).resolve().parents[2]
 MB = Path("/opt/code/model-benchmarks")
 DEFAULT_REGIMES = MB / "composer" / "data" / "regimes.json"
 DEFAULT_CATALOG = MB / "composer" / "data" / "catalog.json"
+DEFAULT_EXTRACTION = MB / "composer" / "catalog" / "extraction-2026-10-22.json"
 DEFAULT_OUT = REPO / "docs" / "composer" / "gaps.md"
 
 ENGINE = "IntarsiaML"
@@ -48,6 +49,20 @@ DEFAULT_WEIGHTS = {"decode": 1.0, "prefill": 1.0, "concurrent": 0.5}
 
 # backend crate / kernel dir by hardware prefix (docs/backends)
 BACKEND_OF = [("DGX Spark", "cuda"), ("2x DGX Spark", "cuda"), ("Radeon", "hip"), ("M5", "metal"), ("Apple", "metal")]
+
+# Cells the model-benchmarks session asked us not to build plain lanes against (coordinator message, 2026-10-22).
+# Each rule: (reason, predicate(cell)).
+EXCLUDE_RUN = "20261022-074221-adhoc-tc-off-r1"
+EXCLUSIONS = [
+    ("did not reproduce: its own reps ran 141.6-150.1 tok/s, a 28% spread (the same config repeated gives 141.2-141.8); "
+     "extraction-2026-10-22.json, intarsiaml unexplained",
+     lambda c: any(k["run_id"] == EXCLUDE_RUN for k in c["contenders"])),
+    ("labelled plain but really spec decode (TensorFold DSV4.1 TP2 decode)",
+     lambda c: c["family"] == "DeepSeek V4.1 Flash" and c["hardware"].startswith("2x DGX Spark")
+     and c["phase"] == "decode"),
+    ("labelled plain but really spec decode (Flare Bolt decode 1k/16k)",
+     lambda c: c["family"].startswith("Nemotron 3.5 Bolt") and c["phase"] == "decode" and c["bucket"] in ("1k", "16k")),
+]
 STOP = set("the a an of and or to in for on with by is are at as from per vs it its this that into over than not "
            "only each via using use one two all".split())
 
@@ -62,11 +77,17 @@ def floor_for(phase, bucket):
 
 
 def techniques_for(engine, cell, catalog):
-    """Catalog ids whose engine, phase, bucket, family and hardware fit this cell, for the given engine
-    (the same predicate as build_regimes.py:192-200, with the engine a parameter because the same-quant
-    rival is not always the cell's winner)."""
+    """Catalog entries that explain this engine's number in this cell.
+
+    An entry with a `cells` field (exact regimes.json ids) matches when the cell id is listed and the entry is for the
+    engine; an entry without `cells` falls back to the build_regimes.py:192-200 predicate (engine, phase, bucket,
+    family, hardware), with the engine a parameter because the same-quant rival is not always the cell's winner."""
     out = []
     for e in catalog:
+        if e.get("cells"):
+            if cell["id"] in e["cells"] and e["engine"] == engine:
+                out.append(e)
+            continue
         hw = e.get("hardware") or ""
         if (e["engine"] == engine and e["phase"] == cell["phase"]
                 and (not e.get("buckets") or cell["bucket"] in e["buckets"])
@@ -76,14 +97,25 @@ def techniques_for(engine, cell, catalog):
     return out
 
 
+def exclusion(cell):
+    for reason, pred in EXCLUSIONS:
+        if pred(cell):
+            return reason
+    return None
+
+
 def weigh(phase, weights):
     return weights.get(phase, 1.0)
 
 
-def analyse(regimes, catalog, lane="plain", weights=None):
+def analyse(regimes, catalog, lane="plain", weights=None, extraction=None):
     """Returns dict with gaps, ties, unmatched_quant, unknown_quant, measure_first (all lists of dicts)."""
     weights = {**DEFAULT_WEIGHTS, **(weights or {})}
-    cells = [c for c in regimes if c["lane"] == lane]
+    all_cells = [c for c in regimes if c["lane"] == lane]
+    excluded = [{"cell": c["id"], "reason": r} for c in all_cells for r in [exclusion(c)] if r
+                and any(k["engine"] == ENGINE for k in c["contenders"])]
+    cells = [c for c in all_cells if not exclusion(c)]
+    extraction = extraction or {}
     gaps, ties, unmatched, unknown, measure_first = [], [], [], [], []
 
     intarsia_setups = {c["setup"] for c in cells if any(k["engine"] == ENGINE for k in c["contenders"])}
@@ -101,17 +133,18 @@ def analyse(regimes, catalog, lane="plain", weights=None):
                 continue
             if not me["quant"]:
                 best = max(rivals, key=lambda k: k["value"])
-                unknown.append(_base(c, me, best, None, catalog, weights, note="IntarsiaML quant is empty in the data"))
+                unknown.append(_base(c, me, best, None, catalog, weights, note="IntarsiaML quant is empty in the data", extraction=extraction))
                 continue
             same = [k for k in rivals if k["quant"] == me["quant"]]
             if not same:
                 best = max(rivals, key=lambda k: k["value"])
                 if best["value"] > me["value"]:
                     unmatched.append(_base(c, me, best, None, catalog, weights,
-                                           note=f"no rival on {me['quant']}; best rival uses {best['quant'] or 'unknown quant'}"))
+                                           note=f"no rival on {me['quant']}; best rival uses {best['quant'] or 'unknown quant'}",
+                                           extraction=extraction))
                 continue
             rival = max(same, key=lambda k: k["value"])
-            e = _base(c, me, rival, True, catalog, weights)
+            e = _base(c, me, rival, True, catalog, weights, extraction=extraction)
             if e["verdict"] == "behind":
                 gaps.append(e)
             elif e["verdict"] == "tie":
@@ -139,11 +172,11 @@ def analyse(regimes, catalog, lane="plain", weights=None):
     unmatched.sort(key=key)
     unknown.sort(key=key)
     measure_first.sort(key=lambda e: (e["kind"], e["setup"], e["phase"], e["bucket"]))
-    return {"lane": lane, "weights": weights, "gaps": gaps, "ties": ties, "unmatched_quant": unmatched,
+    return {"lane": lane, "weights": weights, "excluded": excluded, "gaps": gaps, "ties": ties, "unmatched_quant": unmatched,
             "unknown_quant": unknown, "measure_first": measure_first}
 
 
-def _base(c, me, rival, matched, catalog, weights, note=None):
+def _base(c, me, rival, matched, catalog, weights, note=None, extraction=None):
     phase, bucket = c["phase"], c["bucket"]
     noise = max(floor_for(phase, bucket), me.get("spread") or 0.0, rival.get("spread") or 0.0)
     margin = round((rival["value"] / me["value"] - 1) * 100, 1)
@@ -165,7 +198,37 @@ def _base(c, me, rival, matched, catalog, weights, note=None):
         "cell_winner_quality": c["winner_quality"],
         "evidence_runs": sorted({me["run_id"], rival["run_id"], c["winner_run"]}),
         "techniques": [_technique(t) for t in techs],
+        "extraction": _extraction_status(c, techs, extraction or {}),
     }
+
+
+def load_extraction(path):
+    """composer/catalog/extraction-*.json: per engine, `unexplained` cells (with the reason) and `rejected` entries."""
+    try:
+        x = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return {}
+    unexplained, rejected = {}, []
+    for pe in x.get("per_engine", []):
+        for u in pe.get("unexplained", []):
+            unexplained[u["cell"]] = {"engine": pe["engine"], "reason": u["reason"]}
+        for r in pe.get("rejected", []):
+            rejected.append({"engine": pe["engine"], "id": r["id"], "reason": r["reason"]})
+    return {"unexplained": unexplained, "rejected": rejected, "workflow": x.get("workflow"), "date": x.get("date")}
+
+
+def _extraction_status(cell, techs, extraction):
+    """What the extraction run says about a cell with no catalog technique: listed as unexplained (with its reason),
+    rejected entries that name the cell's family, or simply never examined."""
+    if techs or not extraction:
+        return None
+    cid = cell["id"].split(" | ")
+    key = f'{cell["hardware"]} · {cell["family"]} | {cell["lane"]} | {cell["phase"]} | {cell["bucket"]}'
+    u = extraction.get("unexplained", {}).get(key)
+    rej = [r for r in extraction.get("rejected", []) if cell["family"].lower() in (r["id"] + " " + r["reason"]).lower()]
+    return {"unexplained": u, "rejected_mentioning_family": [{"id": r["id"], "engine": r["engine"]} for r in rej[:4]],
+            "status": "listed as unexplained by the extraction run" if u else
+                      "not listed by the extraction run (no entry, no explanation: unexamined)"}
 
 
 def _contender(k):
@@ -174,8 +237,9 @@ def _contender(k):
 
 
 def _technique(t):
-    keep = ("id", "engine", "version", "hardware", "family", "arch", "phase", "buckets", "technique", "mechanism",
-            "impact", "preconditions", "transfer_notes", "sources", "source_verified", "evidence_runs")
+    keep = ("id", "engine", "version", "hardware", "family", "arch", "phase", "buckets", "cells", "technique", "mechanism",
+            "impact", "preconditions", "transfer_notes", "sources", "source_verified", "evidence_runs", "confidence",
+            "verify_verdict", "verify_note")
     return {f: t.get(f) for f in keep}
 
 
@@ -320,13 +384,24 @@ def brief(e, repo, n):
         for t in e["techniques"]:
             src = "; ".join(s.get("path") or f"unanimis {s.get('record')}" + (f":{s['lines']}" if s.get("lines") else "")
                             for s in t["sources"])
-            lines += [f"  - `{t['id']}` ({t['engine']}): {t['technique']}",
+            conf = ""
+            if t.get("confidence") or t.get("verify_verdict"):
+                conf = f" [confidence {t.get('confidence') or '?'}, verify {t.get('verify_verdict') or '?'}]"
+            lines += [f"  - `{t['id']}` ({t['engine']}){conf}: {t['technique']}",
                       f"    - mechanism: {t['mechanism']}",
                       f"    - impact: {t['impact']}",
                       f"    - preconditions: {'; '.join(t.get('preconditions') or [])}",
                       f"    - sources: {src} ({t.get('source_verified') or 'unverified'})"]
+            if t.get("verify_note"):
+                lines.append(f"    - verify note: {t['verify_note']}")
     else:
-        lines.append("- **Catalog techniques:** none matches this cell (a catalog gap: add an entry before porting)")
+        x = e.get("extraction") or {}
+        lines.append("- **Catalog techniques:** none matches this cell; " + (x.get("status") or "extraction file not read"))
+        if x.get("unexplained"):
+            lines.append(f"  - extraction note ({x['unexplained']['engine']}): {x['unexplained']['reason']}")
+        if x.get("rejected_mentioning_family"):
+            lines.append("  - rejected entries naming this family (not usable): "
+                         + ", ".join(f"`{r['id']}`" for r in x["rejected_mentioning_family"]))
     files = likely_files(e, repo)
     if files:
         lines.append("- **IntarsiaML files most likely involved** (heuristic: keyword hits in the backend, model and core "
@@ -351,7 +426,9 @@ def table(rows, header, fn):
 def render(res, repo, src):
     L = ["# IntarsiaML gaps by cell", "",
          f"Generated by `tools/composer/gap_to_lane.py` from `{src['regimes']}` (sha256 {src['regimes_sha']}) and "
-         f"`{src['catalog']}` (sha256 {src['catalog_sha']}). Lane: **{res['lane']}**."
+         f"`{src['catalog']}` (sha256 {src['catalog_sha']}); rejected and unexplained items from `{src['extraction']}`. "
+         f"Techniques match on an entry's `cells` (exact regimes.json ids) when it has them, else on engine, phase, bucket, family, "
+         f"hardware. Lane: **{res['lane']}**."
          + (" The spec lane is skipped by default (`--lane spec`)." if res["lane"] == "plain" else ""),
          "", "Read-only on model-benchmarks. Refresh: rerun the script after `build_regimes.py` has been run there.", "",
          "## How cells are judged", "",
@@ -376,6 +453,10 @@ def render(res, repo, src):
                    lambda e: [res["gaps"].index(e) + 1, e["setup"], f"{e['phase']} {e['bucket']}", e["rival"]["config"],
                               f"{e['margin_pct']}%", f"{e['noise_pct']}%", e["score"], f"`{e['intarsia']['quality']}`",
                               ", ".join(f"`{t['id']}`" for t in e["techniques"]) or "none"])
+    if res.get("excluded"):
+        L += ["## Excluded cells", "", "Skipped on the model-benchmarks session's instruction (not reproducible, or labelled plain "
+              "but really speculative):", ""]
+        L += table(res["excluded"], ["cell", "reason"], lambda x: [f"`{x['cell']}`", x["reason"]])
     L += ["## Lane briefs: gaps", ""]
     for i, e in enumerate(res["gaps"], 1):
         L += brief(e, repo, i)
@@ -413,6 +494,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--regimes", default=str(DEFAULT_REGIMES))
     ap.add_argument("--catalog", default=str(DEFAULT_CATALOG))
+    ap.add_argument("--extraction", default=str(DEFAULT_EXTRACTION), help="composer/catalog/extraction-*.json (rejected and unexplained)")
     ap.add_argument("--lane", default="plain", choices=["plain", "spec"])
     ap.add_argument("--weight", action="append", default=[], metavar="PHASE=W", help="override a phase weight (repeatable)")
     ap.add_argument("--out", default=str(DEFAULT_OUT), help="markdown output (default docs/composer/gaps.md)")
@@ -426,8 +508,9 @@ def main(argv=None):
         weights[k] = float(v)
     regimes = json.loads(Path(a.regimes).read_text())
     catalog = json.loads(Path(a.catalog).read_text())
-    res = analyse(regimes, catalog, a.lane, weights)
-    src = {"regimes": a.regimes, "regimes_sha": sha(a.regimes), "catalog": a.catalog, "catalog_sha": sha(a.catalog)}
+    res = analyse(regimes, catalog, a.lane, weights, load_extraction(a.extraction))
+    src = {"regimes": a.regimes, "regimes_sha": sha(a.regimes), "catalog": a.catalog, "catalog_sha": sha(a.catalog),
+           "extraction": a.extraction}
     repo = Path(a.repo)
     res["source"] = src
     for e in res["gaps"] + res["ties"] + res["unmatched_quant"] + res["unknown_quant"]:

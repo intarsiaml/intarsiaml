@@ -87,9 +87,42 @@ class Rules(unittest.TestCase):
         res = g.analyse(cs, [])
         self.assertEqual([(e["kind"], e["phase"]) for e in res["measure_first"]], [("unmeasured", "prefill")])
 
+    def test_cells_field_beats_the_old_predicate(self):
+        me = contender("IntarsiaML", "NVFP4", 100.0)
+        c = cell("decode", "4k", [me, contender("vLLM", "NVFP4", 150.0)])
+        listed = {"id": "listed", "engine": "vLLM", "phase": "prefill", "cells": [c["id"]], "confidence": "medium",
+                  "verify_verdict": "corrected", "technique": "t", "sources": [{"kind": "doc", "path": "p"}]}
+        other = {"id": "other-cell", "engine": "vLLM", "phase": "decode", "buckets": ["4k"], "cells": ["elsewhere"],
+                 "technique": "t", "sources": []}
+        old = {"id": "old-style", "engine": "vLLM", "phase": "decode", "buckets": ["4k"], "technique": "t", "sources": []}
+        res = g.analyse([c], [listed, other, old])
+        ids = [t["id"] for t in res["gaps"][0]["techniques"]]
+        # `listed` matches by cells although its phase differs; `other` has cells that exclude this one; `old` has no cells
+        self.assertEqual(ids, ["listed", "old-style"])
+        t = res["gaps"][0]["techniques"][0]
+        self.assertEqual((t["confidence"], t["verify_verdict"]), ("medium", "corrected"))
+
+    def test_exclusions(self):
+        me = contender("IntarsiaML", "NVFP4", 100.0)
+        bad = contender("vLLM", "NVFP4", 150.0)
+        bad["run_id"] = g.EXCLUDE_RUN
+        res = g.analyse([cell("decode", "16k", [me, bad])], [])
+        self.assertEqual(res["gaps"], [])
+        self.assertEqual(len(res["excluded"]), 1)
+
+    def test_unexplained_gap_reads_the_extraction(self):
+        me = contender("IntarsiaML", "NVFP4", 100.0)
+        c = cell("decode", "4k", [me, contender("vLLM", "NVFP4", 150.0)])
+        key = "HW · Fam | plain | decode | 4k"
+        ex = {"unexplained": {key: {"engine": "vllm", "reason": "no source explains it"}}, "rejected": []}
+        res = g.analyse([c], [], extraction=ex)
+        self.assertEqual(res["gaps"][0]["extraction"]["unexplained"]["reason"], "no source explains it")
+        res = g.analyse([c], [], extraction={"unexplained": {}, "rejected": []})
+        self.assertIn("unexamined", res["gaps"][0]["extraction"]["status"])
+
     def test_render_and_json_roundtrip(self):
         res = g.analyse(SAMPLE, CATALOG)
-        src = {"regimes": "r", "regimes_sha": "0", "catalog": "c", "catalog_sha": "0"}
+        src = {"regimes": "r", "regimes_sha": "0", "catalog": "c", "catalog_sha": "0", "extraction": "x"}
         md = g.render(res, g.REPO, src)
         self.assertIn(TECH, md)
         self.assertIn("Measure first", md)
