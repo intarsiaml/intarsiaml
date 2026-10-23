@@ -1140,7 +1140,10 @@ impl Seq {
             ps.last_insert = p;
         }
         seq.restore_time = restored;
-        seq.t0 = t_start;
+        if seq.ps.is_some() {
+            // the time to first token includes the lookup and the restore
+            seq.t0 = t_start;
+        }
         Ok(seq)
     }
 

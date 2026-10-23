@@ -55,7 +55,9 @@ pub struct ServeArgs {
     /// tool schema or documents) instead of recomputing it. `on` for the defaults (8 GiB of host memory), or
     /// `key=value` pairs separated by commas: `host_mb`, `device_mb` (default 0), `disk_mb` and `dir` (a disk tier that
     /// survives restarts of the same build), `page` (tokens per KV page, 16..=8192, default 256), `min`, `grid`,
-    /// `boundary` (`|`-separated one-token texts; default `<|im_start|>|<think>`). Single-sequence engine only.
+    /// `boundary` (`|`-separated one-token texts that start a message; default `<|im_start|>`), `header` (texts that end
+    /// a message header; default a newline), `any_cut=1` (restore at any length: only for chunk-invariant prefill).
+    /// Single-sequence engine only.
     /// Overrides `INTARSIA_PREFIX_STORE`. See docs/results/2026-10-22-pc-prefix-store.md.
     #[arg(long)]
     pub prefix_store: Option<String>,
