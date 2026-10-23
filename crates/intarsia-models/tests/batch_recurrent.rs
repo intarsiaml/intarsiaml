@@ -21,7 +21,7 @@
 mod common;
 use common::ByteCodec;
 use intarsia_core::dtype::f32_to_fp8_e4m3;
-use intarsia_core::model::{LoadOptions, Model};
+use intarsia_core::model::{HeadMode, LoadOptions, Model};
 use intarsia_core::quant::{nvfp4, Fp8Act};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
@@ -62,11 +62,12 @@ enum Variant {
 
 const VARIANTS: [Variant; 3] = [Variant::Dense, Variant::Moe, Variant::MoeA8];
 
-/// `INTARSIA_BATCH_TEST_BACKEND=cuda` / `hip` runs the file on that GPU backend (bf16), anything else on the cpu backend (f32).
+/// `INTARSIA_BATCH_TEST_BACKEND=cuda` / `hip` / `metal` runs the file on that GPU backend (bf16), anything else on the cpu backend (f32).
 fn gpu() -> Option<&'static str> {
     match std::env::var("INTARSIA_BATCH_TEST_BACKEND").as_deref() {
         Ok("cuda") => Some("cuda"),
         Ok("hip") => Some("hip"),
+        Ok("metal") => Some("metal"),
         _ => None,
     }
 }
@@ -81,7 +82,14 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     static B: std::sync::OnceLock<Option<Arc<dyn intarsia_core::backend::Backend>>> = std::sync::OnceLock::new();
     B.get_or_init(|| {
         if let Some(name) = gpu() {
-            let made = if name == "hip" { intarsia_backend_hip::create(0) } else { intarsia_backend_cuda::create(0) };
+            let made = match name {
+                "hip" => intarsia_backend_hip::create(0),
+                #[cfg(target_os = "macos")]
+                "metal" => intarsia_backend_metal::MetalBackend::arc(),
+                #[cfg(not(target_os = "macos"))]
+                "metal" => Err(intarsia_core::Error::Unsupported("metal needs macOS".into())),
+                _ => intarsia_backend_cuda::create(0),
+            };
             match made {
                 Ok(b) => Some(b),
                 Err(e) => {
@@ -99,12 +107,12 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
     .clone()
 }
 
-/// Most batched sequences the file exercises: 4 on the cpu reference, the CUDA cap on the GPU.
+/// Most batched sequences the file exercises: 4 on the cpu reference, the backend's cap on a GPU (CUDA and HIP 16, Metal 8).
 fn max_rows() -> usize {
-    if on_cuda() {
-        16
-    } else {
-        4
+    match gpu() {
+        Some("metal") => 8,
+        Some(_) => 16,
+        None => 4,
     }
 }
 
@@ -278,10 +286,15 @@ fn solo(v: Variant) -> LocalEngine {
 }
 
 fn batched(v: Variant, rows: usize, reuse: bool) -> (BatchedEngine, Arc<Telemetry>) {
+    batched_overlap(v, rows, reuse, false)
+}
+
+fn batched_overlap(v: Variant, rows: usize, reuse: bool, overlap: bool) -> (BatchedEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let m = model(v, rows, true, &tel);
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = reuse;
+    o.overlap = overlap;
     (BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap(), tel)
 }
 
@@ -383,9 +396,9 @@ fn picks(rec: &intarsia_core::plan::Recorder, op: intarsia_core::Op) -> Vec<Stri
     v
 }
 
-/// On CUDA the batched plan must really run the row-exact `_rows` kernels (and the solo step's own for the per-row ops):
+/// On a GPU the batched plan must really run the row-exact `_rows` kernels (and the solo step's own for the per-row ops):
 /// a green identity test over a plan that silently picked something else would prove nothing.
-fn check_cuda_batch_picks(m: &Model, v: Variant) {
+fn check_gpu_batch_picks(m: &Model, v: Variant) {
     use intarsia_core::plan::Phase;
     use intarsia_core::Op;
     let (rec, dec) = (m.dry_run(Phase::Batch, 4, 10).unwrap(), m.dry_run(Phase::Decode, 1, 10).unwrap());
@@ -398,13 +411,55 @@ fn check_cuda_batch_picks(m: &Model, v: Variant) {
         }
     }
     if matches!(v, Variant::Moe | Variant::MoeA8) {
-        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains("rows")), "{:?}", picks(&rec, Op::MoeExperts));
+        let want = if m.backend.name() == "metal" { "moe_experts_bf16_rows" } else { "rows" };
+        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)), "{:?}", picks(&rec, Op::MoeExperts));
         assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
     }
-    // the per-row ops are the solo step's own kernels
+    // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
+    // kernel's one-row call on every row in one launch (`<solo kernel>_rows`, bitwise the solo kernel, tests/row_tables.rs)
     for op in [Op::GdnDeltaRule, Op::AttnDecode] {
-        assert_eq!(picks(&rec, op), picks(&dec, op), "{v:?} {op}");
+        let solo = picks(&dec, op);
+        for k in picks(&rec, op) {
+            let twin = k.strip_suffix("_rows").is_some_and(|base| solo.iter().any(|s| s == base));
+            assert!(solo.contains(&k) || twin, "{v:?} {op}: batched {k}, solo {solo:?}");
+        }
     }
+}
+
+/// R3c / Fable m3: decode graphs are recorded per row count (batched) and per sequence state (solo), not per step. Batches of
+/// changing sizes over a rotating window of sequences, and single rows alternating between sequences, record each shape once.
+/// (CUDA only: other backends replay no graphs, and the check is vacuous there.)
+#[test]
+fn alternating_rows_and_batches_do_not_recapture() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    let tel = Arc::new(Telemetry::new());
+    let m = model(VARIANTS[VARIANTS.len() - 1], max_rows(), true, &tel);
+    if !m.graph_stats().enabled {
+        return;
+    }
+    let lens: Vec<usize> = (0..4).map(|i| 4 + 3 * i).collect();
+    let cfg = batch_identity::Cfg { lens, batches: vec![2, 3, 4, 2, 3, 4, 3, 2], steps: 6, vocab_range: (1, VOCAB - 1) };
+    let before = m.graph_stats();
+    let n = batch_identity::run(&m, &cfg);
+    assert_eq!(n, (2 + 3 + 4 + 2 + 3 + 4 + 3 + 2) * 6);
+    let st = m.graph_stats();
+    // three row counts: at most three recordings however the sequences rotate (the eager comparison steps in the harness are solo)
+    assert!(st.batch_captures - before.batch_captures <= 3, "batched recordings {st:?}");
+    // solo steps of four states, interleaved one by one: one recording per state, however often they alternate
+    let mut states: Vec<_> = (0..4).map(|_| m.new_state().unwrap()).collect();
+    for s in states.iter_mut() {
+        m.forward(s, &[1, 2, 3], HeadMode::None, None).unwrap();
+    }
+    let c0 = m.graph_stats().captures;
+    for step in 0..12u32 {
+        for s in states.iter_mut() {
+            m.forward(s, &[1 + step % 7], HeadMode::LastArgmax, None).unwrap();
+        }
+    }
+    let c1 = m.graph_stats().captures;
+    assert!(c1 - c0 <= 4, "solo recordings for 4 alternating states: {}", c1 - c0);
 }
 
 #[test]
@@ -416,7 +471,7 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
         let tel = Arc::new(Telemetry::new());
         let m = model(v, max_rows(), true, &tel);
         if on_cuda() {
-            check_cuda_batch_picks(&m, v);
+            check_gpu_batch_picks(&m, v);
         }
         // N = 2, 3 and 4 sequences of different prompt lengths (on the GPU also 8 and 16), 130 consecutive batched steps each
         // (the fixture's context is 256 tokens, so each batch size gets fresh sequences); greedy rows alternate onto the
@@ -424,7 +479,9 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
         let mut sets = vec![vec![3usize, 9], vec![5, 11, 20], vec![4, 8, 13, 22]];
         if on_cuda() {
             sets.push((0..8).map(|i| 3 + 5 * i).collect());
-            sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
+            if max_rows() >= 16 {
+                sets.push((0..16).map(|i| 2 + 2 * i + i % 3).collect());
+            }
         }
         for lens in sets {
             let n = lens.len();
@@ -448,11 +505,45 @@ fn batched_hybrid_decode_beside_prefill_chunks() {
     }
 }
 
+/// R3d: decode steps on the decode twin (own stream and workspace) beside a prefill chunk on another thread, in the same GPU
+/// at the same time: every decode row bitwise its solo step, the chunked prefill bitwise the prefill alone. CUDA only.
+#[test]
+fn decode_twin_beside_a_running_prefill_is_bitwise_solo() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    for v in VARIANTS {
+        let tel = Arc::new(Telemetry::new());
+        let m = model(v, max_rows().min(8), true, &tel);
+        let twin = m.decode_twin(m.batch_rows()).unwrap();
+        let (compared, during) = batch_identity::run_overlapped(&m, &twin, &[5, 20, 33], 120, 16, (1, VOCAB - 1), 2);
+        assert!(compared >= 3 * 2 * 120usize.div_ceil(16), "{v:?}: {compared}");
+        eprintln!("{v:?}: {compared} decode rows bitwise solo, {during} batched steps begun while a chunk was running");
+    }
+}
+
+/// The batched engine with overlap on equals the solo engine over 128 tokens (CUDA only).
+#[test]
+fn batched_engine_with_overlap_equals_solo_over_128_tokens() {
+    if backend().is_none() || !on_cuda() {
+        return;
+    }
+    for v in VARIANTS {
+        for rows in [2usize, 4, 8] {
+            check_engine_overlap(v, rows, 2 * rows + 3, false, true);
+        }
+    }
+}
+
 fn check_engine(v: Variant, rows: usize, n_cases: usize, reuse: bool) {
+    check_engine_overlap(v, rows, n_cases, reuse, false)
+}
+
+fn check_engine_overlap(v: Variant, rows: usize, n_cases: usize, reuse: bool, overlap: bool) {
     let reference = solo(v);
     let want: Vec<Out> = cases(n_cases).into_iter().map(|r| run_solo(&reference, r)).collect();
     assert!(want.iter().all(|w| w.completion_tokens >= 128), "the comparison needs >= 128 generated tokens");
-    let (eng, tel) = batched(v, rows, reuse);
+    let (eng, tel) = batched_overlap(v, rows, reuse, overlap);
     // all at once: more requests than slots, so they queue, overlap, finish at different times, and slots are recycled
     let rxs: Vec<_> = cases(n_cases).into_iter().map(|r| eng.submit(r).unwrap()).collect();
     for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
@@ -482,7 +573,7 @@ fn batched_engine_equals_solo_over_128_tokens() {
         }
         if on_cuda() {
             // more slots, more requests than slots
-            for rows in [8usize, 16] {
+            for rows in [8usize, 16].into_iter().filter(|&r| r <= max_rows()) {
                 check_engine(v, rows, 2 * rows + 3, false);
             }
         }
@@ -567,7 +658,10 @@ fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them()
         let keep = m.batch_snapshots();
         assert_eq!(keep, if on_cuda() { 0 } else { 4 }, "the prefix store stays at batch 1 on cuda");
         let extra = (rows as u64 - 1) * rec * (1 + keep as u64);
-        assert_eq!(m.plan.workspace_bytes, solo.plan.workspace_bytes + extra, "{v:?}: workspace");
+        // the recurrent states of the extra slots, plus (row tables) the kernel scratch of the multi-row attention launch, which is
+        // sized for `rows` rows of split-KV partials instead of one
+        let ws = m.plan.workspace_bytes;
+        assert!(ws >= solo.plan.workspace_bytes + extra && ws - (solo.plan.workspace_bytes + extra) < (64 << 20), "{v:?}: workspace {ws}");
         assert!(m.plan.notes.iter().any(|n| n.contains("recurrent state of 4 batched sequences")), "{:?}", m.plan.notes);
         // a slot holds its snapshot buffers from the start ...
         let mut st = m.new_state().unwrap();

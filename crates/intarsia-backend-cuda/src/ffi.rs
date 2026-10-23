@@ -56,6 +56,7 @@ extern "C" {
     pub fn ik_rt_memcpy_d2d(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
     pub fn ik_rt_memset(dst: *mut c_void, value: c_int, n: usize, stream: S) -> c_int;
     pub fn ik_rt_stream_create(stream: *mut S) -> c_int;
+    pub fn ik_rt_stream_create_high_priority(stream: *mut S) -> c_int;
     pub fn ik_rt_stream_sync(stream: S) -> c_int;
     pub fn ik_rt_f32_round(src: *const c_void, dst: *mut c_void, n: usize, dst_dtype: c_int, stream: S) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
@@ -85,6 +86,38 @@ extern "C" {
     pub fn ik_logits_bf16_gemv(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
+    pub fn ik_topk_f32(logits: T, k: i64, ids: TM, vals: TM, nan: TM, scratch: SC, s: S) -> c_int;
+    // row-table launches (batched decode, kernels/cuda/ik_cuda_abi.h)
+    pub fn ik_gdn_conv_bf16_rows(x: T, taps: T, y: TM, state0: T, tab: T, stride: i64, index: i64, s: S) -> c_int;
+    pub fn ik_gdn_delta_rule_bf16_split_rows(
+        qkv: T,
+        a: T,
+        b: T,
+        a_log: T,
+        dt_bias: T,
+        eps: f32,
+        o: TM,
+        state0: T,
+        tab: T,
+        stride: i64,
+        index: i64,
+        byte_off: i64,
+        s: S,
+    ) -> c_int;
+    pub fn ik_kv_append_bf16_rows(new_kv: T, cache0: T, tab: T, stride: i64, index: i64, pos: T, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16_splitkv_rows(
+        q: T,
+        kc0: T,
+        vc0: T,
+        scale: f32,
+        out: TM,
+        scratch: SC,
+        tab: T,
+        stride: i64,
+        index: i64,
+        pos: T,
+        s: S,
+    ) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;

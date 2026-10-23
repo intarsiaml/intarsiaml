@@ -88,6 +88,11 @@ pub struct KernelImpl {
     /// decode launch at that row's position. Selected only for calls with `OpCall::exact_rows` set (and then
     /// exclusively, for the ops that have one); ordinary calls never pick it.
     pub rows_exact: bool,
+    /// Row-table kernel (`OpCall::rows`): runs the one-row (`T = 1`) decode call of the solo step on every row of a batched
+    /// step at once, the rows' state buffers named by a table of device addresses; row `r` is bitwise the solo kernel the
+    /// registration is the twin of (G-B, the backend's `tests/row_tables.rs`). Selected only for calls with a row table, and
+    /// those only select these.
+    pub row_table: bool,
     /// Implements the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`). Off by default; see `ShapeInfo::ext`.
     pub ext: bool,
 }
@@ -113,6 +118,7 @@ impl KernelImpl {
             priority: 0,
             scratch: None,
             rows_exact: false,
+            row_table: false,
             ext: false,
         }
     }
@@ -172,6 +178,11 @@ impl KernelImpl {
     /// Mark as a verify-row kernel (see `KernelImpl::rows_exact`).
     pub fn rows_exact(mut self) -> Self {
         self.rows_exact = true;
+        self
+    }
+    /// Mark as a row-table kernel (see `KernelImpl::row_table`).
+    pub fn row_table(mut self) -> Self {
+        self.row_table = true;
         self
     }
     pub fn priority(mut self, p: i32) -> Self {
@@ -298,6 +309,17 @@ impl Registry {
         &self.arch
     }
 
+    /// A row-table kernel (`OpCall::rows`) takes the admission of the kernel it twins (its name without `_rows`): the sweep has
+    /// no case with a table of device addresses, so the row-table kernel is never tested there; its own gate is the backend's
+    /// bitwise test against the one-row kernel (`tests/row_tables.rs`). Without this, `serve` (admitted kernels only) would
+    /// never select the row-table twins.
+    fn effective_admission(&self, k: &KernelImpl, own: Admission) -> Admission {
+        if !k.row_table {
+            return own;
+        }
+        k.name.strip_suffix("_rows").and_then(|base| self.admission(base)).unwrap_or(own)
+    }
+
     pub fn set_admission(&mut self, name: &str, a: Admission) {
         for (k, st) in self.entries.iter_mut() {
             if k.name == name {
@@ -312,19 +334,19 @@ impl Registry {
         let s = ShapeInfo::from_call(call);
         // Verify calls (`exact_rows`) of an op that has row-exact kernels may only take one of those; ops without
         // any (row-parallel norms, embedding, argmax, ...) keep the ordinary choice. Ordinary calls skip them.
-        let rows_only = call.exact_rows && self.entries.iter().any(|(k, _)| k.op == call.op && k.rows_exact);
+        let rows_only = call.exact_rows && call.rows.is_none() && self.entries.iter().any(|(k, _)| k.op == call.op && k.rows_exact);
         let mut best: Option<&KernelImpl> = None;
         for (k, adm) in &self.entries {
             if k.op != call.op || !k.arch_matches(&self.arch) || !k.accepts(&s) {
                 continue;
             }
-            if k.rows_exact != rows_only {
+            if k.rows_exact != rows_only || k.row_table != call.rows.is_some() {
                 continue;
             }
             if self.reference_only && !k.is_reference {
                 continue;
             }
-            match adm {
+            match self.effective_admission(k, *adm) {
                 Admission::Rejected => continue,
                 Admission::Untested if self.require_admitted => continue,
                 _ => {}
@@ -386,6 +408,22 @@ mod tests {
         s.m = 1;
         s.act = Some(DType::F32);
         assert!(!k.accepts(&s));
+    }
+
+    #[test]
+    fn a_row_table_kernel_takes_the_admission_of_the_kernel_it_twins() {
+        let base = KernelImpl::new(Op::GdnConv, "gdn_conv_x", "b");
+        let twin = KernelImpl::new(Op::GdnConv, "gdn_conv_x_rows", "b").row_table();
+        let other = KernelImpl::new(Op::Matmul, "mm_rows", "b").rows_exact();
+        let entries = vec![(base, Admission::Untested), (twin.clone(), Admission::Untested), (other.clone(), Admission::Untested)];
+        let mut reg = Registry { backend: "b".into(), arch: "any".into(), entries, require_admitted: true, reference_only: false };
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Untested);
+        reg.set_admission("gdn_conv_x", Admission::Admitted);
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Admitted);
+        reg.set_admission("gdn_conv_x", Admission::Rejected);
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Rejected);
+        // a rows-exact kernel is swept on its own, so its own admission stands
+        assert_eq!(reg.effective_admission(&other, Admission::Untested), Admission::Untested);
     }
 
     #[test]

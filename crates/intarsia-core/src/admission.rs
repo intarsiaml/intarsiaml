@@ -977,6 +977,11 @@ pub fn run_admission(
         if !kern.arch_matches(&cinfo.arch) {
             continue;
         }
+        // a row-table kernel (`OpCall::rows`) only runs calls with a table of device addresses, which no sweep case has; its
+        // gate is the backend's own bitwise test against the one-row kernel it twins (tests/row_tables.rs)
+        if kern.row_table {
+            continue;
+        }
         if let Some(ops) = &opts.only_ops {
             if !ops.contains(&kern.op) {
                 continue;

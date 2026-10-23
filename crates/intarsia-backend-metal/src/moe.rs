@@ -15,6 +15,10 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
 pub const MOE_TOPK_BF16: &str = "moe_topk_bf16";
 pub const MOE_EXPERTS_BF16: &str = "moe_experts_bf16";
 pub const MOE_COMBINE_BF16: &str = "moe_combine_bf16";
+/// `rows_exact` expert-grouped decode for 2..=8 tokens (continuous batching of the hybrid 35B,
+/// docs/results/2026-10-23-mb-metal-hybrid-batching.md): token t is bitwise the T = 1 `moe_experts_bf16` call on token t alone
+/// (tests/rows_exact.rs), and each expert's weights are read once for all the tokens routed to it.
+pub const MOE_EXPERTS_BF16_ROWS: &str = "moe_experts_bf16_rows";
 
 const TOPK_BF16: &str = "moe_topk_bf16";
 const TOPK_F32: &str = "moe_topk_f32";
@@ -22,16 +26,21 @@ const COMBINE: &str = "moe_combine_bf16";
 const DEC_GU: &str = "moe_dec_gu";
 const DEC_DN: [&str; 2] = ["moe_dec_dn_bf16", "moe_dec_dn_f32"];
 const GROUP: &str = "moe_group";
+const DEC_GU_X: &str = "moe_dec_gu_x";
+const DEC_DN_X: &str = "moe_dec_dn_x";
 /// Grouped GEMMs by rows per tile (8, 16, 32, 64).
 const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe_mm_gu_m64"];
 const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 17] = [
+pub const SHADERS: [&str; 19] = [
     TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
-    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1],
+    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X,
 ];
+
+/// Tokens the row-exact decode takes (`MOE_XR` pairs per tile: an expert has at most one pair per token).
+pub const ROWS_MAX: usize = 8;
 
 /// T*K at or below which `MoeExperts` takes the per-pair decode path (the hip decode kernels' cut).
 pub const DECODE_MAX_PAIRS: usize = 16;
@@ -118,7 +127,8 @@ impl MetalBackend {
         self.moe_dispatch(COMBINE, &[&rb, &sb, &gb, &ob], &p, groups, 256)
     }
 
-    pub(crate) fn launch_moe_experts(&self, call: &OpCall) -> Result<()> {
+    /// `rows`: the row-exact expert-grouped decode of 2..=`ROWS_MAX` tokens ([`MOE_EXPERTS_BF16_ROWS`]).
+    pub(crate) fn launch_moe_experts(&self, call: &OpCall, rows: bool) -> Result<()> {
         let [x, ids, wts, guw, gus, dw, ds, gsc] = call.inputs.as_slice() else {
             return Err(Error::invalid("metal moe_experts: expected 8 inputs"));
         };
@@ -133,6 +143,9 @@ impl MetalBackend {
         let pairs = t * k;
         if pairs == 0 || h == 0 {
             return Ok(());
+        }
+        if rows && !(2..=ROWS_MAX).contains(&t) {
+            return Err(Error::invalid(format!("metal moe_experts_bf16_rows: T = {t} (2..={ROWS_MAX} tokens)")));
         }
         let o32 = match out.dtype {
             DType::Bf16 => 0,
@@ -176,6 +189,17 @@ impl MetalBackend {
             ..Default::default()
         };
         let hb = at(&sc, o_h);
+        if rows {
+            // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
+            // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
+            let yb = at(&sc, o_y);
+            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
+            self.moe_dispatch(DEC_GU_X, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: pairs, depth: 1 };
+            self.moe_dispatch(DEC_DN_X, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
+            let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
+            return self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
+        }
         if pairs <= DECODE_MAX_PAIRS {
             let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
             self.moe_dispatch(DEC_GU, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;

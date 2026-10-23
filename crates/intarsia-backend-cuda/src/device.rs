@@ -136,7 +136,15 @@ impl CudaBackend {
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
             // SAFETY: valid out-pointer; the device is bound by the caller.
-            check("cudaStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
+            // stream 0 carries the ordinary work; every other stream is the decode lane (R3d): highest priority
+            let id_new = s.len();
+            check("cudaStreamCreate", unsafe {
+                if id_new == 0 {
+                    ffi::ik_rt_stream_create(&mut h)
+                } else {
+                    ffi::ik_rt_stream_create_high_priority(&mut h)
+                }
+            })?;
             s.push(h as usize);
         }
         Ok(s[id as usize] as *mut c_void)
@@ -182,6 +190,12 @@ impl Backend for CudaBackend {
             total = self.total_at_init;
             free = 0;
         }
+        // unified memory: page cache the kernel gives back to a cudaMalloc counts as free (`hostmem`)
+        let free = if self.integrated {
+            crate::hostmem::effective_free(free, total, true, crate::hostmem::host_mem_available(), crate::hostmem::raw_requested())
+        } else {
+            free
+        };
         DeviceInfo {
             name: self.name.clone(),
             backend: "cuda".into(),
@@ -268,8 +282,45 @@ impl Backend for CudaBackend {
         if let Ok(list) = std::env::var("INTARSIA_CUDA_DISABLE") {
             let off: Vec<&str> = list.split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
             v.retain(|k| !off.contains(&k.name.as_str()));
+            // a row-table twin goes with the kernel it twins: it must never run where the solo step would run another kernel
+            v.retain(|k| !(k.row_table && k.name.strip_suffix("_rows").is_some_and(|base| off.contains(&base))));
         }
         v
+    }
+
+    fn supports_row_tables(&self) -> bool {
+        true
+    }
+
+    fn supports_topk(&self) -> bool {
+        true
+    }
+
+    fn topk_rows(
+        &self,
+        logits: &TensorRef,
+        k: usize,
+        ids: &TensorRef,
+        vals: &TensorRef,
+        nan: &TensorRef,
+        scratch: &TensorRef,
+        stream: StreamId,
+    ) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let (l, i, v, n) = (Self::tensor(logits)?, Self::tensor(ids)?, Self::tensor(vals)?, Self::tensor(nan)?);
+        let scr = ffi::IkScratch { data: Self::ptr(&scratch.buf, scratch.offset, scratch.nbytes())? as *mut c_void, bytes: scratch.nbytes() as i64 };
+        let (mut i, mut v, mut n) = (i, v, n);
+        // SAFETY: tensors are bounds-checked views of live device buffers; the launcher validates shapes and the scratch size.
+        let st = unsafe { ffi::ik_topk_f32(&l, k as i64, &mut i, &mut v, &mut n, &scr, s) };
+        if st != 0 {
+            return Err(Error::backend(format!("topk_f32: {}", ffi::status_name(st))));
+        }
+        Ok(())
+    }
+
+    fn device_address(&self, buf: &Buffer) -> Option<u64> {
+        Self::ptr(buf, 0, 0).ok().map(|p| p as u64)
     }
 
     fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
@@ -304,6 +355,15 @@ impl Backend for CudaBackend {
         // optional device-side position (rope / kv_append / attn_decode); null = the host `pos0`
         let pos_t: Option<IkTensor> = call.pos.as_ref().map(Self::tensor).transpose()?;
         let pos = pos_t.as_ref().map_or(std::ptr::null(), |t| t as *const IkTensor);
+        // row table (batched decode, `OpCall::rows`): the device addresses of the rows' state buffers; null for an ordinary call,
+        // which the row-table launchers refuse
+        let rows_t: Option<(IkTensor, i64, i64, i64)> = call
+            .rows
+            .as_ref()
+            .map(|r| Self::tensor(&r.ptrs).map(|t| (t, r.stride as i64, r.index as i64, r.byte_off as i64)))
+            .transpose()?;
+        let tab = rows_t.as_ref().map_or(std::ptr::null(), |t| &t.0 as *const IkTensor);
+        let (tab_stride, tab_index, tab_off) = rows_t.as_ref().map_or((0, 0, 0), |t| (t.1, t.2, t.3));
         // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the
         // launchers validate dtype/rank/stride and return an error status instead of faulting, and
         // never synchronise or allocate.
@@ -326,6 +386,14 @@ impl Backend for CudaBackend {
                 }
                 "gdn_delta_rule_bf16_split" => {
                     ffi::ik_gdn_delta_rule_bf16_split(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
+                }
+                "gdn_conv_bf16_rows" => ffi::ik_gdn_conv_bf16_rows(i(0), i(1), o, o.add(1), tab, tab_stride, tab_index, s),
+                "gdn_delta_rule_bf16_split_rows" => ffi::ik_gdn_delta_rule_bf16_split_rows(
+                    i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), tab, tab_stride, tab_index, tab_off, s,
+                ),
+                "kv_append_bf16_rows" => ffi::ik_kv_append_bf16_rows(i(0), o, tab, tab_stride, tab_index, pos, s),
+                "attn_decode_bf16_splitkv_rows" => {
+                    ffi::ik_attn_decode_bf16_splitkv_rows(i(0), i(1), i(2), a.scale, o, sc, tab, tab_stride, tab_index, pos, s)
                 }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),

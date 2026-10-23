@@ -108,6 +108,17 @@ int ik_rt_stream_create(void** stream) {
     *stream = (void*)s;
     return (int)e;
 }
+// The highest-priority non-blocking stream: the batched decode lane (R3d) runs beside a prefill chunk on stream 0, and its small
+// kernels must get SMs as the chunk's blocks retire instead of queueing behind the chunk's remaining grid.
+int ik_rt_stream_create_high_priority(void** stream) {
+    int least = 0, greatest = 0;
+    cudaError_t e = cudaDeviceGetStreamPriorityRange(&least, &greatest);
+    if (e != cudaSuccess) return (int)e;
+    cudaStream_t s = nullptr;
+    e = cudaStreamCreateWithPriority(&s, cudaStreamNonBlocking, greatest);
+    *stream = (void*)s;
+    return (int)e;
+}
 int ik_rt_stream_sync(void* stream) { return (int)cudaStreamSynchronize((cudaStream_t)stream); }
 
 int ik_rt_measure_bandwidth(double* gbs) {

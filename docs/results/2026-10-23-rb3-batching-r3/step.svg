@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 640" width="980" role="img" aria-labelledby="ttl desc">
+<title id="ttl">Batched decode step of Qwen3.6-35B-A3B on CUDA, before and after R3</title>
+<desc id="desc">Before: GatedDeltaNet and attention launch once per row, the step is eager, and a prefill chunk stalls decode. After: one row-table launch per op, one CUDA graph per row count, and the prefill chunk runs on stream 0 beside the decode twin on stream 1.</desc>
+<style>
+:root{--bg:#ffffff;--fg:#1f2328;--mut:#59636e;--shared:#ddf4ff;--sharedS:#0969da;--row:#dafbe1;--rowS:#1a7f37;--par:#eaeef2;--parS:#6e7781;--moe:#fff8c5;--moeS:#9a6700;--bad:#ffebe9;--badS:#cf222e;--ln:#8c959f}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--shared:#0c2d6b;--sharedS:#58a6ff;--row:#0f3d1f;--rowS:#3fb950;--par:#21262d;--parS:#8b949e;--moe:#3d2e00;--moeS:#d29922;--bad:#4c1d1f;--badS:#f85149;--ln:#6e7681}}
+.bg{fill:var(--bg)} .t{font:600 13px system-ui,sans-serif;fill:var(--fg)} .s{font:11px system-ui,sans-serif;fill:var(--mut)} .h{font:700 14px system-ui,sans-serif;fill:var(--fg)}
+.shared{fill:var(--shared);stroke:var(--sharedS);stroke-width:1.5} .row{fill:var(--row);stroke:var(--rowS);stroke-width:1.5} .par{fill:var(--par);stroke:var(--parS);stroke-width:1.5} .moe{fill:var(--moe);stroke:var(--moeS);stroke-width:1.5} .bad{fill:var(--bad);stroke:var(--badS);stroke-width:1.5}
+.ln{stroke:var(--ln);stroke-width:1.5;fill:none} .dash{stroke:var(--ln);stroke-width:1;stroke-dasharray:5 4;fill:none}
+</style>
+<rect class="bg" width="980" height="640"/>
+
+<text x="20" y="26" class="h">Before (rb2, #117): GDN and attention launched once per row, step runs eagerly</text>
+<rect x="20" y="40" width="150" height="56" rx="6" class="shared"/><text x="95" y="62" class="t" text-anchor="middle">projections, MoE</text><text x="95" y="78" class="s" text-anchor="middle">row-exact GEMV, 1 launch</text>
+<rect x="190" y="40" width="330" height="56" rx="6" class="bad"/><text x="355" y="62" class="t" text-anchor="middle">conv + delta rule: B x 2 launches / GDN layer</text><text x="355" y="78" class="s" text-anchor="middle">rope, qk_norm, kv_append, attention: B launches each</text>
+<rect x="540" y="40" width="150" height="56" rx="6" class="shared"/><text x="615" y="62" class="t" text-anchor="middle">out_proj, router</text><text x="615" y="78" class="s" text-anchor="middle">1 launch</text>
+<rect x="710" y="40" width="250" height="56" rx="6" class="par"/><text x="835" y="62" class="t" text-anchor="middle">no CUDA graph at B &gt;= 2</text><text x="835" y="78" class="s" text-anchor="middle">about 814 + 130 (B-1) launches (B=16: ~2760)</text>
+<path class="ln" d="M170 68 H190 M520 68 H540 M690 68 H710"/>
+
+<text x="20" y="136" class="h">After (rb3): one row-table launch per op, one CUDA graph per row count</text>
+<rect x="20" y="150" width="150" height="56" rx="6" class="shared"/><text x="95" y="172" class="t" text-anchor="middle">projections, MoE</text><text x="95" y="188" class="s" text-anchor="middle">unchanged (R2)</text>
+<rect x="190" y="150" width="330" height="56" rx="6" class="row"/><text x="355" y="172" class="t" text-anchor="middle">conv, delta rule, kv_append, attention: 1 launch</text><text x="355" y="188" class="s" text-anchor="middle">row r reads its own state / KV by pointer table, in place</text>
+<rect x="540" y="150" width="150" height="56" rx="6" class="shared"/><text x="615" y="172" class="t" text-anchor="middle">out_proj, router</text><text x="615" y="188" class="s" text-anchor="middle">unchanged</text>
+<rect x="710" y="150" width="250" height="56" rx="6" class="row"/><text x="835" y="172" class="t" text-anchor="middle">graph per row count (2..16)</text><text x="835" y="188" class="s" text-anchor="middle">814 launches at any B; tables rewritten per replay</text>
+<path class="ln" d="M170 178 H190 M520 178 H540 M690 178 H710"/>
+<text x="20" y="228" class="s">Every row is still bitwise the solo step: the row-table kernels run the one-row kernel's arithmetic per row (G-B), the GEMVs are the R0 row-exact kernels.</text>
+
+<text x="20" y="272" class="h">Prefill chunk beside decode (one 2048-token chunk is about 0.5 s)</text>
+<text x="20" y="300" class="s">Before: one stream</text>
+<rect x="150" y="286" width="300" height="26" rx="4" class="moe"/><text x="300" y="304" class="t" text-anchor="middle">prefill chunk (decode rows wait)</text>
+<rect x="450" y="286" width="60" height="26" rx="4" class="row"/><rect x="510" y="286" width="60" height="26" rx="4" class="row"/><rect x="570" y="286" width="60" height="26" rx="4" class="row"/><rect x="630" y="286" width="60" height="26" rx="4" class="row"/>
+<text x="705" y="304" class="s">decode steps only after the chunk</text>
+
+<text x="20" y="352" class="s">After: stream 0</text>
+<rect x="150" y="338" width="300" height="26" rx="4" class="moe"/><text x="300" y="356" class="t" text-anchor="middle">prefill chunk (same chunk schedule)</text>
+<text x="20" y="386" class="s">After: stream 1</text>
+<rect x="150" y="372" width="48" height="26" rx="4" class="row"/><rect x="206" y="372" width="48" height="26" rx="4" class="row"/><rect x="262" y="372" width="48" height="26" rx="4" class="row"/><rect x="318" y="372" width="48" height="26" rx="4" class="row"/><rect x="374" y="372" width="48" height="26" rx="4" class="row"/>
+<text x="470" y="390" class="s">decode twin, highest-priority stream: steps keep running during the chunk</text>
+<path class="dash" d="M450 280 V404"/>
+<text x="20" y="440" class="s">Opt-in (INTARSIA_OVERLAP=1): the twin shares the weights and plan with its own workspace, graphs and tables, so the chunk never touches its buffers.</text>
+
+<rect x="20" y="480" width="22" height="16" rx="3" class="shared"/><text x="52" y="493" class="s">shared weights: row-exact multi-row GEMV, read once for B rows (R0 to R2)</text>
+<rect x="520" y="480" width="22" height="16" rx="3" class="row"/><text x="552" y="493" class="s">per sequence state, one launch for all rows (R3)</text>
+<rect x="20" y="510" width="22" height="16" rx="3" class="bad"/><text x="52" y="523" class="s">per-row launches (rb2), replaced</text>
+<rect x="520" y="510" width="22" height="16" rx="3" class="moe"/><text x="552" y="523" class="s">prefill chunk</text>
+<rect x="20" y="540" width="22" height="16" rx="3" class="par"/><text x="52" y="553" class="s">not changed / eager</text>
+<text x="20" y="590" class="s">Launch counts come from the op listing of the 35B batched step (real_35b_batch_op_listing): rb3 814 at B=4 and B=16; rb2 estimated as 814 + 130 per extra row</text>
+<text x="20" y="606" class="s">(30 conv + 30 delta + 20 kv_append + 10 attention + 20 rope + 20 qk_norm per row).</text>
+</svg>

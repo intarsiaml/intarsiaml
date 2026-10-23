@@ -290,6 +290,41 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Does this backend run batched decode steps with row tables (`OpCall::rows`): `GdnConv`, `GdnDeltaRule`, `KvAppend`
+    /// and `AttnDecode` over all rows of a step in one launch, the sequences' state buffers named by a table of device
+    /// addresses? (CUDA.) Whether a step uses them is the model's decision (`Model::row_tables`).
+    fn supports_row_tables(&self) -> bool {
+        false
+    }
+
+    /// Device-side sampling (R3b): the `k` largest values of each f32 row of `logits` `[R, V]` in the sampler's order (value
+    /// descending, ties by ascending index; `sampler::sample_row` walks the same order), as `ids` i32 `[R, k]` and `vals` f32
+    /// `[R, k]`; `nan` i32 `[R]` is 1 for a row holding a NaN (its entries mean nothing). `scratch`: `R * 32 * k * 8` bytes,
+    /// `k <= 64`. Not a registered op; a backend without it returns `Unsupported` and the caller samples on the host.
+    #[allow(clippy::too_many_arguments)]
+    fn topk_rows(
+        &self,
+        _logits: &TensorRef,
+        _k: usize,
+        _ids: &TensorRef,
+        _vals: &TensorRef,
+        _nan: &TensorRef,
+        _scratch: &TensorRef,
+        _stream: StreamId,
+    ) -> Result<()> {
+        Err(Error::Unsupported(format!("{}: device-side top-k", self.name())))
+    }
+
+    /// Does `topk_rows` work on this backend?
+    fn supports_topk(&self) -> bool {
+        false
+    }
+
+    /// The device address of the first byte of `buf`, for a row table (`OpCall::rows`). `None`: the backend has none.
+    fn device_address(&self, _buf: &Buffer) -> Option<u64> {
+        None
+    }
+
     /// Run `body` with every launch on `stream` *recorded instead of executed*, and return the recording. Nothing
     /// in `body` may synchronise, allocate, or copy from pageable host memory; it must not depend on host state
     /// that changes between replays (position and token ids go through device buffers the caller rewrites).

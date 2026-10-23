@@ -172,6 +172,25 @@ impl Sampler {
         let u = self.rng.next_f32();
         sample_row(logits, &self.params, u)
     }
+
+    /// [`Sampler::sample`] from the candidates a device-side top-k selected (`HeadMode::LastTopK`): `ids[j]` / `vals[j]` are
+    /// the `j`-th largest logit of the row (value descending, ties by ascending index) and its token id, `k = params.top_k`
+    /// of them. Returns the token `sample` would return on the whole row for the same draw: `sample_row` selects exactly these
+    /// `k` candidates in exactly this order and everything after that touches only them (`walk`). One draw is consumed.
+    pub fn sample_topk(&mut self, ids: &[u32], vals: &[f32]) -> usize {
+        debug_assert!(self.params.top_k == vals.len() && ids.len() == vals.len());
+        let u = self.rng.next_f32();
+        sample_from_topk(ids, vals, &self.params, u)
+    }
+}
+
+/// [`sample_row`] on a row whose top-`p.top_k` candidates (best first) are `vals` with token ids `ids`.
+pub fn sample_from_topk(ids: &[u32], vals: &[f32], p: &SamplingParams, u: f32) -> usize {
+    if p.temperature <= 0.0 {
+        return ids[0] as usize;
+    }
+    let idx: Vec<u32> = (0..vals.len() as u32).collect();
+    ids[walk(vals, p, u, idx)] as usize
 }
 
 #[cfg(test)]
@@ -269,6 +288,45 @@ mod tests {
         let row = vec![1.0, f32::NAN, 0.5];
         let p = SamplingParams { temperature: 1.0, top_k: 0, top_p: 1.0 };
         assert_eq!(sample_row(&row, &p, 0.3), sample_row_cmp(&row, &p, 0.3));
+    }
+
+    /// Sampling from the top-k candidates is the token `sample_row` picks on the whole row, for every draw (R3b).
+    #[test]
+    fn topk_candidates_sample_like_the_whole_row() {
+        let mut rng = SplitMix64::new(9);
+        for &(n, scale) in &[(100usize, 1.0f32), (5000, 3.0), (248320, 3.0)] {
+            let mut rows = vec![bf16_row(&mut rng, n, scale)];
+            let mut r = bf16_row(&mut rng, n, scale);
+            for (i, x) in r.iter_mut().enumerate() {
+                match i % 11 {
+                    1 => *x = 0.0,
+                    2 => *x = -0.0,
+                    3 if i > 0 => *x = f32::NEG_INFINITY,
+                    _ => {}
+                }
+            }
+            rows.push(r);
+            for row in &rows {
+                for &k in &[1usize, 2, 20, 40, 64] {
+                    // the device kernel's output: the k best in the sampler's order
+                    let mut order: Vec<u32> = (0..n as u32).collect();
+                    let cmp = |a: &u32, b: &u32| row[*b as usize].partial_cmp(&row[*a as usize]).unwrap().then(a.cmp(b));
+                    order.select_nth_unstable_by(k - 1, cmp);
+                    order.truncate(k);
+                    order.sort_unstable_by(cmp);
+                    let vals: Vec<f32> = order.iter().map(|&i| row[i as usize]).collect();
+                    for &t in &[0.3f32, 0.7, 1.0] {
+                        for &tp in &[1.0f32, 0.9] {
+                            let p = SamplingParams { temperature: t, top_k: k, top_p: tp };
+                            for _ in 0..16 {
+                                let u = rng.next_f32();
+                                assert_eq!(sample_from_topk(&order, &vals, &p, u), sample_row(row, &p, u), "n {n} k {k} t {t} tp {tp} u {u}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Timing only: `cargo test --release -p intarsia-core sampler_timing -- --ignored --nocapture`.

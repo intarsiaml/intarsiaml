@@ -1393,6 +1393,20 @@ impl Seq {
         }
     }
 
+    /// Device-side sampling (R3b, batched decode only): the candidate count when the step that samples the `k`-th token may ask
+    /// the device for the top-`n` logits instead of the whole row, i.e. [`Seq::head_mode`] would return the logits for plain
+    /// sampling alone with `1 <= top_k <= 64` (no stop-id mask, trace or constraint reads the row). Exact: see
+    /// `Sampler::sample_topk`.
+    pub(crate) fn topk_for(&self, k: usize) -> Option<usize> {
+        let tk = self.sampler.params.top_k;
+        let plain = !self.greedy
+            && self.head_mode(k) == HeadMode::LastLogits
+            && self.req.trace_logits.is_none()
+            && !self.constrained()
+            && !(k <= self.req.min_tokens && !self.stop_ids.is_empty());
+        (plain && (1..=Model::TOPK_MAX).contains(&tk)).then_some(tk)
+    }
+
     /// The `k`-th generated token from the output of a step run with [`Seq::head_mode`]`(k)`.
     pub(crate) fn token_from(&mut self, out: StepOut, k: usize) -> Result<u32> {
         let logits = self.head_mode(k) == HeadMode::LastLogits;
@@ -1427,6 +1441,7 @@ impl Seq {
                 }
                 Ok(self.sampler.sample(&l) as u32)
             }
+            StepOut::TopK { ids, vals } if logits && self.topk_for(k) == Some(vals.len()) => Ok(self.sampler.sample_topk(&ids, &vals) as u32),
             _ => Err(Error::Other(if logits { "backend returned no logits" } else { "backend returned no token" }.into())),
         }
     }

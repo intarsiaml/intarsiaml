@@ -13,6 +13,9 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 /// `KernelImpl::name` of the kernels.
 pub const MATMUL_NVFP4_GEMV: &str = "matmul_nvfp4_gemv";
 pub const MATMUL_NVFP4_MMA: &str = "matmul_nvfp4_mma";
+/// `rows_exact` multi-row GEMV (continuous batching of the hybrid 35B, docs/results/2026-10-23-mb-metal-hybrid-batching.md):
+/// row r of an M-row launch (M = 2..=8) is bitwise the M = 1 `matmul_nvfp4_gemv` launch on row r alone (tests/rows_exact.rs).
+pub const MATMUL_NVFP4_GEMV_ROWS: &str = "matmul_nvfp4_gemv_rows";
 
 /// Shader entry points (kernels/metal/nvfp4.metal).
 pub const SHADERS: [&str; 6] =
@@ -29,6 +32,11 @@ const MMA_THREADS: usize = 128;
 /// The decode GEMV serves 1..=8 rows.
 pub fn gemv_ok(s: &ShapeInfo) -> bool {
     (1..=GEMV_MB).contains(&s.m) && s.k % 16 == 0
+}
+
+/// The row-exact multi-row GEMV serves 2..=8 rows.
+pub fn rows_ok(s: &ShapeInfo) -> bool {
+    (2..=GEMV_MB).contains(&s.m) && s.k % 16 == 0
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -85,9 +93,9 @@ impl MetalBackend {
             ..Default::default()
         };
         let (pso, grid, threads) = match kernel {
-            MATMUL_NVFP4_GEMV => {
-                if m > GEMV_MB {
-                    return Err(Error::invalid(format!("metal matmul_nvfp4_gemv: M = {m} > {GEMV_MB}")));
+            MATMUL_NVFP4_GEMV | MATMUL_NVFP4_GEMV_ROWS => {
+                if m > GEMV_MB || (kernel == MATMUL_NVFP4_GEMV_ROWS && m < 2) {
+                    return Err(Error::invalid(format!("metal {kernel}: M = {m} outside the kernel's rows")));
                 }
                 let (name, rs, mb) = match (f32_out, m == 1) {
                     (false, true) => (SHADERS[0], GEMV_RS[0], 1),
