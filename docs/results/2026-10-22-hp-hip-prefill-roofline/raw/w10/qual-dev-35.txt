@@ -1,0 +1,23 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/bench-out/hp/qual-dev-35
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 56 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     10s] plan: PASS in 9.2s (31 ops resolved, exactness deterministic, loaded in 9.2s)
+[qualify     10s] == kernels [kernels test on the model's shapes]
+[qualify     51s] kernels: PASS in 40.8s (56 kernels, 1083 cases in 40.7s)
+[qualify     51s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     57s] gate: PASS in 6.0s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     57s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     57s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     57s] == acc-short [short accuracy against a golden]
+[qualify     59s] acc-short: ERROR in 2.7s (accuracy exit 1: Error: ref_noise from sidecar golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json)
+[qualify     59s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify     59s] acc-oracle: MISSING-BASELINE in 0.0s (MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.6-35B-A3B-NVFP4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.6-35B-A3B-NVFP4 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend cpu --golden /models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.6-35B-A3B-NVFP4 --write-self-golden golden/oracle/qwen3.6-35b-a3b-nvfp4-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[qualify     59s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify     65s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify     82s] bench: PASS in 22.6s (decode 160.7 tok/s at 128 tokens (58% of the byte floor))
+QUICK DONE: /work/bench-out/hp/qual-dev-35/quick-report.md
+[qualify     82s] exit code 2

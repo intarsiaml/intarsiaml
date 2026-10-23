@@ -1,0 +1,380 @@
+=== test:--test,gdn_v2 [00:00:03, 3900 s left]
+--- cargo test hip --test gdn_v2 00:00:03
+test gdn_v2_is_bitwise_the_rows_kernel ... ok
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.34s
+=== test:--test,fp8_f8 [00:00:05, 3898 s left]
+--- cargo test hip --test fp8_f8 00:00:05
+test f8_is_not_the_bf16_path ... ok
+test f8_matches_cpu_reference_tightly ... ok
+test f8_prefill_tiles_match_small_calls ... ok
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+=== bin:bench-out-hp-f8sweep [00:00:08, 3895 s left]
+--- bin bench-out-hp-f8sweep 00:00:08
+
+qkv / q+gate M=4096 N=8192 K=2048
+  default       802.0 us   171.4 TFLOPS bitwise
+  4,2,2,4       893.4 us   153.8 TFLOPS bitwise
+  2,4,4,2       967.8 us   142.0 TFLOPS bitwise
+  2,2,4,4      1257.8 us   109.3 TFLOPS bitwise
+  4,2,4,2       974.4 us   141.0 TFLOPS bitwise
+  2,4,2,4      1607.5 us    85.5 TFLOPS bitwise
+  4,2,4,4       787.7 us   174.5 TFLOPS bitwise
+  2,4,4,4      1049.2 us   131.0 TFLOPS bitwise
+  4,4,2,4       878.0 us   156.5 TFLOPS bitwise
+  4,4,4,2       779.5 us   176.3 TFLOPS bitwise
+  4,4,2,2       869.1 us   158.1 TFLOPS bitwise
+  2,2,4,8     10125.1 us    13.6 TFLOPS bitwise
+  2,2,8,4     10177.2 us    13.5 TFLOPS bitwise
+  4,2,2,8       886.2 us   155.1 TFLOPS bitwise
+  2,4,8,2       858.8 us   160.0 TFLOPS bitwise
+  8,1,2,8       807.1 us   170.3 TFLOPS bitwise
+  1,8,8,2      1237.0 us   111.1 TFLOPS bitwise
+  4,1,4,8     10245.9 us    13.4 TFLOPS bitwise
+  1,4,8,4     10422.7 us    13.2 TFLOPS bitwise
+  2,1,8,8     16137.1 us     8.5 TFLOPS bitwise
+  1,2,8,8     15191.8 us     9.0 TFLOPS bitwise
+
+z M=4096 N=4096 K=2048
+  default       373.9 us   183.8 TFLOPS bitwise
+  4,2,2,4       390.1 us   176.2 TFLOPS bitwise
+  2,4,4,2       406.6 us   169.0 TFLOPS bitwise
+  2,2,4,4       455.8 us   150.8 TFLOPS bitwise
+  4,2,4,2       469.0 us   146.5 TFLOPS bitwise
+  2,4,2,4       528.6 us   130.0 TFLOPS bitwise
+  4,2,4,4       389.4 us   176.5 TFLOPS bitwise
+  2,4,4,4       425.3 us   161.6 TFLOPS bitwise
+  4,4,2,4       376.6 us   182.5 TFLOPS bitwise
+  4,4,4,2       387.8 us   177.2 TFLOPS bitwise
+  4,4,2,2       385.8 us   178.1 TFLOPS bitwise
+  2,2,4,8      5101.7 us    13.5 TFLOPS bitwise
+  2,2,8,4      4988.8 us    13.8 TFLOPS bitwise
+  4,2,2,8       388.9 us   176.7 TFLOPS bitwise
+  2,4,8,2       414.6 us   165.8 TFLOPS bitwise
+  8,1,2,8       400.3 us   171.7 TFLOPS bitwise
+  1,8,8,2       436.6 us   157.4 TFLOPS bitwise
+  4,1,4,8      5072.1 us    13.5 TFLOPS bitwise
+  1,4,8,4      5173.0 us    13.3 TFLOPS bitwise
+  2,1,8,8      7781.6 us     8.8 TFLOPS bitwise
+  1,2,8,8      7437.8 us     9.2 TFLOPS bitwise
+
+o / out_proj M=4096 N=2048 K=4096
+  default       360.9 us   190.4 TFLOPS bitwise
+  4,2,2,4       400.8 us   171.5 TFLOPS bitwise
+  2,4,4,2       411.4 us   167.0 TFLOPS bitwise
+  2,2,4,4       435.0 us   158.0 TFLOPS bitwise
+  4,2,4,2       466.7 us   147.2 TFLOPS bitwise
+  2,4,2,4       475.1 us   144.7 TFLOPS bitwise
+  4,2,4,4       385.9 us   178.1 TFLOPS bitwise
+  2,4,4,4       400.6 us   171.5 TFLOPS bitwise
+  4,4,2,4       366.0 us   187.8 TFLOPS bitwise
+  4,4,4,2       386.1 us   178.0 TFLOPS bitwise
+  4,4,2,2       391.2 us   175.7 TFLOPS bitwise
+  2,2,4,8      5342.3 us    12.9 TFLOPS bitwise
+  2,2,8,4      5205.9 us    13.2 TFLOPS bitwise
+  4,2,2,8       374.7 us   183.4 TFLOPS bitwise
+  2,4,8,2       375.9 us   182.8 TFLOPS bitwise
+  8,1,2,8       396.6 us   173.3 TFLOPS bitwise
+  1,8,8,2       404.6 us   169.8 TFLOPS bitwise
+  4,1,4,8      5326.7 us    12.9 TFLOPS bitwise
+  1,4,8,4      5412.5 us    12.7 TFLOPS bitwise
+  2,1,8,8      7952.2 us     8.6 TFLOPS bitwise
+  1,2,8,8      7917.6 us     8.7 TFLOPS bitwise
+
+k / v M=4096 N=512 K=2048
+  default        54.9 us   156.6 TFLOPS bitwise
+  4,2,2,4        55.8 us   154.0 TFLOPS bitwise
+  2,4,4,2        57.1 us   150.4 TFLOPS bitwise
+  2,2,4,4        64.8 us   132.5 TFLOPS bitwise
+  4,2,4,2        60.7 us   141.6 TFLOPS bitwise
+  2,4,2,4        62.9 us   136.5 TFLOPS bitwise
+  4,2,4,4        53.2 us   161.4 TFLOPS bitwise
+  2,4,4,4        53.7 us   160.0 TFLOPS bitwise
+  4,4,2,4        51.6 us   166.3 TFLOPS bitwise
+  4,4,4,2        55.0 us   156.2 TFLOPS bitwise
+  4,4,2,2        55.4 us   155.0 TFLOPS bitwise
+  2,2,4,8       607.5 us    14.1 TFLOPS bitwise
+  2,2,8,4       588.6 us    14.6 TFLOPS bitwise
+  4,2,2,8        56.5 us   152.0 TFLOPS bitwise
+  2,4,8,2        53.2 us   161.5 TFLOPS bitwise
+  8,1,2,8        53.7 us   159.9 TFLOPS bitwise
+  1,8,8,2        54.7 us   157.0 TFLOPS bitwise
+  4,1,4,8       606.0 us    14.2 TFLOPS bitwise
+  1,4,8,4       605.2 us    14.2 TFLOPS bitwise
+  2,1,8,8      1142.5 us     7.5 TFLOPS bitwise
+  1,2,8,8      1094.1 us     7.9 TFLOPS bitwise
+
+tail 312 M=312 N=8192 K=2048
+  default        73.4 us   142.6 TFLOPS bitwise
+  4,2,2,4        74.0 us   141.5 TFLOPS bitwise
+  2,4,4,2        75.0 us   139.6 TFLOPS bitwise
+  2,2,4,4        79.8 us   131.2 TFLOPS bitwise
+  4,2,4,2        83.1 us   126.0 TFLOPS bitwise
+  2,4,2,4       114.3 us    91.6 TFLOPS bitwise
+  4,2,4,4        76.6 us   136.6 TFLOPS bitwise
+  2,4,4,4        93.9 us   111.5 TFLOPS bitwise
+  4,4,2,4        87.8 us   119.2 TFLOPS bitwise
+  4,4,4,2        74.0 us   141.6 TFLOPS bitwise
+  4,4,2,2        72.7 us   144.1 TFLOPS bitwise
+  2,2,4,8      1445.1 us     7.2 TFLOPS bitwise
+  2,2,8,4       850.2 us    12.3 TFLOPS bitwise
+  4,2,2,8        87.8 us   119.2 TFLOPS bitwise
+  2,4,8,2        78.6 us   133.1 TFLOPS bitwise
+  8,1,2,8        92.7 us   113.0 TFLOPS bitwise
+  1,8,8,2        94.6 us   110.6 TFLOPS bitwise
+  4,1,4,8       863.3 us    12.1 TFLOPS bitwise
+  1,4,8,4      1486.4 us     7.0 TFLOPS bitwise
+  2,1,8,8      1677.0 us     6.2 TFLOPS bitwise
+  1,2,8,8      1958.6 us     5.3 TFLOPS bitwise
+
+q+gate M 2049 M=2049 N=8192 K=2048
+  default       399.4 us   172.1 TFLOPS bitwise
+  4,2,2,4       417.5 us   164.7 TFLOPS bitwise
+  2,4,4,2       458.8 us   149.9 TFLOPS bitwise
+  2,2,4,4       493.3 us   139.4 TFLOPS bitwise
+  4,2,4,2       517.1 us   132.9 TFLOPS bitwise
+  2,4,2,4       577.1 us   119.1 TFLOPS bitwise
+  4,2,4,4       419.7 us   163.8 TFLOPS bitwise
+  2,4,4,4       467.8 us   147.0 TFLOPS bitwise
+  4,4,2,4       407.1 us   168.9 TFLOPS bitwise
+  4,4,4,2       411.5 us   167.1 TFLOPS bitwise
+  4,4,2,2       422.3 us   162.8 TFLOPS bitwise
+  2,2,4,8      5753.8 us    11.9 TFLOPS bitwise
+  2,2,8,4      5350.0 us    12.9 TFLOPS bitwise
+  4,2,2,8       421.8 us   163.0 TFLOPS bitwise
+  2,4,8,2       443.4 us   155.1 TFLOPS bitwise
+  8,1,2,8       418.2 us   164.4 TFLOPS bitwise
+  1,8,8,2       492.6 us   139.6 TFLOPS bitwise
+  4,1,4,8      5391.2 us    12.8 TFLOPS bitwise
+  1,4,8,4      5978.4 us    11.5 TFLOPS bitwise
+  2,1,8,8      7817.8 us     8.8 TFLOPS bitwise
+  1,2,8,8      8141.7 us     8.4 TFLOPS bitwise
+
+q+gate M 3000 M=3000 N=8192 K=2048
+  default       559.6 us   179.9 TFLOPS bitwise
+  4,2,2,4       691.1 us   145.7 TFLOPS bitwise
+  2,4,4,2       698.8 us   144.0 TFLOPS bitwise
+  2,2,4,4       747.4 us   134.7 TFLOPS bitwise
+  4,2,4,2       692.8 us   145.3 TFLOPS bitwise
+  2,4,2,4       905.9 us   111.1 TFLOPS bitwise
+  4,2,4,4       585.2 us   172.0 TFLOPS bitwise
+  2,4,4,4       716.7 us   140.4 TFLOPS bitwise
+  4,4,2,4       621.9 us   161.9 TFLOPS bitwise
+  4,4,4,2       562.8 us   178.9 TFLOPS bitwise
+  4,4,2,2       637.8 us   157.8 TFLOPS bitwise
+  2,2,4,8      7691.2 us    13.1 TFLOPS bitwise
+  2,2,8,4      7747.7 us    13.0 TFLOPS bitwise
+  4,2,2,8       629.7 us   159.9 TFLOPS bitwise
+  2,4,8,2       611.5 us   164.6 TFLOPS bitwise
+  8,1,2,8       602.6 us   167.1 TFLOPS bitwise
+  1,8,8,2       750.2 us   134.2 TFLOPS bitwise
+  4,1,4,8      7756.1 us    13.0 TFLOPS bitwise
+  1,4,8,4      7946.1 us    12.7 TFLOPS bitwise
+  2,1,8,8     11016.4 us     9.1 TFLOPS bitwise
+  1,2,8,8     11130.6 us     9.0 TFLOPS bitwise
+
+q+gate M 4089 M=4089 N=8192 K=2048
+  default       784.2 us   175.0 TFLOPS bitwise
+  4,2,2,4       930.4 us   147.5 TFLOPS bitwise
+  2,4,4,2       983.2 us   139.5 TFLOPS bitwise
+  2,2,4,4      1231.4 us   111.4 TFLOPS bitwise
+  4,2,4,2       993.8 us   138.1 TFLOPS bitwise
+  2,4,2,4      1592.7 us    86.1 TFLOPS bitwise
+  4,2,4,4       814.6 us   168.4 TFLOPS bitwise
+  2,4,4,4      1069.0 us   128.4 TFLOPS bitwise
+  4,4,2,4       883.3 us   155.3 TFLOPS bitwise
+  4,4,4,2       787.2 us   174.3 TFLOPS bitwise
+  4,4,2,2       871.7 us   157.4 TFLOPS bitwise
+  2,2,4,8     10097.0 us    13.6 TFLOPS bitwise
+  2,2,8,4     10184.8 us    13.5 TFLOPS bitwise
+  4,2,2,8       904.7 us   151.7 TFLOPS bitwise
+  2,4,8,2       855.5 us   160.4 TFLOPS bitwise
+  8,1,2,8       813.6 us   168.6 TFLOPS bitwise
+  1,8,8,2      1259.7 us   108.9 TFLOPS bitwise
+  4,1,4,8     10256.7 us    13.4 TFLOPS bitwise
+  1,4,8,4     10429.6 us    13.2 TFLOPS bitwise
+  2,1,8,8     16176.6 us     8.5 TFLOPS bitwise
+  1,2,8,8     15223.1 us     9.0 TFLOPS bitwise
+
+z M 3000 M=3000 N=4096 K=2048
+  default       278.6 us   180.7 TFLOPS bitwise
+  4,2,2,4       292.1 us   172.3 TFLOPS bitwise
+  2,4,4,2       318.3 us   158.2 TFLOPS bitwise
+  2,2,4,4       335.8 us   149.9 TFLOPS bitwise
+  4,2,4,2       363.8 us   138.4 TFLOPS bitwise
+  2,4,2,4       377.6 us   133.3 TFLOPS bitwise
+  4,2,4,4       292.7 us   172.0 TFLOPS bitwise
+  2,4,4,4       309.4 us   162.7 TFLOPS bitwise
+  4,4,2,4       283.0 us   177.8 TFLOPS bitwise
+  4,4,4,2       290.7 us   173.1 TFLOPS bitwise
+  4,4,2,2       291.6 us   172.6 TFLOPS bitwise
+  2,2,4,8      3829.0 us    13.1 TFLOPS bitwise
+  2,2,8,4      3808.0 us    13.2 TFLOPS bitwise
+  4,2,2,8       289.0 us   174.2 TFLOPS bitwise
+  2,4,8,2       294.0 us   171.2 TFLOPS bitwise
+  8,1,2,8       305.2 us   164.9 TFLOPS bitwise
+  1,8,8,2       314.1 us   160.3 TFLOPS bitwise
+  4,1,4,8      3816.5 us    13.2 TFLOPS bitwise
+  1,4,8,4      3903.7 us    12.9 TFLOPS bitwise
+  2,1,8,8      5394.8 us     9.3 TFLOPS bitwise
+  1,2,8,8      5470.4 us     9.2 TFLOPS bitwise
+
+o M 4089 M=4089 N=2048 K=4096
+  default       363.9 us   188.5 TFLOPS bitwise
+  4,2,2,4       420.8 us   163.0 TFLOPS bitwise
+  2,4,4,2       411.2 us   166.8 TFLOPS bitwise
+  2,2,4,4       441.5 us   155.4 TFLOPS bitwise
+  4,2,4,2       471.9 us   145.4 TFLOPS bitwise
+  2,4,2,4       481.5 us   142.5 TFLOPS bitwise
+  4,2,4,4       391.8 us   175.1 TFLOPS bitwise
+  2,4,4,4       403.6 us   170.0 TFLOPS bitwise
+  4,4,2,4       367.0 us   186.9 TFLOPS bitwise
+  4,4,4,2       386.4 us   177.5 TFLOPS bitwise
+  4,4,2,2       395.8 us   173.3 TFLOPS bitwise
+  2,2,4,8      5357.4 us    12.8 TFLOPS bitwise
+  2,2,8,4      5204.6 us    13.2 TFLOPS bitwise
+  4,2,2,8       381.1 us   180.0 TFLOPS bitwise
+  2,4,8,2       386.9 us   177.3 TFLOPS bitwise
+  8,1,2,8       400.4 us   171.3 TFLOPS bitwise
+  1,8,8,2       408.7 us   167.8 TFLOPS bitwise
+  4,1,4,8      5312.1 us    12.9 TFLOPS bitwise
+  1,4,8,4      5448.2 us    12.6 TFLOPS bitwise
+  2,1,8,8      7944.8 us     8.6 TFLOPS bitwise
+  1,2,8,8      7935.3 us     8.6 TFLOPS bitwise
+
+k/v M 2049 M=2049 N=512 K=2048
+  default        39.7 us   108.2 TFLOPS bitwise
+  4,2,2,4        37.9 us   113.3 TFLOPS bitwise
+  2,4,4,2        39.1 us   109.9 TFLOPS bitwise
+  2,2,4,4        41.2 us   104.3 TFLOPS bitwise
+  4,2,4,2        70.0 us    61.4 TFLOPS bitwise
+  2,4,2,4        48.8 us    88.1 TFLOPS bitwise
+  4,2,4,4        71.3 us    60.3 TFLOPS bitwise
+  2,4,4,4        68.0 us    63.2 TFLOPS bitwise
+  4,4,2,4        55.0 us    78.2 TFLOPS bitwise
+  4,4,4,2        67.2 us    63.9 TFLOPS bitwise
+  4,4,2,2        38.4 us   111.8 TFLOPS bitwise
+  2,2,4,8       241.2 us    17.8 TFLOPS bitwise
+  2,2,8,4       256.0 us    16.8 TFLOPS bitwise
+  4,2,2,8        44.7 us    96.1 TFLOPS bitwise
+  2,4,8,2        45.4 us    94.7 TFLOPS bitwise
+  8,1,2,8        48.9 us    88.0 TFLOPS bitwise
+  1,8,8,2        69.7 us    61.7 TFLOPS bitwise
+  4,1,4,8       243.0 us    17.7 TFLOPS bitwise
+  1,4,8,4       256.1 us    16.8 TFLOPS bitwise
+  2,1,8,8       884.8 us     4.9 TFLOPS bitwise
+  1,2,8,8       883.3 us     4.9 TFLOPS bitwise
+=== ids:base:1024 [00:00:51, 3852 s left]
+ids base-1024: finish=length prompt=1024 (cached 0) completion=256 | prefill 149 ms (6869.0 tok/s) | decode 1607 ms (158.68 tok/s) commas 255 sha 7bec89e10a4a0a21
+=== ids:dev:1024 [00:00:57, 3846 s left]
+ids dev-1024: finish=length prompt=1024 (cached 0) completion=256 | prefill 146 ms (7027.5 tok/s) | decode 1600 ms (159.42 tok/s) commas 255 sha 7bec89e10a4a0a21
+=== ids:base:4089 [00:01:02, 3841 s left]
+ids base-4089: finish=length prompt=4089 (cached 0) completion=256 | prefill 426 ms (9596.3 tok/s) | decode 1638 ms (155.66 tok/s) commas 255 sha 05b747a51537405a
+=== ids:dev:4089 [00:01:07, 3836 s left]
+ids dev-4089: finish=length prompt=4089 (cached 0) completion=256 | prefill 407 ms (10042.7 tok/s) | decode 1638 ms (155.63 tok/s) commas 255 sha 05b747a51537405a
+=== ids:base:4096 [00:01:12, 3831 s left]
+ids base-4096: finish=length prompt=4096 (cached 0) completion=256 | prefill 427 ms (9593.1 tok/s) | decode 1638 ms (155.70 tok/s) commas 255 sha 8f73efb893d92a2f
+=== ids:dev:4096 [00:01:17, 3826 s left]
+ids dev-4096: finish=length prompt=4096 (cached 0) completion=256 | prefill 407 ms (10070.9 tok/s) | decode 1638 ms (155.65 tok/s) commas 255 sha 8f73efb893d92a2f
+=== ids:base:16384 [00:01:22, 3821 s left]
+ids base-16384: finish=length prompt=16384 (cached 0) completion=256 | prefill 1856 ms (8825.9 tok/s) | decode 1802 ms (141.55 tok/s) commas 255 sha bbb0d93b00ddb432
+=== ids:dev:16384 [00:01:29, 3814 s left]
+ids dev-16384: finish=length prompt=16384 (cached 0) completion=256 | prefill 1778 ms (9215.0 tok/s) | decode 1801 ms (141.61 tok/s) commas 255 sha bbb0d93b00ddb432
+=== ids:base:16654 [00:01:35, 3808 s left]
+ids base-16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1950 ms (8540.2 tok/s) | decode 1807 ms (141.08 tok/s) commas 255 sha 90aed69b71015595
+=== ids:dev:16654 [00:01:42, 3801 s left]
+ids dev-16654: finish=length prompt=16654 (cached 0) completion=256 | prefill 1872 ms (8894.0 tok/s) | decode 1803 ms (141.39 tok/s) commas 255 sha 90aed69b71015595
+=== ids8:base [00:01:49, 3794 s left]
+ids8 base: prompt: 3997 tokens finish=length prompt=3997 (cached 0) completion=256 | prefill 913 ms (4377.5 tok/s) | decode 6881 ms (37.06 tok/s)  commas 255 sha 4d043a30c0a2782f
+=== ids8:dev [00:02:02, 3781 s left]
+ids8 dev: prompt: 3997 tokens finish=length prompt=3997 (cached 0) completion=256 | prefill 927 ms (4313.3 tok/s) | decode 6880 ms (37.07 tok/s)  commas 255 sha 4d043a30c0a2782f
+=== prof:dev [00:02:11, 3772 s left]
+--- op table dev 4096 00:02:11
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 432 ms (9475.2 tok/s) | decode 0 ms (0.00 tok/s)
+--- op table dev 16384 00:02:14
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1832 ms (8941.4 tok/s) | decode 0 ms (0.00 tok/s)
+--- rocprofv3 dev 4096 00:02:19
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 410 ms (9986.4 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 1651 (of 2213), span 409.7 ms, kernel time 394.9 ms, idle 3.6 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel_r7<true, 64, 45>                                                    40    92.92   2322.9  23.5%  65536x8x4 x 256
+gdn_delta_rows_v3_kernel<128>                                                      150    87.01    580.1  22.0%  256x32x1 x 32
+moe_wmma_kernel_r7<false, 64, 25>                                                   80    50.11    626.3  12.7%  65536x4x4 x 256
+f8_gemm_kernel<4, 4, 4, 2, bf16>                                                    40    31.17    779.1   7.9%  16384x32x1 x 512
+f8_gemm_kernel<4, 4, 2, 4, bf16>                                                    90    27.12    301.4   6.9%  8192x32x1 x 512
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      120    21.12    176.0   5.3%  8192x4x1 x 256
+flash_hpb_kernel<256, 32, 4, 5>                                                     10    18.02   1802.5   4.6%  32768x4x1 x 512
+moe_reduce_v8_kernel                                                                40    10.11    252.8   2.6%  1048320x1x1 x 256
+gdn_conv_kernel<false>                                                              30     9.47    315.8   2.4%  8192x128x1 x 128
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 140     7.31     52.2   1.9%  8192x1x1 x 256
+f8_actq_kernel                                                                     130     6.85     52.7   1.7%  1048320x1x1 x 256
+rmsnorm_kernel<true, true>                                                          81     6.56     81.0   1.7%  1048320x1x1 x 256
+gated_rmsnorm_kernel<true>                                                          30     5.95    198.4   1.5%  4193280x1x1 x 32
+moe_combine_kernel<bf16>                                                            40     5.17    129.2   1.3%  8386560x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   20     3.26    163.1   0.8%  1179360x2x1 x 288
+moe_block_kernel<4, 8>                                                              40     2.09     52.3   0.5%  212992x1x1 x 256
+sigmoid_mul_kernel                                                                  10     1.72    171.8   0.4%  16773120x1x1 x 256
+fp8_gemv_pair_kernel<1, bf16, 2, 8>                                                 30     1.33     44.3   0.3%  393216x1x1 x 256
+__amd_rocclr_fillBufferAligned                                                      30     1.12     37.2   0.3%  8192x1x1 x 256
+moe_topk_v2_kernel                                                                  40     0.85     21.3   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                    40     0.84     20.9   0.2%  1024x1x1 x 1024
+--- rocprofv3 dev 16384 00:02:23
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+prompt: 16384 tokens
+finish=length prompt=16384 (cached 0) completion=1 | prefill 1784 ms (9183.0 tok/s) | decode 0 ms (0.00 tok/s)
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+kernels in main burst: 5710 (of 6272), span 1783.8 ms, kernel time 1740.3 ms, idle 2.4 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+moe_wmma_kernel_r7<true, 64, 45>                                                   160   355.47   2221.7  20.4%  65536x8x4 x 256
+gdn_delta_rows_v3_kernel<128>                                                      600   343.64    572.7  19.7%  256x32x1 x 32
+flash_hpb_kernel<256, 32, 4, 5>                                                     40   278.78   6969.5  16.0%  32768x4x1 x 512
+moe_wmma_kernel_r7<false, 64, 25>                                                  320   205.60    642.5  11.8%  65536x4x4 x 256
+f8_gemm_kernel<4, 4, 4, 2, bf16>                                                   160   121.96    762.2   7.0%  16384x32x1 x 512
+f8_gemm_kernel<4, 4, 2, 4, bf16>                                                   360   107.03    297.3   6.2%  8192x32x1 x 512
+dq_gemm_kernel<Nvfp4Policy, 4, 2, 2, 4, bf16>                                      480    84.81    176.7   4.9%  8192x4x1 x 256
+moe_reduce_v8_kernel                                                               160    40.79    254.9   2.3%  1048576x1x1 x 256
+gdn_conv_kernel<false>                                                             120    36.23    301.9   2.1%  8192x128x1 x 128
+gemm_wmma_kernel<4, 2, 2, 4, bf16>                                                 560    29.45     52.6   1.7%  8192x1x1 x 256
+f8_actq_kernel                                                                     520    27.13     52.2   1.6%  1048576x1x1 x 256
+rmsnorm_kernel<true, true>                                                         321    26.21     81.6   1.5%  1048576x1x1 x 256
+gated_rmsnorm_kernel<true>                                                         120    23.30    194.2   1.3%  4194304x1x1 x 32
+moe_combine_kernel<bf16>                                                           160    20.75    129.7   1.2%  8388608x1x1 x 256
+gate_qk_norm_rope_kv_kernel<bf16>                                                   50    13.00    260.0   0.7%  1179648x2x1 x 288
+sigmoid_mul_kernel                                                                  40     6.84    171.0   0.4%  16777216x1x1 x 256
+moe_topk_v2_kernel                                                                 160     3.38     21.1   0.2%  131072x1x1 x 128
+moe_group_kernel                                                                   160     3.37     21.0   0.2%  1024x1x1 x 1024
+moe_block_kernel<4, 8>                                                              40     2.04     51.0   0.1%  212992x1x1 x 256
+silu_glu_kernel<true>                                                              160     1.76     11.0   0.1%  262144x1x1 x 256
+dq_gemm_kernel<Fp8PolicyW16, 4, 2, 2, 4, bf16>                                     520     1.64      3.2   0.1%  8192x64x1 x 256
+=== pf:base:1 [00:02:28, 3755 s left]
+pf base [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 429 ms (9556.3 tok/s) | decode 0 ms (0.00 tok/s) 
+pf base [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1860 ms (8810.9 tok/s) | decode 0 ms (0.00 tok/s) 
+=== pf:dev:1 [00:02:36, 3747 s left]
+pf dev [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 407 ms (10075.7 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1775 ms (9230.8 tok/s) | decode 0 ms (0.00 tok/s) 
+=== pf:base:1 [00:02:44, 3739 s left]
+pf base [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 428 ms (9562.0 tok/s) | decode 0 ms (0.00 tok/s) 
+pf base [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1861 ms (8806.1 tok/s) | decode 0 ms (0.00 tok/s) 
+=== pf:dev:1 [00:02:53, 3730 s left]
+pf dev [x] 4096 r1: prompt: 4096 tokens finish=length prompt=4096 (cached 0) completion=1 | prefill 408 ms (10044.3 tok/s) | decode 0 ms (0.00 tok/s) 
+pf dev [x] 16384 r1: prompt: 16384 tokens finish=length prompt=16384 (cached 0) completion=1 | prefill 1778 ms (9216.3 tok/s) | decode 0 ms (0.00 tok/s) 
+=== qual:dev:35 [00:03:01, 3722 s left]
+--- qualify dev 35 [x] 00:03:01
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 56 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify     10s] plan: PASS in 9.2s (31 ops resolved, exactness deterministic, loaded in 9.2s)
+[qualify     51s] kernels: PASS in 40.8s (56 kernels, 1083 cases in 40.7s)
+[qualify     57s] gate: PASS in 6.0s (perplexity 1.21, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     82s] bench: PASS in 22.6s (decode 160.7 tok/s at 128 tokens (58% of the byte floor))
+=== stages done [00:04:23]

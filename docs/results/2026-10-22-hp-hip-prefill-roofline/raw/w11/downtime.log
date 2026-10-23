@@ -1,0 +1,6 @@
+active
+[window] job 4379; stages: qual:base:35 acc:base acc:dev; stopping radiance 2026-10-23 00:12:00
+[window] radiance stopped 2026-10-23 00:12:03
+[window] stages done 2026-10-23 00:13:44
+[window] starting radiance 2026-10-23 00:13:44
+[window] radiance answers (after 15 s) 2026-10-23 00:13:55

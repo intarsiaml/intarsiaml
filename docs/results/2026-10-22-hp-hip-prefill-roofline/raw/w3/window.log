@@ -1,0 +1,21 @@
+=== bin:bench-out-hp-gdnbench [22:21:04, 220 s left]
+--- bin bench-out-hp-gdnbench 22:21:04
+T=1      v2 bitwise  v3i bitwise  v3r bitwise
+T=2      v2 bitwise  v3i bitwise  v3r bitwise
+T=3      v2 bitwise  v3i bitwise  v3r bitwise
+T=4      v2 bitwise  v3i bitwise  v3r bitwise
+T=5      v2 bitwise  v3i bitwise  v3r bitwise
+T=6      v2 bitwise  v3i bitwise  v3r bitwise
+T=7      v2 bitwise  v3i bitwise  v3r bitwise
+T=9      v2 bitwise  v3i bitwise  v3r bitwise
+T=31     v2 bitwise  v3i bitwise  v3r bitwise
+T=32     v2 bitwise  v3i bitwise  v3r bitwise
+T=33     v2 bitwise  v3i bitwise  v3r bitwise
+T=63     v2 bitwise  v3i bitwise  v3r bitwise
+T=64     v2     58.1 us (0.908 us/tok) bitwise  v3i     57.0 us (0.891 us/tok) bitwise  v3r    318.7 us (4.980 us/tok) bitwise
+T=65     v2     62.7 us (0.965 us/tok) bitwise  v3i     67.1 us (1.032 us/tok) bitwise  v3r    371.0 us (5.708 us/tok) bitwise
+T=97     v2     86.8 us (0.895 us/tok) bitwise  v3i     90.3 us (0.931 us/tok) bitwise  v3r    499.0 us (5.145 us/tok) bitwise
+T=683    v2    495.6 us (0.726 us/tok) bitwise  v3i    471.8 us (0.691 us/tok) bitwise  v3r   3247.6 us (4.755 us/tok) bitwise
+T=4096   v2   2915.2 us (0.712 us/tok) bitwise  v3i   2767.6 us (0.676 us/tok) bitwise  v3r  21460.4 us (5.239 us/tok) bitwise
+ALL BITWISE
+=== stages done [22:21:05]

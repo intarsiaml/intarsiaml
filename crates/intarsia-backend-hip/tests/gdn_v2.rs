@@ -2,7 +2,8 @@
 //! `gdn_delta_rule_bf16`: the output rows and the f32 recurrent state, on the 35B's head layout and on small odd ones (a
 //! value-row count that leaves lanes idle, token counts around the prefetch depth and the 32-token gate batch, a single
 //! decode token). The prefetch depth is `INTARSIA_HIP_GDN_PD` (1 | 2 | 4, read once per process); run the binary once per
-//! value. `gdn_v2_timing` (ignored) prints both kernels at the 35B's decode and prefill shapes.
+//! value. `gdn_delta_rule_bf16_v3` (lane hp: v2 rescheduled) must give the same bits too, at every token count and split.
+//! `gdn_v2_timing` (ignored) prints the kernels at the 35B's decode and prefill shapes.
 #![cfg(ik_hip)]
 
 use intarsia_core::backend::Backend;
@@ -53,7 +54,7 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
     let mut rng = SplitMix64::new(4242);
     let mut shapes: Vec<(usize, usize, usize, usize)> = Vec::new();
     // the 35B: 16 key heads, 32 value heads of 128 rows; token counts around the chunk sizes and a prefill tail
-    for t in [1usize, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33, 63, 64, 65, 312, 1000] {
+    for t in [1usize, 2, 3, 4, 5, 6, 7, 8, 9, 31, 32, 33, 63, 64, 65, 66, 67, 312, 1000, 4096] {
         shapes.push((t, 16, 32, 128));
     }
     // a value-row count that is not a multiple of the 16 rows of a wave (idle lanes), one key head per value head, and
@@ -74,6 +75,10 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
         let what = format!("pd {chunk}: t={t} hk={hk} hv={hv} dv={dv}");
         assert!(a[0].data == b[0].data, "{what}: output rows differ");
         assert!(a[1].data == b[1].data, "{what}: final state differs");
+        // lane hp: v3 (v2 rescheduled) must give the same bits at every token count, also below GDN_V3_MIN_TOKENS
+        let b3 = run_host(&*hip, "gdn_delta_rule_bf16_v3", &hc).unwrap();
+        assert!(a[0].data == b3[0].data, "{what}: v3 output rows differ");
+        assert!(a[1].data == b3[1].data, "{what}: v3 final state differs");
         // round 8: v2 as consecutive token ranges, each continuing the state the previous one stored (INTARSIA_HIP_SPLIT_US,
         // kernels/hip/ik_hip.h): 1 = one token per launch, 7 / 40 = ranges that are no multiple of the prefetch depth or
         // of the 32-token gate batch
@@ -83,6 +88,9 @@ fn gdn_v2_is_bitwise_the_rows_kernel() {
             let c = run_host(&*hip, "gdn_delta_rule_bf16_v2", &hc).unwrap();
             assert!(a[0].data == c[0].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: output rows differ");
             assert!(a[1].data == c[1].data, "{what}: INTARSIA_HIP_SPLIT_US={split}: final state differs");
+            let c3 = run_host(&*hip, "gdn_delta_rule_bf16_v3", &hc).unwrap();
+            assert!(a[0].data == c3[0].data, "{what}: v3 INTARSIA_HIP_SPLIT_US={split}: output rows differ");
+            assert!(a[1].data == c3[1].data, "{what}: v3 INTARSIA_HIP_SPLIT_US={split}: final state differs");
         }
         std::env::remove_var("INTARSIA_HIP_SPLIT_US");
         std::env::remove_var("INTARSIA_HIP_SPLIT_MIN_US");
@@ -111,7 +119,7 @@ fn gdn_v2_timing() {
         let st = put(&HostTensor::zeros(DType::F32, &[hv, dv, dk]));
         let call = OpCall::new(Op::GdnDeltaRule, ins, vec![o, st], hc.attrs.clone());
         let mut line = format!("gdn T={t:<5}");
-        for k in ["gdn_delta_rule_bf16", "gdn_delta_rule_bf16_v2"] {
+        for k in ["gdn_delta_rule_bf16", "gdn_delta_rule_bf16_v2", "gdn_delta_rule_bf16_v3"] {
             hip.launch(k, &call, 0).unwrap();
             hip.synchronize(0).unwrap();
             let iters = if t == 1 { 200 } else { 5 };

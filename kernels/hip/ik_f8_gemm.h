@@ -174,9 +174,16 @@ void f8_gemm_run(const uint8_t* xq, const uint8_t* w, const float* sc, OutT* out
                   (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16)));                                              \
         f8_gemm_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, vec_out);       \
     }
+    // Prefill chunks (M >= 2048, lane hp tile sweeps, docs/results/2026-10-22-hp-hip-prefill-roofline.md): 16 waves,
+    // 256 x 128 (weights x tokens) for the widest projections, 128 x 256 for the others; the k order does not depend on the
+    // tile, so every tile gives the same bits (the sweep checked all of them bitwise against 128 x 128, partial M too);
+    // 128 x 256 only when it still gives every CU a block (else 128 x 128: k / v at M 2049 was +56 % on 36 blocks).
     if (M <= 16) IK_F8_TILE(4, 1, 2, 1)         // 128 x 16
     else if (M <= 32) IK_F8_TILE(4, 1, 2, 2)    // 128 x 32
     else if (M <= 64) IK_F8_TILE(2, 2, 4, 2)    // 128 x 64
+    else if (M >= 2048 && N >= 8192) IK_F8_TILE(4, 4, 4, 2)  // 256 x 128, 16 waves of 64 x 32
+    else if (M >= 2048 && ((N + 127) / 128) * (((int64_t)M + 255) / 256) >= 64)  // >= one block per CU (k/v: N = 512)
+        IK_F8_TILE(4, 4, 2, 4)                  // 128 x 256, 16 waves of 32 x 64
     else IK_F8_TILE(4, 2, 2, 4)                 // 128 x 128, 8 waves of 32 x 64
 #undef IK_F8_TILE
 }
