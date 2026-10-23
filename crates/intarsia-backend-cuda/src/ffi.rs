@@ -86,7 +86,7 @@ extern "C" {
     pub fn ik_logits_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
     // row-table launches (batched decode, kernels/cuda/ik_cuda_abi.h)
-    pub fn ik_gdn_conv_rows_bf16(x: T, taps: T, y: TM, state0: T, tab: T, stride: i64, index: i64, s: S) -> c_int;
+    pub fn ik_gdn_conv_bf16_rows(x: T, taps: T, y: TM, state0: T, tab: T, stride: i64, index: i64, s: S) -> c_int;
     pub fn ik_gdn_delta_rule_bf16_split_rows(
         qkv: T,
         a: T,

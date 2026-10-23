@@ -696,7 +696,7 @@ static int ik_check_tab(const ik_tensor* tab, int64_t rows, int64_t stride, int6
     return IK_OK;
 }
 
-int ik_gdn_conv_rows_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* state0,
+int ik_gdn_conv_bf16_rows(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* state0,
                           const ik_tensor* tab, int64_t stride, int64_t index, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(taps, IK_DTYPE_BF16, 2));

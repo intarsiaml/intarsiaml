@@ -308,6 +308,12 @@ pub struct Model {
     recurrent_batch: bool,
     /// `i32 [BATCH_MAX_ROWS]` argmax output of a batched step; allocated by [`Model::enable_batch`].
     batch_tok: Option<Buffer>,
+    /// Row tables of batched decode (R3a, `OpCall::rows`): `u8 [BATCH_MAX_ROWS, 2 * slots, 8]` device addresses of every row's
+    /// state buffers (entries `2j`, `2j + 1` of row `r`: recurrent buffer of slot `j`, or its K and V cache), and `i32
+    /// [BATCH_MAX_ROWS]` positions. Rewritten by the host before each batched step, so one recording of the step (a graph)
+    /// serves any set of sequences. `Some` only on a backend that supports them and unless `INTARSIA_ROW_TABLES=0`.
+    row_tab: Option<Buffer>,
+    batch_pos: Option<Buffer>,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
@@ -969,6 +975,8 @@ impl Model {
             batch_rows: 0,
             recurrent_batch: false,
             batch_tok: None,
+            row_tab: None,
+            batch_pos: None,
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
@@ -1650,6 +1658,12 @@ impl Model {
     ) -> Result<()> {
         let mut call = OpCall::new(op, inputs, outputs, attrs);
         call.pos = pos.cloned();
+        self.exec_call(call, profile)
+    }
+
+    /// Run (or, in a plan dry run, record) a prepared call: `exact_rows` follows the pass, the scratch is the plan's.
+    fn exec_call(&self, mut call: OpCall, profile: bool) -> Result<()> {
+        let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;
         {

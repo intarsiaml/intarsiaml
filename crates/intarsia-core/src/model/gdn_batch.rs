@@ -93,9 +93,44 @@ impl Model {
         // conv + delta rule: one T = 1 call per row, on that row's own recurrent slot. These are the solo step's one-row
         // calls, so the row-exact mark is off for them (as for the per-row attention in `attn_block_batch`): a backend
         // that registers row-exact kernels for other ops must not restrict these to them.
+        let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+        // Row tables (R3a): the same two calls for ALL rows in two launches, each row on its own recurrent state; the state
+        // tensors name row 0's buffers, the kernel takes row r's from the table.
+        let mut table_done = false;
+        if let (Some(conv_tab), Some(delta_tab)) = (
+            self.row_tab_for(rows, g.slot, 0, 0),
+            self.row_tab_for(rows, g.slot, 0, state_s_offset(l)),
+        ) {
+            if let StateSlot::Recurrent(rec) = &sts[0].slots[g.slot] {
+                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                s_state.offset = state_s_offset(l);
+                let mut cc = OpCall::new(
+                    Op::GdnConv,
+                    vec![qkv.clone(), g.conv.clone()],
+                    vec![conv.clone(), conv_state],
+                    OpAttrs::default(),
+                );
+                cc.rows = Some(conv_tab);
+                let mut dc = OpCall::new(
+                    Op::GdnDeltaRule,
+                    vec![conv.clone(), a.clone(), bg.clone(), g.a_log.clone(), g.dt_bias.clone()],
+                    vec![core.clone(), s_state],
+                    delta_attrs.clone(),
+                );
+                dc.rows = Some(delta_tab);
+                if [&cc, &dc].iter().all(|x| x.check().is_ok() && self.registry.select(x).is_ok()) {
+                    self.exec_call(cc, profile)?;
+                    self.exec_call(dc, profile)?;
+                    table_done = true;
+                }
+            }
+        }
         let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let per_row = (|| -> Result<()> {
-            let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+            if table_done {
+                return Ok(());
+            }
             for (r, st) in sts.iter().enumerate() {
                 let rec = match &st.slots[g.slot] {
                     StateSlot::Recurrent(r) => r,

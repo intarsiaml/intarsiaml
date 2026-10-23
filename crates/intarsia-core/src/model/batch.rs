@@ -134,9 +134,67 @@ impl Model {
         if self.batch_tok.is_none() {
             self.batch_tok = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 4, MemKind::Device)?);
         }
+        // Row tables (R3a): one launch per layer op for all rows instead of one per row, where the backend has the kernels
+        // and every op of the step has a registered row-table twin. `INTARSIA_ROW_TABLES=0` keeps the per-row launches.
+        if self.row_tab.is_none() && self.row_tables_wanted() {
+            self.row_tab = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 2 * self.slot_specs.len().max(1) * 8, MemKind::Device)?);
+            self.batch_pos = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 4, MemKind::Device)?);
+        }
         self.batch_rows = max_rows;
         self.graphs.invalidate();
         Ok(())
+    }
+
+    /// Whether this model's batched steps use row tables: the backend supports them, every row-table op of the model's blocks has
+    /// a registered kernel, and `INTARSIA_ROW_TABLES` is not `0`.
+    fn row_tables_wanted(&self) -> bool {
+        if !self.backend.supports_row_tables() || std::env::var("INTARSIA_ROW_TABLES").is_ok_and(|v| v == "0") {
+            return false;
+        }
+        let by_op = self.registry.by_op();
+        let has = |op: Op| by_op.get(&op).is_some_and(|ks| ks.iter().any(|k| k.row_table));
+        let attn = self.layers.iter().flatten().any(|b| matches!(b, Block::Attn(_)));
+        let gdn = self.layers.iter().flatten().any(|b| matches!(b, Block::Gdn(_)));
+        (!attn || (has(Op::KvAppend) && has(Op::AttnDecode))) && (!gdn || (has(Op::GdnConv) && has(Op::GdnDeltaRule)))
+    }
+
+    /// Write the row table and the position vector of a batched step (`states[r]` is row `r`): the device address of every
+    /// state buffer of every row, and each row's current length. Stream-ordered before the step's launches.
+    fn upload_row_table(&self, states: &[&SequenceState]) -> Result<()> {
+        let (Some(tab), Some(pos)) = (&self.row_tab, &self.batch_pos) else { return Ok(()) };
+        let stride = 2 * self.slot_specs.len().max(1);
+        let addr = |b: &Buffer| -> Result<u64> {
+            self.backend.device_address(b).ok_or_else(|| Error::invalid("backend gave no device address for a row table"))
+        };
+        let mut t = vec![0u8; states.len() * stride * 8];
+        let mut p = Vec::with_capacity(states.len() * 4);
+        for (r, st) in states.iter().enumerate() {
+            for (j, slot) in st.slots.iter().enumerate() {
+                let (a0, a1) = match slot {
+                    StateSlot::AttnKv(kv) => (addr(&kv.k)?, addr(&kv.v)?),
+                    StateSlot::Recurrent(rec) => (addr(&rec.buf)?, 0),
+                };
+                let o = (r * stride + 2 * j) * 8;
+                t[o..o + 8].copy_from_slice(&a0.to_le_bytes());
+                t[o + 8..o + 16].copy_from_slice(&a1.to_le_bytes());
+            }
+            p.extend_from_slice(&(st.len as i32).to_le_bytes());
+        }
+        self.backend.upload(tab, 0, &t, 0)?;
+        self.backend.upload(pos, 0, &p, 0)
+    }
+
+    /// Row table of a call over `rows` rows whose state is slot `slot`: entry `2 * slot + sub`.
+    pub(super) fn row_tab_for(&self, rows: usize, slot: usize, sub: usize, byte_off: usize) -> Option<crate::ops::RowTab> {
+        let tab = self.row_tab.as_ref()?;
+        let stride = 2 * self.slot_specs.len().max(1);
+        Some(crate::ops::RowTab {
+            ptrs: self.view(tab, DType::U8, &[rows, stride, 8]),
+            rows,
+            stride,
+            index: 2 * slot + sub,
+            byte_off,
+        })
     }
 
     /// Recurrent-state snapshots each batched slot keeps for prefix reuse. The cpu reference keeps the solo schedule's
@@ -218,6 +276,7 @@ impl Model {
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
+            self.upload_row_table(&refs)?;
             let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true, None)?;
             self.batch_head(&hn, b, profile)
         })();
@@ -327,6 +386,14 @@ impl Model {
             gate.is_none() || self.recurrent_batch,
             "enable_batch rejects gated attention without the hybrid opt-in"
         );
+        // Row tables: the whole per-row chain (q / k norm, rope, K and V append, split-KV decode) as one launch per op for all
+        // rows, each on its own cache at its own position (R3a). Not for the folded gated prologue or a scaled rope.
+        if !folded {
+            if let Some(qc) = self.attn_batch_rows(a, sts, &bufs, qc0, profile)? {
+                let attn_out = bufs.q[1 - qc].clone();
+                return self.attn_out_proj(a, &attn_out, gate, qc, out, b, profile);
+            }
+        }
         // the one-row calls are the solo step's: not row-exact kernels, whose row count would be wrong
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let rows = (|| -> Result<usize> {
@@ -345,5 +412,91 @@ impl Model {
         let attn_out = bufs.q[1 - qc].clone();
         // the output gate (gated attention, hybrid opt-in only; `None` otherwise) is applied once for all rows, as in the solo step
         self.attn_out_proj(a, &attn_out, gate, qc, out, b, profile)
+    }
+
+    /// The attention chain of [`Model::attn_rows_core`] (unfolded: q-norm, rope, k-norm, rope, K append, V append, decode) over all
+    /// rows of a batched step as row-table calls. Every op is the solo kernel's arithmetic: the norms and the rope are row-local
+    /// (rope reads one position per row), the append and the decode attention take each row's cache from the table and its
+    /// position from `batch_pos`. `None` (nothing launched) where a call has no kernel, e.g. a scaled rope, a sliding window or an
+    /// fp8 cache. Returns the final `qc`: the attention output is `bufs.q[1 - qc]`.
+    fn attn_batch_rows(
+        &self,
+        a: &AttnBlock,
+        sts: &[&SequenceState],
+        bufs: &AttnBufs,
+        mut qc: usize,
+        profile: bool,
+    ) -> Result<Option<usize>> {
+        let Some(pos) = self.batch_pos.as_ref() else { return Ok(None) };
+        if self.rope_table.is_some() {
+            return Ok(None);
+        }
+        let b = sts.len();
+        let slot = Self::attn_slot(sts[0], a)?;
+        let d = &self.ldims;
+        let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
+        let pos = self.view(pos, DType::I32, &[b]);
+        let cache_shape = [nkv, slot.cap, hd];
+        let (kcache, vcache) = (self.view(&slot.k, slot.dtype, &cache_shape), self.view(&slot.v, slot.dtype, &cache_shape));
+        let mk = |sub: usize| self.row_tab_for(b, a.slot, sub, 0);
+        let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        let rope = OpAttrs { theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
+        let append = OpAttrs { kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
+        let attrs = OpAttrs {
+            scale: 1.0 / (hd as f32).sqrt(),
+            n_heads: nh,
+            n_kv_heads: nkv,
+            head_dim: hd,
+            kv_cap: slot.cap,
+            ..Default::default()
+        };
+        let row_call = |op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, at: OpAttrs, sub: usize| -> Option<OpCall> {
+            let mut c = OpCall::new(op, inputs, outputs, at);
+            c.pos = Some(pos.clone());
+            c.rows = mk(sub);
+            c.rows.as_ref()?;
+            Some(c)
+        };
+        // the chain, planned before anything launches so a missing kernel leaves the per-row path untouched; the buffer parities
+        // are those of `attn_rows_core` (q alternates through norm and rope, k through norm and rope, v is untouched)
+        let (qn, kn) = (a.q_norm.is_some() as usize, a.k_norm.is_some() as usize);
+        let qf = (qc + qn + 1) % 2;
+        let kf = (kn + 1) % 2;
+        let calls = (
+            row_call(Op::KvAppend, vec![bufs.k[kf].clone()], vec![kcache.clone()], append.clone(), 0),
+            row_call(Op::KvAppend, vec![bufs.v.clone()], vec![vcache.clone()], append, 1),
+            row_call(
+                Op::AttnDecode,
+                vec![bufs.q[qf].clone(), kcache, vcache],
+                vec![bufs.q[1 - qf].clone()],
+                attrs,
+                0,
+            ),
+        );
+        let (Some(ka), Some(va), Some(at)) = calls else { return Ok(None) };
+        let mut rope_c = OpCall::new(Op::Rope, vec![bufs.q[0].clone()], vec![bufs.q[1].clone()], rope.clone());
+        rope_c.pos = Some(pos.clone());
+        for c in [&ka, &va, &at, &rope_c] {
+            if c.check().is_err() || self.registry.select(c).is_err() {
+                return Ok(None);
+            }
+        }
+        if let Some(w) = &a.q_norm {
+            self.exec(Op::QkNorm, vec![bufs.q[qc].clone(), w.clone()], vec![bufs.q[1 - qc].clone()], eps.clone(), profile)?;
+            qc = 1 - qc;
+        }
+        self.exec_pos(Op::Rope, vec![bufs.q[qc].clone()], vec![bufs.q[1 - qc].clone()], rope.clone(), Some(&pos), profile)?;
+        qc = 1 - qc;
+        let mut kb = 0usize;
+        if let Some(w) = &a.k_norm {
+            self.exec(Op::QkNorm, vec![bufs.k[kb].clone(), w.clone()], vec![bufs.k[1 - kb].clone()], eps, profile)?;
+            kb = 1 - kb;
+        }
+        self.exec_pos(Op::Rope, vec![bufs.k[kb].clone()], vec![bufs.k[1 - kb].clone()], rope, Some(&pos), profile)?;
+        debug_assert_eq!(qc, qf);
+        self.exec_call(ka, profile)?;
+        self.exec_call(va, profile)?;
+        self.exec_call(at, profile)?;
+        Ok(Some(qc))
     }
 }

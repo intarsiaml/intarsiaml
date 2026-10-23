@@ -108,7 +108,7 @@ int ik_attn_prefill_f8kv_flash(const ik_tensor* q, const ik_tensor* kc, const ik
  * Row r is BITWISE the one-row launch it twins (tests/row_tables.rs): ik_gdn_conv_bf16 (conv + state update in one launch),
  * ik_gdn_delta_rule_bf16_split, ik_kv_append_bf16, ik_attn_decode_bf16_splitkv (same scratch, `rows` rows of it). Rope with a
  * device position of one entry per token (ik_rope_bf16's `pos` of numel T) is the same table-free extension. */
-int ik_gdn_conv_rows_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* state0, const ik_tensor* tab,
+int ik_gdn_conv_bf16_rows(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* state0, const ik_tensor* tab,
                           int64_t stride, int64_t index, void* stream);
 int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                       const ik_tensor* dt_bias, float eps, ik_tensor* o, const ik_tensor* state0,

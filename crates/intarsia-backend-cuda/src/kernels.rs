@@ -464,6 +464,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .when(|s| (2..=8).contains(&s.k) && (1..=ROWS_MAX).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
+                .priority(-1)
                 .row_table(),
             "gdn_delta_rule_bf16_split_rows" => k
                 .acts(bf)
@@ -478,8 +479,9 @@ pub fn all() -> Vec<KernelImpl> {
                 })
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
+                .priority(-1)
                 .row_table(),
-            "kv_append_bf16_rows" => k.acts(bf).when(|s| (1..=ROWS_MAX).contains(&s.m)).exact(Exactness::Exact).tol(Tol::EXACT).row_table(),
+            "kv_append_bf16_rows" => k.acts(bf).when(|s| (1..=ROWS_MAX).contains(&s.m)).exact(Exactness::Exact).tol(Tol::EXACT).priority(-1).row_table(),
             "attn_decode_bf16_splitkv_rows" => k
                 .acts(bf)
                 .weights(bf)
@@ -487,6 +489,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .scratch(splitkv_rows_scratch)
+                .priority(-1)
                 .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
@@ -543,7 +546,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -583,7 +586,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::GdnDeltaRule && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -651,7 +654,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8 && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -718,7 +721,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == Op::MatmulFp8Pair && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -758,7 +761,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -805,7 +808,7 @@ mod tests {
                 ..Default::default()
             };
             let mut best: Option<KernelImpl> = None;
-            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact) {
+            for k in all().into_iter().filter(|k| k.op == op && k.accepts(&s) && !k.rows_exact && !k.row_table) {
                 if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                     best = Some(k);
                 }
@@ -951,6 +954,7 @@ mod tests {
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
+        "attn_decode_bf16_splitkv_rows:attn_decode",
         "attn_decode_f8kv_splitkv:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
@@ -962,10 +966,13 @@ mod tests {
         "gated_rmsnorm_bf16:gated_rmsnorm",
         "gated_rmsnorm_matmul_fp8_gemv:gated_rmsnorm_matmul_fp8",
         "gdn_conv_bf16:gdn_conv",
+        "gdn_conv_bf16_rows:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_lanes:gdn_delta_rule",
         "gdn_delta_rule_bf16_split:gdn_delta_rule",
+        "gdn_delta_rule_bf16_split_rows:gdn_delta_rule",
         "kv_append_bf16:kv_append",
+        "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
@@ -1013,7 +1020,7 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
-    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md).
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

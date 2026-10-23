@@ -346,7 +346,7 @@ impl Backend for CudaBackend {
                 "gdn_delta_rule_bf16_split" => {
                     ffi::ik_gdn_delta_rule_bf16_split(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
-                "gdn_conv_bf16_rows" => ffi::ik_gdn_conv_rows_bf16(i(0), i(1), o, o.add(1), tab, tab_stride, tab_index, s),
+                "gdn_conv_bf16_rows" => ffi::ik_gdn_conv_bf16_rows(i(0), i(1), o, o.add(1), tab, tab_stride, tab_index, s),
                 "gdn_delta_rule_bf16_split_rows" => ffi::ik_gdn_delta_rule_bf16_split_rows(
                     i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), tab, tab_stride, tab_index, tab_off, s,
                 ),
