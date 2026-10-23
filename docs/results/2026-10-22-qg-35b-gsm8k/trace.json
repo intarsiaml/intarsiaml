@@ -1,0 +1,144 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:qg:20261022-2232",
+ "project": "intarsiaml",
+ "lane_id": "qg",
+ "follows": [],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-22T22:32:00-04:00",
+ "ended": "2026-10-22T23:40:00-04:00",
+ "brief": "Measurement lane. The composer flags the IntarsiaML Qwen3.6-35B-A3B NVFP4 Spark cells with drop:gsm8k@n1319:0.240<0.281 (Q1 runs, localeval 0.2.1). Find out whether the quality drop is real or a setup/scoring artifact.",
+ "hypothesis": "A 0.24 GSM8K score for a 35B model looks like a setup problem (thinking, template, max_tokens, extraction, sampling), not an engine fault; localeval 0.3.0 reports both exact-match and flexible scores, so a same-config rerun on both engines should separate the two.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "quality",
+  "buckets": [],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 \u00b7 Qwen3.6-35B-A3B | plain | concurrent | 1x"
+  ],
+  "rival": "vLLM \u00b7 NVFP4",
+  "gap_pct_at_start": null,
+  "regimes_built_at": "2026-10-22T23:12:36-04:00"
+ },
+ "techniques": [],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-qg/gsm8k",
+  "base_commit": "a92267b038f942466c77a5572a7750440eb9d59e",
+  "head_commit": "82914a21ba5ced40db219cfdb95ee68b7af68a57",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/111",
+  "files": [
+   "docs/results/2026-10-22-qg-35b-gsm8k.md",
+   "docs/decisions/LOG.md"
+  ],
+  "diff_stat": "docs and results only, no engine code",
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "same-config rerun, both engines, localeval 0.3.0",
+   "command": "localeval quality --thinking off --structured none --bench gsm8k --limit 1319 (intarsia :8190 and vLLM :8000 on spark2, fleetq #4339)",
+   "result": "pass",
+   "detail": "intarsia strict 0.2403 (bit-identical to Q1), flexible 0.6831; vLLM strict 0.2714, flexible 0.5823"
+  },
+  {
+   "name": "reply classification, 1319 replies per engine",
+   "command": "scripts/classify.py on lane A3 paired replay (reproduces Q1 strict exactly)",
+   "result": "pass",
+   "detail": "intarsia: 583 format/extraction misses, 413 wrong, 6 truncated, 0 degenerate; vLLM: 391, 551, 4, 0"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "gsm8k_strict",
+   "bucket": null,
+   "prompt_tokens": null,
+   "streams": null,
+   "before": 0.2403,
+   "after": 0.2403,
+   "unit": "score",
+   "n": 1319,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4339,
+   "before_run_id": "20261021-173333-adhoc-q1-intarsia-gsm8k",
+   "after_run_id": "20261022-223913-adhoc-qg-intarsia-gsm8k-n1319"
+  },
+  {
+   "metric": "gsm8k_flexible",
+   "bucket": null,
+   "prompt_tokens": null,
+   "streams": null,
+   "before": null,
+   "after": 0.6831,
+   "unit": "score",
+   "n": 1319,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4339,
+   "before_run_id": null,
+   "after_run_id": "20261022-223913-adhoc-qg-intarsia-gsm8k-n1319"
+  },
+  {
+   "metric": "gsm8k_strict_vllm_peer",
+   "bucket": null,
+   "prompt_tokens": null,
+   "streams": null,
+   "before": 0.2813,
+   "after": 0.2714,
+   "unit": "score",
+   "n": 1319,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4339,
+   "before_run_id": "20261021-180552-adhoc-q1-vllm-gsm8k",
+   "after_run_id": "20261022-223913-adhoc-qg-vllm-gsm8k-n1319"
+  },
+  {
+   "metric": "gsm8k_flexible_vllm_peer",
+   "bucket": null,
+   "prompt_tokens": null,
+   "streams": null,
+   "before": null,
+   "after": 0.5823,
+   "unit": "score",
+   "n": 1319,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4339,
+   "before_run_id": null,
+   "after_run_id": "20261022-223913-adhoc-qg-vllm-gsm8k-n1319"
+  }
+ ],
+ "accuracy": {
+  "gate": "localeval gsm8k n=1319 thinking off, strict + flexible",
+  "verdict": "pass",
+  "bitwise": null,
+  "run_ids": [
+   "20261022-223913-adhoc-qg-intarsia-gsm8k-n1319",
+   "20261022-223913-adhoc-qg-vllm-gsm8k-n1319"
+  ]
+ },
+ "verdict": "neutral",
+ "summary": "The drop flag is a scoring artifact. Q1's 0.240 / 0.281 are exact-match scores (whole reply must equal the number); both engines mostly write a worked solution that exact match scores 0. On localeval 0.3.0 with identical config the strict gap is noise (0.240 vs 0.271, 2SE 0.034) and the flexible score favours IntarsiaML (0.683 vs 0.582, 2SE 0.037). Accuracy on worked-solution replies is 96.0 % (IntarsiaML) vs 96.3 % (vLLM). No engine change; no speed effect.",
+ "lessons": [
+  "Scores from localeval < 0.3.0 'gsm8k' are exact match only; never pair them with gsm8k_flexible, and do not build a quality drop flag from them.",
+  "deepeval's GSM8K prompt asks for a bare number, so the score measures how often the first token is a digit (bare numbers are right ~41-45 % of the time, worked solutions ~96 %).",
+  "The vLLM peer in this rerun is spark2's retro vLLM (128K context), not spark1's production one; same image and weights, different launch flags. spark1 was down for a driver update.",
+  "The 0.3.0 result.json stores no per-question replies; classification needs a replay (lane A3's) or a localeval option to save them."
+ ],
+ "cost": {
+  "wall_min": 68,
+  "gpu_slot_min": 47,
+  "slot_jobs": [
+   4339
+  ],
+  "tokens": null
+ }
+}
