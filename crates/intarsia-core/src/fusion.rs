@@ -41,9 +41,9 @@ macro_rules! hip_test {
 /// Every proven fusion. CUDA's phase-1 fusions of the 35B and Qwen3-8B decode steps
 /// (docs/results/2026-10-14-cuda-decode-fusion.md), and the six HIP decode fusions of the same names (the HIP backend's
 /// `tests/fused_decode.rs` ports the CUDA tests, bitwise against the same unfused chains); other backends have none registered,
-/// so their batched plans keep the stricter rule (the solo step's op multiset). The HIP phase-1 folds (`RmsNormAddMatmulFp8Pair`,
-/// `SigmoidMulMatmulFp8`, `SharedDownCombine`) and `MoeBlock` are *not* here: they are one-row kernels (`OpCall::with_rows`), so
-/// with batching on the model does not fuse them in the solo step either.
+/// so their batched plans keep the stricter rule (the solo step's op multiset). Also here: HIP's `SharedDownCombine` (rows 1..=8)
+/// and `MoeBlock` (T * top_k <= 16). The HIP fp8 folds (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`) are *not*: they are
+/// one-row kernels (`OpCall::with_rows`), so with batching on the model does not fuse them in the solo step either.
 pub const FUSIONS: &[Fusion] = &[
     Fusion {
         backend: "cuda",
@@ -130,6 +130,18 @@ pub const FUSIONS: &[Fusion] = &[
             hip_test!("rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair"),
             hip_test!("rmsnorm_add_matmul_pair_many_rows_bitwise"),
         ],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::SharedDownCombine,
+        chain: &[Op::MatmulNvfp4, Op::MoeCombine],
+        tests: &["crates/intarsia-backend-hip/tests/fusion_p1.rs::shared_down_combine_is_bitwise_down_then_combine"],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::MoeBlock,
+        chain: &[Op::MoeTopk, Op::MoeExperts, Op::MatmulNvfp4Glu, Op::SharedDownCombine],
+        tests: &["crates/intarsia-backend-hip/tests/moe_block.rs::moe_block_is_bitwise_the_chain"],
     },
 ];
 
