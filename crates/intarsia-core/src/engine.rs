@@ -423,6 +423,8 @@ pub(crate) struct StorePolicy {
     pub(crate) store: Arc<Mutex<crate::prefix_store::PrefixStore>>,
     /// Token ids that start a message boundary (each position holding one is a chunk end and an entry).
     pub(crate) boundary_ids: Vec<u32>,
+    /// Token ids that end a message header: a cut right after the first one following a boundary token.
+    pub(crate) header_end_ids: Vec<u32>,
     /// Prefill is bitwise the same however the prompt is chunked on this backend (cpu, hip): any prefill-written length
     /// is a valid restore point. Otherwise only points of the prompt's own chunk schedule are.
     pub(crate) chunk_invariant: bool,
@@ -436,21 +438,26 @@ impl StorePolicy {
         if model.is_tp() {
             return Err(Error::Unsupported("the prefix store with tensor parallelism".into()));
         }
-        let mut boundary_ids = Vec::new();
-        for t in &cfg.boundary_tokens {
-            match codec.encode(t, false) {
-                Ok(ids) if ids.len() == 1 => boundary_ids.push(ids[0]),
-                _ => eprintln!("prefix store: boundary '{t}' is not one token of this tokenizer; ignored"),
+        let one = |list: &[String]| -> Vec<u32> {
+            let mut out = Vec::new();
+            for t in list {
+                match codec.encode(t, false) {
+                    Ok(ids) if ids.len() == 1 => out.push(ids[0]),
+                    _ => eprintln!("prefix store: {t:?} is not one token of this tokenizer; ignored"),
+                }
             }
-        }
-        // bitwise chunk invariance: measured on cpu and hip (recipes/qwen3_5_moe.toml [tuning.hip]); not on cuda
-        // (chunk-sensitive) or metal (the 1-row decode GEMV differs from multi-row rows)
-        let chunk_invariant = matches!(model.backend.name(), "cpu" | "hip");
+            out
+        };
+        let boundary_ids = one(&cfg.boundary_tokens);
+        let header_end_ids = one(&cfg.header_end_tokens);
+        // chunk invariance is a property of backend and model (the hybrid's GatedDeltaNet is chunk-sensitive even on
+        // cpu): restore only at schedule points unless the operator says otherwise
+        let chunk_invariant = cfg.any_cut;
         let desc = crate::prefix_store::describe_build(model, &meta.id, &cfg);
         let (min_tokens, grid_tokens) = (cfg.min_tokens, cfg.grid_tokens);
         let store = crate::prefix_store::PrefixStore::new(cfg, model.slot_specs(), &desc)?;
         let _ = st;
-        Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, chunk_invariant, min_tokens, grid_tokens }))
+        Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, chunk_invariant, min_tokens, grid_tokens }))
     }
 }
 
@@ -469,8 +476,22 @@ pub(crate) struct SeqStore {
 impl SeqStore {
     fn new(pol: StorePolicy, prompt: &[u32], recurrent: bool, chunk: usize) -> SeqStore {
         let plen = prompt.len();
-        let boundaries: Vec<usize> =
-            (1..plen).filter(|&i| pol.boundary_ids.contains(&prompt[i])).collect();
+        // cuts: before every message start, and after the end of its header
+        let mut boundaries = Vec::new();
+        let mut in_header = false;
+        for (i, t) in prompt.iter().enumerate() {
+            if pol.boundary_ids.contains(t) {
+                if i > 0 {
+                    boundaries.push(i);
+                }
+                in_header = true;
+            } else if in_header && pol.header_end_ids.contains(t) {
+                if i + 1 < plen {
+                    boundaries.push(i + 1);
+                }
+                in_header = false;
+            }
+        }
         let mut points = std::collections::BTreeSet::new();
         let mut pos = 0;
         while pos < plen {
@@ -1195,7 +1216,7 @@ impl Seq {
         if let Some(Err(e)) = &self.cons {
             return Err(Error::BadRequest(format!("structured output: {e}")));
         }
-        debug_assert!(cached < self.plen);
+        debug_assert!(cached < self.plen || (self.req.prewarm.is_some() && cached == self.plen));
         self.max_new = self.req.max_tokens.min(cap - self.plen);
         self.cached = cached;
         self.pos = cached;

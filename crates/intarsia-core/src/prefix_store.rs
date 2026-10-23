@@ -57,9 +57,17 @@ pub struct PrefixStoreConfig {
     /// Smallest distance in tokens between two entries of one prompt that are not message boundaries (chunk-grid
     /// points inside a long message, e.g. a pasted document).
     pub grid_tokens: usize,
-    /// Token texts that start a message boundary (each must be one token): a prefill chunk ends right before each, and
-    /// an entry is stored there.
+    /// Token texts that start a message (each must be one token): a prefill chunk ends right before each, and an entry
+    /// is stored there.
     pub boundary_tokens: Vec<String>,
+    /// Token texts that end a message header (`<|im_start|>assistant\n`: the newline): a chunk also ends right after
+    /// the first one following a boundary token. That cut is where the next turn's prompt leaves this one (the Qwen3.6
+    /// template drops earlier turns' `<think>`, so turn N+1 shares turn N's prompt up to `<|im_start|>assistant\n`).
+    pub header_end_tokens: Vec<String>,
+    /// Restore at any prefill-written length, not only at points of the prompt's own chunk schedule. Only for a backend
+    /// and model whose prefill is bitwise chunk-invariant (measured: dense models on cpu; NOT the hybrid on cpu, whose
+    /// GatedDeltaNet bits depend on the chunking). Default off.
+    pub any_cut: bool,
 }
 
 impl Default for PrefixStoreConfig {
@@ -72,7 +80,9 @@ impl Default for PrefixStoreConfig {
             page_tokens: 256,
             min_tokens: 32,
             grid_tokens: 2048,
-            boundary_tokens: vec!["<|im_start|>".into(), "<think>".into()],
+            boundary_tokens: vec!["<|im_start|>".into()],
+            header_end_tokens: vec!["\n".into()],
+            any_cut: false,
         }
     }
 }
@@ -131,6 +141,12 @@ impl PrefixStoreConfig {
                 "boundary" => {
                     c.boundary_tokens = v.split('|').map(str::trim).filter(|s| !s.is_empty()).map(String::from).collect()
                 }
+                "header" => {
+                    // `\n` spelled as two characters in a flag
+                    c.header_end_tokens =
+                        v.split('|').filter(|s| !s.is_empty()).map(|s| s.replace("\\n", "\n")).collect()
+                }
+                "any_cut" => c.any_cut = num(v)? != 0,
                 other => return Err(Error::invalid(format!("prefix store: unknown key '{other}' (spec '{spec}')"))),
             }
         }
@@ -1276,7 +1292,7 @@ pub fn describe_build(model: &crate::model::Model, model_id: &str, cfg: &PrefixS
         model.tail_merge(),
         cfg.page_tokens,
         plan,
-        cfg.boundary_tokens,
+        (&cfg.boundary_tokens, &cfg.header_end_tokens),
         model.weights_bytes,
     )
 }

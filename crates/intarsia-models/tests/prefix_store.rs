@@ -273,11 +273,13 @@ fn store_refuses_a_state_of_another_layout() {
 const BOUND_TEXT: &str = "<B>";
 const THINK_TEXT: &str = "<T>";
 
-/// `<B>` and `<T>` are one token each (`bound`, `think`), everything else is bytes modulo the vocabulary.
+/// `<B>`, `<T>` and a newline are one token each (`bound`, `think`, `nl`), everything else is bytes modulo the
+/// vocabulary.
 struct TestCodec {
     vocab: u32,
     bound: u32,
     think: u32,
+    nl: u32,
 }
 
 impl TextCodec for TestCodec {
@@ -285,6 +287,7 @@ impl TextCodec for TestCodec {
         Ok(match text {
             BOUND_TEXT => vec![self.bound],
             THINK_TEXT => vec![self.think],
+            "\n" => vec![self.nl],
             _ => text.bytes().map(|b| b as u32 % self.vocab).collect(),
         })
     }
@@ -348,8 +351,8 @@ enum Kind {
 impl Kind {
     fn codec(self) -> TestCodec {
         match self {
-            Kind::Hybrid => TestCodec { vocab: 96, bound: 3, think: 4 },
-            Kind::Dense => TestCodec { vocab: 300, bound: 290, think: 291 },
+            Kind::Hybrid => TestCodec { vocab: 96, bound: 3, think: 4, nl: 5 },
+            Kind::Dense => TestCodec { vocab: 300, bound: 290, think: 291, nl: 292 },
         }
     }
     fn vocab(self) -> u32 {
@@ -363,7 +366,8 @@ fn engine(kind: Kind, chunk: usize, store: Option<PrefixStoreConfig>) -> LocalEn
         Kind::Dense => dense(chunk),
     };
     let store = store.map(|mut c| {
-        c.boundary_tokens = vec![BOUND_TEXT.into(), THINK_TEXT.into()];
+        c.boundary_tokens = vec![BOUND_TEXT.into()];
+        c.header_end_tokens = vec!["\n".into()];
         c
     });
     LocalEngine::new(
@@ -423,6 +427,18 @@ fn prewarm(e: &LocalEngine, prompt: &[u32], pin: Option<&str>) -> usize {
     cached
 }
 
+/// Against a cold run with the store off: bitwise for the dense model (its cpu prefill is chunk-invariant); the hybrid's
+/// GatedDeltaNet prefill is not chunk-invariant on cpu (`hybrid_cpu_prefill_chunk_sensitivity`), and the store-on
+/// schedule cuts chunks at message boundaries, so there it is only reported.
+fn off_check(kind: Kind, a: &Out, b: &Out, what: &str) {
+    if kind == Kind::Dense {
+        same_bits(a, b, what);
+    } else {
+        let eq = a.ids == b.ids && a.logits == b.logits;
+        println!("{what}: bitwise {eq}, ids equal {}", a.ids == b.ids);
+    }
+}
+
 fn same_bits(a: &Out, b: &Out, what: &str) {
     assert_eq!(a.ids, b.ids, "{what}: generated ids differ");
     assert_eq!(a.logits.len(), b.logits.len(), "{what}");
@@ -447,6 +463,8 @@ impl Chat {
     fn msg(&mut self, seed: u32, n: usize) -> &mut Chat {
         let c = self.kind.codec();
         self.toks.push(c.bound);
+        self.toks.push(25); // role
+        self.toks.push(c.nl);
         for i in 0..n as u32 {
             // ids 10.. (clear of the boundary ids)
             self.toks.push(10 + (seed * 17 + i * 7) % (self.kind.vocab() - 20));
@@ -459,6 +477,7 @@ impl Chat {
         let mut p = self.toks.clone();
         p.push(c.bound);
         p.push(20);
+        p.push(c.nl);
         p.push(c.think);
         p.push(21);
         p
@@ -468,8 +487,9 @@ impl Chat {
         let c = self.kind.codec();
         self.toks.push(c.bound);
         self.toks.push(20);
+        self.toks.push(c.nl);
         // answer tokens: drop the boundary ids so they do not add cuts the answer did not have
-        self.toks.extend(ans.iter().map(|&t| if t == c.bound || t == c.think { 22 } else { t }));
+        self.toks.extend(ans.iter().map(|&t| if t == c.bound || t == c.think || t == c.nl { 22 } else { t }));
         self
     }
 }
@@ -496,15 +516,16 @@ fn multi_turn_identity(kind: Kind, chunk: usize) {
     assert_eq!(cold_on.cached, 0);
     let cold_off = run(&engine(kind, chunk, None), &p2, 12);
     same_bits(&restored, &cold_on, "restored vs cold (store on)");
-    same_bits(&restored, &cold_off, "restored vs cold (store off)");
+    off_check(kind, &restored, &cold_off, "restored vs cold (store off)");
     // a third turn: restores turn 2's history
     a.answer(&restored.ids).msg(4, 6);
     let p3 = a.prompt();
     let r3 = run(&warm, &p3, 8);
     assert!(r3.cached > restored.cached);
-    same_bits(&r3, &run(&engine(kind, chunk, None), &p3, 8), "turn 3 restored vs cold");
+    same_bits(&r3, &run(&engine(kind, chunk, Some(store_cfg())), &p3, 8), "turn 3 restored vs cold (store on)");
+    off_check(kind, &r3, &run(&engine(kind, chunk, None), &p3, 8), "turn 3 restored vs cold (store off)");
     let snap = warm.telemetry().prefix_store.unwrap();
-    assert!(snap.hits >= 2 && snap.tokens_saved > 0, "{snap:?}");
+    assert!(snap.hits + snap.local_wins >= 2 && snap.tokens_saved > 0, "{snap:?}");
 }
 
 #[test]
@@ -536,7 +557,8 @@ fn shared_prefix_identity(kind: Kind) {
         let p = c.prompt();
         let r = run(&warm, &p, 6);
         assert!(r.cached >= pinned.len(), "question {q} reused {} of the {}-token prefix", r.cached, pinned.len());
-        same_bits(&r, &run(&engine(kind, chunk, None), &p, 6), "shared prefix restored vs cold");
+        same_bits(&r, &run(&engine(kind, chunk, Some(store_cfg())), &p, 6), "shared prefix restored vs cold (store on)");
+        off_check(kind, &r, &run(&engine(kind, chunk, None), &p, 6), "shared prefix restored vs cold (store off)");
     }
     let snap = warm.telemetry().prefix_store.unwrap();
     assert_eq!(snap.pinned_entries, 1);
@@ -569,7 +591,7 @@ fn hybrid_grid_points_inside_a_long_message() {
     let p = b.prompt();
     let r = run(&warm, &p, 6);
     assert!(r.cached >= 64, "reused {}", r.cached);
-    same_bits(&r, &run(&engine(kind, 8, None), &p, 6), "grid restore vs cold");
+    same_bits(&r, &run(&engine(kind, 8, Some(store_cfg())), &p, 6), "grid restore vs cold (store on)");
 }
 
 /// The store on disk: a new engine of the same build restores from the disk tier, bitwise.
@@ -596,7 +618,7 @@ fn hybrid_restore_from_disk_after_restart() {
     assert!(r.cached > 40, "reused {}", r.cached);
     let snap = e.telemetry().prefix_store.unwrap();
     assert_eq!(snap.disk.hits, 1, "{snap:?}");
-    same_bits(&r, &run(&engine(kind, 8, None), &p2, 6), "disk restore vs cold");
+    same_bits(&r, &run(&engine(kind, 8, Some(store_cfg())), &p2, 6), "disk restore vs cold (store on)");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -653,4 +675,34 @@ fn hybrid_skip_dead_tail_is_bitwise() {
 #[test]
 fn dense_skip_dead_tail_is_bitwise() {
     skip_dead_identity(Kind::Dense);
+}
+
+#[test]
+fn hybrid_cpu_prefill_chunk_sensitivity() {
+    // a report, not a gate: whether the cpu hybrid's prefill bits depend on the chunking (they did on 2026-10-22)
+    use intarsia_core::model::{HeadMode, StepOut};
+    let m = hybrid(8);
+    let ids: Vec<u32> = (0..40u32).map(|i| 10 + (i * 37) % 70).collect();
+    let b = &*m.backend;
+    // A: forward 0..24 in chunks of 8, capture, then 24..40
+    let mut st = m.new_state().unwrap();
+    for c in ids[..24].chunks(8) { m.forward(&mut st, c, HeadMode::None, None).unwrap(); }
+    let mut s = PrefixStore::new(cfg(16), m.slot_specs(), "dbg").unwrap();
+    s.insert(b, &st, 24, None).unwrap();
+    let d24 = dump(b, &st);
+    let mut st2 = m.new_state().unwrap();
+    let h = s.lookup(&ids, 39).unwrap();
+    s.restore(b, &mut st2, h).unwrap();
+    assert!(dump(b, &st2) == d24, "a restored state is the captured state");
+    let StepOut::Logits(l1) = m.forward(&mut st, &ids[24..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    let StepOut::Logits(l2) = m.forward(&mut st2, &ids[24..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    assert!(l1 == l2, "a restored state continues bitwise");
+    // chunk invariance: one pass of 0..40 vs chunks
+    let mut st3 = m.new_state().unwrap();
+    let StepOut::Logits(l3) = m.forward(&mut st3, &ids[..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    println!("chunked vs model-chunked equal: {}", l1 == l3);
+    let mut st4 = m.new_state().unwrap();
+    for c in [&ids[..5], &ids[5..24], &ids[24..39]] { m.forward(&mut st4, c, HeadMode::None, None).unwrap(); }
+    let StepOut::Logits(l4) = m.forward(&mut st4, &ids[39..], HeadMode::LastLogits, None).unwrap() else { panic!() };
+    println!("CHUNK-SENSITIVITY cpu hybrid: chunks (5, 19, 15, 1) vs (8 x 5) bitwise equal: {}", l3 == l4);
 }
