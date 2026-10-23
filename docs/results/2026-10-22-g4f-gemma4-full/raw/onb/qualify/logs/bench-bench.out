@@ -1,0 +1,9 @@
+qualify-gemma4-26b-a4b-nvfp4-cuda-bench  model=qualify-gemma4-26b-a4b-nvfp4  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      133     0.210          634        34.3      128      273.9
+    1024     1014     1.892          536        31.1      128      248.5
+    4096     4266    11.600          366        24.6      128      196.3
+bandwidth floor: 12.5 tok/s
+warning: size 128: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 1024: 0 graph replays during the measured reps (decode ran eagerly)
+warning: size 4096: 0 graph replays during the measured reps (decode ran eagerly)

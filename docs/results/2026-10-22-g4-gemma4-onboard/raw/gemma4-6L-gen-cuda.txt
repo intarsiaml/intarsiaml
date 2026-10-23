@@ -1,0 +1,9 @@
+prefill chunk 1024 (recipe gemma4, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded gemma4-6L on NVIDIA GB10 in 5.9s: 6 layers, hidden 2816, act bf16, kv bf16, weights 4.71 GB, context 512 tokens (recipe builtin:gemma4, chat template chat_template.jinja)
+prompt: 5 tokens
+top logits (id:value): 98:30.0000 101:30.0000 497:30.0000 520:30.0000 613:30.0000
+ 물론 물론데اتlıන්lah데اتlıන්lah
+ids: [117622, 117622, 238031, 2052, 7056, 9152, 18607, 238031, 2052, 7056, 9152, 18607]
+finish=length prompt=5 (cached 4) completion=12 | prefill 13 ms (78.8 tok/s) | decode 119 ms (92.75 tok/s)
+steps=13 graph replays=0 (captures 0) eager decode steps=12 (profiled 0) top ops: matmul=160ms/611 logits=89ms/13 attn_prefill=3ms/6 moe_experts=3ms/78 rmsnorm=1ms/637

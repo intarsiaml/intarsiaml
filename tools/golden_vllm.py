@@ -122,12 +122,15 @@ def main():
         from safetensors import safe_open
         src = safe_open(args.ids_from, "np")
         src_meta = json.loads((src.metadata() or {})["prompts"])
+        # the ids carry the template of the golden they came from (a chat model whose template is not ChatML)
+        src_template = (src.metadata() or {}).get("template", "chatml")
         # (meta, ids) per prompt; no tokenising, no continuation
         fixed = [(m, [int(t) for t in src.get_tensor(f"ids_{j}")]) for j, m in enumerate(src_meta)]
         prompts = [m for m, _ in fixed]
         args.prompts = [f"ids from {pathlib.Path(args.ids_from).name}"]
     else:
         prompts = gl.load_prompts(args.prompts)
+    template_name = src_template if args.ids_from else "chatml"
     tensors, meta_prompts, skipped = {}, [], []
     t0 = time.time()
     i = 0
@@ -233,7 +236,7 @@ def main():
         "cache_config_info": json.dumps(cci),
         "max_model_len": str(max_len),
         "launch_flags": "not observable through the API" + (f"; note: {args.note}" if args.note else ""),
-        "template": "chatml",
+        "template": template_name,
         "add_special_tokens": "true",
         "sampling": json.dumps({"prompt_logprobs": args.topk, "temperature": 0,
                                 "continuation": "greedy, ignore_eos, from the same server",

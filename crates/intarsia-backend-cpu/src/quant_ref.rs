@@ -136,7 +136,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             let rows: Vec<Vec<f64>> = (0..t)
                 .into_par_iter()
                 .map(|ti| {
-                    r::moe_experts_token(&ex, &x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k], dt, od)
+                    r::moe_experts_token_act(&ex, &x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k], dt, od, a.gelu)
                 })
                 .collect();
             wr(&o[0], &rows.concat())

@@ -115,6 +115,76 @@ extern "C" {
         scratch: *const IkScratch,
         s: S,
     ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_gelu_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_mma_gelu_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_w4a16_gelu_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_decode_gelu_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    fn ik_moe_experts_decode_v2_gelu_bf16(
+        x: T,
+        ids: T,
+        weights: T,
+        gate_up_w: T,
+        gate_up_s: T,
+        down_w: T,
+        down_s: T,
+        gscales: T,
+        out: TM,
+        scratch: *const IkScratch,
+        s: S,
+    ) -> c_int;
     fn ik_moe_combine_bf16(routed: T, shared: T, gate: T, out: TM, s: S) -> c_int;
     fn ik_matmul_pair_bf16_gemv(x: T, w0: T, w1: T, out0: TM, out1: TM, s: S) -> c_int;
     fn ik_matmul_fp8_pair_gemv(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;
@@ -299,6 +369,71 @@ impl CudaBackend {
                     scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
                     s,
                 ),
+                "moe_experts_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_gelu_bf16, ik_moe_experts_bf16)(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_mma_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_mma_gelu_bf16, ik_moe_experts_mma_bf16)(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_w4a16_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_w4a16_gelu_bf16, ik_moe_experts_w4a16_bf16)(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_decode_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_decode_gelu_bf16, ik_moe_experts_decode_bf16)(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
+                "moe_experts_decode_v2_gelu_bf16" => moe_act_pick(a.gelu, ik_moe_experts_decode_v2_gelu_bf16, ik_moe_experts_decode_v2_bf16)(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    i(7),
+                    o,
+                    scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch),
+                    s,
+                ),
                 "moe_combine_bf16" => ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
                 "matmul_pair_bf16_gemv" => ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),
                 "matmul_fp8_pair_gemv" => ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
@@ -352,5 +487,17 @@ impl CudaBackend {
             )));
         }
         Ok(())
+    }
+}
+
+type MoeLauncher = unsafe extern "C" fn(T, T, T, T, T, T, T, T, TM, *const IkScratch, S) -> c_int;
+
+/// The `*_gelu_bf16` kernels serve a plain (silu) call too, by launching the plain launcher: they are registered `.ext()`
+/// (so a gelu call picks them), but the registry also offers them to a call without `OpAttrs::gelu`, which must get silu.
+fn moe_act_pick(gelu: bool, gelu_launcher: MoeLauncher, silu_launcher: MoeLauncher) -> MoeLauncher {
+    if gelu {
+        gelu_launcher
+    } else {
+        silu_launcher
     }
 }

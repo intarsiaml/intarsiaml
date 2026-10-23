@@ -51,7 +51,7 @@ constexpr int kWRows = 128;    // weight rows per block (64 gate + 64 up, or 128
 constexpr int kRawStride = 80;                    // bytes per staged row: 64 payload + 16 pad (conflict-free 16 B reads)
 constexpr int kRawUnit = kWRows * kRawStride;     // one unit: 128 rows x 64 B
 
-template <int MT, int WM, int MODE>
+template <int MT, int WM, int MODE, bool GELU>
 __global__ void __launch_bounds__(128 * WM)
 moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -238,7 +238,7 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
                     for (int v = 0; v < 2; ++v) {
                         const float g = round_bf16(acc[i][j][2 * hh + v] * gg);
                         const float u = round_bf16(acc[i][j + 2][2 * hh + v] * gu);
-                        const float a = round_bf16(g / (1.f + expf(-g)));
+                        const float a = round_bf16(GELU ? ik_gelu_tanh(g) : g / (1.f + expf(-g)));
                         hv[v] = a * u;
                     }
                     *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) = __floats2bfloat162_rn(hv[0], hv[1]);
@@ -303,37 +303,33 @@ int pick_bm(int64_t P, int64_t E) {
     return mu <= 10.0 ? 16 : (mu <= 21.0 ? 32 : 64);
 }
 
-template <int MT, int WM, int MODE>
+template <int MT, int WM, int MODE, bool GELU>
 void launch_mma(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
                 const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
                 int K, cudaStream_t s) {
     constexpr size_t smem = (size_t)(3 * 16 * MT * WM + 2 * kWRows) * LDS * 2 + 2 * kRawUnit;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_mma_kernel<MT, WM, MODE>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_mma_kernel<MT, WM, MODE, GELU>),
                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
         return true;
     }();
     (void)attr_set;
     const unsigned ny = MODE == 0 ? (unsigned)(I / 64) : (unsigned)(H / 128);
-    moe_mma_kernel<MT, WM, MODE><<<dim3(ny, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
+    moe_mma_kernel<MT, WM, MODE, GELU><<<dim3(ny, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
 }
 
-template <int MT, int WM>
+template <int MT, int WM, bool GELU>
 void run_gemms(const ik_bf16* x, const uint8_t* guw, const uint8_t* gus, const uint8_t* dnw, const uint8_t* dns,
                const float* gs, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* hbuf,
                ik_bf16* ybuf, unsigned tiles_ub, int H, int I, int K, cudaStream_t s) {
-    launch_mma<MT, WM, 0>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
-    launch_mma<MT, WM, 1>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
+    launch_mma<MT, WM, 0, GELU>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
+    launch_mma<MT, WM, 1, GELU>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
 }
 
-}  // namespace
-
-extern "C" {
-
-int ik_moe_experts_mma_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+int moe_mma_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
                             const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                             const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch,
-                            void* stream) {
+                            void* stream, bool gelu) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -379,15 +375,42 @@ int ik_moe_experts_mma_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_t
     const uint8_t* dnw = (const uint8_t*)down_w->data;
     const uint8_t* dns = (const uint8_t*)down_s->data;
     const float* gs = (const float*)gscales->data;
-    switch (BM) {
-        case 16: run_gemms<1, 1>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
-        case 32: run_gemms<1, 2>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
-        default: run_gemms<2, 2>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+    if (gelu) {
+        switch (BM) {
+            case 16: run_gemms<1, 1, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+            case 32: run_gemms<1, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+            default: run_gemms<2, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+        }
+    } else {
+        switch (BM) {
+            case 16: run_gemms<1, 1, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+            case 32: run_gemms<1, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+            default: run_gemms<2, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s); break;
+        }
     }
     IK_TRY(ik_launch_status());
     moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
         ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
     return ik_launch_status();
+}
+
+}  // namespace
+
+extern "C" {
+
+int ik_moe_experts_mma_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                            const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                            const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch,
+                            void* stream) {
+    return moe_mma_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false);
+}
+
+// gelu_tanh in the expert activation (OpAttrs::gelu); otherwise the same bits as ik_moe_experts_mma_bf16.
+int ik_moe_experts_mma_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                            const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                            const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch,
+                            void* stream) {
+    return moe_mma_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true);
 }
 
 }  // extern "C"

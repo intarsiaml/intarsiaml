@@ -1,0 +1,34 @@
+chat-number-0 {"answer": 26}
+chat-number-1 {"answer": 340, "unit": "km", "steps": ["First, calculate the distance for the first part of the jou
+chat-person-0 {"name": "Lila Chen", "age": 28, "email": "lila.chen@codeforge.com"}
+chat-person-1 {"name": "Ada Lovelace", "age": 18, "email": "ada.lovelace@example.com"}
+chat-sentiment-0 {"sentiment": "negative", "confidence": 0.95}
+chat-sentiment-1 {"sentiment": "positive", "confidence": 0.95}
+chat-shopping-0 {"items": [{"name": "Flour", "qty": 1}, {"name": "Eggs", "qty": 2}, {"name": "Milk", "qty": 1}, {"na
+chat-shopping-1 {"items": [{"name": "Bread", "qty": 1}, {"name": "Cheese", "qty": 1}, {"name": "Fruit (e.g., grapes,
+chat-address-0 {"address": {"street": "Kaffeestraße 12", "city": "Berlin", "zip": "10178"}, "tags": ["made-up", "ba
+chat-address-1 {"address": {"street": "Innovate Way", "city": "Techtonica", "zip": "98765"}, "tags": ["startup", "i
+chat-prime-0 {"is_prime": false, "factors": [1, 7, 13, 91], "note": "91 is not a prime number. It can be factored
+chat-prime-1 {"is_prime": true, "factors": [1, 97], "note": "97 is a prime number because it has no divisors othe
+chat-anyof-0 {"result": 51}
+chat-anyof-1 {"result": "The sky appears blue"}
+chat-points-0 {"a": {"x": 0, "y": 0}, "b": {"x": 1, "y": 0}}
+chat-points-1 {"a": {"x": 0, "y": 0}, "b": {"x": 3, "y": 4}}
+chat-title-0 {"title": "Mastering Async in Rust: A Developer's指南", "words": 100}
+chat-title-1 {"title": "The Keeper of the Last Light", "words": 100}
+chat-version-0 {"version": "1.0", "ok": true}
+chat-version-1 {"version": "1.0", "ok": true}
+chat-ss_nested-0 {"user": {"name": "Elena Voss", "address": {"zip": 94107, "city": "San Francisco, CA"}}}
+chat-ss_nested-1 {"user": {"name": "Ana Sofia Mendes", "address": {"zip": 12345, "city": "Lisbona, Portugal"}}}
+chat-ss_enum-0 {"answer": "A", "level": "high"}
+chat-ss_enum-1 {"answer": "A", "level": "high"}
+chat-ss_array-0 {"items": [{"id": 1, "tag": "x"}, {"id": 2, "tag": "yy"}, {"id": 3, "tag": "x"}]}
+chat-ss_array-1 {"items": [{"id": 1, "tag": "x"}, {"id": 2, "tag": "yy"}, {"id": 3, "tag": "x"}, {"id": 4, "tag": "y
+completion-number {"answer": 120, "explanation": "Janet's ducks lay 16 eggs per day. She uses 3 for breakfast and 4 fo
+completion-person {"name": "Alice Johnson", "age": 28, "email": "alice.johnson@example.com"}
+completion-ss_nested {"user": {"name": "John Doe", "address": {"zip": 94043, "city": "San Francisco, CA"}}}
+completion-ss_enum {"answer": "B", "level": "high"}
+completion-ss_array {"items": [{"id": 1, "tag": "x"}, {"id": 2, "tag": "yy"}, {"id": 3, "tag": "x"}]}
+tools-required-0 "[{\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\":\\\"Tokyo\\\",\\\"unit\\\":\\\"celsius\
+tools-required-1 "[{\"name\": \"web_search\", \"arguments\": \"{\\\"query\\\":\\\"latest Rust release notes\\\",\\\"l
+tools-required-2 "[{\"name\": \"send_email\", \"arguments\": \"{\\\"to\\\":[\\\"bob@example.com\\\"],\\\"subject\\\":
