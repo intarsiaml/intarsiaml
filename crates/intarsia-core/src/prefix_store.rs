@@ -68,6 +68,10 @@ pub struct PrefixStoreConfig {
     /// and model whose prefill is bitwise chunk-invariant (measured: dense models on cpu; NOT the hybrid on cpu, whose
     /// GatedDeltaNet bits depend on the chunking). Default off.
     pub any_cut: bool,
+    /// Only cut after the headers of these roles (texts as the template writes them, e.g. `assistant`), plus the second
+    /// message's. Empty (the default): every header. Fewer cuts mean fewer forward passes (on a MoE each pass reads every
+    /// expert), but a prewarm or a divergence inside another role's message restores less.
+    pub cut_roles: Vec<String>,
 }
 
 impl Default for PrefixStoreConfig {
@@ -83,6 +87,7 @@ impl Default for PrefixStoreConfig {
             boundary_tokens: vec!["<|im_start|>".into()],
             header_end_tokens: vec!["\n".into()],
             any_cut: false,
+            cut_roles: Vec::new(),
         }
     }
 }
@@ -147,6 +152,7 @@ impl PrefixStoreConfig {
                         v.split('|').filter(|s| !s.is_empty()).map(|s| s.replace("\\n", "\n")).collect()
                 }
                 "any_cut" => c.any_cut = num(v)? != 0,
+                "roles" => c.cut_roles = v.split('|').map(str::trim).filter(|s| !s.is_empty()).map(String::from).collect(),
                 other => return Err(Error::invalid(format!("prefix store: unknown key '{other}' (spec '{spec}')"))),
             }
         }
@@ -1336,7 +1342,7 @@ pub fn describe_build(model: &crate::model::Model, model_id: &str, cfg: &PrefixS
         model.tail_merge(),
         cfg.page_tokens,
         plan,
-        (&cfg.boundary_tokens, &cfg.header_end_tokens),
+        (&cfg.boundary_tokens, &cfg.header_end_tokens, &cfg.cut_roles),
         model.weights_bytes,
     )
 }
@@ -1360,6 +1366,8 @@ mod tests {
         assert!(PrefixStoreConfig::parse("bogus=1").is_err());
         let b = PrefixStoreConfig::parse("boundary=<a>|<b>").unwrap().unwrap();
         assert_eq!(b.boundary_tokens, vec!["<a>".to_string(), "<b>".to_string()]);
+        let r = PrefixStoreConfig::parse("on,roles=assistant|tool").unwrap().unwrap();
+        assert_eq!(r.cut_roles, vec!["assistant".to_string(), "tool".to_string()]);
     }
 
     #[test]

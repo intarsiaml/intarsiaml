@@ -288,6 +288,7 @@ impl TextCodec for TestCodec {
             BOUND_TEXT => vec![self.bound],
             THINK_TEXT => vec![self.think],
             "\n" => vec![self.nl],
+            "assistant" => vec![20],
             _ => text.bytes().map(|b| b as u32 % self.vocab).collect(),
         })
     }
@@ -501,6 +502,11 @@ fn store_cfg() -> PrefixStoreConfig {
 /// Turn 1 of chat A, then chat B (replaces the held state), then turn 2 of chat A: turn 2 restores A's history from
 /// the store, and its output is bitwise the cold output (store on and store off).
 fn multi_turn_identity(kind: Kind, chunk: usize) {
+    multi_turn_identity_cfg(kind, chunk, store_cfg());
+}
+
+fn multi_turn_identity_cfg(kind: Kind, chunk: usize, cfg: PrefixStoreConfig) {
+    let store_cfg = || cfg.clone();
     let warm = engine(kind, chunk, Some(store_cfg()));
     let mut a = Chat::new(kind);
     a.msg(1, 23).msg(2, 9);
@@ -532,6 +538,15 @@ fn multi_turn_identity(kind: Kind, chunk: usize) {
 fn hybrid_multi_turn_restore_is_bitwise_cold() {
     multi_turn_identity(Kind::Hybrid, 8);
     multi_turn_identity(Kind::Hybrid, 64);
+}
+
+/// `roles=assistant`: cuts only after assistant headers (and message 2's); turn 2 still restores turn 1's prompt.
+#[test]
+fn hybrid_multi_turn_assistant_cuts_only() {
+    let mut c = store_cfg();
+    c.cut_roles = vec!["assistant".into()];
+    multi_turn_identity_cfg(Kind::Hybrid, 8, c.clone());
+    multi_turn_identity_cfg(Kind::Dense, 64, c);
 }
 
 #[test]

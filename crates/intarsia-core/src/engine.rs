@@ -425,6 +425,8 @@ pub(crate) struct StorePolicy {
     pub(crate) boundary_ids: Vec<u32>,
     /// Token ids that end a message header: a cut right after the first one following a boundary token.
     pub(crate) header_end_ids: Vec<u32>,
+    /// `PrefixStoreConfig::cut_roles`, tokenized (empty: every header is a cut).
+    pub(crate) cut_roles: Vec<Vec<u32>>,
     /// Prefill is bitwise the same however the prompt is chunked on this backend (cpu, hip): any prefill-written length
     /// is a valid restore point. Otherwise only points of the prompt's own chunk schedule are.
     pub(crate) chunk_invariant: bool,
@@ -450,6 +452,7 @@ impl StorePolicy {
         };
         let boundary_ids = one(&cfg.boundary_tokens);
         let header_end_ids = one(&cfg.header_end_tokens);
+        let cut_roles: Vec<Vec<u32>> = cfg.cut_roles.iter().filter_map(|r| codec.encode(r, false).ok()).collect();
         // chunk invariance is a property of backend and model (the hybrid's GatedDeltaNet is chunk-sensitive even on
         // cpu): restore only at schedule points unless the operator says otherwise
         let chunk_invariant = cfg.any_cut;
@@ -457,7 +460,7 @@ impl StorePolicy {
         let (min_tokens, grid_tokens) = (cfg.min_tokens, cfg.grid_tokens);
         let store = crate::prefix_store::PrefixStore::new(cfg, model.slot_specs(), &desc)?;
         let _ = st;
-        Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, chunk_invariant, min_tokens, grid_tokens }))
+        Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, cut_roles, chunk_invariant, min_tokens, grid_tokens }))
     }
 }
 
@@ -486,15 +489,19 @@ impl SeqStore {
         let mut headers = Vec::new();
         let mut in_header = false;
         let mut starts = 0usize;
+        let mut hdr_start = 0usize;
         for (i, t) in prompt.iter().enumerate() {
             if pol.boundary_ids.contains(t) {
                 starts += 1;
+                hdr_start = i;
                 if starts == 2 && i > 0 {
                     boundaries.push(i);
                 }
                 in_header = true;
             } else if in_header && pol.header_end_ids.contains(t) {
-                if i + 1 < plen {
+                let role = &prompt[hdr_start + 1..i];
+                let wanted = pol.cut_roles.is_empty() || starts == 2 || pol.cut_roles.iter().any(|r| r[..] == *role);
+                if wanted && i + 1 < plen {
                     boundaries.push(i + 1);
                     headers.push(i + 1);
                 }

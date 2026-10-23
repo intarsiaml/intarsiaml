@@ -56,7 +56,8 @@ pub struct ServeArgs {
     /// `key=value` pairs separated by commas: `host_mb`, `device_mb` (default 0), `disk_mb` and `dir` (a disk tier that
     /// survives restarts of the same build), `page` (tokens per KV page, 16..=8192, default 256), `min`, `grid`,
     /// `boundary` (`|`-separated one-token texts that start a message; default `<|im_start|>`), `header` (texts that end
-    /// a message header; default a newline), `any_cut=1` (restore at any length: only for chunk-invariant prefill).
+    /// a message header; default a newline), `any_cut=1` (restore at any length: only for chunk-invariant prefill), `roles` (cut only after these
+    /// roles' headers, e.g. `assistant`: fewer passes, less reuse inside other messages).
     /// Single-sequence engine only.
     /// Overrides `INTARSIA_PREFIX_STORE`. See docs/results/2026-10-22-pc-prefix-store.md.
     #[arg(long)]
