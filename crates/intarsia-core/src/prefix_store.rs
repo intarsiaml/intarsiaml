@@ -222,17 +222,30 @@ fn entry_key(build: u64, tokens: &[u32]) -> Key {
     h.key(tokens.len())
 }
 
-/// Keys of the pages covering `tokens` (`page` tokens each, the last one partial).
-fn page_keys(build: u64, tokens: &[u32], page: usize) -> Vec<(Key, usize, usize)> {
+/// Keys of the pages covering `tokens` (`page` tokens each, the last one partial). `ends` are the ends of the prefill
+/// chunks that wrote the rows (sorted; the last one is `tokens.len()`). A page's rows were written by chunks that may
+/// extend past the page end, and on a chunk-sensitive kernel a row's bits depend on its chunk; so a page is keyed by the
+/// tokens up to the end of the chunk that wrote its last row, and two entries share a page only when they share that
+/// chunk.
+fn page_keys(build: u64, tokens: &[u32], page: usize, ends: &[usize]) -> Vec<(Key, usize, usize)> {
+    let n = tokens.len();
     let mut h = TokHash::new(build, DOMAIN_PAGE);
-    let mut out = Vec::with_capacity(tokens.len().div_ceil(page));
+    let mut at: HashMap<usize, TokHash> = HashMap::new();
     for (i, &t) in tokens.iter().enumerate() {
         h.push(t);
-        let end = i + 1;
-        if end % page == 0 || end == tokens.len() {
-            let start = (end - 1) / page * page;
-            out.push((h.key(end), start, end));
-        }
+        at.insert(i + 1, h);
+    }
+    let mut out = Vec::with_capacity(n.div_ceil(page));
+    let mut start = 0;
+    while start < n {
+        let end = (start + page).min(n);
+        let e = ends.iter().copied().find(|&e| e >= end).unwrap_or(n).min(n);
+        let mut k = at[&e];
+        k.push(u32::MAX);
+        k.push(start as u32);
+        k.push(end as u32);
+        out.push((k.key(e), start, end));
+        start = end;
     }
     out
 }
@@ -390,6 +403,8 @@ impl Obj {
 
 struct Entry {
     tokens: Arc<Vec<u32>>,
+    /// The chunk ends its pages are keyed by ([`page_keys`]).
+    ends: Vec<usize>,
     rec: Option<Key>,
     pages: Vec<Key>,
     pinned: Option<String>,
@@ -600,6 +615,25 @@ impl PrefixStore {
         self.entries.contains_key(&entry_key(self.build, tokens))
     }
 
+    /// Pin the entry for exactly `tokens` under `name`, if there is one (a prewarm pins its last header entry too).
+    pub fn pin(&mut self, tokens: &[u32], name: &str) -> bool {
+        let key = entry_key(self.build, tokens);
+        let Some(e) = self.entries.get_mut(&key) else { return false };
+        if e.pinned.is_some() {
+            return true;
+        }
+        e.pinned = Some(name.to_string());
+        let ks: Vec<Key> = e.rec.iter().chain(e.pages.iter()).copied().collect();
+        for k in ks {
+            if let Some(o) = self.objs.get_mut(&k) {
+                o.pins += 1;
+            }
+        }
+        self.write_manifest(key);
+        self.refresh_counts();
+        true
+    }
+
     /// Count a hit that a longer prefix already held by the sequence beat (nothing is restored).
     pub fn note_local_win(&mut self) {
         self.stats.local_wins += 1;
@@ -608,7 +642,15 @@ impl PrefixStore {
     /// Store the state `st` holds for its first `len` tokens. Recurrent slots must hold exactly `len` tokens
     /// (`st.len == len`); attention rows `0..len` must be prefill-written (the caller's watermark). An existing entry
     /// is only touched (and pinned when `pin` is set). Returns the bytes copied.
-    pub fn insert(&mut self, backend: &dyn Backend, st: &SequenceState, len: usize, pin: Option<&str>) -> Result<u64> {
+    /// `ends`: the ends of the prefill chunks that wrote rows `0..len` (sorted, the last one `len`; see [`page_keys`]).
+    pub fn insert(
+        &mut self,
+        backend: &dyn Backend,
+        st: &SequenceState,
+        len: usize,
+        pin: Option<&str>,
+        ends: &[usize],
+    ) -> Result<u64> {
         self.poll_writer();
         self.layout.check(st)?;
         if len == 0 || len > st.len || st.tokens.len() < len {
@@ -645,23 +687,33 @@ impl PrefixStore {
         let mut copied = 0u64;
         let pinned = pin.is_some();
         // pages: only the ones no other entry already holds; then the recurrent blob (this entry's only)
+        let mut ends: Vec<usize> = ends.iter().copied().filter(|&e| e > 0 && e <= len).collect();
+        if ends.last() != Some(&len) {
+            ends.push(len);
+        }
         let mut pages = Vec::new();
+        let mut shared = Vec::new();
         let mut todo: Vec<(Key, Vec<(&Buffer, usize, usize)>, usize)> = Vec::new();
-        for (pk, start, end) in page_keys(self.build, tokens, self.cfg.page_tokens) {
+        for (pk, start, end) in page_keys(self.build, tokens, self.cfg.page_tokens, &ends) {
             pages.push(pk);
-            if let Some(o) = self.objs.get_mut(&pk) {
-                o.refs += 1;
-                o.pins += pinned as u32;
-                o.last_use = now;
-                continue;
+            if self.objs.contains_key(&pk) {
+                shared.push(pk);
+            } else {
+                todo.push((pk, self.layout.segments(st, start, end), self.layout.page_bytes(end - start)));
             }
-            todo.push((pk, self.layout.segments(st, start, end), self.layout.page_bytes(end - start)));
         }
         let rec = (self.layout.rec_bytes > 0).then(|| key ^ (u128::MAX >> 1));
         if let Some(rk) = rec {
             todo.push((rk, self.layout.rec_segments(st), self.layout.rec_bytes));
         }
         let mems = self.capture_all(backend, &todo)?;
+        // only now (the copies worked) does the entry take its references
+        for pk in shared {
+            let o = self.objs.get_mut(&pk).unwrap();
+            o.refs += 1;
+            o.pins += pinned as u32;
+            o.last_use = now;
+        }
         for ((k, _, bytes), mem) in todo.iter().zip(mems) {
             copied += *bytes as u64;
             self.add_obj(*k, *bytes, mem, now, pinned);
@@ -670,6 +722,7 @@ impl PrefixStore {
             key,
             Entry {
                 tokens: Arc::new(tokens.to_vec()),
+                ends,
                 rec,
                 pages,
                 pinned: pin.map(String::from),
@@ -699,7 +752,22 @@ impl PrefixStore {
         if defer {
             self.deferred += total as u64;
         }
-        if defer || self.cfg.device_bytes >= total as u64 {
+        if !defer && self.cfg.device_bytes >= total as u64 {
+            // a real device tier: one allocation per object, so demoting one frees its memory
+            let mut out = Vec::with_capacity(todo.len());
+            for (_, segs, bytes) in todo {
+                let buf = backend.alloc((*bytes).max(16), MemKind::Device)?;
+                let mut off = 0;
+                for &(src, so, n) in segs {
+                    backend.copy(&buf, off, src, so, n, 0)?;
+                    off += n;
+                }
+                out.push(Mem::Device(buf, 0));
+            }
+            return Ok(out);
+        }
+        if defer {
+            // deferred: one allocation for the insert (all of it leaves the device at `settle`)
             let buf = backend.alloc(total.max(16), MemKind::Device)?;
             let mut out = Vec::with_capacity(todo.len());
             let mut off = 0;
@@ -1089,6 +1157,7 @@ impl PrefixStore {
             "pages": e.pages.iter().map(|k| format!("{k:032x}")).collect::<Vec<_>>(),
             "pinned": e.pinned,
             "tokens": &*e.tokens,
+            "ends": e.ends,
         });
         let body = serde_json::to_vec(&body).unwrap_or_default();
         let mut f = Vec::with_capacity(body.len() + 32);
@@ -1168,7 +1237,8 @@ impl PrefixStore {
         }
         let rec = if v["rec"].is_null() { None } else { Some(hex(&v["rec"]).ok_or_else(bad)?) };
         let pages: Vec<Key> = v["pages"].as_array().ok_or_else(bad)?.iter().map(|x| hex(x).ok_or_else(bad)).collect::<Result<_>>()?;
-        let expect: Vec<(Key, usize, usize)> = page_keys(self.build, &tokens, self.cfg.page_tokens);
+        let ends: Vec<usize> = serde_json::from_value(v["ends"].clone()).map_err(|_| bad())?;
+        let expect: Vec<(Key, usize, usize)> = page_keys(self.build, &tokens, self.cfg.page_tokens, &ends);
         if expect.len() != pages.len() || expect.iter().zip(&pages).any(|(a, b)| a.0 != *b) || rec.is_some() != (self.layout.rec_bytes > 0) {
             return Err(bad());
         }
@@ -1218,7 +1288,7 @@ impl PrefixStore {
         self.lens.insert(tokens.len());
         self.entries.insert(
             key,
-            Entry { tokens: Arc::new(tokens), rec, pages, pinned, last_use: now, hits: 0, created: Instant::now() },
+            Entry { tokens: Arc::new(tokens), ends, rec, pages, pinned, last_use: now, hits: 0, created: Instant::now() },
         );
         Ok(true)
     }
@@ -1380,16 +1450,21 @@ mod tests {
         u[50] = 7;
         assert_ne!(entry_key(1, &t), entry_key(1, &u));
         // pages: shared up to the first differing page, then not
-        let pa = page_keys(1, &t, 16);
-        let pb = page_keys(1, &u, 16);
+        let g: Vec<usize> = (1..=6).map(|i| i * 16).chain([100]).collect();
+        let pa = page_keys(1, &t, 16, &g);
+        let pb = page_keys(1, &u, 16, &g);
         assert_eq!(pa.len(), 7);
         assert_eq!(pa[..3], pb[..3]);
         assert_ne!(pa[3].0, pb[3].0);
         assert_eq!(pa[6].1, 96);
         assert_eq!(pa[6].2, 100);
         // a prefix's pages are the longer prompt's pages (except a partial last page)
-        let pc = page_keys(1, &t[..64], 16);
+        let pc = page_keys(1, &t[..64], 16, &[16, 32, 48, 64]);
         assert_eq!(pc[..], pa[..4]);
+        // the same tokens written by a chunk that ran further: not the same page
+        let pd = page_keys(1, &t[..64], 16, &[16, 40, 64]);
+        assert_eq!(pd[0], pa[0]);
+        assert_ne!(pd[1].0, pa[1].0);
         assert_ne!(build_fingerprint("a"), build_fingerprint("b"));
         assert_ne!(checksum(b"abcdefgh1"), checksum(b"abcdefgh2"));
     }

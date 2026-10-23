@@ -472,6 +472,8 @@ pub(crate) struct SeqStore {
     /// The cuts right after a message header (`<|im_start|>role\n`): where entries are stored. The cut before the
     /// header is a chunk end only (an entry there would hold nearly the same tokens for another 63 MiB of recurrent state).
     headers: Vec<usize>,
+    /// Message starts in the prompt (a pinned prewarm of one message ends where the next request cuts: message 2).
+    messages: usize,
     /// The prompt's cold chunk schedule (every chunk end; `plen - 1` for a recurrent state): the lengths a restore may
     /// return to when prefill is chunk-sensitive.
     points: std::collections::BTreeSet<usize>,
@@ -523,7 +525,7 @@ impl SeqStore {
                 break;
             }
         }
-        SeqStore { pol, boundaries, headers, points, last_insert: 0 }
+        SeqStore { pol, boundaries, headers, messages: starts, points, last_insert: 0 }
     }
 
     /// A length `st` can return to bitwise, at most `cap` (already capped at the prefill-clean watermark): on a
@@ -1479,9 +1481,17 @@ impl Seq {
             return Ok(());
         }
         let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+        // the chunk ends that wrote rows 0..pos: this prompt's schedule points (they are the same for every prompt that
+        // shares the prefix up to a point, which is what makes a stored page reusable)
+        let ends: Vec<usize> = ps.points.range(..pos).copied().chain(std::iter::once(pos)).collect();
         // a failed copy (out of memory) costs the entry, never the request
-        if let Err(e) = store.insert(&*model.backend, st, pos, pin.as_deref()) {
+        if let Err(e) = store.insert(&*model.backend, st, pos, pin.as_deref(), &ends) {
             eprintln!("prefix store: insert at {pos} tokens failed: {e}");
+        }
+        if let (Some(name), true) = (&pin, ps.messages >= 2 && ps.last_insert > 0 && ps.last_insert < pos) {
+            // a pinned prewarm also pins its last header entry: a later request restores that one when the prewarm's
+            // end is not a cut of its own schedule (a prefix of several messages)
+            store.pin(&st.tokens[..ps.last_insert], name);
         }
         ps.last_insert = pos;
         self.telemetry.set_prefix_store(store.snapshot());

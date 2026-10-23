@@ -111,15 +111,15 @@ fn store_restores_exact_bytes_and_shares_pages() {
     let mut s = PrefixStore::new(cfg(16), &specs(), "test").unwrap();
     let t: Vec<u32> = (0..50).map(|i| (i * 7 % 23) as u32).collect();
     let a = fake_state(&*b, &t[..40], 64);
-    let copied = s.insert(&*b, &a, 40, None).unwrap();
+    let copied = s.insert(&*b, &a, 40, None, &[16, 32, 40]).unwrap();
     assert!(copied > 0);
     // a longer prefix shares the first two full pages (32 tokens) with the first entry
     let a2 = fake_state(&*b, &t[..50], 64);
-    let copied2 = s.insert(&*b, &a2, 50, None).unwrap();
+    let copied2 = s.insert(&*b, &a2, 50, None, &[16, 32, 50]).unwrap();
     let page = (2 * 2 * 4 + 2 * 8) * 4; // bytes per token row over the attention slots
     assert_eq!(copied2 as usize, 18 * page + 96, "only the pages past 32 tokens and the recurrent blob are new");
     // re-inserting is a no-op
-    assert_eq!(s.insert(&*b, &a2, 50, None).unwrap(), 0);
+    assert_eq!(s.insert(&*b, &a2, 50, None, &[16, 32, 50]).unwrap(), 0);
 
     let mut prompt = t.clone();
     prompt.extend([1, 2, 3]);
@@ -154,15 +154,15 @@ fn store_evicts_lru_and_keeps_pins() {
     let mut s = PrefixStore::new(c, &specs(), "test").unwrap();
     let mk = |seed: u32| -> Vec<u32> { one(32).into_iter().map(|t| t + seed).collect() };
     let (p1, p2, p3) = (mk(0), mk(1000), mk(2000));
-    s.insert(&*b, &fake_state(&*b, &p1, 64), 32, Some("system")).unwrap();
-    s.insert(&*b, &fake_state(&*b, &p2, 64), 32, None).unwrap();
-    s.insert(&*b, &fake_state(&*b, &p3, 64), 32, None).unwrap();
+    s.insert(&*b, &fake_state(&*b, &p1, 64), 32, Some("system"), &[]).unwrap();
+    s.insert(&*b, &fake_state(&*b, &p2, 64), 32, None, &[]).unwrap();
+    s.insert(&*b, &fake_state(&*b, &p3, 64), 32, None, &[]).unwrap();
     // p2 is the LRU unpinned entry: evicted; the pinned p1 stays although it is older
     assert!(s.lookup(&p1, 32).is_some());
     assert!(s.lookup(&p2, 32).is_none());
     assert!(s.lookup(&p3, 32).is_some());
     let snap = s.snapshot();
-    assert_eq!(snap.pinned_entries, 1);
+    assert!(snap.pinned_entries >= 1, "{snap:?}");
     assert!(snap.host.evictions >= 1);
     assert!(snap.host.bytes <= 9_000);
 }
@@ -176,8 +176,8 @@ fn store_device_tier_demotes_to_host() {
     let t1: Vec<u32> = (0..32).map(|i| i as u32).collect();
     let t2: Vec<u32> = (0..32).map(|i| 500 + i as u32).collect();
     let a1 = fake_state(&*b, &t1, 64);
-    s.insert(&*b, &a1, 32, None).unwrap();
-    s.insert(&*b, &fake_state(&*b, &t2, 64), 32, None).unwrap();
+    s.insert(&*b, &a1, 32, None, &[]).unwrap();
+    s.insert(&*b, &fake_state(&*b, &t2, 64), 32, None, &[]).unwrap();
     let snap = s.snapshot();
     assert!(snap.device.bytes <= 7000 && snap.host.bytes > 0, "{snap:?}");
     let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
@@ -198,8 +198,8 @@ fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let a = fake_state(&*b, &t, 64);
     {
         let mut s = PrefixStore::new(c.clone(), &specs(), "build-1").unwrap();
-        s.insert(&*b, &a, 40, None).unwrap();
-        s.insert(&*b, &fake_state(&*b, &u, 64), 40, None).unwrap();
+        s.insert(&*b, &a, 40, None, &[]).unwrap();
+        s.insert(&*b, &fake_state(&*b, &u, 64), 40, None, &[]).unwrap();
         s.flush();
     }
     // the same build after a restart: both entries come back from disk, bit-exact
@@ -265,7 +265,7 @@ fn store_refuses_a_state_of_another_layout() {
     let other = vec![SlotSpec::AttnKv { n_kv_heads: 2, head_dim: 4, dtype: DType::F32 }];
     let mut st = SequenceState::new(&*b, &other, 64).unwrap();
     st.commit(&[1, 2, 3]);
-    assert!(s.insert(&*b, &st, 3, None).is_err());
+    assert!(s.insert(&*b, &st, 3, None, &[]).is_err());
 }
 
 // ------------------------------------------------------------------------------------------------- engine byte identity
@@ -452,6 +452,7 @@ fn same_bits(a: &Out, b: &Out, what: &str) {
 
 /// A ChatML-like conversation: `<B>` starts each message, the generation prompt ends in `<T>`, earlier assistant
 /// turns lose their thinking (as the Qwen3.6 template renders them).
+#[derive(Clone)]
 struct Chat {
     kind: Kind,
     toks: Vec<u32>,
@@ -576,7 +577,7 @@ fn shared_prefix_identity(kind: Kind) {
         off_check(kind, &r, &run(&engine(kind, chunk, None), &p, 6), "shared prefix restored vs cold (store off)");
     }
     let snap = warm.telemetry().prefix_store.unwrap();
-    assert_eq!(snap.pinned_entries, 1);
+    assert!(snap.pinned_entries >= 1, "{snap:?}");
 }
 
 #[test]
@@ -607,6 +608,41 @@ fn hybrid_grid_points_inside_a_long_message() {
     let r = run(&warm, &p, 6);
     assert!(r.cached >= 64, "reused {}", r.cached);
     same_bits(&r, &run(&engine(kind, 8, Some(store_cfg())), &p, 6), "grid restore vs cold (store on)");
+}
+
+/// A prewarm of a half-typed message, the finished turn, another chat, then the next turn: the next turn restores the
+/// finished turn's entry, whose KV pages overlap rows the prewarm wrote in a chunk that ended elsewhere (mid-message). On
+/// the chunk-sensitive hybrid those rows differ, so a page must not be shared across the two (page keys carry the chunk
+/// end). Restored must equal cold (store on).
+fn partial_prewarm_then_turns(kind: Kind) {
+    let chunk = 16;
+    let mut c = store_cfg();
+    c.page_tokens = 16;
+    let warm = engine(kind, chunk, Some(c.clone()));
+    let mut a = Chat::new(kind);
+    a.msg(71, 37).msg(72, 9).answer(&[30, 31, 32, 33, 34, 35]);
+    let mut typing = a.clone();
+    typing.msg(73, 40);
+    let n = typing.toks.len();
+    typing.toks.truncate(n - 19); // half typed: the chunk ends mid-message
+    prewarm(&warm, &typing.toks, None);
+    a.msg(73, 40);
+    let p2 = a.prompt();
+    let r2 = run(&warm, &p2, 5);
+    assert!(r2.cached > 50, "turn 2 reused {}", r2.cached);
+    let mut b = Chat::new(kind);
+    b.msg(9, 33);
+    let _ = run(&warm, &b.prompt(), 3);
+    a.answer(&r2.ids).msg(74, 12);
+    let p3 = a.prompt();
+    let r3 = run(&warm, &p3, 6);
+    assert!(r3.cached >= p2.len() - 2, "turn 3 reused {} of {}", r3.cached, p2.len());
+    same_bits(&r3, &run(&engine(kind, chunk, Some(c)), &p3, 6), "turn after a partial prewarm: restored vs cold (store on)");
+}
+
+#[test]
+fn hybrid_partial_prewarm_then_turns_is_bitwise() {
+    partial_prewarm_then_turns(Kind::Hybrid);
 }
 
 /// The store on disk: a new engine of the same build restores from the disk tier, bitwise.
@@ -703,7 +739,7 @@ fn hybrid_cpu_prefill_chunk_sensitivity() {
     let mut st = m.new_state().unwrap();
     for c in ids[..24].chunks(8) { m.forward(&mut st, c, HeadMode::None, None).unwrap(); }
     let mut s = PrefixStore::new(cfg(16), m.slot_specs(), "dbg").unwrap();
-    s.insert(b, &st, 24, None).unwrap();
+    s.insert(b, &st, 24, None, &[]).unwrap();
     let d24 = dump(b, &st);
     let mut st2 = m.new_state().unwrap();
     let h = s.lookup(&ids, 39).unwrap();

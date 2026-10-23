@@ -49,6 +49,10 @@ async fn prefill_inner(
     body: Result<Json<PrefillReq>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(req) = body.map_err(|e| ApiError::bad_request(F, e.body_text()))?;
+    // an engine without a store (the batched engine, or the store off) would generate instead of prewarming
+    if blocking(&st.engine, |e| Ok(e.prefix_store())).await?.is_null() {
+        return Err(ApiError::bad_request(F, "prewarm needs the prefix store (serve --prefix-store on, --max-batch 1)"));
+    }
     let partial = req.partial;
     let margin = req.margin.unwrap_or(if partial { 2 } else { 0 });
     let prompt: Vec<u32> = match (req.messages, req.prompt) {
