@@ -255,7 +255,7 @@ fn real_35b_batch_step_timing() {
 }
 
 /// B2 (Fable review): the cost of a batched step whose rows are SAMPLED, on the host path (`LastLogits`: one [B, V] download and a
-/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only, `INTARSIA_DEVICE_SAMPLING=1`).
+/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; on by default, `INTARSIA_DEVICE_SAMPLING=0` turns it off).
 /// Same seeds, so the two draw the same tokens when the states are the same; the token parity is gated by the engine test
 /// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with the knob on).
 #[test]
@@ -264,8 +264,7 @@ fn real_35b_batch_step_sampled_timing() {
     use intarsia_core::model::{HeadMode, StepOut};
     use intarsia_core::sampler::{Sampler, SamplingParams};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
-    std::env::set_var("INTARSIA_DEVICE_SAMPLING", "1");
-    let m = load(&dir, be, 16, 2048);
+        let m = load(&dir, be, 16, 2048);
     let params = SamplingParams { temperature: 0.8, top_k: 40, top_p: 0.9 };
     let mut states: Vec<_> = (0..16)
         .map(|i| {

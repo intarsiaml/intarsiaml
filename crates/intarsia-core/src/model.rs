@@ -331,7 +331,7 @@ pub struct Model {
     row_tab: Option<Buffer>,
     batch_pos: Option<Buffer>,
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
-    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING=1` (opt-in).
+    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is not `0` (default on).
     topk: Option<TopkBufs>,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
