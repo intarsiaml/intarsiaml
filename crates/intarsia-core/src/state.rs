@@ -127,6 +127,10 @@ pub struct SequenceState {
     /// Tensor parallelism across processes (`crate::tp_remote`): the remote rank's copy of this sequence. Truncated and
     /// snapshotted after the primary, advanced by the remote rank's forward pass.
     pub remote: Option<crate::tp_remote::RemoteSeq>,
+    /// Prefill-clean watermark (prefix store, `crate::prefix_store`): rows `0..clean` were written by prefill passes of
+    /// the engine's chunk schedule, none by a decode step, so their state is what a cold prefill of `tokens[..clean]`
+    /// computes. Lowered by [`SequenceState::truncate`], set by [`SequenceState::load_prefix`]; the engine advances it.
+    pub clean: usize,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
@@ -169,6 +173,7 @@ impl SequenceState {
             snapshots: Vec::new(),
             peers: Vec::new(),
             remote: None,
+            clean: 0,
             mtp: None,
             spec_rows: SpecRows::default(),
         })
@@ -405,7 +410,28 @@ impl SequenceState {
         }
         self.len = len;
         self.tokens.truncate(len);
+        self.clean = self.clean.min(len);
         Ok(())
+    }
+
+    /// After the prefix store wrote every slot for `tokens` (`crate::prefix_store::PrefixStore::restore`): take that
+    /// length, drop the snapshots (they belonged to the state that was overwritten) and mark the rows prefill-clean.
+    pub fn load_prefix(&mut self, tokens: &[u32]) {
+        let len = tokens.len();
+        self.len = len;
+        self.tokens.clear();
+        self.tokens.extend_from_slice(tokens);
+        self.snapshots.clear();
+        for s in self.slots.iter_mut() {
+            if let StateSlot::AttnKv(a) = s {
+                a.len = len;
+            }
+        }
+        self.clean = len;
+        // the restored rows never went through the MTP head: its cache no longer covers the sequence
+        if let Some(m) = &mut self.mtp {
+            m.synced = false;
+        }
     }
 
     /// Whether [`SequenceState::truncate`] to `len` would pass its own checks here and on the in-process peers: not

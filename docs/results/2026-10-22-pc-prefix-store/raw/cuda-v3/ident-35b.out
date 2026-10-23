@@ -1,0 +1,19 @@
+
+running 1 test
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefix store: on (build a634b358588c8247, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test prefix_store_restore_is_bitwise_cold_cuda has been running for over 60 seconds
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefix store: on (build a634b358588c8247, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+PREFIX-STORE-CUDA model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 turn1 1873 tok (2139 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 937 ms vs cold 1890 ms (store on) / 1070 ms (store off)
+PREFIX-STORE-CUDA restored vs cold(store on): bitwise true (first differing step None)
+PREFIX-STORE-CUDA restored vs cold(store off): bitwise false (first differing step Some(0)); ids equal true
+PREFIX-STORE-CUDA store: {"build":"a634b358588c8247","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":104181760,"restore_seconds_total":0.006895759,"last_restore_ms":6.895759,"inserts":4,"insert_bytes":337510400,"insert_seconds_total":0.9095639109999999,"rejected":0,"ttft_saved_seconds_total":0.6089765470923045,"prefill_tok_s":2962.694250918271,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":20},"host":{"objects":20,"bytes":337510400,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+test prefix_store_restore_is_bitwise_cold_cuda ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.14s
+

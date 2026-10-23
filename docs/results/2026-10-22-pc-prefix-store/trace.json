@@ -1,0 +1,192 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:pc-prefix-store:20261022-2209",
+ "project": "intarsiaml",
+ "lane_id": "pc",
+ "follows": [],
+ "agent_model": "claude-opus-5-5",
+ "started": "2026-10-22T22:09:00-04:00",
+ "ended": "2026-10-23T04:24:38-04:00",
+ "brief": "Stop re-doing prefill already done: content-addressed prefix store (tiered, pinned prefixes, keyed by build), cuts at chat message boundaries, prewarm API, dead last-layer skip, metrics, affinity-routing prototype; restored output byte-identical to cold.",
+ "hypothesis": "Storing whole SequenceStates at message headers lets returning chats and agent loops skip most prefill on the hybrid 35B without changing output bits.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "prefill",
+  "buckets": [
+   "4k"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | prefill | 4k",
+   "M5 Max 128 GB (endor) · Qwen3.6-35B-A3B | plain | prefill | 4k"
+  ],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": "2026-10-23T01:48:26-04:00"
+ },
+ "techniques": [
+  {
+   "id": "intarsia-content-addressed-prefix-store-hybrid-gdn",
+   "role": "created"
+  },
+  {
+   "id": "intarsia-prefill-cut-after-message-headers",
+   "role": "created"
+  },
+  {
+   "id": "intarsia-skip-dead-last-layer-non-final-prefill-chunks",
+   "role": "created"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-pc/prefix-store",
+  "base_commit": "a92267b0",
+  "head_commit": null,
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/113",
+  "files": [],
+  "diff_stat": null,
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "cpu workspace",
+   "command": "cargo test --workspace --release --no-fail-fast",
+   "result": "pass",
+   "detail": "797 passed, 0 failed, 3 ignored (fleetq #4474)"
+  },
+  {
+   "name": "metal identity",
+   "command": "prefix_store_metal (Qwen3-8B, Qwen3.6-35B)",
+   "result": "pass",
+   "detail": "restored vs cold (store on) bitwise for both, #4472; 8B failed in #4322 (bug found and fixed in 439a1415)"
+  },
+  {
+   "name": "cuda identity",
+   "command": "prefix_store_cuda (Qwen3.6-35B)",
+   "result": "pass",
+   "detail": "restored vs cold (store on) bitwise, #4442"
+  },
+  {
+   "name": "metal no-op 8B",
+   "command": "metal-window.sh noop",
+   "result": "pass",
+   "detail": "plan show + 256 greedy ids identical vs main, store off, #4322 and #4472"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "ttft_s",
+   "bucket": "4k",
+   "prompt_tokens": 15656,
+   "streams": 1,
+   "before": 12.07,
+   "after": 6.14,
+   "unit": "s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 4322,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "ttft_s",
+   "bucket": "4k",
+   "prompt_tokens": 8854,
+   "streams": 1,
+   "before": 3.36,
+   "after": 2.85,
+   "unit": "s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 4322,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "ttft_s",
+   "bucket": "4k",
+   "prompt_tokens": 15654,
+   "streams": 1,
+   "before": 3.33,
+   "after": 2.5,
+   "unit": "s",
+   "n": 2,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4442,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "ttft_s",
+   "bucket": "4k",
+   "prompt_tokens": 8574,
+   "streams": 1,
+   "before": 2.56,
+   "after": 2.01,
+   "unit": "s",
+   "n": 2,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4442,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "prompt_tokens_computed",
+   "bucket": "4k",
+   "prompt_tokens": 15656,
+   "streams": 1,
+   "before": 15656,
+   "after": 6961,
+   "unit": "tokens",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 4322,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "prefix_store byte identity (restored vs cold)",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "Opt-in prefix store: chat with thinking TTFT -49 % (Metal) / -25 % (CUDA), agent -15 % / -22 %, RAG neutral; restored output bitwise the store-on cold output on cpu, CUDA, Metal. Store-on vs store-off not bitwise for the hybrid, so default-off; PR #113 draft.",
+ "lessons": [
+  "The cpu GatedDeltaNet hybrid prefill is not chunk-invariant (tiny fixture), so any store that moves chunk boundaries changes hybrid bits vs store-off.",
+  "Metal ttft numbers in the measurements are chat/agent totals over 8 requests each (intarsia bench reuse, not localeval: localeval has no multi-turn mode and nonces its prompts).",
+  "A template whose generation prompt ends at the header (Qwen3) needs the entry stored by the final pass; only a real-model gate found it.",
+  "Cutting before every message start tripled TTFT on the MoE: each pass reads all experts.",
+  "Metal store-off TTFT passes 1-2 come from quiet slot #4472 (a script bug lost them in exclusive #4322); the third off pass from #4322 agrees within 4 %."
+ ],
+ "cost": {
+  "wall_min": null,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4322,
+   4472,
+   4382,
+   4398,
+   4406,
+   4420,
+   4442,
+   4445,
+   4315,
+   4449,
+   4474
+  ],
+  "tokens": null
+ }
+}

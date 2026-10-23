@@ -1,0 +1,5 @@
+workload  requests  prompt tok  cached tok  computed tok  TTFT mean ms  TTFT median ms  TTFT total s
+chat      8  15654  0  15654  410.6  475.3          3.28
+agent     8  8574  0  8574  314.0  250.7          2.51
+rag       4  21714  12288  9426  449.2  281.2          1.80
+wrote /tmp/pc-reuse/off2.json

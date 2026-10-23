@@ -9,5 +9,6 @@
 pub mod http;
 pub mod record;
 pub mod snapshot;
+pub mod reuse;
 pub mod speed;
 pub mod top;
