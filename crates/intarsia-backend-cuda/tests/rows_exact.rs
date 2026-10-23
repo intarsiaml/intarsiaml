@@ -538,7 +538,7 @@ fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
 
 // ---- the ops that need no rows_exact kernel ---------------------------------------------------------------------------
 
-use intarsia_core::exec::HostCall;
+use intarsia_core::exec::{HostCall, OutSpec};
 use intarsia_core::quant::cases::{combine_case, gated_rmsnorm_case, topk_case};
 
 fn rows_of(t: &HostTensor, rows: usize) -> Option<usize> {
