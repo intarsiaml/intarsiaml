@@ -125,9 +125,9 @@
   },
   {
    "name": "KL gate busy-chunk vs solo-chunk prefill",
-   "command": null,
-   "result": "skip",
-   "detail": "not run; prompts in the identity gates are one chunk or share the schedule"
+   "command": "cargo test -p intarsia-models --release --test batch_cuda_real real_35b_busy_chunk -- --ignored",
+   "result": "fail",
+   "detail": "35B CUDA, 5 prompts 1.5k-16k tokens x 64 decode rows: KL(solo chunk 2048 || busy chunk 1024) mean 21-way 7.87e-3 vs acc-short ref-noise floor 3.161e-3 (2.5x; 4 of 5 prompts above, worst 1.49e-2); full-vocab 9.68e-3; top-1 flips 13/320; control exactly 0; fleetq 4541"
   },
   {
    "name": "MTP re-check on CUDA (verify rows now on _rows kernels)",
@@ -184,9 +184,9 @@
   }
  ],
  "accuracy": {
-  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 16, 130 steps); batched engine == LocalEngine on the 35B; no-op plan show + 256 ids identical (CUDA, Metal). Busy-chunk prefill vs solo-chunk prefill is KL-gated, not bitwise, and not run here.",
-  "verdict": "pass",
-  "bitwise": true,
+  "gate": "G-B row-exact kernels; G-C batched == solo bitwise on tiny hybrid, 35B and Qwen3-8B (N up to 16, 130 steps); batched engine == LocalEngine on the 35B; no-op plan show + 256 ids identical (CUDA, Metal). Busy-chunk (1024) prefill vs solo-chunk (2048) prefill is KL-gated, not bitwise: run afterwards and FAILED (mean 21-way KL 7.87e-3 vs floor 3.161e-3).",
+  "verdict": "fail",
+  "bitwise": false,
   "run_ids": []
  },
  "verdict": "win",
@@ -195,7 +195,8 @@
   "Raising the busy prefill chunk from 256 to 1024 for the MoE hybrid was worth +18% at 4 streams and +30% at 16 (104 to 123, 128 to 167): an MoE prefill chunk reads nearly all experts at any size, so stalls dominate a short-output concurrent benchmark.",
   "check_batch_ops must compare kernel picks, not op multisets: the CUDA MoE switches kernel under one Op between m <= 1 and m >= 2, which the multiset rule cannot see.",
   "On the Spark the CUDA free figure after loading a 20 GB model is MemFree, not MemAvailable: page cache from other models' files left 1.9 GB for KV and recurrent state of a 16-slot engine; evict other files' cache (dd iflag=nocache count=0) before benchmarks, or the plan caps the context.",
-  "At 4 streams the serve burst (4.17 s) is 0.90 s of serialized 1k-token prefill plus 127 steps of 25.7 ms, equal to the model-loop step (25.4 ms): the gap to 140 is prefill time and the step, not engine overhead. At 16 streams 3.93 s of prefill plus 127 steps of 65.9 ms (model loop 65.3)."
+  "At 4 streams the serve burst (4.17 s) is 0.90 s of serialized 1k-token prefill plus 127 steps of 25.7 ms, equal to the model-loop step (25.4 ms): the gap to 140 is prefill time and the step, not engine overhead. At 16 streams 3.93 s of prefill plus 127 steps of 65.9 ms (model loop 65.3).",
+  "Prefill chunk size is part of the numerics on this engine: busy-chunk 1024 vs solo 2048 prefill gives 2.5x the vLLM run-to-run KL floor on the 35B, and 256 is no better; a busy chunk equal to the solo chunk is bitwise by construction."
  ],
  "cost": {
   "wall_min": 190,
@@ -220,7 +221,8 @@
    4531,
    4532,
    4536,
-   4537
+   4537,
+   4541
   ],
   "tokens": null
  }

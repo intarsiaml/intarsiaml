@@ -297,3 +297,167 @@ fn real_35b_batch_step_profile() {
         }
     }
 }
+
+// ---- busy-chunk prefill KL gate (not bitwise by design) -------------------------------------------------------------------
+
+/// Gate of the one non-bitwise step of the batching engine: a request that starts prefilling while others decode runs in busy
+/// chunks (1024 tokens for the 35B on CUDA) instead of the solo chunk (2048), and the GEMM tiling depends on the chunk. For
+/// prompts longer than the busy chunk (1.5k, 2.5k, 4k, 8k, 16k tokens of repository docs text) this prefills the same prompt
+/// both ways, then decodes 64 greedy tokens from the solo state and teacher-forces the same tokens through the busy state.
+/// Compared per row over the full vocabulary: KL(solo || busy) and top-1 agreement. Floor: the 35B short golden's ref-noise
+/// (`golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json`, kl21_mean 3.161e-3: vLLM's own run-to-run spread on
+/// the same prompts). Pass: the mean KL over the 64 decode rows of every prompt is at most that floor (factor 1, the
+/// default of the ref-noise rule). Controls: the solo chunk driven by hand equals `forward` of the whole prefix (harness
+/// check, KL exactly 0), and a chunk of 256 (the old default) is reported beside 1024.
+#[test]
+#[ignore]
+fn real_35b_busy_chunk_prefill_kl_gate() {
+    use intarsia_core::engine::TextCodec;
+    use intarsia_core::model::{HeadMode, StepOut};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const FLOOR: f64 = 3.161e-3; // ref-noise kl21_mean of the 35B short golden
+    const SOLO: usize = 2048;
+    const DECODE_ROWS: usize = 64;
+    let lens = [1536usize, 2560, 4096, 8192, 16384];
+    let (m, _) = load_with(&dir, be, 2, 16384 + DECODE_ROWS + 8, 0);
+    assert_eq!(m.prefill_chunk(), SOLO, "the solo prefill chunk of the 35B recipe");
+
+    // text: the repository docs, tokenized by the model's tokenizer
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let docs = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+    let mut names: Vec<_> = std::fs::read_dir(&docs)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "md"))
+        .collect();
+    names.sort();
+    let text: String = names.iter().map(|p| std::fs::read_to_string(p).unwrap()).collect::<Vec<_>>().join("\n\n");
+    let all = codec.encode(&text, false).unwrap();
+    eprintln!("KLGATE corpus: {} docs files, {} tokens", names.len(), all.len());
+    let stride = (all.len() - 16384 - 1) / (lens.len() - 1);
+
+    // prefill `prompt` in slices of `chunk` tokens (0: one `forward` over the whole prefix, the solo engine's schedule), the
+    // last prompt token alone (the recurrent schedule of the engine), then `rows` decode steps; returns (rows of logits, tokens)
+    let run = |prompt: &[u32], chunk: usize, forced: Option<&[u32]>| -> (Vec<Vec<f32>>, Vec<u32>) {
+        let mut st = m.new_state().unwrap();
+        let (head, last) = prompt.split_at(prompt.len() - 1);
+        if chunk == 0 {
+            m.forward(&mut st, head, HeadMode::None, None).unwrap();
+        } else {
+            for c in head.chunks(chunk) {
+                m.forward(&mut st, c, HeadMode::None, None).unwrap();
+            }
+        }
+        let logits = |o: StepOut| match o {
+            StepOut::Logits(l) => l,
+            o => panic!("expected logits, got {o:?}"),
+        };
+        let mut rows = vec![logits(m.forward(&mut st, last, HeadMode::LastLogits, None).unwrap())];
+        let mut toks = Vec::new();
+        for i in 0..DECODE_ROWS {
+            let next = match forced {
+                Some(f) => f[i],
+                None => {
+                    rows.last()
+                        .unwrap()
+                        .iter()
+                        .enumerate()
+                        .fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b })
+                        .0 as u32
+                }
+            };
+            toks.push(next);
+            rows.push(logits(m.forward(&mut st, &[next], HeadMode::LastLogits, None).unwrap()));
+        }
+        (rows, toks)
+    };
+    // KL(p || q) over the full vocabulary in f64, and top-1 agreement, for rows[1..] (the decode rows) and row 0
+    let kl = |p: &[f32], q: &[f32]| -> f64 {
+        let lse = |x: &[f32]| {
+            let mx = x.iter().cloned().fold(f32::MIN, f32::max) as f64;
+            mx + x.iter().map(|&v| (v as f64 - mx).exp()).sum::<f64>().ln()
+        };
+        let (lp, lq) = (lse(p), lse(q));
+        p.iter()
+            .zip(q)
+            .map(|(&a, &b)| {
+                let lpa = a as f64 - lp;
+                lpa.exp() * (lpa - (b as f64 - lq))
+            })
+            .sum()
+    };
+    let top1 =
+        |x: &[f32]| x.iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0;
+    // the estimator of the ref-noise floor: 21-way KL(p || q), the 20 largest probabilities of p plus the tail bucket
+    let kl21 = |p: &[f32], q: &[f32]| -> f64 {
+        let norm = |x: &[f32]| {
+            let mx = x.iter().cloned().fold(f32::MIN, f32::max) as f64;
+            let z: f64 = x.iter().map(|&v| (v as f64 - mx).exp()).sum();
+            move |v: f32| (v as f64 - mx).exp() / z
+        };
+        let (np, nq) = (norm(p), norm(q));
+        let mut idx: Vec<usize> = (0..p.len()).collect();
+        idx.select_nth_unstable_by(20, |&a, &b| p[b].partial_cmp(&p[a]).unwrap());
+        let (mut sp, mut sq, mut kl) = (0f64, 0f64, 0f64);
+        for &i in &idx[..20] {
+            let (a, b) = (np(p[i]), nq(q[i]));
+            sp += a;
+            sq += b;
+            kl += a * (a / b).ln();
+        }
+        let (tp, tq) = ((1.0 - sp).max(1e-12), (1.0 - sq).max(1e-12));
+        kl + tp * (tp / tq).ln()
+    };
+    let mut worst_mean = 0f64;
+    let mut sum_all = (0f64, 0usize, 0usize, 0usize);
+    let mut ctl_max = 0f64;
+    let mut failed: Vec<String> = Vec::new();
+    let mut failed_full: Vec<String> = Vec::new();
+    let mut sum21 = 0f64;
+    for (k, &len) in lens.iter().enumerate() {
+        let prompt = &all[k * stride..k * stride + len];
+        let (solo, toks) = run(prompt, 0, None);
+        // control: the solo chunk by hand is the same computation
+        let (hand, _) = run(prompt, SOLO, Some(&toks));
+        let ctl = (0..solo.len()).map(|i| kl(&solo[i], &hand[i])).fold(0f64, f64::max);
+        ctl_max = ctl_max.max(ctl);
+        for chunk in [1024usize, 256] {
+            let (busy, _) = run(prompt, chunk, Some(&toks));
+            let kls: Vec<f64> = (1..solo.len()).map(|i| kl(&solo[i], &busy[i])).collect();
+            let k21: Vec<f64> = (1..solo.len()).map(|i| kl21(&solo[i], &busy[i])).collect();
+            let mean21 = k21.iter().sum::<f64>() / k21.len() as f64;
+            let flips = (1..solo.len()).filter(|&i| top1(&solo[i]) != top1(&busy[i])).count();
+            let mean = kls.iter().sum::<f64>() / kls.len() as f64;
+            let max = kls.iter().cloned().fold(0f64, f64::max);
+            let kl0 = kl(&solo[0], &busy[0]);
+            eprintln!(
+                "KLGATE len {len:>5} chunk {chunk:>4} vs solo {SOLO}: decode rows {} mean KL {mean:.3e} (21-way {mean21:.3e}) max {max:.3e} top-1 flips {flips}/{} | prefill-last row KL {kl0:.3e} flip {} | control (hand 2048 vs forward) max KL {ctl:.1e}",
+                kls.len(), kls.len(), top1(&solo[0]) != top1(&busy[0])
+            );
+            let head: Vec<String> = kls.iter().take(8).map(|v| format!("{v:.1e}")).collect();
+            let tail = kls[8..].iter().sum::<f64>() / (kls.len() - 8) as f64;
+            eprintln!("KLGATE   rows 1-8 KL [{}] rows 9-64 mean {tail:.3e}", head.join(" "));
+            if chunk == 1024 {
+                worst_mean = worst_mean.max(mean);
+                sum_all.0 += kls.iter().sum::<f64>();
+                sum_all.1 += kls.len();
+                sum_all.2 += flips;
+                sum_all.3 += 1;
+                sum21 += k21.iter().sum::<f64>();
+                if mean21 > FLOOR {
+                    failed.push(format!("len {len}: mean 21-way KL {mean21:.3e}"));
+                }
+                if mean > FLOOR {
+                    failed_full.push(format!("len {len}: mean full-vocab KL {mean:.3e}"));
+                }
+            }
+        }
+    }
+    eprintln!(
+        "KLGATE SUMMARY chunk 1024 vs 2048: {} prompts, {} decode rows, mean KL {:.3e} (21-way {:.3e}), worst prompt mean {:.3e}, top-1 flips {}/{} | floor {FLOOR:.3e} | control max KL {ctl_max:.1e}",
+        sum_all.3, sum_all.1, sum_all.0 / sum_all.1 as f64, sum21 / sum_all.1 as f64, worst_mean, sum_all.2, sum_all.1
+    );
+    assert_eq!(ctl_max, 0.0, "the harness: the solo chunk by hand must equal forward() of the prefix");
+    eprintln!("KLGATE full-vocab prompts above the floor: {failed_full:?}");
+    assert!(failed.is_empty(), "above the ref-noise floor {FLOOR:.3e}: {failed:?}");
+}

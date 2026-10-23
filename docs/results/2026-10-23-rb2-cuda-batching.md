@@ -19,7 +19,7 @@ S1 to S5 plan of PR #114 where the two differ (decision rows in `docs/decisions/
 Cell: 1024-token prompt, 128 generated tokens, localeval `speed --concurrency 1,4,16`, the same cell as the baseline run
 `20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`. Exactness is **decode-exact within the batch path**. Prefill of a busy engine
 runs in smaller chunks than a solo prefill, so for a prompt longer than one busy chunk it is **not bitwise the solo prefill**
-(the GEMM tiling depends on the chunk); that is a KL question, not a bitwise one, and no KL gate was run in this lane (section 9).
+(the GEMM tiling depends on the chunk); that is a KL question, not a bitwise one. The KL gate was run afterwards (section 11) and **fails** at busy chunk 1024: mean 21-way KL 7.9e-3 against the 3.16e-3 ref-noise floor. A busy chunk equal to the solo chunk (2048) removes the difference by construction.
 
 ## 1. What a batched step is
 
@@ -172,8 +172,8 @@ INTARSIA_QWEN36_DIR=<35B dir> INTARSIA_QWEN3_DIR=<8B dir> INTARSIA_REQUIRE_GPU=1
 ## 9. What this does not show
 
 - **Busy-chunk prefill vs solo-chunk prefill is not bitwise** for a prompt longer than the busy chunk (1024 for the 35B on CUDA, 256
-  elsewhere), because GEMM tiling depends on the chunk. The gates above use prompts of one chunk or identical chunk schedules. No KL
-  gate of busy against solo prefill was run here.
+  elsewhere), because GEMM tiling depends on the chunk. The gates above use prompts of one chunk or identical chunk schedules. The KL
+  gate of busy against solo prefill was run afterwards and fails (section 11).
 - Only greedy and seeded top-k/top-p rows were compared; host sampling cost at 16 sampled rows (review B2) was not measured.
 - Memory: on the Spark the CUDA `free` figure after loading the 35B was 1.9 GB while 60 GB sat in the page cache, so a 16-slot engine
   planned about 1.5k tokens of KV per slot. The speed runs and tests evicted other models' cached files first
@@ -189,3 +189,44 @@ fleetq (owner `claude-f31ccf91-rb2`): G-B and CUDA suite #4525, #4526; G-C #4507
 free-memory finding, section 9); no-op #4516, #4518, #4519, #4524; speed #4521, #4522, #4527, #4529 (default flag not yet applied: 256), #4531;
 timing and profile #4523; builds #4504, #4514, #4515, #4517, #4528, #4530. #4533 was my own client killed by PID after a script mistake; its
 two orphaned remote test processes were stopped by PID (#4534, #4535). Nothing is held.
+
+## 11. Busy-chunk prefill KL gate (run after the draft PR, fleetq #4541): FAIL at busy chunk 1024
+
+**Question.** A request that starts prefilling while others decode is prefilled in busy chunks, 1024 tokens for the 35B on CUDA (the
+default set in section 6), not in the solo chunk of 2048. The GEMM tiling depends on the chunk, so the prefill state, and every
+token decoded from it, differs from the solo engine's. Is the difference below the noise of the reference?
+
+**Method** (`real_35b_busy_chunk_prefill_kl_gate`, ignored test in `crates/intarsia-models/tests/batch_cuda_real.rs`; 35B NVFP4 on
+CUDA, spark1, `--quiet gpu,cpu` slot #4541). Five prompts of 1,536 / 2,560 / 4,096 / 8,192 / 16,384 tokens, each a different window of
+the repository's `docs/*.md` (106,280 tokens, the model's tokenizer). Per prompt: solo path (`forward` over the prefix, chunk 2048,
+then the last prompt token alone, the engine's recurrent schedule), then 64 greedy decode steps; then the same prompt prefilled in
+slices of 1024 (busy) and of 256 (the old default, for scale), with the 64 tokens of the solo run teacher-forced. Per decode row:
+KL(solo || busy) over the full vocabulary in f64, the 21-way KL (20 largest probabilities of the solo row plus a tail bucket: the
+estimator of the floor), and top-1 agreement. Floor: the ref-noise of the 35B short golden (`acc-short`, `golden/ref_noise/
+qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json`): kl21_mean 3.161e-3, vLLM's own run-to-run spread on the same prompts. Criterion,
+set before the run: mean 21-way KL over the 64 decode rows of every prompt at most the floor (factor 1, the default of the ref-noise
+rule). Harness control: the solo chunk driven by hand equals `forward` of the whole prefix with KL exactly 0 on all five prompts.
+
+| prompt tokens | busy 1024: mean KL (full vocab) | busy 1024: mean 21-way KL | top-1 flips /64 | busy 256: mean 21-way KL | flips /64 |
+|---|---|---|---|---|---|
+| 1,536 | 7.05e-3 | **5.48e-3** | 4 | 1.06e-2 | 3 |
+| 2,560 | 7.59e-3 | **6.06e-3** | 3 | 1.12e-2 | 2 |
+| 4,096 | 1.95e-2 | **1.49e-2** | 6 | 2.00e-2 | 3 |
+| 8,192 | 1.16e-2 | **1.07e-2** | 0 | 1.17e-2 | 1 |
+| 16,384 | 2.65e-3 | 2.29e-3 | 0 | 3.00e-3 | 1 |
+| **all (320 rows)** | **9.68e-3** | **7.87e-3** | **13/320 (4.1%)** | | |
+
+**Verdict: FAIL.** Mean 21-way KL 7.87e-3 is 2.5x the 3.161e-3 floor; four of five prompts are above it (worst 1.49e-2, 4.7x), and the
+full-vocabulary KL agrees. Top-1 differs on 4.1% of decode rows. The difference is not systematic in prompt length (the 16k prompt is
+inside the floor, the 4k one is 4.7x over it), and a chunk of 256 is not better than 1024, which is what chunk-order rounding noise
+looks like and not a bug in one chunk size. The KL of the prefill-last row alone (8e-5 to 5.6e-3 over the five prompts) is not systematically lower than that of the decode rows. Limits: one run per prompt, text is
+repository docs (markdown and English, with repetitive stretches), the 64 tokens are greedy from the solo state, not a vLLM golden's
+tokens, and the floor is vLLM's spread, not this engine's: a per-prompt ref-noise record for these prompts does not exist.
+
+**What follows.** Where the busy and solo chunk schedules coincide there is no difference: a prompt that fits in one chunk
+(<= 1024 now), and the harness control (exactly 0). So the way to a bitwise busy prefill is a busy chunk **equal to the solo chunk**
+(2048 for the 35B on CUDA): then every prompt has the solo schedule, decode rows and prefill both bitwise, with no KL gate needed.
+That was not measured here (no speed run at `--busy-chunk 2048`, no engine identity test on a prompt over 2048 tokens); the cost is
+decode stalls of one 2048-token chunk (about 0.5 s at 4.4k tok/s) instead of one 1024-token chunk, and the throughput effect of chunk
+size on the 35B was +18% at 4 streams going 256 to 1024. The default stays 1024 in this branch until that decision is made.
+
