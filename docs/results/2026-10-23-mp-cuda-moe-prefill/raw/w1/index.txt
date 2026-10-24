@@ -1,0 +1,9 @@
+mp-vllm-r1: - result file: `results/20261023-205241-adhoc-mp-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205241-adhoc-mp-vllm-r1/result.json 
+mp-def-r1: - result file: `results/20261023-205347-adhoc-mp-def-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205347-adhoc-mp-def-r1/result.json 
+mp-pf-r1: - result file: `results/20261023-205456-adhoc-mp-pf-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205456-adhoc-mp-pf-r1/result.json 
+mp-pf-r2: - result file: `results/20261023-205601-adhoc-mp-pf-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205601-adhoc-mp-pf-r2/result.json 
+mp-def-r2: - result file: `results/20261023-205709-adhoc-mp-def-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205709-adhoc-mp-def-r2/result.json 
+mp-vllm-r2: - result file: `results/20261023-205738-adhoc-mp-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205738-adhoc-mp-vllm-r2/result.json 
+mp-vllm-r3: - result file: `results/20261023-205805-adhoc-mp-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205805-adhoc-mp-vllm-r3/result.json 
+mp-def-r3: - result file: `results/20261023-205911-adhoc-mp-def-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-205911-adhoc-mp-def-r3/result.json 
+mp-pf-r3: - result file: `results/20261023-210019-adhoc-mp-pf-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-210019-adhoc-mp-pf-r3/result.json 

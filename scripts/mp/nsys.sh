@@ -3,9 +3,10 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 HOST=$1; V=$2; T=$3; SKEW=${4:-0}; shift 4 2>/dev/null || shift $#
-ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB PATH=/usr/local/cuda/bin:\$PATH; cd ~/mp; rm -f prof_$V.*; \
-  ONLY=${ONLY:-v3} nsys profile -t cuda $* --force-overwrite true -o prof_$V bin/bench_$V $T 6 $SKEW > prof_$V.out 2>&1; \
-  nsys stats -r cuda_gpu_kern_sum -f csv prof_$V.nsys-rep 2>/dev/null | python3 -c '
+TAG=${ONLY:-prod}
+ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB PATH=/usr/local/cuda/bin:\$PATH; cd ~/mp; rm -f prof_${V}_$TAG.*; \
+  ONLY=${ONLY:-prod} nsys profile -t cuda $* --force-overwrite true -o prof_${V}_$TAG bin/bench_$V $T 6 $SKEW > prof_${V}_$TAG.out 2>&1; \
+  nsys stats -r cuda_gpu_kern_sum -f csv prof_${V}_$TAG.nsys-rep 2>/dev/null | python3 -c '
 import csv,sys
 rows=list(csv.reader(l for l in sys.stdin if l.strip() and not l.startswith(\"Generating\") and not l.startswith(\"Processing\")))
 h=rows[0]; ti=h.index(\"Total Time (ns)\"); ni=h.index(\"Instances\"); na=h.index(\"Name\")
