@@ -158,7 +158,7 @@ impl Model {
                 Op::MatmulFp8Pair,
                 vec![n.clone(), g.in_qkv.parts[0].clone(), g.in_qkv.parts[1].clone(), g.in_z.parts[0].clone(), g.in_z.parts[1].clone()],
                 vec![qkv.clone(), z.clone()],
-                OpAttrs::default(),
+                OpAttrs { fp8_static_act: g.in_qkv.act_quant && g.in_z.act_quant, ..OpAttrs::default() },
                 profile,
             )?,
             (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_qkv, &g.in_z, &qkv, &z, profile)?,

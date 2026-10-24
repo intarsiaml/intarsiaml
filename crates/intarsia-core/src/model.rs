@@ -2043,7 +2043,7 @@ impl Model {
                 Op::MatmulFp8Pair,
                 vec![n.clone(), a.wk.parts[0].clone(), a.wk.parts[1].clone(), a.wv.parts[0].clone(), a.wv.parts[1].clone()],
                 vec![k_out.clone(), v_out.clone()],
-                OpAttrs::default(),
+                OpAttrs { fp8_static_act: a.wk.act_quant && a.wv.act_quant, ..OpAttrs::default() },
                 profile,
             ),
             (crate::quant::BF16, crate::quant::BF16) => self.try_fused(

@@ -309,6 +309,10 @@ pub struct OpAttrs {
     ///
     /// `MoeExperts`: expert activation is tanh-GELU instead of SiLU (`gelu_tanh(gate) * up`). Selects only `.ext()` kernels.
     pub gelu: bool,
+    /// `MatmulFp8` / `MatmulFp8Pair`: every fp8 weight of the call carries a static activation scale (W8A8,
+    /// `QTensor::act_quant`). Read by kernel selection only (`ShapeInfo::fp8_static_act`: CUDA's default cuBLASLt e4m3 GEMM
+    /// serves W8A8 calls only), never by a kernel; false for W8A16 weights and for every other op.
+    pub fp8_static_act: bool,
 }
 
 impl Default for OpAttrs {
@@ -332,6 +336,7 @@ impl Default for OpAttrs {
             window: 0,
             rope_prop: false,
             gelu: false,
+            fp8_static_act: false,
         }
     }
 }
@@ -740,6 +745,8 @@ pub struct ShapeInfo {
     /// The call uses an extended attribute (`OpAttrs::window`, `rope_prop`, `gelu`): only kernels registered `.ext()` accept it,
     /// so a kernel that predates the attribute can never run it silently wrong.
     pub ext: bool,
+    /// `OpAttrs::fp8_static_act` of the call (fp8 matmuls: W8A8 with a static input scale).
+    pub fp8_static_act: bool,
 }
 
 impl ShapeInfo {
@@ -753,6 +760,7 @@ impl ShapeInfo {
                 || call.attrs.rope_prop
                 || call.attrs.gelu
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
+            fp8_static_act: call.attrs.fp8_static_act,
             ..Default::default()
         };
         match call.op {
