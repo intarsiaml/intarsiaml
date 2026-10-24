@@ -8,7 +8,7 @@
  ],
  "agent_model": "claude-sonnet-5-5",
  "started": "2026-10-23T19:30:00-04:00",
- "ended": "2026-10-24T00:40:00-04:00",
+ "ended": "2026-10-24T03:45:00-04:00",
  "brief": "Speed up CUDA prefill of the 35B (Qwen3.6-35B-A3B NVFP4) on GB10 by speeding up the routed-expert MoE prefill kernel (41-47 % of prefill kernel time at 22-33 % of the bf16 roof), keeping the default accumulation order and every accuracy bar; profile with nsys first; opt-in flag, draft PR.",
  "hypothesis": "The expert grouped GEMM is limited by schedule (tiling, occupancy, dequant/MMA overlap, launch structure), not by arithmetic, so a better schedule with the same accumulation order should speed it up without touching the kernel error.",
  "target": {
@@ -84,14 +84,14 @@
   {
    "name": "prefix-reuse gate, CPU oracles, chunk 2048",
    "command": "scripts/pf/rjob.sh spark1 mp/gatesB.sh mpgB2 mp-dev 1",
-   "result": "GATEB_RESULT",
-   "detail": "fleetq #4941"
+   "result": "pass",
+   "detail": "PASS, 5/5 rows ok; fleetq #4941"
   },
   {
    "name": "batch_cuda_real and the ignored long-prompt engine test, PF=1",
    "command": "mp/gatesB.sh",
-   "result": "GATEB_RESULT",
-   "detail": "failures counted from the cargo summaries; fleetq #4941"
+   "result": "pass",
+   "detail": "batch_cuda_real 3 passed 0 failed (FAILED count 0); long-prompt engine test 1 passed 0 failed; fleetq #4941"
   },
   {
    "name": "SASS of the knob-off kernels vs main",
@@ -239,7 +239,7 @@
  ],
  "accuracy": {
   "gate": "moe_w4a16 bitwise tests, acc-short vs main baseline, 3 KL goldens chunk 2048, prefix-reuse gate, batch_cuda_real + long prompts",
-  "verdict": "GATEB_ACC",
+  "verdict": "pass",
   "bitwise": true,
   "run_ids": []
  },
@@ -251,7 +251,7 @@
   "A stamped build is needed for acc-short: the first gate run failed on the missing INTARSIA_BUILD_STAMP; use scripts/tree-stamp.sh output."
  ],
  "cost": {
-  "wall_min": 310,
+  "wall_min": 495,
   "gpu_slot_min": null,
   "slot_jobs": [
    4745,

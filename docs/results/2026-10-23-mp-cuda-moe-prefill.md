@@ -108,9 +108,9 @@ The knob changes no arithmetic, so every gate is expected to read exactly as mai
 | acc-short against main's committed CUDA baseline (`golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json`, recorded from the lt build `c37a8d3`; `--pre-change c37a8d3`) | PASS: prefill mean KL 6.82514e-3 (baseline 6.82514e-3, limit 7.84891e-3), decode 6.98641e-3 (6.98641e-3, 8.03437e-3), both per-prompt gates ok, floor verdict PASS, baseline verdict PASS | #4907 |
 | 3 KL goldens at prefill chunk 2048 (short, long, 4k) | golden gate PASS x3; 21-way KL (scored rows) 5.408e-3 / 1.417e-2 / 1.214e-2 (floor 3.0e-2) | #4907 |
 | control: the same three goldens on main's build, knob absent | the printed `prefill floor` lines and the per-prompt tables are identical to the knob-on run | #4872 |
-| prefix-reuse gate with the CPU continue oracles (`golden/oracle/`, #123) at chunk 2048 | GATEB_REUSE | #4941 |
-| `batch_cuda_real` (35B and 8B, batched decode bitwise the solo step, engine equals local engine) | GATEB_BATCH | #4941 |
-| `batch_cuda_real --ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` | GATEB_LONG | #4941 |
+| prefix-reuse gate with the CPU continue oracles (`golden/oracle/`, #123) at chunk 2048 | PASS: 5 of 5 prompts ok (long_docs_4k warm/cold 0.89x, long_code_4k 1.22x, chat_reuse_4k 0.86x, long_docs_12k and long_code_12k 32/32 exact) | #4941 |
+| `batch_cuda_real` (35B and 8B, batched decode bitwise the solo step, engine equals local engine) | 3 passed, 0 failed (6 ignored benches); FAILED count 0 | #4941 |
+| `batch_cuda_real --ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` | 1 passed, 0 failed; FAILED count 0 | #4941 |
 
 An earlier pass of the same gates on the first code (cap 80 pairs per expert, unstamped build) passed too (accuracy #4849 with the acc-short step refused for
 the missing build stamp, KL x3 PASS; stamped acc-short #4864; reuse + batching + long-prompt #4848, all 0 failed). Only the cap changed after
@@ -165,4 +165,8 @@ scripts/pf/rjob.sh spark1 mp/gputests.sh mp-dev                            # moe
 
 ## fleetq jobs
 
-JOBS
+Dev microbench, ablation and prefetch sweeps (spark1/spark2, `scripts/mp/dev.sh`, `scripts/mp/q.sh`): #4745-#4891 (baseline #4745, nsys phases #4746 and #4889,
+gpu-metrics attempt #4748 refused with ERR_NVGPUCTRPERM, final microbench #4874 and #4891). Builds #4840, #4842, #4846, #4850, #4862, #4900, #4901.
+Unit tests + `kernels test`: #4845, #4847, #4910 (final). SASS compare: #4851. Accuracy: #4849 (first code, unstamped), #4864, #4907 (final), control #4872.
+Reuse + batching: #4848 (first code), #4941 (final). Localeval windows: #4855 (w1), #4914 (w2). All owner `claude-f31ccf91-mp`, all released or done;
+nothing is pending.
