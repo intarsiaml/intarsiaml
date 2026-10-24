@@ -1,4 +1,4 @@
-// matmul_fp8_gemm_lt: W8A8 prefill GEMM on cuBLASLt's native e4m3 path (OPT-IN, INTARSIA_CUDA_FP8_GEMM_LT=1).
+// matmul_fp8_gemm_lt: W8A8 prefill GEMM on cuBLASLt's native e4m3 path (DEFAULT ON since 2026-10-23 for W8A8 calls, i.e. a static input scale: W8A16 calls keep the pre-flip kernels unless INTARSIA_CUDA_FP8_GEMM_LT=1; INTARSIA_CUDA_FP8_GEMM_LT=0 switches it off).
 //
 // Same op and activation numerics as matmul_fp8_gemm / matmul_fp8_gemm_reg / matmul_fp8_gemm_f8: with a static input scale
 // the activations are quantised to e4m3 with the same rounding (x / input_scale, RNE, saturating; the bytes are the
