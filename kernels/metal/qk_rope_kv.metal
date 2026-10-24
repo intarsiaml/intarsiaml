@@ -187,3 +187,91 @@ kernel void qk_norm_rope_kv_bf16_pf(device const ushort* q [[buffer(0)]],
         for (uint g = 0; g < 4; ++g) kc[p.s_kc + ((ulong)h * p.cap + pos0 + t) * d + g * 32 + lane] = res[g];
     }
 }
+
+// ---- Row tables (batched decode, lane mr3) -------------------------------------------------------------------------------
+// `qk_norm_rope_kv_bf16_rows`: the one-token decode form above on R rows (sequences) in ONE dispatch. Row r of q / k / v
+// ([R, ...]) is the single token of sequence r at position posbuf[r]; its K cache is the device address in entry [r, index]
+// of the u64 row table, its V cache entry [r, index + 1]. Every expression is `qk_norm_rope_kv_bf16`'s at T = 1, so row r
+// is bitwise the solo call on sequence r (tests/row_tables.rs).
+// bind: 0 q [R,N,D], 1 k, 2 v, 3 q_w, 4 k_w, 5 q_out, 6 table, 7 pos (i32 [R]), 8 params.
+struct QkRopeRowsP {
+    uint rows, n, nkv, d;
+    uint rd, cap, stride, index;
+    uint s_q, s_k, s_v, s_wq, s_wk, s_qo;
+    float eps, w_offset, theta;
+    uint pad;
+};
+
+kernel void qk_norm_rope_kv_bf16_rows(device const ushort* q [[buffer(0)]],
+                                      device const ushort* k [[buffer(1)]],
+                                      device const ushort* v [[buffer(2)]],
+                                      device const ushort* wq [[buffer(3)]],
+                                      device const ushort* wk [[buffer(4)]],
+                                      device ushort* qo [[buffer(5)]],
+                                      device const ulong* tab [[buffer(6)]],
+                                      device const int* posbuf [[buffer(7)]],
+                                      constant QkRopeRowsP& p [[buffer(8)]],
+                                      uint tg [[threadgroup_position_in_grid]],
+                                      uint tid [[thread_position_in_threadgroup]],
+                                      uint lane [[thread_index_in_simdgroup]],
+                                      uint sg [[simdgroup_index_in_threadgroup]],
+                                      uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float part[32];
+    threadgroup ushort nb[256];
+    const uint d = p.d;
+    const uint heads = p.n + 2 * p.nkv;
+    const uint row = tg / heads;
+    const uint s = tg - row * heads;
+    const uint pos0 = (uint)posbuf[row];
+    const uint i = tid;
+
+    if (s >= p.n + p.nkv) {  // v head: cache[h, pos0, :] = v[row, h, :]
+        if (pos0 >= p.cap) return;
+        const uint h = s - p.n - p.nkv;
+        device ushort* vc = reinterpret_cast<device ushort*>(tab[(ulong)row * p.stride + p.index + 1]);
+        if (i < d) vc[((ulong)h * p.cap + pos0) * d + i] = v[p.s_v + ((ulong)row * p.nkv + h) * d + i];
+        return;
+    }
+    const bool isq = s < p.n;
+    const uint h = isq ? s : s - p.n;
+    if (!isq && pos0 >= p.cap) return;  // uniform over the threadgroup, so the barriers below stay safe
+
+    device const ushort* x = isq ? q + p.s_q + ((ulong)row * p.n + h) * d : k + p.s_k + ((ulong)row * p.nkv + h) * d;
+    device const ushort* w = isq ? wq + p.s_wq : wk + p.s_wk;
+
+    float xf = 0.0f, wf = 0.0f;
+    if (i < d) {
+        xf = bf2f(x[i]);
+        wf = bf2f(w[i]);
+    }
+    const uint rd = p.rd;
+    const uint half_ = rd / 2;
+    const uint kk = i < half_ ? i : i - half_;
+    float sn = 0.0f, cs = 0.0f;
+    if (i < rd) {
+        const float ang = (float)(pos0 + 0u) * precise::pow(p.theta, -2.0f * (float)kk / (float)rd);
+        sn = precise::sin(ang);
+        cs = precise::cos(ang);
+    }
+    float ss = 0.0f;
+    if (i < d) ss = fma(xf, xf, ss);
+    const float tot = qkr_tg_sum(ss, part, lane, sg, nsg);
+    const float r = 1.0f / precise::sqrt(tot / (float)d + p.eps);
+    if (i < d) nb[i] = f2bf(xf * r * (wf + p.w_offset));
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (i >= d) return;
+
+    ushort res;
+    if (i >= rd) {
+        res = nb[i];
+    } else {
+        const float x1 = bf2f(nb[kk]), x2 = bf2f(nb[kk + half_]);
+        res = f2bf(i < half_ ? x1 * cs - x2 * sn : x2 * cs + x1 * sn);
+    }
+    if (isq) {
+        qo[p.s_qo + ((ulong)row * p.n + h) * d + i] = res;
+    } else {
+        device ushort* kc = reinterpret_cast<device ushort*>(tab[(ulong)row * p.stride + p.index]);
+        kc[((ulong)h * p.cap + pos0) * d + i] = res;
+    }
+}

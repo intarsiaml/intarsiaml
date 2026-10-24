@@ -318,6 +318,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.push(ARGMAX_F32_V4);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
+    v.extend(crate::rowtab::shader_names());
     let mut seen = std::collections::HashSet::new();
     v.retain(|n| seen.insert(*n)); // the experiment list repeats the promoted variants
     v
@@ -370,6 +371,11 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS, Op::MatmulNvfp4),
     (crate::moe::MOE_EXPERTS_BF16_ROWS, Op::MoeExperts),
+    (crate::rowtab::GDN_CONV_BF16_ROWS, Op::GdnConv),
+    (crate::rowtab::GDN_DELTA_RULE_BF16_ROWS, Op::GdnDeltaRule),
+    (crate::rowtab::KV_APPEND_BF16_ROWS, Op::KvAppend),
+    (crate::rowtab::QK_NORM_ROPE_KV_BF16_ROWS, Op::QkNormRopeKv),
+    (crate::rowtab::ATTN_DECODE_BF16_SPLITKV_ROWS, Op::AttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -646,6 +652,51 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(intarsia_core::quant::ops::moe_experts_scratch),
+                // Row-table twins (lane mr3, `OpCall::rows`): the solo one-row decode kernel of the same name without `_rows`
+                // on 1..=16 rows at once, each row on its own state / cache from a table of device addresses. Bitwise the
+                // solo launch per row (tests/row_tables.rs); selected only for calls with a row table, and those select only
+                // these. They take the admission of the kernel they twin (`Registry::effective_admission`).
+                crate::rowtab::GDN_CONV_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::conv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::GDN_DELTA_RULE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::delta_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::KV_APPEND_BF16_ROWS => k
+                    .acts(bf)
+                    .when(|s| s.out == Some(DType::Bf16) && crate::rowtab::rows_in_range(s))
+                    .exact(Exactness::Exact)
+                    .tol(Tol::EXACT)
+                    .row_table(),
+                crate::rowtab::QK_NORM_ROPE_KV_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        s.head_dim > 0
+                            && s.head_dim <= 256
+                            && s.head_dim % 2 == 0
+                            && s.out == Some(DType::Bf16)
+                            && crate::rowtab::rows_in_range(s)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::ATTN_DECODE_BF16_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::attn_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table()
+                    .scratch(crate::rowtab::attn_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })

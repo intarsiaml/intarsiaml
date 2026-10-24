@@ -39,6 +39,7 @@ mod moe;
 mod fp8;
 mod mxfp4;
 mod nvfp4;
+mod rowtab;
 pub mod profile;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -54,7 +55,7 @@ use objc2_foundation::NSString;
 use objc2_metal::{
     MTLBuffer, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue, MTLComputeCommandEncoder,
     MTLComputePipelineDescriptor, MTLComputePipelineState, MTLCreateSystemDefaultDevice, MTLDevice, MTLDispatchType,
-    MTLLibrary, MTLResourceOptions, MTLSize,
+    MTLLibrary, MTLResource, MTLResourceOptions, MTLResourceUsage, MTLSize,
 };
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -167,6 +168,9 @@ pub const FIRST_COMMIT: usize = 4;
 #[derive(Default)]
 struct Stream {
     open: Option<(CommandBuffer, Encoder)>,
+    /// Version of the indirect-buffer set ([`rowtab`]) already declared resident (`useResources`) in the open encoder; 0 when
+    /// none (a new encoder starts at 0).
+    ind_ver: u64,
     dispatches: usize,
     inflight: Vec<CommandBuffer>,
     /// First GPU error seen on a buffer that was pruned from `inflight` before `synchronize` looked at it.
@@ -213,6 +217,16 @@ pub struct MetalBackend {
     /// Copy-kernel bandwidth, measured on the first `info()` call (about 100 ms, 2 GiB of scratch buffers) and
     /// cached. Construction stays cheap; the one-off cost lands on whoever asks first (the telemetry probe).
     bandwidth: OnceLock<Option<f64>>,
+    /// Buffers whose device address was handed out (`Backend::device_address`): row-table kernels reach them through
+    /// addresses, so they must be declared resident in every encoder that runs such a kernel ([`rowtab`]).
+    indirect: Mutex<Indirect>,
+}
+
+/// The set of indirectly addressed buffers, held weakly (a buffer the model dropped leaves the set).
+#[derive(Default)]
+struct Indirect {
+    bufs: HashMap<u64, objc2::rc::Weak<ProtocolObject<dyn MTLBuffer>>>,
+    version: u64,
 }
 
 // SAFETY: Apple documents MTLDevice, MTLCommandQueue, MTLComputePipelineState and MTLBuffer as usable from any thread;
@@ -277,6 +291,7 @@ impl MetalBackend {
             hosts: Mutex::new(host::HostCache::default()),
             page_size,
             bandwidth: OnceLock::new(),
+            indirect: Mutex::new(Indirect::default()),
         })
     }
 
@@ -379,6 +394,16 @@ impl MetalBackend {
     /// Append work to the stream's open serial compute encoder (opening a command buffer and encoder when none is
     /// open). `f` must encode exactly one dispatch.
     pub fn with_encoder(&self, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
+        self.with_encoder_opt(false, f)
+    }
+
+    /// [`Self::with_encoder`] for a dispatch that reaches buffers through device addresses (row tables): the registered
+    /// indirect set is declared resident in the encoder first (once per encoder and per change of the set).
+    pub fn with_encoder_ind(&self, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
+        self.with_encoder_opt(true, f)
+    }
+
+    fn with_encoder_opt(&self, indirect: bool, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
         let mut st = self.stream.lock().unwrap();
         if st.open.is_none() {
             let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
@@ -386,9 +411,13 @@ impl MetalBackend {
                 .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
                 .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
             st.open = Some((cb, enc));
+            st.ind_ver = 0;
             if st.prof.is_some() {
                 st.opened = profile::host_now();
             }
+        }
+        if indirect {
+            self.declare_indirect(&mut st);
         }
         f(&st.open.as_ref().unwrap().1);
         st.dispatches += 1;
@@ -419,6 +448,31 @@ impl MetalBackend {
             }
         }
         Ok(())
+    }
+
+    /// `useResources` for the registered indirect set on the open encoder, unless this encoder already has this version.
+    fn declare_indirect(&self, st: &mut Stream) {
+        let mut ind = self.indirect.lock().unwrap();
+        if st.ind_ver == ind.version {
+            return;
+        }
+        let live: Vec<MtlBuffer> = ind.bufs.values().filter_map(|w| w.load()).collect();
+        ind.bufs.retain(|_, w| w.load().is_some());
+        st.ind_ver = ind.version;
+        drop(ind);
+        let enc = &st.open.as_ref().unwrap().1;
+        let ptrs: Vec<NonNull<ProtocolObject<dyn MTLResource>>> =
+            live.iter().map(|b| NonNull::from(ProtocolObject::<dyn MTLResource>::from_ref(&**b))).collect();
+        if !ptrs.is_empty() {
+            // SAFETY: `ptrs` holds `ptrs.len()` valid resources kept alive by `live` for the call.
+            unsafe {
+                enc.useResources_count_usage(
+                    NonNull::new_unchecked(ptrs.as_ptr() as *mut NonNull<ProtocolObject<dyn MTLResource>>),
+                    ptrs.len(),
+                    MTLResourceUsage::Read | MTLResourceUsage::Write,
+                )
+            };
+        }
     }
 
     fn mbuf<'a>(&self, b: &'a Buffer) -> Result<&'a MetalBuffer> {
@@ -573,6 +627,25 @@ impl Drop for MetalBackend {
 impl Backend for MetalBackend {
     fn name(&self) -> &str {
         "metal"
+    }
+
+    /// Batched decode steps launch `GdnConv`, `GdnDeltaRule`, `KvAppend`, `QkNormRopeKv` and `AttnDecode` once for all rows
+    /// with a table of device addresses (`kernels/metal`, [`rowtab`]); `INTARSIA_ROW_TABLES=0` turns it off per model.
+    fn supports_row_tables(&self) -> bool {
+        true
+    }
+
+    /// The GPU address of byte 0 of `buf`; the buffer joins the set declared resident for row-table dispatches.
+    fn device_address(&self, buf: &Buffer) -> Option<u64> {
+        let mb = self.mbuf(buf).ok()?;
+        let key = mb.mtl.gpuAddress();
+        let mut ind = self.indirect.lock().unwrap();
+        let known = ind.bufs.get(&key).and_then(|w| w.load()).is_some_and(|b| std::ptr::eq(&*b, &*mb.mtl));
+        if !known {
+            ind.bufs.insert(key, objc2::rc::Weak::new(&mb.mtl));
+            ind.version += 1;
+        }
+        Some(key + mb.base as u64)
     }
 
     /// `m == 1` matmuls go to the decode GEMV (`NAX_MIN_M = 2`) and `t == 1` attention to `AttnDecode`; rows of chunks
@@ -741,6 +814,9 @@ impl Backend for MetalBackend {
             && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
+        }
+        if call.rows.is_some() {
+            return self.launch_rowtab(kernel, call);
         }
         if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
             return self.launch_matmul_rows(call);

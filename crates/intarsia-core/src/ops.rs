@@ -363,13 +363,13 @@ pub struct OpCall {
 }
 
 /// The per-sequence buffers of a batched decode call, as a table of device addresses that the host rewrites before every step
-/// (so a captured graph replays with any set of sequences). Defined for `GdnConv`, `GdnDeltaRule`, `KvAppend`, `AttnDecode`.
+/// (so a captured graph replays with any set of sequences). Defined for `GdnConv`, `GdnDeltaRule`, `KvAppend`, `AttnDecode`, `QkNormRopeKv`.
 ///
 /// Such a call is the one-row (`T = 1`) call of the solo decode step on each of `rows` rows at once: row `r` of the activations
 /// (`[rows, ...]`) is the single input row of sequence `r`, and the tensors that name a sequence's state (the conv and delta
 /// state, the K / V cache) describe **row 0's buffers** and serve as shape / dtype carriers only: the kernel reads, and for
 /// `GdnConv` / `GdnDeltaRule` / `KvAppend` writes, the buffer whose address is table entry `[r, index]` (plus `byte_off`) for
-/// row `r`. `AttnDecode` reads the K cache at entry `index` and the V cache at `index + 1`. `KvAppend`, `AttnDecode` and
+/// row `r`. `AttnDecode` and `QkNormRopeKv` use the K cache at entry `index` and the V cache at `index + 1`. `KvAppend`, `AttnDecode` and
 /// `Rope` also take the per-row positions in `OpCall::pos` (i32 `[rows]`). Row `r` is bitwise the solo one-row call on
 /// sequence `r` (G-B for the row-table kernels, `tests/row_tables.rs`).
 #[derive(Clone, Debug)]
@@ -471,17 +471,17 @@ impl OpCall {
             }
             // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(1);
-            let per_token = p.numel() == t && t > 1 && matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode);
+            let per_token = p.numel() == t && t > 1 && matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv);
             if p.dtype != DType::I32 || (p.numel() != 1 && !per_token) {
                 return Err(Error::invalid(format!("{}: device position must be i32 [1] (or [T] for a batch of decode rows), got {} {:?}", self.op, p.dtype, p.shape)));
             }
-            if per_token && matches!(self.op, Op::KvAppend | Op::AttnDecode) && self.rows.is_none() {
+            if per_token && matches!(self.op, Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) && self.rows.is_none() {
                 return Err(Error::invalid(format!("{}: per-token positions need a row table", self.op)));
             }
         }
         if let Some(r) = &self.rows {
             r.ptrs.check_bounds()?;
-            if !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode) {
+            if !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no row table", self.op)));
             }
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
@@ -490,14 +490,14 @@ impl OpCall {
                 || r.rows != t
                 || r.rows == 0
                 || r.index >= r.stride
-                || (matches!(self.op, Op::AttnDecode) && r.index + 1 >= r.stride)
+                || (matches!(self.op, Op::AttnDecode | Op::QkNormRopeKv) && r.index + 1 >= r.stride)
             {
                 return Err(Error::invalid(format!(
                     "{}: row table {:?} {:?} rows {} stride {} index {} does not fit a call over {t} rows",
                     self.op, r.ptrs.dtype, r.ptrs.shape, r.rows, r.stride, r.index
                 )));
             }
-            if matches!(self.op, Op::KvAppend | Op::AttnDecode) && self.pos.is_none() {
+            if matches!(self.op, Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) && self.pos.is_none() {
                 return Err(Error::invalid(format!("{}: a row-table call needs the per-row positions (`pos`)", self.op)));
             }
         }
