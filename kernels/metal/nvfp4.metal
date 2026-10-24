@@ -52,6 +52,31 @@ inline float nv_dot16(uint2 v, const thread float* x) {
     return t;
 }
 
+// the weight half of `nv_dot16`: the 16 codes as floats in the order the fma chain consumes them (word i, nibble k: elements
+// 8i + k then 8i + k + 4)
+inline void nv_dec16(uint2 v, thread float* cw) {
+    const uint w[2] = {v.x, v.y};
+    for (int i = 0; i < 2; ++i) {
+        for (int k = 0; k < 4; ++k) {
+            const float2 c = nv_x2((w[i] >> (4 * k)) & 0x000F000Fu);
+            cw[8 * i + 2 * k] = c.x;
+            cw[8 * i + 2 * k + 1] = c.y;
+        }
+    }
+}
+
+// the activation half: the chain of `nv_dot16` over decoded codes
+inline float nv_dot16d(const thread float* cw, const thread float* x) {
+    float t = 0.0f;
+    for (int i = 0; i < 2; ++i) {
+        for (int k = 0; k < 4; ++k) {
+            t = fma(cw[8 * i + 2 * k], x[8 * i + k], t);
+            t = fma(cw[8 * i + 2 * k + 1], x[8 * i + k + 4], t);
+        }
+    }
+    return t;
+}
+
 template <int MB, int RS, typename OutT>
 inline void nv_gemv_impl(device const ushort* x, device const uchar* w, device const uchar* bs, device const float* gs,
                          device OutT* out, constant OpP& p, uint2 tg, uint sg, uint lane) {
@@ -77,18 +102,38 @@ inline void nv_gemv_impl(device const ushort* x, device const uchar* w, device c
             wv[r] = *(device const uint2*)(wr[r] + (ulong)u * 8);
             s[r] = nv_scale(br[r][u]);
         }
-        for (int m = 0; m < MB; ++m) {
-            if (m >= (int)rows) break;
-            device const packed_ushort4* xp = (device const packed_ushort4*)(x + p.s0 + (ulong)(m0 + m) * K + (ulong)u * 16);
-            float xf[16];
-            for (int q = 0; q < 4; ++q) {
-                const ushort4 v = ushort4(xp[q]);
-                xf[4 * q] = bf2f(v.x);
-                xf[4 * q + 1] = bf2f(v.y);
-                xf[4 * q + 2] = bf2f(v.z);
-                xf[4 * q + 3] = bf2f(v.w);
+        if constexpr (MB > 1) {
+            // multi-row forms: decode each weight block ONCE and apply it to every activation row; per row the same fma chain
+            // over the same values in the same order as `nv_dot16`, so every row's bits are those of the one-row kernel
+            float cw[RS][16];
+            for (int r = 0; r < RS; ++r) nv_dec16(wv[r], cw[r]);
+            for (int m = 0; m < MB; ++m) {
+                if (m >= (int)rows) break;
+                device const packed_ushort4* xp = (device const packed_ushort4*)(x + p.s0 + (ulong)(m0 + m) * K + (ulong)u * 16);
+                float xf[16];
+                for (int q = 0; q < 4; ++q) {
+                    const ushort4 v = ushort4(xp[q]);
+                    xf[4 * q] = bf2f(v.x);
+                    xf[4 * q + 1] = bf2f(v.y);
+                    xf[4 * q + 2] = bf2f(v.z);
+                    xf[4 * q + 3] = bf2f(v.w);
+                }
+                for (int r = 0; r < RS; ++r) acc[r][m] = fma(nv_dot16d(cw[r], xf), s[r], acc[r][m]);
             }
-            for (int r = 0; r < RS; ++r) acc[r][m] = fma(nv_dot16(wv[r], xf), s[r], acc[r][m]);
+        } else {
+            for (int m = 0; m < MB; ++m) {
+                if (m >= (int)rows) break;
+                device const packed_ushort4* xp = (device const packed_ushort4*)(x + p.s0 + (ulong)(m0 + m) * K + (ulong)u * 16);
+                float xf[16];
+                for (int q = 0; q < 4; ++q) {
+                    const ushort4 v = ushort4(xp[q]);
+                    xf[4 * q] = bf2f(v.x);
+                    xf[4 * q + 1] = bf2f(v.y);
+                    xf[4 * q + 2] = bf2f(v.z);
+                    xf[4 * q + 3] = bf2f(v.w);
+                }
+                for (int r = 0; r < RS; ++r) acc[r][m] = fma(nv_dot16(wv[r], xf), s[r], acc[r][m]);
+            }
         }
     }
     const float scale = gs[0] * NV_FOLD;

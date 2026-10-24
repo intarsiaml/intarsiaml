@@ -79,6 +79,27 @@ inline float fp8_dot16(uint2 a, uint2 b, const thread float* x) {
     return nan ? as_type<float>(0x7FC00000u) : t;
 }
 
+// the weight half of `fp8_dot16`: 16 e4m3 bytes -> 16 floats (value / 256, element order 0..15) and the NaN flag
+inline void fp8_dec16(uint2 a, uint2 b, thread float* wv, thread bool& nan) {
+    const uint v[4] = {a.x, a.y, b.x, b.y};
+    nan = false;
+    for (int j = 0; j < 4; ++j) {
+        const float2 p = fp8_x2(v[j]), q = fp8_x2(v[j] >> 8);
+        wv[4 * j] = p.x;
+        wv[4 * j + 1] = q.x;
+        wv[4 * j + 2] = p.y;
+        wv[4 * j + 3] = q.y;
+        nan = nan || fp8_word_nan(v[j]);
+    }
+}
+
+// the activation half: the same fma chain as `fp8_dot16` over decoded weights
+inline float fp8_dot16d(const thread float* wv, bool nan, const thread float* x) {
+    float t = 0.0f;
+    for (int e = 0; e < 16; ++e) t = fma(wv[e], x[e], t);
+    return nan ? as_type<float>(0x7FC00000u) : t;
+}
+
 // bf16 pair in a word -> two floats
 inline void fp8_unpack2(uint w, thread float* o) {
     o[0] = as_type<float>(w << 16);
@@ -138,20 +159,44 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
         for (int j = 0; j < UN; ++j) {
             const uint u = u0 + 32 * j;
             if (u >= nch) break;
-            for (int m = 0; m < MB; ++m) {
-                if (m >= (int)rows) break;
-                threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
-                float xf[16];
-                const uint4 x0 = xp[0], x1 = xp[1];
-                fp8_unpack2(x0.x, xf);
-                fp8_unpack2(x0.y, xf + 2);
-                fp8_unpack2(x0.z, xf + 4);
-                fp8_unpack2(x0.w, xf + 6);
-                fp8_unpack2(x1.x, xf + 8);
-                fp8_unpack2(x1.y, xf + 10);
-                fp8_unpack2(x1.z, xf + 12);
-                fp8_unpack2(x1.w, xf + 14);
-                for (int r = 0; r < RS; ++r) acc[r][m] += fp8_dot16(wa[j][r], wb[j][r], xf);
+            if constexpr (MB > 1) {
+                // multi-row forms: decode each weight chunk ONCE and apply it to every activation row (the e4m3 decode is the
+                // dominant ALU cost; per row it is the same fma chain over the same values in the same order as `fp8_dot16`,
+                // so every row's bits are those of the one-row kernel)
+                float wv[RS][16];
+                bool wnan[RS];
+                for (int r = 0; r < RS; ++r) fp8_dec16(wa[j][r], wb[j][r], wv[r], wnan[r]);
+                for (int m = 0; m < MB; ++m) {
+                    if (m >= (int)rows) break;
+                    threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                    float xf[16];
+                    const uint4 x0 = xp[0], x1 = xp[1];
+                    fp8_unpack2(x0.x, xf);
+                    fp8_unpack2(x0.y, xf + 2);
+                    fp8_unpack2(x0.z, xf + 4);
+                    fp8_unpack2(x0.w, xf + 6);
+                    fp8_unpack2(x1.x, xf + 8);
+                    fp8_unpack2(x1.y, xf + 10);
+                    fp8_unpack2(x1.z, xf + 12);
+                    fp8_unpack2(x1.w, xf + 14);
+                    for (int r = 0; r < RS; ++r) acc[r][m] += fp8_dot16d(wv[r], wnan[r], xf);
+                }
+            } else {
+                for (int m = 0; m < MB; ++m) {
+                    if (m >= (int)rows) break;
+                    threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                    float xf[16];
+                    const uint4 x0 = xp[0], x1 = xp[1];
+                    fp8_unpack2(x0.x, xf);
+                    fp8_unpack2(x0.y, xf + 2);
+                    fp8_unpack2(x0.z, xf + 4);
+                    fp8_unpack2(x0.w, xf + 6);
+                    fp8_unpack2(x1.x, xf + 8);
+                    fp8_unpack2(x1.y, xf + 10);
+                    fp8_unpack2(x1.z, xf + 12);
+                    fp8_unpack2(x1.w, xf + 14);
+                    for (int r = 0; r < RS; ++r) acc[r][m] += fp8_dot16(wa[j][r], wb[j][r], xf);
+                }
             }
         }
     }

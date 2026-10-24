@@ -425,3 +425,50 @@ kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
         out[row] = gi == 0xffffffffu ? 0 : (int)gi;
     }
 }
+
+// ---- Row tables (batched decode, lane mr3) -------------------------------------------------------------------------------
+// KvAppend on R rows at once: row r of `src` ([R,Nkv,D]) is the new K (or V) row of sequence r, appended to the cache whose
+// device address is entry [r, index] of the u64 row table at that sequence's own position posbuf[r] (the solo one-row call
+// on sequence r, bit for bit: a copy). bind: 0 src, 1 table, 2 pos (i32 [R]), 3 OpP: a = R, b = Nkv, c = D, d = cap,
+// e = stride, f = index; s0 skip of src.
+kernel void kv_append_bf16_rows(device const ushort* src [[buffer(0)]],
+                                device const ulong* tab [[buffer(1)]],
+                                device const int* posbuf [[buffer(2)]],
+                                constant OpP& p [[buffer(3)]],
+                                uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a * p.b * p.c) return;
+    const uint e = gid % p.c;
+    const uint h = (gid / p.c) % p.b;
+    const uint row = gid / (p.c * p.b);
+    const uint pos0 = (uint)posbuf[row];
+    if (pos0 >= p.d) return;  // a position past the cache is dropped, not written out of bounds
+    device ushort* cache = reinterpret_cast<device ushort*>(tab[(ulong)row * p.e + p.f]);
+    cache[((ulong)h * p.d + pos0) * p.c + e] = src[p.s0 + gid];
+}
+
+// Rope with one position per token (batched decode rows, each at its own position): token t is rotated at posbuf[t], the
+// solo one-row call's arithmetic. bind: 0 x [T,N,D], 1 out, 2 pos (i32 [T]), 3 OpP as rope_bf16 (e, f unused).
+kernel void rope_bf16_tokpos(device const ushort* x [[buffer(0)]],
+                             device ushort* out [[buffer(1)]],
+                             device const int* posbuf [[buffer(2)]],
+                             constant OpP& p [[buffer(3)]],
+                             uint gid [[thread_position_in_grid]]) {
+    const uint d = p.c;
+    if (gid >= p.a * p.b * d) return;
+    const uint i = gid % d;
+    const uint head = gid / d;  // t * N + n
+    const uint rd = p.d;
+    if (i >= rd) {
+        out[p.s1 + gid] = x[p.s0 + gid];
+        return;
+    }
+    const uint t = head / p.b;
+    const uint half_ = rd / 2;
+    const uint k = i < half_ ? i : i - half_;
+    const uint pos0 = (uint)posbuf[t];
+    const float ang = (float)(pos0 + 0u) * precise::pow(p.f0, -2.0f * (float)k / (float)rd);
+    const float s = precise::sin(ang), c = precise::cos(ang);
+    const ulong hb = (ulong)head * d;
+    const float x1 = bf2f(x[p.s0 + hb + k]), x2 = bf2f(x[p.s0 + hb + k + half_]);
+    out[p.s1 + gid] = f2bf(i < half_ ? x1 * c - x2 * s : x2 * c + x1 * s);
+}
