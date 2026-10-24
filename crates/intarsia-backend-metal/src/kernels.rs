@@ -729,8 +729,8 @@ mod tests {
 
     #[test]
     fn attention_is_registered_for_both_ops() {
-        // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 2)] {
+        // decode has the single-pass kernel (any even head_dim), the split-KV one (ATTN_DECODE_BF16_SPLITKV) and its row-table twin
+        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 3)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
@@ -805,6 +805,7 @@ mod tests {
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
+        "attn_decode_bf16_splitkv_rows:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_flash_nax:attn_prefill",
@@ -812,8 +813,11 @@ mod tests {
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",
         "gdn_conv_bf16:gdn_conv",
+        "gdn_conv_bf16_rows:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
+        "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "kv_append_bf16:kv_append",
+        "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
@@ -837,6 +841,7 @@ mod tests {
         "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
+        "qk_norm_rope_kv_bf16_rows:qk_norm_rope_kv",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
