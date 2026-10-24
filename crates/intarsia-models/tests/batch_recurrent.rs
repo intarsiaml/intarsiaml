@@ -412,7 +412,14 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
     }
     if matches!(v, Variant::Moe | Variant::MoeA8) {
         let want = if m.backend.name() == "metal" { "moe_experts_bf16_rows" } else { "rows" };
-        assert!(picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)), "{:?}", picks(&rec, Op::MoeExperts));
+        // on HIP a batched step of up to 4 rows runs the whole MoE block as the row-exact `moe_block_bf16_rows` (lane hr3), which replaces
+        // the experts op: one of the two must be a row-exact kernel
+        assert!(
+            picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)) || picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows")),
+            "{:?} {:?}",
+            picks(&rec, Op::MoeExperts),
+            picks(&rec, Op::MoeBlock)
+        );
         assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
     }
     // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
