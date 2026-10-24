@@ -104,11 +104,12 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
 #[test]
 fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), metal()) else { return };
-    let m = load(&dir, be, 8, 2048);
+    let m = load(&dir, be, 16, 2048);
     eprintln!("batch plan notes: {:?}", m.plan.notes);
-    // N = 2, 3, 4 (the gate), then up to the cap 8; 130 consecutive batched steps per size on the same, growing states
-    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222];
-    gate(&m, lens, vec![2, 3, 4, 5, 6, 7, 8], 130, (1000, 30000));
+    // N = 2, 3, 4 (the gate), then up to the cap 16 (9..=16 rows are two chunks of the 8-row GEMV / MoE kernels); 130
+    // consecutive batched steps per size on the same, growing states
+    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 1, 450, 77, 3, 190, 29, 601, 12];
+    gate(&m, lens, vec![2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 16], 130, (1000, 30000));
     // decode rows beside prefill chunks (the engine's busy chunk): the decode rows stay bitwise, the prefilled state equals
     // the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
@@ -183,7 +184,7 @@ fn real_35b_batched_engine_equals_the_local_engine() {
         reqs.into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
     };
     assert!(reference.iter().all(|o| o.ids.len() == 130));
-    for slots in [4usize, 8] {
+    for slots in [4usize, 8, 16] {
         let l = load_engine(&dir, be.clone(), &mk(Some(slots))).unwrap();
         assert_eq!(l.max_batch, slots);
         // one stream at a time: the batched engine at N = 1 is the local engine
@@ -211,9 +212,9 @@ fn real_35b_batched_engine_equals_the_local_engine() {
 fn real_35b_batch_step_timing() {
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), metal()) else { return };
-    let m = load(&dir, be, 8, 2048);
+    let m = load(&dir, be, 16, 2048);
     let tok = |i: usize| 1000 + 37 * i as u32;
-    let mut states: Vec<_> = (0..8)
+    let mut states: Vec<_> = (0..16)
         .map(|i| {
             let mut st = m.new_state().unwrap();
             let p: Vec<u32> = (0..900 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
@@ -230,7 +231,7 @@ fn real_35b_batch_step_timing() {
     }
     let solo = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
     eprintln!("TIMING solo step {solo:.2} ms ({:.1} tok/s)", 1e3 / solo);
-    for b in [2usize, 4, 8] {
+    for b in [2usize, 4, 8, 12, 16] {
         let ids: Vec<u32> = (0..b).map(tok).collect();
         let modes = vec![HeadMode::LastArgmax; b];
         let t0 = std::time::Instant::now();
@@ -254,8 +255,8 @@ fn real_35b_batch_step_timing() {
 fn real_35b_batch_step_profile() {
     use intarsia_core::model::HeadMode;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), metal()) else { return };
-    let (m, tel) = load_with(&dir, be, 8, 2048, 1);
-    let mut states: Vec<_> = (0..8)
+    let (m, tel) = load_with(&dir, be, 16, 2048, 1);
+    let mut states: Vec<_> = (0..16)
         .map(|i| {
             let mut st = m.new_state().unwrap();
             let p: Vec<u32> = (0..900 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
@@ -263,7 +264,7 @@ fn real_35b_batch_step_profile() {
             st
         })
         .collect();
-    for b in [1usize, 4, 8] {
+    for b in [1usize, 4, 8, 16] {
         let before = tel.snapshot().ops;
         let ids: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
         let modes = vec![HeadMode::LastArgmax; b];

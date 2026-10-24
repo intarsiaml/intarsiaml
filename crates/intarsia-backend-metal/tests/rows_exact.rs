@@ -187,7 +187,7 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
             // a NaN code in some weights on the second layout: the NaN path of the dot must agree too
             let w = rand_e4m3(n * k, 40 + si as u64, if wi == 1 { 997 } else { 0 });
             let wb = put_bytes(&be, w_off, &w);
-            for m in 2..=8usize {
+            for m in 2..=16usize {
                 for (ii, is) in [0.0f32, 0.37, 2.0].into_iter().enumerate() {
                     for f32_out in [false, true] {
                         let x_off = if (m + ii) % 2 == 0 { 0 } else { 2 };
@@ -265,7 +265,7 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
         for w_off in [8usize, 16] {
             let bufs =
                 (put_bytes(&be, w_off, &w), put_bytes(&be, 3, &bs), put_bytes(&be, 4, &0.00071f32.to_le_bytes()));
-            for m in 2..=8usize {
+            for m in 2..=16usize {
                 for f32_out in [false, true] {
                     let x_off = if m % 2 == 0 { 0 } else { 2 };
                     nv_case(&be, &bufs, w_off, n, k, m, f32_out, x_off, 1700 + (si * 100 + m) as u64);
@@ -350,7 +350,7 @@ fn moe_experts_rows_are_bitwise_the_one_token_call() {
         let dw = put_host(&be, &ex.down_w, w_off);
         let ds = put_host(&be, &ex.down_s, 0);
         let gs = put_host(&be, &ex.gscales, 0);
-        for t_rows in 1..=8usize {
+        for t_rows in 1..=16usize {
             let x = HostTensor::from_f32_as(DType::Bf16, &[t_rows, H], &rng.normal_vec(t_rows * H, 1.0));
             let xr = put_host(&be, &x, 0);
             for (name, ids, ws) in routings(&mut rng, t_rows) {
@@ -420,7 +420,7 @@ fn bf16_pair_rows_at_the_35b_pairs() {
             let w0 = rand_bf16(n0 * k, 3000 + si as u64);
             let w1 = rand_bf16(n1 * k, 3100 + si as u64);
             let (w0b, w1b) = (put_bytes(&be, w_off, &bf16_bytes(&w0)), put_bytes(&be, w_off, &bf16_bytes(&w1)));
-            for m in 2..=8usize {
+            for m in 2..=16usize {
                 let x = act_rows(m, k, 3200 + m as u64);
                 for x_off in [0usize, 8] {
                     let xb = put_bytes(&be, x_off, &bf16_bytes(&x));
@@ -488,7 +488,7 @@ fn bf_buf(be: &MetalBackend, n: usize, seed: u64) -> Buffer {
 fn row_parallel_kernels_do_not_depend_on_the_row_count() {
     let be = backend();
     let eps = OpAttrs { eps: 1e-6, w_offset: 0.0, ..Default::default() };
-    for m in 2..=8usize {
+    for m in 2..=16usize {
         // rmsnorm: hidden 2048 (block norms), [m * 32, 128] (the GDN gated norm), [m * 16, 256] (qk norm shape)
         for (rows_per, h) in [(1usize, 2048usize), (32, 128), (16, 256), (1, 4096)] {
             let n = m * rows_per;
@@ -690,7 +690,7 @@ fn rows_exact_registrations_are_pinned() {
     ] {
         let kern = be.kernels().into_iter().find(|x| x.name == name).unwrap();
         assert_eq!(kern.op, op);
-        for m in 1..=9usize {
+        for m in 1..=17usize {
             let s = ShapeInfo {
                 m,
                 k,
@@ -701,7 +701,7 @@ fn rows_exact_registrations_are_pinned() {
                 top_k: K,
                 ..ShapeInfo::default()
             };
-            assert_eq!(kern.accepts(&s), (2..=8).contains(&m), "{name} K={k} M={m}");
+            assert_eq!(kern.accepts(&s), (2..=16).contains(&m), "{name} K={k} M={m}");
         }
     }
 }

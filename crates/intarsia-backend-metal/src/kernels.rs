@@ -502,7 +502,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights(bf)
                     .when(|s| {
-                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                        (2..=crate::CHUNK_ROWS_MAX).contains(&s.m)
                             && s.out.is_none_or(|d| d == DType::Bf16)
                     })
                     .exact(Exactness::Deterministic)
@@ -514,7 +514,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights(bf)
                     .when(|s| {
-                        (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m)
+                        (2..=crate::CHUNK_ROWS_MAX).contains(&s.m)
                             && s.k % 8 == 0
                             && s.out == Some(DType::Bf16)
                     })
@@ -525,7 +525,7 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::multirow::LOGITS_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| (2..=crate::multirow::MR_MAX_REGISTERED).contains(&s.m))
+                    .when(|s| (2..=crate::CHUNK_ROWS_MAX).contains(&s.m))
                     .exact(Exactness::Deterministic)
                     .tol(F32_TOL)
                     .priority(-1)
@@ -642,7 +642,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::U8])
                     .when(|s| {
-                        (2..=crate::moe::ROWS_MAX).contains(&s.m)
+                        (2..=crate::CHUNK_ROWS_MAX).contains(&s.m)
                             && s.experts <= crate::moe::MAX_EXPERTS
                             && s.k % 16 == 0
                             && s.n % 16 == 0

@@ -222,6 +222,49 @@ pub struct MetalBackend {
     indirect: Mutex<Indirect>,
 }
 
+/// Most rows a row-exact multi-row kernel takes in one launch (the tile of its shader).
+pub const CHUNK_TILE: usize = 8;
+/// Most rows a row-exact multi-row call may have: more than [`CHUNK_TILE`] are launched as two chunks (`row_chunks`).
+pub const CHUNK_ROWS_MAX: usize = 16;
+
+/// Split a row-exact multi-row call of more than [`CHUNK_TILE`] rows into two calls of `ceil(m / 2)` and `floor(m / 2)` rows
+/// (both at least 2, the least a multi-row kernel serves). Every row of such a kernel is bitwise the one-row launch on that
+/// row alone, whatever the other rows are (tests/rows_exact.rs), so the split changes no bit. Row tensors are sliced; weights,
+/// scales and the scratch are shared (the launches are stream-ordered).
+fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
+    let is_rows = matches!(
+        kernel,
+        multirow::MATMUL_BF16_GEMV_ROWS
+            | multirow::MATMUL_PAIR_BF16_GEMV_ROWS
+            | multirow::LOGITS_BF16_GEMV_ROWS
+            | fp8::MATMUL_FP8_GEMV_ROWS
+            | nvfp4::MATMUL_NVFP4_GEMV_ROWS
+            | moe::MOE_EXPERTS_BF16_ROWS
+    );
+    let m = call.inputs.first()?.shape.first().copied()?;
+    if !is_rows || m <= CHUNK_TILE || m > CHUNK_ROWS_MAX || call.rows.is_some() {
+        return None;
+    }
+    // inputs that carry the rows (leading dim m): x (and for the experts: ids, weights); outputs: all
+    let row_inputs = if call.op == Op::MoeExperts { 3 } else { 1 };
+    let first = m.div_ceil(2);
+    Some(
+        [(0, first), (first, m - first)]
+            .into_iter()
+            .map(|(start, n)| {
+                let mut c = call.clone();
+                for t in c.inputs.iter_mut().take(row_inputs) {
+                    *t = t.rows(start, n);
+                }
+                for t in c.outputs.iter_mut() {
+                    *t = t.rows(start, n);
+                }
+                c
+            })
+            .collect(),
+    )
+}
+
 /// The set of indirectly addressed buffers, held weakly (a buffer the model dropped leaves the set).
 #[derive(Default)]
 struct Indirect {
@@ -629,6 +672,12 @@ impl Backend for MetalBackend {
         "metal"
     }
 
+    /// 16 rows: the multi-row GEMV / MoE kernels take 8 rows per launch and a batched step of 9..=16 rows runs two launches of
+    /// them (`row_chunks`), every row bitwise the one-row call; the row-table kernels take 16 (tests/row_tables.rs).
+    fn batch_row_cap(&self) -> usize {
+        CHUNK_ROWS_MAX
+    }
+
     /// Batched decode steps launch `GdnConv`, `GdnDeltaRule`, `KvAppend`, `QkNormRopeKv` and `AttnDecode` once for all rows
     /// with a table of device addresses (`kernels/metal`, [`rowtab`]); `INTARSIA_ROW_TABLES=0` turns it off per model.
     fn supports_row_tables(&self) -> bool {
@@ -752,8 +801,15 @@ impl Backend for MetalBackend {
         self.gpu_zero(dst)
     }
 
-    fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+    fn launch(&self, kernel: &str, call: &OpCall, s: StreamId) -> Result<()> {
         call.check()?;
+        if let Some(chunks) = row_chunks(kernel, call) {
+            // 9..=16 rows of a row-exact multi-row kernel: two launches of at most 8 rows, each row bitwise the one-row call
+            for c in &chunks {
+                self.launch(kernel, c, s)?;
+            }
+            return Ok(());
+        }
         {
             let mut st = self.stream.lock().unwrap();
             if st.prof.is_some() {
