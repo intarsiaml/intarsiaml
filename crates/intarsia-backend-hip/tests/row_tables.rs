@@ -462,3 +462,91 @@ fn control_swapped_table_entries_are_detected() {
     };
     assert_ne!(run([5, 250]), run([250, 5]), "swapped positions must change the attention output");
 }
+
+/// Negative controls for the other three row-table kernels (the comparison can fail): the delta rule with two rows' state entries
+/// swapped, the KV append with two rows' cache entries swapped, and rope with two rows' positions swapped each differ from the solo
+/// launches.
+#[test]
+fn control_swapped_entries_are_detected_in_delta_append_and_rope() {
+    let Some(rig) = Rig::new("control2") else { return };
+    let mut rng = SplitMix64::new(19);
+    // delta rule: rows read each other's recurrent state
+    let (hk, hv, dk, dv, m) = (4usize, 8usize, 128usize, 64usize, 2usize);
+    let c = 2 * hk * dk + hv * dv;
+    let off = 4096usize;
+    let qkv = nasty(&mut rng, m * c, 1.0);
+    let (a, b) = (rng.normal_vec(m * hv, 1.0), rng.normal_vec(m * hv, 1.0));
+    let (a_log, dt) = (rng.normal_vec(hv, 0.5), rng.normal_vec(hv, 0.5));
+    let (qt, at, bt, alt, dtt) = (rig.bf16(&qkv, &[m, c]), rig.bf16(&a, &[m, hv]), rig.bf16(&b, &[m, hv]), rig.bf16(&a_log, &[hv]), rig.bf16(&dt, &[hv]));
+    let init: Vec<Vec<u8>> = (0..m)
+        .map(|_| {
+            let mut v = vec![0u8; off];
+            v.extend(HostTensor::from_f32_as(DType::F32, &[hv * dv * dk], &rng.normal_vec(hv * dv * dk, 0.3)).data);
+            v
+        })
+        .collect();
+    let attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+    let view = |buf: &TensorRef| {
+        let mut s = TensorRef::new(buf.buf.clone(), DType::F32, &[hv, dv, dk]);
+        s.offset = off;
+        s
+    };
+    let mut want_o = Vec::new();
+    for r in 0..m {
+        let st = rig.put_bytes(&init[r], DType::U8, &[init[r].len()]);
+        let o = rig.poison(hv * dv * 2, DType::Bf16, &[1, hv, dv]);
+        rig.launch(
+            "gdn_delta_rule_bf16_v2",
+            OpCall::new(Op::GdnDeltaRule, vec![rows_of(&qt, r), rows_of(&at, r), rows_of(&bt, r), alt.clone(), dtt.clone()], vec![o.clone(), view(&st)], attrs.clone()),
+        );
+        want_o.extend(rig.down(&o));
+    }
+    let sts: Vec<TensorRef> = (0..m).map(|r| rig.put_bytes(&init[r], DType::U8, &[init[r].len()])).collect();
+    let entries: Vec<Vec<&TensorRef>> = [1usize, 0].iter().map(|&r| vec![&sts[r], &sts[r]]).collect();
+    let o = rig.poison(m * hv * dv * 2, DType::Bf16, &[m, hv, dv]);
+    let mut call = OpCall::new(Op::GdnDeltaRule, vec![qt.clone(), at.clone(), bt.clone(), alt.clone(), dtt.clone()], vec![o.clone(), view(&sts[0])], attrs);
+    call.rows = Some(rig.tab(rig.table(&entries, 2), 0, off));
+    rig.launch("gdn_delta_rule_bf16_v2_rows", call);
+    assert_ne!(rig.down(&o), want_o, "swapped delta-state entries must change the output");
+
+    // KV append: row 0 writes into row 1's cache
+    let (nkv, d, cap) = (2usize, 256usize, 80usize);
+    let newkv = rig.bf16(&nasty(&mut rng, m * nkv * d, 1.0), &[m, nkv, d]);
+    let pos = [5i32, 40];
+    let init: Vec<Vec<f32>> = (0..m).map(|_| nasty(&mut rng, nkv * cap * d, 1.0)).collect();
+    let mut want = Vec::new();
+    for r in 0..m {
+        let cache = rig.bf16(&init[r], &[nkv, cap, d]);
+        let attrs = OpAttrs { pos0: pos[r] as usize, kv_cap: cap, n_kv_heads: nkv, head_dim: d, ..Default::default() };
+        rig.launch("kv_append_bf16", OpCall::new(Op::KvAppend, vec![rows_of(&newkv, r)], vec![cache.clone()], attrs));
+        want.push(rig.down(&cache));
+    }
+    let caches: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&init[r], &[nkv, cap, d])).collect();
+    let entries: Vec<Vec<&TensorRef>> = [1usize, 0].iter().map(|&r| vec![&caches[r], &caches[r]]).collect();
+    let post = rig.put_bytes(&pos.iter().flat_map(|p| p.to_le_bytes()).collect::<Vec<u8>>(), DType::I32, &[m]);
+    let attrs = OpAttrs { kv_cap: cap, n_kv_heads: nkv, head_dim: d, ..Default::default() };
+    let mut call = OpCall::new(Op::KvAppend, vec![newkv.clone()], vec![caches[0].clone()], attrs);
+    call.rows = Some(rig.tab(rig.table(&entries, 2), 1, 0));
+    call.pos = Some(post);
+    rig.launch("kv_append_bf16_rows", call);
+    assert_ne!(rig.down(&caches[0]), want[0], "swapped cache entries must change the cache");
+    assert_ne!(rig.down(&caches[1]), want[1], "swapped cache entries must change the cache");
+
+    // rope: the rows' positions swapped
+    let (n, d, rd) = (16usize, 256usize, 64usize);
+    let xt = rig.bf16(&nasty(&mut rng, m * n * d, 1.0), &[m, n, d]);
+    let pos = [3i32, 977];
+    let mut want = Vec::new();
+    for r in 0..m {
+        let o = rig.poison(n * d * 2, DType::Bf16, &[1, n, d]);
+        let attrs = OpAttrs { pos0: pos[r] as usize, theta: 1.0e7, head_dim: d, rotary_dim: rd, ..Default::default() };
+        rig.launch("rope_bf16", OpCall::new(Op::Rope, vec![rows_of(&xt, r)], vec![o.clone()], attrs));
+        want.extend(rig.down(&o));
+    }
+    let post = rig.put_bytes(&[pos[1], pos[0]].iter().flat_map(|p| p.to_le_bytes()).collect::<Vec<u8>>(), DType::I32, &[m]);
+    let o = rig.poison(m * n * d * 2, DType::Bf16, &[m, n, d]);
+    let mut call = OpCall::new(Op::Rope, vec![xt.clone()], vec![o.clone()], OpAttrs { theta: 1.0e7, head_dim: d, rotary_dim: rd, ..Default::default() });
+    call.pos = Some(post);
+    rig.launch("rope_bf16", call);
+    assert_ne!(rig.down(&o), want, "swapped positions must change the rope output");
+}
