@@ -40,8 +40,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mp/moe-prefill",
   "base_commit": "6189466f",
-  "head_commit": null,
-  "pr": null,
+  "head_commit": "eb918230",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/129",
   "files": [
    "kernels/cuda/moe_w4a16.cu",
    "crates/intarsia-backend-cuda/tests/moe_w4a16.rs",
