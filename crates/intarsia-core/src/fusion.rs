@@ -156,6 +156,33 @@ pub const FUSIONS: &[Fusion] = &[
         chain: &[Op::MoeTopk, Op::MoeExperts, Op::MatmulNvfp4Glu, Op::SharedDownCombine],
         tests: &["crates/intarsia-backend-hip/tests/moe_block.rs::moe_block_is_bitwise_the_chain"],
     },
+    // HIP's attention prologue and GatedDeltaNet folds (core-op fusion phases 2 and 3; docs/results/2026-10-19-core-op-fusion-p2.md).
+    // The solo step keeps them; a batched step with row tables (`OpCall::rows`, lane hr3,
+    // docs/results/2026-10-24-hr3-hip-batching-r3.md) runs their chains as one launch per op for all rows.
+    Fusion {
+        backend: "hip",
+        fused: Op::GateSplitQkNormRopeKv,
+        chain: &[Op::GateSplit, Op::QkNormRopeKv],
+        tests: &["crates/intarsia-backend-hip/tests/fusion_p2.rs::gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue"],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::QkNormRopeKv,
+        chain: &[Op::QkNorm, Op::Rope, Op::QkNorm, Op::Rope, Op::KvAppend, Op::KvAppend],
+        tests: &[
+            "crates/intarsia-backend-hip/tests/qk_rope_kv.rs::qk_norm_rope_kv_is_bitwise_the_unfused_chain",
+            "crates/intarsia-backend-hip/tests/qk_rope_kv.rs::qk_norm_rope_kv_many_draws_bitwise",
+        ],
+    },
+    Fusion {
+        backend: "hip",
+        fused: Op::GdnConvDelta,
+        chain: &[Op::GdnConv, Op::GdnDeltaRule],
+        tests: &[
+            "crates/intarsia-backend-hip/tests/fusion_p2.rs::gdn_conv_delta_is_bitwise_conv_then_delta_rule",
+            "crates/intarsia-backend-hip/tests/fusion_p2.rs::gdn_conv_delta_many_draws_bitwise",
+        ],
+    },
 ];
 
 /// The proven fusion of `fused` on `backend`, if any.

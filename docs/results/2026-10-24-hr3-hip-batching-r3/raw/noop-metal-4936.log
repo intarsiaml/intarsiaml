@@ -1,0 +1,54 @@
+fleetq: #4936 waiting (#3 in line): in line behind #4921 "mq6: #126 Metal no-op vs main, kernels test metal, batch_metal_real 35B (merged head 6a8f0c1d)" (claude-f31ccf91-mq6) on endor
+fleetq: #4936 waiting (#2 in line): endor is held exclusively by #4921 "mq6: #126 Metal no-op vs main, kernels test metal, batch_metal_real 35B (merged head 6a8f0c1d)" (claude-f31ccf91-mq6); then in line behind #4922 "c8k: f64 CPU continue oracles (12k prompts, reuse split 9500)" (claude-f31ccf91-c8k) on endor
+fleetq: #4936 waiting (#1 in line): needs 30 GB on endor; 15 GB free of 110
+fleetq: #4936 running on endor: bash -c '/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/hr3/metal-noop.sh; /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/hr3/metal-gen.sh'
+fleetq: #4936 went ahead of the line and must end within 8h55m (by Sat 11:00); it is stopped then
+== build main
+    Finished `release` profile [optimized] target(s) in 0.26s
+== build dev
+    Finished `release` profile [optimized] target(s) in 9.85s
+plan35 text: byte-identical (    2404 B)
+plan35 json: byte-identical (   10605 B)
+ids35: DIFFER or empty
+plan8 text: byte-identical (    1342 B)
+plan8 json: byte-identical (    8371 B)
+ids8: DIFFER or empty
+== tests on the branch
+  62 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   8 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 thread 'ordinary_calls_pick_what_they_picked_before_the_rows_kernels' (174555704) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:178:5:
+   1 thread 'exact_rows_calls_pick_the_rows_kernels_only' (174555703) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:186:5:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.84s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test alternating_rows_and_batches_do_not_recapture ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1123.85s
+== done
+ids35: identical (     256 ids, sha 67c1a0de)
+text35: identical
+ids8: identical (     256 ids, sha e2c61289)
+text8: identical
+== done
+fleetq: #4936 done (exit 0)

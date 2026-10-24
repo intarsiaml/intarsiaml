@@ -1,0 +1,40 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+    Finished `release` profile [optimized] target(s) in 0.73s
+     Running tests/row_tables.rs (/target/release/deps/row_tables-446060fcdc336936)
+
+running 7 tests
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 2228224 bytes identical to the solo launches (M 1..=16, 2 shapes, positions 0..1199)
+ok
+test control_swapped_table_entries_are_detected ... ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_v2_rows: 323231744 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test gdn_row_tables_are_the_solo_fused_conv_delta ... G-B gdn_conv_bf16_rows + gdn_delta_rule_bf16_v2_rows: 299696128 bytes identical to the solo fused gdn_conv_delta_bf16 (M 1..=16)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.27s
+
