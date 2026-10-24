@@ -344,7 +344,10 @@ const ROW_PARALLEL_OPS: [Op; 15] = [
 /// Ops the batched hybrid step may run either once for all rows (a multi-row kernel exists) or once per row (only the
 /// solo step's one-row kernel exists: the rows then run it one after another, bitwise the solo step but without sharing the
 /// weight read).
-const WIDE_OR_PER_ROW_OPS: [Op; 1] = [Op::GatedRmsnormMatmulFp8];
+///
+/// `GateSplit` is the head of HIP's `GateSplitQkNormRopeKv` fold (`crate::fusion`): a step that folds it per sequence (row tables off,
+/// or a row-table fallback) runs the chain once per row, a step with row tables runs the split once over all rows.
+const WIDE_OR_PER_ROW_OPS: [Op; 2] = [Op::GatedRmsnormMatmulFp8, Op::GateSplit];
 
 /// A batched step must be the solo decode step with its row-parallel ops widened. `decode` and `batch` are the
 /// `(op, kernel)` calls of the solo step and of a `rows`-row batched step, both at position 0. Two rules:
@@ -980,6 +983,42 @@ mod tests {
         check_batch_ops("cuda", &rows, &solo_unfused, &two, 2).unwrap();
         // a missing per-row call (the delta rule ran fewer times than rows) is refused too
         assert!(check_batch_ops("cuda", &rows, &decode, &batch(2), 3).is_err());
+    }
+
+    /// HIP's attention prologue fold (lane hr3): the solo step runs `GateSplitQkNormRopeKv` and `GdnConvDelta`; a batched step with row
+    /// tables runs their chains (one gate split over all rows, the per-row norms / rope / appends / GDN calls), a step without runs the
+    /// folds once per row. Both are the same work; a missing row is not.
+    #[test]
+    fn batch_check_accepts_hip_folds_per_row_or_as_row_table_chains() {
+        let decode = calls(&[
+            (Op::GateSplitQkNormRopeKv, "gate_split_qk_norm_rope_kv_bf16"),
+            (Op::GdnConvDelta, "gdn_conv_delta_bf16"),
+            (Op::AttnDecode, "attn_decode_bf16_splitkv"),
+        ]);
+        let rep = |op: Op, k: &str, n: usize| std::iter::repeat((op, k.to_string())).take(n);
+        let rows = |k: &str| k.ends_with("_rows");
+        for r in [2usize, 3, 16] {
+            let per_row: Vec<(Op, String)> = rep(Op::GateSplitQkNormRopeKv, "gate_split_qk_norm_rope_kv_bf16", r)
+                .chain(rep(Op::GdnConvDelta, "gdn_conv_delta_bf16", r))
+                .chain(rep(Op::AttnDecode, "attn_decode_bf16_splitkv", r))
+                .collect();
+            check_batch_ops("hip", &rows, &decode, &per_row, r).unwrap();
+            let chains: Vec<(Op, String)> = rep(Op::GateSplit, "gate_split_bf16", 1)
+                .chain(rep(Op::QkNorm, "qk_norm_bf16", 2 * r))
+                .chain(rep(Op::Rope, "rope_bf16", 2 * r))
+                .chain(rep(Op::KvAppend, "kv_append_bf16_rows", 2 * r))
+                .chain(rep(Op::GdnConv, "gdn_conv_bf16_rows", r))
+                .chain(rep(Op::GdnDeltaRule, "gdn_delta_rule_bf16_v2_rows", r))
+                .chain(rep(Op::AttnDecode, "attn_decode_bf16_splitkv_rows", r))
+                .collect();
+            check_batch_ops("hip", &rows, &decode, &chains, r).unwrap();
+            // a row short is refused
+            let short: Vec<(Op, String)> = chains.iter().filter(|(o, _)| *o != Op::AttnDecode).cloned().chain(rep(Op::AttnDecode, "attn_decode_bf16_splitkv_rows", r - 1)).collect();
+            assert!(check_batch_ops("hip", &rows, &decode, &short, r).is_err());
+        }
+        // the chains are not accepted on a backend without the fusion entries
+        let chains: Vec<(Op, String)> = rep(Op::GateSplit, "gate_split_bf16", 1).collect();
+        assert!(check_batch_ops("cuda", &rows, &decode, &chains, 2).is_err());
     }
 
     #[test]
