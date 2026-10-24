@@ -192,6 +192,9 @@ impl OpRunner for ExecRunner<'_> {
     fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
         self.m.try_fused(op, inputs, outputs, attrs, self.profile)
     }
+    fn fused_available(&self, op: Op, inputs: &[TensorRef], outputs: &[TensorRef], attrs: &OpAttrs) -> bool {
+        self.m.fused_ok(&OpCall::new(op, inputs.to_vec(), outputs.to_vec(), attrs.clone()))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
