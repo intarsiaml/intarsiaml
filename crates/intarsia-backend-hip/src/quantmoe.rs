@@ -161,11 +161,16 @@ pub fn moe_block_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
         && s.out == Some(DType::Bf16)
 }
 
-/// The shapes `moe_block_bf16_rows` serves: the same weights and widths as `moe_block_shape_ok`, 1..=`ROWS_MAX` tokens at any K <= 8.
+/// Most rows for which the model takes `moe_block_bf16_rows`. The kernel is row-exact for 1..=`ROWS_MAX` tokens (tests/moe_block.rs), but
+/// it reads each token's experts separately while the unfused `moe_experts_bf16_rows` shares an expert's weights between the tokens routed
+/// to it, so past a few rows the fused block is slower (35B model-loop step, docs/results/2026-10-24-hr3-hip-batching-r3.md section 4).
+pub const MOE_BLOCK_ROWS_MAX: usize = 4;
+
+/// The shapes `moe_block_bf16_rows` serves: the same weights and widths as `moe_block_shape_ok`, 1..=`MOE_BLOCK_ROWS_MAX` tokens at any K <= 8.
 pub fn moe_block_rows_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
     let mut one = s.clone();
     one.m = 1;
-    s.m >= 1 && s.m <= crate::kernels::ROWS_MAX && moe_block_shape_ok(&one)
+    s.m >= 1 && s.m <= MOE_BLOCK_ROWS_MAX && moe_block_shape_ok(&one)
 }
 
 pub fn all() -> Vec<KernelImpl> {
