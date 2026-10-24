@@ -1,20 +1,20 @@
-fleetq: #4853 waiting (#3 in line): in line behind #4849 "mp: gates A (acc-short + 3 KL, PF=1)" (claude-f31ccf91-mp) on spark1
-fleetq: #4853 waiting (#2 in line): in line behind #4851 "mp: SASS compare PF=false kernels vs main" (claude-f31ccf91-mp) on spark1
-fleetq: #4853 waiting (#1 in line): needs cpu quiet on spark1, but #4851 "mp: SASS compare PF=false kernels vs main" (claude-f31ccf91-mp) loads it
-fleetq: #4853 running on spark1: ssh spark1 'bash ~/intarsia-decfuse/hr3-cuda-noop.sh'
-fleetq: #4853 went ahead of the line and must end within 13h50m (by Sat 11:00); it is stopped then
+fleetq: #4937 waiting (#4 in line): in line behind #4910 "mp: FINAL unit tests + kernels test (PF unset and PF=1)" (claude-f31ccf91-mp) on spark1
+fleetq: #4937 waiting (#4 in line): in line behind #4910 "mp: FINAL unit tests + kernels test (PF unset and PF=1)" (claude-f31ccf91-mp) on spark1; #4910 has no estimated start, so nothing can go first by ending before it
+fleetq: #4937 waiting (#3 in line): in line behind #4919 "c8k: build main 6189466f CLI + recipe-8192 test tree on spark1" (claude-f31ccf91-c8k) on spark1
+fleetq: #4937 running on spark1: ssh spark1 'bash ~/intarsia-decfuse/hr3-cuda-noop.sh'
+fleetq: #4937 went ahead of the line and must end within 69m (by Sat 01:25); it is stopped then
 fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
 == sync
 == build hr3-base
-    Finished `release` profile [optimized] target(s) in 22.25s
+    Finished `release` profile [optimized] target(s) in 0.11s
 == build hr3-dev
-    Finished `release` profile [optimized] target(s) in 22.20s
+    Finished `release` profile [optimized] target(s) in 17.39s
 ids 35s hr3-base vs hr3-dev: identical (256 ids, sha 2dd7fe93)
 ids 8s hr3-base vs hr3-dev: identical (256 ids, sha e2c61289)
 8B plan: byte-identical (8758 B)
 35B plan: byte-identical (3505 B)
 == cuda batching tests on the branch
-test result: ok. 114 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.82s
+test result: ok. 115 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.61s
 test alternating_rows_and_batches_do_not_recapture ... ok
 test batched_engine_equals_solo_over_128_tokens ... ok
 test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
@@ -25,6 +25,6 @@ test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
 test hybrid_batching_is_refused_without_the_opt_in ... ok
 test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
 test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.15s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.72s
 == done
-fleetq: #4853 done (exit 0)
+fleetq: #4937 done (exit 0)

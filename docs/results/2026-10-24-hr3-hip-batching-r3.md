@@ -157,11 +157,11 @@ All on the final tree (head `ef27cfed` for the GPU gates, see the PR for the exa
 | G-B R0 regression (`rows_exact`, `rows_registry`) | 5 of 5 and 2 of 2 | #4929 |
 | G-C 35B (`real_35b_batched_decode_is_bitwise_the_solo_step`): batched decode == solo step | 17,550 (row, step) pairs bitwise identical, 3 tests pass 0 fail (35B bitwise, engine == LocalEngine, busy-chunk KL gate) | #4929 |
 | batched engine == LocalEngine, including the `--ignored` long-prompt test (`real_35b_batched_engine_long_prompts_equal_the_local_engine`, read unfiltered) | `1 passed; 0 failed`, 8 filtered out | #4929 |
-| tiny hybrid (`batch_recurrent`, HIP, N = 2..16 x 130 steps, decode beside prefill chunks, prefix reuse, memory plan) | 10 of 10 (after the pick check learned that the MoE block of a batched step may be the fused rows kernel) | #4929 (second part) |
+| tiny hybrid (`batch_recurrent`, HIP, N = 2..16 x 130 steps, decode beside prefill chunks, prefix reuse, memory plan) on the final head `301f70c1` | 10 of 10, 0 failed. The pick check now positively requires, on HIP, that a 4-row step of the tiny MoE picks the fused `moe_block_bf16_rows` and no `moe_experts` call (both MoE variants did) | #4939 (`raw/w8-tiny-hybrid.log`) |
 | HIP backend suite (`cargo test --no-fail-fast -p intarsia-backend-hip --tests`) | all 34 test binaries ok, 0 failed (`raw/w7-hip-suite.log`) | #4929 |
 | No-op, batching off, HIP: `plan show` text and `--json` byte-identical to main; 256 greedy ids after a 1.2k-token prompt identical; `--spec mtp --spec-k 2` ids identical to main and to spec off | identical (3,184 B and 12,961 B plans, ids sha equal) | #4929 |
-| No-op, CUDA (spark1): 8B and 35B plans byte-identical, 256 ids identical, `intarsia-core` lib 115 of 115, CUDA batching tests 10 of 10 | @@CUDA@@ | @@CUDAJOB@@ |
-| No-op, Metal (endor): plans byte-identical, ids identical, `batch_recurrent` on Metal 10 of 10 | @@METAL@@ | @@METALJOB@@ |
+| No-op, CUDA (spark1): 8B and 35B plans byte-identical, 256 ids identical, `intarsia-core` lib 115 of 115, CUDA batching tests 10 of 10 | plans byte-identical (8B 8,758 B; 35B 3,505 B), 256 ids identical for both models (sha 2dd7fe93, e2c61289), `intarsia-core` 115 of 115, CUDA `batch_recurrent` 10 of 10; run on `04410e61` sources, the later commits change only `batch_recurrent.rs` (same logic on CUDA) | #4937 (`raw/noop-cuda-spark1.log`) |
+| No-op, Metal (endor): `plan show` text and json byte-identical for 8B (1,342 B / 8,371 B) and 35B (2,404 B / 10,605 B); 256 greedy ids and text identical for both (sha e2c61289, 67c1a0de); `batch_recurrent` on Metal 10 of 10; workspace tests: no failure except the two CUDA `rows_registry` pin tests that fail on main too (the log's first ids line says `DIFFER or empty` because it compared before the generation finished; the re-compare at the end of the same log says identical) | #4936 (`raw/noop-metal-4936.log`) |
 | Mac `cargo test --workspace --release --no-fail-fast` 871 passed, 2 failed, 17 ignored; the 2 failures are the `rows_registry` pin tests that also fail on main (section 6) (`raw/workspace-tests-mac.txt`) | local (Mac) |
 | `intarsia-core` unit tests (incl. `batch_check_accepts_hip_folds_per_row_or_as_row_table_chains`), `docs_env_vars` | 115 of 115, 2 of 2 | local |
 
@@ -215,4 +215,4 @@ INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=/mode
 # no-op: scripts/hr3/noop-gen.sh in the dev container of each tree (plan show --json, plan show, 256 greedy ids, --spec mtp --spec-k 2)
 ```
 
-fleetq jobs: tatooine final windows #4929 (window 7: speed, no-op, G-B, G-C, long prompts, HIP suite) and #4939 (window 8: tiny hybrid after the pick-check fix); spark1 @@CUDAJOB@@; endor @@METALJOB@@. Earlier build and gate windows are in `raw/` and the PR history.
+fleetq jobs: tatooine final windows #4929 (window 7: speed, no-op, G-B, G-C, long prompts, HIP suite) and #4939 (window 8: tiny hybrid after the pick-check fix); spark1 #4937; endor #4936. Earlier build and gate windows are in `raw/` and the PR history.
