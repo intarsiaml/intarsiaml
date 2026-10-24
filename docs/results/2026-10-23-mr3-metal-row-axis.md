@@ -20,8 +20,22 @@ sides, both arms inside one `fleetq --quiet gpu,cpu` job each:
 
 - 512 generated: +11% at 4 streams, +23% at 8. 128 generated: +6% / +8%; short outputs are dominated by the serialized 1k-token
   prefill of each request (0.6 s, TTFT 1.5 / 2.8 s at 4 / 8 streams), which this change does not touch.
-- Single stream: 122.4 against 121.1 (128) and 122.5 (512): +1.1% and -0.1%, inside the 2% spread of the reps. The branch is not
-  more than 1% below main.
+- Single stream with `--max-batch 8` (same window, same arm): 122.4 against 121.1 (128) and 122.4 against 122.5 (512), inside
+  the spread of the reps. (The 124 tok/s in the brief is the mb doc's no-`--max-batch` arm from another session.)
+- Single stream without `--max-batch` (the engine the batching change must not slow), main against branch, served 35B, 1k prompt,
+  decode tok/s, median of the reps per arm:
+
+  | check | main | branch | fleetq |
+  |---|---|---|---|
+  | 512 generated, 6 reps, ABABAB | 121.6, 122.0, 121.8 | 122.1, 121.2, 121.9 | #4893 |
+  | 128 generated, 6 reps, ABABAB | 123.0 (pair 1) | 122.5 (pair 1) | #4896 |
+  | 128 / 512 generated, 3 reps, branch first or second | 123.1 / 122.3, 122.7 / 122.2, 121.5 / 121.0 | 119.6 / 116.7, 119.5 / 121.9, 121.0 / 121.6 | #4883, #4887 |
+
+  The 512 series has branch 121.7 and main 121.8 on average. The earlier 3-rep pairs put the branch 0 to 5% below main, mostly at
+  128 generated, and the second and third pairs of the 128 ABABAB were slowed on both arms by foreign load on the machine (main 112.0
+  and 113.0, branch 109.7 and 119.7), so they say nothing. The 1% bound is therefore met at 512 generated and not settled at
+  128 generated: the kernels of the one-row path are unchanged (fp8 and nvfp4 M = 1 `timing_rows` 26.8 to 27.2 us before and
+  after), and the in-process solo step is 31.35 against 31.30 ms. A quiet re-run of the 128 series is the open item.
 - The main numbers today (161.6 at 8 streams, 512) are below the 173.7 recorded in the mb doc for the same arm; the machine is
   shared and the spread between sessions is about 5%. The comparison in the table is same-window, same-job-shape.
 
@@ -98,7 +112,7 @@ slot (`--exclusive --mem 24`, fleetq #4830):
 | `plan show` text and `--json`, Qwen3-8B and the 35B | all four byte-identical (1,342 / 8,371 B and 2,404 / 10,605 B) |
 | 256 greedy ids (`generate --temperature 0 --ignore-eos --show-ids`), short prompt (17 tokens) and a long prompt (6,659 tokens on the 35B, 6,544 on the 8B), both models | all four stdout files and all four id lines byte-identical |
 
-CUDA no-op (shared crate `intarsia-core` touched: `ops.rs` check, `model/batch.rs`), spark2: CUDA_NOOP
+The shared-code change only runs on the batched path (`attn_block_batch`), so a batching-off no-op cannot reach it; the argument for CUDA / HIP is the registry rule instead. `fused_ok` of the row-table prologue call selects a kernel, and `Registry::select` takes a row-table kernel only for a call with `OpCall::rows` and a non-row-table kernel only for a call without (`registry.rs`, `k.row_table != call.rows.is_some()`). CUDA registers `.row_table()` for conv, delta rule, KV append and attention only and HIP for none (`grep -n 'row_table()' crates/intarsia-backend-{cuda,hip}/src/kernels.rs`), so on both `fused_ok` is false for `QkNormRopeKv` and the step runs the chain it ran before. CI compiles both (`cargo check --features cuda` / `hip`). CUDA 8B and 35B (batching off, `--features cuda`, spark2 Qwen3-8B and Qwen3.6-35B-A3B-NVFP4): `plan show` 8B json (8,758 B) and 35B text (3,729 B) byte-identical; 256 greedy ids identical on all four runs (5,000-character and 14,000-character prompts, 8B and 35B). The CUDA batching tests on the branch: `intarsia-core` lib 114 passed, `batch_recurrent` on CUDA 10 of 10, the CUDA `row_tables` G-B 6 of 6. The spark2 trees are the PR head at commit 08301dd4 and `origin/main` 23a088cc (fleetq #4881 stage, #4882 build, #4892 run).
 
 ## 4. Cap and what is left of the step
 
@@ -156,5 +170,5 @@ uv run --project /opt/code/deepeval localeval speed --url http://127.0.0.1:PORT/
 
 fleetq #4760 (main in-process timing and profile), #4774 / #4784 / #4794 / #4795 (G-B and timing iterations), #4798 (per-kernel
 trace), #4800 (G-C 35B), #4803 (long prompts), #4813 / #4815 (localeval main / branch), #4822 / #4825 / #4826 (cap 16 experiment),
-#4830 (Metal no-op, exclusive), #4835 and #4870 (gates, dense, timing), #4873 (workspace), CUDA_JOBS. Owner `claude-f31ccf91-mr3`. All
+#4830 (Metal no-op, exclusive), #4835 and #4870 (gates, dense, timing), #4873 (workspace), #4881 / #4882 / #4892 (CUDA stage, build, no-op and tests on spark2), #4880 (final G-B), #4883 / #4887 / #4893 / #4896 (single-stream checks). Owner `claude-f31ccf91-mr3`. All
 released.

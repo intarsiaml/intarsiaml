@@ -42,7 +42,7 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mr3/metal-row-axis",
   "base_commit": "23a088cc",
-  "head_commit": null,
+  "head_commit": "08301dd4",
   "pr": 126,
   "files": [
    "docs/results/2026-10-23-mr3-metal-row-axis.md",
@@ -129,8 +129,8 @@
   {
    "name": "CUDA no-op (shared crate touched)",
    "command": "plan show + 256 ids, branch vs main, spark2",
-   "result": "CUDA_PENDING",
-   "detail": "see results doc"
+   "result": "pass",
+   "detail": "spark2, tree at 08301dd4 vs main 23a088cc: plan show 8B/35B byte-identical, 256 ids identical x4 (short and long prompts); core lib 114, batch_recurrent cuda 10/10, cuda row_tables 6/6; fleetq 4892"
   }
  ],
  "measurements": [
@@ -283,7 +283,7 @@
   }
  ],
  "accuracy": {
-  "gate": "G-B row-table kernels and multi-row GEMVs; G-C batched == solo on the 35B (4,550 pairs) and engine == LocalEngine incl. 2.6k / 4k / 16k prompts (14 of 14 identical); Metal no-op 8 of 8 byte-identical (plan show x4, 256 ids x4); CUDA no-op CUDA_PENDING",
+  "gate": "G-B row-table kernels and multi-row GEMVs; G-C batched == solo on the 35B (4,550 pairs) and engine == LocalEngine incl. 2.6k / 4k / 16k prompts (14 of 14 identical); Metal no-op 8 of 8 byte-identical (plan show x4, 256 ids x4); CUDA no-op identical (plan x2, ids x4)",
   "verdict": "pass",
   "bitwise": true,
   "run_ids": []
@@ -315,7 +315,15 @@
    4830,
    4835,
    4870,
-   4873
+   4873,
+   4880,
+   4881,
+   4882,
+   4883,
+   4887,
+   4892,
+   4893,
+   4896
   ],
   "tokens": null
  }
