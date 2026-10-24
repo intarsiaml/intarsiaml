@@ -9,9 +9,9 @@ use intarsia_core::{DType, Error, Op, OpCall, Result, ShapeInfo};
 
 /// Tokens per thread of `gdn_conv_bf16_k*` (`GDN_CONV_TILE` in gdn.metal) and its threadgroup width (`GDN_CONV_TG`).
 const CONV_TILE: usize = 32;
-const CONV_TG: usize = 128;
+pub(crate) const CONV_TG: usize = 128;
 /// Simdgroups (value-head rows) per threadgroup of the delta-rule kernels (`GDN_DELTA_SG`).
-const DELTA_SG: usize = 4;
+pub(crate) const DELTA_SG: usize = 4;
 
 /// Conv kernels by tap count K = 2..=8.
 pub const CONV_SHADERS: [&str; 7] = [

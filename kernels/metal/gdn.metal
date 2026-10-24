@@ -218,3 +218,142 @@ INST_DELTA(32)
 INST_DELTA(64)
 INST_DELTA(128)
 INST_DELTA(256)
+
+// ---- Row tables (batched decode, lane mr3) -------------------------------------------------------------------------------
+// `gdn_conv_bf16_rows_k*` / `gdn_delta_rule_bf16_rows_dk*`: the T = 1 conv and delta-rule calls of the solo decode step on R
+// rows (sequences) in ONE dispatch (threadgroup z = row). Row r of the activations ([R, ...]) is the single input row of
+// sequence r; the recurrent state of row r is the f32 buffer whose device address is entry [r, index] of the row table (a
+// u64 table, stride entries per row) plus byte_off. Every expression is the solo kernel's at T = 1 (same operations, same
+// order), so row r is bitwise the solo call on sequence r (tests/row_tables.rs). The state update is in place.
+
+inline device float* rt_state(device const ulong* tab, uint row, uint stride, uint index, uint byte_off) {
+    return reinterpret_cast<device float*>(tab[(ulong)row * stride + index] + byte_off);
+}
+
+// bind: 0 x [R,C], 1 w [C,K], 2 y [R,C], 3 table, 4 OpP: a = R, b = C, c = K, d = stride, e = index, f = byte_off;
+// s0..s2 skips of x / w / y. Groups (ceil(C / 128), 1, R) of 128 threads.
+template <uint K>
+kernel void gdn_conv_rows_t(device const ushort* x [[buffer(0)]],
+                            device const ushort* w [[buffer(1)]],
+                            device ushort* y [[buffer(2)]],
+                            device const ulong* tab [[buffer(3)]],
+                            constant OpP& p [[buffer(4)]],
+                            uint3 tg [[threadgroup_position_in_grid]],
+                            uint3 lt3 [[thread_position_in_threadgroup]]) {
+    const uint C = p.b;
+    const uint c = tg.x * GDN_CONV_TG + lt3.x;
+    if (c >= C) return;
+    const uint row = tg.z;
+    device float* state = rt_state(tab, row, p.d, p.e, p.f);
+    device const ushort* xr = x + (ulong)row * C;
+    device ushort* yr = y + (ulong)row * C;
+    float taps[K], h[K - 1];
+#pragma unroll
+    for (uint j = 0; j < K; ++j) taps[j] = bf2f(w[p.s1 + (ulong)c * K + j]);
+#pragma unroll
+    for (uint j = 0; j < K - 1; ++j) h[j] = state[(ulong)c * (K - 1) + j];
+    const float cur = bf2f(xr[p.s0 + c]);
+    float acc = taps[K - 1] * cur;
+#pragma unroll
+    for (uint j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
+    yr[p.s2 + c] = f2bf(gdn_silu(acc));
+    gdn_conv_state_update(xr, state, c, 1, C, K, p.s0);
+}
+
+#define INST_CONV_ROWS(K)                                                                                               \
+    template [[host_name("gdn_conv_bf16_rows_k" #K)]] kernel void gdn_conv_rows_t<K>(                                   \
+        device const ushort*, device const ushort*, device ushort*, device const ulong*, constant OpP&, uint3, uint3);
+INST_CONV_ROWS(2)
+INST_CONV_ROWS(3)
+INST_CONV_ROWS(4)
+INST_CONV_ROWS(5)
+INST_CONV_ROWS(6)
+INST_CONV_ROWS(7)
+INST_CONV_ROWS(8)
+
+// bind: 0 qkv [R,C], 1 a [R,Hv], 2 b [R,Hv], 3 A_log, 4 dt_bias, 5 o [R,Hv,dv], 6 table, 7 params.
+// Groups (ceil(dv / GDN_DELTA_SG), Hv, R) of GDN_DELTA_SG simdgroups.
+struct GdnDeltaRowsP {
+    uint hk, hv, dv, stride;
+    uint s_qkv, s_a, s_b, s_alog, s_dtb, s_o;  // leading bf16 elements to skip per tensor
+    uint index, byte_off;
+    float eps;
+    uint pad;
+};
+
+template <uint DK>
+kernel void gdn_delta_rule_rows_t(device const ushort* qkv [[buffer(0)]],
+                                  device const ushort* ga [[buffer(1)]],
+                                  device const ushort* gb [[buffer(2)]],
+                                  device const ushort* alog [[buffer(3)]],
+                                  device const ushort* dtb [[buffer(4)]],
+                                  device ushort* o [[buffer(5)]],
+                                  device const ulong* tab [[buffer(6)]],
+                                  constant GdnDeltaRowsP& p [[buffer(7)]],
+                                  uint3 tg [[threadgroup_position_in_grid]],
+                                  uint sg [[simdgroup_index_in_threadgroup]],
+                                  uint lane [[thread_index_in_simdgroup]]) {
+    constexpr uint PL = DK / 32;
+    const uint h = tg.y;
+    const uint j = tg.x * GDN_DELTA_SG + sg;
+    const uint row = tg.z;
+    if (j >= p.dv) return;  // whole simdgroup
+    const uint kh = h / (p.hv / p.hk);
+    const ulong C = 2ul * p.hk * DK + (ulong)p.hv * p.dv;
+    const float scale = 1.0f / precise::sqrt((float)DK);
+    const float neg_a = -precise::exp(bf2f(alog[p.s_alog + h]));
+    const float dtbias = bf2f(dtb[p.s_dtb + h]);
+
+    device float* state = rt_state(tab, row, p.stride, p.index, p.byte_off);
+    device float* srow = state + ((ulong)h * p.dv + j) * DK;
+    float s[PL];
+    for (uint i = 0; i < PL; ++i) s[i] = srow[lane + 32 * i];
+
+    device const ushort* qp = qkv + (ulong)row * C + p.s_qkv + (ulong)kh * DK + lane;
+    device const ushort* kp = qkv + (ulong)row * C + p.s_qkv + ((ulong)p.hk + kh) * DK + lane;
+    device const ushort* vp = qkv + (ulong)row * C + p.s_qkv + 2ul * p.hk * DK + (ulong)h * p.dv + j;
+
+    float qn[PL], kn[PL], qq = 0.0f, kk = 0.0f;
+    for (uint i = 0; i < PL; ++i) {
+        qn[i] = bf2f(qp[32 * i]);
+        kn[i] = bf2f(kp[32 * i]);
+        qq += qn[i] * qn[i];
+        kk += kn[i] * kn[i];
+    }
+    const ushort cv = *vp;
+    const ushort ca = ga[(ulong)row * p.hv + p.s_a + h];
+    const ushort cb = gb[(ulong)row * p.hv + p.s_b + h];
+    qq = simd_sum(qq);
+    kk = simd_sum(kk);
+    const float qr = (1.0f / precise::sqrt(qq + p.eps)) * scale;
+    const float kr = 1.0f / precise::sqrt(kk + p.eps);
+    const float beta = gdn_sigmoid(bf2f(cb));
+    const float decay = precise::exp(neg_a * gdn_softplus(bf2f(ca) + dtbias));
+
+    float kv = 0.0f;
+    for (uint i = 0; i < PL; ++i) {
+        kn[i] *= kr;
+        qn[i] *= qr;
+        s[i] *= decay;
+        kv += s[i] * kn[i];
+    }
+    kv = simd_sum(kv);
+    const float delta = (bf2f(cv) - kv) * beta;
+    float out = 0.0f;
+    for (uint i = 0; i < PL; ++i) {
+        s[i] += kn[i] * delta;
+        out += s[i] * qn[i];
+    }
+    out = simd_sum(out);
+    if (lane == 0) o[(ulong)row * p.hv * p.dv + p.s_o + (ulong)h * p.dv + j] = f2bf(out);
+    for (uint i = 0; i < PL; ++i) srow[lane + 32 * i] = s[i];
+}
+
+#define INST_DELTA_ROWS(DK)                                                                                             \
+    template [[host_name("gdn_delta_rule_bf16_rows_dk" #DK)]] kernel void gdn_delta_rule_rows_t<DK>(                    \
+        device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,   \
+        device ushort*, device const ulong*, constant GdnDeltaRowsP&, uint3, uint, uint);
+INST_DELTA_ROWS(32)
+INST_DELTA_ROWS(64)
+INST_DELTA_ROWS(128)
+INST_DELTA_ROWS(256)

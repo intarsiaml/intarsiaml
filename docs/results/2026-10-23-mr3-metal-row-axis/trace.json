@@ -1,0 +1,331 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mr3-metal-row-axis:20261023-1900",
+ "project": "intarsiaml",
+ "lane_id": "mr3-metal-row-axis",
+ "follows": [
+  "intarsiaml:mb-metal-hybrid-batching:20261023-1340",
+  "intarsiaml:rb3-batching-r3:20261023-1300"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T19:40:00-04:00",
+ "ended": "2026-10-23T22:30:00-04:00",
+ "brief": "Lane mr3: make Metal hybrid batching of the 35B faster. Give GatedDeltaNet conv / delta rule, the QK-norm-rope-KV prologue and the split-KV attention a row axis (one dispatch over all rows, state and KV through a device-address row table, as CUDA R3), bitwise equal to the solo step; decode fp8/nvfp4 weights once for all rows in the multi-row GEMVs; measure cap 16; no-op with batching off. Hard stop 2026-10-24 10:30 EDT.",
+ "hypothesis": "The step grows about 3.8 ms per extra row because GDN and attention launch once per row (240 + 240 + 80 + 80 launches per step at B = 8). One launch per op over a row axis removes most of that, bitwise by construction.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "M5 Max 128 GB (endor)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "8x"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mr3/metal-row-axis",
+  "base_commit": "23a088cc",
+  "head_commit": "08301dd4",
+  "pr": 126,
+  "files": [
+   "docs/results/2026-10-23-mr3-metal-row-axis.md",
+   "kernels/metal/gdn.metal",
+   "kernels/metal/dense_ops.metal",
+   "kernels/metal/qk_rope_kv.metal",
+   "kernels/metal/attention_splitkv.metal",
+   "kernels/metal/fp8.metal",
+   "kernels/metal/nvfp4.metal",
+   "crates/intarsia-backend-metal/src/rowtab.rs",
+   "crates/intarsia-backend-metal/src/lib.rs",
+   "crates/intarsia-backend-metal/src/kernels.rs",
+   "crates/intarsia-backend-metal/src/dense.rs",
+   "crates/intarsia-backend-metal/src/attn.rs",
+   "crates/intarsia-backend-metal/src/gdn.rs",
+   "crates/intarsia-backend-metal/tests/row_tables.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/ops.rs",
+   "crates/intarsia-models/tests/batch_metal.rs",
+   "crates/intarsia-models/tests/batch_metal_real.rs",
+   "docs/decisions/LOG.md",
+   "docs/tuning.md"
+  ],
+  "diff_stat": null,
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-table kernels (Metal)",
+   "command": "cargo test -p intarsia-backend-metal --release --test row_tables -- --test-threads=1",
+   "result": "pass",
+   "detail": "8 of 8, M 1..=16; conv, delta rule, KV append, prologue, attention, rope per token; decoy column untouched; negative controls: swapped table entries (conv, KV, delta, attention), device-position simdgroup rule differs on cancelling data; fleetq 4880"
+  },
+  {
+   "name": "G-B multi-row GEMVs / MoE after decode-once",
+   "command": "cargo test -p intarsia-backend-metal --release --test rows_exact",
+   "result": "pass",
+   "detail": "6 of 6; fp8 672 cases, nvfp4 168, MoE 168, bf16 pair 84, row-parallel 98; fleetq 4794, 4835"
+  },
+  {
+   "name": "G-C Qwen3.6-35B on Metal, batched == solo step",
+   "command": "cargo test -p intarsia-models --release --test batch_metal_real",
+   "result": "pass",
+   "detail": "4,550 (row, step) pairs bitwise identical, N 2..8; batched engine == LocalEngine; fleetq 4800"
+  },
+  {
+   "name": "Long prompts engine == LocalEngine, read unfiltered",
+   "command": "batch_metal_real --ignored real_35b_batched_engine_long_prompts",
+   "result": "pass",
+   "detail": "14 of 14 IDENTICAL, 0 DIFFER; 2.6k, 4k, 16k prompts; fleetq 4803"
+  },
+  {
+   "name": "Tiny hybrid on Metal",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=metal cargo test -p intarsia-models --release --test batch_recurrent",
+   "result": "pass",
+   "detail": "10 of 10; fleetq 4835"
+  },
+  {
+   "name": "Dense batch_metal Qwen3-8B",
+   "command": "INTARSIA_TEST_REAL_MODEL=1 cargo test -p intarsia-models --release --test batch_metal",
+   "result": "pass",
+   "detail": "138 pairs bitwise identical, prefill bitwise equal; fleetq 4870"
+  },
+  {
+   "name": "kernels test --backend metal",
+   "command": "intarsia kernels test --backend metal",
+   "result": "pass",
+   "detail": "exit 0, 44 kernels, 817 cases, 0 rejected; fleetq 4835"
+  },
+  {
+   "name": "workspace tests",
+   "command": "cargo test --workspace --release --no-fail-fast",
+   "result": "pass",
+   "detail": "879 passed, 0 failed, 17 ignored; fleetq 4873"
+  },
+  {
+   "name": "Metal no-op, batching off",
+   "command": "intarsia plan show (text, json) and generate 256 ids, short and 6.5k-token prompt, Qwen3-8B and the 35B, branch vs main",
+   "result": "pass",
+   "detail": "8 of 8 byte-identical; fleetq 4830 (exclusive)"
+  },
+  {
+   "name": "CUDA no-op (shared crate touched)",
+   "command": "plan show + 256 ids, branch vs main, spark2",
+   "result": "pass",
+   "detail": "spark2, tree at 08301dd4 vs main 23a088cc: plan show 8B/35B byte-identical, 256 ids identical x4 (short and long prompts); core lib 114, batch_recurrent cuda 10/10, cuda row_tables 6/6; fleetq 4892"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "gen_tokens": 128,
+   "before": 100.9,
+   "after": 107.1,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "prompt_tokens": 1024,
+   "streams": 8,
+   "gen_tokens": 128,
+   "before": 108.3,
+   "after": 117.0,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "gen_tokens": 512,
+   "before": 154.4,
+   "after": 171.5,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "prompt_tokens": 1024,
+   "streams": 8,
+   "gen_tokens": 512,
+   "before": 161.6,
+   "after": 199.1,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "decode_tps",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "gen_tokens": 128,
+   "before": 121.1,
+   "after": 122.4,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 3.4,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "decode_tps",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "gen_tokens": 512,
+   "before": 122.5,
+   "after": 122.4,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.5,
+   "slot": "quiet",
+   "slot_job": 4815,
+   "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
+  },
+  {
+   "metric": "step_ms",
+   "bucket": "in_process",
+   "streams": 2,
+   "before": 12.86,
+   "after": 12.34,
+   "unit": "ms",
+   "n": 1,
+   "slot": "quiet",
+   "slot_job": 4870
+  },
+  {
+   "metric": "step_ms",
+   "bucket": "in_process",
+   "streams": 4,
+   "before": 20.59,
+   "after": 18.42,
+   "unit": "ms",
+   "n": 1,
+   "slot": "quiet",
+   "slot_job": 4870
+  },
+  {
+   "metric": "step_ms",
+   "bucket": "in_process",
+   "streams": 8,
+   "before": 35.75,
+   "after": 30.23,
+   "unit": "ms",
+   "n": 1,
+   "slot": "quiet",
+   "slot_job": 4870
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "cap16_experiment_in_process",
+   "streams": 16,
+   "before": 261.8,
+   "after": 270.8,
+   "unit": "tok/s",
+   "n": 1,
+   "slot": "quiet",
+   "slot_job": 4826,
+   "note": "B=8 vs B=16 on branch lane-mr3/cap16-experiment; B=12 253.0"
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-table kernels and multi-row GEMVs; G-C batched == solo on the 35B (4,550 pairs) and engine == LocalEngine incl. 2.6k / 4k / 16k prompts (14 of 14 identical); Metal no-op 8 of 8 byte-identical (plan show x4, 256 ids x4); CUDA no-op identical (plan x2, ids x4)",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "Row-table kernels for GDN conv / delta rule, the QK-norm-rope-KV prologue and the split-KV attention make the Metal 35B batched step 6 / 11 / 15% faster at B = 2 / 4 / 8 (in process) and 512-generated aggregate +11% / +23% at 4 / 8 streams (154.4 / 161.6 to 171.5 / 199.1); 128-generated +6% / +8%; single stream unchanged. Bitwise to the solo step. Cap stays 8 (16 measured +3%).",
+ "summary": "Row-table kernels for GDN conv / delta rule, the QK-norm-rope-KV prologue and the split-KV attention make the Metal 35B batched step 6 / 11 / 15% faster at B = 2 / 4 / 8 (in process) and 512-generated aggregate +11% / +23% at 4 / 8 streams (154.4 / 161.6 to 171.5 / 199.1); 128-generated +6% / +8%; single stream unchanged. Bitwise to the solo step. Cap stays 8 (16 measured +3%).",
+ "lessons": [
+  "The per-row launches were 14% of the B = 8 step in-process; after removing them the remaining ~2.9 ms per row is the multi-row fp8 / nvfp4 GEMV arithmetic, not launch overhead.",
+  "Decoding the e4m3 / e2m1 weight chunk once for all rows of a multi-row GEMV is bitwise (same fma chain per row) and saves ~2.8 ms of the B = 8 step.",
+  "A negative control for a position-dependent kernel needs data that makes the accumulation order visible: random data gave 0 differing bytes between the host-position and device-position attention, +-2^20 cancelling values gave 44k of 82k.",
+  "Chunking a 9..16-row call into two 8-row launches is row-exact but re-reads the weights: 12 rows are slower than 8, 16 rows only +3%."
+ ],
+ "cost": {
+  "wall_min": null,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4760,
+   4774,
+   4784,
+   4794,
+   4795,
+   4798,
+   4800,
+   4803,
+   4813,
+   4815,
+   4822,
+   4826,
+   4830,
+   4835,
+   4870,
+   4873,
+   4880,
+   4881,
+   4882,
+   4883,
+   4887,
+   4892,
+   4893,
+   4896,
+   4908
+  ],
+  "tokens": null
+ }
+}

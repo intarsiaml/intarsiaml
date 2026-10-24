@@ -548,6 +548,43 @@ impl Model {
             c.rows.as_ref()?;
             Some(c)
         };
+        // The fused prologue the solo step runs where the backend has one (`QkNormRopeKv`, Metal: both norms, plain rope): one
+        // row-table launch for q-norm, rope and both cache appends of all rows, then the decode attention. Decided as the solo
+        // step decides (`fused_ok`); on `false` the unfused chain below runs.
+        if let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) {
+            let fattrs = OpAttrs {
+                eps: d.rms_eps,
+                w_offset: self.recipe.model.norm_offset,
+                theta: d.rope_theta,
+                head_dim: hd,
+                rotary_dim: a.rotary_dim,
+                n_heads: nh,
+                n_kv_heads: nkv,
+                kv_cap: slot.cap,
+                ..Default::default()
+            };
+            let fused = row_call(
+                Op::QkNormRopeKv,
+                vec![bufs.q[qc].clone(), bufs.k[0].clone(), bufs.v.clone(), qw.clone(), kw.clone()],
+                vec![bufs.q[1 - qc].clone(), kcache.clone(), vcache.clone()],
+                fattrs,
+                0,
+            );
+            let at = row_call(
+                Op::AttnDecode,
+                vec![bufs.q[1 - qc].clone(), kcache.clone(), vcache.clone()],
+                vec![bufs.q[qc].clone()],
+                attrs.clone(),
+                0,
+            );
+            if let (Some(f), Some(at)) = (fused, at) {
+                if self.fused_ok(&f) && at.check().and_then(|_| self.registry.select(&at).map(|_| ())).is_ok() {
+                    self.exec_call(f, profile)?;
+                    self.exec_call(at, profile)?;
+                    return Ok(Some(1 - qc));
+                }
+            }
+        }
         // the chain, planned before anything launches so a missing kernel leaves the per-row path untouched; the buffer parities
         // are those of `attn_rows_core` (q alternates through norm and rope, k through norm and rope, v is untouched)
         let (qn, kn) = (a.q_norm.is_some() as usize, a.k_norm.is_some() as usize);
