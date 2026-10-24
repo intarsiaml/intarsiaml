@@ -1,0 +1,35 @@
+23:44:40 radiance stopped
+23:44:41 build
+23:45:20 build exit 0
+23:45:59 test build exit 0
+23:45:59 step timing, moe_block rows on / off
+23:46:09 time on exit 0
+23:46:19 time off exit 0
+23:46:28 step exit 0
+23:46:28 G-B
+23:48:58 G-B exit 0
+23:48:58 speed
+23:50:13 final7 speed done
+23:51:29 main7 speed done
+23:52:42 nomoe7 speed done
+23:53:55 nograph7 speed done
+23:55:11 norows7 speed done
+23:55:12 no-op plan, ids, mtp ids
+23:55:47 plan json byte-identical    12961 B
+23:55:47 plan text byte-identical     3184 B
+23:55:47 ids identical
+23:55:47 mtp ids identical (branch vs main)
+23:55:47 mtp ids identical to spec off (branch)
+23:55:47 G-C
+00:01:12 gc exit 101
+00:01:12 long prompts
+00:02:12 long exit 0
+00:02:12 hip full suite
+00:07:28 hip suite exit 0
+00:07:28 W5 DONE
+00:07:28 tiny hybrid batch_recurrent on HIP (test pick check fixed)
+00:07:30 build2 exit 0
+00:09:07 tiny hybrid exit 101
+00:09:07 W7b DONE
+active
+00:09:33 radiance restored

@@ -1,23 +1,23 @@
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_backend_cpu-7801cbe90cd6cc04)
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
      Running tests/admission.rs (/opt/code/wt-hr3-target/release/deps/admission-d785448a39da48f4)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.28s
      Running tests/admission_budgets.rs (/opt/code/wt-hr3-target/release/deps/admission_budgets-b9759c7e4aa27c60)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
      Running tests/g4_ext.rs (/opt/code/wt-hr3-target/release/deps/g4_ext-adf36c49dd022042)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
      Running tests/gdn.rs (/opt/code/wt-hr3-target/release/deps/gdn-2620eb84f4dff067)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
      Running tests/ops.rs (/opt/code/wt-hr3-target/release/deps/ops-566cf80b16adf906)
-test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
      Running tests/quant_exl3.rs (/opt/code/wt-hr3-target/release/deps/quant_exl3-f2f487fd0c1f8ee6)
-test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.55s
      Running tests/quant_hf.rs (/opt/code/wt-hr3-target/release/deps/quant_hf-6653e1b1909ba65a)
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
      Running tests/quant_mxfp4.rs (/opt/code/wt-hr3-target/release/deps/quant_mxfp4-849eff74df3ab185)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
      Running tests/quant_mxfp4_tp.rs (/opt/code/wt-hr3-target/release/deps/quant_mxfp4_tp-c5055332a106656a)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_backend_cuda-ab3456e3a1c0155a)
 test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/admission.rs (/opt/code/wt-hr3-target/release/deps/admission-4edba96bd06159be)
@@ -47,7 +47,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/moe_nvfp4.rs (/opt/code/wt-hr3-target/release/deps/moe_nvfp4-a010c7151f338e55)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/moe_nvfp4_cpu.rs (/opt/code/wt-hr3-target/release/deps/moe_nvfp4_cpu-550a17fd314c890a)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
      Running tests/moe_w4a16.rs (/opt/code/wt-hr3-target/release/deps/moe_w4a16-8a49efa278db2c77)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/nvfp4_gemm_reg.rs (/opt/code/wt-hr3-target/release/deps/nvfp4_gemm_reg-7d0905bb06278fed)
@@ -55,7 +55,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/quantmoe.rs (/opt/code/wt-hr3-target/release/deps/quantmoe-44a83074206426fa)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/quick_coverage.rs (/opt/code/wt-hr3-target/release/deps/quick_coverage-707323bc7c23464f)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.85s
      Running tests/row_tables.rs (/opt/code/wt-hr3-target/release/deps/row_tables-d43ba51e9a94b182)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/rows_exact.rs (/opt/code/wt-hr3-target/release/deps/rows_exact-93f4422e0aba6f68)
@@ -63,7 +63,9 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/rows_registry.rs (/opt/code/wt-hr3-target/release/deps/rows_registry-9f4f17cdbad18e67)
 test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... FAILED
 test exact_rows_calls_pick_the_rows_kernels_only ... FAILED
-test result: FAILED. 0 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.27s
+thread 'ordinary_calls_pick_what_they_picked_before_the_rows_kernels' (174328359) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:178:5:
+thread 'exact_rows_calls_pick_the_rows_kernels_only' (174328358) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:186:5:
+test result: FAILED. 0 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.34s
 error: test failed, to rerun pass `-p intarsia-backend-cuda --test rows_registry`
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_backend_hip-18ce8962b8126768)
 test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -112,7 +114,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/quantmoe.rs (/opt/code/wt-hr3-target/release/deps/quantmoe-379b788051cd98da)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/quick_coverage.rs (/opt/code/wt-hr3-target/release/deps/quick_coverage-509814519890bdff)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.60s
      Running tests/round6_selection.rs (/opt/code/wt-hr3-target/release/deps/round6_selection-3b66a6f015d1e30a)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/row_tables.rs (/opt/code/wt-hr3-target/release/deps/row_tables-a7f2ae25cb95b7eb)
@@ -120,7 +122,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/rows_exact.rs (/opt/code/wt-hr3-target/release/deps/rows_exact-19fa4e4f2920397d)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/rows_registry.rs (/opt/code/wt-hr3-target/release/deps/rows_registry-bfb42d36fb4abd7b)
-test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.26s
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.23s
      Running tests/split_trigger.rs (/opt/code/wt-hr3-target/release/deps/split_trigger-03b2a30121f5caef)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/splitkv_occ.rs (/opt/code/wt-hr3-target/release/deps/splitkv_occ-96a2d1a428f9af8a)
@@ -132,131 +134,131 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_backend_metal-05f826e2833b2fc8)
 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/attention.rs (/opt/code/wt-hr3-target/release/deps/attention-33a4516038b9aaa3)
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
      Running tests/dense.rs (/opt/code/wt-hr3-target/release/deps/dense-8e7082affd29b026)
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
      Running tests/fault_inject.rs (/opt/code/wt-hr3-target/release/deps/fault_inject-ac76a2730b327e5b)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/fill.rs (/opt/code/wt-hr3-target/release/deps/fill-3ef0c7af91754baf)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
      Running tests/flash_prefill.rs (/opt/code/wt-hr3-target/release/deps/flash_prefill-027ae076da2a3099)
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.13s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.37s
      Running tests/flash_prefill_nax.rs (/opt/code/wt-hr3-target/release/deps/flash_prefill_nax-b0136323e425fa64)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.16s
      Running tests/fused.rs (/opt/code/wt-hr3-target/release/deps/fused-113e47b47756d91d)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
      Running tests/g0b_attn.rs (/opt/code/wt-hr3-target/release/deps/g0b_attn-7f6bb66598f179ce)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s
      Running tests/g0b_small.rs (/opt/code/wt-hr3-target/release/deps/g0b_small-d85050ed272a2bb0)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
      Running tests/gdn.rs (/opt/code/wt-hr3-target/release/deps/gdn-8a3cbe3584baa3fc)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
      Running tests/gemm_nax.rs (/opt/code/wt-hr3-target/release/deps/gemm_nax-172a9b73318b94ce)
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
      Running tests/gemv.rs (/opt/code/wt-hr3-target/release/deps/gemv-6194d7a3e551ed29)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
      Running tests/keepwarm.rs (/opt/code/wt-hr3-target/release/deps/keepwarm-5e8399815e70e167)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
      Running tests/lowlat.rs (/opt/code/wt-hr3-target/release/deps/lowlat-355a111fe68309f4)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
      Running tests/metal4_fallback.rs (/opt/code/wt-hr3-target/release/deps/metal4_fallback-8f88c2163ec402ec)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
      Running tests/moe.rs (/opt/code/wt-hr3-target/release/deps/moe-07df193d4b14dd17)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
      Running tests/multirow.rs (/opt/code/wt-hr3-target/release/deps/multirow-f74df4c3d1a4a4f6)
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.26s
      Running tests/qkv_fold.rs (/opt/code/wt-hr3-target/release/deps/qkv_fold-03b00170a6e8b1de)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
      Running tests/quant.rs (/opt/code/wt-hr3-target/release/deps/quant-1027504e3754a01a)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.90s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.47s
      Running tests/quick_coverage.rs (/opt/code/wt-hr3-target/release/deps/quick_coverage-ca505dc00d5ddc2d)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
      Running tests/rows_exact.rs (/opt/code/wt-hr3-target/release/deps/rows_exact-504a3037b405ff5b)
-test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.81s
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.90s
      Running tests/token_feedback.rs (/opt/code/wt-hr3-target/release/deps/token_feedback-84477b25b9232349)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
      Running tests/wrap_host.rs (/opt/code/wt-hr3-target/release/deps/wrap_host-3fe8f4a7b5426786)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_bench-115dc749d245db25)
 test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_cli-389647d61a7df03c)
-test result: ok. 169 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 169 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
      Running unittests src/main.rs (/opt/code/wt-hr3-target/release/deps/intarsia-bc49d413c9e6e804)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/docs_env_vars.rs (/opt/code/wt-hr3-target/release/deps/docs_env_vars-631e02706fa12a7b)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
      Running tests/real_model.rs (/opt/code/wt-hr3-target/release/deps/real_model-63963d928df208cb)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_core-746657eb946d4377)
-test result: ok. 115 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.09s
+test result: ok. 115 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 13.95s
      Running tests/fault_inject.rs (/opt/code/wt-hr3-target/release/deps/fault_inject-c8dd4a28975ffa3b)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/gdn_hf.rs (/opt/code/wt-hr3-target/release/deps/gdn_hf-7b6cf9799365ecda)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/scheduler.rs (/opt/code/wt-hr3-target/release/deps/scheduler-094fd124da2b3253)
-test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_models-ae8abba683382850)
 test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/batch.rs (/opt/code/wt-hr3-target/release/deps/batch-42f93d9c20fd5630)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
      Running tests/batch_cuda_real.rs (/opt/code/wt-hr3-target/release/deps/batch_cuda_real-b0462d37a2e5656c)
 test result: ok. 3 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/batch_engine.rs (/opt/code/wt-hr3-target/release/deps/batch_engine-4da4cea7a77c63b3)
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.27s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.30s
      Running tests/batch_metal.rs (/opt/code/wt-hr3-target/release/deps/batch_metal-9093d0385f490646)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/batch_metal_real.rs (/opt/code/wt-hr3-target/release/deps/batch_metal_real-e861737e6c34b4ff)
 test result: ok. 2 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.05s
      Running tests/batch_recurrent.rs (/opt/code/wt-hr3-target/release/deps/batch_recurrent-bbca982796840672)
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 50.68s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 96.19s
      Running tests/batch_recurrent_load.rs (/opt/code/wt-hr3-target/release/deps/batch_recurrent_load-e7325ae3addbbf38)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
      Running tests/chat_templates_real.rs (/opt/code/wt-hr3-target/release/deps/chat_templates_real-ced0bce72f57aa6d)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/config.rs (/opt/code/wt-hr3-target/release/deps/config-06752a0b1b7d85bb)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/constrain.rs (/opt/code/wt-hr3-target/release/deps/constrain-fbf660c0514e1507)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
      Running tests/engine.rs (/opt/code/wt-hr3-target/release/deps/engine-91f8bd30cdb91202)
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
      Running tests/engine_panic.rs (/opt/code/wt-hr3-target/release/deps/engine_panic-b906c97806d9b661)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      Running tests/engine_robust.rs (/opt/code/wt-hr3-target/release/deps/engine_robust-0d567557c9cbab6d)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
      Running tests/exl3_model.rs (/opt/code/wt-hr3-target/release/deps/exl3_model-c90e328477d10ba7)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
      Running tests/fusion_p1.rs (/opt/code/wt-hr3-target/release/deps/fusion_p1-3cb5fcd756c06288)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
      Running tests/fusion_p2.rs (/opt/code/wt-hr3-target/release/deps/fusion_p2-e66fb707e6a15c44)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
      Running tests/fusion_p2prime.rs (/opt/code/wt-hr3-target/release/deps/fusion_p2prime-173e5475df551d17)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
      Running tests/gemma4_real.rs (/opt/code/wt-hr3-target/release/deps/gemma4_real-b5c1619b9c9850a1)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/gemma4_tiny.rs (/opt/code/wt-hr3-target/release/deps/gemma4_tiny-0da0da64db66debc)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
      Running tests/graphs.rs (/opt/code/wt-hr3-target/release/deps/graphs-c0d638904042e066)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
      Running tests/head_and_scheme.rs (/opt/code/wt-hr3-target/release/deps/head_and_scheme-8984e947f767d135)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      Running tests/hybrid.rs (/opt/code/wt-hr3-target/release/deps/hybrid-c8d983d393397c7b)
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
      Running tests/hybrid_mxfp4.rs (/opt/code/wt-hr3-target/release/deps/hybrid_mxfp4-fcdef6e8face725e)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
      Running tests/hybrid_real.rs (/opt/code/wt-hr3-target/release/deps/hybrid_real-3e1aebeaaebe975e)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      Running tests/min_tokens.rs (/opt/code/wt-hr3-target/release/deps/min_tokens-c31474820b6a7992)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
      Running tests/model.rs (/opt/code/wt-hr3-target/release/deps/model-9c064c03eaaaf478)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
      Running tests/mtp.rs (/opt/code/wt-hr3-target/release/deps/mtp-fe638159e79ad3b8)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.81s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 40.82s
      Running tests/plan.rs (/opt/code/wt-hr3-target/release/deps/plan-c59fd5a35caf81df)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
      Running tests/prefix_boundaries_template.rs (/opt/code/wt-hr3-target/release/deps/prefix_boundaries_template-d03a9aba6af48f3e)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
      Running tests/prefix_store.rs (/opt/code/wt-hr3-target/release/deps/prefix_store-659c6bae8102261a)
-test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
      Running tests/prefix_store_cuda.rs (/opt/code/wt-hr3-target/release/deps/prefix_store_cuda-49889210e278ae5f)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/prefix_store_metal.rs (/opt/code/wt-hr3-target/release/deps/prefix_store_metal-6283d9e4d5fe3eb9)
@@ -266,29 +268,29 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/recipes_doc.rs (/opt/code/wt-hr3-target/release/deps/recipes_doc-70b8fa7bb8844234)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/rope_bias.rs (/opt/code/wt-hr3-target/release/deps/rope_bias-e7732e2f4025dda8)
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
      Running tests/spec.rs (/opt/code/wt-hr3-target/release/deps/spec-c2b2ab86406dd74b)
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.99s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.56s
      Running tests/tail_merge.rs (/opt/code/wt-hr3-target/release/deps/tail_merge-528b57900522a900)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
      Running tests/token_feedback.rs (/opt/code/wt-hr3-target/release/deps/token_feedback-8079667f01989803)
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
      Running tests/tp.rs (/opt/code/wt-hr3-target/release/deps/tp-b774ff0e7e322fbf)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
      Running tests/tp_hybrid.rs (/opt/code/wt-hr3-target/release/deps/tp_hybrid-54b38d006ed61e47)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
      Running tests/tp_mxfp4.rs (/opt/code/wt-hr3-target/release/deps/tp_mxfp4-45c9931bb93f5e7a)
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
      Running tests/tp_remote_acks.rs (/opt/code/wt-hr3-target/release/deps/tp_remote_acks-65a9d9db5f80b560)
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/tp_test_bug.rs (/opt/code/wt-hr3-target/release/deps/tp_test_bug-154a2eb977424740)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_server-78229e7ebd97d49f)
-test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
      Running tests/api.rs (/opt/code/wt-hr3-target/release/deps/api-9cf112053d9e4a2c)
 test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
      Running tests/prefix_store.rs (/opt/code/wt-hr3-target/release/deps/prefix_store-5a89d31baae9d4d3)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
      Running unittests src/lib.rs (/opt/code/wt-hr3-target/release/deps/intarsia_tui-3ab9c4ee53e1ba57)
 test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/render.rs (/opt/code/wt-hr3-target/release/deps/render-cd372c5c2304c78a)

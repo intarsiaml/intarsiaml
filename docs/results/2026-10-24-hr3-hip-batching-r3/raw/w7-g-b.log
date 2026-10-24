@@ -1,0 +1,143 @@
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:663:9
+    |
+663 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5.56s
+     Running tests/moe_block.rs (/target/release/deps/moe_block-f5e45b49f7fb48bd)
+
+running 7 tests
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... ok
+test moe_block_graph_replay_is_bitwise_eager ... moe_block_dispatch_order: 90 launches bitwise
+ok
+test moe_block_is_bitwise_the_chain ... ok
+test moe_block_rows_are_the_solo_block_per_token ... moe_block_is_bitwise_the_chain: 52 cases bitwise
+ok
+test moe_block_sentinel_stress ... moe_block_rows_are_the_solo_block_per_token: 168 launches, 1252 tokens bitwise the T = 1 block, 144 negative controls differ
+  [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=2 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=64 k=8 h=1024 i=256 is=256, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=1 e=16 k=2 h=256 i=16 is=32, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+  [routed last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [routed tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [shared tok0 last late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+  [every producer late, side] t=4 e=16 k=4 h=128 i=32 is=48, 120 rounds: skew 0: 0 differ (0 NaN), skew 2: 0 differ (0 NaN), skew 6: 0 differ (0 NaN); stream 1: 0 differ
+moe_block_sentinel_stress: 6000 launches, 0 differ from the chain
+ok
+test moe_block_timing ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 113.98s
+
+     Running tests/row_tables.rs (/target/release/deps/row_tables-446060fcdc336936)
+
+running 8 tests
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 2228224 bytes identical to the solo launches (M 1..=16, 2 shapes, positions 0..1199)
+ok
+test control_swapped_entries_are_detected_in_delta_append_and_rope ... ok
+test control_swapped_table_entries_are_detected ... ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_v2_rows: 323231744 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test gdn_row_tables_are_the_solo_fused_conv_delta ... G-B gdn_conv_bf16_rows + gdn_delta_rule_bf16_v2_rows: 299696128 bytes identical to the solo fused gdn_conv_delta_bf16 (M 1..=16)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.67s
+
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 6 tests
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:21/21/853388 2:21/42/1706776 3:21/63/2560164 4:21/84/3413552 5:21/105/4266940 6:21/126/5120328 7:21/147/5973716 8:21/168/6827104 9:21/189/7680492 10:21/210/8533880 11:21/231/9387268 12:21/252/10240656 13:21/273/11094044 14:21/294/11947432 15:21/315/12800820 16:21/336/13654208
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:22/22/88100 2:22/44/176200 3:22/66/264300 4:22/88/352400 5:22/110/440500 6:22/132/528600 7:22/154/616700 8:22/176/704800 9:22/198/792900 10:22/220/881000 11:22/242/969100 12:22/264/1057200 13:22/286/1145300 14:22/308/1233400 15:22/330/1321500 16:22/352/1409600
+ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... G-B fp8 matmul_fp8_gemv_rows: M:cases/rows/bytes 1:132/132/550044 2:132/264/1100088 3:132/396/1650132 4:132/528/2200176 5:132/660/2750220 6:132/792/3300264 7:132/924/3850308 8:132/1056/4400352 9:132/1188/4950396 10:132/1320/5500440 11:132/1452/6050484 12:132/1584/6600528 13:132/1716/7150572 14:132/1848/7700616 15:132/1980/8250660 16:132/2112/8800704
+ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... G-B moe moe_experts_bf16_rows: M:cases/rows/bytes 1:16/16/34816 2:16/32/69632 3:16/48/104448 4:16/64/139264 5:16/80/174080 6:16/96/208896 7:16/112/243712 8:16/128/278528 9:16/144/313344 10:16/160/348160 11:16/176/382976 12:16/192/417792 13:16/208/452608 14:16/224/487424 15:16/240/522240 16:16/256/557056
+ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... G-B nvfp4 matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:32/32/6006480 2:32/64/12012960 3:32/96/18019440 4:32/128/24025920 5:32/160/30032400 6:32/192/36038880 7:32/224/42045360 8:32/256/48051840 9:32/288/54058320 10:32/320/60064800 11:32/352/66071280 12:32/384/72077760 13:32/416/78084240 14:32/448/84090720 15:32/480/90097200 16:32/512/96103680
+ok
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel argmax_f32: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel embedding_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel gated_rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_combine_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_topk_bf16: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel moe_topk_bf16_v2: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel rmsnorm_add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel sigmoid_mul_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel silu_glu_bf16: M:cases/rows/bytes 16:1/16/0
+ok
+test timing_gemv_rows ... ignored, micro-timing
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.46s
+
+     Running tests/rows_registry.rs (/target/release/deps/rows_registry-af40d2445d91e889)
+
+running 3 tests
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
