@@ -420,9 +420,18 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
             picks(&rec, Op::MoeExperts),
             picks(&rec, Op::MoeBlock)
         );
-        // the shared expert's nvfp4 GEMV is inside the fused block when it runs
+        // when the fused block runs, the experts op and the shared expert's nvfp4 GEMV are inside it; otherwise both stay separate calls
         let fused = picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows"));
-        assert!(!picks(&rec, Op::MatmulFp8).is_empty() && (fused || !picks(&rec, Op::MatmulNvfp4).is_empty()));
+        if m.backend.name() == "hip" && matches!(v, Variant::Moe) {
+            // positive check: on HIP a 4-row step of the tiny MoE must take the row-exact fused block, not silently fall back to the chain
+            assert!(fused, "{v:?}: a 4-row batched step must pick the fused moe_block rows kernel, got {:?}", picks(&rec, Op::MoeBlock));
+        }
+        if fused {
+            assert!(picks(&rec, Op::MoeExperts).is_empty(), "{v:?}: the fused block replaces the experts op, got {:?}", picks(&rec, Op::MoeExperts));
+            assert!(!picks(&rec, Op::MatmulFp8).is_empty());
+        } else {
+            assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
+        }
     }
     // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
     // kernel's one-row call on every row in one launch (`<solo kernel>_rows`, bitwise the solo kernel, tests/row_tables.rs)
