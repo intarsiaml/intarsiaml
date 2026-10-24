@@ -10,6 +10,8 @@
 # the chunk of the arm (the 35B on CUDA defaults it to the solo chunk). Same three calls for the vLLM arm.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
+# the first build of this tree (job #4920) was stamped from the wrong repo (tree-stamp.sh ran in the cwd): rebuild with the clean main stamp (incremental, ~1 min)
+HOST=spark2 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build.sh" c8k-main /opt/code/wt-c8k auto || exit 1
 H=spark2; HN=spark-fa00; PORT=8190; PROD=missioncntrl-guidance; NAME=c8k-vllm
 OUTN=$1; ROUNDS=$2; TREE=$3
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$D/../.."

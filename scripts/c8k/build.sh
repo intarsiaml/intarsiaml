@@ -11,7 +11,7 @@ D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The build stamp must be `scripts/tree-stamp.sh` output (the baseline gate's provenance check parses it). Anything else: engine
 # source from the clean main worktree CLEAN_SRC (no scripts/c8k in the code tree), stamped from there.
 if [[ $STAMP != head=* ]]; then
-  SRC=${CLEAN_SRC:-/opt/code/wt-c8k-src}; STAMP=$("$SRC/scripts/tree-stamp.sh")
+  SRC=${CLEAN_SRC:-/opt/code/wt-c8k-src}; STAMP=$(cd "$SRC" && scripts/tree-stamp.sh)
 fi
 [[ -n ${RECIPE_CHUNK:-} ]] && STAMP=${STAMP/dirty=no/dirty=yes}
 SEED=${SEED_TREE:-lt-main}; R='~/intarsia-decfuse'
