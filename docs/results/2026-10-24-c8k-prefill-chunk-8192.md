@@ -6,42 +6,59 @@ Qwen3.6-35B-A3B-NVFP4, GB10 (spark1 and spark2).
 
 ## Result
 
-**Recommendation: raise the solo chunk to 8192, but do not let the batching engine inherit it.** Today the busy chunk follows the solo
-chunk, so 8192 makes every request that starts prefilling beside decoding rows stall them for a whole 8192-token chunk.
+**Recommendation: adopt 8192 for the solo chunk, as a package, not as the one-line recipe edit.** The prefill gain is real and no
+accuracy gate moves. But the one-line edit (a) turns `qualify` acc-4k red on CUDA for a structural reason, and (b) makes the batching
+engine's busy chunk 8192 too, which lengthens the worst decode pause 1.75x (4k prompts) to 3.3x (16k). Both have a small, measured fix
+that this PR does not make (the brief says to change nothing):
+
+1. recipe `[tuning.cuda] prefill_chunk = 8192` (and the explanatory comment above it);
+2. `qualify` acc-4k: run its in-run reuse at `min(plan chunk, 1024)` like the separate capped run already does, or drop reuse from that
+   `--mode all` run (today: "nothing ran: no prompt can cross a chunk boundary at prefill chunk 8192 ... not a pass", exit 1);
+3. busy chunk default `min(solo, 2048)` for the 35B on CUDA (today `--busy-chunk 2048` does this per deployment; measured below);
+4. re-record the acc-short baseline at 8192 in the same change (identical numbers, see "Baseline").
+
+If the user prefers not to touch qualify and batching now, the evidence also supports leaving 2048 as it is: the gain is 6-11 % on
+prompts of 4k and longer and nothing below 2k changes.
 
 | | chunk 2048 (main) | chunk 8192 |
 |---|---|---|
 | Solo prefill, 4k / 16k tok/s | 6598 / 6059 | 7023 / 6733 (**+6.4 % / +11.1 %**) |
 | Solo prefill vs vLLM, 1k / 4k / 16k | -9.3 % / +2.2 % / -4.8 % | -9.0 % / +8.9 % / +5.8 % |
-| Accuracy gates (thresholds unchanged) | pass | **pass**, all of them (table below) |
+| Accuracy and reuse gates run by hand (thresholds unchanged) | 1 FAIL in the new 12k s6000 control (below) | **0 FAIL** (table below) |
+| `qualify` acc-short / acc-long / acc-4k, real stages | PASS / PASS / PASS (exit 0) | PASS / PASS / **FAIL** (exit 1, structural) |
 | Decode stall when a prompt arrives beside 3 decoding streams, 4k prompt (max ITL) | 336 ms | **590 ms** |
 | same, 16k prompt | 383 ms | **1264 ms** |
 | 4-stream aggregate decode | 96 / 112 tok/s (4k burst / stagger) | 99 / 112 tok/s (no change) |
-| Stall with `--busy-chunk 2048` on top of 8192 | | 337 ms (4k), 382 ms (16k): back to the 2048 values |
+| Stall with `--busy-chunk 2048` on top of 8192 | | 337 ms (4k), 382 ms (16k): the 2048 values |
 
 What the decision turns on:
 
-1. **Prefill gain is real and reproduces the lt numbers** (+8.9 % / +5.8 % vs vLLM at 4k / 16k here, +8.6 % / +6.4 % in the brief, same
-   window method, 3 interleaved rounds, spread under 1 %). 1k is unchanged (a 1k prompt is one chunk either way).
-2. **No accuracy gate moves.** KL goldens, acc-short against main's baseline, acc-4k and the prefix-reuse gate all pass at 8192 with
-   no threshold touched. Two things are thinner than the 2048 evidence and are stated plainly below: the reuse gate at 8192 can only
-   be judged on the two 12k prompts (a 4k prompt cannot cross an 8192 boundary), and `long_code_12k` continue has warm/cold 1.71x
-   (limit 1.5x + 3e-3, passes at 71 % of the limit).
-3. **The cost is the decode stall under batching** (`--max-batch`, opt-in), not decode throughput. Steady-state ITL (p50 21-27 ms) and
-   aggregate decode are the same at both chunks. What changes is the single long gap each time a new prompt is prefilled while others
-   decode: one chunk's worth of GEMMs, 336 ms -> 590 ms for a 4k prompt and 383 ms -> 1264 ms for 16k. vLLM, same window, 4k: max ITL
-   313-654 ms. `--busy-chunk 2048` removes the growth in full and keeps the solo prefill gain (measured), so the safe form of the change is
-   "solo 8192, busy 2048 unless the operator asks otherwise". That needs a small code change (busy default `min(solo, 2048)`); this PR
-   does not make it.
-4. **Not done / not covered:** `--busy-chunk 2048` under solo 8192 is not KL-gated (the existing `real_35b_busy_chunk_prefill_kl_gate`
-   hard-codes solo 2048 and asserts it); it is by design not bitwise to the solo run, like the shipped 1024 busy chunk. The acc-short
-   baseline is chunk-tied (recorded at 2048); see "Baseline" below.
+1. **Prefill gain is real and reproduces the lt numbers** (+8.9 % / +5.8 % vs vLLM at 4k / 16k here, +8.6 % / +6.4 % in the brief; 3
+   interleaved rounds, per-round spread about 1 point). 1k is unchanged (a 1k prompt is one chunk either way).
+2. **No accuracy gate moves.** KL goldens, acc-short against main's baseline, acc-4k accuracy and the prefix-reuse gate all pass at 8192
+   with no threshold touched. Thinner than the 2048 evidence, stated plainly: the reuse gate at 8192 can only be judged on the two 12k
+   prompts (a 4k prompt cannot cross an 8192 boundary), and `long_code_12k` continue has warm/cold 1.71x (limit 1.5x + 3e-3, passes at 71 %
+   of the limit).
+3. **The qualify acc-4k problem is structural, not numeric.** Its `--mode all` run on the 4k golden (prompts of 4064, 4064 and 4631 tokens)
+   needs at least one prompt that crosses a chunk boundary; at 8192 none can, so the gate reports FAIL with "nothing ran". The accuracy
+   part of that stage passes (floor PASS). The HIP recipe has the same shape at 4096 and survives only because `chat_reuse_4k` (4631)
+   still crosses it.
+4. **The cost is the decode stall under batching** (`--max-batch`, opt-in), not decode throughput. Steady-state ITL (p50 21-27 ms) and
+   aggregate decode are the same at both chunks. What changes is the worst single gap each time a new prompt is prefilled while others
+   decode: one chunk's worth of GEMMs, 336 ms -> 590 ms for a 4k prompt and 383 ms -> 1264 ms for 16k (vLLM, same window, 4k: max ITL
+   313-654 ms). The stalls are fewer and longer: total stalled time is about equal (see the ITL section). `--busy-chunk 2048` removes the
+   growth in full and keeps the solo prefill gain.
+5. **Not covered:** `--busy-chunk 2048` under solo 8192 is not KL-gated (the existing `real_35b_busy_chunk_prefill_kl_gate` hard-codes
+   solo 2048 and asserts it); it is by design not bitwise to the solo run, like the shipped 1024 busy chunk. Reuse at 8192 is judged on
+   two prompts. The 12k s6000 oracles (below) make a main-side gate look bad at chunk 2048 in a hand-run arm; qualify does not exercise
+   it (`q2048` passes).
 
 ## Gates at chunk 8192 (fp8-lt default, thresholds unchanged)
 
 Binary: main `6189466f` clean (`head=6189466 code-tree=9cac1d016898 dirty=no`), `--prefill-chunk 8192` on the command line for the
-accuracy runs. batch_cuda_real runs on a Spark copy whose recipe has `prefill_chunk = 8192` (the recipe override; repo untouched,
-stamp `dirty=yes`). Controls at 2048 are the same build, same session.
+accuracy runs. batch_cuda_real and `qualify` at 8192 run on a Spark copy whose recipe has `prefill_chunk = 8192` (the recipe override;
+repo untouched, stamp `dirty=yes`; the override script edits both the `[tuning.cuda]` and `[tuning.metal]` lines, only the CUDA one
+matters on these boxes and only that one would change). Controls at 2048 are the same build, same session.
 
 | Gate | chunk 8192 | chunk 2048 (control) | Raw |
 |---|---|---|---|
@@ -50,16 +67,19 @@ stamp `dirty=yes`). Controls at 2048 are the same build, same session.
 | KL golden 4k (3 prompts) | PASS | PASS | `raw/gates/ga2/kl-*-vllm-4k-top20-c*.log` |
 | acc-short vs main's baseline (`--pre-change c37a8d3`) | PASS (floor PASS, baseline PASS; `--allow-config-mismatch` for the chunk) | PASS | `raw/gates/ga2/accshort-c*.log` |
 | acc-4k accuracy (`--mode both`, `--min-top1 0` as qualify) | PASS | PASS | `raw/gates/ga2/acc4k-c*.log` |
-| Prefix reuse, long golden (5 prompts) | PASS: 2 judged (12k), 3 skipped (4k, cannot cross) | PASS (control, run with the s6000 oracles: see below) | `raw/gates/ru/reuse-L*.log` |
+| Prefix reuse, long golden (5 prompts) | PASS: 2 judged (12k), 3 skipped (4k, cannot cross) | PASS without the s6000 oracles (`ru`); **FAIL with them** (`ru2`: `long_docs_12k` continue at split 6000, warm 7.9e-2 vs cold 3.7e-3, 21x), see Finding | `raw/gates/ru/reuse-L*.log`, `raw/gates/ru2/reuse-L2048.log` |
 | Prefix reuse, 12k at split 9500 (new oracles) | PASS: 2 of 2 judged | PASS 2 of 2 | `raw/gates/ru/reuse-S*.log` |
-| Prefix reuse, 4k golden | 8192: structurally cannot run (all 3 prompts skipped, gate FAIL by design); 2048: PASS 3 of 3; 1024: PASS 3 of 3 | | `raw/gates/ru/reuse-F*.log` |
+| Prefix reuse, 4k golden | 8192: structurally cannot run (all 3 prompts skipped, FAIL by design); 2048: PASS 3 of 3; 1024: PASS 3 of 3 | | `raw/gates/ru/reuse-F*.log` |
 | batch_cuda_real (default tests, recipe override 8192) | 3 passed, 0 failed, 6 ignored | not rerun (lt flip run at 2048: `2026-10-23-lt-fp8-lt-reuse/raw/flip/batch.log`) | `raw/gates/gb/batch.log` |
 | batch_cuda_real `--ignored` long prompts (2.6k, 4k, 16k) | 1 passed: R0-R3 IDENTICAL to the LocalEngine, busy prefill chunk 8192 | at 2048: lt flip run | `raw/gates/gb/batch-long.log` |
-| qualify stages acc-short, acc-long, acc-4k | QUALIFY_8192 | QUALIFY_2048 | `raw/gates/q8192`, `raw/gates/q2048` |
+| `qualify` acc-short | PASS (floor only: "baseline not requested" in this run) | PASS | `raw/gates/q8192`, `raw/gates/q2048` |
+| `qualify` acc-long | PASS | PASS | same |
+| `qualify` acc-4k | **FAIL**: accuracy floor PASS, prefix reuse "nothing ran" | PASS (reuse at the 1024 cap: 3 of 3 judged with the new `-g4k` oracles) | same |
 
-Count of failed gates at 8192: **0** of the rows above, with the one by-design structural exception (4k golden reuse at 8192: no prompt
-can cross a chunk, so there is nothing to judge; `qualify` runs the 4k reuse at `min(plan chunk, 1024)` and its `--mode all` run
-does not require all prompts, so that stage is not affected).
+Failed gates, counted: **chunk 8192: 1** (qualify acc-4k, structural: no prompt of the 4k golden can cross an 8192 chunk; the hand-run
+reuse arm F8192 fails the same way; every numeric gate passes). **Chunk 2048 (main, control): 1** (`long_docs_12k` continue at split 6000
+against the new s6000 oracle, hand-run only; `qualify` on the same tree passes). The 2048 FAIL is not an 8192 result: 8192 never runs
+that split (6000 does not cross an 8192 boundary).
 
 ### KL goldens, per prompt (2048 / 8192)
 
@@ -67,6 +87,7 @@ KL goldens use `accuracy --mode prefill`; short prompts are under 2048 tokens, s
 digits, a useful harness control). The long and 4k goldens are where the schedule differs.
 
 vllm-top20: gate 2048 PASS (multi-chunk prompts 0/10), 8192 PASS (multi-chunk 0/10)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | count | 100.00 / 100.00 | 3.718e-03 / 3.718e-03 | 3.718e-03 / 3.718e-03 | 38/38 / 38/38 |
@@ -81,6 +102,7 @@ vllm-top20: gate 2048 PASS (multi-chunk prompts 0/10), 8192 PASS (multi-chunk 0/
 | long_prose_700 | 98.86 / 98.86 | 5.617e-03 / 5.617e-03 | 5.617e-03 / 5.617e-03 | 0/700 / 0/700 |
 
 vllm-long-top20: gate 2048 PASS (multi-chunk prompts 5/5), 8192 PASS (multi-chunk 2/5)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | long_docs_4k | 93.80 / 93.80 | 1.754e-02 / 1.802e-02 | 1.754e-02 / 1.802e-02 | 0/4064 / 0/4064 |
@@ -90,15 +112,17 @@ vllm-long-top20: gate 2048 PASS (multi-chunk prompts 5/5), 8192 PASS (multi-chun
 | long_code_12k | 97.07 / 97.25 | 8.577e-03 / 8.642e-03 | 8.577e-03 / 8.642e-03 | 18/12064 / 21/12064 |
 
 vllm-4k-top20: gate 2048 PASS (multi-chunk prompts 3/3), 8192 PASS (multi-chunk 0/3)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | long_docs_4k | 93.75 / 93.63 | 1.659e-02 / 1.758e-02 | 1.659e-02 / 1.758e-02 | 0/4064 / 0/4064 |
 | long_code_4k | 96.73 / 96.97 | 7.168e-03 / 7.038e-03 | 7.168e-03 / 7.038e-03 | 18/4064 / 21/4064 |
 | chat_reuse_4k | 88.58 / 88.62 | 2.559e-01 / 2.587e-01 | 3.535e-02 / 2.652e-02 | 8/4631 / 64/4631 |
 
-Top-1, KL and tail-mass differences at the long prompts are in both directions and within what the reference's own run-to-run noise
-allows; no prompt moves by more than 1.3e-2 in KL21 except `chat_reuse_4k`, whose all-rows KL21 (2.8e-1) is dominated by the user turn
-the floor does not score (scored-rows KL21 8.5e-3 -> 1.2e-2 on the long golden, 3.5e-2 -> 2.7e-2 on the 4k golden).
+Differences between the chunks are in both directions. No prompt other than `chat_reuse_4k` moves by more than 1.0e-3 in KL21 or
+0.4 points of top-1. `chat_reuse_4k` is the chunk-sensitive prompt the recipe comment names: its scored-rows KL21 goes 8.5e-3 -> 1.2e-2
+on the long golden and 3.5e-2 -> 2.7e-2 on the 4k golden (up on one, down on the other), its greedy-track 8 -> 64 tokens; the all-rows
+KL21 (2.7e-1) is dominated by the user turn, which the floor does not score. The gate passes at both chunks on all three goldens.
 
 ### Prefix reuse (accuracy --mode reuse), per case
 
@@ -121,10 +145,31 @@ row bit-identical to the cold run (the reuse path is exact at chunk boundaries).
 | 4k golden, 1024 (qualify's cap) | long_docs_4k / long_code_4k / chat_reuse_4k | 1.10e-2 / 6.78e-3 / 4.38e-3 | 1.18e-2 / 8.88e-3 / 4.86e-3 | 1.07x / 1.31x / 1.11x | 1.96e-2 / 1.32e-2 / 9.58e-3 | PASS x3 |
 | 4k golden, 8192 | 3 prompts | | | | | all skipped: gate FAIL by design (nothing to judge) |
 
-**The one FAIL is at chunk 2048, the current default, not at 8192.** `long_docs_12k` continue at its default split 6000 against the new
-s6000 oracle: the cold run is 3.7e-3 from the oracle, the warm (prefix-restored) run 7.9e-2. Without an oracle for this split the gate
-judged the same case by agreement only (`32/32 ok`), so the weakness was not visible before this PR's oracles. It is a property of main
-(fp8-lt, chunk 2048), not of the candidate; see "Finding: the 2048 s6000 control" for what was run about it.
+### Finding: the 2048 s6000 control (a FAIL that is not an 8192 result)
+
+`long_docs_12k` continue at its default split 6000 against the new s6000 oracle fails at chunk 2048 (`ru2/reuse-L2048.log`): the cold run
+is 3.7e-3 from the oracle, the warm (prefix-restored) run 7.9e-2, 21x, limit 8.6e-3. Without an oracle for that split the gate judged the
+same case by greedy agreement only (`32/32 ok`), so this was not visible before the new oracles. `reuse-diag` on the same prompt
+(`raw/gates/rd`) says it is not a restore defect:
+
+| Run (long_docs_12k, split 6000) | mean KL(oracle \|\| cold) | mean KL(oracle \|\| warm) | Rule |
+|---|---:|---:|---|
+| chunk 2048 | 3.74e-3 | **7.93e-2** | FAIL (limit 8.60e-3) |
+| chunk 1024 (what `qualify` uses) | **8.48e-2** | 6.20e-3 | PASS (limit 1.30e-1) |
+| chunk 2048, `long_code_12k` | 2.46e-3 | 1.97e-3 | PASS |
+
+At chunk 2048 the engine's own diagnostics for these 32 rows: cold chunk 2048 vs cold chunk 1024 mean KL 4.2e-2 (max 1.22, one argmax
+flip); warm vs cold at the same chunk 4.5e-2; cold 2048 vs cold 2047 4.4e-3; cold 2048 vs cold 4096 bitwise identical; each run
+repeated is bitwise identical (deterministic). So for this prompt the logits of the 32 rows move by about the oracle distance when only
+the chunk schedule changes: whichever run lands on the far side of an unstable position is the one "far" from the oracle (cold at 1024,
+warm at 2048). The oracle-relative rule (warm <= 1.5 x cold + 3e-3) passes when cold is the far one and fails when warm is. That is my
+reading of the diagnostics, not proven by a bisect of the unstable position. It is the same class as the long_docs_4k near-tie of gc2,
+at 12k. Not touched: the rule, its factors, the oracle.
+
+Consequence for this PR: `golden/oracle` now holds a reference that a hand-run reuse at chunk 2048 and default split fails. `qualify`
+on main's tree passes with it present (`q2048`, exit 0: its reuse runs are capped at 1024), so nothing on main's gates turns red, but
+anyone running `accuracy --mode reuse --prefill-chunk 2048` on the long golden with this directory will see that FAIL. The s6000 files are
+in their own commit (`c8k: continue oracles s6000 ...`) so the user can drop them with one revert; I did not.
 
 ## The references that were missing
 
@@ -221,8 +266,13 @@ vLLM in the speed window (4 streams of ~4k, same two scenarios, 2 reps x 3 round
 | i8192 | stagger | 20 (20, 20, 20) | 33 (44, 33, 33) | 593 (595, 593, 589) | 113 |
 
 
-Reading: p50 and aggregate decode are unchanged. The burst p99 *is* the stall (a quarter of the intervals sit next to a prefill); in the
-stagger scenario stalls are rare (3 per 1000 tokens), so p99 stays at the decode floor and the **max** is the stall. A stall is one
+Reading: p50 and aggregate decode are unchanged. Intervals above 250 ms, per run (`pooled_itl_ms.gt_250ms` in `raw/i1/*.json`): 4k
+burst 12 of 508 at 2048 (2.4 %) vs 6 of 508 at 8192 (1.2 %); 16k burst 48 of 508 (9.4 %) vs 12 of 508 (2.4 %); stagger 12 of 1276 vs 6 of
+1276 (4k) and 48 of 1916 vs 12 of 1916 (16k). So the burst p99 *is* the stall, in the stagger scenario p99 stays at the decode floor and
+the **max** is the stall. Fewer, longer pauses: at 8192 the stalled intervals are half (4k) or a quarter (16k) as many, each 1.75x (4k) or
+3.3x (16k) as long; the total time the decoders spend stalled is about the same (4k: 12 x 336 ms = 4.0 s vs 6 x 590 ms = 3.5 s; 16k: 48 x
+383 ms = 18 s vs 12 x 1264 ms = 15 s), because the prefill work is the same and 8192 does it a little faster. What gets worse is the
+worst single pause, not the average. A stall is one
 chunk of prefill: 336 ms for a 2048-token chunk, 590 ms for a whole 4064-token prompt in one 8192 chunk, 1264 ms for a full 8192 chunk
 of a 16k prompt. `--busy-chunk 2048` returns all of it to the 2048 numbers (4k: 338 / 337 ms; 16k: 382 / 382 ms) while solo prefill stays
 at 8192.
@@ -238,17 +288,32 @@ config mismatch.
 
 ## Incidents and limits
 
-- Spark goldens: my first build sync replaced `pf-golden` short and long goldens with symlinks to Mac paths; the first spark1 gate run
-  failed to read them (counted, not hidden: `raw/gates/ga`, errors for the 8192 short, long and acc-short arms). Restored from the repo
-  files and the whole gate set rerun as `raw/gates/ga2`; `ga2` is what the table uses.
-- Stale reuse job: the first reuse job was released before it started (`#4926`), its remote script kept running after the local
-  wrapper died and was stopped by PID through fleetq; it produced no used output. The first speed-window attempt: see above.
+- **Shared Spark directories, my fault.** My build/rjob scripts rsynced into the shared `~/intarsia-decfuse/pf-golden` (and, from build.sh,
+  `pf-scripts/lt`). (1) `pf-golden` short and long goldens became symlinks to Mac paths: spark2 from about 23:10 to 00:24, spark1 from
+  about 00:16 to 00:24 (restored from the repo files, fleetq #4942/#4943); any other lane's accuracy run that read them in those windows
+  failed to open them. (2) New oracles appeared in `pf-golden/oracle`: `-g4k` and s12062 (spark1 from about 00:16, spark2 from about 23:10, first sync of each), s9500
+  (spark1 about 03:31, spark2 about 02:08), s6000 (spark1 about 03:31, spark2 05:12). The reuse gate finds oracles in the golden's directory, so a lane
+  running reuse on the long golden at chunk <= 2048 and split 6000 after those times would have been judged against s6000 and seen the
+  FAIL above. I checked the one reuse run I know of in the window (mp, spark1 `out/mpgB2/reuse.log`, 03:16): before s6000 arrived, and
+  the other files were "not used". I did not check other lanes' runs. (3) `pf-scripts/lt` was overwritten with main's copies (no
+  `--delete`). All lane files were moved out of the shared directory at about 05:25 and the lane now uses
+  `~/intarsia-decfuse/pf-golden-c8k` on both Sparks (`scripts/c8k/private-golden.sh`). A lane that wants these references copies them from
+  `golden/oracle` after this PR merges.
+- Spark gate attempt 1 (`raw/gates/ga`): the 8192 short, long and acc-short arms failed to open the symlinked goldens (counted, not hidden);
+  the whole set was rerun as `raw/gates/ga2`, which the tables use.
+- The first reuse job was released before it started (`#4926`); its remote script kept running after the local wrapper died and was
+  stopped by PID through fleetq. It produced no used output. The first speed-window attempt (`raw/w0-aborted-script-edit`) stopped and
+  restored retro after 484 s because I edited the script while bash was running it; no numbers from it are used.
+- `reuse-diag` runs print "Error: unsupported: cannot roll recurrent state back ..." for the restore case (diag mode keeps no snapshot
+  there); the non-diag runs judge restore fine. The continue lines are what the table uses.
 - Reuse at 8192 is judged on two prompts (12k docs, 12k code) at two splits each. Other lengths between 4k and 12k, and anything above
   12k, are not covered (the repo's goldens have no such prompts).
 - The oracles are f64 CPU runs of one frozen Metal stream per prompt (teacher-forced). Their cold/warm distances change with the engine's
   chunk (`KL(oracle||cold)` 1.40e-2 at 8192 vs 2.28e-2 at 2048 for `long_docs_12k` split 9500); the rule compares warm to cold of the
   same run.
-- The speed numbers are one machine pair and one prompt generator (localeval filler text); the ITL pooled across streams of one server.
+- Speed numbers: one machine pair and one prompt generator (localeval filler text); ITL pooled across the streams of one server.
+- `qualify` here runs acc-short, acc-long and acc-4k only (the other stages skipped), `--no-unim`, and acc-short was floor-only ("baseline
+  not requested"); the baseline compare is the hand-run row.
 
 ## Reproduce
 

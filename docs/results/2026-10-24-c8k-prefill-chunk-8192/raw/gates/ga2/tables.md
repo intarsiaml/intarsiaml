@@ -1,5 +1,5 @@
-
 vllm-top20: gate 2048 PASS (multi-chunk prompts 0/10), 8192 PASS (multi-chunk 0/10)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | count | 100.00 / 100.00 | 3.718e-03 / 3.718e-03 | 3.718e-03 / 3.718e-03 | 38/38 / 38/38 |
@@ -14,6 +14,7 @@ vllm-top20: gate 2048 PASS (multi-chunk prompts 0/10), 8192 PASS (multi-chunk 0/
 | long_prose_700 | 98.86 / 98.86 | 5.617e-03 / 5.617e-03 | 5.617e-03 / 5.617e-03 | 0/700 / 0/700 |
 
 vllm-long-top20: gate 2048 PASS (multi-chunk prompts 5/5), 8192 PASS (multi-chunk 2/5)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | long_docs_4k | 93.80 / 93.80 | 1.754e-02 / 1.802e-02 | 1.754e-02 / 1.802e-02 | 0/4064 / 0/4064 |
@@ -23,6 +24,7 @@ vllm-long-top20: gate 2048 PASS (multi-chunk prompts 5/5), 8192 PASS (multi-chun
 | long_code_12k | 97.07 / 97.25 | 8.577e-03 / 8.642e-03 | 8.577e-03 / 8.642e-03 | 18/12064 / 21/12064 |
 
 vllm-4k-top20: gate 2048 PASS (multi-chunk prompts 3/3), 8192 PASS (multi-chunk 0/3)
+
 | prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
 |---|---|---|---|---|
 | long_docs_4k | 93.75 / 93.63 | 1.659e-02 / 1.758e-02 | 1.659e-02 / 1.758e-02 | 0/4064 / 0/4064 |

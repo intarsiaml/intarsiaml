@@ -1,0 +1,37 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.63   1.975e-2   1.758e-2   1.758e-2    3.191e0   0.0944   0.0973    90.85    0/4064      0
+long_code_4k        4064  4064    96.97   7.739e-3   7.038e-3   7.038e-3   3.960e-1   0.0368   0.0376    91.57   21/4064      0
+chat_reuse_4k       4631  4631    88.62   2.174e-1   2.587e-1   2.652e-2    1.895e1   0.0697   0.0861    87.89   64/4631      0
+OVERALL                  12759    92.88   8.765e-2   1.017e-1   1.247e-2    1.895e1   0.0671   0.0742    90.00      0.7%      0
+prefill floor [4bit]: top-1 (all rows) 92.88% (need >= 0) ok | 21-way KL (scored rows, n=8221) 1.247e-2 (need <= 3.0e-2) ok [all rows, n=12759: 1.017e-1, reported only] | tail mass (all rows) ours 0.0742 vs ref 0.0671, excess +0.0071 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.247e-2 PASS
+gate-definition: kl_floor [prefill]: old def: FAIL 1.017e-1 (21-way KL over all rows <= static floor) | current def: PASS 1.247e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64    98.44   2.113e-2   2.053e-2   2.053e-2   1.812e-1   0.0150   0.0148    89.06     44/64      0
+long_code_4k        4064    64    96.88   7.129e-3   6.455e-3   6.455e-3   5.423e-2   0.0280   0.0283    91.88     15/64      0
+chat_reuse_4k       4631    64    98.44   2.159e-3   2.160e-3   2.160e-3   2.826e-2   0.0000   0.0000    91.88     51/64      0
+OVERALL                    192    97.92   1.014e-2   9.716e-3   9.716e-3   1.812e-1   0.0143   0.0144    90.94     57.3%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.92% (need >= 0) ok | 21-way KL (scored rows, n=192) 9.716e-3 (need <= 3.0e-2) ok [all rows, n=192: 9.716e-3, reported only] | tail mass (all rows) ours 0.0144 vs ref 0.0143, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 9.716e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 9.716e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.716e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.6% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 57.3% of positions before the first argmax divergence, worst prompt 23.4% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 8192 (recipe qwen3_5_moe, cuda); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+long_code_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+chat_reuse_4k      both      SKIPPED: a prompt of 4631 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+prefix reuse: 0 prompt(s) judged, 3 skipped
+prefix reuse: 3 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 8192 (recipe qwen3_5_moe, cuda): long_docs_4k, long_code_4k, chat_reuse_4k; 0 judged
+prefix-reuse gate: FAIL (nothing ran: no prompt can cross a chunk boundary at prefill chunk 8192, so no restore was tested and this is not a pass; use a golden with longer prompts, or a smaller --prefill-chunk)
+
+wrote baseline /home/nvidia/intarsia-decfuse/out/q8192/report/baselines/acc-4k.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested   prefix-reuse verdict: FAIL
+golden gate: FAIL

@@ -1,0 +1,65 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:c8k:20261024-0500",
+ "project": "intarsiaml",
+ "lane_id": "c8k",
+ "follows": [
+  "lt"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T22:25:00-04:00",
+ "ended": "2026-10-24T09:00:00-04:00",
+ "brief": "Evidence for the user decision: raise the 35B CUDA recipe prefill_chunk from 2048 to 8192 now that fp8-lt is default (#125)? CPU references (-g4k, longer/other splits), gates at 8192 (KL goldens, reuse, acc-short, acc-4k, batch_cuda_real + long), prefill vs vLLM at 1k/4k/16k x3 interleaved, 4-stream aggregate decode and ITL at both chunks. Default not changed.",
+ "hypothesis": "Chunk 8192 keeps every accuracy gate (thresholds unchanged) and gives +6-11% prefill at 4k/16k; the price is a longer decode stall when a prompt prefills beside decoding streams, because the busy chunk follows the solo chunk.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "dgx-spark-gb10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "prefill",
+  "buckets": [
+   "4k",
+   "16k"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": "vllm",
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "prefill-chunk-8192-cuda-moe",
+   "role": "applied"
+  },
+  {
+   "id": "fx5c-continue-oracle-gate",
+   "role": "applied"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-c8k/chunk8192-evidence",
+  "base_commit": "6189466f",
+  "head_commit": null,
+  "pr": null,
+  "files": [
+   "golden/oracle/*(12k s6000/s9500/s12062, long_code_4k -g4k)",
+   "golden/reuse-splits/*",
+   "scripts/c8k/*",
+   "docs/results/2026-10-24-c8k-prefill-chunk-8192*",
+   "docs/decisions/LOG.md"
+  ],
+  "diff_stat": null,
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [],
+ "measurements": [],
+ "accuracy": {},
+ "verdict": "neutral",
+ "summary": "",
+ "lessons": [],
+ "cost": {}
+}
