@@ -137,7 +137,7 @@ fn moe_w4a16_is_bitwise_on_odd_routing() {
 fn moe_w4a16_is_bitwise_at_the_real_prefill_shape() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(83);
-    for t in [1024usize, 2048] {
+    for t in [1024usize, 2048, 3072] {
         let hc = with_distinct_gscales(&experts_case(&mut rng, t, 256, 8, 2048, 512, DType::Bf16));
         assert_bitwise(&*cuda, &hc, &format!("real prefill shape T={t}"));
     }

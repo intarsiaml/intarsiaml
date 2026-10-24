@@ -1,0 +1,43 @@
+fleetq: #4851 waiting (#2 in line): in line behind #4849 "mp: gates A (acc-short + 3 KL, PF=1)" (claude-f31ccf91-mp) on spark1
+fleetq:   #4849 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4849 set, or it will wait for #4849 to be released.
+fleetq: #4851 waiting (#2 in line): in line behind #4849 "mp: gates A (acc-short + 3 KL, PF=1)" (claude-f31ccf91-mp) on spark1; #4849 has no estimated start, so nothing can go first by ending before it
+fleetq:   #4849 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4849 set, or it will wait for #4849 to be released.
+fleetq: #4851 waiting (#1 in line): #4849 "mp: gates A (acc-short + 3 KL, PF=1)" (claude-f31ccf91-mp) needs cpu quiet on spark1, and this job loads it
+fleetq:   #4849 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4849 set, or it will wait for #4849 to be released.
+fleetq: #4851 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=/usr/local/cuda/bin:$PATH; cd ~/mp
+for t in basesrc src; do (cd $t && nvcc -O3 -std=c++17 -arch=sm_121 --expt-relaxed-constexpr -cubin -I kernels/cuda -I kernels kernels/cuda/moe_w4a16.cu -o ../w4_$t.cubin); cuobjdump -sass w4_$t.cubin > w4_$t.sass; done
+python3 - <<"PY"
+import re
+def load(p):
+    txt=open(p).read(); out={}
+    for f in re.split(r"\n\s*Function : ",txt)[1:]:
+        name=f.split("\n")[0].strip()
+        m=re.search(r"moe_w4a16_kernelILi(\d+)ELi(\d+)ELi(\d+)ELi(\d+)ELi(\d+)ELi(\d+)ELi(\d+)ELb(\d)E(Lb(\d)E)?",name)
+        if not m: continue
+        key=(m.group(1),m.group(2),m.group(3),m.group(4),m.group(8))
+        pf = m.group(10)
+        body=[]
+        for l in f.split("\n")[1:]:
+            mm=re.match(r"\s+/\*[0-9a-f]+\*/\s+(.*?)\s*;",l)
+            if mm: body.append(mm.group(1))
+        out[(key,pf)]=body
+    return out
+a=load("w4_basesrc.sass"); b=load("w4_src.sass")
+print("main kernels",len(a),"dev kernels",len(b))
+for (key,pf),body in sorted(b.items(), key=str):
+    if pf=="1": continue
+    ref=a.get((key,None))
+    print(key,"PF=false", "IDENTICAL" if ref==body else "DIFF (%s vs %s instrs)"%(len(ref) if ref else None,len(body)))
+PY'
+fleetq: #4851 went ahead of the line and must end within 13h50m (by Sat 11:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+main kernels 8 dev kernels 12
+('128', '2', '4', '0', '0') PF=false DIFF (1552 vs 1552 instrs)
+('128', '2', '4', '0', '1') PF=false IDENTICAL
+('128', '2', '4', '1', '0') PF=false DIFF (912 vs 912 instrs)
+('128', '2', '4', '1', '1') PF=false IDENTICAL
+('128', '4', '4', '0', '0') PF=false DIFF (2400 vs 2400 instrs)
+('128', '4', '4', '0', '1') PF=false IDENTICAL
+('128', '4', '4', '1', '0') PF=false DIFF (1240 vs 1240 instrs)
+('128', '4', '4', '1', '1') PF=false IDENTICAL
+fleetq: #4851 done (exit 0)
