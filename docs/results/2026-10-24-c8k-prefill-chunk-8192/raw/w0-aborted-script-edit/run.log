@@ -1,0 +1,7 @@
+[23:10:36] stopping missioncntrl-guidance
+missioncntrl-guidance
+d50f22a9edf6dbf8d54e0c0f26cd1e873b99f1c91e538e9f4bc4ab43dcf761a0
+[23:15:41] vllm ready after 275 s (util 0.32)
+missioncntrl-guidance
+[23:18:40] restore: retro healthy 484 s after the stop
+{"object":"list","data":[{"id":"guidance","object":"model","created":1792811920,"owned_by":"vllm","root":"nvidia/Qwen3.6-35B-A3B-NVFP4","parent":null,"max_model_len":131072,"permission":[{"id":"modelperm-8c8e5f5fcec6a616","object":"model_permission","created":1792811920,"allow_create_engine":false,"{"id":"chatcmpl-8f56e18bbac18636","object":"chat.completion","created":1792811920,"model":"guidance","choices":[{"index":0,"message":{"role":"assistant","content":"OK","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":null,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-
