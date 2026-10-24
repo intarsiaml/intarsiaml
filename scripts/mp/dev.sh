@@ -13,8 +13,7 @@ for v in "$@"; do
   name=${v%%:*}; flags=""; [[ "$v" == *:* ]] && flags=${v#*:}
   echo "== $name flags='$flags' $(date +%T)"
   ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB PATH=/usr/local/cuda/bin:\$PATH; cd ~/mp/src && \
-    extra=''; [ -f kernels/cuda/moe_w4a16_v3.cu ] && extra='kernels/cuda/moe_w4a16_v3.cu -DHAVE_V3'; \
-    nvcc -O3 -std=c++17 -arch=sm_121 -lineinfo $flags -I kernels/cuda -I kernels kernels/cuda_checks/moe_w4a16_bench.cu kernels/cuda/moe_w4a16.cu \$extra -o ~/mp/bin/bench_$name 2>&1 | grep -E 'error|warning: .*(spill|stack)' | head -20; \
+    nvcc -O3 -std=c++17 -arch=sm_121 -lineinfo $flags -I kernels/cuda -I kernels kernels/cuda_checks/moe_w4a16_bench.cu kernels/cuda/moe_w4a16.cu -o ~/mp/bin/bench_$name 2>&1 | grep -E 'error|warning: .*(spill|stack)' | head -20; \
     ONLY=${ONLY:-} ~/mp/bin/bench_$name $TS $REPS $SKEW"
 done
 echo "== done $(date +%T)"

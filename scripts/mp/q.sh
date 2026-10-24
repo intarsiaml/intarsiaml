@@ -16,10 +16,10 @@ for l in open(sys.argv[1]):
     if m:
         flush(); cur=m.group(1); row={}; continue
     p=l.split()
-    if len(p)>=4 and p[0].isdigit() and p[1] in("prod","v3"):
-        tag=("" if p[1]=="v3" else "P")
+    if len(p)>=4 and p[0].isdigit() and p[1] in("prod","pf"):
+        tag=("" if p[1]=="pf" else "P")
         bw="" if p[-1] in("ref",) else ""
-        row["%s%s"%(tag,p[0])]=p[2]+(("!" if "DIFF" in l else "") if p[1]=="v3" and "prod" in open(sys.argv[1]).read().split("== ",2)[1] else "")
+        row["%s%s"%(tag,p[0])]=p[2]+("!" if p[1]=="pf" and "DIFF" in l else "")
     elif "error" in l or "status" in l: print(l.rstrip())
 flush()
 PY

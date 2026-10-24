@@ -1,10 +1,10 @@
 // Standalone microbench + bitwise check for the CUDA routed-expert prefill kernels (lane mp).
 //   nvcc -O3 -std=c++17 -arch=sm_121 -I kernels/cuda -I kernels kernels/cuda_checks/moe_w4a16_bench.cu kernels/cuda/moe_w4a16.cu \
-//        [kernels/cuda/moe_w4a16_v3.cu -DHAVE_V3] -o moe_w4a16_bench
+//        -o moe_w4a16_bench
 //   ./moe_w4a16_bench [T,T,...] [reps] [skew]      T tokens (default 1024,2048,4096), skew 0 = uniform routing, 1 = zipf-like
-// Real layer shape (256 experts, top-8, H 2048, I 512). Times the production launcher (ik_moe_experts_w4a16_bf16) and, with
-// HAVE_V3, the candidate (ik_moe_experts_w4a16_v3_bf16); the candidate's output is compared byte for byte with the production
-// kernel's (both must be bit-identical: same accumulation order).
+// Real layer shape (256 experts, top-8, H 2048, I 512). Times the production launcher (ik_moe_experts_w4a16_bf16) with
+// INTARSIA_CUDA_MOE_W4A16_PF=0 ("prod") and =1 ("pf"), interleaved round by round; "pf" output is compared byte for byte with
+// "prod" (must be bit-identical: same accumulation order). ONLY=pf|prod times one candidate (nsys).
 #include "abi/ik_abi.h"
 #include <algorithm>
 #include <cmath>
@@ -18,10 +18,6 @@
 extern "C" {
 int ik_moe_experts_w4a16_bf16(const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*,
                               const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, const ik_scratch*, void*);
-#ifdef HAVE_V3
-int ik_moe_experts_w4a16_v3_bf16(const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*,
-                                 const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, const ik_scratch*, void*);
-#endif
 }
 
 #define CK(x)                                                                                         \
@@ -137,16 +133,20 @@ int main(int argc, char** argv) {
             int (*fn)(const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*,
                       const ik_tensor*, const ik_tensor*, ik_tensor*, const ik_scratch*, void*);
             ik_tensor* out;
-        } cands[] = {{"prod", ik_moe_experts_w4a16_bf16, &tout},
-#ifdef HAVE_V3
-                     {"v3", ik_moe_experts_w4a16_v3_bf16, &tout2},
-#endif
+            const char* pf;  // INTARSIA_CUDA_MOE_W4A16_PF value for this candidate
+        } cands[] = {{"prod", ik_moe_experts_w4a16_bf16, &tout, "0"},
+                     {"pf", ik_moe_experts_w4a16_bf16, &tout2, "1"},
         };
         std::vector<uint16_t> ref((size_t)T * H);
-        const bool only = getenv("ONLY") != nullptr && getenv("ONLY")[0] != 0;  // ONLY=v3: skip the production kernel (profiling one kernel with nsys)
-        for (auto& c : cands) {
+        const bool only = getenv("ONLY") != nullptr && getenv("ONLY")[0] != 0;  // ONLY=v3: skip the production kernel
+        std::vector<int> act;
+        const char* bw[8] = {};
+        size_t ndiff[8] = {};
+        for (size_t ci = 0; ci < sizeof(cands) / sizeof(cands[0]); ++ci) {
+            auto& c = cands[ci];
             if (only && strcmp(c.name, getenv("ONLY")) != 0) continue;
             CK(cudaMemset(c.out->data, 0xAB, (size_t)T * H * 2));
+            setenv("INTARSIA_CUDA_MOE_W4A16_PF", c.pf, 1);
             int st = c.fn(&tx, &tids, &tw, &tguw, &tgus, &tdnw, &tdns, &tgs, c.out, &scr, nullptr);
             CK(cudaDeviceSynchronize());
             if (st != 0) {
@@ -155,27 +155,35 @@ int main(int argc, char** argv) {
             }
             std::vector<uint16_t> got((size_t)T * H);
             CK(cudaMemcpy(got.data(), c.out->data, got.size() * 2, cudaMemcpyDeviceToHost));
-            const char* bw = "ref";
-            if (c.out == &tout) ref = got;
-            else bw = got == ref ? "BITWISE" : "DIFF";
-            size_t nd = 0;
-            if (c.out != &tout)
-                for (size_t i = 0; i < got.size(); ++i) nd += got[i] != ref[i];
-            std::vector<float> us;
-            for (int r = 0; r < reps + 2; ++r) {
+            bw[ci] = "ref";
+            if (ci == 0) ref = got;
+            else {
+                bw[ci] = got == ref ? "BITWISE" : "DIFF";
+                for (size_t i = 0; i < got.size(); ++i) ndiff[ci] += got[i] != ref[i];
+            }
+            act.push_back((int)ci);
+        }
+        // interleaved timing: every round runs each candidate once, so clock / thermal drift hits all of them alike
+        std::vector<std::vector<float>> us(8);
+        for (int r = 0; r < reps + 2; ++r)
+            for (int ci : act) {
+                auto& c = cands[ci];
+                setenv("INTARSIA_CUDA_MOE_W4A16_PF", c.pf, 1);
                 CK(cudaEventRecord(e0));
                 c.fn(&tx, &tids, &tw, &tguw, &tgus, &tdnw, &tdns, &tgs, c.out, &scr, nullptr);
                 CK(cudaEventRecord(e1));
                 CK(cudaEventSynchronize(e1));
                 float ms;
                 CK(cudaEventElapsedTime(&ms, e0, e1));
-                if (r >= 2) us.push_back(ms * 1e3f);
+                if (r >= 2) us[ci].push_back(ms * 1e3f);
             }
-            std::sort(us.begin(), us.end());
-            const float med = us[us.size() / 2];
-            printf("%-8d %-10s %10.1f %10.1f %8s", T, c.name, med, tflop / (med * 1e-6), bw);
-            if (nd) printf("  (%zu of %zu differ)", nd, got.size());
-            printf("  [min %.1f max %.1f]\n", us.front(), us.back());
+        for (int ci : act) {
+            auto& v = us[ci];
+            std::sort(v.begin(), v.end());
+            const float med = v[v.size() / 2];
+            printf("%-8d %-10s %10.1f %10.1f %8s", T, cands[ci].name, med, tflop / (med * 1e-6), bw[ci]);
+            if (ndiff[ci]) printf("  (%zu of %zu differ)", ndiff[ci], (size_t)T * H);
+            printf("  [min %.1f max %.1f]\n", v.front(), v.back());
         }
     }
     return 0;
