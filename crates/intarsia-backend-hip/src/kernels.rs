@@ -89,6 +89,12 @@ pub const TABLE: &[(&str, Op)] = &[
     // core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md)
     ("gate_split_qk_norm_rope_kv_bf16", Op::GateSplitQkNormRopeKv),
     ("gdn_conv_delta_bf16", Op::GdnConvDelta),
+    // row-table twins (`row_table`, batched decode, `OpCall::rows`, lane hr3): the T = 1 call of the kernel named without `_rows` on all
+    // rows of a step at once, each with its own state; row r bitwise the one-row kernel (tests/row_tables.rs)
+    ("gdn_conv_bf16_rows", Op::GdnConv),
+    ("gdn_delta_rule_bf16_v2_rows", Op::GdnDeltaRule),
+    ("kv_append_bf16_rows", Op::KvAppend),
+    ("attn_decode_bf16_splitkv_rows", Op::AttnDecode),
 ];
 
 /// Ops this backend does not implement (sampling stays on the cpu; `MoeBlock` until its kernel is registered, core-op fusion P2';
@@ -153,6 +159,13 @@ pub fn splitkv_parts(kv_len: usize, n_kv_heads: usize, rows: usize) -> usize {
 /// short chunk at a long position can never need more than a plan probe at a short one reserved.
 fn splitkv_scratch(s: &ShapeInfo) -> usize {
     let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, s.m);
+    s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
+}
+
+/// Scratch of the row-table decode twin: `s.m` rows of one query row each, every row with the one-row decode launch's split count
+/// (`splitkv_parts(.., 1)`), not the `s.m`-row prefill / verify policy `splitkv_scratch` bounds.
+fn splitkv_rows_scratch(s: &ShapeInfo) -> usize {
+    let nsplit = splitkv_parts(usize::MAX / 2, s.n_kv_heads, 1);
     s.m * s.n_heads * nsplit * (s.head_dim + 2) * 4
 }
 
@@ -327,6 +340,36 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
+            // Row-table twins. Each accepts exactly the shapes for which the registry gives the SOLO one-row call the kernel it twins, so a
+            // batched step never swaps a kernel: the delta rule where v2 is the one-row pick (dk = 128, as the fused conv + delta of the solo
+            // step is bitwise conv + v2), the attention where the bf16 split-KV decode kernel is selected for one row (every shape
+            // splitkv_ok takes). Rows 1..=ROWS_MAX.
+            "gdn_conv_bf16_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| (2..=8).contains(&s.k) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .row_table(),
+            "gdn_delta_rule_bf16_v2_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| s.head_dim == 128 && (1..=ROWS_MAX).contains(&s.m) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1)
+                .row_table(),
+            "kv_append_bf16_rows" => k.acts(bf).when(|s| (1..=ROWS_MAX).contains(&s.m)).exact(Exactness::Exact).tol(Tol::EXACT).priority(-1).row_table(),
+            "attn_decode_bf16_splitkv_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| splitkv_ok(s) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .scratch(splitkv_rows_scratch)
+                .priority(-1)
+                .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
@@ -396,7 +439,7 @@ mod tests {
     fn pick(op: Op, s: &ShapeInfo) -> Option<String> {
         let ks = all();
         let mut best: Option<&KernelImpl> = None;
-        for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact) {
+        for k in ks.iter().filter(|k| k.op == op && k.accepts(s) && !k.rows_exact && !k.row_table) {
             if best.is_none_or(|b| k.priority > b.priority) {
                 best = Some(k);
             }

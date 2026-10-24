@@ -1,0 +1,363 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:hr3-hip-batching-r3:20261024-0030",
+ "project": "intarsiaml",
+ "lane_id": "hr3-hip-batching-r3",
+ "follows": [
+  "intarsiaml:rb3-batching-r3:20261023-1300"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T20:30:00-04:00",
+ "ended": "2026-10-24T02:30:00-04:00",
+ "brief": "Lane hr3: port the CUDA R3 batching speed work (rb3, #121) to HIP for Qwen3.6-35B-A3B NVFP4 on tatooine (R9700): (a) row tables, one launch per GDN/attention layer across rows, (b) HIP graphs per batch size, (c) extend the fused moe_block past T<=2 if it stays row-exact, (d) multi-row fp8/nvfp4 GEMVs only after profiling; device sampling stays opt-in; every batched row bitwise the solo step; single-stream speed within 1%. Baseline (main, --max-batch 16): 157.8 / 195.2 / 234.7 tok/s at 1 / 4 / 16 streams.",
+ "hypothesis": "After hb the HIP batched step still issued one GDN conv, delta rule, KV append, rope, qk_norm and attention launch per row and per layer and ran eagerly; one row-table launch per op plus a graph per row count, and the fused MoE block at the 3 to 4 row steps that fall outside moe_block's T<=2, should lift 4 and 16 streams by 10% or more with every row still bitwise the solo step.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "AMD Radeon AI PRO R9700 (gfx1201)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  {
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-hr3/hip-r3-batching",
+  "base_commit": "6189466f",
+  "head_commit": "301f70c169b1db35fc6ae174580837655fad2f66",
+  "pr": "127",
+  "files": [
+   "crates/intarsia-backend-hip/src/device.rs",
+   "crates/intarsia-backend-hip/src/ffi.rs",
+   "crates/intarsia-backend-hip/src/kernels.rs",
+   "crates/intarsia-backend-hip/src/quantmoe.rs",
+   "crates/intarsia-backend-hip/tests/attention.rs",
+   "crates/intarsia-backend-hip/tests/moe_block.rs",
+   "crates/intarsia-backend-hip/tests/row_tables.rs",
+   "crates/intarsia-core/src/fusion.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-core/src/quant/moe.rs",
+   "crates/intarsia-models/tests/batch_cuda_real.rs",
+   "crates/intarsia-models/tests/batch_recurrent.rs",
+   "docs/backends/hip.md",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-24-hr3-hip-batching-r3.md",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/g-b-moe-block-first.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/g-b-moe-block-rows.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/g-b-row-tables.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/g-c-35b-and-tiny-hybrid.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-cuda-spark1.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-ids-base.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-ids-dev.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-metal-ids.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-metal-plans-tests.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-mtp-base.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-mtp-dev.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-plan-base.json",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-plan-base.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-plan-dev.json",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/noop-plan-dev.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/agg7.json",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-base1.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-base2.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-final7.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-hr3a.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-hr3b.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-main7.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-nograph.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-nograph7.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-nomoe7.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/speed/speed-norows7.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-g-b.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-g-c-35b.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-hip-suite.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-long-prompts.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-step-profile.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-step-timing-moe-rows.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-step-timing-no-moe-rows.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-tiny-hybrid-before-pick-fix.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/w7-window.log",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/raw/workspace-tests-mac.txt",
+   "docs/results/2026-10-24-hr3-hip-batching-r3/trace.json",
+   "docs/tuning.md",
+   "kernels/hip/attention_splitkv.hip",
+   "kernels/hip/elementwise.hip",
+   "kernels/hip/gdn.hip",
+   "kernels/hip/ik_hip.h",
+   "kernels/hip/ik_hip_abi.h",
+   "kernels/hip/moe_block.hip",
+   "scripts/hr3/noop-gen.sh"
+  ],
+  "diff_stat": "62 files changed, 8229 insertions(+), 43 deletions(-)",
+  "default_changed": true,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "G-B row-table kernels (HIP)",
+   "command": "cargo test --release -p intarsia-backend-hip --test row_tables",
+   "result": "pass",
+   "detail": "conv, delta rule, KV append, attention, rope per-token positions, fused solo gdn_conv_delta vs chain: byte-identical to the solo launches for M 1..16, positions 0..1199, negative controls differ; 8 of 8; fleetq 4929"
+  },
+  {
+   "name": "G-B moe_block_bf16_rows (HIP)",
+   "command": "cargo test --release -p intarsia-backend-hip --test moe_block",
+   "result": "pass",
+   "detail": "168 launches, 1252 tokens bitwise the T=1 block for T 1..16, 144 negative controls differ; existing moe_block tests incl. 6000-launch sentinel stress; 7 of 7; fleetq 4929"
+  },
+  {
+   "name": "G-B R0 regression (HIP)",
+   "command": "cargo test --release -p intarsia-backend-hip --test rows_exact --test rows_registry",
+   "result": "pass",
+   "detail": "5 of 5 and 2 of 2; fleetq 4929"
+  },
+  {
+   "name": "HIP backend suite",
+   "command": "cargo test --release --no-fail-fast -p intarsia-backend-hip --tests -- --test-threads=1",
+   "result": "pass",
+   "detail": "34 test binaries, 0 failed; fleetq 4929"
+  },
+  {
+   "name": "G-C Qwen3.6-35B NVFP4, forward_batch (HIP)",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=hip cargo test --release -p intarsia-models --test batch_cuda_real",
+   "result": "pass",
+   "detail": "17550 (row,step) pairs bitwise identical, N=2..16 x 130 steps; engine == LocalEngine; busy-chunk KL gate; 3 passed 0 failed; fleetq 4929"
+  },
+  {
+   "name": "35B long prompts, engine == LocalEngine (HIP)",
+   "command": "cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched_engine_long_prompts -- --ignored",
+   "result": "pass",
+   "detail": "1 passed, 0 failed, 8 filtered out; fleetq 4929"
+  },
+  {
+   "name": "G-C tiny hybrid on HIP",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=hip cargo test --release -p intarsia-models --test batch_recurrent",
+   "result": "pass",
+   "detail": "10 of 10 on 301f70c1 incl. the positive assertion that a 4-row HIP step picks the fused moe_block_bf16_rows and no moe_experts; fleetq 4939"
+  },
+  {
+   "name": "HIP no-op, batching off",
+   "command": "intarsia plan show (text, json) + 256 greedy ids after a 1.2k prompt + --spec mtp --spec-k 2 ids, hr3 vs main",
+   "result": "pass",
+   "detail": "plan json 12961 B and text 3184 B byte-identical, ids identical, mtp ids identical to main and to spec off; fleetq 4929 (on 04410e61, later commits touch tests only)"
+  },
+  {
+   "name": "CUDA no-op (shared core changed)",
+   "command": "plan show + 256 ids + cuda batching tests + intarsia-core lib",
+   "result": "pass",
+   "detail": "8B and 35B plans byte-identical (8758 B, 3505 B), 256 ids identical for both, intarsia-core 115 of 115, CUDA batch_recurrent 10 of 10; run on 04410e61 sources (later commits touch batch_recurrent.rs only); fleetq 4937"
+  },
+  {
+   "name": "Metal no-op (shared core changed)",
+   "command": "plan show, ids, batch_recurrent on Metal, workspace tests",
+   "result": "pass",
+   "detail": "plan show text/json byte-identical for 8B and 35B, 256 ids and text identical (re-compare at end of log; the first compare ran before generation finished), batch_recurrent on Metal 10 of 10, workspace tests: only the 2 CUDA rows_registry failures that also fail on main; fleetq 4936"
+  },
+  {
+   "name": "Mac workspace tests",
+   "command": "cargo test --workspace --release --no-fail-fast",
+   "result": "pass-with-known-failures",
+   "detail": "871 passed, 2 failed, 17 ignored; the 2 failures are intarsia-backend-cuda rows_registry pin tests that fail on main as well (this branch has no CUDA diff)"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 157.5,
+   "after": 158.0,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.2,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235030-adhoc-main7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 194.4,
+   "after": 212.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.6,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235030-adhoc-main7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 231.8,
+   "after": 257.1,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.2,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235030-adhoc-main7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 141.2,
+   "after": 145.3,
+   "unit": "tok/s",
+   "n": 1,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235120-adhoc-main7-4k",
+   "after_run_id": "20261023-235002-adhoc-final7-4k"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 203.5,
+   "after": 212.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.6,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235146-adhoc-nomoe7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no fused MoE block rows (A/B arm), after = hr3 final"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 256.6,
+   "after": 257.1,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.2,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235146-adhoc-nomoe7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no fused MoE block rows (A/B arm), after = hr3 final"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 205.8,
+   "after": 212.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.6,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235259-adhoc-nograph7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no graphs (A/B arm), after = hr3 final"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 254.8,
+   "after": 257.1,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.2,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235259-adhoc-nograph7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no graphs (A/B arm), after = hr3 final"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "before": 198.9,
+   "after": 212.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.6,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235412-adhoc-norows7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no row tables (A/B arm), after = hr3 final"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "before": 231.9,
+   "after": 257.1,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 2.2,
+   "slot": "quiet",
+   "slot_job": 4929,
+   "before_run_id": "20261023-235412-adhoc-norows7-b1",
+   "after_run_id": "20261023-234915-adhoc-final7-b1",
+   "note": "before = hr3 with no row tables (A/B arm), after = hr3 final"
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B row-table kernels and moe_block_bf16_rows bitwise to the solo launches (M/T 1..16, negative controls); G-C batched == solo bitwise on the 35B (17550 pairs) and the tiny hybrid; engine == LocalEngine incl. long prompts; HIP no-op identical with batching off; CUDA and Metal no-op per the checks",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "R3 (a)+(b)+(c) ported to HIP and gated: row-table kernels for GDN conv/delta rule, KV append, rope and split-KV attention (one launch per op for all rows), a graph per row count (no new code, the generic path engages once no per-row launch is left), and the fused moe_block_bf16_rows at 3 and 4 rows (kernel row-exact to 16 rows, slower than the unfused chain above 4). 35B aggregate decode, 1k prompt, 3 bursts, same fleetq slot, main 6189466f as baseline: 1 stream 157.5 to 158.0, 4 streams 194.4 to 212.6 (+9.4%), 16 streams 231.8 to 257.1 (+10.9%), 4 streams with 4k prompts 141.2 to 145.3. A/B arms: row tables +6.9% (4x) and +10.9% (16x), graphs +3.3% and +0.9%, fused MoE block +4.5% at 4x. (d) was not touched: the fp8 GEMV is 25.8% of the B=16 step and a bitwise multi-row kernel is the next lever. Served throughput is 213 and 257 tok/s against 294 and 385 in the model-loop step test, so 5 to 20 ms per step sit outside the model step and were not profiled.",
+ "lessons": [
+  "Tests run without admission; serve selects admitted kernels only. A row-table twin must take its base kernel's admission and plan::admit must not grade it with table-less cases, otherwise serve rejects or never selects it while every G-B and G-C test is green. Run serve and read the load line before believing a kernel PR.",
+  "rsync -a keeps edit times and cargo trusts a newer build: twice a 'final' binary was stale. Sync with --no-times --checksum and check the op list of the binary under test.",
+  "A fused kernel that reads each token's experts separately loses to the unfused chain that shares expert weights between rows once rows routed to the same expert multiply: moe_block_bf16_rows wins at 3 and 4 rows and loses +7% at 8 and +14% at 16, so the model caps it at 4.",
+  "A change that is 'inert with batching off' still moved a plan line (moe_block scratch 9216 to 18432 B) because solo two-row steps took the new path; the byte-identical plan show gate caught it.",
+  "Pick-check assertions in tests encode the old step shape (a MoeExperts rows kernel, an nvfp4 GEMV) and fail when a fusion replaces those calls; the numerical comparison had not failed."
+ ],
+ "cost": {
+  "wall_min": 360,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4929,
+   4939,
+   4937,
+   4936
+  ],
+  "tokens": null
+ }
+}

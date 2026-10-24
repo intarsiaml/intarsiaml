@@ -134,6 +134,10 @@ pub trait OpRunner {
     fn run_fused(&self, _op: Op, _inputs: Vec<TensorRef>, _outputs: Vec<TensorRef>, _attrs: OpAttrs) -> Result<bool> {
         Ok(false)
     }
+    /// Whether `run_fused` with these arguments would run the fused op, without running anything. The default has no fused kernels.
+    fn fused_available(&self, _op: Op, _inputs: &[TensorRef], _outputs: &[TensorRef], _attrs: &OpAttrs) -> bool {
+        false
+    }
 }
 
 /// The residual add and norm in front of a block (`RmsNormAdd(blk, res, w) -> (n, sum)`), handed to the block that reads `n`
@@ -318,13 +322,23 @@ impl MoeWeights {
         // P2' (docs/results/2026-10-19-p2prime-moeblock.md): everything after the router logits as one op when the backend has
         // it. Only tried when the shared-gate logit is already computed (folded into the router pair above) and the shared
         // expert is NVFP4 throughout; otherwise, or when no kernel is selectable, the unfused ops below run unchanged.
+        // A batched step has no router pair (the pair kernel is a one-row kernel; the chain is its registered equivalent), so the gate
+        // logit is not computed yet: when the backend has a row-exact MoeBlock for this call, compute it now with its own GEMV (the
+        // arithmetic of the pair's second half) and take the fused block. Asked first, so a backend without that kernel keeps its
+        // op order exactly.
         if let Some(sh) = self.shared.as_ref().filter(|sh| {
-            gate_logit_done && sh.gate.format == NVFP4 && sh.up.format == NVFP4 && sh.down.format == NVFP4
+            sh.gate.format == NVFP4 && sh.up.format == NVFP4 && sh.down.format == NVFP4
         }) {
             let mut inputs = vec![n.clone(), logits.clone(), sl.clone()];
             inputs.extend([e.gate_up_w.clone(), e.gate_up_s.clone(), e.down_w.clone(), e.down_s.clone(), e.gscales.clone()]);
             inputs.extend(sh.gate.parts.iter().chain(&sh.up.parts).chain(&sh.down.parts).cloned());
-            if run.run_fused(Op::MoeBlock, inputs, vec![out.clone()], attrs())? {
+            let outs = vec![out.clone()];
+            if !gate_logit_done && run.fused_available(Op::MoeBlock, &inputs, &outs, &attrs()) {
+                let call = sh.gate_logit.call(n.clone(), sl.clone());
+                run.run(call.op, call.inputs, call.outputs, call.attrs)?;
+                gate_logit_done = true;
+            }
+            if gate_logit_done && run.run_fused(Op::MoeBlock, inputs, outs, attrs())? {
                 return Ok(());
             }
         }

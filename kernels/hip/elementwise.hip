@@ -121,6 +121,36 @@ __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __rest
     }
 }
 
+// Row-table launch (batched decode, `OpCall::rows`): row t of new[T,Nkv,D] is the one token of sequence t, appended at position
+// pos_dev[t] of the cache whose device address is entry [t][tindex] of the row table: kv_append_kernel's copy for each row's own
+// T = 1 call.
+template <typename CacheT, int VEC>
+__global__ void kv_append_rows_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ tab, int64_t tstride,
+                                      int64_t tindex, int64_t T, int64_t NKV, int64_t D, int64_t cap,
+                                      const int32_t* __restrict__ pos_dev) {
+    const int64_t dv = D / VEC;
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= T * NKV * dv) return;
+    const int64_t d0 = (i % dv) * VEC;
+    const int64_t h = (i / dv) % NKV;
+    const int64_t t = i / (dv * NKV);
+    CacheT* cache = reinterpret_cast<CacheT*>(reinterpret_cast<const uint64_t*>(tab)[t * tstride + tindex]);
+    const int64_t pos0 = (int64_t)pos_dev[t];
+    const ik_bf16* s = src + (t * NKV + h) * D + d0;
+    CacheT* c = cache + (h * cap + pos0) * D + d0;
+    if (sizeof(CacheT) == 2 && VEC == 8) {
+        *reinterpret_cast<uint4*>(c) = *reinterpret_cast<const uint4*>(s);
+    } else if (sizeof(CacheT) == 2) {
+#pragma unroll
+        for (int k = 0; k < VEC; ++k) reinterpret_cast<ik_bf16*>(c)[k] = s[k];
+    } else {
+#pragma unroll
+        for (int k = 0; k < VEC; ++k) {
+            reinterpret_cast<uint8_t*>(c)[k] = f32_to_e4m3(ik_b2f(s[k]));
+        }
+    }
+}
+
 // ---- rope (neox / rotate-half over the first RD values of each head) ------------------------
 // One thread per (token, frequency, group of kHeads heads); the angle is computed in double
 // precision (positions reach tens of thousands, float sincos would drift) and narrowed like
@@ -129,9 +159,12 @@ __global__ void kv_append_kernel(const ik_bf16* __restrict__ src, CacheT* __rest
 // kernel copies them itself (`copy_tail`; thread k takes the tail values k, k + RD/2, ... of its heads, which covers
 // each tail once). `rope_pass_kernel` is only used for RD == 0 (no rotation at all).
 constexpr int kRopeHeads = 4;
+// PER_TOKEN (batched decode rows): `pos_dev` holds one position per token, token t sits at pos_dev[t] (each row is the T = 1 call of
+// its own sequence); otherwise token t sits at pos0 + t.
+template <bool PER_TOKEN = false>
 __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0_host,
                             float theta, const int32_t* pos_dev, int copy_tail) {
-    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int64_t pos0 = (pos_dev && !PER_TOKEN) ? (int64_t)*pos_dev : pos0_host;
     const int half = RD / 2;
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= T * half) return;
@@ -139,7 +172,8 @@ __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, in
     const int64_t t = i / half;
     const double inv = pow((double)theta, -2.0 * (double)k / (double)RD);
     double sd, cd;
-    sincos((double)(pos0 + t) * inv, &sd, &cd);
+    const int64_t pos = PER_TOKEN ? (int64_t)pos_dev[t] : pos0 + t;
+    sincos((double)pos * inv, &sd, &cd);
     const float fs = (float)sd, fc = (float)cd;
     const int n0 = blockIdx.y * kRopeHeads;
     float a[kRopeHeads], b[kRopeHeads];
@@ -383,10 +417,44 @@ int ik_kv_append_bf16(const ik_tensor* new_kv, int64_t pos0, ik_tensor* cache, c
     return ik_launch_status();
 }
 
+// Row-table kv append: `cache0` is row 0's cache (shape / dtype carrier); sequence t's cache is the buffer at entry [t][index] of
+// `tab`, its position pos[t] (the cache must have room: the caller's bound, as for the one-row launch).
+int ik_kv_append_bf16_rows(const ik_tensor* new_kv, const ik_tensor* cache0, const ik_tensor* tab, int64_t stride, int64_t index,
+                           const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check(new_kv, IK_DTYPE_BF16, 3));
+    if (!cache0) return IK_ERR_INVALID_ARG;
+    if (cache0->dtype != IK_DTYPE_BF16 && cache0->dtype != IK_DTYPE_FP8_E4M3) return IK_ERR_DTYPE;
+    IK_TRY(ik_check(cache0, cache0->dtype, 3));
+    const int64_t T = new_kv->shape[0], NKV = new_kv->shape[1], D = new_kv->shape[2];
+    const int64_t cap = cache0->shape[1];
+    if (cache0->shape[0] != NKV || cache0->shape[2] != D) return IK_ERR_SHAPE;
+    if (!pos || !pos->data || pos->dtype != IK_DTYPE_I32 || ik_numel(pos) != T) return IK_ERR_INVALID_ARG;
+    IK_TRY(ik_check_tab(tab, T, stride, index));
+    if (T == 0 || D == 0) return IK_OK;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* src = (const ik_bf16*)new_kv->data;
+    const int32_t* pos_dev = (const int32_t*)pos->data;
+    const uint8_t* tp = (const uint8_t*)tab->data;
+    if (cache0->dtype == IK_DTYPE_BF16) {
+        // the one-row launch picks the 16-byte copy from the alignment of its own cache; every cache buffer here comes from the
+        // allocator (256-byte aligned) and a position row is D * 2 bytes, so D % 8 == 0 decides it for all rows alike
+        if (D % 8 == 0 && ik_aligned16(src) && ik_aligned16(cache0->data))
+            kv_append_rows_kernel<ik_bf16, 8><<<blocks(T * NKV * (D / 8)), kThreads, 0, s>>>(src, tp, stride, index, T, NKV, D, cap, pos_dev);
+        else
+            kv_append_rows_kernel<ik_bf16, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, tp, stride, index, T, NKV, D, cap, pos_dev);
+    } else {
+        kv_append_rows_kernel<uint8_t, 1><<<blocks(T * NKV * D), kThreads, 0, s>>>(src, tp, stride, index, T, NKV, D, cap, pos_dev);
+    }
+    return ik_launch_status();
+}
+
 int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_dim, ik_tensor* out,
                  const ik_tensor* pos, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
-    IK_TRY(ik_check_pos(pos));
+    // one position (token t at pos + t) or, for a batch of decode rows (T > 1), one per token
+    const bool per_token = pos && x->shape[0] > 1 && ik_numel(pos) == x->shape[0];
+    if (!per_token) IK_TRY(ik_check_pos(pos));
+    else if (!pos->data || pos->dtype != IK_DTYPE_I32) return IK_ERR_INVALID_ARG;
     const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(out, IK_DTYPE_BF16, 3));
     const int64_t T = x->shape[0], N = x->shape[1], D = x->shape[2];
@@ -401,8 +469,12 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
                                                                      T * N, (int)D, (int)RD);
     if (RD == 0) return ik_launch_status();
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
-    rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
-                                          pos0, theta, pos_dev, copy_tail ? 1 : 0);
+    if (per_token)
+        rope_kernel<true><<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
+                                                    pos0, theta, pos_dev, copy_tail ? 1 : 0);
+    else
+        rope_kernel<false><<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
+                                                     pos0, theta, pos_dev, copy_tail ? 1 : 0);
     return ik_launch_status();
 }
 

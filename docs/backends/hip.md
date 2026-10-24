@@ -165,6 +165,13 @@ Batched decode of the 35B (`serve --max-batch N`, N <= 16) runs the `_rows` kern
 bitwise row 0 of the 1-row kernel the solo step runs (G-B, `tests/rows_exact.rs`), and none of them takes a WMMA / mma path
 (those are M-dependent from 16 tokens). Results: `docs/results/2026-10-23-hb-hip-hybrid-batching.md`.
 
+Lane hr3 adds the row-table launches: one launch per GatedDeltaNet / attention layer for all rows of a step instead of one per row
+(`gdn_conv_bf16_rows`, `gdn_delta_rule_bf16_v2_rows`, `kv_append_bf16_rows`, `attn_decode_bf16_splitkv_rows`, `row_table` in the registry, and
+`rope_bf16` with one position per token), each row reading its own state or KV cache through a table of device addresses; row r is bitwise the
+one-row launch of the solo step (`tests/row_tables.rs`). `moe_block_bf16_rows` serves the fused MoE block at T = 1..16 at top-8 (the ordinary
+`moe_block_bf16` stops at T * K <= 16), token t bitwise the T = 1 block (`tests/moe_block.rs`). `INTARSIA_ROW_TABLES=0` keeps one launch per row
+per op. Results: `docs/results/2026-10-24-hr3-hip-batching-r3.md`.
+
 ## MoE and batch size
 
 `moe_experts_bf16` has three internal paths, and a token's result depends on which one it ran in:

@@ -192,6 +192,13 @@ impl OpRunner for ExecRunner<'_> {
     fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
         self.m.try_fused(op, inputs, outputs, attrs, self.profile)
     }
+    /// Only in a batched pass (batching on and the pass row-exact): the callers use it to take a fused op the solo step would not take at
+    /// this row count, which must not change anything with batching off (`plan show` and the solo / prefill / verify paths stay as on main).
+    fn fused_available(&self, op: Op, inputs: &[TensorRef], outputs: &[TensorRef], attrs: &OpAttrs) -> bool {
+        self.m.batch_rows >= 2
+            && self.m.verifying()
+            && self.m.fused_ok(&OpCall::new(op, inputs.to_vec(), outputs.to_vec(), attrs.clone()))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -34,6 +34,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_combine_bf16", Op::MoeCombine),
     // P2' (docs/results/2026-10-19-p2prime-moeblock.md): default ON, INTARSIA_HIP_MOE_BLOCK=0 disables
     ("moe_block_bf16", Op::MoeBlock),
+    // row-exact form for batched decode (`rows_exact`, T = 1..=ROWS_MAX at any K <= 8; tests/moe_block.rs)
+    ("moe_block_bf16_rows", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
@@ -157,6 +159,18 @@ pub fn moe_block_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
         && s.n > 0
         && s.head_dim > 0
         && s.out == Some(DType::Bf16)
+}
+
+/// Most rows for which the model takes `moe_block_bf16_rows`. The kernel is row-exact for 1..=`ROWS_MAX` tokens (tests/moe_block.rs), but
+/// it reads each token's experts separately while the unfused `moe_experts_bf16_rows` shares an expert's weights between the tokens routed
+/// to it, so past a few rows the fused block is slower (35B model-loop step, docs/results/2026-10-24-hr3-hip-batching-r3.md section 4).
+pub const MOE_BLOCK_ROWS_MAX: usize = 4;
+
+/// The shapes `moe_block_bf16_rows` serves: the same weights and widths as `moe_block_shape_ok`, 1..=`MOE_BLOCK_ROWS_MAX` tokens at any K <= 8.
+pub fn moe_block_rows_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
+    let mut one = s.clone();
+    one.m = 1;
+    s.m >= 1 && s.m <= MOE_BLOCK_ROWS_MAX && moe_block_shape_ok(&one)
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -348,6 +362,18 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .scratch(moe_block_scratch)
                     .priority(10),
+                // Row-exact form (lane hr3): a batched decode step (or a verify pass) of 1..=ROWS_MAX tokens, each token bitwise the
+                // T = 1 launch on it alone, so the batched step keeps the fused MoE block at every row count (the ordinary form stops at
+                // T * K <= 16, i.e. T <= 2 at top-8). Selected only by `exact_rows` calls.
+                "moe_block_bf16_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| moe_block_enabled() && moe_block_rows_shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_block_scratch)
+                    .priority(-1)
+                    .rows_exact(),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces (tests/
                 // fused_decode.rs), so the budget is that of the kernels it is built from.
                 "matmul_pair_bf16_gemv" => k
