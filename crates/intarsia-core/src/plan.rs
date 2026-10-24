@@ -634,17 +634,20 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
 
     for _round in 0..8 {
         resolve(model)?;
-        let mut pending: BTreeSet<String> = model
+        let untested: BTreeSet<String> = model
             .resolved
             .ops
             .iter()
             .filter(|o| model.registry.admission(&o.kernel) == Some(Admission::Untested))
             .map(|o| o.kernel.clone())
             .collect();
-        // A row-table kernel takes the admission of the kernel it twins (`Registry::effective_admission`). That kernel may be one the
-        // plan never selects itself (the solo step runs a fused op, the batched step the row-table twin of the unfused one), so it
-        // would stay untested and the twin unusable under `serve`'s admitted-only rule: queue it, and test it by its op's sweep.
-        let twins: BTreeSet<String> = pending
+        // A row-table kernel runs only calls with a table of device addresses, which no exact-shape case has (the sweep skips it too):
+        // it is not tested here, it takes the admission of the kernel it twins (`Registry::effective_admission`), gated by the backend's
+        // bitwise test (tests/row_tables.rs). That base kernel may be one the plan never selects itself (the solo step runs a fused op,
+        // the batched step the row-table twin of the unfused one), so it would stay untested and the twin unusable under `serve`'s
+        // admitted-only rule: queue it, and test it by its op's sweep.
+        let is_rt = |n: &String| cand_kernels.iter().any(|k| &k.name == n && k.row_table);
+        let twins: BTreeSet<String> = untested
             .iter()
             .filter_map(|n| cand_kernels.iter().find(|k| &k.name == n))
             .filter(|k| k.row_table)
@@ -652,6 +655,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             .filter(|b| model.registry.admission(b) == Some(Admission::Untested))
             .map(str::to_string)
             .collect();
+        let mut pending: BTreeSet<String> = untested.iter().filter(|n| !is_rt(n)).cloned().collect();
         pending.extend(twins.iter().cloned());
         if pending.is_empty() {
             break;
