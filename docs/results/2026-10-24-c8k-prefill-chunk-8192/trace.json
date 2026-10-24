@@ -8,7 +8,7 @@
  ],
  "agent_model": "claude-sonnet-5-5",
  "started": "2026-10-23T22:25:00-04:00",
- "ended": "2026-10-24T09:00:00-04:00",
+ "ended": "2026-10-24T06:20:00-04:00",
  "brief": "Evidence for the user decision: raise the 35B CUDA recipe prefill_chunk from 2048 to 8192 now that fp8-lt is default (#125)? CPU references (-g4k, longer/other splits), gates at 8192 (KL goldens, reuse, acc-short, acc-4k, batch_cuda_real + long), prefill vs vLLM at 1k/4k/16k x3 interleaved, 4-stream aggregate decode and ITL at both chunks. Default not changed.",
  "hypothesis": "Chunk 8192 keeps every accuracy gate (thresholds unchanged) and gives +6-11% prefill at 4k/16k; the price is a longer decode stall when a prompt prefills beside decoding streams, because the busy chunk follows the solo chunk.",
  "target": {
@@ -27,21 +27,12 @@
   "gap_pct_at_start": null,
   "regimes_built_at": null
  },
- "techniques": [
-  {
-   "id": "prefill-chunk-8192-cuda-moe",
-   "role": "applied"
-  },
-  {
-   "id": "fx5c-continue-oracle-gate",
-   "role": "applied"
-  }
- ],
+ "techniques": [],
  "code": {
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-c8k/chunk8192-evidence",
   "base_commit": "6189466f",
-  "head_commit": null,
+  "head_commit": "8ce5ed5e",
   "pr": null,
   "files": [
    "golden/oracle/*(12k s6000/s9500/s12062, long_code_4k -g4k)",
@@ -55,11 +46,259 @@
   "merged": false,
   "merge_commit": null
  },
- "checks": [],
- "measurements": [],
- "accuracy": {},
+ "checks": [
+  {
+   "name": "KL goldens short/long/4k at chunk 8192",
+   "command": "intarsia accuracy --mode prefill --prefill-chunk 8192",
+   "result": "pass",
+   "detail": "3 of 3 PASS, same as 2048; fleetq #4951"
+  },
+  {
+   "name": "acc-short vs main baseline at 8192",
+   "command": "intarsia accuracy --baseline ... --pre-change c37a8d3 --prefill-chunk 8192 --allow-config-mismatch",
+   "result": "pass",
+   "detail": "floor and baseline PASS, KL identical to 2048; fleetq #4951"
+  },
+  {
+   "name": "acc-4k accuracy at 8192",
+   "command": "intarsia accuracy --mode both --min-top1 0 --prefill-chunk 8192",
+   "result": "pass",
+   "detail": "fleetq #4951"
+  },
+  {
+   "name": "prefix reuse long golden at 8192 (12k, s12062 and s9500 oracles)",
+   "command": "intarsia accuracy --mode reuse --prefill-chunk 8192",
+   "result": "pass",
+   "detail": "2 judged x 2 splits, 3 skipped (4k); fleetq #4938"
+  },
+  {
+   "name": "prefix reuse 4k golden at 8192",
+   "command": "intarsia accuracy --mode reuse --prefill-chunk 8192",
+   "result": "fail",
+   "detail": "structural: no 4k prompt crosses an 8192 chunk (0 judged); fleetq #4938"
+  },
+  {
+   "name": "prefix reuse 12k default split 6000 at chunk 2048 (control, new s6000 oracle)",
+   "command": "intarsia accuracy --mode reuse --prefill-chunk 2048",
+   "result": "fail",
+   "detail": "long_docs_12k warm 7.9e-2 vs cold 3.7e-3 (21x); near-tie class (cold 2048 vs 1024 KL 4.2e-2); fleetq #4955, #4958"
+  },
+  {
+   "name": "batch_cuda_real at recipe 8192",
+   "command": "cargo test --release -p intarsia-models --test batch_cuda_real",
+   "result": "pass",
+   "detail": "3 passed, 0 failed, 6 ignored; fleetq #4924"
+  },
+  {
+   "name": "batch_cuda_real --ignored long prompts at recipe 8192",
+   "command": "cargo test ... -- --ignored real_35b_batched_engine_long_prompts_equal_the_local_engine",
+   "result": "pass",
+   "detail": "R0-R3 IDENTICAL to LocalEngine, busy chunk 8192; fleetq #4924"
+  },
+  {
+   "name": "qualify acc-short/acc-long/acc-4k at recipe 8192",
+   "command": "intarsia qualify --skip ... (3 accuracy stages)",
+   "result": "fail",
+   "detail": "acc-short PASS, acc-long PASS, acc-4k FAIL (reuse: nothing could cross a chunk); fleetq #4958"
+  },
+  {
+   "name": "qualify acc-short/acc-long/acc-4k at recipe 2048 (control)",
+   "command": "intarsia qualify --skip ...",
+   "result": "pass",
+   "detail": "3 of 3 PASS, exit 0; fleetq #4958"
+  },
+  {
+   "name": "scripts: tables/itl4/mock",
+   "command": "python3 scripts/c8k/itl4.py against a local mock server",
+   "result": "pass",
+   "detail": "exercised before the real runs"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": 1,
+   "before": 6598,
+   "after": 7023,
+   "unit": "tok/s (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 1.1,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16384,
+   "streams": 1,
+   "before": 6059,
+   "after": 6733,
+   "unit": "tok/s (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 1.2,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 5009,
+   "after": 5005,
+   "unit": "tok/s (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 1.3,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": 1,
+   "before": 6453,
+   "after": 7023,
+   "unit": "tok/s (vLLM same window -> IntarsiaML chunk 8192)",
+   "n": 3,
+   "spread_pct": 0.3,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16384,
+   "streams": 1,
+   "before": 6362,
+   "after": 6733,
+   "unit": "tok/s (vLLM same window -> IntarsiaML chunk 8192)",
+   "n": 3,
+   "spread_pct": 0.8,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 96.2,
+   "after": 99.6,
+   "unit": "tok/s (chunk 2048 -> 8192, localeval --concurrency 4)",
+   "n": 3,
+   "spread_pct": 2.6,
+   "slot": "quiet",
+   "slot_job": 4934,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "itl_ms_max",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 336,
+   "after": 590,
+   "unit": "ms, worst pause when a 4k prompt prefills beside decoding streams (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 0.5,
+   "slot": "quiet",
+   "slot_job": 4946,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "itl_ms_max",
+   "bucket": "4x",
+   "prompt_tokens": 16384,
+   "streams": 4,
+   "before": 383,
+   "after": 1264,
+   "unit": "ms, worst pause when a 16k prompt prefills beside decoding streams (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 1.3,
+   "slot": "quiet",
+   "slot_job": 4946,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "itl_ms_max",
+   "bucket": "4x",
+   "prompt_tokens": 16384,
+   "streams": 4,
+   "before": 383,
+   "after": 382,
+   "unit": "ms, worst pause 16k, chunk 8192 with --busy-chunk 2048",
+   "n": 2,
+   "spread_pct": 1.3,
+   "slot": "quiet",
+   "slot_job": 4946,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "itl_ms_p50",
+   "bucket": "4x",
+   "prompt_tokens": 4096,
+   "streams": 4,
+   "before": 22,
+   "after": 22,
+   "unit": "ms, steady decode ITL (chunk 2048 -> 8192)",
+   "n": 3,
+   "spread_pct": 5.0,
+   "slot": "quiet",
+   "slot_job": 4946,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "KL goldens x3, acc-short vs baseline, acc-4k accuracy, reuse (12k oracles), batch_cuda_real + long, qualify acc-*",
+  "verdict": "pass",
+  "bitwise": false,
+  "run_ids": []
+ },
  "verdict": "neutral",
- "summary": "",
- "lessons": [],
- "cost": {}
+ "summary": "Chunk 8192 on the 35B CUDA recipe gives +6.4 % (4k) and +11.1 % (16k) solo prefill (+8.9 % / +5.8 % vs vLLM, against +2.2 % / -4.8 % at 2048) and passes every numeric accuracy gate with thresholds unchanged. Two things stop the one-line recipe edit: qualify acc-4k fails structurally (no 4k-golden prompt can cross an 8192 chunk), and the busy chunk follows the solo chunk, so the worst decode pause under batching grows 336 -> 590 ms (4k) and 383 -> 1264 ms (16k); --busy-chunk 2048 removes that. New f64 CPU continue oracles (long_code_4k -g4k, 12k s12062/s9500/s6000) are committed; the s6000 one fails a hand-run chunk-2048 reuse on a near-tie prompt (not an 8192 result). Recipe default not changed; decision left to the user.",
+ "lessons": [
+  "The reuse gate finds oracles in the golden's own directory: a lane that adds oracles to a shared golden dir changes what other lanes' reuse runs report. Use a lane-private golden dir on the Sparks.",
+  "qualify's acc-4k runs reuse inside accuracy --mode all at the plan chunk; a recipe chunk above the longest 4k-golden prompt (4631) fails it with 'nothing ran'. The separate capped run (min(chunk,1024)) is fine.",
+  "The busy chunk follows the solo chunk on CUDA: a recipe chunk change is also a batching latency change. localeval --concurrency has no ITL; scripts/c8k/itl4.py keeps every inter-token interval.",
+  "Oracle-relative reuse on a near-tie prompt: whichever of cold/warm lands on the far side of an unstable position is far from the oracle; the rule fails when it is the warm one. cold 2048 vs cold 1024 differ by KL 4.2e-2 on the same rows.",
+  "Editing a shell script while fleetq has it running breaks the running copy (bash reads incrementally): the speed window aborted after retro was already down.",
+  "macOS has no timeout(1); the endor-side scripts must not use it."
+ ],
+ "cost": {
+  "wall_min": 600,
+  "gpu_slot_min": 330,
+  "slot_jobs": [
+   4916,
+   4918,
+   4920,
+   4922,
+   4924,
+   4934,
+   4938,
+   4946,
+   4947,
+   4951,
+   4955,
+   4958
+  ],
+  "tokens": null
+ }
 }
