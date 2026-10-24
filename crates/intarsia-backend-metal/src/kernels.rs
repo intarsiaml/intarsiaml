@@ -318,6 +318,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.push(ARGMAX_F32_V4);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
+    v.extend(crate::rowtab::shader_names());
     let mut seen = std::collections::HashSet::new();
     v.retain(|n| seen.insert(*n)); // the experiment list repeats the promoted variants
     v
@@ -370,6 +371,11 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS, Op::MatmulNvfp4),
     (crate::moe::MOE_EXPERTS_BF16_ROWS, Op::MoeExperts),
+    (crate::rowtab::GDN_CONV_BF16_ROWS, Op::GdnConv),
+    (crate::rowtab::GDN_DELTA_RULE_BF16_ROWS, Op::GdnDeltaRule),
+    (crate::rowtab::KV_APPEND_BF16_ROWS, Op::KvAppend),
+    (crate::rowtab::QK_NORM_ROPE_KV_BF16_ROWS, Op::QkNormRopeKv),
+    (crate::rowtab::ATTN_DECODE_BF16_SPLITKV_ROWS, Op::AttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -646,6 +652,51 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(intarsia_core::quant::ops::moe_experts_scratch),
+                // Row-table twins (lane mr3, `OpCall::rows`): the solo one-row decode kernel of the same name without `_rows`
+                // on 1..=16 rows at once, each row on its own state / cache from a table of device addresses. Bitwise the
+                // solo launch per row (tests/row_tables.rs); selected only for calls with a row table, and those select only
+                // these. They take the admission of the kernel they twin (`Registry::effective_admission`).
+                crate::rowtab::GDN_CONV_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::conv_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::GDN_DELTA_RULE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::delta_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::KV_APPEND_BF16_ROWS => k
+                    .acts(bf)
+                    .when(|s| s.out == Some(DType::Bf16) && crate::rowtab::rows_in_range(s))
+                    .exact(Exactness::Exact)
+                    .tol(Tol::EXACT)
+                    .row_table(),
+                crate::rowtab::QK_NORM_ROPE_KV_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| {
+                        s.head_dim > 0
+                            && s.head_dim <= 256
+                            && s.head_dim % 2 == 0
+                            && s.out == Some(DType::Bf16)
+                            && crate::rowtab::rows_in_range(s)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table(),
+                crate::rowtab::ATTN_DECODE_BF16_SPLITKV_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::rowtab::attn_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .row_table()
+                    .scratch(crate::rowtab::attn_scratch),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -678,8 +729,8 @@ mod tests {
 
     #[test]
     fn attention_is_registered_for_both_ops() {
-        // decode has the single-pass kernel (any even head_dim) and the split-KV one (ATTN_DECODE_BF16_SPLITKV)
-        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 2)] {
+        // decode has the single-pass kernel (any even head_dim), the split-KV one (ATTN_DECODE_BF16_SPLITKV) and its row-table twin
+        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 3)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));
@@ -754,6 +805,7 @@ mod tests {
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
+        "attn_decode_bf16_splitkv_rows:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_flash_nax:attn_prefill",
@@ -761,8 +813,11 @@ mod tests {
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",
         "gdn_conv_bf16:gdn_conv",
+        "gdn_conv_bf16_rows:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
+        "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "kv_append_bf16:kv_append",
+        "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
@@ -786,6 +841,7 @@ mod tests {
         "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
+        "qk_norm_rope_kv_bf16_rows:qk_norm_rope_kv",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",

@@ -261,6 +261,17 @@ impl MetalBackend {
                 let rd = if a.rotary_dim == 0 { d } else { a.rotary_dim };
                 let (x, out) = (self.bind(&i[0], bf, false, "x")?, self.bind(&o[0], bf, true, "out")?);
                 let (pos, use_dev) = self.pos_bind(call)?;
+                // one position per token (batched decode rows, each at its own position): the per-token kernel; any other
+                // position vector is refused rather than read as a single position
+                let tokpos = match &call.pos {
+                    Some(p) if p.numel() != 1 => {
+                        if p.numel() != t {
+                            return Err(Error::invalid(format!("metal rope: {} positions for {t} tokens", p.numel())));
+                        }
+                        true
+                    }
+                    _ => false,
+                };
                 let p = OpP {
                     dims: [
                         dim(t, "T")?,
@@ -278,7 +289,8 @@ impl MetalBackend {
                     pad: 0,
                 };
                 dim(total, "T*N*D")?;
-                self.dispatch(kernel, &[&x, &out, pos.as_ref().unwrap_or(&x)], &p, Grid::Threads(total))
+                let name = if tokpos { crate::rowtab::ROPE_BF16_TOKPOS } else { kernel };
+                self.dispatch(name, &[&x, &out, pos.as_ref().unwrap_or(&x)], &p, Grid::Threads(total))
             }
             ROPE_SCALED_BF16 => {
                 let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
