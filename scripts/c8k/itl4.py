@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Lane c8k: inter-token latency of decoding streams while 4k-token prompts prefill beside them (the decode stall).
+
+localeval's `speed --concurrency` keeps only aggregate decode tok/s, per-stream decode tok/s and TTFT (no ITL), and starts all
+streams at once. This driver reuses localeval's client (streamed calls, nonce-first prompts, filler text, token calibration), so
+prompts and timing follow the fleet method, and records every inter-chunk interval of every stream.
+
+Scenarios (4 streams, ~4k-token prompts):
+  burst    all four start together (what `localeval speed --sizes 4096 --concurrency 4` runs)
+  stagger  A starts, then B, C, D arrive 1.5 s apart while the earlier streams are still decoding: each arrival prefills beside
+           decoding rows (the engine's busy-chunk path), which is where a large chunk stalls the decoders
+
+Usage (run with the deepeval env):  uv run --project /opt/code/deepeval python itl4.py --url http://HOST:PORT/v1 --model ID
+        [--prompt-tokens 4096] [--reps 3] [--scenarios burst,stagger] [--out FILE.json]
+"""
+import argparse, json, statistics, sys, threading, time
+
+from localeval import client as C
+from localeval.config import Target
+from localeval.speed import INSTRUCTION, filler
+
+_tl = threading.local()
+_orig = C.itl_stats
+
+
+def _capture(marks, n_tokens):  # keep the raw marks of the call this thread is making
+    _tl.marks = list(marks)
+    return _orig(marks, n_tokens)
+
+
+C.itl_stats = _capture
+
+
+def pct(xs, f):
+    xs = sorted(xs)
+    return xs[min(len(xs) - 1, int(f * len(xs)))] if xs else None
+
+
+def calibrate(client):
+    base = client.chat([{"role": "user", "content": INSTRUCTION.strip()}], max_tokens=1, nonce=True)
+    cal = client.chat([{"role": "user", "content": filler(200, 0) + INSTRUCTION}], max_tokens=1, nonce=True)
+    assert base.ok and cal.ok, (base.error, cal.error)
+    return base.prompt_tokens, (cal.prompt_tokens - base.prompt_tokens) / 200
+
+
+def one_stream(client, prompt, gen, delay, out, key):
+    time.sleep(delay)
+    t0 = time.perf_counter()
+    r = client.chat([{"role": "user", "content": prompt}], max_tokens=gen, force_tokens=True, nonce=True)
+    marks = getattr(_tl, "marks", [])
+    ts = [m[0] for m in marks]
+    # per-token intervals: chunk deltas (one chunk is one token on this server; weights follow localeval's itl_stats otherwise)
+    n = r.completion_tokens or 0
+    iv = [(ts[i] - ts[i - 1]) * (1.0 if len(ts) == n else n / max(1, len(ts))) for i in range(1, len(ts))]
+    out[key] = {"ok": r.ok, "error": r.error, "start_s": t0, "ttft_s": r.ttft_s, "prompt_tokens": r.prompt_tokens,
+                "tokens": n, "first_s": (ts[0] if ts else None), "last_s": (ts[-1] if ts else None), "itl": iv,
+                "decode_tok_s": r.decode_tok_s}
+
+
+def scenario(client, name, prompt, gens, delays):
+    out, th = {}, []
+    t_zero = time.perf_counter()
+    for i, (g, d) in enumerate(zip(gens, delays)):
+        th.append(threading.Thread(target=one_stream, args=(client, prompt, g, d, out, i)))
+    [t.start() for t in th]
+    [t.join() for t in th]
+    wall = time.perf_counter() - t_zero
+    ok = [out[i] for i in sorted(out) if out[i]["ok"]]
+    # pooled decode intervals of all streams, but only the intervals that overlap another stream's prefill matter most; report all
+    pooled = [x for s in ok for x in s["itl"]]
+    ntok = sum(s["tokens"] for s in ok)
+    first = min((s["first_s"] for s in ok if s["first_s"]), default=None)
+    last = max((s["last_s"] for s in ok if s["last_s"]), default=None)
+    return {
+        "scenario": name, "streams": len(gens), "errors": [out[i]["error"] for i in out if not out[i]["ok"]],
+        "wall_s": round(wall, 2),
+        "aggregate_decode_tok_s": round(ntok / wall, 1),
+        "ttft_s": [round(s["ttft_s"], 2) for s in ok],
+        "per_stream_decode_tok_s": [round(s["decode_tok_s"] or 0, 1) for s in ok],
+        "per_stream_itl_p99_ms": [round(pct(s["itl"], 0.99) * 1000, 1) for s in ok if s["itl"]],
+        "per_stream_itl_max_ms": [round(max(s["itl"]) * 1000, 1) for s in ok if s["itl"]],
+        "pooled_itl_ms": {"n": len(pooled), "p50": round(pct(pooled, 0.5) * 1000, 1), "p99": round(pct(pooled, 0.99) * 1000, 1),
+                          "max": round(max(pooled) * 1000, 1), "gt_250ms": sum(x > 0.25 for x in pooled),
+                          "gt_500ms": sum(x > 0.5 for x in pooled)} if pooled else None,
+    }
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--url", required=True)
+    ap.add_argument("--model", required=True)
+    ap.add_argument("--prompt-tokens", type=int, default=4096)
+    ap.add_argument("--reps", type=int, default=3)
+    ap.add_argument("--scenarios", default="burst,stagger")
+    ap.add_argument("--out")
+    a = ap.parse_args()
+    t = Target(name="adhoc", url=a.url, model=a.model, thinking="off")
+    client = C.Client(t)
+    base, per = calibrate(client)
+    n = max(0, round((a.prompt_tokens - base) / per))
+    prompt = filler(n, seed=a.prompt_tokens) + INSTRUCTION
+    print(f"[itl4] calibrated {per:.1f} tok/sentence, base {base}; prompt ~{a.prompt_tokens} tokens ({n} sentences)", flush=True)
+    client.chat([{"role": "user", "content": prompt}], max_tokens=8, force_tokens=True, nonce=True)  # warmup at this size
+    res = []
+    for rep in range(a.reps):
+        for sc in a.scenarios.split(","):
+            if sc == "burst":
+                r = scenario(client, "burst", prompt, [128] * 4, [0.0] * 4)
+            elif sc == "stagger":
+                r = scenario(client, "stagger", prompt, [512, 256, 256, 256], [0.0, 1.5, 3.0, 4.5])
+            else:
+                raise SystemExit(f"unknown scenario {sc}")
+            r["rep"] = rep + 1
+            res.append(r)
+            print(f"[itl4] rep {rep + 1} {sc}: agg {r['aggregate_decode_tok_s']} tok/s, pooled ITL p50/p99/max "
+                  f"{r['pooled_itl_ms'] and (r['pooled_itl_ms']['p50'], r['pooled_itl_ms']['p99'], r['pooled_itl_ms']['max'])} ms, "
+                  f"ttft {r['ttft_s']}, errors {r['errors']}", flush=True)
+    summ = {}
+    for sc in a.scenarios.split(","):
+        rs = [r for r in res if r["scenario"] == sc and r["pooled_itl_ms"]]
+        if rs:
+            summ[sc] = {"reps": len(rs),
+                        "pooled_itl_p99_ms_median": statistics.median(r["pooled_itl_ms"]["p99"] for r in rs),
+                        "pooled_itl_max_ms_median": statistics.median(r["pooled_itl_ms"]["max"] for r in rs),
+                        "pooled_itl_p50_ms_median": statistics.median(r["pooled_itl_ms"]["p50"] for r in rs),
+                        "aggregate_decode_tok_s_median": statistics.median(r["aggregate_decode_tok_s"] for r in rs)}
+    print("[itl4] summary " + json.dumps(summ), flush=True)
+    if a.out:
+        json.dump({"url": a.url, "model": a.model, "prompt_tokens": a.prompt_tokens, "runs": res, "summary": summ}, open(a.out, "w"), indent=1)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
