@@ -28,14 +28,14 @@ sides, both arms inside one `fleetq --quiet gpu,cpu` job each:
   | check | main | branch | fleetq |
   |---|---|---|---|
   | 512 generated, 6 reps, ABABAB | 121.6, 122.0, 121.8 | 122.1, 121.2, 121.9 | #4893 |
-  | 128 generated, 6 reps, ABABAB | 123.0 (pair 1) | 122.5 (pair 1) | #4896 |
+  | 128 generated, 6 reps, ABABAB (quiet re-run) | 123.7, 123.5, 123.2 | 122.5, 123.5, 123.2 | #4908 |
   | 128 / 512 generated, 3 reps, branch first or second | 123.1 / 122.3, 122.7 / 122.2, 121.5 / 121.0 | 119.6 / 116.7, 119.5 / 121.9, 121.0 / 121.6 | #4883, #4887 |
 
-  The 512 series has branch 121.7 and main 121.8 on average. The earlier 3-rep pairs put the branch 0 to 5% below main, mostly at
-  128 generated, and the second and third pairs of the 128 ABABAB were slowed on both arms by foreign load on the machine (main 112.0
-  and 113.0, branch 109.7 and 119.7), so they say nothing. The 1% bound is therefore met at 512 generated and not settled at
-  128 generated: the kernels of the one-row path are unchanged (fp8 and nvfp4 M = 1 `timing_rows` 26.8 to 27.2 us before and
-  after), and the in-process solo step is 31.35 against 31.30 ms. A quiet re-run of the 128 series is the open item.
+  Averages of the three ABABAB pairs: 512 generated branch 121.7, main 121.8; 128 generated branch 123.1, main 123.5 (-0.3%).
+  An earlier 128 ABABAB (#4896) was slowed on both arms from its second pair on by foreign load on the machine (main 112.0 and
+  113.0, branch 109.7 and 119.7) and was repeated (#4908); the first 3-rep pairs (#4883, #4887) were the noisy ones, branch 0 to 5%
+  below main. The kernels of the one-row path are unchanged (fp8 and nvfp4 M = 1 `timing_rows` 26.8 to 27.2 us before and after),
+  the in-process solo step is 31.35 against 31.30 ms. The branch is within 1% of main on a single stream.
 - The main numbers today (161.6 at 8 streams, 512) are below the 173.7 recorded in the mb doc for the same arm; the machine is
   shared and the spread between sessions is about 5%. The comparison in the table is same-window, same-job-shape.
 
