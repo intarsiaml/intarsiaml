@@ -322,8 +322,11 @@ const PER_ROW_OPS: [Op; 10] = [
 /// Ops whose every output row depends on its own input row alone (no reduction across rows, no per-token state): a call
 /// over `B` rows is `B` calls over one row. They need no `rows_exact` registration; their kernel must still be the solo
 /// step's wherever the solo step runs the op itself (`check_batch_ops`).
-const ROW_PARALLEL_OPS: [Op; 13] = [
+const ROW_PARALLEL_OPS: [Op; 15] = [
     Op::Embedding,
+    // per (token, head) row; `Rope` with a position per token (batched decode rows, each at its own position)
+    Op::QkNorm,
+    Op::Rope,
     Op::RmsNorm,
     Op::RmsNormAdd,
     Op::Add,
@@ -628,13 +631,25 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
 
     for _round in 0..8 {
         resolve(model)?;
-        let pending: BTreeSet<String> = model
+        let mut pending: BTreeSet<String> = model
             .resolved
             .ops
             .iter()
             .filter(|o| model.registry.admission(&o.kernel) == Some(Admission::Untested))
             .map(|o| o.kernel.clone())
             .collect();
+        // A row-table kernel takes the admission of the kernel it twins (`Registry::effective_admission`). That kernel may be one the
+        // plan never selects itself (the solo step runs a fused op, the batched step the row-table twin of the unfused one), so it
+        // would stay untested and the twin unusable under `serve`'s admitted-only rule: queue it, and test it by its op's sweep.
+        let twins: BTreeSet<String> = pending
+            .iter()
+            .filter_map(|n| cand_kernels.iter().find(|k| &k.name == n))
+            .filter(|k| k.row_table)
+            .filter_map(|k| k.name.strip_suffix("_rows"))
+            .filter(|b| model.registry.admission(b) == Some(Admission::Untested))
+            .map(str::to_string)
+            .collect();
+        pending.extend(twins.iter().cloned());
         if pending.is_empty() {
             break;
         }
@@ -656,8 +671,11 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             let work: Vec<PlannedCall> =
                 model.resolved.unique_calls.iter().filter(|c| c.kernel == kname).cloned().collect();
             let mut handled_sweep = false;
-            for c in work {
-                let (host, label) = match case_from_call(&c.call, &CAPS, &mut rng) {
+            // a twin's base that no planned call uses is tested by its sweep alone
+            let items: Vec<Option<PlannedCall>> =
+                if work.is_empty() && twins.contains(&kname) { vec![None] } else { work.into_iter().map(Some).collect() };
+            for c in items {
+                let (host, label) = match c.as_ref().and_then(|c| case_from_call(&c.call, &CAPS, &mut rng)) {
                     Some(x) => x,
                     None => {
                         // an op without an exact-shape case builder: its own sweep decides, once per kernel

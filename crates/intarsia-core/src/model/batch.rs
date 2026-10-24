@@ -439,7 +439,13 @@ impl Model {
         // the per-row attention calls below run. The calls read row `r` of the q+gate projection and write row `r` of the
         // gate buffer.
         // (only a gated block has one: an ungated block takes exactly the calls it always did)
-        let prologues: Vec<Option<OpCall>> = if !a.gated {
+        // With row tables the chain runs as one launch per op for all rows (`attn_batch_rows`) where the backend's fold of the gate
+        // split and the prologue is a registered bitwise equivalent of that chain (`crate::fusion`): the per-sequence fold, which
+        // writes that sequence's cache, is then not used (a launch bound to one sequence's buffers cannot be in a batched graph).
+        let chain_replaces_fold = self.row_tab.is_some()
+            && crate::fusion::fusion(self.backend.name(), Op::GateSplitQkNormRopeKv).is_some()
+            && crate::fusion::fusion(self.backend.name(), Op::QkNormRopeKv).is_some();
+        let prologues: Vec<Option<OpCall>> = if !a.gated || chain_replaces_fold {
             vec![None; b]
         } else {
             let mark = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);

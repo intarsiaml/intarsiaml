@@ -119,6 +119,37 @@ extern "C" {
     pub fn ik_matmul_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_logits_bf16_gemv_rows(x: T, w: T, out: TM, s: S) -> c_int;
     pub fn ik_kv_append_bf16(new_kv: T, pos0: i64, cache: TM, pos: T, s: S) -> c_int;
+    // row-table launches (batched decode, `OpCall::rows`; kernels/hip/ik_hip_abi.h)
+    pub fn ik_gdn_conv_bf16_rows(x: T, taps: T, y: TM, state0: T, tab: T, stride: i64, index: i64, s: S) -> c_int;
+    pub fn ik_gdn_delta_rule_bf16_v2_rows(
+        qkv: T,
+        a: T,
+        b: T,
+        a_log: T,
+        dt_bias: T,
+        eps: f32,
+        o: TM,
+        state0: T,
+        tab: T,
+        stride: i64,
+        index: i64,
+        byte_off: i64,
+        s: S,
+    ) -> c_int;
+    pub fn ik_kv_append_bf16_rows(new_kv: T, cache0: T, tab: T, stride: i64, index: i64, pos: T, s: S) -> c_int;
+    pub fn ik_attn_decode_bf16_splitkv_rows(
+        q: T,
+        kc0: T,
+        vc0: T,
+        scale: f32,
+        out: TM,
+        scratch: SC,
+        tab: T,
+        stride: i64,
+        index: i64,
+        pos: T,
+        s: S,
+    ) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
@@ -303,6 +334,7 @@ extern "C" {
     pub fn ik_shared_down_combine_nvfp4_gemv(x: T, w: T, bs: T, gs: T, routed: T, logit: T, out: TM, s: S) -> c_int;
     /// P2' (kernels/hip/moe_block.hip): `inputs` points at the 17 `Op::MoeBlock` inputs, contiguous and in order.
     pub fn ik_moe_block_bf16(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_moe_block_bf16_rows(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gate_split_qk_norm_rope_kv_bf16(
         qg: T,
