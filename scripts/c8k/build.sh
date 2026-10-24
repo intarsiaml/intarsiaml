@@ -32,4 +32,4 @@ fi
 ssh -n -o BatchMode=yes "$HOST" "mkdir -p ~/intarsia-decfuse/pf-scripts ~/intarsia-decfuse/pf-golden"
 rsync -a "$D/" "$HOST:intarsia-decfuse/pf-scripts/c8k/"
 rsync -a "$D/../lt/" "$HOST:intarsia-decfuse/pf-scripts/lt/"
-rsync -a --include='qwen36*' --include='oracle/***' --include='ref_noise/***' --include='baselines/***' --exclude='*' "$D/../../golden/" "$HOST:intarsia-decfuse/pf-golden/"
+rsync -aL --include='qwen36*' --include='oracle/***' --include='ref_noise/***' --include='baselines/***' --exclude='*' "$D/../../golden/" "$HOST:intarsia-decfuse/pf-golden/"
