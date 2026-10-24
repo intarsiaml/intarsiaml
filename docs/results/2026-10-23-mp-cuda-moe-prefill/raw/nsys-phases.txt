@@ -1,0 +1,39 @@
+fleetq: #4889 waiting (#3 in line): in line behind #4882 "mr3: build CUDA main + branch + test binaries" (claude-f31ccf91-mr3) on spark2
+fleetq: #4889 waiting (#2 in line): in line behind #4884 "localeval agent adhoc harness-v1-spark2-opencode opencode" (claude-8b28581c) on spark2
+fleetq: #4889 waiting (#1 in line): needs gpu quiet on spark2, but #4884 "localeval agent adhoc harness-v1-spark2-opencode opencode" (claude-8b28581c) loads it
+fleetq: #4889 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #4889 running on spark2: bash -c '
+ scripts/mp/dev.sh spark2 1024 2 0 base > /dev/null
+ for o in prod pf; do for T in 1024 2048 4096; do echo "--- $o T=$T"; ONLY=$o scripts/mp/nsys.sh spark2 base $T 0 | sed -E "s/<unnamed>:://; s/\(const.*//" ; done; done'
+fleetq: #4889 went ahead of the line and must end within 13h01m (by Sat 11:00); it is stopped then
+--- prod T=1024
+    1784.2 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)2, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     969.3 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)2, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     121.9 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      10.4 us/inst  x9    moe_group_tiles_kernel
+--- prod T=2048
+    2066.0 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+    1263.4 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     333.7 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      19.6 us/inst  x9    moe_group_tiles_kernel
+--- prod T=4096
+    2785.5 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+    1900.4 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     707.6 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      37.0 us/inst  x9    moe_group_tiles_kernel
+--- pf T=1024
+    1560.7 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)1>(c
+     966.2 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     134.4 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      10.3 us/inst  x9    moe_group_tiles_kernel
+--- pf T=2048
+    1878.0 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)1>(c
+    1278.4 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     330.1 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      19.9 us/inst  x9    moe_group_tiles_kernel
+--- pf T=4096
+    2836.7 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)0, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+    1930.5 us/inst  x9    void moe_w4a16_kernel<(int)128, (int)4, (int)4, (int)1, (int)2, (int)2, (int)2, (bool)0, (bool)0>(c
+     700.1 us/inst  x9    void moe_reduce_kernel<__nv_bfloat16>
+      36.6 us/inst  x9    moe_group_tiles_kernel
+fleetq: #4889 done (exit 0)

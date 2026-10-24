@@ -28,11 +28,18 @@ namespace {
 
 constexpr int BK = 64;         // k per pipeline step
 constexpr int LDS = BK + 8;    // padded smem row stride of the A tile (bf16 elements): conflict-free ldmatrix
+constexpr int PF_GROUP = 2;  // PF: units (64 bytes per row each) per L2 prefetch
+constexpr int PF_AHEAD = 2;  // PF: groups prefetched ahead of the first unit of a group
 constexpr int kRawStride = 80; // bytes per staged row: 64 payload + 8 scales + 8 pad (16-byte reads stay conflict-free)
 
 IK_DEVI void cp_async8(void* smem_dst, const void* gmem_src) {
     const unsigned d = static_cast<unsigned>(__cvta_generic_to_shared(smem_dst));
     asm volatile("cp.async.ca.shared.global [%0], [%1], 8;\n" ::"r"(d), "l"(gmem_src) : "memory");
+}
+
+// Asynchronous L2 prefetch of `bytes` contiguous bytes (sm_90+ bulk prefetch, no shared memory or barrier involved).
+IK_DEVI void prefetch_l2_bulk(const void* p, unsigned bytes) {
+    asm volatile("cp.async.bulk.prefetch.L2.global [%0], %1;\n" ::"l"(p), "r"(bytes) : "memory");
 }
 
 // 4 fp4 values (the low 16 bits of q: nibble j = element j, sign in bit 3) -> bf16x2 {e0, e1} and {e2, e3}, unscaled.
@@ -65,7 +72,11 @@ IK_DEVI uint32_t scale_pair(float f) {
 // Block = R / (8 JW) warps, each owning 8 * JW weight rows (MODE 0: JW/2 gate n8 tiles and the matching JW/2 up tiles) and
 // all BM = 16 * MT pairs of the tile; R weight rows per block (MODE 0: R/2 gate + the matching R/2 up rows).
 // Pipeline lookahead: A(s + LA) and the packed unit of step s + LR are requested at iteration s (LR even, LR >= LA).
-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU>
+// PF (MODE 0 only; INTARSIA_CUDA_MOE_W4A16_PF): the weight stream is DRAM-bound at small token counts and the 64-byte cp.async units
+// reach only about 200 GB/s of it, so the block also asks L2 for its block scales (one contiguous span per half) at start and for the
+// packed weights two units (128 B per row) at a time, PF_AHEAD groups ahead of the cp.async that consumes them. Prefetch moves no
+// data the kernel does not read and changes no arithmetic: bitwise the same results.
+template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU, bool PF>
 __global__ void __launch_bounds__(R * 4 / JW, MINB)
 moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                  const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -108,6 +119,15 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
     }
     auto weight_row = [&](int r) { return MODE == 0 ? (r < R / 2 ? n0 + r : I + n0 + (r - R / 2)) : n0 + r; };
 
+    if constexpr (PF && MODE == 0) {
+        // this block's block scales: R / 2 gate rows and R / 2 up rows, each a contiguous span of rows * Kdim / 16 bytes
+        constexpr int RH = R / 2;
+        const int64_t sbytes = (int64_t)RH * (Kdim / 16);
+        if (tid < 4) {
+            const int row = (tid >> 1) == 0 ? n0 : I + n0;
+            prefetch_l2_bulk(sc + ((int64_t)e * nrows + row) * (Kdim / 16) + (tid & 1) * (sbytes / 2), (unsigned)(sbytes / 2));
+        }
+    }
     // packed-weight copy: chunk (tid + NT q) = row r, 16-byte part p of the unit's 64 bytes; threads < 128 also copy the
     // 8 scale bytes of row `tid`
     const int rpart = tid & 3;
@@ -119,6 +139,20 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
     }
     const uint8_t* ssrc = sc + ((int64_t)e * nrows + weight_row(tid < R ? tid : 0)) * (Kdim / 16);
     auto issue_raw = [&](int u, int slot) {
+        if constexpr (PF && MODE == 0) {
+            if (rpart == 0) {  // one thread per row asks for the groups ahead
+#pragma unroll
+                for (int q = 0; q < RQ; ++q) {
+                    if (u == 0) {
+                        for (int gq = 0; gq <= PF_AHEAD; ++gq)
+                            if (gq * PF_GROUP < U) prefetch_l2_bulk(rsrc[q] + gq * PF_GROUP * 64, (unsigned)(min(PF_GROUP, U - gq * PF_GROUP) * 64));
+                    } else if (u % PF_GROUP == 0 && (u / PF_GROUP + PF_AHEAD) * PF_GROUP < U) {
+                        const int g0 = (u / PF_GROUP + PF_AHEAD) * PF_GROUP;
+                        prefetch_l2_bulk(rsrc[q] + g0 * 64, (unsigned)(min(PF_GROUP, U - g0) * 64));
+                    }
+                }
+            }
+        }
 #pragma unroll
         for (int q = 0; q < RQ; ++q) {
             const int r = (tid >> 2) + (NT / 4) * q;
@@ -305,29 +339,39 @@ int pick_bm(int64_t P, int64_t E) {
     return (double)P / (double)E <= 56.0 ? 32 : 64;
 }
 
-template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU>
+// INTARSIA_CUDA_MOE_W4A16_PF=1 (opt-in): at up to PF_MAX_PAIRS_PER_EXPERT pairs per expert (prefill chunks of up to 2048 tokens at 256
+// experts, top-8) the gate/up GEMM prefetches its weight stream into L2 (see the kernel comment) and, unless INTARSIA_MOE_BM sets a
+// height, the tile height is 64 rows (the prefetch pays off more with the taller tile: fewer blocks, fewer weight re-reads).
+// Bitwise the same results as without. Unset / 0: the kernel and tile height of before.
+constexpr int PF_MAX_PAIRS_PER_EXPERT = 64;
+bool pf_enabled(int64_t P, int64_t E) {
+    const char* v = getenv("INTARSIA_CUDA_MOE_W4A16_PF");
+    return v && v[0] == '1' && P <= PF_MAX_PAIRS_PER_EXPERT * E;
+}
+
+template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU, bool PF>
 void launch_w4(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs,
                const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I,
                int K, cudaStream_t s) {
     constexpr size_t smem = (size_t)((LA + 1) * 16 * MT) * LDS * 2 + (size_t)(LR / 2 + 1) * R * kRawStride;
     static const bool attr_set = [] {
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, PF>),
                              cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
-        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU>),
+        cudaFuncSetAttribute(reinterpret_cast<const void*>(moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, PF>),
                              cudaFuncAttributePreferredSharedMemoryCarveout, 100);
         return true;
     }();
     (void)attr_set;
     const unsigned ny = MODE == 0 ? (unsigned)(I / (R / 2)) : (unsigned)(H / R);
-    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
+    moe_w4a16_kernel<R, MT, JW, MODE, MINB, LA, LR, GELU, PF><<<dim3(ny, tiles_ub), R * 4 / JW, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles, out, H, I, K);
 }
 
-template <int R, int MT, int JW, int MINB, int LA, int LR, bool GELU>
+template <int R, int MT, int JW, int MINB, int LA, int LR, bool GELU, bool PF>
 void run_gemms(const ik_bf16* x, const uint8_t* guw, const uint8_t* gus, const uint8_t* dnw, const uint8_t* dns,
                const float* gs, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* hbuf,
                ik_bf16* ybuf, unsigned tiles_ub, int H, int I, int K, cudaStream_t s) {
-    launch_w4<R, MT, JW, 0, MINB, LA, LR, GELU>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
-    launch_w4<R, MT, JW, 1, MINB, LA, LR, GELU>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
+    launch_w4<R, MT, JW, 0, MINB, LA, LR, GELU, PF>(x, guw, gus, gs, pairs, offsets, tiles, ntiles, hbuf, tiles_ub, H, I, K, s);
+    launch_w4<R, MT, JW, 1, MINB, LA, LR, GELU, false>(hbuf, dnw, dns, gs, pairs, offsets, tiles, ntiles, ybuf, tiles_ub, H, I, K, s);
 }
 
 int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
@@ -368,7 +412,8 @@ int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     ik_bf16* ybuf = (ik_bf16*)(base + L.y);
     cudaStream_t s = IK_STREAM(stream);
 
-    const int BM = pick_bm(P, E);
+    const bool pf = pf_enabled(P, E);
+    const int BM = pf && !getenv("INTARSIA_MOE_BM") ? 64 : pick_bm(P, E);
     const unsigned tiles_ub = (unsigned)((P + BM - 1) / BM + (P < E ? P : E));
     moe_group_tiles_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, BM, pairs,
                                                                         offsets, ntiles, tiles);
@@ -379,19 +424,15 @@ int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     const uint8_t* dnw = (const uint8_t*)down_w->data;
     const uint8_t* dns = (const uint8_t*)down_s->data;
     const float* gs = (const float*)gscales->data;
+#define IK_RUN(MTV, GE, PFV) run_gemms<128, MTV, 4, 2, 2, 2, GE, PFV>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s)
     if (gelu) {
-        if (BM == 32) {
-            run_gemms<128, 2, 4, 2, 2, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        } else {
-            run_gemms<128, 4, 4, 2, 2, 2, true>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        }
+        if (BM == 32) pf ? IK_RUN(2, true, true) : IK_RUN(2, true, false);
+        else pf ? IK_RUN(4, true, true) : IK_RUN(4, true, false);
     } else {
-        if (BM == 32) {
-            run_gemms<128, 2, 4, 2, 2, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        } else {
-            run_gemms<128, 4, 4, 2, 2, 2, false>(xp, guw, gus, dnw, dns, gs, pairs, offsets, tiles, ntiles, hbuf, ybuf, tiles_ub, (int)H, (int)I, (int)K, s);
-        }
+        if (BM == 32) pf ? IK_RUN(2, false, true) : IK_RUN(2, false, false);
+        else pf ? IK_RUN(4, false, true) : IK_RUN(4, false, false);
     }
+#undef IK_RUN
     IK_TRY(ik_launch_status());
     moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
         ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);

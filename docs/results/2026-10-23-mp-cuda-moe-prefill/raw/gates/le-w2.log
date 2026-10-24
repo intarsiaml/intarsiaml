@@ -1,0 +1,81 @@
+fleetq: #4914 waiting (#2 in line): in line behind #4913 "mq6: #126 CUDA no-op + kernels --quick on merged head" (claude-f31ccf91-mq6) on spark2
+fleetq: #4914 waiting (#1 in line): needs gpu quiet on spark2, but #4913 "mq6: #126 CUDA no-op + kernels --quick on merged head" (claude-f31ccf91-mq6) loads it
+fleetq: #4914 running on spark2: env HOST=spark2 HN=spark-fa00 scripts/mp/le-window.sh w2 3 vllm def:mp-base:2048 pf:mp-dev:2048:INTARSIA_CUDA_MOE_W4A16_PF=1
+fleetq: #4914 went ahead of the line and must end within 11h58m (by Sat 11:00); it is stopped then
+== round 1 arm vllm 23:01:38
+mp-vllm-r1: - result file: `results/20261023-230139-adhoc-mp-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230139-adhoc-mp-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5427 (5297–5446) * | - | 76.7 (76.6–77.9) | 80.2 (78.3–80.9) | - | - | 128 |
+| 4088 | 0.63 | 6454 (6446–6467) | 6880 | 77.6 (77.3–77.8) | 79.8 (79.4–82.3) | - | - | 128 |
+| 16657 | 2.62 | 6350 (6345–6354) | 6316 | 74.6 (74.4–74.7) | 75.8 (75.6–76.0) | - | - | 128 |
+== round 1 arm def 23:02:06
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+mp-def-r1: - result file: `results/20261023-230240-adhoc-mp-def-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230240-adhoc-mp-def-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.20 | 5075 (5059–5104) * | - | 83.8 (83.7–83.9) | 85.1 (84.9–85.5) | - | - | 128 |
+| 4088 | 0.61 | 6660 (6587–6671) | 7396 | 81.3 (81.3–81.4) | 83.3 (82.7–89.8) | - | - | 128 |
+| 16656 | 2.73 | 6110 (6090–6130) | 5951 | 73.9 (73.9–73.9) | 75.0 (74.9–75.7) | - | - | 128 |
+== round 1 arm pf 23:03:09
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 499 case(s) run, 0 cached
+mp-pf-r1: - result file: `results/20261023-230349-adhoc-mp-pf-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230349-adhoc-mp-pf-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.19 | 5327 (5210–5391) * | - | 83.6 (83.5–83.7) | 85.8 (85.6–87.0) | - | - | 128 |
+| 4090 | 0.61 | 6678 (6662–6708) | 7272 | 81.1 (80.7–81.2) | 82.9 (82.7–87.7) | - | - | 128 |
+| 16656 | 2.73 | 6105 (6095–6121) | 5936 | 73.6 (73.6–73.7) | 74.8 (74.5–75.5) | - | - | 128 |
+== round 2 arm pf 23:04:17
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+mp-pf-r2: - result file: `results/20261023-230453-adhoc-mp-pf-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230453-adhoc-mp-pf-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5379 (1234–5382) * | - | 83.5 (83.2–140.4) | 88.1 (85.2–14545.5) | - | - | 128 |
+| 4090 | 0.62 | 6592 (6553–6596) | 7106 | 81.0 (67.4–81.2) | 9676.8 (82.8–10281.4) | - | - | 128 |
+| 16656 | 2.72 | 6114 (6112–6123) | 5972 | 73.6 (73.6–73.6) | 74.8 (74.5–75.0) | - | - | 128 |
+== round 2 arm def 23:05:21
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+mp-def-r2: - result file: `results/20261023-230558-adhoc-mp-def-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230558-adhoc-mp-def-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.20 | 4913 (4479–4984) * | - | 83.7 (57.3–83.7) | 3269.5 (85.6–233505.4) | - | - | 128 |
+| 4091 | 0.65 | 6278 (4993–6536) | 6902 | 71.2 (51.6–80.5) | 272.2 (210.8–665.3) | - | - | 128 |
+| 16679 | 2.85 | 5859 (5424–6004) | 5735 | 74.2 (66.0–77.2) | 198.9 (75.5–200103.3) | - | - | 128 |
+== round 2 arm vllm 23:06:31
+mp-vllm-r2: - result file: `results/20261023-230632-adhoc-mp-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230632-adhoc-mp-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.19 | 5253 (5157–5380) * | - | 76.4 (76.2–78.5) | 81.5 (78.0–108.0) | - | - | 128 |
+| 4089 | 0.64 | 6358 (6104–6432) | 6837 | 74.1 (69.6–77.7) | 88.3 (79.0–88.3) | - | - | 128 |
+| 16657 | 2.93 | 5687 (5374–6324) | 5495 | 74.6 (73.2–74.9) | 399.1 (78.0–1133.6) | - | - | 128 |
+== round 3 arm vllm 23:07:04
+mp-vllm-r3: - result file: `results/20261023-230705-adhoc-mp-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230705-adhoc-mp-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5299 (4702–5382) * | - | 78.8 (77.3–79.9) | 133.7 (118.7–152.4) | - | - | 128 |
+| 4089 | 0.64 | 6391 (6358–6403) | 6841 | 74.8 (62.4–77.3) | 91.0 (83.6–118.6) | - | - | 128 |
+| 16656 | 2.64 | 6319 (5812–6324) | 6296 | 74.9 (41.9–86.8) | 159.9 (84.6–204.8) | - | - | 128 |
+== round 3 arm def 23:07:36
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+mp-def-r3: - result file: `results/20261023-230816-adhoc-mp-def-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230816-adhoc-mp-def-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.20 | 5022 (4989–5054) * | - | 83.7 (83.7–83.7) | 85.7 (85.2–87.8) | - | - | 128 |
+| 4089 | 0.62 | 6615 (6588–6674) | 7363 | 81.1 (81.0–81.1) | 83.5 (83.2–89.0) | - | - | 128 |
+| 16653 | 2.93 | 5684 (5646–5910) | 5437 | 73.7 (45.5–79.0) | 104.8 (95.0–179.3) | - | - | 128 |
+== round 3 arm pf 23:08:46
+prefill chunk 2048 (--prefill-chunk)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+mp-pf-r3: - result file: `results/20261023-230926-adhoc-mp-pf-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261023-230926-adhoc-mp-pf-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.18 | 5364 (5163–5444) * | - | 83.5 (83.2–83.9) | 85.7 (84.4–86.8) | - | - | 128 |
+| 4090 | 0.61 | 6679 (6634–6684) | 7241 | 80.8 (80.6–80.9) | 82.2 (82.0–82.4) | - | - | 128 |
+| 16654 | 2.72 | 6119 (6101–6120) | 5960 | 73.6 (73.3–73.6) | 75.1 (74.8–75.3) | - | - | 128 |
+== done 23:09:54
+fleetq: #4914 done (exit 0)

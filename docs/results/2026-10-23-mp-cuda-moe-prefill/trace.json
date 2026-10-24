@@ -1,0 +1,289 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mp:20261023-1930",
+ "project": "intarsiaml",
+ "lane_id": "mp",
+ "follows": [
+  "intarsiaml:pf:20261023-1230"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-23T19:30:00-04:00",
+ "ended": "2026-10-24T03:45:00-04:00",
+ "brief": "Speed up CUDA prefill of the 35B (Qwen3.6-35B-A3B NVFP4) on GB10 by speeding up the routed-expert MoE prefill kernel (41-47 % of prefill kernel time at 22-33 % of the bf16 roof), keeping the default accumulation order and every accuracy bar; profile with nsys first; opt-in flag, draft PR.",
+ "hypothesis": "The expert grouped GEMM is limited by schedule (tiling, occupancy, dequant/MMA overlap, launch structure), not by arithmetic, so a better schedule with the same accumulation order should speed it up without touching the kernel error.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "DGX Spark GB10",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "prefill",
+  "buckets": [
+   "1k",
+   "4k",
+   "16k"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | prefill | 1k",
+   "DGX Spark GB10 · Qwen3.6-35B-A3B | plain | prefill | 16k"
+  ],
+  "rival": "vLLM",
+  "gap_pct_at_start": 9.5
+ },
+ "techniques": [
+  {
+   "id": "intarsia-cuda-moe-w4a16-l2-weight-prefetch-gb10",
+   "role": "created"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mp/moe-prefill",
+  "base_commit": "6189466f",
+  "head_commit": "eb918230",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/129",
+  "files": [
+   "kernels/cuda/moe_w4a16.cu",
+   "crates/intarsia-backend-cuda/tests/moe_w4a16.rs",
+   "kernels/cuda_checks/moe_w4a16_bench.cu",
+   "docs/tuning.md",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-23-mp-cuda-moe-prefill.md",
+   "scripts/mp/"
+  ],
+  "diff_stat": null,
+  "default_changed": false,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "MoE kernel tests at the existing bars, knob off and on",
+   "command": "scripts/pf/rjob.sh spark1 mp/gputests.sh mp-dev",
+   "result": "pass",
+   "detail": "moe_w4a16 4 passed (bitwise vs the old grouped kernel at BM auto/32/64 with PF=0 and 1; knob-on output equals knob-off in the accuracy test), quantmoe 13, moe_nvfp4 5, docs_env_vars 2; fleetq #4910"
+  },
+  {
+   "name": "kernels test --quick, knob unset and PF=1",
+   "command": "intarsia kernels test --backend cuda --quick",
+   "result": "pass",
+   "detail": "77 kernels 531 cases, 0 FAIL lines in both runs; fleetq #4910"
+  },
+  {
+   "name": "acc-short against main's committed CUDA baseline",
+   "command": "scripts/pf/rjob.sh spark2 mp/gatesA.sh mpgA3 mp-dev <baseline> 1",
+   "result": "pass",
+   "detail": "prefill mean KL 6.82514e-3 (baseline 6.82514e-3), decode 6.98641e-3 (6.98641e-3); floor and baseline verdicts PASS; fleetq #4907"
+  },
+  {
+   "name": "3 KL goldens at prefill chunk 2048 with PF=1, and control on main's build",
+   "command": "mp/gatesA.sh, mp/gatesA0.sh",
+   "result": "pass",
+   "detail": "golden gate PASS x3; printed KL lines and per-prompt rows identical to main's build (#4872)"
+  },
+  {
+   "name": "prefix-reuse gate, CPU oracles, chunk 2048",
+   "command": "scripts/pf/rjob.sh spark1 mp/gatesB.sh mpgB2 mp-dev 1",
+   "result": "pass",
+   "detail": "PASS, 5/5 rows ok; fleetq #4941"
+  },
+  {
+   "name": "batch_cuda_real and the ignored long-prompt engine test, PF=1",
+   "command": "mp/gatesB.sh",
+   "result": "pass",
+   "detail": "batch_cuda_real 3 passed 0 failed (FAILED count 0); long-prompt engine test 1 passed 0 failed; fleetq #4941"
+  },
+  {
+   "name": "SASS of the knob-off kernels vs main",
+   "command": "nvcc -cubin + cuobjdump on both sources",
+   "result": "info",
+   "detail": "GELU variants byte-identical; the SiLU variants (35B path) differ in ~27 of 900-2400 prologue instructions (scheduling); outputs bitwise equal; fleetq #4851"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 992,
+   "streams": 1,
+   "before": 4976,
+   "after": 5341,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.8,
+   "slot": "quiet",
+   "slot_job": 4855,
+   "before_run_id": "20261023-205709-adhoc-mp-def-r2",
+   "after_run_id": "20261023-205601-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4090,
+   "streams": 1,
+   "before": 6549,
+   "after": 6624,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.2,
+   "slot": "quiet",
+   "slot_job": 4855,
+   "before_run_id": "20261023-205709-adhoc-mp-def-r2",
+   "after_run_id": "20261023-205601-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16655,
+   "streams": 1,
+   "before": 6031,
+   "after": 6067,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.8,
+   "slot": "quiet",
+   "slot_job": 4855,
+   "before_run_id": "20261023-205709-adhoc-mp-def-r2",
+   "after_run_id": "20261023-205601-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 992,
+   "streams": 1,
+   "before": 5022,
+   "after": 5364,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.0,
+   "slot": "quiet",
+   "slot_job": 4914,
+   "before_run_id": "20261023-230558-adhoc-mp-def-r2",
+   "after_run_id": "20261023-230453-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4090,
+   "streams": 1,
+   "before": 6615,
+   "after": 6678,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.3,
+   "slot": "quiet",
+   "slot_job": 4914,
+   "before_run_id": "20261023-230558-adhoc-mp-def-r2",
+   "after_run_id": "20261023-230453-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16655,
+   "streams": 1,
+   "before": 5859,
+   "after": 6114,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 0.2,
+   "slot": "quiet",
+   "slot_job": 4914,
+   "before_run_id": "20261023-230558-adhoc-mp-def-r2",
+   "after_run_id": "20261023-230453-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 992,
+   "streams": 1,
+   "before": 5299,
+   "after": 5364,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": 1.0,
+   "slot": "quiet",
+   "slot_job": 4914,
+   "before_run_id": "20261023-230632-adhoc-mp-vllm-r2",
+   "after_run_id": "20261023-230453-adhoc-mp-pf-r2"
+  },
+  {
+   "metric": "moe_kernel_us",
+   "bucket": "1k",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "before": 2912.5,
+   "after": 2704.4,
+   "unit": "us",
+   "n": 20,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4874,
+   "before_run_id": null,
+   "after_run_id": null
+  },
+  {
+   "metric": "moe_kernel_us",
+   "bucket": "2k",
+   "prompt_tokens": 2048,
+   "streams": 1,
+   "before": 3524.8,
+   "after": 3392.0,
+   "unit": "us",
+   "n": 20,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 4874,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "moe_w4a16 bitwise tests, acc-short vs main baseline, 3 KL goldens chunk 2048, prefix-reuse gate, batch_cuda_real + long prompts",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "Opt-in INTARSIA_CUDA_MOE_W4A16_PF=1: L2 prefetch of block scales and packed weights in the gate/up half of the w4a16 MoE kernel plus a 64-row tile, for chunks up to 2048 tokens. Bitwise the default output, so no accuracy bar moved. Kernel -7 % / -4 % at 1k / 2k tokens; prefill +7 % at 1k, +1 % at 4k, +0.6 to +4 % at 16k against main with lt on; decode unchanged. The kernel is DRAM-stream bound at 1k and y/combine bound at 4k; about ten other bitwise schedule changes gave nothing.",
+ "lessons": [
+  "With the compute ablated, the w4a16 expert kernel still took 93 % (1k) of its time: it is a weight-stream kernel at prefill chunk sizes of a few thousand tokens, so the lever is the memory pipeline, not the MMA schedule.",
+  "A cap on a prefetch knob must be tested on the first size above it: 2560 tokens was 3 % slower with the cap at 80 pairs per expert.",
+  "A stamped build is needed for acc-short: the first gate run failed on the missing INTARSIA_BUILD_STAMP; use scripts/tree-stamp.sh output."
+ ],
+ "cost": {
+  "wall_min": 495,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4745,
+   4746,
+   4748,
+   4750,
+   4772,
+   4775,
+   4778,
+   4840,
+   4842,
+   4845,
+   4846,
+   4847,
+   4848,
+   4849,
+   4850,
+   4851,
+   4855,
+   4862,
+   4864,
+   4872,
+   4874,
+   4889,
+   4891,
+   4900,
+   4901,
+   4907,
+   4910,
+   4914,
+   4941
+  ],
+  "tokens": null
+ }
+}

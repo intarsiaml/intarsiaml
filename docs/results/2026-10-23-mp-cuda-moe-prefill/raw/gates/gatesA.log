@@ -1,0 +1,28 @@
+fleetq: #4849 waiting (#1 in line): needs gpu quiet on spark1, but #4848 "mp: gates B (reuse + batch_cuda_real + long, PF=1)" (claude-f31ccf91-mp) loads it
+fleetq:   #4848 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4848 set, or it will wait for #4848 to be released.
+fleetq: #4849 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #4849 running on spark1: scripts/pf/rjob.sh spark1 mp/gatesA.sh mpgA mp-dev /home/nvidia/intarsia-decfuse/out/mp-main-baseline.json 1
+fleetq: #4849 went ahead of the line and must end within 13h53m (by Sat 11:00); it is stopped then
+== acc-short vs main baseline, PF=1 21:06:06
+exit 1
+Error: this binary was built without INTARSIA_BUILD_STAMP, so it cannot say which code it is; build through scripts/phase1b-acceptance.sh (or set the variable to the output of scripts/tree-stamp.sh)
+== KL golden qwen36-35b-a3b-nvfp4-vllm-top20 chunk 2048 PF=1 21:06:45
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) wit
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-long-top20 chunk 2048 PF=1 21:07:22
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-4k-top20 chunk 2048 PF=1 21:08:53
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors (3 prompts, 12759 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) 
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== done 21:09:54
+fleetq: #4849 done (exit 0)

@@ -1,0 +1,34 @@
+fleetq: #4941 waiting (#3 in line): in line behind #4924 "c8k: chunk 8192 gates (3 KL goldens, acc-4k, acc-short, batch_cuda_real at 8192) + 2048 control" (claude-f31ccf91-c8k) on spark1
+fleetq: #4941 waiting (#2 in line): in line behind #4940 "localeval agent adhoc harness-v2-spark1-opencode opencode" (claude-8b28581c) on spark1
+fleetq: #4941 waiting (#1 in line): needs gpu quiet on spark1, but #4940 "localeval agent adhoc harness-v2-spark1-opencode opencode" (claude-8b28581c) loads it
+fleetq: #4941 waiting (#1 in line): needs spark1 quiet, but requests not tracked by fleetq are in flight: spark1-vllm (1 in flight)
+fleetq: #4941 running on spark1: scripts/pf/rjob.sh spark1 mp/gatesB.sh mpgB2 mp-dev 1
+fleetq: #4941 went ahead of the line and must end within 7h45m (by Sat 11:00); it is stopped then
+== reuse gate chunk 2048 PF=1 03:14:37
+exit 0
+long_docs_4k       continue    3072   4080    3087      0     25/32  ok (oracle-relative: mean KL(oracle||cold) 1.72e-2, mean KL(oracle||warm) 1.53e-2, warm/cold 0.89x; limit 1.5x cold + 3e-3 = 2.87e-2: PASS)
+long_code_4k       continue    3072   4080    3087      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.03e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 1.22x; limit 1.5x cold + 3e-3 = 1.85e-2: PASS)
+chat_reuse_4k      continue    4521   4647    4536      0      3/32  ok (oracle-relative: mean KL(oracle||cold) 5.07e-3, mean KL(oracle||warm) 4.38e-3, warm/cold 0.86x; limit 1.5x cold + 3e-3 = 1.06e-2: PASS)
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+prefix-reuse gate: PASS
+== batch_cuda_real PF=1 03:16:10
+exit 0
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: ok. 3 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 677.57s
+FAILED count: 0
+== batch_cuda_real --ignored long prompts PF=1 03:27:35
+exit 0
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 247.55s
+FAILED count: 0
+== done 03:31:43
+fleetq: #4941 done (exit 0)
