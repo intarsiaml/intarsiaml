@@ -1,0 +1,24 @@
+fleetq: #4766 running on spark2: scripts/lt/rjob.sh spark2 lt/check3.sh c3 lt-dev2 lt-dev lt-main
+== 1. lt default: lt-dev2 vs lt-dev 20:07:05
+ids 35s lt-dev2 vs lt-dev (lt default): identical (sha 2dd7fe93)
+ids 35l lt-dev2 vs lt-dev (lt default): identical (sha 5efcc225)
+ids 8s lt-dev2 vs lt-dev (lt default): identical (sha e2c61289)
+== 2. opt-out no-op 20:11:11
+ids 35s lt-main vs lt-dev2: identical (256 ids, sha a7c3e613)
+ids 35l lt-main vs lt-dev2: identical (64 ids, sha 5efcc225)
+ids 8s lt-main vs lt-dev2: identical (256 ids, sha e2c61289)
+ids 8l lt-main vs lt-dev2: identical (64 ids, sha fcafb118)
+8B plan: byte-identical (8758 B)
+35B plan: byte-identical (3729 B)
+== done
+== 3. tests 20:18:53
+lib fp8_ X=1: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+lib fp8_ INTARSIA_CUDA_FP8_GEMM_LT=0: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+lib fp8_ INTARSIA_CUDA_FP8_GEMM_LT=1: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+quantmoe lt: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 2.34s
+docs_env_vars: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+kernels test --quick env=X=1: exit 0 FAIL lines 0, 77 kernels, 531 cases in 5.5s lt: matmul_fp8 matmul_fp8_gemm_lt 2 0 1.101e-3 2.438e-5 ADMITTED
+kernels test --quick env=INTARSIA_CUDA_FP8_GEMM_LT=0: exit 0 FAIL lines 0, 77 kernels, 531 cases in 5.4s lt: matmul_fp8 matmul_fp8_gemm_lt 0 0 0.000e0 0.000e0 NO CASES (untested)
+SKIPPED: kernel matmul_fp8_gemm_lt ran 0 cases on backend 'cuda'
+== done 20:19:16
+fleetq: #4766 done (exit 0)
