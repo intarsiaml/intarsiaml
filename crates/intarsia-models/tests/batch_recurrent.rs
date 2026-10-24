@@ -420,7 +420,9 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
             picks(&rec, Op::MoeExperts),
             picks(&rec, Op::MoeBlock)
         );
-        assert!(!picks(&rec, Op::MatmulFp8).is_empty() && !picks(&rec, Op::MatmulNvfp4).is_empty());
+        // the shared expert's nvfp4 GEMV is inside the fused block when it runs
+        let fused = picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows"));
+        assert!(!picks(&rec, Op::MatmulFp8).is_empty() && (fused || !picks(&rec, Op::MatmulNvfp4).is_empty()));
     }
     // the per-sequence ops are the solo step's own kernels, or on CUDA (row tables, R3a) the row-table twin of one: the same
     // kernel's one-row call on every row in one launch (`<solo kernel>_rows`, bitwise the solo kernel, tests/row_tables.rs)
