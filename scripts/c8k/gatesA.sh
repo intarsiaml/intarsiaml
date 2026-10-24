@@ -7,7 +7,7 @@ set -uo pipefail
 P=$HOME/intarsia-decfuse; O=$P/out/$1; T=$2; CH=${3:-"8192 2048"}; mkdir -p $O
 export PATH=/usr/local/cuda/bin:$PATH
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
-GD=$P/pf-golden; B=$P/$T/target/acc/release/intarsia
+GD=$P/pf-golden-c8k; B=$P/$T/target/acc/release/intarsia
 PRE=${PRE_CHANGE:-c37a8d3}   # the commit the baseline was recorded from (golden/baselines/...cuda.baseline.json code.head)
 unset INTARSIA_CUDA_FP8_GEMM_LT
 echo "== binary: $($B --version 2>&1 | head -1); stamp: $(strings $B 2>/dev/null | grep -m1 'head=[0-9a-f]* code-tree=' )"

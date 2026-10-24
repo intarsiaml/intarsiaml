@@ -10,7 +10,7 @@ set -uo pipefail
 P=$HOME/intarsia-decfuse; O=$P/out/$1; T=$2; ARMS=${3:-"L8192 S8192 L2048 S2048 F2048 F1024 F8192"}; mkdir -p $O
 export PATH=/usr/local/cuda/bin:$PATH
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
-GD=$P/pf-golden; B=$P/$T/target/acc/release/intarsia
+GD=$P/pf-golden-c8k; B=$P/$T/target/acc/release/intarsia
 unset INTARSIA_CUDA_FP8_GEMM_LT
 OR=$GD/oracle; pre=qwen36-35b-a3b-nvfp4-continue
 NEED="$pre-long_docs_12k-s12062 $pre-long_code_12k-s12062 $pre-long_docs_12k-s9500 $pre-long_code_12k-s9500 $pre-long_code_4k-s2000-g4k $pre-long_code_4k-s3072-g4k"

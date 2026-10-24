@@ -3,6 +3,8 @@
 # the 35B recipe in the Spark copy only (RECIPE_CHUNK=8192: the "recipe override" for the cargo tests; the repo's recipe is untouched)
 # and build the intarsia-models test binaries (TESTS=1). Run inside a fleetq slot (--load cpu):
 #   FLEETQ_OWNER=claude-f31ccf91-c8k HOST=spark1 fleetq run --host spark1 --load cpu --expect 30 --label "c8k build" -- scripts/c8k/build.sh <tree> /opt/code/wt-c8k [stamp]
+# Goldens and the new oracles go to ~/intarsia-decfuse/pf-golden-c8k (lane-private: the shared pf-golden is read by other lanes' reuse gates,
+# and an oracle for a split main has no oracle for changes what they report).
 # Trees live in ~/intarsia-decfuse/<tree> on HOST; the target dir is seeded from SEED_TREE (default lt-main).
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
@@ -29,7 +31,6 @@ if [[ -n ${TESTS:-} ]]; then
   rsh "cd $R/$T && [ -d target/test ] || cp -a target/acc target/test; env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} CARGO_TARGET_DIR=target/test cargo test --release -p intarsia-models --test batch_cuda_real --no-run 2>&1 | grep -E '^(error)|Finished|Executable' | tail -8"
 fi
 # helper scripts and the 35B goldens / oracles for the gate runs
-ssh -n -o BatchMode=yes "$HOST" "mkdir -p ~/intarsia-decfuse/pf-scripts ~/intarsia-decfuse/pf-golden"
+ssh -n -o BatchMode=yes "$HOST" "mkdir -p ~/intarsia-decfuse/pf-scripts ~/intarsia-decfuse/pf-golden-c8k"
 rsync -a "$D/" "$HOST:intarsia-decfuse/pf-scripts/c8k/"
-rsync -a "$D/../lt/" "$HOST:intarsia-decfuse/pf-scripts/lt/"
-rsync -aL --include='qwen36*' --include='oracle/***' --include='ref_noise/***' --include='baselines/***' --exclude='*' "$D/../../golden/" "$HOST:intarsia-decfuse/pf-golden/"
+rsync -aL --include='qwen36*' --include='oracle/***' --include='ref_noise/***' --include='baselines/***' --exclude='*' "$D/../../golden/" "$HOST:intarsia-decfuse/pf-golden-c8k/"

@@ -13,7 +13,7 @@ for g in ("vllm-top20", "vllm-long-top20", "vllm-4k-top20"):
             rows.setdefault(m.group(1), {})[c] = (float(m.group(4)), float(m.group(6)), float(m.group(7)), int(m.group(10)), int(m.group(11)), m.group(0))
         rows.setdefault("_gate", {})[c] = (gate[-1] if gate else "none", span.group(1) if span else "?")
     print(f"\n{g}: gate 2048 {rows['_gate'][2048][0]} (multi-chunk prompts {rows['_gate'][2048][1]}), 8192 {rows['_gate'][8192][0]} (multi-chunk {rows['_gate'][8192][1]})")
-    print("| prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy 2048 / 8192 |\n|---|---|---|---|---|")
+    print("| prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |\n|---|---|---|---|---|")
     for p, v in rows.items():
         if p == "_gate" or 2048 not in v or 8192 not in v:
             continue

@@ -6,8 +6,8 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 H=$1; S=$2; shift 2
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; G="$D/../../golden"
-ssh -n -o BatchMode=yes "$H" "mkdir -p ~/intarsia-decfuse/pf-scripts/c8k ~/intarsia-decfuse/pf-golden/oracle ~/intarsia-decfuse/pf-golden/reuse-splits"
+ssh -n -o BatchMode=yes "$H" "mkdir -p ~/intarsia-decfuse/pf-scripts/c8k ~/intarsia-decfuse/pf-golden-c8k/oracle ~/intarsia-decfuse/pf-golden-c8k/reuse-splits"
 rsync -a "$D/" "$H:intarsia-decfuse/pf-scripts/c8k/"
-rsync -a "$G/oracle/" "$H:intarsia-decfuse/pf-golden/oracle/"
-rsync -a "$G/reuse-splits/" "$H:intarsia-decfuse/pf-golden/reuse-splits/"
+rsync -a "$G/oracle/" "$H:intarsia-decfuse/pf-golden-c8k/oracle/"
+rsync -a "$G/reuse-splits/" "$H:intarsia-decfuse/pf-golden-c8k/reuse-splits/"
 exec ssh -n -o BatchMode=yes "$H" "export FLEETQ_JOB=$FLEETQ_JOB WAIT_MIN=${WAIT_MIN:-0}; bash ~/intarsia-decfuse/pf-scripts/$S $(printf '%q ' "$@")"
