@@ -5,7 +5,7 @@
  "lane_id": "mr3-metal-row-axis",
  "follows": [
   "intarsiaml:mb-metal-hybrid-batching:20261023-1340",
-  "intarsiaml:rb3-batching-r3:20261023-1200"
+  "intarsiaml:rb3-batching-r3:20261023-1300"
  ],
  "agent_model": "claude-sonnet-5-5",
  "started": "2026-10-23T19:40:00-04:00",
@@ -30,8 +30,12 @@
  },
  "techniques": [
   {
-   "id": "cuda-row-tables-batched-decode",
-   "role": "ported"
+   "id": "sglang-continuous-batching-uncapped-running-requests",
+   "role": "consulted"
+  },
+  {
+   "id": "vllm-continuous-batching-vs-serialized-tensorfold-2-streams",
+   "role": "consulted"
   }
  ],
  "code": {
@@ -39,7 +43,7 @@
   "branch": "lane-mr3/metal-row-axis",
   "base_commit": "23a088cc",
   "head_commit": null,
-  "pr": null,
+  "pr": 126,
   "files": [
    "docs/results/2026-10-23-mr3-metal-row-axis.md",
    "kernels/metal/gdn.metal",
@@ -72,7 +76,7 @@
    "name": "G-B row-table kernels (Metal)",
    "command": "cargo test -p intarsia-backend-metal --release --test row_tables -- --test-threads=1",
    "result": "pass",
-   "detail": "7 of 7, M 1..=16; conv, delta rule, KV append, prologue, attention, rope per token; negative controls: swapped table entry, device-position simdgroup rule differs on cancelling data; fleetq 4835"
+   "detail": "8 of 8, M 1..=16; conv, delta rule, KV append, prologue, attention, rope per token; decoy column untouched; negative controls: swapped table entries (conv, KV, delta, attention), device-position simdgroup rule differs on cancelling data; fleetq 4880"
   },
   {
    "name": "G-B multi-row GEMVs / MoE after decode-once",
@@ -139,12 +143,13 @@
    "before": 100.9,
    "after": 107.1,
    "unit": "tok/s",
-   "n": 3,
+   "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
-   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128"
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
   },
   {
    "metric": "aggregate_tps",
@@ -155,12 +160,13 @@
    "before": 108.3,
    "after": 117.0,
    "unit": "tok/s",
-   "n": 3,
+   "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
-   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128"
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
   },
   {
    "metric": "aggregate_tps",
@@ -171,12 +177,13 @@
    "before": 154.4,
    "after": 171.5,
    "unit": "tok/s",
-   "n": 3,
+   "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
-   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512"
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
   },
   {
    "metric": "aggregate_tps",
@@ -187,12 +194,13 @@
    "before": 161.6,
    "after": 199.1,
    "unit": "tok/s",
-   "n": 3,
+   "n": 1,
    "spread_pct": null,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
-   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512"
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
   },
   {
    "metric": "decode_tps",
@@ -204,11 +212,12 @@
    "after": 122.4,
    "unit": "tok/s",
    "n": 3,
-   "spread_pct": null,
+   "spread_pct": 3.4,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202652-adhoc-mr3-main-mb8-gen128",
-   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128"
+   "after_run_id": "20261023-202838-adhoc-mr3-v1-mb8-gen128",
+   "before_slot_job": 4813
   },
   {
    "metric": "decode_tps",
@@ -220,11 +229,12 @@
    "after": 122.4,
    "unit": "tok/s",
    "n": 3,
-   "spread_pct": null,
+   "spread_pct": 0.5,
    "slot": "quiet",
    "slot_job": 4815,
    "before_run_id": "20261023-202717-adhoc-mr3-main-mb8-gen512",
-   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512"
+   "after_run_id": "20261023-202900-adhoc-mr3-v1-mb8-gen512",
+   "before_slot_job": 4813
   },
   {
    "metric": "step_ms",

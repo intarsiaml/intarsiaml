@@ -98,6 +98,18 @@ impl Rig {
     }
 }
 
+/// A decoy for the unused column of a table: a buffer of `like`'s size filled with 0xA5 (NaN as bf16 / f32), which the kernel must
+/// neither read (a NaN would reach the output) nor write; `still_poison` checks the second.
+fn decoy(rig: &Rig, like: &TensorRef) -> TensorRef {
+    rig.poison(like.nbytes(), DType::U8, &[like.nbytes()])
+}
+
+fn still_poison(rig: &Rig, d: &TensorRef, what: &str) -> usize {
+    let b = rig.down(d);
+    assert!(b.iter().all(|&x| x == 0xA5), "{what}: the decoy column buffer was written");
+    b.len()
+}
+
 fn rows_of(t: &TensorRef, r: usize) -> TensorRef {
     t.rows(r, 1)
 }
@@ -152,7 +164,8 @@ fn gdn_conv_rows_are_the_solo_conv() {
                 want_s.push(rig.down(&st));
             }
             let sts: Vec<TensorRef> = (0..m).map(|r| rig.f32s(&states[r], &[c, ks - 1])).collect();
-            let entries: Vec<Vec<&TensorRef>> = sts.iter().map(|s| vec![s, s]).collect();
+            let decoys: Vec<TensorRef> = sts.iter().map(|s| decoy(&rig, s)).collect();
+            let entries: Vec<Vec<&TensorRef>> = sts.iter().zip(&decoys).map(|(s, d)| vec![d, s]).collect();
             let ptrs = rig.table(&entries, 2);
             let y = rig.poison(m * c * 2, DType::Bf16, &[m, c]);
             let mut call = OpCall::new(Op::GdnConv, vec![xt.clone(), wt.clone()], vec![y.clone(), sts[0].clone()], OpAttrs::default());
@@ -161,6 +174,7 @@ fn gdn_conv_rows_are_the_solo_conv() {
             total += same(&format!("conv c={c} k={ks} m={m} y"), &rig.down(&y), &want_y);
             for r in 0..m {
                 total += same(&format!("conv c={c} k={ks} m={m} state {r}"), &rig.down(&sts[r]), &want_s[r]);
+                total += still_poison(&rig, &decoys[r], &format!("conv c={c} k={ks} m={m} row {r}"));
             }
         }
     }
@@ -221,7 +235,8 @@ fn gdn_delta_rows_are_the_solo_delta_rule() {
                 want_s.push(rig.down(&st));
             }
             let sts: Vec<TensorRef> = (0..m).map(|r| rig.put_bytes(&init[r], DType::U8, &[init[r].len()])).collect();
-            let entries: Vec<Vec<&TensorRef>> = sts.iter().map(|s| vec![s, s]).collect();
+            let decoys: Vec<TensorRef> = sts.iter().map(|s| decoy(&rig, s)).collect();
+            let entries: Vec<Vec<&TensorRef>> = sts.iter().zip(&decoys).map(|(s, d)| vec![s, d]).collect();
             let ptrs = rig.table(&entries, 2);
             let o = rig.poison(m * hv * dv * 2, DType::Bf16, &[m, hv, dv]);
             let mut call = OpCall::new(
@@ -235,6 +250,7 @@ fn gdn_delta_rows_are_the_solo_delta_rule() {
             total += same(&format!("delta dk={dk} m={m} out"), &rig.down(&o), &want_o);
             for r in 0..m {
                 total += same(&format!("delta dk={dk} m={m} state {r}"), &rig.down(&sts[r]), &want_s[r]);
+                total += still_poison(&rig, &decoys[r], &format!("delta dk={dk} m={m} row {r}"));
             }
         }
     }
@@ -264,7 +280,8 @@ fn kv_append_rows_are_the_solo_append() {
                 want.push(rig.down(&cache));
             }
             let caches: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&init[r], &[nkv, CAP, d])).collect();
-            let entries: Vec<Vec<&TensorRef>> = caches.iter().map(|s| vec![s, s]).collect();
+            let decoys: Vec<TensorRef> = caches.iter().map(|s| decoy(&rig, s)).collect();
+            let entries: Vec<Vec<&TensorRef>> = caches.iter().zip(&decoys).map(|(s, d)| vec![d, s]).collect();
             let ptrs = rig.table(&entries, 2);
             let post = rig.i32s(&pos);
             let attrs = OpAttrs { kv_cap: CAP, n_kv_heads: nkv, head_dim: d, ..Default::default() };
@@ -274,6 +291,7 @@ fn kv_append_rows_are_the_solo_append() {
             rig.launch("kv_append_bf16_rows", call);
             for r in 0..m {
                 total += same(&format!("kv_append nkv={nkv} d={d} m={m} cache {r}"), &rig.down(&caches[r]), &want[r]);
+                total += still_poison(&rig, &decoys[r], &format!("kv_append nkv={nkv} d={d} m={m} row {r}"));
             }
         }
     }
@@ -493,4 +511,88 @@ fn rope_with_one_position_per_token_is_the_solo_rope() {
         }
     }
     eprintln!("G-B rope_bf16 per-token positions: {total} bytes bitwise equal (M 2..=16, 3 shapes)");
+}
+
+#[test]
+fn swapped_state_entries_are_seen() {
+    // negative controls for the stateful kernels: rows 0 and 1 swap their buffers in the table, so each row updates the other
+    // row's state / cache; the result must differ from the solo one (otherwise the tests above could not tell a wrong table)
+    let rig = Rig::new();
+    let mut rng = SplitMix64::new(18);
+    // conv
+    {
+        let (c, ks, m) = (1024usize, 4usize, 2usize);
+        let x = nasty(&mut rng, m * c, 1.0);
+        let w = rng.normal_vec(c * ks, 0.5);
+        let states: Vec<Vec<f32>> = (0..m).map(|_| nasty(&mut rng, c * (ks - 1), 1.0)).collect();
+        let (xt, wt) = (rig.bf16(&x, &[m, c]), rig.bf16(&w, &[c, ks]));
+        let solo: Vec<Vec<u8>> = (0..m)
+            .map(|r| {
+                let st = rig.f32s(&states[r], &[c, ks - 1]);
+                let y = rig.poison(c * 2, DType::Bf16, &[1, c]);
+                rig.launch("gdn_conv_bf16", OpCall::new(Op::GdnConv, vec![rows_of(&xt, r), wt.clone()], vec![y, st.clone()], OpAttrs::default()));
+                rig.down(&st)
+            })
+            .collect();
+        let run = |order: [usize; 2]| {
+            let sts: Vec<TensorRef> = (0..m).map(|r| rig.f32s(&states[r], &[c, ks - 1])).collect();
+            let entries: Vec<Vec<&TensorRef>> = order.iter().map(|&r| vec![&sts[r], &sts[r]]).collect();
+            let y = rig.poison(m * c * 2, DType::Bf16, &[m, c]);
+            let mut call = OpCall::new(Op::GdnConv, vec![xt.clone(), wt.clone()], vec![y, sts[0].clone()], OpAttrs::default());
+            call.rows = Some(rig.tab(rig.table(&entries, 2), 1, 0));
+            rig.launch("gdn_conv_bf16_rows", call);
+            (0..m).map(|r| rig.down(&sts[r])).collect::<Vec<_>>()
+        };
+        let ok = run([0, 1]);
+        assert!(ok.iter().zip(&solo).all(|(a, b)| a == b));
+        let bad = run([1, 0]);
+        assert!(bad.iter().zip(&solo).any(|(a, b)| differs(a, b)), "conv: swapping the table entries changed nothing");
+    }
+    // KV append
+    {
+        let (nkv, d, m) = (2usize, 128usize, 2usize);
+        let newkv = nasty(&mut rng, m * nkv * d, 1.0);
+        let nt = rig.bf16(&newkv, &[m, nkv, d]);
+        let init: Vec<Vec<f32>> = (0..m).map(|_| nasty(&mut rng, nkv * CAP * d, 1.0)).collect();
+        let pos = [10usize, 500];
+        let run = |order: [usize; 2]| {
+            let caches: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&init[r], &[nkv, CAP, d])).collect();
+            let entries: Vec<Vec<&TensorRef>> = order.iter().map(|&r| vec![&caches[r], &caches[r]]).collect();
+            let attrs = OpAttrs { kv_cap: CAP, n_kv_heads: nkv, head_dim: d, ..Default::default() };
+            let mut call = OpCall::new(Op::KvAppend, vec![nt.clone()], vec![caches[0].clone()], attrs);
+            call.rows = Some(rig.tab(rig.table(&entries, 2), 1, 0));
+            call.pos = Some(rig.i32s(&pos));
+            rig.launch("kv_append_bf16_rows", call);
+            (0..m).map(|r| rig.down(&caches[r])).collect::<Vec<_>>()
+        };
+        let (ok, bad) = (run([0, 1]), run([1, 0]));
+        assert!(ok.iter().zip(&bad).any(|(a, b)| differs(a, b)), "kv_append: swapping the table entries changed nothing");
+    }
+    // delta rule
+    {
+        let (hk, hv, dk, dv, m) = (2usize, 4usize, 64usize, 64usize, 2usize);
+        let c = 2 * hk * dk + hv * dv;
+        let qkv = nasty(&mut rng, m * c, 1.0);
+        let (a, b) = (rng.normal_vec(m * hv, 1.0), rng.normal_vec(m * hv, 1.0));
+        let (al, dt) = (rng.normal_vec(hv, 0.5), rng.normal_vec(hv, 0.5));
+        let (qt, at, bt, alt, dtt) = (rig.bf16(&qkv, &[m, c]), rig.bf16(&a, &[m, hv]), rig.bf16(&b, &[m, hv]), rig.bf16(&al, &[hv]), rig.bf16(&dt, &[hv]));
+        let init: Vec<Vec<f32>> = (0..m).map(|_| rng.normal_vec(hv * dv * dk, 0.3)).collect();
+        let run = |order: [usize; 2]| {
+            let sts: Vec<TensorRef> = (0..m).map(|r| rig.f32s(&init[r], &[hv, dv, dk])).collect();
+            let entries: Vec<Vec<&TensorRef>> = order.iter().map(|&r| vec![&sts[r], &sts[r]]).collect();
+            let o = rig.poison(m * hv * dv * 2, DType::Bf16, &[m, hv, dv]);
+            let mut call = OpCall::new(
+                Op::GdnDeltaRule,
+                vec![qt.clone(), at.clone(), bt.clone(), alt.clone(), dtt.clone()],
+                vec![o, sts[0].clone()],
+                OpAttrs { eps: 1e-6, ..Default::default() },
+            );
+            call.rows = Some(rig.tab(rig.table(&entries, 2), 0, 0));
+            rig.launch("gdn_delta_rule_bf16_rows", call);
+            (0..m).map(|r| rig.down(&sts[r])).collect::<Vec<_>>()
+        };
+        let (ok, bad) = (run([0, 1]), run([1, 0]));
+        assert!(ok.iter().zip(&bad).any(|(a, b)| differs(a, b)), "delta rule: swapping the table entries changed nothing");
+    }
+    eprintln!("G-B negative controls: swapped table entries change the conv state, the KV cache and the delta state");
 }
