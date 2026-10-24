@@ -192,7 +192,8 @@ impl QTensor {
         let f32_out = out.dtype == DType::F32;
         let mut inputs = vec![x];
         inputs.extend(self.parts.iter().cloned());
-        OpCall::new(self.op(f32_out), inputs, vec![out], OpAttrs::default())
+        let attrs = OpAttrs { fp8_static_act: self.format == FP8_E4M3 && self.act_quant, ..OpAttrs::default() };
+        OpCall::new(self.op(f32_out), inputs, vec![out], attrs)
     }
 
     pub fn weight_bytes(&self) -> usize {

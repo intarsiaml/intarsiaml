@@ -29,7 +29,7 @@ pub fn matmul_fp8_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act_q
         op: Op::MatmulFp8,
         inputs: vec![x, parts.next().unwrap(), parts.next().unwrap()],
         outputs: vec![OutSpec::new(odt, &[m, n])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { fp8_static_act: act_quant, ..OpAttrs::default() },
     }
 }
 
@@ -212,7 +212,7 @@ pub fn matmul_fp8_pair_case(
         op: Op::MatmulFp8Pair,
         inputs: vec![x, pa.next().unwrap(), pa.next().unwrap(), pb.next().unwrap(), pb.next().unwrap()],
         outputs: vec![OutSpec::new(odt, &[m, n0]), OutSpec::new(odt, &[m, n1])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { fp8_static_act: aq0 && aq1, ..OpAttrs::default() },
     }
 }
 
