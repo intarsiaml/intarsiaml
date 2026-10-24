@@ -1,12 +1,16 @@
-fleetq: #4847 running on spark1: scripts/pf/rjob.sh spark1 mp/gputests.sh mp-dev
-fleetq: #4847 went ahead of the line and must end within 14h13m (by Sat 11:00); it is stopped then
-== cargo test --test moe_w4a16 20:46:47
+fleetq: #4910 waiting (#2 in line): in line behind #4909 "localeval agent adhoc harness-v2-spark1-pi pi" (claude-8b28581c) on spark1
+fleetq: #4910 waiting (#1 in line): needs gpu quiet on spark1, but #4909 "localeval agent adhoc harness-v2-spark1-pi pi" (claude-8b28581c) loads it
+fleetq: #4910 waiting (#1 in line): needs spark1 quiet, but requests not tracked by fleetq are in flight: spark1-vllm (1 in flight)
+fleetq: #4910 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #4910 running on spark1: scripts/pf/rjob.sh spark1 mp/gputests.sh mp-dev
+fleetq: #4910 went ahead of the line and must end within 10h44m (by Sat 11:00); it is stopped then
+== cargo test --test moe_w4a16 00:15:07
 test moe_experts_w4a16_is_as_accurate_as_old_kernel ... ok
 test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
 test moe_w4a16_is_bitwise_on_odd_routing ... ok
 test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.79s
-== cargo test --test quantmoe 20:46:53
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.62s
+== cargo test --test quantmoe 00:15:13
 test bench_moe_decode_cold ... ignored
 test bench_real_shapes ... ignored
 test bench_wq_prefill_shapes ... ignored
@@ -25,36 +29,30 @@ test moe_experts_mma_matches_reference ... ok
 test moe_experts_mma_small_t_sweep ... ignored
 test moe_experts_skewed_and_invalid_routing ... ok
 test probe_cublas_bf16_vs_gemm_reg_bits ... ignored
-test result: ok. 13 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 8.93s
-== cargo test --test moe_nvfp4 20:47:02
+test result: ok. 13 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 7.44s
+== cargo test --test moe_nvfp4 00:15:21
 test bench_moe_nvfp4_real_shapes ... ignored
 test moe_nvfp4_at_the_real_prefill_shape ... ok
 test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... ok
 test moe_nvfp4_is_independent_of_tile_height ... ok
 test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... ok
 test moe_nvfp4_matches_the_quantised_reference ... ok
-test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.09s
-== cargo test -p intarsia-cli --test docs_env_vars 20:47:14
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.18s
+== cargo test -p intarsia-cli --test docs_env_vars 00:15:24
 test name_scanner_skips_prefixes_and_placeholders ... ok
 test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
-== kernels test --quick env=X=1 20:47:14
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+== kernels test --quick env=X=1 00:15:37
+exit 0 FAIL lines 0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.7s
+== kernels test --quick env=INTARSIA_CUDA_MOE_W4A16_PF=1 00:15:43
 exit 0 FAIL lines 0
 gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
 matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
 matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
 77 kernels, 531 cases in 5.5s
-== kernels test --quick env=INTARSIA_CUDA_MOE_W4A16_PF=1 20:47:20
-exit 0 FAIL lines 0
-gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
-matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
-matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
-77 kernels, 531 cases in 5.5s
-== done 20:47:26
-fleetq: #4847 done (exit 0)
-_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
-matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
-matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
-77 kernels, 531 cases in 5.5s
-== done 20:47:24
-fleetq: #4845 done (exit 0)
+== done 00:15:49
+fleetq: #4910 done (exit 0)
