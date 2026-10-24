@@ -1,0 +1,45 @@
+fleetq: #4736 waiting (#2 in line): in line behind #4733 "lt: build flip PR head c37a8d3 + main 23a088cc (stamped), test binaries" (claude-f31ccf91-lt) on spark1
+fleetq:   #4733 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4733 set, or it will wait for #4733 to be released.
+fleetq: #4736 waiting (#1 in line): needs cpu quiet on spark1, but #4733 "lt: build flip PR head c37a8d3 + main 23a088cc (stamped), test binaries" (claude-f31ccf91-lt) loads it
+fleetq:   #4733 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4733 set, or it will wait for #4733 to be released.
+fleetq: #4736 running on spark1: scripts/lt/rjob.sh spark1 lt/gatesB.sh gb lt-dev
+fleetq: #4736 went ahead of the line and must end within 3h25m (by Fri 23:00); it is stopped then
+== reuse gate chunk 2048 19:34:33
+exit 0
+long_docs_4k       continue    3072   4080    3087      0     25/32  ok (oracle-relative: mean KL(oracle||cold) 1.72e-2, mean KL(oracle||warm) 1.53e-2, warm/cold 0.89x; limit 1.5x cold + 3e-3 = 2.87e-2: PASS)
+long_code_4k       continue    3072   4080    3087      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.03e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 1.22x; limit 1.5x cold + 3e-3 = 1.85e-2: PASS)
+chat_reuse_4k      continue    4521   4647    4536      0      3/32  ok (oracle-relative: mean KL(oracle||cold) 5.07e-3, mean KL(oracle||warm) 4.38e-3, warm/cold 0.86x; limit 1.5x cold + 3e-3 = 1.06e-2: PASS)
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+prefix-reuse gate: PASS
+== cargo test lib + quantmoe lt tests 19:36:15
+test kernels::tests::fp8_gemm_lt_range ... ok
+test kernels::tests::fp8_pair_selection_by_batch_size ... ok
+test kernels::tests::fp8_gemm_selection_by_batch_size ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 2.22s
+LT=0: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+kernels test --quick env=X=1: exit 0 FAIL lines 0, 77 kernels, 531 cases in 5.6s
+kernels test --quick env=INTARSIA_CUDA_FP8_GEMM_LT=0: exit 0 FAIL lines 0, 77 kernels, 534 cases in 5.5s
+== batch_cuda_real 19:36:38
+exit 0
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: ok. 3 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 712.98s
+== batch_cuda_real --ignored long prompts 19:48:43
+exit 0
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 247.49s
+== done 19:52:51
+fleetq: #4736 done (exit 0)

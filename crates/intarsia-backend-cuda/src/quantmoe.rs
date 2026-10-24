@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    ROWS_MAX, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_pair_reg, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -193,14 +193,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2)
                     .priority(fp8_gemm_f8_priority(20)),
-                // OPT-IN (INTARSIA_CUDA_FP8_GEMM_LT=1, see `kernels::fp8_gemm_lt`): the same W8A8 op on cuBLASLt's e4m3 GEMM
+                // DEFAULT ON since 2026-10-23 for W8A8 calls (INTARSIA_CUDA_FP8_GEMM_LT=0 switches it off, see `kernels::fp8_gemm_lt`): the same W8A8 op on cuBLASLt's e4m3 GEMM
                 // (kernels/cuda/fp8_gemm_lt.cu), docs/results/2026-10-21-cuda-round7.md. Same e4m3 activations as the default
-                // path, different accumulation. Serves every M the gemv does not (one pinned algorithm per (N, K): a tail
+                // path, different accumulation. Default-on only for W8A8 calls (static input scale, `fp8_static_act`); a W8A16
+                // call keeps the pre-flip kernels unless INTARSIA_CUDA_FP8_GEMM_LT=1. Serves every M the gemv does not (one pinned algorithm per (N, K): a tail
                 // chunk's rows get the bits a full chunk gives them). Above `matmul_fp8_gemm_f8` when both are on.
                 "matmul_fp8_gemm_lt" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m >= F8_MIN_TOKENS && s.k % 128 == 0 && s.n % 16 == 0)
+                    .when(|s| s.m >= F8_MIN_TOKENS && s.k % 128 == 0 && s.n % 16 == 0 && fp8_gemm_lt_serves(s.fp8_static_act))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -471,7 +472,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_pair_gemm_reg" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| fp8_pair_reg() && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0)
+                    .when(|s| fp8_pair_reg() && !fp8_pair_reg_yields_to_lt(s.fp8_static_act) && s.m >= FP8_REG_MIN_TOKENS && s.k % 128 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
