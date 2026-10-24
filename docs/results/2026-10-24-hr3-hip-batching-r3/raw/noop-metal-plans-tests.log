@@ -1,0 +1,49 @@
+fleetq: #4844 waiting (#2 in line): in line behind #4843 "hr3: Metal no-op vs main (batching off) + workspace tests" (claude-f31ccf91-hr3) on endor
+fleetq:   #4843 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4843 set, or it will wait for #4843 to be released.
+fleetq: #4844 waiting (#1 in line): needs gpu quiet on endor, but #4835 "mr3: gates 2 (tiny hybrid, dense, G-B, kernels test, workspace)" (claude-f31ccf91-mr3) loads it
+fleetq: #4844 running on endor: bash /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/hr3/metal-noop.sh
+fleetq: #4844 went ahead of the line and must end within 14h05m (by Sat 11:00); it is stopped then
+== build main
+    Finished `release` profile [optimized] target(s) in 19.42s
+== build dev
+    Finished `release` profile [optimized] target(s) in 21.26s
+plan35 text: byte-identical (    2404 B)
+plan35 json: byte-identical (   10605 B)
+ids35: DIFFER or empty
+plan8 text: byte-identical (    1342 B)
+plan8 json: byte-identical (    8371 B)
+ids8: DIFFER or empty
+== tests on the branch
+  62 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+   2 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+   1 thread 'ordinary_calls_pick_what_they_picked_before_the_rows_kernels' (173578496) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:178:5:
+   1 thread 'exact_rows_calls_pick_the_rows_kernels_only' (173578495) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:186:5:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.69s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test alternating_rows_and_batches_do_not_recapture ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1115.31s
+== done
+fleetq: #4844 done (exit 0)
