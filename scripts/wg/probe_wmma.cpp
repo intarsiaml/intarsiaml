@@ -50,7 +50,10 @@ __global__ void wmma_full(const uint8_t* A, const uint8_t* B, const float* C, fl
 // 16 diagonal cases per instruction. Case n*16+d: a[16], b[16], c in cases[]; out[n*16+d] = D[d][d]. One block = one wave handles calls
 // n = blockIdx.x, blockIdx.x + gridDim.x, ...
 // perm (optional, 16 bytes): the k order applied to BOTH a and b of every case (k' = perm[k]) - the model must not depend on it, or must be fitted with it.
-__global__ void wmma_diag(const Case* cases, float* out, int ncalls, const uint8_t* perm) {
+// The WMMA must run with every lane active: the result is stored UNCONDITIONALLY (all 8 accumulator values of all 32 lanes, dall[(n*32+l)*8+i]) and
+// the host picks the diagonal. (A first version stored only d[r-8h] inside `if ((r>>3)==h)`; the compiler sank the instruction into the branch and the
+// partial-EXEC result was garbage: window E dump 2026-10-25, discarded.)
+__global__ void wmma_diag(const Case* cases, float* dall, int ncalls, const uint8_t* perm) {
     const int l = threadIdx.x, r = l & 15, h = l >> 4;
     for (int n = blockIdx.x; n < ncalls; n += gridDim.x) {
         const Case& cs = cases[(size_t)n * 16 + r];
@@ -66,13 +69,13 @@ __global__ void wmma_diag(const Case* cases, float* out, int ncalls, const uint8
         for (int i = 0; i < 8; ++i) c[i] = (8 * h + i == r) ? cs.c : 0.f;   // C[row][col=r]: only the diagonal element carries the case's c
         const v2i av = {(int)a[0], (int)a[1]}, bv = {(int)b[0], (int)b[1]};
         v8f d = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(av, bv, c);
-        if ((r >> 3) == h) out[(size_t)n * 16 + r] = d[r - 8 * h];
+        for (int i = 0; i < 8; ++i) dall[((size_t)n * 32 + l) * 8 + i] = d[i];
     }
 }
 
 // two chained instructions (k 0..15 then 16..31): out0 = wmma(a0,b0,c), out1 = wmma(a1,b1,out0), diagonal cases
 struct Chain { uint8_t a0[16], b0[16], a1[16], b1[16]; float c; };
-__global__ void wmma_chain(const Chain* cs, float* out0, float* out1, int ncalls) {
+__global__ void wmma_chain(const Chain* cs, float* d0all, float* d1all, int ncalls) {   // unconditional stores, see wmma_diag
     const int l = threadIdx.x, r = l & 15, h = l >> 4;
     for (int n = blockIdx.x; n < ncalls; n += gridDim.x) {
         const Chain& ch = cs[(size_t)n * 16 + r];
@@ -87,7 +90,7 @@ __global__ void wmma_chain(const Chain* cs, float* out0, float* out1, int ncalls
         for (int i = 0; i < 8; ++i) c[i] = (8 * h + i == r) ? ch.c : 0.f;
         v8f d0 = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(v2i{(int)a0[0], (int)a0[1]}, v2i{(int)b0[0], (int)b0[1]}, c);
         v8f d1 = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(v2i{(int)a1[0], (int)a1[1]}, v2i{(int)b1[0], (int)b1[1]}, d0);
-        if ((r >> 3) == h) { out0[(size_t)n * 16 + r] = d0[r - 8 * h]; out1[(size_t)n * 16 + r] = d1[r - 8 * h]; }
+        for (int i = 0; i < 8; ++i) { d0all[((size_t)n * 32 + l) * 8 + i] = d0[i]; d1all[((size_t)n * 32 + l) * 8 + i] = d1[i]; }
     }
 }
 
@@ -136,17 +139,21 @@ static float model_exact_trunc(const Case& c) {  // exact sum truncated toward z
     float f = (float)s; if ((long double)f > s && s > 0) f = std::nextafterf(f, 0.f); if ((long double)f < s && s < 0) f = std::nextafterf(f, 0.f); return f;
 }
 
+// diagonal element D[r][r] of call n: lane r + 16*(r>>3), accumulator register r&7
+static float diag_of(const std::vector<float>& all, size_t n, int r) { return all[((n * 32) + (size_t)(r + 16 * (r >> 3))) * 8 + (r & 7)]; }
+
 static std::vector<float> run_cases(const std::vector<Case>& cs, const uint8_t* perm_h = nullptr) {
     size_t n = cs.size(); const size_t calls = (n + 15) / 16;
     std::vector<Case> padded(cs); padded.resize(calls * 16, zero_case());
     Case* dc; float* dout; uint8_t* dperm = nullptr;
-    CK(hipMalloc(&dc, padded.size() * sizeof(Case))); CK(hipMalloc(&dout, padded.size() * 4));
+    CK(hipMalloc(&dc, padded.size() * sizeof(Case))); CK(hipMalloc(&dout, padded.size() * 32 * 8 / 16 * 4));
     CK(hipMemcpy(dc, padded.data(), padded.size() * sizeof(Case), hipMemcpyHostToDevice));
     if (perm_h) { CK(hipMalloc(&dperm, 16)); CK(hipMemcpy(dperm, perm_h, 16, hipMemcpyHostToDevice)); }
     wmma_diag<<<(unsigned)std::min<size_t>(calls, 1024), 32>>>(dc, dout, (int)calls, dperm);
     CK(hipGetLastError()); CK(hipDeviceSynchronize());
-    std::vector<float> out(padded.size());
-    CK(hipMemcpy(out.data(), dout, out.size() * 4, hipMemcpyDeviceToHost));
+    std::vector<float> all(calls * 32 * 8), out(padded.size());
+    CK(hipMemcpy(all.data(), dout, all.size() * 4, hipMemcpyDeviceToHost));
+    for (size_t i = 0; i < padded.size(); ++i) out[i] = diag_of(all, i / 16, (int)(i % 16));
     CK(hipFree(dc)); CK(hipFree(dout)); if (dperm) CK(hipFree(dperm));
     out.resize(n);
     return out;
@@ -263,6 +270,12 @@ int main(int argc, char** argv) {
     }
     // F7: the same random case at every k permutation tested below (see 'perm')
     std::vector<float> Sout = run_cases(S);
+    {   // sanity: the diag kernel must agree with the exact value where the answer is not in doubt (16 x 1.0*1.0 = 16, one 2^e term, c = 0)
+        std::vector<Case> T; for (int e = 0; e <= 10; ++e) { Case c = zero_case(); for (int k = 0; k < 16; ++k) set_term(c, k, 0, 0); set_term(c, 3, e, 0); T.push_back(c); }
+        std::vector<float> o = run_cases(T); size_t bad = 0;
+        for (size_t i = 0; i < T.size(); ++i) bad += !same_bits(o[i], (float)(15.0 + std::ldexp(1.0, (int)i)));
+        printf("diag sanity: %zu of %zu easy cases differ from the exact sum%s\n", bad, T.size(), bad ? "  <-- PROBE BROKEN, results below are not hardware semantics" : "");
+    }
     {   // determinism
         std::vector<float> again = run_cases(S); size_t diff = 0; for (size_t i = 0; i < S.size(); ++i) diff += !same_bits(Sout[i], again[i]);
         printf("crafted cases: %zu, repeat-run differences: %zu\n", S.size(), diff);
@@ -356,11 +369,12 @@ int main(int argc, char** argv) {
         for (auto& c : ch) { for (int k = 0; k < 16; ++k) { c.a0[k] = rand_e4m3(false); c.b0[k] = rand_e4m3(false); c.a1[k] = rand_e4m3(false); c.b1[k] = rand_e4m3(false); } c.c = rand_c((int)(rng() % 4)); }
         const size_t calls = (NC + 15) / 16; ch.resize(calls * 16, ch[0]);
         Chain* dch; float *d0, *d1;
-        CK(hipMalloc(&dch, ch.size() * sizeof(Chain))); CK(hipMalloc(&d0, ch.size() * 4)); CK(hipMalloc(&d1, ch.size() * 4));
+        CK(hipMalloc(&dch, ch.size() * sizeof(Chain))); CK(hipMalloc(&d0, calls * 32 * 8 * 4)); CK(hipMalloc(&d1, calls * 32 * 8 * 4));
         CK(hipMemcpy(dch, ch.data(), ch.size() * sizeof(Chain), hipMemcpyHostToDevice));
         wmma_chain<<<(unsigned)std::min<size_t>(calls, 1024), 32>>>(dch, d0, d1, (int)calls); CK(hipGetLastError()); CK(hipDeviceSynchronize());
-        std::vector<float> o0(ch.size()), o1(ch.size());
-        CK(hipMemcpy(o0.data(), d0, o0.size() * 4, hipMemcpyDeviceToHost)); CK(hipMemcpy(o1.data(), d1, o1.size() * 4, hipMemcpyDeviceToHost));
+        std::vector<float> a0(calls * 256), a1(calls * 256), o0(ch.size()), o1(ch.size());
+        CK(hipMemcpy(a0.data(), d0, a0.size() * 4, hipMemcpyDeviceToHost)); CK(hipMemcpy(a1.data(), d1, a1.size() * 4, hipMemcpyDeviceToHost));
+        for (size_t i = 0; i < ch.size(); ++i) { o0[i] = diag_of(a0, i / 16, (int)(i % 16)); o1[i] = diag_of(a1, i / 16, (int)(i % 16)); }
         // consistency: the single-instruction results must match the diag kernel's own first step, i.e. step 2 with c = o0 must reproduce o1
         std::vector<Case> second(NC); for (size_t i = 0; i < NC; ++i) { memcpy(second[i].a, ch[i].a1, 16); memcpy(second[i].b, ch[i].b1, 16); second[i].c = o0[i]; }
         std::vector<float> o1b = run_cases(second); size_t diff = 0; for (size_t i = 0; i < NC; ++i) diff += !same_bits(o1[i], o1b[i]);
