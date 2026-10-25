@@ -290,6 +290,15 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Must a speculative verify pass run its attention as one single-row decode call per row (`Op::AttnDecode`, the
+    /// row's own position), instead of one multi-row `Op::AttnPrefill` call? True where the multi-row kernel partitions
+    /// the keys by the call's row count (HIP split-KV), so its row `t` is not bitwise the decode step's at long
+    /// contexts. Costs `rows` launches per attention layer; the per-row calls also take a device position
+    /// ([`Model::forward_verify`]'s captured pass). Default false: the multi-row call.
+    fn verify_attn_per_row(&self) -> bool {
+        false
+    }
+
     /// Does this backend run batched decode steps with row tables (`OpCall::rows`): `GdnConv`, `GdnDeltaRule`, `KvAppend`
     /// and `AttnDecode` over all rows of a step in one launch, the sequences' state buffers named by a table of device
     /// addresses? (CUDA.) Whether a step uses them is the model's decision (`Model::row_tables`).

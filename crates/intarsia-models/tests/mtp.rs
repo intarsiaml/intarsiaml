@@ -15,6 +15,8 @@
 mod common;
 use common::ByteCodec;
 use intarsia_backend_cpu::CpuBackend;
+use intarsia_core::backend::{Backend, Buffer, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
+use intarsia_core::{Error, KernelImpl, OpCall, Result};
 use intarsia_core::dtype::f32_to_fp8_e4m3;
 use intarsia_core::model::{DraftScript, HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::quant::{nvfp4, Fp8Act};
@@ -425,6 +427,15 @@ fn engine(w: &MemWeights, k: Option<usize>) -> (LocalEngine, Arc<Telemetry>) {
 }
 
 fn engine_with(w: &MemWeights, k: Option<usize>, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>) {
+    engine_on(CpuBackend::arc(), w, k, script)
+}
+
+fn engine_on(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
     let opts = LoadOptions {
@@ -432,9 +443,10 @@ fn engine_with(w: &MemWeights, k: Option<usize>, script: Option<DraftScript>) ->
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: k.is_some(),
+        profile_every: 0,
         ..Default::default()
     };
-    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
     let spec = match k {
         Some(k) => {
             m.enable_verify(k + 1).unwrap();
@@ -629,4 +641,188 @@ fn non_drafting_requests_skip_the_head_and_leave_greedy_ones_identical() {
     next2.push(3);
     let (a2, b2) = (run(&off, req(&next2, 32)), run(&on, req(&next2, 32)));
     assert_eq!(a2, b2, "second greedy follow-up, prefix reused on both");
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// the captured speculative step (`Model::spec_step`)
+// ------------------------------------------------------------------------------------------------------------------
+
+enum Step {
+    Launch(String, OpCall),
+    Copy(Buffer, usize, Buffer, usize, usize),
+}
+struct Recording(Vec<Step>);
+impl GraphImpl for Recording {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// The cpu backend with graph capture the way a GPU does it: while capturing, launches and device copies are recorded,
+/// not executed; allocation, host transfers and synchronisation are errors (a real capture rejects them). It also claims
+/// the HIP verify-attention contract (`verify_attn_per_row`), so the step takes the path HIP takes.
+struct RecCpu {
+    inner: Arc<dyn Backend>,
+    recording: Mutex<Option<Vec<Step>>>,
+    captures: std::sync::atomic::AtomicUsize,
+    replays: std::sync::atomic::AtomicUsize,
+}
+impl RecCpu {
+    fn arc() -> Arc<RecCpu> {
+        Arc::new(RecCpu {
+            inner: CpuBackend::arc(),
+            recording: Mutex::new(None),
+            captures: Default::default(),
+            replays: Default::default(),
+        })
+    }
+    fn forbid(&self, what: &str) -> Result<()> {
+        if self.recording.lock().unwrap().is_some() {
+            return Err(Error::backend(format!("{what} while capturing: a graph capture would reject it")));
+        }
+        Ok(())
+    }
+}
+impl Backend for RecCpu {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
+        self.forbid("alloc")?;
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> Result<()> {
+        self.forbid("upload")?;
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+        self.forbid("download")?;
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> Result<()> {
+        if let Some(rec) = self.recording.lock().unwrap().as_mut() {
+            assert_eq!(st, 0, "captured copies run on the capture stream");
+            rec.push(Step::Copy(d.clone(), d_o, s.clone(), s_o, n));
+            return Ok(());
+        }
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
+        if let Some(rec) = self.recording.lock().unwrap().as_mut() {
+            call.check()?;
+            rec.push(Step::Launch(kernel.to_string(), call.clone()));
+            return Ok(());
+        }
+        self.inner.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: StreamId) -> Result<()> {
+        self.forbid("synchronize")?;
+        self.inner.synchronize(s)
+    }
+    fn supports_graphs(&self) -> bool {
+        true
+    }
+    fn verify_attn_per_row(&self) -> bool {
+        true
+    }
+    fn graph_capture(&self, _stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        *self.recording.lock().unwrap() = Some(Vec::new());
+        let ran = body();
+        let rec = self.recording.lock().unwrap().take().unwrap();
+        ran?;
+        self.captures.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Ok(GraphHandle::new(Recording(rec)))
+    }
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()> {
+        let r = g.downcast::<Recording>().expect("our graph");
+        self.replays.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        for step in &r.0 {
+            match step {
+                Step::Launch(k, c) => self.inner.launch(k, c, stream)?,
+                Step::Copy(d, d_o, s, s_o, n) => self.inner.copy(d, *d_o, s, *s_o, *n, stream)?,
+            }
+        }
+        Ok(())
+    }
+}
+
+/// The captured step (draft + verify as one replay, positions and tokens through device tables) gives the tokens
+/// `--spec off` gives, for every k, with the acceptance and rollback paths the head's own drafts hit.
+#[test]
+fn captured_spec_step_keeps_greedy_output_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for k in 1..=3 {
+        let rec = RecCpu::arc();
+        let (on, tel) = engine_on(rec.clone(), &w, Some(k), None);
+        for p in PROMPTS {
+            let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+            assert_eq!(a, b, "k {k} prompt {p:?}");
+            for n in [1usize, 2, 3, 5, 8, 13] {
+                let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                assert_eq!(a, b, "k {k} max_tokens {n}");
+            }
+        }
+        let t = tel.snapshot();
+        let replays = rec.replays.load(std::sync::atomic::Ordering::Relaxed);
+        eprintln!(
+            "captured k {k}: {} passes, {} drafted, {} accepted; {} captures, {replays} replays",
+            t.spec_steps,
+            t.spec_proposed,
+            t.spec_accepted,
+            rec.captures.load(std::sync::atomic::Ordering::Relaxed)
+        );
+        assert!(t.spec_steps > 0 && replays > 0, "k {k}: the captured step ran");
+    }
+}
+
+/// Scripted drafts (a mistake at a pseudo-random offset, or none): the captured step accepts all, some or none of its
+/// drafts, with max_tokens and stop ids landing inside accepted runs and follow-up requests reusing the prefix.
+#[test]
+fn captured_spec_step_survives_every_acceptance_pattern() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        let rec = RecCpu::arc();
+        let (on, tel) = engine_on(rec.clone(), &w, Some(k), Some(scripted(truth.clone(), k as u64)));
+        for p in PROMPTS {
+            let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+            assert_eq!(a, b, "k {k} prompt {p:?}");
+            for n in [1usize, 2, 3, 5, 8, 13] {
+                let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                assert_eq!(a, b, "k {k} max_tokens {n}");
+                let mut next = p.to_vec();
+                next.extend(&a.ids);
+                next.push(11);
+                let (a2, b2) = (run(&off, req(&next, 9)), run(&on, req(&next, 9)));
+                assert_eq!(a2, b2, "k {k} follow-up after max_tokens {n}");
+            }
+            let full = run(&off, req(p, 40));
+            for at in [3usize, 10, 21] {
+                let stop = full.ids[at];
+                let r = || GenRequest { stop_ids: vec![stop], ..req(p, 40) };
+                assert_eq!(run(&off, r()), run(&on, r()), "k {k} stop id {stop}");
+            }
+            let r = || GenRequest { min_tokens: 64, ..req(p, 64) };
+            assert_eq!(run(&off, r()), run(&on, r()), "k {k} min_tokens, no stop ids");
+        }
+        let t = tel.snapshot();
+        let replays = rec.replays.load(std::sync::atomic::Ordering::Relaxed);
+        eprintln!("captured scripted k {k}: {} passes, {} drafted, {} accepted, {replays} replays", t.spec_steps, t.spec_proposed, t.spec_accepted);
+        assert!(replays > 0, "k {k}: the captured step ran");
+        assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
+    }
 }

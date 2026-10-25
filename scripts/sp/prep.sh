@@ -3,6 +3,7 @@
 # and build the sp (branch) and sp-base (main) serve binaries in the HIP dev container.
 #   prep.sh [sp|sp-base ...]   (default both)
 set -euo pipefail
+trees=("$@"); [[ ${#trees[@]} -eq 0 ]] && trees=(sp sp-base)
 cd ~
 for pair in "hg sp" "hgbase spbase"; do
   set -- $pair
@@ -10,7 +11,6 @@ for pair in "hg sp" "hgbase spbase"; do
   docker volume create intarsia-cargo-target-$2 >/dev/null
   docker run --rm -v intarsia-cargo-target-$1:/s:ro -v intarsia-cargo-target-$2:/d alpine sh -c 'cp -a /s/. /d/ && chmod 0777 /d'
 done
-trees=("$@"); [[ ${#trees[@]} -eq 0 ]] && trees=(sp sp-base)
 for t in "${trees[@]}"; do
   vol=intarsia-cargo-target-${t/-base/base}
   echo "== build $t ($vol)"

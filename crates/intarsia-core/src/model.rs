@@ -34,6 +34,8 @@ mod gdn_block;
 mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
+mod spec_graph;
+pub use spec_graph::SpecPass;
 pub(crate) mod mtp;
 pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -154,6 +156,15 @@ enum Block {
     Gemma(GemmaLayer),
 }
 
+/// Bytes of `Workspace::pos`: [`POS_TAB_ENTRIES`] i32 positions.
+const POS_TAB_ENTRIES: usize = 96;
+const POS_TAB_BYTES: usize = POS_TAB_ENTRIES * 4;
+/// First entry of the verify rows' positions (`P + r`), the MTP head's catch-up rows (`P - n + i`) and its chained rows
+/// (`P + i`) in `Workspace::pos`. Each region holds up to 16 consecutive entries.
+const POS_VERIFY: usize = 0;
+const POS_CATCH_UP: usize = 16;
+const POS_CHAIN: usize = 32;
+
 struct Workspace {
     max_tokens: usize,
     ids: Buffer,
@@ -171,7 +182,9 @@ struct Workspace {
     /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
     /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
     part: Option<Buffer>,
-    /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
+    /// `i32` position table (rewritten before every replay of a captured step). Entry 0 is the position of the token a
+    /// captured decode step processes; a captured speculative step ([`Model::spec_step`]) uses the regions
+    /// [`POS_VERIFY`], [`POS_CATCH_UP`] and [`POS_CHAIN`], each a run of consecutive positions.
     pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
     x: ExtraWs,
@@ -935,7 +948,7 @@ impl Model {
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
             part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
-            pos: wb(16)?,
+            pos: wb(POS_TAB_BYTES)?,
             x,
             moe,
         };
@@ -1120,7 +1133,9 @@ impl Model {
             return Err(Error::invalid(format!("verify rows {max_rows} outside 2..={most}")));
         }
         if self.verify_tok.is_none() {
-            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 4, MemKind::Device)?);
+            // [0, rows): the argmax of each row; [rows, 2 rows): the pass's input ids (a captured speculative step reads its
+            // drafts back with the outputs, `Model::spec_step`)
+            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 8, MemKind::Device)?);
         }
         self.verify_rows = max_rows;
         Ok(())
@@ -2552,6 +2567,29 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
+        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+            // verify pass on a backend whose multi-row attention is not bitwise the decode step's: one decode call per row
+            // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a
+            // table of consecutive device positions, row r reading entry r.
+            for r in 0..t {
+                let mut a = attrs.clone();
+                a.pos0 = pos0 + r;
+                let dp = dpos.map(|d| {
+                    let mut v = d.clone();
+                    v.offset += 4 * r;
+                    v
+                });
+                self.exec_pos(
+                    Op::AttnDecode,
+                    vec![bufs.q[qc].rows(r, 1), kcache.clone(), vcache.clone()],
+                    vec![attn_out.rows(r, 1)],
+                    a,
+                    dp.as_ref(),
+                    profile,
+                )?;
+            }
+            return Ok((attn_out, qc));
+        }
         self.exec_pos(
             if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
             vec![bufs.q[qc].clone(), kcache, vcache],

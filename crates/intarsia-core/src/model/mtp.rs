@@ -34,11 +34,11 @@ pub(super) struct MtpHead {
     moe: MoeBlock,
     norm: TensorRef,
     /// `[1, H]`: the head's last normed output row, the hidden input of a chained draft.
-    chain: Buffer,
+    pub(super) chain: Buffer,
     /// Rows of the pending buffer a sequence's [`MtpState`] gets.
     pending_rows: usize,
     /// Tests: replaces the head's drafts (after the head ran, so its state advances as usual), see [`Model::mtp_script`].
-    script: Mutex<Option<DraftScript>>,
+    pub(super) script: Mutex<Option<DraftScript>>,
 }
 
 /// `(sequence tokens followed by the next token, k) -> drafts`.
@@ -541,30 +541,50 @@ impl Model {
         hid: &TensorRef,
         profile: bool,
     ) -> Result<TensorRef> {
-        let t = ids.len();
+        self.mtp_layer_at(head, kv, ids.len(), Some(ids), hid, None, None, profile)
+    }
+
+    /// [`Model::mtp_layer`] for `t` rows. `ids`: the host tokens, uploaded to `ws.ids`; `None` with `ids_dev` (`i32 [t]`):
+    /// the tokens are already on the device (a captured speculative step, whose chained rows read the previous draft where
+    /// its argmax left it). `dpos` (a run of consecutive device positions, row `r` at entry `r`): the rows' positions are
+    /// read when the launches run, so the recording is valid at every position ([`Model::spec_step`]).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn mtp_layer_at(
+        &self,
+        head: &MtpHead,
+        kv: &SequenceState,
+        t: usize,
+        ids: Option<&[u32]>,
+        hid: &TensorRef,
+        ids_dev: Option<&TensorRef>,
+        dpos: Option<&TensorRef>,
+        profile: bool,
+    ) -> Result<TensorRef> {
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
-        if t == 0 || t > ws.max_tokens || kv.len + t > kv.cap {
+        if t == 0 || t > ws.max_tokens || (dpos.is_none() && kv.len + t > kv.cap) {
             return Err(Error::invalid(format!(
                 "MTP pass of {t} rows at {} (cap {}, chunk {})",
                 kv.len, kv.cap, ws.max_tokens
             )));
         }
-        if self.recorder.lock().unwrap().is_none() {
-            for &i in ids {
-                if i as usize >= d.vocab {
-                    return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+        if let (Some(ids), None) = (ids, ids_dev) {
+            if self.recorder.lock().unwrap().is_none() {
+                for &i in ids {
+                    if i as usize >= d.vocab {
+                        return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+                    }
                 }
+                let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+                self.backend.upload(&ws.ids, 0, &ids_i32, self.stream)?;
             }
-            let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
-            self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
         }
         let v = |b: &Buffer| self.view(b, act, &[t, h]);
         let (h0, h1, n, blk) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.n), v(&ws.blk));
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
         self.exec(
             Op::Embedding,
-            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![ids_dev.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![h0.clone()],
             OpAttrs::default(),
             profile,
@@ -576,7 +596,7 @@ impl Model {
         self.exec(Op::Add, vec![h1.clone(), n.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
-        self.attn_block(&head.attn, kv, &n, &blk, t, kv.len, None, false, profile)?;
+        self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile)?;
         self.exec(
             Op::RmsNormAdd,
             vec![blk.clone(), h0.clone(), head.moe.pre_norm.clone()],

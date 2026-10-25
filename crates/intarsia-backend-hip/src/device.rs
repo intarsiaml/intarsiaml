@@ -804,6 +804,10 @@ impl Backend for HipBackend {
         true
     }
 
+    fn verify_attn_per_row(&self) -> bool {
+        true
+    }
+
     fn supports_graphs(&self) -> bool {
         true
     }
