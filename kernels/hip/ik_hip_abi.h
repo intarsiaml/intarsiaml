@@ -83,6 +83,14 @@ int ik_hip_flash_hpb(void);
 /* The staging / math variant flash v2 runs (INTARSIA_HIP_FLASH_VP, a bit mask, default 5; docs/results/2026-10-22-pf-prefill-ctx.md):
  * every value gives the same bits. Host-only. */
 int ik_hip_flash_vp(void);
+/* Lane l5 (docs/results/2026-10-25-l5-moe-fp8-wmma.md): INTARSIA_HIP_MOE_FP8_WMMA (opt-in W4A8 routed experts on the fp8 WMMA for prefill) as 0 / 1;
+ * the extra scratch bytes a moe_experts call with T tokens, P = T * top_k pairs, hidden H and intermediate I takes when it is on (0 when it is off or
+ * H / I are not a multiple of 256 up to 4096); the fewest tokens that take it (INTARSIA_HIP_MOE_FP8_MIN). Host-only, no device needed. */
+int ik_hip_moe_f8_enabled(void);
+int64_t ik_hip_moe_f8_extra(int64_t T, int64_t P, int64_t H, int64_t I);
+int64_t ik_hip_moe_f8_min_tokens(void);
+/* bench seam (scripts/l5/f8bench.hip): variant bits and pairs per tile of the fp8 expert kernels; not an environment knob */
+void ik_moe_f8_bench_set(int variant, int pairs);
 int ik_hip_moe_mw(int pairs);
 int ik_hip_moe_mw_down(int pairs);
 /* round 9 (docs/results/2026-10-19-hip-round9.md): the number of launch pieces ik_split_pieces (ik_hip.h) gives a launch

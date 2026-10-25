@@ -23,6 +23,7 @@
 //   pairs int[T*K] | offsets int[E+1] | active int[E+1] (last = count) | h bf16[T*K, I] | y bf16[T*K, H]
 #include "ik_quant.h"
 #include "moe_wmma_r7.h"  // includes moe_wmma.h
+#include "moe_wmma_fp8.h"  // lane l5: opt-in W4A8 (fp8 WMMA) grouped projections for prefill, includes moe_wmma_r7.h
 #include <algorithm>
 #include <math.h>
 #include <mutex>
@@ -47,6 +48,37 @@ bool moe_wmma_enabled() {
     }();
     return on;
 }
+
+// INTARSIA_HIP_MOE_FP8_WMMA=1 (OPT-IN, default off; lane l5, docs/results/2026-10-25-l5-moe-fp8-wmma.md): the routed expert projections of a
+// prefill-sized call (at least INTARSIA_HIP_MOE_FP8_MIN tokens) run on the fp8 WMMA (moe_wmma_fp8.h): the activations are quantised to
+// e4m3 per row, which CHANGES the numerics of the MoE block (the weights stay exact). Every other call, and every call with the knob off, runs the
+// bf16 kernels above unchanged (bitwise). The grouped path needs extra scratch (quantised activations): moe_f8_extra_bytes, which the HIP
+// registry (crates/intarsia-backend-hip/src/quantmoe.rs moe_experts_scratch_hip) adds only when the knob is on. Read once per process; both
+// knobs are part of the backend fingerprint (kernels.rs).
+bool moe_f8_enabled() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_HIP_MOE_FP8_WMMA");
+        return e && e[0] == '1' && e[1] == 0;
+    }();
+    return on;
+}
+// INTARSIA_HIP_MOE_FP8_MIN = n: fewest tokens of a call that take the fp8 path (default kMf8MinTokens; below kMwMinTokens it is raised to it).
+// Test seam of the accuracy gates whose prompts are shorter than the default (the short goldens, GSM8K): they run with it lowered.
+constexpr int64_t kMf8MinTokens = 1025;
+int64_t moe_f8_min_tokens() {
+    static const int64_t n = [] {
+        const char* e = getenv("INTARSIA_HIP_MOE_FP8_MIN");
+        const long long v = e && e[0] ? atoll(e) : (long long)kMf8MinTokens;
+        return v < kMwMinTokens ? (int64_t)kMwMinTokens : (int64_t)v;
+    }();
+    return n;
+}
+// K (H, I) the activation quantiser takes: 256 * NCH
+constexpr bool moe_f8_k_ok(int64_t K) { return K == 256 || K == 512 || K == 1024 || K == 2048 || K == 4096; }
+inline int64_t r256(int64_t v) { return (v + 255) & ~int64_t(255); }
+// bytes of extra scratch after the base layout: quantised gate_up input [T, H] + its row scales [T], quantised down input [P, I] + [P]
+inline int64_t moe_f8_extra_bytes(int64_t T, int64_t P, int64_t H, int64_t I) { return r256(T * H) + r256(T * 4) + r256(P * I) + r256(P * 4); }
+int g_f8_variant = kMf8Skip, g_f8_pairs = 64;  // bench seams (ik_moe_f8_bench_set), not environment knobs
 
 // INTARSIA_HIP_MOE_Z=n (default 2): the grid z of the grouped projections is ceil(n * average pairs per expert / 32) pair tiles, not
 // one block per tile an expert could possibly need (ceil(T / 32): at T = 4096 that is 128 per expert and feature tile, of which
@@ -165,6 +197,76 @@ void moe_wmma_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int6
 #undef IK_MW_DN
 #undef IK_MW_GU
 #undef IK_MW_SWITCH
+}
+
+// ---- lane l5: the fp8-WMMA projections (moe_wmma_fp8.h) ---------------------------------------------------------------------------------
+
+template <int NCH>
+void moe_f8_quant_launch_n(const ik_bf16* x, uint8_t* q, float* sc, int64_t rows, hipStream_t s) {
+    moe_f8_quant_kernel<NCH><<<(unsigned)((rows + 7) / 8), 256, 0, s>>>(x, q, sc, (int)rows);
+}
+void moe_f8_quant_launch(const ik_bf16* x, uint8_t* q, float* sc, int64_t rows, int64_t K, hipStream_t s) {
+    switch (K / 256) {
+        case 1: moe_f8_quant_launch_n<1>(x, q, sc, rows, s); break;
+        case 2: moe_f8_quant_launch_n<2>(x, q, sc, rows, s); break;
+        case 4: moe_f8_quant_launch_n<4>(x, q, sc, rows, s); break;
+        case 8: moe_f8_quant_launch_n<8>(x, q, sc, rows, s); break;
+        default: moe_f8_quant_launch_n<16>(x, q, sc, rows, s); break;
+    }
+}
+
+template <bool GATEUP, int PAIRS, int V>
+void moe_f8_launch_p(int64_t N, unsigned slots, unsigned zt, const uint8_t* xq, const float* xs, const uint8_t* w, const uint8_t* ws,
+                     const float* gsc, const int* pairs, const int* offsets, const int* active, ik_bf16* dst, int64_t E, int64_t Kd,
+                     int64_t K, hipStream_t s) {
+    constexpr int feat = mf8_feat(GATEUP);
+    const dim3 g(slots, (unsigned)((N + feat - 1) / feat), zt);
+    ik_rt_stamp(s, GATEUP ? "f8_gate_up" : "f8_down", -1);
+    moe_f8_kernel<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(xq, xs, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, 0);
+    ik_rt_stamp(s, GATEUP ? "f8_gate_up" : "f8_down", 0);
+}
+
+template <int PAIRS, int V>
+void moe_f8_launch_v(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K, unsigned slots, const ik_bf16* x, const uint8_t* guw,
+                     const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc, const int* pairs, const int* offsets,
+                     const int* active, ik_bf16* hbuf, ik_bf16* ybuf, uint8_t* qx, float* qxs, uint8_t* qh, float* qhs, hipStream_t s) {
+    unsigned zt = (unsigned)((T + PAIRS - 1) / PAIRS);
+    if (moe_zmul() > 0) {
+        const int64_t avg = (P + E - 1) / E;
+        const unsigned cap = (unsigned)std::max<int64_t>(1, ((int64_t)moe_zmul() * avg + PAIRS - 1) / PAIRS);
+        if (cap < zt) zt = cap;
+    }
+    ik_rt_stamp(s, "f8_quant_x", -1);
+    moe_f8_quant_launch(x, qx, qxs, T, H, s);
+    ik_rt_stamp(s, "f8_quant_x", 0);
+    moe_f8_launch_p<true, PAIRS, V>(I, slots, zt, qx, qxs, guw, gus, gsc, pairs, offsets, active, hbuf, E, H, K, s);
+    if (ik_launch_status() != IK_OK) return;
+    ik_rt_stamp(s, "f8_quant_h", -1);
+    moe_f8_quant_launch(hbuf, qh, qhs, P, I, s);
+    ik_rt_stamp(s, "f8_quant_h", 0);
+    moe_f8_launch_p<false, PAIRS, V>(H, slots, zt, qh, qhs, dw, ds, gsc, pairs, offsets, active, ybuf, E, I, K, s);
+}
+
+void moe_f8_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K, unsigned slots, const ik_bf16* x, const uint8_t* guw,
+                   const uint8_t* gus, const uint8_t* dw, const uint8_t* ds, const float* gsc, const int* pairs, const int* offsets,
+                   const int* active, ik_bf16* hbuf, ik_bf16* ybuf, uint8_t* qx, float* qxs, uint8_t* qh, float* qhs, hipStream_t s) {
+#define IK_F8_CALL(PAIRS, V) moe_f8_launch_v<PAIRS, V>(T, P, E, H, I, K, slots, x, guw, gus, dw, ds, gsc, pairs, offsets, active, hbuf, ybuf, qx, qxs, qh, qhs, s)
+    if (g_f8_pairs == 128) {
+        switch (g_f8_variant) {
+            case kMf8Skip | kMf8Deep: IK_F8_CALL(128, kMf8Skip | kMf8Deep); break;
+            case kMf8Deep: IK_F8_CALL(128, kMf8Deep); break;
+            case 0: IK_F8_CALL(128, 0); break;
+            default: IK_F8_CALL(128, kMf8Skip); break;
+        }
+    } else {
+        switch (g_f8_variant) {
+            case kMf8Skip | kMf8Deep: IK_F8_CALL(64, kMf8Skip | kMf8Deep); break;
+            case kMf8Deep: IK_F8_CALL(64, kMf8Deep); break;
+            case 0: IK_F8_CALL(64, 0); break;
+            default: IK_F8_CALL(64, kMf8Skip); break;
+        }
+    }
+#undef IK_F8_CALL
 }
 
 IK_DEVI float round_bf16(float v) { return ik_round_bf16(v); }
@@ -1172,8 +1274,6 @@ moe_combine_kernel(const ik_bf16* __restrict__ routed, const ik_bf16* __restrict
 
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
-inline int64_t r256(int64_t v) { return (v + 255) & ~int64_t(255); }
-
 struct ScratchLayout {
     int64_t pairs, offsets, active, h, y, total;
 };
@@ -1329,7 +1429,16 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     IK_TRY(ik_launch_status());
     if (allow_wmma && T >= kMwMinTokens && H % kMwKB == 0 && I % kMwKB == 0 && wmma_aligned && moe_wmma_enabled()) {  // prefill-sized: tensor-core grouped projections
         const int64_t avg = (P + E - 1) / E;  // pairs per expert, on average
-        if (moe_pairs(avg) == 64)
+        if (moe_f8_enabled() && T >= moe_f8_min_tokens() && moe_f8_k_ok(H) && moe_f8_k_ok(I)) {  // lane l5, opt-in: W4A8 on the fp8 WMMA
+            if (scratch->bytes < L.total + moe_f8_extra_bytes(T, P, H, I)) return IK_ERR_INVALID_ARG;
+            uint8_t* qx = base + L.total;
+            float* qxs = (float*)(qx + r256(T * H));
+            uint8_t* qh = (uint8_t*)qxs + r256(T * 4);
+            float* qhs = (float*)(qh + r256(P * I));
+            moe_f8_launch(T, P, E, H, I, K, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                          (const uint8_t*)gate_up_s->data, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
+                          (const float*)gscales->data, pairs, offsets, active, hbuf, ybuf, qx, qxs, qh, qhs, s);
+        } else if (moe_pairs(avg) == 64)
             moe_wmma_launch<64>(T, P, E, H, I, K, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
                                 (const uint8_t*)gate_up_s->data, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
                                 (const float*)gscales->data, pairs, offsets, active, hbuf, ybuf, s);
@@ -1363,6 +1472,17 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
 
 extern "C" {
 
+// lane l5 (ik_hip_abi.h): INTARSIA_HIP_MOE_FP8_WMMA on / the extra scratch bytes a call of this shape takes (0 when off or the shape is not served)
+int ik_hip_moe_f8_enabled(void) { return moe_f8_enabled() ? 1 : 0; }
+int64_t ik_hip_moe_f8_extra(int64_t T, int64_t P, int64_t H, int64_t I) {
+    return moe_f8_enabled() && moe_f8_k_ok(H) && moe_f8_k_ok(I) ? moe_f8_extra_bytes(T, P, H, I) : 0;
+}
+int64_t ik_hip_moe_f8_min_tokens(void) { return moe_f8_min_tokens(); }
+// bench seam (scripts/l5): variant bits (kMf8Skip 1, kMf8Deep 2) and pairs per tile (64 | 128) of the fp8 kernels
+void ik_moe_f8_bench_set(int variant, int pairs) {
+    g_f8_variant = variant;
+    g_f8_pairs = pairs == 128 ? 128 : 64;
+}
 int ik_hip_moe_mw(int pairs) { return moe_mw_variant(pairs, false); }  // ik_hip_abi.h (registry pin): gate_up
 int ik_hip_moe_mw_down(int pairs) { return moe_mw_variant(pairs, true); }
 // ik_hip_abi.h (round 9 pin, tests/split_trigger.rs): the launch-piece count ik_split_pieces (ik_hip.h) gives
