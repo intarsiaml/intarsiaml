@@ -34,6 +34,17 @@ __host__ __device__ inline uint8_t e2m1_to_e4m3(int c) {
     const uint8_t t[8] = {0x00, 0x30, 0x38, 0x3c, 0x40, 0x44, 0x48, 0x4c};
     return t[c & 7] | ((c & 8) ? 0x80 : 0);
 }
+// exact e4m3 byte of v (v must be representable: |v| = m * 2^e with m < 16, subnormals down to 2^-9)
+__host__ __device__ inline uint8_t e4m3_exact(float v) {
+    if (v == 0.f) return 0;
+    const uint8_t sg = v < 0 ? 0x80 : 0;
+    float a = fabsf(v);
+    if (a < 0.015625f) return sg | (uint8_t)(a * 512.f);  // subnormal: k * 2^-9
+    int e = 0;
+    while (a >= 2.f) { a *= 0.5f; ++e; }
+    while (a < 1.f) { a *= 2.f; --e; }
+    return sg | (uint8_t)((e + 7) << 3) | (uint8_t)((a - 1.f) * 8.f);
+}
 __host__ __device__ inline uint16_t f2bf(float f) {  // exact inputs only (e2m1 * 2^e), so truncation is exact
     uint32_t u;
     memcpy(&u, &f, 4);
@@ -42,7 +53,7 @@ __host__ __device__ inline uint16_t f2bf(float f) {  // exact inputs only (e2m1 
 
 // One 16 x 16 tile per wave. wc/xc: codes [16][K] (rows n / cols m), sw/sa: e8m0 [16][NG].
 __global__ void eq_kernel(const uint8_t* __restrict__ wc, const uint8_t* __restrict__ xc, const uint8_t* __restrict__ sw,
-                          const uint8_t* __restrict__ sa, float* __restrict__ o_bf, float* __restrict__ o_f8, float* __restrict__ o_nc, int tiles) {
+                          const uint8_t* __restrict__ sa, float* __restrict__ o_bf, float* __restrict__ o_f8, float* __restrict__ o_nc, float* __restrict__ o_fd, int tiles) {
     const int t = blockIdx.x;
     if (t >= tiles) return;
     const int lane = threadIdx.x, lr = lane & 15, lk = (lane >> 4) * 8;
@@ -90,6 +101,37 @@ __global__ void eq_kernel(const uint8_t* __restrict__ wc, const uint8_t* __restr
         c = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(av, bv, c);
     }
     for (int i = 0; i < 8; ++i) c[i] = ldexpf(c[i], ecur[i]);
+    // path 3 (fold): weights as e4m3(code * 2^-d), d = Wref[n] - sw[n,g], Wref = the row's largest scale (exact for d <= 8,
+    // which the generator keeps); acc carried in units of 2^(sa[m,g] + Wref[n] - 254), rescaled by the activation ratio only
+    v8f fd = {0, 0, 0, 0, 0, 0, 0, 0};
+    int wref[8];
+    for (int i = 0; i < 8; ++i) {
+        wref[i] = 0;
+        for (int g = 0; g < NG; ++g) wref[i] = max(wref[i], (int)SW[(lk + i) * NG + g]);
+    }
+    int ea = (int)SA[lr * NG + 0];
+    for (int s = 0; s < K / 16; ++s) {
+        const int g = s / 2;
+        if (s > 0 && (s & 1) == 0) {
+            const int en = (int)SA[lr * NG + g];
+            const float r = ldexpf(1.f, ea - en);
+            for (int i = 0; i < 8; ++i) fd[i] *= r;
+            ea = en;
+        }
+        int wr = 0;
+        for (int g2 = 0; g2 < NG; ++g2) wr = max(wr, (int)SW[lr * NG + g2]);
+        uint8_t a[8], b[8];
+        for (int e = 0; e < 8; ++e) {
+            const int k = s * 16 + lk + e;
+            a[e] = e4m3_exact(ldexpf(e2m1v(W[lr * K + k]), (int)SW[lr * NG + g] - wr));
+            b[e] = e2m1_to_e4m3(X[lr * K + k]);
+        }
+        v2i av, bv;
+        memcpy(&av, a, 8);
+        memcpy(&bv, b, 8);
+        fd = __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(av, bv, fd);
+    }
+    for (int i = 0; i < 8; ++i) fd[i] = ldexpf(fd[i], ea + wref[i] - 254);
     // negative control: per-group partials from zero, then acc += partial * 2^e (a different association)
     v8f nc = {0, 0, 0, 0, 0, 0, 0, 0};
     for (int g = 0; g < NG; ++g) {
@@ -113,6 +155,7 @@ __global__ void eq_kernel(const uint8_t* __restrict__ wc, const uint8_t* __restr
         o_bf[(size_t)t * 256 + n * 16 + m] = acc[i];
         o_f8[(size_t)t * 256 + n * 16 + m] = c[i];
         o_nc[(size_t)t * 256 + n * 16 + m] = nc[i];
+        o_fd[(size_t)t * 256 + n * 16 + m] = fd[i];
     }
 }
 
@@ -136,7 +179,7 @@ int main(int argc, char** argv) {
         const int wb = 115 + (int)(rnd() % 8), ab = 120 + (int)(rnd() % 10);
         for (int r = 0; r < 16; ++r)
             for (int g = 0; g < NG; ++g) {
-                sw[((size_t)t * 16 + r) * NG + g] = (uint8_t)(wb + (int)(rnd() % 4));
+                sw[((size_t)t * 16 + r) * NG + g] = (uint8_t)(wb + (int)(rnd() % (reg == 1 || reg == 3 ? 9 : 4)));
                 const int span = reg == 1 ? 25 : 13;
                 sa[((size_t)t * 16 + r) * NG + g] = (uint8_t)(ab + (int)(rnd() % span));
             }
@@ -157,7 +200,7 @@ int main(int argc, char** argv) {
             }
     }
     uint8_t *dwc, *dxc, *dsw, *dsa;
-    float *dob, *dof, *don;
+    float *dob, *dof, *don, *dfd;
     hipMalloc(&dwc, wc.size());
     hipMalloc(&dxc, xc.size());
     hipMalloc(&dsw, sw.size());
@@ -165,21 +208,24 @@ int main(int argc, char** argv) {
     hipMalloc(&dob, (size_t)tiles * 256 * 4);
     hipMalloc(&dof, (size_t)tiles * 256 * 4);
     hipMalloc(&don, (size_t)tiles * 256 * 4);
+    hipMalloc(&dfd, (size_t)tiles * 256 * 4);
     hipMemcpy(dwc, wc.data(), wc.size(), hipMemcpyHostToDevice);
     hipMemcpy(dxc, xc.data(), xc.size(), hipMemcpyHostToDevice);
     hipMemcpy(dsw, sw.data(), sw.size(), hipMemcpyHostToDevice);
     hipMemcpy(dsa, sa.data(), sa.size(), hipMemcpyHostToDevice);
-    eq_kernel<<<tiles, 32>>>(dwc, dxc, dsw, dsa, dob, dof, don, tiles);
+    eq_kernel<<<tiles, 32>>>(dwc, dxc, dsw, dsa, dob, dof, don, dfd, tiles);
     if (hipDeviceSynchronize() != hipSuccess) {
         printf("kernel failed\n");
         return 2;
     }
     std::vector<float> ob((size_t)tiles * 256), of((size_t)tiles * 256), on((size_t)tiles * 256);
     hipMemcpy(on.data(), don, on.size() * 4, hipMemcpyDeviceToHost);
+    std::vector<float> ofd((size_t)tiles * 256);
+    hipMemcpy(ofd.data(), dfd, ofd.size() * 4, hipMemcpyDeviceToHost);
     hipMemcpy(ob.data(), dob, ob.size() * 4, hipMemcpyDeviceToHost);
     hipMemcpy(of.data(), dof, of.size() * 4, hipMemcpyDeviceToHost);
     // exact reference (f64 sum of exact products; exact while the span fits 53 bits, which these regimes do)
-    long long mism[4] = {0}, inexact[4] = {0}, total[4] = {0}, ncm[4] = {0};
+    long long mism[4] = {0}, inexact[4] = {0}, total[4] = {0}, ncm[4] = {0}, fdm[4] = {0};
     for (int t = 0; t < tiles; ++t) {
         const int reg = t % 4;
         for (int n = 0; n < 16; ++n)
@@ -201,15 +247,21 @@ int main(int argc, char** argv) {
                 uint32_t un;
                 memcpy(&un, &c2, 4);
                 if (un != ub) ++ncm[reg];
+                const float c3 = ofd[(size_t)t * 256 + n * 16 + m];
+                uint32_t ud;
+                memcpy(&ud, &c3, 4);
+                if (ud != ub) ++fdm[reg];
             }
     }
     const char* names[4] = {"model-like", "wide", "cancel", "sparse"};
-    long long tm = 0;
+    long long tm = 0, tf = 0;
     for (int r = 0; r < 4; ++r) {
-        printf("regime %-10s outputs %9lld  bf16-chain inexact (rounded) %9lld  fp8-carried != bf16-chain %9lld  control (per-group fma) != bf16-chain %9lld\n", names[r],
-               total[r], inexact[r], mism[r], ncm[r]);
+        printf("regime %-10s outputs %9lld  bf16-chain inexact (rounded) %9lld  fp8-carried != bf16-chain %9lld  fold != bf16-chain %9lld  control (per-group fma) != bf16-chain %9lld\n", names[r],
+               total[r], inexact[r], mism[r], fdm[r], ncm[r]);
         tm += mism[r];
+        tf += fdm[r];
     }
-    printf("RESULT %s (%lld mismatches)\n", tm == 0 ? "BITWISE-EQUAL" : "DIFFERENT", tm);
+    printf("RESULT carried %s (%lld mismatches); fold %s (%lld)\n", tm == 0 ? "BITWISE-EQUAL" : "DIFFERENT", tm,
+           tf == 0 ? "BITWISE-EQUAL" : "DIFFERENT", tf);
     return tm == 0 ? 0 : 1;
 }
