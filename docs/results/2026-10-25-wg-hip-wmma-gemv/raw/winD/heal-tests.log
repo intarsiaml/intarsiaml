@@ -1,0 +1,17 @@
+  Executable tests/prefix_boundaries_template.rs (/target/release/deps/prefix_boundaries_template-bfc6b08ac1c6c50d)
+  Executable tests/prefix_store.rs (/target/release/deps/prefix_store-94e4ceb1a8321da7)
+  Executable tests/prefix_store_cuda.rs (/target/release/deps/prefix_store_cuda-e86452cb8efa666f)
+  Executable tests/prefix_store_metal.rs (/target/release/deps/prefix_store_metal-f51e5557ff02104b)
+  Executable tests/quark_scheme.rs (/target/release/deps/quark_scheme-47d5b3f54fce5a4f)
+  Executable tests/recipes_doc.rs (/target/release/deps/recipes_doc-2a7dae355bcdec1e)
+  Executable tests/rope_bias.rs (/target/release/deps/rope_bias-3d6186e45233f3e1)
+  Executable tests/spec.rs (/target/release/deps/spec-b74d9d0f1c631420)
+  Executable tests/tail_merge.rs (/target/release/deps/tail_merge-9999b450ba32cfae)
+  Executable tests/token_feedback.rs (/target/release/deps/token_feedback-124848283903566c)
+  Executable tests/tp.rs (/target/release/deps/tp-dfbf8c4a0e9e0dd2)
+  Executable tests/tp_hybrid.rs (/target/release/deps/tp_hybrid-88d752fe26748518)
+  Executable tests/tp_mxfp4.rs (/target/release/deps/tp_mxfp4-f7c1b3f080fb479c)
+  Executable tests/tp_remote_acks.rs (/target/release/deps/tp_remote_acks-de8850b5631a40eb)
+  Executable tests/tp_test_bug.rs (/target/release/deps/tp_test_bug-d3cffb5be10603d3)
+[win] stamped tests aa6e3e165567f4d6
+PREP DONE

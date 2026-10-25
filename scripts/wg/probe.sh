@@ -6,7 +6,7 @@
 set -uo pipefail
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
 REPO=${REPO:-$HOME/intarsiaml-wg}
-BUILD=${BUILD:-$HOME/wg-build-probe}; mkdir -p "$BUILD"
+BUILD=${PROBE_BUILD:-$HOME/wg-build-probe}; mkdir -p "$BUILD"  # not ${BUILD}: window callers export BUILD=wg-build-v2 (window D skipped the probe because of that)
 OUT=$HOME/wg-logs/probe; mkdir -p "$OUT"
 mode=${1:-run}
 if [ "$mode" = build ]; then
