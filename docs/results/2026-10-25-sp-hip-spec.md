@@ -343,3 +343,24 @@ reproduce). CUDA: 118.2 / 95.8 / 96.0 against 118.5 / 98.0 / 93.9. One CUDA chat
 
 Gates with the default (off) on the final head: spec-off no-op against main, and MTP k=2 ids and acceptance equal to main at 128 and 1k, on
 HIP (35B and 27B), CUDA and Metal; see section 14.
+
+## 14. Gates on the final head `4c317919` (default path: cost gate off)
+
+Every run stamps the source head and counts the `intarsia_spec_costgate` strings in the binary it runs (CUDA 2, Metal 1, HIP 2; main's binary 0).
+Logs: `raw/final-head/{hip,cuda,metal}-run.log`; HIP window 11 is fleetq #5275 (35B and 27B, 128 and 1k, natural-v1, main against the head on the two cards in
+parallel), CUDA #5266, Metal #5265. 0 failing checks on all three:
+
+| check | HIP | CUDA | Metal |
+|---|---|---|---|
+| spec-off no-op against main: plan json and text byte-identical, 256 greedy ids identical (8B and 35B, short and 4k) | PASS | PASS | PASS |
+| 35B MTP k=2 ids == spec off, 128 and 1k | PASS | PASS | PASS |
+| 35B MTP k=2 ids == main's MTP, 128 and 1k | PASS | PASS | PASS |
+| 35B acceptance counts == main's (passes / proposed / accepted) | 102/203/153, 97/194/157 | 93/186/161, 104/207/151 | 98/195/156, 96/191/159 |
+| 27B MTP k=2 ids == spec off and == main's MTP, 128 and 1k | PASS | not run | not run |
+| 27B acceptance == main's | 100/199/154, 104/208/150 | | |
+| `--mtp-draft-vocab 65536` ids == spec off (35B, 128) | PASS (window 8) | PASS | PASS |
+| cost gate forced on (`INTARSIA_SPEC_COSTGATE=1`) ids == spec off | PASS (chat `generate` 35B and 27B, window 10) | PASS | PASS |
+| `cargo test` intarsia-core lib / MTP / `batch_recurrent --test-threads=1` | CPU: 123 / 17 / | 125 / 17 / 11 | |
+
+So the default decode path is unchanged against main on all three backends: same ids, same acceptance counts, same plans. HIP follow-up gates
+(window 8, head `1ee4d0ac`, section 11 follow-ups) also passed: eager head catch-up cost +0.7 to +0.9% faster than main (35B) and +0.5% (27B).
