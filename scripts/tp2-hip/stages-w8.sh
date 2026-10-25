@@ -79,4 +79,9 @@ if need 300 "mutants"; then
     log "MUTANT $m: $v; $(grep -ahE 'tensor-parallel rank 1: decode graph|^Error|trap|Aborted|core dumped|HSA_STATUS' "$O/gen-mut-$m.err" | head -3 | tr '\n' '|')"
   done
 fi
+# 5. the batching step-protocol mutants (the stale-position one in its own test process), rank 1 with another row count etc.
+if need 420 "batch mutants"; then
+  mkdir -p "$O/bm"; ONLY=mut D=$D B=$B bash "$HOME/tp2/stages-batch.sh" "$O/bm" < /dev/null
+  log "batch mutants: $(grep -ah 'mtest' "$O/bm/steps.log" | cut -c1-300 | tr '\n' '|')"
+fi
 log "done, time left $(left)s"

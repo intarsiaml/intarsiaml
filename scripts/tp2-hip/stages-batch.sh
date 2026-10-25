@@ -74,6 +74,11 @@ hiptest() {
   log "hiptest $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/hiptest-$tag.log" | head -6 | tr '\n' '|')"
 }
 TP2ENV="INTARSIA_BATCH_TEST_TP=2"
+if [[ ${ONLY:-} == mut ]]; then  # just the step-protocol mutants (after the stale-position test was split out)
+  E="$TP2ENV" mtest tp2-mutants 0,1 420 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_tp2_batch_mutants_are_caught
+  E="$TP2ENV" mtest tp2-stale-position 0,1 300 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_tp2_batch_stale_position_mutant_is_caught
+  log "stages-batch (mut only) done"; exit 0
+fi
 
 # 1. tp=2 batched == solo (logits bit for bit, ids), N = 2..16
 E="$TP2ENV" mtest tp2-decode 0,1 900 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_batched_decode_is_bitwise_the_solo_step
@@ -133,6 +138,11 @@ same gen-tp2-d-35b-short.ids gen-tp2-b-35b-short.ids "35B tp=2 solo 256 greedy i
 # 7. the batched engine at tp=2 against the local engine
 E="$TP2ENV" mtest tp2-engine 0,1 900 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_batched_engine_equals_the_local_engine
 
-# 8. the replicated head (if the CAP leaves time)
-E="$TP2ENV INTARSIA_TP_VOCAB=0" mtest tp2-decode-vocab0 0,1 900 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_batched_decode_is_bitwise_the_solo_step
+# 8. the replicated head: batching under tp needs the vocab-parallel head on HIP; with INTARSIA_TP_VOCAB=0 `serve --max-batch 8 --tp 2`
+#    must refuse at load with a clear error (it used to fail mid-run), not hang or fault
+{ INTARSIA_REPO=$(T $D) HIP_VISIBLE_DEVICES=0,1 timeout 150 "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_TP_VOCAB=0 /work/tp2-intarsia serve \
+    --backend hip --model $M35 --tp 2 --devices 0,1 --max-batch 8 --mem-budget 29 --max-seq 8192 --no-supervisor --host 127.0.0.1 --port 8093 \
+    > "$O/serve-vocab0.out" 2> "$O/serve-vocab0.err" < /dev/null; rc=$?; } 
+log "serve --max-batch 8 --tp 2 with INTARSIA_TP_VOCAB=0 exit $rc: $(grep -ahE 'vocab-parallel|^Error' "$O/serve-vocab0.err" | head -2 | tr '\n' '|')"
+grep -aq "needs the vocab-parallel" "$O/serve-vocab0.err" && log "REFUSED-AT-LOAD ok" || log "NOT-REFUSED-AT-LOAD"
 log "stages-batch done"
