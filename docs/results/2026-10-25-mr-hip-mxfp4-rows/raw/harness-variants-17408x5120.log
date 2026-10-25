@@ -1,0 +1,74 @@
+## gemv baseline 17408x5120
+gemv 17408x5120
+M= 1   212.60 us  x1.00  bitwise
+M= 2   138.42 us  x0.65  bitwise
+M= 3   176.36 us  x0.83  bitwise
+M= 4   231.69 us  x1.09  bitwise
+M= 5   300.31 us  x1.41  bitwise
+M= 6   497.71 us  x2.34  bitwise
+M= 7   890.25 us  x4.19  bitwise
+M= 8  1523.10 us  x7.16  bitwise
+## variant 0 17408x5120
+rows 17408x5120
+M= 1    80.79 us  x1.00  bitwise
+M= 2    82.28 us  x1.02  bitwise
+M= 3    95.23 us  x1.18  bitwise
+M= 4   109.73 us  x1.36  bitwise
+M= 8   180.87 us  x2.24  bitwise
+M=16   324.08 us  x4.01  bitwise
+## variant 1 17408x5120
+rows 17408x5120
+M= 1    80.81 us  x1.00  bitwise
+M= 2    85.83 us  x1.06  bitwise
+M= 3    91.12 us  x1.13  bitwise
+M= 4   101.05 us  x1.25  bitwise
+M= 8   162.17 us  x2.01  bitwise
+M=16   288.98 us  x3.58  bitwise
+## variant 2 17408x5120
+rows 17408x5120
+M= 1    80.80 us  x1.00  bitwise
+M= 2    83.92 us  x1.04  bitwise
+M= 3    88.17 us  x1.09  bitwise
+M= 4    96.67 us  x1.20  bitwise
+M= 8   148.85 us  x1.84  bitwise
+M=16   259.68 us  x3.21  bitwise
+## variant 3 17408x5120
+rows 17408x5120
+M= 1    80.82 us  x1.00  bitwise
+M= 2    87.26 us  x1.08  bitwise
+M= 3    91.38 us  x1.13  bitwise
+M= 4    95.55 us  x1.18  bitwise
+M= 8     6.10 us  x0.08  MISMATCH rows=69632
+M=16     5.96 us  x0.07  MISMATCH rows=208896
+## variant 4 17408x5120
+rows 17408x5120
+M= 1    80.84 us  x1.00  bitwise
+M= 2    88.42 us  x1.09  bitwise
+M= 3   101.30 us  x1.25  bitwise
+M= 4   116.85 us  x1.45  bitwise
+M= 8   200.32 us  x2.48  bitwise
+M=16   356.84 us  x4.41  bitwise
+## variant 5 17408x5120
+rows 17408x5120
+M= 1    80.82 us  x1.00  bitwise
+M= 2    88.10 us  x1.09  bitwise
+M= 3   109.90 us  x1.36  bitwise
+M= 4   134.37 us  x1.66  bitwise
+M= 8   231.70 us  x2.87  bitwise
+M=16   410.78 us  x5.08  bitwise
+## variant 6 17408x5120
+rows 17408x5120
+M= 1    80.83 us  x1.00  bitwise
+M= 2   128.10 us  x1.58  bitwise
+M= 3   164.61 us  x2.04  bitwise
+M= 4   191.43 us  x2.37  bitwise
+M= 8   315.49 us  x3.90  bitwise
+M=16   599.52 us  x7.42  bitwise
+## variant 7 17408x5120
+rows 17408x5120
+M= 1    80.86 us  x1.00  bitwise
+M= 2   292.74 us  x3.62  bitwise
+M= 3   430.00 us  x5.32  bitwise
+M= 4   584.83 us  x7.23  bitwise
+M= 8     5.57 us  x0.07  MISMATCH rows=69632
+M=16     5.67 us  x0.07  MISMATCH rows=208896

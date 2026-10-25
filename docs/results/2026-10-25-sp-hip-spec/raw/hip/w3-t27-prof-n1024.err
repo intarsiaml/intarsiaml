@@ -1,0 +1,32 @@
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+mxfp4 activations: dynamic (declared by the checkpoint)
+--spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 attn_prefill=attn_prefill_bf16_splitkv logits=logits_bf16_gemv_rows argmax=argmax_f32
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 1.5s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.88 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 986 tokens
+ids: [271, 1919, 369, 264, 2172, 1622, 13, 561, 4400, 488, 5904, 369, 264, 11088, 328, 10168, 20781, 1, 1647, 2218, 77518, 11, 14542, 11, 321, 10419, 383, 279, 348, 33488, 9, 321, 348, 4993, 9, 314, 264, 1546, 3050, 3377, 13, 271, 8160, 369, 264, 29006, 314, 421, 4400, 364, 264, 491, 22839, 11, 7854, 539, 279, 1970, 11, 7652, 19174, 11, 321, 264, 2790, 50802, 13, 271, 4277, 271, 13962, 3534, 220, 16, 25, 561, 33214, 318, 760, 328, 9930, 871, 271, 49338, 264, 14855, 314, 2250, 7106, 25, 198, 16, 13, 220, 2972, 760, 24367, 64700, 42272, 795, 1546, 4778, 318, 17, 11, 15, 15, 15, 3470, 58044, 553, 198, 17, 13, 220, 2972, 760, 60277, 64700, 60204, 795, 318, 9071, 11, 694, 1042, 579, 1910, 424, 579, 524, 279, 84810, 553, 198, 18, 13, 220, 2972, 760, 28444, 64700, 51498, 310, 264, 4475, 318, 34045, 11, 220, 20, 15, 15, 3470, 58044, 553, 271, 332, 760, 21397, 64700, 198, 2592, 279, 24367, 39358, 220, 17, 11, 15, 15, 15, 3470, 58044, 1083, 264, 6951, 11, 321, 279, 28444, 628, 1132, 1831, 220, 20, 15, 15, 3470, 58044, 11, 279, 6951, 26817, 539, 220, 16, 11, 20, 15, 15, 3470, 1396, 2018, 13, 198, 9, 256, 2972, 16, 9104, 64700, 220, 24, 15, 11, 15, 15, 15, 3470, 303, 4779, 13, 198, 9, 256, 2972, 16, 15, 4276, 64700, 220, 24, 15, 15, 11, 15, 15, 15, 3470, 303, 4779, 13, 198, 9, 256, 2972, 2009, 64700, 561, 3421, 8213, 680, 314, 21360, 11]
+finish=length prompt=986 (cached 0) completion=256 | prefill 1107 ms (890.4 tok/s) | decode 7178 ms (35.53 tok/s)
+op table (estimated ms over all launches; total 8298.0 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4_pair           2521.61   30.39    18656   18304
+matmul_mxfp4                2398.39   28.90    17248   16960
+logits                      1341.36   16.16      314     104
+matmul                       515.60    6.21     1414      36
+gdn_conv_delta               450.28    5.43    15072   14976
+rmsnorm_add                  346.41    4.17    14508   13832
+attn_decode                  204.67    2.47     5152    4992
+silu_glu                     154.05    1.86     7254    6916
+gated_rmsnorm                116.90    1.41     5280    5184
+gate_split_qk_norm_rope_kv      55.58    0.67     1974    1732
+gdn_delta_rule                41.94    0.51      192     192
+sigmoid_mul                   39.27    0.47     1974    1732
+embedding                     34.11    0.41      324     112
+attn_prefill                  22.53    0.27      150      68
+rmsnorm                       20.02    0.24      752     120
+argmax                        19.27    0.23      314     104
+gdn_conv                      10.37    0.12      192     192
+add                            5.65    0.07      214       4
+matmul_pair                    0.00    0.00      256       0
+spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)
+steps=110 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_mxfp4_pair=2474ms/18656 matmul_mxfp4=2358ms/17248 gdn_conv_delta=447ms/15072 logits=444ms/314 rmsnorm_add=330ms/14508

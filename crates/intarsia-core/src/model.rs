@@ -35,6 +35,8 @@ mod gdn_block;
 mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
+mod spec_graph;
+pub use spec_graph::SpecPass;
 pub(crate) mod mtp;
 pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -91,6 +93,10 @@ pub struct LoadOptions {
     /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
     /// largest k ([`crate::spec::SPEC_K_MAX`]).
     pub mtp_k: usize,
+    /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
+    /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
+    /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
+    pub mtp_draft_vocab: usize,
 }
 
 impl Default for LoadOptions {
@@ -111,6 +117,7 @@ impl Default for LoadOptions {
             tp_arnorm: false,
             mtp: false,
             mtp_k: 0,
+            mtp_draft_vocab: 0,
         }
     }
 }
@@ -168,6 +175,15 @@ enum Block {
     Gemma(GemmaLayer),
 }
 
+/// Bytes of `Workspace::pos`: [`POS_TAB_ENTRIES`] i32 positions.
+const POS_TAB_ENTRIES: usize = 96;
+const POS_TAB_BYTES: usize = POS_TAB_ENTRIES * 4;
+/// First entry of the verify rows' positions (`P + r`), the MTP head's catch-up rows (`P - n + i`) and its chained rows
+/// (`P + i`) in `Workspace::pos`. Each region holds up to 16 consecutive entries.
+const POS_VERIFY: usize = 0;
+const POS_CATCH_UP: usize = 16;
+const POS_CHAIN: usize = 32;
+
 struct Workspace {
     max_tokens: usize,
     ids: Buffer,
@@ -185,7 +201,9 @@ struct Workspace {
     /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
     /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
     part: Option<Buffer>,
-    /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
+    /// `i32` position table (rewritten before every replay of a captured step). Entry 0 is the position of the token a
+    /// captured decode step processes; a captured speculative step ([`Model::spec_step`]) uses the regions
+    /// [`POS_VERIFY`], [`POS_CATCH_UP`] and [`POS_CHAIN`], each a run of consecutive positions.
     pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
     x: ExtraWs,
@@ -262,9 +280,28 @@ struct AttnBufs {
 enum Seqs<'a> {
     One(&'a SequenceState),
     Batch(&'a [&'a SequenceState]),
+    /// Several prompts' next chunks in one pass (`Model::forward_packed`): the row-wise ops run once over all rows, attention and
+    /// the GatedDeltaNet recurrence once per segment on that segment's own state.
+    Packed(&'a [Seg<'a>]),
+}
+
+/// One prompt of a packed prefill pass: its state and its rows `[lo, lo + len)` of the packed activations.
+#[derive(Clone, Copy)]
+pub(crate) struct Seg<'a> {
+    pub(crate) st: &'a SequenceState,
+    pub(crate) lo: usize,
+    pub(crate) len: usize,
 }
 
 impl AttnBufs {
+    /// Rows `[lo, lo + n)` of every buffer (a packed pass's segment).
+    fn rows(&self, lo: usize, n: usize) -> AttnBufs {
+        AttnBufs {
+            q: [self.q[0].rows(lo, n), self.q[1].rows(lo, n)],
+            k: [self.k[0].rows(lo, n), self.k[1].rows(lo, n)],
+            v: self.v.rows(lo, n),
+        }
+    }
     /// Row `r` of every buffer, as a one-row set.
     fn row(&self, r: usize) -> AttnBufs {
         AttnBufs {
@@ -296,6 +333,8 @@ pub struct Model {
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
     vocab_par: bool,
+    /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or None.
+    draft_head: Option<QTensor>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -959,7 +998,7 @@ impl Model {
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
             part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
-            pos: wb(16)?,
+            pos: wb(POS_TAB_BYTES)?,
             x,
             moe,
         };
@@ -1009,6 +1048,17 @@ impl Model {
 
         let no_comm = std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0");
         let test_bug = parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?;
+        let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
+            match lm_head.as_ref().filter(|_| !vocab_par).and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
+                Some(h) => Some(h),
+                None => {
+                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let mut model = Model {
             backend,
             registry,
@@ -1022,6 +1072,7 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            draft_head,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             slot_specs,
@@ -1154,7 +1205,9 @@ impl Model {
             return Err(Error::invalid(format!("verify rows {max_rows} outside 2..={most}")));
         }
         if self.verify_tok.is_none() {
-            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 4, MemKind::Device)?);
+            // [0, rows): the argmax of each row; [rows, 2 rows): the pass's input ids (a captured speculative step reads its
+            // drafts back with the outputs, `Model::spec_step`)
+            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 8, MemKind::Device)?);
         }
         self.verify_rows = max_rows;
         Ok(())
@@ -1477,6 +1530,108 @@ impl Model {
             let _ = st.reset(&*self.backend);
         }
         r
+    }
+
+    /// Fewest rows a segment of a packed prefill pass may have: below it the kernels a prompt's solo chunk picks (the GEMV-style
+    /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
+    pub const PACK_MIN_ROWS: usize = 16;
+
+    /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
+    /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
+    /// `items`: `(state, rows)` per segment. Evaluated before anything launches, so a `false` costs nothing.
+    pub fn pack_uniform(&self, items: &[(&SequenceState, usize)]) -> bool {
+        let total: usize = items.iter().map(|&(_, n)| n).sum();
+        let bufs = self.attn_bufs(total);
+        for a in self.layers.iter().flatten().filter_map(|b| if let Block::Attn(a) = b { Some(a) } else { None }) {
+            let (mut lo, mut first) = (0usize, None);
+            for &(st, len) in items {
+                let Ok(slot) = Self::attn_slot(st, a) else { return false };
+                let bj = bufs.rows(lo, len);
+                let fused = self.gate_qkv_call_at(a, slot, &bj, len, total, lo, st.len, None).filter(|c| self.fused_ok(c)).is_some();
+                if *first.get_or_insert(fused) != fused {
+                    return false;
+                }
+                lo += len;
+            }
+        }
+        true
+    }
+
+    /// Most rows one packed pass holds: the workspace's, and no more than the KV capacity: plan resolution sizes the kernel scratch
+    /// for chunks that fit the context, and a packed pass of several prompts must not need more than a solo chunk could.
+    pub fn pack_rows_max(&self) -> usize {
+        self.ws.max_tokens.min(self.plan.kv_cap_tokens.max(1))
+    }
+
+    /// Whether this model can run [`Model::forward_packed`]: a single rank, no Gemma layers, no plan recording.
+    pub fn pack_capable(&self) -> bool {
+        self.remote.is_none()
+            && self.peers.is_empty()
+            && self.tp.world == 1
+            && self.gemma.is_none()
+            && self.recorder.lock().unwrap().is_none()
+            && self.rope_table.is_none()
+    }
+
+    /// Prefill the next chunks of several prompts in ONE pass: `items` are `(state, ids)`, each `ids` the whole chunk the
+    /// prompt's solo prefill would run next (no head: the rows feed no logits). The row-wise kernels run once over the
+    /// concatenated rows, attention, KV append and the GatedDeltaNet recurrence once per prompt on its own state, so each
+    /// state ends bitwise what `forward(st, ids, HeadMode::None, None)` leaves, when every row-wise kernel is independent of the
+    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::PACK_MIN_ROWS`] rows and the total
+    /// fits one workspace pass). On an error every recurrent state is reset, as after a failed solo forward.
+    pub fn forward_packed(&self, items: &mut [(&mut SequenceState, &[u32])]) -> Result<()> {
+        let r = self.forward_packed_inner(items);
+        if r.is_err() {
+            for (st, _) in items.iter_mut() {
+                if st.has_recurrent() {
+                    let _ = st.reset(&*self.backend);
+                }
+            }
+        }
+        r
+    }
+
+    fn forward_packed_inner(&self, items: &mut [(&mut SequenceState, &[u32])]) -> Result<()> {
+        if !self.pack_capable() {
+            return Err(Error::Unsupported("packed prefill needs a single-rank model without Gemma layers".into()));
+        }
+        let total: usize = items.iter().map(|(_, ids)| ids.len()).sum();
+        if items.is_empty() || total > self.pack_rows_max() {
+            return Err(Error::invalid(format!("packed prefill of {} prompts, {total} rows (at most {})", items.len(), self.pack_rows_max())));
+        }
+        let mut all: Vec<u32> = Vec::with_capacity(total);
+        for (st, ids) in items.iter() {
+            Self::check_forward(st, ids, HeadMode::None, false)?;
+            if ids.len() < Self::PACK_MIN_ROWS {
+                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), Self::PACK_MIN_ROWS)));
+            }
+            if st.mtp.is_some() {
+                return Err(Error::Unsupported("packed prefill of a state with an MTP head".into()));
+            }
+            all.extend_from_slice(ids);
+        }
+        for (st, _) in items.iter_mut() {
+            st.spec_rows.saved = 0;
+        }
+        let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        {
+            let mut lo = 0;
+            let segs: Vec<Seg<'_>> = items
+                .iter()
+                .map(|(st, ids)| {
+                    let seg = Seg { st: &**st, lo, len: ids.len() };
+                    lo += ids.len();
+                    seg
+                })
+                .collect();
+            self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+            self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+        }
+        for (st, ids) in items.iter_mut() {
+            st.commit(ids);
+        }
+        self.telemetry.step();
+        Ok(())
     }
 
     /// Rejections that must happen before any rank starts (a rank that stops early would leave the others waiting
@@ -1950,6 +2105,7 @@ impl Model {
                             Seqs::One(st) if tail => self.attn_block_kv_only(a, st, &nv, t, pos0, kv_done, profile)?,
                             Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, kv_done, profile)?,
                             Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, profile)?,
+                            Seqs::Packed(segs) => self.attn_block_packed(a, segs, &nv, &blkv, t, kv_done, profile)?,
                         }
                     }
                     Block::Gdn(g) => match seqs {
@@ -1972,6 +2128,13 @@ impl Model {
                                 norm_in(&g.pre_norm, false, &mut cur)?;
                             }
                             self.gdn_block(g, st, &nv, &blkv, t, profile, f.as_ref())?;
+                        }
+                        Seqs::Packed(segs) => {
+                            let f = pending.then(|| fold(&g.pre_norm, &mut cur));
+                            if f.is_none() {
+                                norm_in(&g.pre_norm, false, &mut cur)?;
+                            }
+                            self.gdn_block_segs(g, segs, &nv, &blkv, t, profile, f.as_ref())?;
                         }
                     },
                     Block::Ffn(f) => {
@@ -2255,13 +2418,31 @@ impl Model {
         pos0: usize,
         dpos: Option<&TensorRef>,
     ) -> Option<OpCall> {
+        self.gate_qkv_call_at(a, slot, bufs, t, t, 0, pos0, dpos)
+    }
+
+    /// [`Model::gate_qkv_call`] for rows `[lo, lo + t)` of a `total`-row pass (a packed pass's segment; `bufs` are that
+    /// segment's views already). The q+gate projection and the gate buffer are the segment's rows of the whole-pass views.
+    #[allow(clippy::too_many_arguments)]
+    fn gate_qkv_call_at(
+        &self,
+        a: &AttnBlock,
+        slot: &crate::state::AttnKvState,
+        bufs: &AttnBufs,
+        t: usize,
+        total: usize,
+        lo: usize,
+        pos0: usize,
+        dpos: Option<&TensorRef>,
+    ) -> Option<OpCall> {
         let (Some(qw), Some(kw)) = (&a.q_norm, &a.k_norm) else { return None };
         if !a.gated || self.rope_table.is_some() {
             return None;
         }
         let d = &self.ldims;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
-        let (qg, gate) = self.gated_q_buffers(t);
+        let (qg, gate) = self.gated_q_buffers(total);
+        let (qg, gate) = (qg.rows(lo, t), gate.rows(lo, t));
         let cache_shape = [nkv, slot.cap, hd];
         let attrs = OpAttrs {
             eps: d.rms_eps,
@@ -2480,6 +2661,30 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
+        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+            // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
+            // partition follows the call's row count, and it takes no device position): one decode call per row
+            // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a
+            // table of consecutive device positions, row r reading entry r.
+            for r in 0..t {
+                let mut a = attrs.clone();
+                a.pos0 = pos0 + r;
+                let dp = dpos.map(|d| {
+                    let mut v = d.clone();
+                    v.offset += 4 * r;
+                    v
+                });
+                self.exec_pos(
+                    Op::AttnDecode,
+                    vec![bufs.q[qc].rows(r, 1), kcache.clone(), vcache.clone()],
+                    vec![attn_out.rows(r, 1)],
+                    a,
+                    dp.as_ref(),
+                    profile,
+                )?;
+            }
+            return Ok((attn_out, qc));
+        }
         self.exec_pos(
             if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
             vec![bufs.q[qc].clone(), kcache, vcache],
@@ -2571,6 +2776,55 @@ impl Model {
         let (qc, gate) = self.attn_project(a, n, t, kv_done, prologue.is_some(), profile)?;
         let (attn_out, qc) = self.attn_rows(a, slot, &bufs, qc, t, pos0, dpos, prologue, profile)?;
         self.attn_out_proj(a, &attn_out, gate, qc, out, t, profile)
+    }
+
+    /// [`Model::attn_block`] for a packed prefill pass: the q / k / v projections and the output projection run once on all `t`
+    /// rows (row-wise kernels: a row's bits do not depend on the other rows, `tests/packed_rows.rs`), the rope, KV append and
+    /// attention once per segment on that segment's rows of the scratch and its own cache, as that prompt's solo chunk would.
+    #[allow(clippy::too_many_arguments)]
+    fn attn_block_packed(
+        &self,
+        a: &AttnBlock,
+        segs: &[Seg<'_>],
+        n: &TensorRef,
+        out: &TensorRef,
+        t: usize,
+        kv_done: bool,
+        profile: bool,
+    ) -> Result<()> {
+        let bufs = self.attn_bufs(t);
+        // each segment decides on the fused gated prologue exactly as its solo block would (same call shape: its own rows)
+        let mut prologues = Vec::with_capacity(segs.len());
+        for s in segs {
+            let slot = Self::attn_slot(s.st, a)?;
+            let bufs_j = bufs.rows(s.lo, s.len);
+            prologues.push(self.gate_qkv_call_at(a, slot, &bufs_j, s.len, t, s.lo, s.st.len, None).filter(|c| self.fused_ok(c)));
+        }
+        // the gated split runs per segment below when its prologue is not fused, so the projection leaves it out
+        let (qc, gate) = self.attn_project(a, n, t, kv_done, true, profile)?;
+        let d = &self.ldims;
+        let mut qc_after = qc;
+        if prologues.iter().any(|p| p.is_some() != prologues[0].is_some()) {
+            return Err(Error::invalid("packed prefill segments take different attention paths (checked by pack_uniform before the pass)"));
+        }
+        for (s, prologue) in segs.iter().zip(prologues) {
+            let slot = Self::attn_slot(s.st, a)?;
+            let bufs_j = bufs.rows(s.lo, s.len);
+            if a.gated && prologue.is_none() {
+                let (qg, gate_all) = self.gated_q_buffers(t);
+                self.exec(
+                    Op::GateSplit,
+                    vec![qg.rows(s.lo, s.len).reshaped(&[s.len, d.n_heads, 2 * d.head_dim])],
+                    vec![bufs_j.q[qc].clone(), gate_all.rows(s.lo, s.len)],
+                    OpAttrs::default(),
+                    profile,
+                )?;
+            }
+            let (_, q_end) = self.attn_rows(a, slot, &bufs_j, qc, s.len, s.st.len, None, prologue, profile)?;
+            qc_after = q_end;
+        }
+        let attn_out = bufs.q[1 - qc_after].clone();
+        self.attn_out_proj(a, &attn_out, gate, qc_after, out, t, profile)
     }
 
     /// [`Model::attn_block`] for the last layer of a chunk that feeds no head: the projections and the prologue that
@@ -2912,6 +3166,29 @@ impl Model {
     /// A vocab-parallel peer's share of the head of rows `[r0, r0 + c)`: its slice of the logits and the gather, no argmax.
     fn head_peer(&self, hn: &TensorRef, r0: usize, c: usize) -> Result<()> {
         self.head_proj(&hn.rows(r0, c), c, false).map(|_| ())
+    }
+
+    /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on.
+    fn draft_head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
+        let Some(h) = self.draft_head.as_ref() else { return self.head_to_device_into(hn, row, profile, tok) };
+        let x = hn.rows(row, 1);
+        let logits = self.view(&self.ws.logits, DType::F32, &[1, h.n]);
+        self.proj(&x, h, &logits, profile)?;
+        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// [`Model::head_argmax`] for the MTP drafter.
+    fn draft_head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+        if self.draft_head.is_none() {
+            return self.head_argmax(hn, row, profile);
+        }
+        self.draft_head_to_device_into(hn, row, profile, self.view(&self.ws.tok, DType::I32, &[1]))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
+        Ok(i32::from_le_bytes(b) as u32)
     }
 
     fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {

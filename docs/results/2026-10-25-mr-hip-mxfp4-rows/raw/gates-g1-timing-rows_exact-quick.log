@@ -1,0 +1,110 @@
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 8.14s
+[mr] radiance inactive
+[gates] S1 timing 2026-10-25 06:00:29
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=1     81.31 us    582.4 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=2     85.33 us    554.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=3    113.87 us    415.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=4    155.20 us    305.1 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=5    217.28 us    217.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=8   1535.39 us     30.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=1     80.25 us    590.0 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=2     83.42 us    567.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=3     86.96 us    544.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=4     92.76 us    510.4 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=5    108.25 us    437.4 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=6    126.91 us    373.1 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=7    141.14 us    335.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=8    155.83 us    303.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=12   215.08 us    220.1 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=16   272.39 us    173.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=1     81.34 us    582.1 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=2     86.21 us    549.3 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=3    109.91 us    430.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=4    144.40 us    327.9 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=5    207.54 us    228.1 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=8   1551.42 us     30.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=1     80.06 us    591.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=2     87.12 us    543.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=3     95.00 us    498.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=4    104.58 us    452.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=5    118.15 us    400.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=6    133.18 us    355.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=7    142.46 us    332.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=8    156.36 us    302.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=12   216.14 us    219.1 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=16   272.71 us    173.6 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=1     60.40 us    553.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=2     62.66 us    533.4 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=3     81.81 us    408.5 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=4    110.23 us    303.2 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=5    157.20 us    212.6 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=8    916.85 us     36.5 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=1     59.68 us    560.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=2     62.72 us    532.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=3     66.42 us    503.2 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=4     69.76 us    479.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=5     78.48 us    425.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=6     91.79 us    364.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=7    103.19 us    323.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=8    114.71 us    291.4 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=12   156.70 us    213.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=16   197.45 us    169.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=1     35.64 us    468.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=2     41.40 us    403.7 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=3     50.40 us    331.6 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=4     62.49 us    267.4 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=5     85.92 us    194.5 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=8    463.74 us     36.0 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=1     35.26 us    473.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=2     43.98 us    380.0 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=3     48.53 us    344.4 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=4     55.54 us    300.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=5     60.26 us    277.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=6     63.19 us    264.5 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=7     66.97 us    249.5 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=8     72.29 us    231.2 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=12    91.72 us    182.2 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=16   115.21 us    145.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=1     13.34 us    208.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=2     15.02 us    185.4 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=3     16.17 us    172.2 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=4     21.32 us    130.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=5     23.55 us    118.3 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=8     86.73 us     32.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=1     13.34 us    208.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=2     15.60 us    178.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=3     17.13 us    162.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=4     18.39 us    151.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=5     19.66 us    141.7 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=6     21.01 us    132.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=7     22.32 us    124.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=8     23.75 us    117.3 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=12    30.30 us     91.9 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=16    36.08 us     77.2 GB/s
+test timing_mxfp4_rows ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 10.27s
+[gates] S3 rows_exact + quick 2026-10-25 06:00:39
+-- rows_exact mxfp4 (dev)
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:48/48/693012 2:48/96/1386024 3:48/144/2079036 4:48/192/2772048 5:48/240/3465060 6:48/288/4158072 7:48/336/4851084 8:48/384/5544096 9:48/432/6237108 10:48/480/6930120 11:48/528/7623132 12:48/576/8316144 13:48/624/9009156 14:48/672/9702168 15:48/720/10395180 16:48/768/11088192
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 6 filtered out; finished in 0.74s
+-- NEGATIVE CONTROL: the mma kernel where the rows kernel runs (this MUST FAIL)
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... DIAG solo repeatable: true, rows repeatable: true
+thread 'mxfp4_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:268:17:
+G-B FAIL mxfp4 n=12288 k=5120 act=None Bf16: matmul_mxfp4_mma M=1 row 0 differs from matmul_mxfp4_gemv on that row alone in 2 of 12288 elements (first at col 4867: [00, 39] vs [ff, 38])
+FAILED
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 6 filtered out; finished in 0.26s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test rows_exact`
+-- rows_registry
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.27s
+-- kernels test --quick
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+64 kernels, 353 cases in 3.0s
+[gates] done 2026-10-25 06:00:50

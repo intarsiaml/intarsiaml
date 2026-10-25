@@ -1,0 +1,8 @@
+base off n128 md5=3773b2177dd2bf967553abd53846a53b | decode 2031 ms (125.58 tok/s) | 
+base mtp2 n128 md5=3773b2177dd2bf967553abd53846a53b | decode 2026 ms (125.84 tok/s) | spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)
+base off n1024 md5=f206c9461411dcdec9e320069df1c7bc | decode 2447 ms (104.19 tok/s) | 
+base mtp2 n1024 md5=f206c9461411dcdec9e320069df1c7bc | decode 1796 ms (141.99 tok/s) | spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)
+dev off n128 md5=3773b2177dd2bf967553abd53846a53b | decode 2037 ms (125.21 tok/s) | 
+dev mtp2 n128 md5=3773b2177dd2bf967553abd53846a53b | decode 1773 ms (143.84 tok/s) | spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)
+dev off n1024 md5=f206c9461411dcdec9e320069df1c7bc | decode 2067 ms (123.35 tok/s) | 
+dev mtp2 n1024 md5=f206c9461411dcdec9e320069df1c7bc | decode 1777 ms (143.48 tok/s) | spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)

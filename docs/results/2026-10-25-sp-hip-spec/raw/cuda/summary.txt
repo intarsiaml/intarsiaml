@@ -1,0 +1,8 @@
+base off n128 md5=a74ec2ca | decode 3014 ms (84.62 tok/s) | 
+base mtp2 n128 md5=a74ec2ca | decode 2208 ms (115.49 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+base off n1024 md5=1caf3d10 | decode 2972 ms (85.81 tok/s) | 
+base mtp2 n1024 md5=1caf3d10 | decode 2478 ms (102.92 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+dev off n128 md5=a74ec2ca | decode 2986 ms (85.38 tok/s) | 
+dev mtp2 n128 md5=a74ec2ca | decode 2200 ms (115.89 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+dev off n1024 md5=1caf3d10 | decode 2975 ms (85.71 tok/s) | 
+dev mtp2 n1024 md5=1caf3d10 | decode 2498 ms (102.10 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)

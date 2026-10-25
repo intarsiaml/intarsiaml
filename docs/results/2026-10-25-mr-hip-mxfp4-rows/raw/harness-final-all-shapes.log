@@ -1,0 +1,336 @@
+## gemv baseline 17408x5120
+gemv 17408x5120
+M= 1   213.76 us  x1.00  bitwise
+M= 2   148.68 us  x0.70  bitwise
+M= 3   163.46 us  x0.76  bitwise
+M= 4   220.42 us  x1.03  bitwise
+M= 5   289.33 us  x1.35  bitwise
+M= 6   534.42 us  x2.50  bitwise
+M= 7   914.97 us  x4.28  bitwise
+M= 8  1517.66 us  x7.10  bitwise
+## variant 2 17408x5120
+rows 17408x5120
+M= 1    80.81 us  x1.00  bitwise
+M= 2    83.84 us  x1.04  bitwise
+M= 3    88.07 us  x1.09  bitwise
+M= 4    96.26 us  x1.19  bitwise
+M= 5   108.11 us  x1.34  bitwise
+M= 6   120.75 us  x1.49  bitwise
+M= 7   132.29 us  x1.64  bitwise
+M= 8   144.01 us  x1.78  bitwise
+M= 9   156.79 us  x1.94  bitwise
+M=10   184.43 us  x2.28  bitwise
+M=11   199.18 us  x2.46  bitwise
+M=12   212.07 us  x2.62  bitwise
+M=13   224.74 us  x2.78  bitwise
+M=14   240.10 us  x2.97  bitwise
+M=15   250.77 us  x3.10  bitwise
+M=16   268.59 us  x3.32  bitwise
+## gemv baseline 5120x17408
+gemv 5120x17408
+M= 1    80.84 us  x1.00  bitwise
+M= 2    86.00 us  x1.06  bitwise
+M= 3   114.85 us  x1.42  bitwise
+M= 4   152.77 us  x1.89  bitwise
+M= 5   214.07 us  x2.65  bitwise
+M= 6   434.04 us  x5.37  bitwise
+M= 7   892.10 us  x11.04  bitwise
+M= 8  1533.29 us  x18.97  bitwise
+## variant 2 5120x17408
+rows 5120x17408
+M= 1    80.68 us  x1.00  bitwise
+M= 2    88.10 us  x1.09  bitwise
+M= 3    97.05 us  x1.20  bitwise
+M= 4   107.68 us  x1.33  bitwise
+M= 5   118.62 us  x1.47  bitwise
+M= 6   132.00 us  x1.64  bitwise
+M= 7   137.08 us  x1.70  bitwise
+M= 8   147.89 us  x1.83  bitwise
+M= 9   160.53 us  x1.99  bitwise
+M=10   187.10 us  x2.32  bitwise
+M=11   201.37 us  x2.50  bitwise
+M=12   214.93 us  x2.66  bitwise
+M=13   227.44 us  x2.82  bitwise
+M=14   243.26 us  x3.01  bitwise
+M=15   255.55 us  x3.17  bitwise
+M=16   270.45 us  x3.35  bitwise
+## gemv baseline 12288x5120
+gemv 12288x5120
+M= 1    60.04 us  x1.00  bitwise
+M= 2    62.95 us  x1.05  bitwise
+M= 3    85.66 us  x1.43  bitwise
+M= 4   118.53 us  x1.97  bitwise
+M= 5   165.39 us  x2.75  bitwise
+M= 6   317.82 us  x5.29  bitwise
+M= 7   640.72 us  x10.67  bitwise
+M= 8   907.03 us  x15.11  bitwise
+## variant 2 12288x5120
+rows 12288x5120
+M= 1    59.99 us  x1.00  bitwise
+M= 2    63.01 us  x1.05  bitwise
+M= 3    67.16 us  x1.12  bitwise
+M= 4    73.20 us  x1.22  bitwise
+M= 5    81.90 us  x1.37  bitwise
+M= 6    90.95 us  x1.52  bitwise
+M= 7    99.85 us  x1.66  bitwise
+M= 8   108.77 us  x1.81  bitwise
+M= 9   117.15 us  x1.95  bitwise
+M=10   127.08 us  x2.12  bitwise
+M=11   135.39 us  x2.26  bitwise
+M=12   151.27 us  x2.52  bitwise
+M=13   164.38 us  x2.74  bitwise
+M=14   174.71 us  x2.91  bitwise
+M=15   183.52 us  x3.06  bitwise
+M=16   194.44 us  x3.24  bitwise
+## gemv baseline 5120x6144
+gemv 5120x6144
+M= 1    36.64 us  x1.00  bitwise
+M= 2    39.88 us  x1.09  bitwise
+M= 3    52.75 us  x1.44  bitwise
+M= 4    66.81 us  x1.82  bitwise
+M= 5    90.00 us  x2.46  bitwise
+M= 6   169.06 us  x4.61  bitwise
+M= 7   324.30 us  x8.85  bitwise
+M= 8   458.93 us  x12.52  bitwise
+## variant 2 5120x6144
+rows 5120x6144
+M= 1    36.50 us  x1.00  bitwise
+M= 2    43.46 us  x1.19  bitwise
+M= 3    48.99 us  x1.34  bitwise
+M= 4    56.26 us  x1.54  bitwise
+M= 5    61.04 us  x1.67  bitwise
+M= 6    65.37 us  x1.79  bitwise
+M= 7    71.01 us  x1.95  bitwise
+M= 8    76.24 us  x2.09  bitwise
+M= 9    79.24 us  x2.17  bitwise
+M=10    82.85 us  x2.27  bitwise
+M=11    87.30 us  x2.39  bitwise
+M=12    91.68 us  x2.51  bitwise
+M=13    95.71 us  x2.62  bitwise
+M=14   100.67 us  x2.76  bitwise
+M=15   104.34 us  x2.86  bitwise
+M=16   109.41 us  x3.00  bitwise
+## gemv baseline 1024x5120
+gemv 1024x5120
+M= 1    20.21 us  x1.00  bitwise
+M= 2    15.87 us  x0.79  bitwise
+M= 3    17.12 us  x0.85  bitwise
+M= 4    21.33 us  x1.06  bitwise
+M= 5    22.83 us  x1.13  bitwise
+M= 6    36.99 us  x1.83  bitwise
+M= 7    62.70 us  x3.10  bitwise
+M= 8    85.12 us  x4.21  bitwise
+## variant 2 1024x5120
+rows 1024x5120
+M= 1    19.98 us  x1.00  bitwise
+M= 2    16.68 us  x0.83  bitwise
+M= 3    18.10 us  x0.91  bitwise
+M= 4    18.28 us  x0.91  bitwise
+M= 5    19.22 us  x0.96  bitwise
+M= 6    20.55 us  x1.03  bitwise
+M= 7    21.61 us  x1.08  bitwise
+M= 8    23.02 us  x1.15  bitwise
+M= 9    24.64 us  x1.23  bitwise
+M=10    25.89 us  x1.30  bitwise
+M=11    27.59 us  x1.38  bitwise
+M=12    28.86 us  x1.44  bitwise
+M=13    30.67 us  x1.53  bitwise
+M=14    32.04 us  x1.60  bitwise
+M=15    33.24 us  x1.66  bitwise
+M=16    35.15 us  x1.76  bitwise
+## gemv baseline 10240x5120
+gemv 10240x5120
+M= 1    51.61 us  x1.00  bitwise
+M= 2    53.92 us  x1.04  bitwise
+M= 3    73.46 us  x1.42  bitwise
+M= 4   100.56 us  x1.95  bitwise
+M= 5   141.20 us  x2.74  bitwise
+M= 6   269.31 us  x5.22  bitwise
+M= 7   529.11 us  x10.25  bitwise
+M= 8   758.95 us  x14.70  bitwise
+## variant 2 10240x5120
+rows 10240x5120
+M= 1    52.69 us  x1.00  bitwise
+M= 2    54.38 us  x1.03  bitwise
+M= 3    58.59 us  x1.11  bitwise
+M= 4    63.58 us  x1.21  bitwise
+M= 5    71.10 us  x1.35  bitwise
+M= 6    79.16 us  x1.50  bitwise
+M= 7    86.16 us  x1.64  bitwise
+M= 8    94.18 us  x1.79  bitwise
+M= 9   100.95 us  x1.92  bitwise
+M=10   110.35 us  x2.09  bitwise
+M=11   117.41 us  x2.23  bitwise
+M=12   125.87 us  x2.39  bitwise
+M=13   135.12 us  x2.56  bitwise
+M=14   148.79 us  x2.82  bitwise
+M=15   156.20 us  x2.96  bitwise
+M=16   165.58 us  x3.14  bitwise
+## gemv baseline 6144x5120
+gemv 6144x5120
+M= 1    35.96 us  x1.00  bitwise
+M= 2    36.76 us  x1.02  bitwise
+M= 3    47.79 us  x1.33  bitwise
+M= 4    64.00 us  x1.78  bitwise
+M= 5    89.87 us  x2.50  bitwise
+M= 6   170.12 us  x4.73  bitwise
+M= 7   324.18 us  x9.02  bitwise
+M= 8   459.08 us  x12.77  bitwise
+## variant 2 6144x5120
+rows 6144x5120
+M= 1    35.92 us  x1.00  bitwise
+M= 2    38.77 us  x1.08  bitwise
+M= 3    41.36 us  x1.15  bitwise
+M= 4    44.76 us  x1.25  bitwise
+M= 5    49.20 us  x1.37  bitwise
+M= 6    53.89 us  x1.50  bitwise
+M= 7    58.30 us  x1.62  bitwise
+M= 8    63.15 us  x1.76  bitwise
+M= 9    67.57 us  x1.88  bitwise
+M=10    73.81 us  x2.05  bitwise
+M=11    78.96 us  x2.20  bitwise
+M=12    83.12 us  x2.31  bitwise
+M=13    86.95 us  x2.42  bitwise
+M=14    91.86 us  x2.56  bitwise
+M=15    95.32 us  x2.65  bitwise
+M=16   100.03 us  x2.78  bitwise
+## gemv baseline 300x2048
+gemv 300x2048
+M= 1    13.87 us  x1.00  bitwise
+M= 2    13.53 us  x0.98  bitwise
+M= 3    13.35 us  x0.96  bitwise
+M= 4    13.92 us  x1.00  bitwise
+M= 5    13.44 us  x0.97  bitwise
+M= 6    15.82 us  x1.14  bitwise
+M= 7    21.15 us  x1.52  bitwise
+M= 8    25.27 us  x1.82  bitwise
+## variant 2 300x2048
+rows 300x2048
+M= 1    13.70 us  x1.00  bitwise
+M= 2    12.70 us  x0.93  bitwise
+M= 3    13.27 us  x0.97  bitwise
+M= 4    13.57 us  x0.99  bitwise
+M= 5    13.57 us  x0.99  bitwise
+M= 6    13.92 us  x1.02  bitwise
+M= 7    14.58 us  x1.06  bitwise
+M= 8    14.95 us  x1.09  bitwise
+M= 9    15.45 us  x1.13  bitwise
+M=10    16.17 us  x1.18  bitwise
+M=11    16.73 us  x1.22  bitwise
+M=12    17.40 us  x1.27  bitwise
+M=13    18.02 us  x1.32  bitwise
+M=14    18.69 us  x1.36  bitwise
+M=15    19.45 us  x1.42  bitwise
+M=16    19.78 us  x1.44  bitwise
+## gemv baseline 9x32
+gemv 9x32
+M= 1     6.18 us  x1.00  bitwise
+M= 2     9.94 us  x1.61  bitwise
+M= 3    10.81 us  x1.75  bitwise
+M= 4    11.36 us  x1.84  bitwise
+M= 5    11.37 us  x1.84  bitwise
+M= 6    13.90 us  x2.25  bitwise
+M= 7    18.34 us  x2.97  bitwise
+M= 8    23.01 us  x3.72  bitwise
+## variant 2 9x32
+rows 9x32
+M= 1     6.16 us  x1.00  bitwise
+M= 2    10.28 us  x1.67  bitwise
+M= 3    10.89 us  x1.77  bitwise
+M= 4    11.30 us  x1.84  bitwise
+M= 5    11.79 us  x1.91  bitwise
+M= 6    11.71 us  x1.90  bitwise
+M= 7    11.53 us  x1.87  bitwise
+M= 8    11.79 us  x1.92  bitwise
+M= 9    12.41 us  x2.01  bitwise
+M=10    12.58 us  x2.04  bitwise
+M=11    12.89 us  x2.09  bitwise
+M=12    13.09 us  x2.13  bitwise
+M=13    13.50 us  x2.19  bitwise
+M=14    13.76 us  x2.23  bitwise
+M=15    13.98 us  x2.27  bitwise
+M=16    14.30 us  x2.32  bitwise
+## gemv baseline 33x2080
+gemv 33x2080
+M= 1    10.33 us  x1.00  bitwise
+M= 2    11.94 us  x1.16  bitwise
+M= 3    13.08 us  x1.27  bitwise
+M= 4    13.57 us  x1.31  bitwise
+M= 5    13.56 us  x1.31  bitwise
+M= 6    18.65 us  x1.81  bitwise
+M= 7    30.48 us  x2.95  bitwise
+M= 8    39.09 us  x3.79  bitwise
+## variant 2 33x2080
+rows 33x2080
+M= 1    10.58 us  x1.00  bitwise
+M= 2    13.78 us  x1.30  bitwise
+M= 3    13.35 us  x1.26  bitwise
+M= 4    13.94 us  x1.32  bitwise
+M= 5    14.11 us  x1.33  bitwise
+M= 6    14.26 us  x1.35  bitwise
+M= 7    14.98 us  x1.42  bitwise
+M= 8    15.40 us  x1.46  bitwise
+M= 9    16.16 us  x1.53  bitwise
+M=10    16.97 us  x1.60  bitwise
+M=11    17.70 us  x1.67  bitwise
+M=12    18.59 us  x1.76  bitwise
+M=13    19.26 us  x1.82  bitwise
+M=14    20.32 us  x1.92  bitwise
+M=15    20.88 us  x1.97  bitwise
+M=16    21.66 us  x2.05  bitwise
+## gemv baseline 1x4096
+gemv 1x4096
+M= 1     8.77 us  x1.00  bitwise
+M= 2    14.55 us  x1.66  bitwise
+M= 3    16.13 us  x1.84  bitwise
+M= 4    16.58 us  x1.89  bitwise
+M= 5    16.25 us  x1.85  bitwise
+M= 6    21.89 us  x2.50  bitwise
+M= 7    31.63 us  x3.61  bitwise
+M= 8    38.96 us  x4.44  bitwise
+## variant 2 1x4096
+rows 1x4096
+M= 1     8.91 us  x1.00  bitwise
+M= 2    15.38 us  x1.73  bitwise
+M= 3    16.60 us  x1.86  bitwise
+M= 4    17.19 us  x1.93  bitwise
+M= 5    17.32 us  x1.94  bitwise
+M= 6    18.50 us  x2.08  bitwise
+M= 7    19.52 us  x2.19  bitwise
+M= 8    20.65 us  x2.32  bitwise
+M= 9    21.58 us  x2.42  bitwise
+M=10    22.93 us  x2.57  bitwise
+M=11    23.75 us  x2.67  bitwise
+M=12    24.94 us  x2.80  bitwise
+M=13    25.84 us  x2.90  bitwise
+M=14    27.04 us  x3.03  bitwise
+M=15    28.15 us  x3.16  bitwise
+M=16    29.46 us  x3.31  bitwise
+## gemv baseline 64x6176
+gemv 64x6176
+M= 1     8.99 us  x1.00  bitwise
+M= 2    14.26 us  x1.59  bitwise
+M= 3    16.08 us  x1.79  bitwise
+M= 4    17.52 us  x1.95  bitwise
+M= 5    17.69 us  x1.97  bitwise
+M= 6    28.57 us  x3.18  bitwise
+M= 7    48.12 us  x5.35  bitwise
+M= 8    64.96 us  x7.23  bitwise
+## variant 2 64x6176
+rows 64x6176
+M= 1     8.98 us  x1.00  bitwise
+M= 2    16.96 us  x1.89  bitwise
+M= 3    18.98 us  x2.11  bitwise
+M= 4    19.71 us  x2.19  bitwise
+M= 5    20.53 us  x2.29  bitwise
+M= 6    22.34 us  x2.49  bitwise
+M= 7    23.98 us  x2.67  bitwise
+M= 8    25.71 us  x2.86  bitwise
+M= 9    27.37 us  x3.05  bitwise
+M=10    28.99 us  x3.23  bitwise
+M=11    31.37 us  x3.49  bitwise
+M=12    32.95 us  x3.67  bitwise
+M=13    33.69 us  x3.75  bitwise
+M=14    35.41 us  x3.94  bitwise
+M=15    36.54 us  x4.07  bitwise
+M=16    38.57 us  x4.29  bitwise

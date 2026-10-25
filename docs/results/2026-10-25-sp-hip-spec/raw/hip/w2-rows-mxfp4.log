@@ -1,0 +1,2 @@
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:48/48/693012 2:48/96/1386024 3:48/144/2079036 4:48/192/2772048 5:48/240/3465060 6:48/288/4158072 7:48/336/4851084 8:48/384/5544096
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.70s

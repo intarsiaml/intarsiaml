@@ -30,15 +30,21 @@ pub(super) struct MtpHead {
     norm_h: TensorRef,
     /// The decoder layer: attention reads slot 0 of `MtpState::kv`; its `pre_norm` is `input_layernorm`.
     attn: AttnBlock,
-    /// `post_attention_layernorm` and the MoE block.
-    moe: MoeBlock,
+    /// `post_attention_layernorm` and the feed-forward block (MoE on the 35B, dense SwiGLU on the 27B).
+    ffn: HeadFfn,
     norm: TensorRef,
     /// `[1, H]`: the head's last normed output row, the hidden input of a chained draft.
-    chain: Buffer,
+    pub(super) chain: Buffer,
     /// Rows of the pending buffer a sequence's [`MtpState`] gets.
     pending_rows: usize,
     /// Tests: replaces the head's drafts (after the head ran, so its state advances as usual), see [`Model::mtp_script`].
-    script: Mutex<Option<DraftScript>>,
+    pub(super) script: Mutex<Option<DraftScript>>,
+}
+
+/// The head's feed-forward block.
+pub(super) enum HeadFfn {
+    Moe(MoeBlock),
+    Dense(FfnBlock),
 }
 
 /// `(sequence tokens followed by the next token, k) -> drafts`.
@@ -72,7 +78,6 @@ pub(super) fn load_head(
         .as_ref()
         .ok_or_else(|| Error::model("[mtp] needs the recipe's [layer.attn] (the head is an attention layer)"))?;
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
-    let mc = dims.moe.as_ref().ok_or_else(|| Error::model("[mtp] needs the model's MoE dimensions"))?;
     let (h, p) = (dims.hidden, spec.prefix.as_str());
     let l = format!("{p}.layers.0");
     let qdim = dims.n_heads * dims.head_dim;
@@ -134,9 +139,22 @@ pub(super) fn load_head(
         gated: a.gated,
         rotary_dim: main_attn.rotary_dim,
     };
-    let moe = MoeBlock {
-        pre_norm: load(&format!("{l}.post_attention_layernorm"), Some(&[h]))?,
-        w: load_moe(b, src, &format!("{l}.mlp"), mc, load_q, add_bytes)?,
+    let pre_norm = load(&format!("{l}.post_attention_layernorm"), Some(&[h]))?;
+    let ffn = match dims.moe.as_ref() {
+        Some(mc) => HeadFfn::Moe(MoeBlock { pre_norm, w: load_moe(b, src, &format!("{l}.mlp"), mc, load_q, add_bytes)? }),
+        None => {
+            // dense SwiGLU (Qwen3.5 / 3.8 dense: bf16 gate / up / down)
+            let i = dims.intermediate;
+            if i == 0 {
+                return Err(Error::model("[mtp] needs the model's MoE dimensions or a dense intermediate size"));
+            }
+            HeadFfn::Dense(FfnBlock {
+                pre_norm,
+                gate: load_q(&format!("{l}.mlp.gate_proj"), i, h)?,
+                up: load_q(&format!("{l}.mlp.up_proj"), i, h)?,
+                down: load_q(&format!("{l}.mlp.down_proj"), h, i)?,
+            })
+        }
     };
     let chain = b.alloc((h * 4).max(16), MemKind::Device)?;
     Ok(MtpHead {
@@ -145,7 +163,7 @@ pub(super) fn load_head(
         norm_e: load(&format!("{p}.pre_fc_norm_embedding"), Some(&[h]))?,
         norm_h: load(&format!("{p}.pre_fc_norm_hidden"), Some(&[h]))?,
         attn,
-        moe,
+        ffn,
         norm: load(&format!("{p}.norm"), Some(&[h]))?,
         chain,
         pending_rows,
@@ -333,7 +351,7 @@ impl Model {
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
                 if done == n {
-                    tok = if next.is_some() { self.head_argmax(&out, c - 1, profile)? } else { 0 };
+                    tok = if next.is_some() { self.draft_head_argmax(&out, c - 1, profile)? } else { 0 };
                     if next.is_some() && self.recorder.lock().unwrap().is_none() {
                         self.backend.copy(
                             &head.chain,
@@ -406,7 +424,7 @@ impl Model {
                 let ids = [*drafts.last().unwrap()];
                 let out = self.mtp_layer(head, &m.kv, &ids, &hid, profile)?;
                 m.kv.commit(&ids);
-                drafts.push(self.head_argmax(&out, 0, profile)?);
+                drafts.push(self.draft_head_argmax(&out, 0, profile)?);
                 if self.recorder.lock().unwrap().is_none() {
                     self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;
                 }
@@ -541,30 +559,50 @@ impl Model {
         hid: &TensorRef,
         profile: bool,
     ) -> Result<TensorRef> {
-        let t = ids.len();
+        self.mtp_layer_at(head, kv, ids.len(), Some(ids), hid, None, None, profile)
+    }
+
+    /// [`Model::mtp_layer`] for `t` rows. `ids`: the host tokens, uploaded to `ws.ids`; `None` with `ids_dev` (`i32 [t]`):
+    /// the tokens are already on the device (a captured speculative step, whose chained rows read the previous draft where
+    /// its argmax left it). `dpos` (a run of consecutive device positions, row `r` at entry `r`): the rows' positions are
+    /// read when the launches run, so the recording is valid at every position ([`Model::spec_step`]).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn mtp_layer_at(
+        &self,
+        head: &MtpHead,
+        kv: &SequenceState,
+        t: usize,
+        ids: Option<&[u32]>,
+        hid: &TensorRef,
+        ids_dev: Option<&TensorRef>,
+        dpos: Option<&TensorRef>,
+        profile: bool,
+    ) -> Result<TensorRef> {
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
-        if t == 0 || t > ws.max_tokens || kv.len + t > kv.cap {
+        if t == 0 || t > ws.max_tokens || (dpos.is_none() && kv.len + t > kv.cap) {
             return Err(Error::invalid(format!(
                 "MTP pass of {t} rows at {} (cap {}, chunk {})",
                 kv.len, kv.cap, ws.max_tokens
             )));
         }
-        if self.recorder.lock().unwrap().is_none() {
-            for &i in ids {
-                if i as usize >= d.vocab {
-                    return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+        if let (Some(ids), None) = (ids, ids_dev) {
+            if self.recorder.lock().unwrap().is_none() {
+                for &i in ids {
+                    if i as usize >= d.vocab {
+                        return Err(Error::BadRequest(format!("token id {i} >= vocab {}", d.vocab)));
+                    }
                 }
+                let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+                self.backend.upload(&ws.ids, 0, &ids_i32, self.stream)?;
             }
-            let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
-            self.backend.upload(&ws.ids, 0, &ids_i32, 0)?;
         }
         let v = |b: &Buffer| self.view(b, act, &[t, h]);
         let (h0, h1, n, blk) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.n), v(&ws.blk));
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
         self.exec(
             Op::Embedding,
-            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![ids_dev.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t])), self.embed.clone()],
             vec![h0.clone()],
             OpAttrs::default(),
             profile,
@@ -576,16 +614,25 @@ impl Model {
         self.exec(Op::Add, vec![h1.clone(), n.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
-        self.attn_block(&head.attn, kv, &n, &blk, t, kv.len, None, false, profile)?;
+        self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile)?;
+        let ffn_norm = match &head.ffn {
+            HeadFfn::Moe(m) => &m.pre_norm,
+            HeadFfn::Dense(f) => &f.pre_norm,
+        };
         self.exec(
             Op::RmsNormAdd,
-            vec![blk.clone(), h0.clone(), head.moe.pre_norm.clone()],
+            vec![blk.clone(), h0.clone(), ffn_norm.clone()],
             vec![n.clone(), h1.clone()],
             eps.clone(),
             profile,
         )?;
-        let mws = ws.moe.as_ref().ok_or_else(|| Error::invalid("MTP MoE block without the MoE workspace"))?;
-        head.moe.w.forward(&ExecRunner { m: self, profile }, mws, &n, &blk)?;
+        match &head.ffn {
+            HeadFfn::Moe(m) => {
+                let mws = ws.moe.as_ref().ok_or_else(|| Error::invalid("MTP MoE block without the MoE workspace"))?;
+                m.w.forward(&ExecRunner { m: self, profile }, mws, &n, &blk)?;
+            }
+            HeadFfn::Dense(f) => self.ffn_block(f, &n, &blk, t, profile)?,
+        }
         self.exec(Op::RmsNormAdd, vec![blk, h1, head.norm.clone()], vec![n.clone(), h0], eps, profile)?;
         Ok(n)
     }

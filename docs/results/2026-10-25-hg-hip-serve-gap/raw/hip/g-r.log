@@ -1,0 +1,28 @@
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 81.10s
+-- kernels test --quick
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+62 kernels, 333 cases in 3.0s
+-- packed_rows (row-invariance of the prefill kernels, for the packed-prefill PR)
+test bf16_gemm_rows_do_not_depend_on_m ... matmul_bf16 N256 K2048: matmul_bf16 rows identical, 6 segments, 4167 rows, 4167 row-outputs
+matmul_bf16 N1 K2048: matmul_bf16 rows identical, 6 segments, 4167 rows, 4167 row-outputs
+test moe_experts_rows_do_not_depend_on_t ... moe_experts 35B shape: moe_experts_bf16_v2 rows identical, 6 segments, 4167 rows, 4167 row-outputs
+test moe_experts_small_segments_cross_the_gemv_wmma_threshold ... segment of 200 rows: identical
+segment of 15 rows: DIFFERS from the same rows alone
+segment of 300 rows: identical
+test moe_topk_rows_do_not_depend_on_t ... moe_topk: moe_topk_bf16_v2 rows identical, 6 segments, 4167 rows, 8334 row-outputs
+moe_topk with ties: moe_topk_bf16_v2 rows identical, 6 segments, 4167 rows, 8334 row-outputs
+test nvfp4_gemm_rows_do_not_depend_on_m ... matmul_nvfp4_mma N512 K2048: matmul_nvfp4_mma rows identical, 6 segments, 4167 rows, 4167 row-outputs
+matmul_nvfp4_mma N2048 K512: matmul_nvfp4_mma rows identical, 6 segments, 4167 rows, 4167 row-outputs
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s

@@ -1,0 +1,1 @@
+finish=length prompt=11 (cached 0) completion=256 | prefill 1202 ms (9.1 tok/s) | decode 3679 ms (69.31 tok/s)

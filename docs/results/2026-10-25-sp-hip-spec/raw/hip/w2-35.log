@@ -1,0 +1,7 @@
+k1 n1024 md5=419d4320 | decode 1350 ms (188.86 tok/s) | spec: verify passes=137 proposed=137 accepted=117 (acceptance 85.4%, 1.85 tokens per pass) | steps=140 graph replays=139 (captures 3) eager decode steps=0 (profiled 0) top ops: add=0m
+k1 n4096 md5=4963646e | decode 1318 ms (193.45 tok/s) | spec: verify passes=131 proposed=131 accepted=124 (acceptance 94.7%, 1.95 tokens per pass) | steps=133 graph replays=132 (captures 3) eager decode steps=0 (profiled 0) top ops: add=0m
+k2 n1024 md5=419d4320 | decode 1276 ms (199.77 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+k2 n4096 md5=4963646e | decode 1235 ms (206.53 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=91 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+k3 n1024 md5=419d4320 | decode 1342 ms (190.00 tok/s) | spec: verify passes=84 proposed=252 accepted=170 (acceptance 67.5%, 3.02 tokens per pass) | steps=87 graph replays=86 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0ms/
+k3 n4096 md5=4963646e | decode 1151 ms (221.63 tok/s) | spec: verify passes=70 proposed=208 accepted=185 (acceptance 88.9%, 3.64 tokens per pass) | steps=72 graph replays=70 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0ms/
+prof2 n1024 md5=d41d8cd9 |  |  | 

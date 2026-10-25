@@ -21,6 +21,22 @@ pub const MATMUL_NVFP4_GEMV_ROWS: &str = "matmul_nvfp4_gemv_rows";
 pub const SHADERS: [&str; 6] =
     ["nv_gemv_bf16_m1", "nv_gemv_bf16_m8", "nv_gemv_f32_m1", "nv_gemv_f32_m8", "nv_mma_bf16", "nv_mma_f32"];
 
+/// The widest matrix whose multi-row GEMV runs one row per threadgroup row (lane mm): an N-row matrix with N at most this
+/// gets the one-row shader over a grid of M threadgroup rows (each row is then the one-row launch itself; the weights come
+/// again from cache), wider ones the 8-row shader. The 35B's shared-expert matrices (512 / 2048 rows) give the 8-row shader
+/// only 32 / 128 threadgroups. `INTARSIA_METAL_NV_ROWS_SPLIT=0` keeps the 8-row shader everywhere.
+const NARROW_N: usize = 4096;
+
+fn nv_rows_mb(n: usize) -> usize {
+    static SPLIT: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let split = *SPLIT.get_or_init(|| std::env::var("INTARSIA_METAL_NV_ROWS_SPLIT").map_or(true, |v| v != "0"));
+    if split && n <= NARROW_N {
+        1
+    } else {
+        GEMV_MB
+    }
+}
+
 /// Simdgroups per GEMV threadgroup (`NV_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
 const GEMV_SG: usize = 8;
 const GEMV_RS: [usize; 2] = [4, 2];
@@ -97,11 +113,18 @@ impl MetalBackend {
                 if m > GEMV_MB || (kernel == MATMUL_NVFP4_GEMV_ROWS && m < 2) {
                     return Err(Error::invalid(format!("metal {kernel}: M = {m} outside the kernel's rows")));
                 }
-                let (name, rs, mb) = match (f32_out, m == 1) {
-                    (false, true) => (SHADERS[0], GEMV_RS[0], 1),
-                    (false, false) => (SHADERS[1], GEMV_RS[1], GEMV_MB),
-                    (true, true) => (SHADERS[2], GEMV_RS[0], 1),
-                    (true, false) => (SHADERS[3], GEMV_RS[1], GEMV_MB),
+                let mb = if m == 1 {
+                    1
+                } else if kernel == MATMUL_NVFP4_GEMV_ROWS {
+                    nv_rows_mb(n)
+                } else {
+                    GEMV_MB
+                };
+                let (name, rs) = match (f32_out, mb) {
+                    (false, 1) => (SHADERS[0], GEMV_RS[0]),
+                    (false, _) => (SHADERS[1], GEMV_RS[1]),
+                    (true, 1) => (SHADERS[2], GEMV_RS[0]),
+                    (true, _) => (SHADERS[3], GEMV_RS[1]),
                 };
                 let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
                 (pso, (n.div_ceil(GEMV_SG * rs), m.div_ceil(mb)), GEMV_SG * 32)

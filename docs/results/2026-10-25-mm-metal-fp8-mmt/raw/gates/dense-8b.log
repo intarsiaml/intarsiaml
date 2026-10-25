@@ -1,0 +1,44 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+   Compiling intarsia-models v0.0.1 (/opt/code/wt-mm/crates/intarsia-models)
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "batch_metal") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.62s
+     Running tests/batch_metal.rs (target/release/deps/batch_metal-e8a1272b5afa053a)
+
+running 1 test
+test batch_bitwise_equals_solo_steps_qwen3_8b_metal ... kernels matmul: decode ["matmul_bf16_gemv"] | batch ["matmul_bf16_gemv_rows"]
+kernels matmul_pair: decode ["matmul_pair_bf16_gemv"] | batch ["matmul_pair_bf16_gemv_rows"]
+kernels logits: decode ["logits_bf16_gemv"] | batch ["logits_bf16_gemv_rows"]
+kernels qk_norm_rope_kv: decode ["qk_norm_rope_kv_bf16"] | batch ["qk_norm_rope_kv_bf16_rows"]
+kernels attn_decode: decode ["attn_decode_bf16_splitkv"] | batch ["attn_decode_bf16_splitkv_rows"]
+138 (row, step) pairs bitwise identical in 12.2 s
+48 decode rows bitwise identical beside 256-token prefill chunks, prefill bitwise equal, 3.8 s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.23s
+
