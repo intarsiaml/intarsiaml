@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane mx window 4 (card 0): gates. plan show base vs dev (27B, 35B), kernels test --quick (27B, 35B; default and fold),
-# batch_recurrent and batch_cuda_real (+ --ignored) on the hip backend, the HIP crate's GPU tests that touch MXFP4.
+# qualify --quick-only (acc-short) 27B (default, fold) and 35B.
 set -uo pipefail
 O=$1; S="$(dirname "${BASH_SOURCE[0]}")"; source "$S/lib.sh"
 for t in base dev; do [[ $(T $t)/mx-intarsia -nt $(T $t)/Cargo.toml ]] || { log "NO FRESH BINARY in $(T $t); abort"; exit 3; }; done
@@ -16,6 +16,7 @@ done
 need 300 "kq" && kq dev 27 "$M27"
 need 300 "kq" && E="INTARSIA_HIP_MXFP4_FOLD=1" kq dev 27-fold "$M27"
 need 300 "kq" && kq dev 35 "$M35"
-need 600 "mtest" && mtest dev batch --test batch_recurrent --test batch_cuda_real -- --test-threads=1 --include-ignored
-need 300 "hiptests" && hiptest dev mx-rest --test rows_exact --test quantmoe --test mxfp4_decode -- --test-threads=1
+need 400 "qual" && qual dev 27 "$M27" --golden $G27
+need 400 "qual" && E="INTARSIA_HIP_MXFP4_FOLD=1" qual dev 27-fold "$M27" --golden $G27
+need 400 "qual" && qual dev 35 "$M35" --golden-dir /work/golden
 log "w4 done; $(left) s left"

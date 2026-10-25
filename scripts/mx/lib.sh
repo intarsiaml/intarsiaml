@@ -138,3 +138,10 @@ kq() {
   run "$tree" 400 "kq-$tag" "$(mdir "$m")" kernels test --backend hip --model "$m" --quick "$@"
   log "kq $tag: $(grep -aE 'kernels,|cases|FAIL|NO CASES' "$O/kq-$tag.out" "$O/kq-$tag.err" | tail -3 | tr '\n' '|' | cut -c1-300)"
 }
+# qual <tree> <tag> <model> [args]: intarsia qualify --quick-only (acc-short) -> $O/qual-<tag>.*
+qual() {
+  local tree=$1 tag=$2 m=$3; shift 3
+  run "$tree" 900 "qual-$tag" "$(mdir "$m")" qualify --model "$m" --backend hip --quick-only --gen 64 --reps 2 --no-unim \
+    --out /work/mx-out/qual-$tag --mem-budget 29 "$@"
+  log "qual $tag: $(grep -aiE 'acc-short|verdict|PASS|FAIL' "$O/qual-$tag.out" "$O/qual-$tag.err" | tail -4 | tr '\n' '|' | cut -c1-300)"
+}
