@@ -34,7 +34,7 @@ use intarsia_core::{
 use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 #[path = "common/batch_identity.rs"]
@@ -105,6 +105,15 @@ fn backend() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
         }
     })
     .clone()
+}
+
+/// On a GPU the tests of this file one at a time (every test takes it first): they share the one backend of [`backend`],
+/// and a decode-graph capture on its stream (HIP, CUDA) takes in or refuses whatever another test launches or syncs on
+/// that stream meanwhile (IK_ERR_LAUNCH, hipError 900 / 901 under the default parallel test runner). The cpu reference
+/// captures nothing and stays parallel (`None`). A failed test does not poison it for the rest.
+fn serial() -> Option<MutexGuard<'static, ()>> {
+    static SERIAL: Mutex<()> = Mutex::new(());
+    gpu().map(|_| SERIAL.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// Most batched sequences the file exercises: 4 on the cpu reference, the backend's cap on a GPU (CUDA and HIP 16, Metal 8).
@@ -376,6 +385,7 @@ fn cases(n: usize) -> Vec<GenRequest> {
 
 #[test]
 fn hybrid_batching_is_refused_without_the_opt_in() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -458,6 +468,7 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
 /// (CUDA only: other backends replay no graphs, and the check is vacuous there.)
 #[test]
 fn alternating_rows_and_batches_do_not_recapture() {
+    let _serial = serial();
     if backend().is_none() || !on_cuda() {
         return;
     }
@@ -491,6 +502,7 @@ fn alternating_rows_and_batches_do_not_recapture() {
 
 #[test]
 fn batched_hybrid_decode_is_bitwise_the_solo_step() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -520,6 +532,7 @@ fn batched_hybrid_decode_is_bitwise_the_solo_step() {
 
 #[test]
 fn batched_hybrid_decode_beside_prefill_chunks() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -536,6 +549,7 @@ fn batched_hybrid_decode_beside_prefill_chunks() {
 /// at the same time: every decode row bitwise its solo step, the chunked prefill bitwise the prefill alone. CUDA only.
 #[test]
 fn decode_twin_beside_a_running_prefill_is_bitwise_solo() {
+    let _serial = serial();
     if backend().is_none() || !on_cuda() {
         return;
     }
@@ -552,6 +566,7 @@ fn decode_twin_beside_a_running_prefill_is_bitwise_solo() {
 /// The batched engine with overlap on equals the solo engine over 128 tokens (CUDA only).
 #[test]
 fn batched_engine_with_overlap_equals_solo_over_128_tokens() {
+    let _serial = serial();
     if backend().is_none() || !on_cuda() {
         return;
     }
@@ -591,6 +606,7 @@ fn check_engine_overlap(v: Variant, rows: usize, n_cases: usize, reuse: bool, ov
 
 #[test]
 fn batched_engine_equals_solo_over_128_tokens() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -609,6 +625,7 @@ fn batched_engine_equals_solo_over_128_tokens() {
 
 #[test]
 fn batched_engine_with_prefix_reuse_equals_solo() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -625,6 +642,7 @@ fn batched_engine_with_prefix_reuse_equals_solo() {
 
 #[test]
 fn prefix_reuse_restores_recurrent_state_from_a_snapshot() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -672,6 +690,7 @@ fn prefix_reuse_case(v: Variant) {
 /// allocated when the slot is created, not lazily inside the scheduler loop.
 #[test]
 fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
@@ -766,6 +785,7 @@ fn check_packed(v: Variant, rows: usize, chunk: usize) {
 
 #[test]
 fn batched_engine_with_packed_prefill_equals_solo() {
+    let _serial = serial();
     if backend().is_none() {
         return;
     }
