@@ -16,8 +16,13 @@ seed() {
   echo "seeded $v $(date +%T)"
 }
 for spec in ${TREES:?TREES=name=stamp ...}; do
-  name=${spec%%=*}; stamp=${spec#*=}; stamp=${stamp//_/ }
+  name=${spec%%=*}; stamp=${spec#*=}
   export INTARSIA_REPO=$HOME/intarsiaml-mx-$name INTARSIA_TARGET_VOL=intarsia-cargo-target-mx-$name
+  # the tree's own .stamp (sync.sh writes it with the tree) wins: a queued build always stamps what it compiles
+  if [[ -s $INTARSIA_REPO/.stamp && "$(cat $INTARSIA_REPO/.stamp)" != "$stamp" ]]; then
+    echo "== $name: queued stamp $stamp, tree .stamp $(cat $INTARSIA_REPO/.stamp): using the tree's"; stamp=$(cat $INTARSIA_REPO/.stamp)
+  fi
+  stamp=${stamp//_/ }
   seed "$INTARSIA_TARGET_VOL"
   D=$INTARSIA_REPO/deploy/tatooine/dev.sh
   echo "== $name: $stamp $(date +%T)"
