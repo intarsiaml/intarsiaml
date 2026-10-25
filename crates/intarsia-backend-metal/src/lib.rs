@@ -239,6 +239,25 @@ fn err<E: std::fmt::Debug>(what: &str, e: E) -> Error {
 }
 
 impl MetalBackend {
+    /// Per-kernel profiling only (`INTARSIA_METAL_PROFILE=kernel:..`, where every launch is waited on before the next):
+    /// label a `MoeExperts` launch with its routing, `n` = distinct experts, `k` = valid (token, slot) pairs, read back from
+    /// the ids the top-k launch wrote. Observes only; outside the per-kernel mode it does nothing.
+    fn label_moe_routing(&self, call: &OpCall) {
+        let per_kernel = self.stream.lock().unwrap().prof.as_ref().is_some_and(|p| p.per_kernel);
+        let Some(ids) = call.inputs.get(1).filter(|t| per_kernel && t.dtype == DType::I32) else { return };
+        let mut raw = vec![0u8; ids.numel() * 4];
+        if self.download(&ids.buf, ids.offset, &mut raw, 0).is_err() {
+            return;
+        }
+        let mut v: Vec<i32> = raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).filter(|&i| i >= 0).collect();
+        let pairs = v.len();
+        v.sort_unstable();
+        v.dedup();
+        if let Some(l) = self.stream.lock().unwrap().label.as_mut() {
+            (l.n, l.k) = (v.len(), pairs);
+        }
+    }
+
     pub fn new() -> Result<MetalBackend> {
         Self::with_metal4(std::env::var_os("INTARSIA_METAL_NO_METAL4").is_none_or(|v| v.is_empty() || v == "0"))
     }
@@ -759,6 +778,9 @@ impl Backend for MetalBackend {
             if st.prof.is_some() {
                 st.label = Some(profile::Label::of(kernel, call));
             }
+        }
+        if call.op == Op::MoeExperts {
+            self.label_moe_routing(call);
         }
         if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
             let plan = self.plan_gemv(call)?;
