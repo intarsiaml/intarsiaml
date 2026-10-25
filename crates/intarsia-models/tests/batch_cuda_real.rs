@@ -312,8 +312,9 @@ fn real_35b_batch_step_sampled_timing() {
     }
 }
 
-/// Per-op calls and time of 8 profiled batched steps at B = 4 and at B = 16 (profiling syncs after each op, so the sum
-/// is above the unprofiled step; the shares are what to read).
+/// Per-op calls and time of 8 profiled batched steps at B = 1, 4 and 16, or at `INTARSIA_TIMING_ROWS="1,8,16"` (profiling
+/// syncs after each op, so the sum is above the unprofiled step; the shares are what to read). Two unprofiled-in-the-table
+/// warm-up steps per B come first.
 #[test]
 #[ignore]
 fn real_35b_batch_step_profile() {
@@ -328,14 +329,30 @@ fn real_35b_batch_step_profile() {
             st
         })
         .collect();
-    for b in [1usize, 4, 16] {
-        let before = tel.snapshot().ops;
+    let rows_list: Vec<usize> = std::env::var("INTARSIA_TIMING_ROWS")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![1, 4, 16]);
+    for b in rows_list {
         let ids: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
         let modes = vec![HeadMode::LastArgmax; b];
+        // B = 1 is the solo step (`forward`, eager, the same per-op syncs): the batched path replays a captured graph at one row,
+        // whose ops are not timed one by one
+        let step = |states: &mut Vec<_>| {
+            if b == 1 {
+                m.forward(&mut states[0], &ids, HeadMode::LastArgmax, None).unwrap();
+            } else {
+                let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+                m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            }
+        };
+        for _ in 0..2 {
+            step(&mut states);
+        }
+        let before = tel.snapshot().ops;
         let t0 = std::time::Instant::now();
         for _ in 0..8 {
-            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
-            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            step(&mut states);
         }
         let wall = t0.elapsed().as_secs_f64() * 1e3 / 8.0;
         let after = tel.snapshot().ops;
@@ -350,8 +367,8 @@ fn real_35b_batch_step_profile() {
         rows.sort_by(|x, y| y.2.partial_cmp(&x.2).unwrap());
         let tot: f64 = rows.iter().map(|r| r.2).sum::<f64>() / 8.0;
         eprintln!("PROFILE B={b}: wall {wall:.2} ms/step (profiled), op time sum {tot:.2} ms/step");
-        for (k, calls, ms) in rows.iter().take(14) {
-            eprintln!("PROFILE B={b}   {k:<28} {:>6.1} calls/step {:>7.3} ms/step", *calls as f64 / 8.0, ms / 8.0);
+        for (k, calls, ms) in rows.iter().take(40) {
+            eprintln!("PROFILE B={b}   {k:<40} {:>6.1} calls/step {:>7.3} ms/step", *calls as f64 / 8.0, ms / 8.0);
         }
     }
 }
