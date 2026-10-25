@@ -182,6 +182,7 @@ Without that flag nothing under the prefix is loaded and the table has no effect
 |---|---|---|---|
 | `kind` | string | required | `"qwen3_5_mtp"`: `fc` over `[norm(embed(token)) \| norm(hidden)]`, one gated full-attention + MoE decoder layer, a final norm, the model's own `lm_head` (vLLM `Qwen3NextMultiTokenPredictor`). |
 | `prefix` | string | required | Tensor-name prefix (`"mtp"`): `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`, `{prefix}.layers.0.*`. |
+| `draft_vocab` | int | unset (the full head); `65536` in `recipes/qwen3_5_vl.toml` | Default for `--mtp-draft-vocab`: the MTP drafter's argmax runs over the first N `lm_head` rows (a multiple of 8, below the vocabulary). Output is unchanged (the verify pass keeps the full head); only acceptance moves. An explicit `--mtp-draft-vocab` (0 included) wins. |
 | `cost_min_speedup` | float | off everywhere (docs/results/2026-10-25-sp-hip-spec.md, section 13) | Measured-cost gate, opt-in: a request falls back to plain steps while `tokens_per_pass / (ms_per_pass / ms_per_plain_token)` stays under this. `0` turns the gate off (`INTARSIA_SPEC_COSTGATE` overrides). |
 | `cost_window` | int | `16` | Passes the speedup must stay under `cost_min_speedup` before the fallback. |
 | `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |

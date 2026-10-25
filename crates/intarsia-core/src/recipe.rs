@@ -41,6 +41,10 @@ pub struct MtpSpec {
     /// Tensor-name prefix: `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`,
     /// `{prefix}.layers.0.{input_layernorm, self_attn.*, post_attention_layernorm, mlp.*}`.
     pub prefix: String,
+    /// Default for `--mtp-draft-vocab` (docs/results/2026-10-25-sp-hip-spec.md section 6): the MTP drafter's argmax runs over the
+    /// first N `lm_head` rows (a multiple of 8). Unset or 0: the full head. An explicit `--mtp-draft-vocab` (0 included) wins.
+    #[serde(default)]
+    pub draft_vocab: Option<usize>,
     /// Measured-cost gate (`spec::CostParams`), per recipe: the speedup under which a request falls back to plain
     /// decode (0 turns the gate off), the passes it must stay under for, the passes between probes of the plain-step
     /// cost, and the plain tokens before speculation is tried again. Unset: the backend's default.

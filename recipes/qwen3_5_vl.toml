@@ -73,3 +73,8 @@ max_batch = 32
 
 kind = "qwen3_5_mtp"
 prefix = "mtp"
+# The drafter's argmax runs over the first 65536 of the 248320 lm_head rows (`--mtp-draft-vocab`; `--mtp-draft-vocab 0` is the full
+# head). Output is unchanged (the verify pass keeps the full head); measured on the Qwen3.8-27B MXFP4 on HIP, k=2: +8 to +12% decode
+# on natural text (acceptance within about 4 points of the full head), Rust code +11.6%, Chinese acceptance 65.9% -> 51.4% and
+# 16% slower than the full head (docs/results/2026-10-25-sp-hip-spec.md sections 6 and 8). User decision 2026-10-25 11:05.
+draft_vocab = 65536

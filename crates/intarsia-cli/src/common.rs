@@ -112,9 +112,10 @@ pub struct ModelArgs {
     /// all of them, so each draft costs N/V of a head sweep (about 11% of a 27B pass at k=2 is the two draft sweeps). Output is
     /// unchanged (the verify pass keeps the full head); only acceptance can move, down when the true token is outside 0..N.
     /// N a multiple of 8, below the vocabulary size (else the full head is used, with a warning at load). Needs `--spec mtp`.
-    /// Default 0: the full head.
-    #[arg(long, default_value_t = 0, value_parser = parse_draft_vocab)]
-    pub mtp_draft_vocab: usize,
+    /// Default: the recipe's `[mtp] draft_vocab` (65536 for the Qwen3.8-27B recipe, `qwen3_5_vl`; the full head for every other
+    /// recipe). `--mtp-draft-vocab 0` forces the full head.
+    #[arg(long, value_parser = parse_draft_vocab)]
+    pub mtp_draft_vocab: Option<usize>,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
     /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
     #[arg(skip)]
@@ -283,8 +284,8 @@ impl ModelArgs {
     }
 
     pub fn engine_options(&self) -> Result<EngineOptions> {
-        if self.mtp_draft_vocab > 0 && self.spec != "mtp" {
-            anyhow::bail!("--mtp-draft-vocab {} needs --spec mtp (it narrows the MTP drafter's head; --spec is {})", self.mtp_draft_vocab, self.spec);
+        if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0).filter(|_| self.spec != "mtp") {
+            anyhow::bail!("--mtp-draft-vocab {n} needs --spec mtp (it narrows the MTP drafter's head; --spec is {})", self.spec);
         }
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
         let chat_template = if let Some(p) = &self.chat_template_file {
@@ -623,9 +624,14 @@ mod tests {
         assert!(g.model.engine_options().is_err());
         // with it, and unset: fine
         let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--spec", "mtp", "--mtp-draft-vocab", "65536"]).unwrap().a;
-        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, 65536);
+        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, Some(65536));
+        // unset: the recipe decides (None); an explicit 0 forces the full head and is fine with any --spec
         let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x"]).unwrap().a;
-        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, 0);
+        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, None);
+        let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--mtp-draft-vocab", "0"]).unwrap().a;
+        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, Some(0));
+        let g = Gen::try_parse_from(["t", "-m", "/m", "-p", "x", "--spec", "mtp", "--mtp-draft-vocab", "0"]).unwrap().a;
+        assert_eq!(g.model.engine_options().unwrap().load.mtp_draft_vocab, Some(0));
     }
 
     #[test]

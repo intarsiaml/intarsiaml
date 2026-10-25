@@ -472,7 +472,7 @@ fn engine_cost(
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: k.is_some(),
-        mtp_draft_vocab: draft_vocab,
+        mtp_draft_vocab: Some(draft_vocab),
         profile_every: 0,
         ..Default::default()
     };
@@ -1083,7 +1083,7 @@ fn reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix() {
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: true,
-        mtp_draft_vocab: n,
+        mtp_draft_vocab: Some(n),
         profile_every: 0,
         ..Default::default()
     };
@@ -1124,7 +1124,7 @@ fn load_on(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, draft_vocab: usi
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: true,
-        mtp_draft_vocab: draft_vocab,
+        mtp_draft_vocab: Some(draft_vocab),
         profile_every: 0,
         ..Default::default()
     };
@@ -1294,4 +1294,61 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
             }
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// recipe default of --mtp-draft-vocab
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The drafts of 30 eager draft + verify steps on one prompt (k = 2), for a model loaded with the recipe's `[mtp] draft_vocab`
+/// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
+fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
+    let (mut recipe, dims) = dims();
+    recipe.mtp.as_mut().expect("recipe has [mtp]").draft_vocab = recipe_dv;
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: opt,
+        profile_every: 0,
+        ..Default::default()
+    };
+    let backend: Arc<dyn Backend> = CpuBackend::arc();
+    let mut m = Model::load(backend.clone(), &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(3).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let mut st = m.new_state().unwrap();
+    let StepOut::Token(mut last) = m.forward(&mut st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    let mut all = vec![];
+    for _ in 0..30 {
+        let len0 = st.len;
+        let d = m.mtp_draft(&mut st, last, 2).unwrap();
+        let mut ids = vec![last];
+        ids.extend(&d);
+        let o = m.forward_verify(&mut st, &ids).unwrap();
+        st.spec_rollback(len0 + 1, &*backend).unwrap();
+        last = o[0];
+        all.push(d);
+    }
+    all
+}
+
+/// A recipe default narrows the draft head exactly as the flag does, an explicit `--mtp-draft-vocab 0` (the full head) overrides it,
+/// an explicit value overrides it the other way, and a recipe without the key drafts with the full head.
+#[test]
+fn recipe_draft_vocab_default_is_overridden_by_the_flag() {
+    let w = weights(11);
+    let full = drafts_of(&w, None, None);
+    let narrow = drafts_of(&w, None, Some(32));
+    assert!(narrow.iter().flatten().all(|&t| t < 32), "{narrow:?}");
+    assert_ne!(full, narrow, "the fixture's drafts leave 0..32 somewhere, else the test cannot tell the heads apart");
+    // the recipe's value, no flag: the narrow head
+    assert_eq!(drafts_of(&w, Some(32), None), narrow);
+    // flag 0 beats the recipe: the full head
+    assert_eq!(drafts_of(&w, Some(32), Some(0)), full);
+    // flag N beats the recipe's M
+    assert_eq!(drafts_of(&w, Some(8), Some(32)), narrow);
+    // recipe 0 is the full head
+    assert_eq!(drafts_of(&w, Some(0), None), full);
 }
