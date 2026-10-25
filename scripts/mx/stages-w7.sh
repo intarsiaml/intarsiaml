@@ -34,6 +34,10 @@ for n in 1024 4096 16384; do
   need 60 "pf" && E="INTARSIA_PREFILL_PEEL=8" pf dev peel-$n "$M27" $n --prefill-chunk 4096
   need 60 "pf" && E="INTARSIA_PREFILL_PEEL=8 INTARSIA_HIP_MXFP4_FOLD=1" pf dev peelfold-$n "$M27" $n --prefill-chunk 4096
 done
+# 35B: KL golden (prefill + teacher-forced decode) main vs dev, acc-short (qualify, golden dir with the HIP baseline) on dev
+need 120 "accg35" && accg35 base base
+need 120 "accg35" && accg35 dev dev
+need 300 "qual" && qual dev 35g "$M35" --golden-dir /work/golden
 # GEMM diagnostics for the next bitwise lever (section 7): v2 with the dequant ALU removed (nodq arm), LDS bank conflicts
 need 90 "mxbench" && mxbench dev m4096-nodq 4096 10
 need 120 "pmc" && pmcbench dev lds SQ_LDS_BANK_CONFLICT SQ_LDS_IDX_ACTIVE

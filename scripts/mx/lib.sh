@@ -149,6 +149,15 @@ accg() {
     --ref-noise $N27 --write-self-golden /work/mx-out/accg-$tag.safetensors --allow-unstamped --allow-dirty "$@"
   cp "$(T "$tree")/mx-out/accg-$tag.safetensors" "$O/" 2>/dev/null
 }
+# accg35 <tree> <tag> [args]: 35B accuracy --mode both on the vLLM short golden + ref-noise sidecar, self-golden dump
+accg35() {
+  local tree=$1 tag=$2; shift 2
+  run "$tree" 600 "accg35-$tag" "$MI" accuracy --backend hip --model $M35 --mem-budget 29 \
+    --golden /work/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both \
+    --ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json \
+    --write-self-golden /work/mx-out/accg35-$tag.safetensors --allow-unstamped --allow-dirty "$@"
+  cp "$(T "$tree")/mx-out/accg35-$tag.safetensors" "$O/" 2>/dev/null
+}
 # plan <tree> <tag> <model>: plan show --json
 plan() {
   local tree=$1 tag=$2 m=$3; shift 3
