@@ -93,7 +93,8 @@ int main(int argc, char** argv) {
     CK(hipEventCreate(&e0));
     CK(hipEventCreate(&e1));
     const int cfgs[][5] = {{0, 0, 0, 0, 1}, {0, 0, 0, 0, 0}, {4, 2, 2, 4, 0}, {4, 4, 4, 2, 0}, {4, 4, 2, 4, 0}, {2, 2, 4, 4, 0},
-                           {4, 2, 4, 4, 0}, {2, 4, 4, 4, 0}, {4, 4, 2, 2, 0}, {2, 4, 4, 2, 0}, {0, 0, 0, 0, 2}};
+                           {4, 2, 4, 4, 0}, {2, 4, 4, 4, 0}, {4, 4, 2, 2, 0}, {2, 4, 4, 2, 0}, {2, 2, 2, 2, 0}, {2, 2, 4, 2, 0},
+                           {1, 4, 1, 1, 0}, {1, 1, 1, 1, 0}, {1, 4, 1, 2, 0}, {0, 0, 0, 0, 2}};
     const int NCF = sizeof(cfgs) / sizeof(cfgs[0]);
     printf("M = %d, W4A4, bf16 out, %d reps over %d weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold only)\n", M, reps, NC);
     printf("%-18s %6s %6s", "shape", "N", "K");

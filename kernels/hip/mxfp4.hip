@@ -485,6 +485,11 @@ void mx_gemm_run(const DqArgs& a, OutT* out, hipStream_t s) {
         if (IK_MX_IS(2, 4, 4, 4)) IK_MX_TILE(2, 4, 4, 4)
         if (IK_MX_IS(4, 4, 2, 2)) IK_MX_TILE(4, 4, 2, 2)
         if (IK_MX_IS(2, 4, 4, 2)) IK_MX_TILE(2, 4, 4, 2)
+        if (IK_MX_IS(2, 2, 2, 2)) IK_MX_TILE(2, 2, 2, 2)
+        if (IK_MX_IS(2, 2, 4, 2)) IK_MX_TILE(2, 2, 4, 2)
+        if (IK_MX_IS(1, 4, 1, 1)) IK_MX_TILE(1, 4, 1, 1)
+        if (IK_MX_IS(1, 1, 1, 1)) IK_MX_TILE(1, 1, 1, 1)
+        if (IK_MX_IS(1, 4, 1, 2)) IK_MX_TILE(1, 4, 1, 2)
     }
 #undef IK_MX_IS
     if (M <= 16) IK_MX_TILE(4, 1, 2, 1)
