@@ -39,3 +39,26 @@
 06:43:55 DIFF 35B tp=2 accuracy dump ARNORM=1 vs 0 (byte cmp) (acc-35b-off.safetensors != acc-35b-on.safetensors)
 06:44:40 ar-8b-a0-r1 exit 0:  1024 945 0.143 6585 68.5 128| 4096 4018 0.629 6387 66.0 128|
 06:45:26 ar-8b-a1-r1 exit 0:  1024 983 0.147 6697 69.3 128| 4096 3996 0.626 6381 66.8 128|
+06:46:11 ar-8b-a1-r2 exit 0:  1024 943 0.143 6572 69.1 128| 4096 3937 0.603 6534 66.5 128|
+06:46:57 ar-8b-a0-r2 exit 0:  1024 975 0.146 6671 68.5 128| 4096 4055 0.633 6406 66.1 128|
+06:47:09 ar-35b-a0-r1 exit 0:  1024 990 0.112 8856 190.9 128| 4096 4040 0.334 12080 189.7 128|
+06:47:21 ar-35b-a1-r1 exit 0:  1024 980 0.111 8825 190.9 128| 4096 4016 0.331 12150 189.9 128|
+06:47:25 gen-tp1-new exit 0 [INTARSIA_TP_ARNORM=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+06:47:30 gen-tp1-base exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+06:47:30 SAME tp=1 35B 256 ids, arnorm tree (ARNORM=1 asked) vs origin/main (gen-tp1-new.ids == gen-tp1-base.ids)
+06:47:37 gen-8b-4-on exit 0 [INTARSIA_TP_ARNORM=1]: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18832 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+06:47:37 evidence 8b-4-on: tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=72|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=72|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=72|
+06:47:44 gen-8b-4-off exit 0 [INTARSIA_TP_ARNORM=0]: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/18832 argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=255|
+06:47:44 evidence 8b-4-off: none printed
+06:47:44 SAME 8b tp=2 4k 256 ids, ARNORM=1 vs 0 (gen-8b-4-on.ids == gen-8b-4-off.ids)
+06:47:50 gen-35b-4-on exit 0 [INTARSIA_TP_ARNORM=1]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20896 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:47:50 evidence 35b-4-on: tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=1|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=1|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=1|
+06:47:56 gen-35b-4-off exit 0 [INTARSIA_TP_ARNORM=0]: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20896 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:47:56 evidence 35b-4-off: none printed
+06:47:56 SAME 35b tp=2 4k 256 ids, ARNORM=1 vs 0 (gen-35b-4-on.ids == gen-35b-4-off.ids)
+06:48:53 kernels-test exit 0: 
+06:48:53 kernels test: op             kernel                      cases   fail     max_abs      rel_l2  result|62 kernels, 1228 cases in 56.4s|
+06:48:53 done, 1723s left
+[window] stages done 2026-10-25 06:48:53 (exit 0)
+[window] starting radiance 2026-10-25 06:48:53
+[window] radiance answers 2026-10-25 06:49:13 (after 25 s)

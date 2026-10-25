@@ -1,0 +1,10 @@
+target http://localhost:8092/v1/chat/completions  model qwen3-8b-ar
+server context window: 8192 tokens
+calibration: 47 base tokens, 20.98 tokens per filler sentence
+  size   1024 rep: prompt=943 gen=128 ttft=0.14s prefill=6572 tok/s decode=69.1 tok/s
+  size   4096 rep: prompt=3937 gen=128 ttft=0.60s prefill=6533 tok/s decode=66.5 tok/s
+ar-8b-a1-r2  model=qwen3-8b-ar  gen=128  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      943     0.143         6572        69.1      128
+    4096     3937     0.603         6534        66.5      128
+wrote /work/tp2-out/bench/ar-8b-a1-r2.json

@@ -1,0 +1,7 @@
+prefill chunk 2048 (recipe qwen3, hip)
+accuracy: Qwen3-8B on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 151936, weights/act/kv bf16/bf16)
+tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0
+Error: --self-golden cannot be combined with --baseline, --write-baseline or --write-self-golden

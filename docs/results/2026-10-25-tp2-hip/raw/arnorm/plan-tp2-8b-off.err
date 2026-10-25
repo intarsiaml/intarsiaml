@@ -1,0 +1,2 @@
+prefill chunk 2048 (recipe qwen3, hip)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
