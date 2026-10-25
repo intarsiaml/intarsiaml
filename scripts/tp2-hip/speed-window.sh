@@ -60,13 +60,14 @@ serve() { # serve <arm>
   return 1
 }
 
-# PHASES: "name:maxbatch:sizes:concurrency" separated by spaces (concurrency may be empty). Default: one phase from MAXB/SIZES/CONC.
+# PHASES: "name:maxbatch:sizes:concurrency[:rounds[:arm,arm]]" separated by spaces (concurrency may be empty). Default: one phase from MAXB/SIZES/CONC.
 PHASES=${PHASES:-"main:$MAXB:$SIZES:$CONC"}
 for ph in $PHASES; do
-  IFS=: read -r PNAME MAXB SIZES CONC <<<"$ph"
-  for r in $(seq 1 "$ROUNDS"); do
-    order="$ARMS"
-    (( r % 2 == 0 )) && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
+  IFS=: read -r PNAME MAXB SIZES CONC PR PARMS <<<"$ph"   # optional 5th / 6th field: rounds, arms (comma separated)
+  parms=${PARMS:+${PARMS//,/ }}; parms=${parms:-$ARMS}
+  for r in $(seq 1 "${PR:-$ROUNDS}"); do
+    order="$parms"
+    (( r % 2 == 0 )) && order=$(echo $parms | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
     for arm in $order; do
       if (( $(left) < 420 )); then say "SKIPPED phase $PNAME round $r arm $arm (time left $(left)s)"; continue; fi
       say "phase $PNAME round $r arm $arm: starting server"
