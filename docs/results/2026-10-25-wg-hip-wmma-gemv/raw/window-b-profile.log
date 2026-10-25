@@ -1,2 +1,6 @@
 fleetq: #5216 waiting (#16 in line): in line behind #5193 "mr gates g1 (S1 S3): MXFP4 rows (radiance down ~25 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
 fleetq:   #5193 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5193 set, or it will wait for #5193 to be released.
+fleetq: #5216 waiting (#15 in line): in line behind #5194 "mr gates g2 (S4): MXFP4 rows (radiance down ~20 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5194 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5194 set, or it will wait for #5194 to be released.
+fleetq: #5216 waiting (#14 in line): in line behind #5195 "mr gates g3 (S2): MXFP4 rows (radiance down ~30 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5195 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5195 set, or it will wait for #5195 to be released.
