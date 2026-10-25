@@ -35,6 +35,15 @@ need 120 "run to run dump" && [[ -f $O/repro-D-1.safetensors ]] && self $D 0,1 t
 E="INTARSIA_TP_VOCAB=0" repro "$D" D-vocab0; repro "$B" B
 journal() { dmesg 2>/dev/null | grep -i -E "amdgpu|gpu|fault" | tail -5 | tr '\n' '|'; }
 log "dmesg: $(journal)"
+# 1b. the gate on the long golden as well (H1: 0.89x / 0.79x, under the noise): tp=1 dump, tp=2 against it, factor 1.0
+if need 600 "long gate"; then
+  run $D 0 500 acc-tp1-35b-long accuracy --backend hip --model $M35 --golden $LG --mode both --mem-budget 29 --max-seq 17408 \
+    --write-self-golden /work/tp2-out/acc-tp1-35b-long.safetensors
+  mv "$(T $D)/tp2-out/acc-tp1-35b-long.safetensors" "$O/" 2>/dev/null
+  cp "$O/acc-tp1-35b-long.safetensors" "$(T $D)/tp2-out/"
+  run $D 0,1 500 self-tp2-vs-tp1-long accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408 --self-golden /work/tp2-out/acc-tp1-35b-long.safetensors \
+    --mode both --allow-same-code --allow-config-mismatch $TP2 --self-vs-ref-noise --ref-noise $NL --ref-noise-factor 1.0 --write-verdict /work/tp2-out/verdict-gate-long.json
+fi
 # 2. prefix reuse at tp=2
 if need 500 "reuse"; then
   run $D 0,1 400 reuse-tp2 accuracy --backend hip --model $M35 --golden $LG --mode reuse --mem-budget 29 --max-seq 17408 $TP2
