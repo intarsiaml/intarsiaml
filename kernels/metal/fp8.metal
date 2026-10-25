@@ -125,19 +125,26 @@ kernel void fp8_xprep_bf16(device const ushort* x [[buffer(0)]], device const fl
 
 constant constexpr uint FP8_SG = 8;  // simdgroups per threadgroup
 
-template <int MB, int RS, int UN, typename OutT>
+// XD (the `_xd` multi-row forms): x is q(x) already, [M, K] bf16 written once per call by fp8_xprep_bf16 (the same
+// expression the staging loop below evaluates), and is read straight from device memory: no threadgroup staging, so no
+// per-threadgroup q(x) of all the rows and no 32 KB of threadgroup memory capping the threadgroups per core. Per row the
+// values and the fma chain are those of the staged forms, so the bits are the one-row kernel's.
+template <int MB, int RS, int UN, typename OutT, bool XD = false>
 inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device const float* sc, device OutT* out,
                           constant OpP& p, threadgroup ushort* xs, uint2 tg, uint tid, uint sg, uint lane) {
     const uint M = p.a, N = p.b, K = p.c;
     const uint m0 = tg.y * MB;
     const uint rows = min((uint)MB, M - m0);
     const float ws = sc[0], is = sc[1];
-    // stage q(x) of this threadgroup's activation rows
-    for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
-        const ushort v = x[p.s0 + (ulong)m0 * K + i];
-        xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+    if constexpr (!XD) {
+        // stage q(x) of this threadgroup's activation rows
+        for (uint i = tid; i < rows * K; i += FP8_SG * 32) {
+            const ushort v = x[p.s0 + (ulong)m0 * K + i];
+            xs[i] = is > 0.0f ? f2bf(fp8_qx(bf2f(v), is)) : v;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
     }
-    threadgroup_barrier(mem_flags::mem_threadgroup);
+    device const ushort* xd = x + (ulong)m0 * K;  // XD: q(x) rows of this threadgroup (the prep buffer has no skip)
 
     const uint nb = (tg.x * FP8_SG + sg) * RS;
     if (nb >= N) return;  // whole simdgroup exits together
@@ -168,9 +175,17 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
                 for (int r = 0; r < RS; ++r) fp8_dec16(wa[j][r], wb[j][r], wv[r], wnan[r]);
                 for (int m = 0; m < MB; ++m) {
                     if (m >= (int)rows) break;
-                    threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                    uint4 x0, x1;
+                    if constexpr (XD) {
+                        device const uint4* xp = (device const uint4*)(xd + (ulong)m * K + (ulong)u * 16);
+                        x0 = xp[0];
+                        x1 = xp[1];
+                    } else {
+                        threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                        x0 = xp[0];
+                        x1 = xp[1];
+                    }
                     float xf[16];
-                    const uint4 x0 = xp[0], x1 = xp[1];
                     fp8_unpack2(x0.x, xf);
                     fp8_unpack2(x0.y, xf + 2);
                     fp8_unpack2(x0.z, xf + 4);
@@ -218,6 +233,14 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
         fp8_gemv_impl<MB, RS, UN, OUT>(x, w, sc, out, p, xs, tg, tid, sg, lane);                                       \
     }
+#define FP8_GEMV_XD(NAME, MB, RS, UN, OUT)                                                                              \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const uchar* w [[buffer(1)]],                     \
+                     device const float* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
+                     constant OpP& p [[buffer(4)]], uint2 tg [[threadgroup_position_in_grid]],                      \
+                     uint tid [[thread_index_in_threadgroup]], uint sg [[simdgroup_index_in_threadgroup]],          \
+                     uint lane [[thread_index_in_simdgroup]]) {                                                     \
+        fp8_gemv_impl<MB, RS, UN, OUT, true>(x, w, sc, out, p, nullptr, tg, tid, sg, lane);                            \
+    }
 
 FP8_GEMV(fp8_gemv_bf16_m1, 1, 4, 4, ushort)
 FP8_GEMV(fp8_gemv_bf16_m8, 8, 2, 2, ushort)
@@ -227,6 +250,11 @@ FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
 // K = 2048); `matmul_fp8_gemv_rows` takes it past M = 4 at K = 4096 (the 35B's GDN / attention output projections)
 FP8_GEMV(fp8_gemv_bf16_m4, 4, 2, 2, ushort)
 FP8_GEMV(fp8_gemv_f32_m4, 4, 2, 2, float)
+// `matmul_fp8_gemv_rows` over a q(x) prep buffer (any K; lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md)
+FP8_GEMV_XD(fp8_gemv_bf16_m8_xd, 8, 2, 2, ushort)
+FP8_GEMV_XD(fp8_gemv_f32_m8_xd, 8, 2, 2, float)
+FP8_GEMV_XD(fp8_gemv_bf16_m8_xd4, 8, 4, 2, ushort)
+FP8_GEMV_XD(fp8_gemv_f32_m8_xd4, 8, 4, 2, float)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 

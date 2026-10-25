@@ -33,11 +33,40 @@ const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe
 const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
-/// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 19] = [
-    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
-    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X,
+/// Fat-threadgroup forms of `DEC_GU_X` / `DEC_DN_X` (rows per simdgroup; `a`: arithmetic e2m1 decode).
+const GU_X2: [(&str, usize); 5] = [
+    ("moe_dec_gu_x2_r1", 1),
+    ("moe_dec_gu_x2_r2", 2),
+    ("moe_dec_gu_x2_r4", 4),
+    ("moe_dec_gu_x2_r2a", 2),
+    ("moe_dec_gu_x2_r4a", 4),
 ];
+const DN_X2: [(&str, usize); 5] = [
+    ("moe_dec_dn_x2_r1", 1),
+    ("moe_dec_dn_x2_r4", 4),
+    ("moe_dec_dn_x2_r8", 8),
+    ("moe_dec_dn_x2_r4a", 4),
+    ("moe_dec_dn_x2_r8a", 8),
+];
+
+/// Shader entry points (kernels/metal/moe.metal).
+pub const SHADERS: [&str; 29] = [
+    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
+    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_X2[0].0, GU_X2[1].0, GU_X2[2].0, GU_X2[3].0,
+    GU_X2[4].0, DN_X2[0].0, DN_X2[1].0, DN_X2[2].0, DN_X2[3].0, DN_X2[4].0,
+];
+
+/// The rows-path gate+up / down shaders and rows per simdgroup: `INTARSIA_METAL_MOE_ROWS_GU` / `_DN` name one of
+/// `GU_X2` / `DN_X2` (experiments), else `x` (the one-row-per-simdgroup kernels).
+fn rows_shaders() -> ((&'static str, usize), (&'static str, usize)) {
+    static PICK: std::sync::OnceLock<((&'static str, usize), (&'static str, usize))> = std::sync::OnceLock::new();
+    *PICK.get_or_init(|| {
+        let pick = |var: &str, set: &[(&'static str, usize)], dflt: (&'static str, usize)| {
+            std::env::var(var).ok().and_then(|v| set.iter().copied().find(|(n, _)| *n == v)).unwrap_or(dflt)
+        };
+        (pick("INTARSIA_METAL_MOE_ROWS_GU", &GU_X2, (DEC_GU_X, 1)), pick("INTARSIA_METAL_MOE_ROWS_DN", &DN_X2, (DEC_DN_X, 1)))
+    })
+}
 
 /// Tokens the row-exact decode takes (`MOE_XR` pairs per tile: an expert has at most one pair per token).
 pub const ROWS_MAX: usize = 8;
@@ -193,10 +222,11 @@ impl MetalBackend {
             // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
             // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
             let yb = at(&sc, o_y);
-            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
-            self.moe_dispatch(DEC_GU_X, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
-            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: pairs, depth: 1 };
-            self.moe_dispatch(DEC_DN_X, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
+            let ((gu, rg), (dn, rd)) = rows_shaders();
+            let g1 = MTLSize { width: i.div_ceil(DEC_SG * rg), height: pairs, depth: 1 };
+            self.moe_dispatch(gu, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let g2 = MTLSize { width: h.div_ceil(DEC_SG * rd), height: pairs, depth: 1 };
+            self.moe_dispatch(dn, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
             return self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
         }

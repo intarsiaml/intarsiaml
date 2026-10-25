@@ -168,15 +168,24 @@ fn fp8_case(
     for r in 0..m {
         be.launch("matmul_fp8_gemv", &call(xt.rows(r, 1), yst.rows(r, 1)), 0).unwrap();
     }
-    let rows = call(xt.clone(), ymt);
-    be.launch("matmul_fp8_gemv_rows", &rows, 0).unwrap();
     let tot = yo + m * n * esz + 16;
-    same(
-        &dl(be, &ys, tot),
-        &dl(be, &ym, tot),
-        &format!("matmul_fp8 N={n} K={k} M={m} is={is} f32_out={f32_out} w_off={w_off} x_off={x_off}"),
-    );
-    tally(m);
+    // both forms of the rows kernel: staged (no scratch) and `_xd` (the q(x) prep in the scratch, at a 16-byte offset)
+    for xd in [false, true] {
+        be.upload(&ym, 0, &vec![0xEEu8; tot], 0).unwrap();
+        let mut rows = call(xt.clone(), ymt.clone());
+        if xd {
+            let need = m * k * 2 + 16;
+            let sb = be.alloc(need + 32, MemKind::Device).unwrap();
+            rows.scratch = Some(TensorRef { buf: sb, offset: 16, dtype: DType::U8, shape: vec![need] });
+        }
+        be.launch("matmul_fp8_gemv_rows", &rows, 0).unwrap();
+        same(
+            &dl(be, &ys, tot),
+            &dl(be, &ym, tot),
+            &format!("matmul_fp8 N={n} K={k} M={m} is={is} f32_out={f32_out} w_off={w_off} x_off={x_off} xd={xd}"),
+        );
+        tally(m);
+    }
 }
 
 #[test]
@@ -730,7 +739,7 @@ fn time_us(be: &MetalBackend, reps: usize, mut f: impl FnMut()) -> f64 {
 fn timing_rows() {
     let be = backend();
     // fp8 8192 x 2048 (GDN in_qkv) and 2048 x 4096 (out projections); nvfp4 512 x 2048 (shared expert gate/up)
-    for (n, k) in [(8192usize, 2048usize), (2048, 4096)] {
+    for (n, k) in [(8192usize, 2048usize), (4096, 2048), (512, 2048), (2048, 4096)] {
         let w = put_bytes(&be, 8, &rand_e4m3(n * k, 5, 0));
         let sb = put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37]));
         for m in [1usize, 2, 4, 8] {
@@ -755,9 +764,18 @@ fn timing_rows() {
             } else {
                 serial
             };
+            let xd = if m >= 2 {
+                let need = m * k * 2 + 16;
+                let mut c = call(xt.clone(), yt.clone());
+                c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+                time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &c, 0).unwrap())
+            } else {
+                serial
+            };
             eprintln!(
-                "TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)",
-                serial / rows
+                "TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x), xd {xd:.1} us ({:.2}x)",
+                serial / rows,
+                serial / xd
             );
         }
     }
