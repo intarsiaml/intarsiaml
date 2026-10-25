@@ -1,0 +1,53 @@
+fleetq: #5159 running on endor: bash scripts/mx/metal-noop.sh
+fleetq: #5159 went ahead of the line and must end within 4h49m (by Sun 09:00); it is stopped then
+== build base 0b84f499 04:10:53
+    Finished `release` profile [optimized] target(s) in 10.07s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+plan 27 base exit 0
+== build dev 174eb836 04:11:41
+    Finished `release` profile [optimized] target(s) in 9.89s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+plan 27 dev exit 0
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+plan 27 json: identical (12627 B, err 84 B)
+== kernels test metal (dev) 04:12:27
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.0s
+== workspace tests on the branch 04:12:52
+  65 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+   2 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+   1 thread 'profiling_off_reads_na_not_zero' (3058532) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'narrow_terminal_stacks_panes' (3058530) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'live_plan_builds_one_node_per_op_and_one_layer_group' (3058529) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'live_metrics_yield_latency_percentiles_and_batch_size' (3058528) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'light_theme_renders_the_same_text' (3058527) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'hybrid_plan_golden_140x45' (3058526) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.67s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.02s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.77s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+== done 04:16:26
+fleetq: #5159 done (exit 0)
+rerun 04:3x, same tree: cargo test --release -p intarsia-tui --test render -> 7 passed (branch and origin/main); the 6 render panics in the job log (fixture read) did not reproduce
