@@ -280,6 +280,20 @@ impl HostComm {
     }
 }
 
+impl HostComm {
+    /// Every rank must have sent as many bytes as this one: ranks that disagree on a collective's size (a protocol bug, e.g.
+    /// different row counts) fail it on every rank, instead of summing or concatenating mismatched data.
+    fn same_sizes(&self, all: &[Vec<u8>], what: &str) -> Result<()> {
+        let mine = all[self.rank].len();
+        if all.iter().any(|p| p.len() != mine) {
+            self.rv.abort();
+            let sizes: Vec<usize> = all.iter().map(|p| p.len()).collect();
+            return Err(Error::backend(format!("{what}: the ranks sent different sizes {sizes:?} (bytes per rank)")));
+        }
+        Ok(())
+    }
+}
+
 impl Comm for HostComm {
     fn name(&self) -> &str {
         "host"
@@ -314,6 +328,7 @@ impl Comm for HostComm {
             return Ok(());
         }
         let all = self.rv.exchange(self.rank, self.read(partial, stream)?, self.timeout)?;
+        self.same_sizes(&all, "all-reduce")?;
         let mut acc = vec![0f32; n];
         decode_to_f32(partial.dtype, &all[0], &mut acc);
         let mut tmp = vec![0f32; n];
@@ -347,6 +362,7 @@ impl Comm for HostComm {
         }
         self.counters.call(send.nbytes());
         let all = self.rv.exchange(self.rank, self.read(send, stream)?, self.timeout)?;
+        self.same_sizes(&all, "all-gather")?;
         let cat: Vec<u8> = all.iter().flat_map(|p| p.iter().copied()).collect();
         self.backend.upload(&recv.buf, recv.offset, &cat, stream)
     }
