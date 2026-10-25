@@ -41,7 +41,7 @@ run)
   }
   ( for side in b d; do for f in "" "--json"; do
       dev $([ $side = b ] && echo "$TB $VB" || echo "$TD $VD") 1 -- /target/release/intarsia plan show $f -m $M27 --backend hip --max-seq 8192 > $O/plan-$side${f:+-json}.txt 2>&1
-    done; done ) &
+    done; done )   # sequential and before the generates: a plan show next to a generate on the same card ran out of memory (window 2)
   ( for n in 128 1024; do gen b 0 b-off $n -- --spec off; gen b 0 b-mtp $n -- --spec mtp --spec-k 2; done ) > $O/card0.log 2>&1 &
   ( for n in 128 1024; do gen d 1 d-off $n -- --spec off; gen d 1 d-def $n -- --spec mtp --spec-k 2
       gen d 1 d-v0 $n -- --spec mtp --spec-k 2 --mtp-draft-vocab 0; gen d 1 d-v65536 $n -- --spec mtp --spec-k 2 --mtp-draft-vocab 65536; done ) > $O/card1.log 2>&1 &
