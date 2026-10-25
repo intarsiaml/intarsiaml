@@ -24,7 +24,6 @@ pub const TABLE: &[(&str, Op)] = &[
     // M1 drill (kernels/hip/mxfp4.hip): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
     ("matmul_mxfp4_mma", Op::MatmulMxfp4),
-    ("matmul_mxfp4_mma_f8", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv", Op::MatmulMxfp4Pair),
     // row-exact twins of the two GEMVs (`rows_exact`, M <= ROWS_MAX = 16): M == 1 is the GEMV launcher itself, M = 2..16 runs
     // mxfp4_gemv_rows_kernel, which keeps the arithmetic of every output row of the one-row kernel (same lane-to-group map,
@@ -116,21 +115,6 @@ pub fn fp8_staging_default_from(q: Option<&str>, pair: Option<&str>) -> bool {
         }
     };
     q_default && pair_default
-}
-
-/// Smallest M `matmul_mxfp4_mma_f8` serves (prefill chunks; below it `matmul_mxfp4_mma`, the same bits).
-pub const MXFP4_F8_MIN_M: usize = 128;
-
-/// `matmul_mxfp4_mma_f8` (lane mx, docs/results/2026-10-25-mx-hip-27b-prefill.md) is the default MXFP4 prefill GEMM for
-/// M >= 128: `matmul_mxfp4_mma`'s output bit for bit on the fp8 WMMA (W4A4); INTARSIA_HIP_MXFP4_F8=0 is the kill switch.
-pub fn mxfp4_f8_enabled() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| mxfp4_f8_from(std::env::var("INTARSIA_HIP_MXFP4_F8").ok().as_deref()))
-}
-
-/// The value of INTARSIA_HIP_MXFP4_F8 -> on unless it is exactly "0".
-pub fn mxfp4_f8_from(v: Option<&str>) -> bool {
-    v != Some("0")
 }
 
 /// The value of INTARSIA_HIP_FP8_F8 -> f8 on: on unless it is exactly "0".
@@ -331,18 +315,6 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2 + 16),
-                // matmul_mxfp4_mma on the fp8 x fp8 WMMA, the same bits under W4A4 (kernels/hip/mxfp4.hip launch_f8; W4A16 and
-                // K % 64 != 0 run the bf16 kernel inside). Prefill GEMMs (M >= 128; lane wg owns M <= 64). DEFAULT ON
-                // (INTARSIA_HIP_MXFP4_F8=0 turns it off, see `mxfp4_f8_enabled`).
-                "matmul_mxfp4_mma_f8" => k
-                    .acts(bf)
-                    .weights([DType::U8])
-                    .when(|s| s.m >= MXFP4_F8_MIN_M && s.k % 32 == 0)
-                    .exact(Exactness::Deterministic)
-                    .tol(TOL)
-                    .tol_f32(F32_OUT_TOL)
-                    .scratch(|s| s.m * s.k * 2 + 16)
-                    .priority(if mxfp4_f8_enabled() { 5 } else { -10 }),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
@@ -666,40 +638,6 @@ mod tests {
             ShapeInfo { m: 1, n: 64, k: 16, experts: 16, top_k: 2, act: Some(DType::Bf16), ..Default::default() },
         ] {
             assert_eq!(v3.accepts(&s), v2.accepts(&s), "v3 must take exactly the shapes v2 takes");
-        }
-    }
-
-    /// The MXFP4 fp8-WMMA default (lane mx): on unless INTARSIA_HIP_MXFP4_F8 is exactly "0".
-    #[test]
-    fn mxfp4_f8_is_the_default() {
-        assert!(mxfp4_f8_from(None));
-        assert!(mxfp4_f8_from(Some("1")));
-        assert!(!mxfp4_f8_from(Some("0")));
-        assert_eq!(mxfp4_f8_enabled(), std::env::var("INTARSIA_HIP_MXFP4_F8").as_deref() != Ok("0"));
-    }
-
-    /// Pins the MXFP4 selection at the 27B's shapes: the GEMVs for 1..=8 rows, `matmul_mxfp4_mma` for 9..127 rows (lane wg's
-    /// small-row band and the rows below a prefill tile), `matmul_mxfp4_mma_f8` from 128 rows by default and
-    /// `matmul_mxfp4_mma` there under the kill switch INTARSIA_HIP_MXFP4_F8=0.
-    #[test]
-    fn mxfp4_selection_is_pinned() {
-        let ks = all();
-        let pick_mx = |s: &ShapeInfo| -> String {
-            let mut best: Option<&KernelImpl> = None;
-            for k in ks.iter().filter(|k| k.op == Op::MatmulMxfp4 && k.accepts(s) && !k.rows_exact) {
-                if best.is_none_or(|b| k.priority > b.priority) {
-                    best = Some(k);
-                }
-            }
-            best.expect("a MatmulMxfp4 kernel for every shape").name.clone()
-        };
-        let prefill = if mxfp4_f8_enabled() { "matmul_mxfp4_mma_f8" } else { "matmul_mxfp4_mma" };
-        for (n, k) in [(17408usize, 5120usize), (10240, 5120), (6144, 5120), (12288, 5120), (1024, 5120), (48, 5120), (5120, 6144), (5120, 17408)] {
-            for (m, want) in [(1usize, "matmul_mxfp4_gemv"), (8, "matmul_mxfp4_gemv"), (9, "matmul_mxfp4_mma"), (64, "matmul_mxfp4_mma"),
-                (127, "matmul_mxfp4_mma"), (128, prefill), (1024, prefill), (4096, prefill)] {
-                let s = ShapeInfo { m, n, k, act: Some(DType::Bf16), weight: Some(DType::U8), out: Some(DType::Bf16), ..Default::default() };
-                assert_eq!(pick_mx(&s), want, "m={m} n={n} k={k}");
-            }
         }
     }
 }
