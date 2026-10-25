@@ -1,0 +1,16 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w15-{batch,mut-batch-peer-no-table} 2026-10-25 12:42:05
+[window] job 5336 w15; stopping radiance 2026-10-25 12:42:05
+[window] radiance stopped 2026-10-25 12:42:08
+12:42:08 window start, CAP 2400s, pre-change 020b28c, VRAM in use 57 MiB
+12:42:26 acc-w13-a exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+12:42:36 acc-w13-b exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+12:42:45 self-w13-b-vs-a exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=2.262626e-13 max_kl21=1.759315e-10 flips=0 flip_pct=0.0000 tail_abs=3.670859e-9 worst_prompt_kl21=3.315740e-12|SELF-STATS mode=decode positions=160 mean_kl21=1.591146e-12 max_kl21=2.310667e-10 flips=0 flip_pct=0.0000 tail_abs=5.415819e-9 worst_prompt_kl21=1.445398e-11|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+12:42:51 MUTANT batch-peer-no-table: KILLED (exit 101): 
+12:43:18 acc-27b-tp1 exit 0: golden gate: PASS|
+12:43:32 self-27b-tp2-vs-tp1 exit 1: SELF-STATS mode=prefill positions=1441 mean_kl21=1.262359e-3 max_kl21=1.329721e0 flips=5 flip_pct=0.3470 tail_abs=1.252946e-4 worst_prompt_kl21=2.338533e-2|SELF-STATS mode=decode positions=160 mean_kl21=8.996808e-4 max_kl21=4.905097e-2 flips=1 flip_pct=0.6250 tail_abs=2.229354e-4 worst_prompt_kl21=3.862393e-3|golden gate: FAIL|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|Error: accuracy gate FAILED|
+12:44:25 mtest tp2-27b-batched exit 101: thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|
+12:47:02 mtest tp2-35b-batched exit 0: 17550 (row, step) pairs bitwise identical in 141.4 s|tensor-parallel rank 1: batched decode graph captures=15 replays=1956|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 147.10s|
+12:47:02 done, time left 2106s
+[window] stages done 2026-10-25 12:47:02 (exit 0)
+[window] starting radiance 2026-10-25 12:47:03
+[window] radiance answers 2026-10-25 12:47:33 (after 35 s)
