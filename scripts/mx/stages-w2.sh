@@ -8,6 +8,8 @@ log "w2 start; budget $(left) s; base $(stat -c %y $(T base)/mx-intarsia) dev $(
 need 200 "wmma_eq" && hipbin dev wmma_eq.hip wmma-eq 40000 7
 need 260 "ceiling" && ceiling dev
 need 300 "f8 test" && hiptest dev mxfp4-f8 --test mxfp4_f8 -- --test-threads=1
+need 200 "mxbench" && mxbench dev m4096 4096 20
+need 120 "mxbench" && mxbench dev m256 256 20
 # chunk: does --prefill-chunk change the 27B's bits on HIP (the 35B's do not, docs/results/2026-10-17-hip-prefill.md)?
 need 60 "ids" && ids base c256-4k "$M27" 4k
 need 60 "ids" && ids base c4096-4k "$M27" 4k --prefill-chunk 4096

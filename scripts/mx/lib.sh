@@ -98,3 +98,19 @@ hiptest() {
     env ${E:-} cargo test --release -p intarsia-backend-hip "$@" > "$O/test-$tag.txt" 2>&1 < /dev/null
   log "test $tag exit $?: $(grep -aE '^test result|FAILED|panicked' "$O/test-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
 }
+# mtest <tree> <tag> <cargo test args...>: intarsia-models GPU tests from the ...-mtest volume (build.sh MTEST=1), HIP backend
+mtest() {
+  local tree=$1 tag=$2; shift 2
+  INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree")-mtest INTARSIA_MODELS=$MI HIP_VISIBLE_DEVICES=$G timeout 1200 "$(T "$tree")/deploy/tatooine/dev.sh" \
+    env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
+  log "mtest $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/mtest-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
+}
+# mxbench <tree> <tag> [M] [reps]: isolated GEMM timing mma vs f8 at the 27B shapes (scripts/mx/mxbench.hip)
+mxbench() {
+  local tree=$1 tag=$2; shift 2
+  cp "$HOME/mx/mxbench.hip" "$(T "$tree")/mx-out/"
+  INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree") HIP_VISIBLE_DEVICES=$G timeout 300 "$(T "$tree")/deploy/tatooine/dev.sh" \
+    bash -c "hipcc -O3 --offload-arch=gfx1201 -I kernels/hip -I kernels/abi -Rpass-analysis=kernel-resource-usage mx-out/mxbench.hip kernels/hip/mxfp4.hip kernels/hip/ik_runtime.hip -o mx-out/mxbench > mx-out/mxbench-build-$tag.txt 2>&1; env ${E:-} ./mx-out/mxbench $*" > "$O/mxbench-$tag.txt" 2>&1 < /dev/null
+  cp "$(T "$tree")/mx-out/mxbench-build-$tag.txt" "$O/" 2>/dev/null
+  log "mxbench $tag exit $?: $(grep -aE 'whole-model|rror' "$O/mxbench-$tag.txt" | head -2 | tr '\n' '|')"
+}
