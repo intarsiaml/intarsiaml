@@ -22,3 +22,5 @@ arm branch-knob-off INTARSIA_WG_ARM=knob-off
 arm opt1 INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all
 arm opt1-frag INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all INTARSIA_HIP_FP8_FRAG=1
 echo PROFILE DONE
+# tail of window D: the one-instruction hardware probe (raw dump for the CPU model fit); skips itself when not built for this tree
+[ -f "$HOME/wg-probe.sh" ] && bash "$HOME/wg-probe.sh" run
