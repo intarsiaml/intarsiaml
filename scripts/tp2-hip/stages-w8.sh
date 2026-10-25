@@ -25,11 +25,14 @@ repro() { # repro <tree> <label> [E]
     run "$tree" 0,1 300 "repro-$l-$i" accuracy --backend hip --model $M35 --golden $SG --mode both --mem-budget 29 --max-seq 17408 \
       --write-self-golden /work/tp2-out/repro-$l-$i.safetensors $TP2 --ref-noise $NS --write-verdict /work/tp2-out/verdict-repro-$l-$i.json > /dev/null
     [[ $? != 0 ]] && bad=$((bad + 1))
-    rm -f "$(T "$tree")/tp2-out/repro-$l-$i.safetensors"
+    if [[ $l == D && $i == 1 ]]; then mv "$(T "$tree")/tp2-out/repro-$l-$i.safetensors" "$O/" 2>/dev/null; else rm -f "$(T "$tree")/tp2-out/repro-$l-$i.safetensors"; fi
   done
   log "REPRO $l: $bad of $N runs failed"
 }
-repro "$D" D; E="INTARSIA_TP_VOCAB=0" repro "$D" D-vocab0; repro "$B" B
+repro "$D" D
+# tp=2 run to run: a fresh dump against the first one, floor budgets (bitwise class)
+need 120 "run to run dump" && [[ -f $O/repro-D-1.safetensors ]] && self $D 0,1 tp2-r2-vs-r1 repro-D-1.safetensors $TP2 --self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8
+E="INTARSIA_TP_VOCAB=0" repro "$D" D-vocab0; repro "$B" B
 journal() { dmesg 2>/dev/null | grep -i -E "amdgpu|gpu|fault" | tail -5 | tr '\n' '|'; }
 log "dmesg: $(journal)"
 # 2. prefix reuse at tp=2
