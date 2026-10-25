@@ -224,6 +224,9 @@ fn real_35b_tp2_batch_first_steps_repro() {
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
     let mut failures = 0;
     for rep in 0..reps {
+        if failures > 0 {
+            break;
+        }
         let m = load(&dir, be.clone(), 16, 2048);
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let n = batch_identity::run(&m, &batch_identity::Cfg { lens: lens.clone(), batches: sizes.clone(), steps, vocab_range: (1000, 30000) });
@@ -235,12 +238,16 @@ fn real_35b_tp2_batch_first_steps_repro() {
                 failures += 1;
                 let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
                 eprintln!("REPRO rep {rep}: FAIL {msg}");
+                eprintln!("REPRO graphs at the failure: rank 0 {:?}, rank 1 {:?}", m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
+                // the ranks are out of step after a bad step (a rank waits in a collective its peer never launches), and freeing
+                // device memory would wait for it until the bounded wait traps: report and leave
+                eprintln!("REPRO failures {failures}/{} (stopped at the first, after {} reps)", reps, rep + 1);
+                std::process::exit(3);
             }
         }
         drop(m);
     }
     eprintln!("REPRO failures {failures}/{reps}");
-    assert_eq!(failures, 0, "{failures} of {reps} reps mismatched");
 }
 
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2/batch): the gate above must catch a peer that breaks the batched step protocol on
