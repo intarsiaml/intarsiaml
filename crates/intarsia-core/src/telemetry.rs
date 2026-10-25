@@ -85,6 +85,11 @@ pub struct TelemetrySnapshot {
     pub spec_steps: u64,
     pub spec_proposed: u64,
     pub spec_accepted: u64,
+    /// Measured-cost gate (`spec::CostParams`): switches to plain decode, switches back, plain steps it took, of them probes.
+    pub spec_cost_off: u64,
+    pub spec_cost_on: u64,
+    pub spec_cost_plain_steps: u64,
+    pub spec_cost_probes: u64,
 
     /// Per-op cumulative time and call counts, keyed by op id (`rmsnorm`, `matmul`, ...).
     pub ops: BTreeMap<String, OpStat>,
@@ -127,6 +132,10 @@ pub struct Telemetry {
     spec_steps: AtomicU64,
     spec_proposed: AtomicU64,
     spec_accepted: AtomicU64,
+    spec_cost_off: AtomicU64,
+    spec_cost_on: AtomicU64,
+    spec_cost_plain_steps: AtomicU64,
+    spec_cost_probes: AtomicU64,
     inner: Mutex<Inner>,
     /// Tensor-parallel all-reduces (reported in the snapshot's `ops` under `all_reduce`).
     comm: Mutex<OpStat>,
@@ -170,6 +179,10 @@ impl Telemetry {
             spec_steps: AtomicU64::new(0),
             spec_proposed: AtomicU64::new(0),
             spec_accepted: AtomicU64::new(0),
+            spec_cost_off: AtomicU64::new(0),
+            spec_cost_on: AtomicU64::new(0),
+            spec_cost_plain_steps: AtomicU64::new(0),
+            spec_cost_probes: AtomicU64::new(0),
             inner: Mutex::new(Inner {
                 model: String::new(),
                 device: None,
@@ -216,6 +229,13 @@ impl Telemetry {
     }
 
     /// One speculative verify pass: `proposed` drafts verified, `accepted` of them taken.
+    pub fn spec_cost(&self, e: crate::spec::CostEvents) {
+        self.spec_cost_off.fetch_add(u64::from(e.off), Ordering::Relaxed);
+        self.spec_cost_on.fetch_add(u64::from(e.on), Ordering::Relaxed);
+        self.spec_cost_plain_steps.fetch_add(u64::from(e.plain_steps), Ordering::Relaxed);
+        self.spec_cost_probes.fetch_add(u64::from(e.probes), Ordering::Relaxed);
+    }
+
     pub fn spec_step(&self, proposed: usize, accepted: usize) {
         self.spec_steps.fetch_add(1, Ordering::Relaxed);
         self.spec_proposed.fetch_add(proposed as u64, Ordering::Relaxed);
@@ -359,6 +379,10 @@ impl Telemetry {
             spec_steps: self.spec_steps.load(Ordering::Relaxed),
             spec_proposed: self.spec_proposed.load(Ordering::Relaxed),
             spec_accepted: self.spec_accepted.load(Ordering::Relaxed),
+            spec_cost_off: self.spec_cost_off.load(Ordering::Relaxed),
+            spec_cost_on: self.spec_cost_on.load(Ordering::Relaxed),
+            spec_cost_plain_steps: self.spec_cost_plain_steps.load(Ordering::Relaxed),
+            spec_cost_probes: self.spec_cost_probes.load(Ordering::Relaxed),
             ops: {
                 let mut ops: BTreeMap<String, OpStat> = g.ops.iter().map(|(k, v)| (k.as_str().to_string(), v.clone())).collect();
                 let c = self.comm.lock().unwrap().clone();

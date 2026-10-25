@@ -749,6 +749,7 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -765,6 +766,7 @@ impl Model {
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,
             mtp_k: self.mtp_k,
+            spec_cost: self.spec_cost,
         };
         t.enable_batch(rows)?;
         crate::plan::resolve(&mut t)?;

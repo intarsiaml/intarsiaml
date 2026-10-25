@@ -183,6 +183,10 @@ Without that flag nothing under the prefix is loaded and the table has no effect
 |---|---|---|---|
 | `kind` | string | required | `"qwen3_5_mtp"`: `fc` over `[norm(embed(token)) \| norm(hidden)]`, one gated full-attention + MoE decoder layer, a final norm, the model's own `lm_head` (vLLM `Qwen3NextMultiTokenPredictor`). |
 | `prefix` | string | required | Tensor-name prefix (`"mtp"`): `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`, `{prefix}.layers.0.*`. |
+| `cost_min_speedup` | float | off everywhere (docs/results/2026-10-25-sp-hip-spec.md, section 13) | Measured-cost gate, opt-in: a request falls back to plain steps while `tokens_per_pass / (ms_per_pass / ms_per_plain_token)` stays under this. `0` turns the gate off (`INTARSIA_SPEC_COSTGATE` overrides). |
+| `cost_window` | int | `16` | Passes the speedup must stay under `cost_min_speedup` before the fallback. |
+| `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |
+| `cost_reprobe_tokens` | int | `64` | Plain tokens decoded before speculation is tried again on the text as it is then; each retry that falls back again doubles the next stretch (up to 16x), one that holds resets it. |
 
 ## Worked example 1: a dense model (Qwen3-8B)
 
