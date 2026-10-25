@@ -240,6 +240,14 @@ int main(int argc, char** argv) {
         for (auto& b : hw) { b = (uint8_t)(rng() & 0xff); if ((b & 0x7f) == 0x7f) b &= 0xf7; if (((b >> 3) & 15) > 11) b = (b & 0x87) | (8 << 3); }
         std::vector<uint8_t*> dw(copies);
         for (auto& p : dw) { CK(hipMalloc(&p, wb)); CK(hipMemcpy(p, hw.data(), wb, hipMemcpyHostToDevice)); }
+        // the same weights in fragment order (ik_fp8_relayout_frag; the tensor passed to the launchers carries the private dtype)
+        std::vector<uint8_t*> dwf(copies);
+        for (int i = 0; i < copies; ++i) {
+            CK(hipMalloc(&dwf[i], wb));
+            ik_tensor src = T(dw[i], IK_DTYPE_FP8_E4M3, N, K), dst = T(dwf[i], IK_DTYPE_FP8_E4M3, N, K);
+            if (int rc = ik_fp8_relayout_frag(&src, &dst, nullptr)) { printf("relayout rc=%d\n", rc); exit(2); }
+        }
+        CK(hipDeviceSynchronize());
         int MM = 64;
         std::vector<uint16_t> hx((size_t)MM * K);
         for (auto& v : hx) v = f2bf(nd(rng));
@@ -248,15 +256,16 @@ int main(int argc, char** argv) {
         float* dsc; CK(hipMalloc(&dsc, 8)); CK(hipMemcpy(dsc, hs, 8, hipMemcpyHostToDevice));
         uint16_t* dout; CK(hipMalloc(&dout, (size_t)MM * N * 2));
         ik_tensor sct = T(dsc, IK_DTYPE_F32, 2);
-        struct K_ { const char* name; Fn f; int maxm; } kernels[] = {
-            {"gemv_v2", ik_matmul_fp8_gemv_v2, 4}, {"gemv_rows", ik_matmul_fp8_gemv_rows, 16}, {"wmma_s", wmma_staged, 64}, {"wmma_d", wmma_direct, 64}};
+        struct K_ { const char* name; Fn f; int maxm; bool frag; } kernels[] = {
+            {"gemv_v2", ik_matmul_fp8_gemv_v2, 4, false}, {"gemv_rows", ik_matmul_fp8_gemv_rows, 16, false}, {"wmma_s", wmma_staged, 64, false},
+            {"wmma_d", wmma_direct, 64, false}, {"frag_s", wmma_staged, 64, true}, {"frag_d", wmma_direct, 64, true}};
         for (int m : ms) {
             printf("fp8 %5dx%-5d M=%-2d %s:", N, K, m, w8a16 ? "A16" : "A8 ");
             for (auto& k : kernels) {
                 if (m > k.maxm) { printf("  %-9s    n/a ", k.name); continue; }
                 ik_tensor xt = T(dx, IK_DTYPE_BF16, m, K), ot = T(dout, IK_DTYPE_BF16, m, N);
                 std::vector<ik_tensor> wt(copies);
-                for (int i = 0; i < copies; ++i) wt[i] = T(dw[i], IK_DTYPE_FP8_E4M3, N, K);
+                for (int i = 0; i < copies; ++i) wt[i] = k.frag ? T(dwf[i], IK_HIP_DTYPE_FP8_E4M3_FRAG, N, K) : T(dw[i], IK_DTYPE_FP8_E4M3, N, K);
                 int rc = k.f(&xt, &wt[0], &sct, &ot, nullptr);
                 if (rc) { printf("  %-9s rc=%d ", k.name, rc); continue; }
                 CK(hipDeviceSynchronize());
@@ -296,9 +305,23 @@ int main(int argc, char** argv) {
             wmma_direct(&xt, &wt, &sct, &ot, nullptr); CK(hipDeviceSynchronize());
             CK(hipMemcpy(dgot.data(), dout, dgot.size() * 2, hipMemcpyDeviceToHost));
             long sd = 0; for (size_t i = 0; i < dgot.size(); ++i) sd += dgot[i] != got[i];
-            printf("  check: rel_l2(wmma vs gemv_rows)=%.3e  rows16-vs-rows1 mismatches=%ld  staged-vs-direct mismatches=%ld\n", std::sqrt(num / den), bad, sd);
+            // fragment order must give the same bits as row-major, staged and direct
+            long fb = 0;
+            {
+                ik_tensor wf = T(dwf[0], IK_HIP_DTYPE_FP8_E4M3_FRAG, N, K);
+                for (int dir = 0; dir < 2; ++dir) {
+                    std::vector<uint16_t> fgot((size_t)mcheck * N);
+                    int rc = dir ? wmma_direct(&xt, &wf, &sct, &ot, nullptr) : wmma_staged(&xt, &wf, &sct, &ot, nullptr);
+                    if (rc) { printf("  check: frag call rc=%d\n", rc); exit(2); }
+                    CK(hipDeviceSynchronize());
+                    CK(hipMemcpy(fgot.data(), dout, fgot.size() * 2, hipMemcpyDeviceToHost));
+                    for (size_t i = 0; i < fgot.size(); ++i) fb += fgot[i] != got[i];
+                }
+            }
+            printf("  check: rel_l2(wmma vs gemv_rows)=%.3e  rows16-vs-rows1 mismatches=%ld  staged-vs-direct mismatches=%ld  frag-vs-rowmajor mismatches=%ld\n", std::sqrt(num / den), bad, sd, fb);
         }
         for (auto p : dw) hipFree(p);
+        for (auto p : dwf) hipFree(p);
         hipFree(dx); hipFree(dsc); hipFree(dout);
     }
     return 0;

@@ -195,6 +195,16 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
                                    const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
                                    const ik_scratch* scratch, void* stream);
 
+/* Fragment-order dense fp8 weights (lane wg, HIP only, opt-in). A weight [N, K] with N % 16 == 0 and K % 32 == 0 is stored as
+ * [N/16][K/32][lane = 16 h + col][16 B]: chunk c of tile t is 512 contiguous bytes, byte 16 lane + b of it is w[16 t + col][32 c + 16 h + b].
+ * The Rust side passes such a tensor with the dtype below (never IK_DTYPE_FP8_E4M3); every launcher that does not know the layout rejects
+ * the dtype with IK_ERR_DTYPE. Accepted: the matmul_fp8_wmma family (ik_matmul_fp8_wmma[_rows], the four fp8 folds) and the prefill
+ * GEMMs ik_matmul_fp8_mma_v2 / ik_matmul_fp8_mma_f8 / ik_matmul_fp8_mma. */
+#define IK_HIP_DTYPE_FP8_E4M3_FRAG 259
+/* dst = fragment order of src (row-major [N, K]); both fp8 e4m3, same shape, distinct buffers. unfrag is the inverse (download, tests). */
+int ik_fp8_relayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
+int ik_fp8_unrelayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

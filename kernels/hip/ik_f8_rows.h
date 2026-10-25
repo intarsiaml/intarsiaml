@@ -84,7 +84,7 @@ IK_DEVI uint4 f8r_src(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__
 /* One block of the family. NJ = most chunks a wave handles per window (a window is NJ * 256 k at most). TM = 16-token tiles.
  * kw: window (multiples of 256, >= 512, <= NJ * 256), M <= 16 * TM. blk: the block's 16-feature tile. PRO != 0 only at M == 1 with
  * DIRECT false and kw >= K (one window); PRO 3 needs 2 * K bytes of LDS after the staged row (the bf16 normed row). */
-template <int TM, int NJ, int PRO, bool DIRECT, bool BF, typename OutT>
+template <int TM, int NJ, int PRO, bool DIRECT, bool BF, typename OutT, bool FRAG = false>
 __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w,
                                          const float* __restrict__ sc, OutT* __restrict__ out, int M, int N, int K, int kw, int64_t blk,
                                          const ik_bf16* __restrict__ pz = nullptr, const ik_bf16* __restrict__ pnw = nullptr,
@@ -143,6 +143,21 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                     }
                 }
             }
+        } else if constexpr (FRAG) {
+            // fragment order ([N/16][K/32][lane = 16 h + col][16 B]; N % 16 == 0, K % 32 == 0): lane (h, col) of chunk c is ONE 16 B load of the
+            // 512 contiguous bytes of (tile, c), already the A fragment (row col, k 16 h .. 16 h + 15 of the chunk): the same bytes the row-major
+            // path stages through LDS, so the sums are bit for bit the same
+#pragma unroll
+            for (int jj = 0; jj < NJ / 4; ++jj) {
+                const int kr = ws + 128 * (wave + kF8rWaves * jj);
+#pragma unroll
+                for (int i = 0; i < 4; ++i) {
+                    wr[jj][i] = make_uint4(0, 0, 0, 0);
+                    const int kc = (kr >> 5) + i;
+                    if (!(abl & 4) && kr - ws < kwa && kc * 32 + 32 <= K)
+                        wr[jj][i] = ik_ldcs(reinterpret_cast<const uint4*>(w + ((blk * (K >> 5) + kc) * 32 + lane) * 16));
+                }
+            }
         } else {
 #pragma unroll
             for (int jj = 0; jj < NJ / 4; ++jj) {
@@ -195,7 +210,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
 #pragma unroll
         for (int j = 0; j < NJ; ++j) {
             const int kl = slot_k(j), k0 = ws + kl;
-            if constexpr (!BF) {
+            if constexpr (!BF && !FRAG) {
                 if ((j & 3) == 0) {  // a new range: this wave's tile <- its 16 rows x 128 B, then wave-local order
 #pragma unroll
                     for (int i = 0; i < 4; ++i)
@@ -210,6 +225,8 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
             uint4 wa;  // this lane's weights of the chunk: bytes 16 h .. 16 h + 15 (a half: 8 h .. 8 h + 7)
             if constexpr (BF) {
                 wa = wb[j][0];
+            } else if constexpr (FRAG) {
+                wa = wr[j >> 2][j & 3];  // K % 32 == 0: every chunk is full
             } else {
                 const unsigned char* tp = wbuf + (size_t)col * kF8rWRow + 32 * (j & 3);
                 if (full) wa = *reinterpret_cast<const uint4*>(tp + 16 * h);
@@ -307,34 +324,34 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
     }
 }
 
-template <int TM, int NJ, bool DIRECT, bool BF, typename OutT>
+template <int TM, int NJ, bool DIRECT, bool BF, typename OutT, bool FRAG = false>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const float* __restrict__ sc,
            OutT* __restrict__ out, int M, int N, int K, int kw, int abl) {
-    f8r_body<TM, NJ, 0, DIRECT, BF, OutT>(x, xq, w, sc, out, M, N, K, kw, (int64_t)blockIdx.x, nullptr, nullptr, 0.f, 0.f, nullptr, nullptr,
-                                          false, abl);
+    f8r_body<TM, NJ, 0, DIRECT, BF, OutT, FRAG>(x, xq, w, sc, out, M, N, K, kw, (int64_t)blockIdx.x, nullptr, nullptr, 0.f, 0.f, nullptr,
+                                                nullptr, false, abl);
 }
 
 /* The folded decode launchers (M == 1, STAGED): the same body with the prologue of the fp8 GEMV folds, so a solo step runs the
  * family's arithmetic on the row the unfused chain would stage. */
-template <int NJ>
+template <int NJ, bool FRAG = false>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
                 ik_bf16* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
                 ik_bf16* __restrict__ o1, int N1, int K, int kw) {
     const int nb0 = (N0 + 15) / 16;
-    if ((int)blockIdx.x < nb0) f8r_body<1, NJ, 0, false, false, ik_bf16>(x, nullptr, w0, sc0, o0, 1, N0, K, kw, (int64_t)blockIdx.x);
-    else f8r_body<1, NJ, 0, false, false, ik_bf16>(x, nullptr, w1, sc1, o1, 1, N1, K, kw, (int64_t)blockIdx.x - nb0);
+    if ((int)blockIdx.x < nb0) f8r_body<1, NJ, 0, false, false, ik_bf16, FRAG>(x, nullptr, w0, sc0, o0, 1, N0, K, kw, (int64_t)blockIdx.x);
+    else f8r_body<1, NJ, 0, false, false, ik_bf16, FRAG>(x, nullptr, w1, sc1, o1, 1, N1, K, kw, (int64_t)blockIdx.x - nb0);
 }
 
-template <int NJ>
+template <int NJ, bool FRAG = false>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_gated_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ nw, float eps, float woff,
                  const uint8_t* __restrict__ w, const float* __restrict__ sc, ik_bf16* __restrict__ out, int N, int K, int kw) {
-    f8r_body<1, NJ, 2, false, false, ik_bf16>(x, nullptr, w, sc, out, 1, N, K, kw, (int64_t)blockIdx.x, z, nw, eps, woff);
+    f8r_body<1, NJ, 2, false, false, ik_bf16, FRAG>(x, nullptr, w, sc, out, 1, N, K, kw, (int64_t)blockIdx.x, z, nw, eps, woff);
 }
 
-template <int NJ>
+template <int NJ, bool FRAG = false>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_norm_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res, const ik_bf16* __restrict__ nw, float eps,
                      float woff, ik_bf16* __restrict__ normed, ik_bf16* __restrict__ sum, const uint8_t* __restrict__ w0,
@@ -343,18 +360,18 @@ f8r_norm_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ 
     const int nb0 = (N0 + 15) / 16;
     const bool writer = blockIdx.x == 0;
     if ((int)blockIdx.x < nb0)
-        f8r_body<1, NJ, 3, false, false, ik_bf16>(x, nullptr, w0, sc0, o0, 1, N0, K, kw, (int64_t)blockIdx.x, res, nw, eps, woff, normed, sum,
-                                           writer);
+        f8r_body<1, NJ, 3, false, false, ik_bf16, FRAG>(x, nullptr, w0, sc0, o0, 1, N0, K, kw, (int64_t)blockIdx.x, res, nw, eps, woff, normed,
+                                                 sum, writer);
     else
-        f8r_body<1, NJ, 3, false, false, ik_bf16>(x, nullptr, w1, sc1, o1, 1, N1, K, kw, (int64_t)blockIdx.x - nb0, res, nw, eps, woff, normed,
-                                           sum, writer);
+        f8r_body<1, NJ, 3, false, false, ik_bf16, FRAG>(x, nullptr, w1, sc1, o1, 1, N1, K, kw, (int64_t)blockIdx.x - nb0, res, nw, eps, woff,
+                                                 normed, sum, writer);
 }
 
-template <int NJ>
+template <int NJ, bool FRAG = false>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_sigmoid_kernel(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ gate, const uint8_t* __restrict__ w,
                    const float* __restrict__ sc, ik_bf16* __restrict__ out, int N, int K, int kw) {
-    f8r_body<1, NJ, 4, false, false, ik_bf16>(a, nullptr, w, sc, out, 1, N, K, kw, (int64_t)blockIdx.x, gate);
+    f8r_body<1, NJ, 4, false, false, ik_bf16, FRAG>(a, nullptr, w, sc, out, 1, N, K, kw, (int64_t)blockIdx.x, gate);
 }
 
 /* bf16 weights (the MoE router / shared-expert gate, the GDN b / a gates): the two folds of the bf16 pair GEMV on the same family. */
@@ -391,7 +408,7 @@ struct F8rCfg {
 };
 
 /* direct: the DIRECT form (window = NJ chunks per wave in registers, no staging). */
-inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool direct, int bpk, F8rCfg* c) {
+inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool direct, int bpk, F8rCfg* c, bool frag = false) {
     if (M < 1 || M > 64) return false;
     c->tm = (int)((M + 15) / 16);
     c->direct = direct;
@@ -399,7 +416,7 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
     if (direct) {
         c->nj = c->tm >= 3 ? 4 : 8;
         c->kw = c->nj * 256;
-        c->smem = std::max<size_t>((size_t)c->tm * kF8rSpBytes, bf ? 0 : (size_t)kF8rWBytes);  // the weight tile and the cross-wave buffer share
+        c->smem = std::max<size_t>((size_t)c->tm * kF8rSpBytes, bf || frag ? 0 : (size_t)kF8rWBytes);  // the weight tile and the cross-wave buffer share
         return !single_window;
     }
     if (bf) {
@@ -420,38 +437,39 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
     }
     // fp8 weights: windows are multiples of 1024 k (8 waves x 128 k); 2048 or 4096
     const int64_t kmax = (K + 1023) / 1024 * 1024;
-    int64_t kw = ((int64_t)kF8rLdsBudget - (int64_t)kF8rWBytes - (int64_t)extra) / M - kF8rPad;
+    const int64_t wtile = frag ? 0 : (int64_t)kF8rWBytes;  // fragment order loads straight into registers: no weight tile
+    int64_t kw = ((int64_t)kF8rLdsBudget - wtile - (int64_t)extra) / M - kF8rPad;
     kw = kw >= 4096 ? 4096 : kw >= 2048 ? 2048 : 0;
     if (kw == 0) return false;
     if (kw > 2048 && kmax <= 2048) kw = 2048;
     if (single_window && kw < kmax) return false;
     c->kw = (int)kw;
     c->nj = kw / 256;
-    c->smem = std::max<size_t>((size_t)M * (kw + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra + kF8rWBytes;
+    c->smem = std::max<size_t>((size_t)M * (kw + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra + (size_t)wtile;
     return true;
 }
 
-template <int TM, int NJ, bool DIRECT, bool BF, typename OutT>
+template <int TM, int NJ, bool DIRECT, bool BF, typename OutT, bool FRAG = false>
 void f8r_run(const ik_bf16* x, const uint8_t* xq, const uint8_t* w, const float* sc, OutT* out, int M, int64_t N, int64_t K,
              const F8rCfg& c, hipStream_t s) {
     const unsigned grid = (unsigned)((N + 15) / 16);
 #ifdef IK_F8R_ABLATE
-    f8r_kernel<TM, NJ, DIRECT, BF, OutT><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, g_f8r_abl);
+    f8r_kernel<TM, NJ, DIRECT, BF, OutT, FRAG><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, g_f8r_abl);
 #else
-    f8r_kernel<TM, NJ, DIRECT, BF, OutT><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, 0);
+    f8r_kernel<TM, NJ, DIRECT, BF, OutT, FRAG><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, 0);
 #endif
 }
 
 /* M rows, STAGED or (scratch given, M >= direct_min) DIRECT. */
-template <bool BF, typename OutT>
+template <bool BF, typename OutT, bool FRAG = false>
 int f8r_dispatch(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int M, int64_t N, int64_t K, uint8_t* scratch,
                  int direct_min, hipStream_t s) {
     const bool can_direct = BF || scratch != nullptr;
     bool direct = can_direct && M >= direct_min;
     F8rCfg c;
     // a staged window must fit the LDS (it does not for 64 bf16 rows at K >= 512): the direct form takes those calls; same bits
-    if (!direct && !f8r_cfg(M, K, false, 0, false, BF ? 2 : 1, &c)) direct = can_direct;
-    if (!f8r_cfg(M, K, false, 0, direct, BF ? 2 : 1, &c)) return IK_ERR_SHAPE;
+    if (!direct && !f8r_cfg(M, K, false, 0, false, BF ? 2 : 1, &c, FRAG)) direct = can_direct;
+    if (!f8r_cfg(M, K, false, 0, direct, BF ? 2 : 1, &c, FRAG)) return IK_ERR_SHAPE;
     if (direct && !BF) {
         const int64_t n8 = (int64_t)M * K / 8;
         f8r_actq_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>(x, scratch, sc, n8);
@@ -459,10 +477,10 @@ int f8r_dispatch(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out,
 #define IK_F8R_CASE(T)                                                                                          \
     case T:                                                                                                     \
         if (direct) {                                                                                           \
-            if (c.nj == 4) f8r_run<T, 4, true, BF, OutT>(x, scratch, w, sc, out, M, N, K, c, s);                    \
-            else f8r_run<T, 8, true, BF, OutT>(x, scratch, w, sc, out, M, N, K, c, s);                              \
-        } else if (c.nj == 16) f8r_run<T, 16, false, BF, OutT>(x, nullptr, w, sc, out, M, N, K, c, s);              \
-        else f8r_run<T, 8, false, BF, OutT>(x, nullptr, w, sc, out, M, N, K, c, s);                                 \
+            if (c.nj == 4) f8r_run<T, 4, true, BF, OutT, FRAG>(x, scratch, w, sc, out, M, N, K, c, s);                    \
+            else f8r_run<T, 8, true, BF, OutT, FRAG>(x, scratch, w, sc, out, M, N, K, c, s);                              \
+        } else if (c.nj == 16) f8r_run<T, 16, false, BF, OutT, FRAG>(x, nullptr, w, sc, out, M, N, K, c, s);              \
+        else f8r_run<T, 8, false, BF, OutT, FRAG>(x, nullptr, w, sc, out, M, N, K, c, s);                                 \
         break;
     switch (c.tm) {
         IK_F8R_CASE(1) IK_F8R_CASE(2) IK_F8R_CASE(3) IK_F8R_CASE(4)

@@ -492,6 +492,19 @@ struct Fp8PolicyQ : Fp8Policy {
 
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
+// lane wg: a fragment-order weight ([N/16][K/32][lane][16 B], ik_f8_rows.h) arrives with the HIP-private dtype IK_HIP_DTYPE_FP8_E4M3_FRAG.
+// Only the launchers that call frag_unwrap (the WMMA family, and the prefill GEMMs that learned the layout) accept it; every other launcher
+// validates dtype == IK_DTYPE_FP8_E4M3 and returns IK_ERR_DTYPE for it, so no kernel can read the permuted bytes as row-major.
+inline int frag_unwrap(const ik_tensor* w, ik_tensor* plain, bool* frag) {
+    if (!w) return IK_ERR_INVALID_ARG;
+    *plain = *w;
+    *frag = w->dtype == IK_HIP_DTYPE_FP8_E4M3_FRAG;
+    if (!*frag) return IK_OK;
+    plain->dtype = IK_DTYPE_FP8_E4M3;
+    if (w->ndim != 2 || w->shape[0] % 16 != 0 || w->shape[1] % 32 != 0) return IK_ERR_SHAPE;
+    return IK_OK;
+}
+
 int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* out) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_FP8_E4M3, 2, 16));
@@ -502,6 +515,41 @@ int check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const
     if (w->shape[1] != K || scales->shape[0] != 2 || out->shape[0] != M || out->shape[1] != N) return IK_ERR_SHAPE;
     if (K % 16 != 0) return IK_ERR_SHAPE;
     return IK_OK;
+}
+
+// ---- fragment-order relayout of the dense fp8 weights (ik_hip_abi.h, lane wg) ---------------------------------------------------------
+// Piece p (16 B) of the fragment-order tensor is (tile, chunk, lane); the row-major source of it is row 16 tile + lane % 16, k = 32 chunk + 16 (lane / 16).
+template <bool INV>
+__global__ void __launch_bounds__(256) fp8_frag_kernel(const uint8_t* __restrict__ src, uint8_t* __restrict__ dst, int64_t N, int64_t K) {
+    const int64_t p = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    const int64_t pieces = N * K / 16;
+    if (p >= pieces) return;
+    const int lane = (int)(p & 31);
+    const int64_t c = p >> 5, kc32 = K / 32;
+    const int64_t tile = c / kc32, kc = c - tile * kc32;
+    const int64_t rm = ((tile * 16 + (lane & 15)) * K + kc * 32 + 16 * (lane >> 4));  // byte offset in the row-major tensor
+    if (!INV) *reinterpret_cast<uint4*>(dst + p * 16) = *reinterpret_cast<const uint4*>(src + rm);
+    else *reinterpret_cast<uint4*>(dst + rm) = *reinterpret_cast<const uint4*>(src + p * 16);
+}
+
+int frag_move(const ik_tensor* src, ik_tensor* dst, void* stream, bool inv) {
+    if (!src || !dst) return IK_ERR_INVALID_ARG;
+    // the fragment side carries the private dtype, the row-major side the plain one
+    const ik_tensor* fr = inv ? src : dst;
+    const ik_tensor* rm = inv ? dst : src;
+    if (fr->dtype != IK_HIP_DTYPE_FP8_E4M3_FRAG && fr->dtype != IK_DTYPE_FP8_E4M3) return IK_ERR_DTYPE;
+    if (rm->dtype != IK_DTYPE_FP8_E4M3) return IK_ERR_DTYPE;
+    if (src->ndim != 2 || dst->ndim != 2 || src->shape[0] != dst->shape[0] || src->shape[1] != dst->shape[1]) return IK_ERR_SHAPE;
+    const int64_t N = src->shape[0], K = src->shape[1];
+    if (N % 16 != 0 || K % 32 != 0) return IK_ERR_SHAPE;
+    if (N == 0 || K == 0) return IK_OK;
+    if (!ik_aligned16(src->data) || !ik_aligned16(dst->data) || src->data == dst->data) return IK_ERR_INVALID_ARG;
+    const int64_t pieces = N * K / 16;
+    const unsigned grid = (unsigned)((pieces + 255) / 256);
+    hipStream_t s = IK_STREAM(stream);
+    if (inv) fp8_frag_kernel<true><<<grid, 256, 0, s>>>((const uint8_t*)src->data, (uint8_t*)dst->data, N, K);
+    else fp8_frag_kernel<false><<<grid, 256, 0, s>>>((const uint8_t*)src->data, (uint8_t*)dst->data, N, K);
+    return ik_launch_status();
 }
 
 // variant: 0 = tensor-core GEMM, 1 = GEMV, 2 = GEMV v2 (vectorised activation staging)
@@ -579,6 +627,10 @@ int wmma_direct_min() {
 }
 
 int launch_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    ik_tensor wfp;
+    bool frag = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frag));
+    w = &wfp;
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0) return IK_OK;
@@ -591,6 +643,9 @@ int launch_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales,
     if (!ik_aligned16(xp) || !ik_aligned16(wp)) return IK_ERR_INVALID_ARG;
     uint8_t* scr = nullptr;
     if (scratch && scratch->data && scratch->bytes >= M * K && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)) scr = (uint8_t*)scratch->data;
+    if (frag)
+        return out->dtype == IK_DTYPE_F32 ? f8r_dispatch<false, float, true>(xp, wp, sp, (float*)out->data, (int)M, N, K, scr, wmma_direct_min(), s)
+                                          : f8r_dispatch<false, ik_bf16, true>(xp, wp, sp, (ik_bf16*)out->data, (int)M, N, K, scr, wmma_direct_min(), s);
     return out->dtype == IK_DTYPE_F32 ? f8r_dispatch<false>(xp, wp, sp, (float*)out->data, (int)M, N, K, scr, wmma_direct_min(), s)
                                       : f8r_dispatch<false>(xp, wp, sp, (ik_bf16*)out->data, (int)M, N, K, scr, wmma_direct_min(), s);
 }
@@ -788,6 +843,13 @@ bool pair_dispatch(PairCfg c, const ik_bf16* xp, const uint8_t* p0, const float*
 // rows per warp and eight warps).
 int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
          ik_tensor* o0, ik_tensor* o1, void* stream, bool wmma = false) {
+    ik_tensor w0p, w1p;
+    bool fr0 = false, fr1 = false;
+    IK_TRY(frag_unwrap(w0, &w0p, &fr0));
+    IK_TRY(frag_unwrap(w1, &w1p, &fr1));
+    if (fr0 != fr1 || (fr0 && !wmma)) return IK_ERR_DTYPE;  // fragment order is read by the WMMA family only, and both weights or neither
+    w0 = &w0p;
+    w1 = &w1p;
     IK_TRY(check(x, w0, sc0, o0));
     IK_TRY(check(x, w1, sc1, o1));
     if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
@@ -806,12 +868,21 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik
     const float *s0 = (const float*)sc0->data, *s1 = (const float*)sc1->data;
     ik_bf16 *q0 = (ik_bf16*)o0->data, *q1 = (ik_bf16*)o1->data;
     if (wmma) {
+        if (fr0) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, false, 0, false, 1, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, false, 0, false, 1, &c, fr0)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+        if (c.nj == 16) f8r_pair_kernel<16, true><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
+        else f8r_pair_kernel<8, true><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
+        return ik_launch_status();
+            } else {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, false, 0, false, 1, &c, fr0)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
         if (c.nj == 16) f8r_pair_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
         else f8r_pair_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
         return ik_launch_status();
+            }
     }
     const int q = staging_q();
     if (q == 2) return pair_dispatch(pair_cfg(), xp, p0, s0, q0, N0, p1, s1, q1, N1, K, s) ? ik_launch_status() : IK_ERR_SHAPE;
@@ -845,6 +916,11 @@ void gated_run(const ik_bf16* x, const ik_bf16* z, const ik_bf16* nw, float eps,
 // x / z [R, 128] (R * 128 == K), nw [128], w [N, K] fp8, out [1, N] bf16. Rows per warp as the single v2 GEMV chooses them.
 int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float woff, const ik_tensor* w,
                  const ik_tensor* scales, ik_tensor* out, void* stream, bool wmma = false) {
+    ik_tensor wfp;
+    bool frw = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frw));
+    if (frw && !wmma) return IK_ERR_DTYPE;  // fragment order is read by the WMMA family only
+    w = &wfp;
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(z, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
@@ -868,12 +944,21 @@ int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, fl
     const float* sp = (const float*)scales->data;
     ik_bf16* op = (ik_bf16*)out->data;
     if (wmma) {
+        if (frw) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, true, 0, false, 1, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c, frw)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N + 15) / 16);
+        if (c.nj == 16) f8r_gated_kernel<16, true><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
+        else f8r_gated_kernel<8, true><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
+        return ik_launch_status();
+            } else {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c, frw)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N + 15) / 16);
         if (c.nj == 16) f8r_gated_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
         else f8r_gated_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
         return ik_launch_status();
+            }
     }
     switch (gemv_rows(N, true)) {
         case 1: gated_run<1>(xp, zp, np, eps, woff, wp, sp, op, N, K, s); break;
@@ -912,6 +997,13 @@ fp8_gemv_norm_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restri
 int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, float eps, float woff, const ik_tensor* w0,
               const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1, ik_tensor* normed, ik_tensor* sum, ik_tensor* o0,
               ik_tensor* o1, void* stream, bool wmma = false) {
+    ik_tensor w0p, w1p;
+    bool fr0 = false, fr1 = false;
+    IK_TRY(frag_unwrap(w0, &w0p, &fr0));
+    IK_TRY(frag_unwrap(w1, &w1p, &fr1));
+    if (fr0 != fr1 || (fr0 && !wmma)) return IK_ERR_DTYPE;  // fragment order is read by the WMMA family only, and both weights or neither
+    w0 = &w0p;
+    w1 = &w1p;
     IK_TRY(check(x, w0, sc0, o0));
     IK_TRY(check(x, w1, sc1, o1));
     IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
@@ -928,10 +1020,28 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
     if (K == 0 || N0 == 0 || N1 == 0) return IK_ERR_SHAPE;  // (nothing the model produces; the unfused ops handle empty shapes)
     if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
     if (wmma) {
+        if (fr0) {
         F8rCfg c;
         // the norm runs once, in one window (it writes `normed` / `sum`): size the window for the weight-only form, which stages the row as
     // bf16 (kw / 2 elements), i.e. ask for a window of 2 * K rounded up to the chunk (K <= 2048)
-    if (!f8r_cfg(1, 2 * ((K + 1023) / 1024 * 1024), true, (size_t)K * 2, false, 1, &c)) return IK_ERR_SHAPE;
+    if (!f8r_cfg(1, 2 * ((K + 1023) / 1024 * 1024), true, (size_t)K * 2, false, 1, &c, fr0)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+        if (c.nj == 16)
+            f8r_norm_pair_kernel<16, true><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
+                (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,
+                (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+                (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+        else
+            f8r_norm_pair_kernel<8, true><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
+                (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,
+                (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+                (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+        return ik_launch_status();
+            } else {
+        F8rCfg c;
+        // the norm runs once, in one window (it writes `normed` / `sum`): size the window for the weight-only form, which stages the row as
+    // bf16 (kw / 2 elements), i.e. ask for a window of 2 * K rounded up to the chunk (K <= 2048)
+    if (!f8r_cfg(1, 2 * ((K + 1023) / 1024 * 1024), true, (size_t)K * 2, false, 1, &c, fr0)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
         if (c.nj == 16)
             f8r_norm_pair_kernel<16><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
@@ -944,6 +1054,7 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
                 (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
                 (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
         return ik_launch_status();
+            }
     }
     constexpr int R = 1, per = kWarps * R;  // fp8_gemv_pair_kernel's default shape (pair_cfg: one row per warp, eight warps)
     const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);
@@ -974,6 +1085,11 @@ void sigmoid_run(const ik_bf16* a, const ik_bf16* g, const uint8_t* w, const flo
 // a, gate [1, K] bf16 (16-byte aligned), w [N, K] fp8 + scales, out [1, N] bf16.
 int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
                    void* stream, bool wmma = false) {
+    ik_tensor wfp;
+    bool frw = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frw));
+    if (frw && !wmma) return IK_ERR_DTYPE;  // fragment order is read by the WMMA family only
+    w = &wfp;
     IK_TRY(check(a, w, scales, out));
     IK_TRY(ik_check(gate, IK_DTYPE_BF16, 2));
     if (out->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
@@ -988,12 +1104,21 @@ int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w
     const float* sp = (const float*)scales->data;
     ik_bf16* op = (ik_bf16*)out->data;
     if (wmma) {
+        if (frw) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, true, 0, false, 1, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c, frw)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N + 15) / 16);
+        if (c.nj == 16) f8r_sigmoid_kernel<16, true><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
+        else f8r_sigmoid_kernel<8, true><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
+        return ik_launch_status();
+            } else {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c, frw)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N + 15) / 16);
         if (c.nj == 16) f8r_sigmoid_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
         else f8r_sigmoid_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
         return ik_launch_status();
+            }
     }
     switch (gemv_rows(N, true)) {
         case 1: sigmoid_run<1>(ap, gp, wp, sp, op, N, K, s); break;
@@ -1040,6 +1165,8 @@ int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_ten
 #ifdef IK_F8R_ABLATE
 void ik_f8r_set_abl(int v) { g_f8r_abl = v; }
 #endif
+int ik_fp8_relayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream) { return frag_move(src, dst, stream, false); }
+int ik_fp8_unrelayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream) { return frag_move(src, dst, stream, true); }
 int ik_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
                        void* stream) {
     return launch_wmma(x, w, scales, out, scratch, stream);
