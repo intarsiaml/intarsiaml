@@ -398,8 +398,11 @@ void f8r_run(const ik_bf16* x, const uint8_t* xq, const uint8_t* w, const float*
 template <bool BF, typename OutT>
 int f8r_dispatch(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int M, int64_t N, int64_t K, uint8_t* scratch,
                  int direct_min, hipStream_t s) {
-    const bool direct = (BF || scratch != nullptr) && M >= direct_min;
+    const bool can_direct = BF || scratch != nullptr;
+    bool direct = can_direct && M >= direct_min;
     F8rCfg c;
+    // a staged window must fit the LDS (it does not for 64 bf16 rows at K >= 512): the direct form takes those calls; same bits
+    if (!direct && !f8r_cfg(M, K, false, 0, false, BF ? 2 : 1, &c)) direct = can_direct;
     if (!f8r_cfg(M, K, false, 0, direct, BF ? 2 : 1, &c)) return IK_ERR_SHAPE;
     if (direct && !BF) {
         const int64_t n8 = (int64_t)M * K / 8;
