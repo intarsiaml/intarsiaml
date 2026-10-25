@@ -1,10 +1,35 @@
 # Lane mx: Qwen3.8-27B MXFP4 prefill on one R9700 (HIP, gfx1201), 2026-10-25
 
-Lane mx, branch `lane-mx/27b-prefill`, from origin/main 2c2d9941. Every GPU number comes from a fleetq slot on tatooine with
+Lane mx, branch `lane-mx/27b-prefill`, rebased on origin/main 0b84f499 (started from 2c2d9941). Every GPU number comes from a fleetq slot on tatooine with
 radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored and confirmed `active` after each window
 (`raw/downtime.log`). Raw output: `2026-10-25-mx-hip-27b-prefill/raw/<window>/`. Scripts: `scripts/mx/`.
 
-<!-- HEADLINE -->
+## Headline
+
+27B prefill on one R9700, prefill-only engine time (raw/w7, one window, same build, tok/s):
+
+| prompt | main (chunk 256) | v2 GEMM (default, bitwise) | + chunk 4096 with tail peel (default, bitwise) | + fold (opt-in, changes numerics) |
+|---|---:|---:|---:|---:|
+| 1k | 990 | 1129 (+14 %) | 1335 (+35 %) | 2041 (+106 %) |
+| 4k | 1012 | 1153 (+14 %) | 1435 (+42 %) | 2410 (+138 %) |
+| 16k | 959 | 1084 (+13 %) | 1367 (+43 %) | 2227 (+132 %) |
+
+* **What the time is.** At 4k on main 87-89 % of kernel time is the MXFP4 GEMMs at 57-65 TFLOP/s (30-34 % of the bf16
+  WMMA peak); attention and the GatedDeltaNet scan are 6 %, the activation QDQ 2 % (section 1).
+* **Default, bitwise:** `matmul_mxfp4_mma` v2 (direct bf16 dequant + a prefill tile table, bit for bit v1; section 3),
+  and the 27B's HIP recipe at chunk 4096 with a 16-row tail peel, a new core knob that makes a larger chunk run a prompt's
+  short tail exactly as chunk 256 does (section 4). Ids, plan show, golden dumps and a 34-prompt tails sweep match main;
+  the 35B and CUDA / Metal are unchanged.
+* **Opt-in, numerics:** `INTARSIA_HIP_MXFP4_FOLD=1` folds W4A4 onto the fp8 WMMA (2x the GEMM rate). Against the 27B
+  golden it passes prefill (KL 0.165 vs main 0.180) but fails the decode-mode gate, as main does (0.261 vs main 0.340,
+  bound 0.197): open decision mx-1 (section 5).
+* **Gap to radiance** (TP2, 5210 / 6133 / 5852 tok/s): single card we go 1012 -> 1435 tok/s at 4k (default) or 2410
+  (opt-in). Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel (section 1, arithmetic);
+  after this lane the default single-card gap to radiance's per-card GEMM rate is still about 1.8x (82 vs ~150 TFLOP/s),
+  and the bitwise GEMM's remaining cost is its pipeline, not its dequant (section 8).
+* **Still pending** at the time of writing: w8 (the peel-16 tails sweep and ids, fleetq #5177) and loc3 (served speed of
+  the new default, #5178), queued behind lane tp2's windows.
+
 
 ## 1. Profile: where a 27B 4k prefill goes on one card (main)
 
@@ -117,7 +142,7 @@ The GEMMs alone (`scripts/mx/mxbench.hip`, raw/w4 mxbench-m*.txt; every 27B proj
 chunk): M = 4096: v1 3275, v2 2402 (60.9 -> 83.0 TFLOP/s); M = 1024: 843 -> 648; M = 256: 233 -> 191. In the engine at
 chunk 4096 the v2 GEMM is 2261 ms of 2735 ms kernel time (82.7 %, one tile `dq_gemm_kernel<Mxfp4PolicyV2, 4, 4, 2, 4>`,
 raw/w4 prof-v2-c4096-4096.txt), against 3095 ms for main's GEMMs. v2 is at 43 % of the bf16 WMMA peak and about half of
-hipBLASLt bf16 at these shapes, so the bitwise GEMM still has room (section 7).
+hipBLASLt bf16 at these shapes, so the bitwise GEMM still has room (section 8).
 
 
 ## 4. Prefill chunk 4096 with an 8-row tail peel: bitwise chunk 256, the 27B's HIP default
@@ -154,7 +179,7 @@ prompts, the w3 synthetic tails and 18 more lengths with 0..255 rows past a mult
 
 | dev schedule | prompts not bitwise | rows differing |
 |---|---|---:|
-| chunk 4096, no peel (`INTARSIA_PREFILL_PEEL=0`, the negative control) | 11 of 34: every tail of 1..16 rows (257, 258, 260, 263, 264, 265, 272, 4360, 4361, 8456, 12553) | 81 |
+| chunk 4096, no peel (`INTARSIA_PREFILL_PEEL=0`, the negative control) | 11 of 34: every prompt whose 1..16-row tail sits inside a larger pass at 4096 (257, 258, 260, 263, 264, 265, 272, 4360, 4361, 8456, 12553; 4097 / 4104 / 4105 / 8200 are cut alone after a full 4096 pass anyway) | 81 |
 | chunk 4096, 8-row peel | 4: the 9..16-row tails (265, 272, 4361, 12553) | 43 |
 | chunk 4096, 16-row peel | <!-- W8_TAILS --> | |
 
@@ -238,15 +263,16 @@ Decode is unchanged (32.9 / 32.4 / 30.8 tok/s in every arm).
 | gate | result | evidence |
 |---|---|---|
 | `kernels test --quick`, hip | 64 kernels, 345 cases, 0 fail (default and fold on) | raw/w5 kq-*.out |
-| v2 bitwise v1, row-invariance (batched = solo), negative controls | pass | tests/mxfp4_v2.rs (raw/w3, w4<!-- W7T -->) |
+| v2 bitwise v1, row-invariance (batched = solo), negative controls | pass | tests/mxfp4_v2.rs, tests/mxfp4_fold.rs (raw/w3, w4, and w7 on the PR-head build: 3 + 4 passed) |
 | fold opt-in: off by default, rows independent of M, negative controls | pass | tests/mxfp4_fold.rs (raw/w3, w4) |
 | peel schedule property + negative controls | pass | crates/intarsia-core/tests/scheduler.rs `prefill_peel_*` |
 | 27B golden gate (HF Quark W4A4, ref noise 0.197) | prefill PASS (0.180, bitwise main); decode-mode FAIL 0.340, **bitwise main's own result** | raw/w3, w4 accg-*.out |
 | 27B acc-short (`qualify --quick-only`) | FAIL on the same decode-mode KL (0.340), as main; fold FAIL 0.261 | raw/w5 qual-27*.err |
-| 35B acc-short / KL golden | <!-- W7_35 --> | raw/w6 qual-35 (golden dir missing in that window: SKIP), raw/w7 |
+| 35B KL golden (vLLM top-20, ref noise; prefill + teacher-forced decode) | PASS on main and dev, and the dev dumps are bitwise main (1441 + 160 rows) | raw/w7 accg35-*.out, cmp-golden35-*.txt |
+| 35B acc-short (`qualify --quick-only`) | **not obtained**: w6 had no golden dir (SKIP); in w7 `doctor` failed on tatooine's disk (4.5 GB / 2 % free), which blocked `plan`, so acc-short could not match the HIP baseline (MISSING-BASELINE); gate, acc-oracle (top-1 95.86 %, KL 1.07e-2) and bench PASS | raw/w6, raw/w7 qual-35*.err |
 | no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 27B short / 4k / 16k, 35B short / 4k identical; plan show 27B / 35B identical | raw/w4, raw/w5 |
-| batch_recurrent `--test-threads=1` | <!-- W7_BR --> | raw/w7 |
-| 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling); <!-- W7_BC --> | raw/w6 mtest-batch.txt |
+| batch_recurrent `--test-threads=1 --include-ignored` (hip) | 11 passed | raw/w7 mtest-recurrent.txt |
+| 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling `forward_batch` top-k). None touches this diff (the test file and those code paths are unchanged vs main); a main run in w7 is not valid evidence (its test build was seeded from dev's target and git-archive mtimes made cargo reuse dev's artifacts), so main-equals is argued from the code, not measured | raw/w6 mtest-batch.txt |
 | CUDA no-op (spark1 #5161): plan show + 256 ids 8B / 35B, kernels quick, core lib, batch_recurrent | all identical / pass | raw/cuda |
 | Metal no-op (endor #5159): plan show + 256 ids 8B / 35B, 27B plan, kernels test, workspace tests | all identical, 0 FAIL | raw/metal |
 
