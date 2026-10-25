@@ -41,10 +41,6 @@ pub struct MtpSpec {
     /// Tensor-name prefix: `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`,
     /// `{prefix}.layers.0.{input_layernorm, self_attn.*, post_attention_layernorm, mlp.*}`.
     pub prefix: String,
-    /// Default for `--mtp-draft-vocab` (docs/results/2026-10-25-sp-hip-spec.md section 6): the MTP drafter's argmax runs over the
-    /// first N `lm_head` rows (a multiple of 8). Unset or 0: the full head. An explicit `--mtp-draft-vocab` (0 included) wins.
-    #[serde(default)]
-    pub draft_vocab: Option<usize>,
     /// Measured-cost gate (`spec::CostParams`), per recipe: the speedup under which a request falls back to plain
     /// decode (0 turns the gate off), the passes it must stay under for, the passes between probes of the plain-step
     /// cost, and the plain tokens before speculation is tried again. Unset: the backend's default.
@@ -290,6 +286,8 @@ pub const DEFAULT_PREFILL_CHUNK: usize = 256;
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Tuning {
     pub prefill_chunk: Option<usize>,
+    /// Default of `--mtp-draft-vocab` for every backend (a multiple of 8; unset or 0: the full head). Measured defaults only.
+    pub mtp_draft_vocab: Option<usize>,
     #[serde(flatten)]
     pub backends: BTreeMap<String, BackendTuning>,
 }
@@ -305,6 +303,17 @@ pub struct MaxBatch {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
+    /// Default of `--mtp-draft-vocab` for this backend (see [`Tuning::mtp_draft_vocab`]).
+    pub mtp_draft_vocab: Option<usize>,
+}
+
+/// A resolved MTP draft-head width and where it came from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DraftVocab {
+    /// Rows of `lm_head` the drafter's argmax runs over; 0: the full head.
+    pub value: usize,
+    /// `--mtp-draft-vocab`, `recipe <family>, <backend>`, `recipe <family>, base` or `default`.
+    pub source: String,
 }
 
 /// A resolved prefill chunk and where it came from.
@@ -337,6 +346,24 @@ impl Recipe {
             return PrefillChunk { value, source: format!("recipe {family}, base") };
         }
         PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into() }
+    }
+}
+
+impl Recipe {
+    /// MTP draft-head width for `backend`: the explicit flag (0 is the full head), then the recipe's value for that backend, then
+    /// the recipe's base value, then 0 (the full head).
+    pub fn resolve_mtp_draft_vocab(&self, flag: Option<usize>, backend: &str) -> DraftVocab {
+        let family = &self.model.family;
+        if let Some(value) = flag {
+            return DraftVocab { value, source: "--mtp-draft-vocab".into() };
+        }
+        if let Some(value) = self.tuning.backends.get(backend).and_then(|b| b.mtp_draft_vocab) {
+            return DraftVocab { value, source: format!("recipe {family}, {backend}") };
+        }
+        if let Some(value) = self.tuning.mtp_draft_vocab {
+            return DraftVocab { value, source: format!("recipe {family}, base") };
+        }
+        DraftVocab { value: 0, source: "default".into() }
     }
 }
 
@@ -448,6 +475,10 @@ impl Recipe {
         let chunks = self.tuning.prefill_chunk.iter().chain(self.tuning.backends.values().filter_map(|b| b.prefill_chunk.as_ref()));
         if chunks.into_iter().any(|&c| c == 0) {
             return Err(Error::model("recipe [tuning] prefill_chunk must be at least 1"));
+        }
+        let dv = self.tuning.mtp_draft_vocab.iter().chain(self.tuning.backends.values().filter_map(|b| b.mtp_draft_vocab.as_ref()));
+        if dv.into_iter().any(|&n| n % 8 != 0) {
+            return Err(Error::model("recipe [tuning] mtp_draft_vocab must be a multiple of 8 (0: the full head)"));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

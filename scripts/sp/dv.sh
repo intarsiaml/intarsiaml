@@ -59,8 +59,8 @@ run)
     [ "$(md d-v0 $n 1)" = "$(md d-off $n 1)" ]; chk $? "n$n: MTP k=2 --mtp-draft-vocab 0 ids == spec off"
     a=$(acc d-def $n 1); b=$(acc d-v65536 $n 1); [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: default acceptance == explicit 65536 ($a)"
     a=$(acc d-v0 $n 1); b=$(acc b-mtp $n 0); [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: --mtp-draft-vocab 0 acceptance == main's full head ($a)"
-    grep -aq "recipe default" $O/d-def-n$n.err; chk $? "n$n: the load log says the recipe default applied"
-    ! grep -aq "recipe default" $O/d-v0-n$n.err; chk $? "n$n: no recipe-default line with --mtp-draft-vocab 0"
+    grep -aq "recipe qwen3_5_vl, hip" $O/d-def-n$n.err; chk $? "n$n: the load log names the recipe default (recipe qwen3_5_vl, hip)"
+    ! grep -aq "recipe qwen3_5_vl" $O/d-v0-n$n.err; chk $? "n$n: no recipe-default line with --mtp-draft-vocab 0"
   done
   echo "[dv] done: $fails failing check(s)" ;;
 *) echo "usage: dv.sh prep|run"; exit 2 ;;

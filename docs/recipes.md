@@ -131,9 +131,11 @@ missing feature.
 |---|---|---|---|
 | `prefill_chunk` | int, at least 1 | `256` (code default) | Tokens per prefill forward pass, for every backend. Override with `--prefill-chunk`. |
 | `[tuning.<backend>] prefill_chunk` | int, at least 1 | the base value | Same, for one backend: `cpu`, `cuda`, `hip` or `metal`. A backend without a table uses the base value. |
+| `mtp_draft_vocab` | int, multiple of 8 | `0` (the full head) | Default of `--mtp-draft-vocab` for every backend: the MTP drafter's argmax runs over the first N `lm_head` rows. Output is unchanged (the verify pass keeps the full head); only acceptance moves. `0` or unset: the full head. Set only where measured. |
+| `[tuning.<backend>] mtp_draft_vocab` | int, multiple of 8 | the base value | Same, for one backend. `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets `[tuning.hip] mtp_draft_vocab = 65536`; CUDA and Metal are unmeasured and keep the full head. |
 
 Order of resolution: `--prefill-chunk`, then `[tuning.<backend>]`, then `[tuning]`, then 256; `plan show` prints which
-one won. The chunk is a numerics knob, so commit a value only with the measurement behind it in a comment
+one won. `--mtp-draft-vocab` resolves the same way (flag, `[tuning.<backend>]`, `[tuning]`, then the full head; the load log names the source). The chunk is a numerics knob, so commit a value only with the measurement behind it in a comment
 ([tuning.md](tuning.md)).
 
 ### `[config]` (rename `config.json` keys)
@@ -182,7 +184,6 @@ Without that flag nothing under the prefix is loaded and the table has no effect
 |---|---|---|---|
 | `kind` | string | required | `"qwen3_5_mtp"`: `fc` over `[norm(embed(token)) \| norm(hidden)]`, one gated full-attention + MoE decoder layer, a final norm, the model's own `lm_head` (vLLM `Qwen3NextMultiTokenPredictor`). |
 | `prefix` | string | required | Tensor-name prefix (`"mtp"`): `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`, `{prefix}.layers.0.*`. |
-| `draft_vocab` | int | unset (the full head); `65536` in `recipes/qwen3_5_vl.toml` | Default for `--mtp-draft-vocab`: the MTP drafter's argmax runs over the first N `lm_head` rows (a multiple of 8, below the vocabulary). Output is unchanged (the verify pass keeps the full head); only acceptance moves. An explicit `--mtp-draft-vocab` (0 included) wins. |
 | `cost_min_speedup` | float | off everywhere (docs/results/2026-10-25-sp-hip-spec.md, section 13) | Measured-cost gate, opt-in: a request falls back to plain steps while `tokens_per_pass / (ms_per_pass / ms_per_plain_token)` stays under this. `0` turns the gate off (`INTARSIA_SPEC_COSTGATE` overrides). |
 | `cost_window` | int | `16` | Passes the speedup must stay under `cost_min_speedup` before the fallback. |
 | `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |

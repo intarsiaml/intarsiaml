@@ -1005,9 +1005,10 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
-        let draft_vocab = Self::resolve_draft_vocab(opts.mtp_draft_vocab, recipe.mtp.as_ref().and_then(|m| m.draft_vocab));
+        let dv = recipe.resolve_mtp_draft_vocab(opts.mtp_draft_vocab, b.name());
+        let draft_vocab = dv.value;
         if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
-            eprintln!("--mtp-draft-vocab {draft_vocab} (recipe default; --mtp-draft-vocab 0 drafts with the full head)");
+            eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
         }
         let draft_head = if opts.mtp && draft_vocab > 0 {
             match lm_head.as_ref() {
@@ -1190,11 +1191,6 @@ impl Model {
     }
 
     /// Most rows a verify pass may have (0: speculative verify not enabled).
-    /// The MTP drafter's head width: the explicit `--mtp-draft-vocab` (0: the full head) wins, else the recipe's default, else 0.
-    pub fn resolve_draft_vocab(explicit: Option<usize>, recipe: Option<usize>) -> usize {
-        explicit.or(recipe).unwrap_or(0)
-    }
-
     /// The measured-cost gate parameters for `--spec mtp` requests (single-sequence engine).
     pub fn spec_cost_params(&self) -> crate::spec::CostParams {
         self.spec_cost
