@@ -57,6 +57,8 @@ if [[ $W == *B* ]]; then
     dev 1 $T cargo test --release --locked -p intarsia-models --test batch_recurrent -- --test-threads=1 --nocapture 2>&1 | grep -aE "^test |^test result|FAILED|panicked|^error"
     echo "-- kernels test --quick (hip)"
     dev 1 /target/release/intarsia kernels test --backend hip --quick 2>&1 | tail -n 4
+    echo "-- kernels test --quick (hip), option 1 ON (the WMMA kernels are exercised only with the knob)"
+    dev 1 env $OPT1 /target/release/intarsia kernels test --backend hip --quick 2>&1 | grep -aE "wmma|FAIL|NO CASES|kernels,|cases in" | tail -n 24
     echo "-- rows_exact + wmma_folds + frag_layout, knob unset"
     dev 1 env INTARSIA_REQUIRE_GPU=1 INTARSIA_HIP_DEVICE=0 cargo test --release --locked -p intarsia-backend-hip --test rows_exact --test wmma_folds --test frag_layout --no-fail-fast -- --test-threads=1 2>&1 | grep -aE "^test result|FAILED|panicked"
     echo "-- same, option 1 on"
