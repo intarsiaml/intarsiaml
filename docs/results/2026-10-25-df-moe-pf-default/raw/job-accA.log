@@ -1,0 +1,26 @@
+fleetq: #4966 waiting (#1 in line): needs gpu quiet on spark2, but #4965 "df A noop ids/plan base vs PF-default" (claude-f31ccf91-df) loads it
+fleetq:   #4965 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4965 set, or it will wait for #4965 to be released.
+fleetq: #4966 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh gatesA.sh dfA-acc df-dev '$HOME/intarsia-decfuse/df-golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json' def
+== acc-short vs main baseline, PF=def 00:18:08
+exit 1
+Error: reading baseline $HOME/intarsia-decfuse/df-golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json
+== KL golden qwen36-35b-a3b-nvfp4-vllm-top20 chunk 2048 PF=def 00:18:40
+exit 0
+golden: /home/nvidia/intarsia-decfuse/df-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) wit
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-long-top20 chunk 2048 PF=def 00:19:16
+exit 0
+golden: /home/nvidia/intarsia-decfuse/df-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-4k-top20 chunk 2048 PF=def 00:20:48
+exit 0
+golden: /home/nvidia/intarsia-decfuse/df-golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors (3 prompts, 12759 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) 
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== done 00:21:41
+fleetq: #4966 done (exit 0)
