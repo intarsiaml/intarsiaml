@@ -192,3 +192,22 @@ the verify pass keeps the full head. Captured k=2, natural-v1, 256 ids. **The 25
 | HIP no-op, spec off, branch vs main (35B ids 128/1k/4k/16k) | identical md5 (section 1); re-checked against main 0b84f499 in window 6 |
 | CUDA (spark1): MTP equality + no-op vs main, core lib, `mtp`, `batch_recurrent` | pass (`raw/cuda`) |
 | Metal (endor): MTP equality + no-op vs main | pass (`raw/metal`) |
+
+## 8. Does the draft vocabulary cap hold on Chinese and code? (window 6, fleetq #5145; 27B, k=2, ~1k-token prompts)
+
+Prompts (frozen in the lane's scratch, not suite prompts): a 1376-character Chinese passage on speculative decoding and a 3754-character
+excerpt of `crates/intarsia-core/src/model/batch.rs`. Raw completion, 256 greedy ids, `raw/hip/extras/`.
+
+| prompt | spec off | k=2 full head | k=2 `--mtp-draft-vocab 65536` | md5 off / full / 65536 |
+|---|---|---|---|---|
+| Chinese | 32.95 | 43.51 (acceptance 65.9%, 2.32 tok/pass) | **36.63 (acceptance 51.4%, 2.03 tok/pass)** | equal (2a3c0cbf) |
+| Rust code | 32.90 | 51.97 (acceptance 88.6%) | 57.99 (acceptance 88.6%) | equal (f8e69e22) |
+
+- **Code holds**: acceptance is identical to the full head and the cap gains +11.6%.
+- **Chinese does not**: the reduced head cuts acceptance from 65.9% to 51.4% and speed falls 16% below the full-head MTP (36.6 against
+  43.5 tok/s; still above spec off). Chinese tokens sit above id 65536 in Qwen's vocabulary, so the draft cannot propose them.
+- Output is bitwise the spec-off output either way. Decision: `--mtp-draft-vocab` stays **opt-in**; use it on English and code
+  workloads, leave it off for CJK or multilingual traffic. Not run: other languages, other N for CJK text.
+
+No-op against main at 0b84f499 (35B, window 6, `raw/hip/extras/x-35.log`): spec off md5 ce656b29 / 419d4320 on both trees at 128 / 1k (166.2 /
+166.1 tok/s main, 166.6 / 165.8 branch); MTP k=2 md5 equal, 191.1 / 196.5 tok/s main eager against 191.8 / 198.9 tok/s branch captured.
