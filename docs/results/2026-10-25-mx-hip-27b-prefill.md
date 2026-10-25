@@ -170,12 +170,12 @@ attention-only prefill, a whole-prompt forward as the accuracy tooling runs), wi
 100 lengths fail; a 3-row peel misses a 4-row tail; the checker rejects a pass that is not a merge of reference passes).
 
 Knob: recipe `[tuning.<backend>] prefill_peel` (0..255, default 0 = off), `INTARSIA_PREFILL_PEEL` over it. Off, nothing
-changes: no other recipe sets it, the plan JSON gains `prefill_peel` and the prefix-store fingerprint `|peelN` only when
-it is on. `recipes/qwen3_5_vl.toml` (the 27B's recipe, `Qwen3_5ForConditionalGeneration`) now sets `[tuning.hip]
-prefill_chunk = 4096, prefill_peel = 8` (CUDA, Metal, CPU keep 256). That recipe covers every Qwen3.5-style dense hybrid in
-the vision-language wrapper; the 27B MXFP4 is the only one measured. (A first version put the table in `qwen3_5.toml`,
-the text-only recipe the 27B does not use; loc1 served chunk 256 for that reason, and w7 measured the setting with
-`--prefill-chunk 4096` and `INTARSIA_PREFILL_PEEL=8` on that build, which is what the moved table resolves to.)
+changes: no built-in recipe sets it, and the plan JSON gains `prefill_peel` and the prefix-store fingerprint `|peelN`
+only when it is on. **No recipe changes in this PR:** `recipes/qwen3_5_vl.toml` (the 27B's recipe,
+`Qwen3_5ForConditionalGeneration`) matches main (chunk 256, no peel). Earlier heads of this branch set `[tuning.hip]
+prefill_chunk = 4096` with `prefill_peel = 8` (w7), then 16 (w8, w9), in that recipe; a2d3c6b9 reverted it after w10
+(serve `--max-batch 16`, see the headline), and `recipe.rs` `no_builtin_recipe_sets_a_prefill_peel` pins the revert. To
+get the setting: `--prefill-chunk 4096` with `INTARSIA_PREFILL_PEEL=16`.
 
 **Evidence (raw/w7, fleetq #5158, and raw/w8).** Self-golden prefill dumps of 34 prompts (85014 rows: P1's 10 golden
 prompts, the w3 synthetic tails and 18 more lengths with 0..255 rows past a multiple of 256, below and above 4096;
@@ -312,7 +312,7 @@ Spread within each arm is at most 1.7 %; decode 33.0 / 32.4 / 30.8 tok/s in ever
 | earlier no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 35B: plan show and ids short / 4k identical (raw/w5). 27B: identical at chunk 256 (raw/w4, w5, builds before the recipe table moved to qwen3_5_vl.toml); at the head the 27B plan differs by design (prefill_chunk, its source, prefill_peel); the no-flag plan diff and ids vs main are in w8 | raw/w4, w5, w8 |
 | batch_recurrent `--test-threads=1 --include-ignored` (hip) | 11 passed | raw/w7 mtest-recurrent.txt |
 | 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling `forward_batch` top-k). The 8B one fails the same way on main-era code in lane hg's HIP run (`batch_cuda_real.rs:89`, /opt/code/wt-sp/docs/results/2026-10-25-hg-hip-serve-gap/raw/hip/g-c.log); the two 35B ones were not run with `--include-ignored` there, and they fail on a hard-coded CUDA chunk (2048) and on device-sampling `forward_batch`, code this diff does not touch. A main run in w7 is not valid evidence (its test build was seeded from dev's target and git-archive mtimes made cargo reuse dev's artifacts) | raw/w6 mtest-batch.txt |
-| on the tree rebased onto 5e9cc6da (raw/w9) | 27B batched decode == solo step at max-batch 16 (lane mr's S4 test, which loads the recipe's chunk, now 4096 + peel 16): PASS; tests/mxfp4_v2.rs, mxfp4_fold.rs, rows_exact.rs: 3 + 4 + 6 passed; kernels test --quick 27B / 35B: 66 kernels, 365 cases, 0 fail; batch_recurrent: 11 passed | raw/w9 |
+| on the tree rebased onto 5e9cc6da (raw/w9) | 27B batched decode == solo step at max-batch 16 (lane mr's S4 test, which loads the recipe's chunk, at w9 still 4096 + peel 16): PASS; tests/mxfp4_v2.rs, mxfp4_fold.rs, rows_exact.rs: 3 + 4 + 6 passed; kernels test --quick 27B / 35B: 66 kernels, 365 cases, 0 fail; batch_recurrent: 11 passed | raw/w9 |
 | **final CUDA no-op, head c5d4e9b5 vs main 5241377b** (spark1 #5313, fresh per-tree target dirs): plan show json + text and 256 ids 8B / 35B short / 4k, kernels test --quick, intarsia-core lib, batch_recurrent | ids and plan byte-identical; 77 kernels, 531 cases, 0 fail; 125 + 11 passed, 0 failed | raw/cuda-final |
 | **final Metal no-op, head c5d4e9b5 vs main 5241377b** (endor #5309 + #5316, fresh per-tree target dirs): plan show + 256 ids 8B / 35B short / 4k, 27B plan json, kernels test, `cargo test --workspace --features intarsia-cli/metal` | ids and plan identical; 44 kernels, 817 cases; workspace 914 passed, 0 failed | raw/metal-final (workspace-tests.log is the full log) |
 | earlier CUDA (#5161, #5298) and Metal (#5159) no-ops | all identical / pass; #5299 is **invalid** (its target dir was copied from another lane, so a TUI test ran that tree's fixtures; kept as raw/metal-final-invalid), #5298 is valid for ids / plan but used a seeded target | raw/cuda, raw/metal, raw/cuda-final-seeded |
