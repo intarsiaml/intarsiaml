@@ -184,11 +184,8 @@ fn fused_is_bitwise_the_unfused_pair_on_wide_range_data() {
     // the 35B (2048), the 8B (4096), the 27B (5120), and small / odd item counts (8: one item, 40: five items, bd 32)
     for h in [2048usize, 4096, 5120, 8, 40] {
         for dt in [DType::F32, DType::Bf16] {
-            // decode rows 1..=16, then more rows than blocks (rows per block > 1) and a ragged tail
-            for rows in (1..=16usize).chain([17, 31, 33, 100]) {
-                if rows * h * dt.size_bytes() > (4 << 20) {
-                    continue;
-                }
+            // decode rows 1..=16 (one row per block at most: what the comm accepts)
+            for rows in 1..=16usize {
                 for (woff, mode) in [(0.0f32, 0usize), (1.0, 1), (0.0, 2)] {
                     trial(&be, &comms, &mut rng, dt, rows, h, woff, false, mode);
                     trials += 1;
@@ -205,7 +202,7 @@ fn bf16_partials_reduced_in_place_like_the_moe_block_output() {
     let Some((be, comms)) = group() else { return };
     let mut rng = SplitMix64::new(102);
     for h in [2048usize, 4096, 5120] {
-        for rows in [1usize, 2, 3, 7, 16, 17] {
+        for rows in [1usize, 2, 3, 7, 16] {
             for (woff, mode) in [(0.0f32, 0usize), (1.0, 2)] {
                 trial(&be, &comms, &mut rng, DType::Bf16, rows, h, woff, true, mode);
             }
@@ -213,26 +210,27 @@ fn bf16_partials_reduced_in_place_like_the_moe_block_output() {
     }
 }
 
-/// The largest message that fits one scratch slot is accepted, one row more is refused (the model then runs the pair).
+/// 16 rows (one per block) is the limit, 17 is refused (the model then runs the pair), and so are the operands the kernel
+/// cannot take.
 #[test]
-fn the_scratch_slot_is_the_limit_and_unsupported_operands_are_refused() {
+fn sixteen_rows_is_the_limit_and_unsupported_operands_are_refused() {
     let _one = serial();
     let Some((be, comms)) = group() else { return };
     let mut rng = SplitMix64::new(103);
-    let h = 2048usize;
-    let max_rows = (4 << 20) / (h * 4); // f32 partials: 512 rows
-    trial(&be, &comms, &mut rng, DType::F32, max_rows, h, 0.0, false, 0);
+    trial(&be, &comms, &mut rng, DType::F32, 16, 5120, 0.0, false, 0);
     let d = &*be[0];
     let mk = |dt: DType, shape: &[usize]| put(d, dt, shape, &vec![0.5; shape.iter().product()]);
-    let (p, o, r, w, n, s) = (mk(DType::F32, &[max_rows + 1, h]), mk(DType::Bf16, &[max_rows + 1, h]), mk(DType::Bf16, &[max_rows + 1, h]), mk(DType::Bf16, &[h]), mk(DType::Bf16, &[max_rows + 1, h]), mk(DType::Bf16, &[max_rows + 1, h]));
-    assert!(!comms[0].ar_norm_supported(&ar_norm(&p, &o, &r, &w, &n, &s, 1e-6, 0.0)), "one row past the slot");
-    // a bf16 payload of the same rows is half the bytes: still fits
-    let pb = mk(DType::Bf16, &[max_rows + 1, h]);
-    assert!(comms[0].ar_norm_supported(&ar_norm(&pb, &o, &r, &w, &n, &s, 1e-6, 0.0)));
-    // hidden size not a multiple of 8, f16 activations, an offset that is not 16-byte aligned
-    let (p, o, r, w, n, s) = (mk(DType::F32, &[2, 36]), mk(DType::Bf16, &[2, 36]), mk(DType::Bf16, &[2, 36]), mk(DType::Bf16, &[36]), mk(DType::Bf16, &[2, 36]), mk(DType::Bf16, &[2, 36]));
+    let set = |rows: usize, h: usize, pdt: DType| {
+        (mk(pdt, &[rows, h]), mk(DType::Bf16, &[rows, h]), mk(DType::Bf16, &[rows, h]), mk(DType::Bf16, &[h]), mk(DType::Bf16, &[rows, h]), mk(DType::Bf16, &[rows, h]))
+    };
+    let (p, o, r, w, n, s) = set(17, 2048, DType::F32);
+    assert!(!comms[0].ar_norm_supported(&ar_norm(&p, &o, &r, &w, &n, &s, 1e-6, 0.0)), "17 rows");
+    let (p, o, r, w, n, s) = set(16, 2048, DType::F32);
+    assert!(comms[0].ar_norm_supported(&ar_norm(&p, &o, &r, &w, &n, &s, 1e-6, 0.0)), "16 rows");
+    // hidden size not a multiple of 8, an f16 output, an offset that is not 16-byte aligned
+    let (p, o, r, w, n, s) = set(2, 36, DType::F32);
     assert!(!comms[0].ar_norm_supported(&ar_norm(&p, &o, &r, &w, &n, &s, 1e-6, 0.0)), "h 36");
-    let (p, o, r, w, n, s) = (mk(DType::F32, &[2, 64]), mk(DType::Bf16, &[2, 64]), mk(DType::Bf16, &[2, 64]), mk(DType::Bf16, &[64]), mk(DType::Bf16, &[2, 64]), mk(DType::Bf16, &[2, 64]));
+    let (p, o, r, w, n, s) = set(2, 64, DType::F32);
     assert!(comms[0].ar_norm_supported(&ar_norm(&p, &o, &r, &w, &n, &s, 1e-6, 0.0)));
     let o16 = mk(DType::F16, &[2, 64]);
     assert!(!comms[0].ar_norm_supported(&ar_norm(&p, &o16, &r, &w, &n, &s, 1e-6, 0.0)), "f16 out");

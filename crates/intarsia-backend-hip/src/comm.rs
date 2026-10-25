@@ -260,9 +260,9 @@ impl Comm for P2pComm {
 impl P2pComm {
     /// `(rows, hidden)` when the fused all-reduce + residual add + rmsnorm (`kernels/hip/ar_norm.hip`) takes these operands,
     /// else None. A pure function of the tensors' dtypes, shapes and offsets, so both ranks, the plan recorder and a captured
-    /// graph decide alike: bf16 activations `[rows, H]` with H a multiple of 8 (the norm's vector path), an f32 or bf16
-    /// partial, every operand 16-byte aligned, the partial within one scratch slot (decode and small verify / batch steps;
-    /// a prefill chunk past the slot keeps the unfused pair).
+    /// graph decide alike: bf16 activations `[rows, H]` with H a multiple of 8 (the norm's vector path), rows <= NBLOCKS, an
+    /// f32 or bf16 partial, every operand 16-byte aligned, the partial within one scratch slot (decode and small verify
+    /// steps; a prefill chunk keeps the unfused pair).
     fn ar_norm_shape(&self, a: &ArNorm<'_>) -> Option<(usize, usize)> {
         let act = [a.out, a.residual, a.weight, a.norm, a.sum];
         if act.iter().any(|t| t.dtype != DType::Bf16) || !matches!(a.partial.dtype, DType::F32 | DType::Bf16) {
@@ -274,6 +274,12 @@ impl P2pComm {
         }
         let rows = a.partial.numel() / h;
         let n = rows * h;
+        // Decode-sized only: block b of the kernel owns whole rows and the grid is NBLOCKS, so more rows would be normed serially
+        // within a block where the unfused norm runs one block per row (a prefill chunk would get slower). Above it, and above
+        // one scratch slot, the model keeps the unfused pair.
+        if rows > NBLOCKS as usize {
+            return None;
+        }
         if [a.out, a.residual, a.norm, a.sum].iter().any(|t| t.numel() != n || t.nbytes() != n * 2) || a.partial.nbytes() > SLOT_BYTES {
             return None;
         }

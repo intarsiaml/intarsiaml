@@ -13,7 +13,8 @@
  *    launches whichever kernel they are), takes the scratch slot of the counter's parity, pushes, raises the peer's flag,
  *    waits for its own;
  *  - the partition differs: block b owns a run of WHOLE ROWS (the norm needs the whole row), rows b*rpb .. (b+1)*rpb with
- *    rpb = ceil(rows / nblocks). Both ranks use the same partition within one launch, which is all the protocol needs: a
+ *    rpb = ceil(rows / nblocks); the Rust side only launches it with rows <= nblocks (one row per block, as the unfused norm
+ *    runs one block per row; more rows would serialise within a block). Both ranks use the same partition within one launch, which is all the protocol needs: a
  *    slot is rewritten two launches later and the peer's flag of the launch in between says its previous launch is over
  *    (kernel boundary on its stream), whichever blocks read it. Blocks with no row still push nothing, raise and wait.
  *
