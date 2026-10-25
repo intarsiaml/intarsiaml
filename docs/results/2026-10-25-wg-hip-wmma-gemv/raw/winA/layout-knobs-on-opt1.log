@@ -1,0 +1,68 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:879:9
+    |
+879 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/frag_layout.rs (/target/release/deps/frag_layout-7a07573e71f7a00b)
+
+running 5 tests
+test frag_raw_byte_paths_refuse_a_tagged_tensor ... ok
+test frag_readers_that_do_not_know_the_layout_fail_loudly ... ok
+test frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader ... ok
+test frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load ... ok
+test frag_the_registry_selects_only_fragment_readers_for_a_tagged_call ... FAILED
+
+failures:
+
+---- frag_the_registry_selects_only_fragment_readers_for_a_tagged_call stdout ----
+
+thread 'frag_the_registry_selects_only_fragment_readers_for_a_tagged_call' panicked at crates/intarsia-backend-hip/tests/frag_layout.rs:196:5:
+the untagged call lost its GEMVs: ["matmul_fp8_wmma", "matmul_fp8_wmma_rows", "matmul_fp8_mma", "matmul_fp8_mma_v2"]
+
+
+failures:
+    frag_the_registry_selects_only_fragment_readers_for_a_tagged_call
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p intarsia-backend-hip --test frag_layout`
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/wmma_folds.rs (/target/release/deps/wmma_folds-9741701cc8570173)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: 1 target failed:
+    `-p intarsia-backend-hip --test frag_layout`

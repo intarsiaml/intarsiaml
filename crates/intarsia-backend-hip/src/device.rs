@@ -11,7 +11,7 @@ use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandl
 use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
 use std::any::Any;
 use std::ffi::{c_int, c_void, CStr};
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
 
 fn hip_err(what: &str, code: i32) -> Error {
@@ -112,6 +112,8 @@ pub struct HipBackend {
     capturing: AtomicBool,
     /// round 9: page-locked host staging for small copies (created on first use; `None` after a failed allocation)
     staging: Mutex<Option<Option<Staging>>>,
+    /// lane wg: dense fp8 weights rearranged into `Layout::Fp8Frag` by `relayout_fp8_frag` (count, bytes)
+    relayout: (AtomicU64, AtomicU64),
 }
 
 /// Round 9 (docs/results/2026-10-19-hip-round9.md): page-locked host staging for small uploads and downloads.
@@ -339,6 +341,7 @@ impl HipBackend {
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
+            relayout: (AtomicU64::new(0), AtomicU64::new(0)),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -607,7 +610,19 @@ impl Backend for HipBackend {
         self.copy(&w.buf, 0, &scratch, 0, w.nbytes(), 0)?;
         self.synchronize(0)?;
         hb.layout.store(1, Ordering::Release);
+        self.relayout.0.fetch_add(1, Ordering::Relaxed);
+        self.relayout.1.fetch_add(w.nbytes() as u64, Ordering::Relaxed);
         Ok(())
+    }
+
+    fn layout_report(&self) -> Option<String> {
+        crate::quantmoe::fp8_frag_enabled().then(|| {
+            format!(
+                "relayout: {} tensors -> frag order ({:.1} MB)",
+                self.relayout.0.load(Ordering::Relaxed),
+                self.relayout.1.load(Ordering::Relaxed) as f64 / 1e6
+            )
+        })
     }
 
     fn download_row_major(&self, t: &TensorRef) -> Result<Vec<u8>> {

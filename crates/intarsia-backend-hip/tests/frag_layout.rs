@@ -193,7 +193,13 @@ fn frag_the_registry_selects_only_fragment_readers_for_a_tagged_call() {
     for n in &accepted_t {
         assert!(FRAG_READERS.contains(&n.as_str()), "{n} accepts a tagged call");
     }
-    assert!(accepted_p.iter().any(|n| n.contains("gemv")), "the untagged call lost its GEMVs: {accepted_p:?}");
+    // untagged: the GEMVs unless the table runs W8A8 at M = 1 on the WMMA family (option 1), then the family
+    let wmma_a8 = intarsia_backend_hip::quantmoe::wmma_takes(intarsia_backend_hip::quantmoe::WmmaKind::Fp8A8, 1);
+    if wmma_a8 {
+        assert!(accepted_p.iter().any(|n| n == "matmul_fp8_wmma") && !accepted_p.iter().any(|n| n.contains("gemv")), "option 1 untagged: {accepted_p:?}");
+    } else {
+        assert!(accepted_p.iter().any(|n| n.contains("gemv")), "the untagged call lost its GEMVs: {accepted_p:?}");
+    }
 }
 
 /// (3) the raw-byte paths.

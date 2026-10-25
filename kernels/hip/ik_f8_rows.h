@@ -433,6 +433,8 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
         c->kw = (int)kw;
         c->nj = kw > 2048 ? 16 : 8;
         c->smem = std::max<size_t>((size_t)M * (kw * bpk + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra;
+        // the K <= 256 window (512 wide) times 64 rows does not fit the LDS: no staged form for it, the direct form takes the call (same bits)
+        if (c->smem > (size_t)kF8rLdsBudget) return false;
         return true;
     }
     // fp8 weights: windows are multiples of 1024 k (8 waves x 128 k); 2048 or 4096

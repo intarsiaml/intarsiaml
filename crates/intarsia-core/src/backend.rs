@@ -253,6 +253,13 @@ pub trait Backend: Send + Sync {
         Err(Error::backend("this backend has no fragment-order fp8 layout"))
     }
 
+    /// One line saying which weights this backend rearranged at load ("relayout: N tensors -> frag order"), or `None` when the backend
+    /// has no such layout or the knob is off. Printed once after the model loads and carried in the plan JSON (`weight_layout`), so every
+    /// run states whether the weights were tagged.
+    fn layout_report(&self) -> Option<String> {
+        None
+    }
+
     /// The bytes of `t` in the checkpoint's row-major order, whatever layout the allocation has (a [`Layout::Fp8Frag`] weight is
     /// un-permuted). `download` of a tagged allocation is refused, so a raw read of tagged bytes cannot happen by accident.
     fn download_row_major(&self, t: &TensorRef) -> Result<Vec<u8>> {

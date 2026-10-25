@@ -409,12 +409,13 @@ fn wmma_bf16_rows_are_bitwise_the_one_row_call() {
 }
 
 /// Lane wg, the dispatch-table boundary (`WmmaTable`, quantmoe.rs): a kind that switches kernels at M = lo (INTARSIA_HIP_WMMA_TABLE=fp8a8=lo-16)
-/// serves rows 1..lo-1 from the GEMV and rows lo.. from the WMMA family. This pins what that costs: a row of the WMMA call is NOT bitwise
-/// the GEMV one-row call, so rows1 vs rowsM differs across the switch and the switch is a numerics change (KL gate), never row invariance.
-/// The G-B comparison is expected to fail (caught here); if it ever passes the two summation orders became identical and the table needs no caveat.
+/// serves rows 1..lo-1 from the GEMV and rows lo.. from the WMMA family. For fp8 W8A8 this only REPORTS whether a WMMA row equals the GEMV
+/// one-row call on this data: window A (2026-10-25) found them bitwise equal here although the standalone bench shows rel_l2 ~ 1e-6 to 3e-5 on
+/// random data (the products are exact in fp8 x fp8 and the gate's sums stay inside 24 bits), so this data cannot pin "not bitwise" and the
+/// test must not assert it. The bf16 twin below does assert it (its products round).
 #[test]
-fn wmma_fp8_switch_from_the_gemv_is_not_bitwise() {
-    let Some(rig) = Rig::new("wmma_fp8_switch_from_the_gemv_is_not_bitwise") else { return };
+fn wmma_fp8_switch_from_the_gemv_reports_equality() {
+    let Some(rig) = Rig::new("wmma_fp8_switch_from_the_gemv_reports_equality") else { return };
     let mut rng = SplitMix64::new(821);
     let (n, k) = (512usize, 2048usize);
     let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
@@ -425,11 +426,14 @@ fn wmma_fp8_switch_from_the_gemv_is_not_bitwise() {
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv_v2", "matmul_fp8_wmma_rows", &[w, sc], &x_rows, n, DType::Bf16, "switch fp8 W8A8 gemv -> wmma", 16)
     }));
-    let msg = match r {
-        Ok(()) => panic!("the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all"),
-        Err(p) => p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default(),
-    };
-    assert!(msg.contains("G-B FAIL"), "the switch must fail the bitwise comparison, not die some other way: {msg}");
+    match r {
+        Ok(()) => eprintln!("REPORT fp8 W8A8: WMMA rows are bitwise the GEMV one-row call on this data (not a proof for other data)"),
+        Err(p) => {
+            let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+            assert!(msg.contains("G-B FAIL"), "the comparison must fail by differing bits, not die some other way: {msg}");
+            eprintln!("REPORT fp8 W8A8: WMMA rows differ from the GEMV one-row call: {msg}");
+        }
+    }
 }
 
 /// The same for the bf16 router/gate kind (INTARSIA_HIP_WMMA_TABLE=bf16=lo-16).

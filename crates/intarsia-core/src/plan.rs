@@ -906,6 +906,7 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
         "probed_sizes": model.resolved.sizes,
         "require_admitted": model.registry.require_admitted,
         "reference_only": model.registry.reference_only,
+        "weight_layout": model.backend.layout_report(),
     })
 }
 

@@ -997,6 +997,9 @@ impl Model {
             opts.mem_budget,
         )?;
         let registry = Registry::new(b.name(), &b.info(), b.kernels());
+        if let Some(line) = b.layout_report() {
+            eprintln!("{line}");
+        }
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
