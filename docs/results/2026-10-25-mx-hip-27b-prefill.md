@@ -20,11 +20,12 @@ with an 8-row peel, which w7 showed is not yet bitwise on 9..16-row tails; the 1
   WMMA peak); attention and the GatedDeltaNet scan are 6 %, the activation QDQ 2 % (section 1).
 * **Default, bitwise:** `matmul_mxfp4_mma` v2 (direct bf16 dequant + a prefill tile table, bit for bit v1; section 3),
   and the 27B's HIP recipe at chunk 4096 with a 16-row tail peel, a new core knob that makes a larger chunk run a prompt's
-  short tail exactly as chunk 256 does (section 4). Ids, plan show, golden dumps and a 34-prompt tails sweep match main;
+  short tail exactly as chunk 256 does (section 4). The recipe change is the default only if w8 shows 0 differing prompts
+  of the 34 at peel 16 (coordinator, 2026-10-25); otherwise v2 ships alone and the recipe chunk stays 256. Ids, plan show, golden dumps and a 34-prompt tails sweep match main;
   the 35B and CUDA / Metal are unchanged.
 * **Opt-in, numerics:** `INTARSIA_HIP_MXFP4_FOLD=1` folds W4A4 onto the fp8 WMMA (2x the GEMM rate). Against the 27B
   golden it passes prefill (KL 0.165 vs main 0.180) but fails the decode-mode gate, as main does (0.261 vs main 0.340,
-  bound 0.197): open decision mx-1 (section 5).
+  bound 0.197). Decision mx-1 (coordinator, 2026-10-25): ships opt-in, default off (section 5).
 * **Gap to radiance** (TP2, 5210 / 6133 / 5852 tok/s): single card we go 1012 -> 1435 tok/s at 4k (default) or 2410
   (opt-in). Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel (section 1, arithmetic);
   after this lane the default single-card gap to radiance's per-card GEMM rate is still about 1.8x (82 vs ~150 TFLOP/s),
