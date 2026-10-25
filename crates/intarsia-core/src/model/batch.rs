@@ -511,6 +511,28 @@ impl Model {
             }
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
             let job = &job;
+            // Experiment (w17): record the peers' graphs here, one after the other on this thread, before rank 0 replays and before the
+            // peer threads run, so a capture never overlaps another rank's launches (`INTARSIA_TP_BATCH_PREPARE=1`).
+            let pre = (|| -> Result<()> {
+                if job.graph && std::env::var("INTARSIA_TP_BATCH_PREPARE").is_ok_and(|v| v == "1") {
+                    for (m, sts) in self.peers.iter().zip(per_peer.iter()) {
+                        let prefs: Vec<&SequenceState> = sts.iter().map(|s| &**s).collect();
+                        m.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                        let r = m.batch_graph_prepare(&prefs, ids);
+                        m.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                        if !r? {
+                            return Err(Error::backend(format!("tensor-parallel rank {}: batched decode graph unavailable", m.tp.rank)));
+                        }
+                    }
+                }
+                Ok(())
+            })();
+            if pre.is_err() {
+                comm0.abort();
+            }
+            if let Err(e) = pre {
+                Err(e)
+            } else {
             std::thread::scope(|sc| {
                 let handles: Vec<_> = self
                     .peers
@@ -556,6 +578,7 @@ impl Model {
                 }
                 res
             })
+            }
         };
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         for (st, p) in states.iter_mut().zip(taken) {

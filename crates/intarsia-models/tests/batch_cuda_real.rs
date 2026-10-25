@@ -172,6 +172,47 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     }
 }
 
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w15/w17): repro of an intermittent mismatch of the FIRST batched step of a batch size
+/// at tp=2 (27B, N = 4, step 0, every logit about 8 % off; the same test passed on the next run). Each rep loads the model afresh (so every
+/// batch size records its graphs again), runs `INTARSIA_REPRO_STEPS` (3) batched steps per size in `INTARSIA_REPRO_SIZES` ("2-16") against
+/// the solo steps, and counts a mismatch instead of stopping at it. `INTARSIA_REPRO_REPS` (6) reps. Prints `REPRO failures f/reps`.
+#[test]
+#[ignore]
+fn real_35b_tp2_batch_first_steps_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let num = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (reps, steps) = (num("INTARSIA_REPRO_REPS", 6), num("INTARSIA_REPRO_STEPS", 3));
+    let sizes: Vec<usize> = {
+        let spec = std::env::var("INTARSIA_REPRO_SIZES").unwrap_or_else(|_| "2-16".into());
+        let (lo, hi) = spec.split_once('-').map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap())).unwrap_or_else(|| (spec.parse().unwrap(), spec.parse().unwrap()));
+        (lo..=hi).collect()
+    };
+    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
+    let mut failures = 0;
+    for rep in 0..reps {
+        let m = load(&dir, be.clone(), 16, 2048);
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let n = batch_identity::run(&m, &batch_identity::Cfg { lens: lens.clone(), batches: sizes.clone(), steps, vocab_range: (1000, 30000) });
+            assert_eq!(n, sizes.iter().sum::<usize>() * steps);
+        }));
+        match r {
+            Ok(()) => eprintln!("REPRO rep {rep}: ok"),
+            Err(e) => {
+                failures += 1;
+                let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                eprintln!("REPRO rep {rep}: FAIL {msg}");
+            }
+        }
+        drop(m);
+    }
+    eprintln!("REPRO failures {failures}/{reps}");
+    assert_eq!(failures, 0, "{failures} of {reps} reps mismatched");
+}
+
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2/batch): the gate above must catch a peer that breaks the batched step protocol on
 /// the real model (`Model::set_tp_batch_mutant`): its rows in another order (its row table), row 0 one position behind (its
 /// `batch_pos`), and its multi-row calls without the row-exact mark (the ordinary kernels, invisible on the cpu reference).
