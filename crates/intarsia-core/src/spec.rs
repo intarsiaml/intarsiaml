@@ -211,7 +211,8 @@ pub struct CostParams {
     pub window: u32,
     /// While speculating, one plain step every `probe_every` passes keeps the plain-step cost current.
     pub probe_every: u32,
-    /// Tokens decoded plainly before speculation is tried again (acceptance changes with the text).
+    /// Tokens decoded plainly before speculation is tried again (acceptance changes with the text). Each re-probe that
+    /// falls back again doubles the next stretch (up to 16 times this); one that holds resets it.
     pub reprobe_tokens: u32,
     /// Passes after a (re)start that are timed but not averaged (graph capture, the head catching up on skipped rows).
     pub warmup: u32,
@@ -221,7 +222,7 @@ pub struct CostParams {
 
 impl CostParams {
     pub const OFF: CostParams =
-        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 256, warmup: 2, alpha: 0.125 };
+        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
 
     /// The speedup the gate holds speculation to when it is on: 3% over plain decode, about the run-to-run noise of a request.
     pub const DEFAULT_MIN_SPEEDUP: f64 = 1.03;
@@ -330,6 +331,8 @@ struct CostGate {
     since_plain: u32,
     /// Consecutive evaluations under `min_speedup`.
     low: u32,
+    /// Length of the next plain stretch.
+    next_reprobe: u32,
     /// The next step is a probe of the plain-step cost.
     probe: bool,
     /// A probe step was taken and its sample has not arrived yet (samples arrive one step late).
@@ -350,6 +353,7 @@ impl CostGate {
             passes: 0,
             since_plain: 0,
             low: 0,
+            next_reprobe: p.reprobe_tokens,
             probe: false,
             probe_inflight: false,
             probe_age: 0,
@@ -408,12 +412,19 @@ impl CostGate {
             Some(sp) if sp < self.p.min_speedup => {
                 self.low += 1;
                 if self.low >= self.p.window {
-                    self.mode = CostMode::Plain { left: self.p.reprobe_tokens };
+                    self.mode = CostMode::Plain { left: self.next_reprobe };
+                    self.next_reprobe = self.next_reprobe.saturating_mul(2).min(self.p.reprobe_tokens.saturating_mul(16));
                     self.events.off += 1;
                     self.low = 0;
                 }
             }
-            _ => self.low = 0,
+            _ => {
+                self.low = 0;
+                if self.passes >= self.p.warmup + self.p.window {
+                    // a whole window held since the last re-probe: the next fallback starts from the short stretch again
+                    self.next_reprobe = self.p.reprobe_tokens;
+                }
+            }
         }
     }
 
@@ -975,6 +986,39 @@ mod tests {
         let ev = g.take_cost_events();
         assert_eq!((ev.on, ev.off), (1, 0), "{t}");
         assert!(!g.cost_off() && !t.contains("pppp"), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_backs_off_longer_while_retries_keep_failing_and_starts_short_after_one_holds() {
+        let mut g = cost_gate(cp());
+        let runs = |t: &str| -> Vec<usize> {
+            let mut v = vec![];
+            let mut n = 0;
+            for c in t.chars() {
+                if c == 'p' {
+                    n += 1;
+                } else if n > 0 {
+                    v.push(n);
+                    n = 0;
+                }
+            }
+            v
+        };
+        // bad text throughout: stretches of 40, 80, 160, 320, 640, 640 (16x the base would be 640)
+        let t = drive(&mut g, 2500, |_| (2, 13.9), 6.1);
+        let r: Vec<usize> = runs(&t).into_iter().filter(|n| *n > 10).collect();
+        assert_eq!(&r[..5], &[40, 80, 160, 320, 640], "{t}");
+        // a retry that holds (good text) resets the stretch: bad again afterwards starts at 40
+        let mut g = cost_gate(cp());
+        let mut t = drive(&mut g, 14, |_| (2, 13.9), 6.1);
+        while g.cost_off() || !t.ends_with('S') {
+            t += &drive(&mut g, 1, |_| (2, 13.9), 6.1);
+        }
+        t += &drive(&mut g, 150, |_| (3, 12.0), 6.1);
+        assert!(!g.cost_off());
+        let t2 = drive(&mut g, 80, |_| (2, 13.9), 6.1);
+        let first = runs(&t2).into_iter().find(|n| *n > 10);
+        assert_eq!(first, Some(40), "{t} / {t2}");
     }
 
     #[test]
