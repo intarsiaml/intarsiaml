@@ -40,7 +40,7 @@ open(p, 'w').write(s.replace(old, new))
 PY
   exe=$(build "$MUT" ~/tp2/logs/mut-$name.log)
   [[ -n $exe ]] || { echo "mutant $name: no test executable"; continue; }
-  INTARSIA_REPO=$MUT INTARSIA_TARGET_VOL=$VOL "$MUT/deploy/tatooine/dev.sh" cp "/$exe" "/work/mutbin/$name"
+  INTARSIA_REPO=$MUT INTARSIA_TARGET_VOL=$VOL "$MUT/deploy/tatooine/dev.sh" cp "/$exe" "/work/mutbin/$name" < /dev/null
   echo "mutant $name: $(ls -la "$MUT/mutbin/$name" 2>&1 | awk '{print $5}') bytes"
 done < <(mutants)
 # the clean tree again, so the volume matches what the window runs; and its executable, for the record
