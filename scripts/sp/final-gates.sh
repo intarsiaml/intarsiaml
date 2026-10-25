@@ -19,7 +19,7 @@ if [ "$BE" = cuda ]; then
   FLAGS="--mem-budget 30"; NAT=$SRC_DEV/sp-out; PD=$TREE_DEV/scripts/hg/prompts
   md() { md5sum < "$1" | cut -c1-8; }
 else
-  R=/opt/code/intarsiaml/.worktrees; O=${OUT:-/opt/code/wt-sp/docs/results/2026-10-25-sp-hip-spec/raw/final/metal}; mkdir -p $O
+  R=/opt/code/intarsiaml/.worktrees; O=${OUT:-/opt/code/wt-sp/docs/results/2026-10-25-sp-hip-spec/raw/followup/metal}; mkdir -p $O
   M35=$HOME/models/Qwen3.6-35B-A3B-NVFP4; M8=$HOME/models/Qwen3-8B
   TREE_BASE=$R/sp-base; TREE_DEV=/opt/code/wt-sp
   BIN_BASE=$R/sp-targets/base-metal/release/intarsia; BIN_DEV=$R/sp-targets/dev-metal/release/intarsia
