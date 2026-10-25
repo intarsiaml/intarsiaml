@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+Error: loading /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
+
+Caused by:
+    unsupported: a 9-row batched step runs matmul_mxfp4 on matmul_mxfp4_mma, which is not a row-exact (`rows_exact`) kernel and not the solo step's (matmul_mxfp4_gemv): a different kernel reduces in a different order, so rows would not be bitwise the solo step
