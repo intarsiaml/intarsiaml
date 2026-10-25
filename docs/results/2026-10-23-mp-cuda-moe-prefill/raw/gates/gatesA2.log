@@ -1,0 +1,29 @@
+fleetq: #4864 running on spark2: scripts/pf/rjob.sh spark2 mp/gatesA.sh mpgA2 mp-dev /home/nvidia/intarsia-decfuse/out/mp-main-baseline.json 1
+fleetq: #4864 went ahead of the line and must end within 13h44m (by Sat 11:00); it is stopped then
+== acc-short vs main baseline, PF=1 21:15:21
+exit 0
+  mean KL            6.82514e-3   6.82514e-3   7.84891e-3  <= ok
+  per-prompt gate: ok
+  mean KL            6.98641e-3   6.98641e-3   8.03437e-3  <= ok
+  per-prompt gate: ok
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-top20 chunk 2048 PF=1 21:15:56
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) wit
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-long-top20 chunk 2048 PF=1 21:16:31
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-4k-top20 chunk 2048 PF=1 21:18:01
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors (3 prompts, 12759 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) 
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== done 21:18:54
+fleetq: #4864 done (exit 0)

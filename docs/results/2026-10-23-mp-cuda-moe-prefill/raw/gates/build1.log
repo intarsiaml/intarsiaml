@@ -1,0 +1,10 @@
+fleetq: #4901 waiting (#2 in line): in line behind #4897 "localeval agent adhoc harness-v1-spark1-codex codex" (claude-8b28581c) on spark1
+fleetq: #4901 waiting (#2 in line): in line behind #4897 "localeval agent adhoc harness-v1-spark1-codex codex" (claude-8b28581c) on spark1; #4897 has no estimated start, so nothing can go first by ending before it
+fleetq: #4901 waiting (#1 in line): #4897 "localeval agent adhoc harness-v1-spark1-codex codex" (claude-8b28581c) needs cpu quiet on spark1, and this job loads it
+fleetq: #4901 running on spark1: bash -c 'HOST=spark1 SEED_TREE=lt-main scripts/pf/build.sh mp-dev /opt/code/wt-mp '"'"'head=bd4eeab code-tree=19ccb898bb10 dirty=no'"'"' | tail -2; rsync -a scripts/mp scripts/lt spark1:intarsia-decfuse/pf-scripts/; scripts/pf/rjob.sh spark1 pf/build-tests.sh mp-dev | tail -2'
+fleetq: #4901 went ahead of the line and must end within 12h33m (by Sat 11:00); it is stopped then
+    Finished `release` profile [optimized] target(s) in 23.47s
+-rwxrwxr-x 2 nvidia nvidia 78976888 Oct 23 22:26 /home/nvidia/intarsia-decfuse/mp-dev/target/acc/release/intarsia
+  Executable tests/rows_exact.rs (target/test/release/deps/rows_exact-22d61bde1266dc5a)
+  Executable tests/rows_registry.rs (target/test/release/deps/rows_registry-6ff4c958b8241abd)
+fleetq: #4901 done (exit 0)

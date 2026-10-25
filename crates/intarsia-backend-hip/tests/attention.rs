@@ -141,7 +141,7 @@ fn attention_kernels_match_reference_on_random_shapes() {
                 };
                 let rname = cpu.kernels().into_iter().find(|k| k.op == op && k.is_reference).unwrap().name;
                 let want = run_host(&*cpu, &rname, &hc).unwrap();
-                for k in ckernels.iter().filter(|k| k.op == op && k.accepts(&call_shape)) {
+                for k in ckernels.iter().filter(|k| k.op == op && !k.row_table && k.accepts(&call_shape)) {
                     let got = run_host(&*hip, &k.name, &hc)
                         .unwrap_or_else(|e| panic!("{} N={n} Nkv={nkv} D={d} T={t} pos0={p}: {e}", k.name));
                     let (ok, ma, rl) = judge(k, &got, &want);
@@ -293,7 +293,7 @@ fn attention_causal_and_chunk_edges_are_exact() {
                             "cpu reference row {r} is not the closed form (key {b}, T={t}, pos0={p})"
                         );
                     }
-                    for k in ckernels.iter().filter(|k| k.op == op && k.accepts(&shape)) {
+                    for k in ckernels.iter().filter(|k| k.op == op && !k.row_table && k.accepts(&shape)) {
                         let got = run_host(&*hip, &k.name, &hc)
                             .unwrap_or_else(|e| panic!("{} N={n} Nkv={nkv} D={d} T={t} pos0={p}: {e}", k.name))[0]
                             .to_f32();
@@ -368,7 +368,7 @@ fn attention_throughput() {
         s.act = Some(DType::Bf16);
         s.weight = Some(DType::Bf16);
         let mut best: Option<intarsia_core::KernelImpl> = None;
-        for k in hip.kernels().into_iter().filter(|k| k.op == call.op && k.accepts(&s)) {
+        for k in hip.kernels().into_iter().filter(|k| k.op == call.op && !k.row_table && k.accepts(&s)) {
             if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                 best = Some(k);
             }

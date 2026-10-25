@@ -23,16 +23,16 @@ pub const MAX_SPLIT: usize = 64;
 const MIN_KEYS: usize = 128;
 const TARGET_TGS: usize = 120;
 /// Largest query-head group per kv head the kernels take (`GP` of the shader).
-const MAX_GROUP: usize = 8;
+pub(crate) const MAX_GROUP: usize = 8;
 /// Threadgroup accumulator floats of the shader (`ASK_TG_FLOATS`): `nsg * GP * D` must fit.
-const TG_FLOATS: usize = 4096;
-const MAX_SG: usize = 8;
+pub(crate) const TG_FLOATS: usize = 4096;
+pub(crate) const MAX_SG: usize = 8;
 /// At most this many threadgroups in the grid: use `MAX_SG` simdgroups per threadgroup, else `MAX_SG / 2`.
 const FEW_TGS: usize = 64;
 
 /// `(min_keys, target_tgs)`; `INTARSIA_METAL_SPLITKV=<min_keys>,<target>` overrides them (diagnostic for sweeps, it
 /// changes the rounding order of the result like any other split count).
-fn policy() -> (usize, usize) {
+pub(crate) fn policy() -> (usize, usize) {
     static P: OnceLock<(usize, usize)> = OnceLock::new();
     *P.get_or_init(|| {
         let parsed = std::env::var("INTARSIA_METAL_SPLITKV").ok().and_then(|v| {

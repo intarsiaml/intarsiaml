@@ -150,6 +150,16 @@ static inline int ik_check_pos(const ik_tensor* t) {
     return IK_OK;
 }
 
+/* Row table of a batched decode call (`OpCall::rows`): u8 [rows, stride, 8] little-endian device addresses, 8-byte aligned; `index` is
+ * this call's entry in a row. */
+static inline int ik_check_tab(const ik_tensor* tab, int64_t rows, int64_t stride, int64_t index) {
+    if (!tab || !tab->data || tab->dtype != IK_DTYPE_U8 || tab->ndim != 3 || tab->shape[0] != rows ||
+        tab->shape[1] != stride || tab->shape[2] != 8 || index < 0 || index >= stride)
+        return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(tab->data) & 7u) return IK_ERR_INVALID_ARG;
+    return IK_OK;
+}
+
 #define IK_TRY(expr)                      \
     do {                                  \
         int _ik_s = (expr);               \

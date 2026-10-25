@@ -534,7 +534,10 @@ int64_t ik_moe_block_scratch_bytes(int64_t T, int64_t K, int64_t I, int64_t IS) 
 // (w [IS, H/2] u8, bs [IS, H/16] e4m3, gs [1] f32) and down (w [H, IS/2], bs [H, IS/16], gs [1]); out [T, H] bf16.
 // 1 <= T * K <= 16, K <= 8, E <= 512, H / I / IS multiples of 16 (the shapes the default chain serves with its decode
 // kernels); IK_ERR_SHAPE otherwise, IK_ERR_UNSUPPORTED without a free counter slot.
-int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+// `rows`: the batched-decode form (`moe_block_bf16_rows`, lane hr3): up to 16 tokens, whatever K. Every role works on one token
+// (one top-k, one shared glu, one pair, one down row), so each token's output is the T = 1 launch on that token alone; the
+// ordinary form keeps the bound of the default chain it is the bitwise twin of (T * K <= 16).
+static int moe_block_impl(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream, bool rows) {
     const ik_tensor *x = &in[0], *logits = &in[1], *sl = &in[2], *guw = &in[3], *gus = &in[4], *dnw = &in[5], *dns = &in[6],
                     *gsc = &in[7];
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
@@ -570,7 +573,7 @@ int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, 
     if (sdw->shape[0] != H || sdw->shape[1] != IS / 2 || sds->shape[0] != H || sds->shape[1] != IS / 16) return IK_ERR_SHAPE;
     for (const ik_tensor* g : {sgg, sug, sdg})
         if (g->shape[0] != 1) return IK_ERR_SHAPE;
-    if (T < 1 || K < 1 || K > kMaxK || K > E || E > IK_WARP * kTopkMaxPerLane || T * K > 16) return IK_ERR_SHAPE;
+    if (T < 1 || K < 1 || K > kMaxK || K > E || E > IK_WARP * kTopkMaxPerLane || (rows ? T > 16 : T * K > 16)) return IK_ERR_SHAPE;
     const int64_t need = ik_moe_block_scratch_bytes(T, K, I, IS);
     if (!scratch || !scratch->data || scratch->bytes < need || (reinterpret_cast<uintptr_t>(scratch->data) & 15u))
         return IK_ERR_INVALID_ARG;
@@ -628,6 +631,15 @@ int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, 
     else IK_MB(4);
 #undef IK_MB
     return ik_launch_status();
+}
+
+int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return moe_block_impl(in, top_k, norm, out, scratch, stream, false);
+}
+
+// moe_block_bf16 for a batched decode step: 1 <= T <= 16 tokens, row t BITWISE the T = 1 launch on token t alone (tests/moe_block.rs).
+int ik_moe_block_bf16_rows(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return moe_block_impl(in, top_k, norm, out, scratch, stream, true);
 }
 
 }  // extern "C"
