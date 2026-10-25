@@ -180,9 +180,9 @@ then issue the solo step's collectives once with `b` rows of payload (`[b, hidde
 4 MiB slot). Each rank has its own row table and `batch_pos`; batched graphs are recorded per rank and row count, rank 0 records
 first and the peer follows (a peer that cannot follow fails the step). With the vocab-parallel head each rank projects its
 `V / 2` logits of every row, one all-gather fills the tile `[2][b][V / 2]` and rank 0 copies it into `ws.logits` as `[b, V]`.
-Every row is bitwise the solo tp=2 step of that sequence (`crates/intarsia-models/tests/tp_batch.rs` on the cpu backend, including
-protocol mutants; `INTARSIA_BATCH_TEST_TP=2` runs `batch_cuda_real` on two R9700s; the halved shard shapes are in
-`tests/rows_exact.rs`). Window stage: `scripts/tp2-hip/stages-batch.sh`.
+Every row must be bitwise the solo tp=2 step of that sequence: shown on the cpu backend (`crates/intarsia-models/tests/tp_batch.rs`,
+including protocol mutants); the GPU gates are written and NOT yet run (`INTARSIA_BATCH_TEST_TP=2` runs `batch_cuda_real` on two
+R9700s, the halved shard shapes are in `tests/rows_exact.rs`, window stage `scripts/tp2-hip/stages-batch.sh`).
 
 ## MoE and batch size
 

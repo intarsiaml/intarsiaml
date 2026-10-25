@@ -23,8 +23,9 @@
 #  3. serve-level identity (~7 min): `intarsia serve --max-batch 8 --tp 2 --backend hip`, then tools/cbidentity.py gate: a solo
 #     reference run of 40 cases (stratified sample) on the same server, then the cases concurrently at B = 4 and 8 (mixed
 #     streaming), every request's token ids compared with its solo run. The serve log must show the peer's batched graph
-#     replays (`tensor-parallel rank 1: batched decode graph ... replays=`), else VACUOUS-GRAPHS is logged.
-#  4. tp=1 unchanged (~5 min, in parallel): GPU 0 batch_recurrent on HIP (tiny hybrid, N 2..16 x 130 steps, engine, prefix
+#     replays (`tensor-parallel rank 1: batched decode graph ... replays=`, printed when the model drops: may be missing after
+#     `docker stop`, so VACUOUS-GRAPHS there is a weak signal; stage 1 ASSERTS both ranks replayed in lockstep).
+#  4. tp=1 unchanged (~6 min): GPU 0 batch_recurrent on HIP (tiny hybrid, N 2..16 x 130 steps, engine, prefix
 #     reuse), GPU 1 the HIP crate's rows_exact (with the new --tp 2 shard shapes: K/2 projections, k/v per rank, the shared
 #     expert per rank, the V/2 head, MoE at half the routed intermediate).
 #  5. speed (~6 min, not localeval): real_35b_batch_step_timing at tp=1 (GPU 0) and tp=2, B = 1 (solo), 4, 8, 16: per-step
@@ -113,9 +114,9 @@ grep -aiE '\bnan\b|non-finite|panic|IK_ERR|hip error|illegal|fatal|diverged' "$O
 log "serve log suspect lines: $(wc -l < "$O/serve-suspect.txt")"
 
 # 4. tp=1 unchanged: the tiny hybrid batching suite on GPU 0, the row-exact kernels incl. the shard shapes on GPU 1
-mtest tp1-batch-recurrent 0 900 --test batch_recurrent -- --test-threads=1 &
+# (one after the other: two cargo processes on one target volume would serialise on its lock anyway)
+mtest tp1-batch-recurrent 0 900 --test batch_recurrent -- --test-threads=1
 hiptest rows-exact 1 --test rows_exact
-wait
 
 # 5. speed: per-step wall time at tp=1 and tp=2 (B = 1 is the solo step line)
 E="INTARSIA_TIMING_ROWS=4,8,16" mtest timing-tp1 0 420 --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact real_35b_batch_step_timing

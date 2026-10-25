@@ -163,6 +163,13 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+    if tp() == 2 {
+        // the batched steps ran through recordings on BOTH ranks, in lockstep (graphs are on by default, as in serve)
+        let (g0, g1) = (m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
+        eprintln!("tp=2 batched graphs: rank 0 {g0:?}, rank 1 {g1:?}");
+        assert!(g0.batch_replays > 0, "rank 0 never replayed a batched graph: {g0:?}");
+        assert_eq!((g0.batch_captures, g0.batch_replays), (g1.batch_captures, g1.batch_replays), "the peer did not follow rank 0");
+    }
 }
 
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2/batch): the gate above must catch a peer that breaks the batched step protocol on
@@ -190,7 +197,9 @@ fn real_35b_tp2_batch_mutants_are_caught() {
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg(b))));
         m.set_tp_batch_mutant(1, None).unwrap();
         assert!(r.is_err(), "mutant {mutant:?} at {b} rows was not caught by the batched-vs-solo gate");
-        eprintln!("mutant {mutant:?} at {b} rows: caught");
+        // the group is still healthy (no aborted communicator), so the next mutant's catch is its own
+        assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4, "the control after mutant {mutant:?} failed");
+        eprintln!("mutant {mutant:?} at {b} rows: caught (control after it passes)");
     }
 }
 

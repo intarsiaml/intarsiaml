@@ -151,6 +151,11 @@ fn vocab_of(kind: Kind) -> u32 {
 }
 
 fn load(s: Setup, tel: Arc<Telemetry>) -> Model {
+    load_with_comms(s, tel).0
+}
+
+/// [`load`], with the fusing communicators when `s.arnorm` (their counters show what fused).
+fn load_with_comms(s: Setup, tel: Arc<Telemetry>) -> (Model, Vec<Arc<ArNormComm>>) {
     let (recipe, dims, weights): (Recipe, ModelDims, MemWeights) = match s.kind {
         Kind::Dense => (common::recipe(), common::dims(), common::tiny_weights(DType::F32, 7).weights),
         Kind::Hybrid => {
@@ -171,11 +176,14 @@ fn load(s: Setup, tel: Arc<Telemetry>) -> Model {
         ..Default::default()
     };
     let backends: Vec<Arc<dyn Backend>> = (0..s.world).map(|_| CpuBackend::arc()).collect();
+    let mut fusing = Vec::new();
     let mut m = if s.world == 1 {
         Model::load(backends[0].clone(), &recipe, &dims, &weights, &opts, tel).unwrap()
     } else {
         let comms: Vec<Arc<dyn Comm>> = if s.arnorm {
-            ArNormComm::group(backends.clone(), usize::MAX).0
+            let (c, f) = ArNormComm::group(backends.clone(), usize::MAX);
+            fusing = f;
+            c
         } else if let Some(t) = s.timeout {
             HostCommGroup::with_timeout(backends.clone(), t)
         } else {
@@ -191,7 +199,7 @@ fn load(s: Setup, tel: Arc<Telemetry>) -> Model {
         m.enable_batch(s.rows).unwrap();
     }
     m.configure_plan(&Default::default(), None).unwrap();
-    m
+    (m, fusing)
 }
 
 fn model(s: Setup) -> Model {
@@ -328,9 +336,15 @@ fn tp2_batched_hybrid_is_bitwise_the_tp2_solo_step_with_and_without_the_vocab_sp
 #[test]
 fn tp2_batched_next_to_the_fused_all_reduce_rmsnorm_is_bitwise_solo() {
     for kind in [Kind::Dense, Kind::Hybrid] {
-        let m = model(Setup { arnorm: true, ..setup(kind) });
+        let (m, comms) = load_with_comms(Setup { arnorm: true, ..setup(kind) }, Arc::new(Telemetry::new()));
+        assert_eq!(comms.len(), 2);
         for b in [2usize, 5, 8] {
+            let before = comms[0].fused.load(std::sync::atomic::Ordering::Relaxed);
+            comms[0].rows.lock().unwrap().clear();
             run(&m, &lens(b), 6).unwrap_or_else(|e| panic!("{kind:?} with tp_arnorm, {b} rows: {e}"));
+            // not vacuous: the batched steps fused all-reduces over `b` rows
+            assert!(comms[0].fused.load(std::sync::atomic::Ordering::Relaxed) > before, "{kind:?}, {b} rows: nothing fused");
+            assert!(comms[0].rows.lock().unwrap().contains(&b), "{kind:?}: no fused collective over the {b} batched rows");
         }
     }
 }
@@ -341,8 +355,8 @@ fn tp2_batch_memory_plan_is_agreed_by_both_ranks() {
         let m = model(Setup { vocab, ..setup(Kind::Hybrid) });
         let p = m.rank_model(1).unwrap();
         assert_eq!(p.batch_rows(), m.batch_rows());
+        // (both ranks here have the same budget: the clamp to the smaller rank is not exercised by a real difference)
         assert_eq!(p.plan.kv_cap_tokens, m.plan.kv_cap_tokens, "every rank holds the same context per sequence");
-        assert!(m.plan.kv_cap_tokens >= MAX_SEQ.min(m.plan.kv_cap_tokens));
         // a fresh state's peer sub-state has the rank-0 capacity and the peer's recurrent snapshots
         let st = m.new_state().unwrap();
         assert_eq!(st.peers.len(), 1);
