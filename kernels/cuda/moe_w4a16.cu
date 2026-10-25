@@ -339,14 +339,15 @@ int pick_bm(int64_t P, int64_t E) {
     return (double)P / (double)E <= 56.0 ? 32 : 64;
 }
 
-// INTARSIA_CUDA_MOE_W4A16_PF=1 (opt-in): at up to PF_MAX_PAIRS_PER_EXPERT pairs per expert (prefill chunks of up to 2048 tokens at 256
+// INTARSIA_CUDA_MOE_W4A16_PF (default on; =0 opts out): at up to PF_MAX_PAIRS_PER_EXPERT pairs per expert (prefill chunks of up to 2048 tokens at 256
 // experts, top-8) the gate/up GEMM prefetches its weight stream into L2 (see the kernel comment) and, unless INTARSIA_MOE_BM sets a
 // height, the tile height is 64 rows (the prefetch pays off more with the taller tile: fewer blocks, fewer weight re-reads).
-// Bitwise the same results as without. Unset / 0: the kernel and tile height of before.
+// Bitwise the same results as without. =0: the kernel and tile height of before.
 constexpr int PF_MAX_PAIRS_PER_EXPERT = 64;
 bool pf_enabled(int64_t P, int64_t E) {
     const char* v = getenv("INTARSIA_CUDA_MOE_W4A16_PF");
-    return v && v[0] == '1' && P <= PF_MAX_PAIRS_PER_EXPERT * E;
+    const bool off = v && v[0] == '0';
+    return !off && P <= PF_MAX_PAIRS_PER_EXPERT * E;
 }
 
 template <int R, int MT, int JW, int MODE, int MINB, int LA, int LR, bool GELU, bool PF>

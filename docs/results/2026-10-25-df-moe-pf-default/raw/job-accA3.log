@@ -1,0 +1,13 @@
+fleetq: #4977 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh accshort.sh dfA-acc3 df-dev /home/nvidia/intarsia-decfuse/df-golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json def
+== acc-short PF=def tree=df-dev 00:40:37
+exit 0
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to s
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+WARNING: this run resolved exactly the same kernels and flags as the baseline's run: a kernel or graph change cannot show up in this comparison
+WARNING: no --noise-envelope, and this model is not dense (experts or linear-attention layers in config.json): the per-prompt checks use fixed margins that sit inside the run-to-run noise of such models (a prompt can mov
+  mean KL            6.82514e-3   6.82514e-3   7.84891e-3  <= ok
+  per-prompt gate: ok
+  mean KL            6.98641e-3   6.98641e-3   8.03437e-3  <= ok
+  per-prompt gate: ok
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+fleetq: #4977 done (exit 0)
