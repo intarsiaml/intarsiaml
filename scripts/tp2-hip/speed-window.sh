@@ -3,7 +3,8 @@
 # radiance down:
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --expect 45 --mem 30 --quiet gpu,cpu \
 #     --label "tp2 speed" -- env TREE=batch scripts/tp2-hip/speed-window.sh
-# Arms (same binary, rounds interleaved ABAB..): tp1 = one card, `serve --max-batch 16`; tp2 = both cards,
+# Arms (same binary, rounds interleaved ABAB..; ARMS may also name tp2-v0 / tp2-a1 / tp2-f0 = tp2 with the vocab head off / the fused
+# all-reduce+rmsnorm on / fusion off): tp1 = one card, `serve --max-batch 16`; tp2 = both cards,
 # `serve --tp 2 --devices 0,1 --max-batch 16` (HIP defaults: graphs, fusion, vocab-parallel head). Each arm: a fresh server,
 # `localeval speed` (prefill sweep 1k/4k/16k, decode at 1 stream, aggregate decode at 4 and 16 streams, gen 512), then the
 # server goes away. localeval runs inside this job's slot (FLEETQ_JOB is inherited), so it does not queue behind it.
@@ -36,8 +37,14 @@ trap cleanup EXIT
 
 serve() { # serve <arm>
   local arm=$1 envs="" args="" gpus=0; [[ $MAXB -gt 1 ]] && args="--max-batch $MAXB"
-  if [[ $arm == tp2 ]]; then gpus=0,1; args="$args --tp 2 --devices 0,1"; envs="${EXTRA_TP2:-}"; fi
-  [[ $arm == tp1 ]] && envs="${EXTRA_TP1:-}"
+  case $arm in
+    tp1) envs="${EXTRA_TP1:-}" ;;
+    tp2*) gpus=0,1; args="$args --tp 2 --devices 0,1"; envs="${EXTRA_TP2:-}"
+      [[ $arm == tp2-v0 ]] && envs="$envs INTARSIA_TP_VOCAB=0"   # replicated head
+      [[ $arm == tp2-a1 ]] && envs="$envs INTARSIA_TP_ARNORM=1"  # fused all-reduce + rmsnorm
+      [[ $arm == tp2-f0 ]] && envs="$envs INTARSIA_TP_FUSION=0"  # no row-local fusion under tp
+      ;;
+  esac
   RECIPE="HIP_VISIBLE_DEVICES=$gpus ${envs:+$envs }tp2-intarsia serve --backend hip --model $MODEL --served-model-name $NAME-$arm $args --profile-every 0 --mem-budget 29 --max-seq $MAXSEQ --no-supervisor --host 0.0.0.0 --port $PORT (tree $TREE, docker $IMG)"
   local envflags=""; for e in $envs; do envflags="$envflags -e $e"; done
   $SSH "docker rm -f tp2-speed >/dev/null 2>&1; docker run -d --name tp2-speed --network host --device /dev/kfd --device /dev/dri \

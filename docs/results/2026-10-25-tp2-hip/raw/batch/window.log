@@ -14,3 +14,7 @@
 06:57:10 gen-tp2-b-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
 06:57:10 SAME 35B tp=2 solo 256 greedy ids, batch branch vs stack base (gen-tp2-d-35b-short.ids == gen-tp2-b-35b-short.ids)
 06:57:54 mtest tp2-engine exit 0 [INTARSIA_BATCH_TEST_TP=2]: tensor-parallel rank 1: batched decode graph captures=3 replays=650|tensor-parallel rank 1: batched decode graph captures=15 replays=260|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 43.64s|
+06:58:25 mtest tp2-decode-vocab0 exit 101 [INTARSIA_BATCH_TEST_TP=2 INTARSIA_TP_VOCAB=0]: thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/common/batch_identity.rs:93:61:|called `Result::unwrap()` on an `Err` value: Backend("tensor-parallel rank 1: batched decode graph unavailable")|
+06:58:25 stages-batch done
+[window] stages done 2026-10-25 06:58:25 (exit 0)
+[window] starting radiance 2026-10-25 06:58:25

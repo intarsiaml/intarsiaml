@@ -35,6 +35,11 @@ need 120 "run to run dump" && [[ -f $O/repro-D-1.safetensors ]] && self $D 0,1 t
 E="INTARSIA_TP_VOCAB=0" repro "$D" D-vocab0; repro "$B" B
 journal() { dmesg 2>/dev/null | grep -i -E "amdgpu|gpu|fault" | tail -5 | tr '\n' '|'; }
 log "dmesg: $(journal)"
+# 1a. vocab-parallel head: INTARSIA_TP_VOCAB=0 dump against the default's, floor budgets (bitwise class)
+if need 200 "vocab dump"; then
+  E="INTARSIA_TP_VOCAB=0" acc $D 0,1 vocab0-35b-short $M35 $SG $TP2
+  self $D 0,1 vocab1-vs-vocab0-short acc-vocab0-35b-short.safetensors $TP2 --pre-change ${PRECHANGE:-2c2d994} --self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8
+fi
 # 1b. the gate on the long golden as well (H1: 0.89x / 0.79x, under the noise): tp=1 dump, tp=2 against it, factor 1.0
 if need 600 "long gate"; then
   run $D 0 500 acc-tp1-35b-long accuracy --backend hip --model $M35 --golden $LG --mode both --mem-budget 29 --max-seq 17408 \
