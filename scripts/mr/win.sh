@@ -11,9 +11,15 @@ case "$cmd" in
     for i in $(seq 1 36); do curl -s -m 3 http://localhost:8080/v1/models | grep -q '"data":\[' && break; sleep 5; done
     echo "[mr] radiance $(systemctl --user is-active radiance) after $((i * 5)) s" ;;
   run)
+    IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
+    hb() { # hb <env VAR=VAL...> -- <args>: mxbench inside the dev image (ROCm libraries), card 0
+      docker run --rm --device /dev/kfd --device /dev/dri --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" \
+        --group-add video --ipc host --security-opt seccomp=unconfined --user "$(id -u):$(id -g)" -e HOME=/tmp -e HIP_VISIBLE_DEVICES=0 \
+        -e MXR_VARIANT="${MXR_VARIANT:-2}" -v "$HOME/mr-hip":/work -w /work "$IMG" /work/.mrbin/mxbench "$@"
+    }
     variants=${1:-2}; shapes=${2:-17408x5120}; kernel=${3:-rows}; base=${4:-0}
     for sh in $shapes; do
-      [ "$base" = 1 ] && { echo "## gemv baseline $sh"; HIP_VISIBLE_DEVICES=0 $HOME/mr-hip/.mrbin/mxbench ${sh%x*} ${sh#*x} 200 gemv; }
-      for v in $variants; do echo "## variant $v $sh"; HIP_VISIBLE_DEVICES=0 MXR_VARIANT=$v $HOME/mr-hip/.mrbin/mxbench ${sh%x*} ${sh#*x} 200 $kernel; done
+      [ "$base" = 1 ] && { echo "## gemv baseline $sh"; hb ${sh%x*} ${sh#*x} 200 gemv; }
+      for v in $variants; do echo "## variant $v $sh"; MXR_VARIANT=$v hb ${sh%x*} ${sh#*x} 200 $kernel; done
     done ;;
 esac

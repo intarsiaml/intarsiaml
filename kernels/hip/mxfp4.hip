@@ -258,14 +258,19 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, cons
 // ---- row-exact multi-row GEMV (_rows launchers, M = 2..16) ------------------------------------------------------------
 // Output row m of an M-row call is bitwise the M == 1 launch on row m alone: per (output row n, activation row m) the lane
 // walks the groups u = lane, lane + 32, ... in order, t = fma chain over the 32 elements of the group, acc = fma(t, s, acc),
-// then the xor-butterfly warp sum, exactly as mxfp4_gemv_kernel<1>. What changes against mxfp4_gemv_kernel<M> is the
-// register shape only: a warp handles R weight rows (the activation loads and bf16 unpacks of a group are shared by R rows)
-// and the activation row m is streamed (loaded, unpacked and consumed 8 elements at a time) instead of all M rows being
-// hoisted into registers (~33 VGPR per row: spills from M = 6). x is the QDQ'd (or copied) pre-pass output, plain bf16.
-template <int M, int R, int UNR, bool SB, typename OutT>
+// then the xor-butterfly warp sum, exactly as mxfp4_gemv_kernel<1>. What differs from mxfp4_gemv_kernel<M> is the register
+// shape only. That kernel hoists the loads and bf16 unpacks of all M activation rows (~33 VGPR per row) and spills from
+// M = 6 (256 VGPR, 126 spilled at M = 8: 19x the one-row time). Here a warp computes kRowsR = 2 weight rows, so the
+// activation loads and unpacks of a group are shared by two rows, and each activation row is loaded, unpacked and consumed
+// 8 elements at a time behind a scheduler barrier, so the registers do not grow with M (104 VGPR at M = 2, 134 at M = 16).
+// x is the QDQ'd (or copied) pre-pass output, plain bf16.
+constexpr int kRowsR = 2;  // weight rows per warp (measured against 1, 3 and 4: docs/results/2026-10-25-mr-hip-mxfp4-rows.md)
+
+template <int M, typename OutT>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 mxfp4_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                        OutT* __restrict__ out, int64_t N, int K) {
+    constexpr int R = kRowsR;
     IK_FP4_LUT(lut);
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
@@ -275,7 +280,7 @@ mxfp4_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     const uint8_t* sr[R];
 #pragma unroll
     for (int r = 0; r < R; ++r) {
-        const int64_t n = n0 + r < N ? n0 + r : N - 1;  // tail rows past N re-read the last row and are not stored
+        const int64_t n = n0 + r < N ? n0 + r : N - 1;  // a tail row past N re-reads the last row and is not stored
         wr[r] = reinterpret_cast<const uint4*>(w + n * (K / 2));
         sr[r] = sc + n * G;
     }
@@ -284,55 +289,35 @@ mxfp4_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     for (int r = 0; r < R; ++r)
 #pragma unroll
         for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
-    // UNR groups per iteration (lane, lane + 32, ...): independent fma chains in flight together; the groups are folded
-    // into acc in ascending order, as the one-row kernel does
-    for (int ub = lane; ub < G; ub += IK_WARP * UNR) {
-        float wf[UNR][R][kG], s[UNR][R];
+    for (int u = lane; u < G; u += IK_WARP) {
+        float wf[R][kG], s[R];
 #pragma unroll
-        for (int g = 0; g < UNR; ++g) {
-            const int u = ub + g * IK_WARP;
-            if (u < G) {
-#pragma unroll
-                for (int r = 0; r < R; ++r) {
-                    const uint4 wv = ik_ldcs(wr[r] + u);
-                    s[g][r] = mx_e8m0(sr[r][u]);
-                    ik_fp4x8_to_f32(wv.x, lut, wf[g][r]);
-                    ik_fp4x8_to_f32(wv.y, lut, wf[g][r] + 8);
-                    ik_fp4x8_to_f32(wv.z, lut, wf[g][r] + 16);
-                    ik_fp4x8_to_f32(wv.w, lut, wf[g][r] + 24);
-                }
-            }
+        for (int r = 0; r < R; ++r) {
+            const uint4 wv = ik_ldcs(wr[r] + u);
+            s[r] = mx_e8m0(sr[r][u]);
+            ik_fp4x8_to_f32(wv.x, lut, wf[r]);
+            ik_fp4x8_to_f32(wv.y, lut, wf[r] + 8);
+            ik_fp4x8_to_f32(wv.z, lut, wf[r] + 16);
+            ik_fp4x8_to_f32(wv.w, lut, wf[r] + 24);
         }
 #pragma unroll
         for (int m = 0; m < M; ++m) {
-            if (SB) __builtin_amdgcn_sched_barrier(0);
-            float t[UNR][R];
+            __builtin_amdgcn_sched_barrier(0);  // keeps the loads of row m + 1 from being hoisted above the fmas of row m
+            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * kG);
+            float t[R];
 #pragma unroll
-            for (int g = 0; g < UNR; ++g)
-#pragma unroll
-                for (int r = 0; r < R; ++r) t[g][r] = 0.f;
+            for (int r = 0; r < R; ++r) t[r] = 0.f;
 #pragma unroll
             for (int c = 0; c < 4; ++c) {
-                float xf[UNR][8];
+                float xf[8];
+                ik_unpack8(xp[c], xf);
 #pragma unroll
-                for (int g = 0; g < UNR; ++g) {
-                    const int u = ub + g * IK_WARP;
-                    const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)(u < G ? u : 0) * kG);
-                    ik_unpack8(xp[c], xf[g]);
-                }
+                for (int r = 0; r < R; ++r)
 #pragma unroll
-                for (int g = 0; g < UNR; ++g)
-#pragma unroll
-                    for (int r = 0; r < R; ++r)
-#pragma unroll
-                        for (int e = 0; e < 8; ++e) t[g][r] = fmaf(wf[g][r][8 * c + e], xf[g][e], t[g][r]);
+                    for (int e = 0; e < 8; ++e) t[r] = fmaf(wf[r][8 * c + e], xf[e], t[r]);
             }
 #pragma unroll
-            for (int g = 0; g < UNR; ++g)
-                if (ub + g * IK_WARP < G) {
-#pragma unroll
-                    for (int r = 0; r < R; ++r) acc[r][m] = fmaf(t[g][r], s[g][r], acc[r][m]);
-                }
+            for (int r = 0; r < R; ++r) acc[r][m] = fmaf(t[r], s[r], acc[r][m]);
         }
     }
 #pragma unroll
@@ -344,53 +329,24 @@ mxfp4_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
         }
 }
 
-// EXPERIMENT (lane mr, removed before the PR): MXR_VARIANT picks the register shape
-static int mx_rows_variant() {
-    static const int v = [] {
-        const char* e = getenv("MXR_VARIANT");
-        return e ? atoi(e) : 2;
-    }();
-    return v;
-}
-
-template <int M, int R, int UNR, bool SB, typename OutT>
-void rows_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
-    const unsigned g = (unsigned)((N + kWarps * R - 1) / (kWarps * R));
-    mxfp4_gemv_rows_kernel<M, R, UNR, SB, OutT><<<g, kWarps * IK_WARP, 0, s>>>(x, w, sc, out, N, (int)K);
-}
-
 template <int M, typename OutT>
-void rows_one(const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
-    switch (mx_rows_variant()) {
-        case 0: rows_launch<M, 1, 1, true, OutT>(x, w, sc, out, N, K, s); break;
-        case 1: rows_launch<M, 2, 1, false, OutT>(x, w, sc, out, N, K, s); break;
-        case 2: rows_launch<M, 2, 1, true, OutT>(x, w, sc, out, N, K, s); break;
-        case 3: if constexpr (M <= 6) rows_launch<M, 4, 1, true, OutT>(x, w, sc, out, N, K, s); break;
-        case 4: rows_launch<M, 2, 2, false, OutT>(x, w, sc, out, N, K, s); break;
-        case 5: rows_launch<M, 1, 2, false, OutT>(x, w, sc, out, N, K, s); break;
-        case 6: rows_launch<M, 1, 4, false, OutT>(x, w, sc, out, N, K, s); break;
-        case 7: if constexpr (M <= 6) rows_launch<M, 4, 2, false, OutT>(x, w, sc, out, N, K, s); break;
-        default: break;
-    }
+void rows_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    const unsigned grid = (unsigned)((N + kWarps * kRowsR - 1) / (kWarps * kRowsR));
+    mxfp4_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, sc, out, N, (int)K);
 }
 
 template <typename OutT>
 int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
-#define IK_MX_ROWS(MM) case MM: rows_one<MM, OutT>(x, w, sc, out, N, K, s); break
+#define IK_MX_ROWS(MM) case MM: rows_launch<MM, OutT>(x, w, sc, out, N, K, s); break
     switch (M) {
-#ifdef MXR_SMALL
-        IK_MX_ROWS(2); IK_MX_ROWS(3); IK_MX_ROWS(4); IK_MX_ROWS(8); IK_MX_ROWS(16);
-#else
         IK_MX_ROWS(2); IK_MX_ROWS(3); IK_MX_ROWS(4); IK_MX_ROWS(5); IK_MX_ROWS(6); IK_MX_ROWS(7); IK_MX_ROWS(8);
         IK_MX_ROWS(9); IK_MX_ROWS(10); IK_MX_ROWS(11); IK_MX_ROWS(12); IK_MX_ROWS(13); IK_MX_ROWS(14); IK_MX_ROWS(15);
         IK_MX_ROWS(16);
-#endif
         default: return IK_ERR_SHAPE;
     }
 #undef IK_MX_ROWS
     return ik_launch_status();
 }
-
 
 // ---- activation pre-pass (mma): xs[M, K] = act ? QDQ(x) : x, one thread per 32-element group --------------------
 
