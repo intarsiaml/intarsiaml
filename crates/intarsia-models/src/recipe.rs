@@ -310,23 +310,23 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn qwen3_5_vl_hip_chunk_4096_with_tail_peel() {
-        // the 27B (Qwen3_5ForConditionalGeneration) runs the vl recipe; the text-only qwen3_5 recipe has no tuning
-        let (id, vl) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
-        assert_eq!(id, "builtin:qwen3_5_vl");
-        let hip = vl.resolve_prefill_chunk(None, "hip");
-        assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5_vl, hip"));
-        assert_eq!(vl.resolve_prefill_peel("hip"), (16, "recipe qwen3_5_vl, hip".to_string()));
-        assert_eq!(vl.resolve_prefill_chunk(Some(256), "hip").value, 256);
-        for be in ["cuda", "metal", "cpu"] {
-            assert_eq!(vl.resolve_prefill_chunk(None, be).value, 256, "{be}");
-            assert_eq!(vl.resolve_prefill_peel(be).0, 0, "{be}");
-        }
-        // no other builtin recipe sets a peel (their schedules are unchanged)
-        for arch in ["Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "Qwen3ForCausalLM"] {
+    fn no_builtin_recipe_sets_a_prefill_peel() {
+        // the peel is opt-in (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`): with chunk 4096 + peel 16 the 27B
+        // is bitwise chunk 256, but on HIP serve --max-batch 16 it costs context (4930 -> 4407 tokens) and runs 4096-row
+        // busy chunks, so its recipe keeps 256 (docs/results/2026-10-25-mx-hip-27b-prefill.md section 4)
+        let (_, vl) =
+            select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
+        assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 256);
+        let archs = [
+            "Qwen3_5ForConditionalGeneration",
+            "Qwen3_5ForCausalLM",
+            "Qwen3_5MoeForConditionalGeneration",
+            "Qwen3ForCausalLM",
+        ];
+        for arch in archs {
             let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
             for be in ["cuda", "hip", "metal", "cpu"] {
-                assert_eq!(r.resolve_prefill_peel(be).0, 0, "{arch} {be}");
+                assert_eq!(r.resolve_prefill_peel(be), (0, "default".to_string()), "{arch} {be}");
             }
         }
         // a peel is a tail of a 256-row pass: 256 or more is refused

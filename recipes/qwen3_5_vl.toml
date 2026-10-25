@@ -73,11 +73,3 @@ max_batch = 32
 
 kind = "qwen3_5_mtp"
 prefix = "mtp"
-
-# 4096 with a 16-row tail peel on HIP (lane mx, R9700, Qwen3.8-27B MXFP4): bitwise the default 256 schedule, because every
-# 27B kernel gives a row the same bits at any M above 16 and the peel runs a pass's last 1..16 rows past a multiple of 256
-# alone, as chunk 256 does (MXFP4 GEMV at <= 8 rows, split-KV attention at <= 16). Evidence, the tail sweep and the speed in
-# docs/results/2026-10-25-mx-hip-27b-prefill.md section 4. CUDA, Metal and CPU keep 256.
-[tuning.hip]
-prefill_chunk = 4096
-prefill_peel = 16

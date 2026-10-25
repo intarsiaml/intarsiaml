@@ -7,34 +7,34 @@ radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored a
 
 ## Headline
 
-27B prefill on one R9700, prefill-only engine time (tok/s; main, v2 and fold from raw/w7, one window; the default column
-with the shipped 16-row peel from raw/w8 on the rebased tree):
+27B prefill on one R9700, served (localeval, interleaved x3, tok/s). Main and v2 from raw/loc1 (one window); the opt-in
+rows from raw/loc3 (main 5e9cc6da vs this head, one window):
 
-| prompt | main (chunk 256) | v2 GEMM (bitwise) | + chunk 4096 with 16-row peel (the default, bitwise) | + fold (opt-in, changes numerics) |
+| prompt | main | v2 GEMM (**the default**, bitwise) | opt-in: `--prefill-chunk 4096` + `INTARSIA_PREFILL_PEEL=16` (bitwise) | opt-in: that + `INTARSIA_HIP_MXFP4_FOLD=1` (numerics) |
 |---|---:|---:|---:|---:|
-| 1k | 990 | 1129 (+14 %) | 1330 (+34 %) | 2041 (+106 %) |
-| 4k | 1012 | 1153 (+14 %) | 1428 (+41 %) | 2410 (+138 %) |
-| 16k | 959 | 1084 (+13 %) | 1365 (+42 %) | 2227 (+132 %) |
+| 1k | 981 | 1120 (+14 %) | 1323 (+35 %, main 980) | 2043 |
+| 4k | 1013 | 1154 (+14 %) | 1437 (+42 %, main 1010) | 2416 |
+| 16k | 947 | 1073 (+13 %) | 1351 (+43 %, main 946) | 2186 |
+
+Decode is unchanged in every arm.
 
 * **What the time is.** At 4k on main 87-89 % of kernel time is the MXFP4 GEMMs at 57-65 TFLOP/s (30-34 % of the bf16
   WMMA peak); attention and the GatedDeltaNet scan are 6 %, the activation QDQ 2 % (section 1).
-* **Default, bitwise:** `matmul_mxfp4_mma` v2 (direct bf16 dequant + a prefill tile table, bit for bit v1; section 3),
-  and the 27B's HIP recipe at chunk 4096 with a 16-row tail peel, a new core knob that makes a larger chunk run a prompt's
-  short tail exactly as chunk 256 does (section 4). The coordinator made the recipe change conditional on w8 showing 0
-  differing prompts of the 34 at peel 16; w8 shows 0 of 34 prompts and 0 of 85014 rows. Ids, plan show, golden dumps and a 34-prompt tails sweep match main;
-  the 35B and CUDA / Metal are unchanged.
+* **Default, bitwise:** `matmul_mxfp4_mma` v2 (direct bf16 dequant + a prefill tile table, bit for bit v1; section 3).
+  Ids, plan show, golden dumps match main; the 35B and CUDA / Metal are unchanged.
+* **Opt-in, bitwise:** a new core knob, the prefill tail peel (`INTARSIA_PREFILL_PEEL`, recipe `prefill_peel`), makes a
+  larger chunk run a prompt's short tail exactly as chunk 256 does. For the 27B, chunk 4096 + peel 16 is bitwise chunk
+  256 (0 of 34 tail prompts / 85014 rows differ) and +35-43 % prefill. It is **not** the recipe default: under
+  `serve --max-batch 16` the 4096-row workspace lowers the admitted context from 4930 to 4407 tokens, and the busy
+  prefill chunk follows the model chunk (4096 rows while other streams decode; section 4, raw/w10). That follows the
+  coordinator's rule (default only if batched serving does not regress).
 * **Opt-in, numerics:** `INTARSIA_HIP_MXFP4_FOLD=1` folds W4A4 onto the fp8 WMMA (2x the GEMM rate). Against the 27B
-  golden it passes prefill (KL 0.165 vs main 0.180) but fails the decode-mode gate, as main does (0.261 vs main 0.340,
-  bound 0.197). Decision mx-1 (coordinator, 2026-10-25): ships opt-in, default off (section 5).
-* **Gap to radiance** (TP2, 5210 / 6133 / 5852 tok/s): single card we go 1012 -> 1435 tok/s at 4k (default) or 2410
-  (opt-in). Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel (section 1, arithmetic);
-  after this lane the default single-card gap to radiance's per-card GEMM rate is still about 1.8x (82 vs ~150 TFLOP/s),
-  and the bitwise GEMM's remaining cost is its pipeline, not its dequant (section 8).
-* **Served** (localeval, interleaved x3, main 5e9cc6da vs the PR head): 980 / 1010 / 946 -> 1323 / 1437 / 1351 tok/s
-  (+35 / +42 / +43 %), fold opt-in 2043 / 2416 / 2186; decode unchanged (section 6). Lane tp2: the
-  `qwen3_5_vl.toml` `[tuning.hip]` table also changes the TP2 27B default chunk and memory plan, and both ranks must
-  resolve the same peel.
-
+  golden it passes prefill (KL 0.165 vs main 0.180) and is 0.261 in decode mode vs main's 0.340 (bound 0.197). Decision
+  mx-1 (coordinator, 2026-10-25): ships opt-in, default off (section 5).
+* **Gap to radiance** (TP2, 5210 / 6133 / 5852 tok/s): single card the default goes 1013 -> 1154 tok/s at 4k, the bitwise
+  opt-in 1437, the fold 2416. Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel
+  (section 1); the bitwise GEMM's remaining cost is its pipeline, not its dequant (section 8).
+* Lane tp2: no recipe changes in this PR any more; the peel knob is off unless set.
 
 ## 1. Profile: where a 27B 4k prefill goes on one card (main)
 
@@ -150,7 +150,7 @@ raw/w4 prof-v2-c4096-4096.txt), against 3095 ms for main's GEMMs. v2 is at 43 % 
 hipBLASLt bf16 at these shapes, so the bitwise GEMM still has room (section 8).
 
 
-## 4. Prefill chunk 4096 with an 8-row tail peel: bitwise chunk 256, the 27B's HIP default
+## 4. Prefill tail peel: chunk 4096 bitwise chunk 256 on the 27B (opt-in, not the recipe default)
 
 **Where chunk 4096 differs from 256 (main, raw/w3 chunkcmp-base-256-vs-4096.txt; same tails method as lane ck).** Chunk
 4096 is bitwise chunk 256 on every prompt except those whose last pass at chunk 256 has at most 8 rows (synth_260: 4 tail
@@ -201,7 +201,7 @@ without any peel, as w3 found.
 Engine path (256 greedy ids through `generate`, where a recurrent prompt's last token runs alone): main chunk 256 vs dev
 chunk 4096 + peel, identical at 1029 / 4100 / 4360 / 8201 tokens (last multi-row pass 3..8 rows) and 16384 with the 8-row
 peel (raw/w7); with the 16-row peel identical at 525 / 529 / 8459 / 4109 tokens (last multi-row pass 10..16 rows), and the
-head default with no flags or env identical to main 5e9cc6da on short and 4k (raw/w8). The no-flag plan differs from
+w8 build (recipe table then in qwen3_5_vl.toml) with no flags or env identical to main 5e9cc6da on short and 4k (raw/w8). That no-flag plan differed from
 main only in `prefill_chunk` (256 -> 4096, source `recipe qwen3_5_vl, hip`), `prefill_peel` (16), one op's scratch
 (8.9 -> 142.6 MB) and the probed sizes; the context stays 18432 tokens at `--mem-budget 29`. The 27B golden gate on the
 head setting matches main to the printed digits (prefill KL 0.180 PASS, decode-mode 0.340, raw/w8 accg-dev16.out). The 27B golden prompts (prefill and teacher-forced decode dumps) are bitwise main
@@ -209,17 +209,25 @@ head setting matches main to the printed digits (prefill KL 0.180 PASS, decode-m
 
 Speed (`generate --max-tokens 1`, tok/s): raw/w7, one window: 1k 990 (main) / 1129 (v2) / 1335 (v2 + 4096 + 8-row peel)
 / 2041 (+ fold opt-in); 4k 1012 / 1153 / 1435 / 2410; 16k 959 / 1084 / 1367 / 2227. raw/w8 with the 16-row peel: 1330 /
-1428 / 1365 (within 0.5 % of peel 8), so the new default is +34 % / +41 % / +42 % over main.
+1428 / 1365 (within 0.5 % of peel 8): +34 % / +41 % / +42 % over main.
 
 
 Batched decode (lane mr, max-batch up to 16 on the 27B) runs passes of at most 16 rows, below the 256 rows a peel acts
-on, so the peel never changes a decode step; w9 reruns mr's 27B batched == solo test with the head recipe.
+on, so the peel never changes a decode step; w9 reruns mr's 27B batched == solo test at chunk 4096 + peel 16 (then the recipe table).
 
-Serving: the batched scheduler picks a request's chunk once, when its first chunk runs: the solo chunk (now 4096) when no
-other sequence is decoding, 256 (`BUSY_PREFILL_CHUNK`) otherwise (`crates/intarsia-core/src/scheduler.rs` module docs).
-The batched scheduler's prefill (`engine/batch.rs` `run_prefill`) calls `Model::forward`, which cuts through
-`forward_chunks`, so it gets the peel too. So a 4096-row pass never stalls running decode streams, as for the 35B (`qwen3_5_moe.toml` is 4096 on HIP), and with
-the peel both choices give the 27B the same bits: a served request's tokens do not depend on the load when it started.
+Serving: the batched scheduler's prefill (`engine/batch.rs` `run_prefill`) calls `Model::forward`, which cuts through
+`forward_chunks`, so it gets the peel too, and w9 shows the 27B batched decode bitwise solo with chunk 4096 + peel 16.
+On hybrid models the busy chunk (a prompt that starts while others decode) defaults to the solo chunk, so batched output
+stays bitwise solo; with chunk 4096 that means 4096-row passes under load (below).
+
+**Why it is not the 27B recipe default (raw/w10, fleetq #5259).** With the table in `qwen3_5_vl.toml`
+(`[tuning.hip] prefill_chunk = 4096, prefill_peel = 16`), `--spec mtp` greedy ids on short and 4k equal main and equal
+the spec-off ids (acceptance 69.8 / 67.9 %, identical on both builds), but `serve --max-batch 16` admits a context of
+4407 tokens instead of 4930 (at `--max-seq` 8192 and 17408) and logs `busy prefill chunk 4096`: the busy chunk defaults
+to the solo chunk on hybrid models so that batched output stays bitwise solo, so a prompt arriving while others decode
+runs 4096-row passes. Per the coordinator's rule the recipe keeps 256; the knob and the evidence stay, and
+`crates/intarsia-models/src/recipe.rs` `no_builtin_recipe_sets_a_prefill_peel` pins that no builtin recipe sets a peel.
+(An earlier version of this section said the busy chunk stays 256; that is wrong for hybrid models.)
 
 ## 5. Opt-in: `matmul_mxfp4_mma_fold` (INTARSIA_HIP_MXFP4_FOLD=1), W4A4 folded onto the fp8 WMMA
 
@@ -274,7 +282,7 @@ Decode is unchanged (32.9 / 32.4 / 30.8 tok/s in every arm).
 27B on the rebased tree (raw/loc3, fleetq #5245; main 5e9cc6da vs the PR head with no flags, whose serve log reads
 `prefill chunk 4096 (recipe qwen3_5_vl, hip)`):
 
-| prompt | main | head default (v2 + 4096 + peel 16, bitwise) | + fold (opt-in) |
+| prompt | main | v2 + 4096 + peel 16 (opt-in, bitwise; the recipe table at the time) | + fold (opt-in) |
 |---|---:|---:|---:|
 | 990 tok | 980 | 1323 (+35 %) | 2043 (+108 %) |
 | 4088 tok | 1010 | 1437 (+42 %) | 2416 (+139 %) |
