@@ -9,7 +9,7 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$S/../.." && pwd)"
-RAW=$REPO/docs/results/2026-10-25-mx-hip-27b-prefill/raw
+RAW=${RAW:-$REPO/docs/results/2026-10-25-mx-hip-27b-prefill/raw}
 mkdir -p "$RAW/$W"
 CAP=${CAP:-2520}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/mx' < /dev/null
