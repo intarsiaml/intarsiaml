@@ -55,7 +55,7 @@ serve() { # serve <arm>
 
 for r in $(seq 1 "$ROUNDS"); do
   order="$ARMS"
-  (( r % 2 == 0 )) && order=$(echo $ARMS | tr ' ' '\n' | tac | tr '\n' ' ')
+  (( r % 2 == 0 )) && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
   for arm in $order; do
     if (( $(left) < 420 )); then say "SKIPPED round $r arm $arm (time left $(left)s)"; continue; fi
     say "round $r arm $arm: starting server"
