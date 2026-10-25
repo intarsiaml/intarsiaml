@@ -1,0 +1,1955 @@
+F1 pos=0 e=0
+F1 pos=0 e=1
+F1 pos=0 e=2
+F1 pos=0 e=3
+F1 pos=0 e=4
+F1 pos=0 e=5
+F1 pos=0 e=6
+F1 pos=0 e=7
+F1 pos=0 e=8
+F1 pos=0 e=9
+F1 pos=0 e=10
+F1 pos=0 e=11
+F1 pos=0 e=12
+F1 pos=0 e=13
+F1 pos=0 e=14
+F1 pos=0 e=15
+F1 pos=0 e=16
+F1 pos=1 e=0
+F1 pos=1 e=1
+F1 pos=1 e=2
+F1 pos=1 e=3
+F1 pos=1 e=4
+F1 pos=1 e=5
+F1 pos=1 e=6
+F1 pos=1 e=7
+F1 pos=1 e=8
+F1 pos=1 e=9
+F1 pos=1 e=10
+F1 pos=1 e=11
+F1 pos=1 e=12
+F1 pos=1 e=13
+F1 pos=1 e=14
+F1 pos=1 e=15
+F1 pos=1 e=16
+F1 pos=2 e=0
+F1 pos=2 e=1
+F1 pos=2 e=2
+F1 pos=2 e=3
+F1 pos=2 e=4
+F1 pos=2 e=5
+F1 pos=2 e=6
+F1 pos=2 e=7
+F1 pos=2 e=8
+F1 pos=2 e=9
+F1 pos=2 e=10
+F1 pos=2 e=11
+F1 pos=2 e=12
+F1 pos=2 e=13
+F1 pos=2 e=14
+F1 pos=2 e=15
+F1 pos=2 e=16
+F1 pos=3 e=0
+F1 pos=3 e=1
+F1 pos=3 e=2
+F1 pos=3 e=3
+F1 pos=3 e=4
+F1 pos=3 e=5
+F1 pos=3 e=6
+F1 pos=3 e=7
+F1 pos=3 e=8
+F1 pos=3 e=9
+F1 pos=3 e=10
+F1 pos=3 e=11
+F1 pos=3 e=12
+F1 pos=3 e=13
+F1 pos=3 e=14
+F1 pos=3 e=15
+F1 pos=3 e=16
+F1 pos=4 e=0
+F1 pos=4 e=1
+F1 pos=4 e=2
+F1 pos=4 e=3
+F1 pos=4 e=4
+F1 pos=4 e=5
+F1 pos=4 e=6
+F1 pos=4 e=7
+F1 pos=4 e=8
+F1 pos=4 e=9
+F1 pos=4 e=10
+F1 pos=4 e=11
+F1 pos=4 e=12
+F1 pos=4 e=13
+F1 pos=4 e=14
+F1 pos=4 e=15
+F1 pos=4 e=16
+F1 pos=5 e=0
+F1 pos=5 e=1
+F1 pos=5 e=2
+F1 pos=5 e=3
+F1 pos=5 e=4
+F1 pos=5 e=5
+F1 pos=5 e=6
+F1 pos=5 e=7
+F1 pos=5 e=8
+F1 pos=5 e=9
+F1 pos=5 e=10
+F1 pos=5 e=11
+F1 pos=5 e=12
+F1 pos=5 e=13
+F1 pos=5 e=14
+F1 pos=5 e=15
+F1 pos=5 e=16
+F1 pos=6 e=0
+F1 pos=6 e=1
+F1 pos=6 e=2
+F1 pos=6 e=3
+F1 pos=6 e=4
+F1 pos=6 e=5
+F1 pos=6 e=6
+F1 pos=6 e=7
+F1 pos=6 e=8
+F1 pos=6 e=9
+F1 pos=6 e=10
+F1 pos=6 e=11
+F1 pos=6 e=12
+F1 pos=6 e=13
+F1 pos=6 e=14
+F1 pos=6 e=15
+F1 pos=6 e=16
+F1 pos=7 e=0
+F1 pos=7 e=1
+F1 pos=7 e=2
+F1 pos=7 e=3
+F1 pos=7 e=4
+F1 pos=7 e=5
+F1 pos=7 e=6
+F1 pos=7 e=7
+F1 pos=7 e=8
+F1 pos=7 e=9
+F1 pos=7 e=10
+F1 pos=7 e=11
+F1 pos=7 e=12
+F1 pos=7 e=13
+F1 pos=7 e=14
+F1 pos=7 e=15
+F1 pos=7 e=16
+F1 pos=8 e=0
+F1 pos=8 e=1
+F1 pos=8 e=2
+F1 pos=8 e=3
+F1 pos=8 e=4
+F1 pos=8 e=5
+F1 pos=8 e=6
+F1 pos=8 e=7
+F1 pos=8 e=8
+F1 pos=8 e=9
+F1 pos=8 e=10
+F1 pos=8 e=11
+F1 pos=8 e=12
+F1 pos=8 e=13
+F1 pos=8 e=14
+F1 pos=8 e=15
+F1 pos=8 e=16
+F1 pos=9 e=0
+F1 pos=9 e=1
+F1 pos=9 e=2
+F1 pos=9 e=3
+F1 pos=9 e=4
+F1 pos=9 e=5
+F1 pos=9 e=6
+F1 pos=9 e=7
+F1 pos=9 e=8
+F1 pos=9 e=9
+F1 pos=9 e=10
+F1 pos=9 e=11
+F1 pos=9 e=12
+F1 pos=9 e=13
+F1 pos=9 e=14
+F1 pos=9 e=15
+F1 pos=9 e=16
+F1 pos=10 e=0
+F1 pos=10 e=1
+F1 pos=10 e=2
+F1 pos=10 e=3
+F1 pos=10 e=4
+F1 pos=10 e=5
+F1 pos=10 e=6
+F1 pos=10 e=7
+F1 pos=10 e=8
+F1 pos=10 e=9
+F1 pos=10 e=10
+F1 pos=10 e=11
+F1 pos=10 e=12
+F1 pos=10 e=13
+F1 pos=10 e=14
+F1 pos=10 e=15
+F1 pos=10 e=16
+F1 pos=11 e=0
+F1 pos=11 e=1
+F1 pos=11 e=2
+F1 pos=11 e=3
+F1 pos=11 e=4
+F1 pos=11 e=5
+F1 pos=11 e=6
+F1 pos=11 e=7
+F1 pos=11 e=8
+F1 pos=11 e=9
+F1 pos=11 e=10
+F1 pos=11 e=11
+F1 pos=11 e=12
+F1 pos=11 e=13
+F1 pos=11 e=14
+F1 pos=11 e=15
+F1 pos=11 e=16
+F1 pos=12 e=0
+F1 pos=12 e=1
+F1 pos=12 e=2
+F1 pos=12 e=3
+F1 pos=12 e=4
+F1 pos=12 e=5
+F1 pos=12 e=6
+F1 pos=12 e=7
+F1 pos=12 e=8
+F1 pos=12 e=9
+F1 pos=12 e=10
+F1 pos=12 e=11
+F1 pos=12 e=12
+F1 pos=12 e=13
+F1 pos=12 e=14
+F1 pos=12 e=15
+F1 pos=12 e=16
+F1 pos=13 e=0
+F1 pos=13 e=1
+F1 pos=13 e=2
+F1 pos=13 e=3
+F1 pos=13 e=4
+F1 pos=13 e=5
+F1 pos=13 e=6
+F1 pos=13 e=7
+F1 pos=13 e=8
+F1 pos=13 e=9
+F1 pos=13 e=10
+F1 pos=13 e=11
+F1 pos=13 e=12
+F1 pos=13 e=13
+F1 pos=13 e=14
+F1 pos=13 e=15
+F1 pos=13 e=16
+F1 pos=14 e=0
+F1 pos=14 e=1
+F1 pos=14 e=2
+F1 pos=14 e=3
+F1 pos=14 e=4
+F1 pos=14 e=5
+F1 pos=14 e=6
+F1 pos=14 e=7
+F1 pos=14 e=8
+F1 pos=14 e=9
+F1 pos=14 e=10
+F1 pos=14 e=11
+F1 pos=14 e=12
+F1 pos=14 e=13
+F1 pos=14 e=14
+F1 pos=14 e=15
+F1 pos=14 e=16
+F1 pos=15 e=0
+F1 pos=15 e=1
+F1 pos=15 e=2
+F1 pos=15 e=3
+F1 pos=15 e=4
+F1 pos=15 e=5
+F1 pos=15 e=6
+F1 pos=15 e=7
+F1 pos=15 e=8
+F1 pos=15 e=9
+F1 pos=15 e=10
+F1 pos=15 e=11
+F1 pos=15 e=12
+F1 pos=15 e=13
+F1 pos=15 e=14
+F1 pos=15 e=15
+F1 pos=15 e=16
+F1b pos=0 e=0 tiny=-1
+F1b pos=0 e=0 tiny=-4
+F1b pos=0 e=0 tiny=-8
+F1b pos=0 e=0 tiny=-12
+F1b pos=0 e=0 tiny=-16
+F1b pos=0 e=0 tiny=-18
+F1b pos=0 e=1 tiny=-1
+F1b pos=0 e=1 tiny=-4
+F1b pos=0 e=1 tiny=-8
+F1b pos=0 e=1 tiny=-12
+F1b pos=0 e=1 tiny=-16
+F1b pos=0 e=1 tiny=-18
+F1b pos=0 e=2 tiny=-1
+F1b pos=0 e=2 tiny=-4
+F1b pos=0 e=2 tiny=-8
+F1b pos=0 e=2 tiny=-12
+F1b pos=0 e=2 tiny=-16
+F1b pos=0 e=2 tiny=-18
+F1b pos=0 e=3 tiny=-1
+F1b pos=0 e=3 tiny=-4
+F1b pos=0 e=3 tiny=-8
+F1b pos=0 e=3 tiny=-12
+F1b pos=0 e=3 tiny=-16
+F1b pos=0 e=3 tiny=-18
+F1b pos=0 e=4 tiny=-1
+F1b pos=0 e=4 tiny=-4
+F1b pos=0 e=4 tiny=-8
+F1b pos=0 e=4 tiny=-12
+F1b pos=0 e=4 tiny=-16
+F1b pos=0 e=4 tiny=-18
+F1b pos=0 e=5 tiny=-1
+F1b pos=0 e=5 tiny=-4
+F1b pos=0 e=5 tiny=-8
+F1b pos=0 e=5 tiny=-12
+F1b pos=0 e=5 tiny=-16
+F1b pos=0 e=5 tiny=-18
+F1b pos=0 e=6 tiny=-1
+F1b pos=0 e=6 tiny=-4
+F1b pos=0 e=6 tiny=-8
+F1b pos=0 e=6 tiny=-12
+F1b pos=0 e=6 tiny=-16
+F1b pos=0 e=6 tiny=-18
+F1b pos=0 e=7 tiny=-1
+F1b pos=0 e=7 tiny=-4
+F1b pos=0 e=7 tiny=-8
+F1b pos=0 e=7 tiny=-12
+F1b pos=0 e=7 tiny=-16
+F1b pos=0 e=7 tiny=-18
+F1b pos=0 e=8 tiny=-1
+F1b pos=0 e=8 tiny=-4
+F1b pos=0 e=8 tiny=-8
+F1b pos=0 e=8 tiny=-12
+F1b pos=0 e=8 tiny=-16
+F1b pos=0 e=8 tiny=-18
+F1b pos=0 e=9 tiny=-1
+F1b pos=0 e=9 tiny=-4
+F1b pos=0 e=9 tiny=-8
+F1b pos=0 e=9 tiny=-12
+F1b pos=0 e=9 tiny=-16
+F1b pos=0 e=9 tiny=-18
+F1b pos=0 e=10 tiny=-1
+F1b pos=0 e=10 tiny=-4
+F1b pos=0 e=10 tiny=-8
+F1b pos=0 e=10 tiny=-12
+F1b pos=0 e=10 tiny=-16
+F1b pos=0 e=10 tiny=-18
+F1b pos=0 e=11 tiny=-1
+F1b pos=0 e=11 tiny=-4
+F1b pos=0 e=11 tiny=-8
+F1b pos=0 e=11 tiny=-12
+F1b pos=0 e=11 tiny=-16
+F1b pos=0 e=11 tiny=-18
+F1b pos=0 e=12 tiny=-1
+F1b pos=0 e=12 tiny=-4
+F1b pos=0 e=12 tiny=-8
+F1b pos=0 e=12 tiny=-12
+F1b pos=0 e=12 tiny=-16
+F1b pos=0 e=12 tiny=-18
+F1b pos=0 e=13 tiny=-1
+F1b pos=0 e=13 tiny=-4
+F1b pos=0 e=13 tiny=-8
+F1b pos=0 e=13 tiny=-12
+F1b pos=0 e=13 tiny=-16
+F1b pos=0 e=13 tiny=-18
+F1b pos=0 e=14 tiny=-1
+F1b pos=0 e=14 tiny=-4
+F1b pos=0 e=14 tiny=-8
+F1b pos=0 e=14 tiny=-12
+F1b pos=0 e=14 tiny=-16
+F1b pos=0 e=14 tiny=-18
+F1b pos=0 e=15 tiny=-1
+F1b pos=0 e=15 tiny=-4
+F1b pos=0 e=15 tiny=-8
+F1b pos=0 e=15 tiny=-12
+F1b pos=0 e=15 tiny=-16
+F1b pos=0 e=15 tiny=-18
+F1b pos=0 e=16 tiny=-1
+F1b pos=0 e=16 tiny=-4
+F1b pos=0 e=16 tiny=-8
+F1b pos=0 e=16 tiny=-12
+F1b pos=0 e=16 tiny=-16
+F1b pos=0 e=16 tiny=-18
+F1b pos=7 e=0 tiny=-1
+F1b pos=7 e=0 tiny=-4
+F1b pos=7 e=0 tiny=-8
+F1b pos=7 e=0 tiny=-12
+F1b pos=7 e=0 tiny=-16
+F1b pos=7 e=0 tiny=-18
+F1b pos=7 e=1 tiny=-1
+F1b pos=7 e=1 tiny=-4
+F1b pos=7 e=1 tiny=-8
+F1b pos=7 e=1 tiny=-12
+F1b pos=7 e=1 tiny=-16
+F1b pos=7 e=1 tiny=-18
+F1b pos=7 e=2 tiny=-1
+F1b pos=7 e=2 tiny=-4
+F1b pos=7 e=2 tiny=-8
+F1b pos=7 e=2 tiny=-12
+F1b pos=7 e=2 tiny=-16
+F1b pos=7 e=2 tiny=-18
+F1b pos=7 e=3 tiny=-1
+F1b pos=7 e=3 tiny=-4
+F1b pos=7 e=3 tiny=-8
+F1b pos=7 e=3 tiny=-12
+F1b pos=7 e=3 tiny=-16
+F1b pos=7 e=3 tiny=-18
+F1b pos=7 e=4 tiny=-1
+F1b pos=7 e=4 tiny=-4
+F1b pos=7 e=4 tiny=-8
+F1b pos=7 e=4 tiny=-12
+F1b pos=7 e=4 tiny=-16
+F1b pos=7 e=4 tiny=-18
+F1b pos=7 e=5 tiny=-1
+F1b pos=7 e=5 tiny=-4
+F1b pos=7 e=5 tiny=-8
+F1b pos=7 e=5 tiny=-12
+F1b pos=7 e=5 tiny=-16
+F1b pos=7 e=5 tiny=-18
+F1b pos=7 e=6 tiny=-1
+F1b pos=7 e=6 tiny=-4
+F1b pos=7 e=6 tiny=-8
+F1b pos=7 e=6 tiny=-12
+F1b pos=7 e=6 tiny=-16
+F1b pos=7 e=6 tiny=-18
+F1b pos=7 e=7 tiny=-1
+F1b pos=7 e=7 tiny=-4
+F1b pos=7 e=7 tiny=-8
+F1b pos=7 e=7 tiny=-12
+F1b pos=7 e=7 tiny=-16
+F1b pos=7 e=7 tiny=-18
+F1b pos=7 e=8 tiny=-1
+F1b pos=7 e=8 tiny=-4
+F1b pos=7 e=8 tiny=-8
+F1b pos=7 e=8 tiny=-12
+F1b pos=7 e=8 tiny=-16
+F1b pos=7 e=8 tiny=-18
+F1b pos=7 e=9 tiny=-1
+F1b pos=7 e=9 tiny=-4
+F1b pos=7 e=9 tiny=-8
+F1b pos=7 e=9 tiny=-12
+F1b pos=7 e=9 tiny=-16
+F1b pos=7 e=9 tiny=-18
+F1b pos=7 e=10 tiny=-1
+F1b pos=7 e=10 tiny=-4
+F1b pos=7 e=10 tiny=-8
+F1b pos=7 e=10 tiny=-12
+F1b pos=7 e=10 tiny=-16
+F1b pos=7 e=10 tiny=-18
+F1b pos=7 e=11 tiny=-1
+F1b pos=7 e=11 tiny=-4
+F1b pos=7 e=11 tiny=-8
+F1b pos=7 e=11 tiny=-12
+F1b pos=7 e=11 tiny=-16
+F1b pos=7 e=11 tiny=-18
+F1b pos=7 e=12 tiny=-1
+F1b pos=7 e=12 tiny=-4
+F1b pos=7 e=12 tiny=-8
+F1b pos=7 e=12 tiny=-12
+F1b pos=7 e=12 tiny=-16
+F1b pos=7 e=12 tiny=-18
+F1b pos=7 e=13 tiny=-1
+F1b pos=7 e=13 tiny=-4
+F1b pos=7 e=13 tiny=-8
+F1b pos=7 e=13 tiny=-12
+F1b pos=7 e=13 tiny=-16
+F1b pos=7 e=13 tiny=-18
+F1b pos=7 e=14 tiny=-1
+F1b pos=7 e=14 tiny=-4
+F1b pos=7 e=14 tiny=-8
+F1b pos=7 e=14 tiny=-12
+F1b pos=7 e=14 tiny=-16
+F1b pos=7 e=14 tiny=-18
+F1b pos=7 e=15 tiny=-1
+F1b pos=7 e=15 tiny=-4
+F1b pos=7 e=15 tiny=-8
+F1b pos=7 e=15 tiny=-12
+F1b pos=7 e=15 tiny=-16
+F1b pos=7 e=15 tiny=-18
+F1b pos=7 e=16 tiny=-1
+F1b pos=7 e=16 tiny=-4
+F1b pos=7 e=16 tiny=-8
+F1b pos=7 e=16 tiny=-12
+F1b pos=7 e=16 tiny=-16
+F1b pos=7 e=16 tiny=-18
+F1b pos=8 e=0 tiny=-1
+F1b pos=8 e=0 tiny=-4
+F1b pos=8 e=0 tiny=-8
+F1b pos=8 e=0 tiny=-12
+F1b pos=8 e=0 tiny=-16
+F1b pos=8 e=0 tiny=-18
+F1b pos=8 e=1 tiny=-1
+F1b pos=8 e=1 tiny=-4
+F1b pos=8 e=1 tiny=-8
+F1b pos=8 e=1 tiny=-12
+F1b pos=8 e=1 tiny=-16
+F1b pos=8 e=1 tiny=-18
+F1b pos=8 e=2 tiny=-1
+F1b pos=8 e=2 tiny=-4
+F1b pos=8 e=2 tiny=-8
+F1b pos=8 e=2 tiny=-12
+F1b pos=8 e=2 tiny=-16
+F1b pos=8 e=2 tiny=-18
+F1b pos=8 e=3 tiny=-1
+F1b pos=8 e=3 tiny=-4
+F1b pos=8 e=3 tiny=-8
+F1b pos=8 e=3 tiny=-12
+F1b pos=8 e=3 tiny=-16
+F1b pos=8 e=3 tiny=-18
+F1b pos=8 e=4 tiny=-1
+F1b pos=8 e=4 tiny=-4
+F1b pos=8 e=4 tiny=-8
+F1b pos=8 e=4 tiny=-12
+F1b pos=8 e=4 tiny=-16
+F1b pos=8 e=4 tiny=-18
+F1b pos=8 e=5 tiny=-1
+F1b pos=8 e=5 tiny=-4
+F1b pos=8 e=5 tiny=-8
+F1b pos=8 e=5 tiny=-12
+F1b pos=8 e=5 tiny=-16
+F1b pos=8 e=5 tiny=-18
+F1b pos=8 e=6 tiny=-1
+F1b pos=8 e=6 tiny=-4
+F1b pos=8 e=6 tiny=-8
+F1b pos=8 e=6 tiny=-12
+F1b pos=8 e=6 tiny=-16
+F1b pos=8 e=6 tiny=-18
+F1b pos=8 e=7 tiny=-1
+F1b pos=8 e=7 tiny=-4
+F1b pos=8 e=7 tiny=-8
+F1b pos=8 e=7 tiny=-12
+F1b pos=8 e=7 tiny=-16
+F1b pos=8 e=7 tiny=-18
+F1b pos=8 e=8 tiny=-1
+F1b pos=8 e=8 tiny=-4
+F1b pos=8 e=8 tiny=-8
+F1b pos=8 e=8 tiny=-12
+F1b pos=8 e=8 tiny=-16
+F1b pos=8 e=8 tiny=-18
+F1b pos=8 e=9 tiny=-1
+F1b pos=8 e=9 tiny=-4
+F1b pos=8 e=9 tiny=-8
+F1b pos=8 e=9 tiny=-12
+F1b pos=8 e=9 tiny=-16
+F1b pos=8 e=9 tiny=-18
+F1b pos=8 e=10 tiny=-1
+F1b pos=8 e=10 tiny=-4
+F1b pos=8 e=10 tiny=-8
+F1b pos=8 e=10 tiny=-12
+F1b pos=8 e=10 tiny=-16
+F1b pos=8 e=10 tiny=-18
+F1b pos=8 e=11 tiny=-1
+F1b pos=8 e=11 tiny=-4
+F1b pos=8 e=11 tiny=-8
+F1b pos=8 e=11 tiny=-12
+F1b pos=8 e=11 tiny=-16
+F1b pos=8 e=11 tiny=-18
+F1b pos=8 e=12 tiny=-1
+F1b pos=8 e=12 tiny=-4
+F1b pos=8 e=12 tiny=-8
+F1b pos=8 e=12 tiny=-12
+F1b pos=8 e=12 tiny=-16
+F1b pos=8 e=12 tiny=-18
+F1b pos=8 e=13 tiny=-1
+F1b pos=8 e=13 tiny=-4
+F1b pos=8 e=13 tiny=-8
+F1b pos=8 e=13 tiny=-12
+F1b pos=8 e=13 tiny=-16
+F1b pos=8 e=13 tiny=-18
+F1b pos=8 e=14 tiny=-1
+F1b pos=8 e=14 tiny=-4
+F1b pos=8 e=14 tiny=-8
+F1b pos=8 e=14 tiny=-12
+F1b pos=8 e=14 tiny=-16
+F1b pos=8 e=14 tiny=-18
+F1b pos=8 e=15 tiny=-1
+F1b pos=8 e=15 tiny=-4
+F1b pos=8 e=15 tiny=-8
+F1b pos=8 e=15 tiny=-12
+F1b pos=8 e=15 tiny=-16
+F1b pos=8 e=15 tiny=-18
+F1b pos=8 e=16 tiny=-1
+F1b pos=8 e=16 tiny=-4
+F1b pos=8 e=16 tiny=-8
+F1b pos=8 e=16 tiny=-12
+F1b pos=8 e=16 tiny=-16
+F1b pos=8 e=16 tiny=-18
+F1b pos=15 e=0 tiny=-1
+F1b pos=15 e=0 tiny=-4
+F1b pos=15 e=0 tiny=-8
+F1b pos=15 e=0 tiny=-12
+F1b pos=15 e=0 tiny=-16
+F1b pos=15 e=0 tiny=-18
+F1b pos=15 e=1 tiny=-1
+F1b pos=15 e=1 tiny=-4
+F1b pos=15 e=1 tiny=-8
+F1b pos=15 e=1 tiny=-12
+F1b pos=15 e=1 tiny=-16
+F1b pos=15 e=1 tiny=-18
+F1b pos=15 e=2 tiny=-1
+F1b pos=15 e=2 tiny=-4
+F1b pos=15 e=2 tiny=-8
+F1b pos=15 e=2 tiny=-12
+F1b pos=15 e=2 tiny=-16
+F1b pos=15 e=2 tiny=-18
+F1b pos=15 e=3 tiny=-1
+F1b pos=15 e=3 tiny=-4
+F1b pos=15 e=3 tiny=-8
+F1b pos=15 e=3 tiny=-12
+F1b pos=15 e=3 tiny=-16
+F1b pos=15 e=3 tiny=-18
+F1b pos=15 e=4 tiny=-1
+F1b pos=15 e=4 tiny=-4
+F1b pos=15 e=4 tiny=-8
+F1b pos=15 e=4 tiny=-12
+F1b pos=15 e=4 tiny=-16
+F1b pos=15 e=4 tiny=-18
+F1b pos=15 e=5 tiny=-1
+F1b pos=15 e=5 tiny=-4
+F1b pos=15 e=5 tiny=-8
+F1b pos=15 e=5 tiny=-12
+F1b pos=15 e=5 tiny=-16
+F1b pos=15 e=5 tiny=-18
+F1b pos=15 e=6 tiny=-1
+F1b pos=15 e=6 tiny=-4
+F1b pos=15 e=6 tiny=-8
+F1b pos=15 e=6 tiny=-12
+F1b pos=15 e=6 tiny=-16
+F1b pos=15 e=6 tiny=-18
+F1b pos=15 e=7 tiny=-1
+F1b pos=15 e=7 tiny=-4
+F1b pos=15 e=7 tiny=-8
+F1b pos=15 e=7 tiny=-12
+F1b pos=15 e=7 tiny=-16
+F1b pos=15 e=7 tiny=-18
+F1b pos=15 e=8 tiny=-1
+F1b pos=15 e=8 tiny=-4
+F1b pos=15 e=8 tiny=-8
+F1b pos=15 e=8 tiny=-12
+F1b pos=15 e=8 tiny=-16
+F1b pos=15 e=8 tiny=-18
+F1b pos=15 e=9 tiny=-1
+F1b pos=15 e=9 tiny=-4
+F1b pos=15 e=9 tiny=-8
+F1b pos=15 e=9 tiny=-12
+F1b pos=15 e=9 tiny=-16
+F1b pos=15 e=9 tiny=-18
+F1b pos=15 e=10 tiny=-1
+F1b pos=15 e=10 tiny=-4
+F1b pos=15 e=10 tiny=-8
+F1b pos=15 e=10 tiny=-12
+F1b pos=15 e=10 tiny=-16
+F1b pos=15 e=10 tiny=-18
+F1b pos=15 e=11 tiny=-1
+F1b pos=15 e=11 tiny=-4
+F1b pos=15 e=11 tiny=-8
+F1b pos=15 e=11 tiny=-12
+F1b pos=15 e=11 tiny=-16
+F1b pos=15 e=11 tiny=-18
+F1b pos=15 e=12 tiny=-1
+F1b pos=15 e=12 tiny=-4
+F1b pos=15 e=12 tiny=-8
+F1b pos=15 e=12 tiny=-12
+F1b pos=15 e=12 tiny=-16
+F1b pos=15 e=12 tiny=-18
+F1b pos=15 e=13 tiny=-1
+F1b pos=15 e=13 tiny=-4
+F1b pos=15 e=13 tiny=-8
+F1b pos=15 e=13 tiny=-12
+F1b pos=15 e=13 tiny=-16
+F1b pos=15 e=13 tiny=-18
+F1b pos=15 e=14 tiny=-1
+F1b pos=15 e=14 tiny=-4
+F1b pos=15 e=14 tiny=-8
+F1b pos=15 e=14 tiny=-12
+F1b pos=15 e=14 tiny=-16
+F1b pos=15 e=14 tiny=-18
+F1b pos=15 e=15 tiny=-1
+F1b pos=15 e=15 tiny=-4
+F1b pos=15 e=15 tiny=-8
+F1b pos=15 e=15 tiny=-12
+F1b pos=15 e=15 tiny=-16
+F1b pos=15 e=15 tiny=-18
+F1b pos=15 e=16 tiny=-1
+F1b pos=15 e=16 tiny=-4
+F1b pos=15 e=16 tiny=-8
+F1b pos=15 e=16 tiny=-12
+F1b pos=15 e=16 tiny=-16
+F1b pos=15 e=16 tiny=-18
+F2 c=2^-20 prod=2^-0 x16
+F2 c=2^-20 prod=2^-6 x16
+F2 c=2^-20 prod=2^-12 x16
+F2 c=2^-20 prod=2^-18 x16
+F2 c=2^-19 prod=2^-0 x16
+F2 c=2^-19 prod=2^-6 x16
+F2 c=2^-19 prod=2^-12 x16
+F2 c=2^-19 prod=2^-18 x16
+F2 c=2^-18 prod=2^-0 x16
+F2 c=2^-18 prod=2^-6 x16
+F2 c=2^-18 prod=2^-12 x16
+F2 c=2^-18 prod=2^-18 x16
+F2 c=2^-17 prod=2^-0 x16
+F2 c=2^-17 prod=2^-6 x16
+F2 c=2^-17 prod=2^-12 x16
+F2 c=2^-17 prod=2^-18 x16
+F2 c=2^-16 prod=2^-0 x16
+F2 c=2^-16 prod=2^-6 x16
+F2 c=2^-16 prod=2^-12 x16
+F2 c=2^-16 prod=2^-18 x16
+F2 c=2^-15 prod=2^-0 x16
+F2 c=2^-15 prod=2^-6 x16
+F2 c=2^-15 prod=2^-12 x16
+F2 c=2^-15 prod=2^-18 x16
+F2 c=2^-14 prod=2^-0 x16
+F2 c=2^-14 prod=2^-6 x16
+F2 c=2^-14 prod=2^-12 x16
+F2 c=2^-14 prod=2^-18 x16
+F2 c=2^-13 prod=2^-0 x16
+F2 c=2^-13 prod=2^-6 x16
+F2 c=2^-13 prod=2^-12 x16
+F2 c=2^-13 prod=2^-18 x16
+F2 c=2^-12 prod=2^-0 x16
+F2 c=2^-12 prod=2^-6 x16
+F2 c=2^-12 prod=2^-12 x16
+F2 c=2^-12 prod=2^-18 x16
+F2 c=2^-11 prod=2^-0 x16
+F2 c=2^-11 prod=2^-6 x16
+F2 c=2^-11 prod=2^-12 x16
+F2 c=2^-11 prod=2^-18 x16
+F2 c=2^-10 prod=2^-0 x16
+F2 c=2^-10 prod=2^-6 x16
+F2 c=2^-10 prod=2^-12 x16
+F2 c=2^-10 prod=2^-18 x16
+F2 c=2^-9 prod=2^-0 x16
+F2 c=2^-9 prod=2^-6 x16
+F2 c=2^-9 prod=2^-12 x16
+F2 c=2^-9 prod=2^-18 x16
+F2 c=2^-8 prod=2^-0 x16
+F2 c=2^-8 prod=2^-6 x16
+F2 c=2^-8 prod=2^-12 x16
+F2 c=2^-8 prod=2^-18 x16
+F2 c=2^-7 prod=2^-0 x16
+F2 c=2^-7 prod=2^-6 x16
+F2 c=2^-7 prod=2^-12 x16
+F2 c=2^-7 prod=2^-18 x16
+F2 c=2^-6 prod=2^-0 x16
+F2 c=2^-6 prod=2^-6 x16
+F2 c=2^-6 prod=2^-12 x16
+F2 c=2^-6 prod=2^-18 x16
+F2 c=2^-5 prod=2^-0 x16
+F2 c=2^-5 prod=2^-6 x16
+F2 c=2^-5 prod=2^-12 x16
+F2 c=2^-5 prod=2^-18 x16
+F2 c=2^-4 prod=2^-0 x16
+F2 c=2^-4 prod=2^-6 x16
+F2 c=2^-4 prod=2^-12 x16
+F2 c=2^-4 prod=2^-18 x16
+F2 c=2^-3 prod=2^-0 x16
+F2 c=2^-3 prod=2^-6 x16
+F2 c=2^-3 prod=2^-12 x16
+F2 c=2^-3 prod=2^-18 x16
+F2 c=2^-2 prod=2^-0 x16
+F2 c=2^-2 prod=2^-6 x16
+F2 c=2^-2 prod=2^-12 x16
+F2 c=2^-2 prod=2^-18 x16
+F2 c=2^-1 prod=2^-0 x16
+F2 c=2^-1 prod=2^-6 x16
+F2 c=2^-1 prod=2^-12 x16
+F2 c=2^-1 prod=2^-18 x16
+F2 c=2^0 prod=2^-0 x16
+F2 c=2^0 prod=2^-6 x16
+F2 c=2^0 prod=2^-12 x16
+F2 c=2^0 prod=2^-18 x16
+F2 c=2^1 prod=2^-0 x16
+F2 c=2^1 prod=2^-6 x16
+F2 c=2^1 prod=2^-12 x16
+F2 c=2^1 prod=2^-18 x16
+F2 c=2^2 prod=2^-0 x16
+F2 c=2^2 prod=2^-6 x16
+F2 c=2^2 prod=2^-12 x16
+F2 c=2^2 prod=2^-18 x16
+F2 c=2^3 prod=2^-0 x16
+F2 c=2^3 prod=2^-6 x16
+F2 c=2^3 prod=2^-12 x16
+F2 c=2^3 prod=2^-18 x16
+F2 c=2^4 prod=2^-0 x16
+F2 c=2^4 prod=2^-6 x16
+F2 c=2^4 prod=2^-12 x16
+F2 c=2^4 prod=2^-18 x16
+F2 c=2^5 prod=2^-0 x16
+F2 c=2^5 prod=2^-6 x16
+F2 c=2^5 prod=2^-12 x16
+F2 c=2^5 prod=2^-18 x16
+F2 c=2^6 prod=2^-0 x16
+F2 c=2^6 prod=2^-6 x16
+F2 c=2^6 prod=2^-12 x16
+F2 c=2^6 prod=2^-18 x16
+F2 c=2^7 prod=2^-0 x16
+F2 c=2^7 prod=2^-6 x16
+F2 c=2^7 prod=2^-12 x16
+F2 c=2^7 prod=2^-18 x16
+F2 c=2^8 prod=2^-0 x16
+F2 c=2^8 prod=2^-6 x16
+F2 c=2^8 prod=2^-12 x16
+F2 c=2^8 prod=2^-18 x16
+F2 c=2^9 prod=2^-0 x16
+F2 c=2^9 prod=2^-6 x16
+F2 c=2^9 prod=2^-12 x16
+F2 c=2^9 prod=2^-18 x16
+F2 c=2^10 prod=2^-0 x16
+F2 c=2^10 prod=2^-6 x16
+F2 c=2^10 prod=2^-12 x16
+F2 c=2^10 prod=2^-18 x16
+F2 c=2^11 prod=2^-0 x16
+F2 c=2^11 prod=2^-6 x16
+F2 c=2^11 prod=2^-12 x16
+F2 c=2^11 prod=2^-18 x16
+F2 c=2^12 prod=2^-0 x16
+F2 c=2^12 prod=2^-6 x16
+F2 c=2^12 prod=2^-12 x16
+F2 c=2^12 prod=2^-18 x16
+F2 c=2^13 prod=2^-0 x16
+F2 c=2^13 prod=2^-6 x16
+F2 c=2^13 prod=2^-12 x16
+F2 c=2^13 prod=2^-18 x16
+F2 c=2^14 prod=2^-0 x16
+F2 c=2^14 prod=2^-6 x16
+F2 c=2^14 prod=2^-12 x16
+F2 c=2^14 prod=2^-18 x16
+F2 c=2^15 prod=2^-0 x16
+F2 c=2^15 prod=2^-6 x16
+F2 c=2^15 prod=2^-12 x16
+F2 c=2^15 prod=2^-18 x16
+F2 c=2^16 prod=2^-0 x16
+F2 c=2^16 prod=2^-6 x16
+F2 c=2^16 prod=2^-12 x16
+F2 c=2^16 prod=2^-18 x16
+F2 c=2^17 prod=2^-0 x16
+F2 c=2^17 prod=2^-6 x16
+F2 c=2^17 prod=2^-12 x16
+F2 c=2^17 prod=2^-18 x16
+F2 c=2^18 prod=2^-0 x16
+F2 c=2^18 prod=2^-6 x16
+F2 c=2^18 prod=2^-12 x16
+F2 c=2^18 prod=2^-18 x16
+F2 c=2^19 prod=2^-0 x16
+F2 c=2^19 prod=2^-6 x16
+F2 c=2^19 prod=2^-12 x16
+F2 c=2^19 prod=2^-18 x16
+F2 c=2^20 prod=2^-0 x16
+F2 c=2^20 prod=2^-6 x16
+F2 c=2^20 prod=2^-12 x16
+F2 c=2^20 prod=2^-18 x16
+F2 c=2^21 prod=2^-0 x16
+F2 c=2^21 prod=2^-6 x16
+F2 c=2^21 prod=2^-12 x16
+F2 c=2^21 prod=2^-18 x16
+F2 c=2^22 prod=2^-0 x16
+F2 c=2^22 prod=2^-6 x16
+F2 c=2^22 prod=2^-12 x16
+F2 c=2^22 prod=2^-18 x16
+F2 c=2^23 prod=2^-0 x16
+F2 c=2^23 prod=2^-6 x16
+F2 c=2^23 prod=2^-12 x16
+F2 c=2^23 prod=2^-18 x16
+F2 c=2^24 prod=2^-0 x16
+F2 c=2^24 prod=2^-6 x16
+F2 c=2^24 prod=2^-12 x16
+F2 c=2^24 prod=2^-18 x16
+F2 c=2^25 prod=2^-0 x16
+F2 c=2^25 prod=2^-6 x16
+F2 c=2^25 prod=2^-12 x16
+F2 c=2^25 prod=2^-18 x16
+F2 c=2^26 prod=2^-0 x16
+F2 c=2^26 prod=2^-6 x16
+F2 c=2^26 prod=2^-12 x16
+F2 c=2^26 prod=2^-18 x16
+F2 c=2^27 prod=2^-0 x16
+F2 c=2^27 prod=2^-6 x16
+F2 c=2^27 prod=2^-12 x16
+F2 c=2^27 prod=2^-18 x16
+F2 c=2^28 prod=2^-0 x16
+F2 c=2^28 prod=2^-6 x16
+F2 c=2^28 prod=2^-12 x16
+F2 c=2^28 prod=2^-18 x16
+F2 c=2^29 prod=2^-0 x16
+F2 c=2^29 prod=2^-6 x16
+F2 c=2^29 prod=2^-12 x16
+F2 c=2^29 prod=2^-18 x16
+F2 c=2^30 prod=2^-0 x16
+F2 c=2^30 prod=2^-6 x16
+F2 c=2^30 prod=2^-12 x16
+F2 c=2^30 prod=2^-18 x16
+F3 +@0 -@1 tiny=-0
+F3 +@0 -@1 tiny=-6
+F3 +@0 -@1 tiny=-12
+F3 +@0 -@1 tiny=-18
+F3 +@0 -@2 tiny=-0
+F3 +@0 -@2 tiny=-6
+F3 +@0 -@2 tiny=-12
+F3 +@0 -@2 tiny=-18
+F3 +@0 -@3 tiny=-0
+F3 +@0 -@3 tiny=-6
+F3 +@0 -@3 tiny=-12
+F3 +@0 -@3 tiny=-18
+F3 +@0 -@4 tiny=-0
+F3 +@0 -@4 tiny=-6
+F3 +@0 -@4 tiny=-12
+F3 +@0 -@4 tiny=-18
+F3 +@0 -@5 tiny=-0
+F3 +@0 -@5 tiny=-6
+F3 +@0 -@5 tiny=-12
+F3 +@0 -@5 tiny=-18
+F3 +@0 -@6 tiny=-0
+F3 +@0 -@6 tiny=-6
+F3 +@0 -@6 tiny=-12
+F3 +@0 -@6 tiny=-18
+F3 +@0 -@7 tiny=-0
+F3 +@0 -@7 tiny=-6
+F3 +@0 -@7 tiny=-12
+F3 +@0 -@7 tiny=-18
+F3 +@0 -@8 tiny=-0
+F3 +@0 -@8 tiny=-6
+F3 +@0 -@8 tiny=-12
+F3 +@0 -@8 tiny=-18
+F3 +@0 -@9 tiny=-0
+F3 +@0 -@9 tiny=-6
+F3 +@0 -@9 tiny=-12
+F3 +@0 -@9 tiny=-18
+F3 +@0 -@10 tiny=-0
+F3 +@0 -@10 tiny=-6
+F3 +@0 -@10 tiny=-12
+F3 +@0 -@10 tiny=-18
+F3 +@0 -@11 tiny=-0
+F3 +@0 -@11 tiny=-6
+F3 +@0 -@11 tiny=-12
+F3 +@0 -@11 tiny=-18
+F3 +@0 -@12 tiny=-0
+F3 +@0 -@12 tiny=-6
+F3 +@0 -@12 tiny=-12
+F3 +@0 -@12 tiny=-18
+F3 +@0 -@13 tiny=-0
+F3 +@0 -@13 tiny=-6
+F3 +@0 -@13 tiny=-12
+F3 +@0 -@13 tiny=-18
+F3 +@0 -@14 tiny=-0
+F3 +@0 -@14 tiny=-6
+F3 +@0 -@14 tiny=-12
+F3 +@0 -@14 tiny=-18
+F3 +@0 -@15 tiny=-0
+F3 +@0 -@15 tiny=-6
+F3 +@0 -@15 tiny=-12
+F3 +@0 -@15 tiny=-18
+F3 +@1 -@0 tiny=-0
+F3 +@1 -@0 tiny=-6
+F3 +@1 -@0 tiny=-12
+F3 +@1 -@0 tiny=-18
+F3 +@1 -@2 tiny=-0
+F3 +@1 -@2 tiny=-6
+F3 +@1 -@2 tiny=-12
+F3 +@1 -@2 tiny=-18
+F3 +@1 -@3 tiny=-0
+F3 +@1 -@3 tiny=-6
+F3 +@1 -@3 tiny=-12
+F3 +@1 -@3 tiny=-18
+F3 +@1 -@4 tiny=-0
+F3 +@1 -@4 tiny=-6
+F3 +@1 -@4 tiny=-12
+F3 +@1 -@4 tiny=-18
+F3 +@1 -@5 tiny=-0
+F3 +@1 -@5 tiny=-6
+F3 +@1 -@5 tiny=-12
+F3 +@1 -@5 tiny=-18
+F3 +@1 -@6 tiny=-0
+F3 +@1 -@6 tiny=-6
+F3 +@1 -@6 tiny=-12
+F3 +@1 -@6 tiny=-18
+F3 +@1 -@7 tiny=-0
+F3 +@1 -@7 tiny=-6
+F3 +@1 -@7 tiny=-12
+F3 +@1 -@7 tiny=-18
+F3 +@1 -@8 tiny=-0
+F3 +@1 -@8 tiny=-6
+F3 +@1 -@8 tiny=-12
+F3 +@1 -@8 tiny=-18
+F3 +@1 -@9 tiny=-0
+F3 +@1 -@9 tiny=-6
+F3 +@1 -@9 tiny=-12
+F3 +@1 -@9 tiny=-18
+F3 +@1 -@10 tiny=-0
+F3 +@1 -@10 tiny=-6
+F3 +@1 -@10 tiny=-12
+F3 +@1 -@10 tiny=-18
+F3 +@1 -@11 tiny=-0
+F3 +@1 -@11 tiny=-6
+F3 +@1 -@11 tiny=-12
+F3 +@1 -@11 tiny=-18
+F3 +@1 -@12 tiny=-0
+F3 +@1 -@12 tiny=-6
+F3 +@1 -@12 tiny=-12
+F3 +@1 -@12 tiny=-18
+F3 +@1 -@13 tiny=-0
+F3 +@1 -@13 tiny=-6
+F3 +@1 -@13 tiny=-12
+F3 +@1 -@13 tiny=-18
+F3 +@1 -@14 tiny=-0
+F3 +@1 -@14 tiny=-6
+F3 +@1 -@14 tiny=-12
+F3 +@1 -@14 tiny=-18
+F3 +@1 -@15 tiny=-0
+F3 +@1 -@15 tiny=-6
+F3 +@1 -@15 tiny=-12
+F3 +@1 -@15 tiny=-18
+F3 +@2 -@0 tiny=-0
+F3 +@2 -@0 tiny=-6
+F3 +@2 -@0 tiny=-12
+F3 +@2 -@0 tiny=-18
+F3 +@2 -@1 tiny=-0
+F3 +@2 -@1 tiny=-6
+F3 +@2 -@1 tiny=-12
+F3 +@2 -@1 tiny=-18
+F3 +@2 -@3 tiny=-0
+F3 +@2 -@3 tiny=-6
+F3 +@2 -@3 tiny=-12
+F3 +@2 -@3 tiny=-18
+F3 +@2 -@4 tiny=-0
+F3 +@2 -@4 tiny=-6
+F3 +@2 -@4 tiny=-12
+F3 +@2 -@4 tiny=-18
+F3 +@2 -@5 tiny=-0
+F3 +@2 -@5 tiny=-6
+F3 +@2 -@5 tiny=-12
+F3 +@2 -@5 tiny=-18
+F3 +@2 -@6 tiny=-0
+F3 +@2 -@6 tiny=-6
+F3 +@2 -@6 tiny=-12
+F3 +@2 -@6 tiny=-18
+F3 +@2 -@7 tiny=-0
+F3 +@2 -@7 tiny=-6
+F3 +@2 -@7 tiny=-12
+F3 +@2 -@7 tiny=-18
+F3 +@2 -@8 tiny=-0
+F3 +@2 -@8 tiny=-6
+F3 +@2 -@8 tiny=-12
+F3 +@2 -@8 tiny=-18
+F3 +@2 -@9 tiny=-0
+F3 +@2 -@9 tiny=-6
+F3 +@2 -@9 tiny=-12
+F3 +@2 -@9 tiny=-18
+F3 +@2 -@10 tiny=-0
+F3 +@2 -@10 tiny=-6
+F3 +@2 -@10 tiny=-12
+F3 +@2 -@10 tiny=-18
+F3 +@2 -@11 tiny=-0
+F3 +@2 -@11 tiny=-6
+F3 +@2 -@11 tiny=-12
+F3 +@2 -@11 tiny=-18
+F3 +@2 -@12 tiny=-0
+F3 +@2 -@12 tiny=-6
+F3 +@2 -@12 tiny=-12
+F3 +@2 -@12 tiny=-18
+F3 +@2 -@13 tiny=-0
+F3 +@2 -@13 tiny=-6
+F3 +@2 -@13 tiny=-12
+F3 +@2 -@13 tiny=-18
+F3 +@2 -@14 tiny=-0
+F3 +@2 -@14 tiny=-6
+F3 +@2 -@14 tiny=-12
+F3 +@2 -@14 tiny=-18
+F3 +@2 -@15 tiny=-0
+F3 +@2 -@15 tiny=-6
+F3 +@2 -@15 tiny=-12
+F3 +@2 -@15 tiny=-18
+F3 +@3 -@0 tiny=-0
+F3 +@3 -@0 tiny=-6
+F3 +@3 -@0 tiny=-12
+F3 +@3 -@0 tiny=-18
+F3 +@3 -@1 tiny=-0
+F3 +@3 -@1 tiny=-6
+F3 +@3 -@1 tiny=-12
+F3 +@3 -@1 tiny=-18
+F3 +@3 -@2 tiny=-0
+F3 +@3 -@2 tiny=-6
+F3 +@3 -@2 tiny=-12
+F3 +@3 -@2 tiny=-18
+F3 +@3 -@4 tiny=-0
+F3 +@3 -@4 tiny=-6
+F3 +@3 -@4 tiny=-12
+F3 +@3 -@4 tiny=-18
+F3 +@3 -@5 tiny=-0
+F3 +@3 -@5 tiny=-6
+F3 +@3 -@5 tiny=-12
+F3 +@3 -@5 tiny=-18
+F3 +@3 -@6 tiny=-0
+F3 +@3 -@6 tiny=-6
+F3 +@3 -@6 tiny=-12
+F3 +@3 -@6 tiny=-18
+F3 +@3 -@7 tiny=-0
+F3 +@3 -@7 tiny=-6
+F3 +@3 -@7 tiny=-12
+F3 +@3 -@7 tiny=-18
+F3 +@3 -@8 tiny=-0
+F3 +@3 -@8 tiny=-6
+F3 +@3 -@8 tiny=-12
+F3 +@3 -@8 tiny=-18
+F3 +@3 -@9 tiny=-0
+F3 +@3 -@9 tiny=-6
+F3 +@3 -@9 tiny=-12
+F3 +@3 -@9 tiny=-18
+F3 +@3 -@10 tiny=-0
+F3 +@3 -@10 tiny=-6
+F3 +@3 -@10 tiny=-12
+F3 +@3 -@10 tiny=-18
+F3 +@3 -@11 tiny=-0
+F3 +@3 -@11 tiny=-6
+F3 +@3 -@11 tiny=-12
+F3 +@3 -@11 tiny=-18
+F3 +@3 -@12 tiny=-0
+F3 +@3 -@12 tiny=-6
+F3 +@3 -@12 tiny=-12
+F3 +@3 -@12 tiny=-18
+F3 +@3 -@13 tiny=-0
+F3 +@3 -@13 tiny=-6
+F3 +@3 -@13 tiny=-12
+F3 +@3 -@13 tiny=-18
+F3 +@3 -@14 tiny=-0
+F3 +@3 -@14 tiny=-6
+F3 +@3 -@14 tiny=-12
+F3 +@3 -@14 tiny=-18
+F3 +@3 -@15 tiny=-0
+F3 +@3 -@15 tiny=-6
+F3 +@3 -@15 tiny=-12
+F3 +@3 -@15 tiny=-18
+F3 +@4 -@0 tiny=-0
+F3 +@4 -@0 tiny=-6
+F3 +@4 -@0 tiny=-12
+F3 +@4 -@0 tiny=-18
+F3 +@4 -@1 tiny=-0
+F3 +@4 -@1 tiny=-6
+F3 +@4 -@1 tiny=-12
+F3 +@4 -@1 tiny=-18
+F3 +@4 -@2 tiny=-0
+F3 +@4 -@2 tiny=-6
+F3 +@4 -@2 tiny=-12
+F3 +@4 -@2 tiny=-18
+F3 +@4 -@3 tiny=-0
+F3 +@4 -@3 tiny=-6
+F3 +@4 -@3 tiny=-12
+F3 +@4 -@3 tiny=-18
+F3 +@4 -@5 tiny=-0
+F3 +@4 -@5 tiny=-6
+F3 +@4 -@5 tiny=-12
+F3 +@4 -@5 tiny=-18
+F3 +@4 -@6 tiny=-0
+F3 +@4 -@6 tiny=-6
+F3 +@4 -@6 tiny=-12
+F3 +@4 -@6 tiny=-18
+F3 +@4 -@7 tiny=-0
+F3 +@4 -@7 tiny=-6
+F3 +@4 -@7 tiny=-12
+F3 +@4 -@7 tiny=-18
+F3 +@4 -@8 tiny=-0
+F3 +@4 -@8 tiny=-6
+F3 +@4 -@8 tiny=-12
+F3 +@4 -@8 tiny=-18
+F3 +@4 -@9 tiny=-0
+F3 +@4 -@9 tiny=-6
+F3 +@4 -@9 tiny=-12
+F3 +@4 -@9 tiny=-18
+F3 +@4 -@10 tiny=-0
+F3 +@4 -@10 tiny=-6
+F3 +@4 -@10 tiny=-12
+F3 +@4 -@10 tiny=-18
+F3 +@4 -@11 tiny=-0
+F3 +@4 -@11 tiny=-6
+F3 +@4 -@11 tiny=-12
+F3 +@4 -@11 tiny=-18
+F3 +@4 -@12 tiny=-0
+F3 +@4 -@12 tiny=-6
+F3 +@4 -@12 tiny=-12
+F3 +@4 -@12 tiny=-18
+F3 +@4 -@13 tiny=-0
+F3 +@4 -@13 tiny=-6
+F3 +@4 -@13 tiny=-12
+F3 +@4 -@13 tiny=-18
+F3 +@4 -@14 tiny=-0
+F3 +@4 -@14 tiny=-6
+F3 +@4 -@14 tiny=-12
+F3 +@4 -@14 tiny=-18
+F3 +@4 -@15 tiny=-0
+F3 +@4 -@15 tiny=-6
+F3 +@4 -@15 tiny=-12
+F3 +@4 -@15 tiny=-18
+F3 +@5 -@0 tiny=-0
+F3 +@5 -@0 tiny=-6
+F3 +@5 -@0 tiny=-12
+F3 +@5 -@0 tiny=-18
+F3 +@5 -@1 tiny=-0
+F3 +@5 -@1 tiny=-6
+F3 +@5 -@1 tiny=-12
+F3 +@5 -@1 tiny=-18
+F3 +@5 -@2 tiny=-0
+F3 +@5 -@2 tiny=-6
+F3 +@5 -@2 tiny=-12
+F3 +@5 -@2 tiny=-18
+F3 +@5 -@3 tiny=-0
+F3 +@5 -@3 tiny=-6
+F3 +@5 -@3 tiny=-12
+F3 +@5 -@3 tiny=-18
+F3 +@5 -@4 tiny=-0
+F3 +@5 -@4 tiny=-6
+F3 +@5 -@4 tiny=-12
+F3 +@5 -@4 tiny=-18
+F3 +@5 -@6 tiny=-0
+F3 +@5 -@6 tiny=-6
+F3 +@5 -@6 tiny=-12
+F3 +@5 -@6 tiny=-18
+F3 +@5 -@7 tiny=-0
+F3 +@5 -@7 tiny=-6
+F3 +@5 -@7 tiny=-12
+F3 +@5 -@7 tiny=-18
+F3 +@5 -@8 tiny=-0
+F3 +@5 -@8 tiny=-6
+F3 +@5 -@8 tiny=-12
+F3 +@5 -@8 tiny=-18
+F3 +@5 -@9 tiny=-0
+F3 +@5 -@9 tiny=-6
+F3 +@5 -@9 tiny=-12
+F3 +@5 -@9 tiny=-18
+F3 +@5 -@10 tiny=-0
+F3 +@5 -@10 tiny=-6
+F3 +@5 -@10 tiny=-12
+F3 +@5 -@10 tiny=-18
+F3 +@5 -@11 tiny=-0
+F3 +@5 -@11 tiny=-6
+F3 +@5 -@11 tiny=-12
+F3 +@5 -@11 tiny=-18
+F3 +@5 -@12 tiny=-0
+F3 +@5 -@12 tiny=-6
+F3 +@5 -@12 tiny=-12
+F3 +@5 -@12 tiny=-18
+F3 +@5 -@13 tiny=-0
+F3 +@5 -@13 tiny=-6
+F3 +@5 -@13 tiny=-12
+F3 +@5 -@13 tiny=-18
+F3 +@5 -@14 tiny=-0
+F3 +@5 -@14 tiny=-6
+F3 +@5 -@14 tiny=-12
+F3 +@5 -@14 tiny=-18
+F3 +@5 -@15 tiny=-0
+F3 +@5 -@15 tiny=-6
+F3 +@5 -@15 tiny=-12
+F3 +@5 -@15 tiny=-18
+F3 +@6 -@0 tiny=-0
+F3 +@6 -@0 tiny=-6
+F3 +@6 -@0 tiny=-12
+F3 +@6 -@0 tiny=-18
+F3 +@6 -@1 tiny=-0
+F3 +@6 -@1 tiny=-6
+F3 +@6 -@1 tiny=-12
+F3 +@6 -@1 tiny=-18
+F3 +@6 -@2 tiny=-0
+F3 +@6 -@2 tiny=-6
+F3 +@6 -@2 tiny=-12
+F3 +@6 -@2 tiny=-18
+F3 +@6 -@3 tiny=-0
+F3 +@6 -@3 tiny=-6
+F3 +@6 -@3 tiny=-12
+F3 +@6 -@3 tiny=-18
+F3 +@6 -@4 tiny=-0
+F3 +@6 -@4 tiny=-6
+F3 +@6 -@4 tiny=-12
+F3 +@6 -@4 tiny=-18
+F3 +@6 -@5 tiny=-0
+F3 +@6 -@5 tiny=-6
+F3 +@6 -@5 tiny=-12
+F3 +@6 -@5 tiny=-18
+F3 +@6 -@7 tiny=-0
+F3 +@6 -@7 tiny=-6
+F3 +@6 -@7 tiny=-12
+F3 +@6 -@7 tiny=-18
+F3 +@6 -@8 tiny=-0
+F3 +@6 -@8 tiny=-6
+F3 +@6 -@8 tiny=-12
+F3 +@6 -@8 tiny=-18
+F3 +@6 -@9 tiny=-0
+F3 +@6 -@9 tiny=-6
+F3 +@6 -@9 tiny=-12
+F3 +@6 -@9 tiny=-18
+F3 +@6 -@10 tiny=-0
+F3 +@6 -@10 tiny=-6
+F3 +@6 -@10 tiny=-12
+F3 +@6 -@10 tiny=-18
+F3 +@6 -@11 tiny=-0
+F3 +@6 -@11 tiny=-6
+F3 +@6 -@11 tiny=-12
+F3 +@6 -@11 tiny=-18
+F3 +@6 -@12 tiny=-0
+F3 +@6 -@12 tiny=-6
+F3 +@6 -@12 tiny=-12
+F3 +@6 -@12 tiny=-18
+F3 +@6 -@13 tiny=-0
+F3 +@6 -@13 tiny=-6
+F3 +@6 -@13 tiny=-12
+F3 +@6 -@13 tiny=-18
+F3 +@6 -@14 tiny=-0
+F3 +@6 -@14 tiny=-6
+F3 +@6 -@14 tiny=-12
+F3 +@6 -@14 tiny=-18
+F3 +@6 -@15 tiny=-0
+F3 +@6 -@15 tiny=-6
+F3 +@6 -@15 tiny=-12
+F3 +@6 -@15 tiny=-18
+F3 +@7 -@0 tiny=-0
+F3 +@7 -@0 tiny=-6
+F3 +@7 -@0 tiny=-12
+F3 +@7 -@0 tiny=-18
+F3 +@7 -@1 tiny=-0
+F3 +@7 -@1 tiny=-6
+F3 +@7 -@1 tiny=-12
+F3 +@7 -@1 tiny=-18
+F3 +@7 -@2 tiny=-0
+F3 +@7 -@2 tiny=-6
+F3 +@7 -@2 tiny=-12
+F3 +@7 -@2 tiny=-18
+F3 +@7 -@3 tiny=-0
+F3 +@7 -@3 tiny=-6
+F3 +@7 -@3 tiny=-12
+F3 +@7 -@3 tiny=-18
+F3 +@7 -@4 tiny=-0
+F3 +@7 -@4 tiny=-6
+F3 +@7 -@4 tiny=-12
+F3 +@7 -@4 tiny=-18
+F3 +@7 -@5 tiny=-0
+F3 +@7 -@5 tiny=-6
+F3 +@7 -@5 tiny=-12
+F3 +@7 -@5 tiny=-18
+F3 +@7 -@6 tiny=-0
+F3 +@7 -@6 tiny=-6
+F3 +@7 -@6 tiny=-12
+F3 +@7 -@6 tiny=-18
+F3 +@7 -@8 tiny=-0
+F3 +@7 -@8 tiny=-6
+F3 +@7 -@8 tiny=-12
+F3 +@7 -@8 tiny=-18
+F3 +@7 -@9 tiny=-0
+F3 +@7 -@9 tiny=-6
+F3 +@7 -@9 tiny=-12
+F3 +@7 -@9 tiny=-18
+F3 +@7 -@10 tiny=-0
+F3 +@7 -@10 tiny=-6
+F3 +@7 -@10 tiny=-12
+F3 +@7 -@10 tiny=-18
+F3 +@7 -@11 tiny=-0
+F3 +@7 -@11 tiny=-6
+F3 +@7 -@11 tiny=-12
+F3 +@7 -@11 tiny=-18
+F3 +@7 -@12 tiny=-0
+F3 +@7 -@12 tiny=-6
+F3 +@7 -@12 tiny=-12
+F3 +@7 -@12 tiny=-18
+F3 +@7 -@13 tiny=-0
+F3 +@7 -@13 tiny=-6
+F3 +@7 -@13 tiny=-12
+F3 +@7 -@13 tiny=-18
+F3 +@7 -@14 tiny=-0
+F3 +@7 -@14 tiny=-6
+F3 +@7 -@14 tiny=-12
+F3 +@7 -@14 tiny=-18
+F3 +@7 -@15 tiny=-0
+F3 +@7 -@15 tiny=-6
+F3 +@7 -@15 tiny=-12
+F3 +@7 -@15 tiny=-18
+F3 +@8 -@0 tiny=-0
+F3 +@8 -@0 tiny=-6
+F3 +@8 -@0 tiny=-12
+F3 +@8 -@0 tiny=-18
+F3 +@8 -@1 tiny=-0
+F3 +@8 -@1 tiny=-6
+F3 +@8 -@1 tiny=-12
+F3 +@8 -@1 tiny=-18
+F3 +@8 -@2 tiny=-0
+F3 +@8 -@2 tiny=-6
+F3 +@8 -@2 tiny=-12
+F3 +@8 -@2 tiny=-18
+F3 +@8 -@3 tiny=-0
+F3 +@8 -@3 tiny=-6
+F3 +@8 -@3 tiny=-12
+F3 +@8 -@3 tiny=-18
+F3 +@8 -@4 tiny=-0
+F3 +@8 -@4 tiny=-6
+F3 +@8 -@4 tiny=-12
+F3 +@8 -@4 tiny=-18
+F3 +@8 -@5 tiny=-0
+F3 +@8 -@5 tiny=-6
+F3 +@8 -@5 tiny=-12
+F3 +@8 -@5 tiny=-18
+F3 +@8 -@6 tiny=-0
+F3 +@8 -@6 tiny=-6
+F3 +@8 -@6 tiny=-12
+F3 +@8 -@6 tiny=-18
+F3 +@8 -@7 tiny=-0
+F3 +@8 -@7 tiny=-6
+F3 +@8 -@7 tiny=-12
+F3 +@8 -@7 tiny=-18
+F3 +@8 -@9 tiny=-0
+F3 +@8 -@9 tiny=-6
+F3 +@8 -@9 tiny=-12
+F3 +@8 -@9 tiny=-18
+F3 +@8 -@10 tiny=-0
+F3 +@8 -@10 tiny=-6
+F3 +@8 -@10 tiny=-12
+F3 +@8 -@10 tiny=-18
+F3 +@8 -@11 tiny=-0
+F3 +@8 -@11 tiny=-6
+F3 +@8 -@11 tiny=-12
+F3 +@8 -@11 tiny=-18
+F3 +@8 -@12 tiny=-0
+F3 +@8 -@12 tiny=-6
+F3 +@8 -@12 tiny=-12
+F3 +@8 -@12 tiny=-18
+F3 +@8 -@13 tiny=-0
+F3 +@8 -@13 tiny=-6
+F3 +@8 -@13 tiny=-12
+F3 +@8 -@13 tiny=-18
+F3 +@8 -@14 tiny=-0
+F3 +@8 -@14 tiny=-6
+F3 +@8 -@14 tiny=-12
+F3 +@8 -@14 tiny=-18
+F3 +@8 -@15 tiny=-0
+F3 +@8 -@15 tiny=-6
+F3 +@8 -@15 tiny=-12
+F3 +@8 -@15 tiny=-18
+F3 +@9 -@0 tiny=-0
+F3 +@9 -@0 tiny=-6
+F3 +@9 -@0 tiny=-12
+F3 +@9 -@0 tiny=-18
+F3 +@9 -@1 tiny=-0
+F3 +@9 -@1 tiny=-6
+F3 +@9 -@1 tiny=-12
+F3 +@9 -@1 tiny=-18
+F3 +@9 -@2 tiny=-0
+F3 +@9 -@2 tiny=-6
+F3 +@9 -@2 tiny=-12
+F3 +@9 -@2 tiny=-18
+F3 +@9 -@3 tiny=-0
+F3 +@9 -@3 tiny=-6
+F3 +@9 -@3 tiny=-12
+F3 +@9 -@3 tiny=-18
+F3 +@9 -@4 tiny=-0
+F3 +@9 -@4 tiny=-6
+F3 +@9 -@4 tiny=-12
+F3 +@9 -@4 tiny=-18
+F3 +@9 -@5 tiny=-0
+F3 +@9 -@5 tiny=-6
+F3 +@9 -@5 tiny=-12
+F3 +@9 -@5 tiny=-18
+F3 +@9 -@6 tiny=-0
+F3 +@9 -@6 tiny=-6
+F3 +@9 -@6 tiny=-12
+F3 +@9 -@6 tiny=-18
+F3 +@9 -@7 tiny=-0
+F3 +@9 -@7 tiny=-6
+F3 +@9 -@7 tiny=-12
+F3 +@9 -@7 tiny=-18
+F3 +@9 -@8 tiny=-0
+F3 +@9 -@8 tiny=-6
+F3 +@9 -@8 tiny=-12
+F3 +@9 -@8 tiny=-18
+F3 +@9 -@10 tiny=-0
+F3 +@9 -@10 tiny=-6
+F3 +@9 -@10 tiny=-12
+F3 +@9 -@10 tiny=-18
+F3 +@9 -@11 tiny=-0
+F3 +@9 -@11 tiny=-6
+F3 +@9 -@11 tiny=-12
+F3 +@9 -@11 tiny=-18
+F3 +@9 -@12 tiny=-0
+F3 +@9 -@12 tiny=-6
+F3 +@9 -@12 tiny=-12
+F3 +@9 -@12 tiny=-18
+F3 +@9 -@13 tiny=-0
+F3 +@9 -@13 tiny=-6
+F3 +@9 -@13 tiny=-12
+F3 +@9 -@13 tiny=-18
+F3 +@9 -@14 tiny=-0
+F3 +@9 -@14 tiny=-6
+F3 +@9 -@14 tiny=-12
+F3 +@9 -@14 tiny=-18
+F3 +@9 -@15 tiny=-0
+F3 +@9 -@15 tiny=-6
+F3 +@9 -@15 tiny=-12
+F3 +@9 -@15 tiny=-18
+F3 +@10 -@0 tiny=-0
+F3 +@10 -@0 tiny=-6
+F3 +@10 -@0 tiny=-12
+F3 +@10 -@0 tiny=-18
+F3 +@10 -@1 tiny=-0
+F3 +@10 -@1 tiny=-6
+F3 +@10 -@1 tiny=-12
+F3 +@10 -@1 tiny=-18
+F3 +@10 -@2 tiny=-0
+F3 +@10 -@2 tiny=-6
+F3 +@10 -@2 tiny=-12
+F3 +@10 -@2 tiny=-18
+F3 +@10 -@3 tiny=-0
+F3 +@10 -@3 tiny=-6
+F3 +@10 -@3 tiny=-12
+F3 +@10 -@3 tiny=-18
+F3 +@10 -@4 tiny=-0
+F3 +@10 -@4 tiny=-6
+F3 +@10 -@4 tiny=-12
+F3 +@10 -@4 tiny=-18
+F3 +@10 -@5 tiny=-0
+F3 +@10 -@5 tiny=-6
+F3 +@10 -@5 tiny=-12
+F3 +@10 -@5 tiny=-18
+F3 +@10 -@6 tiny=-0
+F3 +@10 -@6 tiny=-6
+F3 +@10 -@6 tiny=-12
+F3 +@10 -@6 tiny=-18
+F3 +@10 -@7 tiny=-0
+F3 +@10 -@7 tiny=-6
+F3 +@10 -@7 tiny=-12
+F3 +@10 -@7 tiny=-18
+F3 +@10 -@8 tiny=-0
+F3 +@10 -@8 tiny=-6
+F3 +@10 -@8 tiny=-12
+F3 +@10 -@8 tiny=-18
+F3 +@10 -@9 tiny=-0
+F3 +@10 -@9 tiny=-6
+F3 +@10 -@9 tiny=-12
+F3 +@10 -@9 tiny=-18
+F3 +@10 -@11 tiny=-0
+F3 +@10 -@11 tiny=-6
+F3 +@10 -@11 tiny=-12
+F3 +@10 -@11 tiny=-18
+F3 +@10 -@12 tiny=-0
+F3 +@10 -@12 tiny=-6
+F3 +@10 -@12 tiny=-12
+F3 +@10 -@12 tiny=-18
+F3 +@10 -@13 tiny=-0
+F3 +@10 -@13 tiny=-6
+F3 +@10 -@13 tiny=-12
+F3 +@10 -@13 tiny=-18
+F3 +@10 -@14 tiny=-0
+F3 +@10 -@14 tiny=-6
+F3 +@10 -@14 tiny=-12
+F3 +@10 -@14 tiny=-18
+F3 +@10 -@15 tiny=-0
+F3 +@10 -@15 tiny=-6
+F3 +@10 -@15 tiny=-12
+F3 +@10 -@15 tiny=-18
+F3 +@11 -@0 tiny=-0
+F3 +@11 -@0 tiny=-6
+F3 +@11 -@0 tiny=-12
+F3 +@11 -@0 tiny=-18
+F3 +@11 -@1 tiny=-0
+F3 +@11 -@1 tiny=-6
+F3 +@11 -@1 tiny=-12
+F3 +@11 -@1 tiny=-18
+F3 +@11 -@2 tiny=-0
+F3 +@11 -@2 tiny=-6
+F3 +@11 -@2 tiny=-12
+F3 +@11 -@2 tiny=-18
+F3 +@11 -@3 tiny=-0
+F3 +@11 -@3 tiny=-6
+F3 +@11 -@3 tiny=-12
+F3 +@11 -@3 tiny=-18
+F3 +@11 -@4 tiny=-0
+F3 +@11 -@4 tiny=-6
+F3 +@11 -@4 tiny=-12
+F3 +@11 -@4 tiny=-18
+F3 +@11 -@5 tiny=-0
+F3 +@11 -@5 tiny=-6
+F3 +@11 -@5 tiny=-12
+F3 +@11 -@5 tiny=-18
+F3 +@11 -@6 tiny=-0
+F3 +@11 -@6 tiny=-6
+F3 +@11 -@6 tiny=-12
+F3 +@11 -@6 tiny=-18
+F3 +@11 -@7 tiny=-0
+F3 +@11 -@7 tiny=-6
+F3 +@11 -@7 tiny=-12
+F3 +@11 -@7 tiny=-18
+F3 +@11 -@8 tiny=-0
+F3 +@11 -@8 tiny=-6
+F3 +@11 -@8 tiny=-12
+F3 +@11 -@8 tiny=-18
+F3 +@11 -@9 tiny=-0
+F3 +@11 -@9 tiny=-6
+F3 +@11 -@9 tiny=-12
+F3 +@11 -@9 tiny=-18
+F3 +@11 -@10 tiny=-0
+F3 +@11 -@10 tiny=-6
+F3 +@11 -@10 tiny=-12
+F3 +@11 -@10 tiny=-18
+F3 +@11 -@12 tiny=-0
+F3 +@11 -@12 tiny=-6
+F3 +@11 -@12 tiny=-12
+F3 +@11 -@12 tiny=-18
+F3 +@11 -@13 tiny=-0
+F3 +@11 -@13 tiny=-6
+F3 +@11 -@13 tiny=-12
+F3 +@11 -@13 tiny=-18
+F3 +@11 -@14 tiny=-0
+F3 +@11 -@14 tiny=-6
+F3 +@11 -@14 tiny=-12
+F3 +@11 -@14 tiny=-18
+F3 +@11 -@15 tiny=-0
+F3 +@11 -@15 tiny=-6
+F3 +@11 -@15 tiny=-12
+F3 +@11 -@15 tiny=-18
+F3 +@12 -@0 tiny=-0
+F3 +@12 -@0 tiny=-6
+F3 +@12 -@0 tiny=-12
+F3 +@12 -@0 tiny=-18
+F3 +@12 -@1 tiny=-0
+F3 +@12 -@1 tiny=-6
+F3 +@12 -@1 tiny=-12
+F3 +@12 -@1 tiny=-18
+F3 +@12 -@2 tiny=-0
+F3 +@12 -@2 tiny=-6
+F3 +@12 -@2 tiny=-12
+F3 +@12 -@2 tiny=-18
+F3 +@12 -@3 tiny=-0
+F3 +@12 -@3 tiny=-6
+F3 +@12 -@3 tiny=-12
+F3 +@12 -@3 tiny=-18
+F3 +@12 -@4 tiny=-0
+F3 +@12 -@4 tiny=-6
+F3 +@12 -@4 tiny=-12
+F3 +@12 -@4 tiny=-18
+F3 +@12 -@5 tiny=-0
+F3 +@12 -@5 tiny=-6
+F3 +@12 -@5 tiny=-12
+F3 +@12 -@5 tiny=-18
+F3 +@12 -@6 tiny=-0
+F3 +@12 -@6 tiny=-6
+F3 +@12 -@6 tiny=-12
+F3 +@12 -@6 tiny=-18
+F3 +@12 -@7 tiny=-0
+F3 +@12 -@7 tiny=-6
+F3 +@12 -@7 tiny=-12
+F3 +@12 -@7 tiny=-18
+F3 +@12 -@8 tiny=-0
+F3 +@12 -@8 tiny=-6
+F3 +@12 -@8 tiny=-12
+F3 +@12 -@8 tiny=-18
+F3 +@12 -@9 tiny=-0
+F3 +@12 -@9 tiny=-6
+F3 +@12 -@9 tiny=-12
+F3 +@12 -@9 tiny=-18
+F3 +@12 -@10 tiny=-0
+F3 +@12 -@10 tiny=-6
+F3 +@12 -@10 tiny=-12
+F3 +@12 -@10 tiny=-18
+F3 +@12 -@11 tiny=-0
+F3 +@12 -@11 tiny=-6
+F3 +@12 -@11 tiny=-12
+F3 +@12 -@11 tiny=-18
+F3 +@12 -@13 tiny=-0
+F3 +@12 -@13 tiny=-6
+F3 +@12 -@13 tiny=-12
+F3 +@12 -@13 tiny=-18
+F3 +@12 -@14 tiny=-0
+F3 +@12 -@14 tiny=-6
+F3 +@12 -@14 tiny=-12
+F3 +@12 -@14 tiny=-18
+F3 +@12 -@15 tiny=-0
+F3 +@12 -@15 tiny=-6
+F3 +@12 -@15 tiny=-12
+F3 +@12 -@15 tiny=-18
+F3 +@13 -@0 tiny=-0
+F3 +@13 -@0 tiny=-6
+F3 +@13 -@0 tiny=-12
+F3 +@13 -@0 tiny=-18
+F3 +@13 -@1 tiny=-0
+F3 +@13 -@1 tiny=-6
+F3 +@13 -@1 tiny=-12
+F3 +@13 -@1 tiny=-18
+F3 +@13 -@2 tiny=-0
+F3 +@13 -@2 tiny=-6
+F3 +@13 -@2 tiny=-12
+F3 +@13 -@2 tiny=-18
+F3 +@13 -@3 tiny=-0
+F3 +@13 -@3 tiny=-6
+F3 +@13 -@3 tiny=-12
+F3 +@13 -@3 tiny=-18
+F3 +@13 -@4 tiny=-0
+F3 +@13 -@4 tiny=-6
+F3 +@13 -@4 tiny=-12
+F3 +@13 -@4 tiny=-18
+F3 +@13 -@5 tiny=-0
+F3 +@13 -@5 tiny=-6
+F3 +@13 -@5 tiny=-12
+F3 +@13 -@5 tiny=-18
+F3 +@13 -@6 tiny=-0
+F3 +@13 -@6 tiny=-6
+F3 +@13 -@6 tiny=-12
+F3 +@13 -@6 tiny=-18
+F3 +@13 -@7 tiny=-0
+F3 +@13 -@7 tiny=-6
+F3 +@13 -@7 tiny=-12
+F3 +@13 -@7 tiny=-18
+F3 +@13 -@8 tiny=-0
+F3 +@13 -@8 tiny=-6
+F3 +@13 -@8 tiny=-12
+F3 +@13 -@8 tiny=-18
+F3 +@13 -@9 tiny=-0
+F3 +@13 -@9 tiny=-6
+F3 +@13 -@9 tiny=-12
+F3 +@13 -@9 tiny=-18
+F3 +@13 -@10 tiny=-0
+F3 +@13 -@10 tiny=-6
+F3 +@13 -@10 tiny=-12
+F3 +@13 -@10 tiny=-18
+F3 +@13 -@11 tiny=-0
+F3 +@13 -@11 tiny=-6
+F3 +@13 -@11 tiny=-12
+F3 +@13 -@11 tiny=-18
+F3 +@13 -@12 tiny=-0
+F3 +@13 -@12 tiny=-6
+F3 +@13 -@12 tiny=-12
+F3 +@13 -@12 tiny=-18
+F3 +@13 -@14 tiny=-0
+F3 +@13 -@14 tiny=-6
+F3 +@13 -@14 tiny=-12
+F3 +@13 -@14 tiny=-18
+F3 +@13 -@15 tiny=-0
+F3 +@13 -@15 tiny=-6
+F3 +@13 -@15 tiny=-12
+F3 +@13 -@15 tiny=-18
+F3 +@14 -@0 tiny=-0
+F3 +@14 -@0 tiny=-6
+F3 +@14 -@0 tiny=-12
+F3 +@14 -@0 tiny=-18
+F3 +@14 -@1 tiny=-0
+F3 +@14 -@1 tiny=-6
+F3 +@14 -@1 tiny=-12
+F3 +@14 -@1 tiny=-18
+F3 +@14 -@2 tiny=-0
+F3 +@14 -@2 tiny=-6
+F3 +@14 -@2 tiny=-12
+F3 +@14 -@2 tiny=-18
+F3 +@14 -@3 tiny=-0
+F3 +@14 -@3 tiny=-6
+F3 +@14 -@3 tiny=-12
+F3 +@14 -@3 tiny=-18
+F3 +@14 -@4 tiny=-0
+F3 +@14 -@4 tiny=-6
+F3 +@14 -@4 tiny=-12
+F3 +@14 -@4 tiny=-18
+F3 +@14 -@5 tiny=-0
+F3 +@14 -@5 tiny=-6
+F3 +@14 -@5 tiny=-12
+F3 +@14 -@5 tiny=-18
+F3 +@14 -@6 tiny=-0
+F3 +@14 -@6 tiny=-6
+F3 +@14 -@6 tiny=-12
+F3 +@14 -@6 tiny=-18
+F3 +@14 -@7 tiny=-0
+F3 +@14 -@7 tiny=-6
+F3 +@14 -@7 tiny=-12
+F3 +@14 -@7 tiny=-18
+F3 +@14 -@8 tiny=-0
+F3 +@14 -@8 tiny=-6
+F3 +@14 -@8 tiny=-12
+F3 +@14 -@8 tiny=-18
+F3 +@14 -@9 tiny=-0
+F3 +@14 -@9 tiny=-6
+F3 +@14 -@9 tiny=-12
+F3 +@14 -@9 tiny=-18
+F3 +@14 -@10 tiny=-0
+F3 +@14 -@10 tiny=-6
+F3 +@14 -@10 tiny=-12
+F3 +@14 -@10 tiny=-18
+F3 +@14 -@11 tiny=-0
+F3 +@14 -@11 tiny=-6
+F3 +@14 -@11 tiny=-12
+F3 +@14 -@11 tiny=-18
+F3 +@14 -@12 tiny=-0
+F3 +@14 -@12 tiny=-6
+F3 +@14 -@12 tiny=-12
+F3 +@14 -@12 tiny=-18
+F3 +@14 -@13 tiny=-0
+F3 +@14 -@13 tiny=-6
+F3 +@14 -@13 tiny=-12
+F3 +@14 -@13 tiny=-18
+F3 +@14 -@15 tiny=-0
+F3 +@14 -@15 tiny=-6
+F3 +@14 -@15 tiny=-12
+F3 +@14 -@15 tiny=-18
+F3 +@15 -@0 tiny=-0
+F3 +@15 -@0 tiny=-6
+F3 +@15 -@0 tiny=-12
+F3 +@15 -@0 tiny=-18
+F3 +@15 -@1 tiny=-0
+F3 +@15 -@1 tiny=-6
+F3 +@15 -@1 tiny=-12
+F3 +@15 -@1 tiny=-18
+F3 +@15 -@2 tiny=-0
+F3 +@15 -@2 tiny=-6
+F3 +@15 -@2 tiny=-12
+F3 +@15 -@2 tiny=-18
+F3 +@15 -@3 tiny=-0
+F3 +@15 -@3 tiny=-6
+F3 +@15 -@3 tiny=-12
+F3 +@15 -@3 tiny=-18
+F3 +@15 -@4 tiny=-0
+F3 +@15 -@4 tiny=-6
+F3 +@15 -@4 tiny=-12
+F3 +@15 -@4 tiny=-18
+F3 +@15 -@5 tiny=-0
+F3 +@15 -@5 tiny=-6
+F3 +@15 -@5 tiny=-12
+F3 +@15 -@5 tiny=-18
+F3 +@15 -@6 tiny=-0
+F3 +@15 -@6 tiny=-6
+F3 +@15 -@6 tiny=-12
+F3 +@15 -@6 tiny=-18
+F3 +@15 -@7 tiny=-0
+F3 +@15 -@7 tiny=-6
+F3 +@15 -@7 tiny=-12
+F3 +@15 -@7 tiny=-18
+F3 +@15 -@8 tiny=-0
+F3 +@15 -@8 tiny=-6
+F3 +@15 -@8 tiny=-12
+F3 +@15 -@8 tiny=-18
+F3 +@15 -@9 tiny=-0
+F3 +@15 -@9 tiny=-6
+F3 +@15 -@9 tiny=-12
+F3 +@15 -@9 tiny=-18
+F3 +@15 -@10 tiny=-0
+F3 +@15 -@10 tiny=-6
+F3 +@15 -@10 tiny=-12
+F3 +@15 -@10 tiny=-18
+F3 +@15 -@11 tiny=-0
+F3 +@15 -@11 tiny=-6
+F3 +@15 -@11 tiny=-12
+F3 +@15 -@11 tiny=-18
+F3 +@15 -@12 tiny=-0
+F3 +@15 -@12 tiny=-6
+F3 +@15 -@12 tiny=-12
+F3 +@15 -@12 tiny=-18
+F3 +@15 -@13 tiny=-0
+F3 +@15 -@13 tiny=-6
+F3 +@15 -@13 tiny=-12
+F3 +@15 -@13 tiny=-18
+F3 +@15 -@14 tiny=-0
+F3 +@15 -@14 tiny=-6
+F3 +@15 -@14 tiny=-12
+F3 +@15 -@14 tiny=-18
+F4 c=2^6+0 n=0 sign=0
+F4 c=2^6+0 n=0 sign=1
+F4 c=2^6+0 n=1 sign=0
+F4 c=2^6+0 n=1 sign=1
+F4 c=2^6+0 n=2 sign=0
+F4 c=2^6+0 n=2 sign=1
+F4 c=2^6+0 n=3 sign=0
+F4 c=2^6+0 n=3 sign=1
+F4 c=2^6+0 n=4 sign=0
+F4 c=2^6+0 n=4 sign=1
+F4 c=2^6+0 n=5 sign=0
+F4 c=2^6+0 n=5 sign=1
+F4 c=2^6+0 n=6 sign=0
+F4 c=2^6+0 n=6 sign=1
+F4 c=2^6+0 n=7 sign=0
+F4 c=2^6+0 n=7 sign=1
+F4 c=2^6+0 n=8 sign=0
+F4 c=2^6+0 n=8 sign=1
+F4 c=2^6+0 n=9 sign=0
+F4 c=2^6+0 n=9 sign=1
+F4 c=2^6+0 n=10 sign=0
+F4 c=2^6+0 n=10 sign=1
+F4 c=2^6+0 n=11 sign=0
+F4 c=2^6+0 n=11 sign=1
+F4 c=2^6+0 n=12 sign=0
+F4 c=2^6+0 n=12 sign=1
+F4 c=2^6+0 n=13 sign=0
+F4 c=2^6+0 n=13 sign=1
+F4 c=2^6+0 n=14 sign=0
+F4 c=2^6+0 n=14 sign=1
+F4 c=2^6+0 n=15 sign=0
+F4 c=2^6+0 n=15 sign=1
+F4 c=2^6+0 n=16 sign=0
+F4 c=2^6+0 n=16 sign=1
+F4 c=2^6+ulp n=0 sign=0
+F4 c=2^6+ulp n=0 sign=1
+F4 c=2^6+ulp n=1 sign=0
+F4 c=2^6+ulp n=1 sign=1
+F4 c=2^6+ulp n=2 sign=0
+F4 c=2^6+ulp n=2 sign=1
+F4 c=2^6+ulp n=3 sign=0
+F4 c=2^6+ulp n=3 sign=1
+F4 c=2^6+ulp n=4 sign=0
+F4 c=2^6+ulp n=4 sign=1
+F4 c=2^6+ulp n=5 sign=0
+F4 c=2^6+ulp n=5 sign=1
+F4 c=2^6+ulp n=6 sign=0
+F4 c=2^6+ulp n=6 sign=1
+F4 c=2^6+ulp n=7 sign=0
+F4 c=2^6+ulp n=7 sign=1
+F4 c=2^6+ulp n=8 sign=0
+F4 c=2^6+ulp n=8 sign=1
+F4 c=2^6+ulp n=9 sign=0
+F4 c=2^6+ulp n=9 sign=1
+F4 c=2^6+ulp n=10 sign=0
+F4 c=2^6+ulp n=10 sign=1
+F4 c=2^6+ulp n=11 sign=0
+F4 c=2^6+ulp n=11 sign=1
+F4 c=2^6+ulp n=12 sign=0
+F4 c=2^6+ulp n=12 sign=1
+F4 c=2^6+ulp n=13 sign=0
+F4 c=2^6+ulp n=13 sign=1
+F4 c=2^6+ulp n=14 sign=0
+F4 c=2^6+ulp n=14 sign=1
+F4 c=2^6+ulp n=15 sign=0
+F4 c=2^6+ulp n=15 sign=1
+F4 c=2^6+ulp n=16 sign=0
+F4 c=2^6+ulp n=16 sign=1
+F5 c=00000001 mode=0
+F5 c=00000001 mode=1
+F5 c=00000001 mode=2
+F5 c=80000001 mode=0
+F5 c=80000001 mode=1
+F5 c=80000001 mode=2
+F5 c=00400000 mode=0
+F5 c=00400000 mode=1
+F5 c=00400000 mode=2
+F5 c=007fffff mode=0
+F5 c=007fffff mode=1
+F5 c=007fffff mode=2
+F5 c=00800000 mode=0
+F5 c=00800000 mode=1
+F5 c=00800000 mode=2
+F5 c=80800000 mode=0
+F5 c=80800000 mode=1
+F5 c=80800000 mode=2
+F5 c=00000000 mode=0
+F5 c=00000000 mode=1
+F5 c=00000000 mode=2
+F5 c=80000000 mode=0
+F5 c=80000000 mode=1
+F5 c=80000000 mode=2
+F5 c=00400000 mode=0
+F5 c=00400000 mode=1
+F5 c=00400000 mode=2
+F5 c=00180000 mode=0
+F5 c=00180000 mode=1
+F5 c=00180000 mode=2
+F5 c=00c00000 mode=0
+F5 c=00c00000 mode=1
+F5 c=00c00000 mode=2
+F5 c=03800000 mode=0
+F5 c=03800000 mode=1
+F5 c=03800000 mode=2
+F6 fp8 subnormals only
+F6 fp8 NaN in a
+F6 c=+inf
+F6 c=-inf
+F6 c=FLT_MAX + 2^16
+F6 c=FLT_MAX + 2 * 2^16
+F6 c=qNaN

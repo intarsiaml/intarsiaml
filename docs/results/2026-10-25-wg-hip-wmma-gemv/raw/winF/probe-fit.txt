@@ -1,0 +1,27 @@
+crafted 1955 random 2000000
+best on crafted cases (bad count, params):
+  130 ('AL', 27, 'tz', 'rne', True)
+  130 ('GR', 8, 25, 'tz', 'rne')
+  130 ('GR', 8, 25, 'floor', 'rne')
+  130 ('GR', 8, 26, 'tz', 'rne')
+  130 ('GR', 8, 26, 'floor', 'rne')
+  130 ('GR', 8, 27, 'tz', 'rne')
+  130 ('GR', 8, 27, 'floor', 'rne')
+  130 ('GR', 8, 28, 'tz', 'rne')
+random 100000 ('AL', 27, 'tz', 'rne', True) ok 74315 bad 25685
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 25, 'tz', 'rne') ok 77063 bad 22937
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 25, 'floor', 'rne') ok 80509 bad 19491
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 26, 'tz', 'rne') ok 78397 bad 21603
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 26, 'floor', 'rne') ok 83080 bad 16920
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 27, 'tz', 'rne') ok 78477 bad 21523
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 27, 'floor', 'rne') ok 80750 bad 19250
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+random 100000 ('GR', 8, 28, 'tz', 'rne') ok 78500 bad 21500
+   first miss: a 6b5ed1aff959779debde512f79d9f71d b efbf0f71b5130cb7efbf0f71b5130cb7 c 0x0 hw 0x3a000000 0.00048828125 model 0x0
+python3 scripts/wgfit/probe_fit.py fit $D 100000  72.25s user 0.67s system 99% cpu 1:13.05 total

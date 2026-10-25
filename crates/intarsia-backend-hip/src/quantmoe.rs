@@ -14,6 +14,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
     // row-exact twins (`rows_exact`, M = 1..=ROWS_MAX, bitwise the one-row v2 GEMV per row; tests/rows_exact.rs)
     ("matmul_fp8_gemv_rows", Op::MatmulFp8),
+    // lane wg: the small-row WMMA family (INTARSIA_HIP_WMMA_ROWS=1; kernels/hip/ik_f8_rows.h). `_rows` is its `rows_exact` registration
+    ("matmul_fp8_wmma", Op::MatmulFp8),
+    ("matmul_fp8_wmma_rows", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_mma_f8", Op::MatmulFp8),
     ("matmul_fp8_mma_v2", Op::MatmulFp8),
@@ -46,6 +49,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_block_bf16_rows", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
+    // lane wg: bf16 router / gate on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
+    ("matmul_pair_bf16_wmma", Op::MatmulPair),
+    ("rmsnorm_add_matmul_pair_bf16_wmma", Op::RmsNormAddMatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
     ("matmul_nvfp4_glu_gemv", Op::MatmulNvfp4Glu),
     ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
@@ -54,6 +60,11 @@ pub const TABLE: &[(&str, Op)] = &[
     // core-op fusion phase 1 (kernels/hip/ik_hip_abi.h): row-local folds, each bitwise the two launches it replaces
     ("rmsnorm_add_matmul_fp8_pair_gemv", Op::RmsNormAddMatmulFp8Pair),
     ("sigmoid_mul_matmul_fp8_gemv", Op::SigmoidMulMatmulFp8),
+    // lane wg: the decode folds of the fp8 GEMV on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
+    ("matmul_fp8_pair_wmma", Op::MatmulFp8Pair),
+    ("gated_rmsnorm_matmul_fp8_wmma", Op::GatedRmsnormMatmulFp8),
+    ("rmsnorm_add_matmul_fp8_pair_wmma", Op::RmsNormAddMatmulFp8Pair),
+    ("sigmoid_mul_matmul_fp8_wmma", Op::SigmoidMulMatmulFp8),
     ("shared_down_combine_nvfp4_gemv", Op::SharedDownCombine),
 ];
 
@@ -70,6 +81,155 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// Budget of the fused kernels that end in a silu (`expf`, a division and a bf16 rounding of a product of two roundings):
 /// the same as the elementwise kernels' (kernels.rs `BF16_TOL`).
 const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
+
+/// Lane wg: the small-row WMMA kernel family (kernels/hip/ik_f8_rows.h) replaces the fp8 GEMVs at M = 1..=ROWS_MAX, solo decode included, so a
+/// row's bits are the same at every M. OPT-IN (INTARSIA_HIP_WMMA_ROWS=1): it changes the solo decode numerics once (the matrix core adds
+/// in another order than the GEMV's dot chain), so a default flip is a separate decision (docs/results/2026-10-25-wg-hip-wmma-gemv.md).
+/// With the knob unset or any other value every registration below is exactly main's.
+pub fn wmma_rows_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| wmma_rows_from(std::env::var("INTARSIA_HIP_WMMA_ROWS").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_WMMA_ROWS -> family on: only exactly "1".
+pub fn wmma_rows_from(v: Option<&str>) -> bool {
+    v == Some("1")
+}
+
+/// Lane wg: INTARSIA_HIP_FP8_FRAG=1 (with INTARSIA_HIP_WMMA_ROWS=1) stores the dense fp8 weights the WMMA table serves at every row count
+/// 1..=ROWS_MAX in fragment order (`Layout::Fp8Frag`, `Backend::relayout_fp8_frag`): one 16-byte load per lane is a WMMA A fragment, which
+/// takes the M = 1 W8A8 kernel to the GEMV's time. The tag lives on the allocation, so the fp8 GEMVs (which read row-major bytes) are never
+/// selected for such a weight; the WMMA family and the prefill GEMMs read it. Off by default; weights it cannot serve stay row-major.
+pub fn fp8_frag_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| wmma_rows_enabled() && std::env::var("INTARSIA_HIP_FP8_FRAG").as_deref() == Ok("1"))
+}
+
+/// Whether a dense fp8 weight of kind `kind` may be stored in fragment order: the knob is on and the table runs that kind on the WMMA family
+/// at every row count the registry gives it (1..=ROWS_MAX), because a fragment-order weight has no GEMV to fall back to.
+pub fn fp8_frag_serves(kind: WmmaKind) -> bool {
+    fp8_frag_enabled() && (1..=ROWS_MAX).all(|m| wmma_takes(kind, m))
+}
+
+/// What a WMMA small-row GEMV replaces: fp8 W8A8 (static input scale), fp8 W8A16 (weight-only), bf16 weights (router, gates, pairs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WmmaKind {
+    Fp8A8,
+    Fp8A16,
+    Bf16,
+}
+
+/// The kind of an fp8 matmul call (`OpAttrs::fp8_static_act` = W8A8).
+pub fn fp8_kind(s: &intarsia_core::ShapeInfo) -> WmmaKind {
+    if s.fp8_static_act { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 }
+}
+
+/// THE dispatch table: the rows `lo..=hi` each kind runs on the WMMA family when INTARSIA_HIP_WMMA_ROWS=1 (`None` = never). Every
+/// registration above asks `wmma_takes(kind, m)`; nothing else decides. A kind that is not 1..=ROWS_MAX switches kernels inside a
+/// batch-size range, so one row's bits differ between rows=1 and rows=M across the switch: that is a numerics change, not row
+/// invariance (tests/rows_exact.rs shows it at each boundary). Default (user decision 2026-10-25): W8A16 on 1..=ROWS_MAX (WMMA wins at every M, row
+/// invariant), W8A8 and bf16 stay on the GEMV (the WMMA is 2-13 % slower at M=1, so a switch inside the batch range would break solo == batched,
+/// and all-M WMMA would cost single-stream). Option 1 (all kinds WMMA at all M) is the override "fp8a8=all,bf16=all".
+/// A/B override (read once): INTARSIA_HIP_WMMA_TABLE="fp8a8=4-16,fp8a16=1-16,bf16=off" (`lo-hi`, `off`, or `all`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WmmaTable {
+    pub fp8a8: Option<(usize, usize)>,
+    pub fp8a16: Option<(usize, usize)>,
+    pub bf16: Option<(usize, usize)>,
+}
+
+impl WmmaTable {
+    pub const DEFAULT: WmmaTable = WmmaTable { fp8a8: None, fp8a16: Some((1, ROWS_MAX)), bf16: None };
+
+    /// Parse the override on top of the default; Err names the bad entry.
+    pub fn parse(spec: &str) -> Result<WmmaTable, String> {
+        let mut t = WmmaTable::DEFAULT;
+        for ent in spec.split(',').map(str::trim).filter(|e| !e.is_empty()) {
+            let (k, v) = ent.split_once('=').ok_or_else(|| format!("{ent:?}: want kind=lo-hi|off|all"))?;
+            let range = match v.trim() {
+                "off" => None,
+                "all" => Some((1, ROWS_MAX)),
+                r => {
+                    let (lo, hi) = r.split_once('-').ok_or_else(|| format!("{ent:?}: want lo-hi"))?;
+                    let (lo, hi) = (lo.parse::<usize>().map_err(|e| format!("{ent:?}: {e}"))?, hi.parse::<usize>().map_err(|e| format!("{ent:?}: {e}"))?);
+                    if lo == 0 || hi < lo {
+                        return Err(format!("{ent:?}: need 1 <= lo <= hi"));
+                    }
+                    Some((lo, hi))
+                }
+            };
+            match k.trim() {
+                "fp8a8" => t.fp8a8 = range,
+                "fp8a16" => t.fp8a16 = range,
+                "bf16" => t.bf16 = range,
+                other => return Err(format!("unknown kind {other:?} (fp8a8, fp8a16, bf16)")),
+            }
+        }
+        Ok(t)
+    }
+
+    pub fn takes(&self, kind: WmmaKind, m: usize) -> bool {
+        let r = match kind {
+            WmmaKind::Fp8A8 => self.fp8a8,
+            WmmaKind::Fp8A16 => self.fp8a16,
+            WmmaKind::Bf16 => self.bf16,
+        };
+        r.is_some_and(|(lo, hi)| (lo..=hi).contains(&m))
+    }
+}
+
+/// The table in force: all-off with the knob unset (registry identical to main), else the default or the override.
+pub fn wmma_table() -> Option<&'static WmmaTable> {
+    static T: std::sync::OnceLock<Option<WmmaTable>> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        if !wmma_rows_enabled() {
+            return None;
+        }
+        match std::env::var("INTARSIA_HIP_WMMA_TABLE") {
+            Ok(spec) => Some(WmmaTable::parse(&spec).unwrap_or_else(|e| panic!("INTARSIA_HIP_WMMA_TABLE: {e}"))),
+            Err(_) => Some(WmmaTable::DEFAULT),
+        }
+    })
+    .as_ref()
+}
+
+pub fn wmma_takes(kind: WmmaKind, m: usize) -> bool {
+    wmma_table().is_some_and(|t| t.takes(kind, m))
+}
+
+#[cfg(test)]
+mod wmma_table_tests {
+    use super::*;
+
+    #[test]
+    fn default_is_w8a16_only_and_whole_range() {
+        for m in 1..=ROWS_MAX {
+            assert!(WmmaTable::DEFAULT.takes(WmmaKind::Fp8A16, m));
+            assert!(!WmmaTable::DEFAULT.takes(WmmaKind::Fp8A8, m) && !WmmaTable::DEFAULT.takes(WmmaKind::Bf16, m));
+        }
+        assert!(!WmmaTable::DEFAULT.takes(WmmaKind::Fp8A16, ROWS_MAX + 1));
+        let all = WmmaTable::parse("fp8a8=all,bf16=all").unwrap();
+        for kind in [WmmaKind::Fp8A8, WmmaKind::Fp8A16, WmmaKind::Bf16] {
+            assert!((1..=ROWS_MAX).all(|m| all.takes(kind, m)));
+        }
+    }
+
+    #[test]
+    fn override_switches_one_kind_at_its_boundary() {
+        let t = WmmaTable::parse("fp8a8=4-16, bf16=off").unwrap();
+        assert!(!t.takes(WmmaKind::Fp8A8, 3) && t.takes(WmmaKind::Fp8A8, 4) && t.takes(WmmaKind::Fp8A8, 16));
+        assert!(t.takes(WmmaKind::Fp8A16, 1));
+        assert!(!t.takes(WmmaKind::Bf16, 1) && !t.takes(WmmaKind::Bf16, 16));
+        assert_eq!(WmmaTable::parse("").unwrap(), WmmaTable::DEFAULT);
+    }
+
+    #[test]
+    fn bad_override_is_an_error() {
+        for bad in ["fp8a8", "fp8a8=0-4", "fp8a8=5-4", "x=1-2", "bf16=a-b"] {
+            assert!(WmmaTable::parse(bad).is_err(), "{bad}");
+        }
+    }
+}
 
 /// `matmul_fp8_mma_f8` is the default prefill GEMM for the fp8 projections (M >= 5); INTARSIA_HIP_FP8_F8=0 is the kill switch
 /// that puts `matmul_fp8_mma_v2` back (any other value, or unset, keeps f8). Its products are exact like the bf16 kernel's
@@ -203,7 +363,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -211,7 +371,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_v2" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -221,13 +381,37 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(-1)
                     .rows_exact(),
+                // lane wg: the WMMA family. `matmul_fp8_wmma` takes the ordinary decode shapes (M 1..=4, the GEMV's) and `_rows` the
+                // `exact_rows` calls (batched decode, verify: M 1..=ROWS_MAX); one launcher, row m bitwise the one-row call on row m alone.
+                "matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(30),
+                "matmul_fp8_wmma_rows" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(0)
+                    .rows_exact(),
                 "matmul_fp8_mma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.k % 16 == 0)
@@ -239,6 +423,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // the kernel for these shapes. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows
                 // of a full one.
                 "matmul_fp8_mma_f8" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.m >= 5 && s.k % 16 == 0)
@@ -253,6 +438,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // bytes, 16 MB at a 4096-token chunk of K = 4096) is far below the MoE experts' (about 170 MB there), so the plan's
                 // workspace (the largest of all) does not grow (docs/results/2026-10-19-hip-round3.md).
                 "matmul_fp8_mma_v2" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.k % 16 == 0)
@@ -431,14 +617,14 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -453,7 +639,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "gated_rmsnorm_matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -466,7 +652,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
@@ -475,8 +661,44 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                // lane wg: the folds on the WMMA family; the same shapes as their GEMV twins (K <= 4096 for the ones that stage the row in one window)
+                "matmul_fp8_pair_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "gated_rmsnorm_matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "rmsnorm_add_matmul_fp8_pair_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    // the norm runs in one window of the (half-width, weight-only) staging: K <= 2048
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "sigmoid_mul_matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -490,7 +712,21 @@ pub fn all() -> Vec<KernelImpl> {
                 "rmsnorm_add_matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "matmul_pair_bf16_wmma" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "rmsnorm_add_matmul_pair_bf16_wmma" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -522,6 +758,56 @@ mod tests {
         best.expect("a MatmulFp8 kernel for every shape").name.clone()
     }
 
+    /// With INTARSIA_HIP_WMMA_ROWS=1 (run the suite with it set; a no-op otherwise): the decode shapes (M 1..=4, the plain
+    /// registration; the batched rows twins are `rows_exact` and picked by `exact_rows`) take `matmul_fp8_wmma` exactly where
+    /// the table in force says so, per kind (W8A8 / W8A16), and the GEMV where it does not.
+    #[test]
+    fn wmma_fp8_selection_is_pinned() {
+        let Some(t) = wmma_table() else { return };
+        let ks = all();
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+            for a8 in [false, true] {
+                for m in 1..=4 {
+                    let mut s = fp8_shape(m, n, k);
+                    s.fp8_static_act = a8;
+                    let kind = if a8 { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 };
+                    let want = if t.takes(kind, m) { "matmul_fp8_wmma" } else { "matmul_fp8_gemv_v2" };
+                    assert_eq!(pick(&ks, &s), want, "m={m} n={n} k={k} a8={a8}");
+                }
+            }
+        }
+    }
+
+    /// With the knobs on and the table giving W8A8 (or W8A16) every row count 1..=ROWS_MAX: a call with a fragment-order weight
+    /// (`ShapeInfo::frag`) has a kernel at EVERY M the engine can emit (decode 1..=16, MTP verify streams x (k + 1) up to 64, prefill
+    /// chunks), each of them a fragment reader; and the GEMVs are not among the candidates. Otherwise a tagged weight would fail mid-serve.
+    #[test]
+    fn wmma_frag_weights_have_a_reader_at_every_row_count() {
+        let Some(t) = wmma_table() else { return };
+        let ks = all();
+        for (a8, kind) in [(true, WmmaKind::Fp8A8), (false, WmmaKind::Fp8A16)] {
+            if !fp8_frag_serves(kind) {
+                continue;
+            }
+            for (n, k) in [(8192usize, 2048usize), (2048, 2048), (512, 2048), (2048, 4096), (12288, 2048), (4096, 2048)] {
+                for m in (1..=64usize).chain([96, 128, 256, 512, 1024, 4096]) {
+                    let mut s = fp8_shape(m, n, k);
+                    s.fp8_static_act = a8;
+                    s.frag = true;
+                    let acc: Vec<&KernelImpl> = ks.iter().filter(|x| x.op == Op::MatmulFp8 && x.accepts(&s)).collect();
+                    assert!(!acc.is_empty(), "no kernel for a tagged weight at m={m} n={n} k={k} a8={a8}");
+                    for x in &acc {
+                        assert!(x.frag && !x.name.contains("gemv"), "{} accepts a tagged weight (m={m})", x.name);
+                    }
+                    if m <= ROWS_MAX {
+                        assert!(t.takes(kind, m));
+                        assert!(acc.iter().any(|x| x.name.starts_with("matmul_fp8_wmma")), "m={m}: the family does not serve the tagged weight: {:?}", acc.iter().map(|x| &x.name).collect::<Vec<_>>());
+                    }
+                }
+            }
+        }
+    }
+
     /// The f8 default (round 5): on when INTARSIA_HIP_FP8_F8 is unset or anything but "0"; "0" is the kill switch.
     #[test]
     fn fp8_f8_is_the_default() {
@@ -538,6 +824,9 @@ mod tests {
     /// reference of tests/fp8_mma_v2.rs) but is never chosen.
     #[test]
     fn fp8_selection_is_pinned() {
+        if wmma_rows_enabled() {
+            return; // main's pins; `wmma_fp8_selection_is_pinned` pins the table's selection
+        }
         let ks = all();
         let gemm = if fp8_f8_enabled() { "matmul_fp8_mma_f8" } else { "matmul_fp8_mma_v2" };
         let f8 = ks.iter().find(|k| k.name == "matmul_fp8_mma_f8").unwrap();

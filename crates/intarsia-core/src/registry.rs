@@ -95,6 +95,9 @@ pub struct KernelImpl {
     pub row_table: bool,
     /// Implements the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`). Off by default; see `ShapeInfo::ext`.
     pub ext: bool,
+    /// Reads a non-row-major weight layout (`backend::Layout`, `ShapeInfo::frag`). Off by default: a call with a tagged input is accepted
+    /// only by kernels that say they can read it.
+    pub frag: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -120,7 +123,14 @@ impl KernelImpl {
             rows_exact: false,
             row_table: false,
             ext: false,
+            frag: false,
         }
+    }
+
+    /// Mark the kernel as reading tagged (non-row-major) weight layouts (`ShapeInfo::frag`).
+    pub fn frag_ok(mut self) -> Self {
+        self.frag = true;
+        self
     }
 
     /// Mark the kernel as implementing the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`).
@@ -217,7 +227,7 @@ impl KernelImpl {
     pub fn accepts(&self, s: &ShapeInfo) -> bool {
         let act_ok = self.acts.is_empty() || s.act.is_none_or(|d| self.acts.contains(&d));
         let w_ok = self.weights.is_empty() || s.weight.is_none_or(|d| self.weights.contains(&d));
-        act_ok && w_ok && (self.ext || !s.ext) && (self.when)(s)
+        act_ok && w_ok && (self.ext || !s.ext) && (self.frag || !s.frag) && (self.when)(s)
     }
 }
 

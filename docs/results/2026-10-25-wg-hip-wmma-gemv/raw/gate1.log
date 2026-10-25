@@ -1,0 +1,47 @@
+fleetq: #5106 waiting (#3 in line): in line behind #5093 "mx w3: MXFP4 v2 GEMM bitwise test + tile sweep, chunk self-golden, 27B golden gate main/v2/fold, no-op ids, speed (one R9700)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5093 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5093 set, or it will wait for #5093 to be released.
+fleetq: #5106 waiting (#2 in line): in line behind #5095 "lane sp: window 3, eager-verify equality 27B+35B, host-gap trace, op tables (radiance down ~25 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5095 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5095 set, or it will wait for #5095 to be released.
+fleetq: #5106 waiting (#1 in line): radiance-rank0 is also taken down by #5095 "lane sp: window 3, eager-verify equality 27B+35B, host-gap trace, op tables (radiance down ~25 min, restored after)" (claude-f31ccf91)
+fleetq:   #5095 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5095 set, or it will wait for #5095 to be released.
+fleetq: #5106 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 94% busy with work fleetq does not track
+fleetq: #5106 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5106 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 78% busy with work fleetq does not track
+fleetq: #5106 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wg-win.sh bash ~/wg-gate1.sh'
+fleetq: #5106 went ahead of the line and must end within 5h34m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+[win] stopping radiance 2026-10-25 03:25:33
+=== gate-default  (INTARSIA_HIP_WMMA_DIRECT_MIN=4)  filter=wmma  03:25:34
+exit=101  test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 3.24s 
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... ok
+test wmma_fp8_matches_the_reference_sum ... FAILED
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+thread 'wmma_fp8_matches_the_reference_sum' panicked at crates/intarsia-core/src/tensor.rs:35:9:
+=== gate-alldirect  (INTARSIA_HIP_WMMA_DIRECT_MIN=1)  filter=wmma  03:25:46
+exit=101  test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.44s 
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... ok
+test wmma_fp8_matches_the_reference_sum ... FAILED
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+thread 'wmma_fp8_matches_the_reference_sum' panicked at crates/intarsia-core/src/tensor.rs:35:9:
+=== gate-allstaged  (INTARSIA_HIP_WMMA_DIRECT_MIN=65)  filter=wmma  03:25:49
+exit=101  test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.11s 
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... FAILED
+test wmma_fp8_matches_the_reference_sum ... FAILED
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+thread 'wmma_bf16_rows_are_bitwise_the_one_row_call' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:77:61:
+thread 'wmma_fp8_matches_the_reference_sum' panicked at crates/intarsia-core/src/tensor.rs:35:9:
+--- negative controls (each must FAIL)
+=== ctl-fp8-rows-as-mma_f8  (INTARSIA_HIP_GB_CONTROL=matmul_fp8_wmma_rows=matmul_fp8_mma_f8)  filter=wmma_fp8_rows_are_bitwise  03:25:51
+exit=101  test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.22s 
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... FAILED
+thread 'wmma_fp8_rows_are_bitwise_the_one_row_call' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:273:17:
+G-B FAIL wmma fp8 n=8192 k=2048 wide=true aq=true is=0.125 out=Bf16: matmul_fp8_mma_f8 M=1 row 0 differs from matmul_fp8_wmma on that row alone in 2 of 8192 elements (first at col 2978: [aa, 3c] vs [ab, 3c])
+=== ctl-bf16-rows-as-matmul_bf16  (INTARSIA_HIP_GB_CONTROL=matmul_bf16_wmma_rows=matmul_bf16)  filter=wmma_bf16_rows_are_bitwise  03:25:52
+exit=101  test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.20s 
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... FAILED
+thread 'wmma_bf16_rows_are_bitwise_the_one_row_call' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:273:17:
+G-B FAIL wmma bf16 n=256 k=2048 wide=false: matmul_bf16 M=4 row 3 differs from matmul_bf16_wmma on that row alone in 1 of 256 elements (first at col 158: [41, c8] vs [40, c8])
+GATE1 DONE
+[win] starting radiance 2026-10-25 03:25:53
+[win] radiance answers 2026-10-25 03:26:03 (after 15 s); active
+fleetq: #5106 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

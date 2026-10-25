@@ -747,10 +747,20 @@ pub struct ShapeInfo {
     pub ext: bool,
     /// `OpAttrs::fp8_static_act` of the call (fp8 matmuls: W8A8 with a static input scale).
     pub fp8_static_act: bool,
+    /// An input of the call is in a non-row-major layout (`backend::Layout`: HIP fragment-order fp8 weights). Only kernels registered
+    /// `.frag_ok()` accept the call, so a kernel that reads row-major bytes can never be selected for it.
+    pub frag: bool,
 }
 
 impl ShapeInfo {
     pub fn from_call(call: &OpCall) -> ShapeInfo {
+        let mut s = Self::from_call_untagged(call);
+        // an input in a non-row-major layout (backend::Layout, HIP fragment-order fp8 weights): only kernels registered `.frag_ok()` accept it
+        s.frag = call.inputs.iter().any(|t| t.layout() != crate::backend::Layout::RowMajor);
+        s
+    }
+
+    fn from_call_untagged(call: &OpCall) -> ShapeInfo {
         let i = &call.inputs;
         let o = &call.outputs;
         let mut s = ShapeInfo {

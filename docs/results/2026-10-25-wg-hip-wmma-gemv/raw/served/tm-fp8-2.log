@@ -1,0 +1,52 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:599:45
+    |
+599 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 1 test
+test real_35b_batch_step_timing ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+TIMING solo step 57.91 ms (17.3 tok/s)
+TIMING batch B= 1: 6.34 ms/step, 157.8 tok/s aggregate (0.11x solo step)
+TIMING batch B= 4: 13.55 ms/step, 295.2 tok/s aggregate (0.23x solo step)
+TIMING batch B=16: 32.56 ms/step, 491.4 tok/s aggregate (0.56x solo step)
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.96s
+

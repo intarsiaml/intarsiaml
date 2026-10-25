@@ -1,0 +1,6 @@
+Here is a small Python function from our billing service (Python 3.12):
+
+def apply_discount(cents, pct):
+    return cents - cents * pct // 100
+
+Extend it so that it validates its inputs (types and ranges), never returns a negative amount, rounds half up instead of truncating, and optionally accepts a per-customer cap in cents. Then write a thorough pytest suite for it, and explain each design decision in detail.
