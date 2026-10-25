@@ -24,6 +24,9 @@
 #include "moe_wmma.h"
 
 constexpr int kMwCvt = 8, kMwTwo = 16, kMwDeep = 32;
+/* kMwZFast (lane l5, bench only: no engine default carries it): grid (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile).
+ * The blocks of one expert's pair tiles are then launched next to each other and read its weights from the L2 together. Launch geometry only: same bits. */
+constexpr int kMwZFast = 64;
 
 /* kMwTwo is a down-projection bit (gate_up ignores it) */
 constexpr bool mw_r7_two(bool gateup, int v) { return !gateup && (v & kMwTwo) != 0; }
@@ -99,7 +102,8 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
         __syncthreads();
     }
 
-    const int slot = blockIdx.x;
+    constexpr bool ZFAST = (V & kMwZFast) != 0;
+    const int slot = ZFAST ? (int)blockIdx.z : (int)blockIdx.x;
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
@@ -139,7 +143,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
         return r;
     };
 
-    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+    for (int pt = ZFAST ? (int)blockIdx.x : (int)blockIdx.z; pt * PAIRS < cnt; pt += ZFAST ? (int)gridDim.x : (int)gridDim.z) {
         // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
         const int xr = tid >> 3, xch = tid & 7;
         const ik_bf16* xrow[XR];

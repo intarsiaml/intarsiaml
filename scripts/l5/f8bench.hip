@@ -157,6 +157,7 @@ int main(int argc, char** argv) {
     printf("T = %lld  pairs = %lld  active experts = %d  avg %.1f max %d pairs/expert  skew=%d  reps=%d\n", (long long)T, (long long)P, nact, (double)P / nact, maxc, skew, reps);
 
     const double fl_gu = 2.0 * P * (2.0 * I) * H, fl_dn = 2.0 * P * H * I;
+    double t_r7z_gu = 0, t_r7z_dn = 0;
     unsigned zt64 = (unsigned)((T + 63) / 64);
     {
         const int64_t avg = (P + E - 1) / E;
@@ -167,6 +168,14 @@ int main(int argc, char** argv) {
     auto r7_gu = [&] { moe_wmma_launch_p<true, 64, kMwDefault64>(I, P, slots, zt64, dx, dguw, dgus, dgs, dpairs, doffs, dact, dhb, E, H, K, s); };
     auto r7_dn = [&] { moe_wmma_launch_p<false, 64, kMwDefault64Dn>(H, P, slots, zt64, dhb, ddw, dds, dgs, dpairs, doffs, dact, dyb, E, I, K, s); };
     const double t_r7_gu = time_ms(r7_gu, reps), t_r7_dn = time_ms(r7_dn, reps);
+    {   // r7 with the same launch order as the fp8 kernel's z-fast variant (kMwZFast: bitwise the same result)
+        auto zg = [&] { moe_wmma_launch_p<true, 64, kMwDefault64 | kMwZFast>(I, P, slots, zt64, dx, dguw, dgus, dgs, dpairs, doffs, dact, dhb, E, H, K, s); };
+        auto zd = [&] { moe_wmma_launch_p<false, 64, kMwDefault64Dn | kMwZFast>(H, P, slots, zt64, dhb, ddw, dds, dgs, dpairs, doffs, dact, dyb, E, I, K, s); };
+        const double a = time_ms(zg, reps), b = time_ms(zd, reps);
+        t_r7z_gu = a; t_r7z_dn = b;
+        printf("r7 bf16 zf  gate_up %8.3f ms %7.1f TFLOP/s | down %8.3f ms %7.1f TFLOP/s | total %8.3f ms %7.1f TFLOP/s  (r7 with the fp8 kernel's launch order)\n", a, fl_gu / a / 1e9,
+               b, fl_dn / b / 1e9, a + b, (fl_gu + fl_dn) / (a + b) / 1e9);
+    }
     printf("r7 bf16     gate_up %8.3f ms %7.1f TFLOP/s | down %8.3f ms %7.1f TFLOP/s | total %8.3f ms %7.1f TFLOP/s\n", t_r7_gu, fl_gu / t_r7_gu / 1e9,
            t_r7_dn, fl_dn / t_r7_dn / 1e9, t_r7_gu + t_r7_dn, (fl_gu + fl_dn) / (t_r7_gu + t_r7_dn) / 1e9);
 
@@ -175,7 +184,7 @@ int main(int argc, char** argv) {
     auto q_h = [&] { moe_f8_quant_launch(dhf, dqh, dqhs, P, I, s); };
     const double t_qx = time_ms(q_x, reps);
     // first fill dhf with a real h (the fp8 gate_up with the default variant) so that q_h quantises realistic rows
-    moe_f8_launch_p<true, 64, kMf8Skip>(I, slots, zt64, dqx, dqxs, dguw, dgus, dgs, dpairs, doffs, dact, dhf, E, H, K, s);
+    moe_f8_launch_p<true, 64, kMf8Skip | kMf8ZFast>(I, slots, zt64, dqx, dqxs, dguw, dgus, dgs, dpairs, doffs, dact, dhf, E, H, K, s);
     HC(hipDeviceSynchronize());
     const double t_qh = time_ms(q_h, reps);
     printf("quant       x %.3f ms (%lld rows)   h %.3f ms (%lld rows)\n", t_qx, (long long)T, t_qh, (long long)P);
@@ -193,7 +202,8 @@ int main(int argc, char** argv) {
         const double tg = time_ms(gu, reps), td = time_ms(dn, reps);                                                                          \
         const double tot = t_qx + tg + t_qh + td;                                                                                              \
         printf("fp8 %-9s gate_up %8.3f ms %7.1f TFLOP/s | down %8.3f ms %7.1f TFLOP/s | +quant total %8.3f ms %7.1f TFLOP/s  x%.2f vs r7\n", NAME, tg,  \
-               fl_gu / tg / 1e9, td, fl_dn / td / 1e9, tot, (fl_gu + fl_dn) / tot / 1e9, (t_r7_gu + t_r7_dn) / tot);                           \
+               fl_gu / tg / 1e9, td, fl_dn / td / 1e9, tot, (fl_gu + fl_dn) / tot / 1e9, (t_r7_gu + t_r7_dn) / tot); \
+        printf("            x%.2f vs r7 zf (the same launch order)\n", (t_r7z_gu + t_r7z_dn) / tot);                           \
         if (tot < best_total) { best_total = tot; best_name = NAME; }                                                                          \
     }
     IK_VAR("p64 v0", 64, 0)
@@ -220,9 +230,9 @@ int main(int argc, char** argv) {
     HC(hipMemset(dhf, 0, P * I * 2));
     HC(hipMemset(dyf, 0, P * H * 2));
     q_x();
-    moe_f8_launch_p<true, 64, kMf8Skip>(I, slots, zt64, dqx, dqxs, dguw, dgus, dgs, dpairs, doffs, dact, dhf, E, H, K, s);
+    moe_f8_launch_p<true, 64, kMf8Skip | kMf8ZFast>(I, slots, zt64, dqx, dqxs, dguw, dgus, dgs, dpairs, doffs, dact, dhf, E, H, K, s);
     q_h();
-    moe_f8_launch_p<false, 64, kMf8Skip>(H, slots, zt64, dqh, dqhs, ddw, dds, dgs, dpairs, doffs, dact, dyf, E, I, K, s);
+    moe_f8_launch_p<false, 64, kMf8Skip | kMf8ZFast>(H, slots, zt64, dqh, dqhs, ddw, dds, dgs, dpairs, doffs, dact, dyf, E, I, K, s);
     r7_gu();
     r7_dn();
     HC(hipDeviceSynchronize());
@@ -238,6 +248,17 @@ int main(int argc, char** argv) {
     HC(hipMemcpy(hhb.data(), dhb, P * I * 2, hipMemcpyDeviceToHost));
     HC(hipMemcpy(hyb.data(), dyb, P * H * 2, hipMemcpyDeviceToHost));
 
+    // (0) r7 with the z-fast launch order is bitwise r7 (launch geometry only)
+    {
+        HC(hipMemset(dhb, 0, P * I * 2)); HC(hipMemset(dyb, 0, P * H * 2));
+        moe_wmma_launch_p<true, 64, kMwDefault64 | kMwZFast>(I, P, slots, zt64, dx, dguw, dgus, dgs, dpairs, doffs, dact, dhb, E, H, K, s);
+        moe_wmma_launch_p<false, 64, kMwDefault64Dn | kMwZFast>(H, P, slots, zt64, dhb, ddw, dds, dgs, dpairs, doffs, dact, dyb, E, I, K, s);
+        HC(hipDeviceSynchronize());
+        std::vector<uint16_t> zh(P * I), zy(P * H);
+        HC(hipMemcpy(zh.data(), dhb, P * I * 2, hipMemcpyDeviceToHost));
+        HC(hipMemcpy(zy.data(), dyb, P * H * 2, hipMemcpyDeviceToHost));
+        printf("r7 zf vs r7: h %s, y %s (y of zf is computed from zf's h; r7's from r7's h)\n", zh == hhb ? "bitwise equal" : "DIFFER", zy == hyb ? "bitwise equal" : "DIFFER");
+    }
     // (1) quantiser vs host RNE: x rows
     {
         size_t bad = 0, badsc = 0;

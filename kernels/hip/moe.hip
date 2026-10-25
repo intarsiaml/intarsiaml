@@ -78,7 +78,7 @@ constexpr bool moe_f8_k_ok(int64_t K) { return K == 256 || K == 512 || K == 1024
 inline int64_t r256(int64_t v) { return (v + 255) & ~int64_t(255); }
 // bytes of extra scratch after the base layout: quantised gate_up input [T, H] + its row scales [T], quantised down input [P, I] + [P]
 inline int64_t moe_f8_extra_bytes(int64_t T, int64_t P, int64_t H, int64_t I) { return r256(T * H) + r256(T * 4) + r256(P * I) + r256(P * 4); }
-int g_f8_variant = kMf8Skip, g_f8_pairs = 64;  // bench seams (ik_moe_f8_bench_set), not environment knobs
+int g_f8_variant = kMf8Skip | kMf8ZFast, g_f8_pairs = 64;  // bench seams (ik_moe_f8_bench_set), not environment knobs
 
 // INTARSIA_HIP_MOE_Z=n (default 2): the grid z of the grouped projections is ceil(n * average pairs per expert / 32) pair tiles, not
 // one block per tile an expert could possibly need (ceil(T / 32): at T = 4096 that is 128 per expert and feature tile, of which
@@ -156,7 +156,7 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
     ik_rt_stamp(s, stag, -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     for (int i = 0; i < pieces; ++i) {
         const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);
-        const dim3 g(slots, (unsigned)(y1 - y0), zt);
+        const dim3 g = (V & kMwZFast) ? dim3(zt, (unsigned)(y1 - y0), slots) : dim3(slots, (unsigned)(y1 - y0), zt);
         if constexpr (V == 0)
             moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
         else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)

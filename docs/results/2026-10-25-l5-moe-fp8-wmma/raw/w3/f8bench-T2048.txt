@@ -1,0 +1,16 @@
+T = 2048  pairs = 16384  active experts = 256  avg 64.0 max 86 pairs/expert  skew=0  reps=10
+r7 bf16     gate_up    1.661 ms    41.4 TFLOP/s | down    0.750 ms    45.8 TFLOP/s | total    2.411 ms    42.8 TFLOP/s
+quant       x 0.015 ms (2048 rows)   h 0.020 ms (16384 rows)
+fp8 p64 v0    gate_up    1.482 ms    46.4 TFLOP/s | down    0.919 ms    37.4 TFLOP/s | +quant total    2.436 ms    42.3 TFLOP/s  x0.99 vs r7
+fp8 p64 skip  gate_up    1.388 ms    49.5 TFLOP/s | down    0.873 ms    39.3 TFLOP/s | +quant total    2.296 ms    44.9 TFLOP/s  x1.05 vs r7
+fp8 p64 sk+dp gate_up    1.363 ms    50.4 TFLOP/s | down    0.849 ms    40.5 TFLOP/s | +quant total    2.246 ms    45.9 TFLOP/s  x1.07 vs r7
+fp8 p64 sk+zf gate_up    0.969 ms    70.9 TFLOP/s | down    0.591 ms    58.1 TFLOP/s | +quant total    1.594 ms    64.7 TFLOP/s  x1.51 vs r7
+fp8 p64 s+d+zf gate_up    1.164 ms    59.1 TFLOP/s | down    0.580 ms    59.3 TFLOP/s | +quant total    1.778 ms    58.0 TFLOP/s  x1.36 vs r7
+fp8 p64 sz+bar gate_up    0.961 ms    71.5 TFLOP/s | down    0.578 ms    59.5 TFLOP/s | +quant total    1.573 ms    65.5 TFLOP/s  x1.53 vs r7
+fp8 p64 szd+bar gate_up    1.006 ms    68.3 TFLOP/s | down    0.563 ms    61.0 TFLOP/s | +quant total    1.603 ms    64.3 TFLOP/s  x1.50 vs r7
+fp8 p128 sk+zf gate_up    1.873 ms    36.7 TFLOP/s | down    0.730 ms    47.1 TFLOP/s | +quant total    2.637 ms    39.1 TFLOP/s  x0.91 vs r7
+best fp8 variant: p64 sz+bar  1.573 ms (r7 2.411 ms, x1.53)
+quant x check: 0 of 4194304 bytes differ, 0 of 2048 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 30 255): gate_up 2 of 14480 bf16 outputs differ, max 2.79 bf16 ulp | down 4 of 30989 differ, max 1.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0348   down y (own h) 0.0432  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0249 (h quantisation alone)

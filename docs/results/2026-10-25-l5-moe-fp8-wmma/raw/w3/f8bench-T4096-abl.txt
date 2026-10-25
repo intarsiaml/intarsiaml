@@ -1,0 +1,18 @@
+T = 4096  pairs = 32768  active experts = 256  avg 128.0 max 157 pairs/expert  skew=0  reps=10
+r7 bf16     gate_up    2.485 ms    55.3 TFLOP/s | down    1.405 ms    48.9 TFLOP/s | total    3.890 ms    53.0 TFLOP/s
+quant       x 0.022 ms (4096 rows)   h 0.036 ms (32768 rows)
+fp8 p64 v0    gate_up    2.272 ms    60.5 TFLOP/s | down    1.873 ms    36.7 TFLOP/s | +quant total    4.203 ms    49.1 TFLOP/s  x0.93 vs r7
+fp8 p64 skip  gate_up    2.251 ms    61.1 TFLOP/s | down    1.818 ms    37.8 TFLOP/s | +quant total    4.126 ms    50.0 TFLOP/s  x0.94 vs r7
+fp8 p64 sk+dp gate_up    2.168 ms    63.4 TFLOP/s | down    1.750 ms    39.3 TFLOP/s | +quant total    3.977 ms    51.8 TFLOP/s  x0.98 vs r7
+fp8 p64 sk+zf gate_up    1.862 ms    73.8 TFLOP/s | down    0.988 ms    69.6 TFLOP/s | +quant total    2.908 ms    70.9 TFLOP/s  x1.34 vs r7
+fp8 p64 s+d+zf gate_up    1.947 ms    70.6 TFLOP/s | down    1.089 ms    63.1 TFLOP/s | +quant total    3.094 ms    66.6 TFLOP/s  x1.26 vs r7
+fp8 p64 sz+bar gate_up    1.910 ms    72.0 TFLOP/s | down    1.006 ms    68.3 TFLOP/s | +quant total    2.973 ms    69.3 TFLOP/s  x1.31 vs r7
+fp8 p64 szd+bar gate_up    2.023 ms    67.9 TFLOP/s | down    0.976 ms    70.4 TFLOP/s | +quant total    3.057 ms    67.4 TFLOP/s  x1.27 vs r7
+fp8 p128 sk+zf gate_up    2.412 ms    57.0 TFLOP/s | down    1.023 ms    67.2 TFLOP/s | +quant total    3.493 ms    59.0 TFLOP/s  x1.11 vs r7
+fp8 szb NoW   gate_up    1.721 ms    79.8 TFLOP/s | down    0.840 ms    81.8 TFLOP/s | +quant total    2.619 ms    78.7 TFLOP/s  x1.49 vs r7
+fp8 szb NoFma gate_up    1.580 ms    87.0 TFLOP/s | down    0.676 ms   101.6 TFLOP/s | +quant total    2.314 ms    89.1 TFLOP/s  x1.68 vs r7
+fp8 szb NoLds gate_up    1.791 ms    76.8 TFLOP/s | down    1.231 ms    55.8 TFLOP/s | +quant total    3.080 ms    66.9 TFLOP/s  x1.26 vs r7
+fp8 szb NoDec gate_up    1.863 ms    73.8 TFLOP/s | down    0.979 ms    70.2 TFLOP/s | +quant total    2.900 ms    71.1 TFLOP/s  x1.34 vs r7
+fp8 szb NoW+Fma gate_up    1.517 ms    90.6 TFLOP/s | down    0.617 ms   111.4 TFLOP/s | +quant total    2.192 ms    94.0 TFLOP/s  x1.77 vs r7
+fp8 szb all-off gate_up    0.851 ms   161.5 TFLOP/s | down    0.435 ms   157.8 TFLOP/s | +quant total    1.344 ms   153.4 TFLOP/s  x2.89 vs r7
+best fp8 variant: szb all-off  1.344 ms (r7 3.890 ms, x2.89)
