@@ -1629,12 +1629,17 @@ impl Seq {
         if let Some(Ok(c)) = &mut self.cons {
             c.commit(tok).map_err(|e| Error::Other(format!("structured output: {e}")))?;
         }
+        let prof_detok = crate::hostprof::span(crate::hostprof::Cat::Detok);
         let delta = self.dec.push(&*self.codec, tok)?;
+        drop(prof_detok);
         if self.req.min_tokens > 0 && self.generated == self.req.min_tokens + 1 {
             self.stops = StopMatcher::new(&self.req.stop);
         }
         let (text, stopped) = self.stops.push(&delta);
-        if self.tx.send(GenEvent::Token { id: tok, text }).is_err() {
+        let prof_send = crate::hostprof::span(crate::hostprof::Cat::Send);
+        let sent = self.tx.send(GenEvent::Token { id: tok, text });
+        drop(prof_send);
+        if sent.is_err() {
             self.reason = Some(FinishReason::Cancelled);
             return Ok(true);
         }

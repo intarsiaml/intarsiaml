@@ -751,6 +751,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         self.iter += 1;
         let t_iter = Instant::now();
         let mut did = false;
+        crate::hostprof::iter_begin();
+        let prof_admit = crate::hostprof::span(crate::hostprof::Cat::ReapAdmit);
 
         // 1. reap cancellations: queued requests leave the queue, running ones leave their slot
         let mut i = 0;
@@ -826,6 +828,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 }
             }
         }
+
+        drop(prof_admit);
 
         // 3. decode: every decoding sequence advances one token (decode-first). With overlap (a decode twin on its own
         // stream), the iteration's prefill chunk starts FIRST and decode steps run while it is in flight (phase 4 below).
@@ -907,6 +911,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
 
+        crate::hostprof::iter_end(if did { t_iter.elapsed().as_nanos() } else { 0 });
         let mut m = self.metrics.lock().unwrap();
         m.iterations += 1;
         if chunked && decoding_n > 0 {
@@ -947,6 +952,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let mut row_of: Vec<RequestId> = Vec::with_capacity(b);
             let mut ready: Vec<RequestId> = Vec::new();
             let mut failed: Vec<(RequestId, Error)> = Vec::new();
+            let prof_prepare = crate::hostprof::span(crate::hostprof::Cat::Prepare);
             for &i in &decoding {
                 let a = &mut self.active[i];
                 match a.seq.prepare(&mut self.model, a.slot, spec_allowed, b > 1) {
@@ -958,6 +964,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     Err(e) => failed.push((a.id, e)),
                 }
             }
+            drop(prof_prepare);
             for (id, e) in failed {
                 if let Some(i) = self.index_of(id) {
                     self.fail_active(i, e);
@@ -988,7 +995,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                         crate::fault::arm(mode);
                     }
                 }
-                let outs = match self.model.decode_step(&rows) {
+                let prof_step = crate::hostprof::span(crate::hostprof::Cat::StepSetup);
+                let step_result = self.model.decode_step(&rows);
+                drop(prof_step);
+                let outs = match step_result {
                     Ok(o) if o.len() == rows.len() => o,
                     Ok(o) => {
                         self.fail_all(&format!("decode step returned {} rows for {}", o.len(), rows.len()));
@@ -1000,11 +1010,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     }
                 };
                 stepped = true;
+                crate::hostprof::decoded(rows.len());
                 {
                     let mut m = self.metrics.lock().unwrap();
                     m.decode_steps += 1;
                     m.batch_hist[rows.len()] += 1;
                 }
+                let _prof_accept = crate::hostprof::span(crate::hostprof::Cat::Accept);
                 for (id, out) in row_of.iter().zip(outs) {
                     let i = self.index_of(*id).expect("row of a live request");
                     let res = out.and_then(|o| self.active[i].seq.accept(o));
@@ -1040,6 +1052,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// Account one new token of active request `i` (`on_token`), with TTFT / ITL; finish it if done.
     fn token_done(&mut self, i: usize, now: Instant) {
         {
+            let _prof = crate::hostprof::span(crate::hostprof::Cat::Metrics);
             let a = &mut self.active[i];
             let mut m = self.metrics.lock().unwrap();
             match a.t_last {
@@ -1048,7 +1061,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
             a.t_last = Some(now);
         }
-        match self.active[i].seq.on_token() {
+        let prof_tok = crate::hostprof::span(crate::hostprof::Cat::OnToken);
+        let r = self.active[i].seq.on_token();
+        drop(prof_tok);
+        let _prof_finish = matches!(r, Ok(true)).then(|| crate::hostprof::span(crate::hostprof::Cat::Finish));
+        match r {
             Ok(false) => {}
             Ok(true) => self.end_active(i, false),
             Err(e) => self.fail_active(i, e),
@@ -1062,6 +1079,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let (slot, c, mode) = self.prefill_plan(i, n_decoding);
         let res = {
             let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
+            let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
+            crate::hostprof::prefilled();
             self.model.prefill_chunk(slot, tokens, mode)
         };
         self.prefill_finish(i, c, res)
@@ -1265,6 +1284,7 @@ fn run_scheduler<M: BatchModel, S: BatchSeq<M>>(
         }
         // block only when there is nothing to run
         if !sched.has_work() {
+            crate::hostprof::flush();
             if !open {
                 break;
             }
