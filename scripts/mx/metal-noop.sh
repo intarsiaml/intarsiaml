@@ -25,5 +25,5 @@ else echo "plan 27 json: DIFFER"; fi
 echo "== kernels test metal (dev) $(date +%T)"
 /opt/code/intarsiaml/.worktrees/mx-targets/dev-metal/release/intarsia kernels test --backend metal < /dev/null 2>&1 | tail -3
 echo "== workspace tests on the branch (--features intarsia-cli/metal, own target dir so the release intarsia binary keeps metal) $(date +%T)"
-(cd $DEV && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mx-targets/test cargo test --workspace --release --no-fail-fast --features intarsia-cli/metal 2>&1 | grep -E "^test result|FAILED|failed|panicked" | sort | uniq -c | sort -rn | head -20)
+(cd $DEV && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mx-targets/test cargo test --workspace --release --no-fail-fast --features intarsia-cli/metal > "$O/workspace-tests.log" 2>&1; echo "cargo test exit $?"; grep -E "^test result" "$O/workspace-tests.log" | awk '{p+=$4; f+=$6} END {print "test results: passed", p, "failed", f}'; grep -E "FAILED|panicked" "$O/workspace-tests.log" | head -20)
 echo "== done $(date +%T)"
