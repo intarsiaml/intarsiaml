@@ -87,3 +87,14 @@ Method: `localeval speed --sizes 1024,4096,16384 --gen 128 --reps 2`, through `s
   section 4).
 - The 35B runs no MXFP4 and is the same within its spread. One 35B 4k round of the branch was low (9239); the other two
   read 10035 and 10032.
+
+## Merge state
+
+The gates ran on 092c961. The branch then merged main 7cb96938 (#152, lane wg's fp8 WMMA small-row GEMVs; #155): that
+merge adds no line that mentions MXFP4 to crates/ or kernels/, and it shares only `quantmoe.rs` with this change, in
+regions far apart. The HIP crate's unit tests (25, including `mxfp4_fold_is_default_with_a_kill_switch` and
+`mxfp4_selection_is_pinned` in both switch states) and the hip-cfg check pass on the merged tree. CUDA and Metal
+no-ops are not needed: only `intarsia-backend-hip` and docs / scripts / golden baselines change.
+
+Leftovers on tatooine until the PR merges: `~/intarsiaml-mx-{dev,base}`, the volumes
+`intarsia-cargo-target-mx-{dev,dev-hiptest,dev-mtest,base}`, and `~/mx` (the tails golden, G1_OK).
