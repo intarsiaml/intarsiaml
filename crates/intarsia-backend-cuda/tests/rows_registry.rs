@@ -126,12 +126,15 @@ fn default_env() -> bool {
     !std::env::vars().any(|(k, _)| k.starts_with("INTARSIA_CUDA_"))
 }
 
-/// Generated on 6167babd (no `rows_exact` kernel in the CUDA table) with `print_tables`, and pasted.
+/// Generated on 6167babd (no `rows_exact` kernel in the CUDA table) with `print_tables`, and pasted. The W8A8 fp8 lines were
+/// re-generated after the cuBLASLt default-on (#125, 6189466f): W8A8 `matmul_fp8` takes `matmul_fp8_gemm_lt` from M = 5, and
+/// the W8A8 `matmul_fp8_pair` has no kernel from M = 2 (`matmul_fp8_pair_gemm_reg` yields to lt, the model runs two lt singles).
+/// W8A16 keeps the pre-flip selection.
 const ORDINARY_PINS: &str = "matmul bf16 k=2048 -> bf16: 1..=4 matmul_bf16_gemv; 5..=4096 matmul_bf16;
 matmul bf16 k=4104 -> bf16: 1..=4 matmul_bf16_gemv; 5..=4096 matmul_bf16;
 logits bf16 k=4096 -> f32: 1..=4 logits_bf16_gemv; 5..=4096 logits_bf16;
-matmul_fp8 w8a8 k=2048 -> bf16: 1..=4 matmul_fp8_gemv; 5..=32 matmul_fp8_mma; 33..=255 matmul_fp8_gemm; 256..=4096 matmul_fp8_gemm_reg;
-matmul_fp8 w8a8 k=4096 -> bf16: 1..=4 matmul_fp8_gemv; 5..=32 matmul_fp8_mma; 33..=255 matmul_fp8_gemm; 256..=4096 matmul_fp8_gemm_reg;
+matmul_fp8 w8a8 k=2048 -> bf16: 1..=4 matmul_fp8_gemv; 5..=4096 matmul_fp8_gemm_lt;
+matmul_fp8 w8a8 k=4096 -> bf16: 1..=4 matmul_fp8_gemv; 5..=4096 matmul_fp8_gemm_lt;
 matmul_fp8 w8a16 k=2048 -> f32: 1..=4 matmul_fp8_gemv; 5..=32 matmul_fp8_mma; 33..=255 matmul_fp8_gemm; 256..=4096 matmul_fp8_gemm_reg;
 matmul_nvfp4 k=2048 -> bf16: 1..=8 matmul_nvfp4_gemv; 9..=32 matmul_nvfp4_mma; 33..=255 matmul_nvfp4_gemm; 256..=4096 matmul_nvfp4_gemm_reg;
 matmul_nvfp4 k=2048 -> f32 (head): 1..=8 matmul_nvfp4_gemv; 9..=32 matmul_nvfp4_mma; 33..=255 matmul_nvfp4_gemm; 256..=4096 matmul_nvfp4_gemm_reg;
@@ -140,7 +143,7 @@ moe_experts gelu top8: 1..=1 moe_experts_decode_v2_gelu_bf16; 2..=31 moe_experts
 moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
 moe_combine h=256: 1..=4096 moe_combine_bf16;
 matmul_pair bf16 k=2048: 1..=1 matmul_pair_bf16_gemv; 2..=4096 -;
-matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=255 -; 256..=4096 matmul_fp8_pair_gemm_reg;
+matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=4096 -;
 matmul_nvfp4_glu k=2048: 1..=1 matmul_nvfp4_glu_gemv; 2..=255 -; 256..=4096 matmul_nvfp4_glu_gemm;
 gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 ";
@@ -161,7 +164,7 @@ moe_experts gelu top8: 1..=16 moe_experts_decode_v2_gelu_rows_bf16; 17..=4096 -;
 moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
 moe_combine h=256: 1..=4096 moe_combine_bf16;
 matmul_pair bf16 k=2048: 1..=1 matmul_pair_bf16_gemv; 2..=4096 -;
-matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=255 -; 256..=4096 matmul_fp8_pair_gemm_reg;
+matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=4096 -;
 matmul_nvfp4_glu k=2048: 1..=1 matmul_nvfp4_glu_gemv; 2..=255 -; 256..=4096 matmul_nvfp4_glu_gemm;
 gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 ";
