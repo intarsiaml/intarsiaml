@@ -1,0 +1,40 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+mtp: drafter head 'mtp' loaded in 0.7 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16_v2 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 attn_prefill=attn_prefill_bf16_splitkv moe_experts=moe_experts_bf16_v2 argmax=argmax_f32
+loaded Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics in 3.4s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 986 tokens
+ids: [271, 248068, 198, 8160, 579, 264, 7047, 1817, 25, 271, 16, 13, 220, 2972, 2014, 53983, 2570, 5396, 64700, 198, 256, 471, 2972, 3488, 9926, 64700, 1473, 47801, 494, 449, 5138, 14246, 19617, 883, 1142, 44439, 303, 16350, 55739, 13, 198, 256, 471, 2972, 1536, 73182, 303, 1326, 32900, 64700, 198, 257, 471, 43320, 55739, 599, 17102, 440, 2086, 23944, 13, 198, 257, 471, 16643, 1142, 44439, 11, 6103, 17102, 5073, 632, 63471, 46490, 11, 4779, 292, 1197, 11, 1496, 37972, 11, 496, 1833, 27868, 13, 198, 257, 471, 14095, 1142, 44439, 12178, 25, 59056, 6951, 440, 21500, 11, 6459, 5792, 6195, 2444, 11, 2706, 76594, 13, 198, 257, 471, 26236, 13402, 383, 2695, 314, 11878, 3336, 6680, 290, 7189, 318, 68, 1257, 2487, 13767, 5972, 13, 16243, 553, 198, 257, 471, 33759, 10539, 25, 2526, 59056, 6951, 478, 19528, 478, 76594, 506, 1496, 14, 9997, 2919, 15087, 13, 198, 257, 471, 35326, 3010, 25, 6396, 318, 17, 74, 2600, 681, 41163, 11, 6700, 318, 20, 15, 15, 2600, 553, 1188, 63471, 6951, 11069, 68328, 26817, 220, 16, 13, 20, 74, 2600, 11069, 220, 24, 15, 15, 74, 303, 220, 16, 15, 24049, 11069, 220, 24, 1262, 37972, 13, 417, 12705, 6951, 318, 16, 74, 8, 11069, 6396, 77216, 806, 1238, 220, 15, 13, 20, 82, 11069, 9766, 4779, 11, 1866, 220, 17, 82, 37972, 13, 198, 257, 471, 15788, 10708, 25, 2166, 2526, 283, 74506, 11, 2166, 3349, 283, 632, 63471, 6951, 13, 29815, 25, 61610, 348, 10320, 51, 478, 1901, 2871, 13, 3301, 19528]
+finish=length prompt=986 (cached 0) completion=256 | prefill 181 ms (5459.4 tok/s) | decode 2805 ms (90.91 tok/s)
+op table (estimated ms over all launches; total 2793.6 ms):
+op                               ms  share%    calls   timed
+moe_experts                  554.33   19.84     4117    3921
+matmul_fp8                   534.05   19.12    12760   12740
+matmul                       343.22   12.29    15451   13731
+matmul_nvfp4                 336.35   12.04    12053   11857
+gdn_conv_delta               240.77    8.62     8790    8730
+rmsnorm_add                  182.94    6.55     8236    7842
+attn_decode                  113.45    4.06     3039    2910
+moe_topk                      98.84    3.54     4117    3921
+moe_combine                   80.54    2.88     4117    3921
+silu_glu                      78.26    2.80     4117    3921
+gated_rmsnorm                 65.08    2.33     2940    2940
+attn_prefill                  33.78    1.21       98      11
+gate_split_qk_norm_rope_kv      32.08    1.15     1197     981
+sigmoid_mul                   25.35    0.91     1177     981
+gdn_delta_rule                19.61    0.70       30      30
+argmax                        17.76    0.64      293      97
+rmsnorm                       17.26    0.62      691     101
+embedding                     10.36    0.37      297      99
+add                            6.46    0.23      197       1
+gdn_conv                       3.07    0.11       30      30
+gated_rmsnorm_matmul_fp8       0.00    0.00       60       0
+matmul_fp8_pair                0.00    0.00       60       0
+matmul_pair                    0.00    0.00      220       0
+moe_block                      0.00    0.00       80       0
+rmsnorm_add_matmul_fp8_pair       0.00    0.00       20       0
+rmsnorm_add_matmul_pair        0.00    0.00      138       0
+sigmoid_mul_matmul_fp8         0.00    0.00       20       0
+spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass)
+steps=100 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_fp8=533ms/12760 moe_experts=528ms/4117 matmul_nvfp4=331ms/12053 matmul=305ms/15451 gdn_conv_delta=239ms/8790

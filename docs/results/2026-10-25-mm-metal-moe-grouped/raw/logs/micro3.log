@@ -1,0 +1,50 @@
+fleetq: #5043 running on endor: /opt/code/wt-mm/.mm/micro3.sh
+== fp8 mb8 rep1
+8192x2048 73.4
+4096x2048 42.3
+512x2048 14.3
+2048x4096 44.8
+== fp8 mb8 rep2
+8192x2048 76.4
+4096x2048 43.6
+512x2048 14.5
+2048x4096 44.9
+== fp8 mb4 rep1
+8192x2048 64.5
+4096x2048 35.7
+512x2048 10.8
+2048x4096 36.4
+== fp8 mb4 rep2
+8192x2048 63.5
+4096x2048 35.1
+512x2048 10.8
+2048x4096 36.7
+== fp8 mb2 rep1
+8192x2048 71.2
+4096x2048 39.1
+512x2048 11.2
+2048x4096 38.4
+== fp8 mb2 rep2
+8192x2048 71.3
+4096x2048 39.0
+512x2048 11.4
+2048x4096 38.3
+== moe gu r1_xr1 dn r2_xr1
+T4 random 110.4 T4 identical 92.4 T4 overlap 96.5 T8 random 199.6 T8 identical 173.8 T8 overlap 184.5 
+== moe gu r1_xr1 dn r4_xr1
+T4 random 112.0 T4 identical 90.0 T4 overlap 94.9 T8 random 201.6 T8 identical 166.5 T8 overlap 173.9 
+== moe gu r1_xr1 dn r8_xr1
+T4 random 123.1 T4 identical 102.8 T4 overlap 108.6 T8 random 221.7 T8 identical 191.8 T8 overlap 202.4 
+== moe gu r2_xr1 dn r2_xr1
+T4 random 109.7 T4 identical 86.7 T4 overlap 91.3 T8 random 199.2 T8 identical 161.1 T8 overlap 167.4 
+== moe gu r2_xr1 dn r4_xr1
+T4 random 117.9 T4 identical 85.0 T4 overlap 95.0 T8 random 209.3 T8 identical 191.9 T8 overlap 164.7 
+== moe gu r2_xr1 dn r8_xr1
+T4 random 128.0 T4 identical 98.1 T4 overlap 105.4 T8 random 221.1 T8 identical 185.2 T8 overlap 196.0 
+== moe gu r4_xr1 dn r2_xr1
+T4 random 127.2 T4 identical 103.7 T4 overlap 114.2 T8 random 231.7 T8 identical 183.5 T8 overlap 206.6 
+== moe gu r4_xr1 dn r4_xr1
+T4 random 128.0 T4 identical 100.2 T4 overlap 112.0 T8 random 221.4 T8 identical 175.4 T8 overlap 196.0 
+== moe gu r4_xr1 dn r8_xr1
+T4 random 142.7 T4 identical 114.6 T4 overlap 127.4 T8 random 247.8 T8 identical 200.9 T8 overlap 225.3 
+fleetq: #5043 done (exit 0)

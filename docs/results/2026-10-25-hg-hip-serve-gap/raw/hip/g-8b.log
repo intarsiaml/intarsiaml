@@ -1,0 +1,7 @@
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17326669824, weights_bytes: 16381470720, workspace_bytes: 274722080, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16460336126, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:89:31:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.51s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+[win] starting radiance 2026-10-25 02:06:52
+[win] radiance answers 2026-10-25 02:07:07 (after 20 s); active

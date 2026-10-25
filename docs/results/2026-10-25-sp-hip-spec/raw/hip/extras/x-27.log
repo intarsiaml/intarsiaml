@@ -1,0 +1,6 @@
+x-t27-off ncn1k md5=2a3c0cbf | decode 7738 ms (32.95 tok/s) |  | steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-t27-off ncode1k md5=f8e69e22 | decode 7751 ms (32.90 tok/s) |  | steps=261 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-t27-full ncn1k md5=2a3c0cbf | decode 5860 ms (43.51 tok/s) | spec: verify passes=110 proposed=220 accepted=145 (acceptance 65.9%, 2.32 tokens per pass) | steps=115 graph replays=111 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+x-t27-full ncode1k md5=f8e69e22 | decode 4906 ms (51.97 tok/s) | spec: verify passes=92 proposed=184 accepted=163 (acceptance 88.6%, 2.77 tokens per pass) | steps=98 graph replays=93 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+x-t27-v65536 ncn1k md5=2a3c0cbf | decode 6962 ms (36.63 tok/s) | spec: verify passes=69 proposed=138 accepted=71 (acceptance 51.4%, 2.03 tokens per pass) | steps=189 graph replays=185 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+x-t27-v65536 ncode1k md5=f8e69e22 | decode 4397 ms (57.99 tok/s) | spec: verify passes=92 proposed=184 accepted=163 (acceptance 88.6%, 2.77 tokens per pass) | steps=98 graph replays=93 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/

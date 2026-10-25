@@ -1,0 +1,35 @@
+{
+ "streams": 15,
+ "gen": 512,
+ "prompt_tokens": 1024,
+ "steady_window_s": 2.005,
+ "steady_agg_tok_s": 378.1,
+ "steady_itl_ms": {
+  "mean": 39.59,
+  "p50": 38.62,
+  "p99": 54.54,
+  "max": 55.76
+ },
+ "inject": [
+  {
+   "prompt_tokens": 1057,
+   "ttft_s": 0.217,
+   "base_itl_ms_during": {
+    "n": 60,
+    "mean": 70.89,
+    "p99": 168.29,
+    "max": 168.29
+   }
+  },
+  {
+   "prompt_tokens": 4216,
+   "ttft_s": 0.592,
+   "base_itl_ms_during": {
+    "n": 75,
+    "mean": 130.06,
+    "p99": 430.35,
+    "max": 430.35
+   }
+  }
+ ]
+}

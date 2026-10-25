@@ -1,0 +1,14 @@
+{
+ "streams": 4,
+ "gen": 640,
+ "prompt_tokens": 1024,
+ "steady_window_s": 2.002,
+ "steady_agg_tok_s": 285.2,
+ "steady_itl_ms": {
+  "mean": 14.14,
+  "p50": 13.5,
+  "p99": 47.73,
+  "max": 107.85
+ },
+ "inject": []
+}

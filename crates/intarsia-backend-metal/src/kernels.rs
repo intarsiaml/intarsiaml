@@ -624,6 +624,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(crate::fp8::rows_ok)
+                    .scratch(crate::fp8::rows_scratch)
                     .exact(Exactness::Deterministic)
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)

@@ -116,6 +116,24 @@ impl Model {
         profile: bool,
         fold: Option<&NormFold>,
     ) -> Result<()> {
+        self.gdn_block_segs(g, &[Seg { st, lo: 0, len: t }], n, out, t, profile, fold)
+    }
+
+    /// [`Model::gdn_block`] over the rows of one or several segments (a packed prefill pass): the projections, the gated norm and
+    /// the output projection run once on all `t` rows, the conv + delta rule once per segment on that segment's rows and its own
+    /// recurrent state. One segment is the solo block, call for call.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn gdn_block_segs(
+        &self,
+        g: &GdnBlock,
+        segs: &[Seg<'_>],
+        n: &TensorRef,
+        out: &TensorRef,
+        t: usize,
+        profile: bool,
+        fold: Option<&NormFold>,
+    ) -> Result<()> {
+        let st = segs[0].st;
         let x = self.ws.x.gdn.as_ref().ok_or_else(|| Error::invalid("GatedDeltaNet workspace missing"))?;
         let l = &g.lin;
         let act = self.act;
@@ -186,7 +204,20 @@ impl Model {
         }
         // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
         let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
-        if self.verifying() && t > 1 {
+        if segs.len() > 1 {
+            for sg in segs {
+                let rec = match &sg.st.slots[g.slot] {
+                    StateSlot::Recurrent(r) => r,
+                    StateSlot::AttnKv(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
+                };
+                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                s_state.offset = state_s_offset(l);
+                let (lo, len) = (sg.lo, sg.len);
+                let (qkv, a, b, conv, core) = (qkv.rows(lo, len), a.rows(lo, len), b.rows(lo, len), conv.rows(lo, len), core.rows(lo, len));
+                self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
+            }
+        } else if self.verifying() && t > 1 {
             // speculative verify: one row at a time (each call is the decode step's), and the slot's state after every row
             // but the last saved for the rollback (`SequenceState::spec_rollback`)
             let save = st.spec_rows.bufs.len() >= t - 1 && self.recorder.lock().unwrap().is_none();

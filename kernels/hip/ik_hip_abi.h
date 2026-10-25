@@ -157,6 +157,13 @@ int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor*
 int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
                               const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
                               const ik_scratch* scratch, void* stream);
+/* Row-exact twins of the two gemvs (OpCall::exact_rows, speculative verify; M <= 8): row r of an M-row call is bitwise the
+ * M == 1 launch on row r alone. Same launchers, registered separately so the plain selection never changes. */
+int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                              ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                                   const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                                   const ik_scratch* scratch, void* stream);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,8 @@
+x-35-sp-base-off n128 md5=ce656b29 | decode 1534 ms (166.20 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-35-sp-base-off n1024 md5=419d4320 | decode 1536 ms (166.06 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-35-sp-base-mtp2 n128 md5=ce656b29 | decode 1334 ms (191.10 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+x-35-sp-base-mtp2 n1024 md5=419d4320 | decode 1298 ms (196.48 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+x-35-sp-off n128 md5=ce656b29 | decode 1531 ms (166.59 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-35-sp-off n1024 md5=419d4320 | decode 1538 ms (165.75 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+x-35-sp-mtp2 n128 md5=ce656b29 | decode 1329 ms (191.84 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=103 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0m
+x-35-sp-mtp2 n1024 md5=419d4320 | decode 1282 ms (198.93 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms

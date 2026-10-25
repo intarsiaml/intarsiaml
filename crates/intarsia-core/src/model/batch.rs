@@ -372,6 +372,8 @@ impl Model {
             return Ok(vec![self.forward(states[0], ids, mode, None)?]);
         }
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
+        let prof_launch = crate::hostprof::span(crate::hostprof::Cat::Launch);
+        crate::hostprof::mark_launch_begin();
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
         if !self.peers.is_empty() {
             return self.forward_batch_tp(states, ids, modes, profile);
@@ -388,6 +390,7 @@ impl Model {
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         run?;
+        drop(prof_launch);
         let out = self.batch_outputs(tok, modes)?;
         for (st, &id) in states.iter_mut().zip(ids) {
             st.commit(&[id]);
@@ -402,6 +405,8 @@ impl Model {
         let b = modes.len();
         let v = self.dims.vocab;
         let mut toks = vec![0u8; b * 4];
+        // the downloads below are the first thing to wait for the GPU (everything before them was launches)
+        let prof_sync = crate::hostprof::span(crate::hostprof::Cat::Sync);
         if modes.contains(&HeadMode::LastArgmax) {
             self.backend.download(tok, 0, &mut toks, self.stream)?;
         }
@@ -425,6 +430,9 @@ impl Model {
             runs.push((lo, bytes));
             i = j + 1;
         }
+        drop(prof_sync);
+        crate::hostprof::mark_sync_end();
+        let _prof_tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
         let mut out = Vec::with_capacity(b);
         for r in 0..b {
             out.push(match modes[r] {
@@ -1027,6 +1035,7 @@ impl Model {
             embed: self.embed.clone(),
             final_norm: self.final_norm.clone(),
             lm_head: self.lm_head.clone(),
+            draft_head: None,
             layers: self.layers.clone(),
             gemma: None,
             slot_specs: self.slot_specs.clone(),
