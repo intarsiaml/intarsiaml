@@ -90,6 +90,23 @@ extern "C" {
         drain: c_int,
         stream: S,
     ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ag2_gather(
+        x: *mut c_void,
+        out: *mut c_void,
+        bytes: i64,
+        out_stride_bytes: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        rank: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
     /// INTARSIA_HIP_STAMP diagnostics (ik_runtime.h): write the wall-clock stamps to the file; no-op when unset

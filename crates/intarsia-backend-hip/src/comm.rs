@@ -1,5 +1,6 @@
 //! The HIP tensor-parallel collective: a two-rank one-shot all-reduce over PCIe peer-to-peer
-//! (`kernels/hip/allreduce.hip`, design after radiance's libr4d, see `kernels/hip/NOTICE-radiance`).
+//! (`kernels/hip/allreduce.hip`, design after radiance's libr4d, see `kernels/hip/NOTICE-radiance`) and, on the same
+//! handshake, a two-rank all-gather (the vocab-parallel lm_head's logits).
 //!
 //! One process owns both GPUs. Each rank has, on its own device, a fine-grained (uncached) scratch buffer the peer
 //! writes into, a block of flags the peer raises, and a counter block; a collective is a single kernel launch on the
@@ -216,11 +217,70 @@ impl Comm for P2pComm {
         Ok(())
     }
 
+    /// Rank-major gather (`ag2_kernel`): `recv[r * send.numel() ..]` is rank r's `send`. `send` may be this rank's own
+    /// segment of `recv` (in place: the kernel skips the self copy), or disjoint from it. The same push handshake, scratch,
+    /// flags and counters as the all-reduce, so both ranks must make the same sequence of collectives and either kind may
+    /// follow the other. Messages above one scratch slot go in several launches.
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()> {
-        // peer-to-peer copy through the same machinery would need its own kernel; the model does not use all_gather
-        // yet (replicated head), so stage through the host communicator's semantics: not implemented here
-        let _ = (send, recv, stream);
-        Err(Error::Unsupported("hip-p2p all_gather is not implemented (use --comm host)".into()))
+        if self.group.aborted.load(Ordering::Acquire) {
+            return Err(Error::backend("communicator aborted (another rank failed)"));
+        }
+        send.check_bounds()?;
+        recv.check_bounds()?;
+        if send.dtype != recv.dtype || recv.numel() != send.numel() * 2 {
+            return Err(Error::invalid(format!(
+                "hip all_gather: recv {:?} {} is not 2 x send {:?} {}",
+                recv.shape,
+                recv.dtype.name(),
+                send.shape,
+                send.dtype.name()
+            )));
+        }
+        let total = send.nbytes();
+        if total % 16 != 0 {
+            return Err(Error::invalid(format!("hip all_gather needs a multiple of 16 bytes per rank, got {total}")));
+        }
+        self.counters.call(total);
+        self.backend.bind()?;
+        let s = self.backend.stream(stream)?;
+        let sbase = HipBackend::ptr(&send.buf, send.offset, total)?;
+        let rbase = HipBackend::ptr(&recv.buf, recv.offset, recv.nbytes())?;
+        // in place (send is this rank's segment of recv) or disjoint; anything between would be read while it is written
+        let (sa, ra) = (sbase as usize, rbase as usize);
+        let mine = ra + self.rank * total;
+        if sa != mine && sa < ra + 2 * total && ra < sa + total {
+            return Err(Error::invalid("hip all_gather: send overlaps recv without being this rank's segment of it"));
+        }
+        let (me, peer) = (&self.group.bufs[self.rank], &self.group.bufs[1 - self.rank]);
+        let mut off = 0usize;
+        while off < total {
+            let n = SLOT_BYTES.min(total - off);
+            // SAFETY: the chunk is inside send, and inside both of recv's segments (bounds checked above); scratch / flags
+            // / counters are live for the group's lifetime, which the comm keeps alive through `group`.
+            let rc = unsafe {
+                ffi::ik_ag2_gather(
+                    sbase.add(off) as *mut c_void,
+                    rbase.add(off) as *mut c_void,
+                    n as i64,
+                    total as i64,
+                    peer.scratch,
+                    me.scratch,
+                    peer.flags,
+                    me.flags,
+                    me.ctrs,
+                    SLOT_BYTES as i64,
+                    NBLOCKS,
+                    self.rank as i32,
+                    self.drain,
+                    s,
+                )
+            };
+            if rc != 0 {
+                return Err(Error::backend(format!("ik_ag2_gather returned {} ({rc})", ffi::status_name(rc))));
+            }
+            off += n;
+        }
+        Ok(())
     }
 
     fn abort(&self) {
