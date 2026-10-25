@@ -1,0 +1,10 @@
+[qualify      0s] qwen36-35b-a3b-nvfp4 on cuda, report directory /home/nvidia/intarsia-decfuse/out/dfB-q3-main/report
+[qualify      0s] == acc-short [short accuracy against a golden]
+[qualify     36s] acc-short: PASS in 36.3s (prefill top-1 98.27% KL 6.83e-3; decode top-1 99.38% KL 6.99e-3)
+QUICK DONE: /home/nvidia/intarsia-decfuse/out/dfB-q3-main/report/quick-report.md
+[qualify     36s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    144s] acc-long: PASS in 107.7s (prefill top-1 94.20% KL 4.35e-2; decode top-1 98.12% KL 1.02e-2)
+[qualify    144s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    304s] acc-4k: PASS in 160.4s (prefill top-1 92.82% KL 8.60e-2; decode top-1 97.92% KL 9.78e-3)
+FULL DONE: /home/nvidia/intarsia-decfuse/out/dfB-q3-main/report/full-report.md
+[qualify    304s] exit code 0
