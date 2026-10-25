@@ -1,2 +1,32 @@
 fleetq: #5342 waiting (#3 in line): in line behind #5336 "tp2 w15 (rerun of void w13): mutant batch-peer-no-table, 35B tp2 run-to-run, 27B W4A16 (--mxfp4-act none) tp2-vs-tp1 dump, 27B + 35B batched==solo at tp2; per-window tree snapshot, VRAM guard; radianc" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
 fleetq:   #5336 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5336 set, or it will wait for #5336 to be released.
+fleetq: #5342 waiting (#2 in line): in line behind #5337 "mx w13: 35B batch_cuda_real --include-ignored on HIP, main 5241377b vs PR #144 head (valid main result for the 3 CUDA-only failures); radiance down <=30 min, restored after" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5337 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5337 set, or it will wait for #5337 to be released.
+fleetq: #5342 waiting (#1 in line): radiance-rank0 is also taken down by #5337 "mx w13: 35B batch_cuda_real --include-ignored on HIP, main 5241377b vs PR #144 head (valid main result for the 3 CUDA-only failures); radiance down <=30 min, restored after" (claude-f31ccf91)
+fleetq:   #5337 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5337 set, or it will wait for #5337 to be released.
+fleetq: #5342 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 31% busy with work fleetq does not track
+fleetq: #5342 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5342 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 60% busy with work fleetq does not track
+fleetq: #5342 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-wg/docs/results/2026-10-25-wg-hip-wmma-gemv/raw/served2 WINDOW_S=1200 TAIL_S=0 bash scripts/wgserve/served.sh
+[13:01:36] pre-step: ablation build exit=0 [win] stamped bench-intarsiaml-wg 1b16702ab398c582
+[13:01:39] radiance down; arms off opt1 x 3 passes
+[13:01:55] off-p1: up (1181 s left)
+[13:02:52] off-p1: localeval exit 0 (1124 s left)
+[13:03:10] opt1-p1: up (1106 s left)
+[13:04:00] opt1-p1: localeval exit 0 (1056 s left)
+[13:04:18] opt1-p2: up (1038 s left)
+[13:05:08] opt1-p2: localeval exit 0 (988 s left)
+[13:05:26] off-p2: up (970 s left)
+[13:06:23] off-p2: localeval exit 0 (913 s left)
+[13:06:41] off-p3: up (895 s left)
+[13:07:38] off-p3: localeval exit 0 (838 s left)
+[13:07:57] opt1-p3: up (819 s left)
+[13:08:47] opt1-p3: localeval exit 0 (769 s left)
+[13:08:50] visits done (766 s left)
+[13:08:50] tail skipped: 766 s left
+[13:09:02] window process ended
+[win] stopping radiance 2026-10-25 13:01:36 (tree 1b16702ab398c582)
+[hold] done-file 13:08:51
+[win] starting radiance 2026-10-25 13:08:52
+[win] radiance answers 2026-10-25 13:09:02 (after 15 s); active
+fleetq: #5342 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
