@@ -55,7 +55,7 @@ f8_actq_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xq, const fl
 template <int WN, int WM, int TN, int TM, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32)
 f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const float* __restrict__ sc,
-               OutT* __restrict__ out, int M, int64_t N, int K, int vec_out) {
+               OutT* __restrict__ out, int M, int64_t N, int K, int vec_out, int frag) {
     if (!(sc[1] > 0.f)) return;  // weight-only activations: the bf16 kernel handles this launch
     constexpr int NT = WN * WM * IK_WARP;
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
@@ -78,7 +78,8 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
             const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
             const int64_t n = n_blk + r;
             const int k = k0 + ch * 16;
-            rw[c] = (idx < CHW && n < N && k < K) ? *reinterpret_cast<const uint4*>(w + n * K + k) : make_uint4(0, 0, 0, 0);
+            rw[c] = (idx < CHW && n < N && k < K) ? *reinterpret_cast<const uint4*>(w + (frag ? ik_f8frag_off(n, k, K) : n * K + k))
+                                                  : make_uint4(0, 0, 0, 0);
         }
 #pragma unroll
         for (int c = 0; c < CX; ++c) {
@@ -167,12 +168,12 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
 /* Tile per M, the same table as dq_gemm_run (small M keeps the token tile small): weights x tokens. */
 template <typename OutT>
 void f8_gemm_run(const uint8_t* xq, const uint8_t* w, const float* sc, OutT* out, int M, int64_t N, int K, int vec_out,
-                 hipStream_t s) {
+                 hipStream_t s, int frag = 0) {
 #define IK_F8_TILE(WN, WM, TN, TM)                                                                                   \
     {                                                                                                                \
         dim3 grid((unsigned)(((int64_t)M + WM * TM * 16 - 1) / (WM * TM * 16)),                                      \
                   (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16)));                                              \
-        f8_gemm_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, vec_out);       \
+        f8_gemm_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, vec_out, frag); \
     }
     // Prefill chunks (M >= 2048, lane hp tile sweeps, docs/results/2026-10-22-hp-hip-prefill-roofline.md): 16 waves,
     // 256 x 128 (weights x tokens) for the widest projections, 128 x 256 for the others; the k order does not depend on the

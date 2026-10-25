@@ -10,7 +10,7 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$S/../.." && pwd)"
-OUT=$REPO/docs/results/2026-10-25-mx-hip-27b-prefill/raw/$W
+OUT=${RAW:-$REPO/docs/results/2026-10-25-mx-hip-27b-prefill/raw}/$W
 mkdir -p "$OUT"
 LOG=$OUT/window.log
 T=tatooine

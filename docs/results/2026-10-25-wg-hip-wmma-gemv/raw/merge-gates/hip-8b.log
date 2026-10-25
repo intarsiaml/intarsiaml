@@ -1,0 +1,22 @@
+fleetq: #5364 waiting (#3 in line): in line behind #5361 "mx fold-default G1 (PR #153): widened fold_rows test, 27B S4 batched==solo, tails sweep dumps, kernels quick, W4A16/W4A4 goldens vs #150 baselines, 35B no-op, MTP ids, batch_recurrent; radiance down <" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5361 set, or it will wait for #5361 to be released.
+fleetq: #5364 waiting (#2 in line): in line behind #5363 "hd: control, 8B HIP batch gate on the hb-era tree f3b9f19e5 (25 min cap)" (claude-32e49a7a) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5364 waiting (#1 in line): radiance-rank0 is also taken down by #5363 "hd: control, 8B HIP batch gate on the hb-era tree f3b9f19e5 (25 min cap)" (claude-32e49a7a)
+fleetq: #5364 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wgm-win.sh bash ~/wgm-gate8b.sh'
+[win] stopping radiance 2026-10-25 14:14:15
+-- 8B batched==solo, off
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17326669824, weights_bytes: 16381470720, workspace_bytes: 274722448, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16460336126, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:89:31:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.16s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+-- 8B batched==solo, opt1
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17326669824, weights_bytes: 16381470720, workspace_bytes: 274722448, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16460336126, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:89:31:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.83s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+[8b] done 14:14:23
+[win] starting radiance 2026-10-25 14:14:23
+[win] radiance answers 2026-10-25 14:14:33 (after 15 s); active
+fleetq: #5364 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

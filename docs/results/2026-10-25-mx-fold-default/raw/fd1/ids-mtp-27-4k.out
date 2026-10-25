@@ -1,0 +1,18 @@
+
+e the first port target** (norms, rope, embedding, sampling, simple attention, glue), because they are the ones that are actually torch-free upstream. The torch-heavy packs (flashinfer, cutlass, ggml, exl3) are ports, not imports: each kernel is wrapped in a thin C ABI (`ik_abi.h`) that takes raw tensors and a stream, and the Rust side binds it via `extern "C"`. This is exactly how radiance ships `libr4d` (a C ABI over HIP kernels), and it is the only way a pack can be a *piece* rather than a dependency.
+
+### 3.4 Recipes: models as data
+
+A recipe is a TOML file that maps a config.json to a block stack. The engine never hard-codes a model family.
+
+```toml
+[recipe]
+id = "qwen3.6-35b-a3b"
+arch = "Qwen3_5MoeForCausalLM"
+config = "config.json"
+weights = "model.safetensors"
+
+[arch]
+hidden = 2048
+layers = 64
+vocab = 248

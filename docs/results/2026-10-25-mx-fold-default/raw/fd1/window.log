@@ -1,0 +1,43 @@
+[window] job 5361 fd1; stopping radiance 2026-10-25 13:36:25
+[window] radiance stopped 2026-10-25 13:36:30
+13:36:30 fd1 start; budget 2460 s; base 0c142a3_code-tree=70331614cf9e_dirty=no dev a3ffa1b_code-tree=9004915c636b_dirty=no
+13:37:05 test mx exit 0:       1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.77s|      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.51s|      1 test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 
+13:48:29 mtest27 s4 exit 0:       1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 683.03s|
+13:53:55 acc-c256 exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+13:59:09 acc-c4096p16 exit 1 [INTARSIA_PREFILL_PEEL=16]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+13:59:14 kq-27 exit 0: 
+13:59:14 kq 27: /home/josef/mx/out/fd1/kq-27.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/fd1/kq-27.out:66 kernels, 365 cases in 3.0s|
+13:59:18 kq-35 exit 0: 
+13:59:18 kq 35: /home/josef/mx/out/fd1/kq-35.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/fd1/kq-35.out:66 kernels, 365 cases in 3.0s|
+13:59:34 a16-dump-base exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+13:59:36 a16-gate exit 1: Error: this binary was built without INTARSIA_BUILD_STAMP, so it cannot say which code it is; build through scripts/phase1b-acceptance.sh (or set the variable to the output of scripts/tree-stamp.sh)|
+13:59:39 a4-gate-old-baseline exit 1: reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.969e-1 (n=1441), scored rows 1.991e-1 (n=1279); 2026-10-25; docs/results/2026-10-25-ac-27b-accuracy-gat|Error: this binary was built without INTARSIA_BUILD_STAMP, so it cannot say which code it is; build through scripts/phase1b-acceptance.sh (or set the variable to the output of scripts/tree-stamp.sh)|
+13:59:54 accg-dev exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.969e-1 (n=1441), scored rows 1.991e-1 (n=1279); 2026-10-25; docs/results/2026-10-25-ac-27b-accuracy-gat|Error: accuracy gate FAILED|
+14:00:03 plan-base-35 exit 0: 
+14:00:07 plan-dev-35 exit 0: 
+14:00:07 SAME plan show 35B main vs branch (plan-base-35.out == plan-dev-35.out)
+14:00:12 ids-dev-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 51 ms (234.2 tok/s) | decode 1546 ms (164.91 tok/s)|
+14:00:12 ids dev-35-short md5 7f8d5c3b
+14:00:17 ids-base-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 51 ms (233.7 tok/s) | decode 1541 ms (165.51 tok/s)|
+14:00:17 ids base-35-short md5 7f8d5c3b
+14:00:17 SAME 35B short ids branch vs main (ids-dev-35-short.ids == ids-base-35-short.ids)
+14:00:23 ids-dev-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 486 ms (9067.0 tok/s) | decode 1591 ms (160.25 tok/s)|
+14:00:23 ids dev-35-4k md5 1c4f85d0
+14:00:28 ids-base-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 487 ms (9054.6 tok/s) | decode 1592 ms (160.22 tok/s)|
+14:00:28 ids base-35-4k md5 1c4f85d0
+14:00:28 SAME 35B 4k ids branch vs main (ids-dev-35-4k.ids == ids-base-35-4k.ids)
+14:00:39 ids-off-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 108 ms (110.9 tok/s) | decode 7723 ms (33.02 tok/s)|
+14:00:39 ids off-27-short md5 5ee9c7be
+14:00:47 ids-mtp-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 118 ms (101.9 tok/s) | decode 5777 ms (44.14 tok/s)|
+14:00:47 ids mtp-27-short md5 5ee9c7be
+14:00:47 SAME 27B short ids spec mtp vs off (branch) (ids-off-27-short.ids == ids-mtp-27-short.ids)
+14:01:00 ids-off-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 2402 ms (1835.3 tok/s) | decode 7894 ms (32.30 tok/s)|
+14:01:00 ids off-27-4k md5 48e899e4
+14:01:11 ids-mtp-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 2598 ms (1696.6 tok/s) | decode 5711 ms (44.65 tok/s)|
+14:01:11 ids mtp-27-4k md5 48e899e4
+14:01:11 SAME 27B 4k ids spec mtp vs off (branch) (ids-off-27-4k.ids == ids-mtp-27-4k.ids)
+14:02:45 mtest recurrent exit 0:       1 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 93.25s|
+14:02:45 fd1 done; 885 s left
+[window] stages done 2026-10-25 14:02:45, exit 0
+[window] starting radiance 2026-10-25 14:02:45
+[window] radiance answers 2026-10-25 14:03:30 (after 50 s); active

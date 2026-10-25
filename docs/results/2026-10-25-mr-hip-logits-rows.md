@@ -70,6 +70,8 @@ ISA of `mxfp4_gemv_rows_kernel<16, float>` (gfx1201, raw/isa.log): 1684 VALU ins
 `v_fmac_f32`, so about 57 % of the fmas already dual-issue; `v_and`/`v_lshl`/`v_lshr` (the bf16 unpack among them) total only ~330; the warp-sum epilogue is 160
 `ds_bpermute_b32` + 158 `v_add_f32` + about 190 waits. At K=5120 the loop runs only 5 iterations per lane, so that epilogue is a visible share. 515 `s_delay_alu`.
 
+Correction (2026-10-25, P0 ablation, docs/results/2026-10-25-mr-hip-mxfp4-p0.md): the 57 % counts fmas that share a dual instruction with any op, mostly an unpack/index op. Only 68 of the dual instructions pair two fmas, so about 13 % of the fmas pair with another fma. The `v_and`/`v_lshl` total (~330) includes ~134 fp4 index ops; the bf16 unpack itself is ~200.
+
 Order-preserving changes tried in the harness (experiment branch `lane-mr/hip-mxfp4-alu-experiment`, not a PR; every row bitwise the M=1 launch, 0 mismatches):
 
 * reduce-scatter warp sum: the same xor 16, 8, 4, 2, 1 pairing for all R x M accumulators of a lane, but each step exchanges only the half the partner keeps, so about 31

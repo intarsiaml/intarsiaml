@@ -1,0 +1,97 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:726:9
+    |
+726 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.07s
+     Running tests/mxfp4_fold.rs (/target/release/deps/mxfp4_fold-ec6a33cd8540d588)
+
+running 4 tests
+test fold_falls_back_bitwise ... ok
+test fold_matches_mma_closely ... m=256 n=1024 k=5120: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 262144 of 262144 outputs bitwise
+m=300 n=640 k=17408: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 192000 of 192000 outputs bitwise
+m=2048 n=512 k=6144: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 1048576 of 1048576 outputs bitwise
+m=130 n=48 k=5120: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 6240 of 6240 outputs bitwise
+ok
+test fold_rows_do_not_depend_on_m ... n=17408 k=5120 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 5222400 outputs
+n=5120 k=17408 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 1536000 outputs
+n=10240 k=5120 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 3072000 outputs
+n=5120 k=6144 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 1536000 outputs
+n=6144 k=5120 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 1843200 outputs
+n=12288 k=5120 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 3686400 outputs
+n=1024 k=5120 F32: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 307200 outputs
+n=48 k=5120 Bf16: rows independent of M at 13 sizes; v2 differs from the fold on 0 of 14400 outputs
+ok
+test fold_wide_activation_span ... wide span: rel L2 fold 4.12e-5, mma 2.30e-6
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.51s
+
+     Running tests/mxfp4_v2.rs (/target/release/deps/mxfp4_v2-aef003b7074df676)
+
+running 3 tests
+test v2_is_bitwise_v1 ... ok
+test v2_is_bitwise_v1_on_every_scale_byte ... adversarial m=256 n=512 k=5120: 15714 of 16384 checked outputs round (f32 chain != f64 exact)
+adversarial m=300 n=640 k=17408: 20445 of 20480 checked outputs round (f32 chain != f64 exact)
+adversarial m=2048 n=1024 k=6144: 31756 of 32768 checked outputs round (f32 chain != f64 exact)
+ok
+test v2_rows_do_not_depend_on_m ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.77s
+
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 8 tests
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:24/24/1942704 2:24/48/3885408 3:24/72/5828112 4:24/96/7770816 5:24/120/9713520 6:24/144/11656224 7:24/168/13598928 8:24/192/15541632 9:24/216/17484336 10:24/240/19427040 11:24/264/21369744 12:24/288/23312448 13:24/312/25255152 14:24/336/27197856 15:24/360/29140560 16:24/384/31083264
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:22/22/88100 2:22/44/176200 3:22/66/264300 4:22/88/352400 5:22/110/440500 6:22/132/528600 7:22/154/616700 8:22/176/704800 9:22/198/792900 10:22/220/881000 11:22/242/969100 12:22/264/1057200 13:22/286/1145300 14:22/308/1233400 15:22/330/1321500 16:22/352/1409600
+ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... G-B fp8 matmul_fp8_gemv_rows: M:cases/rows/bytes 1:132/132/550044 2:132/264/1100088 3:132/396/1650132 4:132/528/2200176 5:132/660/2750220 6:132/792/3300264 7:132/924/3850308 8:132/1056/4400352 9:132/1188/4950396 10:132/1320/5500440 11:132/1452/6050484 12:132/1584/6600528 13:132/1716/7150572 14:132/1848/7700616 15:132/1980/8250660 16:132/2112/8800704
+ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... G-B moe moe_experts_bf16_rows: M:cases/rows/bytes 1:16/16/34816 2:16/32/69632 3:16/48/104448 4:16/64/139264 5:16/80/174080 6:16/96/208896 7:16/112/243712 8:16/128/278528 9:16/144/313344 10:16/160/348160 11:16/176/382976 12:16/192/417792 13:16/208/452608 14:16/224/487424 15:16/240/522240 16:16/256/557056
+ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:48/48/693012 2:48/96/1386024 3:48/144/2079036 4:48/192/2772048 5:48/240/3465060 6:48/288/4158072 7:48/336/4851084 8:48/384/5544096 9:48/432/6237108 10:48/480/6930120 11:48/528/7623132 12:48/576/8316144 13:48/624/9009156 14:48/672/9702168 15:48/720/10395180 16:48/768/11088192
+ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... G-B nvfp4 matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:32/32/6006480 2:32/64/12012960 3:32/96/18019440 4:32/128/24025920 5:32/160/30032400 6:32/192/36038880 7:32/224/42045360 8:32/256/48051840 9:32/288/54058320 10:32/320/60064800 11:32/352/66071280 12:32/384/72077760 13:32/416/78084240 14:32/448/84090720 15:32/480/90097200 16:32/512/96103680
+ok
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel argmax_f32: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel embedding_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel gated_rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_combine_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_topk_bf16: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel moe_topk_bf16_v2: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel rmsnorm_add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel sigmoid_mul_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel silu_glu_bf16: M:cases/rows/bytes 16:1/16/0
+ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 19.75s
+

@@ -1,0 +1,3 @@
+hip trace: 16 batches, 12032 launches, kernel GPU time 2205.5 ms, stream wall time 2249.7 ms, idle between launches 44.2 ms (2% of wall)
+hip trace gaps after launches of < 0.1 ms: n 8972 sum 33.05 ms, us min 3.4 p10 3.5 median 3.6 p90 3.7 max 9.6
+hip trace gaps after launches of 0.1 to 1 ms: n 2401 sum 8.77 ms, us min 3.4 p10 3.5 median 3.6 p90 3.7 max 9.6
