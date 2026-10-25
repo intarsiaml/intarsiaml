@@ -84,7 +84,7 @@ pub struct LoadOptions {
     /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
-    pub mtp_draft_vocab: usize,
+    pub mtp_draft_vocab: Option<usize>,
 }
 
 impl Default for LoadOptions {
@@ -103,7 +103,7 @@ impl Default for LoadOptions {
             tp_fusion: false,
             mtp: false,
             mtp_k: 0,
-            mtp_draft_vocab: 0,
+            mtp_draft_vocab: None,
         }
     }
 }
@@ -1022,22 +1022,29 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
-        let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
+        let dv = recipe.resolve_mtp_draft_vocab(opts.mtp_draft_vocab, b.name());
+        let draft_vocab = dv.value;
+        if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
+            eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
+        }
+        let draft_head = if opts.mtp && draft_vocab > 0 {
             match lm_head.as_ref() {
                 None => {
-                    eprintln!(
-                        "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
-                        opts.mtp_draft_vocab, tp.rank
-                    );
+                    if opts.mtp_draft_vocab.is_some() {
+                        eprintln!(
+                            "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
+                            draft_vocab, tp.rank
+                        );
+                    }
                     None
                 }
-                Some(h) => match h.row_prefix(opts.mtp_draft_vocab) {
+                Some(h) => match h.row_prefix(draft_vocab) {
                     Some(d) => Some(d),
                     None => {
                         eprintln!(
                             "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
                              not EXL3); drafting with the full head",
-                            opts.mtp_draft_vocab, h.n, h.format
+                            draft_vocab, h.n, h.format
                         );
                         None
                     }

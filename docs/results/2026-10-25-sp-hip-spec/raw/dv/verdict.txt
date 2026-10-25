@@ -1,0 +1,35 @@
+dev source: 835d0103f391b8f1f9c9414d3a8206f9e619a2a8; base source: 5241377bf24c39a4a8b3782acf082c1dc1e3fa38
+== card 0 (main)
+b-off n128 md5=abcdf0cf | decode 7692 ms (33.15 tok/s) | 
+b-mtp n128 md5=abcdf0cf | decode 5059 ms (50.40 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+b-off n1024 md5=3592ef43 | decode 7737 ms (32.96 tok/s) | 
+b-mtp n1024 md5=3592ef43 | decode 5302 ms (48.09 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)
+== card 1 (branch)
+d-off n128 md5=abcdf0cf | decode 7694 ms (33.14 tok/s) | 
+d-def n128 md5=abcdf0cf | decode 4475 ms (56.98 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-v0 n128 md5=abcdf0cf | decode 5051 ms (50.49 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-v65536 n128 md5=abcdf0cf | decode 4485 ms (56.85 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-off n1024 md5=3592ef43 | decode 7731 ms (32.99 tok/s) | 
+d-def n1024 md5=3592ef43 | decode 4752 ms (53.66 tok/s) | spec: verify passes=105 proposed=210 accepted=149 (acceptance 71.0%, 2.42 tokens per pass)
+d-v0 n1024 md5=3592ef43 | decode 5306 ms (48.06 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)
+d-v65536 n1024 md5=3592ef43 | decode 4756 ms (53.62 tok/s) | spec: verify passes=105 proposed=210 accepted=149 (acceptance 71.0%, 2.42 tokens per pass)
+PASS 27B spec off: plan show text byte-identical to main (2961 B)
+PASS 27B spec off: plan show json byte-identical to main (13869 B)
+PASS n128: spec-off ids == main's
+PASS n128: MTP k=2 with the recipe default (no flag) ids == spec off
+PASS n128: MTP k=2 --mtp-draft-vocab 65536 ids == spec off
+PASS n128: MTP k=2 --mtp-draft-vocab 0 ids == spec off
+PASS n128: default acceptance == explicit 65536 (passes=100 proposed=199 accepted=154)
+PASS n128: --mtp-draft-vocab 0 acceptance == main's full head (passes=100 proposed=199 accepted=154)
+PASS n128: the load log names the recipe default (recipe qwen3_5_vl, hip)
+PASS n128: no recipe-default line with --mtp-draft-vocab 0
+PASS n1024: spec-off ids == main's
+PASS n1024: MTP k=2 with the recipe default (no flag) ids == spec off
+PASS n1024: MTP k=2 --mtp-draft-vocab 65536 ids == spec off
+PASS n1024: MTP k=2 --mtp-draft-vocab 0 ids == spec off
+PASS n1024: default acceptance == explicit 65536 (passes=105 proposed=210 accepted=149)
+PASS n1024: --mtp-draft-vocab 0 acceptance == main's full head (passes=104 proposed=208 accepted=150)
+PASS n1024: the load log names the recipe default (recipe qwen3_5_vl, hip)
+PASS n1024: no recipe-default line with --mtp-draft-vocab 0
+[dv] done: 0 failing check(s)
+[dv] radiance active after 35 s

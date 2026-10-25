@@ -1,0 +1,4 @@
+b-off n128 md5=abcdf0cf | decode 7692 ms (33.15 tok/s) | 
+b-mtp n128 md5=abcdf0cf | decode 5059 ms (50.40 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+b-off n1024 md5=3592ef43 | decode 7737 ms (32.96 tok/s) | 
+b-mtp n1024 md5=3592ef43 | decode 5302 ms (48.09 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)
