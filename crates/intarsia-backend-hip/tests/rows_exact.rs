@@ -56,6 +56,21 @@ impl Rig {
         TensorRef::new(buf, t.dtype, &t.shape)
     }
 
+    /// A dense fp8 weight; with INTARSIA_WG_FRAG=1 rearranged into fragment order (`Layout::Fp8Frag`) when the shape allows it, so the
+    /// row-invariance proof of the WMMA family runs on tagged weights too (lane wg).
+    fn put_w(&self, t: &HostTensor) -> TensorRef {
+        let w = self.put(t);
+        if std::env::var("INTARSIA_WG_FRAG").as_deref() == Ok("1")
+            && t.dtype == DType::Fp8E4m3
+            && t.shape.len() == 2
+            && intarsia_core::quant::fp8::frag_eligible(t.shape[0], t.shape[1])
+        {
+            self.be.relayout_fp8_frag(&w).unwrap();
+            assert_eq!(w.layout(), intarsia_core::backend::Layout::Fp8Frag);
+        }
+        w
+    }
+
     /// Launch `kernel` on already uploaded inputs; the outputs start as a 0xA5 pattern (a NaN in bf16 / f32), so a row the
     /// kernel does not write cannot equal a computed one.
     fn run(&self, kernel: &str, op: Op, inputs: &[TensorRef], outs: &[(DType, Vec<usize>)], attrs: &OpAttrs) -> Vec<HostTensor> {
@@ -362,7 +377,7 @@ fn wmma_fp8_rows_are_bitwise_the_one_row_call() {
             let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
             let ws = hc.inputs[2].to_f32()[0];
             let scales = scales_tensor(if wide { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
-            let w = rig.put(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
+            let w = rig.put_w(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
             let sc = rig.put(&scales);
             let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), wmma_rows);
             for out_dt in [DType::Bf16, DType::F32] {

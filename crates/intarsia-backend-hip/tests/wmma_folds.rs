@@ -8,7 +8,7 @@
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::Backend;
-use intarsia_core::exec::{run_host, HostCall, OutSpec};
+use intarsia_core::exec::{run_host as run_host_plain, run_host_frag, HostCall, OutSpec};
 use intarsia_core::quant::cases::{
     gated_rmsnorm_matmul_fp8_case, matmul_fp8_pair_case, matmul_pair_case, rmsnorm_add_matmul_fp8_pair_case, rmsnorm_add_matmul_pair_case,
     sigmoid_mul_matmul_fp8_case,
@@ -27,6 +27,20 @@ fn device() -> Option<Arc<dyn Backend>> {
             None
         }
     }
+}
+
+/// Every launch of this file. With INTARSIA_WG_FRAG=1 a HIP launch also runs on weights rearranged into fragment order (`Layout::Fp8Frag`) and
+/// must give the bytes of the row-major run (same sums, other addresses); the tagged outputs are returned. Run the file once with it set.
+fn run_host(be: &dyn Backend, kernel: &str, hc: &HostCall) -> intarsia_core::Result<Vec<HostTensor>> {
+    let plain = run_host_plain(be, kernel, hc)?;
+    if be.name() != "hip" || std::env::var("INTARSIA_WG_FRAG").as_deref() != Ok("1") {
+        return Ok(plain);
+    }
+    let tagged = run_host_frag(be, kernel, hc)?;
+    for (i, (t, p)) in tagged.iter().zip(&plain).enumerate() {
+        assert!(t.data == p.data, "{kernel}: output {i} on fragment-order weights differs from the row-major run");
+    }
+    Ok(tagged)
 }
 
 fn rel_l2(a: &[f32], b: &[f32]) -> f64 {

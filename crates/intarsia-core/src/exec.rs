@@ -41,7 +41,24 @@ fn put(backend: &dyn Backend, t: &HostTensor) -> Result<TensorRef> {
 
 /// Upload inputs, launch `kernel`, synchronise, download outputs.
 pub fn run_host(backend: &dyn Backend, kernel: &str, hc: &HostCall) -> Result<Vec<HostTensor>> {
+    run_host_in(backend, kernel, hc, false)
+}
+
+/// [`run_host`] with every dense fp8 weight the backend can store in fragment order (2-D e4m3 input,
+/// `quant::fp8::frag_eligible`) rearranged first (`Backend::relayout_fp8_frag`): runs `kernel` on tagged weights (lane wg, HIP only).
+pub fn run_host_frag(backend: &dyn Backend, kernel: &str, hc: &HostCall) -> Result<Vec<HostTensor>> {
+    run_host_in(backend, kernel, hc, true)
+}
+
+fn run_host_in(backend: &dyn Backend, kernel: &str, hc: &HostCall, frag: bool) -> Result<Vec<HostTensor>> {
     let inputs: Vec<TensorRef> = hc.inputs.iter().map(|t| put(backend, t)).collect::<Result<_>>()?;
+    if frag {
+        for t in &inputs {
+            if t.dtype == DType::Fp8E4m3 && t.shape.len() == 2 && crate::quant::fp8::frag_eligible(t.shape[0], t.shape[1]) {
+                backend.relayout_fp8_frag(t)?;
+            }
+        }
+    }
     let mut outputs = Vec::new();
     for o in &hc.outputs {
         let t = match &o.init {
