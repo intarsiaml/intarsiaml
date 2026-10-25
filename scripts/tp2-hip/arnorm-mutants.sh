@@ -44,5 +44,7 @@ PY
   echo "mutant $name: $(ls -la "$MUT/mutbin/$name" 2>&1 | awk '{print $5}') bytes"
 done < <(mutants)
 # the clean tree again, so the volume matches what the window runs; and its executable, for the record
+# (cargo decides by mtime: the clean file is older than the last mutant's build, so touch it or the volume keeps the last mutant)
+touch "$SRC/kernels/hip/ar_norm.hip"
 exe=$(build "$SRC" ~/tp2/logs/mut-clean.log)
 echo "clean: $exe"; ls -la "$MUT/mutbin"
