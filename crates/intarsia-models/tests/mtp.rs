@@ -826,3 +826,118 @@ fn captured_spec_step_survives_every_acceptance_pattern() {
         assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
     }
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// the dense head (Qwen3.8-27B layout: a dense SwiGLU layer where the 35B has the MoE)
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The dense tiny hybrid (`fixture`, recipe `qwen3_5`) plus an MTP head with a dense MLP (bf16 gate / up / down).
+fn dense_weights(seed: u64) -> MemWeights {
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    let mut w = MemWeights::new();
+    for name in src.names() {
+        let info = src.info(&name).unwrap();
+        w.insert(&name, HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap());
+    }
+    let mut rng = SplitMix64::new(seed);
+    let (m, l) = ("mtp", "mtp.layers.0");
+    w.insert(&format!("{m}.fc.weight"), bf16(&mut rng, &[H, 2 * H], 0.15));
+    for n in [
+        format!("{m}.pre_fc_norm_embedding"),
+        format!("{m}.pre_fc_norm_hidden"),
+        format!("{m}.norm"),
+        format!("{l}.input_layernorm"),
+        format!("{l}.post_attention_layernorm"),
+    ] {
+        w.insert(&format!("{n}.weight"), bf16(&mut rng, &[H], 0.2));
+    }
+    w.insert(&format!("{l}.self_attn.q_proj.weight"), bf16(&mut rng, &[NH * HD * 2, H], 0.15));
+    w.insert(&format!("{l}.self_attn.k_proj.weight"), bf16(&mut rng, &[NKV * HD, H], 0.15));
+    w.insert(&format!("{l}.self_attn.v_proj.weight"), bf16(&mut rng, &[NKV * HD, H], 0.15));
+    w.insert(&format!("{l}.self_attn.o_proj.weight"), bf16(&mut rng, &[H, NH * HD], 0.15));
+    w.insert(&format!("{l}.self_attn.q_norm.weight"), bf16(&mut rng, &[HD], 0.2));
+    w.insert(&format!("{l}.self_attn.k_norm.weight"), bf16(&mut rng, &[HD], 0.2));
+    const DI: usize = 96; // the fixture's intermediate_size
+    w.insert(&format!("{l}.mlp.gate_proj.weight"), bf16(&mut rng, &[DI, H], 0.15));
+    w.insert(&format!("{l}.mlp.up_proj.weight"), bf16(&mut rng, &[DI, H], 0.15));
+    w.insert(&format!("{l}.mlp.down_proj.weight"), bf16(&mut rng, &[H, DI], 0.15));
+    w
+}
+
+fn dense_engine(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
+    let cfg: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(fixture_dir().join("config.json")).unwrap()).unwrap();
+    let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: k.is_some(),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    let spec = match k {
+        Some(k) => {
+            m.enable_verify(k + 1).unwrap();
+            m.configure_plan(&Default::default(), None).unwrap();
+            if script.is_some() {
+                m.mtp_script(script).unwrap();
+            }
+            SpecConfig { mode: SpecMode::Mtp, k }
+        }
+        None => SpecConfig::default(),
+    };
+    let e = LocalEngine::new(
+        m,
+        Arc::new(ByteCodec),
+        EngineMeta { id: "tiny-dense-mtp".into(), eos_ids: vec![], spec, ..Default::default() },
+        tel.clone(),
+    )
+    .unwrap();
+    (e, tel)
+}
+
+/// The dense head drafts and the greedy output stays token-identical to `--spec off`, eager and captured, with every
+/// acceptance pattern (scripted drafts).
+#[test]
+fn dense_mtp_head_keeps_greedy_output_identical() {
+    let w = dense_weights(21);
+    let (off, _) = dense_engine(CpuBackend::arc(), &w, None, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        for captured in [false, true] {
+            let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+            let (on, tel) = dense_engine(backend, &w, Some(k), Some(scripted(truth.clone(), k as u64)));
+            for p in PROMPTS {
+                let (a, b) = (run(&off, req(p, 200)), run(&on, req(p, 200)));
+                assert_eq!(a, b, "k {k} captured {captured} prompt {p:?}");
+                for n in [1usize, 3, 8] {
+                    let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                    assert_eq!(a, b, "k {k} captured {captured} max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
+        }
+        // the head's own drafts too
+        let (on, tel) = dense_engine(CpuBackend::arc(), &w, Some(k), None);
+        for p in PROMPTS {
+            assert_eq!(run(&off, req(p, 120)), run(&on, req(p, 120)), "k {k} head drafts, prompt {p:?}");
+        }
+        assert!(tel.snapshot().spec_proposed > 0, "k {k}: the dense head drafted");
+    }
+}
