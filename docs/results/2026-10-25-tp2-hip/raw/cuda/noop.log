@@ -1,0 +1,33 @@
+fleetq: #5254 running on spark1: ssh spark1 'bash ~/intarsia-decfuse/tp2-src-dev/scripts/tp2-hip/cuda-noop.sh'
+fleetq: #5254 went ahead of the line and must end within 1h47m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+== sync
+== build tp2-base
+    Finished `release` profile [optimized] target(s) in 23.61s
+== build tp2-dev
+    Finished `release` profile [optimized] target(s) in 23.62s
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+ids 8 short: identical (256 ids, sha b8edafab)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8758 B)
+plan 8 txt: byte-identical (1478 B)
+ids 35 short: identical (256 ids, sha 4e8fc691)
+ids 35 4k: identical (256 ids, sha 905cb3f0)
+plan 35 json: byte-identical (13975 B)
+plan 35 txt: byte-identical (3505 B)
+== kernels test --quick (dev)
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.4s
+== tests on the head
+test result: ok. 115 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.62s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.37s
+== done
+fleetq: #5254 done (exit 0)
