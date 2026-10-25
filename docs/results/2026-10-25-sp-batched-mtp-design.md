@@ -24,7 +24,7 @@ Lane sp, 2026-10-25. Design only: no code, no fleet slot. Base: `origin/main` 52
 
 | piece | where | what it does now |
 |---|---|---|
-| refusal | `crates/intarsia-models/src/load.rs:290` | `--spec mtp` with `--max-batch > 1` returns `Unsupported` before weights are read |
+| refusal | `crates/intarsia-models/src/load.rs:292` | `--spec mtp` with `--max-batch > 1` returns `Unsupported` before weights are read |
 | scheduler hook | `scheduler.rs` `BatchSeq::prepare(model, slot, spec_allowed, busy)` | a speculating sequence may run its own verify on its own slot and return `SeqStep::Ready`; `spec_allowed = B < spec_off_at` (default 4); a verify pass here is "a whole extra weight pass beside the batched step" |
 | multi-token runs | `engine::Seq` `pending` + `SeqStep::Ready` | a verified run's tokens are delivered one per scheduler iteration |
 | single-sequence step | `Model::spec_step` (captured) / `mtp_draft` + `forward_verify` (eager) | draft (catch-up over n queued rows, then k-1 chain rows) and verify (k+1 rows, row-exact kernels, per-row attention on HIP) |
