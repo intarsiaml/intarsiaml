@@ -25,9 +25,10 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
     ("matmul_mxfp4_mma", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv", Op::MatmulMxfp4Pair),
-    // row-exact aliases of the two GEMVs (`rows_exact`): the launcher is the same, because each output row of the M <= 8
-    // kernel runs the arithmetic of the one-row kernel on that row alone (same lane-to-group map, same fma chain, same warp
-    // sum; the activation QDQ is per group of 32), tests/rows_exact.rs
+    // row-exact twins of the two GEMVs (`rows_exact`, M <= ROWS_MAX = 16): M == 1 is the GEMV launcher itself, M = 2..16 runs
+    // mxfp4_gemv_rows_kernel, which keeps the arithmetic of every output row of the one-row kernel (same lane-to-group map,
+    // same fma chain, same warp sum; the activation QDQ is per group of 32) with a register shape that does not grow with M,
+    // tests/rows_exact.rs
     ("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair),
     ("moe_topk_bf16", Op::MoeTopk),
@@ -299,7 +300,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_gemv_rows" | "matmul_mxfp4_pair_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| (1..=8).contains(&s.m) && s.k % 32 == 0)
+                    .when(|s| (1..=crate::kernels::ROWS_MAX).contains(&s.m) && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
