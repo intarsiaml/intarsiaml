@@ -34,15 +34,26 @@ const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
 /// Fat-threadgroup forms of `DEC_GU_X` / `DEC_DN_X` (rows per simdgroup; `a`: arithmetic e2m1 decode).
-const GU_X2: [(&str, usize); 5] = [
+const GU_X2: [(&str, usize); 10] = [
+    ("moe_dec_gu_x2_r1_xr1", 1),
+    ("moe_dec_gu_x2_r4_xr1", 4),
+    ("moe_dec_gu_x2_r2_xr1", 2),
+    ("moe_dec_gu_x2_r2_xr2", 2),
+    ("moe_dec_gu_x2_r2_xr4", 2),
     ("moe_dec_gu_x2_r1", 1),
     ("moe_dec_gu_x2_r2", 2),
     ("moe_dec_gu_x2_r4", 4),
     ("moe_dec_gu_x2_r2a", 2),
     ("moe_dec_gu_x2_r4a", 4),
 ];
-const DN_X2: [(&str, usize); 5] = [
+const DN_X2: [(&str, usize); 11] = [
+    ("moe_dec_dn_x2_r2_xr1", 2),
+    ("moe_dec_dn_x2_r8_xr1", 8),
+    ("moe_dec_dn_x2_r4_xr1", 4),
+    ("moe_dec_dn_x2_r4_xr2", 4),
+    ("moe_dec_dn_x2_r4_xr4", 4),
     ("moe_dec_dn_x2_r1", 1),
+    ("moe_dec_dn_x2_r2", 2),
     ("moe_dec_dn_x2_r4", 4),
     ("moe_dec_dn_x2_r8", 8),
     ("moe_dec_dn_x2_r4a", 4),
@@ -50,10 +61,10 @@ const DN_X2: [(&str, usize); 5] = [
 ];
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 29] = [
+pub const SHADERS: [&str; 40] = [
     TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
-    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_X2[0].0, GU_X2[1].0, GU_X2[2].0, GU_X2[3].0,
-    GU_X2[4].0, DN_X2[0].0, DN_X2[1].0, DN_X2[2].0, DN_X2[3].0, DN_X2[4].0,
+    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_X2[0].0, GU_X2[1].0, GU_X2[2].0, GU_X2[3].0, GU_X2[4].0, GU_X2[5].0, GU_X2[6].0, GU_X2[7].0, GU_X2[8].0, GU_X2[9].0,
+    DN_X2[0].0, DN_X2[1].0, DN_X2[2].0, DN_X2[3].0, DN_X2[4].0, DN_X2[5].0, DN_X2[6].0, DN_X2[7].0, DN_X2[8].0, DN_X2[9].0, DN_X2[10].0,
 ];
 
 /// The rows-path gate+up / down shaders and rows per simdgroup: `INTARSIA_METAL_MOE_ROWS_GU` / `_DN` name one of

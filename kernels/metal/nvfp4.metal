@@ -159,6 +159,11 @@ NV_GEMV(nv_gemv_bf16_m1, 1, 4, ushort)
 NV_GEMV(nv_gemv_bf16_m8, 8, 2, ushort)
 NV_GEMV(nv_gemv_f32_m1, 1, 4, float)
 NV_GEMV(nv_gemv_f32_m8, 8, 2, float)
+// M split across threadgroups for the narrow matrices of a batched step (lane mm): the same per-row arithmetic
+NV_GEMV(nv_gemv_bf16_m2, 2, 2, ushort)
+NV_GEMV(nv_gemv_bf16_m4, 4, 2, ushort)
+NV_GEMV(nv_gemv_f32_m2, 2, 2, float)
+NV_GEMV(nv_gemv_f32_m4, 4, 2, float)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 

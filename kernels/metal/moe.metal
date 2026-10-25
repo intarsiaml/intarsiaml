@@ -619,6 +619,44 @@ MOE_GATHER(moe_gather_f32, float)
 // of the one-token kernels. AD: the e2m1 codes are decoded arithmetically (exact: the half with the code's bits at 9..11
 // and 15 is value * 2^-14, times 2^14) instead of through the constant table; the values, hence the bits, are the same.
 
+
+// moe_lead with XR pairs per leader (XR = 1: every pair is its own leader, no grouping)
+template <uint XR>
+inline bool moe_lead_t(device const int* ids, uint P, uint E, uint pr, uint lane, thread uint& e, thread uint& rows,
+                       thread uint* pl) {
+    const int id = ids[pr];
+    if (id < 0 || (uint)id >= E) return false;
+    if (XR == 1) {
+        e = (uint)id;
+        rows = 1;
+        pl[0] = pr;
+        return true;
+    }
+    uint rank = 0;
+    for (uint base = 0; base < pr; base += 32u) {
+        const int v = (base + lane < P) ? ids[base + lane] : -1;
+        ulong m = (ulong)simd_ballot(v == id);
+        const uint lim = min(pr - base, 32u);
+        m &= (lim >= 32u) ? 0xFFFFFFFFul : ((1ul << lim) - 1ul);
+        rank += (uint)popcount(m);
+    }
+    if (rank % XR != 0) return false;
+    e = (uint)id;
+    rows = 0;
+    uint seen = 0;
+    for (uint base = 0; base < P && rows < XR; base += 32u) {
+        const int v = (base + lane < P) ? ids[base + lane] : -1;
+        ulong m = (ulong)simd_ballot(v == id);
+        while (m != 0ul && rows < XR) {
+            const uint b = (uint)ctz(m);
+            m &= m - 1ul;
+            if (seen >= rank) pl[rows++] = base + b;
+            seen++;
+        }
+    }
+    return true;
+}
+
 inline float moe_fp4a(uint c) {
     return float(as_type<half>(ushort(((c & 7u) << 9) | ((c & 8u) << 12)))) * 16384.f;
 }
@@ -635,15 +673,15 @@ inline float moe_blk_dot2(uint2 wv, thread const float* xv) {
 }
 
 // gate + up: grid (ceil(I / (4 * RG)), pairs)
-template <uint RG, bool AD>
+template <uint RG, bool AD, uint XR = MOE_XR, bool NEG = false>
 inline void moe_dec_gu_x2_impl(device const ushort* x, device const int* ids, device const uchar* guw,
                                device const uchar* gus, device const float* gsc, device ushort* h, constant OpP& p,
                                uint2 tg, uint sg, uint lane) {
     const uint r0 = (tg.x * MOE_DEC_SG + sg) * RG;
     const uint T = p.a, E = p.b, K = p.c, H = p.d, I = p.e;
     uint e, rows;
-    uint pl[MOE_XR];
-    if (!moe_lead(ids, T * K, E, tg.y, lane, e, rows, pl)) return;  // uniform over the threadgroup
+    uint pl[XR];
+    if (!moe_lead_t<XR>(ids, T * K, E, tg.y, lane, e, rows, pl)) return;  // uniform over the threadgroup
     if (r0 >= I) return;
     device const packed_uint2* wg[RG];
     device const packed_uint2* wu[RG];
@@ -667,7 +705,8 @@ inline void moe_dec_gu_x2_impl(device const ushort* x, device const int* ids, de
             float xv[16];
             for (int i = 0; i < 16; ++i) xv[i] = bf2f(xr[u * 16 + i]);
             for (uint j = 0; j < RG; ++j) {
-                ag[j] = fma(moe_blk_dot2<AD>(uint2(wg[j][u]), xv), moe_e4m3(sgp[j][u]), ag[j]);
+                const float dg = moe_blk_dot2<AD>(uint2(wg[j][u]), xv);
+                ag[j] = NEG ? ag[j] + dg * moe_e4m3(sgp[j][u]) : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
                 au[j] = fma(moe_blk_dot2<AD>(uint2(wu[j][u]), xv), moe_e4m3(sup[j][u]), au[j]);
             }
         }
@@ -683,15 +722,15 @@ inline void moe_dec_gu_x2_impl(device const ushort* x, device const int* ids, de
 }
 
 // down: grid (ceil(H / (4 * RD)), pairs); y[pair, n] = bf16(simd_sum * gs)
-template <uint RD, bool AD>
+template <uint RD, bool AD, uint XR = MOE_XR, bool NEG = false>
 inline void moe_dec_dn_x2_impl(device const ushort* h, device const int* ids, device const uchar* dw,
                                device const uchar* ds, device const float* gsc, device ushort* y, constant OpP& p,
                                uint2 tg, uint sg, uint lane) {
     const uint n0 = (tg.x * MOE_DEC_SG + sg) * RD;
     const uint T = p.a, E = p.b, K = p.c, H = p.d, I = p.e;
     uint e, rows;
-    uint pl[MOE_XR];
-    if (!moe_lead(ids, T * K, E, tg.y, lane, e, rows, pl)) return;  // uniform over the threadgroup
+    uint pl[XR];
+    if (!moe_lead_t<XR>(ids, T * K, E, tg.y, lane, e, rows, pl)) return;  // uniform over the threadgroup
     if (n0 >= H) return;
     device const packed_uint2* wr[RD];
     device const uchar* sr[RD];
@@ -707,7 +746,11 @@ inline void moe_dec_dn_x2_impl(device const ushort* h, device const int* ids, de
         for (uint u = lane; u < I / 16; u += 32u) {
             float hv[16];
             for (int i = 0; i < 16; ++i) hv[i] = bf2f(hr[u * 16 + i]);
-            for (uint j = 0; j < RD; ++j) s[j] = fma(moe_blk_dot2<AD>(uint2(wr[j][u]), hv), moe_e4m3(sr[j][u]), s[j]);
+            for (uint j = 0; j < RD; ++j) {
+                const float d = moe_blk_dot2<AD>(uint2(wr[j][u]), hv);
+                // NEG (negative control only): the scale applied after the product instead of in the fma
+                s[j] = NEG ? s[j] + d * moe_e4m3(sr[j][u]) : fma(d, moe_e4m3(sr[j][u]), s[j]);
+            }
         }
         for (uint j = 0; j < RD; ++j) {
             const float t = simd_sum(s[j]);
@@ -716,29 +759,44 @@ inline void moe_dec_dn_x2_impl(device const ushort* h, device const int* ids, de
     }
 }
 
-#define MOE_GU_X2(NAME, RG, AD)                                                                                     \
+#define MOE_GU_X2X(NAME, RG, AD, XR) MOE_GU_X2N(NAME, RG, AD, XR, false)
+#define MOE_GU_X2N(NAME, RG, AD, XR, NEG)                                                                                     \
     kernel void NAME(device const ushort* x [[buffer(0)]], device const int* ids [[buffer(1)]],                    \
                      device const uchar* guw [[buffer(2)]], device const uchar* gus [[buffer(3)]],                  \
                      device const float* gsc [[buffer(4)]], device ushort* h [[buffer(5)]],                         \
                      constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                      \
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
-        moe_dec_gu_x2_impl<RG, AD>(x, ids, guw, gus, gsc, h, p, tg, sg, lane);                                      \
+        moe_dec_gu_x2_impl<RG, AD, XR, NEG>(x, ids, guw, gus, gsc, h, p, tg, sg, lane);                                      \
     }
-#define MOE_DN_X2(NAME, RD, AD)                                                                                     \
+#define MOE_DN_X2X(NAME, RD, AD, XR) MOE_DN_X2N(NAME, RD, AD, XR, false)
+#define MOE_DN_X2N(NAME, RD, AD, XR, NEG)                                                                                     \
     kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                    \
                      device const uchar* dw [[buffer(2)]], device const uchar* ds [[buffer(3)]],                    \
                      device const float* gsc [[buffer(4)]], device ushort* y [[buffer(5)]],                         \
                      constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                      \
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
-        moe_dec_dn_x2_impl<RD, AD>(h, ids, dw, ds, gsc, y, p, tg, sg, lane);                                        \
+        moe_dec_dn_x2_impl<RD, AD, XR, NEG>(h, ids, dw, ds, gsc, y, p, tg, sg, lane);                                        \
     }
 
+#define MOE_GU_X2(NAME, RG, AD) MOE_GU_X2X(NAME, RG, AD, MOE_XR)
+#define MOE_DN_X2(NAME, RD, AD) MOE_DN_X2X(NAME, RD, AD, MOE_XR)
+MOE_GU_X2X(moe_dec_gu_x2_r2_xr1, 2, false, 1)
+MOE_GU_X2X(moe_dec_gu_x2_r1_xr1, 1, false, 1)
+MOE_GU_X2X(moe_dec_gu_x2_r4_xr1, 4, false, 1)
+MOE_DN_X2X(moe_dec_dn_x2_r2_xr1, 2, false, 1)
+MOE_DN_X2X(moe_dec_dn_x2_r8_xr1, 8, false, 1)
+MOE_GU_X2X(moe_dec_gu_x2_r2_xr2, 2, false, 2)
+MOE_GU_X2X(moe_dec_gu_x2_r2_xr4, 2, false, 4)
+MOE_DN_X2X(moe_dec_dn_x2_r4_xr1, 4, false, 1)
+MOE_DN_X2X(moe_dec_dn_x2_r4_xr2, 4, false, 2)
+MOE_DN_X2X(moe_dec_dn_x2_r4_xr4, 4, false, 4)
 MOE_GU_X2(moe_dec_gu_x2_r1, 1, false)
 MOE_GU_X2(moe_dec_gu_x2_r2, 2, false)
 MOE_GU_X2(moe_dec_gu_x2_r4, 4, false)
 MOE_GU_X2(moe_dec_gu_x2_r2a, 2, true)
 MOE_GU_X2(moe_dec_gu_x2_r4a, 4, true)
 MOE_DN_X2(moe_dec_dn_x2_r1, 1, false)
+MOE_DN_X2(moe_dec_dn_x2_r2, 2, false)
 MOE_DN_X2(moe_dec_dn_x2_r4, 4, false)
 MOE_DN_X2(moe_dec_dn_x2_r8, 8, false)
 MOE_DN_X2(moe_dec_dn_x2_r4a, 4, true)

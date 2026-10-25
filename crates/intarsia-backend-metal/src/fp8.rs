@@ -19,7 +19,7 @@ pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 
 const XPREP: &str = "fp8_xprep_bf16";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 13] = [
+pub const SHADERS: [&str; 17] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -33,6 +33,10 @@ pub const SHADERS: [&str; 13] = [
     "fp8_gemv_f32_m8_xd",
     "fp8_gemv_bf16_m8_xd4",
     "fp8_gemv_f32_m8_xd4",
+    "fp8_gemv_bf16_m2_xd",
+    "fp8_gemv_bf16_m4_xd",
+    "fp8_gemv_f32_m2_xd",
+    "fp8_gemv_f32_m4_xd",
 ];
 
 /// Simdgroups per GEMV threadgroup (`FP8_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
@@ -220,19 +224,29 @@ impl MetalBackend {
             return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: M = {m} (2..=8 rows)")));
         }
         let scratch = call.scratch.as_ref().expect("checked by the caller");
-        if scratch.numel() * scratch.dtype.size_bytes() < m * k * 2 {
-            return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: scratch below {} bytes", m * k * 2)));
-        }
         let xs = self.bind(scratch, DType::U8, true, "scratch")?;
-        if xs.skip != 0 || xs.off % 16 != 0 {
-            return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: the scratch must be 16-byte aligned")));
+        // the GEMV reads q(x) as uint4: start it at the next 16-byte boundary inside the scratch's 16 bytes of slack
+        let pad = xs.off.next_multiple_of(16) - xs.off;
+        if xs.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < m * k * 2 + pad {
+            return Err(Error::invalid(format!(
+                "metal {MATMUL_FP8_GEMV_ROWS}: scratch of {} bytes at offset {}, need {} (4-byte aligned)",
+                scratch.numel() * scratch.dtype.size_bytes(),
+                xs.off,
+                m * k * 2 + pad
+            )));
         }
+        let xs = crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off + pad, skip: 0 };
         let rs4 = std::env::var("INTARSIA_METAL_FP8_XD_RS").is_ok_and(|v| v == "4");
-        let (name, rs) = match (f32_out, rs4) {
-            (false, false) => (SHADERS[9], 2),
-            (true, false) => (SHADERS[10], 2),
-            (false, true) => (SHADERS[11], 4),
-            (true, true) => (SHADERS[12], 4),
+        let mb = fp8_rows_mb(n);
+        let (name, rs, mb) = match (f32_out, rs4, mb) {
+            (false, _, 2) => (SHADERS[13], 2, 2),
+            (false, _, 4) => (SHADERS[14], 2, 4),
+            (true, _, 2) => (SHADERS[15], 2, 2),
+            (true, _, 4) => (SHADERS[16], 2, 4),
+            (false, false, _) => (SHADERS[9], 2, GEMV_MB),
+            (true, false, _) => (SHADERS[10], 2, GEMV_MB),
+            (false, true, _) => (SHADERS[11], 4, GEMV_MB),
+            (true, true, _) => (SHADERS[12], 4, GEMV_MB),
         };
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
@@ -264,7 +278,7 @@ impl MetalBackend {
             }
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: n.div_ceil(GEMV_SG * rs), height: 1, depth: 1 },
+                MTLSize { width: n.div_ceil(GEMV_SG * rs), height: m.div_ceil(mb), depth: 1 },
                 MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
             );
         })
@@ -280,4 +294,13 @@ fn xd_on() -> bool {
 /// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form).
 pub fn rows_scratch(s: &ShapeInfo) -> usize {
     s.m * s.k * 2 + 16
+}
+
+fn fp8_rows_mb(n: usize) -> usize {
+    static CFG: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
+    let (mb, narrow) = *CFG.get_or_init(|| {
+        let v = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+        (v("INTARSIA_METAL_FP8_ROWS_MB", 8), v("INTARSIA_METAL_FP8_NARROW_N", 4096))
+    });
+    if n <= narrow { mb } else { GEMV_MB }
 }
