@@ -1,0 +1,69 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   2.541e-3   2.818e-3   2.818e-3   1.540e-2   0.0324   0.0321    95.79     38/38      0
+story                 39    39   100.00   3.201e-3   3.157e-3   3.157e-3   1.844e-2   0.0220   0.0208    95.38     39/39      0
+code                  87    87    98.85   2.111e-3   1.686e-3   1.686e-3   8.726e-2   0.0111   0.0121    96.55     18/87      0
+science               79    79    97.47   9.568e-3   9.379e-3   9.379e-3   4.602e-1   0.0129   0.0119    96.46      0/79      0
+chat_short            18    18   100.00   5.135e-3   5.140e-3   5.140e-3   7.150e-2   0.0296   0.0291    94.44     18/18      0
+chat_system           32    32    90.62   3.195e-2   3.296e-2   3.296e-2   4.181e-1   0.0169   0.0220    92.50      9/32      0
+chat_multiturn        58    58   100.00   2.061e-3   2.087e-3   2.087e-3   4.080e-2   0.0185   0.0182    95.86     58/58      0
+chat_reasoning        90    90   100.00   6.340e-3   6.303e-3   6.303e-3   5.376e-2   0.0144   0.0145    96.44     90/90      0
+long_prose_300       300   300    99.67   3.520e-3   3.515e-3   3.515e-3   4.272e-1   0.0090   0.0090    90.87   211/300      0
+long_prose_700       700   700    99.43   3.600e-3   3.477e-3   3.477e-3   2.774e-1   0.0074   0.0077    89.80    31/700      0
+OVERALL                   1441    99.24   4.540e-3   4.471e-3   4.471e-3   4.602e-1   0.0107   0.0109    91.88     35.5%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way) vs ref noise                    4.4706e-3  (limit 6.3220e-3)  ok
+  max position KL(21-way)                         4.4659e-1  (limit 5.0000e-3)  over its budget, reported only (not gated in this mode)
+  top-1 flips                                      1.1000e1  (limit 7.0000e0)  over its budget, reported only (not gated in this mode)
+  mean |tail diff|                                9.1975e-4  (limit 5.0000e-4)  over its budget, reported only (not gated in this mode)
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_system]           3.2958e-2  (limit 5.0000e-4)  over its budget, reported only (not gated in this mode)
+  prompt KL / (prompt factor x its noise) [code +1 more over]     1.0462e0  (limit 1.0000e0)  FAIL
+prefill KL threshold [21-way KL]: no static floor | ref noise 3.161e-3 (all rows) x factor 2 (recipe qwen3_5_moe tp_ref_noise_factor, tp 2) = 6.322e-3 => effective 6.322e-3 bound by ref noise; KL 4.471e-3 PASS | KL / ref noise = 1.414 on all rows (the factor at which the noise term passes) | 10 prompts at 3 x their noise (default): 10 on their own noise, 0 on the mean noise; FAIL [code] KL 1.686e-3 > 1.612e-3 = 3 x 5.372e-4 (own prompt noise; needs prompt factor 3.14); FAIL [chat_system] KL 3.296e-2 > 3.288e-2 = 3 x 1.096e-2 (own prompt noise; needs prompt factor 3.01) => change vs base FAIL
+gate-definition: self_vs_base.mean KL(21-way) vs ref noise [prefill]: old def: FAIL 4.471e-3 (mean KL(21-way) <= budget, gated) | current def: PASS 4.471e-3 (mean KL(21-way) vs ref noise <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.max position KL(21-way) [prefill]: old def: FAIL 4.466e-1 (max position KL(21-way) <= budget, gated) | current def: NOT_GATED 4.466e-1 (max position KL(21-way): reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.top-1 flips [prefill]: old def: FAIL 1.100e1 (top-1 flips <= budget, gated) | current def: NOT_GATED 1.100e1 (top-1 flips: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.mean |tail diff| [prefill]: old def: FAIL 9.198e-4 (mean |tail diff| <= budget, gated) | current def: NOT_GATED 9.198e-4 (mean |tail diff|: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.worst prompt KL(21-way) [chat_system] [prefill]: old def: FAIL 3.296e-2 (worst prompt KL(21-way) [chat_system] <= budget, gated) | current def: NOT_GATED 3.296e-2 (worst prompt KL(21-way) [chat_system]: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.prompt KL / (prompt factor x its noise) [code +1 more over] [prefill]: old def: ABSENT - (no such check) | current def: FAIL 1.046e0 (prompt KL / (prompt factor x its noise) [code +1 more over] <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.overall [prefill]: old def: FAIL 5.000e0 (every self-golden budget gated) | current def: FAIL 1.000e0 (mean KL vs factor x reference noise and per-prompt check gated; other budgets reported) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+SELF-STATS mode=prefill positions=1441 mean_kl21=4.470586e-3 max_kl21=4.465856e-1 flips=11 flip_pct=0.7634 tail_abs=9.197549e-4 worst_prompt_kl21=3.295755e-2
+prefill self-golden => FAIL
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.703e-3   1.810e-3   1.810e-3   1.117e-2   0.0155   0.0141    93.75     16/16      0
+story                 39    16    93.75   9.748e-3   9.255e-3   9.255e-3   3.675e-2   0.0416   0.0405    97.50      4/16      0
+code                  87    16   100.00   2.112e-3   2.117e-3   2.117e-3   2.478e-2   0.0003   0.0003    95.00     16/16      0
+science               79    16   100.00   5.942e-3   5.872e-3   5.872e-3   1.495e-2   0.0192   0.0180    95.00     16/16      0
+chat_short            18    16    93.75   1.028e-2   1.032e-2   1.032e-2   1.365e-1   0.0333   0.0332    95.00     13/16      0
+chat_system           32    16   100.00   8.056e-3   8.116e-3   8.116e-3   5.823e-2   0.0310   0.0315    91.25     16/16      0
+chat_multiturn        58    16   100.00   4.713e-3   4.723e-3   4.723e-3   4.517e-2   0.0004   0.0004    97.50     16/16      0
+chat_reasoning        90    16   100.00   1.689e-3   1.724e-3   1.724e-3   7.534e-3   0.0003   0.0004    93.75     16/16      0
+long_prose_300       300    16   100.00   3.505e-4   3.532e-4   3.532e-4   3.925e-3   0.0001   0.0001    90.00     16/16      0
+long_prose_700       700    16   100.00   4.217e-3   4.251e-3   4.251e-3   4.445e-2   0.0003   0.0005    85.00     16/16      0
+OVERALL                    160    98.75   4.881e-3   4.854e-3   4.854e-3   1.365e-1   0.0142   0.0139    93.38     90.6%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way) vs ref noise                    4.8540e-3  (limit 6.3220e-3)  ok
+  max position KL(21-way)                         1.3641e-1  (limit 5.0000e-3)  over its budget, reported only (not gated in this mode)
+  top-1 flips                                      2.0000e0  (limit 1.0000e0)  over its budget, reported only (not gated in this mode)
+  mean |tail diff|                                1.0475e-3  (limit 5.0000e-4)  over its budget, reported only (not gated in this mode)
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [chat_short]            1.0318e-2  (limit 5.0000e-4)  over its budget, reported only (not gated in this mode)
+  prompt KL / (prompt factor x its noise) [code +1 more over]     1.3135e0  (limit 1.0000e0)  FAIL
+decode KL threshold [21-way KL]: no static floor | ref noise 3.161e-3 (all rows) x factor 2 (recipe qwen3_5_moe tp_ref_noise_factor, tp 2) = 6.322e-3 => effective 6.322e-3 bound by ref noise; KL 4.854e-3 PASS | KL / ref noise = 1.536 on all rows (the factor at which the noise term passes) | 10 prompts at 3 x their noise (default): 10 on their own noise, 0 on the mean noise; FAIL [story] KL 9.255e-3 > 9.219e-3 = 3 x 3.073e-3 (own prompt noise; needs prompt factor 3.01); FAIL [code] KL 2.117e-3 > 1.612e-3 = 3 x 5.372e-4 (own prompt noise; needs prompt factor 3.94) => change vs base FAIL
+gate-definition: self_vs_base.mean KL(21-way) vs ref noise [decode]: old def: FAIL 4.854e-3 (mean KL(21-way) <= budget, gated) | current def: PASS 4.854e-3 (mean KL(21-way) vs ref noise <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.max position KL(21-way) [decode]: old def: FAIL 1.364e-1 (max position KL(21-way) <= budget, gated) | current def: NOT_GATED 1.364e-1 (max position KL(21-way): reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.top-1 flips [decode]: old def: FAIL 2.000e0 (top-1 flips <= budget, gated) | current def: NOT_GATED 2.000e0 (top-1 flips: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.mean |tail diff| [decode]: old def: FAIL 1.047e-3 (mean |tail diff| <= budget, gated) | current def: NOT_GATED 1.047e-3 (mean |tail diff|: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.worst prompt KL(21-way) [chat_short] [decode]: old def: FAIL 1.032e-2 (worst prompt KL(21-way) [chat_short] <= budget, gated) | current def: NOT_GATED 1.032e-2 (worst prompt KL(21-way) [chat_short]: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.prompt KL / (prompt factor x its noise) [code +1 more over] [decode]: old def: ABSENT - (no such check) | current def: FAIL 1.313e0 (prompt KL / (prompt factor x its noise) [code +1 more over] <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.overall [decode]: old def: FAIL 5.000e0 (every self-golden budget gated) | current def: FAIL 1.000e0 (mean KL vs factor x reference noise and per-prompt check gated; other budgets reported) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+SELF-STATS mode=decode positions=160 mean_kl21=4.853977e-3 max_kl21=1.364147e-1 flips=2 flip_pct=1.2500 tail_abs=1.047478e-3 worst_prompt_kl21=1.031808e-2
+decode (teacher-forced) self-golden => FAIL
+greedy-match [prefill]: mean 62.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 90.6% of positions before the first argmax divergence, worst prompt 25.0% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL

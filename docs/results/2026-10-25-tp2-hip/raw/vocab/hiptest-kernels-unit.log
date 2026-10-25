@@ -1,0 +1,37 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:5
+   |
+36 | struct Captured {
+   |        -------- field in this struct
+37 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+
+running 11 tests
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::gdn_v3_knob ... ok
+test kernels::tests::lm_head_kernel_selection_does_not_depend_on_the_number_of_head_rows ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::phase1_fold_selection_is_pinned ... ok
+test kernels::tests::phase2_fold_selection_is_pinned ... ok
+test kernels::tests::round4_selection_is_pinned ... ok
+test kernels::tests::round5_attention_selection_is_pinned ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.03s
+

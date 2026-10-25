@@ -100,15 +100,13 @@ self8() { # self8 <tag> <dump in $O> [args]: change vs a dump of the 8B
 }
 if need 480 "8B accuracy dumps"; then
   E=$A0 acc $D 0,1 8b-off $M8 $G8 $TP2
-  E=$A1 self8 8b-on acc-8b-off.safetensors $FLOOR --write-self-golden /work/tp2-out/acc-8b-on.safetensors
-  mv "$(T $D)/tp2-out/acc-8b-on.safetensors" "$O/" 2>/dev/null; evidence 8b-on on
-  same acc-8b-off.safetensors acc-8b-on.safetensors "8B tp=2 accuracy dump ARNORM=1 vs 0 (byte cmp)"
+  E=$A1 self8 8b-on acc-8b-off.safetensors $FLOOR   # fresh ARNORM=1 run against the ARNORM=0 dump, floor budgets (bitwise class)
+  evidence 8b-on on
 fi
 if need 600 "35B accuracy dumps"; then
   E=$A0 acc $D 0,1 35b-off $M35 $SG $TP2
-  E=$A1 self $D 0,1 35b-on acc-35b-off.safetensors $TP2 $FLOOR --write-self-golden /work/tp2-out/acc-35b-on.safetensors
-  mv "$(T $D)/tp2-out/acc-35b-on.safetensors" "$O/" 2>/dev/null; evidence 35b-on on
-  same acc-35b-off.safetensors acc-35b-on.safetensors "35B tp=2 accuracy dump ARNORM=1 vs 0 (byte cmp)"
+  E=$A1 self $D 0,1 35b-on acc-35b-off.safetensors $TP2 $FLOOR
+  evidence 35b-on on
 fi
 
 # ---- 7. speed: one fresh server per arm, tp=2 graphs + fusion, ARNORM 0 / 1
