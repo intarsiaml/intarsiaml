@@ -1783,7 +1783,13 @@ impl Seq {
                     Some(pass) => {
                         self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
                         if crate::spec::trace_enabled() {
-                            eprintln!("spec: mtp graph step {:.3} ms", t0.elapsed().as_secs_f64() * 1e3);
+                            // step = the graph replay and its download; gap = host time since the previous step ended (acceptance,
+                            // rollback, token emission, stop checks)
+                            static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+                            let mut last = LAST.lock().unwrap();
+                            let gap = last.map_or(0.0, |l| t0.duration_since(l).as_secs_f64() * 1e3);
+                            eprintln!("spec: mtp graph step {:.3} ms gap {:.3} ms", t0.elapsed().as_secs_f64() * 1e3, gap);
+                            *last = Some(Instant::now());
                         }
                         if let Some(t) = self.pending.pop_front() {
                             self.tok = t;
