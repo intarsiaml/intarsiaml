@@ -6,9 +6,11 @@ radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored a
 
 ## Headline
 
-27B prefill on one R9700, prefill-only engine time (raw/w7, one window, same build, tok/s):
+27B prefill on one R9700, prefill-only engine time (raw/w7, one window, same build, tok/s). The chunk-4096 column ran
+with an 8-row peel, which w7 showed is not yet bitwise on 9..16-row tails; the 16-row peel costs at most one extra
+<= 16-row pass per prompt, and its numbers replace these when w8 lands:
 
-| prompt | main (chunk 256) | v2 GEMM (default, bitwise) | + chunk 4096 with tail peel (default, bitwise) | + fold (opt-in, changes numerics) |
+| prompt | main (chunk 256) | v2 GEMM (default, bitwise) | + chunk 4096 with 8-row peel | + fold (opt-in, changes numerics) |
 |---|---:|---:|---:|---:|
 | 1k | 990 | 1129 (+14 %) | 1335 (+35 %) | 2041 (+106 %) |
 | 4k | 1012 | 1153 (+14 %) | 1435 (+42 %) | 2410 (+138 %) |
@@ -27,8 +29,10 @@ radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored a
   (opt-in). Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel (section 1, arithmetic);
   after this lane the default single-card gap to radiance's per-card GEMM rate is still about 1.8x (82 vs ~150 TFLOP/s),
   and the bitwise GEMM's remaining cost is its pipeline, not its dequant (section 8).
-* **Still pending** at the time of writing: w8 (the peel-16 tails sweep and ids, fleetq #5177) and loc3 (served speed of
-  the new default, #5178), queued behind lane tp2's windows.
+* **Still pending** at the time of writing: build7 + w8 (the peel-16 tails sweep, the no-flag 27B plan diff and ids,
+  35B acc-short; fleetq #5203 / #5204) and loc3 (served speed of the head default, #5205). Lane tp2: the
+  `qwen3_5_vl.toml` `[tuning.hip]` table also changes the TP2 27B default chunk and memory plan, and both ranks must
+  resolve the same peel.
 
 
 ## 1. Profile: where a 27B 4k prefill goes on one card (main)
@@ -200,7 +204,8 @@ main.
 
 Serving: the batched scheduler picks a request's chunk once, when its first chunk runs: the solo chunk (now 4096) when no
 other sequence is decoding, 256 (`BUSY_PREFILL_CHUNK`) otherwise (`crates/intarsia-core/src/scheduler.rs` module docs).
-So a 4096-row pass never stalls running decode streams, as for the 35B (`qwen3_5_moe.toml` is 4096 on HIP), and with
+The batched scheduler's prefill (`engine/batch.rs` `run_prefill`) calls `Model::forward`, which cuts through
+`forward_chunks`, so it gets the peel too. So a 4096-row pass never stalls running decode streams, as for the 35B (`qwen3_5_moe.toml` is 4096 on HIP), and with
 the peel both choices give the 27B the same bits: a served request's tokens do not depend on the load when it started.
 
 ## 5. Opt-in: `matmul_mxfp4_mma_fold` (INTARSIA_HIP_MXFP4_FOLD=1), W4A4 folded onto the fp8 WMMA
@@ -270,9 +275,9 @@ Decode is unchanged (32.9 / 32.4 / 30.8 tok/s in every arm).
 | 27B acc-short (`qualify --quick-only`) | FAIL on the same decode-mode KL (0.340), as main; fold FAIL 0.261 | raw/w5 qual-27*.err |
 | 35B KL golden (vLLM top-20, ref noise; prefill + teacher-forced decode) | PASS on main and dev, and the dev dumps are bitwise main (1441 + 160 rows) | raw/w7 accg35-*.out, cmp-golden35-*.txt |
 | 35B acc-short (`qualify --quick-only`) | **not obtained**: w6 had no golden dir (SKIP); in w7 `doctor` failed on tatooine's disk (4.5 GB / 2 % free), which blocked `plan`, so acc-short could not match the HIP baseline (MISSING-BASELINE); gate, acc-oracle (top-1 95.86 %, KL 1.07e-2) and bench PASS | raw/w6, raw/w7 qual-35*.err |
-| no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 27B short / 4k / 16k, 35B short / 4k identical; plan show 27B / 35B identical | raw/w4, raw/w5 |
+| no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 35B: plan show and ids short / 4k identical (raw/w5). 27B: identical at chunk 256 (raw/w4, w5, builds before the recipe table moved to qwen3_5_vl.toml); at the head the 27B plan differs by design (prefill_chunk, its source, prefill_peel); the no-flag plan diff and ids vs main are in w8 | raw/w4, w5, w8 |
 | batch_recurrent `--test-threads=1 --include-ignored` (hip) | 11 passed | raw/w7 mtest-recurrent.txt |
-| 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling `forward_batch` top-k). None touches this diff (the test file and those code paths are unchanged vs main); a main run in w7 is not valid evidence (its test build was seeded from dev's target and git-archive mtimes made cargo reuse dev's artifacts), so main-equals is argued from the code, not measured | raw/w6 mtest-batch.txt |
+| 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling `forward_batch` top-k). The 8B one fails the same way on main-era code in lane hg's HIP run (`batch_cuda_real.rs:89`, /opt/code/wt-sp/docs/results/2026-10-25-hg-hip-serve-gap/raw/hip/g-c.log); the two 35B ones were not run with `--include-ignored` there, and they fail on a hard-coded CUDA chunk (2048) and on device-sampling `forward_batch`, code this diff does not touch. A main run in w7 is not valid evidence (its test build was seeded from dev's target and git-archive mtimes made cargo reuse dev's artifacts) | raw/w6 mtest-batch.txt |
 | CUDA no-op (spark1 #5161): plan show + 256 ids 8B / 35B, kernels quick, core lib, batch_recurrent | all identical / pass | raw/cuda |
 | Metal no-op (endor #5159): plan show + 256 ids 8B / 35B, 27B plan, kernels test, workspace tests | all identical, 0 FAIL | raw/metal |
 
