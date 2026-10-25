@@ -1,0 +1,70 @@
+fleetq: #5028 running on endor: /opt/code/wt-mm/.mm/step2.sh
+== A xd + moe r2/r4 xr8
+REALTRAFFIC B= 1: 8.11 ms/step, 123.3 tok/s aggregate
+REALTRAFFIC B= 2: 11.77 ms/step, 169.9 tok/s aggregate
+REALTRAFFIC B= 4: 15.72 ms/step, 254.4 tok/s aggregate
+REALTRAFFIC B= 8: 24.42 ms/step, 327.6 tok/s aggregate
+== B xd + moe xr1
+REALTRAFFIC B= 1: 8.23 ms/step, 121.6 tok/s aggregate
+REALTRAFFIC B= 2: 10.80 ms/step, 185.2 tok/s aggregate
+REALTRAFFIC B= 4: 15.79 ms/step, 253.3 tok/s aggregate
+REALTRAFFIC B= 8: 23.82 ms/step, 335.9 tok/s aggregate
+== C xd + moe xr2
+REALTRAFFIC B= 1: 8.53 ms/step, 117.2 tok/s aggregate
+REALTRAFFIC B= 2: 11.46 ms/step, 174.5 tok/s aggregate
+REALTRAFFIC B= 4: 15.63 ms/step, 255.8 tok/s aggregate
+REALTRAFFIC B= 8: 24.68 ms/step, 324.1 tok/s aggregate
+== D xr1 + nv mb1 + fp8 mb4 (N<=4096)
+REALTRAFFIC B= 1: 8.07 ms/step, 123.9 tok/s aggregate
+REALTRAFFIC B= 2: 10.54 ms/step, 189.8 tok/s aggregate
+REALTRAFFIC B= 4: 14.90 ms/step, 268.5 tok/s aggregate
+REALTRAFFIC B= 8: 22.29 ms/step, 358.9 tok/s aggregate
+== E D + fp8 mb4 N<=8192
+REALTRAFFIC B= 1: 8.23 ms/step, 121.4 tok/s aggregate
+REALTRAFFIC B= 2: 10.40 ms/step, 192.3 tok/s aggregate
+REALTRAFFIC B= 4: 15.27 ms/step, 262.0 tok/s aggregate
+REALTRAFFIC B= 8: 23.50 ms/step, 340.4 tok/s aggregate
+== F xr1 + nv mb1 + fp8 mb2 N<=8192
+REALTRAFFIC B= 1: 8.11 ms/step, 123.3 tok/s aggregate
+REALTRAFFIC B= 2: 10.49 ms/step, 190.6 tok/s aggregate
+REALTRAFFIC B= 4: 14.24 ms/step, 280.8 tok/s aggregate
+REALTRAFFIC B= 8: 22.10 ms/step, 362.0 tok/s aggregate
+== A xd + moe r2/r4 xr8
+REALTRAFFIC B= 1: 8.63 ms/step, 115.8 tok/s aggregate
+REALTRAFFIC B= 2: 17.39 ms/step, 115.0 tok/s aggregate
+REALTRAFFIC B= 4: 15.94 ms/step, 251.0 tok/s aggregate
+REALTRAFFIC B= 8: 24.51 ms/step, 326.4 tok/s aggregate
+== B xd + moe xr1
+REALTRAFFIC B= 1: 8.40 ms/step, 119.1 tok/s aggregate
+REALTRAFFIC B= 2: 12.74 ms/step, 156.9 tok/s aggregate
+REALTRAFFIC B= 4: 15.19 ms/step, 263.4 tok/s aggregate
+REALTRAFFIC B= 8: 23.77 ms/step, 336.6 tok/s aggregate
+== C xd + moe xr2
+REALTRAFFIC B= 1: 8.52 ms/step, 117.4 tok/s aggregate
+REALTRAFFIC B= 2: 11.22 ms/step, 178.2 tok/s aggregate
+REALTRAFFIC B= 4: 15.69 ms/step, 254.9 tok/s aggregate
+REALTRAFFIC B= 8: 24.29 ms/step, 329.4 tok/s aggregate
+== D xr1 + nv mb1 + fp8 mb4 (N<=4096)
+REALTRAFFIC B= 1: 8.49 ms/step, 117.7 tok/s aggregate
+REALTRAFFIC B= 2: 10.31 ms/step, 193.9 tok/s aggregate
+REALTRAFFIC B= 4: 14.34 ms/step, 278.9 tok/s aggregate
+REALTRAFFIC B= 8: 22.07 ms/step, 362.5 tok/s aggregate
+== E D + fp8 mb4 N<=8192
+REALTRAFFIC B= 1: 8.13 ms/step, 123.1 tok/s aggregate
+REALTRAFFIC B= 2: 10.51 ms/step, 190.3 tok/s aggregate
+REALTRAFFIC B= 4: 14.28 ms/step, 280.1 tok/s aggregate
+REALTRAFFIC B= 8: 21.94 ms/step, 364.6 tok/s aggregate
+== F xr1 + nv mb1 + fp8 mb2 N<=8192
+REALTRAFFIC B= 1: 8.33 ms/step, 120.1 tok/s aggregate
+REALTRAFFIC B= 2: 10.43 ms/step, 191.8 tok/s aggregate
+REALTRAFFIC B= 4: 14.00 ms/step, 285.8 tok/s aggregate
+REALTRAFFIC B= 8: 22.17 ms/step, 360.9 tok/s aggregate
+== negative controls + gates (v3)
+test negative_controls_differ_from_the_one_row_calls ... NEGATIVE CONTROL fp8 rows (_xd) with rows 0 and 1 swapped: 2040 of 4096 output bytes differ
+NEGATIVE CONTROL fp8 rows (_xd) with q(x) skipped (is = 0): 2542 of 4096 output bytes differ
+NEGATIVE CONTROL fp8 GEMM (matmul_fp8_mma, another accumulation order): 0 of 4096 output bytes differ
+thread 'negative_controls_differ_from_the_one_row_calls' (1976315) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:474:9:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.86s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 1.87s
+fleetq: #5028 done (exit 0)
