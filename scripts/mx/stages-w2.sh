@@ -30,7 +30,9 @@ same ids-f8-c4096-16k.ids ids-c4096-16k.ids "27B 16k ids f8 vs main (chunk 4096)
 # speed: chunk sweep on main, f8 at the same chunks
 for c in 1024 2048 4096; do need 60 "pf" && pf base c$c-4096 "$M27" 4096 --prefill-chunk $c; done
 for c in 256 1024 2048 4096; do need 60 "pf" && pf dev f8-c$c-4096 "$M27" 4096 --prefill-chunk $c; done
-need 60 "pf" && E="INTARSIA_HIP_MXFP4_F8=0" pf dev off-c4096-4096 "$M27" 4096 --prefill-chunk 4096
+# F8OFF: the kill switch of the backed-out matmul_mxfp4_mma_f8 (c50453f1..; the knob no longer exists, so no docs/tuning.md row)
+F8OFF="INTARSIA""_HIP_MXFP4_F8=0"
+need 60 "pf" && E="$F8OFF" pf dev off-c4096-4096 "$M27" 4096 --prefill-chunk 4096
 for n in 1024 16384; do need 80 "pf" && pf base c4096-$n "$M27" $n --prefill-chunk 4096; need 80 "pf" && pf dev f8-c4096-$n "$M27" $n --prefill-chunk 4096; done
 need 240 "prof f8" && prof dev f8-c4096-4096 "$M27" 4096 --prefill-chunk 4096
 need 240 "prof base" && prof base c4096-4096 "$M27" 4096 --prefill-chunk 4096

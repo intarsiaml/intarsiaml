@@ -41,6 +41,8 @@ ids() {
   local tree=$1 tag=$2 m=$3 kind=$4; shift 4
   local p="$SHORT"; [[ $kind == 4k ]] && p="$(cat "$(T "$tree")/scripts/hip-decode/prompt4k.txt")"
   [[ $kind == 16k ]] && p="$(cat "$(T "$tree")/mx-out/prompt16384.txt")"
+  # <N>: ~/mx/prompt<N>.txt, a cut of the 16k prompt of exactly N tokens (scratch cut_prompts.py, lane mx w7)
+  [[ $kind =~ ^[0-9]+$ ]] && p="$(cat "$HOME/mx/prompt$kind.txt")"
   run "$tree" 300 "ids-$tag" "$(mdir "$m")" generate -m "$m" --backend hip --mem-budget 29 --max-seq 18432 \
     --profile-every 0 --ignore-eos --show-ids -p "$p" --max-tokens 256 "$@"
   grep -a '^ids:' "$O/ids-$tag.err" > "$O/ids-$tag.ids"
@@ -112,11 +114,13 @@ mxbench() {
     env ${E:-} ./mx-out/mxbench "$@" > "$O/mxbench-$tag.txt" 2>&1 < /dev/null
   log "mxbench $tag exit $?: $(grep -aE 'whole-model|rror|differ' "$O/mxbench-$tag.txt" | head -4 | tr '\n' '|')"
 }
-# acc <tree> <tag> <chunk> [args]: 27B accuracy --mode prefill on the tails golden (scripts/mx/make_tails.py), self-golden dump
+# acc <tree> <tag> <chunk> [args]: 27B accuracy --mode prefill on the tails golden (scripts/mx/make_tails.py; GT=<name>
+# picks ~/mx/<name>.safetensors, default g27-tails), self-golden dump
 acc() {
   local tree=$1 tag=$2 c=$3; shift 3
-  cp "$HOME/mx/g27-tails.safetensors" "$(T "$tree")/mx-out/" 2>/dev/null
-  run "$tree" 600 "acc-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden /work/mx-out/g27-tails.safetensors \
+  local g=${GT:-g27-tails}
+  cp "$HOME/mx/$g.safetensors" "$(T "$tree")/mx-out/" 2>/dev/null
+  run "$tree" 600 "acc-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden /work/mx-out/$g.safetensors \
     --mode prefill --prefill-chunk "$c" --max-seq 18432 --allow-unstamped --allow-dirty --write-self-golden /work/mx-out/acc-$tag.safetensors "$@"
   cp "$(T "$tree")/mx-out/acc-$tag.safetensors" "$O/" 2>/dev/null
 }
