@@ -1,0 +1,164 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38    97.37   1.475e-2   1.709e-2   1.709e-2   1.555e-1   0.0524   0.0484    87.89      1/38      0
+story                 39    39    87.18   4.373e-2   4.433e-2   4.433e-2   2.197e-1   0.0401   0.0524    84.62      6/39      0
+code                  87    87   100.00   1.220e-2   1.233e-2   1.233e-2   1.286e-1   0.0170   0.0188    90.57     87/87      0
+science               79    79    92.41   4.913e-2   4.796e-2   4.796e-2   2.336e-1   0.0379   0.0407    90.13      8/79      0
+chat_short            18    18   100.00   2.135e-2   2.074e-2   4.273e-2   1.974e-1   0.0335   0.0307    85.56     18/18      0
+chat_system           32    32    84.38   1.652e-1   1.572e-1   1.562e-3    2.318e0   0.0568   0.0689    80.62      6/32      0
+chat_multiturn        58    58    91.38   4.764e-1   4.967e-1   7.082e-1    1.223e1   0.0252   0.0370    83.79     20/58      0
+chat_reasoning        90    90    90.00   9.581e-2   9.699e-2   5.168e-2   7.226e-1   0.0113   0.0136    85.11      8/90      0
+long_prose_300       300   300    93.00   1.507e-1   1.512e-1   1.512e-1    3.499e0   0.0137   0.0185    73.07     5/300      0
+long_prose_700       700   700    89.43   2.351e-1   2.341e-1   2.341e-1    8.489e0   0.0189   0.0269    74.03     6/700      0
+OVERALL                   1441    91.26   1.797e-1   1.800e-1   1.802e-1    1.223e1   0.0210   0.0272    77.74     11.5%      0
+prefill floor [4bit]: top-1 (all rows) 91.26% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.802e-1 (need <= 2.0e-1) ok [all rows, n=1441: 1.800e-1, reported only] | tail mass (all rows) ours 0.0272 vs ref 0.0210, excess +0.0062 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.991e-1 (scored rows) x factor 1 (default) = 1.991e-1 => effective 1.991e-1 bound by ref noise; KL 1.802e-1 PASS | KL / ref noise = 0.905 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: FAIL 1.800e-1 (21-way KL over all rows <= static floor) | current def: PASS 1.802e-1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by ref noise) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   5.281e-3   6.702e-3   6.702e-3   3.273e-2   0.0221   0.0237    87.50     16/16      0
+story                 39    16    93.75   4.658e-2   4.531e-2   4.531e-2   1.220e-1   0.0605   0.0691    83.75     15/16      0
+code                  87    16    93.75   8.507e-3   8.535e-3   8.535e-3   3.788e-2   0.0007   0.0007    85.00      7/16      0
+science               79    16    81.25   5.172e-2   4.836e-2   4.836e-2   1.205e-1   0.0586   0.0641    88.75      2/16      0
+chat_short            18    16    93.75   3.091e-2   3.120e-2   6.453e-2   2.880e-1   0.0376   0.0334    86.25      1/16      0
+chat_system           32    16    81.25   1.390e-1   1.157e-1   9.599e-3    1.243e0   0.0901   0.0795    85.00      2/16      0
+chat_multiturn        58    16    93.75    1.080e0    1.067e0    3.123e0    1.583e1   0.0028   0.0027    83.75     13/16      0
+chat_reasoning        90    16    87.50   1.828e-1   1.830e-1   5.650e-1    2.601e0   0.0001   0.0002    80.00      7/16      0
+long_prose_300       300    16    93.75   3.826e-1   3.826e-1   3.826e-1    6.041e0   0.0001   0.0001    73.75     13/16      0
+long_prose_700       700    16    62.50   7.587e-1   8.410e-1   8.410e-1    3.152e0   0.0202   0.1317    58.75      1/16      0
+OVERALL                    160    88.12   2.686e-1   2.729e-1   3.402e-1    1.583e1   0.0293   0.0405    81.25     48.1%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 88.12% (not gated for this class) ok | 21-way KL (scored rows, n=118) 3.402e-1 (need <= 2.0e-1) FAIL [all rows, n=160: 2.729e-1, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0293, excess +0.0112 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.991e-1 (scored rows) x factor 1 (default) = 1.991e-1 => effective 1.991e-1 bound by ref noise; KL 3.402e-1 FAIL | KL / ref noise = 1.709 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: FAIL 2.729e-1 (21-way KL over all rows <= static floor) | current def: FAIL 3.402e-1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by ref noise) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 29.3% of positions before the first argmax divergence, worst prompt 0.9% (informational)
+greedy-match [decode (teacher-forced)]: mean 48.1% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+
+the perturbed run judged like a new build against the unperturbed baseline, FIXED margins only (information, not a verdict):
+
+baseline gate, prefill (1441 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.13255e1    9.12561e1    9.10255e1  >= ok
+  mean KL            1.79467e-1   1.79685e-1   2.06387e-1  <= ok
+  tail-bucket KL     1.79830e-1   1.80043e-1   2.06805e-1  <= ok
+  tail-bucket KL scored   1.79929e-1   1.80169e-1   2.06919e-1  <= ok
+  top-5 %             7.77238e1    7.77377e1    7.72238e1  >= ok
+  |tail excess|      6.32559e-3   6.24738e-3   8.32559e-3  <= ok
+  mean |tail diff|   1.05597e-2   1.06167e-2   1.25597e-2  <= ok
+  max KL(21-way)      1.30236e1    1.30236e1    3.25600e1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 10 prompts (fixed margins only, no noise envelope; fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    count              prompt KL(21-way)     1.7087e-2   1.7087e-2 <=  2.991e-2  fixed             -       -  ok
+    count              prompt top-1 %         9.7368e1    9.7368e1 >=   9.474e1  fixed             -       -  ok
+    count              prompt |tail diff|    1.6721e-2   1.6721e-2 <=  1.872e-2  fixed             -       -  ok
+    story              prompt KL(21-way)     4.4329e-2   4.4329e-2 <=  7.759e-2  fixed             -       -  ok
+    story              prompt top-1 %         8.7179e1    8.7179e1 >=   8.462e1  fixed             -       -  ok
+    story              prompt |tail diff|    1.5009e-2   1.5009e-2 <=  1.701e-2  fixed             -       -  ok
+    code               prompt KL(21-way)     1.2326e-2   1.2326e-2 <=  2.158e-2  fixed             -       -  ok
+    code               prompt top-1 %         1.0000e2    1.0000e2 >=   9.885e1  fixed             -       -  ok
+    code               prompt |tail diff|    3.0563e-3   3.0563e-3 <=  5.056e-3  fixed             -       -  ok
+    science            prompt KL(21-way)     4.4083e-2   4.7960e-2 <=  7.715e-2  fixed             -       -  ok
+    science            prompt top-1 %         9.3671e1    9.2405e1 >=   9.241e1  fixed             -       -  ok
+    science            prompt |tail diff|    8.6373e-3   9.6783e-3 <=  1.064e-2  fixed             -       -  ok
+    chat_short         prompt KL(21-way)     2.0740e-2   2.0740e-2 <=  3.631e-2  fixed             -       -  ok
+    chat_short         prompt top-1 %         1.0000e2    1.0000e2 >=   9.444e1  fixed             -       -  ok
+    chat_short         prompt |tail diff|    3.0046e-3   3.0046e-3 <=  5.005e-3  fixed             -       -  ok
+    chat_system        prompt KL(21-way)     1.5721e-1   1.5721e-1 <=  2.751e-1  fixed             -       -  ok
+    chat_system        prompt top-1 %         8.4375e1    8.4375e1 >=   8.125e1  fixed             -       -  ok
+    chat_system        prompt |tail diff|    1.3548e-2   1.3548e-2 <=  1.555e-2  fixed             -       -  ok
+    chat_multiturn     prompt KL(21-way)     4.9674e-1   4.9674e-1 <=  8.693e-1  fixed             -       -  ok
+    chat_multiturn     prompt top-1 %         9.1379e1    9.1379e1 >=   8.966e1  fixed             -       -  ok
+    chat_multiturn     prompt |tail diff|    1.5889e-2   1.5889e-2 <=  1.789e-2  fixed             -       -  ok
+    chat_reasoning     prompt KL(21-way)     9.6994e-2   9.6994e-2 <=  1.697e-1  fixed             -       -  ok
+    chat_reasoning     prompt top-1 %         9.0000e1    9.0000e1 >=   8.889e1  fixed             -       -  ok
+    chat_reasoning     prompt |tail diff|    3.5895e-3   3.5895e-3 <=  5.589e-3  fixed             -       -  ok
+    long_prose_300     prompt KL(21-way)     1.5120e-1   1.5120e-1 <=  2.646e-1  fixed             -       -  ok
+    long_prose_300     prompt top-1 %         9.3000e1    9.3000e1 >=   9.200e1  fixed             -       -  ok
+    long_prose_300     prompt |tail diff|    8.9508e-3   8.9508e-3 <=  1.095e-2  fixed             -       -  ok
+    long_prose_700     prompt KL(21-way)     2.3414e-1   2.3414e-1 <=  4.098e-1  fixed             -       -  ok
+    long_prose_700     prompt top-1 %         8.9429e1    8.9429e1 >=   8.843e1  fixed             -       -  ok
+    long_prose_700     prompt |tail diff|    1.2329e-2   1.2329e-2 <=  1.433e-2  fixed             -       -  ok
+  per-prompt gate: ok
+
+baseline gate, decode (teacher-forced) (160 positions):
+  metric               baseline     this run        limit  
+  top-1 %             8.87500e1    8.81250e1    8.81250e1  >= ok
+  mean KL            2.69850e-1   2.68573e-1   3.10327e-1  <= ok
+  tail-bucket KL     2.74201e-1   2.72932e-1   3.15331e-1  <= ok
+  tail-bucket KL scored   3.39660e-1   3.40242e-1   3.90609e-1  <= ok
+  top-5 %             8.12500e1    8.12500e1    8.06250e1  >= ok
+  |tail excess|      1.12181e-2   1.12255e-2   1.32181e-2  <= ok
+  mean |tail diff|   1.68605e-2   1.68712e-2   1.88605e-2  <= ok
+  max KL(21-way)      1.56126e1    1.56126e1    3.90324e1  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 10 prompts (fixed margins only, no noise envelope; fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    count              prompt KL(21-way)     6.7016e-3   6.7016e-3 <=  1.174e-2  fixed             -       -  ok
+    count              prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed             -       -  ok
+    count              prompt |tail diff|    7.1705e-3   7.1705e-3 <=  9.170e-3  fixed             -       -  ok
+    story              prompt KL(21-way)     4.5309e-2   4.5309e-2 <=  7.930e-2  fixed             -       -  ok
+    story              prompt top-1 %         9.3750e1    9.3750e1 >=   8.750e1  fixed             -       -  ok
+    story              prompt |tail diff|    1.5126e-2   1.5126e-2 <=  1.713e-2  fixed             -       -  ok
+    code               prompt KL(21-way)     7.9459e-3   8.5351e-3 <=  1.392e-2  fixed             -       -  ok
+    code               prompt top-1 %         1.0000e2    9.3750e1 >=   9.375e1  fixed             -       -  ok
+    code               prompt |tail diff|    1.5142e-4   1.7392e-4 <=  2.151e-3  fixed             -       -  ok
+    science            prompt KL(21-way)     4.8364e-2   4.8364e-2 <=  8.465e-2  fixed             -       -  ok
+    science            prompt top-1 %         8.1250e1    8.1250e1 >=   7.500e1  fixed             -       -  ok
+    science            prompt |tail diff|    1.0860e-2   1.0860e-2 <=  1.286e-2  fixed             -       -  ok
+    chat_short         prompt KL(21-way)     3.1203e-2   3.1203e-2 <=  5.462e-2  fixed             -       -  ok
+    chat_short         prompt top-1 %         9.3750e1    9.3750e1 >=   8.750e1  fixed             -       -  ok
+    chat_short         prompt |tail diff|    4.7261e-3   4.7261e-3 <=  6.726e-3  fixed             -       -  ok
+    chat_system        prompt KL(21-way)     1.1572e-1   1.1572e-1 <=  2.025e-1  fixed             -       -  ok
+    chat_system        prompt top-1 %         8.1250e1    8.1250e1 >=   7.500e1  fixed             -       -  ok
+    chat_system        prompt |tail diff|    1.6704e-2   1.6704e-2 <=  1.870e-2  fixed             -       -  ok
+    chat_multiturn     prompt KL(21-way)      1.0669e0    1.0669e0 <=   1.867e0  fixed             -       -  ok
+    chat_multiturn     prompt top-1 %         9.3750e1    9.3750e1 >=   8.750e1  fixed             -       -  ok
+    chat_multiturn     prompt |tail diff|    1.6746e-3   1.6746e-3 <=  3.675e-3  fixed             -       -  ok
+    chat_reasoning     prompt KL(21-way)     1.9622e-1   1.8295e-1 <=  3.434e-1  fixed             -       -  ok
+    chat_reasoning     prompt top-1 %         8.7500e1    8.7500e1 >=   8.125e1  fixed             -       -  ok
+    chat_reasoning     prompt |tail diff|    6.1994e-5   1.4656e-4 <=  2.062e-3  fixed             -       -  ok
+    long_prose_300     prompt KL(21-way)     3.8263e-1   3.8263e-1 <=  6.696e-1  fixed             -       -  ok
+    long_prose_300     prompt top-1 %         9.3750e1    9.3750e1 >=   8.750e1  fixed             -       -  ok
+    long_prose_300     prompt |tail diff|    9.3838e-5   9.3838e-5 <=  2.094e-3  fixed             -       -  ok
+    long_prose_700     prompt KL(21-way)     8.4102e-1   8.4102e-1 <=   1.472e0  fixed             -       -  ok
+    long_prose_700     prompt top-1 %         6.2500e1    6.2500e1 >=   5.625e1  fixed             -       -  ok
+    long_prose_700     prompt |tail diff|    1.1204e-1   1.1204e-1 <=  1.140e-1  fixed             -       -  ok
+  per-prompt gate: ok
+
+noise envelope, prefill (prefill chunk 256 -> 64):
+  prompt               pos   d top-1 pt     d KL(21)     d |tail| d max KL(21)
+  count                 38       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  story                 39       0.0000     0.0000e0     0.0000e0   2.7756e-17   <- untouched by this perturbation
+  code                  87       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  science               79       1.2658    3.8771e-3    1.0410e-3     0.0000e0
+  chat_short            18       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  chat_system           32       0.0000     0.0000e0   1.7347e-18     0.0000e0   <- untouched by this perturbation
+  chat_multiturn        58       0.0000     0.0000e0     0.0000e0     0.0000e0
+  chat_reasoning        90       0.0000   1.3878e-17     0.0000e0     0.0000e0   <- untouched by this perturbation
+  long_prose_300       300       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  long_prose_700       700       0.0000     0.0000e0   1.7347e-18     0.0000e0   <- untouched by this perturbation
+  aggregate (information; the aggregate gate does not use the envelope): top-1 91.325 -> 91.256 %, mean KL(21) 1.7983e-1 -> 1.8004e-1, max KL(21) 1.3024e1 -> 1.3024e1
+  WARNING: this perturbation did not touch 8 of 10 prompts (count, story, code, chat_short, chat_system, chat_reasoning, long_prose_300, long_prose_700): their delta is 0 because nothing moved, not because they are quiet; the fixed margin applies to them unless another perturbation measures them
+noise envelope, decode (prefill chunk 256 -> 64):
+  prompt               pos   d top-1 pt     d KL(21)     d |tail| d max KL(21)
+  count                 16       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  story                 16       0.0000     0.0000e0     0.0000e0   1.3878e-17   <- untouched by this perturbation
+  code                  16       6.2500    5.8919e-4    2.2509e-5    3.7220e-2
+  science               16       0.0000     0.0000e0   1.7347e-18   1.3878e-17   <- untouched by this perturbation
+  chat_short            16       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  chat_system           16       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  chat_multiturn        16       0.0000     0.0000e0     0.0000e0   1.7764e-15   <- untouched by this perturbation
+  chat_reasoning        16       0.0000    1.3273e-2    8.4564e-5    7.4276e-1
+  long_prose_300        16       0.0000   5.5511e-17   1.3553e-20     0.0000e0   <- untouched by this perturbation
+  long_prose_700        16       0.0000     0.0000e0     0.0000e0     0.0000e0   <- untouched by this perturbation
+  aggregate (information; the aggregate gate does not use the envelope): top-1 88.750 -> 88.125 %, mean KL(21) 2.7420e-1 -> 2.7293e-1, max KL(21) 1.5613e1 -> 1.5613e1
+  WARNING: this perturbation did not touch 8 of 10 prompts (count, story, science, chat_short, chat_system, chat_multiturn, long_prose_300, long_prose_700): their delta is 0 because nothing moved, not because they are quiet; the fixed margin applies to them unless another perturbation measures them
+
+wrote noise envelope /work/ac-out/qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json (1 perturbation(s): prefill chunk 256 -> 64)
+
+noise envelope run: the verdicts below are information about the perturbed build; the exit status does not depend on them
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: PASS

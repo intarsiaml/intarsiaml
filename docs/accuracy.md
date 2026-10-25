@@ -364,6 +364,7 @@ against a class floor of 0.03). A floor below that spread cannot be met by any e
 | `estimator`, `source` | the estimator when it is not the gate's own; the doc or log the numbers come from |
 | `golden` | binding: `file`, `fnv1a64`, `size`, `positions`. Whatever is given must match the golden, else the record is refused |
 | `factor`, `prompt_factor` | optional per-golden factors: on the noise (default 1.0), and on the per-prompt check of the change-vs-base mode (default 3.0) |
+| `floor_report_only` | optional list of modes (`prefill`, `decode`) whose absolute KL floor is report-only **when the run is also gated with `--baseline`** (and its noise envelope); the baseline judges them. Without `--baseline` the floor keeps gating. Used for the Qwen3.8-27B W4A4 golden's decode mode (LOG 2026-10-25, coordinator decision) |
 | `prompts` | optional per-prompt noise keyed by prompt id (the golden's prompt name): `{"<id>": {"kl21_mean": .., "kl21_mean_scored": .., "n": .., "n_scored": ..}}`, usually partial; `intarsia ref-noise` fills every prompt |
 
 It is read from, in this order: `--ref-noise FILE`; the golden's own `__metadata__` key `ref_noise` (a JSON string, for goldens
