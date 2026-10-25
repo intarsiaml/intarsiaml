@@ -14,4 +14,6 @@ INTARSIA_REPO=$HOME/intarsiaml-hg INTARSIA_TARGET_VOL=intarsia-cargo-target-hg \
   ~/intarsiaml-hg/deploy/tatooine/dev.sh cargo test --release --no-run -p intarsia-models --test batch_recurrent --test batch_cuda_real 2>&1 < /dev/null | tail -4
 INTARSIA_REPO=$HOME/intarsiaml-hg INTARSIA_TARGET_VOL=intarsia-cargo-target-hg \
   ~/intarsiaml-hg/deploy/tatooine/dev.sh cargo test --release --no-run -p intarsia-core --lib 2>&1 < /dev/null | tail -2
+INTARSIA_REPO=$HOME/intarsiaml-hg INTARSIA_TARGET_VOL=intarsia-cargo-target-hg \
+  ~/intarsiaml-hg/deploy/tatooine/dev.sh cargo test --release --no-run -p intarsia-backend-hip --test packed_rows 2>&1 < /dev/null | tail -6
 echo PREP2 DONE
