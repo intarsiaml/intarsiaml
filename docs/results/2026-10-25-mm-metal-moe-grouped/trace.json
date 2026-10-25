@@ -33,9 +33,9 @@
  "code": {
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mm/metal-moe-grouped",
-  "base_commit": "2c2d9941",
-  "head_commit": "HEAD_COMMIT",
-  "pr": null,
+  "base_commit": "2c2d9941 (gated); rebased on 971f1dcd",
+  "head_commit": "cde6ba2d",
+  "pr": 136,
   "files": [
    "docs/results/2026-10-25-mm-metal-moe-grouped.md",
    "kernels/metal/fp8.metal",

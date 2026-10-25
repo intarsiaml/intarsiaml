@@ -2,7 +2,7 @@
 
 Lane mm, 2026-10-25, endor (Apple M5 Max, 128 GB), Qwen3.6-35B-A3B NVFP4, `serve --backend metal --max-batch 8`. Follows
 [mr3](2026-10-23-mr3-metal-row-axis.md) (PR #126) and [mb](2026-10-23-mb-metal-hybrid-batching.md) (PR #124). Branch
-`lane-mm/metal-moe-grouped`. Measured and gated against main 2c2d9941, then rebased on 971f1dcd (between the two, main
+`lane-mm/metal-moe-grouped`, draft PR #136. Measured and gated against main 2c2d9941, then rebased on 971f1dcd (between the two, main
 changed only CUDA test files and docs).
 
 ## Result
