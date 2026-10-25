@@ -1435,6 +1435,27 @@ impl Model {
     /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
     pub const PACK_MIN_ROWS: usize = 16;
 
+    /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
+    /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
+    /// `items`: `(state, rows)` per segment. Evaluated before anything launches, so a `false` costs nothing.
+    pub fn pack_uniform(&self, items: &[(&SequenceState, usize)]) -> bool {
+        let total: usize = items.iter().map(|&(_, n)| n).sum();
+        let bufs = self.attn_bufs(total);
+        for a in self.layers.iter().flatten().filter_map(|b| if let Block::Attn(a) = b { Some(a) } else { None }) {
+            let (mut lo, mut first) = (0usize, None);
+            for &(st, len) in items {
+                let Ok(slot) = Self::attn_slot(st, a) else { return false };
+                let bj = bufs.rows(lo, len);
+                let fused = self.gate_qkv_call_at(a, slot, &bj, len, total, lo, st.len, None).filter(|c| self.fused_ok(c)).is_some();
+                if *first.get_or_insert(fused) != fused {
+                    return false;
+                }
+                lo += len;
+            }
+        }
+        true
+    }
+
     /// Most rows one packed pass holds: the workspace's.
     pub fn pack_rows_max(&self) -> usize {
         self.ws.max_tokens
@@ -2649,6 +2670,9 @@ impl Model {
         let (qc, gate) = self.attn_project(a, n, t, kv_done, true, profile)?;
         let d = &self.ldims;
         let mut qc_after = qc;
+        if prologues.iter().any(|p| p.is_some() != prologues[0].is_some()) {
+            return Err(Error::invalid("packed prefill segments take different attention paths (checked by pack_uniform before the pass)"));
+        }
         for (s, prologue) in segs.iter().zip(prologues) {
             let slot = Self::attn_slot(s.st, a)?;
             let bufs_j = bufs.rows(s.lo, s.len);

@@ -244,6 +244,15 @@ impl BatchModel for SlotModel {
         // the schedule of `run_prefill` for a recurrent state, with the bodies of all chunks in one pass: the body is the chunk
         // (non-final) or the chunk without its last token (final); a snapshot follows each body; the last token runs alone
         let keep = self.model.batch_snapshots();
+        let uniform = {
+            let rows: Vec<(&SequenceState, usize)> =
+                items.iter().map(|&(slot, tokens, mode)| (&self.states[slot], tokens.len() - usize::from(mode.is_some()))).collect();
+            self.model.pack_uniform(&rows)
+        };
+        if !uniform {
+            // the segments would take different attention paths: each prefills alone, as without the knob
+            return items.iter().map(|&(slot, tokens, mode)| self.prefill_chunk(slot, tokens, mode)).collect();
+        }
         {
             let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
             let mut packed: Vec<(&mut SequenceState, &[u32])> = Vec::with_capacity(items.len());
