@@ -192,7 +192,7 @@ fn real_35b_tp2_batch_mutants_are_caught() {
     assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4);
     // the kernels mutant first, at a row count no recording exists for yet (a recorded graph would keep the exact kernels);
     // the other two act through the row table and positions the host rewrites before every step, recorded or not
-    for (mutant, b) in [(TpBatchMutant::PlainKernels, 12usize), (TpBatchMutant::ReverseRows, 8), (TpBatchMutant::StalePosition, 8)] {
+    for (mutant, b) in [(TpBatchMutant::PlainKernels, 12usize), (TpBatchMutant::ReverseRows, 8)] {
         m.set_tp_batch_mutant(1, Some(mutant)).unwrap();
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg(b))));
         m.set_tp_batch_mutant(1, None).unwrap();
@@ -201,6 +201,29 @@ fn real_35b_tp2_batch_mutants_are_caught() {
         assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4, "the control after mutant {mutant:?} failed");
         eprintln!("mutant {mutant:?} at {b} rows: caught (control after it passes)");
     }
+}
+
+/// The stale-position mutant is its own test: the peer's row 0 runs one position behind and stays damaged (its sequence is one
+/// token short), so the group is not usable after it. On HIP the next step then faults the device (HSA exception 0x1016, the
+/// process aborts), which is the group going down, not a failure of the gate: the gate has caught it when the batched-vs-solo
+/// comparison panics first. No control after it.
+#[test]
+fn real_35b_tp2_batch_stale_position_mutant_is_caught() {
+    use intarsia_core::model::TpBatchMutant;
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 1024);
+    let lens: Vec<usize> = vec![5, 37, 130, 300, 17, 64, 9, 222];
+    let cfg = batch_identity::Cfg { lens, batches: vec![8], steps: 4, vocab_range: (1000, 30000) };
+    assert_eq!(batch_identity::run(&m, &cfg), 8 * 4);
+    m.set_tp_batch_mutant(1, Some(TpBatchMutant::StalePosition)).unwrap();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg)));
+    assert!(r.is_err(), "mutant StalePosition at 8 rows was not caught by the batched-vs-solo gate");
+    eprintln!("mutant StalePosition at 8 rows: caught");
+    std::process::exit(0); // the group is damaged: leave without tearing it down
 }
 
 #[test]

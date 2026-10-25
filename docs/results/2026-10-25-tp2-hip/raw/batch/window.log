@@ -1,2 +1,5 @@
 [window] job 5201 batch; stopping radiance 2026-10-25 06:49:15
 [window] radiance stopped 2026-10-25 06:49:18
+06:51:46 mtest tp2-decode exit 0 [INTARSIA_BATCH_TEST_TP=2]: 17550 (row, step) pairs bitwise identical in 141.7 s|tensor-parallel rank 1: batched decode graph captures=15 replays=1956|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 147.24s|
+06:52:17 mtest tp2-mutants exit 101 [INTARSIA_BATCH_TEST_TP=2]: thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant PlainKernels at 12 rows: caught (control after it passes)|thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant ReverseRows at 8 rows: caught (control after it passes)|thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|
+06:52:28 serve tp2 --max-batch 8 up after 15 s

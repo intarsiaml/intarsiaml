@@ -80,6 +80,7 @@ E="$TP2ENV" mtest tp2-decode 0,1 900 --test batch_cuda_real -- --test-threads=1 
 
 # 2. the gate's sensitivity to the step protocol's mutants
 E="$TP2ENV" mtest tp2-mutants 0,1 420 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_tp2_batch_mutants_are_caught
+E="$TP2ENV" mtest tp2-stale-position 0,1 300 --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_tp2_batch_stale_position_mutant_is_caught
 
 # 3. serve --max-batch 8 --tp 2 + cbidentity at B = 4 and 8
 CID=tp2-batch-serve
