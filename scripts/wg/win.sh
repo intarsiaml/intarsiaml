@@ -45,7 +45,12 @@ restore() {
   echo "[win] RADIANCE DID NOT ANSWER within 180 s $(now); $(systemctl --user is-active radiance)"; return 1
 }
 trap restore EXIT
-trap 'echo "[win] caught TERM/INT $(now): restoring"; exit 143' TERM INT
+CHILD=
+# the command runs as a background job and is `wait`ed for, so a TERM/INT trap fires at once (bash defers a trap until a foreground child ends)
+trap 'echo "[win] caught TERM/INT $(now): restoring"; [ -n "$CHILD" ] && kill "$CHILD" 2>/dev/null; exit 143' TERM INT
 echo "[win] stopping radiance $(now) (tree $want)"
 systemctl --user stop radiance
-"$@"
+"$@" <&0 &
+CHILD=$!
+wait "$CHILD"; rc=$?; CHILD=
+exit $rc

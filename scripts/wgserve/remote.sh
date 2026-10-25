@@ -28,7 +28,7 @@ case ${1:-} in
       *) echo "unknown arm $arm"; exit 2 ;;
     esac
     docker rm -f wg-serve >/dev/null 2>&1
-    docker run -d --name wg-serve --network host $DEVF --user "$(id -u):$(id -g)" -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0 "${envs[@]}" \
+    docker run -d --name wg-serve --network host $DEVF --user "$(id -u):$(id -g)" -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0 ${envs[@]+"${envs[@]}"} \
       -v "$repo":/work -v /data/models/intarsia:/models:ro -v "$vol":/target -w /work "$IMG" \
       /target/release/intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --max-batch 16 --profile-every 0 --mem-budget 29 \
       --host 0.0.0.0 --port 8090 --served-model-name wg-35b --max-seq 4096 ;;
