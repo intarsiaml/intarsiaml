@@ -8,7 +8,35 @@ set -uo pipefail
 O=$1; S="$(dirname "${BASH_SOURCE[0]}")"; source "$S/lib.sh"
 for t in base dev; do [[ $(T $t)/mx-intarsia -nt $(T $t)/Cargo.toml ]] || { log "NO FRESH BINARY in $(T $t); abort"; exit 3; }; done
 log "w8 start; budget $(left) s; base $(cat $(T base)/.stamp) dev $(cat $(T dev)/.stamp)"
-need 60 "plan" && E="INTARSIA_PREFILL_PEEL=16" plan dev dev-27 "$M27" --prefill-chunk 4096
+# head default with no flags or env: plan main vs dev (only prefill_chunk / _source / prefill_peel may differ; scratch and
+# kv cap at the window's max-seq are printed), 256 ids short / 4k dev vs main, 35B acc-short with the golden dir
+for t in base dev; do  # at serve's --max-seq 17408 (loc-window.sh), so a kv cap cut by the 4096-row workspace shows
+  need 60 "plan" && run $t 200 "plan-$t-27" "$(mdir "$M27")" plan show --backend hip --model "$M27" --mem-budget 29 --max-seq 17408 --json
+done
+log "plan 27B main vs head default: $(python3 - "$O/plan-base-27.out" "$O/plan-dev-27.out" <<'PY'
+import json, sys
+def flat(d, p=""):
+    out = {}
+    if isinstance(d, dict):
+        for k, v in d.items(): out.update(flat(v, f"{p}.{k}" if p else k))
+    elif isinstance(d, list):
+        for i, v in enumerate(d): out.update(flat(v, f"{p}[{i}]"))
+    else: out[p] = d
+    return out
+try:
+    a, b = (flat(json.load(open(f))) for f in sys.argv[1:3])
+except Exception as e:
+    print(f"cannot parse: {e}"); sys.exit()
+diff = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+print("; ".join(f"{k}: {a.get(k)} -> {b.get(k)}" for k in diff)[:900] or "identical")
+PY
+)"
+for k in short 4k; do
+  need 80 "ids" && ids dev hd-$k "$M27" $k
+  need 80 "ids" && ids base hb-$k "$M27" $k
+  same ids-hd-$k.ids ids-hb-$k.ids "27B $k ids head default (no flags) vs main"
+done
+need 300 "qual" && qual dev 35g "$M35" --golden-dir /work/golden
 need 200 "acc" && GT=g27-tails2 E="INTARSIA_PREFILL_PEEL=16" acc dev dev-peel16 4096
 need 100 "accg" && E="INTARSIA_PREFILL_PEEL=16" accg dev dev16 --prefill-chunk 4096
 for k in 525 529 8459 4109; do
