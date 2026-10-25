@@ -174,7 +174,7 @@ fn fp8_case(
         be.upload(&ym, 0, &vec![0xEEu8; tot], 0).unwrap();
         let mut rows = call(xt.clone(), ymt.clone());
         if xd {
-            let need = m * k * 2 + 16;
+            let need = m.max(8) * k * 2 + 16;
             let sb = be.alloc(need + 32, MemKind::Device).unwrap();
             // an offset that is 4- but not 16-byte aligned (the launcher realigns inside the 16 bytes of slack)
             rows.scratch = Some(TensorRef { buf: sb, offset: 4 + 4 * (m % 3), dtype: DType::U8, shape: vec![need] });
@@ -428,7 +428,7 @@ fn differing(a: &[u8], b: &[u8]) -> usize {
 /// Each control computes something a broken rows kernel could plausibly compute instead (rows mixed up, q(x) skipped,
 /// another accumulation order) and asserts that it does NOT match the one-row launches bit for bit, so a pass of
 /// `fp8_rows_are_bitwise_the_one_row_gemv` / `moe_experts_rows_are_bitwise_the_one_token_call` is not vacuous. The kernels'
-/// own order is controlled separately: `INTARSIA_METAL_NEGCTL=fp8_xd` / `moe_gu` / `moe_dn` swap in a form of the new rows
+/// own order is controlled separately: `INTARSIA_METAL_NEGCTL=fp8_xd` / `fp8_mmt` / `moe_gu` / `moe_dn` swap in a form of the new rows
 /// kernel with one association changed, and those two gates must then fail (scripts/mm/gates.sh).
 #[test]
 fn negative_controls_differ_from_the_one_row_calls() {
@@ -462,7 +462,7 @@ fn negative_controls_differ_from_the_one_row_calls() {
             let mut c =
                 OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
             if scratch {
-                let need = m * k * 2 + 16;
+                let need = m.max(8) * k * 2 + 16;
                 c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
             }
             be.launch(kern, &c, 0).unwrap();
@@ -869,7 +869,7 @@ fn timing_rows() {
     for (n, k) in [(8192usize, 2048usize), (4096, 2048), (512, 2048), (2048, 4096)] {
         let w = put_bytes(&be, 8, &rand_e4m3(n * k, 5, 0));
         let sb = put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37]));
-        for m in [1usize, 2, 4, 8] {
+        for m in [1usize, 2, 4, 5, 8] {
             let xb = put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9)));
             let y = guarded(&be, 8, m * n * 2);
             let (xt, wt, st, yt) = (
@@ -892,7 +892,7 @@ fn timing_rows() {
                 serial
             };
             let xd = if m >= 2 {
-                let need = m * k * 2 + 16;
+                let need = m.max(8) * k * 2 + 16;
                 let mut c = call(xt.clone(), yt.clone());
                 c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
                 time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &c, 0).unwrap())

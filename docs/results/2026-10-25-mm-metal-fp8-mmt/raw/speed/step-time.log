@@ -1,0 +1,20 @@
+== main rep1
+REALTRAFFIC B= 1: 8.20 ms/step, 122.0 tok/s aggregate
+REALTRAFFIC B= 2: 10.67 ms/step, 187.5 tok/s aggregate
+REALTRAFFIC B= 4: 13.94 ms/step, 287.0 tok/s aggregate
+REALTRAFFIC B= 8: 21.42 ms/step, 373.4 tok/s aggregate
+== branch rep1
+REALTRAFFIC B= 1: 8.25 ms/step, 121.2 tok/s aggregate
+REALTRAFFIC B= 2: 10.10 ms/step, 198.0 tok/s aggregate
+REALTRAFFIC B= 4: 14.15 ms/step, 282.6 tok/s aggregate
+REALTRAFFIC B= 8: 19.92 ms/step, 401.7 tok/s aggregate
+== main rep2
+REALTRAFFIC B= 1: 8.05 ms/step, 124.2 tok/s aggregate
+REALTRAFFIC B= 2: 10.01 ms/step, 199.8 tok/s aggregate
+REALTRAFFIC B= 4: 14.07 ms/step, 284.3 tok/s aggregate
+REALTRAFFIC B= 8: 21.77 ms/step, 367.5 tok/s aggregate
+== branch rep2
+REALTRAFFIC B= 1: 8.20 ms/step, 121.9 tok/s aggregate
+REALTRAFFIC B= 2: 10.00 ms/step, 200.0 tok/s aggregate
+REALTRAFFIC B= 4: 13.77 ms/step, 290.5 tok/s aggregate
+REALTRAFFIC B= 8: 19.97 ms/step, 400.6 tok/s aggregate

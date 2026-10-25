@@ -13,11 +13,16 @@ for s in $ST; do
   echo "== stage $s $(date +%H:%M:%S)"
   case $s in
     gb) $C -p intarsia-backend-metal --test rows_exact -- --test-threads=1 --nocapture > "$OUT/gb-rows_exact.log" 2>&1; echo "rows_exact exit $?"
+        # the fp8 rows gate with the simdgroup-matrix form at every M (2) and off (0); the default takes it from M = 5
+        for v in 2 0; do
+          INTARSIA_METAL_FP8_ROWS_MMT=$v $C -p intarsia-backend-metal --test rows_exact -- --test-threads=1 --exact fp8_rows_are_bitwise_the_one_row_gemv > "$OUT/gb-fp8-mmt$v.log" 2>&1; echo "fp8 rows (ROWS_MMT=$v) exit $?"
+        done
         $C -p intarsia-backend-metal --test row_tables -- --test-threads=1 --nocapture > "$OUT/gb-row_tables.log" 2>&1; echo "row_tables exit $?" ;;
     neg) # each negative-control kernel must make its gate FAIL
-        for n in fp8_xd moe_gu moe_dn; do
-          t=fp8_rows_are_bitwise_the_one_row_gemv; [ "$n" != fp8_xd ] && t=moe_experts_rows_are_bitwise_the_one_token_call
-          INTARSIA_METAL_NEGCTL=$n $C -p intarsia-backend-metal --test rows_exact -- --test-threads=1 --exact $t > "$OUT/neg-$n.log" 2>&1
+        for n in fp8_xd fp8_mmt moe_gu moe_dn; do
+          t=fp8_rows_are_bitwise_the_one_row_gemv; [ "${n#fp8_}" = "$n" ] && t=moe_experts_rows_are_bitwise_the_one_token_call
+          mmt=5; [ "$n" = fp8_xd ] && mmt=0  # each fp8 control on its own form at the rows it serves
+          INTARSIA_METAL_FP8_ROWS_MMT=$mmt INTARSIA_METAL_NEGCTL=$n $C -p intarsia-backend-metal --test rows_exact -- --test-threads=1 --exact $t > "$OUT/neg-$n.log" 2>&1
           r=$?; echo "NEGCTL=$n $t exit $r (want non-zero): $(grep -m1 -o 'first differing byte [0-9]* of [0-9]*' "$OUT/neg-$n.log")"
         done ;;
     kt) cargo run --release -p intarsia-cli --features metal -- kernels test --backend metal > "$OUT/kernels-test.log" 2>&1; echo "kernels test exit $?"; tail -3 "$OUT/kernels-test.log" ;;
