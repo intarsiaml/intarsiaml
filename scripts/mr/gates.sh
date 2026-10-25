@@ -18,6 +18,8 @@ H=/data/models/radiance/hf-cache/hub
 M8=/models/Qwen3-8B; M35=/models/Qwen3.6-35B-A3B-NVFP4
 M27=/models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 now() { date '+%F %T'; }
+# the dev binary and tests are built by build.sh; if the binary is missing (build job not run yet), build it before radiance goes down
+[ -x /data/mr-target-dev/release/intarsia ] || INTARSIA_REPO=$RD INTARSIA_TARGET_VOL=$VD $D cargo build --release --locked --features hip -p intarsia-cli 2>&1 < /dev/null | tail -2
 trap 'bash $S/mr/win.sh restore' EXIT
 bash $S/mr/win.sh stop
 dev() { # dev <repo> <vol> <gpu> <cmd...>

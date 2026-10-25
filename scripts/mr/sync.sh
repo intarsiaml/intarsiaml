@@ -5,7 +5,7 @@ set -euo pipefail
 what=${1:-both}
 cd "$(git rev-parse --show-toplevel)"
 if [ "$what" != base ]; then
-  rsync -a --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude web --exclude .base --exclude .mrbin ./ tatooine:mr-hip/
+  rsync -a --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude .base --exclude .mrbin ./ tatooine:mr-hip/
 fi
 if [ "$what" != dev ]; then
   git fetch -q origin main
