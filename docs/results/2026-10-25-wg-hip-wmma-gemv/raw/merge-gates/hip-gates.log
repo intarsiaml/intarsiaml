@@ -1,3 +1,23 @@
 fleetq: #5355 waiting (#3 in line): in line behind #5348 "native radiance upgrade: radiance.service restarts on new native files (radiance down ~2 min) (user)" (claude-f07ec01e) on tatooine-r9700, tatooine-r9700-2
 fleetq: #5355 waiting (#2 in line): tatooine-r9700 is held exclusively by #5348 "native radiance upgrade: radiance.service restarts on new native files (radiance down ~2 min) (user)" (claude-f07ec01e); then in line behind #5349 "gt lane: PR #149 dense-8B skip on HIP (build + 2 short test runs), radiance down <=40 min, restored after" (claude-416b48ae) on tatooine-r9700, tatooine-r9700-2
 fleetq: #5355 waiting (#1 in line): radiance-rank0 is also taken down by #5349 "gt lane: PR #149 dense-8B skip on HIP (build + 2 short test runs), radiance down <=40 min, restored after" (claude-416b48ae)
+fleetq: #5355 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wgm-win.sh bash ~/wgm-gates.sh ABC'
+[win] stopping radiance 2026-10-25 13:24:07
+[gates] A no-op 2026-10-25 13:24:11
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+ids 8 short: identical (256 ids, sha 5d882689)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8343 B)
+plan 8 txt: byte-identical (1346 B)
+ids 35 short: identical (256 ids, sha 0d079dea)
+ids 35 4k: identical (256 ids, sha d626e2f1)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)
+[gates] B 2026-10-25 13:25:08
