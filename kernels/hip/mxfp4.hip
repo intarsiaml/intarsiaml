@@ -682,13 +682,20 @@ mxf8_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__ xsc
 #pragma unroll
             for (int j = 0; j < TM; ++j) na[j] = (int)ssx[buf][g][wm * TM * 16 + j * 16 + lr];
             if (kt > 0 || g > 0) {
+                // into the new group's units: two exact power-of-two multiplies per element (pairable as v_dual_mul)
+                float rw[TN][8], ra[TM];
+#pragma unroll
+                for (int i = 0; i < TN; ++i)
+#pragma unroll
+                    for (int r = 0; r < 8; ++r) rw[i][r] = ldexpf(1.f, ew[i][r] - nw[i][r]);
+#pragma unroll
+                for (int j = 0; j < TM; ++j) ra[j] = ldexpf(1.f, ea[j] - na[j]);
 #pragma unroll
                 for (int i = 0; i < TN; ++i)
 #pragma unroll
                     for (int j = 0; j < TM; ++j)
 #pragma unroll
-                        for (int r = 0; r < 8; ++r)
-                            acc[i][j][r] = ldexpf(acc[i][j][r], (ew[i][r] - nw[i][r]) + (ea[j] - na[j]));
+                        for (int r = 0; r < 8; ++r) acc[i][j][r] = acc[i][j][r] * rw[i][r] * ra[j];
             }
 #pragma unroll
             for (int i = 0; i < TN; ++i)
