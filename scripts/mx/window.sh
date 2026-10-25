@@ -36,7 +36,7 @@ systemctl --user stop radiance < /dev/null
 sleep 3
 echo "[window] radiance stopped $(now)"
 BUDGET=$((CAP - 60)) timeout "$CAP" bash $HOME/mx/stages-$W.sh "$O" < /dev/null
-echo "[window] stages done $(now) (exit $?)"
+rc=$?; echo "[window] stages done $(now), exit $rc"
 EOS
 rsync -a --exclude '*.safetensors' tatooine:mx/out/$W/ "$RAW/$W/" < /dev/null
 gzip -f "$RAW/$W"/*.csv 2>/dev/null
