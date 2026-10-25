@@ -1412,7 +1412,13 @@ mod tests {
     #[test]
     fn rescore_m1_w4a4_from_the_documented_numbers() {
         let noise = sidecar("qwen3.8-27b-mxfp4-hfquark-top20.safetensors");
-        assert_eq!((noise.method, noise.kl21_mean, noise.kl21_mean_scored), (Method::PrecisionSpread, Some(0.197), None));
+        // the sidecar is the hash-bound re-measurement of 2026-10-25 (docs/results/2026-10-25-ac-27b-accuracy-gate.md): the same
+        // pair of goldens, 0.1969 on all rows (the 0.197 above), 0.1991 on the 1279 scored rows
+        assert_eq!(noise.method, Method::PrecisionSpread);
+        assert!((noise.kl21_mean.unwrap() - 0.197).abs() < 1e-3, "{:?}", noise.kl21_mean);
+        assert!((noise.kl21_mean_scored.unwrap() - 0.1991).abs() < 1e-4, "{:?}", noise.kl21_mean_scored);
+        assert_eq!((noise.n, noise.n_scored), (Some(1441), Some(1279)));
+        assert_eq!(noise.golden.fnv1a64.as_deref(), Some("725eb3ea093c0264"));
         for (mode, kl, pass) in [("prefill", 0.180, true), ("prefill (golden_kl.py)", 0.176, true), ("decode", 0.274, false)] {
             let v = judge_kl(mode, "21-way KL", kl, Some(0.03), term_rows(0.197, kl, "all rows"), 1.0, "default").unwrap();
             println!(

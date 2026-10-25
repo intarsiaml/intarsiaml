@@ -1,0 +1,13 @@
+{
+ "format": "intarsia-golden-provenance-v1",
+ "golden": "qwen3.8-27b-mxfp4-hfquark-f32-top20.safetensors",
+ "sha256": "d5186d87580026739e4fe84eb5b399071920477e298f4654e326a92db6f4b1cb",
+ "fnv1a64": "6d574caf2a42e73c",
+ "size": 245572,
+ "source": "HF W4A4, f32: transformers 5.19.0 + torch 2.14.1 (CPU, layer-streamed), Quark emulation (MXFP4 weights dequantised to bf16), activations dynamic (Quark even_round), 496 QDQ'd linears, KV f32; model amd/Qwen3.8-27B-Quark-AWQ-MXFP4 (snapshot 5233554c5fa56afda40150556b95573c2d7d29c0)",
+ "prompts": "golden.jsonl + golden_long.jsonl (10 prompts, 1441 positions, top-20 log-probs, one full-sequence forward per prompt, no continuation)",
+ "tool": "tools/golden_quark_mxfp4.py, run on endor (CPU) by lane m1, docs/results/2026-10-21-m1-qwen38-drill.md",
+ "date": "2026-10-21 14:42 UTC",
+ "lane": "m1 (built), ac (hashed and described)",
+ "note": "second reference run for the noise record only: bf16 against f32 of the same HF run; not a gate golden. The file is NOT tracked in git (golden/*.safetensors is ignored): it lives at tatooine:~/intarsiaml-p1/p1-golden/ and was copied from there on 2026-10-25."
+}
