@@ -201,15 +201,16 @@ int main(int argc, char** argv) {
     IK_VAR("p64 sk+dp", 64, kMf8Skip | kMf8Deep)
     IK_VAR("p64 sk+zf", 64, kMf8Skip | kMf8ZFast)
     IK_VAR("p64 s+d+zf", 64, kMf8Skip | kMf8Deep | kMf8ZFast)
-    IK_VAR("p128 skip", 128, kMf8Skip)
+    IK_VAR("p64 sz+bar", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar)
+    IK_VAR("p64 szd+bar", 64, kMf8Skip | kMf8Deep | kMf8ZFast | kMf8LdsBar)
     IK_VAR("p128 sk+zf", 128, kMf8Skip | kMf8ZFast)
     if (ablate) {
-        IK_VAR("sz NoW", 64, kMf8Skip | kMf8ZFast | kMf8NoW)
-        IK_VAR("sz NoFma", 64, kMf8Skip | kMf8ZFast | kMf8NoFma)
-        IK_VAR("sz NoLds", 64, kMf8Skip | kMf8ZFast | kMf8NoLds)
-        IK_VAR("sz NoDec", 64, kMf8Skip | kMf8ZFast | kMf8NoDec)
-        IK_VAR("sz NoW+Fma", 64, kMf8Skip | kMf8ZFast | kMf8NoW | kMf8NoFma)
-        IK_VAR("sz all-off", 64, kMf8Skip | kMf8ZFast | kMf8NoW | kMf8NoFma | kMf8NoLds | kMf8NoDec)
+        IK_VAR("szb NoW", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoW)
+        IK_VAR("szb NoFma", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoFma)
+        IK_VAR("szb NoLds", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoLds)
+        IK_VAR("szb NoDec", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoDec)
+        IK_VAR("szb NoW+Fma", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoW | kMf8NoFma)
+        IK_VAR("szb all-off", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar | kMf8NoW | kMf8NoFma | kMf8NoLds | kMf8NoDec)
     }
 #undef IK_VAR
     printf("best fp8 variant: %s  %.3f ms (r7 %.3f ms, x%.2f)\n", best_name, best_total, t_r7_gu + t_r7_dn, (t_r7_gu + t_r7_dn) / best_total);

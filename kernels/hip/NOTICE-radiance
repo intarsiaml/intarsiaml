@@ -4,6 +4,9 @@ IntarsiaML HIP kernels derived from radiance (libr4d), https://codeberg.org/Stil
 Files in this repository whose design is ported from radiance (rewritten for the ik_* ABI, not copied; changed):
   kernels/hip/allreduce.hip   from libr4d/r4d_ar_oneshot_2rank_exact.hip and libr4d/r4d_ar_seq.h
                               (two-rank one-shot push all-reduce, per-block flags, double-buffered scratch)
+  kernels/hip/moe_wmma_fp8.h  from radiance-moe-w4a8-2 (kernel/radiance_moe_w4a8.hip: grouped MoE experts on the fp8 WMMA with per-row e4m3
+                              activations) and libr4d/r4d_mxfp4.h (lossless e2m1 -> e4m3 byte map). Only the idea and the e2m1 -> e4m3 byte map
+                              are used; the NVFP4 block-scale partial-sum fold, the k layout and the code are written for the ik_* ABI.
 
 The radiance NOTICE file follows verbatim. The all-reduce kernels it credits to tcclaviger (N-rank all-reduce kernels)
 are the origin of the design above.

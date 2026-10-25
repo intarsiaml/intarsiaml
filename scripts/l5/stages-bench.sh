@@ -7,7 +7,7 @@ hb() { # hb <tag> <args...>: f8bench inside the dev image (ROCm libraries) on ca
   docker run --rm --device /dev/kfd --device /dev/dri --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" \
     --group-add video --ipc host --security-opt seccomp=unconfined --user "$(id -u):$(id -g)" -e HOME=/tmp -e HIP_VISIBLE_DEVICES=$G \
     -v "$HOME/intarsiaml-l5-$NAME":/work -w /work $IMG /work/l5-out/f8bench "$@" > "$O/f8bench-$tag.txt" 2>&1 < /dev/null
-  echo "f8bench $tag exit $?"; tail -n 25 "$O/f8bench-$tag.txt"
+  echo "f8bench $tag exit $?"; cat "$O/f8bench-$tag.txt"
 }
 for t in $T; do hb "T$t" "$t" 10 0 1; done
 hb "T4096-skew" 4096 10 1 1

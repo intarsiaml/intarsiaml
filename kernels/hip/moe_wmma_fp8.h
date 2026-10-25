@@ -38,12 +38,26 @@ typedef int ik_mf8_v2i __attribute__((ext_vector_type(2)));
 
 constexpr int kMf8KB = 64;          // k per block of the loop
 constexpr int kMf8LD = kMf8KB + 16;  // LDS row of the activation tile (bytes): 80
-constexpr int kMf8Skip = 1, kMf8Deep = 2, kMf8ZFast = 4;  // variant bits V
-/* kMf8ZFast: the grid is (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile), so the blocks of one expert's
+constexpr int kMf8Skip = 1, kMf8Deep = 2, kMf8ZFast = 4, kMf8LdsBar = 8;  // variant bits V
+/* kMf8LdsBar: the k loop's barriers order the LDS only (release/acquire fences of the local address space around s_barrier), not global memory.
+ * __syncthreads() is also a workgroup fence on global memory: s_wait_loadcnt 0, i.e. it waits for the weight and activation prefetches the loop
+ * has just issued, which makes the prefetch depth zero (gdn.hip, ik_hip.h). Same bits; speed only.
+ * kMf8ZFast: the grid is (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile), so the blocks of one expert's
  * pair tiles are launched next to each other and read the expert's weights from the L2 together (launch geometry only: same bits). */
 #ifdef IK_F8_ABLATE  /* scripts/l5/f8bench.hip only: timing ablations (the results are wrong by design) */
 constexpr int kMf8NoW = 16, kMf8NoFma = 32, kMf8NoLds = 64, kMf8NoDec = 128;
 #endif
+
+template <bool LDS_ONLY>
+IK_DEVI void ik_mf8_sync() {
+    if constexpr (LDS_ONLY) {
+        __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local");
+        __builtin_amdgcn_s_barrier();
+        __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local");
+    } else {
+        __syncthreads();
+    }
+}
 
 IK_DEVI ik_mw_v8f ik_mf8_wmma(const uint2& a, const uint2& b, const ik_mw_v8f& c) {
     return __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(__builtin_bit_cast(ik_mf8_v2i, a), __builtin_bit_cast(ik_mf8_v2i, b), c);
@@ -129,7 +143,7 @@ __global__ void __launch_bounds__(kMwThreads)
 moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
               const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
               const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk, int y0) {
-    constexpr bool SKIP = (V & kMf8Skip) != 0, ZFAST = (V & kMf8ZFast) != 0;
+    constexpr bool SKIP = (V & kMf8Skip) != 0, ZFAST = (V & kMf8ZFast) != 0, LDSBAR = (V & kMf8LdsBar) != 0;
 #ifdef IK_F8_ABLATE
     constexpr bool NOW = (V & kMf8NoW) != 0, NOFMA = (V & kMf8NoFma) != 0, NOLDS = (V & kMf8NoLds) != 0, NODEC = (V & kMf8NoDec) != 0;
 #endif
@@ -246,7 +260,7 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
                 }
             };
 
-            __syncthreads();  // the previous pair tile's last reads of sx / sred / spair / srow are done
+            ik_mf8_sync<LDSBAR>();  // the previous pair tile's last reads of sx / sred / spair / srow are done
             if (tid < PAIRS) {
                 const int p_idx = pt * PAIRS + tid;
                 int pair = -1;
@@ -265,7 +279,7 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
                 if (i < nkb) W[i] = loadW(i);
             storeX(0);
             if (nkb > 1) loadX(1);
-            __syncthreads();
+            ik_mf8_sync<LDSBAR>();
             for (int kb0 = 0; kb0 < nkb; kb0 += RING) {
 #pragma unroll
                 for (int i = 0; i < RING; ++i) {
@@ -277,7 +291,7 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
                         storeX((kb + 1) & 1);
                         if (kb + 2 < nkb) loadX(kb + 2);
                     }
-                    __syncthreads();
+                    ik_mf8_sync<LDSBAR>();
                 }
             }
         };
@@ -300,7 +314,7 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
 #pragma unroll
                     for (int i = 0; i < 8; ++i) sred[((wave & 3) * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
             }
-            __syncthreads();
+            ik_mf8_sync<LDSBAR>();
             if (part == 1) continue;
         }
         if (n >= Nd) continue;
