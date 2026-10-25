@@ -1,0 +1,38 @@
+[window] job 5202 27b; stopping radiance 2026-10-25 06:59:33
+[window] radiance stopped 2026-10-25 06:59:36
+06:59:36 window start, CAP 2400s
+06:59:43 plan-tp1-base-27b exit 0: 
+06:59:52 gen-tp1-base-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+07:00:06 gen-tp1-base-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+07:00:08 plan-tp1-batch-27b exit 0: 
+07:00:18 gen-tp1-batch-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+07:00:32 gen-tp1-batch-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+07:00:32 SAME 27B tp=1 plan show json, D vs B (plan-tp1-base-27b.out == plan-tp1-batch-27b.out)
+07:00:32 SAME 27B tp=1 256 ids short, D vs B (gen-tp1-base-27b-short.ids == gen-tp1-batch-27b-short.ids)
+07:00:32 SAME 27B tp=1 256 ids 4k, D vs B (gen-tp1-base-27b-4k.ids == gen-tp1-batch-27b-4k.ids)
+07:00:33 acc-tp1-27b exit 1: Error: reading /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors|
+07:00:33 tp1 done, time left 2343s
+07:00:36 plan-tp2-27b exit 0: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+07:00:36 tp2 plan: "lm_head": "vocab-parallel: every rank holds V / world rows, the logits are all-gathered into rank 0"|"all_reduce_calls_per_decode_step": 129|"all_reduce_fused_rmsnorm_per_decode_step": 0|
+07:00:43 gen-tp2-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+07:00:43 SAME 27B 256 ids short: tp=2 default vs tp=1 (want SAME: W4A4 is exact) (gen-tp1-batch-27b-short.ids == gen-tp2-27b-short.ids)
+07:00:54 gen-tp2-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35328 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+07:00:54 SAME 27B 256 ids 4k: tp=2 default vs tp=1 (want SAME: W4A4 is exact) (gen-tp1-batch-27b-4k.ids == gen-tp2-27b-4k.ids)
+07:00:56 acc-tp2-27b exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: reading /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors|
+cp: cannot stat '/home/josef/tp2/out/27b/acc-tp1-27b.safetensors': No such file or directory
+07:00:59 self-tp2-vs-tp1 exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: reading /work/tp2-out/acc-tp1-27b.safetensors|
+cp: cannot stat '/home/josef/tp2/out/27b/acc-tp1-27b.safetensors': No such file or directory
+07:01:01 self-tp2-vs-tp1-noise exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: reading /work/tp2-out/acc-tp1-27b.safetensors|
+07:01:10 gen-tp2-INTARSIA_TP_VOCAB-27b-short exit 0 [INTARSIA_TP_VOCAB=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+07:01:10 SAME 27B tp=2 ids short: INTARSIA_TP_VOCAB=0 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_VOCAB-27b-short.ids)
+07:01:10 evidence INTARSIA_TP_VOCAB=0: 
+07:01:17 gen-tp2-INTARSIA_TP_ARNORM-27b-short exit 0 [INTARSIA_TP_ARNORM=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+07:01:17 SAME 27B tp=2 ids short: INTARSIA_TP_ARNORM=1 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_ARNORM-27b-short.ids)
+07:01:17 evidence INTARSIA_TP_ARNORM=1: tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=128|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=128|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=128|
+07:01:25 gen-tp2-INTARSIA_TP_FUSION-27b-short exit 0 [INTARSIA_TP_FUSION=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+07:01:25 SAME 27B tp=2 ids short: INTARSIA_TP_FUSION=0 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_FUSION-27b-short.ids)
+07:01:25 evidence INTARSIA_TP_FUSION=0: 
+07:01:25 done, time left 2291s
+[window] stages done 2026-10-25 07:01:25 (exit 0)
+[window] starting radiance 2026-10-25 07:01:25
+[window] radiance answers 2026-10-25 07:01:45 (after 25 s)

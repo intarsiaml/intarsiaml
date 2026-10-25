@@ -1,0 +1,2 @@
+batch: -rwxr-xr-x 1 josef josef 38996208 Oct 25 05:35 /home/josef/intarsiaml-tp2-batch/tp2-intarsia
+stack: -rwxr-xr-x 1 josef josef 38971712 Oct 25 03:41 /home/josef/intarsiaml-tp2-stack/tp2-intarsia

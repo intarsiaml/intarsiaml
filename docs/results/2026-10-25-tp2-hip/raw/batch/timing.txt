@@ -1,0 +1,8 @@
+tp1 TIMING solo step 57.33 ms (17.4 tok/s)
+tp1 TIMING batch B= 4: 13.50 ms/step, 296.3 tok/s aggregate (0.24x solo step)
+tp1 TIMING batch B= 8: 21.88 ms/step, 365.6 tok/s aggregate (0.38x solo step)
+tp1 TIMING batch B=16: 40.99 ms/step, 390.3 tok/s aggregate (0.72x solo step)
+tp2 TIMING solo step 39.37 ms (25.4 tok/s)
+tp2 TIMING batch B= 4: 10.33 ms/step, 387.2 tok/s aggregate (0.26x solo step)
+tp2 TIMING batch B= 8: 16.06 ms/step, 498.1 tok/s aggregate (0.41x solo step)
+tp2 TIMING batch B=16: 28.73 ms/step, 557.0 tok/s aggregate (0.73x solo step)

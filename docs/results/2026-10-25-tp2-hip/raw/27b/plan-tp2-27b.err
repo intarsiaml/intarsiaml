@@ -1,0 +1,3 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0

@@ -107,6 +107,13 @@ impl Model {
                 self.backend.name()
             )));
         }
+        if self.tp.world > 1 && self.backend.name() == "hip" && !self.vocab_par {
+            // the peers run their slice of the head and the gather inside the batched step; with the head on rank 0 alone the
+            // peer's recording has no head (it failed mid-run: "rank 1 of the tensor-parallel group has no lm_head")
+            return Err(Error::Unsupported(
+                "--max-batch N with --tp needs the vocab-parallel lm_head (INTARSIA_TP_VOCAB=0, or a communicator without all_gather, turns it off)".into(),
+            ));
+        }
         for p in self.peers.iter_mut() {
             p.enable_batch_rank(max_rows)?;
         }

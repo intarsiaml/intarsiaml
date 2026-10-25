@@ -1,0 +1,7 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics (vocab 248320, weights/act/kv bf16/bf16)
+Error: reading /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+
+Caused by:
+    No such file or directory (os error 2)
