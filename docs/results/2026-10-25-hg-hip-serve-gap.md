@@ -78,11 +78,11 @@ Status at this commit:
 | Metal `kernels test` | endor | 44 kernels, 817 cases ADMITTED |
 | Workspace tests on the branch | endor (#5007) | everything passes except `intarsia-backend-cuda` `rows_registry` (2 tests), which fails identically on origin/main (checked in a separate worktree): pre-existing, not from this PR (`raw/metal-workspace-tests.log`) |
 | `cargo test -p intarsia-core --test scheduler` | local | 26 passed |
-| HIP batching-off no-op vs origin/main: plan show (json, text) and 256 greedy ids, 8B and 35B, short and 4k | tatooine, fleetq #5017, one R9700 per tree | all 12 comparisons identical (ids sha 5d882689 / 6203ecdb 8B, 0d079dea / d626e2f1 35B; plan json 8343 / 12961 B, text 1346 / 3184 B) (`raw/hip/gates-run.log`) |
+| HIP batching-off no-op vs origin/main: plan show (json, text) and 256 greedy ids, 8B and 35B, short and 4k | tatooine, fleetq #5017, one R9700 per tree | all 8 comparisons identical (ids sha 5d882689 / 6203ecdb 8B, 0d079dea / d626e2f1 35B; plan json 8343 / 12961 B, text 1346 / 3184 B) (`raw/hip/gates-run.log`) |
 | HIP `batch_recurrent --test-threads=1` | #5017 | 10 passed, 0 failed |
 | HIP 35B `batch_cuda_real` (hip backend) | #5017 | 2 passed (35B batched decode bitwise solo, 35B engine equals LocalEngine) |
 | same, `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` | #5017 | passed (56.8 s) |
-| `batch_cuda_real real_qwen3_8b_batched_decode_is_bitwise_the_solo_step` (dense 8B) | #5017, rerun with `INTARSIA_QWEN3_DIR` | **not applicable on HIP**: `Model::allow_recurrent_batch` refuses a dense model on hip (`hip_batch_needs_hybrid`, `model/batch.rs:781`, unchanged here); the test fails the same way on origin/main. The first run failed earlier on the unset env var (`raw/hip/g-8b.log`) |
+| `batch_cuda_real real_qwen3_8b_batched_decode_is_bitwise_the_solo_step` (dense 8B) | #5017, rerun with `INTARSIA_QWEN3_DIR` | **not applicable on HIP**: `Model::allow_recurrent_batch` refuses a dense model on hip (`hip_batch_needs_hybrid`, `model/batch.rs:781`, unchanged here); the refusing code is not touched by this PR, so the test cannot pass on origin/main either (not run there). The first run failed earlier on the unset env var (`raw/hip/g-8b.log`) |
 | HIP `kernels test --quick` | #5017 | 62 kernels, 333 cases, all ADMITTED |
 | HIP `packed_rows` (row-invariance of the 35B prefill kernels; for the packed-prefill PR) | #5017 | 5 passed: `matmul_nvfp4_mma`, `matmul_bf16`, `moe_topk_bf16_v2`, `moe_experts_bf16_v2` give each row the same bits packed (6 segments, 4,167 rows) as alone; a 15-row segment differs, 16 and up do not |
 
