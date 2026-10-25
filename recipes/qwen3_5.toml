@@ -62,6 +62,14 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 kv_dtype = "bf16"
 max_batch = 32
 
+# 4096 with an 8-row tail peel on HIP (lane mx, R9700, Qwen3.8-27B MXFP4): bitwise the default 256 schedule, because every
+# 27B kernel gives a row the same bits at any M above 8 and the peel runs a pass's last 1..8 rows past a multiple of 256
+# alone, as chunk 256 does (the M <= 8 MXFP4 GEMV). Prefill +18 / +24 / +26 % at 1k / 4k / 16k on one card; evidence and
+# the tail sweep in docs/results/2026-10-25-mx-hip-27b-prefill.md section 4. CUDA, Metal and CPU keep 256 here.
+[tuning.hip]
+prefill_chunk = 4096
+prefill_peel = 8
+
 # `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). No
 # reuse_logit_tol / reuse_kl_tol yet: they must be measured once on a known-good build of this model (a GPU run) and
 # written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B.

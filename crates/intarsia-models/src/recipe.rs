@@ -308,4 +308,28 @@ lm_head = { tensor = "h" }
         let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
         assert_eq!(q35.resolve_prefill_chunk(None, "cuda").value, 256);
     }
+
+    #[test]
+    fn qwen3_5_dense_hip_chunk_4096_with_tail_peel() {
+        let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
+        let hip = q35.resolve_prefill_chunk(None, "hip");
+        assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5, hip"));
+        assert_eq!(q35.resolve_prefill_peel("hip"), (8, "recipe qwen3_5, hip".to_string()));
+        for be in ["cuda", "metal", "cpu"] {
+            assert_eq!(q35.resolve_prefill_chunk(None, be).value, 256, "{be}");
+            assert_eq!(q35.resolve_prefill_peel(be).0, 0, "{be}");
+        }
+        // no other builtin recipe sets a peel (their schedules are unchanged)
+        for arch in ["Qwen3_5MoeForConditionalGeneration", "Qwen3ForCausalLM"] {
+            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+            for be in ["cuda", "hip", "metal", "cpu"] {
+                assert_eq!(r.resolve_prefill_peel(be).0, 0, "{arch} {be}");
+            }
+        }
+        // a peel is a tail of a 256-row pass: 256 or more is refused
+        assert!(parse_recipe(&format!("{TUNED}[tuning.hip]\nprefill_peel = 256\n")).is_err());
+        let r = parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel = 4\n[tuning.hip]\nprefill_peel = 8\n")).unwrap();
+        assert_eq!(r.resolve_prefill_peel("hip").0, 8);
+        assert_eq!(r.resolve_prefill_peel("cuda"), (4, "recipe x, base".to_string()));
+    }
 }
