@@ -35,7 +35,7 @@ echo "[window] job $FLEETQ_JOB $W; stopping radiance $(now)"
 systemctl --user stop radiance < /dev/null
 sleep 2
 echo "[window] radiance stopped $(now)"
-timeout "$CAP" bash $HOME/tp2/stages-$W.sh "$O" < /dev/null
+timeout "$CAP" bash $HOME/tp2/stages-${STAGES:-$W}.sh "$O" < /dev/null
 echo "[window] stages done $(now) (exit $?)"
 EOS
 rc=${PIPESTATUS[0]}
