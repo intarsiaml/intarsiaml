@@ -618,9 +618,18 @@ MOE_GATHER(moe_gather_f32, float)
 // in flight; the activation block is loaded once for all of them. No grouping by expert: the pairs that share an expert read
 // its blocks at about the same time and the second read comes from the cache (measured faster than serving the pairs of an
 // expert from one threadgroup, the moe_lead scheme of the _x kernels). h by pair, y by pair; moe_gather sums per token in k
-// order. NEG (negative control only, INTARSIA_METAL_NEGCTL): each block's scale fma is split into two fmas of half the
-// block dot (two roundings instead of one), which the row gate must catch. (A plain multiply and add is not a control: the
-// compiler contracts it back into the same fma.)
+// order. NEG (negative control only, INTARSIA_METAL_NEGCTL): the 16-term fma chain of each block runs in reverse order,
+// which the row gate must catch. (Neither a plain multiply and add, which the compiler contracts back into the fma, nor a
+// split scale fma, which rounds identically when a lane holds one block as in down at I = 512, is a control.)
+
+inline float moe_blk_dot_rev(uint2 wv, thread const float* xv) {
+    float t = 0.f;
+    for (int q = 1; q >= 0; --q) {
+        const uint v = wv[q];
+        for (int b = 7; b >= 0; --b) t = fma(moe_fp4[(v >> (4 * b)) & 0xFu], xv[q * 8 + b], t);
+    }
+    return t;
+}
 
 constant constexpr uint MOE_PR = 2;  // rows per simdgroup
 
@@ -655,7 +664,7 @@ inline void moe_dec_gu_p_impl(device const ushort* x, device const int* ids, dev
         for (int i = 0; i < 16; ++i) xv[i] = bf2f(xr[u * 16 + i]);
         for (uint j = 0; j < MOE_PR; ++j) {
             const float dg = moe_blk_dot(uint2(wg[j][u]), xv);
-            ag[j] = NEG ? fma(0.5f * dg, moe_e4m3(sgp[j][u]), fma(0.5f * dg, moe_e4m3(sgp[j][u]), ag[j])) : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
+            ag[j] = fma(NEG ? moe_blk_dot_rev(uint2(wg[j][u]), xv) : dg, moe_e4m3(sgp[j][u]), ag[j]);
             au[j] = fma(moe_blk_dot(uint2(wu[j][u]), xv), moe_e4m3(sup[j][u]), au[j]);
         }
     }
@@ -693,7 +702,7 @@ inline void moe_dec_dn_p_impl(device const ushort* h, device const int* ids, dev
         for (int i = 0; i < 16; ++i) hv[i] = bf2f(hr[u * 16 + i]);
         for (uint j = 0; j < MOE_PR; ++j) {
             const float d = moe_blk_dot(uint2(wr[j][u]), hv);
-            s[j] = NEG ? fma(0.5f * d, moe_e4m3(sr[j][u]), fma(0.5f * d, moe_e4m3(sr[j][u]), s[j])) : fma(d, moe_e4m3(sr[j][u]), s[j]);
+            s[j] = fma(NEG ? moe_blk_dot_rev(uint2(wr[j][u]), hv) : d, moe_e4m3(sr[j][u]), s[j]);
         }
     }
     for (uint j = 0; j < MOE_PR; ++j) {
