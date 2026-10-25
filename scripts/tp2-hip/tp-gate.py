@@ -8,15 +8,18 @@ Inputs are the stdout of `intarsia accuracy --golden <vLLM top-20 golden> --mode
   --cand  the build at tp>1       (candidate = KL(tp2 vs vLLM))
 Check 3, per mode (prefill, decode), on the "KL21 scored" column (mean 21-way KL against vLLM):
   * mean:        cand_overall <= ref_overall * MEAN_TOL      (1.02)
-  * per prompt:  cand_prompt  <= ref_prompt  * PROMPT_CAP    (1.10)
-Exit 0 only if both hold for both modes. --control files are further equally valid tp=1 variants: they are scored the same way
-against --ref and printed, never gating: they show how much of the per-prompt spread is noise rather than tp. --mutant files
+  * per prompt:  cand_prompt  <= ref_prompt  * cap(cell), cap(cell) = max(PROMPT_CAP, CONTROL_MARGIN * the worst control/ref ratio
+                 in that same cell), cell = (mode, prompt), prefill and decode separately.   PROMPT_CAP 1.10, CONTROL_MARGIN 1.1
+                 (coordinator, 2026-10-25, fixed before window w8 / before any control data existed; docs/decisions/LOG.md)
+Exit 0 only if both hold for both modes. --control files are the two equally valid tp=1 variants (no fusion; chunk 233): each is a
+full accuracy table of the same build at tp=1; their per-cell ratios to --ref set the cap above. They are printed, not gated.
+With no control the cap is the fixed 1.10 (and the output says so). --mutant files
 (deliberate partial-scale bugs at tp>1) are scored the same way and printed with their verdict, to answer "does check 3 kill it".
 KL(tp vs tp1) is reported by `accuracy --self-golden --self-vs-ref-noise`, not here, and does not gate.
 """
 import argparse, re, sys
 
-MEAN_TOL, PROMPT_CAP = 1.02, 1.10
+MEAN_TOL, PROMPT_CAP, CONTROL_MARGIN = 1.02, 1.10, 1.1
 
 
 def table(path):
@@ -39,13 +42,25 @@ def table(path):
     return out
 
 
-def score(ref, cand):
+def caps(ref, controls):
+    """cap per cell: MEAN_TOL for OVERALL, else max(PROMPT_CAP, CONTROL_MARGIN * worst control/ref ratio in the cell)."""
+    out = {}
+    for (mode, p), r in ref.items():
+        if p == "OVERALL":
+            out[(mode, p)] = MEAN_TOL
+            continue
+        worst = max([c[(mode, p)] / r for c in controls if (mode, p) in c and r > 0] or [0.0])
+        out[(mode, p)] = max(PROMPT_CAP, CONTROL_MARGIN * worst)
+    return out
+
+
+def score(ref, cand, cap):
     rows, ok = [], True
     for (mode, p), r in ref.items():
         c = cand.get((mode, p))
         if c is None:
             continue
-        lim = MEAN_TOL if p == "OVERALL" else PROMPT_CAP
+        lim = cap[(mode, p)]
         ratio = c / r if r > 0 else float("inf")
         rows.append((mode, p, r, c, ratio, lim, ratio <= lim))
         ok &= ratio <= lim
@@ -54,10 +69,10 @@ def score(ref, cand):
 
 def show(title, rows, ok):
     print(f"\n== {title}: {'PASS' if ok else 'FAIL'}")
-    print(f"{'mode':8}{'prompt':18}{'ref':>10}{'cand':>10}{'ratio':>8}{'limit':>7}")
+    print(f"{'mode':8}{'prompt':18}{'ref':>10}{'cand':>10}{'ratio':>8}{'cap':>7}")
     for mode, p, r, c, ratio, lim, good in rows:
         print(f"{mode:8}{p:18}{r:10.3e}{c:10.3e}{ratio:8.3f}{lim:7.2f}{'' if good else '  FAIL'}")
-    bad = [f"{m}/{p}" for m, p, _, _, _, _, g in rows if not g]
+    bad = [f"{m}/{p} ({ra:.2f} > {lim:.2f})" for m, p, _, _, ra, lim, g in rows if not g]
     print(f"failing: {', '.join(bad) if bad else 'none'}")
 
 
@@ -71,14 +86,18 @@ def main():
     ref = table(a.ref)
     if not ref:
         sys.exit(f"no table in {a.ref}")
-    rows, ok = score(ref, table(a.cand))
+    ctl = [table(c) for c in a.control]
+    if len(ctl) < 2:
+        print(f"NOTE: {len(ctl)} control table(s) given, the rule needs two; per-prompt cap falls back to {'the worst of those' if ctl else 'the fixed 1.10'}")
+    cap = caps(ref, ctl)
+    rows, ok = score(ref, table(a.cand), cap)
     show(f"check 3: {a.cand} against {a.ref}", rows, ok)
-    for c in a.control:
-        r, g = score(ref, table(c))
-        show(f"control (equally valid tp=1 variant, not gating): {c}", r, g)
+    for c, t in zip(a.control, ctl):
+        r, _ = score(ref, t, cap)
+        show(f"control (equally valid tp=1 variant; ratios here set the caps, never gating): {c}", r, True)
     for m in a.mutant:
         name, path = m.split("=", 1)
-        r, g = score(ref, table(path))
+        r, g = score(ref, table(path), cap)
         show(f"mutant {name}: {'KILLED by check 3' if not g else 'NOT killed by check 3'}", r, g)
     sys.exit(0 if ok else 1)
 
