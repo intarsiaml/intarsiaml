@@ -246,7 +246,7 @@ impl Model {
                 Some(&pos_at(POS_CATCH_UP)),
                 false,
             )?;
-            self.head_to_device_into(&out, n - 1, false, ids_at(1, 1))?;
+            self.draft_head_to_device_into(&out, n - 1, false, ids_at(1, 1))?;
             self.backend.copy(&head.chain, 0, &out.buf, out.offset + (n - 1) * m.row_bytes, m.row_bytes, self.stream)?;
             // chain: drafts 2..k, each head row reading the previous draft (ws.ids[i]) and the previous head output
             for i in 1..k {
@@ -261,7 +261,7 @@ impl Model {
                     Some(&pos_at(POS_CHAIN + i - 1)),
                     false,
                 )?;
-                self.head_to_device_into(&out, 0, false, ids_at(1 + i, 1))?;
+                self.draft_head_to_device_into(&out, 0, false, ids_at(1 + i, 1))?;
                 self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, self.stream)?;
             }
             if scripted {

@@ -351,7 +351,7 @@ impl Model {
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
                 if done == n {
-                    tok = if next.is_some() { self.head_argmax(&out, c - 1, profile)? } else { 0 };
+                    tok = if next.is_some() { self.draft_head_argmax(&out, c - 1, profile)? } else { 0 };
                     if next.is_some() && self.recorder.lock().unwrap().is_none() {
                         self.backend.copy(
                             &head.chain,
@@ -424,7 +424,7 @@ impl Model {
                 let ids = [*drafts.last().unwrap()];
                 let out = self.mtp_layer(head, &m.kv, &ids, &hid, profile)?;
                 m.kv.commit(&ids);
-                drafts.push(self.head_argmax(&out, 0, profile)?);
+                drafts.push(self.draft_head_argmax(&out, 0, profile)?);
                 if self.recorder.lock().unwrap().is_none() {
                     self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;
                 }

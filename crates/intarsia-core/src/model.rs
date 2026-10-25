@@ -81,6 +81,10 @@ pub struct LoadOptions {
     /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
     /// largest k ([`crate::spec::SPEC_K_MAX`]).
     pub mtp_k: usize,
+    /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
+    /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
+    /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
+    pub mtp_draft_vocab: usize,
 }
 
 impl Default for LoadOptions {
@@ -99,6 +103,7 @@ impl Default for LoadOptions {
             tp_fusion: false,
             mtp: false,
             mtp_k: 0,
+            mtp_draft_vocab: 0,
         }
     }
 }
@@ -310,6 +315,8 @@ pub struct Model {
     final_norm: TensorRef,
     /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
     lm_head: Option<QTensor>,
+    /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or None.
+    draft_head: Option<QTensor>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -993,6 +1000,17 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
+        let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
+            match lm_head.as_ref().and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
+                Some(h) => Some(h),
+                None => {
+                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let mut model = Model {
             backend,
             registry,
@@ -1006,6 +1024,7 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            draft_head,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             slot_specs,
@@ -2928,6 +2947,29 @@ impl Model {
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
         self.proj(&x, self.head()?, &logits, profile)?;
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on.
+    fn draft_head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
+        let Some(h) = self.draft_head.as_ref() else { return self.head_to_device_into(hn, row, profile, tok) };
+        let x = hn.rows(row, 1);
+        let logits = self.view(&self.ws.logits, DType::F32, &[1, h.n]);
+        self.proj(&x, h, &logits, profile)?;
+        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// [`Model::head_argmax`] for the MTP drafter.
+    fn draft_head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+        if self.draft_head.is_none() {
+            return self.head_argmax(hn, row, profile);
+        }
+        self.draft_head_to_device_into(hn, row, profile, self.view(&self.ws.tok, DType::I32, &[1]))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
+        Ok(i32::from_le_bytes(b) as u32)
     }
 
     fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {

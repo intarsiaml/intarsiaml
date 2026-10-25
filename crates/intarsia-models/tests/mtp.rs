@@ -436,6 +436,16 @@ fn engine_on(
     k: Option<usize>,
     script: Option<DraftScript>,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    engine_full(backend, w, k, script, 0)
+}
+
+fn engine_full(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    draft_vocab: usize,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
     let opts = LoadOptions {
@@ -443,6 +453,7 @@ fn engine_on(
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: k.is_some(),
+        mtp_draft_vocab: draft_vocab,
         profile_every: 0,
         ..Default::default()
     };
@@ -1002,5 +1013,60 @@ fn captured_spec_step_drafts_equal_the_eager_drafts() {
         }
         assert!(steps > 40, "k {k}: the captured step ran ({steps})");
         eprintln!("draft equality k {k}: {steps} captured steps, {} captures", rec.captures.load(std::sync::atomic::Ordering::Relaxed));
+    }
+}
+
+/// `--mtp-draft-vocab`: drafting over a prefix of the lm_head rows changes only the drafts (always inside the prefix), never the
+/// output: greedy ids equal spec off, eager and captured, and the captured drafts equal the eager ones.
+#[test]
+fn reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for n in [48usize, 8] {
+        for captured in [false, true] {
+            let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+            let (on, tel) = engine_full(backend, &w, Some(2), None, n);
+            for p in PROMPTS {
+                assert_eq!(run(&off, req(p, 160)), run(&on, req(p, 160)), "draft vocab {n} captured {captured} prompt {p:?}");
+            }
+            assert!(tel.snapshot().spec_proposed > 0);
+        }
+    }
+    // drafts inside 0..n, eager == captured
+    let (recipe, dims) = dims();
+    let n = 32usize;
+    let rec = RecCpu::arc();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: n,
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(rec.clone(), &recipe, &dims, &w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(3).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+    let mut last = 0;
+    for st in [&mut a, &mut b] {
+        let StepOut::Token(t) = m.forward(st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+        last = t;
+    }
+    for i in 0..30 {
+        let len0 = a.len;
+        let da = m.mtp_draft(&mut a, last, 2).unwrap();
+        let mut ids = vec![last];
+        ids.extend(&da);
+        let oa = m.forward_verify(&mut a, &ids).unwrap();
+        let p = m.spec_step(&mut b, last, 2).unwrap().expect("captured");
+        assert_eq!(da, p.drafts, "step {i}");
+        assert_eq!(oa, p.out, "step {i}");
+        assert!(da.iter().all(|&t| (t as usize) < n), "step {i}: drafts {da:?} outside 0..{n}");
+        for st in [&mut a, &mut b] {
+            st.spec_rollback(len0 + 1, &*rec).unwrap();
+        }
+        last = oa[0];
     }
 }
