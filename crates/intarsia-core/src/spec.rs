@@ -221,7 +221,7 @@ pub struct CostParams {
 
 impl CostParams {
     pub const OFF: CostParams =
-        CostParams { min_speedup: 0.0, window: 16, probe_every: 32, reprobe_tokens: 256, warmup: 2, alpha: 0.125 };
+        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 256, warmup: 2, alpha: 0.125 };
 
     /// Defaults for a backend (`Backend::name`). The break-even is the same everywhere (3% over plain decode, about the
     /// run-to-run noise of a request); CUDA and Metal sit far above it on natural text (plain step 8 to 12 ms against a

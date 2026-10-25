@@ -66,10 +66,13 @@ run)
     gen $BIN_DEV dev-off $n --spec off
     gen $BIN_DEV dev-mtp2 $n --spec mtp --spec-k 2
     gen $BIN_BASE base-mtp2 $n --spec mtp --spec-k 2
+    INTARSIA_SPEC_COSTGATE=0 gen $BIN_DEV dev-cg0-mtp2 $n --spec mtp --spec-k 2
     cmp -s $O/dev-off-n$n.ids $O/dev-mtp2-n$n.ids && [ -s $O/dev-off-n$n.ids ]; chk $? "n$n: dev MTP k=2 ids == dev spec off"
     cmp -s $O/base-mtp2-n$n.ids $O/dev-mtp2-n$n.ids && [ -s $O/dev-mtp2-n$n.ids ]; chk $? "n$n: dev MTP k=2 ids == main MTP k=2"
-    a=$(grep -a '^spec:' $O/base-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//'); b=$(grep -a '^spec:' $O/dev-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//')
-    [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: acceptance equal to main ($b)"
+    cmp -s $O/base-mtp2-n$n.ids $O/dev-cg0-mtp2-n$n.ids && [ -s $O/dev-cg0-mtp2-n$n.ids ]; chk $? "n$n: dev MTP k=2 cost gate off ids == main MTP k=2"
+    a=$(grep -a '^spec:' $O/base-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//'); b=$(grep -a '^spec:' $O/dev-cg0-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//')
+    [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: acceptance equal to main with the cost gate off ($b)"
+    echo "info n$n: cost gate on: $(grep -a '^spec:' $O/dev-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//') (the probes of the plain-step cost change the pass schedule)"
   done
   echo "== 3. --mtp-draft-vocab 65536, 35B natural-v1 128"
   gen $BIN_DEV dev-v65536 128 --spec mtp --spec-k 2 --mtp-draft-vocab 65536

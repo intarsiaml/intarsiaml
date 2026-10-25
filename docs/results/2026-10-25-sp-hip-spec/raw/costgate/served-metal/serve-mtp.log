@@ -1,0 +1,7 @@
+[supervisor] started server pid 66571
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 10.01 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x74c1f7c000, 3.41 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x726cdc8000, 10.00 GB
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
