@@ -1,0 +1,28 @@
+[window] job 5381 fdloc arms [base27 dev27 base35 dev35] rounds 3; stopping radiance 2026-10-25 15:16:41
+[window] arm mx-fdloc-base27-r1 up 2026-10-25 15:17:19
+[window] arm mx-fdloc-base27-r1 localeval exit 0: - result file: `results/20261025-151720-adhoc-mx-fdloc-base27-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-151720-adhoc-mx-fdloc-base27-r1/result.json  2026-10-25 15:18:29
+[window] arm mx-fdloc-dev27-r1 up 2026-10-25 15:19:06
+[window] arm mx-fdloc-dev27-r1 localeval exit 0: - result file: `results/20261025-151907-adhoc-mx-fdloc-dev27-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-151907-adhoc-mx-fdloc-dev27-r1/result.json  2026-10-25 15:19:59
+[window] arm mx-fdloc-base35-r1 up 2026-10-25 15:20:15
+[window] arm mx-fdloc-base35-r1 localeval exit 0: - result file: `results/20261025-152016-adhoc-mx-fdloc-base35-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152016-adhoc-mx-fdloc-base35-r1/result.json  2026-10-25 15:20:28
+[window] arm mx-fdloc-dev35-r1 up 2026-10-25 15:20:40
+[window] arm mx-fdloc-dev35-r1 localeval exit 0: - result file: `results/20261025-152041-adhoc-mx-fdloc-dev35-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152041-adhoc-mx-fdloc-dev35-r1/result.json  2026-10-25 15:20:52
+[window] arm mx-fdloc-dev35-r2 up 2026-10-25 15:21:05
+[window] arm mx-fdloc-dev35-r2 localeval exit 0: - result file: `results/20261025-152106-adhoc-mx-fdloc-dev35-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152106-adhoc-mx-fdloc-dev35-r2/result.json  2026-10-25 15:21:18
+[window] arm mx-fdloc-base35-r2 up 2026-10-25 15:21:31
+[window] arm mx-fdloc-base35-r2 localeval exit 0: - result file: `results/20261025-152131-adhoc-mx-fdloc-base35-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152131-adhoc-mx-fdloc-base35-r2/result.json  2026-10-25 15:21:43
+[window] arm mx-fdloc-dev27-r2 up 2026-10-25 15:22:17
+[window] arm mx-fdloc-dev27-r2 localeval exit 0: - result file: `results/20261025-152218-adhoc-mx-fdloc-dev27-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152218-adhoc-mx-fdloc-dev27-r2/result.json  2026-10-25 15:23:10
+[window] arm mx-fdloc-base27-r2 up 2026-10-25 15:23:45
+[window] arm mx-fdloc-base27-r2 localeval exit 0: - result file: `results/20261025-152345-adhoc-mx-fdloc-base27-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152345-adhoc-mx-fdloc-base27-r2/result.json  2026-10-25 15:24:54
+[window] arm mx-fdloc-base27-r3 up 2026-10-25 15:25:28
+[window] arm mx-fdloc-base27-r3 localeval exit 0: - result file: `results/20261025-152529-adhoc-mx-fdloc-base27-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152529-adhoc-mx-fdloc-base27-r3/result.json  2026-10-25 15:26:38
+[window] arm mx-fdloc-dev27-r3 up 2026-10-25 15:27:12
+[window] arm mx-fdloc-dev27-r3 localeval exit 0: - result file: `results/20261025-152713-adhoc-mx-fdloc-dev27-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152713-adhoc-mx-fdloc-dev27-r3/result.json  2026-10-25 15:28:05
+[window] arm mx-fdloc-base35-r3 up 2026-10-25 15:28:19
+[window] arm mx-fdloc-base35-r3 localeval exit 0: - result file: `results/20261025-152819-adhoc-mx-fdloc-base35-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152819-adhoc-mx-fdloc-base35-r3/result.json  2026-10-25 15:28:31
+[window] arm mx-fdloc-dev35-r3 up 2026-10-25 15:28:44
+[window] arm mx-fdloc-dev35-r3 localeval exit 0: - result file: `results/20261025-152844-adhoc-mx-fdloc-dev35-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-152844-adhoc-mx-fdloc-dev35-r3/result.json  2026-10-25 15:28:56
+[window] rounds done 2026-10-25 15:28:56
+[window] starting radiance 2026-10-25 15:28:56
+[window] radiance answers (after 30 s); active 2026-10-25 15:29:23

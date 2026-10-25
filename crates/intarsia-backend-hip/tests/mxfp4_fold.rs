@@ -1,4 +1,5 @@
-//! `matmul_mxfp4_mma_fold` (lane mx, OPT-IN INTARSIA_HIP_MXFP4_FOLD=1, kernels/hip/mxfp4.hip `launch_fold`): MXFP4 W4A4 with
+//! `matmul_mxfp4_mma_fold` (lane mx, the default W4A4 prefill GEMM since 2026-10-25, INTARSIA_HIP_MXFP4_FOLD=0 turns it
+//! off; kernels/hip/mxfp4.hip `launch_fold`): MXFP4 W4A4 with
 //! both operands folded into e4m3 against the row's largest group scale, one fp8 WMMA GEMM. It changes numerics (the fp8
 //! WMMA's sums differ from the bf16 chain's in the last bits), so it is checked against `matmul_mxfp4_mma` by error, and
 //! bit for bit only where it must be:
@@ -7,7 +8,9 @@
 //!    exact products no worse than 2x the mma kernel's (both are f32 accumulations of the same products), and rel L2 vs
 //!    mma < 1e-5. Negative control: one flipped weight code moves the output far past that bound.
 //! 2. `fold_falls_back_bitwise`: W4A16 (act = 0) and K % 64 == 32 run the bf16 kernel inside: bitwise `matmul_mxfp4_mma`.
-//! 3. `fold_rows_do_not_depend_on_m`: a row's output is the same at M = 128, 300 and 2100 (different tiles): batched = solo.
+//! 3. `fold_rows_do_not_depend_on_m`: on every 27B shape a row's output is the same at 13 M from 9 to 4096 as at M = 4100
+//!    (every tile of the table, the 256-row chunk): batched = solo; negative controls (one flipped code moves only its
+//!    column; one changed row moves only itself).
 //! 4. `fold_wide_activation_span`: rows whose activation groups span more than 14 octaves round only their tiny groups:
 //!    error vs exact stays small relative to the row's output norm.
 //!
@@ -112,21 +115,100 @@ fn fold_falls_back_bitwise() {
     }
 }
 
+/// rows r0..r0+m of `big` as an M = m call (same weights, scales, act flag)
+fn rows_of(big: &HostCall, r0: usize, m: usize, k: usize, n: usize) -> HostCall {
+    let x = &big.inputs[0];
+    let mut hc = big.clone();
+    hc.inputs[0] = HostTensor::new(x.dtype, vec![m, k], x.data[r0 * k * 2..(r0 + m) * k * 2].to_vec()).unwrap();
+    hc.outputs = vec![OutSpec::new(big.outputs[0].dtype, &[m, n])];
+    hc
+}
+
+/// Batched = solo at every prefill M (lane mx fold-default): for every 27B projection shape, rows of an M = 4100 call are
+/// bitwise the same rows run at M in {9, 16, 17, 63, 64, 65, 255, 256, 257, 2047, 2048, 2049, 4096} (the GEMV / fold
+/// boundary, the fold tile table's M <= 64 and M >= 2048 switches, the 256-row chunk). Negative controls: one flipped weight
+/// code changes its column and no other; one changed activation row changes that row and no other. Synthetic data sums
+/// exactly (v2 == fold there), so three shapes are repeated on wide-span rows whose f32 sums round, with the control that
+/// v2 and the fold disagree on them.
 #[test]
 fn fold_rows_do_not_depend_on_m() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(83);
-    let (n, k) = (10240usize, 5120usize);
-    let big = matmul_mxfp4_case(&mut rng, 2100, n, k, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16);
-    let full = run_host(&*hip, "matmul_mxfp4_mma_fold", &big).unwrap();
-    let x = &big.inputs[0];
-    let (row_x, row_o) = (k * 2, n * 2);
-    for m in [128usize, 300, 9] {
-        let mut hc = big.clone();
-        hc.inputs[0] = HostTensor::new(x.dtype, vec![m, k], x.data[1000 * row_x..(1000 + m) * row_x].to_vec()).unwrap();
-        hc.outputs = vec![OutSpec::new(DType::Bf16, &[m, n])];
-        let part = run_host(&*hip, "matmul_mxfp4_mma_fold", &hc).unwrap();
-        assert!(part[0].data == full[0].data[1000 * row_o..(1000 + m) * row_o], "rows 1000..{} at M={m} differ from M=2100", 1000 + m);
+    const BIG: usize = 4100;
+    let shapes = [(17408usize, 5120usize), (5120, 17408), (10240, 5120), (5120, 6144), (6144, 5120), (12288, 5120), (1024, 5120), (48, 5120)];
+    for (si, (n, k)) in shapes.into_iter().enumerate() {
+        let odt = if si == 6 { DType::F32 } else { DType::Bf16 };
+        let big = matmul_mxfp4_case(&mut rng, BIG, n, k, Mxfp4Act::Dynamic, DType::Bf16, odt);
+        let full = run_host(&*hip, "matmul_mxfp4_mma_fold", &big).unwrap();
+        let ob = odt.size_bytes() * n;
+        for m in [9usize, 16, 17, 63, 64, 65, 255, 256, 257, 2047, 2048, 2049, 4096] {
+            let r0 = 1000usize.min(BIG - m) - (m % 3);
+            let part = run_host(&*hip, "matmul_mxfp4_mma_fold", &rows_of(&big, r0, m, k, n)).unwrap();
+            assert!(part[0].data == full[0].data[r0 * ob..(r0 + m) * ob], "n={n} k={k}: rows {r0}..{} at M={m} differ from M={BIG}", r0 + m);
+        }
+        // context, not asserted: how many outputs of v2 (another chain) differ from the fold on 300 of these rows
+        let v2 = run_host(&*hip, "matmul_mxfp4_mma", &rows_of(&big, 7, 300, k, n)).unwrap();
+        let es = odt.size_bytes();
+        let differ = v2[0].data.chunks(es).zip(full[0].data[7 * ob..307 * ob].chunks(es)).filter(|(a, b)| a != b).count();
+        eprintln!("n={n} k={k} {odt:?}: rows independent of M at 13 sizes; v2 differs from the fold on {differ} of {} outputs", 300 * n);
+    }
+    // The synthetic data above sums exactly in f32 (v2 and the fold agree on every output), so it cannot see an M-dependent
+    // summation order. Wide-span rows (one group 2^18 above the rest, every 7th group 2^-6 below, as in
+    // fold_wide_activation_span) make the f32 sums round: there v2 and the fold must disagree (the control that order and
+    // rounding are visible), and the fold's rows must still be the same at every M.
+    for (n, k) in [(17408usize, 5120usize), (5120, 17408), (1024, 5120)] {
+        let mut big = matmul_mxfp4_case(&mut rng, BIG, n, k, Mxfp4Act::Dynamic, DType::Bf16, DType::F32);
+        let mut x = big.inputs[0].to_f32();
+        for r in 0..BIG {
+            for e in 0..32 {
+                x[r * k + (r % (k / 32)) * 32 + e] *= 262144.0;
+            }
+            for g in (3..k / 32).step_by(7) {
+                for e in 0..32 {
+                    x[r * k + g * 32 + e] *= 1.0 / 64.0;
+                }
+            }
+        }
+        big.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[BIG, k], &x);
+        let full = run_host(&*hip, "matmul_mxfp4_mma_fold", &big).unwrap();
+        let ob = 4 * n;
+        for m in [9usize, 17, 65, 256, 257, 2049, 4096] {
+            let r0 = 1000usize.min(BIG - m) - (m % 3);
+            let part = run_host(&*hip, "matmul_mxfp4_mma_fold", &rows_of(&big, r0, m, k, n)).unwrap();
+            assert!(part[0].data == full[0].data[r0 * ob..(r0 + m) * ob], "wide span n={n} k={k}: rows {r0}..{} at M={m} differ from M={BIG}", r0 + m);
+        }
+        let v2 = run_host(&*hip, "matmul_mxfp4_mma", &rows_of(&big, 7, 300, k, n)).unwrap();
+        let differ = v2[0].data.chunks(4).zip(full[0].data[7 * ob..307 * ob].chunks(4)).filter(|(a, b)| a != b).count();
+        eprintln!("wide span n={n} k={k}: rows independent of M at 7 sizes; v2 differs from the fold on {differ} of {} outputs", 300 * n);
+        assert!(differ > 0, "wide span n={n} k={k}: v2 equals the fold everywhere, so these sums do not round and the check is blind");
+    }
+    // negative control 1: one flipped weight code (column 5) moves column 5 and nothing else, so the bitwise comparison
+    // above sees a one-code change
+    {
+        let (n, k, m) = (64usize, 5120usize, 130usize);
+        let hc = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Dynamic, DType::Bf16, DType::F32);
+        let a = run_host(&*hip, "matmul_mxfp4_mma_fold", &hc).unwrap()[0].to_f32();
+        let mut hm = hc.clone();
+        hm.inputs[1].data[5 * k / 2 + 40] ^= 0x07;
+        let b = run_host(&*hip, "matmul_mxfp4_mma_fold", &hm).unwrap()[0].to_f32();
+        let moved: Vec<usize> = (0..m * n).filter(|&i| a[i].to_bits() != b[i].to_bits()).map(|i| i % n).collect();
+        assert!(!moved.is_empty() && moved.iter().all(|&c| c == 5), "flipped code in column 5: changed columns {moved:?}");
+    }
+    // negative control 2: one changed activation row moves that row only
+    let (n, k, m) = (1024usize, 5120usize, 300usize);
+    let hc = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16);
+    let a = run_host(&*hip, "matmul_mxfp4_mma_fold", &hc).unwrap()[0].data.clone();
+    let mut x = hc.inputs[0].to_f32();
+    for e in 0..k {
+        x[77 * k + e] *= -1.5;
+    }
+    let mut hm = hc.clone();
+    hm.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[m, k], &x);
+    let b = run_host(&*hip, "matmul_mxfp4_mma_fold", &hm).unwrap()[0].data.clone();
+    let rb = n * 2;
+    for r in 0..m {
+        let same = a[r * rb..(r + 1) * rb] == b[r * rb..(r + 1) * rb];
+        assert_eq!(same, r != 77, "row {r}: only row 77 was changed");
     }
 }
 
