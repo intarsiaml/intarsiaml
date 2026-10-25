@@ -14,7 +14,8 @@ set -e
 if [ '$mode' = build ]; then
   hipcc -c -O3 -std=c++17 -fPIC -Wall -Wno-unused-function --offload-arch=gfx1201 -I /work/kernels -o fp8.o /work/kernels/hip/fp8.hip
   hipcc -c -O3 -std=c++17 --offload-arch=gfx1201 -I /work/kernels -o bench.o /work/scripts/wg/bench_f8.cpp
-  hipcc -o bench bench.o fp8.o --offload-arch=gfx1201
+  hipcc -c -O3 -std=c++17 -fPIC -Wno-unused-function --offload-arch=gfx1201 -I /work/kernels -o matmul.o /work/kernels/hip/matmul.hip
+  hipcc -o bench bench.o fp8.o matmul.o --offload-arch=gfx1201
   echo built
 else
   [ -x ./bench ] || { echo 'no bench binary: run build first'; exit 2; }

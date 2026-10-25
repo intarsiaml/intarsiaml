@@ -1,0 +1,146 @@
+fleetq: #5088 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wg-win.sh bash -c "export HIP_VISIBLE_DEVICES=0; bash ~/wg-bench.sh run; A16=1 bash ~/wg-bench.sh run; BF16=1 bash ~/wg-bench.sh run; FOLDS=1 bash ~/wg-bench.sh run"'
+fleetq: #5088 went ahead of the line and must end within 5h56m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+[win] stopping radiance 2026-10-25 03:03:03
+fp8  2048x2048  M=1  A8 :  gemv_v2     12.25 us  342.3 GB/s  gemv_rows   11.88 us  353.0 GB/s  wmma_s      12.72 us  329.7 GB/s  wmma_d      16.03 us  261.7 GB/s
+fp8  2048x2048  M=2  A8 :  gemv_v2     12.50 us  335.5 GB/s  gemv_rows   12.50 us  335.5 GB/s  wmma_s      13.33 us  314.7 GB/s  wmma_d      16.06 us  261.2 GB/s
+fp8  2048x2048  M=4  A8 :  gemv_v2     14.71 us  285.1 GB/s  gemv_rows   14.70 us  285.3 GB/s  wmma_s      14.62 us  286.8 GB/s  wmma_d      16.09 us  260.6 GB/s
+fp8  2048x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   23.76 us  176.5 GB/s  wmma_s      17.20 us  243.9 GB/s  wmma_d      16.09 us  260.7 GB/s
+fp8  2048x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows   32.39 us  129.5 GB/s  wmma_s      19.74 us  212.5 GB/s  wmma_d      16.19 us  259.0 GB/s
+fp8  2048x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows   47.44 us   88.4 GB/s  wmma_s      24.56 us  170.8 GB/s  wmma_d      16.33 us  256.8 GB/s
+  check: rel_l2(wmma vs gemv_rows)=3.357e-09  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  2048x4096  M=1  A8 :  gemv_v2     17.87 us  469.3 GB/s  gemv_rows   17.91 us  468.4 GB/s  wmma_s      21.51 us  389.9 GB/s  wmma_d      25.82 us  324.8 GB/s
+fp8  2048x4096  M=2  A8 :  gemv_v2     18.68 us  449.1 GB/s  gemv_rows   18.70 us  448.6 GB/s  wmma_s      22.81 us  367.7 GB/s  wmma_d      25.95 us  323.2 GB/s
+fp8  2048x4096  M=4  A8 :  gemv_v2     20.81 us  403.1 GB/s  gemv_rows   20.78 us  403.6 GB/s  wmma_s      25.18 us  333.1 GB/s  wmma_d      25.97 us  323.0 GB/s
+fp8  2048x4096  M=8  A8 :  gemv_v2      n/a   gemv_rows   41.59 us  201.7 GB/s  wmma_s      33.28 us  252.1 GB/s  wmma_d      26.12 us  321.1 GB/s
+fp8  2048x4096  M=12 A8 :  gemv_v2      n/a   gemv_rows   61.44 us  136.5 GB/s  wmma_s      41.34 us  202.9 GB/s  wmma_d      26.19 us  320.3 GB/s
+fp8  2048x4096  M=16 A8 :  gemv_v2      n/a   gemv_rows   88.86 us   94.4 GB/s  wmma_s      46.10 us  182.0 GB/s  wmma_d      26.25 us  319.6 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.971e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  4096x2048  M=1  A8 :  gemv_v2     19.18 us  437.5 GB/s  gemv_rows   19.03 us  440.8 GB/s  wmma_s      23.36 us  359.2 GB/s  wmma_d      25.02 us  335.3 GB/s
+fp8  4096x2048  M=2  A8 :  gemv_v2     20.23 us  414.8 GB/s  gemv_rows   20.21 us  415.0 GB/s  wmma_s      23.36 us  359.0 GB/s  wmma_d      25.04 us  335.0 GB/s
+fp8  4096x2048  M=4  A8 :  gemv_v2     24.81 us  338.1 GB/s  gemv_rows   24.78 us  338.6 GB/s  wmma_s      25.86 us  324.4 GB/s  wmma_d      25.12 us  333.9 GB/s
+fp8  4096x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   39.00 us  215.1 GB/s  wmma_s      28.18 us  297.6 GB/s  wmma_d      25.20 us  332.9 GB/s
+fp8  4096x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows   53.16 us  157.8 GB/s  wmma_s      31.08 us  269.9 GB/s  wmma_d      25.31 us  331.4 GB/s
+fp8  4096x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows   77.46 us  108.3 GB/s  wmma_s      36.24 us  231.5 GB/s  wmma_d      25.46 us  329.5 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.200e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  8192x2048  M=1  A8 :  gemv_v2     32.25 us  520.2 GB/s  gemv_rows   32.32 us  519.0 GB/s  wmma_s      36.06 us  465.3 GB/s  wmma_d      40.08 us  418.6 GB/s
+fp8  8192x2048  M=2  A8 :  gemv_v2     33.64 us  498.7 GB/s  gemv_rows   33.64 us  498.8 GB/s  wmma_s      40.72 us  412.0 GB/s  wmma_d      40.38 us  415.5 GB/s
+fp8  8192x2048  M=4  A8 :  gemv_v2     39.62 us  423.5 GB/s  gemv_rows   39.70 us  422.6 GB/s  wmma_s      43.85 us  382.6 GB/s  wmma_d      40.63 us  412.9 GB/s
+fp8  8192x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   65.98 us  254.3 GB/s  wmma_s      47.28 us  354.8 GB/s  wmma_d      40.83 us  410.9 GB/s
+fp8  8192x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows   92.16 us  182.0 GB/s  wmma_s      47.86 us  350.5 GB/s  wmma_d      41.04 us  408.8 GB/s
+fp8  8192x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows  130.52 us  128.5 GB/s  wmma_s      61.09 us  274.6 GB/s  wmma_d      41.43 us  404.9 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.431e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8   512x2048  M=1  A8 :  gemv_v2      5.33 us  196.6 GB/s  gemv_rows    5.54 us  189.1 GB/s  wmma_s       5.90 us  177.8 GB/s  wmma_d       9.60 us  109.2 GB/s
+fp8   512x2048  M=2  A8 :  gemv_v2      5.85 us  179.3 GB/s  gemv_rows    5.85 us  179.1 GB/s  wmma_s       6.18 us  169.6 GB/s  wmma_d       9.58 us  109.4 GB/s
+fp8   512x2048  M=4  A8 :  gemv_v2      7.18 us  145.9 GB/s  gemv_rows    7.18 us  146.0 GB/s  wmma_s       6.83 us  153.5 GB/s  wmma_d       9.65 us  108.7 GB/s
+fp8   512x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   11.69 us   89.7 GB/s  wmma_s       8.40 us  124.8 GB/s  wmma_d       9.71 us  108.0 GB/s
+fp8   512x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows   17.17 us   61.1 GB/s  wmma_s      10.14 us  103.4 GB/s  wmma_d       9.71 us  108.0 GB/s
+fp8   512x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows   23.35 us   44.9 GB/s  wmma_s      11.47 us   91.4 GB/s  wmma_d       9.78 us  107.2 GB/s
+  check: rel_l2(wmma vs gemv_rows)=0.000e+00  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8 12288x2048  M=1  A8 :  gemv_v2     45.32 us  555.3 GB/s  gemv_rows   45.28 us  555.8 GB/s  wmma_s      49.40 us  509.4 GB/s  wmma_d      53.42 us  471.1 GB/s
+fp8 12288x2048  M=2  A8 :  gemv_v2     46.89 us  536.7 GB/s  gemv_rows   46.84 us  537.3 GB/s  wmma_s      53.38 us  471.4 GB/s  wmma_d      53.76 us  468.1 GB/s
+fp8 12288x2048  M=4  A8 :  gemv_v2     52.86 us  476.1 GB/s  gemv_rows   52.98 us  475.0 GB/s  wmma_s      58.64 us  429.2 GB/s  wmma_d      53.98 us  466.2 GB/s
+fp8 12288x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   92.58 us  271.8 GB/s  wmma_s      67.28 us  374.1 GB/s  wmma_d      54.21 us  464.2 GB/s
+fp8 12288x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows  130.73 us  192.5 GB/s  wmma_s      64.70 us  389.0 GB/s  wmma_d      54.60 us  460.9 GB/s
+fp8 12288x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows  183.47 us  137.2 GB/s  wmma_s      83.76 us  300.4 GB/s  wmma_d      55.10 us  456.7 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.605e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  1024x2048  M=1  A8 :  gemv_v2      7.68 us  273.1 GB/s  gemv_rows    7.13 us  294.0 GB/s  wmma_s       8.33 us  251.6 GB/s  wmma_d      11.53 us  181.8 GB/s
+fp8  1024x2048  M=2  A8 :  gemv_v2      8.64 us  242.7 GB/s  gemv_rows    8.64 us  242.6 GB/s  wmma_s       8.71 us  240.7 GB/s  wmma_d      11.53 us  181.9 GB/s
+fp8  1024x2048  M=4  A8 :  gemv_v2     10.06 us  208.5 GB/s  gemv_rows   10.06 us  208.5 GB/s  wmma_s       9.27 us  226.3 GB/s  wmma_d      11.53 us  181.8 GB/s
+fp8  1024x2048  M=8  A8 :  gemv_v2      n/a   gemv_rows   13.98 us  150.0 GB/s  wmma_s      10.88 us  192.7 GB/s  wmma_d      11.58 us  181.1 GB/s
+fp8  1024x2048  M=12 A8 :  gemv_v2      n/a   gemv_rows   19.25 us  108.9 GB/s  wmma_s      12.19 us  172.1 GB/s  wmma_d      11.60 us  180.8 GB/s
+fp8  1024x2048  M=16 A8 :  gemv_v2      n/a   gemv_rows   27.86 us   75.3 GB/s  wmma_s      13.85 us  151.5 GB/s  wmma_d      11.63 us  180.3 GB/s
+  check: rel_l2(wmma vs gemv_rows)=9.748e-06  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  2048x2048  M=1  A16:  gemv_v2     16.15 us  259.7 GB/s  gemv_rows   15.25 us  275.1 GB/s  wmma_s      12.92 us  324.6 GB/s  wmma_d      15.76 us  266.1 GB/s
+fp8  2048x2048  M=2  A16:  gemv_v2     15.96 us  262.8 GB/s  gemv_rows   15.99 us  262.3 GB/s  wmma_s      12.96 us  323.6 GB/s  wmma_d      15.81 us  265.3 GB/s
+fp8  2048x2048  M=4  A16:  gemv_v2     18.30 us  229.2 GB/s  gemv_rows   18.32 us  228.9 GB/s  wmma_s      13.36 us  313.9 GB/s  wmma_d      15.83 us  264.9 GB/s
+fp8  2048x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   23.89 us  175.6 GB/s  wmma_s      14.17 us  295.9 GB/s  wmma_d      15.88 us  264.2 GB/s
+fp8  2048x2048  M=12 A16:  gemv_v2      n/a   gemv_rows   37.56 us  111.7 GB/s  wmma_s      14.98 us  279.9 GB/s  wmma_d      15.97 us  262.7 GB/s
+fp8  2048x2048  M=16 A16:  gemv_v2      n/a   gemv_rows   47.64 us   88.0 GB/s  wmma_s      19.62 us  213.8 GB/s  wmma_d      15.98 us  262.4 GB/s
+  check: rel_l2(wmma vs gemv_rows)=3.163e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  2048x4096  M=1  A16:  gemv_v2     21.55 us  389.2 GB/s  gemv_rows   21.02 us  399.1 GB/s  wmma_s      21.04 us  398.7 GB/s  wmma_d      23.56 us  356.1 GB/s
+fp8  2048x4096  M=2  A16:  gemv_v2     21.42 us  391.7 GB/s  gemv_rows   21.44 us  391.3 GB/s  wmma_s      21.99 us  381.5 GB/s  wmma_d      23.59 us  355.6 GB/s
+fp8  2048x4096  M=4  A16:  gemv_v2     25.75 us  325.8 GB/s  gemv_rows   25.85 us  324.6 GB/s  wmma_s      22.83 us  367.5 GB/s  wmma_d      23.62 us  355.1 GB/s
+fp8  2048x4096  M=8  A16:  gemv_v2      n/a   gemv_rows   51.46 us  163.0 GB/s  wmma_s      28.28 us  296.6 GB/s  wmma_d      23.68 us  354.2 GB/s
+fp8  2048x4096  M=12 A16:  gemv_v2      n/a   gemv_rows   62.93 us  133.3 GB/s  wmma_s      33.48 us  250.5 GB/s  wmma_d      23.75 us  353.2 GB/s
+fp8  2048x4096  M=16 A16:  gemv_v2      n/a   gemv_rows   89.19 us   94.1 GB/s  wmma_s      39.96 us  209.9 GB/s  wmma_d      23.72 us  353.6 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.971e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  4096x2048  M=1  A16:  gemv_v2     24.95 us  336.2 GB/s  gemv_rows   24.11 us  348.0 GB/s  wmma_s      23.36 us  359.1 GB/s  wmma_d      23.57 us  355.8 GB/s
+fp8  4096x2048  M=2  A16:  gemv_v2     25.58 us  327.9 GB/s  gemv_rows   25.55 us  328.3 GB/s  wmma_s      23.37 us  359.0 GB/s  wmma_d      23.67 us  354.5 GB/s
+fp8  4096x2048  M=4  A16:  gemv_v2     26.49 us  316.7 GB/s  gemv_rows   26.53 us  316.1 GB/s  wmma_s      23.37 us  358.9 GB/s  wmma_d      23.84 us  351.9 GB/s
+fp8  4096x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   39.41 us  212.8 GB/s  wmma_s      22.49 us  372.9 GB/s  wmma_d      24.14 us  347.4 GB/s
+fp8  4096x2048  M=12 A16:  gemv_v2      n/a   gemv_rows   66.49 us  126.2 GB/s  wmma_s      24.48 us  342.7 GB/s  wmma_d      24.29 us  345.4 GB/s
+fp8  4096x2048  M=16 A16:  gemv_v2      n/a   gemv_rows   78.56 us  106.8 GB/s  wmma_s      27.99 us  299.7 GB/s  wmma_d      24.45 us  343.0 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.953e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  8192x2048  M=1  A16:  gemv_v2     40.67 us  412.5 GB/s  gemv_rows   39.68 us  422.8 GB/s  wmma_s      32.66 us  513.7 GB/s  wmma_d      37.29 us  450.0 GB/s
+fp8  8192x2048  M=2  A16:  gemv_v2     43.14 us  388.9 GB/s  gemv_rows   43.03 us  389.9 GB/s  wmma_s      32.79 us  511.7 GB/s  wmma_d      37.30 us  449.8 GB/s
+fp8  8192x2048  M=4  A16:  gemv_v2     41.35 us  405.7 GB/s  gemv_rows   41.96 us  399.9 GB/s  wmma_s      33.89 us  495.1 GB/s  wmma_d      37.59 us  446.4 GB/s
+fp8  8192x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   68.55 us  244.7 GB/s  wmma_s      36.24 us  463.0 GB/s  wmma_d      38.47 us  436.1 GB/s
+fp8  8192x2048  M=12 A16:  gemv_v2      n/a   gemv_rows  126.89 us  132.2 GB/s  wmma_s      39.01 us  430.1 GB/s  wmma_d      38.63 us  434.3 GB/s
+fp8  8192x2048  M=16 A16:  gemv_v2      n/a   gemv_rows  137.29 us  122.2 GB/s  wmma_s      45.35 us  369.9 GB/s  wmma_d      38.95 us  430.7 GB/s
+  check: rel_l2(wmma vs gemv_rows)=3.531e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8   512x2048  M=1  A16:  gemv_v2      6.63 us  158.2 GB/s  gemv_rows    6.65 us  157.8 GB/s  wmma_s       6.43 us  163.0 GB/s  wmma_d       8.29 us  126.5 GB/s
+fp8   512x2048  M=2  A16:  gemv_v2      7.36 us  142.5 GB/s  gemv_rows    7.41 us  141.6 GB/s  wmma_s       6.64 us  157.9 GB/s  wmma_d       8.27 us  126.7 GB/s
+fp8   512x2048  M=4  A16:  gemv_v2      8.70 us  120.5 GB/s  gemv_rows    8.70 us  120.5 GB/s  wmma_s       7.01 us  149.5 GB/s  wmma_d       8.33 us  125.9 GB/s
+fp8   512x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   11.23 us   93.4 GB/s  wmma_s       7.91 us  132.5 GB/s  wmma_d       8.32 us  126.1 GB/s
+fp8   512x2048  M=12 A16:  gemv_v2      n/a   gemv_rows   17.48 us   60.0 GB/s  wmma_s       8.70 us  120.5 GB/s  wmma_d       8.37 us  125.3 GB/s
+fp8   512x2048  M=16 A16:  gemv_v2      n/a   gemv_rows   22.37 us   46.9 GB/s  wmma_s       9.63 us  108.9 GB/s  wmma_d       8.45 us  124.1 GB/s
+  check: rel_l2(wmma vs gemv_rows)=3.064e-08  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8 12288x2048  M=1  A16:  gemv_v2     53.34 us  471.8 GB/s  gemv_rows   52.91 us  475.7 GB/s  wmma_s      45.89 us  548.3 GB/s  wmma_d      50.94 us  494.0 GB/s
+fp8 12288x2048  M=2  A16:  gemv_v2     57.56 us  437.2 GB/s  gemv_rows   57.78 us  435.5 GB/s  wmma_s      45.99 us  547.3 GB/s  wmma_d      50.99 us  493.6 GB/s
+fp8 12288x2048  M=4  A16:  gemv_v2     55.72 us  451.6 GB/s  gemv_rows   56.68 us  444.0 GB/s  wmma_s      47.04 us  535.0 GB/s  wmma_d      51.25 us  491.1 GB/s
+fp8 12288x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   97.56 us  258.0 GB/s  wmma_s      49.46 us  508.8 GB/s  wmma_d      52.50 us  479.4 GB/s
+fp8 12288x2048  M=12 A16:  gemv_v2      n/a   gemv_rows  186.64 us  134.8 GB/s  wmma_s      52.10 us  483.0 GB/s  wmma_d      52.76 us  477.0 GB/s
+fp8 12288x2048  M=16 A16:  gemv_v2      n/a   gemv_rows  195.44 us  128.8 GB/s  wmma_s      61.26 us  410.8 GB/s  wmma_d      53.52 us  470.3 GB/s
+  check: rel_l2(wmma vs gemv_rows)=2.654e-05  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+fp8  1024x2048  M=1  A16:  gemv_v2      9.48 us  221.2 GB/s  gemv_rows    9.09 us  230.6 GB/s  wmma_s       8.66 us  242.1 GB/s  wmma_d      11.03 us  190.1 GB/s
+fp8  1024x2048  M=2  A16:  gemv_v2     10.27 us  204.3 GB/s  gemv_rows   10.27 us  204.2 GB/s  wmma_s       8.67 us  242.0 GB/s  wmma_d      11.00 us  190.7 GB/s
+fp8  1024x2048  M=4  A16:  gemv_v2     11.72 us  179.0 GB/s  gemv_rows   11.70 us  179.3 GB/s  wmma_s       9.02 us  232.5 GB/s  wmma_d      11.00 us  190.6 GB/s
+fp8  1024x2048  M=8  A16:  gemv_v2      n/a   gemv_rows   14.95 us  140.3 GB/s  wmma_s      10.14 us  206.9 GB/s  wmma_d      11.03 us  190.1 GB/s
+fp8  1024x2048  M=12 A16:  gemv_v2      n/a   gemv_rows   21.55 us   97.3 GB/s  wmma_s      10.90 us  192.4 GB/s  wmma_d      10.99 us  190.8 GB/s
+fp8  1024x2048  M=16 A16:  gemv_v2      n/a   gemv_rows   29.79 us   70.4 GB/s  wmma_s      11.71 us  179.2 GB/s  wmma_d      10.99 us  190.8 GB/s
+  check: rel_l2(wmma vs gemv_rows)=9.726e-06  rows16-vs-rows1 mismatches=0  staged-vs-direct mismatches=0
+bf16   256x2048  M=1      :  gemv         5.20 us  201.6 GB/s  gemv_rows    5.01 us  209.2 GB/s  wmma         5.39 us  194.6 GB/s
+bf16   256x2048  M=2      :  gemv         5.52 us  189.9 GB/s  gemv_rows    5.54 us  189.1 GB/s  wmma         5.37 us  195.2 GB/s
+bf16   256x2048  M=4      :  gemv         6.29 us  166.8 GB/s  gemv_rows    6.28 us  167.0 GB/s  wmma         5.38 us  195.1 GB/s
+bf16   256x2048  M=8      :  gemv         n/a   gemv_rows    8.11 us  129.3 GB/s  wmma         5.39 us  194.4 GB/s
+bf16   256x2048  M=12     :  gemv         n/a   gemv_rows   17.73 us   59.2 GB/s  wmma         5.20 us  201.5 GB/s
+bf16   256x2048  M=16     :  gemv         n/a   gemv_rows   29.45 us   35.6 GB/s  wmma         5.39 us  194.4 GB/s
+  check: rel_l2(wmma vs gemv_rows)=0.000e+00  rows16-vs-rows1 mismatches=0
+bf16    32x2048  M=1      :  gemv         3.21 us   40.9 GB/s  gemv_rows    3.21 us   40.8 GB/s  wmma         3.82 us   34.3 GB/s
+bf16    32x2048  M=2      :  gemv         4.61 us   28.4 GB/s  gemv_rows    4.67 us   28.0 GB/s  wmma         3.82 us   34.3 GB/s
+bf16    32x2048  M=4      :  gemv         5.27 us   24.9 GB/s  gemv_rows    5.30 us   24.7 GB/s  wmma         3.86 us   33.9 GB/s
+bf16    32x2048  M=8      :  gemv         n/a   gemv_rows    7.10 us   18.5 GB/s  wmma         3.84 us   34.1 GB/s
+bf16    32x2048  M=12     :  gemv         n/a   gemv_rows   17.82 us    7.4 GB/s  wmma         3.88 us   33.8 GB/s
+bf16    32x2048  M=16     :  gemv         n/a   gemv_rows   30.25 us    4.3 GB/s  wmma         3.95 us   33.1 GB/s
+  check: rel_l2(wmma vs gemv_rows)=9.274e-06  rows16-vs-rows1 mismatches=0
+bf16     1x2048  M=1      :  gemv         3.12 us    1.3 GB/s  gemv_rows    3.12 us    1.3 GB/s  wmma         3.71 us    1.1 GB/s
+bf16     1x2048  M=2      :  gemv         3.92 us    1.0 GB/s  gemv_rows    3.95 us    1.0 GB/s  wmma         3.70 us    1.1 GB/s
+bf16     1x2048  M=4      :  gemv         5.00 us    0.8 GB/s  gemv_rows    5.00 us    0.8 GB/s  wmma         3.70 us    1.1 GB/s
+bf16     1x2048  M=8      :  gemv         n/a   gemv_rows    6.56 us    0.6 GB/s  wmma         4.47 us    0.9 GB/s
+bf16     1x2048  M=12     :  gemv         n/a   gemv_rows   25.37 us    0.2 GB/s  wmma         4.47 us    0.9 GB/s
+bf16     1x2048  M=16     :  gemv         n/a   gemv_rows   45.94 us    0.1 GB/s  wmma         4.45 us    0.9 GB/s
+  check: rel_l2(wmma vs gemv_rows)=0.000e+00  rows16-vs-rows1 mismatches=0
+bf16  4096x4096  M=1      :  gemv        59.08 us  567.9 GB/s  gemv_rows   56.27 us  596.3 GB/s  wmma        65.46 us  512.6 GB/s
+bf16  4096x4096  M=2      :  gemv        56.66 us  592.2 GB/s  gemv_rows   56.67 us  592.1 GB/s  wmma        65.29 us  514.0 GB/s
+bf16  4096x4096  M=4      :  gemv        57.54 us  583.2 GB/s  gemv_rows   57.50 us  583.5 GB/s  wmma        65.23 us  514.4 GB/s
+bf16  4096x4096  M=8      :  gemv         n/a   gemv_rows   60.71 us  552.7 GB/s  wmma        64.63 us  519.2 GB/s
+bf16  4096x4096  M=12     :  gemv         n/a   gemv_rows  110.88 us  302.6 GB/s  wmma        64.72 us  518.5 GB/s
+bf16  4096x4096  M=16     :  gemv         n/a   gemv_rows  221.61 us  151.4 GB/s  wmma        64.87 us  517.2 GB/s
+  check: rel_l2(wmma vs gemv_rows)=1.965e-05  rows16-vs-rows1 mismatches=0
+bf16  1024x2048  M=1      :  gemv        10.58 us  396.5 GB/s  gemv_rows   10.36 us  404.9 GB/s  wmma        10.53 us  398.4 GB/s
+bf16  1024x2048  M=2      :  gemv        10.87 us  386.0 GB/s  gemv_rows   10.87 us  385.8 GB/s  wmma        10.54 us  398.0 GB/s
+bf16  1024x2048  M=4      :  gemv        11.62 us  360.9 GB/s  gemv_rows   11.62 us  361.0 GB/s  wmma        10.55 us  397.5 GB/s
+bf16  1024x2048  M=8      :  gemv         n/a   gemv_rows   13.62 us  307.9 GB/s  wmma        10.56 us  397.1 GB/s
+bf16  1024x2048  M=12     :  gemv         n/a   gemv_rows   25.59 us  163.9 GB/s  wmma        10.83 us  387.4 GB/s
+bf16  1024x2048  M=16     :  gemv         n/a   gemv_rows   38.64 us  108.5 GB/s  wmma        10.88 us  385.5 GB/s
+  check: rel_l2(wmma vs gemv_rows)=8.429e-07  rows16-vs-rows1 mismatches=0
+fold fp8 pair   8192+4096  x2048 M=1: gemv   47.68 us  wmma   50.09 us  (0.95x)
+fold fp8 pair    512+512   x2048 M=1: gemv    7.35 us  wmma    8.31 us  (0.88x)
+fold fp8 pair   4096+2048  x2048 M=1: gemv   24.41 us  wmma   29.93 us  (0.82x)
+fold sigmoid+fp8 2048x4096 M=1: gemv   19.01 us  wmma   24.12 us  (0.79x)
+fold bf16 pair    32+32    x2048 M=1: gemv    3.39 us  wmma    4.55 us  (0.75x)  [L2-warm: weights 256 KB]
+fold bf16 pair   256+1     x2048 M=1: gemv    5.01 us  wmma    5.42 us  (0.92x)  [L2-warm: weights 1028 KB]
+[win] starting radiance 2026-10-25 03:03:15
+[win] radiance answers 2026-10-25 03:03:25 (after 15 s); active
+fleetq: #5088 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
