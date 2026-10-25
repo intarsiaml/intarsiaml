@@ -492,10 +492,16 @@ void mx_gemm_run(const DqArgs& a, OutT* out, hipStream_t s) {
         if (IK_MX_IS(1, 4, 1, 2)) IK_MX_TILE(1, 4, 1, 2)
     }
 #undef IK_MX_IS
+    // small M: v1's tiles (verify / tail rows)
     if (M <= 16) IK_MX_TILE(4, 1, 2, 1)
     if (M <= 32) IK_MX_TILE(4, 1, 2, 2)
     if (M <= 64) IK_MX_TILE(2, 2, 4, 2)
-    IK_MX_TILE(4, 2, 2, 4)
+    // prefill (scripts/mx/mxbench.hip sweeps, raw/w3 and raw/w4 of docs/results/2026-10-25-mx-hip-27b-prefill.md):
+    // N <= 64 (gdn in_proj_a / b, N = 48): one 16-column weight tile per block, 4 waves down M, so the grid is not 2 blocks
+    if (N <= 64) IK_MX_TILE(1, 4, 1, 1)
+    // 128 x 256 (weights x tokens), 16 waves, from 512 tokens; 128 x 128 with 16 waves below and for N <= 1024 up to 1024
+    if (M >= 512 && !(N <= 1024 && M <= 1024)) IK_MX_TILE(4, 4, 2, 4)
+    IK_MX_TILE(4, 4, 2, 2)
 #undef IK_MX_TILE
 }
 
