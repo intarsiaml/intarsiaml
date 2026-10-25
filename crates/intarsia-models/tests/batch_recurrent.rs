@@ -216,6 +216,11 @@ fn moe_weights(input_scale: Option<f32>) -> MemWeights {
 
 /// The tiny hybrid model, loaded and not yet planned.
 fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
+    load_model_c(v, tel, CHUNK)
+}
+
+/// [`load_model`] with prefill chunk `chunk`.
+fn load_model_c(v: Variant, tel: &Arc<Telemetry>, chunk: usize) -> Model {
     let backend = backend().expect("a backend (tests skip first when there is none)");
     let dir = fixture_dir();
     let mut cfg: serde_json::Value =
@@ -240,7 +245,7 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
         max_seq: MAX_SEQ,
         // a budget that holds MAX_SEQ tokens for every batched slot (the plan otherwise shrinks the context to share the KV budget)
         mem_budget: Some(4 << 30),
-        prefill_chunk: CHUNK,
+        prefill_chunk: chunk,
         // the cpu reference runs in f32; the CUDA kernels are bf16
         act_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
         kv_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
@@ -264,7 +269,11 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
 
 /// The planned tiny hybrid model; `rows >= 2` also enables batching (with the opt-in when `allow`).
 fn model(v: Variant, rows: usize, allow: bool, tel: &Arc<Telemetry>) -> Model {
-    let mut m = load_model(v, tel);
+    model_c(v, rows, allow, tel, CHUNK)
+}
+
+fn model_c(v: Variant, rows: usize, allow: bool, tel: &Arc<Telemetry>, chunk: usize) -> Model {
+    let mut m = load_model_c(v, tel, chunk);
     if allow {
         m.allow_recurrent_batch().unwrap();
     }
@@ -704,5 +713,61 @@ fn memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them()
         // a solo (non-batching) model allocates lazily, as before
         let lazy = solo.new_state().unwrap();
         assert!(lazy.snap_pool.is_empty());
+    }
+}
+
+/// Packed prefill (`BatchedOptions::pack_prefill`): prompts that prefill together run their chunks in one pass; every request must
+/// come out exactly as on the solo engine (same chunk), whatever it was packed with.
+fn check_packed(v: Variant, rows: usize, chunk: usize) {
+    let tel = Arc::new(Telemetry::new());
+    let reference = LocalEngine::new(model_c(v, 1, false, &tel, chunk), Arc::new(ByteCodec), meta(), tel).unwrap();
+    // bodies of 16..47 rows (prompt - 1), several fit one pass of `chunk` rows; a few short or long prompts run alone
+    let lens = [17usize, 33, 20, 17, 25, 40, 6, 17, 18, 64, 30, 24, 19, 17, 21];
+    let reqs = |n: usize| -> Vec<GenRequest> {
+        (0..n)
+            .map(|i| {
+                let mut r = GenRequest {
+                    prompt: prompt(500 + i as u64, lens[i % lens.len()]),
+                    max_tokens: 130 + (i % 3) * 7,
+                    ignore_eos: true,
+                    ..Default::default()
+                };
+                if i % 4 == 3 {
+                    r.temperature = 0.9;
+                    r.top_k = 20;
+                    r.top_p = 0.95;
+                    r.seed = Some(11 + i as u64);
+                }
+                r
+            })
+            .collect()
+    };
+    let n = 2 * rows + 5;
+    let want: Vec<Out> = reqs(n).into_iter().map(|r| run_solo(&reference, r)).collect();
+    let tel = Arc::new(Telemetry::new());
+    let m = model_c(v, rows, true, &tel, chunk);
+    let mut o = BatchedOptions::new(rows, 64);
+    o.prefix_reuse = false;
+    o.pack_prefill = true;
+    let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
+    let rxs: Vec<_> = reqs(n).into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+        let got = collect(rx).unwrap();
+        assert_eq!(&got, w, "case {i} ({v:?}, rows {rows}, chunk {chunk})");
+    }
+    let m = eng.metrics();
+    assert!(m.pack_passes > 0 && m.packed_chunks >= 2 * m.pack_passes, "no prompts were packed: {m:?}");
+    eprintln!("{v:?} rows {rows}: {} packed passes carried {} chunks of {} ({} chunks in all)", m.pack_passes, m.packed_chunks, n, m.prefill_chunks);
+}
+
+#[test]
+fn batched_engine_with_packed_prefill_equals_solo() {
+    if backend().is_none() {
+        return;
+    }
+    for v in VARIANTS {
+        for rows in [2usize, 4] {
+            check_packed(v, rows, 64);
+        }
     }
 }

@@ -59,6 +59,10 @@ pub struct BatchedOptions {
     /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP`): batched decode runs on a decode twin of the model (own stream, own
     /// workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit; CUDA only.
     pub overlap: bool,
+    /// Packed prefill (`INTARSIA_PACK_PREFILL=1`, opt-in): the next chunks of several waiting prompts run in one pass
+    /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
+    /// independent of the other rows of the call.
+    pub pack_prefill: bool,
 }
 
 impl BatchedOptions {
@@ -72,6 +76,7 @@ impl BatchedOptions {
             prefix_reuse: self.prefix_reuse,
             trace_stderr: self.trace,
             spec_off_at: self.spec_off_at,
+            pack_prefill: self.pack_prefill,
             ..SchedulerConfig::default()
         }
     }
@@ -87,6 +92,7 @@ impl BatchedOptions {
             busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
+            pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").map(|v| v == "1").unwrap_or(false),
         }
     }
 }
@@ -223,6 +229,48 @@ impl BatchModel for SlotModel {
     }
     fn tail_merge(&self) -> usize {
         self.model.tail_merge()
+    }
+    fn pack_rows_max(&self) -> usize {
+        if self.twin.is_none() && self.model.pack_capable() && self.states.iter().all(|s| s.has_recurrent()) {
+            self.model.pack_rows_max()
+        } else {
+            0
+        }
+    }
+    fn pack_min_rows(&self) -> usize {
+        Model::PACK_MIN_ROWS
+    }
+    fn prefill_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<Vec<Option<StepOut>>> {
+        // the schedule of `run_prefill` for a recurrent state, with the bodies of all chunks in one pass: the body is the chunk
+        // (non-final) or the chunk without its last token (final); a snapshot follows each body; the last token runs alone
+        let keep = self.model.batch_snapshots();
+        {
+            let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
+            let mut packed: Vec<(&mut SequenceState, &[u32])> = Vec::with_capacity(items.len());
+            for &(slot, tokens, mode) in items {
+                let st = by_slot
+                    .get_mut(slot)
+                    .and_then(Option::take)
+                    .ok_or_else(|| Error::Other(format!("packed prefill names slot {slot} twice or out of range")))?;
+                let body = if mode.is_some() { &tokens[..tokens.len() - 1] } else { tokens };
+                packed.push((st, body));
+            }
+            self.model.forward_packed(&mut packed)?;
+            for (st, _) in packed.iter_mut() {
+                st.snapshot(&*self.model.backend, keep)?;
+            }
+        }
+        let mut out = Vec::with_capacity(items.len());
+        for &(slot, tokens, mode) in items {
+            out.push(match mode {
+                None => None,
+                Some(m) => match self.model.forward(&mut self.states[slot], &tokens[tokens.len() - 1..], m, None)? {
+                    StepOut::None => None,
+                    o => Some(o),
+                },
+            });
+        }
+        Ok(out)
     }
     fn decode_step(&mut self, rows: &[Row<HeadMode>]) -> Result<Vec<Result<StepOut>>> {
         let dm: &Model = self.twin.as_ref().unwrap_or(&self.model);
