@@ -105,12 +105,18 @@ mtest() {
     env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
   log "mtest $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/mtest-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
 }
-# mxbench <tree> <tag> [M] [reps]: isolated GEMM timing mma vs f8 at the 27B shapes (scripts/mx/mxbench.hip)
+# mxbench <tree> <tag> [M] [reps]: isolated GEMM timing v1 vs v2 tiles at the 27B shapes (binary built by build.sh BENCH=1)
 mxbench() {
   local tree=$1 tag=$2; shift 2
-  cp "$HOME/mx/mxbench.hip" "$(T "$tree")/mx-out/"
   INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree") HIP_VISIBLE_DEVICES=$G timeout 300 "$(T "$tree")/deploy/tatooine/dev.sh" \
-    bash -c "hipcc -O3 --offload-arch=gfx1201 -I kernels/hip -I kernels/abi -Rpass-analysis=kernel-resource-usage mx-out/mxbench.hip kernels/hip/mxfp4.hip kernels/hip/ik_runtime.hip -o mx-out/mxbench > mx-out/mxbench-build-$tag.txt 2>&1; env ${E:-} ./mx-out/mxbench $*" > "$O/mxbench-$tag.txt" 2>&1 < /dev/null
-  cp "$(T "$tree")/mx-out/mxbench-build-$tag.txt" "$O/" 2>/dev/null
-  log "mxbench $tag exit $?: $(grep -aE 'whole-model|rror' "$O/mxbench-$tag.txt" | head -2 | tr '\n' '|')"
+    env ${E:-} ./mx-out/mxbench "$@" > "$O/mxbench-$tag.txt" 2>&1 < /dev/null
+  log "mxbench $tag exit $?: $(grep -aE 'whole-model|rror|differ' "$O/mxbench-$tag.txt" | head -4 | tr '\n' '|')"
+}
+# acc <tree> <tag> <chunk> [args]: 27B accuracy --mode prefill on the tails golden (scripts/mx/make_tails.py), self-golden dump
+acc() {
+  local tree=$1 tag=$2 c=$3; shift 3
+  cp "$HOME/mx/g27-tails.safetensors" "$(T "$tree")/mx-out/" 2>/dev/null
+  run "$tree" 600 "acc-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden /work/mx-out/g27-tails.safetensors \
+    --mode prefill --prefill-chunk "$c" --max-seq 18432 --allow-unstamped --allow-dirty --write-self-golden /work/mx-out/acc-$tag.safetensors "$@"
+  cp "$(T "$tree")/mx-out/acc-$tag.safetensors" "$O/" 2>/dev/null
 }

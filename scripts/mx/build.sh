@@ -29,6 +29,10 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     INTARSIA_TARGET_VOL=$INTARSIA_TARGET_VOL-hiptest $D cargo test --release -p intarsia-backend-hip --no-run > ~/mx/logs/hiptest-build-$name.log 2>&1 < /dev/null
     echo "hip tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/mx/logs/hiptest-build-$name.log | tail -3
   fi
+  if [[ "${BENCH:-0}" == 1 ]]; then
+    $D bash -c "mkdir -p mx-out && hipcc -O3 --offload-arch=gfx1201 -DIK_MX_BENCH -I kernels/hip -I kernels/abi -Rpass-analysis=kernel-resource-usage scripts/mx/mxbench.hip kernels/hip/mxfp4.hip kernels/hip/ik_runtime.hip -o mx-out/mxbench" > ~/mx/logs/bench-build-$name.log 2>&1 < /dev/null
+    echo "mxbench build $name exit $? $(date +%T)"; grep -E 'error' ~/mx/logs/bench-build-$name.log | head -5
+  fi
   if [[ "${MTEST:-0}" == 1 ]]; then
     seed "$INTARSIA_TARGET_VOL-mtest"
     INTARSIA_TARGET_VOL=$INTARSIA_TARGET_VOL-mtest $D cargo test --release -p intarsia-models --test batch_recurrent --test batch_cuda_real --no-run > ~/mx/logs/mtest-build-$name.log 2>&1 < /dev/null

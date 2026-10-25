@@ -1,0 +1,25 @@
+kernels in main burst: 2554 (of 3509), span 3673.4 ms, kernel time 3552.5 ms, idle 3.3 %
+
+kernel                                                                               n       ms   avg us  %kern  grid x wg
+dq_gemm_kernel<Mxfp4Policy, 4, 2, 2, 4, bf16>                                      496  3095.08   6240.1  87.1%  8192x80x1 x 256
+gdn_delta_rows_v3_kernel<128>                                                      336   157.51    468.8   4.4%  256x48x1 x 32
+mxfp4_xprep_kernel                                                                 560    87.44    156.1   2.5%  655360x1x1 x 256
+flash_hpb_kernel<256, 32, 2, 5>                                                     16    60.38   3773.6   1.7%  16384x12x1 x 256
+silu_glu_kernel<true>                                                              128    44.50    347.6   1.3%  8910848x1x1 x 256
+rmsnorm_kernel<true, true>                                                         256    33.55    131.0   0.9%  1048320x1x1 x 256
+mxfp4_gemv1_lds_kernel<bf16>                                                       256    18.34     71.6   0.5%  32768x1x1 x 256
+gdn_conv_kernel<false, false>                                                       48    17.21    358.6   0.5%  10240x128x1 x 128
+gated_rmsnorm_kernel<true>                                                          96    13.95    145.3   0.4%  6289920x1x1 x 32
+gate_qk_norm_rope_kv_kernel<bf16>                                                   32     8.49    265.4   0.2%  917280x4x1 x 224
+mxfp4_gemv_kernel<1, bf16>                                                          64     4.98     77.8   0.1%  163840x1x1 x 256
+sigmoid_mul_kernel                                                                  32     4.27    133.5   0.1%  25159680x1x1 x 256
+gemv_kernel<1, 1, 8, float>                                                          1     3.97   3970.5   0.1%  7946240x1x1 x 256
+splitkv_kernel<8, 32, 2, false>                                                     16     0.73     45.8   0.0%  16384x4x1 x 256
+__amd_rocclr_copyBuffer                                                             52     0.60     11.5   0.0%  1024x1x1 x 512
+gdn_conv_delta_kernel<128, 2, 1, 4>                                                 48     0.52     10.8   0.0%  256x48x1 x 32
+__amd_rocclr_fillBufferAligned                                                      48     0.38      7.9   0.0%  8192x1x1 x 256
+rmsnorm_kernel<false, true>                                                          2     0.15     73.7   0.0%  1048320x1x1 x 256
+embedding_kernel<true>                                                               2     0.13     67.4   0.0%  1048320x1x1 x 256
+combine_kernel<256, 16, false>                                                      16     0.13      8.1   0.0%  6144x1x1 x 256
+gdn_conv_state_kernel                                                               48     0.11      2.4   0.0%  10240x1x1 x 128
+argmax_kernel<float>                                                                 1     0.06     62.0   0.0%  1024x1x1 x 1024

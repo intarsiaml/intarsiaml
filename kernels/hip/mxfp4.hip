@@ -11,6 +11,8 @@
 // Deterministic (fixed reduction order). Activations bf16; output bf16 or f32. Same structure as nvfp4.hip.
 #include "ik_dq_gemm.h"
 
+#include <stdio.h>
+
 namespace {
 
 constexpr int kWarps = 8;
@@ -412,10 +414,90 @@ struct Mxfp4Policy {
     IK_DEVI float out_scale(const State&) { return 1.f; }
 };
 
+// ---- matmul_mxfp4_mma v2 (lane mx): the same bits as Mxfp4Policy + dq_gemm_run (v1), faster ---------------------------
+//
+// Bitwise by construction: every output is the same chain of bf16 WMMAs (k steps of 16 in order from k = 0, acc from 0)
+// over the same bf16 operands; only the tile (which outputs a block owns) and the way the bf16 weights are built change.
+// tests/mxfp4_v2.rs checks v2 against v1 bit for bit (shapes, tiles, every scale byte), scripts/mx/mxbench.hip too.
+//
+// Dequant without the LDS table and the f32 multiply / bf16 rounding: for a scale byte s in [3, 250] every e2m1 * 2^(s-127)
+// is a normal f32 with a 2-bit significand, so its bf16 is exact and is built directly: magnitude code m >= 2 ->
+// (m << 6) + ((s - 1) << 7), m == 1 (0.5) -> (s - 1) << 7, m == 0 -> 0, sign bit from the code. Other scale bytes (2^-127
+// subnormals, NaN at 255) take v1's path.
+struct Mxfp4PolicyV2 : Mxfp4Policy {
+    IK_DEVI static uint32_t bf2(uint32_t c2, uint32_t e) {  // two codes (bits 0-3, 16-19) -> two bf16 in one dword
+        const uint32_t m = c2 & 0x00070007u;
+        const uint32_t lo = m & 0xffffu, hi = m >> 16;
+        const uint32_t vlo = lo >= 2u ? (lo << 6) + e : (lo == 1u ? e : 0u);
+        const uint32_t vhi = hi >= 2u ? (hi << 6) + e : (hi == 1u ? e : 0u);
+        return (vlo | (vhi << 16)) | ((c2 & 0x00080008u) << 12);
+    }
+    IK_DEVI void dequant(const State& st, const Raw& r, uint4& lo, uint4& hi) {
+        if (r.s < 3u || r.s > 250u) {
+            Mxfp4Policy::dequant(st, r, lo, hi);
+            return;
+        }
+        const uint32_t e = (r.s - 1u) << 7;
+        // element j of a word is nibble j; output dword q holds elements 2q (low half) and 2q + 1 (high half)
+        const uint32_t w0 = r.w.x, w1 = r.w.y;
+        const uint32_t a0 = (w0 & 0xfu) | ((w0 << 12) & 0xf0000u), a1 = ((w0 >> 8) & 0xfu) | ((w0 << 4) & 0xf0000u);
+        const uint32_t a2 = ((w0 >> 16) & 0xfu) | ((w0 >> 4) & 0xf0000u), a3 = ((w0 >> 24) & 0xfu) | ((w0 >> 12) & 0xf0000u);
+        const uint32_t b0 = (w1 & 0xfu) | ((w1 << 12) & 0xf0000u), b1 = ((w1 >> 8) & 0xfu) | ((w1 << 4) & 0xf0000u);
+        const uint32_t b2 = ((w1 >> 16) & 0xfu) | ((w1 >> 4) & 0xf0000u), b3 = ((w1 >> 24) & 0xfu) | ((w1 >> 12) & 0xf0000u);
+        lo = make_uint4(bf2(a0, e), bf2(a1, e), bf2(a2, e), bf2(a3, e));
+        hi = make_uint4(bf2(b0, e), bf2(b1, e), bf2(b2, e), bf2(b3, e));
+    }
+};
+
+// Tile override for sweeps: INTARSIA_HIP_MXFP4_TILE=WN,WM,TN,TM (read once; any listed tile gives the same bits). The
+// bench (scripts/mx/mxbench.hip, -DIK_MX_BENCH) sets it per call through ik_mxfp4_bench_set().
+static int g_mx_tile[4] = {-1, 0, 0, 0};
+static int g_mx_v1 = -1;  // INTARSIA_HIP_MXFP4_V1=1: matmul_mxfp4_mma runs v1 (kill switch)
+static void mx_cfg_init() {
+    if (g_mx_tile[0] == -1) {
+        g_mx_tile[0] = 0;
+        const char* e = getenv("INTARSIA_HIP_MXFP4_TILE");
+        if (e && sscanf(e, "%d,%d,%d,%d", &g_mx_tile[0], &g_mx_tile[1], &g_mx_tile[2], &g_mx_tile[3]) != 4) g_mx_tile[0] = 0;
+    }
+    if (g_mx_v1 == -1) {
+        const char* e = getenv("INTARSIA_HIP_MXFP4_V1");
+        g_mx_v1 = (e && e[0] == '1') ? 1 : 0;
+    }
+}
+
+template <class P, typename OutT>
+void mx_gemm_run(const DqArgs& a, OutT* out, hipStream_t s) {
+    const int64_t M = a.M, N = a.N;
+#define IK_MX_TILE(WN, WM, TN, TM)                                                                                          \
+    {                                                                                                                      \
+        dim3 grid((unsigned)((M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16))); \
+        dq_gemm_kernel<P, WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);                                     \
+        return;                                                                                                            \
+    }
+#define IK_MX_IS(A, B, C, D) (t[0] == A && t[1] == B && t[2] == C && t[3] == D)
+    const int* t = g_mx_tile;
+    if (t[0] > 0) {
+        if (IK_MX_IS(4, 2, 2, 4)) IK_MX_TILE(4, 2, 2, 4)
+        if (IK_MX_IS(4, 4, 4, 2)) IK_MX_TILE(4, 4, 4, 2)
+        if (IK_MX_IS(4, 4, 2, 4)) IK_MX_TILE(4, 4, 2, 4)
+        if (IK_MX_IS(2, 2, 4, 4)) IK_MX_TILE(2, 2, 4, 4)
+        if (IK_MX_IS(4, 2, 4, 4)) IK_MX_TILE(4, 2, 4, 4)
+        if (IK_MX_IS(2, 4, 4, 4)) IK_MX_TILE(2, 4, 4, 4)
+        if (IK_MX_IS(4, 4, 2, 2)) IK_MX_TILE(4, 4, 2, 2)
+        if (IK_MX_IS(2, 4, 4, 2)) IK_MX_TILE(2, 4, 4, 2)
+    }
+#undef IK_MX_IS
+    if (M <= 16) IK_MX_TILE(4, 1, 2, 1)
+    if (M <= 32) IK_MX_TILE(4, 1, 2, 2)
+    if (M <= 64) IK_MX_TILE(2, 2, 4, 2)
+    IK_MX_TILE(4, 2, 2, 4)
+#undef IK_MX_TILE
+}
+
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out,
-           const ik_scratch* scratch, void* stream, bool gemv, bool rows = false) {
+           const ik_scratch* scratch, void* stream, bool gemv, bool rows = false, bool v1 = false) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
@@ -480,8 +562,14 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     a.N = N;
     a.K = (int)K;
     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
-    if (f32o) dq_gemm_run<Mxfp4Policy>(a, (float*)out->data, s);
-    else dq_gemm_run<Mxfp4Policy>(a, (ik_bf16*)out->data, s);
+    mx_cfg_init();
+    if (v1 || g_mx_v1) {
+        if (f32o) dq_gemm_run<Mxfp4Policy>(a, (float*)out->data, s);
+        else dq_gemm_run<Mxfp4Policy>(a, (ik_bf16*)out->data, s);
+    } else {
+        if (f32o) mx_gemm_run<Mxfp4PolicyV2>(a, (float*)out->data, s);
+        else mx_gemm_run<Mxfp4PolicyV2>(a, (ik_bf16*)out->data, s);
+    }
     return ik_launch_status();
 }
 
@@ -548,5 +636,20 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
                                    const ik_scratch* scratch, void* stream) {
     return pair_impl(x, w0, s0, w1, s1, act, out0, out1, scratch, stream, true);
 }
+// matmul_mxfp4_mma_v1 (lane mx): matmul_mxfp4_mma as on main before v2 (the bitwise reference of tests/mxfp4_v2.rs)
+int ik_matmul_mxfp4_mma_v1(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                           ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return launch(x, w, scales, act, out, scratch, stream, false, false, true);
+}
+#ifdef IK_MX_BENCH
+// bench hook: tile (0 = the table) and v1 for the following calls
+void ik_mxfp4_bench_set(int wn, int wm, int tn, int tm, int v1) {
+    g_mx_tile[0] = wn;
+    g_mx_tile[1] = wm;
+    g_mx_tile[2] = tn;
+    g_mx_tile[3] = tm;
+    g_mx_v1 = v1;
+}
+#endif
 
 }  // extern "C"

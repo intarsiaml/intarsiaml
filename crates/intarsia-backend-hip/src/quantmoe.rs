@@ -24,6 +24,7 @@ pub const TABLE: &[(&str, Op)] = &[
     // M1 drill (kernels/hip/mxfp4.hip): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
     ("matmul_mxfp4_mma", Op::MatmulMxfp4),
+    ("matmul_mxfp4_mma_v1", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv", Op::MatmulMxfp4Pair),
     // row-exact twins of the two GEMVs (`rows_exact`, M <= ROWS_MAX = 16): M == 1 is the GEMV launcher itself, M = 2..16 runs
     // mxfp4_gemv_rows_kernel, which keeps the arithmetic of every output row of the one-row kernel (same lane-to-group map,
@@ -315,6 +316,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2 + 16),
+                // matmul_mxfp4_mma before lane mx's v2 (kernels/hip/mxfp4.hip Mxfp4PolicyV2 / mx_gemm_run): the same bits, never
+                // selected; the bitwise reference of tests/mxfp4_v2.rs. INTARSIA_HIP_MXFP4_V1=1 makes matmul_mxfp4_mma run it.
+                "matmul_mxfp4_mma_v1" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + 16)
+                    .priority(-10),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
