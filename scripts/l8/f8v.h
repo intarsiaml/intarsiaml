@@ -8,8 +8,10 @@
 // SWZ: 64-byte rows with the 16-byte chunk XOR-swizzled by (row >> 2) & 3 instead of an 80-byte padded stride.
 // PF: global-load distance in stages (1 = as the reference, 2 = two register sets, loads issued two stages ahead).
 // ORD: 0 = lo+hi back to back per accumulator (reference), 1 = all lo WMMAs of a group, then all hi.
+// LB: 0 = __syncthreads (workgroup fence over all address spaces: global_inv + load-counter drain on gfx12),
+//     1 = LDS-only fence + s_barrier (global loads stay in flight, L0/L1 lines are kept).
 // RD: 0 = fragments of one 32-k group at a time, 1 = both groups' fragments read before the first WMMA.
-template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, typename OutT>
+template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32)
 f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const float* __restrict__ sc,
            OutT* __restrict__ out, int M, int64_t N, int K, int vec_out) {
@@ -82,7 +84,15 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
         for (int g = 0; g < 2; ++g) boff[j][g] = soff(wm * TM * 16 + j * 16 + lr, g * 2 + lhc);
 
     auto mma_group = [&](const uint4(&af)[TN], const uint4(&bf)[TM]) {
-        if (ORD == 0) {
+        if constexpr (ORD == 2) {  // NEGATIVE CONTROL: hi before lo on the same accumulator (must change bits)
+#pragma unroll
+            for (int i = 0; i < TN; ++i)
+#pragma unroll
+                for (int j = 0; j < TM; ++j) {
+                    acc[i][j] = ik_f8_wmma(af[i].z, af[i].w, bf[j].z, bf[j].w, acc[i][j]);
+                    acc[i][j] = ik_f8_wmma(af[i].x, af[i].y, bf[j].x, bf[j].y, acc[i][j]);
+                }
+        } else if constexpr (ORD == 0) {
 #pragma unroll
             for (int i = 0; i < TN; ++i)
 #pragma unroll
@@ -102,7 +112,7 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
         }
     };
     auto compute = [&](int buf) {
-        if (RD == 0) {
+        if constexpr (RD == 0) {
 #pragma unroll
             for (int g = 0; g < 2; ++g) {
                 uint4 af[TN], bf[TM];
@@ -126,35 +136,44 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
         }
     };
 
-    uint4 rwA[CW], rxA[CX], rwB[PF == 2 ? CW : 1], rxB[PF == 2 ? CX : 1];
-    if (PF == 1) {
+    auto bar = [&]() {
+        if constexpr (LB) {
+            __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local");
+            __builtin_amdgcn_s_barrier();
+            __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local");
+        } else {
+            __syncthreads();
+        }
+    };
+    uint4 rwA[CW], rxA[CX], rwB[CW], rxB[CX];
+    if constexpr (PF == 1) {
         gload(0, rwA, rxA);
         sstore(0, rwA, rxA);
-        __syncthreads();
+        bar();
         for (int kt = 0; kt < nk; ++kt) {
             const int buf = kt & 1;
             if (kt + 1 < nk) gload((kt + 1) * kF8BK, rwA, rxA);
             compute(buf);
             if (kt + 1 < nk) sstore(buf ^ 1, rwA, rxA);
-            __syncthreads();
+            bar();
         }
     } else {
         gload(0, rwA, rxA);
         sstore(0, rwA, rxA);
         if (nk > 1) gload(kF8BK, rwA, rxA);
         if (nk > 2) gload(2 * kF8BK, rwB, rxB);
-        __syncthreads();
+        bar();
         for (int kt = 0; kt < nk; kt += 2) {
             // even stage: regs A hold stage kt + 1, regs B stage kt + 2 (both loads already in flight)
             if (kt + 1 < nk) sstore(1, rwA, rxA);
             if (kt + 3 < nk) gload((kt + 3) * kF8BK, rwA, rxA);
             compute(0);
-            __syncthreads();
+            bar();
             if (kt + 1 < nk) {
                 if (kt + 2 < nk) sstore(0, rwB, rxB);
                 if (kt + 4 < nk) gload((kt + 4) * kF8BK, rwB, rxB);
                 compute(1);
-                __syncthreads();
+                bar();
             }
         }
     }
@@ -185,26 +204,31 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
     }
 }
 
-template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD>
+template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB = 0>
 static void lv(const uint8_t* xq, const uint8_t* w, const float* sc, ik_bf16* out, int M, int64_t N, int K, hipStream_t s) {
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
     dim3 grid((unsigned)(((int64_t)M + BM - 1) / BM), (unsigned)((N + BN - 1) / BN));
-    f8v_kernel<WN, WM, TN, TM, SWZ, PF, ORD, RD, ik_bf16><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, 1);
+    f8v_kernel<WN, WM, TN, TM, SWZ, PF, ORD, RD, LB, ik_bf16><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, 1);
 }
 
-// name encodes: WN,WM,TN,TM / s = swizzled 64 B rows (p = 80 B padded) / pf (loads in flight) / ord / rd
+// name encodes: WN,WM,TN,TM / s = swizzled 64 B rows (p = 80 B padded) / pf (loads in flight) / o (issue order) / r (frag reads) / lb
 #define L8_VARIANTS(X)                                                           \
-    X("4442 p pf1 o0 r0", (lv<4, 4, 4, 2, false, 1, 0, 0>))                     \
-    X("4442 s pf1 o0 r0", (lv<4, 4, 4, 2, true, 1, 0, 0>))                      \
-    X("4442 p pf2 o0 r0", (lv<4, 4, 4, 2, false, 2, 0, 0>))                     \
-    X("4442 s pf2 o0 r0", (lv<4, 4, 4, 2, true, 2, 0, 0>))                      \
-    X("4442 p pf1 o1 r0", (lv<4, 4, 4, 2, false, 1, 1, 0>))                     \
-    X("4442 p pf1 o0 r1", (lv<4, 4, 4, 2, false, 1, 0, 1>))                     \
-    X("4442 p pf1 o1 r1", (lv<4, 4, 4, 2, false, 1, 1, 1>))                     \
-    X("4442 s pf2 o1 r1", (lv<4, 4, 4, 2, true, 2, 1, 1>))                      \
-    X("4424 p pf1 o0 r0", (lv<4, 4, 2, 4, false, 1, 0, 0>))                     \
-    X("4424 s pf2 o1 r1", (lv<4, 4, 2, 4, true, 2, 1, 1>))                      \
-    X("4444 s pf1 o0 r0", (lv<4, 4, 4, 4, true, 1, 0, 0>))                      \
-    X("4444 s pf2 o0 r0", (lv<4, 4, 4, 4, true, 2, 0, 0>))                      \
-    X("4444 s pf1 o1 r0", (lv<4, 4, 4, 4, true, 1, 1, 0>))                      \
-    X("4244 s pf2 o1 r0", (lv<4, 2, 4, 4, true, 2, 1, 0>))
+    X("NEG 4442 hi-before-lo", (lv<4, 4, 4, 2, false, 1, 2, 0, 1>))             \
+    X("4442 p pf1 o0 r0 lb0", (lv<4, 4, 4, 2, false, 1, 0, 0, 0>))             \
+    X("4442 p pf1 o0 r0 lb1", (lv<4, 4, 4, 2, false, 1, 0, 0, 1>))             \
+    X("4442 s pf1 o0 r0 lb1", (lv<4, 4, 4, 2, true, 1, 0, 0, 1>))              \
+    X("4442 p pf2 o0 r0 lb1", (lv<4, 4, 4, 2, false, 2, 0, 0, 1>))             \
+    X("4442 s pf2 o0 r0 lb1", (lv<4, 4, 4, 2, true, 2, 0, 0, 1>))              \
+    X("4442 p pf1 o1 r0 lb1", (lv<4, 4, 4, 2, false, 1, 1, 0, 1>))             \
+    X("4442 p pf1 o0 r1 lb1", (lv<4, 4, 4, 2, false, 1, 0, 1, 1>))             \
+    X("4442 s pf2 o1 r1 lb1", (lv<4, 4, 4, 2, true, 2, 1, 1, 1>))              \
+    X("4424 p pf1 o0 r0 lb0", (lv<4, 4, 2, 4, false, 1, 0, 0, 0>))             \
+    X("4424 p pf1 o0 r0 lb1", (lv<4, 4, 2, 4, false, 1, 0, 0, 1>))             \
+    X("4424 p pf2 o0 r0 lb1", (lv<4, 4, 2, 4, false, 2, 0, 0, 1>))             \
+    X("4424 s pf2 o1 r1 lb1", (lv<4, 4, 2, 4, true, 2, 1, 1, 1>))              \
+    X("4224 p pf1 o0 r0 lb1", (lv<4, 2, 2, 4, false, 1, 0, 0, 1>))             \
+    X("4224 p pf2 o0 r0 lb1", (lv<4, 2, 2, 4, false, 2, 0, 0, 1>))             \
+    X("4444 s pf1 o0 r0 lb1", (lv<4, 4, 4, 4, true, 1, 0, 0, 1>))              \
+    X("4444 s pf2 o0 r0 lb1", (lv<4, 4, 4, 4, true, 2, 0, 0, 1>))              \
+    X("4444 s pf2 o1 r0 lb1", (lv<4, 4, 4, 4, true, 2, 1, 0, 1>))              \
+    X("4244 s pf2 o1 r0 lb1", (lv<4, 2, 4, 4, true, 2, 1, 0, 1>))

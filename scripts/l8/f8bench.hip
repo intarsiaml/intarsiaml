@@ -41,6 +41,9 @@ int main(int argc, char** argv) {
     struct S { const char* what; int M, N, K; } shapes[] = {
         {"qkv M4096", 4096, 8192, 2048}, {"z M4096", 4096, 4096, 2048}, {"o M4096", 4096, 2048, 4096},
         {"kv M4096", 4096, 512, 2048},
+        // 1k prompts (M 1024: the 128 x 128 tile of the table, untouched by tile choices for M >= 2048)
+        {"qkv M1024", 1024, 8192, 2048}, {"z M1024", 1024, 4096, 2048}, {"o M1024", 1024, 2048, 4096},
+        {"kv M1024", 1024, 512, 2048},
         // partial M and N (edge handling of every tile), bitwise vs ref
         {"qkv M2049", 2049, 8192, 2048}, {"qkv M4089", 4089, 8192, 2048}, {"z M3000", 3000, 4096, 2048},
         {"o M4089", 4089, 2048, 4096}, {"kv M2049", 2049, 512, 2048}, {"o M300", 300, 2048, 4096},
@@ -83,7 +86,7 @@ int main(int argc, char** argv) {
         if (!strstr(s.what, sf)) continue;
         printf("\n%s M=%d N=%d K=%d\n", s.what, s.M, s.N, s.K);
         const size_t ob = (size_t)s.M * s.N * 2;
-        const bool timed = s.M >= 2048 && s.N >= 512 && !strstr(s.what, "odd") && !strstr(s.what, "K 1056");
+        const bool timed = s.M >= 1024 && s.N >= 512 && !strstr(s.what, "odd") && !strstr(s.what, "K 1056");
         for (const V& v : variants) {
             if (&v != variants && !strstr(v.name, vf)) continue;
             ik_bf16* y = (&v == variants) ? y0 : y1;
