@@ -776,3 +776,37 @@ fn timing_gemv_rows() {
         }
     }
 }
+
+/// Window timing of the 27B's verify GEMVs: what an M-row call costs against the one-row call (the verify pass of a speculative
+/// step is M = k + 1 rows). Prints `TIME` lines like `timing_gemv_rows`; run in a fleetq slot quiet on the GPU.
+#[test]
+#[ignore = "micro-timing"]
+fn timing_mxfp4_rows() {
+    let Some(rig) = Rig::new("timing_mxfp4_rows") else { return };
+    let mut rng = SplitMix64::new(78);
+    let iters = 300;
+    for (n, k) in [(17408usize, 5120usize), (5120, 17408), (12288, 5120), (5120, 6144), (1024, 5120)] {
+        let q = intarsia_core::quant::mxfp4::random_rows(&mut rng, n, k, intarsia_core::quant::Mxfp4Act::Dynamic);
+        let ws: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
+        let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
+        for kernel in ["matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows"] {
+            for m in [1usize, 2, 3, 4, 5, 8] {
+                let mut ins = vec![x.rows(0, m)];
+                ins.extend(ws.iter().cloned());
+                let us = rig.time_us(kernel, Op::MatmulMxfp4, &ins, &[(DType::Bf16, vec![m, n])], &OpAttrs::default(), iters);
+                let bytes = n * k / 2 + n * k / 32;
+                println!("TIME mxfp4 {n}x{k:<6} {kernel:<24} M={m:<2} {us:8.2} us  {:7.1} GB/s", bytes as f64 / us / 1e3);
+            }
+        }
+    }
+    // the lm_head sweep of the 27B (bf16 weights, f32 logits), one row and the verify rows
+    let (n, k) = (248320usize, 5120usize);
+    let w = rig.put(&fast_bf16(&mut rng, n, k));
+    let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
+    for kernel in ["logits_bf16_gemv", "logits_bf16_gemv_rows"] {
+        for m in [1usize, 2, 3, 4] {
+            let us = rig.time_us(kernel, Op::Logits, &[x.rows(0, m), w.clone()], &[(DType::F32, vec![m, n])], &OpAttrs::default(), 100);
+            println!("TIME lm_head {n}x{k} {kernel:<24} M={m:<2} {us:8.2} us  {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
+        }
+    }
+}
