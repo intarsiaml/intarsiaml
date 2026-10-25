@@ -1,0 +1,24 @@
+N=4096 tokens; kernels 24391, span 4065.2 ms, kernel time 3952.3 ms, idle 2.8 %
+prefill 1008 tok/s (span); GEMM FLOPs 199.5 TFLOP; weights 12.94 GB per chunk read
+
+class                                             n        ms  %kern  TFLOP/s  %peak
+GEMM mlp gate / up                             2048   1442.80  36.5%     64.8  17.2%
+GEMM mlp down                                  1024    817.58  20.7%     57.2  15.2%
+GEMM gdn in_proj_qkv                            768    326.13   8.3%     63.2  16.8%
+GEMM gdn out_proj / attn o_proj                1024    301.24   7.6%     54.7  14.5%
+GEMM gdn in_proj_a / b (N=48)                  1536    226.67   5.7%      0.9   0.2%
+GEMM gdn in_proj_z                              768    187.43   4.7%     66.0  17.5%
+GDN delta rule (sequential scan)                768    157.11   4.0%                
+GEMM attn q + gate                              256    123.09   3.1%     67.0  17.8%
+flash attention (bf16 WMMA)                     256     81.57   2.1%     40.4  21.3%
+GEMM attn k / v                                 512     77.30   2.0%     17.8   4.7%
+MXFP4 activation QDQ pre-pass                  8000     68.16   1.7%                
+other: silu_glu_kernel                         1088     27.90   0.7%                
+other: rmsnorm_kernel                          2193     27.26   0.7%                
+other: gdn_conv_kernel                          768     19.88   0.5%                
+other: mxfp4_gemv1_lds_kernel                   256     18.27   0.5%                
+other: gated_rmsnorm_kernel                     816     14.95   0.4%                
+other: gate_qk_norm_rope_kv_kernel              272      9.54   0.2%                
+other: __amd_rocclr_copyBuffer                  787      9.00   0.2%                
+
+all MXFP4 GEMMs: 3502.2 ms = 57.0 TFLOP/s (15.1 % of the 377 TFLOP/s fp8 WMMA peak, 30.0 % of the 190 bf16 peak); floor at the fp8 peak 529.1 ms

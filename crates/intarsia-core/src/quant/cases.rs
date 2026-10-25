@@ -513,6 +513,15 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     }
                 }
             }
+            // prefill-sized M (>= 128: HIP's matmul_mxfp4_mma_f8 takes these), a 64-k stage multiple and a K % 64 == 32 tail
+            for (m, n, k) in [(128usize, 160usize, 1024usize), (130, 40, 96)] {
+                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {
+                    push(
+                        format!("M={m} N={n} K={k} x=bf16 out=bf16 act={}", act.name()),
+                        matmul_mxfp4_case(&mut rng, m, n, k, act, DType::Bf16, DType::Bf16),
+                    );
+                }
+            }
             if !quick {
                 // the 27B gate/up projection, one row, both activation modes
                 for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {

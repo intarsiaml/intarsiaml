@@ -64,7 +64,8 @@ for s, e, name, gx, gy, wg in main:
     elif "xprep" in name or "actq" in name:
         add("MXFP4 activation QDQ pre-pass", ns)
     else:
-        add("other: " + re.sub(r"<.*", "", re.sub(r"^void ", "", name.split("(")[0]))[:40], ns)
+        nm = name.replace("(anonymous namespace)::", "")
+        add("other: " + re.sub(r"<.*", "", re.sub(r"^void ", "", nm.split("(")[0]))[:40], ns)
     if not ("xprep" in name or "actq" in name):
         prev = name
 
