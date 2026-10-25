@@ -5,20 +5,25 @@ Lane sp, 2026-10-25. Design only: no code, no fleet slot. Base: `origin/main` 52
 
 ## 0. Summary
 
+**Revision 2 (same day).** The first version of this note fitted the batched plain-decode cost on localeval aggregates that include prefill, and from that
+inferred a 4.9 ms per-row `lm_head` cost and recommended fixing it first. mr's measurement (#147, unmerged, `docs/results/2026-10-25-mr-hip-27b-batch-profile.md`)
+refutes that: the unprofiled 27B step is 30.3 / 36.8 / 39.2 / 42.1 / 59.5 / 82.7 / 110.9 ms at 1 / 2 / 3 / 4 / 8 / 12 / 16 rows, and `logits_bf16_gemv_rows` is flat at
+4.3 to 4.4 ms up to 8 rows, with its cliff only at 9 to 16 rows (7.8 ms at 12, 15.0 at 16). **There is no per-row head cost to fix below 8 rows, so the "head
+fix first" recommendation is withdrawn**; the 9 to 16 row `lm_head` kernel is mr3's work (fleetq #5287/#5288) and is not duplicated here. Section 2 is
+redone on mr's measured curve.
+
 - **Feasible, and most of the machinery exists.** The single-sequence step already has everything batched speculation needs: a row-exact verify
   pass (`Model::forward_verify`), per-row verify attention on HIP, per-row recurrent state saves and rollback (`SpecRows`,
   `SequenceState::spec_rollback`), a per-sequence MTP head (`SequenceState::mtp`), and a batched decode path whose row-exact kernels are proven for the
   27B (`Model::forward_batch`, mr's `batch_cuda_real` pass at N = 2..16). What is missing is the glue: a ragged multi-sequence verify pass, a batched
   draft head, a scheduler step that carries drafts, and `load.rs` stops refusing `--spec mtp` with `--max-batch > 1`.
-- **The gain is modest and concentrated at 2 to 3 streams.** From the pass-cost model in section 2 (calibrated on measured numbers): against *today's*
-  batched decode, MTP k=1/2 adds about **+45 to +50% aggregate at 2 streams, +25% at 4 and 8** if the speculation pass avoids the per-row lm_head
-  sweeps, and only +8% at 2 and nothing at 4 and 8 if it cannot. Most of the 4- and 8-stream number is not speculation: the model says today's batched
-  plain step spends about 4.9 ms per row in per-row work (very likely the lm_head, swept once per row) that a speculation-shaped pass does not pay. **Fix that
-  first**: it should lift plain batched decode by itself (+35% aggregate at 4 streams, +50% at 8, +60% at 16, modelled). Against that fixed baseline
-  speculation pays only at 2 to 3 streams (+30 to +40% at 2, +5 to +15% at 4 only with a flatter small-row GEMV, nothing at 8).
-- **Recommendation:** run a 30-minute measurement window first (W0 below; it decides whether the per-row head cost is real), land the head fix as its
-  own PR if it is, then build batched MTP for B <= 4 with a hard row budget. Core build 43 to 54 engineering hours (plus 7 to 11 for stage 0), 5 tatooine slots
-  of about 3.7 hours in total (5.5 to 6.5 with re-runs), 2 short slots each on spark1 and endor for the CUDA and Metal no-op gates.
+- **The gain is real but narrow: 2 to 4 streams.** Modelled against the measured batched step (section 2): about **+48% aggregate at 2 streams, +27% at 3, +13% at
+  4, +5% at 5, nothing from 6** (k=2 at 2 to 3 streams, k=1 at 4 and 5). A 10% lower acceptance takes 2 streams to +33%, 4 streams to +2%. A flatter lm_head at 9 to
+  16 rows (mr3) only changes the 8-stream and wider cases, which stay below 1.0, so it does not extend the range. Above 5 streams the verify rows cost more GEMV
+  time (`R(8) = 1.94`) than the tokens they buy; that is a property of the GEMV, and the break-even moves up only with a flatter small-row MXFP4 GEMV (the L1 lane).
+- **Recommendation:** worth building as a B <= 4 feature (45 to 55 engineering hours) only if 2 to 4 concurrent streams on the 27B is a case the user cares
+  about; it is a +50% aggregate there and nothing at 8 and 16 streams, where Radiance's short-draft gain has no counterpart on this GEMV. W0 (a 45-minute window) now
+  only has to re-measure solo MTP after mr and read the state size; the "per-row head" measurement it was meant to take is answered by mr's data.
 
 ## 1. What exists today (code facts)
 
@@ -37,63 +42,60 @@ Measured 27B facts this note leans on (all from the results docs; the ones marke
 - solo spec off 32.8 to 33.1 tok/s (30.5 ms/token); solo MTP k=2 pass 53.5 ms, 2.44 to 2.83 tokens/pass at 77 / 72 / 92 / 87% acceptance
   (128 / 1k / 4k / 16k), i.e. 1.39x to 1.60x (sp doc sections 2 and 4); k=3 is slower than k=2 (71 ms per pass).
 - lm_head 248320 x 5120 bf16: 4.25 ms per sweep, flat for M = 1..4 (sp doc section 5; M > 4 not measured).
-- 27B batched plain decode on HIP after mr: 1 stream 32.9, 4 streams 18.5 tok/s each, 8 streams 11.6, 16 streams 6.3 (mr doc; 8-stream step is about
-  2.8x the solo step although the GEMV is only 1.94x). The unexplained part is the *model* entry in section 2.
+- 27B batched plain decode on HIP after mr: the unprofiled step is 30.3 / 42.1 / 59.5 / 110.9 ms at 1 / 4 / 8 / 16 rows (mr #147, table in section 2.1); the first version of this
+  note used localeval aggregates here, which include prefill, and was wrong.
 
 ## 2. Pass-cost model and expected gain
 
-### 2.1 The model
+### 2.1 Inputs (measured)
 
-All times in ms, 27B, one R9700, `M` = rows through a matmul, `B` = sequences.
+mr, #147 (draft, measurement only), 27B MXFP4, one R9700, 1k context, after #145, unprofiled:
+
+| rows B | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 12 | 16 |
+|---|---|---|---|---|---|---|---|---|---|
+| plain batched step, ms | 30.3 | 36.8 | 39.2 | 42.1 | 46.2 | 50.4 | 59.5 | 82.7 | 110.9 |
+| aggregate tok/s | 33.0 | 54.4 | 76.6 | 95.0 | 108.1 | 119.2 | 134.5 | 145.1 | 144.3 |
+
+Per-op (profiled; B = 2 / 4 / 8 / 12 / 16): MXFP4 pair GEMV 21.4 / 23.2 / 31.7 / 42.6 / 52.6 ms, MXFP4 GEMV 12.6 / 14.4 / 18.8 / 24.4 / 30.3, `logits` 4.26 / 4.29 / 4.42 / 7.78 / 15.0,
+`gdn_delta_rule` 2.2 / 2.9 / 4.8 / 6.8 / 8.8 (0.55 ms per sequence, at the state byte floor), `attn_decode` 0.9 / 1.3 / 2.0 / 2.8 / 3.6, everything else 9.1 to 9.9.
+Solo (sp doc): spec off 30.5 ms/token; MTP k=2 pass 53.5 ms with the old GEMV, 2.44 to 2.83 tokens/pass.
+
+### 2.2 The model
 
 ```
-plain(B)   = F + P*R(B) + C*B                         F = 3.1  P = 22.5  C = 4.9   (fit)
-spec(B,k)  = draft + verify
-verify     = P*R(M) + head(M) + O*M + 0.5*B           M = B*(k+1), O = 1.43/row (GDN rows, per-row attention, norms), 0.5/seq state saves
-draft      = headlayer(2.5*B) + head(B) + (k-1)*(headlayer(B) + head(B))      head layer = 2.4 flat to ~6 rows
-gain       = tau(k) * plain(B) / spec(B,k)            tau = 1.0 / 1.8 / 2.5 / 2.95 tokens per pass at k = 0 / 1 / 2 / 3
-R(M)       = mr's 17408x5120 ratios (1.00, 1.04, 1.08, 1.16, 1.35, 1.58, 1.76, 1.94 at M = 1..8; 2.68 at 12; 3.39 at 16)
+plain(B)     = mr's measured step (interpolated)
+verify(B,q)  = plain(M) - 0.75*(M-B) + B*((q-1)*0.26 + 0.3)            M = B*q rows; a verify row has no sequence of its own (GDN state + attention
+                                                                         0.75 ms per sequence), pays a state save per extra row (149 MiB write = 0.26) and
+                                                                         ~0.3 ms expected rollback copy per sequence
+draft(B,k)   = headlayer(2.5*B rows) + lm_head(B) + (k-1)*(headlayer(B) + lm_head(B))        head layer 2.4 ms flat to ~6 rows; lm_head from mr's curve
+spec(B,k)    = draft + verify(B,k+1)
+gain(B,k)    = tau(k) * plain(B) / spec(B,k)       tau = 1.8 / 2.5 / 2.95 tokens per pass at k = 1 / 2 / 3 (measured k=2 mean 2.44 to 2.83, rounded down)
 ```
 
-Calibration (these are the checks, not the claims):
+Checks (not claims): at B = 1, k = 2 the model gives a 51.8 ms pass and gain 1.46, against the measured 1.39 to 1.60x with the old kernels (the GEMV improvement
+of #145 is inside `plain(3)` here; solo MTP after mr is not yet measured, W0 does that). Sensitivity: the per-sequence term 0.75 varied over 0.4 to 1.2 moves
+the 2/4/8-stream gains by at most 0.04.
 
-- `plain(1) = 30.5` (measured 30.5), `plain(8) = 86.0` (measured about 86: 11.6 tok/s per stream), `plain(16) = 157.8` (measured 6.3 tok/s per stream =
-  158 ms). `F` and `C` were fitted on the 1- and 8-stream points; 16 streams is the held-out point and agrees.
-- `spec(1,2)` with the old kernels (`R(3) = 1.35`) = 52.7 ms against 53.5 measured. With mr's kernels (`R(3) = 1.08`) it is 46.6 ms: **solo 27B MTP k=2
-  should now run about +10% faster than the 1.39 to 1.60x of the sp doc.** Not measured; it falls out of W0 for free.
-- `tau` is the measured mean over the four natural-v1 sizes (2.44 to 2.83 at k=2), rounded down; k=1 and k=3 from the same table. It assumes acceptance does
-  not depend on the batch (it cannot: the draft depends only on the sequence).
+### 2.3 Expected gain (modelled; k per row = best uniform with `B*(k+1) <= 16`)
 
-The fit says `C = 4.9 ms` per row of today's batched step. `lm_head` alone is 4.25 ms per sweep, so the likeliest reading is that `batch_head` sweeps the
-head once per row (row-exact mode), while `verify_head` runs one `[q, V]` projection that is flat in M up to 4. **This is an inference from three
-fitted points, not a measurement**; W0 settles it with an `--op-table` on `--max-batch 8`.
-
-### 2.2 Expected gain (modelled; best uniform k per row, `Σ(k+1) <= 16`)
-
-Scenario H: the batched speculation pass uses `verify_head`-style projection (head flat in M, 1/8 ms extra per row beyond 8).
-Scenario A: the head is swept once per row as `batch_head` seems to do today (the pessimistic reading).
-
-| streams B | plain today: ms/step, agg tok/s | spec gain vs plain today, H (best k) | spec gain vs plain today, A | plain with the head fixed: ms/step, agg tok/s | spec gain vs fixed plain, H | same with a better small-row GEMV (R(8)=1.4, R(16)=1.9) |
+| streams | plain step, ms | plain agg tok/s | best k | gain | spec agg tok/s | gain at tau -10% |
 |---|---|---|---|---|---|---|
-| 1 | 30.5, 33 | 1.63 (k=2) | 1.38 (k=2) | 30.5, 33 | 1.63 | 1.63 |
-| 2 | 36.3, 55 | 1.49 (k=1) / 1.45 (k=2) | 1.08 (k=1) | 32.1, 62 | 1.32 (k=1) | 1.42 (k=2) |
-| 4 | 48.8, 82 | 1.26 (k=1) | none (< 1) | 36.0, 111 | none (0.93 at k=1) | 1.13 to 1.15 |
-| 8 | 86.0, 93 | 1.25 (k=1, M = 16) | none | 56.2, 142 | none (0.82) | 0.88 (none) |
+| 1 | 30.3 | 33 | 2 (3 ties) | 1.46 | 48 | 1.32 |
+| 2 | 36.8 | 54 | 2 | **1.48** | 80 | 1.33 |
+| 3 | 39.2 | 77 | 2 | 1.27 | 97 | |
+| 4 | 42.1 | 95 | 1 | **1.13** | 107 | 1.02 |
+| 5 | 46.2 | 108 | 1 | 1.05 | 113 | |
+| 6 | 50.4 | 119 | none | 0.99 | | |
+| 8 | 59.5 | 134 | none | 0.88 | | |
 
-Reading it:
-
-- The single-stream row (1.63) is the check against the existing solo result with mr's kernels; the unbatched number is not new.
-- **Against today's batched baseline** (columns 3 and 4): +25 to +50% at 2 to 8 streams if the pass avoids the per-row head sweeps, +0 to +8% if it
-  cannot. This is the number the user sees if only speculation is built.
-- **Against a baseline with the head fixed** (columns 5 to 7): speculation is worth +30 to +40% at 2 streams, about +5 to +15% at 4 (needs the better
-  GEMV to clear 10%), and nothing from 6 streams up, because at `M >= 8` every extra verify row costs more GEMV time than the token it buys. A 10% lower `tau` (acceptance on
-  harder text) lowers every gain by about 0.1 and leaves B = 8 negative.
-- Radiance's `--draft-short-from 8` (+12% at 8 streams, +18% at 16) has no counterpart here: with this GEMV the batch is already the cheaper way to
-  use the weight stream above 4 rows. If mr's lane or the WMMA small-row family (L1) lands a GEMV that is flatter at M = 8..16, the break-even moves up; the
-  design below keeps the row budget a parameter so it can.
-- **Short-draft policy** (the item on the original list): drop k as rows grow so that `Σ(k_i+1) <= row_budget` and stop drafting at all once the modelled
-  gain is under 1.03. With the table above that is k=2 up to B = 2 (or 3 with a spare row), k=1 at B = 3 to 4, plain beyond; `row_budget` default 8, tunable.
-  The policy lives in the scheduler (it sees B); tokens never depend on it.
+- Speculation helps while the extra verify rows are almost free: the GEMV at M = 4 to 6 is 1.16 to 1.58x the one-row time, so a k=2 pass at B = 2 (6 rows) streams the
+  weights once for 2.5 tokens per sequence. By M = 8 the GEMV costs 1.94x and the extra rows no longer pay; Radiance's `--draft-short-from 8` gain
+  (+12% at 8, +18% at 16) comes from a GEMV that stays flat there. With mr3's `lm_head` fix (flat to 16) the 4-stream gain moves from 1.13 to 1.15 and the 8-stream
+  one from 0.88 to 0.96: still no gain.
+- **Short-draft policy:** k=2 up to B = 3, k=1 at B = 4 and 5, plain from 6 (`row_budget` 8, `spec_off_at` 6; both knobs). The scheduler's default `spec_off_at` is 4; it
+  would be raised to 6 for MTP only when this is built and measured.
+- The numbers are modelled from op-level data; the measured claim to check in W2 is the 2-stream +45 to +50% and the 4-stream +10 to +15% (localeval aggregate, spec on
+  against main's batched spec off, same window).
 
 ## 3. Design
 
@@ -190,8 +192,8 @@ unchanged:
 - **Attention KV:** `len = keep`; rows past it are never read (attention reads keys `<= pos`) and are overwritten by the next append. Nothing is copied.
 - **Recurrent state (GDN, conv):** verify saves the state after each row but the last into the slot's `SpecRows.bufs` (`q-1` copies); rollback copies
   buffer `keep-base-1` back into the live state. No copy when everything is accepted. This is today's logic per slot; the batched pass writes each
-  sequence's saves into its own `SpecRows`. Cost: about 63 MB per saved row per sequence (load.rs comment; **re-measure for the 27B**), i.e. `B*k*63 MB`
-  of extra device memory, 0.5 to 1 GB at B <= 4, which the plan accounting (`plan.rs` workspace) must include so `--max-seq` is not overcommitted. Idea B of the plan
+  sequence's saves into its own `SpecRows`. Cost: about 149 MiB per saved row per sequence (mr #147: the 27B's GDN state is 149 MiB read+write per sequence; the 63 MB in `load.rs` is the 35B figure; W0 reads it from the plan), i.e. `B*k*149 MiB`
+  of extra device memory, 1.2 GB at B = 4, k = 2, which the plan accounting (`plan.rs` workspace) must include so `--max-seq` is not overcommitted. Idea B of the plan
   (out-of-place state, no copies, about +5%) stays an optimisation after correctness.
 - **MTP head:** `m.kv.truncate`, `pending_rows = keep - m.kv.len`; the verify pass queues all of its hidden rows and the rollback drops the rejected ones, as in the single-sequence code.
 - **Failure:** a row error fails that request; an outer error is fatal. As in `forward_verify`, an error part-way through leaves recurrent state matching
@@ -222,7 +224,7 @@ the 27B, where k=2 wins at every size (sp doc section 2). The measured-cost gate
 
 ### 3.7 Memory and plan
 
-Extra device memory: `SpecRows` `B*k*63 MB`, the head's per-slot KV (one layer, small) and pending queue, a workspace for `M <= 16` rows, `verify_tok`/`batch_tok` for
+Extra device memory: `SpecRows` `B*k*149 MiB`, the head's per-slot KV (one layer, small) and pending queue, a workspace for `M <= 16` rows, `verify_tok`/`batch_tok` for
 `M`. `plan::resolve` / `phantom_state` already model the single-sequence spec buffers; they need the per-slot form, and the dry run (`--dry-run` plan json) must
 list them so a model that fits at `--max-batch 4 --spec off` but not with spec on is refused at load, not mid-run.
 
@@ -263,7 +265,7 @@ Order matters: stage 0 can change what is worth building.
 
 | stage | work | engineering h |
 |---|---|---|
-| 0 | W0 measurements + decide (below); the head fix PR if confirmed (`batch_head` -> one `[M, V]` projection, row-exact, flat in M; its own gate: 27B and 35B batched ids == solo) | 1 (analysis) + 6 to 10 (fix) |
+| 0 | W0 (below): solo MTP on main after mr, state size; no head fix (refuted, section 0) | 1 (analysis) |
 | 1 | `Model::spec_batch`: ragged row table (verify rows), per-row attention with the table, per-sequence GDN launch + `SpecRows`, row-exact `lm_head` + argmax, `enable_spec_batch` sizing and plan accounting | 14 to 18 |
 | 2 | batched draft head (ragged catch-up, chain), row-exact head switch (if W0 says needed) | 8 to 10 |
 | 3 | scheduler (`SeqStep::Spec`, `BatchModel::spec_step/spec_rollback`, `accept_spec`, run delivery), `SlotModel` / `SeqAdapter` glue, `load.rs`, flags, metrics (`intarsia_spec_*` per batch size), docs rows | 8 to 10 |
@@ -275,7 +277,7 @@ Fleet windows (tatooine = both R9700s, radiance down, restored and confirmed `ac
 
 | window | purpose | slot length |
 |---|---|---|
-| W0 (before any code) | (a) `--op-table` on `--max-batch 8`, 27B plain decode: confirm or kill the per-row head hypothesis; (b) `lm_head` M = 1..24, exact vs `verify_head`; (c) ordinary bf16 matmul/rmsnorm M-row vs one-row bytes (head row-exactness, section 3.3); (d) solo 27B MTP k=2 on main (post-mr) at 128 / 1k / 4k / 16k, md5 vs spec off; (e) re-measure per-row recurrent state bytes | 40 min, 1 card |
+| W0 (before any code) | (a) solo 27B MTP k=1 / 2 / 3 on current main (post-mr) at 128 / 1k / 4k / 16k, md5 vs spec off, ms per pass (`INTARSIA_SPEC_TRACE`): calibrates the model's B = 1 point; (b) plan json at `--max-batch 4` with and without MTP: state memory; the batched `lm_head` rows curve is mr's (#147), not re-measured; (c, a unit test in stage 2) ordinary bf16 matmul/rmsnorm M-row vs one-row bytes for head row-exactness | 45 min, both cards (radiance fills them) |
 | W1 | G1, G2, G5 correctness at B = 2, 3, 4 (8 stress), 27B natural-v1, ids + counts; G9 | 45 min, 2 cards in parallel |
 | W2 | localeval speed: single stream 128 / 1k / 4k / 16k, aggregate 1 / 4 / 16 streams (and 2, 8 added since that is where the table says the gain is), spec on vs main spec off and vs main batched, same window; plus the 35B quick check | 2 x 45 min |
 | W3 | final gates G6 and G8 on the PR head (27B/35B/8B no-op, `kernels test --quick`, `batch_recurrent`, `batch_cuda_real` incl. `--ignored`, 27B batched equality) | 45 min |
@@ -286,11 +288,10 @@ the build itself is 6 to 8 working days of engineering at the hours above, with 
 
 ## 6. Risks and decisions
 
-1. **The gain at B >= 4 is mostly a head-sweep fix, not speculation (section 2).** Decision for the coordinator: do the head fix first (stage 0) and build
-   batched MTP only if W0 and the fixed baseline leave a gain at B = 2 to 3 worth 45 to 55 engineering hours. If the head hypothesis is wrong (the 4.9 ms/row
-   is GDN or attention rows), the table changes in both directions and I redo it from the W0 op table before any build starts.
-2. **GEMV shape.** Everything above `M = 8` is limited by mr's `R(M)` (1.94 at 8, 3.39 at 16). A flatter small-row GEMV (the L1 lane) moves the break-even
-   from B = 3 to roughly B = 5; the row budget is a knob so this needs no redesign.
+1. **The gain range is narrow (2 to 4 streams).** Decision for the coordinator and the user: build it only if 2 to 4 concurrent 27B streams on one R9700 is
+   a case that matters. The earlier "head fix first" idea was withdrawn (section 0); the model is calibrated on mr's measured curve, not on a fit.
+2. **GEMV shape.** Everything above `M = 8` is limited by mr's `R(M)` (1.94 at 8, 3.39 at 16). A flatter small-row GEMV (the L1 lane) would move the break-even
+   from B = 5 to roughly B = 8; the row budget is a knob so this needs no redesign.
 3. **Head row-exactness** (section 3.3) is the one thing that can change solo MTP numbers slightly (acceptance noise, re-baseline); everything else
    leaves the single-sequence path bitwise unchanged.
 4. **Memory:** `SpecRows` is `B*k*63 MB` (unverified for the 27B); at `--max-batch 16` with spec on this is the first place a load can run out; the plan check must refuse it with a message.
@@ -298,16 +299,12 @@ the build itself is 6 to 8 working days of engineering at the hours above, with 
    streaming smoothness of the batched path changes; tokens per iteration up to `k+1`. It is the same as solo MTP today; flagged for the server's SSE pacing.
 6. **Out of scope and unchanged:** `--mtp-draft-vocab` default (user), the measured-cost gate (off), CUDA/Metal batched speculation.
 
-Appendix: the model script is reproduced here so the numbers in section 2 can be rechecked (stdlib Python):
+Appendix: the model (stdlib Python; `plain` is mr's table interpolated):
 
 ```python
-RT={1:1.0,2:1.04,3:1.08,4:1.16,5:1.35,6:1.58,7:1.76,8:1.94,12:2.68,16:3.39}   # mr, 17408x5120
-def R(M): ...   # linear interpolation on RT
-P,H1,F,C,HL,O = 22.5,4.25,3.1,4.9,2.4,1.43
-plain = lambda B: F+P*R(B)+C*B
-plain_fixed = lambda B: F+P*R(B)+(C-H1)*B+H1*max(1,B/8)
-def spec(B,k,scn):
-    q=k+1; M=B*q; hd=lambda m: H1*m if scn=='A' else H1*max(1,m/8); hl=lambda m: HL*max(1,m/6)
-    return hl(2.5*B)+hd(B)+(k-1)*(hl(B)+hd(B)) + P*R(M)+hd(M)+O*M+0.5*B
-TAU={1:1.8,2:2.5,3:2.95}
+PL={1:30.3,2:36.8,3:39.2,4:42.1,5:46.2,6:50.4,8:59.5,12:82.7,16:110.9}; LOG={1:4.26,2:4.26,4:4.29,8:4.42,12:7.78,16:15.01}
+hl=lambda m: 2.4*max(1.0,m/6)
+verify=lambda B,q: plain(B*q)-0.75*(B*q-B)+B*((q-1)*0.26+0.3)
+spec=lambda B,k: hl(2.5*B)+lm(B)+(k-1)*(hl(B)+lm(B))+verify(B,k+1)
+TAU={1:1.8,2:2.5,3:2.95}; gain=lambda B,k: TAU[k]*plain(B)/spec(B,k)
 ```
