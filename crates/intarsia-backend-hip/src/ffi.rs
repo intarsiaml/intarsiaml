@@ -233,6 +233,8 @@ extern "C" {
     pub fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_mma(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_gemv(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_mxfp4_gemv_rows(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_mxfp4_pair_gemv_rows(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     pub fn ik_moe_topk_bf16_v2(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
