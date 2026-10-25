@@ -356,6 +356,94 @@ int gemv_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, voi
     return ik_launch_status();
 }
 
+// ---- row-exact multi-row GEMV for the lm_head (logits_bf16_gemv_rows, M = kLogitsWideFrom..kRowsMax) -----------------------
+// gemv_kernel<M, 2, 4> hoists the x loads and unpacks of all M rows next to U = 4 weight loads per row, and spills from M = 9
+// (256 VGPR, 16..173 spilled; docs/results/2026-10-25-mr-hip-27b-batch-profile.md: 4.5 ms at M = 8, 7.8 at 12, 16.7 at 16 on the
+// 248320 x 5120 head, against 4.2 for one row). This kernel computes exactly the same numbers per (output row, activation row):
+// the lane walks idx = lane, lane + 32, ... ascending, 8 fma per idx in element order, then the same warp-sum. Only the register
+// shape differs: a warp computes kLogitsWideR = 4 weight rows (the weights of an idx are unpacked once for all M rows, and each
+// loaded activation row feeds 4 of them) and each activation row is loaded, unpacked and consumed behind a scheduler barrier,
+// so the registers do not grow with M (192 VGPR at M = 16, no spill, occupancy 8).
+constexpr int kLogitsWideR = 4;
+
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
+gemv_rows_wide_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N,
+                      int64_t K) {
+    constexpr int R = kLogitsWideR;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n0 = ((int64_t)blockIdx.x * kGemvWarps + warp) * R;
+    if (n0 >= N) return;  // whole warp exits together
+    const int64_t nv = K / 8;
+    const uint4* x8 = reinterpret_cast<const uint4*>(x);
+    const uint4* wr[R];
+#pragma unroll
+    for (int r = 0; r < R; ++r) {
+        const int64_t n = n0 + r < N ? n0 + r : N - 1;  // tail rows re-read the last row; their result is dropped
+        wr[r] = reinterpret_cast<const uint4*>(w + n * K);
+    }
+    float acc[R][M];
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
+    for (int64_t base = 0; base < nv; base += IK_WARP) {
+        const int64_t idx = base + lane;
+        const bool ok = idx < nv;
+        float wf[R][8];
+#pragma unroll
+        for (int r = 0; r < R; ++r) ik_unpack8(ok ? ik_ldcs(wr[r] + idx) : make_uint4(0, 0, 0, 0), wf[r]);
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            __builtin_amdgcn_sched_barrier(0);  // keeps the loads of row m + 1 from being hoisted above the fmas of row m
+            float xf[8];
+            ik_unpack8(ok ? ik_ldg(x8 + m * nv + idx) : make_uint4(0, 0, 0, 0), xf);
+#pragma unroll
+            for (int r = 0; r < R; ++r)
+#pragma unroll
+                for (int e = 0; e < 8; ++e) acc[r][m] += wf[r][e] * xf[e];
+        }
+    }
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            const float sum = ik_warp_sum(acc[r][m]);
+            if (lane == 0 && n0 + r < N) store_out(out + m * N + n0 + r, sum);
+        }
+}
+
+template <int M, typename OutT>
+bool gemv_rows_wide_go(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    const unsigned grid = (unsigned)((N + (int64_t)kGemvWarps * kLogitsWideR - 1) / ((int64_t)kGemvWarps * kLogitsWideR));
+    gemv_rows_wide_kernel<M, OutT><<<grid, kGemvWarps * IK_WARP, 0, s>>>(x, w, out, N, K);
+    return true;
+}
+
+// M rows from kLogitsWideFrom up (vector operands only; anything else, and fewer rows, take gemv_rows_launch)
+constexpr int kLogitsWideFrom = 9;
+
+template <typename OutT>
+int logits_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    const bool vec = K % 8 == 0 && ik_aligned16(x->data) && ik_aligned16(w->data);
+    if (!vec || M < kLogitsWideFrom || M > kRowsMax) return gemv_rows_launch<OutT>(x, w, out, stream);
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const ik_bf16* wp = (const ik_bf16*)w->data;
+    OutT* op = (OutT*)out->data;
+    bool launched = false;
+    switch (M) {
+#define IK_LW_CASE(MV) \
+    case MV: launched = gemv_rows_wide_go<MV, OutT>(xp, wp, op, N, K, s); break;
+        IK_LW_CASE(9) IK_LW_CASE(10) IK_LW_CASE(11) IK_LW_CASE(12) IK_LW_CASE(13) IK_LW_CASE(14) IK_LW_CASE(15) IK_LW_CASE(16)
+#undef IK_LW_CASE
+        default: return IK_ERR_SHAPE;
+    }
+    if (!launched) return IK_ERR_INVALID_ARG;
+    return ik_launch_status();
+}
+
 // ---- WMMA GEMM ---------------------------------------------------------------------------
 // D[n, m] = sum_k w[n, k] x[m, k]: the weights are the A operand (rows = output features) and the activations
 // the B operand, so the accumulator layout (lane = column m, 8 consecutive rows n) lets each lane write 16
@@ -576,6 +664,14 @@ int mm_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream
     return f32_out ? gemv_rows_launch<float>(x, w, out, stream) : gemv_rows_launch<ik_bf16>(x, w, out, stream);
 }
 
+// the lm_head's row-exact twin (f32 logits)
+int logits_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    IK_TRY(check_mm(x, w, out, IK_DTYPE_F32));
+    if (ik_numel(out) == 0) return IK_OK;
+    if (x->shape[1] == 0) return hipMemsetAsync(out->data, 0, ik_numel(out) * 4, IK_STREAM(stream)) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+    return logits_rows_launch<float>(x, w, out, stream);
+}
+
 // ---- pair launcher (M == 1, vector path only) -----------------------------------------------
 int pair_check(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, const ik_tensor* o0, const ik_tensor* o1) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
@@ -681,7 +777,7 @@ int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* 
     return mm_rows(x, w, out, stream, false);
 }
 int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
-    return mm_rows(x, w, out, stream, true);
+    return logits_rows(x, w, out, stream);
 }
 
 }  // extern "C"

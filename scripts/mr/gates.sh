@@ -8,6 +8,8 @@
 #   gates.sh [sections: "S1 S2 S3 S4", default all]    (the fleetq jobs run them in separate slots: S1 S3 / S4 / S2)
 set -uo pipefail
 SECTIONS=${*:-S1 S2 S3 S4}
+# S3 test and negative control (default: the MXFP4 pair of #145); logits: GATE_TEST=bf16_matmul_and_logits_rows GATE_CTRL=logits_bf16_gemv_rows=logits_bf16
+GATE_TEST=${GATE_TEST:-mxfp4}; GATE_CTRL=${GATE_CTRL:-matmul_mxfp4_gemv_rows=matmul_mxfp4_mma}
 want() { [[ " $SECTIONS " == *" $1 "* ]]; }
 O=$HOME/mr-logs/gates; mkdir -p "$O"
 S=$HOME/mr-hip/scripts
@@ -65,11 +67,11 @@ fi
 if want S3; then
 echo "[gates] S3 rows_exact + quick $(now)"
 (
-  echo "-- rows_exact mxfp4 (dev)"
-  dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_exact mxfp4 -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F"
-  echo "-- NEGATIVE CONTROL: the mma kernel where the rows kernel runs (this MUST FAIL)"
-  dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 INTARSIA_HIP_GB_CONTROL=matmul_mxfp4_gemv_rows=matmul_mxfp4_mma \
-    cargo test --release -p intarsia-backend-hip --test rows_exact mxfp4_rows -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F"
+  echo "-- rows_exact $GATE_TEST (dev)"
+  dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_exact $GATE_TEST -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F"
+  echo "-- NEGATIVE CONTROL: INTARSIA_HIP_GB_CONTROL=$GATE_CTRL (a different-order kernel where the rows kernel runs; this MUST FAIL)"
+  dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 INTARSIA_HIP_GB_CONTROL=$GATE_CTRL \
+    cargo test --release -p intarsia-backend-hip --test rows_exact $GATE_TEST -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F"
   echo "-- rows_registry"
   dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_registry -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F"
 ) > "$O/g-rows.log" 2>&1 &
