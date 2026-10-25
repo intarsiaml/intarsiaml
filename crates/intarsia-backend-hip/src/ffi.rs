@@ -241,6 +241,8 @@ extern "C" {
         out1: TM,
         s: S,
     ) -> c_int;
+    pub fn ik_fp8_relayout_frag(src: T, dst: TM, s: S) -> c_int;
+    pub fn ik_fp8_unrelayout_frag(src: T, dst: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_wmma(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_fp8_wmma_rows(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_fp8_pair_wmma(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;

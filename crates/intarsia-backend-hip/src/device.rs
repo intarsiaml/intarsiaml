@@ -7,11 +7,11 @@
 
 use crate::ffi::{self, IkDeviceInfo, IkTensor, IK_MAX_DIMS};
 use crate::kernels;
-use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
+use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, Layout, MemKind, StreamId};
 use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
 use std::any::Any;
 use std::ffi::{c_int, c_void, CStr};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
 
 fn hip_err(what: &str, code: i32) -> Error {
@@ -33,7 +33,12 @@ pub struct HipBuffer {
     ptr: *mut c_void,
     bytes: usize,
     ordinal: i32,
+    /// 0 = `Layout::RowMajor`, 1 = `Layout::Fp8Frag`; stored only by `relayout_fp8_frag`, after the bytes have been rearranged.
+    layout: AtomicU8,
 }
+
+/// The dtype code a `Layout::Fp8Frag` fp8 weight is passed to the launchers with (kernels/hip/ik_hip_abi.h IK_HIP_DTYPE_FP8_E4M3_FRAG).
+const IK_HIP_DTYPE_FP8_E4M3_FRAG: i32 = 259;
 
 // SAFETY: a device pointer is just an address; all access goes through the backend, which binds the
 // right device first. Freed exactly once in Drop.
@@ -46,6 +51,12 @@ impl BufferImpl for HipBuffer {
     }
     fn as_any(&self) -> &dyn Any {
         self
+    }
+    fn layout(&self) -> Layout {
+        match self.layout.load(Ordering::Acquire) {
+            0 => Layout::RowMajor,
+            _ => Layout::Fp8Frag,
+        }
     }
 }
 
@@ -393,7 +404,13 @@ impl HipBackend {
             stride[i] = acc;
             acc *= t.shape[i] as i64;
         }
-        Ok(IkTensor { data, dtype: t.dtype as i32, ndim: t.shape.len() as i32, shape, stride })
+        // a fragment-order weight is never passed as plain e4m3: the launchers that read it accept the private dtype, every other one rejects it
+        let dtype = match (t.layout(), t.dtype) {
+            (Layout::RowMajor, d) => d as i32,
+            (Layout::Fp8Frag, DType::Fp8E4m3) => IK_HIP_DTYPE_FP8_E4M3_FRAG,
+            (l, d) => return Err(Error::invalid(format!("a {d} tensor in layout {l:?} has no launcher dtype"))),
+        };
+        Ok(IkTensor { data, dtype, ndim: t.shape.len() as i32, shape, stride })
     }
 }
 
@@ -446,10 +463,13 @@ impl Backend for HipBackend {
         if rc != 0 {
             return Err(Error::Memory(format!("hipMalloc of {bytes} bytes failed: {}", hip_err("", rc))));
         }
-        Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal }))
+        Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal, layout: AtomicU8::new(0) }))
     }
 
     fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], stream: StreamId) -> Result<()> {
+        if dst.layout() != Layout::RowMajor {
+            return Err(Error::backend(format!("upload into a {:?} buffer (its bytes are not in the order a caller would write)", dst.layout())));
+        }
         if src.is_empty() {
             return Ok(());
         }
@@ -485,6 +505,12 @@ impl Backend for HipBackend {
     }
 
     fn download(&self, src: &Buffer, src_offset: usize, dst: &mut [u8], stream: StreamId) -> Result<()> {
+        if src.layout() != Layout::RowMajor {
+            return Err(Error::backend(format!(
+                "download of a {:?} buffer: its bytes are not in row-major order (use download_row_major)",
+                src.layout()
+            )));
+        }
         if dst.is_empty() {
             return Ok(());
         }
@@ -521,6 +547,9 @@ impl Backend for HipBackend {
         bytes: usize,
         stream: StreamId,
     ) -> Result<()> {
+        if dst.layout() != Layout::RowMajor || src.layout() != Layout::RowMajor {
+            return Err(Error::backend("device copy of a layout-tagged buffer: the copy would not carry the tag".to_string()));
+        }
         if bytes == 0 {
             return Ok(());
         }
@@ -541,6 +570,62 @@ impl Backend for HipBackend {
         let s = self.stream(stream)?;
         // SAFETY: whole-buffer range.
         check("zero", unsafe { ffi::ik_rt_memset(d as *mut c_void, 0, dst.bytes(), s) })
+    }
+
+    fn fp8_frag_wanted(&self, n: usize, k: usize, act_quant: bool) -> bool {
+        use crate::quantmoe::{fp8_frag_serves, WmmaKind};
+        intarsia_core::quant::fp8::frag_eligible(n, k) && fp8_frag_serves(if act_quant { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 })
+    }
+
+    /// Rearrange a dense fp8 weight into `Layout::Fp8Frag` in place: permute into a scratch allocation of the tensor's size (the whole
+    /// extra memory, freed on return), copy back, synchronise, and only then tag the allocation.
+    fn relayout_fp8_frag(&self, w: &TensorRef) -> Result<()> {
+        let (n, k) = match w.shape[..] {
+            [n, k] if w.dtype == DType::Fp8E4m3 => (n, k),
+            _ => return Err(Error::invalid(format!("fragment-order layout: want a 2-D fp8 weight, got {} {:?}", w.dtype, w.shape))),
+        };
+        if !intarsia_core::quant::fp8::frag_eligible(n, k) {
+            return Err(Error::invalid(format!("fragment-order layout: {n} x {k} needs N % 16 == 0 and K % 32 == 0")));
+        }
+        if w.layout() != Layout::RowMajor {
+            return Err(Error::invalid("fragment-order layout: the weight is already tagged"));
+        }
+        let hb = w
+            .buf
+            .downcast::<HipBuffer>()
+            .ok_or_else(|| Error::backend("buffer does not belong to the hip backend"))?;
+        if w.offset != 0 || w.buf.bytes() != w.nbytes() {
+            return Err(Error::invalid("fragment-order layout: the tag covers a whole allocation, the weight must be all of it"));
+        }
+        self.bind()?;
+        let scratch = self.alloc(w.nbytes(), MemKind::Device)?;
+        let src = Self::tensor(w)?;
+        let mut dst = Self::tensor(&TensorRef::new(scratch.clone(), DType::Fp8E4m3, &w.shape))?;
+        let st = self.stream(0)?;
+        // SAFETY: both tensors are bounds-checked views of live allocations; the launcher validates dtype, shape and alignment.
+        check("relayout_fp8_frag", unsafe { ffi::ik_fp8_relayout_frag(&src, &mut dst, st) })?;
+        self.copy(&w.buf, 0, &scratch, 0, w.nbytes(), 0)?;
+        self.synchronize(0)?;
+        hb.layout.store(1, Ordering::Release);
+        Ok(())
+    }
+
+    fn download_row_major(&self, t: &TensorRef) -> Result<Vec<u8>> {
+        let mut data = vec![0u8; t.nbytes()];
+        if t.layout() == Layout::RowMajor {
+            self.download(&t.buf, t.offset, &mut data, 0)?;
+            return Ok(data);
+        }
+        // un-permute on the device into a plain scratch allocation, then an ordinary download of that
+        self.bind()?;
+        let plain = self.alloc(t.nbytes(), MemKind::Device)?;
+        let src = Self::tensor(t)?;
+        let mut dst = Self::tensor(&TensorRef::new(plain.clone(), t.dtype, &t.shape))?;
+        let st = self.stream(0)?;
+        // SAFETY: as in relayout_fp8_frag.
+        check("unrelayout_fp8_frag", unsafe { ffi::ik_fp8_unrelayout_frag(&src, &mut dst, st) })?;
+        self.download(&plain, 0, &mut data, 0)?;
+        Ok(data)
     }
 
     fn kernels(&self) -> Vec<KernelImpl> {

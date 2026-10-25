@@ -94,6 +94,21 @@ pub fn wmma_rows_from(v: Option<&str>) -> bool {
     v == Some("1")
 }
 
+/// Lane wg: INTARSIA_HIP_FP8_FRAG=1 (with INTARSIA_HIP_WMMA_ROWS=1) stores the dense fp8 weights the WMMA table serves at every row count
+/// 1..=ROWS_MAX in fragment order (`Layout::Fp8Frag`, `Backend::relayout_fp8_frag`): one 16-byte load per lane is a WMMA A fragment, which
+/// takes the M = 1 W8A8 kernel to the GEMV's time. The tag lives on the allocation, so the fp8 GEMVs (which read row-major bytes) are never
+/// selected for such a weight; the WMMA family and the prefill GEMMs read it. Off by default; weights it cannot serve stay row-major.
+pub fn fp8_frag_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| wmma_rows_enabled() && std::env::var("INTARSIA_HIP_FP8_FRAG").as_deref() == Ok("1"))
+}
+
+/// Whether a dense fp8 weight of kind `kind` may be stored in fragment order: the knob is on and the table runs that kind on the WMMA family
+/// at every row count the registry gives it (1..=ROWS_MAX), because a fragment-order weight has no GEMV to fall back to.
+pub fn fp8_frag_serves(kind: WmmaKind) -> bool {
+    fp8_frag_enabled() && (1..=ROWS_MAX).all(|m| wmma_takes(kind, m))
+}
+
 /// What a WMMA small-row GEMV replaces: fp8 W8A8 (static input scale), fp8 W8A16 (weight-only), bf16 weights (router, gates, pairs).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WmmaKind {
@@ -361,6 +376,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // lane wg: the WMMA family. `matmul_fp8_wmma` takes the ordinary decode shapes (M 1..=4, the GEMV's) and `_rows` the
                 // `exact_rows` calls (batched decode, verify: M 1..=ROWS_MAX); one launcher, row m bitwise the one-row call on row m alone.
                 "matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0)
@@ -370,6 +386,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(|s| s.m * s.k + 16)
                     .priority(30),
                 "matmul_fp8_wmma_rows" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
@@ -380,6 +397,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(0)
                     .rows_exact(),
                 "matmul_fp8_mma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.k % 16 == 0)
@@ -391,6 +409,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // the kernel for these shapes. Serves every M the gemv does not (>= 5), so a tail chunk is rounded like the rows
                 // of a full one.
                 "matmul_fp8_mma_f8" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.m >= 5 && s.k % 16 == 0)
@@ -405,6 +424,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // bytes, 16 MB at a 4096-token chunk of K = 4096) is far below the MoE experts' (about 170 MB there), so the plan's
                 // workspace (the largest of all) does not grow (docs/results/2026-10-19-hip-round3.md).
                 "matmul_fp8_mma_v2" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| s.k % 16 == 0)
@@ -612,6 +632,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(10),
                 // lane wg: the folds on the WMMA family; the same shapes as their GEMV twins (K <= 4096 for the ones that stage the row in one window)
                 "matmul_fp8_pair_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
@@ -619,6 +640,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .priority(10),
                 "gated_rmsnorm_matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
@@ -628,6 +650,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .priority(10),
                 "rmsnorm_add_matmul_fp8_pair_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     // the norm runs in one window of the (half-width, weight-only) staging: K <= 2048
@@ -636,6 +659,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .priority(10),
                 "sigmoid_mul_matmul_fp8_wmma" => k
+                    .frag_ok() // reads fragment-order weights too (kernels/hip/fp8.hip frag_unwrap)
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))

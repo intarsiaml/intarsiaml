@@ -52,6 +52,24 @@ pub struct DeviceInfo {
 pub trait BufferImpl: Any + Send + Sync {
     fn bytes(&self) -> usize;
     fn as_any(&self) -> &dyn Any;
+    /// How the bytes of this allocation are arranged. Always [`Layout::RowMajor`] (the checkpoint's order) unless the backend rearranged them
+    /// on purpose ([`Backend::relayout_fp8_frag`]); never inferred, never set by anything but that call.
+    fn layout(&self) -> Layout {
+        Layout::RowMajor
+    }
+}
+
+/// Byte order of a weight allocation. `RowMajor` is the checkpoint layout every kernel, the CPU oracle and the host copies assume.
+/// `Fp8Frag` (HIP only, opt-in) is the dense fp8 matrix `[N, K]` (N % 16 == 0, K % 32 == 0) stored as `[N/16][K/32][lane = 16 h + col][16 B]`
+/// so one 16-byte load per lane of a wave is a WMMA A fragment (`kernels/hip/ik_f8_rows.h`). The tag travels with the device bytes (it is a
+/// property of the allocation), so every `TensorRef` made from the weight, however an `OpCall` is built, reports it: kernels that do not
+/// declare [`crate::registry::KernelImpl::frag_ok`] are never selected for a call with a tagged input, and the HIP launchers reject the
+/// tag's dtype themselves.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Layout {
+    #[default]
+    RowMajor,
+    Fp8Frag,
 }
 
 /// A reference-counted device allocation.
@@ -71,6 +89,9 @@ impl Buffer {
     }
     pub fn ptr_eq(&self, other: &Buffer) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+    pub fn layout(&self) -> Layout {
+        self.0.layout()
     }
 }
 
@@ -130,13 +151,19 @@ impl TensorRef {
     pub fn nbytes(&self) -> usize {
         self.numel() * self.dtype.size_bytes()
     }
+    /// The byte order of the allocation this view is in ([`Layout`]).
+    pub fn layout(&self) -> Layout {
+        self.buf.layout()
+    }
     /// Reinterpret with a new shape of equal element count (no data movement).
     pub fn reshaped(&self, shape: &[usize]) -> TensorRef {
+        assert_eq!(self.layout(), Layout::RowMajor, "reshape of a {:?} tensor: its bytes are not in row-major order", self.layout());
         assert_eq!(shape.iter().product::<usize>(), self.numel(), "reshape element count mismatch");
         TensorRef { shape: shape.to_vec(), ..self.clone() }
     }
     /// View rows `[start, start+n)` of the leading dimension.
     pub fn rows(&self, start: usize, n: usize) -> TensorRef {
+        assert_eq!(self.layout(), Layout::RowMajor, "row slice of a {:?} tensor: its bytes are not in row-major order", self.layout());
         assert!(!self.shape.is_empty() && start + n <= self.shape[0], "row slice out of range");
         let row_elems: usize = self.shape[1..].iter().product();
         let mut shape = self.shape.clone();
@@ -213,6 +240,29 @@ pub trait Backend: Send + Sync {
         bytes: usize,
         stream: StreamId,
     ) -> Result<()>;
+
+    /// Whether this backend would store a dense fp8 weight `[n, k]` in [`Layout::Fp8Frag`] (HIP, opt-in; false everywhere else).
+    /// `act_quant`: the weight is W8A8. Asked once per tensor by the fp8 loader ([`crate::quant::fp8`]).
+    fn fp8_frag_wanted(&self, _n: usize, _k: usize, _act_quant: bool) -> bool {
+        false
+    }
+
+    /// Rearrange the dense fp8 weight `w` (the whole allocation, row-major, `crate::quant::fp8::frag_eligible`) into [`Layout::Fp8Frag`]
+    /// in place and tag its buffer. Only a backend whose `fp8_frag_wanted` can answer true implements it.
+    fn relayout_fp8_frag(&self, _w: &TensorRef) -> Result<()> {
+        Err(Error::backend("this backend has no fragment-order fp8 layout"))
+    }
+
+    /// The bytes of `t` in the checkpoint's row-major order, whatever layout the allocation has (a [`Layout::Fp8Frag`] weight is
+    /// un-permuted). `download` of a tagged allocation is refused, so a raw read of tagged bytes cannot happen by accident.
+    fn download_row_major(&self, t: &TensorRef) -> Result<Vec<u8>> {
+        if t.layout() != Layout::RowMajor {
+            return Err(Error::backend(format!("{:?} tensor: this backend cannot read it back in row-major order", t.layout())));
+        }
+        let mut data = vec![0u8; t.nbytes()];
+        self.download(&t.buf, t.offset, &mut data, 0)?;
+        Ok(data)
+    }
 
     /// Fill a buffer with zero bytes.
     fn zero(&self, dst: &Buffer, stream: StreamId) -> Result<()> {
