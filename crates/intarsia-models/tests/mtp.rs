@@ -941,3 +941,66 @@ fn dense_mtp_head_keeps_greedy_output_identical() {
         assert!(tel.snapshot().spec_proposed > 0, "k {k}: the dense head drafted");
     }
 }
+
+/// The captured step's DRAFTS (the head's catch-up and chained passes under device ids and positions) equal the eager
+/// `mtp_draft`'s, and so do the verify outputs, over a run that rolls back every pattern (reject all, accept a prefix, accept
+/// all: catch-up of 1 and of several rows) and across a second sequence on the same model (stale recordings). Acceptance is
+/// forced by the schedule, not by the model: both states take the same cut, so they stay token-identical.
+#[test]
+fn captured_spec_step_drafts_equal_the_eager_drafts() {
+    let w = weights(11);
+    let (recipe, dims) = dims();
+    for k in 1..=3usize {
+        let rec = RecCpu::arc();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            fp8_act: Some(Fp8Act::None),
+            mtp: true,
+            profile_every: 0,
+            ..Default::default()
+        };
+        let mut m = Model::load(rec.clone(), &recipe, &dims, &w, &opts, Arc::new(Telemetry::new())).unwrap();
+        m.enable_verify(k + 1).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        let schedule = [0usize, k, 0, 1.min(k), k, k, 0, 0, k, 1.min(k)];
+        let mut steps = 0;
+        for (round, prompt) in PROMPTS.iter().chain(PROMPTS.iter()).enumerate() {
+            let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+            let mut last = 0;
+            for st in [&mut a, &mut b] {
+                let StepOut::Token(t) = m.forward(st, prompt, HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+                last = t;
+            }
+            for i in 0..24 {
+                let len0 = a.len;
+                assert_eq!(len0, b.len);
+                let drafts_a = m.mtp_draft(&mut a, last, k).unwrap();
+                let mut ids = vec![last];
+                ids.extend(&drafts_a);
+                let out_a = m.forward_verify(&mut a, &ids).unwrap();
+                let (drafts_b, out_b) = if m.spec_step_ok(&b, k) {
+                    steps += 1;
+                    let p = m.spec_step(&mut b, last, k).unwrap().expect("captured");
+                    (p.drafts, p.out)
+                } else {
+                    let d = m.mtp_draft(&mut b, last, k).unwrap();
+                    let mut ids = vec![last];
+                    ids.extend(&d);
+                    let o = m.forward_verify(&mut b, &ids).unwrap();
+                    (d, o)
+                };
+                assert_eq!(drafts_a, drafts_b, "k {k} round {round} step {i}: drafts");
+                assert_eq!(out_a, out_b, "k {k} round {round} step {i}: verify outputs");
+                let j = schedule[i % schedule.len()];
+                let keep = len0 + j + 1;
+                for st in [&mut a, &mut b] {
+                    st.spec_rollback(keep, &*rec).unwrap();
+                }
+                last = out_a[j];
+            }
+        }
+        assert!(steps > 40, "k {k}: the captured step ran ({steps})");
+        eprintln!("draft equality k {k}: {steps} captured steps, {} captures", rec.captures.load(std::sync::atomic::Ordering::Relaxed));
+    }
+}
