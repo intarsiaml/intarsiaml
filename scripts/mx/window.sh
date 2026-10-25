@@ -4,14 +4,14 @@
 # answers, then fetches ~/mx/out/<W>/ into docs/results/2026-10-25-mx-hip-27b-prefill/raw/<W>/ (csv traces gzipped).
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 40 --label "mx <W>" -- \
 #     env W=w1 scripts/mx/window.sh
-# Lane cap: 45 min per window, so CAP (stages, default 2400 s) + restore (<= 180 s) stays under it.
+# Lane cap: 45 min per window, so CAP (stages, default 2520 s) + restore (<= 180 s) stays under it.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$S/../.." && pwd)"
 RAW=$REPO/docs/results/2026-10-25-mx-hip-27b-prefill/raw
 mkdir -p "$RAW/$W"
-CAP=${CAP:-2400}
+CAP=${CAP:-2520}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/mx' < /dev/null
 shopt -s nullglob
 scp -q "$S"/lib.sh "$S"/build.sh "$S"/stages-*.sh "$S"/*.py "$S"/*.hip tatooine:mx/ < /dev/null

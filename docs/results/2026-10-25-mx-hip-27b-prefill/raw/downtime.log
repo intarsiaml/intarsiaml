@@ -1,3 +1,6 @@
 2026-10-25 01:20:08 job 5008 window w1: [window] job 5008 w1; stopping radiance 2026-10-25 01:18:32 [window] radiance answers 2026-10-25 01:20:08 (after 20 s); active (row added by hand: the Mac side stopped on a bash 3.2 parse error after the restore)
 2026-10-25 02:16:26 job 5036 window w2: [window] job 5036 w2; stopping radiance 2026-10-25 02:09:35 [window] radiance answers 2026-10-25 02:16:25 (after 35 s); active 
 2026-10-25 03:22:09 job 5093 window w3: [window] job 5093 w3; stopping radiance 2026-10-25 03:07:42 [window] radiance answers 2026-10-25 03:22:08 (after 25 s); active 
+2026-10-25 03:39:39 job 5132 window w4: [window] job 5132 w4; stopping radiance 2026-10-25 03:29:20 [window] radiance answers 2026-10-25 03:39:38 (after 25 s); active 
+2026-10-25 04:41:52 job 5148 window loc1: [window] job 5148 loc1 arms [base27 dev27 dev27@INTARSIA_HIP_MXFP4_FOLD=1] rounds 3; stopping radiance 2026-10-25 04:26:25 [window] radiance answers (after 20 s); active 2026-10-25 04:41:52 
+2026-10-25 04:47:17 job 5149 window w5: [window] job 5149 w5; stopping radiance 2026-10-25 04:42:34 [window] radiance answers 2026-10-25 04:47:17 (after 20 s); active 
