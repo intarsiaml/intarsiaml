@@ -5,7 +5,7 @@
 # server log (sp-win.sh down). plain: speed-plain + conc-plain-1k (filler text); spec: speed-spec (natural-v1 text).
 set -uo pipefail
 tree=$1; tag=$2; mode=$3; serve=$4; envs=${5:-}; mb=${6:-1}
-TOK=${TOK:-/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/tok35}
+TOK=${TOK:-/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/tok35/tokenizer.json}
 LOG=${LOG:-/tmp/sp-arm}; mkdir -p "$LOG"
 echo "[arm $tag] up $(date +%T)"
 ssh tatooine "SERVE_ARGS='$serve' MAX_BATCH=$mb bash ~/sp-win.sh up $tree $tag $envs" 2>&1 | tail -3
