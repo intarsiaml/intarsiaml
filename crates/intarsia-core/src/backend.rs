@@ -290,11 +290,11 @@ pub trait Backend: Send + Sync {
         false
     }
 
-    /// Must a speculative verify pass run its attention as one single-row decode call per row (`Op::AttnDecode`, the
-    /// row's own position), instead of one multi-row `Op::AttnPrefill` call? True where the multi-row kernel partitions
-    /// the keys by the call's row count (HIP split-KV), so its row `t` is not bitwise the decode step's at long
-    /// contexts. Costs `rows` launches per attention layer; the per-row calls also take a device position
-    /// ([`Model::forward_verify`]'s captured pass). Default false: the multi-row call.
+    /// Must a captured speculative step ([`Model::spec_step`]) run its attention as one single-row decode call per row
+    /// (`Op::AttnDecode`, the row's own device position), instead of one multi-row `Op::AttnPrefill` call? True where the
+    /// multi-row kernel takes no device position (HIP), so a recording could not be replayed at another position. Costs `rows`
+    /// launches per attention layer; each is the very call the decode step makes, so the rows are exact by construction.
+    /// Eager verify passes keep the multi-row call (their bits are unchanged). Default false.
     fn verify_attn_per_row(&self) -> bool {
         false
     }
