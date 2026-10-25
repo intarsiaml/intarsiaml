@@ -211,3 +211,37 @@ excerpt of `crates/intarsia-core/src/model/batch.rs`. Raw completion, 256 greedy
 
 No-op against main at 0b84f499 (35B, window 6, `raw/hip/extras/x-35.log`): spec off md5 ce656b29 / 419d4320 on both trees at 128 / 1k (166.2 /
 166.1 tok/s main, 166.6 / 165.8 branch); MTP k=2 md5 equal, 191.1 / 196.5 tok/s main eager against 191.8 / 198.9 tok/s branch captured.
+
+## 9. Plain serving, main vs branch (window 7, localeval, fleetq #5146; 35B, spec off, `--max-batch 16`)
+
+`localeval suite --tier adhoc` (`speed-plain`, `conc-plain-1k`, filler text), one server per arm on one R9700, main at `0b84f499`
+against the branch (rebased on it). Runs: `/opt/code/deepeval/results/20261025-035559-adhoc-sp-main-plain` and
+`20261025-041016-adhoc-sp-br-plain` (raw: `raw/serve/`). **This is the spec-off no-op, not a speculation number**: MTP is single
+sequence, so there is no speculation at 4 or 16 streams (batched speculation is not implemented).
+
+| | main | branch |
+|---|---|---|
+| decode, 123 tok prompt | 164.2 | 164.4 |
+| decode, 1k | 163.3 (one rep at 81.2: spread rejected) | 163.3 |
+| decode, 4k | 159.3 | 159.2 |
+| prefill marginal, 1k to 4k | 9655 | 9700 |
+| aggregate decode, 1 stream | 145.1 | 149.3 |
+| aggregate decode, 4 streams | 238.9 | 238.9 |
+| aggregate decode, 16 streams | 312.2 | 311.2 |
+
+The 16k cell is skipped on both arms (`--max-batch 16` clamps the context to 16223). The 1k main cell was rejected by localeval's spread
+rule on one slow rep; the median equals the branch's. The concurrency rows are filler text and say nothing about speculation.
+
+## 10. Final CUDA and Metal gates on the PR head (`scripts/sp/final-gates.sh`; spark1 fleetq #5176, endor #5175)
+
+Dev = PR head (code of `98bf81b1`, plus the scripts-only commit `928ceab6`) against main `0b84f499`, both rebuilt. Logs: `raw/final/`.
+
+| check | CUDA (spark1) | Metal (endor) |
+|---|---|---|
+| spec off: `plan show` json and text byte-identical, 8B and 35B | pass | pass |
+| spec off: 256 greedy ids identical to main, 8B and 35B, short and 4k | pass | pass |
+| 35B MTP k=2 ids == spec off, natural-v1 128 and 1k | pass | pass |
+| 35B MTP k=2 ids == main MTP, 128 and 1k | pass | pass |
+| MTP acceptance equal to main (128 / 1k, accepted of proposed) | 161/186, 151/207 | 156/195, 159/191 |
+| `--mtp-draft-vocab 65536` + MTP k=2 ids == spec off, 128 | pass | pass |
+| `intarsia-core` lib / `tests/mtp` / `batch_recurrent` on CUDA | 116 / 11 / 11 pass | n/a |

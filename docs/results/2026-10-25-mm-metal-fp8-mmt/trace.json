@@ -1,0 +1,233 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mm-metal-fp8-mmt:20261025-0300",
+ "project": "intarsiaml",
+ "lane_id": "mm-metal-fp8-mmt",
+ "follows": [
+  "intarsiaml:mm-metal-moe-grouped:20261025-0100"
+ ],
+ "agent_model": "claude-opus-5-5",
+ "started": "2026-10-25T02:50:00-04:00",
+ "ended": "2026-10-25T04:20:00-04:00",
+ "brief": "Lane mm step 2: after PR #136, the next lever from the B = 8 profile: the fp8 multi-row GEMV (largest bucket), row-exact.",
+ "hypothesis": "Apple simdgroup float MMA computes the same per-element fma chain as the one-row kernel, so a matrix form of the fp8 rows GEMV can be bitwise the one-row kernel and cheaper per weight byte at 5..8 rows.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "M5 Max 128 GB (endor)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "8x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [
+  "simdgroup-matrix GEMV with exact fma-chain reconstruction",
+  "block-transposed activation prep"
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mm/metal-fp8-mmt",
+  "base_commit": "0b84f499",
+  "head_commit": "c45c383a",
+  "pr": 141,
+  "files": [
+   "kernels/metal/fp8.metal",
+   "crates/intarsia-backend-metal/src/fp8.rs",
+   "crates/intarsia-backend-metal/tests/rows_exact.rs",
+   "scripts/mm/gates.sh",
+   "scripts/mm/speedslot.sh",
+   "docs/tuning.md",
+   "docs/decisions/LOG.md",
+   "docs/results/2026-10-25-mm-metal-fp8-mmt.md"
+  ]
+ },
+ "checks": [
+  {
+   "name": "G-B rows_exact (Metal)",
+   "command": "scripts/mm/gates.sh OUT gb",
+   "result": "pass",
+   "detail": "default (new form at M >= 5), INTARSIA_METAL_FP8_ROWS_MMT=2 and =0 all pass; row_tables pass"
+  },
+  {
+   "name": "kernel-level negative controls",
+   "command": "scripts/mm/gates.sh OUT neg",
+   "result": "pass",
+   "detail": "NEGCTL=fp8_mmt fails at M = 5 (byte 9028 of 81944); fp8_xd / moe_gu / moe_dn fail as before"
+  },
+  {
+   "name": "kernels test --backend metal",
+   "command": "intarsia kernels test --backend metal",
+   "result": "pass",
+   "detail": "44 kernels, 817 cases"
+  },
+  {
+   "name": "G-C 35B",
+   "command": "cargo test --release -p intarsia-models --test batch_metal_real",
+   "result": "pass",
+   "detail": "4,550 (row, step) pairs bitwise; long prompts 2.6k / 4k / 16k pass"
+  },
+  {
+   "name": "batch_recurrent (Metal)",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=metal cargo test --release -p intarsia-models --test batch_recurrent",
+   "result": "pass",
+   "detail": "11 of 11"
+  },
+  {
+   "name": "dense Qwen3-8B batched",
+   "command": "INTARSIA_TEST_REAL_MODEL=1 cargo test --release -p intarsia-models --test batch_metal",
+   "result": "pass",
+   "detail": "138 pairs + 48 rows beside prefill chunks bitwise"
+  },
+  {
+   "name": "Metal batching-off no-op vs main",
+   "command": "scripts/mm/noop.sh",
+   "result": "pass",
+   "detail": "12 of 12 byte-identical vs main 0b84f499"
+  },
+  {
+   "name": "workspace tests",
+   "command": "cargo test --release --workspace",
+   "result": "pass after fix",
+   "detail": "884 passed; docs_env_vars failed for the missing tuning row, fixed in 111699cf and rerun"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "streams": 1,
+   "before": 123.2,
+   "after": 123.5,
+   "unit": "tok/s",
+   "n": 3,
+   "slot": "exclusive",
+   "slot_job": 5157,
+   "prompt_tokens": 1024,
+   "gen_tokens": 512,
+   "spread_pct": null,
+   "before_run_id": [
+    "20261025-040256-adhoc-mm2-main-0b84f499-r2",
+    "20261025-040537-adhoc-mm2-main-0b84f499-r3",
+    "20261025-040818-adhoc-mm2-main-0b84f499-r4"
+   ],
+   "after_run_id": [
+    "20261025-040417-adhoc-mm2-fp8-mmt-r2",
+    "20261025-040659-adhoc-mm2-fp8-mmt-r3",
+    "20261025-040939-adhoc-mm2-fp8-mmt-r4"
+   ]
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "streams": 4,
+   "before": 216.3,
+   "after": 216.3,
+   "unit": "tok/s",
+   "n": 3,
+   "slot": "exclusive",
+   "slot_job": 5157,
+   "prompt_tokens": 1024,
+   "gen_tokens": 512,
+   "spread_pct": null,
+   "before_run_id": [
+    "20261025-040256-adhoc-mm2-main-0b84f499-r2",
+    "20261025-040537-adhoc-mm2-main-0b84f499-r3",
+    "20261025-040818-adhoc-mm2-main-0b84f499-r4"
+   ],
+   "after_run_id": [
+    "20261025-040417-adhoc-mm2-fp8-mmt-r2",
+    "20261025-040659-adhoc-mm2-fp8-mmt-r3",
+    "20261025-040939-adhoc-mm2-fp8-mmt-r4"
+   ]
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "streams": 8,
+   "before": 259.7,
+   "after": 267.7,
+   "unit": "tok/s",
+   "n": 3,
+   "slot": "exclusive",
+   "slot_job": 5157,
+   "prompt_tokens": 1024,
+   "gen_tokens": 512,
+   "spread_pct": null,
+   "before_run_id": [
+    "20261025-040256-adhoc-mm2-main-0b84f499-r2",
+    "20261025-040537-adhoc-mm2-main-0b84f499-r3",
+    "20261025-040818-adhoc-mm2-main-0b84f499-r4"
+   ],
+   "after_run_id": [
+    "20261025-040417-adhoc-mm2-fp8-mmt-r2",
+    "20261025-040659-adhoc-mm2-fp8-mmt-r3",
+    "20261025-040939-adhoc-mm2-fp8-mmt-r4"
+   ]
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "streams": 16,
+   "before": 255.0,
+   "after": 266.4,
+   "unit": "tok/s",
+   "n": 3,
+   "slot": "exclusive",
+   "slot_job": 5157,
+   "prompt_tokens": 1024,
+   "gen_tokens": 512,
+   "spread_pct": null,
+   "before_run_id": [
+    "20261025-040256-adhoc-mm2-main-0b84f499-r2",
+    "20261025-040537-adhoc-mm2-main-0b84f499-r3",
+    "20261025-040818-adhoc-mm2-main-0b84f499-r4"
+   ],
+   "after_run_id": [
+    "20261025-040417-adhoc-mm2-fp8-mmt-r2",
+    "20261025-040659-adhoc-mm2-fp8-mmt-r3",
+    "20261025-040939-adhoc-mm2-fp8-mmt-r4"
+   ]
+  },
+  {
+   "metric": "step_ms_in_process",
+   "bucket": "8x",
+   "streams": 8,
+   "before": 21.6,
+   "after": 19.95,
+   "unit": "ms",
+   "n": 2,
+   "slot": "exclusive",
+   "slot_job": 5156
+  },
+  {
+   "metric": "kernel_us_fp8_rows_8192x2048_M8",
+   "bucket": "8x",
+   "streams": 8,
+   "before": 62.3,
+   "after": 52.5,
+   "unit": "us",
+   "n": 200,
+   "slot": "quiet gpu,cpu",
+   "slot_job": null
+  }
+ ],
+ "outcome": "keep: default-on candidate (batching off identical to main; only --max-batch rows calls at M >= 5)",
+ "dead_ends": [
+  "_xd tile/unroll sweeps",
+  "f32 q(x) rows and swapped grid",
+  "word-interleaved f32 v2 GEMV",
+  "MMA with x as left operand (byte weight loads), with 2/4 output tiles",
+  "e4m3-byte q(x) for the transposed MMA"
+ ],
+ "next": [
+  "16-row cap needs nvfp4 / MoE / attention rows kernels at 16 rows; the fp8 kernel template has R = 2 ready",
+  "MoE rows (38% of the B = 8 step) as the next bucket"
+ ]
+}

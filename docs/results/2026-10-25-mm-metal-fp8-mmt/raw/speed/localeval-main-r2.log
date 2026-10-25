@@ -1,0 +1,31 @@
+server up after 6s (pid 1188)
+.mm/intarsia-main-0b84f499 serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --max-batch 8 --served-model-name intarsia --max-seq 8192 --host 127.0.0.1 --port 18431
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 8192, 3 reps, 512 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 988 | 0.60 | 1647 (1604–1648) * | - | 123.5 (123.3–124.2) | 125.2 (124.9–125.3) | - | - | 512 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 216.4 | 64.5 (57.9–72.6) | 1.51 |
+| 8 | 264.5 | 40.2 (34.6–48.2) | 2.73 |
+| 16 | 258.6 | 35.6 (33.1–45.9) | 10.55 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261025-040256-adhoc-mm2-main-0b84f499-r2/result.json
+[localeval] logged to unanimis: ca12586f-3d80-4cd8-9714-f969005f0e06
