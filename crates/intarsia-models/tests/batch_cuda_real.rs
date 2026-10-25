@@ -10,12 +10,17 @@
 //!   smaller chunks than a solo one: for the greedy prompts below the chunk schedule is the same, see the test.)
 //! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels.
 //!
+//! Tensor parallelism (lane tp2/batch): with `INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_BATCH_TEST_TP=2` the models load as an
+//! in-process 2-way group on HIP devices 0 and 1 (peer-to-peer communicator, row-local fusion on and the vocab-parallel head
+//! as `intarsia serve --tp 2 --backend hip` loads them; `INTARSIA_TP_VOCAB=0` keeps the replicated head) and the same gates
+//! compare batched tp=2 steps against solo tp=2 steps.
+//!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
 //! `INTARSIA_QWEN3_DIR` (8B); a test without its directory prints SKIPPED (and panics under `INTARSIA_REQUIRE_GPU=1`).
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
-use intarsia_models::{load_engine, read_model_spec, EngineOptions};
+use intarsia_models::{load_engine, load_engine_tp, read_model_spec, EngineOptions, Loaded};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
@@ -59,6 +64,38 @@ fn cuda() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
 }
 
 /// The model of `dir` on the GPU with batching enabled for `rows` sequences of `max_seq` tokens.
+/// `INTARSIA_BATCH_TEST_TP=2` (HIP only): the tensor-parallel degree the models load with (default 1).
+fn tp() -> usize {
+    let tp = std::env::var("INTARSIA_BATCH_TEST_TP").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    assert!(tp == 1 || (tp == 2 && std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip")), "INTARSIA_BATCH_TEST_TP=2 needs INTARSIA_BATCH_TEST_BACKEND=hip");
+    tp
+}
+
+/// The load options `intarsia serve --tp 2 --backend hip` adds at tp=2: row-local fusion, the vocab-parallel head (unless
+/// `INTARSIA_TP_VOCAB=0`). Unchanged at tp=1.
+fn with_tp(mut o: LoadOptions) -> LoadOptions {
+    if tp() > 1 {
+        o.tp_fusion = true;
+        o.tp_vocab = !std::env::var("INTARSIA_TP_VOCAB").is_ok_and(|v| v == "0");
+    }
+    o
+}
+
+/// The HIP group of devices 0 and 1 (backends and the peer-to-peer communicator).
+fn hip_group() -> (Vec<Arc<dyn intarsia_core::backend::Backend>>, Vec<Arc<dyn intarsia_core::Comm>>) {
+    intarsia_backend_hip::create_group(&[0, 1]).expect("two HIP devices with peer access")
+}
+
+/// `load_engine`, or at tp=2 `load_engine_tp` over the HIP group (`be` is then unused).
+fn engine(dir: &PathBuf, be: &Arc<dyn intarsia_core::backend::Backend>, opts: &EngineOptions) -> Loaded {
+    if tp() == 1 {
+        return load_engine(dir, be.clone(), opts).unwrap();
+    }
+    let (bs, comms) = hip_group();
+    let opts = EngineOptions { load: with_tp(opts.load.clone()), ..opts.clone() };
+    load_engine_tp(dir, bs, comms, &opts).unwrap()
+}
+
 fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
     load_with(dir, backend, rows, max_seq, 0).0
 }
@@ -73,16 +110,24 @@ fn load_with(
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, backend.name()).value;
-    let opts = LoadOptions {
+    let opts = with_tp(LoadOptions {
         max_seq,
         prefill_chunk: chunk,
         profile_every,
         // the Spark's `free` after the weights is the page-cache-reduced figure (about 2 GB on a shared box): take most of it
         kv_fraction: 0.95,
         ..Default::default()
-    };
+    });
     let tel = Arc::new(Telemetry::new());
-    let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
+    let mut m = if tp() == 1 {
+        Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap()
+    } else {
+        drop(backend);
+        let (bs, comms) = hip_group();
+        let m = Model::load_tp(bs, comms, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
+        eprintln!("tensor parallel x{}: vocab-parallel head {}", m.tp_world(), m.vocab_parallel());
+        m
+    };
     assert!(m.batch_capable(), "the GPU backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
@@ -118,6 +163,35 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+}
+
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2/batch): the gate above must catch a peer that breaks the batched step protocol on
+/// the real model (`Model::set_tp_batch_mutant`): its rows in another order (its row table), row 0 one position behind (its
+/// `batch_pos`), and its multi-row calls without the row-exact mark (the ordinary kernels, invisible on the cpu reference).
+/// Not run here: a peer with another row count or a dropped collective (the P2P communicator cannot detect a size mismatch
+/// and waits on the peer; the cpu tests `tests/tp_batch.rs` cover both).
+#[test]
+fn real_35b_tp2_batch_mutants_are_caught() {
+    use intarsia_core::model::TpBatchMutant;
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 1024);
+    let lens: Vec<usize> = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
+    let cfg = |b: usize| batch_identity::Cfg { lens: lens[..b].to_vec(), batches: vec![b], steps: 4, vocab_range: (1000, 30000) };
+    // control: the unmutated gate passes at 8 rows
+    assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4);
+    // the kernels mutant first, at a row count no recording exists for yet (a recorded graph would keep the exact kernels);
+    // the other two act through the row table and positions the host rewrites before every step, recorded or not
+    for (mutant, b) in [(TpBatchMutant::PlainKernels, 12usize), (TpBatchMutant::ReverseRows, 8), (TpBatchMutant::StalePosition, 8)] {
+        m.set_tp_batch_mutant(1, Some(mutant)).unwrap();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg(b))));
+        m.set_tp_batch_mutant(1, None).unwrap();
+        assert!(r.is_err(), "mutant {mutant:?} at {b} rows was not caught by the batched-vs-solo gate");
+        eprintln!("mutant {mutant:?} at {b} rows: caught");
+    }
 }
 
 #[test]
@@ -193,14 +267,14 @@ fn real_35b_batched_engine_equals_the_local_engine() {
     };
     // the reference: every request alone on the single-sequence engine
     let reference: Vec<Out> = {
-        let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
+        let l = engine(&dir, &be, &mk(None));
         assert_eq!(l.max_batch, 1);
         let reqs = requests(&*l.engine, 20, 130);
         reqs.into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
     };
     assert!(reference.iter().all(|o| o.ids.len() == 130));
     for slots in [4usize, 16] {
-        let l = load_engine(&dir, be.clone(), &mk(Some(slots))).unwrap();
+        let l = engine(&dir, &be, &mk(Some(slots)));
         assert_eq!(l.max_batch, slots);
         // one stream at a time: the batched engine at N = 1 is the local engine
         for (i, r) in requests(&*l.engine, 3, 130).into_iter().enumerate() {
@@ -575,7 +649,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
         ]
     };
     let reference: Vec<Out> = {
-        let l = load_engine(&dir, be.clone(), &mk(None, None)).unwrap();
+        let l = engine(&dir, &be, &mk(None, None));
         assert_eq!(l.max_batch, 1);
         reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect()
     };
@@ -585,7 +659,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
                     which: &[usize],
                     busy_chunk: Option<usize>|
      -> (Vec<Out>, intarsia_core::scheduler::BatchMetrics) {
-        let l = load_engine(&dir, be.clone(), &mk(Some(slots), busy_chunk)).unwrap();
+        let l = engine(&dir, &be, &mk(Some(slots), busy_chunk));
         assert_eq!(l.max_batch, slots);
         let all_reqs = reqs();
         let rx0 = l.engine.submit(all_reqs[which[0]].1.clone()).unwrap();
