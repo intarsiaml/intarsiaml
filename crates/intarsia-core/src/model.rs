@@ -356,6 +356,9 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
+    /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
+    head_rows_attn: std::sync::atomic::AtomicBool,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
@@ -1001,12 +1004,25 @@ impl Model {
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
         let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
-            match lm_head.as_ref().and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
-                Some(h) => Some(h),
+            match lm_head.as_ref() {
                 None => {
-                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    eprintln!(
+                        "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
+                        opts.mtp_draft_vocab, tp.rank
+                    );
                     None
                 }
+                Some(h) => match h.row_prefix(opts.mtp_draft_vocab) {
+                    Some(d) => Some(d),
+                    None => {
+                        eprintln!(
+                            "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
+                             not EXL3); drafting with the full head",
+                            opts.mtp_draft_vocab, h.n, h.format
+                        );
+                        None
+                    }
+                },
             }
         } else {
             None
@@ -1047,6 +1063,7 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -2586,7 +2603,10 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
-        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+        if t > 1
+            && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
+            && self.backend.verify_attn_per_row()
+        {
             // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
             // partition follows the call's row count, and it takes no device position): one decode call per row
             // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a

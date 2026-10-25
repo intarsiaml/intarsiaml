@@ -1775,7 +1775,7 @@ impl Seq {
                     return Ok(None);
                 }
             }
-            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, k) => {
+            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
                 // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
                 let t0 = Instant::now();
                 let len0 = st.len;

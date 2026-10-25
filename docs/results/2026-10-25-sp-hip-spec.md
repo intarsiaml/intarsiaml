@@ -245,3 +245,28 @@ Dev = PR head (code of `98bf81b1`, plus the scripts-only commit `928ceab6`) agai
 | MTP acceptance equal to main (128 / 1k, accepted of proposed) | 161/186, 151/207 | 156/195, 159/191 |
 | `--mtp-draft-vocab 65536` + MTP k=2 ids == spec off, 128 | pass | pass |
 | `intarsia-core` lib / `tests/mtp` / `batch_recurrent` on CUDA | 116 / 11 / 11 pass | n/a |
+
+## 11. Served natural-text speed, MTP k=2, 35B (window 6b, localeval `speed-spec`, fleetq #5155)
+
+`localeval suite --tier adhoc --cells speed-spec --lane spec:mtp`, one `intarsia serve` per arm on one R9700 (`--max-batch 1`), natural-v1
+128 / 1k / 4k / 16k, 256 forced tokens, 3 reps (5 at 4k), median decode tok/s (min to max in `raw/serve/*.result.json`). Runs:
+`/opt/code/deepeval/results/20261025-0500*-adhoc-sp-{main-mtp2,br-mtp2,br-mtp2-v65536}`. Arms: main `0b84f499` (eager MTP),
+the PR #142 head (captured step), and the PR head with `--mtp-draft-vocab 65536`.
+
+| arm | 128 | 1k | 4k | 16k | accepted of drafted (whole run) |
+|---|---|---|---|---|---|
+| main, eager MTP k=2 | 195.9 | 164.4 | 160.3 | 151.8 | 73.3% (3614/4928) |
+| branch, captured | 203.4 | 168.0 | 163.1 | 150.9 | 73.7% (3638/4936) |
+| branch + draft-vocab 65536 | 197.0 | 178.9 | 166.5 | 151.7 | 70.5% (3274/4642) |
+| main spec off, window 7 (filler text, not the same prompts) | 164.2 | 163.3 | 159.3 | not run | |
+
+- The captured step gains +3.8% / +2.2% / +1.7% / -0.6% over main's eager MTP: small, as in the in-process numbers (about 1%), and the
+  16k cell is inside the rep spread (4 to 7%). Draft-vocab 65536 gains +8.8% at 1k and +2.1% at 4k over the captured arm and nothing
+  at 128 or 16k; with 3 reps at 4 to 9% spread, only the 1k gain is clearly outside the noise.
+- **Served MTP is much less effective than `generate` MTP, and this is unexplained.** In process the same model gives 191 / 199 / 206 /
+  160 tok/s at 128 / 1k / 4k / 16k with k=2 (section 1), 1.15 to 1.27x over spec off; served, the 1k, 4k and 16k cells are at spec-off speed
+  (164 / 160 / 152 against 163 / 159 plain in window 7), and only 128 tokens shows a gain (+19%). Acceptance of the run is 73%, so the
+  verify passes do accept; the per-request peak decode rate (240 to 250 tok/s) shows that bursts run at the in-process speed. Candidates
+  not yet tested: the serve path's chat template changes the generated text (and with it the acceptance, per cell); the adaptive
+  speculation gate (`INTARSIA_SPEC_GATE`, default fails 6 / skip 2) switches speculation off for stretches; the stream's per-token
+  emission cost. Next step: `INTARSIA_SPEC_TRACE=1` on a served 1k request, and the same cells with `INTARSIA_SPEC_GATE=0`.

@@ -749,6 +749,7 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
