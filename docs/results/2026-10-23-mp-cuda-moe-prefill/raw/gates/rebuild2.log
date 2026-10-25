@@ -1,0 +1,13 @@
+fleetq: #4900 waiting (#4 in line): in line behind #4889 "mp: nsys phases prod vs pf (1k/2k/4k) spark2" (claude-f31ccf91-mp) on spark2
+fleetq:   #4889 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4889 set, or it will wait for #4889 to be released.
+fleetq: #4900 waiting (#4 in line): in line behind #4889 "mp: nsys phases prod vs pf (1k/2k/4k) spark2" (claude-f31ccf91-mp) on spark2; #4889 has no estimated start, so nothing can go first by ending before it
+fleetq:   #4889 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4889 set, or it will wait for #4889 to be released.
+fleetq: #4900 waiting (#3 in line): in line behind #4891 "mp: final microbench skew1" (claude-f31ccf91-mp) on spark2
+fleetq:   #4891 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4891 set, or it will wait for #4891 to be released.
+fleetq: #4900 waiting (#2 in line): in line behind #4892 "mr3: CUDA no-op (batching off) + CUDA batching tests" (claude-f31ccf91-mr3) on spark2
+fleetq: #4900 waiting (#1 in line): #4892 "mr3: CUDA no-op (batching off) + CUDA batching tests" (claude-f31ccf91-mr3) needs cpu quiet on spark2, and this job loads it
+fleetq: #4900 running on spark2: bash -c 'HOST=spark2 SEED_TREE=lt-main scripts/pf/build.sh mp-dev /opt/code/wt-mp '"'"'head=bd4eeab code-tree=19ccb898bb10 dirty=no'"'"' | tail -2; rsync -a scripts/mp scripts/lt spark2:intarsia-decfuse/pf-scripts/'
+fleetq: #4900 went ahead of the line and must end within 12h51m (by Sat 11:00); it is stopped then
+    Finished `release` profile [optimized] target(s) in 23.05s
+-rwxrwxr-x 2 nvidia nvidia 78976888 Oct 23 22:09 /home/nvidia/intarsia-decfuse/mp-dev/target/acc/release/intarsia
+fleetq: #4900 done (exit 0)

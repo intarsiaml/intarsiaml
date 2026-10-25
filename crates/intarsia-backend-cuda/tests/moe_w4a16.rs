@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 const V1: &str = "moe_experts_mma_bf16";
 const V2: &str = "moe_experts_w4a16_bf16";
+const PF_ENV: &str = "INTARSIA_CUDA_MOE_W4A16_PF";
 
 fn device() -> Option<Arc<dyn Backend>> {
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
@@ -51,24 +52,35 @@ fn routed(hc: &HostCall, ids: &[i32], t: usize, k: usize) -> HostCall {
     hc
 }
 
-/// The same call through v1 and v2 under both tile heights v2 offers (`INTARSIA_MOE_BM`; "" = the automatic choice). v1
-/// is independent of its own tile height (tests/quantmoe.rs).
+/// The same call through v1 and v2 under both tile heights v2 offers (`INTARSIA_MOE_BM`; "" = the automatic choice), with the
+/// L2-prefetch schedule off and on (`INTARSIA_CUDA_MOE_W4A16_PF`; also in its automatic tile height). v1 is independent of its
+/// own tile height (tests/quantmoe.rs).
 fn assert_bitwise(cuda: &dyn Backend, hc: &HostCall, label: &str) {
     std::env::remove_var("INTARSIA_MOE_BM");
+    std::env::remove_var(PF_ENV);
     let want = run_host(cuda, V1, hc).unwrap()[0].data.clone();
-    for bm in ["", "32", "64"] {
-        if bm.is_empty() {
-            std::env::remove_var("INTARSIA_MOE_BM");
-        } else {
-            std::env::set_var("INTARSIA_MOE_BM", bm);
+    for pf in ["0", "1"] {
+        std::env::set_var(PF_ENV, pf);
+        for bm in ["", "32", "64"] {
+            if bm.is_empty() {
+                std::env::remove_var("INTARSIA_MOE_BM");
+            } else {
+                std::env::set_var("INTARSIA_MOE_BM", bm);
+            }
+            let got = run_host(cuda, V2, hc).unwrap()[0].data.clone();
+            let differ = got.chunks(2).zip(want.chunks(2)).filter(|(a, b)| a != b).count();
+            assert!(
+                differ == 0,
+                "{label}: PF={pf} BM={}: {differ} of {} bf16 outputs differ from {V1}",
+                if bm.is_empty() { "auto" } else { bm },
+                got.len() / 2
+            );
+            let again = run_host(cuda, V2, hc).unwrap()[0].data.clone();
+            assert!(again == got, "{label}: PF={pf} BM={bm}: not repeatable");
         }
-        let got = run_host(cuda, V2, hc).unwrap()[0].data.clone();
-        let differ = got.chunks(2).zip(want.chunks(2)).filter(|(a, b)| a != b).count();
-        assert!(differ == 0, "{label}: BM={}: {differ} of {} bf16 outputs differ from {V1}", if bm.is_empty() { "auto" } else { bm }, got.len() / 2);
-        let again = run_host(cuda, V2, hc).unwrap()[0].data.clone();
-        assert!(again == got, "{label}: BM={bm}: not repeatable");
     }
     std::env::remove_var("INTARSIA_MOE_BM");
+    std::env::remove_var(PF_ENV);
 }
 
 #[test]
@@ -125,7 +137,7 @@ fn moe_w4a16_is_bitwise_on_odd_routing() {
 fn moe_w4a16_is_bitwise_at_the_real_prefill_shape() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(83);
-    for t in [1024usize, 2048] {
+    for t in [1024usize, 2048, 3072] {
         let hc = with_distinct_gscales(&experts_case(&mut rng, t, 256, 8, 2048, 512, DType::Bf16));
         assert_bitwise(&*cuda, &hc, &format!("real prefill shape T={t}"));
     }
@@ -143,6 +155,10 @@ fn moe_experts_w4a16_is_as_accurate_as_old_kernel() {
         let want = run_host(&cpu, "ref_moe_experts", &hc).unwrap()[0].to_f32();
         let old = run_host(&*cuda, "moe_experts_bf16", &hc).unwrap()[0].to_f32();
         let new = run_host(&*cuda, V2, &hc).unwrap()[0].to_f32();
+        std::env::set_var(PF_ENV, "1");
+        let new_pf = run_host(&*cuda, V2, &hc).unwrap()[0].to_f32();
+        std::env::remove_var(PF_ENV);
+        assert!(new_pf == new, "T={t} E={e}: the prefetch schedule changed the output");
         let frac = |a: &[f32]| a.iter().zip(&want).filter(|(x, y)| x != y).count() as f64 / want.len() as f64;
         let (fo, fn_) = (frac(&old), frac(&new));
         let (ro, rn) = (rel_l2(&old, &want), rel_l2(&new, &want));

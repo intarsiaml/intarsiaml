@@ -1,0 +1,88 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/batch_recurrent.rs (/target/release/deps/batch_recurrent-e7f47854cd2c9b04)
+
+running 10 tests
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=3 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=4 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=5 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=6 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=7 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=8 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=9 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=10 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=11 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=12 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=13 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=14 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=15 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=16 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+Dense matmul_fp8: decode [] | batch(4) []
+Dense matmul_nvfp4: decode [] | batch(4) []
+Dense moe_experts: decode [] | batch(4) []
+Dense logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+Dense gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+Dense attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv_rows"]
+Moe matmul: decode [] | batch(4) ["matmul_bf16_gemv_rows"]
+Moe matmul_fp8: decode ["matmul_fp8_gemv_v2"] | batch(4) ["matmul_fp8_gemv_rows"]
+Moe matmul_nvfp4: decode [] | batch(4) []
+Moe moe_experts: decode [] | batch(4) []
+Moe logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+Moe gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+Moe attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv_rows"]
+MoeA8 matmul: decode [] | batch(4) ["matmul_bf16_gemv_rows"]
+MoeA8 matmul_fp8: decode ["matmul_fp8_gemv_v2"] | batch(4) ["matmul_fp8_gemv_rows"]
+MoeA8 matmul_nvfp4: decode [] | batch(4) []
+MoeA8 moe_experts: decode [] | batch(4) []
+MoeA8 logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+MoeA8 gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+MoeA8 attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv_rows"]
+ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+Dense: 300 decode rows bitwise solo, 99173 batched steps begun while a chunk was running
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+Moe: 300 decode rows bitwise solo, 203160 batched steps begun while a chunk was running
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+MoeA8: 300 decode rows bitwise solo, 198762 batched steps begun while a chunk was running
+ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 108.67s
+

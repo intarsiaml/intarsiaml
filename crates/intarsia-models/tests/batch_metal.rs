@@ -55,8 +55,7 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     m.configure_plan(&Default::default(), None).unwrap();
     assert!(m.plan.kv_cap_tokens >= 4352, "{} tokens per sequence", m.plan.kv_cap_tokens);
 
-    // the batched pass runs the row-exact multi-row kernels for the projections, and the serving one-row kernels for
-    // the per-row attention
+    // the batched pass runs the row-exact multi-row kernels for the projections and the row-table kernels for the attention
     let rec = m.dry_run(Phase::Batch, 8, 1000).unwrap();
     let dec = m.dry_run(Phase::Decode, 1, 1000).unwrap();
     let pick = |rec: &intarsia_core::plan::Recorder, op: Op| -> Vec<String> {
@@ -68,14 +67,15 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     for op in [Op::Matmul, Op::MatmulPair, Op::Logits, Op::QkNormRopeKv, Op::AttnDecode] {
         eprintln!("kernels {op}: decode {:?} | batch {:?}", pick(&dec, op), pick(&rec, op));
     }
-    // per-row attention and the fold are the decode step's own kernels
+    // the prologue and the attention run once for all rows through the row-table kernels (`kernels/metal`, lane mr3), each
+    // row bitwise the decode step's own kernel (tests/row_tables.rs); the decode step keeps its one-row kernels
     for op in [Op::QkNormRopeKv, Op::AttnDecode] {
-        assert_eq!(pick(&dec, op), pick(&rec, op), "{op}");
+        assert!(pick(&dec, op).iter().all(|k| !k.contains("rows")), "decode {op}: {:?}", pick(&dec, op));
+        assert!(!pick(&rec, op).is_empty() && pick(&rec, op).iter().all(|k| k.contains("rows")), "batch {op}: {:?}", pick(&rec, op));
     }
     let pick = |op: Op| pick(&rec, op);
     assert!(pick(Op::Matmul).iter().all(|k| k.contains("rows")), "{:?}", pick(Op::Matmul));
     assert!(pick(Op::Logits).iter().all(|k| k.contains("rows")));
-    assert!(pick(Op::AttnDecode).iter().all(|k| !k.contains("rows")));
 
     let cfg = batch_identity::Cfg {
         lens: vec![5, 37, 130, 500, 1100, 2000, 3000, 4000],

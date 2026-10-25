@@ -246,7 +246,12 @@ fn real_35b_batch_step_timing() {
     }
     let solo = t0.elapsed().as_secs_f64() * 1e3 / steps as f64;
     eprintln!("TIMING solo step {solo:.2} ms ({:.1} tok/s)", 1e3 / solo);
-    for b in [2usize, 4, 8, 16] {
+    // the row counts timed: 2, 4, 8, 16, or INTARSIA_TIMING_ROWS="2,3,4,..." (test-only)
+    let rows: Vec<usize> = std::env::var("INTARSIA_TIMING_ROWS")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![2, 4, 8, 16]);
+    for b in rows {
         let ids: Vec<u32> = (0..b).map(tok).collect();
         let modes = vec![HeadMode::LastArgmax; b];
         let t0 = std::time::Instant::now();

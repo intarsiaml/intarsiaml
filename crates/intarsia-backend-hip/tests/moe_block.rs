@@ -176,6 +176,72 @@ fn moe_block_is_bitwise_the_chain() {
     eprintln!("moe_block_is_bitwise_the_chain: {n} cases bitwise");
 }
 
+/// Token `t` of a MoeBlock call as a T = 1 call (x, logits and the shared gate logit sliced; the weights are shared).
+fn token_of(hc: &HostCall, t: usize) -> HostCall {
+    let row = |x: &HostTensor| {
+        let w = x.shape[1];
+        let bytes = w * x.dtype.size_bytes();
+        HostTensor { dtype: x.dtype, shape: vec![1, w], data: x.data[t * bytes..(t + 1) * bytes].to_vec() }
+    };
+    let mut inputs = hc.inputs.clone();
+    for j in 0..3 {
+        inputs[j] = row(&hc.inputs[j]);
+    }
+    let h = hc.inputs[0].shape[1];
+    HostCall { op: hc.op, inputs, outputs: vec![OutSpec::new(DType::Bf16, &[1, h])], attrs: hc.attrs.clone() }
+}
+
+/// G-B of `moe_block_bf16_rows` (lane hr3, batched decode): token t of a T-token launch is BITWISE the T = 1 launch of the solo
+/// step (`moe_block_bf16`) on token t alone, T = 1..=16, at the 35B's decode shape (top-8 of 256 experts: T * K far past 16) and on
+/// smaller ones, norm on and off, with ties in the routing.
+#[test]
+fn moe_block_rows_are_the_solo_block_per_token() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(91);
+    let (mut cases, mut tokens, mut controls) = (0, 0, 0);
+    for (e, k, h, i, is) in [
+        (256usize, 8usize, 2048usize, 512usize, 512usize), // the 35B's decode step
+        (256, 8, 2048, 256, 256),                        // its tp=2 shard
+        (64, 8, 1024, 256, 256),
+        (32, 4, 256, 48, 64),
+        (16, 2, 4112, 160, 32),
+        (512, 4, 256, 32, 32), // E = 512
+    ] {
+        for norm in [true, false] {
+            for ties in [false, true] {
+                for t in 1..=16usize {
+                    // the bigger shapes at every row count would be minutes of random weights: a spread of counts
+                    if e == 256 && i == 512 && !matches!(t, 1 | 2 | 3 | 4 | 7 | 8 | 9 | 12 | 15 | 16) {
+                        continue;
+                    }
+                    if e != 256 && !matches!(t, 1 | 3 | 5 | 16) {
+                        continue;
+                    }
+                    let hc = block_case(&mut rng, t, e, k, h, i, is, norm, ties);
+                    let got = run_host(&*hip, "moe_block_bf16_rows", &hc).unwrap_or_else(|er| panic!("rows t={t} e={e}: {er}"));
+                    let hb = h * 2;
+                    for r in 0..t {
+                        let want = run_host(&*hip, K_NAME, &token_of(&hc, r)).unwrap();
+                        assert!(
+                            got[0].data[r * hb..(r + 1) * hb] == want[0].data[..],
+                            "t={t} e={e} k={k} h={h} i={i} is={is} norm={norm} ties={ties}: token {r} differs from the solo T = 1 block"
+                        );
+                        tokens += 1;
+                    }
+                    // negative control: the comparison discriminates (token r against the solo block of the NEXT token differs)
+                    if t > 1 {
+                        let other = run_host(&*hip, K_NAME, &token_of(&hc, 1)).unwrap();
+                        assert!(got[0].data[..hb] != other[0].data[..], "control: token 0 equals the solo block of token 1 (t={t} e={e}): the comparison cannot fail");
+                        controls += 1;
+                    }
+                    cases += 1;
+                }
+            }
+        }
+    }
+    eprintln!("moe_block_rows_are_the_solo_block_per_token: {cases} launches, {tokens} tokens bitwise the T = 1 block, {controls} negative controls differ");
+}
+
 /// Device copies of a host call (inputs, a zeroed output, the declared scratch).
 struct Dev {
     call: OpCall,

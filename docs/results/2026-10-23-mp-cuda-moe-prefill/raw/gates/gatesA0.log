@@ -1,0 +1,25 @@
+fleetq: #4872 waiting (#2 in line): in line behind #4868 "mr3: build CUDA main + branch (no-op trees)" (claude-f31ccf91-mr3) on spark2
+fleetq: #4872 waiting (#1 in line): needs gpu quiet on spark2, but #4865 "localeval agent adhoc harness-v1-spark2-pi pi" (claude-8b28581c) loads it
+fleetq: #4872 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #4872 running on spark2: scripts/pf/rjob.sh spark2 mp/gatesA0.sh mpgA0 mp-base /home/nvidia/intarsia-decfuse/out/mp-main-baseline.json 0
+fleetq: #4872 went ahead of the line and must end within 13h21m (by Sat 11:00); it is stopped then
+== KL golden qwen36-35b-a3b-nvfp4-vllm-top20 chunk 2048 PF=0 21:38:36
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) wit
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-long-top20 chunk 2048 PF=0 21:39:11
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-4k-top20 chunk 2048 PF=0 21:40:41
+exit 0
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-4k-top20.safetensors (3 prompts, 12759 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) 
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== done 21:41:36
+fleetq: #4872 done (exit 0)

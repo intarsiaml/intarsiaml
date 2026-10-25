@@ -1,0 +1,9 @@
+fleetq: #4965 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh noop.sh dfA-noop df-base df-dev
+ids 35s df-base vs df-dev: identical (256 ids, sha 2dd7fe93)
+ids 35l df-base vs df-dev: identical (64 ids, sha 5efcc225)
+ids 8s df-base vs df-dev: identical (256 ids, sha e2c61289)
+ids 8l df-base vs df-dev: identical (64 ids, sha fcafb118)
+8B plan: byte-identical (8758 B)
+35B plan: byte-identical (3505 B)
+== done
+fleetq: #4965 done (exit 0)

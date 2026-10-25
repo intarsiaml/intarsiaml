@@ -550,6 +550,8 @@ impl Backend for HipBackend {
         if let Ok(list) = std::env::var("INTARSIA_HIP_DISABLE") {
             let off: Vec<&str> = list.split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
             v.retain(|k| !off.contains(&k.name.as_str()));
+            // a row-table twin goes with the kernel it twins: it must never run where the solo step would run another kernel
+            v.retain(|k| !(k.row_table && k.name.strip_suffix("_rows").is_some_and(|base| off.contains(&base))));
         }
         v
     }
@@ -580,6 +582,15 @@ impl Backend for HipBackend {
         // i32 element when it runs, so the tensor view (and its device buffer) must outlive the launch: `pos_t` does.
         let pos_t: Option<IkTensor> = call.pos.as_ref().map(Self::tensor).transpose()?;
         let pos = pos_t.as_ref().map_or(std::ptr::null(), |t| t as *const IkTensor);
+        // row table (batched decode, `OpCall::rows`): the device addresses of the rows' state buffers; null for an ordinary call, which
+        // the row-table launchers refuse
+        let rows_t: Option<(IkTensor, i64, i64, i64)> = call
+            .rows
+            .as_ref()
+            .map(|r| Self::tensor(&r.ptrs).map(|t| (t, r.stride as i64, r.index as i64, r.byte_off as i64)))
+            .transpose()?;
+        let tab = rows_t.as_ref().map_or(std::ptr::null(), |t| &t.0 as *const IkTensor);
+        let (tab_stride, tab_index, tab_off) = rows_t.as_ref().map_or((0, 0, 0), |t| (t.1, t.2, t.3));
         // INTARSIA_HIP_TRACE: a start event on this stream right before the launch (not while a graph is being captured)
         let trace = self.trace.as_ref().filter(|_| !self.capturing.load(Ordering::Relaxed));
         let t_start = trace.map(|tr| {
@@ -661,6 +672,14 @@ impl Backend for HipBackend {
                 }
                 "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
                 "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
+                "gdn_conv_bf16_rows" => ffi::ik_gdn_conv_bf16_rows(i(0), i(1), o, o.add(1), tab, tab_stride, tab_index, s),
+                "gdn_delta_rule_bf16_v2_rows" => ffi::ik_gdn_delta_rule_bf16_v2_rows(
+                    i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), tab, tab_stride, tab_index, tab_off, s,
+                ),
+                "kv_append_bf16_rows" => ffi::ik_kv_append_bf16_rows(i(0), o, tab, tab_stride, tab_index, pos, s),
+                "attn_decode_bf16_splitkv_rows" => {
+                    ffi::ik_attn_decode_bf16_splitkv_rows(i(0), i(1), i(2), a.scale, o, sc, tab, tab_stride, tab_index, pos, s)
+                }
                 "gdn_delta_rule_bf16" => {
                     ffi::ik_gdn_delta_rule_bf16(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
@@ -700,6 +719,7 @@ impl Backend for HipBackend {
                 "moe_combine_bf16" => ffi::ik_moe_combine_bf16(i(0), i(1), i(2), o, s),
                 // the 17 inputs as one array: `inp` is a contiguous Vec, i(0) its first element
                 "moe_block_bf16" => ffi::ik_moe_block_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, sc, s),
+                "moe_block_bf16_rows" => ffi::ik_moe_block_bf16_rows(i(0), a.top_k as c_int, a.norm_topk as c_int, o, sc, s),
                 "matmul_pair_bf16_gemv" => ffi::ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),
                 "matmul_fp8_pair_gemv" => ffi::ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
                 "matmul_nvfp4_glu_gemv" => ffi::ik_matmul_nvfp4_glu_gemv(i(0), i(1), i(2), i(3), i(4), i(5), i(6), o, s),
@@ -786,6 +806,16 @@ impl Backend for HipBackend {
 
     fn supports_graphs(&self) -> bool {
         true
+    }
+
+    /// Batched decode steps launch the GatedDeltaNet conv / delta rule, the KV append and the split-KV decode attention once for
+    /// all rows (`OpCall::rows`; the `_rows` row-table kernels, proven bitwise the one-row kernels in tests/row_tables.rs).
+    fn supports_row_tables(&self) -> bool {
+        true
+    }
+
+    fn device_address(&self, buf: &Buffer) -> Option<u64> {
+        Self::ptr(buf, 0, 0).ok().map(|p| p as u64)
     }
 
     /// 16 rows: the `_rows` GEMV / MoE kernels are proven row-exact up to M = 16 (tests/rows_exact.rs, G-B).
