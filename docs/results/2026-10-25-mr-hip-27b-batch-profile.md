@@ -1,5 +1,7 @@
 # mr2: where the batched Qwen3.8-27B MXFP4 decode step spends its time on HIP (lane mr, 2026-10-25)
 
+Status after #151 (2026-10-25): the harness changes named below are on main via #151, so this PR is now the doc, raw logs and scripts only. The lm_head cliff found here is fixed by #151 (16-row step 111 -> 100 ms). The ISA check listed under 'Not done' was done in docs/results/2026-10-25-mr-hip-logits-rows.md section 2. The numbers below are the 'before' that #151 cites.
+
 Branch `lane-mr/hip-27b-batch-profile` (off main 5e9cc6da, which contains #145). Measurement only: the one code change is in the test harness
 (`batch_cuda_real real_35b_batch_step_profile` takes `INTARSIA_TIMING_ROWS`, has warm-up steps and prints 40 rows; `rows_exact
 timing_mxfp4_rows` times the lm_head rows kernel up to M=16). Nothing in the engine or the kernels changed. Qwen3.8-27B-Quark-AWQ-MXFP4, one
