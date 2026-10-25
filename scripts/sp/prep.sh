@@ -17,4 +17,9 @@ for t in "${trees[@]}"; do
   INTARSIA_REPO=$HOME/intarsiaml-$t INTARSIA_TARGET_VOL=$vol \
     ~/intarsiaml-sp/deploy/tatooine/dev.sh cargo build --release --locked --features hip -p intarsia-cli 2>&1 | tail -4
 done
+echo "== compile gate tests (sp tree)"
+for spec in "-p intarsia-models --test batch_recurrent --test batch_cuda_real --test mtp" "-p intarsia-backend-hip --test rows_exact --test rows_registry"; do
+  INTARSIA_REPO=$HOME/intarsiaml-sp INTARSIA_TARGET_VOL=intarsia-cargo-target-sp \
+    ~/intarsiaml-sp/deploy/tatooine/dev.sh cargo test --release --no-run $spec 2>&1 < /dev/null | tail -4
+done
 echo PREP DONE
