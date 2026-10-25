@@ -11,7 +11,7 @@
 <text class="l" x="14" y="110">DOOR</text>
 <rect class="n" x="120" y="92" width="760" height="64" rx="9"/>
 <text x="500.0" y="112" text-anchor="middle">intarsia-server (axum)</text>
-<text class="m d" x="500.0" y="128" font-size="10.5" text-anchor="middle">/v1/chat/completions  /v1/completions  /v1/models  /v1/messages  /health  /metrics  /events  /v1/intarsia/plan  +  built-in UI at /</text>
+<text class="m d" x="500.0" y="128" font-size="10.5" text-anchor="middle">/v1/chat/completions  /v1/messages  /health  /metrics  /events  /v1/intarsia/plan  +  built-in UI at /</text>
 <path class="e" d="M275 62 L275 92"/><path class="fl" d="M275 62 L275 92"/>
 <path class="e" d="M500 62 L500 92"/><path class="fl" d="M500 62 L500 92"/>
 <path class="e" d="M725 62 L725 92"/><path class="fl" d="M725 62 L725 92"/>
