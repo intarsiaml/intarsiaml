@@ -119,7 +119,7 @@ static void bench_folds(std::mt19937& rng) {
 static void bench_abl(std::mt19937& rng) {
     std::normal_distribution<float> nd(0.f, 1.f);
     struct Shape { int N, K; } shapes[] = {{2048, 2048}, {2048, 4096}, {4096, 2048}, {12288, 2048}, {512, 2048}};
-    int abls[] = {0, 1, 2, 4, 3, 5, 6, 7, 8};
+    int abls[] = {0, 1, 2, 4, 3, 5, 6, 7};
     for (auto sh : shapes) {
         int N = sh.N, K = sh.K; size_t wb = (size_t)N * K;
         int copies = (int)std::max<size_t>(3, std::min<size_t>(64, (size_t)(300 << 20) / wb + 1));
@@ -145,14 +145,6 @@ static void bench_abl(std::mt19937& rng) {
             auto& src = (a & 8) ? dp : dw;
             double us = time_us([&](int i) { ik_tensor w = T(src[i % copies], IK_DTYPE_FP8_E4M3, N, K); wmma_staged(&xt, &w, &sct, &ot, nullptr); }, 300);
             printf("  [%d] %6.2f", a, us);
-        }
-        {   // packed vs row-major: same bits?
-            std::vector<uint16_t> r0(N), r8(N);
-            ik_tensor w0 = T(dw[0], IK_DTYPE_FP8_E4M3, N, K), w8 = T(dp[0], IK_DTYPE_FP8_E4M3, N, K);
-            ik_f8r_set_abl(0); wmma_staged(&xt, &w0, &sct, &ot, nullptr); CK(hipDeviceSynchronize()); CK(hipMemcpy(r0.data(), dout, N * 2, hipMemcpyDeviceToHost));
-            ik_f8r_set_abl(8); wmma_staged(&xt, &w8, &sct, &ot, nullptr); CK(hipDeviceSynchronize()); CK(hipMemcpy(r8.data(), dout, N * 2, hipMemcpyDeviceToHost));
-            long bad = 0; for (int i = 0; i < N; ++i) bad += r0[i] != r8[i];
-            printf("  packed-vs-rowmajor mismatches=%ld", bad);
         }
         ik_f8r_set_abl(0);
         double g = time_us([&](int i) { ik_tensor w = T(dw[i % copies], IK_DTYPE_FP8_E4M3, N, K); ik_matmul_fp8_gemv_rows(&xt, &w, &sct, &ot, nullptr); }, 300);

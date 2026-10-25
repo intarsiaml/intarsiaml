@@ -32,6 +32,9 @@ constexpr int kF8rWaves = 8;          // waves on K: a constant, so the cross-wa
 constexpr int kF8rThreads = kF8rWaves * IK_WARP;
 constexpr int kF8rPad = 16;           // bytes of padding after each staged row
 constexpr int kF8rSpBytes = kF8rWaves * IK_WARP * 8 * 4;   // the cross-wave buffer of one token tile
+constexpr int kF8rWRow = 144;                      // one row of a wave's weight tile: 128 B + 16 B pad (16 rows hit 16 distinct bank groups)
+constexpr int kF8rWTile = 16 * kF8rWRow;          // a wave's weight tile (fp8 weights)
+constexpr int kF8rWBytes = kF8rWaves * kF8rWTile; // all 8 waves'
 constexpr int kF8rLdsBudget = 49152;  // dynamic LDS a launch may ask for (48 KiB, what every other kernel here stays under)
 
 /* 8 bf16 -> 8 e4m3 bytes (x / input_scale, RNE, saturating at +-448), bit-identical to fp8_gemv_body's Q = 2 staging. */
@@ -96,36 +99,41 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = BF ? 1.f : sc[0] * s_in;
     const int64_t n = blk * 16 + col;
-    const uint8_t* wp = n < N ? w + n * K * (BF ? 2 : 1) : nullptr;
-    // staged window: W8A8 kw bytes a row, W8A16 kw / 2 bf16 (the same bytes); a DIRECT window is kw k in registers
-    const int kwa = (DIRECT || actq || BF) ? kw : (kw / 2 / 256) * 256;  // BF: the launch sized kw in elements (bpk = 2)
+    const uint8_t* wp = n < N ? w + n * K * (BF ? 2 : 1) : nullptr;  // BF only
+    // staged window: W8A8 kw bytes a row, W8A16 kw / 2 bf16 (the same bytes); BF: kw bf16 (bpk = 2); a DIRECT window is kw k in registers.
+    // The fp8 family's windows are multiples of 1024 k (one round of 8 waves x 128 k), so each wave's K ranges do not depend on the window.
+    const int kwa = (DIRECT || actq || BF) ? kw : (kw / 2 / 1024) * 1024;
     const int stride = actq ? kw + kF8rPad : kwa * 2 + kF8rPad;
     unsigned char* xs = smem;
     float* sp = reinterpret_cast<float*>(smem);  // [wave][tile][lane][8], over the staged x once every wave is done with it
     const size_t region = DIRECT ? (size_t)TM * kF8rSpBytes
                                  : ((size_t)M * (size_t)stride > (size_t)TM * kF8rSpBytes ? (size_t)M * (size_t)stride : (size_t)TM * kF8rSpBytes);
     uint4* xn = reinterpret_cast<uint4*>(smem + region);  // PRO 3: the normed bf16 row
+    // fp8 weights: each wave loads 16 rows x 128 B per range with coalesced 16 B loads (4 rows x 128 B an instruction) and re-reads them in the
+    // WMMA fragment layout through a private LDS tile (no block barrier: a wave only reads what it wrote)
+    unsigned char* wbuf = smem + (DIRECT ? 0 : region + (PRO == 3 ? ((size_t)K * 2 + 15) / 16 * 16 : 0)) + (size_t)wave * kF8rWTile;
 
     ik_dq_v8f acc[TM];
 #pragma unroll
     for (int t = 0; t < TM; ++t) acc[t] = ik_dq_v8f{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
 
-    uint4 wb[NJ][BF ? 2 : 1];
+    // slot j of this wave inside a window: the first k (relative to the window) of its chunk of 32 k
+    //   BF:  chunk wave + 8 j (interleaved);   fp8: range wave + 8 (j / 4) of 128 k, chunk j % 4 of it
+    auto slot_k = [&](int j) -> int { return BF ? (wave + kF8rWaves * j) * 32 : 128 * (wave + kF8rWaves * (j >> 2)) + 32 * (j & 3); };
+
+    uint4 wb[BF ? NJ : 1][BF ? 2 : 1];            // BF: the weights of the window's chunks
+    uint4 wr[BF ? 1 : NJ / 4][BF ? 1 : 4];        // fp8: the window's ranges, 4 coalesced loads each
     uint4 xb[DIRECT ? TM : 1][DIRECT ? NJ : 1][DIRECT ? 2 : 1];
     for (int ws = 0; ws < K; ws += kwa) {
         const int wlen = min(kwa, K - ws);
-        const int nj = (wlen + 255) >> 8;
         // the weights of the window go in flight before the activations are staged
+        if constexpr (BF) {
 #pragma unroll
-        for (int j = 0; j < NJ; ++j) {
-            wb[j][0] = make_uint4(0, 0, 0, 0);
-            if constexpr (BF) wb[j][1] = make_uint4(0, 0, 0, 0);
-            const int k0 = ws + (wave + kF8rWaves * j) * 32;
-            if (abl & 4) wb[j][0] = make_uint4(0x38383838u, 0x38383838u, 0x38383838u, 0x38383838u);
-            else if ((abl & 8) && !BF) {  // experiment: weights repacked in fragment order [n/16][k/32][lane = h * 16 + col][16 B] (K % 32 == 0, N % 16 == 0)
-                if (j < nj && k0 + 32 <= K) wb[j][0] = ik_ldcs(reinterpret_cast<const uint4*>(w + ((blk * (K / 32) + (k0 / 32)) * 32 + lane) * 16));
-            } else if (wp && j < nj) {
-                if constexpr (BF) {
+            for (int j = 0; j < NJ; ++j) {
+                wb[j][0] = make_uint4(0, 0, 0, 0);
+                wb[j][1] = make_uint4(0, 0, 0, 0);
+                const int kl = slot_k(j), k0 = ws + kl;
+                if (!(abl & 4) && wp && kl < kwa) {
                     if (k0 + 32 <= K) {
                         const uint4* p = reinterpret_cast<const uint4*>(wp + (int64_t)(k0 + 16 * h) * 2);
                         wb[j][0] = ik_ldcs(p);
@@ -133,25 +141,31 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                     } else if (k0 + 16 <= K) {
                         wb[j][0] = ik_ldcs(reinterpret_cast<const uint4*>(wp + (int64_t)(k0 + 8 * h) * 2));
                     }
-                } else {
-                    if (k0 + 32 <= K) wb[j][0] = ik_ldcs(reinterpret_cast<const uint4*>(wp + k0 + 16 * h));
-                    else if (k0 + 16 <= K) {
-                        const uint2 t = *reinterpret_cast<const uint2*>(wp + k0 + 8 * h);
-                        wb[j][0] = make_uint4(t.x, t.y, 0, 0);
-                    }
+                }
+            }
+        } else {
+#pragma unroll
+            for (int jj = 0; jj < NJ / 4; ++jj) {
+                const int kr = ws + 128 * (wave + kF8rWaves * jj);  // first k of this wave's jj-th range
+#pragma unroll
+                for (int i = 0; i < 4; ++i) {
+                    wr[jj][i] = make_uint4(0, 0, 0, 0);
+                    const int64_t row = blk * 16 + 4 * i + (lane >> 3);
+                    const int kp = kr + 16 * (lane & 7);
+                    if (!(abl & 4) && row < N && kr - ws < kwa && kp + 16 <= K) wr[jj][i] = ik_ldcs(reinterpret_cast<const uint4*>(w + row * K + kp));
                 }
             }
         }
         if constexpr (DIRECT) {
 #pragma unroll
             for (int j = 0; j < NJ; ++j) {
-                const int k0 = ws + (wave + kF8rWaves * j) * 32;
+                const int kl = slot_k(j), k0 = ws + kl;
 #pragma unroll
                 for (int t = 0; t < TM; ++t) {
                     const int row = t * 16 + col;
                     xb[t][j][0] = make_uint4(0, 0, 0, 0);
                     xb[t][j][1] = make_uint4(0, 0, 0, 0);
-                    if (row < M && j < nj && k0 + 16 <= K) {
+                    if (row < M && kl < kwa && k0 + 16 <= K) {
                         const bool full = k0 + 32 <= K;
                         if (actq) {
                             if (full) xb[t][j][0] = *reinterpret_cast<const uint4*>(xq + (int64_t)row * K + k0 + 16 * h);
@@ -180,10 +194,30 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
         }
 #pragma unroll
         for (int j = 0; j < NJ; ++j) {
-            const int k0 = ws + (wave + kF8rWaves * j) * 32;
-            const int kl = k0 - ws;
-            if (j >= nj || k0 + 16 > K) continue;
+            const int kl = slot_k(j), k0 = ws + kl;
+            if constexpr (!BF) {
+                if ((j & 3) == 0) {  // a new range: this wave's tile <- its 16 rows x 128 B, then wave-local order
+#pragma unroll
+                    for (int i = 0; i < 4; ++i)
+                        *reinterpret_cast<uint4*>(wbuf + (size_t)(4 * i + (lane >> 3)) * kF8rWRow + 16 * (lane & 7)) = wr[j >> 2][i];
+                    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "wavefront");
+                    __builtin_amdgcn_wave_barrier();
+                    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "wavefront");
+                }
+            }
+            if (kl >= kwa || k0 + 16 > K) continue;
             const bool full = k0 + 32 <= K;
+            uint4 wa;  // this lane's weights of the chunk: bytes 16 h .. 16 h + 15 (a half: 8 h .. 8 h + 7)
+            if constexpr (BF) {
+                wa = wb[j][0];
+            } else {
+                const unsigned char* tp = wbuf + (size_t)col * kF8rWRow + 32 * (j & 3);
+                if (full) wa = *reinterpret_cast<const uint4*>(tp + 16 * h);
+                else {
+                    const uint2 u = *reinterpret_cast<const uint2*>(tp + 8 * h);
+                    wa = make_uint4(u.x, u.y, 0, 0);
+                }
+            }
 #pragma unroll
             for (int t = 0; t < TM; ++t) {
                 const int row = t * 16 + col;
@@ -198,8 +232,8 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                             b = make_uint4(u.x, u.y, 0, 0);
                         }
                     }
-                    acc[t] = ik_f8_wmma(wb[j][0].x, wb[j][0].y, b.x, b.y, acc[t]);
-                    if (full) acc[t] = ik_f8_wmma(wb[j][0].z, wb[j][0].w, b.z, b.w, acc[t]);
+                    acc[t] = ik_f8_wmma(wa.x, wa.y, b.x, b.y, acc[t]);
+                    if (full) acc[t] = ik_f8_wmma(wa.z, wa.w, b.z, b.w, acc[t]);
                 } else {
                     uint4 b0 = make_uint4(0, 0, 0, 0), b1 = b0;
                     if constexpr (DIRECT) {
@@ -215,11 +249,11 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                         }
                     }
                     if constexpr (BF) {
-                        acc[t] = ik_dq_wmma(wb[j][0], b0, acc[t]);
+                        acc[t] = ik_dq_wmma(wa, b0, acc[t]);
                         if (full) acc[t] = ik_dq_wmma(wb[j][1], b1, acc[t]);
                     } else {
-                        acc[t] = ik_dq_wmma(ik_e4m3x8_to_bf16(wb[j][0].x, wb[j][0].y), b0, acc[t]);
-                        if (full) acc[t] = ik_dq_wmma(ik_e4m3x8_to_bf16(wb[j][0].z, wb[j][0].w), b1, acc[t]);
+                        acc[t] = ik_dq_wmma(ik_e4m3x8_to_bf16(wa.x, wa.y), b0, acc[t]);
+                        if (full) acc[t] = ik_dq_wmma(ik_e4m3x8_to_bf16(wa.z, wa.w), b1, acc[t]);
                     }
                 }
             }
@@ -361,25 +395,39 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
     if (M < 1 || M > 64) return false;
     c->tm = (int)((M + 15) / 16);
     c->direct = direct;
+    const bool bf = bpk == 2;  // bf16 weights (their own chunk map, no weight tile); bpk 1 = fp8 weights
     if (direct) {
         c->nj = c->tm >= 3 ? 4 : 8;
         c->kw = c->nj * 256;
-        c->smem = (size_t)c->tm * kF8rSpBytes;
+        c->smem = std::max<size_t>((size_t)c->tm * kF8rSpBytes, bf ? 0 : (size_t)kF8rWBytes);  // the weight tile and the cross-wave buffer share
         return !single_window;
     }
-    const int64_t kmax = (K + 255) / 256 * 256;
-    // bpk: bytes of LDS per staged k (1 for W8A8; 2 for bf16 weights, whose activations are always bf16)
-    int64_t kw = (((int64_t)kF8rLdsBudget - (int64_t)extra) / M - kF8rPad) / bpk;
-    kw = kw / 256 * 256;
-    kw = std::min<int64_t>(kw, std::min<int64_t>(kmax, 4096));
-    if (single_window && kw < kmax) return false;
-    if (kw < 512) {
-        if (kmax < 512) kw = 512;  // K <= 256: the window is wider than K (the staged row is K bytes)
-        else return false;
+    if (bf) {
+        const int64_t kmax = (K + 255) / 256 * 256;
+        // bpk: bytes of LDS per staged k (2: bf16 activations)
+        int64_t kw = (((int64_t)kF8rLdsBudget - (int64_t)extra) / M - kF8rPad) / bpk;
+        kw = kw / 256 * 256;
+        kw = std::min<int64_t>(kw, std::min<int64_t>(kmax, 4096));
+        if (single_window && kw < kmax) return false;
+        if (kw < 512) {
+            if (kmax < 512) kw = 512;  // K <= 256: the window is wider than K (the staged row is K bytes)
+            else return false;
+        }
+        c->kw = (int)kw;
+        c->nj = kw > 2048 ? 16 : 8;
+        c->smem = std::max<size_t>((size_t)M * (kw * bpk + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra;
+        return true;
     }
+    // fp8 weights: windows are multiples of 1024 k (8 waves x 128 k); 2048 or 4096
+    const int64_t kmax = (K + 1023) / 1024 * 1024;
+    int64_t kw = ((int64_t)kF8rLdsBudget - (int64_t)kF8rWBytes - (int64_t)extra) / M - kF8rPad;
+    kw = kw >= 4096 ? 4096 : kw >= 2048 ? 2048 : 0;
+    if (kw == 0) return false;
+    if (kw > 2048 && kmax <= 2048) kw = 2048;
+    if (single_window && kw < kmax) return false;
     c->kw = (int)kw;
-    c->nj = kw > 2048 ? 16 : 8;
-    c->smem = std::max<size_t>((size_t)M * (kw * bpk + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra;
+    c->nj = kw / 256;
+    c->smem = std::max<size_t>((size_t)M * (kw + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra + kF8rWBytes;
     return true;
 }
 

@@ -931,7 +931,7 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
         F8rCfg c;
         // the norm runs once, in one window (it writes `normed` / `sum`): size the window for the weight-only form, which stages the row as
     // bf16 (kw / 2 elements), i.e. ask for a window of 2 * K rounded up to the chunk (K <= 2048)
-    if (!f8r_cfg(1, 2 * ((K + 255) / 256 * 256), true, (size_t)K * 2, false, 1, &c)) return IK_ERR_SHAPE;
+    if (!f8r_cfg(1, 2 * ((K + 1023) / 1024 * 1024), true, (size_t)K * 2, false, 1, &c)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
         if (c.nj == 16)
             f8r_norm_pair_kernel<16><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
