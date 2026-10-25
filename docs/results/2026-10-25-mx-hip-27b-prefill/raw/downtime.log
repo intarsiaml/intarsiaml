@@ -7,3 +7,4 @@
 2026-10-25 04:59:49 job 5151 window loc2: [window] job 5151 loc2 arms [base35 dev35] rounds 3; stopping radiance 2026-10-25 04:57:03 [window] radiance answers (after 15 s); active 2026-10-25 04:59:49 
 2026-10-25 05:00:36 job 5150 window w6: stages done 04:55:46; window.sh hit a syntax error at its end (the file was edited while bash read it), so the rsync and this line ran by hand; radiance restored by the remote EXIT trap and confirmed active by loc2 (#5151) at 04:59:49
 2026-10-25 05:30:37 job 5158 window w7: [window] job 5158 w7; stopping radiance 2026-10-25 05:04:34 [window] radiance answers 2026-10-25 05:30:37 (after 25 s); active 
+2026-10-25 07:26:27 job 5243 window w8: [window] job 5243 w8; stopping radiance 2026-10-25 07:14:57 [window] radiance answers 2026-10-25 07:26:27 (after 25 s); active 
