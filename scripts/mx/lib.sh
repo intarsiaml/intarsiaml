@@ -107,6 +107,13 @@ mtest() {
     env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 INTARSIA_QWEN3_DIR=$M8 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
   log "mtest $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/mtest-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
 }
+# mtest27 <tree> <tag> [cargo test args]: intarsia-models tests with the 27B as INTARSIA_QWEN36_DIR (lane mr's gates.sh S4)
+mtest27() {
+  local tree=$1 tag=$2; shift 2
+  INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree")-mtest INTARSIA_MODELS=$HUB HIP_VISIBLE_DEVICES=$G timeout 1200 "$(T "$tree")/deploy/tatooine/dev.sh" \
+    env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M27 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
+  log "mtest27 $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/mtest-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
+}
 # mxbench <tree> <tag> [M] [reps]: isolated GEMM timing v1 vs v2 tiles at the 27B shapes (binary built by build.sh BENCH=1)
 mxbench() {
   local tree=$1 tag=$2; shift 2
