@@ -11,6 +11,7 @@ export O=${1:?out dir}
 CAP=${CAP:-900}; T0=$(date +%s)
 REPO=$HOME/intarsiaml-ac
 PC=${PC:?PC=<head sha7 of the build>}
+[[ -r $HOME/ac-logs/pc ]] && PC=$(cat "$HOME/ac-logs/pc")   # the build job writes the head it built (the queued window may carry an older PC)
 log() { echo "$(date +%T) $*" | tee -a "$O/steps.log"; }
 left() { echo $(( CAP - ($(date +%s) - T0) )); }
 M27=/models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0

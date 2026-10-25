@@ -130,6 +130,11 @@ pub struct RefNoise {
     /// own value when it has one and the golden-wide `kl21_mean` otherwise. Optional, usually partial.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub prompts: BTreeMap<String, PromptNoise>,
+    /// Modes (`prefill`, `decode`) whose ABSOLUTE KL floor against this golden is report-only when the same run is also gated
+    /// against a recorded baseline (`--baseline`, with its noise envelope): the baseline judges them instead. Without
+    /// `--baseline` the floor keeps gating, so this never leaves a mode ungated. See [`RefNoise::floor_report_only_for`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub floor_report_only: Vec<String>,
 }
 
 fn default_format() -> String {
@@ -157,6 +162,11 @@ impl RefNoise {
                 }
             }
         }
+        for m in &self.floor_report_only {
+            if m != "prefill" && m != "decode" {
+                bail!("ref_noise record: floor_report_only names {m:?}, expected \"prefill\" or \"decode\"");
+            }
+        }
         for (name, f) in [("factor", self.factor), ("prompt_factor", self.prompt_factor)] {
             if let Some(f) = f {
                 if !(f > 0.0 && f.is_finite()) {
@@ -180,6 +190,12 @@ impl RefNoise {
             bail!("ref_noise record: `date` and `how` are required (a noise value without its provenance is not accepted)");
         }
         Ok(())
+    }
+
+    /// Is the absolute KL floor of `mode` (`prefill` / `decode`) report-only in this run? Only when the record says so AND the run is
+    /// gated against a baseline: a mode is never left without a gate.
+    pub fn floor_report_only_for(&self, mode: &str, have_baseline: bool) -> bool {
+        have_baseline && self.floor_report_only.iter().any(|m| m == mode)
     }
 
     /// One line for the log.
@@ -891,6 +907,7 @@ pub fn run(args: RefNoiseArgs) -> Result<()> {
         factor: args.factor,
         prompt_factor: args.prompt_factor,
         prompts: per_noise,
+        floor_report_only: Vec::new(),
     };
     rec.validate()?;
     println!("ref noise of {} ({}): {}", file_of(&args.golden), method.name(), rec.describe());
@@ -935,6 +952,7 @@ mod tests {
             factor: None,
             prompt_factor: None,
             prompts: BTreeMap::new(),
+            floor_report_only: Vec::new(),
         }
     }
 
@@ -1418,6 +1436,9 @@ mod tests {
         assert!((noise.kl21_mean.unwrap() - 0.197).abs() < 1e-3, "{:?}", noise.kl21_mean);
         assert!((noise.kl21_mean_scored.unwrap() - 0.1991).abs() < 1e-4, "{:?}", noise.kl21_mean_scored);
         assert_eq!((noise.n, noise.n_scored), (Some(1441), Some(1279)));
+        // policy (LOG 2026-10-25, coordinator): W4A4 decode is gated by the engine's own baseline + envelope, not by the HF spread
+        assert_eq!(noise.floor_report_only, vec!["decode".to_string()]);
+        assert!(noise.floor_report_only_for("decode", true) && !noise.floor_report_only_for("decode", false) && !noise.floor_report_only_for("prefill", true));
         assert_eq!(noise.golden.fnv1a64.as_deref(), Some("725eb3ea093c0264"));
         for (mode, kl, pass) in [("prefill", 0.180, true), ("prefill (golden_kl.py)", 0.176, true), ("decode", 0.274, false)] {
             let v = judge_kl(mode, "21-way KL", kl, Some(0.03), term_rows(0.197, kl, "all rows"), 1.0, "default").unwrap();
@@ -1429,6 +1450,23 @@ mod tests {
             );
             assert_eq!((v.pass, v.bound_by), (pass, Bound::RefNoise), "{mode}");
         }
+    }
+
+    #[test]
+    fn floor_report_only_needs_a_baseline_and_names_a_known_mode() {
+        let json = |extra: &str| format!(r#"{{"method":"precision_spread","kl21_mean":0.2,"date":"d","how":"h"{extra}}}"#);
+        let r = RefNoise::parse(&json(r#","floor_report_only":["decode"]"#)).unwrap();
+        // report-only only together with a baseline, and only for the named mode
+        assert!(r.floor_report_only_for("decode", true));
+        assert!(!r.floor_report_only_for("decode", false), "without a baseline the floor keeps gating");
+        assert!(!r.floor_report_only_for("prefill", true));
+        // a record without the field gates every mode
+        let plain = RefNoise::parse(&json("")).unwrap();
+        assert!(!plain.floor_report_only_for("decode", true) && !plain.floor_report_only_for("prefill", true));
+        assert!(RefNoise::parse(&json(r#","floor_report_only":["both"]"#)).is_err());
+        // round trip keeps it; an empty list is not written
+        assert!(serde_json::to_string(&r).unwrap().contains("floor_report_only"));
+        assert!(!serde_json::to_string(&plain).unwrap().contains("floor_report_only"));
     }
 
     #[test]

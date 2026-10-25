@@ -13,7 +13,10 @@
   "n_scored": 1279,
   "runs": 2,
   "date": "2026-10-25",
-  "how": "Qwen3.8-27B (AMD Quark MXFP4, declared mode W4A4: MXFP4 weights, dynamically fp4-rounded activations), the HF reference at bf16 (golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors) against the same HF reference at f32 (golden/qwen3.8-27b-mxfp4-hfquark-f32-top20.safetensors), teacher-forced over the 10 golden prompts. All 1441 rows and the 1279 scored rows (chatml: rows outside system and user turns). Measures the prefill rows only: the decode mode scores the last 16 rows of each prompt (118 scored rows), where the same pair spreads 0.2527 (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 4); this record is not a decode-window noise. Per-prompt values are deliberately not recorded (they would tighten --self-vs-ref-noise, which today judges every prompt against the golden-wide mean).",
+  "how": "Qwen3.8-27B (AMD Quark MXFP4, declared mode W4A4: MXFP4 weights, dynamically fp4-rounded activations), the HF reference at bf16 (golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors) against the same HF reference at f32 (golden/qwen3.8-27b-mxfp4-hfquark-f32-top20.safetensors), teacher-forced over the 10 golden prompts. All 1441 rows and the 1279 scored rows (chatml: rows outside system and user turns). Measures the prefill rows only: the decode mode scores the last 16 rows of each prompt (118 scored rows), where the same pair spreads 0.2527 (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 4); this record is not a decode-window noise. Per-prompt values are deliberately not recorded (they would tighten --self-vs-ref-noise, which today judges every prompt against the golden-wide mean). floor_report_only=[decode]: the decode mode's absolute floor (and this HF spread, which was measured on the prefill rows; 0.2527 on the decode window, context only) does not gate decode when the run is gated against the engine's recorded W4A4 baseline + noise envelope (golden/baselines/qwen3.8-27b-mxfp4-hfquark-top20.hip.*.json); coordinator decision 2026-10-25.",
   "estimator": "kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule)",
-  "source": "docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces"
+  "source": "docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces",
+  "floor_report_only": [
+    "decode"
+  ]
 }

@@ -2950,7 +2950,17 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             bail!("the self-golden has decode rows for {} of {} prompts", set.len(), prompts.len());
         }
         let r = run_mode(engine, set, m, args, &gates, topk_k.is_some(), masks.as_ref().map(|m| m.scored.as_slice()), self_mode.then_some(&self_budget), &mut capture)?;
-        floor_ok &= r.pass;
+        // A mode whose floor the golden's ref_noise record makes report-only (together with --baseline) does not decide the floor
+        // verdict; the baseline + noise envelope do. LOG 2026-10-25 (27B W4A4 decode, coordinator decision).
+        let report_only = gates.noise.as_ref().is_some_and(|n| n.noise.floor_report_only_for(m.key(), base_file.is_some()));
+        if report_only {
+            println!(
+                "the {} mode's absolute floor is report-only for this golden (its ref_noise record, floor_report_only); the baseline + noise envelope below judge it. The floor alone would say {}",
+                m.key(),
+                if r.pass { "PASS" } else { "FAIL" }
+            );
+        }
+        floor_ok &= r.pass || report_only;
         results.push((m, r));
     }
     for (m, r) in &results {

@@ -8,6 +8,7 @@ mkdir -p ~/ac-logs
 export INTARSIA_REPO=$HOME/intarsiaml-ac INTARSIA_TARGET_VOL=intarsia-cargo-target-ac
 D=$INTARSIA_REPO/deploy/tatooine/dev.sh
 echo "== ac: $stamp $(date +%T)"
+sed -E 's/^head=([0-9a-f]+).*/\1/' <<< "${STAMP}" > ~/ac-logs/pc
 $D env INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS=${JOBS:-20} cargo build --release -p intarsia-cli --features hip > ~/ac-logs/build.log 2>&1 < /dev/null
 echo "build exit $? $(date +%T)"; grep -E '^(error|warning: unused)|Finished' ~/ac-logs/build.log | tail -5
 $D cp /target/release/intarsia /work/ac-intarsia < /dev/null
