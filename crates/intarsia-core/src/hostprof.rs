@@ -278,3 +278,52 @@ pub fn flush() {
         eprintln!("{l}");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Spans add up per category, the iteration is classed by what ran in it, nested categories are netted out, and the
+    /// gap between two decode-only iterations is the time from one sync to the next launch.
+    #[test]
+    fn spans_fold_into_the_iteration_class() {
+        ENABLED.store(1, Ordering::Relaxed);
+        for it in 0..2 {
+            iter_begin();
+            {
+                let _outer = span(Cat::StepSetup);
+                {
+                    mark_launch_begin();
+                    let _l = span(Cat::Launch);
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
+                {
+                    let _s = span(Cat::Sync);
+                    std::thread::sleep(std::time::Duration::from_millis(3));
+                }
+                mark_sync_end();
+            }
+            {
+                let _t = span(Cat::OnToken);
+                let _d = span(Cat::Detok);
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            decoded(4);
+            iter_end(8_000_000);
+            let _ = it;
+        }
+        P.with(|p| {
+            let p = p.borrow();
+            let a = &p.acc[Kind::DecodeOnly as usize];
+            assert_eq!((a.iters, a.rows), (2, 8));
+            assert!(a.cat_ns[Cat::Sync as usize] >= 6_000_000, "{:?}", a.cat_ns);
+            // `StepSetup` was measured around launch and sync: only its own remainder is left
+            assert!(a.cat_ns[Cat::StepSetup as usize] < 2_000_000, "{:?}", a.cat_ns);
+            assert_eq!(a.gaps, 1, "one gap, between the two iterations");
+            assert_eq!(p.acc[Kind::Mixed as usize].iters, 0);
+        });
+        let l = P.with(|p| render(Kind::DecodeOnly as usize, &p.borrow().acc[Kind::DecodeOnly as usize]));
+        assert!(l.contains("decode-only") && l.contains("gpu-idle-gap"), "{l}");
+        ENABLED.store(2, Ordering::Relaxed);
+    }
+}
