@@ -43,8 +43,9 @@ build)
       echo "== build $t"; (cd $S && CARGO_TARGET_DIR=$R/sp-targets/$t-metal cargo build --release --features metal -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -3)
     done
   fi
-  echo "dev head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/.sp-head 2>/dev/null)"; echo "BUILD DONE" ;;
+  echo "dev head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/HEAD.txt 2>/dev/null)"; echo "dev binary costgate strings: $(strings $BIN_DEV | grep -c intarsia_spec_costgate)"; echo "BUILD DONE" ;;
 run)
+  echo "source head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/HEAD.txt 2>/dev/null); dev binary costgate strings: $(strings $BIN_DEV | grep -c intarsia_spec_costgate) (base: $(strings $BIN_BASE | grep -c intarsia_spec_costgate)); dev binary $(ls -l $BIN_DEV | awk '{print $5, $6, $7, $8}')"
   fails=0; chk() { if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fails=$((fails+1)); fi; }
   echo "== 1. spec-off no-op vs main"
   for t in base dev; do
