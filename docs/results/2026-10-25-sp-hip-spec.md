@@ -360,7 +360,7 @@ parallel), CUDA #5266, Metal #5265. 0 failing checks on all three:
 | 27B acceptance == main's | 100/199/154, 104/208/150 | | |
 | `--mtp-draft-vocab 65536` ids == spec off (35B, 128) | PASS (window 8) | PASS | PASS |
 | cost gate forced on (`INTARSIA_SPEC_COSTGATE=1`) ids == spec off | PASS (chat `generate` 35B and 27B, window 10) | PASS | PASS |
-| `cargo test` intarsia-core lib / MTP / `batch_recurrent --test-threads=1` | CPU: 123 / 17 / | 125 / 17 / 11 | |
+| `cargo test` intarsia-core lib / MTP / `batch_recurrent --test-threads=1` (on the box) | not run (CPU run on the Mac: 123 / 17 / n/a) | 125 / 17 / 11 | not run |
 
 So the default decode path is unchanged against main on all three backends: same ids, same acceptance counts, same plans. HIP follow-up gates
 (window 8, head `1ee4d0ac`, section 11 follow-ups) also passed: eager head catch-up cost +0.7 to +0.9% faster than main (35B) and +0.5% (27B).
