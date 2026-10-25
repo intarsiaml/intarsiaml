@@ -55,3 +55,42 @@ Main (`2c2d9941`, eager draft + verify) on card 0, branch on card 1, same window
   dense 27B, where a 3-row pass costs about one weight sweep. The 27B is the real target (window 2).
 - The old eager per-row verify attention cost about 3% (183.0 vs 189.2 at 128); it is now used by the captured step only, eager
   verify keeps main's multi-row call.
+
+## 2. Qwen3.8-27B (MXFP4, tp1, one R9700): MTP on HIP for the first time (window 2, fleetq #5066)
+
+The 27B checkpoint ships an MTP head (`mtp.*`, bf16, dense SwiGLU MLP, 17408 wide). Main could not load it (the loader assumed
+a MoE head); the branch loads it (`HeadFfn::Dense`, recipes `qwen3_5` and `qwen3_5_vl` gain `[mtp]`). The 27B's MXFP4 verify
+matmuls need row-exact kernels: `matmul_mxfp4_gemv_rows` and `matmul_mxfp4_pair_gemv_rows` (same launchers, registered as
+`rows_exact`). **`rows_exact` on the GPU, run before any 27B number below: `mxfp4_rows_are_bitwise_the_one_row_gemv` passes**
+(12 shapes including the 27B's 12288x5120, 17408x5120, 5120x17408, W4A4 and W4A16, bf16 and f32 out, M = 1..8, every row
+compared as bytes against the one-row GEMV; `raw/hip/w2-rows-mxfp4.log`).
+
+`generate`, natural-v1 prompts, 256 greedy ids, branch, captured step:
+
+| prompt | spec off | MTP k=2 | MTP k=3 | k=2 acceptance, tok/pass | k=3 acceptance, tok/pass | 256-id md5 off / k=2 / k=3 |
+|---|---|---|---|---|---|---|
+| 128 | 33.06 | 47.73 (1.44x) | 42.44 (1.28x) | 77.4%, 2.54 | 67.5%, 3.02 | equal |
+| 1k | 32.92 | 45.60 (1.39x) | 40.75 (1.24x) | 72.1%, 2.44 | 64.0%, 2.92 | equal |
+| 4k | 32.36 | 51.62 (1.60x) | 48.98 (1.51x) | 91.7%, 2.83 | 86.4%, 3.59 | equal |
+| 16k | 30.81 | 46.12 (1.50x) | 42.02 (1.36x) | 87.1%, 2.74 | 78.1%, 3.34 | equal |
+
+- Greedy output is bitwise the spec-off output at every size and both k (md5 abcdf0cf, 3592ef43, 7755ec5a, b1b0bea4).
+- k=3 is slower than k=2 on the 27B at all sizes: each extra verify row plus an extra draft costs more than the extra accepted
+  token (53 ms per pass at k=2, 71 ms at k=3, 30 ms for a plain step).
+- **Eager MTP (graph capture off) on the 27B is NOT lossless at 4k and 16k with main's multi-row verify attention**: the
+  256-id md5 differs from spec off (e747535b and 350da9a5 against 7755ec5a and b1b0bea4). HIP's multi-row split-KV
+  attention partitions the keys by the call's row count, so its row t is not bitwise the decode step's. It matched on the 35B in
+  the 256-token runs of section 1, so this was latent there. The captured step does not have the problem (it calls the decode
+  attention once per row). Fix on the branch: verify passes on HIP, eager or captured, run the attention one decode call per
+  row (`Backend::verify_attn_per_row`); re-checked in window 3 (section 4).
+
+## 3. 35B draft length (window 2): k=1/2/3, captured, branch
+
+| prompt | k=1 | k=2 | k=3 | k=2 tok/pass | k=3 tok/pass |
+|---|---|---|---|---|---|
+| 1k | 188.9 | 199.8 | 190.0 | 2.62 | 3.02 |
+| 4k | 193.5 | 206.5 | 221.6 | 2.80 | 3.64 |
+
+All md5 equal to spec off. A pass costs 9.9 / 13.2 / 16.0 ms at k=1 / 2 / 3 (plain step 6.0 ms): each extra row costs about 3 ms
+because the MoE verify touches more experts. The best k depends on the text (1k: k=2; 4k: k=3, +7%), so an acceptance-driven
+draft length would beat any fixed k by a few percent on the 35B; not implemented.
