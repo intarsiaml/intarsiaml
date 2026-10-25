@@ -17,7 +17,7 @@
 //!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
 //! `INTARSIA_QWEN3_DIR` (8B); a test without its directory prints SKIPPED (and panics under `INTARSIA_REQUIRE_GPU=1`).
-use intarsia_core::model::{LoadOptions, Model};
+use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
 use intarsia_models::{load_engine, load_engine_tp, read_model_spec, EngineOptions, Loaded};
@@ -172,6 +172,63 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     }
 }
 
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w18): w18 showed the size-loop mismatch with the batched graphs off, with launch blocking and
+/// with the peers' graphs prepared first, and the SOLO logit of the failing row differed between runs (2.473 vs 2.125 for the same
+/// sequence and context): the solo step of a fresh state is wrong too. This takes the batched step out: `INTARSIA_REPRO_STATES` (60) fresh
+/// states of one prompt each prefilled and decoded one token (the first decode step of a state records its decode graph on both ranks), all
+/// logits must be bit-identical to the first. `INTARSIA_REPRO_BATCH_BETWEEN=1` runs one batched step (3 rows, other prompts) between states;
+/// `INTARSIA_REPRO_NO_GRAPHS=1` runs everything eager.
+#[test]
+#[ignore]
+fn real_35b_tp2_solo_fresh_states_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let num = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (reps, states) = (num("INTARSIA_REPRO_REPS", 3), num("INTARSIA_REPRO_STATES", 60));
+    let between = std::env::var("INTARSIA_REPRO_BATCH_BETWEEN").is_ok_and(|v| v == "1");
+    let prompt: Vec<u32> = (0..40u32).map(|i| 1000 + (i * 7919) % 20000).collect();
+    for rep in 0..reps {
+        let m = load(&dir, be.clone(), 16, 2048);
+        if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
+            m.set_graphs(false);
+        }
+        let mut first: Option<Vec<u32>> = None;
+        for k in 0..states {
+            if between && k % 2 == 1 {
+                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    batch_identity::run(&m, &batch_identity::Cfg { lens: vec![11, 29, 53], batches: vec![3], steps: 1, vocab_range: (1000, 30000) })
+                }));
+                if let Err(e) = r {
+                    let msg = e.downcast_ref::<String>().cloned().unwrap_or_default();
+                    eprintln!("REPRO rep {rep} state {k}: the batched step between FAILED: {msg}");
+                    eprintln!("REPRO failures 1 (batched step, rep {rep}, state {k})");
+                    std::process::exit(3);
+                }
+            }
+            let mut st = m.new_state().unwrap();
+            m.forward(&mut st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
+            let out = m.forward(&mut st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap();
+            let StepOut::Logits(l) = out else { panic!("no logits") };
+            let bits: Vec<u32> = l.iter().map(|x| x.to_bits()).collect();
+            match &first {
+                None => first = Some(bits),
+                Some(f) if *f != bits => {
+                    let n = f.iter().zip(&bits).filter(|(a, b)| a != b).count();
+                    eprintln!("REPRO rep {rep} state {k}: SOLO first decode step differs from state 0 at {n} of {} entries (first {} vs {})", f.len(), f32::from_bits(f[0]), f32::from_bits(bits[0]));
+                    eprintln!("REPRO failures 1 (solo, rep {rep}, state {k})");
+                    std::process::exit(3);
+                }
+                Some(_) => {}
+            }
+        }
+        eprintln!("REPRO rep {rep}: {states} fresh states, first decode step bit-identical");
+    }
+    eprintln!("REPRO failures 0/{reps}");
+}
+
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w16/w17): w16 ran the full gate with the batched graphs off (`INTARSIA_BATCH_GRAPHS=0`): the
 /// 17,550 pairs of the sizes passed, then "decode rows beside prefill chunks" (4 decode rows, one prefill of 700 tokens in chunks of 256) failed at
 /// its first batched step: `batch 4 step 0 row 0 (sequence 0, context 36 -> 37): logits differ at 248320 of 248320 entries, solo 2.16 batch 5.72`.
@@ -228,6 +285,9 @@ fn real_35b_tp2_batch_first_steps_repro() {
             break;
         }
         let m = load(&dir, be.clone(), 16, 2048);
+        if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
+            m.set_graphs(false); // every step eager, solo and batched, on both ranks
+        }
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let n = batch_identity::run(&m, &batch_identity::Cfg { lens: lens.clone(), batches: sizes.clone(), steps, vocab_range: (1000, 30000) });
             assert_eq!(n, sizes.iter().sum::<usize>() * steps);
