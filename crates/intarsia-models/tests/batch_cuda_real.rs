@@ -8,8 +8,8 @@
 //!   chunks, sampling) over greedy and seeded-sampled requests: at one stream it equals `LocalEngine` token for token, and
 //!   with 4 and 16 requests in flight each request's tokens still equal its solo run. (Prefill of a busy engine runs in
 //!   smaller chunks than a solo one: for the greedy prompts below the chunk schedule is the same, see the test.)
-//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels. Where the
-//!   backend refuses to batch a dense model (HIP today, `hip_batch_needs_hybrid`) it prints SKIPPED and passes.
+//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same kernels (CUDA, and HIP
+//!   since #154 dropped `hip_batch_needs_hybrid`).
 //!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
 //! `INTARSIA_QWEN3_DIR` (8B); a test whose variable is unset prints SKIPPED and passes, also under `INTARSIA_REQUIRE_GPU=1`
@@ -156,12 +156,6 @@ fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let m = match try_load_with(&dir, be, 16, 2048, 0) {
         Ok((m, _)) => m,
-        // the backend refuses to batch a dense model (`hip_batch_needs_hybrid` in model/batch.rs: HIP, until the dense gate
-        // finishes there): nothing to compare. Keyed to that refusal, not to the backend, so the test runs once it is lifted.
-        Err(intarsia_core::Error::Unsupported(e)) if e.contains("dense models are not yet verified") => {
-            eprintln!("SKIPPED: {e}");
-            return;
-        }
         Err(e) => panic!("{e:?}"),
     };
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
