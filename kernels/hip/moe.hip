@@ -522,14 +522,14 @@ moe_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, 
 // bit: the same lane / iteration order (u = lane, lane + 32, ..), one fma chain per 16-element block from 0, the block scale applied per block,
 // ik_warp_sum, the global scale after the sum, the same bf16 roundings; only the mapping of rows to warps and the loads change (tests/rows_exact.rs
 // moe G-B, tests/moe_pairs.rs). Used by the row-exact entry only (ik_moe_experts_bf16_rows); INTARSIA_HIP_MOE_G2 = "gu:dn" (rows per warp of
-// gate_up in {1, 2} and of down in {1, 2, 4}; default 2:4; 0 = the old kernels), read at every launch, part of the backend fingerprint.
+// gate_up in {1, 2} and of down in {1, 2, 4}; default 2:2; 0 = the old kernels), read at every launch, part of the backend fingerprint.
 constexpr int kG2Pre = 4;
 
 struct G2Cfg {
     int gu, dn;
 };
 G2Cfg moe_g2_cfg() {
-    G2Cfg c{2, 4};
+    G2Cfg c{2, 2};
     const char* e = getenv("INTARSIA_HIP_MOE_G2");
     if (!e || !e[0]) return c;
     if (e[0] == '0' && e[1] == 0) return G2Cfg{0, 0};
