@@ -172,6 +172,18 @@ one-row launch of the solo step (`tests/row_tables.rs`). `moe_block_bf16_rows` s
 `moe_block_bf16` stops at T * K <= 16), token t bitwise the T = 1 block (`tests/moe_block.rs`). `INTARSIA_ROW_TABLES=0` keeps one launch per row
 per op. Results: `docs/results/2026-10-24-hr3-hip-batching-r3.md`.
 
+Batched decode under tensor parallelism (`serve --max-batch N --tp 2`, lane tp2/batch; HIP and the cpu reference only, CUDA and
+Metal keep refusing `--max-batch` with `--tp`): rank 0 runs the batched step and drives the peer through the same step on its own
+sub-states (`Model::forward_batch_tp` / `run_peer_batch` in `crates/intarsia-core/src/model/batch.rs`). The peer gets rank 0's
+tokens, every row's position and the graph decision, checks its states against them before its first collective, and both ranks
+then issue the solo step's collectives once with `b` rows of payload (`[b, hidden]` partials: 128 KiB at b = 16, far under the
+4 MiB slot). Each rank has its own row table and `batch_pos`; batched graphs are recorded per rank and row count, rank 0 records
+first and the peer follows (a peer that cannot follow fails the step). With the vocab-parallel head each rank projects its
+`V / 2` logits of every row, one all-gather fills the tile `[2][b][V / 2]` and rank 0 copies it into `ws.logits` as `[b, V]`.
+Every row is bitwise the solo tp=2 step of that sequence (`crates/intarsia-models/tests/tp_batch.rs` on the cpu backend, including
+protocol mutants; `INTARSIA_BATCH_TEST_TP=2` runs `batch_cuda_real` on two R9700s; the halved shard shapes are in
+`tests/rows_exact.rs`). Window stage: `scripts/tp2-hip/stages-batch.sh`.
+
 ## MoE and batch size
 
 `moe_experts_bf16` has three internal paths, and a token's result depends on which one it ran in:

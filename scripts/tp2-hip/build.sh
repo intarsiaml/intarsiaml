@@ -5,7 +5,8 @@
 # to /work/tp2-intarsia in the tree. `_` in a stamp stands for a space. TEST=1 also runs `cargo test --workspace` (CPU) in a
 # SEPARATE target volume (intarsia-cargo-target-tp2-<name>-test), so the hip binary is never relinked without its feature;
 # the HIP crate is excluded there (its tests use the GPUs, which need a radiance window).
-# HIPTEST=1 compiles the HIP crate's GPU tests (volume intarsia-cargo-target-tp2-<name>-hiptest) without running them.
+# HIPTEST=1 compiles the HIP crate's GPU tests (volume intarsia-cargo-target-tp2-<name>-hiptest) without running them;
+# HIPTEST_MODELS=1 (with HIPTEST=1) also compiles intarsia-models' batch_recurrent and batch_cuda_real there.
 set -uo pipefail
 mkdir -p ~/tp2/logs
 for spec in ${TREES:?TREES=name=stamp ...}; do
@@ -21,6 +22,12 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     # the HIP crate's GPU tests, compiled only (they run in a radiance window with the same volume: no rebuild there)
     INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$name-hiptest $D cargo test --release -p intarsia-backend-hip --no-run > ~/tp2/logs/hiptest-build-$name.log 2>&1 < /dev/null
     echo "hip tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/tp2/logs/hiptest-build-$name.log | tail -3
+    if [[ "${HIPTEST_MODELS:-0}" == 1 ]]; then
+      # the batching gates on the GPU (lane tp2/batch, stages-batch.sh), same volume, compiled only
+      INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$name-hiptest $D cargo test --release -p intarsia-models --test batch_recurrent \
+        --test batch_cuda_real --no-run > ~/tp2/logs/hiptest-models-build-$name.log 2>&1 < /dev/null
+      echo "models gpu tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/tp2/logs/hiptest-models-build-$name.log | tail -3
+    fi
   fi
   if [[ "${TEST:-0}" == 1 ]]; then
     INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$name-test $D cargo test --release --workspace --exclude intarsia-backend-hip > ~/tp2/logs/test-$name.log 2>&1 < /dev/null
