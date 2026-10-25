@@ -1,0 +1,37 @@
+fleetq: #5039 waiting (#9 in line): tatooine-r9700 is held exclusively by #5014 "native upgrade rehearsal: e82764045e46ebae07e33961f17dedba981c0d07336dfcddd67e4b3b042b8600 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8 on :8081, payloads + long-context soak +" (claude-f07ec01e); then in line behind #5016 "lane sp: build sp + sp-base (HIP)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5016 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5016 set, or it will wait for #5016 to be released.
+fleetq: #5039 waiting (#6 in line): in line behind #5017 "hg window B: HIP gates (no-op 8B/35B short+4k, batch_recurrent, batch_cuda_real +ignored, kernels quick), packed_rows, steady-state A/B" (claude-f31ccf91-hg) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5039 waiting (#5 in line): in line behind #5021 "tp2 vocab: HIP build of all-gather kernel + hip tests compile (CPU only)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5021 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5021 set, or it will wait for #5021 to be released.
+fleetq: #5039 waiting (#2 in line): in line behind #5036 "mx w2: 27B prefill chunk check + f8 MXFP4 kernel test/A-B on one R9700" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5036 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5036 set, or it will wait for #5036 to be released.
+fleetq: #5039 waiting (#1 in line): radiance-rank0 is also taken down by #5036 "mx w2: 27B prefill chunk check + f8 MXFP4 kernel test/A-B on one R9700" (claude-f31ccf91)
+fleetq:   #5036 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5036 set, or it will wait for #5036 to be released.
+fleetq: #5039 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 95% busy with work fleetq does not track
+fleetq: #5039 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5039 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-sp/scripts/sp/baseline.sh 128,1024,4096,16384'
+fleetq: #5039 went ahead of the line and must end within 6h42m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+base-off n128 md5=ce656b29 | decode 1546 ms (164.94 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+base-off n1024 md5=419d4320 | decode 1546 ms (164.93 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+base-off n4096 md5=4963646e | decode 1588 ms (160.57 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+base-off n16384 md5=62089f5c | decode 1744 ms (146.20 tok/s) |  | steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+base-mtp2 n128 md5=ce656b29 | decode 1348 ms (189.15 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=103 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0m
+base-mtp2 n1024 md5=419d4320 | decode 1299 ms (196.34 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+base-mtp2 n4096 md5=4963646e | decode 1253 ms (203.49 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=91 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+base-mtp2 n16384 md5=62089f5c | decode 1610 ms (158.39 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | steps=109 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+br-mtp2 n128 md5=ce656b29 | decode 1337 ms (190.75 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=103 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0m
+br-mtp2 n1024 md5=419d4320 | decode 1280 ms (199.14 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+br-mtp2 n4096 md5=4963646e | decode 1240 ms (205.72 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=91 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+br-mtp2 n16384 md5=62089f5c | decode 1594 ms (159.94 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | steps=109 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+br-mtp2-eager n128 md5=ce656b29 | decode 1393 ms (183.04 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+br-mtp2-eager n1024 md5=419d4320 | decode 1349 ms (189.08 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+br-mtp2-eager n4096 md5=4963646e | decode 1299 ms (196.30 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/1
+br-mtp2-eager n16384 md5=62089f5c | decode 1644 ms (155.08 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | steps=109 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+br-off n128 md5=ce656b29 | decode 1535 ms (166.11 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+br-off n1024 md5=419d4320 | decode 1541 ms (165.45 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+br-off n4096 md5=4963646e | decode 1585 ms (160.93 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+br-off n16384 md5=62089f5c | decode 1742 ms (146.42 tok/s) |  | steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+[win] starting radiance 2026-10-25 02:18:18
+[win] radiance answers 2026-10-25 02:18:38 (after 25 s); active
+fleetq: #5039 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

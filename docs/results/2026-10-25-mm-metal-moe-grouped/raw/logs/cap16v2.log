@@ -1,0 +1,41 @@
+fleetq: #5049 waiting (#1 in line): endor is held exclusively by #5048 "mm: gates (G-B, neg ctl, kernels test, G-C 35B, long prompts, batch_recurrent, dense 8B, workspace)" (claude-f31ccf91)
+fleetq:   #5048 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5048 set, or it will wait for #5048 to be released.
+fleetq: #5049 running on endor: bash -c 'cd /opt/code/wt-mm16 && cargo test --release -p intarsia-models --test batch_metal_real --no-run 2>&1 | grep -E "^error|Executable" && cp target/release/deps/batch_metal_real-e23525202155cc5a /opt/code/wt-mm/.mm/bmr-cap16v2'
+fleetq: #5049 went ahead of the line and must end within 6h55m (by Sun 09:00); it is stopped then
+  Executable tests/batch_metal_real.rs (target/release/deps/batch_metal_real-e23525202155cc5a)
+fleetq: #5049 done (exit 0)
+fleetq: #5056 waiting (#1 in line): endor is held exclusively by #5055 "mm: Metal batching-off no-op vs origin/main 2c2d9941 (plan show, 256 ids, 8B+35B short+4k)" (claude-f31ccf91)
+fleetq:   #5055 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5055 set, or it will wait for #5055 to be released.
+fleetq: #5056 running on endor: /opt/code/wt-mm/.mm/cap16v2.sh
+fleetq: #5056 went ahead of the line and must end within 6h54m (by Sun 09:00); it is stopped then
+REALTRAFFIC B= 1: 8.01 ms/step, 124.8 tok/s aggregate
+REALTRAFFIC B= 8: 21.13 ms/step, 378.6 tok/s aggregate
+REALTRAFFIC B=12: 33.25 ms/step, 360.9 tok/s aggregate
+REALTRAFFIC B=16: 39.44 ms/step, 405.7 tok/s aggregate
+REALTRAFFIC B= 1: 8.01 ms/step, 124.9 tok/s aggregate
+REALTRAFFIC B= 8: 21.05 ms/step, 380.0 tok/s aggregate
+REALTRAFFIC B=12: 33.35 ms/step, 359.8 tok/s aggregate
+REALTRAFFIC B=16: 39.55 ms/step, 404.5 tok/s aggregate
+2 phases (expect 1 prefill + 1)
+
+B=16: GPU sum 44.21 ms/step (1245 launches/step)
+  matmul_fp8_gemv_rows                       260.0 calls   13.663 ms   30.9%
+  moe_experts_bf16_rows                       80.0 calls   10.792 ms   24.4%  distinct experts 47.2 of 64.0 pairs
+  matmul_nvfp4_gemv_rows                     242.0 calls    6.576 ms   14.9%
+  moe_experts_bf16_rows#1                     80.0 calls    5.920 ms   13.4%  distinct experts 47.2 of 64.0 pairs
+  gdn_delta_rule_bf16_rows                    30.0 calls    2.399 ms    5.4%
+  attn_decode_bf16_splitkv_rows               10.0 calls    1.779 ms    4.0%
+  matmul_pair_bf16_gemv_rows                 140.0 calls    0.986 ms    2.2%
+  rmsnorm_add_bf16                            80.0 calls    0.503 ms    1.1%
+  moe_experts_bf16_rows#2                     80.0 calls    0.409 ms    0.9%  distinct experts 47.2 of 64.0 pairs
+  moe_topk_bf16                               40.0 calls    0.370 ms    0.8%
+  gdn_conv_bf16_rows                          30.0 calls    0.197 ms    0.4%
+  silu_glu_bf16                               70.0 calls    0.192 ms    0.4%
+  moe_combine_bf16                            40.0 calls    0.125 ms    0.3%
+  rmsnorm_bf16                                31.0 calls    0.121 ms    0.3%
+  qk_norm_rope_kv_bf16_rows                   10.0 calls    0.088 ms    0.2%
+  gate_split_bf16                             10.0 calls    0.032 ms    0.1%
+  sigmoid_mul_bf16                            10.0 calls    0.027 ms    0.1%
+  argmax_f32                                   1.0 calls    0.025 ms    0.1%
+  embedding_bf16                               1.0 calls    0.004 ms    0.0%
+fleetq: #5056 done (exit 0)

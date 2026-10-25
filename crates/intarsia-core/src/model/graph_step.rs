@@ -32,13 +32,13 @@ pub(super) const PROFILE_STRETCH: u64 = 8;
 /// Solo decode recordings kept at once (one per sequence slot of a batched server).
 const SOLO_GRAPHS_MAX: usize = 32;
 
-struct Captured {
-    state_id: u64,
-    graph: GraphHandle,
+pub(super) struct Captured {
+    pub(super) state_id: u64,
+    pub(super) graph: GraphHandle,
     /// Ops of one step, in order (counted into telemetry per replay).
-    ops: Vec<Op>,
+    pub(super) ops: Vec<Op>,
     /// Collectives recorded in the step (counted into telemetry per replay).
-    comms: usize,
+    pub(super) comms: usize,
 }
 
 pub(super) struct GraphState {
@@ -53,6 +53,12 @@ pub(super) struct GraphState {
     /// A recording of a batched step found a launch bound to one sequence's buffers (a per-row fallback): batched graphs are
     /// off for this model.
     batched_off: AtomicBool,
+    /// Speculative MTP steps (`model/spec_graph.rs`): one recording per (sequence state, catch-up rows, verify rows, scripted drafts).
+    pub(super) spec: Mutex<std::collections::HashMap<(u64, usize, usize, bool), Captured>>,
+    /// A speculative step failed to capture: they run eagerly from here on.
+    pub(super) spec_off: AtomicBool,
+    pub(super) spec_captures: AtomicU64,
+    pub(super) spec_replays: AtomicU64,
     /// Set by the per-row fallbacks of a batched step while a recording is being made.
     pub(super) state_bound: AtomicBool,
     batch_captures: AtomicU64,
@@ -70,6 +76,9 @@ pub struct GraphStats {
     /// Batched-step recordings (one per row count) and replays (`INTARSIA_BATCH_GRAPHS`, R3c).
     pub batch_captures: u64,
     pub batch_replays: u64,
+    /// Speculative-step recordings and replays (`Model::spec_step`).
+    pub spec_captures: u64,
+    pub spec_replays: u64,
 }
 
 impl GraphState {
@@ -79,6 +88,10 @@ impl GraphState {
             captured: Mutex::new(Default::default()),
             batched: Mutex::new(Default::default()),
             batched_off: AtomicBool::new(false),
+            spec: Mutex::new(Default::default()),
+            spec_off: AtomicBool::new(false),
+            spec_captures: AtomicU64::new(0),
+            spec_replays: AtomicU64::new(0),
             state_bound: AtomicBool::new(false),
             batch_captures: AtomicU64::new(0),
             batch_replays: AtomicU64::new(0),
@@ -96,6 +109,7 @@ impl GraphState {
     pub(super) fn invalidate(&self) {
         self.captured.lock().unwrap().clear();
         self.batched.lock().unwrap().clear();
+        self.spec.lock().unwrap().clear();
     }
 
     /// Graphs requested, supported by the backend, and valid at every position for this plan. Under tensor
@@ -146,6 +160,8 @@ impl Model {
             replays: self.graphs.replays.load(Ordering::Relaxed),
             batch_captures: self.graphs.batch_captures.load(Ordering::Relaxed),
             batch_replays: self.graphs.batch_replays.load(Ordering::Relaxed),
+            spec_captures: self.graphs.spec_captures.load(Ordering::Relaxed),
+            spec_replays: self.graphs.spec_replays.load(Ordering::Relaxed),
         }
     }
 
@@ -243,9 +259,7 @@ impl Model {
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
-        for &op in &c.ops {
-            self.telemetry.record_op(op, None);
-        }
+        self.telemetry.record_ops(&c.ops);
         for _ in 0..c.comms {
             self.telemetry.record_comm(None);
         }
@@ -273,9 +287,11 @@ impl Model {
             }
         }
         // the step's device inputs: tokens, then the row table and positions (stream-ordered before the replay)
+        let prof_upload = crate::hostprof::span(crate::hostprof::Cat::Upload);
         let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
         self.backend.upload(&self.ws.ids, 0, &ids_i32, self.stream)?;
         self.upload_row_table(states)?;
+        drop(prof_upload);
         let mut cache = self.graphs.batched.lock().unwrap();
         if !cache.contains_key(&b) {
             *self.capture_ops.lock().unwrap() = Some(Vec::new());
@@ -311,9 +327,7 @@ impl Model {
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
-        for &op in &c.ops {
-            self.telemetry.record_op(op, None);
-        }
+        self.telemetry.record_ops(&c.ops);
         Ok(true)
     }
 

@@ -691,3 +691,55 @@ fn real_35b_batch_op_listing() {
         }
     }
 }
+
+// ---- packed prefill (INTARSIA_PACK_PREFILL=1) ----------------------------------------------------------------------------
+
+/// Prompts that prefill together run their chunks in one pass (`Model::forward_packed`); each request must come out exactly as
+/// on the single-sequence engine. 24 requests of 40..1100 tokens of repository docs text (some sampled), submitted at once on
+/// 8 and 16 slots, so several are prefilling together; at least one pass must have packed two or more chunks. `--ignored`: it
+/// loads the model four times.
+#[test]
+#[ignore]
+fn real_35b_packed_prefill_equals_the_local_engine() {
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let all = corpus_tokens(&dir);
+    let lens = [300usize, 1100, 40, 700, 520, 90, 1024, 260, 33, 880, 410, 150];
+    let reqs = || -> Vec<GenRequest> {
+        (0..24)
+            .map(|i| {
+                let len = lens[i % lens.len()] + (i / lens.len()) * 17;
+                let start = 1000 + i * 1300;
+                let mut r = GenRequest { prompt: all[start..start + len].to_vec(), max_tokens: 100, ignore_eos: true, ..Default::default() };
+                if i % 4 == 3 {
+                    r.temperature = 0.8;
+                    r.top_k = 40;
+                    r.top_p = 0.95;
+                    r.seed = Some(31 + i as u64);
+                }
+                r
+            })
+            .collect()
+    };
+    let mk = |max_batch: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 2048, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    std::env::remove_var("INTARSIA_PACK_PREFILL");
+    let reference: Vec<Out> = {
+        let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
+        reqs().into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
+    };
+    for slots in [8usize, 16] {
+        std::env::set_var("INTARSIA_PACK_PREFILL", "1");
+        let l = load_engine(&dir, be.clone(), &mk(Some(slots))).unwrap();
+        std::env::remove_var("INTARSIA_PACK_PREFILL");
+        let rxs: Vec<_> = reqs().into_iter().map(|r| l.engine.submit(r).unwrap()).collect();
+        for (i, rx) in rxs.iter().enumerate() {
+            assert_eq!(&collect(rx), &reference[i], "request {i} ({} prompt tokens) on {slots} slots, packed prefill", reqs()[i].prompt.len());
+        }
+        let m = l.engine.batch_metrics().expect("batched engine metrics");
+        eprintln!("{slots} slots: {} packed passes carried {} chunks ({} chunks in all)", m.pack_passes, m.packed_chunks, m.prefill_chunks);
+        assert!(m.pack_passes > 0 && m.packed_chunks >= 2 * m.pack_passes, "nothing was packed: {m:?}");
+    }
+}

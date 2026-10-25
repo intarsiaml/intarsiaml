@@ -263,8 +263,10 @@ fn attn_decode_rows_are_the_solo_decode() {
     let mut rng = SplitMix64::new(14);
     let cap = 1200usize;
     let mut total = 0;
-    // 35B attention (16 q heads, 2 kv heads, 256), Qwen3-8B (32, 8, 128)
-    for (nh, nkv, d) in [(16usize, 2usize, 256usize), (32, 8, 128)] {
+    // 35B attention (16 q heads, 2 kv heads, 256), Qwen3-8B (32, 8, 128), and the other head dims / group sizes the kernel's
+    // `when` admits (D = 32 / 64, a MHA group of 1, non power of two groups 3 and 5, the largest group 8), which no model here runs
+    // but the registry would select
+    for (nh, nkv, d) in [(16usize, 2usize, 256usize), (32, 8, 128), (4, 4, 64), (6, 2, 32), (12, 4, 128), (10, 2, 64), (8, 1, 128)] {
         let ps = [0usize, 1, 63, 64, 65, 255, 511, 700, 1023, 1199, 128, 2, 300, 900, 31, 1100];
         for m in 1..=CAP {
             let q = nasty(&mut rng, m * nh * d, 1.0);
@@ -295,7 +297,7 @@ fn attn_decode_rows_are_the_solo_decode() {
             total += same(&format!("attn nh={nh} nkv={nkv} d={d} m={m}"), &rig.down(&o), &want);
         }
     }
-    println!("G-B attn_decode_bf16_splitkv_rows: {total} bytes identical to the solo launches (M 1..=16, 2 shapes, positions 0..1199)");
+    println!("G-B attn_decode_bf16_splitkv_rows: {total} bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)");
 }
 
 #[test]

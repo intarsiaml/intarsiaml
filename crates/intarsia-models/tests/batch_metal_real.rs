@@ -291,6 +291,56 @@ fn real_35b_batch_step_profile() {
     }
 }
 
+/// Step time of `forward_batch` on realistic traffic (lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md): B sequences
+/// prefilled with ~1k-token slices of the repository docs at different offsets, then greedy decode (each row's argmax fed
+/// back), `MM_STEPS` (default 24) steps after 4 warm-up steps, for each B in `MM_BATCHES` (default `1,2,4,8`). With
+/// `INTARSIA_METAL_PROFILE=kernel:FILE` it is the per-kernel trace of those steps instead (the phases are 1.5 s apart, so a
+/// trace splits at the gaps; prefill comes first); the timing is then meaningless.
+#[test]
+#[ignore]
+fn real_35b_batch_step_real_traffic() {
+    use intarsia_core::model::{HeadMode, StepOut};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), metal()) else { return };
+    let batches: Vec<usize> = std::env::var("MM_BATCHES")
+        .unwrap_or_else(|_| "1,2,4,8".into())
+        .split(',')
+        .map(|v| v.trim().parse().unwrap())
+        .collect();
+    let steps: usize = std::env::var("MM_STEPS").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
+    let maxb = *batches.iter().max().unwrap();
+    let m = load(&dir, be, maxb.max(2), 4096);
+    let all = corpus_tokens(&dir);
+    let mut states: Vec<_> = (0..maxb)
+        .map(|i| {
+            let mut st = m.new_state().unwrap();
+            let off = (i * 6007) % (all.len() - 2000);
+            let p = &all[off..off + 1000 + 7 * i];
+            m.forward(&mut st, p, HeadMode::None, None).unwrap();
+            st
+        })
+        .collect();
+    let mut next: Vec<u32> = (0..maxb).map(|i| all[(i * 6007) % (all.len() - 2000) + 1000 + 7 * i]).collect();
+    for &b in &batches {
+        std::thread::sleep(Duration::from_millis(1500));
+        let modes = vec![HeadMode::LastArgmax; b];
+        let mut ms = 0.0;
+        for s in 0..steps + 4 {
+            let t0 = std::time::Instant::now();
+            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+            let out = m.forward_batch(&mut refs, &next[..b], &modes).unwrap();
+            if s >= 4 {
+                ms += t0.elapsed().as_secs_f64() * 1e3;
+            }
+            for (r, o) in out.into_iter().enumerate() {
+                let StepOut::Token(t) = o else { panic!("row {r}: no token") };
+                next[r] = t;
+            }
+        }
+        let ms = ms / steps as f64;
+        eprintln!("REALTRAFFIC B={b:>2}: {ms:.2} ms/step, {:.1} tok/s aggregate", b as f64 * 1e3 / ms);
+    }
+}
+
 /// The repository's `docs/*.md` as token ids of the model's tokenizer (about 106k tokens): realistic English / markdown text for
 /// prompts of any length up to 100k.
 fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
