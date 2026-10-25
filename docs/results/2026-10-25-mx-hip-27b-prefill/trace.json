@@ -5,7 +5,7 @@
  "lane_id": "mx",
  "agent_model": "claude-opus-5-5",
  "started": "2026-10-25T01:00:00-04:00",
- "ended": "2026-10-25T08:00:00-04:00",
+ "ended": "2026-10-25T09:50:00-04:00",
  "brief": "docs/plans/2026-10-25-r9700-push.md Lane 3 (+ Lane 8): close the Qwen3.8-27B MXFP4 prefill gap on one R9700 (HIP gfx1201) vs radiance 1.12.0 TP2 (5210 / 6133 / 5852 tok/s at 1k / 4k / 16k); bitwise work may become default with evidence, W4A8 / numerics-changing prefill only opt-in gated on KL; draft PR, results doc, trace, LOG and tuning rows.",
  "hypothesis": "The 27B prefill is GEMM-bound (MXFP4 W4A4 dequant-to-bf16 WMMA at a third of the bf16 peak), so a cheaper exact dequant plus prefill-sized tiles would speed it up bit for bit; a W4A4 fold onto the 2x-rate fp8 WMMA would roughly double the GEMM as an opt-in; and the chunk-4096 gain (rejected before as not bitwise) could be made bitwise by running short tails as chunk 256 does.",
  "target": {
@@ -36,7 +36,7 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mx/27b-prefill",
   "base_commit": "5e9cc6da",
-  "head_commit": "752025c0",
+  "head_commit": "d2d3c6f4",
   "pr": "https://github.com/intarsiaml/intarsiaml/pull/144",
   "files": [
    "crates/intarsia-backend-hip/src/device.rs",
@@ -58,10 +58,9 @@
    "docs/recipes.md",
    "docs/tuning.md",
    "kernels/hip/ik_hip_abi.h",
-   "kernels/hip/mxfp4.hip",
-   "recipes/qwen3_5_vl.toml"
+   "kernels/hip/mxfp4.hip"
   ],
-  "diff_stat": "640 files changed, 31600 insertions(+), 11 deletions(-)",
+  "diff_stat": "686 files changed, 32295 insertions(+), 11 deletions(-)",
   "default_changed": true,
   "merged": false,
   "merge_commit": null
@@ -144,9 +143,60 @@
    "command": "cargo test -p intarsia-models --test batch_cuda_real real_35b_batched_decode_is_bitwise (INTARSIA_QWEN36_DIR=27B)",
    "result": "pass",
    "detail": "raw/w9"
+  },
+  {
+   "name": "27B recipe chunk 4096 + peel 16: serve --max-batch 16 and --spec mtp",
+   "command": "scripts/mx/stages-w10.sh",
+   "result": "fail",
+   "detail": "--spec mtp ids equal main and spec-off; serve --max-batch 16 context 4930 -> 4407 tokens and busy prefill chunk 4096: recipe default reverted, knob stays opt-in"
   }
  ],
  "measurements": [
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 989,
+   "streams": 1,
+   "before": 981,
+   "after": 1120,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4087,
+   "streams": 1,
+   "before": 1013,
+   "after": 1154,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16654,
+   "streams": 1,
+   "before": 947,
+   "after": 1073,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
   {
    "metric": "prefill_tps",
    "bucket": "1k",
@@ -154,7 +204,7 @@
    "streams": 1,
    "before": 980,
    "after": 1323,
-   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -169,7 +219,7 @@
    "streams": 1,
    "before": 1010,
    "after": 1437,
-   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -184,7 +234,7 @@
    "streams": 1,
    "before": 946,
    "after": 1351,
-   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -199,7 +249,7 @@
    "streams": 1,
    "before": 980,
    "after": 2043,
-   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -214,7 +264,7 @@
    "streams": 1,
    "before": 1010,
    "after": 2416,
-   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -229,7 +279,7 @@
    "streams": 1,
    "before": 946,
    "after": 2186,
-   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
@@ -260,13 +310,14 @@
   "run_ids": []
  },
  "verdict": "win",
- "summary": "Default (bitwise): MXFP4 GEMM v2 (exact bf16 dequant from bits, prefill tile table) and, for the 27B on HIP, chunk 4096 with a new 16-row prefill tail peel that reproduces chunk 256's small passes (0 of 34 prompts / 85014 rows differ). Served 27B prefill on one R9700 980 -> 1323, 1010 -> 1437, 946 -> 1351 tok/s at 1k / 4k / 16k (+35 / +42 / +43 %), decode unchanged. Opt-in INTARSIA_HIP_MXFP4_FOLD=1 (W4A4 on the fp8 WMMA, decision mx-1) serves 2043 / 2416 / 2186; prefill KL 0.165 PASS, decode-mode 0.261 vs main 0.340.",
+ "summary": "Default (bitwise): MXFP4 GEMM v2 (exact bf16 dequant from bits, prefill tile table): served 27B prefill on one R9700 981 -> 1120, 1013 -> 1154, 947 -> 1073 tok/s at 1k / 4k / 16k (+13-14 %). Opt-in, bitwise: new prefill tail peel knob; --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16 gives 1323 / 1437 / 1351 (+35-43 %, 0 of 34 tail prompts differ) but was not made the recipe default because serve --max-batch 16 loses context (4930 -> 4407) and runs 4096-row busy chunks. Opt-in, numerics (decision mx-1): INTARSIA_HIP_MXFP4_FOLD=1, 2043 / 2416 / 2186 with chunk 4096; prefill KL 0.165 PASS, decode-mode 0.261 vs main 0.340.",
  "lessons": [
   "On gfx12 the fp8 and bf16 WMMA round their 16-product sums differently, so carrying a power-of-two group scale through the fp8 matrix core is not bitwise the bf16 chain, even though every product is exact.",
   "A W4A4 checkpoint with activation QDQ amplifies last-bit sum differences into ref-noise-sized logit changes (row KL up to 0.39 on 4 tail rows), so 'nearly bitwise' schedule changes are not small for it.",
   "Chunk-size numerics changes came only from small-row kernels (MXFP4 GEMV <= 8 rows, split-KV attention <= 16 rows); peeling those tails makes any multiple-of-256 chunk bitwise the 256 schedule on the 27B.",
   "With the dequant ALU removed the bitwise MXFP4 GEMM only goes 82 -> 97 TFLOP/s: its cost is the BK=32 tile pipeline, not the dequant.",
-  "git archive mtimes plus a target volume seeded from a newer build make cargo reuse the newer artifacts: touch sources or seed from an older build before an A/B."
+  "git archive mtimes plus a target volume seeded from a newer build make cargo reuse the newer artifacts: touch sources or seed from an older build before an A/B.",
+  "On hybrid models the serve busy prefill chunk defaults to the solo chunk (bitwise batched == solo), so raising the recipe chunk also raises the chunk run while other streams decode, and the larger workspace lowers the admitted context at --max-batch 16; check serve --max-batch startup before changing a recipe chunk."
  ],
  "cost": {
   "wall_min": null,
@@ -290,7 +341,10 @@
    5242,
    5243,
    5244,
-   5245
+   5245,
+   5259,
+   5281,
+   5282
   ],
   "tokens": null
  }
