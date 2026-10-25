@@ -37,6 +37,7 @@ pub(crate) mod feedback;
 mod graph_step;
 pub(crate) mod mtp;
 pub use mtp::DraftScript;
+pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
@@ -365,6 +366,13 @@ pub struct Model {
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
     /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is `1` (opt-in, default off).
     topk: Option<TopkBufs>,
+    /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
+    /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`
+    /// ([`Model::batch_head`]). Allocated by [`Model::enable_batch`].
+    batch_tile: Option<Buffer>,
+    /// Test hook (`Model::set_tp_batch_mutant`, tests only): a deliberate protocol bug a tensor-parallel peer applies to its
+    /// share of a batched step, which the batched-vs-solo tests must catch. 0 = none (always, outside those tests).
+    tp_batch_mutant: std::sync::atomic::AtomicU8,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
@@ -1058,6 +1066,8 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            batch_tile: None,
+            tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
@@ -1298,10 +1308,12 @@ impl Model {
             }
         }
         for p in &self.peers {
-            st.peers.push(PeerState {
-                backend: p.backend.clone(),
-                st: SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?,
-            });
+            let mut ps = SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?;
+            if p.batch_rows > 0 {
+                // a batched tensor-parallel slot: the peer's share of the recurrent snapshots, reserved by its own enable_batch
+                ps.reserve_snapshots(&*p.backend, p.batch_snapshots())?;
+            }
+            st.peers.push(PeerState { backend: p.backend.clone(), st: ps });
         }
         if let Some(r) = &self.remote {
             st.remote = Some(r.new_state()?);
@@ -2689,6 +2701,9 @@ impl Model {
             }
             return Ok(());
         }
+        if self.take_dropped_collective() {
+            return Ok(()); // test-only protocol bug (`Model::set_tp_batch_mutant`): this rank skips the collective
+        }
         if self.no_comm {
             return Ok(()); // INTARSIA_TP_NO_COMM: timing experiment, the activations are garbage
         }
@@ -2888,8 +2903,11 @@ impl Model {
     pub(crate) fn check_vocab_split(&self) -> Result<()> {
         let head = self.head()?;
         let (v, vh) = (self.dims.vocab, self.dims.vocab / self.tp.world);
-        for m in 1..=LOGIT_ROWS.min(self.ws.max_tokens) {
-            let half = head.call(self.view(&self.ws.n, self.act, &[m, self.dims.hidden]), self.view(&self.ws.logits, DType::F32, &[m, vh]));
+        // the head groups of a pass, then the batched decode steps' heads (row-exact kernels, `exact_rows`)
+        let plain = (1..=LOGIT_ROWS.min(self.ws.max_tokens)).map(|m| (m, false));
+        for (m, exact) in plain.chain((2..=self.batch_rows).map(|m| (m, true))) {
+            let mut half = head.call(self.view(&self.ws.n, self.act, &[m, self.dims.hidden]), self.view(&self.ws.logits, DType::F32, &[m, vh]));
+            half.exact_rows = exact;
             let mut full = half.clone();
             for t in full.inputs.iter_mut().skip(1).filter(|t| t.shape.first() == Some(&vh)) {
                 t.shape[0] = v;
