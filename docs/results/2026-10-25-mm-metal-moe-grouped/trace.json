@@ -1,0 +1,266 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mm-metal-moe-grouped:20261025-0100",
+ "project": "intarsiaml",
+ "lane_id": "mm-metal-moe-grouped",
+ "follows": [
+  "intarsiaml:mr3-metal-row-axis:20261023-1900",
+  "intarsiaml:mb-metal-hybrid-batching:20261023-1340"
+ ],
+ "agent_model": "claude-opus-5-5",
+ "started": "2026-10-25T00:55:00-04:00",
+ "ended": "2026-10-25T02:40:00-04:00",
+ "brief": "Lane mm: push Metal batched decode of the 35B further, starting with an expert-grouped MoE kernel (read each expert's weights once per step), bitwise equal to the solo step per row; then the next lever from a B = 8 / 16 per-kernel profile (16-row GEMV tile or single-stream command-buffer overhead).",
+ "hypothesis": "The MoE is about 24% of the B = 8 step and reads expert weights once per row; grouping rows by expert removes the repeated reads.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "M5 Max 128 GB (endor)",
+  "family": "Qwen3.6-35B-A3B",
+  "quant": "NVFP4",
+  "phase": "concurrent",
+  "buckets": [
+   "4x",
+   "8x",
+   "16x"
+  ],
+  "lane": "plain",
+  "regime_cells": [],
+  "rival": null,
+  "gap_pct_at_start": null,
+  "regimes_built_at": null
+ },
+ "techniques": [],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mm/metal-moe-grouped",
+  "base_commit": "2c2d9941",
+  "head_commit": "HEAD_COMMIT",
+  "pr": null,
+  "files": [
+   "docs/results/2026-10-25-mm-metal-moe-grouped.md",
+   "kernels/metal/fp8.metal",
+   "kernels/metal/moe.metal",
+   "crates/intarsia-backend-metal/src/fp8.rs",
+   "crates/intarsia-backend-metal/src/moe.rs",
+   "crates/intarsia-backend-metal/src/nvfp4.rs",
+   "crates/intarsia-backend-metal/src/lib.rs",
+   "crates/intarsia-backend-metal/src/profile.rs",
+   "crates/intarsia-backend-metal/tests/rows_exact.rs",
+   "crates/intarsia-models/tests/batch_metal_real.rs",
+   "docs/tuning.md",
+   "scripts/mm/"
+  ]
+ },
+ "checks": [
+  {
+   "name": "G-B rows_exact (Metal)",
+   "command": "cargo test --release -p intarsia-backend-metal --test rows_exact -- --test-threads=1",
+   "result": "pass",
+   "detail": "7 of 7; fp8 6,720 rows (staged and _xd), nvfp4 840, MoE 840 bitwise; data-level negative controls differ"
+  },
+  {
+   "name": "G-B row_tables (Metal)",
+   "command": "cargo test --release -p intarsia-backend-metal --test row_tables -- --test-threads=1",
+   "result": "pass",
+   "detail": "8 of 8"
+  },
+  {
+   "name": "kernel-level negative controls",
+   "command": "scripts/mm/gates.sh OUT neg",
+   "result": "pass",
+   "detail": "INTARSIA_METAL_NEGCTL=fp8_xd / moe_gu / moe_dn each make their gate fail"
+  },
+  {
+   "name": "kernels test --backend metal",
+   "command": "intarsia kernels test --backend metal",
+   "result": "pass",
+   "detail": "44 kernels, 817 cases"
+  },
+  {
+   "name": "G-C 35B",
+   "command": "cargo test --release -p intarsia-models --test batch_metal_real",
+   "result": "pass",
+   "detail": "4,550 (row, step) pairs bitwise; engine == LocalEngine; long prompts 2.6k / 4k / 16k pass"
+  },
+  {
+   "name": "batch_recurrent (Metal)",
+   "command": "INTARSIA_BATCH_TEST_BACKEND=metal cargo test --release -p intarsia-models --test batch_recurrent",
+   "result": "pass",
+   "detail": "10 of 10"
+  },
+  {
+   "name": "dense Qwen3-8B batched",
+   "command": "INTARSIA_TEST_REAL_MODEL=1 cargo test --release -p intarsia-models --test batch_metal",
+   "result": "pass",
+   "detail": "138 pairs bitwise"
+  },
+  {
+   "name": "Metal batching-off no-op vs main",
+   "command": "scripts/mm/noop.sh",
+   "result": "pass",
+   "detail": "12 of 12 byte-identical (plan text/json, 256 ids, output; 8B and 35B; short and 4.6k)"
+  },
+  {
+   "name": "workspace tests",
+   "command": "cargo test --release --workspace",
+   "result": "pass with pre-existing failures",
+   "detail": "879 passed; 2 rows_registry (CUDA) fail on main too; docs_env_vars fixed"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "aggregate_tps",
+   "bucket": "1x",
+   "prompt_tokens": 1024,
+   "streams": 1,
+   "gen_tokens": 512,
+   "before": 123.2,
+   "after": 124.2,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 5062,
+   "before_run_id": "20261025-021546-adhoc-mm-main-2c2d9941",
+   "after_run_id": "20261025-021731-adhoc-mm-branch"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "4x",
+   "prompt_tokens": 1024,
+   "streams": 4,
+   "gen_tokens": 512,
+   "before": 173.2,
+   "after": 213.6,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 5062,
+   "before_run_id": "20261025-021546-adhoc-mm-main-2c2d9941",
+   "after_run_id": "20261025-021731-adhoc-mm-branch"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "8x",
+   "prompt_tokens": 1024,
+   "streams": 8,
+   "gen_tokens": 512,
+   "before": 189.3,
+   "after": 243.2,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 5062,
+   "before_run_id": "20261025-021546-adhoc-mm-main-2c2d9941",
+   "after_run_id": "20261025-021731-adhoc-mm-branch"
+  },
+  {
+   "metric": "aggregate_tps",
+   "bucket": "16x",
+   "prompt_tokens": 1024,
+   "streams": 16,
+   "gen_tokens": 512,
+   "before": 185.8,
+   "after": 244.4,
+   "unit": "tok/s",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "exclusive",
+   "slot_job": 5062,
+   "before_run_id": "20261025-021546-adhoc-mm-main-2c2d9941",
+   "after_run_id": "20261025-021731-adhoc-mm-branch"
+  },
+  {
+   "metric": "step_ms_in_process",
+   "bucket": "1x",
+   "streams": 1,
+   "before": 8.0,
+   "after": 8.0,
+   "unit": "ms",
+   "n": 2,
+   "slot": "exclusive",
+   "slot_job": 5062
+  },
+  {
+   "metric": "step_ms_in_process",
+   "bucket": "2x",
+   "streams": 2,
+   "before": 12.28,
+   "after": 9.95,
+   "unit": "ms",
+   "n": 2,
+   "slot": "exclusive",
+   "slot_job": 5062
+  },
+  {
+   "metric": "step_ms_in_process",
+   "bucket": "4x",
+   "streams": 4,
+   "before": 18.64,
+   "after": 13.74,
+   "unit": "ms",
+   "n": 2,
+   "slot": "exclusive",
+   "slot_job": 5062
+  },
+  {
+   "metric": "step_ms_in_process",
+   "bucket": "8x",
+   "streams": 8,
+   "before": 31.44,
+   "after": 21.3,
+   "unit": "ms",
+   "n": 2,
+   "slot": "exclusive",
+   "slot_job": 5062
+  }
+ ],
+ "accuracy": {
+  "gate": "G-B rows_exact / row_tables with new negative controls; G-C batched == solo on the 35B (4,550 pairs) and engine == LocalEngine incl. 2.6k / 4k / 16k; batch_recurrent; dense 8B; Metal no-op 12 of 12",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "Row-exact fp8 (_xd, q(x) once, 4-row tile), fat-threadgroup MoE (per pair, 2 rows per simdgroup) and a one-row grid for narrow nvfp4 matrices cut the Metal 35B B = 8 step 31.4 to 21.3 ms; served aggregate +23 / +28 / +32% at 4 / 8 / 16 streams (512 generated), single stream +0.8%. Bitwise to the solo step; batching off byte-identical to main.",
+ "summary": "Metal 35B batched decode: B = 8 step -32% in process, served 189.3 to 243.2 tok/s at 8 streams, bitwise; expert grouping itself measured slower than per-pair fat threadgroups.",
+ "lessons": [
+  "The per-kernel profile labelled only the first dispatch of a multi-dispatch launch; the MoE was 42% of the B = 8 step, not 24%.",
+  "Reading each expert once (grouping pairs by expert) did not pay on Apple Silicon at B <= 8: only 27% of pairs share an expert, the cache catches the re-reads, and grouping serializes pairs. Fatter threadgroups (2 weight rows per simdgroup) gave the MoE win.",
+  "The staged multi-row fp8 GEMV re-quantized all rows of x per threadgroup into 32 KB of threadgroup memory; preparing q(x) once and reading it from device memory is bitwise and 25-40% faster per call.",
+  "A negative control must be checked against the data: a split scale fma is a no-op when a lane holds one block, and an in-block reorder is a no-op when the e2m1 x bf16 sum is exact.",
+  "Per-kernel mode inflates absolute GPU times about 1.5x; use shares, decide on wall time."
+ ],
+ "cost": {
+  "wall_min": null,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   4992,
+   4997,
+   5009,
+   5010,
+   5012,
+   5013,
+   5019,
+   5020,
+   5023,
+   5024,
+   5027,
+   5047,
+   5048,
+   5055,
+   5056,
+   5057,
+   5058,
+   5060,
+   5061,
+   5062,
+   5063,
+   5065,
+   5067,
+   5068
+  ],
+  "tokens": null
+ }
+}
