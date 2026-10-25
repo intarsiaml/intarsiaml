@@ -1433,7 +1433,7 @@ pub fn describe_build(model: &crate::model::Model, model_id: &str, cfg: &PrefixS
         plan,
         (&cfg.boundary_tokens, &cfg.header_end_tokens, &cfg.cut_roles),
         model.weights_bytes,
-    )
+    ) + &if model.prefill_peel() > 0 { format!("|peel{}", model.prefill_peel()) } else { String::new() }
 }
 
 #[cfg(test)]

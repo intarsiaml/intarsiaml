@@ -1,0 +1,20 @@
+[window] job 5008 w1; stopping radiance 2026-10-25 01:18:32
+[window] radiance stopped 2026-10-25 01:18:36
+01:18:36 w1 start; budget 2340 s; binary 2026-10-25 01:16:57.827712021 -0400
+cp: cannot stat '/home/josef/mx/wmma_eq.hip': No such file or directory
+01:18:36 bin wmma-eq exit 1: clang++: error: no such file or directory: 'wmma_eq.hip'|
+01:18:47 pf-27-4096-a exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3982 ms (1028.7 tok/s) | decode 0 ms (0.00 tok/s)|
+01:18:49 pf-27-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 1006 ms (1017.8 tok/s) | decode 0 ms (0.00 tok/s)|
+01:18:55 pf-27-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3984 ms (1028.0 tok/s) | decode 0 ms (0.00 tok/s)|
+01:19:14 pf-27-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 16911 ms (968.8 tok/s) | decode 0 ms (0.00 tok/s)|
+01:19:19 optab-27-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 4248 ms (964.1 tok/s) | decode 0 ms (0.00 tok/s)|
+01:19:25 prof 27-4096: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 4061 ms (1008.7 tok/s) | decode 1 ms (0.00 tok/s)| kernels in main burst: 24391 (of 25346), span 4065.2 ms, kernel time 3952.3 ms, idle 2.8 %
+01:19:28 prof 27-1024: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 1032 ms (991.8 tok/s) | decode 0 ms (0.00 tok/s)| kernels in main burst: 6691 (of 7646), span 1040.8 ms, kernel time 1000.6 ms, idle 3.9 %
+01:19:49 prof 27-16384: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 17139 ms (956.0 tok/s) | decode 1 ms (0.00 tok/s)| kernels in main burst: 95191 (of 96146), span 17138.8 ms, kernel time 16563.2 ms, idle 3.4 %
+cp: cannot stat '/home/josef/mx/ceiling27.hip': No such file or directory
+01:19:50 ceiling exit 127: 
+01:19:53 pf-35-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 410 ms (9981.4 tok/s) | decode 0 ms (0.00 tok/s)|
+01:19:53 w1 done; 2263 s left
+[window] stages done 2026-10-25 01:19:53 (exit 0)
+[window] starting radiance 2026-10-25 01:19:53
+[window] radiance answers 2026-10-25 01:20:08 (after 20 s); active

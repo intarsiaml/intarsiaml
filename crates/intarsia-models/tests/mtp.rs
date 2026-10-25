@@ -16,7 +16,7 @@ mod common;
 use common::ByteCodec;
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::{Backend, Buffer, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
-use intarsia_core::{Error, KernelImpl, OpCall, Result};
+use intarsia_core::{Error, KernelImpl, Op, OpCall, Result};
 use intarsia_core::dtype::f32_to_fp8_e4m3;
 use intarsia_core::model::{DraftScript, HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::quant::{nvfp4, Fp8Act};
@@ -446,14 +446,33 @@ fn engine_full(
     script: Option<DraftScript>,
     draft_vocab: usize,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    engine_cost(backend, w, k, script, draft_vocab, None)
+}
+
+/// `cost`: recipe `[mtp]` measured-cost gate overrides (min speedup, window, probe every, reprobe tokens).
+fn engine_cost(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    draft_vocab: usize,
+    cost: Option<(f64, u32, u32, u32)>,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
-    let (recipe, dims) = dims();
+    let (mut recipe, dims) = dims();
+    if let Some((sp, win, probe, re)) = cost {
+        let m = recipe.mtp.as_mut().expect("recipe has [mtp]");
+        m.cost_min_speedup = Some(sp);
+        m.cost_window = Some(win);
+        m.cost_probe_every = Some(probe);
+        m.cost_reprobe_tokens = Some(re);
+    }
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: k.is_some(),
-        mtp_draft_vocab: draft_vocab,
+        mtp_draft_vocab: Some(draft_vocab),
         profile_every: 0,
         ..Default::default()
     };
@@ -519,6 +538,7 @@ fn mtp_head_drafts_keep_greedy_output_identical_over_256_tokens() {
         }
         let t = tel.snapshot();
         assert!(t.spec_steps > 0 && t.spec_proposed > 0, "k {k}: the head drafted");
+        assert_eq!((t.spec_cost_off, t.spec_cost_on, t.spec_cost_plain_steps), (0, 0, 0), "k {k}: the cost gate is off by default");
         eprintln!("k {k}: {} verify passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
     }
 }
@@ -677,6 +697,12 @@ struct RecCpu {
     recording: Mutex<Option<Vec<Step>>>,
     captures: std::sync::atomic::AtomicUsize,
     replays: std::sync::atomic::AtomicUsize,
+    /// The next this many `graph_capture` calls fail (an injected capture error).
+    fail_captures: std::sync::atomic::AtomicUsize,
+    /// Attention launches seen while eager (not recording), when `count_attn` is on: multi-row prefill calls, decode calls.
+    count_attn: std::sync::atomic::AtomicBool,
+    attn_prefill: std::sync::atomic::AtomicUsize,
+    attn_decode: std::sync::atomic::AtomicUsize,
 }
 impl RecCpu {
     fn arc() -> Arc<RecCpu> {
@@ -685,6 +711,10 @@ impl RecCpu {
             recording: Mutex::new(None),
             captures: Default::default(),
             replays: Default::default(),
+            fail_captures: Default::default(),
+            count_attn: Default::default(),
+            attn_prefill: Default::default(),
+            attn_decode: Default::default(),
         })
     }
     fn forbid(&self, what: &str) -> Result<()> {
@@ -730,6 +760,13 @@ impl Backend for RecCpu {
             rec.push(Step::Launch(kernel.to_string(), call.clone()));
             return Ok(());
         }
+        if self.count_attn.load(std::sync::atomic::Ordering::Relaxed) {
+            match call.op {
+                Op::AttnPrefill => self.attn_prefill.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                Op::AttnDecode => self.attn_decode.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                _ => 0,
+            };
+        }
         self.inner.launch(kernel, call, stream)
     }
     fn synchronize(&self, s: StreamId) -> Result<()> {
@@ -743,6 +780,11 @@ impl Backend for RecCpu {
         true
     }
     fn graph_capture(&self, _stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        let left = self.fail_captures.load(std::sync::atomic::Ordering::Relaxed);
+        if left > 0 {
+            self.fail_captures.store(left - 1, std::sync::atomic::Ordering::Relaxed);
+            return Err(Error::backend("injected capture failure"));
+        }
         *self.recording.lock().unwrap() = Some(Vec::new());
         let ran = body();
         let rec = self.recording.lock().unwrap().take().unwrap();
@@ -990,7 +1032,7 @@ fn captured_spec_step_drafts_equal_the_eager_drafts() {
                 let mut ids = vec![last];
                 ids.extend(&drafts_a);
                 let out_a = m.forward_verify(&mut a, &ids).unwrap();
-                let (drafts_b, out_b) = if m.spec_step_ok(&b, k) {
+                let (drafts_b, out_b) = if m.spec_step_ok(&b, last, k) {
                     steps += 1;
                     let p = m.spec_step(&mut b, last, k).unwrap().expect("captured");
                     (p.drafts, p.out)
@@ -1041,7 +1083,7 @@ fn reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix() {
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: true,
-        mtp_draft_vocab: n,
+        mtp_draft_vocab: Some(n),
         profile_every: 0,
         ..Default::default()
     };
@@ -1068,5 +1110,276 @@ fn reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix() {
             st.spec_rollback(len0 + 1, &*rec).unwrap();
         }
         last = oa[0];
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// review follow-ups: load plan of the reduced head, retry after a capture failure, per-row head catch-up, scripted drafts
+// ------------------------------------------------------------------------------------------------------------------
+
+fn load_on(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, draft_vocab: usize) -> Model {
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: Some(draft_vocab),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    m
+}
+
+/// `--mtp-draft-vocab`: the reduced head's `[1, N]` projection and argmax are recorded by the load-time dry run, so kernel
+/// selection, admission and scratch sizing cover them (a full-head run records no `[1, N]` output).
+#[test]
+fn reduced_draft_head_is_in_the_dry_run() {
+    use intarsia_core::plan::Phase;
+    let w = weights(11);
+    let n = 32usize;
+    let has_reduced = |m: &Model| {
+        let rec = m.dry_run(Phase::Decode, 3, 4).unwrap();
+        rec.calls.iter().any(|c| c.extra && c.call.outputs.iter().any(|o| o.shape == [1, n]))
+    };
+    assert!(has_reduced(&load_on(CpuBackend::arc(), &w, 2, n)), "reduced head recorded");
+    assert!(!has_reduced(&load_on(CpuBackend::arc(), &w, 2, 0)), "full head records no [1, N] output");
+}
+
+/// A failed capture of the speculative step is retried once and only the second failure turns captured steps off; turning
+/// graphs on again resets that. Every failed step leaves the state untouched (`Ok(None)`, the caller runs it eagerly).
+#[test]
+fn a_capture_failure_is_not_permanent() {
+    let w = weights(11);
+    let rec = RecCpu::arc();
+    let m = load_on(rec.clone(), &w, 2, 0);
+    let mut st = m.new_state().unwrap();
+    let StepOut::Token(last) = m.forward(&mut st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    assert!(m.spec_step_ok(&st, last, 2));
+    let len0 = st.len;
+    rec.fail_captures.store(1, std::sync::atomic::Ordering::Relaxed);
+    assert!(m.spec_step(&mut st, last, 2).unwrap().is_none(), "first failure: eager this step");
+    assert_eq!(st.len, len0, "a failed capture ran nothing");
+    assert!(m.spec_step_ok(&st, last, 2), "one failure does not turn the captured step off");
+    let pass = m.spec_step(&mut st, last, 2).unwrap().expect("the retry captures");
+    assert_eq!(pass.drafts.len(), 2);
+    assert_eq!(rec.captures.load(std::sync::atomic::Ordering::Relaxed), 1);
+    // two failures in a row: off, until graphs are turned on again
+    let mut st2 = m.new_state().unwrap();
+    let StepOut::Token(last2) = m.forward(&mut st2, PROMPTS[1], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    rec.fail_captures.store(2, std::sync::atomic::Ordering::Relaxed);
+    for _ in 0..2 {
+        assert!(m.spec_step_ok(&st2, last2, 2));
+        assert!(m.spec_step(&mut st2, last2, 2).unwrap().is_none());
+    }
+    assert!(!m.spec_step_ok(&st2, last2, 2), "the second failure turns it off");
+    m.set_graphs(true);
+    assert!(m.spec_step_ok(&st2, last2, 2), "set_graphs(true) resets the failure count");
+    assert!(m.spec_step(&mut st2, last2, 2).unwrap().is_some());
+}
+
+/// On a backend that wants per-row verify attention (HIP), the eager head's multi-row catch-up (n >= 2) runs one decode
+/// attention call per row, as the captured step does; no multi-row prefill call is made by the head.
+#[test]
+fn eager_head_catch_up_is_per_row_attention() {
+    let w = weights(11);
+    let rec = RecCpu::arc();
+    let m = load_on(rec.clone(), &w, 2, 0);
+    let mut st = m.new_state().unwrap();
+    let StepOut::Token(mut last) = m.forward(&mut st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    // one draft + verify + accept-all round, so the next draft starts from a catch-up of k + 1 = 3 rows
+    let len0 = st.len;
+    let d = m.mtp_draft(&mut st, last, 2).unwrap();
+    let mut ids = vec![last];
+    ids.extend(&d);
+    let out = m.forward_verify(&mut st, &ids).unwrap();
+    // accept everything: no rollback, the next token is the verify pass's last row
+    assert_eq!(st.len, len0 + 3);
+    last = out[2];
+    rec.count_attn.store(true, std::sync::atomic::Ordering::Relaxed);
+    let _ = m.mtp_draft(&mut st, last, 2).unwrap();
+    rec.count_attn.store(false, std::sync::atomic::Ordering::Relaxed);
+    let (pre, dec) = (rec.attn_prefill.load(std::sync::atomic::Ordering::Relaxed), rec.attn_decode.load(std::sync::atomic::Ordering::Relaxed));
+    assert_eq!(pre, 0, "the head's catch-up made {pre} multi-row prefill attention calls");
+    assert!(dec >= 2, "the head's rows ran per-row decode attention ({dec} calls)");
+}
+
+/// Scripted drafts shorter than k: the captured and the eager paths treat them alike (the step falls back to the eager path,
+/// which verifies exactly the scripted drafts); greedy output stays the spec-off output.
+#[test]
+fn short_scripted_drafts_behave_alike_on_both_paths() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 120));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for captured in [false, true] {
+        let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+        // a script that always returns one draft (right every other time), whatever k asks for
+        let t2 = truth.clone();
+        let one: DraftScript = Box::new(move |ctx: &[u32], _k: usize| {
+            let t = t2.lock().unwrap();
+            for s in t.iter() {
+                if s.len() > ctx.len() && s[..ctx.len()] == *ctx && ctx.len() % 2 == 0 {
+                    return vec![s[ctx.len()]];
+                }
+            }
+            vec![ctx.len() as u32 % 90]
+        });
+        let (on, tel) = engine_on(backend, &w, Some(3), Some(one));
+        for p in PROMPTS {
+            assert_eq!(run(&off, req(p, 120)), run(&on, req(p, 120)), "captured {captured} prompt {p:?}");
+        }
+        let t = tel.snapshot();
+        assert!(t.spec_proposed > 0 && t.spec_proposed <= t.spec_steps, "one scripted draft per pass: {} over {}", t.spec_proposed, t.spec_steps);
+    }
+}
+
+/// The measured-cost gate holds speculation off and retries it as often as the parameters allow (here: every pass is "too
+/// slow", so it falls back after one pass, decodes 5 tokens plainly, and tries again), with the head catching up in one
+/// batched pass after every plain stretch. Greedy output equals spec off on either path, for the model's own drafts and
+/// for scripted drafts that hit every acceptance pattern.
+#[test]
+fn cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for k in 1..=3 {
+        let (on, tel) = engine_cost(CpuBackend::arc(), &w, Some(k), None, 0, Some((1e9, 1, 2, 5)));
+        for p in PROMPTS {
+            let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+            assert_eq!(a, b, "k {k} prompt {p:?}");
+        }
+        let t = tel.snapshot();
+        assert!(t.spec_steps > 0, "k {k}: speculated between the plain stretches");
+        assert!(t.spec_cost_off > 5 && t.spec_cost_on > 5, "k {k}: flipped: off {} on {}", t.spec_cost_off, t.spec_cost_on);
+        assert!(t.spec_cost_plain_steps > t.spec_steps, "k {k}: mostly plain: {} plain, {} passes", t.spec_cost_plain_steps, t.spec_steps);
+        eprintln!(
+            "k {k}: {} passes, {} plain by the gate ({} probes), off {} on {}",
+            t.spec_steps, t.spec_cost_plain_steps, t.spec_cost_probes, t.spec_cost_off, t.spec_cost_on
+        );
+    }
+}
+
+#[test]
+fn cost_gate_with_scripted_drafts_stays_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        for cost in [(1e9, 1, 2, 5), (1e9, 3, 4, 11), (1e-9, 1, 2, 5)] {
+            let (on, tel) = engine_cost(CpuBackend::arc(), &w, Some(k), Some(scripted(truth.clone(), 3 + k as u64)), 0, Some(cost));
+            for p in PROMPTS {
+                let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+                assert_eq!(a, b, "k {k} cost {cost:?} prompt {p:?}");
+            }
+            let t = tel.snapshot();
+            assert!(t.spec_steps > 0, "k {k} cost {cost:?}");
+            if cost.0 > 1.0 {
+                assert!(t.spec_cost_off > 0 && t.spec_cost_plain_steps > 0, "k {k} cost {cost:?}");
+            } else {
+                assert_eq!(t.spec_cost_off, 0, "k {k} cost {cost:?}: never too slow");
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// recipe default of --mtp-draft-vocab
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The drafts of 30 eager draft + verify steps on one prompt (k = 2), for a model loaded with the recipe's `[mtp] draft_vocab`
+/// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
+fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
+    let (mut recipe, dims) = dims();
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None });
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: opt,
+        profile_every: 0,
+        ..Default::default()
+    };
+    let backend: Arc<dyn Backend> = CpuBackend::arc();
+    let mut m = Model::load(backend.clone(), &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(3).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let mut st = m.new_state().unwrap();
+    let StepOut::Token(mut last) = m.forward(&mut st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    let mut all = vec![];
+    for _ in 0..30 {
+        let len0 = st.len;
+        let d = m.mtp_draft(&mut st, last, 2).unwrap();
+        let mut ids = vec![last];
+        ids.extend(&d);
+        let o = m.forward_verify(&mut st, &ids).unwrap();
+        st.spec_rollback(len0 + 1, &*backend).unwrap();
+        last = o[0];
+        all.push(d);
+    }
+    all
+}
+
+/// A recipe default for the backend narrows the draft head exactly as the flag does, an explicit `--mtp-draft-vocab 0` (the full head)
+/// overrides it, an explicit value overrides it the other way, and a recipe without the key drafts with the full head.
+#[test]
+fn recipe_draft_vocab_default_is_overridden_by_the_flag() {
+    let w = weights(11);
+    let full = drafts_of(&w, None, None);
+    let narrow = drafts_of(&w, None, Some(32));
+    assert!(narrow.iter().flatten().all(|&t| t < 32), "{narrow:?}");
+    assert_ne!(full, narrow, "the fixture's drafts leave 0..32 somewhere, else the test cannot tell the heads apart");
+    // the recipe's value for this backend, no flag: the narrow head
+    assert_eq!(drafts_of(&w, Some(32), None), narrow);
+    // flag 0 beats the recipe: the full head
+    assert_eq!(drafts_of(&w, Some(32), Some(0)), full);
+    // flag N beats the recipe's M
+    assert_eq!(drafts_of(&w, Some(8), Some(32)), narrow);
+    // recipe 0 is the full head
+    assert_eq!(drafts_of(&w, Some(0), None), full);
+}
+
+/// The shipped recipes: the default is set for the Qwen3.8-27B recipe on HIP only (the one place it was measured).
+#[test]
+fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
+    let get = |name: &str| {
+        let text = match name {
+            "qwen3_5_vl" => include_str!("../../../recipes/qwen3_5_vl.toml"),
+            "qwen3_5" => include_str!("../../../recipes/qwen3_5.toml"),
+            "qwen3_5_moe" => include_str!("../../../recipes/qwen3_5_moe.toml"),
+            "qwen3" => include_str!("../../../recipes/qwen3.toml"),
+            "gemma4" => include_str!("../../../recipes/gemma4.toml"),
+            "llama" => include_str!("../../../recipes/llama.toml"),
+            _ => include_str!("../../../recipes/qwen2.toml"),
+        };
+        intarsia_models::parse_recipe(text).unwrap()
+    };
+    let vl = get("qwen3_5_vl");
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").value, 65536);
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").source, "recipe qwen3_5_vl, hip");
+    for b in ["cuda", "metal", "cpu"] {
+        assert_eq!(vl.resolve_mtp_draft_vocab(None, b).value, 0, "{b}");
+    }
+    assert_eq!(vl.resolve_mtp_draft_vocab(Some(0), "hip").value, 0, "--mtp-draft-vocab 0 turns it off");
+    assert_eq!(vl.resolve_mtp_draft_vocab(Some(32768), "hip").value, 32768);
+    for name in ["qwen3_5", "qwen3_5_moe", "qwen3", "gemma4", "llama", "qwen2"] {
+        let r = get(name);
+        for b in ["hip", "cuda", "metal", "cpu"] {
+            assert_eq!(r.resolve_mtp_draft_vocab(None, b).value, 0, "{name} on {b}: no measured default");
+        }
     }
 }

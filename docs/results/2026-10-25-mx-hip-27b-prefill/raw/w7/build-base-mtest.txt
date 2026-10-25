@@ -1,0 +1,8 @@
+== base: 0b84f49 code-tree=a2582ab69fa2 dirty=no 05:06:20
+build base exit 0 05:06:20
+    Finished `release` profile [optimized] target(s) in 0.15s
+seeded intarsia-cargo-target-mx-base-mtest 05:06:22
+models tests build base exit 0 05:06:22
+    Finished `release` profile [optimized] target(s) in 0.05s
+-rwxr-xr-x 1 josef josef 38972040 Oct 25 05:06 /home/josef/intarsiaml-mx-base/mx-intarsia
+-rwxr-xr-x 1 josef josef 40639456 Oct 25 04:24 /home/josef/intarsiaml-mx-dev/mx-intarsia

@@ -1,0 +1,24 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 1.3s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 18432 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 4248 ms (964.1 tok/s) | decode 0 ms (0.00 tok/s)
+op table (estimated ms over all launches; total 4228.0 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                3722.25   88.04     8080    8080
+gdn_delta_rule               171.16    4.05      768     768
+attn_prefill                  87.94    2.08      256     256
+rmsnorm_add                   70.98    1.68     2176    2176
+silu_glu                      47.11    1.11     1088    1088
+gdn_conv                      39.99    0.95      768     768
+gated_rmsnorm                 30.74    0.73      816     816
+matmul_mxfp4_pair             18.16    0.43      176     176
+gate_split_qk_norm_rope_kv      16.18    0.38      272     272
+sigmoid_mul                    8.12    0.19      272     272
+logits                         6.41    0.15        1       1
+attn_decode                    3.89    0.09       16      16
+gdn_conv_delta                 2.10    0.05       48      48
+embedding                      1.65    0.04       17      17
+rmsnorm                        0.88    0.02       17      17
+argmax                         0.47    0.01        1       1
+steps=17 graph replays=0 (captures 0) eager decode steps=1 (profiled 1) top ops: matmul_mxfp4=3722ms/8080 gdn_delta_rule=171ms/768 attn_prefill=88ms/256 rmsnorm_add=71ms/2176 silu_glu=47ms/1088

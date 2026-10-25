@@ -1,0 +1,51 @@
+fleetq: #5299 running on endor: env OUT=/opt/code/wt-mx/docs/results/2026-10-25-mx-hip-27b-prefill/raw/metal-final bash /opt/code/wt-mx/scripts/mx/metal-noop.sh
+== build base 5241377b 11:00:43
+    Finished `release` profile [optimized] target(s) in 11.73s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+plan 27 base exit 0
+== build dev b8ad31ba 11:01:59
+    Finished `release` profile [optimized] target(s) in 10.36s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+plan 27 dev exit 0
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+plan 27 json: identical (12627 B, err 84 B)
+== kernels test metal (dev) 11:02:46
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 24.8s
+== workspace tests on the branch (--features intarsia-cli/metal, own target dir so the release intarsia binary keeps metal) 11:03:11
+  65 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+   2 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 thread 'profiling_off_reads_na_not_zero' (4588096) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'narrow_terminal_stacks_panes' (4588094) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'live_plan_builds_one_node_per_op_and_one_layer_group' (4588093) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'live_metrics_yield_latency_percentiles_and_batch_size' (4588092) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'light_theme_renders_the_same_text' (4588091) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 thread 'hybrid_plan_golden_140x45' (4588090) panicked at crates/intarsia-tui/tests/render.rs:17:83:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.09s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.04s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+   1 test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.77s
+== done 11:06:49
+fleetq: #5299 done (exit 0)

@@ -1,0 +1,18 @@
+09:23:39 w10 start; budget 2460 s; base 5e9cc6d_code-tree=f4af44d0c8c2_dirty=no dev 584e4c1_code-tree=f0c69c5ebed2_dirty=no
+09:25:19 serve base mb16 max-seq 8192: prefill chunk 256 (default)|continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256|loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on hip (AMD Radeon Graphics) in 60.7s, context 4930 tokens|
+09:26:59 serve dev mb16 max-seq 8192: prefill chunk 4096 (recipe qwen3_5_vl, hip)|continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096|loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on hip (AMD Radeon Graphics) in 56.1s, context 4407 tokens|
+09:28:40 serve base mb16 max-seq 17408: prefill chunk 256 (default)|continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256|loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on hip (AMD Radeon Graphics) in 56.7s, context 4930 tokens|
+09:30:20 serve dev mb16 max-seq 17408: prefill chunk 4096 (recipe qwen3_5_vl, hip)|continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096|loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on hip (AMD Radeon Graphics) in 56.0s, context 4407 tokens|
+09:30:28 ids-mtp-dev-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 145 ms (83.0 tok/s) | decode 5368 ms (47.51 tok/s)|
+09:30:28 ids mtp-dev-short md5 2086b6a4
+09:30:35 ids-mtp-base-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 188 ms (64.0 tok/s) | decode 5374 ms (47.45 tok/s)|
+09:30:35 ids mtp-base-short md5 2086b6a4
+09:30:35 SAME 27B short --spec mtp ids head vs main (ids-mtp-dev-short.ids == ids-mtp-base-short.ids)
+09:30:35 spec short: spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)|spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)|
+09:30:46 ids-mtp-dev-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 3191 ms (1381.4 tok/s) | decode 5670 ms (44.98 tok/s)|
+09:30:46 ids mtp-dev-4k md5 ef88d237
+09:30:58 ids-mtp-base-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4548 ms (969.2 tok/s) | decode 5678 ms (44.91 tok/s)|
+09:30:58 ids mtp-base-4k md5 ef88d237
+09:30:58 SAME 27B 4k --spec mtp ids head vs main (ids-mtp-dev-4k.ids == ids-mtp-base-4k.ids)
+09:30:58 spec 4k: spec: verify passes=108 proposed=215 accepted=146 (acceptance 67.9%, 2.35 tokens per pass)|spec: verify passes=108 proposed=215 accepted=146 (acceptance 67.9%, 2.35 tokens per pass)|
+09:30:58 w10 done; 2021 s left

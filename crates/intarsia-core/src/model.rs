@@ -84,7 +84,7 @@ pub struct LoadOptions {
     /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
-    pub mtp_draft_vocab: usize,
+    pub mtp_draft_vocab: Option<usize>,
 }
 
 impl Default for LoadOptions {
@@ -103,7 +103,7 @@ impl Default for LoadOptions {
             tp_fusion: false,
             mtp: false,
             mtp_k: 0,
-            mtp_draft_vocab: 0,
+            mtp_draft_vocab: None,
         }
     }
 }
@@ -356,6 +356,9 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
+    /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
+    head_rows_attn: std::sync::atomic::AtomicBool,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
@@ -387,6 +390,9 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
+    /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
+    prefill_peel: usize,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
     /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
     /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
@@ -397,6 +403,8 @@ pub struct Model {
     mtp: Option<mtp::MtpHead>,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
     mtp_k: usize,
+    /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
+    spec_cost: crate::spec::CostParams,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -459,6 +467,11 @@ impl Model {
     /// [`crate::scheduler::next_prefill_chunk_tm`].
     pub fn tail_merge(&self) -> usize {
         self.tail_merge
+    }
+
+    /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
+    pub fn prefill_peel(&self) -> usize {
+        self.prefill_peel
     }
 
     pub fn load(
@@ -884,6 +897,12 @@ impl Model {
             crate::scheduler::parse_tail_merge(std::env::var(crate::scheduler::TAIL_MERGE_ENV).ok().as_deref())?,
             chunk,
         );
+        // the recipe's prefill tail peel for this backend, `INTARSIA_PREFILL_PEEL` over it (0 = off)
+        let prefill_peel =
+            match crate::scheduler::parse_peel(std::env::var(crate::scheduler::PEEL_ENV).ok().as_deref())? {
+                Some(v) => v,
+                None => recipe.resolve_prefill_peel(b.name()).0,
+            };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
         let mt = chunk + tail_merge;
         let esz = act.size_bytes();
@@ -1000,17 +1019,40 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
-        let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
-            match lm_head.as_ref().and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
-                Some(h) => Some(h),
+        let dv = recipe.resolve_mtp_draft_vocab(opts.mtp_draft_vocab, b.name());
+        let draft_vocab = dv.value;
+        if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
+            eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
+        }
+        let draft_head = if opts.mtp && draft_vocab > 0 {
+            match lm_head.as_ref() {
                 None => {
-                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    if opts.mtp_draft_vocab.is_some() {
+                        eprintln!(
+                            "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
+                            draft_vocab, tp.rank
+                        );
+                    }
                     None
                 }
+                Some(h) => match h.row_prefix(draft_vocab) {
+                    Some(d) => Some(d),
+                    None => {
+                        eprintln!(
+                            "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
+                             not EXL3); drafting with the full head",
+                            draft_vocab, h.n, h.format
+                        );
+                        None
+                    }
+                },
             }
         } else {
             None
         };
+        let spec_cost = crate::spec::CostParams::for_backend(b.name())
+            .with_recipe(recipe.mtp.as_ref())
+            .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
         let mut model = Model {
             backend,
             registry,
@@ -1047,6 +1089,7 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -1059,8 +1102,10 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
+            prefill_peel,
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            spec_cost,
             mtp: mtp_head,
             mtp_k,
         };
@@ -1161,6 +1206,11 @@ impl Model {
     }
 
     /// Most rows a verify pass may have (0: speculative verify not enabled).
+    /// The measured-cost gate parameters for `--spec mtp` requests (single-sequence engine).
+    pub fn spec_cost_params(&self) -> crate::spec::CostParams {
+        self.spec_cost
+    }
+
     pub fn verify_rows(&self) -> usize {
         self.verify_rows
     }
@@ -1707,13 +1757,15 @@ impl Model {
     /// `ids` cut into forward passes of at most `max_tokens` rows, by the engine's prefill rule
     /// ([`crate::scheduler::next_prefill_chunk`]): on a backend that avoids a 1-row tail (Metal) a `max_tokens + 1`
     /// remainder runs as `(max_tokens - 1, 2)`, so accuracy tooling scores the bits serving produces. Recurrent states keep
-    /// the plain split, as in the engine.
+    /// the plain split, as in the engine. With the prefill tail peel ([`Model::prefill_peel`]) a pass whose rows mod 256
+    /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
         let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
         let mut pos = 0;
         while pos < ids.len() {
             let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
+            let n = crate::scheduler::peel_tail(n, self.prefill_peel);
             out.push(&ids[pos..pos + n]);
             pos += n;
         }
@@ -2586,7 +2638,10 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
-        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+        if t > 1
+            && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
+            && self.backend.verify_attn_per_row()
+        {
             // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
             // partition follows the call's row count, and it takes no device position): one decode call per row
             // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a

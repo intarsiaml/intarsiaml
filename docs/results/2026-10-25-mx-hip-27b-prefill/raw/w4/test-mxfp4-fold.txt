@@ -1,0 +1,35 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/mxfp4_fold.rs (/target/release/deps/mxfp4_fold-ec6a33cd8540d588)
+
+running 4 tests
+test fold_falls_back_bitwise ... ok
+test fold_matches_mma_closely ... m=256 n=1024 k=5120: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 262144 of 262144 outputs bitwise
+m=300 n=640 k=17408: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 192000 of 192000 outputs bitwise
+m=2048 n=512 k=6144: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 1048576 of 1048576 outputs bitwise
+m=130 n=48 k=5120: rel L2 fold 0.00e0, mma 0.00e0 (vs f64 exact); fold vs mma 0.00e0; 6240 of 6240 outputs bitwise
+ok
+test fold_rows_do_not_depend_on_m ... ok
+test fold_wide_activation_span ... wide span: rel L2 fold 4.12e-5, mma 2.30e-6
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+

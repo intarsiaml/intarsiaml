@@ -19,7 +19,7 @@ if [ "$BE" = cuda ]; then
   FLAGS="--mem-budget 30"; NAT=$SRC_DEV/sp-out; PD=$TREE_DEV/scripts/hg/prompts
   md() { md5sum < "$1" | cut -c1-8; }
 else
-  R=/opt/code/intarsiaml/.worktrees; O=${OUT:-/opt/code/wt-sp/docs/results/2026-10-25-sp-hip-spec/raw/final/metal}; mkdir -p $O
+  R=/opt/code/intarsiaml/.worktrees; O=${OUT:-/opt/code/wt-sp/docs/results/2026-10-25-sp-hip-spec/raw/followup/metal}; mkdir -p $O
   M35=$HOME/models/Qwen3.6-35B-A3B-NVFP4; M8=$HOME/models/Qwen3-8B
   TREE_BASE=$R/sp-base; TREE_DEV=/opt/code/wt-sp
   BIN_BASE=$R/sp-targets/base-metal/release/intarsia; BIN_DEV=$R/sp-targets/dev-metal/release/intarsia
@@ -43,8 +43,9 @@ build)
       echo "== build $t"; (cd $S && CARGO_TARGET_DIR=$R/sp-targets/$t-metal cargo build --release --features metal -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -3)
     done
   fi
-  echo "dev head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/.sp-head 2>/dev/null)"; echo "BUILD DONE" ;;
+  echo "dev head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/HEAD.txt 2>/dev/null)"; echo "dev binary costgate strings: $(strings $BIN_DEV | grep -c intarsia_spec_costgate)"; echo "BUILD DONE" ;;
 run)
+  echo "source head: $(cd $TREE_DEV 2>/dev/null && git rev-parse --short=8 HEAD 2>/dev/null || cat $TREE_DEV/HEAD.txt 2>/dev/null); dev binary costgate strings: $(strings $BIN_DEV | grep -c intarsia_spec_costgate) (base: $(strings $BIN_BASE | grep -c intarsia_spec_costgate)); dev binary $(ls -l $BIN_DEV | awk '{print $5, $6, $7, $8}')"
   fails=0; chk() { if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fails=$((fails+1)); fi; }
   echo "== 1. spec-off no-op vs main"
   for t in base dev; do
@@ -65,10 +66,13 @@ run)
     gen $BIN_DEV dev-off $n --spec off
     gen $BIN_DEV dev-mtp2 $n --spec mtp --spec-k 2
     gen $BIN_BASE base-mtp2 $n --spec mtp --spec-k 2
+    INTARSIA_SPEC_COSTGATE=1 gen $BIN_DEV dev-cg1-mtp2 $n --spec mtp --spec-k 2
     cmp -s $O/dev-off-n$n.ids $O/dev-mtp2-n$n.ids && [ -s $O/dev-off-n$n.ids ]; chk $? "n$n: dev MTP k=2 ids == dev spec off"
     cmp -s $O/base-mtp2-n$n.ids $O/dev-mtp2-n$n.ids && [ -s $O/dev-mtp2-n$n.ids ]; chk $? "n$n: dev MTP k=2 ids == main MTP k=2"
     a=$(grep -a '^spec:' $O/base-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//'); b=$(grep -a '^spec:' $O/dev-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//')
-    [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: acceptance equal to main ($b)"
+    [ -n "$a" ] && [ "$a" = "$b" ]; chk $? "n$n: acceptance equal to main (the cost gate is off by default on $BE: same code path) ($b)"
+    cmp -s $O/dev-off-n$n.ids $O/dev-cg1-mtp2-n$n.ids && [ -s $O/dev-cg1-mtp2-n$n.ids ]; chk $? "n$n: dev MTP k=2 with the cost gate forced on (INTARSIA_SPEC_COSTGATE=1) ids == dev spec off"
+    echo "info n$n: cost gate forced on: $(grep -a 'finish=' $O/dev-cg1-mtp2-n$n.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-40) $(grep -a '^spec:' $O/dev-cg1-mtp2-n$n.err | tail -1 | sed 's/(acceptance.*//'); default: $(grep -a 'finish=' $O/dev-mtp2-n$n.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-40)"
   done
   echo "== 3. --mtp-draft-vocab 65536, 35B natural-v1 128"
   gen $BIN_DEV dev-v65536 128 --spec mtp --spec-k 2 --mtp-draft-vocab 65536

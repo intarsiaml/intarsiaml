@@ -1,0 +1,16 @@
+-- rows_exact bf16_matmul_and_logits_rows (dev)
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:24/24/1942704 2:24/48/3885408 3:24/72/5828112 4:24/96/7770816 5:24/120/9713520 6:24/144/11656224 7:24/168/13598928 8:24/192/15541632 9:24/216/17484336 10:24/240/19427040 11:24/264/21369744 12:24/288/23312448 13:24/312/25255152 14:24/336/27197856 15:24/360/29140560 16:24/384/31083264
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:22/22/88100 2:22/44/176200 3:22/66/264300 4:22/88/352400 5:22/110/440500 6:22/132/528600 7:22/154/616700 8:22/176/704800 9:22/198/792900 10:22/220/881000 11:22/242/969100 12:22/264/1057200 13:22/286/1145300 14:22/308/1233400 15:22/330/1321500 16:22/352/1409600
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 16.16s
+-- NEGATIVE CONTROL: INTARSIA_HIP_GB_CONTROL=logits_bf16_gemv_rows=logits_bf16 (a different-order kernel where the rows kernel runs; this MUST FAIL)
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... DIAG solo repeatable: true, rows repeatable: true
+thread 'bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:268:17:
+G-B FAIL logits bf16 n=256 k=2048 wide=false: logits_bf16 M=1 row 0 differs from logits_bf16_gemv on that row alone in 227 of 256 elements (first at col 0: [0f, 88, 1a, 3d] vs [1c, 88, 1a, 3d])
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.18s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test rows_exact`
+-- rows_registry
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.00s

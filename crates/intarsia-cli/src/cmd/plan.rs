@@ -61,6 +61,12 @@ pub fn render(p: &Value) -> String {
         p["require_admitted"],
         p["reference_only"]
     );
+    if let Some(n) = p["prefill_peel"].as_u64() {
+        let _ = writeln!(
+            o,
+            "prefill tail peel {n} rows (a pass's last 1..={n} rows past a multiple of 256 run alone, as at chunk 256)"
+        );
+    }
     if p["tp"].is_object() {
         let t = &p["tp"];
         let _ = writeln!(

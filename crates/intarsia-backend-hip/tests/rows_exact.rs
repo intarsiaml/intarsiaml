@@ -450,8 +450,23 @@ fn bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv() {
             }
         }
     }
+    // the 27B head (248320 x 5120, 2.5 GB): the weights are a 2048-row wide pool tiled with a shift (cheap to generate), so
+    // the rows still differ; M = 9..16 run the wide kernel, 1..8 the old one
+    {
+        let (n, k) = (248320usize, 5120usize);
+        let pool = wide_bf16(&mut rng, 2048, k);
+        let shift = 2 * 1237;
+        let mut data = Vec::with_capacity(n * k * 2);
+        while data.len() < n * k * 2 {
+            let take = (n * k * 2 - data.len()).min(pool.data.len() - shift);
+            data.extend_from_slice(&pool.data[shift..shift + take]);
+        }
+        let w = rig.put(&HostTensor::new(DType::Bf16, vec![n, k], data).unwrap());
+        let x_rows = nasty_rows(&mut rng, k, 448.0);
+        gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("logits bf16 n={n} k={k} (27B head)"), CAP);
+    }
     // the 8B head and an odd one, f32 logits
-    for (n, k) in [(151936usize, 4096usize), (129, 36), (50000, 2048)] {
+    for (n, k) in [(151936usize, 4096usize), (129, 36), (50000, 2048), (24000, 5120), (9, 5128)] {
         let w = rig.put(&wide_bf16(&mut rng, n, k));
         let x_rows = nasty_rows(&mut rng, k, 448.0);
         gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("logits bf16 n={n} k={k}"), CAP);

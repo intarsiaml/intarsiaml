@@ -1,0 +1,6 @@
+aggregate over all prompts (row-weighted mean KL):
+  chunk 1: rows 31876, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+ALL BITWISE: yes  (chunks compared: [1])
+aggregate over all prompts (row-weighted mean KL):
+  chunk 2: rows 31876, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+ALL BITWISE: yes  (chunks compared: [2])
