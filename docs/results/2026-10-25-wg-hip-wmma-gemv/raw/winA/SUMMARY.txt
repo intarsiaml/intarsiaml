@@ -1,0 +1,176 @@
+===== ctl-bf16-rows-as-matmul_bf16.log
+   FAILED wmma_bf16_rows_are_bitwise_the_one_row_call
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.20s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:288:17: | G-B FAIL wmma bf16 n=256 k=2048 wide=false: matmul_bf16 M=4 row 3 differs from matmul_bf16_wmma on that row alone in 1 of 256 elements (first at col 158: [41, c8] vs [40, c8])
+===== ctl-fp8-rows-as-mma_f8.log
+   FAILED wmma_fp8_rows_are_bitwise_the_one_row_call
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.22s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:288:17: | G-B FAIL wmma fp8 n=8192 k=2048 wide=true aq=true is=0.125 out=Bf16: matmul_fp8_mma_f8 M=1 row 0 differs from matmul_fp8_wmma on that row alone in 1 of 8192 elements (first at col 1305: [4a, b7] vs [4
+===== ctl-frag-rows-as-mma_f8.log
+   FAILED wmma_fp8_rows_are_bitwise_the_one_row_call
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.23s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:288:17: | G-B FAIL wmma fp8 n=8192 k=2048 wide=true aq=true is=0.125 out=Bf16: matmul_fp8_mma_f8 M=1 row 0 differs from matmul_fp8_wmma on that row alone in 1 of 8192 elements (first at col 1305: [4a, b7] vs [4
+===== folds-dm1.log
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+===== folds-dm4.log
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+===== folds-dm65.log
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+===== frag-folds-alldirect.log
+   ok wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.75s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== frag-folds-allstaged.log
+   FAILED wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.47s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:92:61: | matmul_bf16_wmma_rows: backend error: ik_matmul_bf16_wmma_rows returned IK_ERR_LAUNCH (6); inputs [Bf16, Bf16] shapes [[64, 16], [9, 16]]
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== frag-folds.log
+   ok wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.74s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== frag-rows.log
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 2.24s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== gate-alldirect.log
+   ok wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.75s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== gate-allstaged.log
+   FAILED wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.48s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:92:61: | matmul_bf16_wmma_rows: backend error: ik_matmul_bf16_wmma_rows returned IK_ERR_LAUNCH (6); inputs [Bf16, Bf16] shapes [[64, 16], [9, 16]]
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== gate-default.log
+   ok wmma_bf16_rows_are_bitwise_the_one_row_call
+   ok wmma_bf16_switch_from_the_gemv_is_not_bitwise
+   ok wmma_fp8_matches_the_reference_sum
+   ok wmma_fp8_rows_are_bitwise_the_one_row_call
+   FAILED wmma_fp8_switch_from_the_gemv_is_not_bitwise
+   ok gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch
+   ok matmul_fp8_pair_wmma_is_bitwise_two_launches
+   ok matmul_pair_bf16_wmma_is_bitwise_two_launches
+   ok rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches
+   ok rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches
+   ok sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+   R: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.74s
+   R: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+   P: crates/intarsia-backend-hip/tests/rows_exact.rs:429:19: | the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all
+===== layout-knobs-off.log
+   ok frag_raw_byte_paths_refuse_a_tagged_tensor
+   ok frag_readers_that_do_not_know_the_layout_fail_loudly
+   ok frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader
+   ok frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load
+   ok frag_the_registry_selects_only_fragment_readers_for_a_tagged_call
+   R: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+===== layout-knobs-on-opt1.log
+   ok frag_raw_byte_paths_refuse_a_tagged_tensor
+   ok frag_readers_that_do_not_know_the_layout_fail_loudly
+   ok frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader
+   ok frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load
+   FAILED frag_the_registry_selects_only_fragment_readers_for_a_tagged_call
+   R: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+   P: crates/intarsia-backend-hip/tests/frag_layout.rs:196:5: | the untagged call lost its GEMVs: ["matmul_fp8_wmma", "matmul_fp8_wmma_rows", "matmul_fp8_mma", "matmul_fp8_mma_v2"]
+===== layout-knobs-on.log
+   ok frag_raw_byte_paths_refuse_a_tagged_tensor
+   ok frag_readers_that_do_not_know_the_layout_fail_loudly
+   ok frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader
+   ok frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load
+   ok frag_the_registry_selects_only_fragment_readers_for_a_tagged_call
+   R: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+   R: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s

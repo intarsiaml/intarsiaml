@@ -39,10 +39,15 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_MOE_WMMA",
     "INTARSIA_HIP_MOE_Z",
     "INTARSIA_HIP_MXFP4_LDS",
+    "INTARSIA_HIP_MXFP4_TILE",
+    "INTARSIA_HIP_MXFP4_V1",
+    "INTARSIA_HIP_MXFP4_FOLD",
     "INTARSIA_HIP_SPLIT_US",
     "INTARSIA_HIP_SPLIT_MIN_US",
     "INTARSIA_HIP_SPLITKV_OCC",
     "INTARSIA_HIP_SPLITKV_R8",
+    "INTARSIA_HIP_WMMA_DIRECT_MIN",
+    "INTARSIA_HIP_WMMA_ROWS",
     "INTARSIA_HIP_XSTAGE",
 ];
 
@@ -68,6 +73,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("logits_bf16_gemv", Op::Logits),
     // row-exact twins (`rows_exact`, M = 1..=ROWS_MAX, bitwise the one-row GEMV per row; tests/rows_exact.rs)
     ("matmul_bf16_gemv_rows", Op::Matmul),
+    // lane wg: the WMMA family on bf16 weights (INTARSIA_HIP_WMMA_ROWS=1; `_rows` is its `rows_exact` registration)
+    ("matmul_bf16_wmma", Op::Matmul),
+    ("matmul_bf16_wmma_rows", Op::Matmul),
     ("logits_bf16_gemv_rows", Op::Logits),
     ("kv_append_bf16", Op::KvAppend),
     ("qk_norm_rope_kv_bf16", Op::QkNormRopeKv),
@@ -200,7 +208,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=4).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -217,10 +225,27 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
+                .rows_exact(),
+            // lane wg: the WMMA family on bf16 weights. `matmul_bf16_wmma` takes the ordinary decode shapes (M 1..=4), `_rows` the `exact_rows`
+            // calls (M 1..=ROWS_MAX); one launcher, row m bitwise the one-row call on row m alone.
+            "matmul_bf16_wmma" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(30),
+            "matmul_bf16_wmma_rows" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(0)
                 .rows_exact(),
             "logits_bf16_gemv_rows" => k
                 .acts(bf)
@@ -521,6 +546,9 @@ mod tests {
     /// nvfp4 one) and nothing else, so prefill and every other row count keep the unfused ops.
     #[test]
     fn phase1_fold_selection_is_pinned() {
+        if crate::quantmoe::wmma_rows_enabled() {
+            return; // main's pins: with the WMMA knob the folds follow the table (quantmoe::wmma_*_selection_is_pinned)
+        }
         let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
         let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
         let p = |op: Op, s: ShapeInfo| pick(op, &s);

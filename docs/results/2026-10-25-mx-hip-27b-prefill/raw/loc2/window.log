@@ -1,0 +1,16 @@
+[window] job 5151 loc2 arms [base35 dev35] rounds 3; stopping radiance 2026-10-25 04:57:03
+[window] arm mx-loc2-base35-r1 up 2026-10-25 04:57:23
+[window] arm mx-loc2-base35-r1 localeval exit 0: - result file: `results/20261025-045724-adhoc-mx-loc2-base35-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045724-adhoc-mx-loc2-base35-r1/result.json  2026-10-25 04:57:36
+[window] arm mx-loc2-dev35-r1 up 2026-10-25 04:57:48
+[window] arm mx-loc2-dev35-r1 localeval exit 0: - result file: `results/20261025-045749-adhoc-mx-loc2-dev35-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045749-adhoc-mx-loc2-dev35-r1/result.json  2026-10-25 04:58:01
+[window] arm mx-loc2-dev35-r2 up 2026-10-25 04:58:11
+[window] arm mx-loc2-dev35-r2 localeval exit 0: - result file: `results/20261025-045811-adhoc-mx-loc2-dev35-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045811-adhoc-mx-loc2-dev35-r2/result.json  2026-10-25 04:58:23
+[window] arm mx-loc2-base35-r2 up 2026-10-25 04:58:36
+[window] arm mx-loc2-base35-r2 localeval exit 0: - result file: `results/20261025-045836-adhoc-mx-loc2-base35-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045836-adhoc-mx-loc2-base35-r2/result.json  2026-10-25 04:58:48
+[window] arm mx-loc2-base35-r3 up 2026-10-25 04:59:01
+[window] arm mx-loc2-base35-r3 localeval exit 0: - result file: `results/20261025-045901-adhoc-mx-loc2-base35-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045901-adhoc-mx-loc2-base35-r3/result.json  2026-10-25 04:59:13
+[window] arm mx-loc2-dev35-r3 up 2026-10-25 04:59:26
+[window] arm mx-loc2-dev35-r3 localeval exit 0: - result file: `results/20261025-045927-adhoc-mx-loc2-dev35-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-045927-adhoc-mx-loc2-dev35-r3/result.json  2026-10-25 04:59:38
+[window] rounds done 2026-10-25 04:59:38
+[window] starting radiance 2026-10-25 04:59:38
+[window] radiance answers (after 15 s); active 2026-10-25 04:59:49

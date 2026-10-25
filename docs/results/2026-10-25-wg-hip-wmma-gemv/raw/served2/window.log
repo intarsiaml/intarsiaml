@@ -1,0 +1,21 @@
+[13:01:36] pre-step: ablation build exit=0 [win] stamped bench-intarsiaml-wg 1b16702ab398c582
+[13:01:39] radiance down; arms off opt1 x 3 passes
+[13:01:55] off-p1: up (1181 s left)
+[13:02:52] off-p1: localeval exit 0 (1124 s left)
+[13:03:10] opt1-p1: up (1106 s left)
+[13:04:00] opt1-p1: localeval exit 0 (1056 s left)
+[13:04:18] opt1-p2: up (1038 s left)
+[13:05:08] opt1-p2: localeval exit 0 (988 s left)
+[13:05:26] off-p2: up (970 s left)
+[13:06:23] off-p2: localeval exit 0 (913 s left)
+[13:06:41] off-p3: up (895 s left)
+[13:07:38] off-p3: localeval exit 0 (838 s left)
+[13:07:57] opt1-p3: up (819 s left)
+[13:08:47] opt1-p3: localeval exit 0 (769 s left)
+[13:08:50] visits done (766 s left)
+[13:08:50] tail skipped: 766 s left
+[13:09:02] window process ended
+[win] stopping radiance 2026-10-25 13:01:36 (tree 1b16702ab398c582)
+[hold] done-file 13:08:51
+[win] starting radiance 2026-10-25 13:08:52
+[win] radiance answers 2026-10-25 13:09:02 (after 15 s); active

@@ -1,0 +1,39 @@
+/opt/code/intarsiaml/.worktrees/mx-fold-default-data/tails: prefill, reference chunk 256, 34 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+  4096count                 38      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096story                 39      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096code                  87      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096science               79      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_short            18      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_system           32      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_multiturn        58      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_reasoning        90      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_300       300      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_700       700      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_260            260      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_264            264      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4089          4089      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4100          4100      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_5686          5686      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_16036        16036      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_257            257      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_258            258      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_263            263      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_265            265      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_272            272      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_273            273      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_289            289      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_320            320      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_321            321      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_384            384      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4097          4097      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4104          4104      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4105          4105      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4360          4360      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4361          4361      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_8200          8200      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_8456          8456      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_12553        12553      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+aggregate over all prompts (row-weighted mean KL):
+  chunk 4096: rows 85014, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+ALL BITWISE: yes  (chunks compared: [4096])

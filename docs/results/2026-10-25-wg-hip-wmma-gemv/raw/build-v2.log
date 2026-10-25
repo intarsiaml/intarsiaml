@@ -1,0 +1,14 @@
+fleetq: #5143 waiting (#6 in line): in line behind #5137 "lane sp: final HIP gates (batch_cuda_real +ignored, batch_recurrent, kernels quick, rows_exact; radiance down ~30 min, restored after)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5137 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5137 set, or it will wait for #5137 to be released.
+fleetq: #5143 waiting (#6 in line): in line behind #5137 "lane sp: final HIP gates (batch_cuda_real +ignored, batch_recurrent, kernels quick, rows_exact; radiance down ~30 min, restored after)" (claude-f31ccf91) on tatooine-r9700; #5137 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5137 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5137 set, or it will wait for #5137 to be released.
+fleetq: #5143 waiting (#5 in line): in line behind #5138 "mx loc1: localeval prefill 1k/4k/16k, 27B main vs v2 vs v2+fold (opt-in), interleaved x3, one R9700" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5138 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5138 set, or it will wait for #5138 to be released.
+fleetq: #5143 waiting (#4 in line): in line behind #5140 "mr: hipcc mxbench rows variants (cpu only)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5140 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5140 set, or it will wait for #5140 to be released.
+fleetq: #5143 running on tatooine-r9700: ssh tatooine 'BUILD=$HOME/wg-build-v2 REPO=$HOME/intarsiaml-wg-var bash ~/wg-bench.sh build 2>&1 | grep -E "error|^built" ; echo BUILD-END'
+fleetq: #5143 went ahead of the line and must end within 5h08m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+built
+BUILD-END
+fleetq: #5143 done (exit 0)

@@ -1,0 +1,8 @@
+d-off n128 md5=abcdf0cf | decode 7694 ms (33.14 tok/s) | 
+d-def n128 md5=abcdf0cf | decode 4475 ms (56.98 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-v0 n128 md5=abcdf0cf | decode 5051 ms (50.49 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-v65536 n128 md5=abcdf0cf | decode 4485 ms (56.85 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass)
+d-off n1024 md5=3592ef43 | decode 7731 ms (32.99 tok/s) | 
+d-def n1024 md5=3592ef43 | decode 4752 ms (53.66 tok/s) | spec: verify passes=105 proposed=210 accepted=149 (acceptance 71.0%, 2.42 tokens per pass)
+d-v0 n1024 md5=3592ef43 | decode 5306 ms (48.06 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)
+d-v65536 n1024 md5=3592ef43 | decode 4756 ms (53.62 tok/s) | spec: verify passes=105 proposed=210 accepted=149 (acceptance 71.0%, 2.42 tokens per pass)

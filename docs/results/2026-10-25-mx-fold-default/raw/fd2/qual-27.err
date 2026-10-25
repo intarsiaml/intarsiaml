@@ -1,0 +1,21 @@
+[qualify      0s] Qwen3.8-27B-Quark-AWQ-MXFP4 on hip, report directory /work/mx-out/qual-27
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      1s] doctor: PASS in 1.2s (AMD Radeon Graphics (gfx1201), 70 kernels registered)
+[qualify      1s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.0s (builtin:qwen3_5_vl covers this model (45/45 tensor templates resolve, quant mxfp4))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     34s] plan: PASS in 32.7s (20 ops resolved, exactness deterministic, loaded in 32.7s)
+[qualify     34s] == kernels [kernels test on the model's shapes]
+[qualify    152s] kernels: PASS in 118.1s (66 kernels, 1465 cases in 116.9s)
+[qualify    152s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify    164s] gate: PASS in 12.2s (perplexity 1.59, 5/5 sanity prompts ok, no non-finite rows)
+[qualify    164s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify    164s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.8-27B-Quark-AWQ-MXFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify    164s] == acc-short [short accuracy against a golden]
+[qualify    177s] acc-short: PASS in 13.1s (prefill top-1 91.95% KL 1.72e-1; decode top-1 88.12% KL 2.11e-1)
+[qualify    177s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify    177s] acc-oracle: MISSING-BASELINE in 0.0s (MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-Quark-AWQ-MXFP4' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-Quark-AWQ-MXFP4 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --backend cpu --golden /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-Quark-AWQ-MXFP4 --write-self-golden golden/oracle/qwen3.8-27b-quark-awq-mxfp4-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[qualify    177s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    201s] server up in 24s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    224s] bench: PASS in 46.6s (decode 33.1 tok/s at 128 tokens (82% of the byte floor))
+[qualify    224s] exit code 1

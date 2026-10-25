@@ -1,0 +1,19 @@
+B=1 step ms: off 6.11 opt1 6.37
+  launches                   off      12032.0  opt1      12032.0  delta        0.0
+  kernel GPU ms              off       2223.9  opt1       2205.5  delta      -18.4
+  stream wall ms             off       2268.1  opt1       2249.7  delta      -18.4
+  idle between launches ms   off         44.2  opt1         44.2  delta        0.0
+
+kernel                                       d total ms launches off   opt1 avg us off    opt1
+matmul_fp8_mma_f8                                -18.39         2080   2080      151.4   142.5
+moe_topk_bf16_v2                                  -3.57          640    640       17.9    12.3
+moe_experts_bf16_v2                                3.09          640    640     1950.8  1955.6
+gdn_delta_rule_bf16_v3                             0.77          480    480      590.9   592.6
+gdn_conv_bf16                                     -0.46          480    480       68.6    67.6
+rmsnorm_bf16                                      -0.45           16     16       48.3    19.7
+matmul_bf16                                        0.37         2240   2240       39.2    39.4
+matmul_nvfp4_mma                                   0.35         1920   1920       63.3    63.5
+embedding_bf16                                    -0.24           16     16      122.2   107.6
+attn_prefill_bf16_flash_v2                         0.05          160    160      156.0   156.3
+gate_split_qk_norm_rope_kv_bf16                    0.05          160    160       75.3    75.6
+gated_rmsnorm_bf16                                 0.04          480    480       48.5    48.6

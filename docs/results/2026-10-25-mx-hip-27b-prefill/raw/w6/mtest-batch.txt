@@ -1,0 +1,89 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:599:45
+    |
+599 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.15s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 10 tests
+test real_35b_batch_op_listing ... ok
+test real_35b_batch_step_profile ... ok
+test real_35b_batch_step_sampled_timing ... FAILED
+test real_35b_batch_step_timing ... ok
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ok
+test real_35b_busy_chunk_prefill_kl_gate ... FAILED
+test real_35b_packed_prefill_equals_the_local_engine ... ok
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED
+
+failures:
+
+---- real_35b_batch_step_sampled_timing stdout ----
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12545687552, weights_bytes: 20825033460, workspace_bytes: 960563744, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11918403024, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+TIMING sampled B= 4 host      : 66.11 ms/step incl. host sampling, 60.5 tok/s aggregate
+
+thread 'real_35b_batch_step_sampled_timing' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:300:69:
+called `Result::unwrap()` on an `Err` value: InvalidCall("forward_batch rows return logits, a token or (device sampling) the top-k")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- real_35b_busy_chunk_prefill_kl_gate stdout ----
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12540968960, weights_bytes: 20825033460, workspace_bytes: 1044515360, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11913920362, kv_cap_tokens: 16456, kv_total_bytes: 337018880, notes: [] }
+recurrent bytes per state 65863680
+
+thread 'real_35b_busy_chunk_prefill_kl_gate' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:397:5:
+assertion `left == right` failed: the solo prefill chunk of the 35B recipe
+  left: 4096
+ right: 2048
+
+---- real_qwen3_8b_batched_decode_is_bitwise_the_solo_step stdout ----
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17259560960, weights_bytes: 16381470720, workspace_bytes: 274722080, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16396582706, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+recurrent bytes per state 0
+
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:89:31:
+called `Result::unwrap()` on an `Err` value: Unsupported("--max-batch N (N > 1) on the hip backend is supported only for the gated hybrid recipes (GatedDeltaNet / mixture-of-experts / gated attention); dense models are not yet verified on HIP; use --max-batch 1")
+
+
+failures:
+    real_35b_batch_step_sampled_timing
+    real_35b_busy_chunk_prefill_kl_gate
+    real_qwen3_8b_batched_decode_is_bitwise_the_solo_step
+
+test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 351.06s
+
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`

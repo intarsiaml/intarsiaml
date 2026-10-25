@@ -1,0 +1,7 @@
+
+
+**First packs (Phase 0, all ports, all tested against the reference):**
+
+| Pack | License | What it gives us |
+|---|---|---|
+| **TensorFold** (MIT) | MIT | `nvfp4_gemm` (sm_121, split-K, 128B swizzle), `nvfp4_gemm_moe` (grouped), `nvfp4_gemm_moe_dflash` (draft), `mxfp4_gemm` (sm_120/121), `mxfp4_gemm_moe`, `paged_attn_decode` (sm_121, 128B swizzle), `paged_attn_verify` (sm_121, 128B swizzle), `paged_attn_decode_mxfp4`, `paged_attn_verify_mxfp4`, `paged_attn_decode_mxfp4_dflash`, `paged_attn_verify_mxfp4_dflash`, `moe_gate_topk` (sm_121), `moe_gate_topk_mxfp4`, `moe_gate_topk_dflash`, `moe_gate_topk

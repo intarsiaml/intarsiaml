@@ -7,11 +7,11 @@
 
 use crate::ffi::{self, IkDeviceInfo, IkTensor, IK_MAX_DIMS};
 use crate::kernels;
-use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
+use intarsia_core::backend::{Backend, Buffer, BufferImpl, DeviceInfo, GraphHandle, GraphImpl, Layout, MemKind, StreamId};
 use intarsia_core::{DType, Error, KernelImpl, OpCall, Result, TensorRef};
 use std::any::Any;
 use std::ffi::{c_int, c_void, CStr};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
 
 fn hip_err(what: &str, code: i32) -> Error {
@@ -33,7 +33,12 @@ pub struct HipBuffer {
     ptr: *mut c_void,
     bytes: usize,
     ordinal: i32,
+    /// 0 = `Layout::RowMajor`, 1 = `Layout::Fp8Frag`; stored only by `relayout_fp8_frag`, after the bytes have been rearranged.
+    layout: AtomicU8,
 }
+
+/// The dtype code a `Layout::Fp8Frag` fp8 weight is passed to the launchers with (kernels/hip/ik_hip_abi.h IK_HIP_DTYPE_FP8_E4M3_FRAG).
+const IK_HIP_DTYPE_FP8_E4M3_FRAG: i32 = 259;
 
 // SAFETY: a device pointer is just an address; all access goes through the backend, which binds the
 // right device first. Freed exactly once in Drop.
@@ -46,6 +51,12 @@ impl BufferImpl for HipBuffer {
     }
     fn as_any(&self) -> &dyn Any {
         self
+    }
+    fn layout(&self) -> Layout {
+        match self.layout.load(Ordering::Acquire) {
+            0 => Layout::RowMajor,
+            _ => Layout::Fp8Frag,
+        }
     }
 }
 
@@ -101,6 +112,8 @@ pub struct HipBackend {
     capturing: AtomicBool,
     /// round 9: page-locked host staging for small copies (created on first use; `None` after a failed allocation)
     staging: Mutex<Option<Option<Staging>>>,
+    /// lane wg: dense fp8 weights rearranged into `Layout::Fp8Frag` by `relayout_fp8_frag` (count, bytes)
+    relayout: (AtomicU64, AtomicU64),
 }
 
 /// Round 9 (docs/results/2026-10-19-hip-round9.md): page-locked host staging for small uploads and downloads.
@@ -328,6 +341,7 @@ impl HipBackend {
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
+            relayout: (AtomicU64::new(0), AtomicU64::new(0)),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -393,7 +407,13 @@ impl HipBackend {
             stride[i] = acc;
             acc *= t.shape[i] as i64;
         }
-        Ok(IkTensor { data, dtype: t.dtype as i32, ndim: t.shape.len() as i32, shape, stride })
+        // a fragment-order weight is never passed as plain e4m3: the launchers that read it accept the private dtype, every other one rejects it
+        let dtype = match (t.layout(), t.dtype) {
+            (Layout::RowMajor, d) => d as i32,
+            (Layout::Fp8Frag, DType::Fp8E4m3) => IK_HIP_DTYPE_FP8_E4M3_FRAG,
+            (l, d) => return Err(Error::invalid(format!("a {d} tensor in layout {l:?} has no launcher dtype"))),
+        };
+        Ok(IkTensor { data, dtype, ndim: t.shape.len() as i32, shape, stride })
     }
 }
 
@@ -446,10 +466,13 @@ impl Backend for HipBackend {
         if rc != 0 {
             return Err(Error::Memory(format!("hipMalloc of {bytes} bytes failed: {}", hip_err("", rc))));
         }
-        Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal }))
+        Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal, layout: AtomicU8::new(0) }))
     }
 
     fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], stream: StreamId) -> Result<()> {
+        if dst.layout() != Layout::RowMajor {
+            return Err(Error::backend(format!("upload into a {:?} buffer (its bytes are not in the order a caller would write)", dst.layout())));
+        }
         if src.is_empty() {
             return Ok(());
         }
@@ -485,6 +508,12 @@ impl Backend for HipBackend {
     }
 
     fn download(&self, src: &Buffer, src_offset: usize, dst: &mut [u8], stream: StreamId) -> Result<()> {
+        if src.layout() != Layout::RowMajor {
+            return Err(Error::backend(format!(
+                "download of a {:?} buffer: its bytes are not in row-major order (use download_row_major)",
+                src.layout()
+            )));
+        }
         if dst.is_empty() {
             return Ok(());
         }
@@ -521,6 +550,9 @@ impl Backend for HipBackend {
         bytes: usize,
         stream: StreamId,
     ) -> Result<()> {
+        if dst.layout() != Layout::RowMajor || src.layout() != Layout::RowMajor {
+            return Err(Error::backend("device copy of a layout-tagged buffer: the copy would not carry the tag".to_string()));
+        }
         if bytes == 0 {
             return Ok(());
         }
@@ -541,6 +573,74 @@ impl Backend for HipBackend {
         let s = self.stream(stream)?;
         // SAFETY: whole-buffer range.
         check("zero", unsafe { ffi::ik_rt_memset(d as *mut c_void, 0, dst.bytes(), s) })
+    }
+
+    fn fp8_frag_wanted(&self, n: usize, k: usize, act_quant: bool) -> bool {
+        use crate::quantmoe::{fp8_frag_serves, WmmaKind};
+        intarsia_core::quant::fp8::frag_eligible(n, k) && fp8_frag_serves(if act_quant { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 })
+    }
+
+    /// Rearrange a dense fp8 weight into `Layout::Fp8Frag` in place: permute into a scratch allocation of the tensor's size (the whole
+    /// extra memory, freed on return), copy back, synchronise, and only then tag the allocation.
+    fn relayout_fp8_frag(&self, w: &TensorRef) -> Result<()> {
+        let (n, k) = match w.shape[..] {
+            [n, k] if w.dtype == DType::Fp8E4m3 => (n, k),
+            _ => return Err(Error::invalid(format!("fragment-order layout: want a 2-D fp8 weight, got {} {:?}", w.dtype, w.shape))),
+        };
+        if !intarsia_core::quant::fp8::frag_eligible(n, k) {
+            return Err(Error::invalid(format!("fragment-order layout: {n} x {k} needs N % 16 == 0 and K % 32 == 0")));
+        }
+        if w.layout() != Layout::RowMajor {
+            return Err(Error::invalid("fragment-order layout: the weight is already tagged"));
+        }
+        let hb = w
+            .buf
+            .downcast::<HipBuffer>()
+            .ok_or_else(|| Error::backend("buffer does not belong to the hip backend"))?;
+        if w.offset != 0 || w.buf.bytes() != w.nbytes() {
+            return Err(Error::invalid("fragment-order layout: the tag covers a whole allocation, the weight must be all of it"));
+        }
+        self.bind()?;
+        let scratch = self.alloc(w.nbytes(), MemKind::Device)?;
+        let src = Self::tensor(w)?;
+        let mut dst = Self::tensor(&TensorRef::new(scratch.clone(), DType::Fp8E4m3, &w.shape))?;
+        let st = self.stream(0)?;
+        // SAFETY: both tensors are bounds-checked views of live allocations; the launcher validates dtype, shape and alignment.
+        check("relayout_fp8_frag", unsafe { ffi::ik_fp8_relayout_frag(&src, &mut dst, st) })?;
+        self.copy(&w.buf, 0, &scratch, 0, w.nbytes(), 0)?;
+        self.synchronize(0)?;
+        hb.layout.store(1, Ordering::Release);
+        self.relayout.0.fetch_add(1, Ordering::Relaxed);
+        self.relayout.1.fetch_add(w.nbytes() as u64, Ordering::Relaxed);
+        Ok(())
+    }
+
+    fn layout_report(&self) -> Option<String> {
+        crate::quantmoe::fp8_frag_enabled().then(|| {
+            format!(
+                "relayout: {} tensors -> frag order ({:.1} MB)",
+                self.relayout.0.load(Ordering::Relaxed),
+                self.relayout.1.load(Ordering::Relaxed) as f64 / 1e6
+            )
+        })
+    }
+
+    fn download_row_major(&self, t: &TensorRef) -> Result<Vec<u8>> {
+        let mut data = vec![0u8; t.nbytes()];
+        if t.layout() == Layout::RowMajor {
+            self.download(&t.buf, t.offset, &mut data, 0)?;
+            return Ok(data);
+        }
+        // un-permute on the device into a plain scratch allocation, then an ordinary download of that
+        self.bind()?;
+        let plain = self.alloc(t.nbytes(), MemKind::Device)?;
+        let src = Self::tensor(t)?;
+        let mut dst = Self::tensor(&TensorRef::new(plain.clone(), t.dtype, &t.shape))?;
+        let st = self.stream(0)?;
+        // SAFETY: as in relayout_fp8_frag.
+        check("unrelayout_fp8_frag", unsafe { ffi::ik_fp8_unrelayout_frag(&src, &mut dst, st) })?;
+        self.download(&plain, 0, &mut data, 0)?;
+        Ok(data)
     }
 
     fn kernels(&self) -> Vec<KernelImpl> {
@@ -692,6 +792,25 @@ impl Backend for HipBackend {
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_rows" => ffi::ik_matmul_fp8_gemv_rows(i(0), i(1), i(2), o, s),
+                "matmul_bf16_wmma" => ffi::ik_matmul_bf16_wmma(i(0), i(1), o, s),
+                "matmul_bf16_wmma_rows" => ffi::ik_matmul_bf16_wmma_rows(i(0), i(1), o, s),
+                "matmul_pair_bf16_wmma" => ffi::ik_matmul_pair_bf16_wmma(i(0), i(1), i(2), o, o.add(1), s),
+                "rmsnorm_add_matmul_pair_bf16_wmma" => ffi::ik_rmsnorm_add_matmul_pair_bf16_wmma(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
+                "matmul_fp8_wmma" => ffi::ik_matmul_fp8_wmma(i(0), i(1), i(2), o, sc, s),
+                "matmul_fp8_wmma_rows" => ffi::ik_matmul_fp8_wmma_rows(i(0), i(1), i(2), o, sc, s),
                 "matmul_fp8_mma" => ffi::ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma_f8" => ffi::ik_matmul_fp8_mma_f8(i(0), i(1), i(2), o, sc, s),
                 "matmul_fp8_mma_v2" => ffi::ik_matmul_fp8_mma_v2(i(0), i(1), i(2), o, sc, s),
@@ -702,6 +821,8 @@ impl Backend for HipBackend {
                 "matmul_mxfp4_gemv" => ffi::ik_matmul_mxfp4_gemv(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_gemv_rows" => ffi::ik_matmul_mxfp4_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_mma_v1" => ffi::ik_matmul_mxfp4_mma_v1(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_mma_fold" => ffi::ik_matmul_mxfp4_mma_fold(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_pair_gemv" => ffi::ik_matmul_mxfp4_pair_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "matmul_mxfp4_pair_gemv_rows" => ffi::ik_matmul_mxfp4_pair_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
@@ -760,6 +881,27 @@ impl Backend for HipBackend {
                     s,
                 ),
                 "sigmoid_mul_matmul_fp8_gemv" => ffi::ik_sigmoid_mul_matmul_fp8_gemv(i(0), i(1), i(2), i(3), o, s),
+                "matmul_fp8_pair_wmma" => ffi::ik_matmul_fp8_pair_wmma(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
+                "gated_rmsnorm_matmul_fp8_wmma" => {
+                    ffi::ik_gated_rmsnorm_matmul_fp8_wmma(i(0), i(1), i(2), a.eps, a.w_offset, i(3), i(4), o, s)
+                }
+                "rmsnorm_add_matmul_fp8_pair_wmma" => ffi::ik_rmsnorm_add_matmul_fp8_pair_wmma(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
+                "sigmoid_mul_matmul_fp8_wmma" => ffi::ik_sigmoid_mul_matmul_fp8_wmma(i(0), i(1), i(2), i(3), o, s),
                 "shared_down_combine_nvfp4_gemv" => {
                     ffi::ik_shared_down_combine_nvfp4_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, s)
                 }

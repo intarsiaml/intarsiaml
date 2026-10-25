@@ -1,0 +1,12 @@
+ `cudarc` equivalent).
+
+**First packs (Phase 0):**
+- **TensorFold (MIT)**: `kernels/cuda` (GEMM, attention, MoE, quant, sampling) and `kernels/hip` (GEMM, attention, MoE, quant, sampling). The MIT license permits the port.
+- **radiance (Apache-2.0)**: `kernels/` (GEMM, attention, MoE, quant, sampling) for the R9700 path.
+- **llama.cpp (MIT)**: selected quant kernels (dequant, quantize, ggml ops) for the GGUF path.
+- **Ours**: the hard ones (below), written against the ABI.
+
+**Hard kernels, written early (Phase 0/1):**
+- **Paged attention decode/verify** (CUDA + HIP): the single most important kernel for the whole engine.
+- **GatedDeltaNet** (CUDA + HIP): needed for Qwen3.5/3.6; the math is in `core/src/gdn.rs` (f64 reference).
+- **NVFP4 / MXFP4 / FP8 G

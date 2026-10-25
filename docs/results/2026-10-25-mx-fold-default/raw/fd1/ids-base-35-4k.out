@@ -1,0 +1,22 @@
+ithmetics** (TensorFold's `FusedOpArith`): every fused op is a DAG of elementwise ops with a single output. The reference computes the DAG in f32/f64; the kernel pack computes it in the target dtype. The plan compiler checks that the kernel's arith DAG matches the reference's DAG (same ops, same order, same constants). This is how we get `Exactness::Deterministic` on fused ops without writing a serial reference for every fused variant.
+
+### 3.4 Block library (the model is a recipe)
+
+A model is a **recipe** (TOML) that maps each layer type to a block pattern:
+
+```toml
+[recipe]
+name = "Qwen3.5-32B-A4B"
+layer_types = ["linear_attention", "full_attention"]
+
+[layer.pattern_by_layer]
+0 = "linear_attention"
+1 = "full_attention"
+# ...
+
+[layer.by_type]
+linear_attention = ["rmsnorm", "gdn", "moe", "rmsnorm"]
+full_attention   = ["rmsnorm", "attn", "moe", "rmsnorm"]
+```
+
+Each block is a DAG

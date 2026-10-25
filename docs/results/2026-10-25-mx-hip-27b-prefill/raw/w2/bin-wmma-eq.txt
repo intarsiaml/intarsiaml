@@ -1,0 +1,103 @@
+wmma_eq.hip:204:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  204 |     hipMalloc(&dwc, wc.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:205:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  205 |     hipMalloc(&dxc, xc.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:206:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  206 |     hipMalloc(&dsw, sw.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:207:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  207 |     hipMalloc(&dsa, sa.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:208:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  208 |     hipMalloc(&dob, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:209:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  209 |     hipMalloc(&dof, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:210:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  210 |     hipMalloc(&don, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:211:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  211 |     hipMalloc(&dfd, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:212:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  212 |     hipMemcpy(dwc, wc.data(), wc.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:213:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  213 |     hipMemcpy(dxc, xc.data(), xc.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:214:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  214 |     hipMemcpy(dsw, sw.data(), sw.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:215:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  215 |     hipMemcpy(dsa, sa.data(), sa.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:222:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  222 |     hipMemcpy(on.data(), don, on.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:224:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  224 |     hipMemcpy(ofd.data(), dfd, ofd.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:225:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  225 |     hipMemcpy(ob.data(), dob, ob.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:226:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  226 |     hipMemcpy(of.data(), dof, of.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+16 warnings generated when compiling for gfx1201.
+wmma_eq.hip:204:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  204 |     hipMalloc(&dwc, wc.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:205:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  205 |     hipMalloc(&dxc, xc.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:206:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  206 |     hipMalloc(&dsw, sw.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:207:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  207 |     hipMalloc(&dsa, sa.size());
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:208:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  208 |     hipMalloc(&dob, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:209:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  209 |     hipMalloc(&dof, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:210:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  210 |     hipMalloc(&don, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:211:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  211 |     hipMalloc(&dfd, (size_t)tiles * 256 * 4);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:212:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  212 |     hipMemcpy(dwc, wc.data(), wc.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:213:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  213 |     hipMemcpy(dxc, xc.data(), xc.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:214:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  214 |     hipMemcpy(dsw, sw.data(), sw.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:215:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  215 |     hipMemcpy(dsa, sa.data(), sa.size(), hipMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:222:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  222 |     hipMemcpy(on.data(), don, on.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:224:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  224 |     hipMemcpy(ofd.data(), dfd, ofd.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:225:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  225 |     hipMemcpy(ob.data(), dob, ob.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+wmma_eq.hip:226:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  226 |     hipMemcpy(of.data(), dof, of.size() * 4, hipMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+16 warnings generated when compiling for host.
+regime model-like outputs   2560000  bf16-chain inexact (rounded)       534  fp8-carried != bf16-chain       164  fold != bf16-chain       164  control (per-group fma) != bf16-chain       205
+regime wide       outputs   2560000  bf16-chain inexact (rounded)   2019657  fp8-carried != bf16-chain    829548  fold != bf16-chain    829640  control (per-group fma) != bf16-chain   1059689
+regime cancel     outputs   2560000  bf16-chain inexact (rounded)         0  fp8-carried != bf16-chain         0  fold != bf16-chain         0  control (per-group fma) != bf16-chain         0
+regime sparse     outputs   2560000  bf16-chain inexact (rounded)     13481  fp8-carried != bf16-chain       719  fold != bf16-chain       719  control (per-group fma) != bf16-chain      2291
+RESULT carried DIFFERENT (830431 mismatches); fold DIFFERENT (830523)
