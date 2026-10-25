@@ -5,7 +5,7 @@
  "lane_id": "mx",
  "agent_model": "claude-opus-5-5",
  "started": "2026-10-25T01:00:00-04:00",
- "ended": null,
+ "ended": "2026-10-25T08:00:00-04:00",
  "brief": "docs/plans/2026-10-25-r9700-push.md Lane 3 (+ Lane 8): close the Qwen3.8-27B MXFP4 prefill gap on one R9700 (HIP gfx1201) vs radiance 1.12.0 TP2 (5210 / 6133 / 5852 tok/s at 1k / 4k / 16k); bitwise work may become default with evidence, W4A8 / numerics-changing prefill only opt-in gated on KL; draft PR, results doc, trace, LOG and tuning rows.",
  "hypothesis": "The 27B prefill is GEMM-bound (MXFP4 W4A4 dequant-to-bf16 WMMA at a third of the bf16 peak), so a cheaper exact dequant plus prefill-sized tiles would speed it up bit for bit; a W4A4 fold onto the 2x-rate fp8 WMMA would roughly double the GEMM as an opt-in; and the chunk-4096 gain (rejected before as not bitwise) could be made bitwise by running short tails as chunk 256 does.",
  "target": {
@@ -35,8 +35,8 @@
  "code": {
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mx/27b-prefill",
-  "base_commit": "0b84f499",
-  "head_commit": "4b885495",
+  "base_commit": "5e9cc6da",
+  "head_commit": "752025c0",
   "pr": "https://github.com/intarsiaml/intarsiaml/pull/144",
   "files": [
    "crates/intarsia-backend-hip/src/device.rs",
@@ -61,7 +61,7 @@
    "kernels/hip/mxfp4.hip",
    "recipes/qwen3_5_vl.toml"
   ],
-  "diff_stat": "565 files changed, 27187 insertions(+), 11 deletions(-)",
+  "diff_stat": "640 files changed, 31600 insertions(+), 11 deletions(-)",
   "default_changed": true,
   "merged": false,
   "merge_commit": null
@@ -88,14 +88,14 @@
   {
    "name": "tails sweep main chunk 256 vs dev chunk 4096 + peel",
    "command": "intarsia accuracy --write-self-golden + scripts/ck/chunkcmp.py",
-   "result": "fail",
-   "detail": "peel 8: 4 of 34 prompts differ (9..16-row tails, split-KV attention); peel 16 pending w8; no-peel control: 11 differ"
+   "result": "pass",
+   "detail": "peel 16 (rebased tree): 0 of 34 prompts / 0 of 85014 rows differ; peel 8: 4 differ; no peel: 11 differ (control)"
   },
   {
    "name": "27B golden gate (HF Quark W4A4, ref noise)",
    "command": "intarsia accuracy --mode both",
    "result": "fail",
-   "detail": "prefill PASS 0.180; decode-mode FAIL 0.340 = main's own result (bitwise); fold 0.165 / 0.261"
+   "detail": "prefill PASS 0.180; decode-mode FAIL 0.340 = main's own result (bitwise); fold 0.165 / 0.261; head setting (4096 + peel 16) matches main to the printed digits"
   },
   {
    "name": "35B KL golden (vLLM top-20)",
@@ -106,8 +106,8 @@
   {
    "name": "35B acc-short",
    "command": "intarsia qualify --quick-only",
-   "result": "skip",
-   "detail": "doctor failed on tatooine's disk (2 % free), plan blocked, baseline not matched"
+   "result": "pass",
+   "detail": "prefill top-1 98.61 % KL 7.63e-3, decode top-1 98.75 % KL 1.18e-2 (raw/w8)"
   },
   {
    "name": "no-op vs main, HIP: plan show + 256 ids 27B / 35B",
@@ -138,143 +138,104 @@
    "command": "scripts/mx/metal-noop.sh",
    "result": "pass",
    "detail": "plan + ids 8B/35B identical, 27B plan identical, kernels test 0 FAIL"
+  },
+  {
+   "name": "27B batched decode == solo (max-batch 16, head recipe)",
+   "command": "cargo test -p intarsia-models --test batch_cuda_real real_35b_batched_decode_is_bitwise (INTARSIA_QWEN36_DIR=27B)",
+   "result": "pass",
+   "detail": "raw/w9"
   }
  ],
  "measurements": [
   {
    "metric": "prefill_tps",
    "bucket": "1k",
-   "prompt_tokens": 989,
+   "prompt_tokens": 990,
    "streams": 1,
-   "before": 981,
-   "after": 1120,
-   "unit": "tok/s",
+   "before": 980,
+   "after": 1323,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5148,
-   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
-   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
   },
   {
    "metric": "prefill_tps",
    "bucket": "4k",
-   "prompt_tokens": 4087,
+   "prompt_tokens": 4088,
    "streams": 1,
-   "before": 1013,
-   "after": 1154,
-   "unit": "tok/s",
+   "before": 1010,
+   "after": 1437,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5148,
-   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
-   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
   },
   {
    "metric": "prefill_tps",
    "bucket": "16k",
-   "prompt_tokens": 16654,
+   "prompt_tokens": 16655,
    "streams": 1,
-   "before": 947,
-   "after": 1073,
-   "unit": "tok/s",
+   "before": 946,
+   "after": 1351,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs PR-head default: v2 + chunk 4096 + 16-row peel, bitwise)",
    "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5148,
-   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
-   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
   },
   {
    "metric": "prefill_tps",
    "bucket": "1k",
-   "prompt_tokens": 1024,
+   "prompt_tokens": 990,
    "streams": 1,
-   "before": 989.6,
-   "after": 1335.0,
-   "unit": "tok/s (engine prefill-only, generate --max-tokens 1; v2 + chunk 4096 + peel)",
-   "n": 1,
+   "before": 980,
+   "after": 2043,
+   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
   },
   {
    "metric": "prefill_tps",
    "bucket": "4k",
-   "prompt_tokens": 4096,
+   "prompt_tokens": 4088,
    "streams": 1,
-   "before": 1012.1,
-   "after": 1434.8,
-   "unit": "tok/s (engine prefill-only, generate --max-tokens 1; v2 + chunk 4096 + peel)",
-   "n": 1,
+   "before": 1010,
+   "after": 2416,
+   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
   },
   {
    "metric": "prefill_tps",
    "bucket": "16k",
-   "prompt_tokens": 16384,
+   "prompt_tokens": 16655,
    "streams": 1,
-   "before": 959.4,
-   "after": 1366.9,
-   "unit": "tok/s (engine prefill-only, generate --max-tokens 1; v2 + chunk 4096 + peel)",
-   "n": 1,
+   "before": 946,
+   "after": 2186,
+   "unit": "tok/s (localeval served; opt-in INTARSIA_HIP_MXFP4_FOLD=1 on the head default, changes numerics)",
+   "n": 3,
    "spread_pct": null,
    "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
-  },
-  {
-   "metric": "prefill_tps",
-   "bucket": "1k",
-   "prompt_tokens": 1024,
-   "streams": 1,
-   "before": 989.6,
-   "after": 2041.1,
-   "unit": "tok/s (engine prefill-only; opt-in fold + chunk 4096 + peel, changes numerics)",
-   "n": 1,
-   "spread_pct": null,
-   "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
-  },
-  {
-   "metric": "prefill_tps",
-   "bucket": "4k",
-   "prompt_tokens": 4096,
-   "streams": 1,
-   "before": 1012.1,
-   "after": 2409.7,
-   "unit": "tok/s (engine prefill-only; opt-in fold + chunk 4096 + peel, changes numerics)",
-   "n": 1,
-   "spread_pct": null,
-   "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
-  },
-  {
-   "metric": "prefill_tps",
-   "bucket": "16k",
-   "prompt_tokens": 16384,
-   "streams": 1,
-   "before": 959.4,
-   "after": 2227.1,
-   "unit": "tok/s (engine prefill-only; opt-in fold + chunk 4096 + peel, changes numerics)",
-   "n": 1,
-   "spread_pct": null,
-   "slot": "quiet",
-   "slot_job": 5158,
-   "before_run_id": null,
-   "after_run_id": null
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
   },
   {
    "metric": "gemm_ms_per_chunk",
@@ -294,12 +255,12 @@
  ],
  "accuracy": {
   "gate": "default path bitwise main (dumps, ids, tails sweep); fold opt-in vs the 27B HF golden",
-  "verdict": "fail",
+  "verdict": "pass",
   "bitwise": true,
   "run_ids": []
  },
  "verdict": "win",
- "summary": "Default (bitwise): MXFP4 GEMM v2 (exact bf16 dequant from bits, prefill tile table) and, for the 27B on HIP, chunk 4096 with a new 16-row prefill tail peel that reproduces chunk 256's small passes: 27B prefill +35 / +42 / +43 % at 1k / 4k / 16k on one R9700 (990 -> 1335, 1012 -> 1435, 959 -> 1367 tok/s). Opt-in INTARSIA_HIP_MXFP4_FOLD=1 (W4A4 on the fp8 WMMA) reaches 2041 / 2410 / 2227 but fails the decode-mode golden gate like main (open decision). Pending: w8 peel-16 sweep, loc3 served speed.",
+ "summary": "Default (bitwise): MXFP4 GEMM v2 (exact bf16 dequant from bits, prefill tile table) and, for the 27B on HIP, chunk 4096 with a new 16-row prefill tail peel that reproduces chunk 256's small passes (0 of 34 prompts / 85014 rows differ). Served 27B prefill on one R9700 980 -> 1323, 1010 -> 1437, 946 -> 1351 tok/s at 1k / 4k / 16k (+35 / +42 / +43 %), decode unchanged. Opt-in INTARSIA_HIP_MXFP4_FOLD=1 (W4A4 on the fp8 WMMA, decision mx-1) serves 2043 / 2416 / 2186; prefill KL 0.165 PASS, decode-mode 0.261 vs main 0.340.",
  "lessons": [
   "On gfx12 the fp8 and bf16 WMMA round their 16-product sums differently, so carrying a power-of-two group scale through the fp8 matrix core is not bitwise the bf16 chain, even though every product is exact.",
   "A W4A4 checkpoint with activation QDQ amplifies last-bit sum differences into ref-noise-sized logit changes (row KL up to 0.39 on 4 tail rows), so 'nearly bitwise' schedule changes are not small for it.",
@@ -325,7 +286,11 @@
    5151,
    5158,
    5159,
-   5161
+   5161,
+   5242,
+   5243,
+   5244,
+   5245
   ],
   "tokens": null
  }

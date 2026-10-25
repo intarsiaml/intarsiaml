@@ -30,8 +30,8 @@ with the shipped 16-row peel from raw/w8 on the rebased tree):
   (opt-in). Of the 5.5x gap at 4k about 2x is radiance's second card and about 2.3x its GEMM kernel (section 1, arithmetic);
   after this lane the default single-card gap to radiance's per-card GEMM rate is still about 1.8x (82 vs ~150 TFLOP/s),
   and the bitwise GEMM's remaining cost is its pipeline, not its dequant (section 8).
-* **Still pending** at the time of writing: build7 + w8 (the peel-16 tails sweep, the no-flag 27B plan diff and ids,
-  35B acc-short; fleetq #5203 / #5204) and loc3 (served speed of the head default, #5205). Lane tp2: the
+* **Served** (localeval, interleaved x3, main 5e9cc6da vs the PR head): 980 / 1010 / 946 -> 1323 / 1437 / 1351 tok/s
+  (+35 / +42 / +43 %), fold opt-in 2043 / 2416 / 2186; decode unchanged (section 6). Lane tp2: the
   `qwen3_5_vl.toml` `[tuning.hip]` table also changes the TP2 27B default chunk and memory plan, and both ranks must
   resolve the same peel.
 
@@ -266,7 +266,16 @@ section 4):
 
 Decode is unchanged (32.9 / 32.4 / 30.8 tok/s in every arm).
 
-<!-- LOC3 -->
+27B on the rebased tree (raw/loc3, fleetq #5245; main 5e9cc6da vs the PR head with no flags, whose serve log reads
+`prefill chunk 4096 (recipe qwen3_5_vl, hip)`):
+
+| prompt | main | head default (v2 + 4096 + peel 16, bitwise) | + fold (opt-in) |
+|---|---:|---:|---:|
+| 990 tok | 980 | 1323 (+35 %) | 2043 (+108 %) |
+| 4088 tok | 1010 | 1437 (+42 %) | 2416 (+139 %) |
+| 16655 tok | 946 | 1351 (+43 %) | 2186 (+131 %) |
+
+Spread within each arm is at most 1.7 %; decode 33.0 / 32.4 / 30.8 tok/s in every arm.
 
 35B regression check (raw/loc2, #5151): prefill 6492 / 9901 / 8814 (main) vs 6505 / 9925 / 8796 (dev) tok/s, decode
 163.9 / 160.3 / 145.8 vs 163.6 / 160.5 / 146.2: the same within run-to-run spread (the 35B runs no MXFP4).

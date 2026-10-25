@@ -9,3 +9,4 @@
 2026-10-25 05:30:37 job 5158 window w7: [window] job 5158 w7; stopping radiance 2026-10-25 05:04:34 [window] radiance answers 2026-10-25 05:30:37 (after 25 s); active 
 2026-10-25 07:26:27 job 5243 window w8: [window] job 5243 w8; stopping radiance 2026-10-25 07:14:57 [window] radiance answers 2026-10-25 07:26:27 (after 25 s); active 
 2026-10-25 07:41:03 job 5244 window w9: [window] job 5244 w9; stopping radiance 2026-10-25 07:27:03 [window] radiance answers 2026-10-25 07:41:02 (after 20 s); active 
+2026-10-25 07:56:52 job 5245 window loc3: [window] job 5245 loc3 arms [base27 dev27 dev27@INTARSIA_HIP_MXFP4_FOLD=1] rounds 3; stopping radiance 2026-10-25 07:42:03 [window] radiance answers (after 25 s); active 2026-10-25 07:56:52 

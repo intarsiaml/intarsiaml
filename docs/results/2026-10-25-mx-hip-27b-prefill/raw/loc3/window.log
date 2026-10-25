@@ -1,3 +1,22 @@
 [window] job 5245 loc3 arms [base27 dev27 dev27@INTARSIA_HIP_MXFP4_FOLD=1] rounds 3; stopping radiance 2026-10-25 07:42:03
 [window] arm mx-loc3-base27-r1 up 2026-10-25 07:42:44
 [window] arm mx-loc3-base27-r1 localeval exit 0: - result file: `results/20261025-074246-adhoc-mx-loc3-base27-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-074246-adhoc-mx-loc3-base27-r1/result.json  2026-10-25 07:44:01
+[window] arm mx-loc3-dev27-r1 up 2026-10-25 07:44:35
+[window] arm mx-loc3-dev27-r1 localeval exit 0: - result file: `results/20261025-074436-adhoc-mx-loc3-dev27-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-074436-adhoc-mx-loc3-dev27-r1/result.json  2026-10-25 07:45:36
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1 up 2026-10-25 07:46:11
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1 localeval exit 0: - result file: `results/20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1/result.json  2026-10-25 07:46:58
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2 up 2026-10-25 07:47:32
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2 localeval exit 0: - result file: `results/20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2/result.json  2026-10-25 07:48:19
+[window] arm mx-loc3-dev27-r2 up 2026-10-25 07:48:53
+[window] arm mx-loc3-dev27-r2 localeval exit 0: - result file: `results/20261025-074854-adhoc-mx-loc3-dev27-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-074854-adhoc-mx-loc3-dev27-r2/result.json  2026-10-25 07:49:54
+[window] arm mx-loc3-base27-r2 up 2026-10-25 07:50:28
+[window] arm mx-loc3-base27-r2 localeval exit 0: - result file: `results/20261025-075029-adhoc-mx-loc3-base27-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-075029-adhoc-mx-loc3-base27-r2/result.json  2026-10-25 07:51:44
+[window] arm mx-loc3-base27-r3 up 2026-10-25 07:52:18
+[window] arm mx-loc3-base27-r3 localeval exit 0: - result file: `results/20261025-075219-adhoc-mx-loc3-base27-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-075219-adhoc-mx-loc3-base27-r3/result.json  2026-10-25 07:53:34
+[window] arm mx-loc3-dev27-r3 up 2026-10-25 07:54:08
+[window] arm mx-loc3-dev27-r3 localeval exit 0: - result file: `results/20261025-075409-adhoc-mx-loc3-dev27-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-075409-adhoc-mx-loc3-dev27-r3/result.json  2026-10-25 07:55:09
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3 up 2026-10-25 07:55:43
+[window] arm mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3 localeval exit 0: - result file: `results/20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3/result.json  2026-10-25 07:56:30
+[window] rounds done 2026-10-25 07:56:31
+[window] starting radiance 2026-10-25 07:56:31
+[window] radiance answers (after 25 s); active 2026-10-25 07:56:52
