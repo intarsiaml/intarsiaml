@@ -86,8 +86,16 @@ pub trait Comm: Send + Sync {
     fn all_reduce_sum_into(&self, partial: &TensorRef, out: &TensorRef, stream: StreamId) -> Result<()>;
 
     /// `recv` (`world * send.numel()` elements) receives every rank's `send` in rank order. Same dtype on
-    /// both. `recv` may not alias `send`.
+    /// both. `send` is either disjoint from `recv` or exactly this rank's own segment of it (in place: nothing is
+    /// copied onto itself), which is how the vocab-parallel lm_head uses it.
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()>;
+
+    /// `Some(q)`: [`Comm::all_gather`] is implemented here, in place, for messages that are a multiple of `q` bytes per
+    /// rank (the vocab-parallel lm_head, `LoadOptions::tp_vocab`, asks before it splits the head). `None`: not
+    /// implemented (the default), so a model never relies on it.
+    fn all_gather_quantum(&self) -> Option<usize> {
+        None
+    }
 
     /// Release peers blocked in a collective with an error. Idempotent; the group stays unusable after.
     fn abort(&self);
@@ -279,6 +287,10 @@ impl Comm for HostComm {
         let mut bytes = vec![0u8; out.nbytes()];
         encode_from_f32(out.dtype, &acc, &mut bytes);
         self.backend.upload(&out.buf, out.offset, &bytes, stream)
+    }
+
+    fn all_gather_quantum(&self) -> Option<usize> {
+        Some(1)
     }
 
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()> {

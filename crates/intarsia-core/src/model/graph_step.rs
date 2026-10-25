@@ -19,7 +19,8 @@
 //! NCCL); the all-reduces are recorded into each rank's graph on the same stream as the kernels. Rank 0 decides per
 //! step whether the step replays ([`Model::decode_graph_now`]) and the other ranks follow that decision (the remote
 //! rank gets it with the `Forward` command), so every rank issues the same collectives in the same order. A rank other
-//! than 0 records the layers only (rank 0 owns the head). Under TP a failed capture fails the step, which takes the
+//! than 0 records the layers only (rank 0 owns the head), or, with a vocab-parallel head (`LoadOptions::tp_vocab`), the
+//! layers and its slice of the head with the logits all-gather. Under TP a failed capture fails the step, which takes the
 //! group down (ADR-0006): falling back to eager on one rank only would leave the ranks deciding differently.
 
 use super::*;
@@ -318,7 +319,8 @@ impl Model {
         let graph = self.backend.graph_capture(self.stream, &mut || {
             // only the length of `ids` matters: the token is read from ws.ids, the position from ws.pos
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
-            if head {
+            // a vocab-parallel peer records its slice of the head and the gather (no argmax): rank 0 replays the same collective
+            if head || self.vocab_par {
                 self.head_to_device(&hn, 0, false)
             } else {
                 Ok(())

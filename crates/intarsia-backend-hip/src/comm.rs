@@ -217,6 +217,10 @@ impl Comm for P2pComm {
         Ok(())
     }
 
+    fn all_gather_quantum(&self) -> Option<usize> {
+        Some(16)
+    }
+
     /// Rank-major gather (`ag2_kernel`): `recv[r * send.numel() ..]` is rank r's `send`. `send` may be this rank's own
     /// segment of `recv` (in place: the kernel skips the self copy), or disjoint from it. The same push handshake, scratch,
     /// flags and counters as the all-reduce, so both ranks must make the same sequence of collectives and either kind may

@@ -446,6 +446,9 @@ fn position_diff(by_pos: &BTreeMap<usize, Vec<(Op, &str)>>) -> Option<String> {
 /// Resolve every `(op, shape)` of the model against the registry and (re)allocate the scratch
 /// workspace. Idempotent; call again after the registry changed (admission, `--reference`).
 pub fn resolve(model: &mut Model) -> Result<()> {
+    if model.vocab_parallel() {
+        model.check_vocab_split()?;
+    }
     let (calls, sizes, comm_decode) = record(model)?;
     let mut scratch = 0usize;
     let mut per_op: BTreeMap<(Op, String), PlanOp> = BTreeMap::new();
@@ -872,7 +875,7 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
                     "rank": r, "device": i.name, "mem_total": i.total_mem, "free_mem": i.free_mem,
                     "weights_bytes": m.map(|m| m.weights_bytes),
                     "kv_cap_tokens": m.map(|m| m.plan.kv_cap_tokens),
-                    "holds_lm_head": r == 0,
+                    "holds_lm_head": r == 0 || model.vocab_parallel(),
                 })
             })
             .collect();
@@ -883,7 +886,11 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
             "per_rank": {"n_heads": l.n_heads, "n_kv_heads": l.n_kv_heads, "head_dim": l.head_dim, "intermediate": l.intermediate,
                          "hidden": l.hidden, "vocab": l.vocab},
             "global": {"n_heads": model.dims.n_heads, "n_kv_heads": model.dims.n_kv_heads, "intermediate": model.dims.intermediate},
-            "lm_head": "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer",
+            "lm_head": if model.vocab_parallel() {
+                "vocab-parallel: every rank holds V / world rows, the logits are all-gathered into rank 0"
+            } else {
+                "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer"
+            },
             "all_reduce_calls_per_decode_step": model.resolved.comm_calls_per_decode_step,
             "all_reduce_bytes_per_decode_step": model.resolved.comm_bytes_per_decode_step,
             "ranks": ranks,
