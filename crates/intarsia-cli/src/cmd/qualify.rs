@@ -2129,10 +2129,26 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
     let (mut extra, note) = c.recorded_baseline(&g, true).unwrap_or_else(|why| (vec![], why));
     let have = !extra.is_empty();
     extra.splice(0..0, ["--min-top1".to_string(), "0".to_string()]);
-    let a = c.accuracy("acc-4k", &g, "all", true, 1, &extra)?;
+    // The in-run reuse gate of `--mode all` runs at the plan's chunk. When no prompt of the golden can cross a boundary at that
+    // chunk (the 35B on CUDA, plan chunk 8192, 4k prompts) it has nothing to run on and fails "nothing ran"; the reuse is then
+    // judged by the capped run below alone, at min(plan chunk, 1024) (`acc_4k_mode`).
+    let plan_chunk = c.state.get("plan").and_then(|s| s.metrics["prefill_chunk"].as_u64());
+    let mode = acc_4k_mode(plan_chunk, golden_prompt_lengths(&g).as_deref());
+    let a = c.accuracy("acc-4k", &g, mode, true, 1, &extra)?;
     let mut o = c.acc_out(a, &g, &how, "4k");
     c.reuse_at_capped_chunk(&mut o, "acc-4k-reuse", &g)?;
     Ok(baseline_verdict(o, note, needs && !have, &c.name, "acc-4k"))
+}
+
+/// The `accuracy --mode` of the acc-4k stage: `all` (prefill, decode and prefix reuse at the plan's chunk), except `both` when
+/// no prompt of the golden can cross a chunk boundary at the plan's chunk (every prompt at most `chunk + 2` tokens, as in
+/// [`reuse_requires_all`]): the reuse gate would print "nothing ran" and fail by construction. The capped reuse run of the stage
+/// (`reuse_at_capped_chunk`, min(plan chunk, 1024)) then carries the reuse judgement. Unknown chunk or lengths: `all`.
+fn acc_4k_mode(plan_chunk: Option<u64>, lens: Option<&[usize]>) -> &'static str {
+    match (plan_chunk, lens) {
+        (Some(c), Some(l)) if !l.is_empty() && l.iter().all(|&n| n <= c as usize + 2) => "both",
+        _ => "all",
+    }
 }
 
 /// MoE / hybrid / quantized (the classes `make_golden` refuses) with a golden that is not float32.
@@ -2783,6 +2799,22 @@ mod tests {
                 "prefix reuse differs from a cold run".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn acc_4k_drops_the_in_run_reuse_only_when_no_prompt_can_cross_the_plan_chunk() {
+        let g4k = [4064usize, 4064, 4631];
+        // 35B on CUDA at 8192: nothing can cross, the capped reuse run judges it
+        assert_eq!(acc_4k_mode(Some(8192), Some(&g4k)), "both");
+        assert_eq!(acc_4k_mode(Some(4629), Some(&g4k)), "both");
+        // every other plan chunk (CUDA 2048 before, HIP 4096, Metal 2048, small chunks): unchanged
+        for c in [256, 1024, 2048, 4096] {
+            assert_eq!(acc_4k_mode(Some(c), Some(&g4k)), "all", "chunk {c}");
+        }
+        assert_eq!(acc_4k_mode(Some(4064), Some(&g4k)), "all"); // 4631 > 4066
+        assert_eq!(acc_4k_mode(None, Some(&g4k)), "all");
+        assert_eq!(acc_4k_mode(Some(8192), None), "all");
+        assert_eq!(acc_4k_mode(Some(8192), Some(&[])), "all");
     }
 
     #[test]

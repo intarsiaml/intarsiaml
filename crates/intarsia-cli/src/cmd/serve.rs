@@ -32,8 +32,9 @@ pub struct ServeArgs {
     /// (16..=2048, capped at the model's `--prefill-chunk`). A prompt that starts while nothing decodes uses the model
     /// chunk. Smaller chunks stall the decoding streams less per iteration; larger ones finish the prompt in fewer
     /// iterations. No effect without `--max-batch`. Default 256; for the hybrid mixture-of-experts models on CUDA the solo
-    /// prefill chunk (2048 for the 35B), so that batched output is bitwise the solo output for every prompt length; a smaller
-    /// value is faster but not bitwise (1024: mean 21-way KL 7.87e-3, 2.5x the ref-noise floor; docs/results/2026-10-23-rb2-cuda-batching.md).
+    /// prefill chunk, at most 2048 (the 35B: solo 8192, busy 2048, so that decoding streams stall for at most a 2048-token chunk;
+    /// a solo chunk of 2048 or less makes batched output bitwise the solo output for every prompt length); a chunk below the solo
+    /// one is not bitwise (1024 against 2048: mean 21-way KL 7.87e-3, 2.5x the ref-noise floor; docs/results/2026-10-23-rb2-cuda-batching.md).
     #[arg(long, value_parser = clap::value_parser!(u16).range(16..=2048))]
     pub busy_chunk: Option<u16>,
     /// `max_tokens` for requests that name none, also bounded by the context (0 = only the context).

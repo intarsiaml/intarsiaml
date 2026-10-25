@@ -370,14 +370,16 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 // ---- busy-chunk prefill KL gate (not bitwise by design) -------------------------------------------------------------------
 
 /// Gate of the one non-bitwise step of the batching engine: a request that starts prefilling while others decode runs in busy
-/// chunks (1024 tokens for the 35B on CUDA) instead of the solo chunk (2048), and the GEMM tiling depends on the chunk. For
+/// chunks (2048 tokens for the 35B on CUDA, `default_busy_chunk`) instead of the solo chunk (8192 since 2026-10-25), and the GEMM tiling
+/// depends on the chunk. Gated: the shipped busy chunk and the opt-in 1024 (against the solo 8192; with a solo chunk of 2048 the
+/// busy chunk is the solo one, nothing to gate, and only 1024 is gated as before). For
 /// prompts longer than the busy chunk (1.5k, 2.5k, 4k, 8k, 16k tokens of repository docs text) this prefills the same prompt
 /// both ways, then decodes 64 greedy tokens from the solo state and teacher-forces the same tokens through the busy state.
 /// Compared per row over the full vocabulary: KL(solo || busy) and top-1 agreement. Floor: the 35B short golden's ref-noise
 /// (`golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json`, kl21_mean 3.161e-3: vLLM's own run-to-run spread on
 /// the same prompts). Pass: the mean KL over the 64 decode rows of every prompt is at most that floor (factor 1, the
 /// default of the ref-noise rule). Controls: the solo chunk driven by hand equals `forward` of the whole prefix (harness
-/// check, KL exactly 0), and a chunk of 256 (the old default) is reported beside 1024.
+/// check, KL exactly 0), and a chunk of 256 (the old default) is reported beside the gated chunks.
 #[test]
 #[ignore]
 fn real_35b_busy_chunk_prefill_kl_gate() {
@@ -385,11 +387,22 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     const FLOOR: f64 = 3.161e-3; // ref-noise kl21_mean of the 35B short golden
-    const SOLO: usize = 2048;
+    const BUSY_CAP: usize = 2048; // the default busy chunk is min(solo, BUSY_CAP) on CUDA (load.rs `default_busy_chunk`)
     const DECODE_ROWS: usize = 64;
     let lens = [1536usize, 2560, 4096, 8192, 16384];
     let (m, _) = load_with(&dir, be, 2, 16384 + DECODE_ROWS + 8, 0);
-    assert_eq!(m.prefill_chunk(), SOLO, "the solo prefill chunk of the 35B recipe");
+    let solo_chunk = m.prefill_chunk();
+    assert_eq!(solo_chunk, 8192, "the solo prefill chunk of the 35B recipe");
+    // the shipped default busy chunk, the chunk this gate is about; with a solo chunk of at most BUSY_CAP it is the solo chunk
+    // itself (bitwise, nothing to gate) and the gated chunk falls back to the opt-in 1024
+    let busy_default = solo_chunk.min(BUSY_CAP);
+    let headline = if busy_default < solo_chunk { busy_default } else { 1024 };
+    let mut chunks = vec![headline];
+    for c in [1024usize, 256] {
+        if !chunks.contains(&c) {
+            chunks.push(c);
+        }
+    }
 
     // text: the repository docs, tokenized by the model's tokenizer
     let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
@@ -487,10 +500,10 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
         let prompt = &all[k * stride..k * stride + len];
         let (solo, toks) = run(prompt, 0, None);
         // control: the solo chunk by hand is the same computation
-        let (hand, _) = run(prompt, SOLO, Some(&toks));
+        let (hand, _) = run(prompt, solo_chunk, Some(&toks));
         let ctl = (0..solo.len()).map(|i| kl(&solo[i], &hand[i])).fold(0f64, f64::max);
         ctl_max = ctl_max.max(ctl);
-        for chunk in [1024usize, 256] {
+        for &chunk in &chunks {
             let (busy, _) = run(prompt, chunk, Some(&toks));
             let kls: Vec<f64> = (1..solo.len()).map(|i| kl(&solo[i], &busy[i])).collect();
             let k21: Vec<f64> = (1..solo.len()).map(|i| kl21(&solo[i], &busy[i])).collect();
@@ -500,30 +513,33 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
             let max = kls.iter().cloned().fold(0f64, f64::max);
             let kl0 = kl(&solo[0], &busy[0]);
             eprintln!(
-                "KLGATE len {len:>5} chunk {chunk:>4} vs solo {SOLO}: decode rows {} mean KL {mean:.3e} (21-way {mean21:.3e}) max {max:.3e} top-1 flips {flips}/{} | prefill-last row KL {kl0:.3e} flip {} | control (hand 2048 vs forward) max KL {ctl:.1e}",
+                "KLGATE len {len:>5} chunk {chunk:>4} vs solo {solo_chunk}: decode rows {} mean KL {mean:.3e} (21-way {mean21:.3e}) max {max:.3e} top-1 flips {flips}/{} | prefill-last row KL {kl0:.3e} flip {} | control (hand {solo_chunk} vs forward) max KL {ctl:.1e}",
                 kls.len(), kls.len(), top1(&solo[0]) != top1(&busy[0])
             );
             let head: Vec<String> = kls.iter().take(8).map(|v| format!("{v:.1e}")).collect();
             let tail = kls[8..].iter().sum::<f64>() / (kls.len() - 8) as f64;
             eprintln!("KLGATE   rows 1-8 KL [{}] rows 9-64 mean {tail:.3e}", head.join(" "));
-            if chunk == 1024 {
+            if chunk == headline {
                 worst_mean = worst_mean.max(mean);
                 sum_all.0 += kls.iter().sum::<f64>();
                 sum_all.1 += kls.len();
                 sum_all.2 += flips;
                 sum_all.3 += 1;
                 sum21 += k21.iter().sum::<f64>();
+            }
+            // gated: the shipped busy chunk and the opt-in 1024 (both must stay within the floor of the solo run)
+            if chunk == headline || chunk == 1024 {
                 if mean21 > FLOOR {
-                    failed.push(format!("len {len}: mean 21-way KL {mean21:.3e}"));
+                    failed.push(format!("chunk {chunk}, len {len}: mean 21-way KL {mean21:.3e}"));
                 }
                 if mean > FLOOR {
-                    failed_full.push(format!("len {len}: mean full-vocab KL {mean:.3e}"));
+                    failed_full.push(format!("chunk {chunk}, len {len}: mean full-vocab KL {mean:.3e}"));
                 }
             }
         }
     }
     eprintln!(
-        "KLGATE SUMMARY chunk 1024 vs 2048: {} prompts, {} decode rows, mean KL {:.3e} (21-way {:.3e}), worst prompt mean {:.3e}, top-1 flips {}/{} | floor {FLOOR:.3e} | control max KL {ctl_max:.1e}",
+        "KLGATE SUMMARY chunk {headline} vs {solo_chunk}: {} prompts, {} decode rows, mean KL {:.3e} (21-way {:.3e}), worst prompt mean {:.3e}, top-1 flips {}/{} | floor {FLOOR:.3e} | control max KL {ctl_max:.1e}",
         sum_all.3, sum_all.1, sum_all.0 / sum_all.1 as f64, sum21 / sum_all.1 as f64, worst_mean, sum_all.2, sum_all.1
     );
     assert_eq!(ctl_max, 0.0, "the harness: the solo chunk by hand must equal forward() of the prefix");
@@ -533,9 +549,12 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
 
 // ---- engine identity on prompts longer than the solo chunk ----------------------------------------------------------------
 
-/// The busy chunk of the batching engine defaults to the solo chunk (2048) for the 35B on CUDA, so a request that prefills while
-/// others decode runs the solo chunk schedule: its output must be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
-/// and 16k tokens (more than one chunk), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
+/// The busy chunk of the batching engine defaults to the solo chunk for the 35B on CUDA, at most 2048 (the recipe's solo chunk is
+/// 8192, the busy one 2048), so a request that prefills while others decode runs the chunk schedule of a `LocalEngine` loaded at
+/// that busy chunk: its output must be token for token that run, for prompts of 2.6k, 4k and 16k tokens (more than one chunk),
+/// with 2 and 4 slots. With `--busy-chunk` set to the solo chunk it must equal the `LocalEngine` run at the recipe's chunk. (The
+/// difference between the 2048 and 8192 schedules is the KL-gated numerics of `real_35b_busy_chunk_prefill_kl_gate`, not an
+/// engine property.) The decoding neighbour (R0, a short prompt, 900 tokens) is still
 /// generating while the long prompts prefill (checked from the scheduler's mixed-iteration counter). Control, printed and not
 /// asserted: the same scenario with `--busy-chunk 1024` (the opt-in knob), which is KL-gated and not bitwise.
 #[test]
@@ -544,10 +563,11 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let all = corpus_tokens(&dir);
     let window = |start: usize, len: usize| all[start..start + len].to_vec();
-    let mk = |max_batch: Option<usize>, busy_chunk: Option<usize>| EngineOptions {
+    let mk = |max_batch: Option<usize>, busy_chunk: Option<usize>, prefill_chunk: Option<usize>| EngineOptions {
         load: LoadOptions { max_seq: 16384 + 256, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
         max_batch,
         busy_chunk,
+        prefill_chunk,
         ..Default::default()
     };
     // (name, request): R0 the decoding neighbour, then the long prompts
@@ -569,18 +589,27 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
             ("R3 2600 tok", req(window(60000, 2600), 130, None)),
         ]
     };
-    let reference: Vec<Out> = {
-        let l = load_engine(&dir, be.clone(), &mk(None, None)).unwrap();
+    // The LocalEngine run at prefill chunk `pc` (`None`: the recipe's). The batched engine's default busy chunk is the solo chunk,
+    // at most 2048 on CUDA: with the recipe's 8192 a request that prefills beside decoding sequences runs 2048-token chunks, so
+    // its reference is the LocalEngine at 2048. The solo chunk is the reference of the explicit `--busy-chunk <solo>` scenario.
+    let local_at = |pc: Option<usize>| -> (Vec<Out>, usize) {
+        let l = load_engine(&dir, be.clone(), &mk(None, None, pc)).unwrap();
         assert_eq!(l.max_batch, 1);
-        reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect()
+        let outs = reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect();
+        (outs, l.prefill_chunk.value)
     };
+    let (reference_solo, solo_chunk) = local_at(None);
+    let busy_default = solo_chunk.min(2048);
+    let reference_busy = (busy_default != solo_chunk).then(|| local_at(Some(busy_default)).0);
+    let reference = reference_busy.as_ref().unwrap_or(&reference_solo);
+    eprintln!("LONGENG solo chunk {solo_chunk}, default busy chunk {busy_default}");
     assert!(reference.iter().zip(reqs()).all(|(o, (_, r))| o.ids.len() == r.max_tokens));
     // `slots` slots; request indices to run (R0 first, the rest together once R0 is decoding)
     let scenario = |slots: usize,
                     which: &[usize],
                     busy_chunk: Option<usize>|
      -> (Vec<Out>, intarsia_core::scheduler::BatchMetrics) {
-        let l = load_engine(&dir, be.clone(), &mk(Some(slots), busy_chunk)).unwrap();
+        let l = load_engine(&dir, be.clone(), &mk(Some(slots), busy_chunk, None)).unwrap();
         assert_eq!(l.max_batch, slots);
         let all_reqs = reqs();
         let rx0 = l.engine.submit(all_reqs[which[0]].1.clone()).unwrap();
@@ -640,6 +669,24 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
             if !same {
                 let first = outs[k].ids.iter().zip(&reference[i].ids).position(|(a, b)| a != b);
                 failures.push(format!("{slots} slots, {}: first differing token {first:?}", reqs()[i].0));
+            }
+        }
+    }
+    // busy chunk = the solo chunk, explicitly (only above 2048, where it is not the default): the original identity check, against the
+    // LocalEngine run at the recipe's chunk
+    if solo_chunk > busy_default {
+        let (outs, m) = scenario(4, &[0, 1, 2, 3], Some(solo_chunk));
+        assert!(m.mixed_iterations > 0, "busy chunk {solo_chunk}: the scenario did not exercise the busy path");
+        for (k, &i) in [0usize, 1, 2, 3].iter().enumerate() {
+            let same = outs[k] == reference_solo[i];
+            eprintln!(
+                "LONGENG busy chunk {solo_chunk} (= solo): {} : {}",
+                reqs()[i].0,
+                if same { "IDENTICAL to the LocalEngine run" } else { "DIFFERS" }
+            );
+            if !same {
+                let first = outs[k].ids.iter().zip(&reference_solo[i].ids).position(|(a, b)| a != b);
+                failures.push(format!("busy chunk {solo_chunk}, {}: first differing token {first:?}", reqs()[i].0));
             }
         }
     }

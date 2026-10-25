@@ -66,8 +66,13 @@ max_batch = 32
 # Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256). 2048 on CUDA: 35B prefill at
 # 4k goes from 2397 to 4654 tok/s, the 35b-short accuracy gate passes (prefill KL 5.43e-3 vs 6.27e-3) and 35b-long
 # fails only on chat_reuse_4k, which is chunk-sensitive (docs/results/2026-10-13-prefill-cuda.md, phase1b.md section 9).
+# 8192 since 2026-10-25 (user decision: "use 8192-token prefill chunks on CUDA"): solo prefill at 4k / 16k +6.4 % / +11.1 %
+# (docs/results/2026-10-24-c8k-prefill-chunk-8192.md). The package: the batching engine's busy chunk stays at most 2048
+# (`default_busy_chunk`, crates/intarsia-models/src/load.rs: decode stalls stay at the 2048 level), and `qualify` acc-4k
+# judges prefix reuse at min(plan chunk, 1024) so the 4k prompts still cross a chunk boundary. The acc-short baseline is
+# recorded at 8192.
 [tuning.cuda]
-prefill_chunk = 2048
+prefill_chunk = 8192
 
 # 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
 # long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert

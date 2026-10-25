@@ -21,6 +21,45 @@ fn batch_queue(max_queue: Option<usize>, max_batch: usize) -> usize {
     max_queue.map_or(BATCH_QUEUE, |q| q.saturating_add(max_batch))
 }
 
+/// Largest default busy prefill chunk on CUDA: the prefill chunk of a prompt that starts while other sequences decode. A solo
+/// chunk above this (8192 for the 35B since 2026-10-25) would stall every decoding stream for the whole chunk (590 ms for a
+/// 4k prompt, 1264 ms for a full 8192 chunk against 336 / 383 ms at 2048, docs/results/2026-10-24-c8k-prefill-chunk-8192.md).
+/// Only the solo prefill uses the larger chunk. The busy prefill then differs from the solo one in GEMM tiling (KL-gated:
+/// `real_35b_busy_chunk_prefill_kl_gate`), as the opt-in `--busy-chunk 1024` always did.
+const CUDA_BUSY_CHUNK_MAX: usize = 2048;
+
+/// The batched engine's busy chunk for the hybrid models when `--busy-chunk` is not given: the solo chunk, except on CUDA where
+/// it is at most [`CUDA_BUSY_CHUNK_MAX`]. A solo chunk of 2048 or less (every recipe today but the 35B on CUDA, and HIP's 4096 and
+/// Metal's 2048 are untouched) keeps the busy chunk equal to it.
+fn default_busy_chunk(backend_name: &str, solo_chunk: usize) -> usize {
+    if backend_name == "cuda" {
+        solo_chunk.min(CUDA_BUSY_CHUNK_MAX)
+    } else {
+        solo_chunk
+    }
+}
+
+#[cfg(test)]
+mod busy_chunk_tests {
+    use super::*;
+
+    #[test]
+    fn default_busy_chunk_is_the_solo_chunk_capped_on_cuda_only() {
+        // CUDA: unchanged up to 2048, capped above it
+        for c in [256, 1024, 2048] {
+            assert_eq!(default_busy_chunk("cuda", c), c);
+        }
+        assert_eq!(default_busy_chunk("cuda", 4096), 2048);
+        assert_eq!(default_busy_chunk("cuda", 8192), 2048);
+        // other backends: always the solo chunk (HIP 4096, Metal 2048)
+        for be in ["hip", "metal"] {
+            for c in [256, 2048, 4096, 8192] {
+                assert_eq!(default_busy_chunk(be, c), c, "{be} {c}");
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod queue_tests {
     use super::*;
@@ -452,7 +491,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             // engine's for every prompt length. A smaller busy chunk changes the GEMM tiling of the prefill: 1024 against 2048
             // measured mean 21-way KL 7.87e-3 on the 35B (2.5x the acc-short ref-noise floor 3.161e-3, 4.1% top-1 flips),
             // docs/results/2026-10-23-rb2-cuda-batching.md section 11. `--busy-chunk 1024` is the opt-in speed knob.
-            bo.busy_chunk = model.prefill_chunk();
+            // CUDA solo chunks above 2048 (8192 for the 35B, user decision 2026-10-25) are the exception: see `default_busy_chunk`.
+            bo.busy_chunk = default_busy_chunk(backend_name, model.prefill_chunk());
         }
         eprintln!("continuous batching: up to {} sequences ({}), busy prefill chunk {}", max_batch.value, max_batch.source, bo.busy_chunk);
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
