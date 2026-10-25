@@ -290,6 +290,12 @@ impl Drop for HipBackend {
     }
 }
 
+/// `INTARSIA_HIP_POISON=<hex byte>`: the byte every new device allocation is filled with (unset: none).
+fn poison_byte() -> Option<u8> {
+    static B: std::sync::OnceLock<Option<u8>> = std::sync::OnceLock::new();
+    *B.get_or_init(|| std::env::var("INTARSIA_HIP_POISON").ok().and_then(|v| u8::from_str_radix(v.trim_start_matches("0x"), 16).ok()))
+}
+
 impl HipBackend {
     pub fn new(ordinal: usize) -> Result<HipBackend> {
         let mut n = 0;
@@ -445,6 +451,17 @@ impl Backend for HipBackend {
         let rc = unsafe { ffi::ik_rt_malloc(&mut p, bytes.max(1)) };
         if rc != 0 {
             return Err(Error::Memory(format!("hipMalloc of {bytes} bytes failed: {}", hip_err("", rc))));
+        }
+        if let Some(byte) = poison_byte() {
+            // debugging aid (INTARSIA_HIP_POISON=<hex byte>, lane tp2): hipMalloc memory is not zeroed, so a read before write sees whatever the
+            // last tenant left; fill every new allocation with a known byte (ff = NaN as f32 / bf16 / -1 as i32, 00 = the benign case) so the
+            // read becomes deterministic. Not while a graph is being captured (the fill would become part of the graph).
+            if !self.capturing.load(Ordering::Relaxed) {
+                let s = self.stream(0)?;
+                // SAFETY: the whole fresh allocation, stream 0 of this device (bound above), synchronised before the buffer is handed out.
+                check("poison", unsafe { ffi::ik_rt_memset(p, byte as c_int, bytes.max(1), s) })?;
+                check("poison sync", unsafe { ffi::ik_rt_stream_sync(s) })?;
+            }
         }
         Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal }))
     }

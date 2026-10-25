@@ -39,17 +39,21 @@ FS=real_35b_tp2_batch_first_steps_repro; SO=real_35b_tp2_solo_fresh_states_repro
 # w18: the size-loop mismatch reproduced in EVERY variant at rep 0..3 (graphs on, prepare, batched graphs off, launch blocking), always at the first
 # batched step of fresh sequences ("step 0"), and the SOLO logit of the failing row differed between runs (seq 7 ctx 221: 2.473 in four runs, 2.125 in one;
 # seq 12 ctx 27: -1.43 vs 0.377): the solo step of a fresh state is wrong too, so the batched step is not (only) the culprit. This window takes parts out.
-variant() { need 250 "$1" && clear "$1" && repro "$@"; }
-# E1 everything eager (no solo graphs, no batched graphs) -- fails => not a graph problem
-variant e1-size-loop-no-graphs 240 $FS INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_REPRO_NO_GRAPHS=1
+variant() { need 215 "$1" && clear "$1" && repro "$@"; }
+# Coordinator's hypothesis: something is read before it is written (hipMalloc memory is not zeroed, the cpu Vecs are). INTARSIA_HIP_POISON=<hex byte> fills
+# every new device allocation (device.rs): 00 = the benign case (stale data from the last tenant gone), ff = NaN as f32/bf16 (a read becomes deterministic NaN).
+# P0 the size loop with zero-filled allocations: 12 reps. w18's runs failed within 1..4 reps without it; no failure here => a read of stale pool data.
+variant p0-size-loop-poison00 200 $FS INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_HIP_POISON=00
 # E2 no batched step at all: 60 fresh states, first decode step bit-identical? -- fails => the solo step of a fresh state at tp=2 (production relevant)
-variant e2-solo-only 240 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60
+variant e2-solo-only 200 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60
+# P1 the size loop with NaN-filled allocations (3 reps): the first batched compare fails deterministically where a read-before-write is, rows named in the message
+variant p1-size-loop-poisonff 200 $FS INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STEPS=2 INTARSIA_HIP_POISON=ff
 # E3 solo + one batched step between every other state
-variant e3-solo-plus-batch 240 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60 INTARSIA_REPRO_BATCH_BETWEEN=1
-# E4 the same, all eager
-variant e4-solo-plus-batch-no-graphs 240 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_REPRO_NO_GRAPHS=1
+variant e3-solo-plus-batch 200 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60 INTARSIA_REPRO_BATCH_BETWEEN=1
+# E1 everything eager (no solo graphs, no batched graphs) -- fails => not a graph problem
+variant e1-size-loop-no-graphs 200 $FS INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_REPRO_NO_GRAPHS=1
+# P2 solo-only with NaN-filled allocations: does the plain solo step of a fresh state read an unwritten buffer?
+variant p2-solo-only-poisonff 200 $SO INTARSIA_REPRO_REPS=2 INTARSIA_REPRO_STATES=10 INTARSIA_HIP_POISON=ff
 # E5 fusion off (a different collective sequence)
-variant e5-size-loop-fusion0 240 $FS INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_FUSION=0
-# E6 solo-only, eager
-variant e6-solo-only-no-graphs 240 $SO INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60 INTARSIA_REPRO_NO_GRAPHS=1
+variant e5-size-loop-fusion0 200 $FS INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_FUSION=0
 log "done, time left $(left)s"
