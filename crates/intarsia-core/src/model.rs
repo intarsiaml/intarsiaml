@@ -312,6 +312,9 @@ pub struct Model {
     tp_arnorm: bool,
     /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
     ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+    /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
+    ar_fused_eager: std::sync::atomic::AtomicU64,
+    ar_fused_captured: std::sync::atomic::AtomicU64,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -1004,6 +1007,8 @@ impl Model {
             tp_fusion: opts.tp_fusion && tp.world > 1,
             tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
             ar_defer: Mutex::new(None),
+            ar_fused_eager: Default::default(),
+            ar_fused_captured: Default::default(),
             tp,
             no_comm,
             test_bug,

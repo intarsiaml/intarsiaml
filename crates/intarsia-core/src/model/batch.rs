@@ -735,6 +735,8 @@ impl Model {
             tp_fusion: false,
             tp_arnorm: false,
             ar_defer: Mutex::new(None),
+            ar_fused_eager: Default::default(),
+            ar_fused_captured: Default::default(),
             tp: self.tp.clone(),
             no_comm: self.no_comm,
             test_bug: self.test_bug.clone(),

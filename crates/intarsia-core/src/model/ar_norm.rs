@@ -51,6 +51,13 @@ fn same_tensor(a: &TensorRef, b: &TensorRef) -> bool {
 }
 
 impl Model {
+    /// `eager=N captured=M`: the fused collectives this rank ran eagerly, and the ones recorded into a decode graph (each
+    /// replay of the graph runs them again). Printed when the model is dropped.
+    pub(super) fn ar_fused_counts(&self) -> String {
+        use std::sync::atomic::Ordering::Relaxed;
+        format!("eager={} captured={}", self.ar_fused_eager.load(Relaxed), self.ar_fused_captured.load(Relaxed))
+    }
+
     /// Hold `partial -> out` until the next op (see the module docs). `plan_idx`: its entry in the recorder's collectives.
     pub(super) fn defer_ar(&self, partial: &TensorRef, out: &TensorRef, plan_idx: Option<usize>) {
         let old = self.ar_defer.lock().unwrap().replace(DeferredAr { partial: partial.clone(), out: out.clone(), plan_idx });
@@ -105,6 +112,7 @@ impl Model {
                 }
                 let t0 = std::time::Instant::now();
                 comm.all_reduce_add_rmsnorm(&a, 0)?;
+                let mut captured = false;
                 if profile {
                     self.backend.synchronize(self.stream)?;
                     let d = t0.elapsed();
@@ -114,10 +122,15 @@ impl Model {
                 } else if let Some(ops) = self.capture_ops.lock().unwrap().as_mut() {
                     // being captured: nothing ran, each replay counts the pair
                     ops.push(Op::RmsNormAdd);
+                    self.ar_fused_captured.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    captured = true;
                     self.capture_comms.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 } else {
                     self.telemetry.record_comm(None);
                     self.telemetry.record_op(Op::RmsNormAdd, None);
+                }
+                if !captured {
+                    self.ar_fused_eager.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
                 return Ok(true);
             }
