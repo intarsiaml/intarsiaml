@@ -63,6 +63,10 @@ pub struct BatchedOptions {
     /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
     /// independent of the other rows of the call.
     pub pack_prefill: bool,
+    /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
+    /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
+    #[doc(hidden)]
+    pub hold_start: bool,
 }
 
 impl BatchedOptions {
@@ -93,6 +97,7 @@ impl BatchedOptions {
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").map(|v| v == "1").unwrap_or(false),
+            hold_start: false,
         }
     }
 }
@@ -578,11 +583,15 @@ impl BatchedEngine {
         } else {
             None
         };
-        let engine = BatchEngine::spawn(
-            SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None },
-            cfg,
-        )?;
+        let slots = SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None };
+        let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent })
+    }
+
+    /// Let an engine built with [`BatchedOptions::hold_start`] start scheduling (no effect on any other engine).
+    #[doc(hidden)]
+    pub fn release(&self) {
+        self.engine.release();
     }
 
     /// The scheduler's metrics (batch-size histogram, queue depth, TTFT / inter-token latency, ...).
