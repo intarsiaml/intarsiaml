@@ -424,6 +424,8 @@ int gemv_rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, O
     return ik_launch_status();
 }
 
+#include "ik_f8_rows.h"
+
 // ---- MMA policy (weights dequantised to bf16 tiles) ---------------------------------------------------------------
 
 struct Fp8Policy {
@@ -563,6 +565,111 @@ int launch_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales,
     return IK_OK;
 }
 
+// matmul_fp8_wmma (HIP only: ik_hip_abi.h; lane wg): M = 1..64 rows on the matrix cores, one family for every M (ik_f8_rows.h). Row m
+// is bitwise the same call on row m alone, whatever the other rows hold. W8A8 and W8A16 in one launch (the mode is the device-side
+// input scale).
+// M >= INTARSIA_HIP_WMMA_DIRECT_MIN (default below) with scratch given: the activations are quantised once per call into scratch and the B fragments
+// load from global (DIRECT); below it, or without scratch, each block quantises into LDS (STAGED). The bits are the same either way.
+int wmma_direct_min() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_WMMA_DIRECT_MIN");
+        return e ? atoi(e) : 4;
+    }();
+    return v;
+}
+
+int launch_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    IK_TRY(check(x, w, scales, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0) return IK_OK;
+    if (K == 0) return launch(x, w, scales, out, stream, 2);
+    if (M > 64 || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const float* sp = (const float*)scales->data;
+    if (!ik_aligned16(xp) || !ik_aligned16(wp)) return IK_ERR_INVALID_ARG;
+    uint8_t* scr = nullptr;
+    if (scratch && scratch->data && scratch->bytes >= M * K && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)) scr = (uint8_t*)scratch->data;
+    return out->dtype == IK_DTYPE_F32 ? f8r_dispatch<false>(xp, wp, sp, (float*)out->data, (int)M, N, K, scr, wmma_direct_min(), s)
+                                      : f8r_dispatch<false>(xp, wp, sp, (ik_bf16*)out->data, (int)M, N, K, scr, wmma_direct_min(), s);
+}
+
+// ---- bf16 weights on the family (lane wg): the MoE router / shared-expert gate and the GDN b / a gates ----------------------------
+int bf16_check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* out) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    IK_TRY(ik_check_a(w, IK_DTYPE_BF16, 2, 16));
+    if (!out || (out->dtype != IK_DTYPE_BF16 && out->dtype != IK_DTYPE_F32)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check(out, out->dtype, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (w->shape[1] != K || out->shape[0] != M || out->shape[1] != N || K % 16 != 0) return IK_ERR_SHAPE;
+    return IK_OK;
+}
+
+int launch_bf16_wmma(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    IK_TRY(bf16_check(x, w, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0) return IK_OK;
+    if (K == 0) return hipMemsetAsync(out->data, 0, ik_numel(out) * (out->dtype == IK_DTYPE_F32 ? 4 : 2), IK_STREAM(stream)) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+    if (M > 64 || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    hipStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    if (!ik_aligned16(xp) || !ik_aligned16(wp)) return IK_ERR_INVALID_ARG;
+    return out->dtype == IK_DTYPE_F32 ? f8r_dispatch<true>(xp, wp, nullptr, (float*)out->data, (int)M, N, K, nullptr, wmma_direct_min(), s)
+                                      : f8r_dispatch<true>(xp, wp, nullptr, (ik_bf16*)out->data, (int)M, N, K, nullptr, wmma_direct_min(), s);
+}
+
+int bf16_pair_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(bf16_check(x, w0, o0));
+    IK_TRY(bf16_check(x, w1, o1));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M != 1 || K == 0 || N0 == 0 || N1 == 0 || N0 > 0x7fffffffLL || N1 > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!ik_aligned16(x->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data)) return IK_ERR_INVALID_ARG;
+    F8rCfg c;
+    if (!f8r_cfg(1, K, false, 0, false, &c)) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+    hipStream_t s = IK_STREAM(stream);
+    if (c.nj == 16)
+        f8r_bf16_pair_kernel<16><<<grid, kF8rThreads, c.smem, s>>>((const ik_bf16*)x->data, (const uint8_t*)w0->data, (ik_bf16*)o0->data, (int)N0, (const uint8_t*)w1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+    else
+        f8r_bf16_pair_kernel<8><<<grid, kF8rThreads, c.smem, s>>>((const ik_bf16*)x->data, (const uint8_t*)w0->data, (ik_bf16*)o0->data, (int)N0, (const uint8_t*)w1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+    return ik_launch_status();
+}
+
+int bf16_norm_pair_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, float eps, float woff, const ik_tensor* w0,
+                        const ik_tensor* w1, ik_tensor* normed, ik_tensor* sum, ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(bf16_check(x, w0, o0));
+    IK_TRY(bf16_check(x, w1, o1));
+    IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(normed, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(sum, IK_DTYPE_BF16, 2));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M != 1 || res->shape[0] != 1 || res->shape[1] != K || nw->shape[0] != K || normed->shape[0] != 1 || normed->shape[1] != K ||
+        sum->shape[0] != 1 || sum->shape[1] != K)
+        return IK_ERR_SHAPE;
+    if (!ik_aligned16(res->data) || !ik_aligned16(nw->data) || !ik_aligned16(normed->data) || !ik_aligned16(sum->data) ||
+        !ik_aligned16(x->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data))
+        return IK_ERR_SHAPE;
+    if (K == 0 || N0 == 0 || N1 == 0 || N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
+    F8rCfg c;
+    if (!f8r_cfg(1, K, true, (size_t)K * 2, false, &c)) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+    hipStream_t s = IK_STREAM(stream);
+#define IK_BF_NP(NJV)                                                                                                                  \
+    f8r_bf16_norm_pair_kernel<NJV><<<grid, kF8rThreads, c.smem, s>>>(                                                                  \
+        (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,               \
+        (ik_bf16*)sum->data, (const uint8_t*)w0->data, (ik_bf16*)o0->data, (int)N0, (const uint8_t*)w1->data, (ik_bf16*)o1->data,     \
+        (int)N1, (int)K, c.kw)
+    if (c.nj == 16) IK_BF_NP(16);
+    else IK_BF_NP(8);
+#undef IK_BF_NP
+    return ik_launch_status();
+}
+
 // matmul_fp8_mma_f8 (HIP only: declared in ik_hip_abi.h): the W8A8 GEMM on the fp8 x fp8 WMMA (ik_f8_gemm.h). input_scale > 0 is known only on the device, so one
 // launch of each kind is made and each exits at once when the scale is not for it: the activation quantiser and the e4m3 GEMM
 // for W8A8, the dequantise-to-bf16 GEMM (the matmul_fp8_mma kernel) for weight-only activations. Needs scratch: M * K bytes.
@@ -679,7 +786,7 @@ bool pair_dispatch(PairCfg c, const ik_bf16* xp, const uint8_t* p0, const float*
 // M == 1, bf16 activations and outputs, staging variant as INTARSIA_HIP_FP8_Q (the other staging variants keep v2's two
 // rows per warp and eight warps).
 int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
-         ik_tensor* o0, ik_tensor* o1, void* stream) {
+         ik_tensor* o0, ik_tensor* o1, void* stream, bool wmma = false) {
     IK_TRY(check(x, w0, sc0, o0));
     IK_TRY(check(x, w1, sc1, o1));
     if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
@@ -697,6 +804,14 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik
     const uint8_t *p0 = (const uint8_t*)w0->data, *p1 = (const uint8_t*)w1->data;
     const float *s0 = (const float*)sc0->data, *s1 = (const float*)sc1->data;
     ik_bf16 *q0 = (ik_bf16*)o0->data, *q1 = (ik_bf16*)o1->data;
+    if (wmma) {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, false, 0, false, &c)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+        if (c.nj == 16) f8r_pair_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
+        else f8r_pair_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
+        return ik_launch_status();
+    }
     const int q = staging_q();
     if (q == 2) return pair_dispatch(pair_cfg(), xp, p0, s0, q0, N0, p1, s1, q1, N1, K, s) ? ik_launch_status() : IK_ERR_SHAPE;
     constexpr int R = 2, per = kWarps * R;
@@ -728,7 +843,7 @@ void gated_run(const ik_bf16* x, const ik_bf16* z, const ik_bf16* nw, float eps,
 
 // x / z [R, 128] (R * 128 == K), nw [128], w [N, K] fp8, out [1, N] bf16. Rows per warp as the single v2 GEMV chooses them.
 int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float woff, const ik_tensor* w,
-                 const ik_tensor* scales, ik_tensor* out, void* stream) {
+                 const ik_tensor* scales, ik_tensor* out, void* stream, bool wmma = false) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(z, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(nw, IK_DTYPE_BF16, 1));
@@ -751,6 +866,14 @@ int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, fl
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     ik_bf16* op = (ik_bf16*)out->data;
+    if (wmma) {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, true, 0, false, &c)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N + 15) / 16);
+        if (c.nj == 16) f8r_gated_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
+        else f8r_gated_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
+        return ik_launch_status();
+    }
     switch (gemv_rows(N, true)) {
         case 1: gated_run<1>(xp, zp, np, eps, woff, wp, sp, op, N, K, s); break;
         case 4: gated_run<4>(xp, zp, np, eps, woff, wp, sp, op, N, K, s); break;
@@ -787,7 +910,7 @@ fp8_gemv_norm_pair_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restri
 // aligned.
 int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, float eps, float woff, const ik_tensor* w0,
               const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1, ik_tensor* normed, ik_tensor* sum, ik_tensor* o0,
-              ik_tensor* o1, void* stream) {
+              ik_tensor* o1, void* stream, bool wmma = false) {
     IK_TRY(check(x, w0, sc0, o0));
     IK_TRY(check(x, w1, sc1, o1));
     IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
@@ -803,6 +926,22 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
         return IK_ERR_SHAPE;
     if (K == 0 || N0 == 0 || N1 == 0) return IK_ERR_SHAPE;  // (nothing the model produces; the unfused ops handle empty shapes)
     if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (wmma) {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, true, (size_t)K * 2, false, &c)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
+        if (c.nj == 16)
+            f8r_norm_pair_kernel<16><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
+                (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,
+                (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+                (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+        else
+            f8r_norm_pair_kernel<8><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
+                (const ik_bf16*)x->data, (const ik_bf16*)res->data, (const ik_bf16*)nw->data, eps, woff, (ik_bf16*)normed->data,
+                (ik_bf16*)sum->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data, (int)N0,
+                (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, (int)N1, (int)K, c.kw);
+        return ik_launch_status();
+    }
     constexpr int R = 1, per = kWarps * R;  // fp8_gemv_pair_kernel's default shape (pair_cfg: one row per warp, eight warps)
     const unsigned grid = (unsigned)((N0 + per - 1) / per + (N1 + per - 1) / per);
     fp8_gemv_norm_pair_kernel<R><<<grid, kWarps * IK_WARP, (size_t)K * 2, IK_STREAM(stream)>>>(
@@ -831,7 +970,7 @@ void sigmoid_run(const ik_bf16* a, const ik_bf16* g, const uint8_t* w, const flo
 
 // a, gate [1, K] bf16 (16-byte aligned), w [N, K] fp8 + scales, out [1, N] bf16.
 int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out,
-                   void* stream) {
+                   void* stream, bool wmma = false) {
     IK_TRY(check(a, w, scales, out));
     IK_TRY(ik_check(gate, IK_DTYPE_BF16, 2));
     if (out->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
@@ -845,6 +984,14 @@ int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     ik_bf16* op = (ik_bf16*)out->data;
+    if (wmma) {
+        F8rCfg c;
+        if (!f8r_cfg(1, K, true, 0, false, &c)) return IK_ERR_SHAPE;
+        const unsigned grid = (unsigned)((N + 15) / 16);
+        if (c.nj == 16) f8r_sigmoid_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
+        else f8r_sigmoid_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
+        return ik_launch_status();
+    }
     switch (gemv_rows(N, true)) {
         case 1: sigmoid_run<1>(ap, gp, wp, sp, op, N, K, s); break;
         case 4: sigmoid_run<4>(ap, gp, wp, sp, op, N, K, s); break;
@@ -886,6 +1033,46 @@ int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tenso
 }
 int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch_rows(x, w, scales, out, stream);
+}
+int ik_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+                       void* stream) {
+    return launch_wmma(x, w, scales, out, scratch, stream);
+}
+int ik_matmul_bf16_wmma(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return launch_bf16_wmma(x, w, out, stream);
+}
+int ik_matmul_bf16_wmma_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream) {
+    return launch_bf16_wmma(x, w, out, stream);  // the same launcher: rows_exact registration of one family
+}
+int ik_matmul_pair_bf16_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return bf16_pair_wmma(x, w0, w1, out0, out1, stream);
+}
+int ik_rmsnorm_add_matmul_pair_bf16_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                         const ik_tensor* w0, const ik_tensor* w1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                         ik_tensor* out1, void* stream) {
+    return bf16_norm_pair_wmma(x, res, w, eps, w_offset, w0, w1, normed, sum, out0, out1, stream);
+}
+int ik_matmul_fp8_wmma_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+                            void* stream) {
+    return launch_wmma(x, w, scales, out, scratch, stream);  // the same launcher: rows_exact registration of one family
+}
+int ik_matmul_fp8_pair_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                            const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return pair(x, w0, scales0, w1, scales1, out0, out1, stream, true);
+}
+int ik_gated_rmsnorm_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float w_offset,
+                                     const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
+    return gated_matmul(x, z, nw, eps, w_offset, w, scales, out, stream, true);
+}
+int ik_rmsnorm_add_matmul_fp8_pair_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                        const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                        const ik_tensor* scales1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                        ik_tensor* out1, void* stream) {
+    return norm_pair(x, res, w, eps, w_offset, w0, scales0, w1, scales1, normed, sum, out0, out1, stream, true);
+}
+int ik_sigmoid_mul_matmul_fp8_wmma(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales,
+                                   ik_tensor* out, void* stream) {
+    return sigmoid_matmul(a, gate, w, scales, out, stream, true);
 }
 int ik_matmul_fp8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch(x, w, scales, out, stream, 0);

@@ -119,6 +119,11 @@ fn bf16_row(vals: &[f32]) -> HostTensor {
 /// Sixteen nasty activation rows of width `k`. `clip` is the value at which e4m3 saturates under the W8A8 input scale in use
 /// (448 * input_scale; pass 448 for W8A16 / unit scale).
 fn nasty_rows(rng: &mut SplitMix64, k: usize, clip: f32) -> Vec<Vec<f32>> {
+    nasty_rows_n(rng, k, clip, CAP)
+}
+
+/// `n` (at least 8) nasty rows.
+fn nasty_rows_n(rng: &mut SplitMix64, k: usize, clip: f32, n: usize) -> Vec<Vec<f32>> {
     let normal = |rng: &mut SplitMix64, s: f32| rng.normal_vec(k, s);
     let r0 = normal(rng, 1.0);
     let mut rows: Vec<Vec<f32>> = vec![r0.clone(), vec![0.0; k], r0.clone()];
@@ -143,7 +148,7 @@ fn nasty_rows(rng: &mut SplitMix64, k: usize, clip: f32) -> Vec<Vec<f32>> {
     rows.push(rng.normal_vec(k, clip * 1e-6));
     // the rest: random scales over six decades, every other one with a +-5 binade spread per element (inside the e4m3 range
     // after quantisation, so the products span many binades and the sums round)
-    while rows.len() < CAP {
+    while rows.len() < n {
         let s = (10.0f32).powf((rng.next_f32() - 0.5) * 6.0);
         if rows.len() % 2 == 0 {
             let spread: Vec<f32> = (0..k)
@@ -325,6 +330,112 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
         }
     }
     rig.report("fp8");
+}
+
+/// Lane wg: the WMMA family (kernels/hip/ik_f8_rows.h). Inside the family row r of an M-row call is bitwise the one-row call on row r
+/// alone, for every M = 1..=64, whatever the neighbouring rows hold (zeros, saturating, 40 binades, a huge element ...), in W8A8 and
+/// W8A16, bf16 and f32 out, at K with a 16-tail (K % 32 == 16), K past one staging window, N not a multiple of 16. The reference is
+/// the family's own M = 1 launch (`matmul_fp8_wmma`; the rows registration is the same launcher). Negative control:
+/// `INTARSIA_HIP_GB_CONTROL=matmul_fp8_wmma_rows=matmul_fp8_mma_f8 cargo test ... wmma_fp8` must FAIL.
+#[test]
+fn wmma_fp8_rows_are_bitwise_the_one_row_call() {
+    let Some(rig) = Rig::new("wmma_fp8_rows_are_bitwise_the_one_row_call") else { return };
+    let mut rng = SplitMix64::new(811);
+    let wmma_rows = 64;
+    // 35B shapes, then the edges: N tails, K = 16 / 48 (tail only / full chunk + tail), K past a window at M = 64 (> 768) and at M = 16
+    let shapes = [
+        (8192usize, 2048usize),
+        (512, 2048),
+        (2048, 4096),
+        (256, 2048),
+        (300, 2048),
+        (9, 16),
+        (33, 48),
+        (1, 4096),
+        (64, 6144),
+        (40, 16400),
+        (24, 1040),
+        (48, 2064),
+    ];
+    for (n, k) in shapes {
+        for (wide, aq, is) in [(true, true, 0.125f32), (true, true, 0.0117), (false, true, 3.0), (true, false, 0.0), (false, false, 0.0)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+            let ws = hc.inputs[2].to_f32()[0];
+            let scales = scales_tensor(if wide { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
+            let w = rig.put(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
+            let sc = rig.put(&scales);
+            let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), wmma_rows);
+            for out_dt in [DType::Bf16, DType::F32] {
+                let label = format!("wmma fp8 n={n} k={k} wide={wide} aq={aq} is={is} out={out_dt:?}");
+                gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_wmma", "matmul_fp8_wmma_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, wmma_rows);
+            }
+        }
+    }
+    rig.report("wmma fp8");
+}
+
+/// The bf16 half of the family (router / gate / GDN a, b): row r of an M = 1..=64 call is bitwise the one-row call, with nasty neighbours,
+/// wide weights, a 16-tail K and N tails, bf16 and f32 out. Control: `INTARSIA_HIP_GB_CONTROL=matmul_bf16_wmma_rows=matmul_bf16` must FAIL.
+#[test]
+fn wmma_bf16_rows_are_bitwise_the_one_row_call() {
+    let Some(rig) = Rig::new("wmma_bf16_rows_are_bitwise_the_one_row_call") else { return };
+    let mut rng = SplitMix64::new(813);
+    let wmma_rows = 64;
+    for (n, k) in [(256usize, 2048usize), (32, 2048), (1, 2048), (300, 4096), (9, 16), (33, 48), (64, 6144), (40, 16400), (130, 2064)] {
+        for wide in [false, true] {
+            let w = rig.put(&if wide { wide_bf16(&mut rng, n, k) } else { fast_bf16(&mut rng, n, k) });
+            let x_rows = nasty_rows_n(&mut rng, k, 448.0, wmma_rows);
+            let label = format!("wmma bf16 n={n} k={k} wide={wide}");
+            gb_matmul(&rig, Op::Matmul, "matmul_bf16_wmma", "matmul_bf16_wmma_rows", &[w.clone()], &x_rows, n, DType::Bf16, &label, wmma_rows);
+            gb_matmul(&rig, Op::Matmul, "matmul_bf16_wmma", "matmul_bf16_wmma_rows", &[w], &x_rows, n, DType::F32, &label, wmma_rows);
+        }
+    }
+    rig.report("wmma bf16");
+}
+
+/// The family agrees with the dequantised reference (the cpu `ref` arithmetic) as well as the GEMV does: rel_l2 against the f64 sum of
+/// the exact products. Not a bitwise gate; it catches a wrong fragment layout or k permutation, which row invariance cannot.
+#[test]
+fn wmma_fp8_matches_the_reference_sum() {
+    let Some(rig) = Rig::new("wmma_fp8_matches_the_reference_sum") else { return };
+    let mut rng = SplitMix64::new(812);
+    for (n, k) in [(256usize, 2048usize), (300, 1040), (48, 48), (64, 6144), (96, 16400)] {
+        for (aq, is) in [(true, 0.125f32), (false, 0.0)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+            let ws = hc.inputs[2].to_f32()[0];
+            let scales = scales_tensor(ws, if aq { is } else { 0.0 });
+            let wh = hc.inputs[1].clone();
+            let w = rig.put(&wh);
+            let sc = rig.put(&scales);
+            let m = 5;
+            let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), m);
+            let flat: Vec<f32> = x_rows.iter().flatten().copied().collect();
+            let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[m, k], &flat));
+            let got = rig.run("matmul_fp8_wmma", Op::MatmulFp8, &[x.clone(), w, sc], &[(DType::F32, vec![m, n])], &OpAttrs::default())[0].to_f32();
+            // reference: the cpu quantiser + exact f64 sum
+            let xq: Vec<f32> = HostTensor::from_f32_as(DType::Bf16, &[m, k], &flat).to_f32();
+            let wf = wh.to_f32();
+            let (s_w, s_in) = (scales.to_f32()[0] as f64, scales.to_f32()[1] as f64);
+            let mut num = 0f64;
+            let mut den = 0f64;
+            for r in 0..m {
+                for c in 0..n {
+                    let mut acc = 0f64;
+                    for i in 0..k {
+                        let xv = xq[r * k + i] as f64;
+                        let xv = if s_in > 0.0 { intarsia_core::dtype::fp8_e4m3_to_f32(intarsia_core::dtype::f32_to_fp8_e4m3((xv / s_in) as f32)) as f64 } else { xv };
+                        acc += xv * wf[c * k + i] as f64;
+                    }
+                    let want = acc * s_w * if s_in > 0.0 { s_in } else { 1.0 };
+                    let d = got[r * n + c] as f64 - want;
+                    num += d * d;
+                    den += want * want;
+                }
+            }
+            let rel = (num / den.max(1e-300)).sqrt();
+            assert!(rel < 2e-4, "wmma fp8 n={n} k={k} aq={aq}: rel_l2 {rel:.3e} against the f64 reference");
+        }
+    }
 }
 
 // ---- nvfp4 -----------------------------------------------------------------------------------------------------------

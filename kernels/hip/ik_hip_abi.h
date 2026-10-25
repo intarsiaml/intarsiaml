@@ -9,6 +9,36 @@
 extern "C" {
 #endif
 
+/* matmul_fp8_wmma (lane wg, kernels/hip/ik_f8_rows.h): M = 1..64 rows of the fp8 projection on the matrix cores, one kernel family for
+ * every M: row m is bitwise the one-row call on row m alone. W8A8 (fp8 x fp8 WMMA) and weight-only (bf16 WMMA) by the device-side
+ * input scale. Opt-in (INTARSIA_HIP_WMMA_ROWS=1); solo and batched decode both run it. `scratch` (M * K bytes, 16-byte aligned, may be
+ * null) lets M >= INTARSIA_HIP_WMMA_DIRECT_MIN quantise the activations once per call; the bits do not depend on it. */
+int ik_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+                       void* stream);
+int ik_matmul_fp8_wmma_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
+                            void* stream);
+/* bf16 weights on the same family (the router / gate / GDN a, b matrices; matmul_bf16_wmma for M = 1..64, the two decode folds of the bf16
+ * pair GEMV for M == 1). Row m is bitwise the one-row call; K % 16 == 0. */
+int ik_matmul_bf16_wmma(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+int ik_matmul_bf16_wmma_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
+int ik_matmul_pair_bf16_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1, ik_tensor* out0, ik_tensor* out1, void* stream);
+int ik_rmsnorm_add_matmul_pair_bf16_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                         const ik_tensor* w0, const ik_tensor* w1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                         ik_tensor* out1, void* stream);
+/* The four decode folds of the fp8 GEMV on the same family (M == 1; each is bitwise ik_matmul_fp8_wmma on the row the unfused chain stages):
+ *   matmul_fp8_pair_wmma, gated_rmsnorm_matmul_fp8_wmma, rmsnorm_add_matmul_fp8_pair_wmma, sigmoid_mul_matmul_fp8_wmma
+ * with the arguments of their *_gemv twins. */
+int ik_matmul_fp8_pair_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                            const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream);
+int ik_gated_rmsnorm_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float w_offset,
+                                     const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+int ik_rmsnorm_add_matmul_fp8_pair_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset,
+                                        const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                        const ik_tensor* scales1, ik_tensor* normed, ik_tensor* sum, ik_tensor* out0,
+                                        ik_tensor* out1, void* stream);
+int ik_sigmoid_mul_matmul_fp8_wmma(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w, const ik_tensor* scales,
+                                   ik_tensor* out, void* stream);
+
 /* matmul_fp8_mma_f8 (docs/results/2026-10-17-hip-prefill.md): the W8A8 prefill GEMM on the gfx12 fp8 x fp8 WMMA
  * (ik_f8_gemm.h). Same op as matmul_fp8_mma; scratch: M * K bytes (the quantised activations, 16-byte aligned);
  * weight-only activations (input_scale <= 0) run the dequantise-to-bf16 kernel of matmul_fp8_mma inside. */

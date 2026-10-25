@@ -14,6 +14,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv_v2", Op::MatmulFp8),
     // row-exact twins (`rows_exact`, M = 1..=ROWS_MAX, bitwise the one-row v2 GEMV per row; tests/rows_exact.rs)
     ("matmul_fp8_gemv_rows", Op::MatmulFp8),
+    // lane wg: the small-row WMMA family (INTARSIA_HIP_WMMA_ROWS=1; kernels/hip/ik_f8_rows.h). `_rows` is its `rows_exact` registration
+    ("matmul_fp8_wmma", Op::MatmulFp8),
+    ("matmul_fp8_wmma_rows", Op::MatmulFp8),
     ("matmul_fp8_mma", Op::MatmulFp8),
     ("matmul_fp8_mma_f8", Op::MatmulFp8),
     ("matmul_fp8_mma_v2", Op::MatmulFp8),
@@ -44,6 +47,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_block_bf16_rows", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
+    // lane wg: bf16 router / gate on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
+    ("matmul_pair_bf16_wmma", Op::MatmulPair),
+    ("rmsnorm_add_matmul_pair_bf16_wmma", Op::RmsNormAddMatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
     ("matmul_nvfp4_glu_gemv", Op::MatmulNvfp4Glu),
     ("gated_rmsnorm_bf16", Op::GatedRmsnorm),
@@ -52,6 +58,11 @@ pub const TABLE: &[(&str, Op)] = &[
     // core-op fusion phase 1 (kernels/hip/ik_hip_abi.h): row-local folds, each bitwise the two launches it replaces
     ("rmsnorm_add_matmul_fp8_pair_gemv", Op::RmsNormAddMatmulFp8Pair),
     ("sigmoid_mul_matmul_fp8_gemv", Op::SigmoidMulMatmulFp8),
+    // lane wg: the decode folds of the fp8 GEMV on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
+    ("matmul_fp8_pair_wmma", Op::MatmulFp8Pair),
+    ("gated_rmsnorm_matmul_fp8_wmma", Op::GatedRmsnormMatmulFp8),
+    ("rmsnorm_add_matmul_fp8_pair_wmma", Op::RmsNormAddMatmulFp8Pair),
+    ("sigmoid_mul_matmul_fp8_wmma", Op::SigmoidMulMatmulFp8),
     ("shared_down_combine_nvfp4_gemv", Op::SharedDownCombine),
 ];
 
@@ -68,6 +79,20 @@ pub const F32_OUT_TOL: Tol = Tol::new(1e-3, 2e-4);
 /// Budget of the fused kernels that end in a silu (`expf`, a division and a bf16 rounding of a product of two roundings):
 /// the same as the elementwise kernels' (kernels.rs `BF16_TOL`).
 const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
+
+/// Lane wg: the small-row WMMA kernel family (kernels/hip/ik_f8_rows.h) replaces the fp8 GEMVs at M = 1..=ROWS_MAX, solo decode included, so a
+/// row's bits are the same at every M. OPT-IN (INTARSIA_HIP_WMMA_ROWS=1): it changes the solo decode numerics once (the matrix core adds
+/// in another order than the GEMV's dot chain), so a default flip is a separate decision (docs/results/2026-10-25-wg-hip-wmma-gemv.md).
+/// With the knob unset or any other value every registration below is exactly main's.
+pub fn wmma_rows_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| wmma_rows_from(std::env::var("INTARSIA_HIP_WMMA_ROWS").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_WMMA_ROWS -> family on: only exactly "1".
+pub fn wmma_rows_from(v: Option<&str>) -> bool {
+    v == Some("1")
+}
 
 /// `matmul_fp8_mma_f8` is the default prefill GEMM for the fp8 projections (M >= 5); INTARSIA_HIP_FP8_F8=0 is the kill switch
 /// that puts `matmul_fp8_mma_v2` back (any other value, or unset, keeps f8). Its products are exact like the bf16 kernel's
@@ -189,7 +214,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -197,7 +222,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_v2" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -207,11 +232,32 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
+                    .when(|s| !wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(-1)
+                    .rows_exact(),
+                // lane wg: the WMMA family. `matmul_fp8_wmma` takes the ordinary decode shapes (M 1..=4, the GEMV's) and `_rows` the
+                // `exact_rows` calls (batched decode, verify: M 1..=ROWS_MAX); one launcher, row m bitwise the one-row call on row m alone.
+                "matmul_fp8_wmma" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(30),
+                "matmul_fp8_wmma_rows" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k + 16)
+                    .priority(0)
                     .rows_exact(),
                 "matmul_fp8_mma" => k
                     .acts(bf)
@@ -395,14 +441,14 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -417,7 +463,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "gated_rmsnorm_matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -430,7 +476,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
@@ -439,8 +485,32 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                // lane wg: the folds on the WMMA family; the same shapes as their GEMV twins (K <= 4096 for the ones that stage the row in one window)
+                "matmul_fp8_pair_wmma" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "gated_rmsnorm_matmul_fp8_wmma" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| {
+                        wmma_rows_enabled() && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16)
+                    })
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "rmsnorm_add_matmul_fp8_pair_wmma" | "sigmoid_mul_matmul_fp8_wmma" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -454,7 +524,21 @@ pub fn all() -> Vec<KernelImpl> {
                 "rmsnorm_add_matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "matmul_pair_bf16_wmma" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "rmsnorm_add_matmul_pair_bf16_wmma" => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),

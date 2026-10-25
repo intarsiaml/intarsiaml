@@ -223,6 +223,29 @@ extern "C" {
     pub fn ik_matmul_fp8_gemv(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_gemv_v2(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_gemv_rows(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_bf16_wmma(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_bf16_wmma_rows(x: T, w: T, out: TM, s: S) -> c_int;
+    pub fn ik_matmul_pair_bf16_wmma(x: T, w0: T, w1: T, out0: TM, out1: TM, s: S) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_rmsnorm_add_matmul_pair_bf16_wmma(
+        x: T,
+        res: T,
+        w: T,
+        eps: f32,
+        w_offset: f32,
+        w0: T,
+        w1: T,
+        normed: TM,
+        sum: TM,
+        out0: TM,
+        out1: TM,
+        s: S,
+    ) -> c_int;
+    pub fn ik_matmul_fp8_wmma(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_fp8_wmma_rows(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_fp8_pair_wmma(x: T, w0: T, sc0: T, w1: T, sc1: T, out0: TM, out1: TM, s: S) -> c_int;
+    pub fn ik_gated_rmsnorm_matmul_fp8_wmma(x: T, z: T, nw: T, eps: f32, w_offset: f32, w: T, scales: T, out: TM, s: S) -> c_int;
+    pub fn ik_sigmoid_mul_matmul_fp8_wmma(a: T, gate: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma(x: T, w: T, scales: T, out: TM, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma_f8(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_fp8_mma_v2(x: T, w: T, scales: T, out: TM, scratch: SC, s: S) -> c_int;
@@ -308,6 +331,23 @@ extern "C" {
         w_offset: f32,
         w0: T,
         w1: T,
+        normed: TM,
+        sum: TM,
+        out0: TM,
+        out1: TM,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_rmsnorm_add_matmul_fp8_pair_wmma(
+        x: T,
+        res: T,
+        w: T,
+        eps: f32,
+        w_offset: f32,
+        w0: T,
+        sc0: T,
+        w1: T,
+        sc1: T,
         normed: TM,
         sum: TM,
         out0: TM,

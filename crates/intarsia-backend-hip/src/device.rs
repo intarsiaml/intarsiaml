@@ -692,6 +692,25 @@ impl Backend for HipBackend {
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_rows" => ffi::ik_matmul_fp8_gemv_rows(i(0), i(1), i(2), o, s),
+                "matmul_bf16_wmma" => ffi::ik_matmul_bf16_wmma(i(0), i(1), o, s),
+                "matmul_bf16_wmma_rows" => ffi::ik_matmul_bf16_wmma_rows(i(0), i(1), o, s),
+                "matmul_pair_bf16_wmma" => ffi::ik_matmul_pair_bf16_wmma(i(0), i(1), i(2), o, o.add(1), s),
+                "rmsnorm_add_matmul_pair_bf16_wmma" => ffi::ik_rmsnorm_add_matmul_pair_bf16_wmma(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
+                "matmul_fp8_wmma" => ffi::ik_matmul_fp8_wmma(i(0), i(1), i(2), o, sc, s),
+                "matmul_fp8_wmma_rows" => ffi::ik_matmul_fp8_wmma_rows(i(0), i(1), i(2), o, sc, s),
                 "matmul_fp8_mma" => ffi::ik_matmul_fp8_mma(i(0), i(1), i(2), o, s),
                 "matmul_fp8_mma_f8" => ffi::ik_matmul_fp8_mma_f8(i(0), i(1), i(2), o, sc, s),
                 "matmul_fp8_mma_v2" => ffi::ik_matmul_fp8_mma_v2(i(0), i(1), i(2), o, sc, s),
@@ -760,6 +779,27 @@ impl Backend for HipBackend {
                     s,
                 ),
                 "sigmoid_mul_matmul_fp8_gemv" => ffi::ik_sigmoid_mul_matmul_fp8_gemv(i(0), i(1), i(2), i(3), o, s),
+                "matmul_fp8_pair_wmma" => ffi::ik_matmul_fp8_pair_wmma(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
+                "gated_rmsnorm_matmul_fp8_wmma" => {
+                    ffi::ik_gated_rmsnorm_matmul_fp8_wmma(i(0), i(1), i(2), a.eps, a.w_offset, i(3), i(4), o, s)
+                }
+                "rmsnorm_add_matmul_fp8_pair_wmma" => ffi::ik_rmsnorm_add_matmul_fp8_pair_wmma(
+                    i(0),
+                    i(1),
+                    i(2),
+                    a.eps,
+                    a.w_offset,
+                    i(3),
+                    i(4),
+                    i(5),
+                    i(6),
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3),
+                    s,
+                ),
+                "sigmoid_mul_matmul_fp8_wmma" => ffi::ik_sigmoid_mul_matmul_fp8_wmma(i(0), i(1), i(2), i(3), o, s),
                 "shared_down_combine_nvfp4_gemv" => {
                     ffi::ik_shared_down_combine_nvfp4_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, s)
                 }
