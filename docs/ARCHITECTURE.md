@@ -6,11 +6,14 @@ Intarsia is wood inlay: a picture built from interchangeable, precisely fitted p
 
 Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
 
-> **Status of this document (2026-10-22).** This file is the v0.2 *plan*, not a description of the code. Each claim in
-> sections 1 to 14 now carries one of three markers, checked against `origin/main` (cd617de2) with `grep` and `ls`
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
 > (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
 > **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
 > Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below and the section 13 status paragraph were re-checked on 2026-10-25 against `origin/main`
+> (e5af0a15, PRs up to #155). The per-section tables (1 to 12) and the section 2 diagram note were last checked on 2026-10-22
+> (cd617de2) and may lag the table below.
 
 ### Status vs plan
 
@@ -18,7 +21,7 @@ Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md)
 |---|---|---|
 | Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
 | Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
-| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
 | Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
 | Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
 | Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
@@ -30,23 +33,23 @@ Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md)
 | Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
 | Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
 | `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
-| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; MLA, sliding window, Mamba2, LayerNorm absent |
-| Recipes and `recipe new` | **partial** | 4 recipes, Qwen3 family only; unsupported architectures refused at load |
-| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | no tuning DB, no `--allow-slow`, no per-bucket graphs |
-| Scheduler | **partial** | FIFO continuous batching, Metal only; no priorities |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP for hybrid models; HIP dense models, tensor-parallel batching and MTP under batching are not on main; no priorities |
 | Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
 | Paged KV blocks | **planned** | KV is contiguous per slot |
-| Radix-tree prefix cache | **planned** | only idle-slot prefix reuse with recurrent snapshots |
-| Host-RAM KV tier | **planned** | no code |
-| Speculation | **partial** | n-gram only; MTP and DFlash drafters absent |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine only; idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram and the MTP drafter (`--spec mtp`, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash absent; batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
 | Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
 | Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
-| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
 | Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
 | Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
 | OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
 | Prometheus metrics | **implemented** | OTLP export absent |
-| Containers, run manifest, `intarsia replay` | **planned** | only HIP dev Dockerfiles; no manifest or replay command |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no manifest or `intarsia replay` command |
 
 ---
 
@@ -601,7 +604,8 @@ docs/                     # ARCHITECTURE, decisions/, research/, recipes/
 | 5. Intel Arc | Vulkan or SYCL backend | when better hardware arrives |
 
 
-**Status (section 13).** Phase 0 is **implemented**. Phase 1 is **partial**: the NVFP4 MoE block, hybrid GDN recipe, graphs, web UI and 35B on CUDA are in; paged KV, prefix cache as designed, continuous batching on CUDA/HIP and the Responses API are **planned**. Phase 2 is **partial** (HIP backend and kernels exist; the llama.cpp bar is tracked in the standings docs, not here). Phase 3 is **partial** (tensor parallelism exists; DFlash/MTP drafters are **planned**). Phase 4 (EXL3 is in as a format, autotuner at scale is **planned**) and Phase 5 (Intel Arc) are **planned**. Competitive claims are tracked in [results/](results/), not asserted by this file.
+**Status (section 13).** Phase 0 is **implemented**. Phase 1 is **partial**: the NVFP4 MoE block, hybrid GDN recipe, graphs (including per-row-count graphs for batched decode), web UI, 35B on CUDA and continuous batching for hybrid models on Metal, CUDA and HIP are in; a content-addressed prefix store (host and disk tiers) is in as an opt-in; live paged KV, a radix-tree cache, batching of dense models on HIP (open PR #154) and the Responses API are **planned**. Phase 2 is **partial** (HIP backend and kernels exist, including row-exact batched decode and the Qwen3.8-27B MXFP4 path; the llama.cpp bar is tracked in the standings docs, not here). Phase 3 is **partial**: tensor parallelism exists (NCCL on CUDA, 2-rank P2P on HIP) and the MTP drafter is in (one sequence; batched MTP is deferred, see `decisions/LOG.md`, 2026-10-25 12:57); DFlash is **planned**, and batching under tp, the vocab-parallel head and fused all-reduce+norm are open PRs (#135, #139, #140, #146). Phase 4 is **partial** (EXL3 is in as a format; WMMA small-row GEMV is in as an opt-in, #152; autotuner at scale is **planned**) and Phase 5 (Intel Arc) is **planned**. Competitive claims are tracked in [results/](results/), not asserted by this file.
+
 ## 14. Risks
 
 1. **Quota/time**: the plan is larger than one week. Mitigation: phases are independently useful; Phase 0 proves every seam.
