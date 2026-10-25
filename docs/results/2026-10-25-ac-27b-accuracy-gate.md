@@ -4,8 +4,7 @@ User approval: 2026-10-25 11:05 (investigate; report before changing any golden 
 re-record as a draft PR and stop for review). No GPU time was used for the findings below: they come from the committed logs of
 lane tp2 (`origin/lane-tp2/batch`, `docs/results/2026-10-25-tp2-hip/raw/`), the three engine dumps those runs wrote
 (`tatooine:~/tp2/out/{27b,w12,w13}/`), the three goldens (`tatooine:~/intarsiaml-p1/p1-golden/`), and offline arithmetic with the
-gate's own estimator. A GPU window that would add the missing main-build controls and a baseline + noise envelope is written and
-not yet run (section 7).
+gate's own estimator. The GPU window of section 6 then ran (tatooine, fleetq #5329, 12:31-12:34, radiance back after 30 s) and gave the main-tree controls and the 27B baselines + noise envelopes.
 
 ## 0. Verdict
 
@@ -59,7 +58,7 @@ safetensors are gitignored and only exist on tatooine/endor).
 
   And M1 measured the engine at W4A16 against this golden on 2026-10-21: prefill 1.4e-3, decode 8.3e-4, PASS
   (`2026-10-21-m1-qwen38-drill.md` section 5). T2 on 2026-10-22 (w6, `--mxfp4-act none`): 1.484e-3 (tp1) and 6.003e-4 (tp2),
-  PASS. Neither has been re-run on current main (section 7).
+  PASS. Section 6 re-ran it on the main tree: 1.484e-3 / 9.84e-4, PASS.
 * Why it looks like a property of the checkpoint: it is a property of the flag. The same engine, same build, passes this golden
   as W4A16 and fails it as W4A4.
 
@@ -123,41 +122,54 @@ All offline, on the three engine dumps. The dumps hold the engine's top-64 only,
   how the non-MXFP4 ops (norms, attention, GDN step) round to bf16. Rounding activations to fp4 turns a one-ulp difference at an
   e2m1 near-tie into a whole step (M1 section 5). Engine decode against engine prefill is 0.16 mean with a median of 0.007: a few
   rows flip, the rest agree. That is the same mechanism, at the same size, as HF bf16 against HF f32.
-* The decisive control, a W4A4 engine noise envelope on the decode rows (`--noise-perturb chunk`, section 7), is not run.
+* The W4A4 noise envelope of section 6 (chunk 256 -> 64) moves the decode mean by 5e-3 relative: the engine is near-deterministic under that perturbation, so it does not measure the activation-rounding sensitivity of section 5; the decisive control for "engine noise class" stays the engine-vs-engine row above (0.16, median 0.007).
 
-## 6. What to do (for the user to choose)
+## 6. The GPU window (fleetq #5329, 2026-10-25 12:31-12:34, one R9700, build `bbc0cde` = main `5241377b` + this PR)
 
-1. **W4A16 golden gate**: run it with `--mxfp4-act none`. That is a one-flag fix to lane tp2's `stages-w12.sh` / `w13` (their
-   branch; this lane did not touch it). A guard in `accuracy` (refuse, or warn, when the golden's `engine_version` says
-   `activations none` and the run is dynamic, or the reverse) would have caught it; goldens carry no structured field for it
-   today, so that is a code change and was not made.
-2. **W4A4 golden gate, decode.** Options, none applied:
-   * (a) keep the verdict honest and leave it FAIL until the gate carries a decode-window noise (per-mode noise in
-     `refnoise.rs`; the window value is 0.2527) *and* the user picks a factor; at the measured 1.34 a factor of 1.5 passes.
-     `2026-10-21-a2-ref-noise-gate.md` (follow-up 3) records that no factor was chosen to make a verdict pass.
-   * (b) give the 27B the regression gate the 35B has (`golden/baselines/*.baseline.json` + `*.envelope.json`, as `5c769c8a3`
-     did for CUDA 35B): any change in what the engine computes is caught, and the absolute decode floor becomes report-only for
-     this golden. Needs the GPU window of section 7.
-   * (c) use the W4A16 golden (item 1) as the engine-correctness gate for the 27B (weights, loader, GDN, attention, KV, decode
-     path to 1e-3, no near-tie noise) and gate W4A4 on prefill only. The checkpoint's declared mode is W4A4, so (c) alone leaves the
-     activation quantiser ungated; combine with (b).
-   Recommendation: (c) + (b). It needs no factor, and it would have failed on a real regression.
-3. **Keep the goldens in git** (735 KB; `.gitignore` allow-lists only the gemma and 35B ones). They exist on tatooine and endor only.
-   Not done here; this PR adds provenance files and no safetensors.
+Raw: `raw/` (`window.log`, `steps.log`, one `.out`/`.err` per run). Build stamp `head bbc0cde code-tree 2b4e07bd7337 clean`.
 
-## 7. What this PR contains, and what it does not
+| run | flags | prefill KL21 (scored) | decode KL21 (scored) | floor | baseline |
+|---|---|---:|---:|---|---|
+| W4A16 golden, **default flags** (control, as w12) | engine dynamic activations | 1.387e-1 | 1.897e-1 | FAIL (identical to w12 to the digit) | - |
+| W4A16 golden, `--mxfp4-act none` | `activations: none (--mxfp4-act)` | 1.484e-3 | 9.84e-4 | **PASS** (0.03) | recorded; gate with envelope PASS |
+| W4A4 golden, default flags | dynamic (declared) | 1.799e-1 (0.904x scored noise) | 3.397e-1 (1.706x scored noise; 1.34x the decode-window spread 0.2527) | prefill PASS, decode FAIL | recorded; gate with envelope PASS, decode floor report-only |
 
-Contains: this note; `golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json` re-measured and hash-bound (adds the
-scored-row value 0.1991, FNV-1a and size; **no per-prompt values**, because those would tighten `--self-vs-ref-noise`, which now judges
-every prompt against the golden-wide mean; the prefill verdict is unchanged, 0.1799 against 0.1991 = 0.90x; decode
-is still FAIL; the golden-bound test in `refnoise.rs` is updated and `cargo test -p intarsia-cli` passes, 171 tests);
-`golden/*.provenance.json` for the three goldens; `scripts/ac/` (the offline analysis, reproducible with `DUMPDIR=<dir with the
-three dumps> uv run --with numpy --with tokenizers python scripts/ac/pair.py`, and the GPU window); a LOG row (status proposed).
+The one flag flip on one build takes the W4A16 golden from FAIL 0.139 to PASS 1.5e-3: the w12 failure is the flag. The W4A16 prefill
+number equals T2's 2026-10-22 tp=1 value (1.484e-3) to four digits. The W4A4 numbers equal w9's. Envelope: prefill chunk 256 -> 64
+(`--noise-perturb chunk`); the engine is close to chunk-invariant (most prompts fit in 64 tokens and are untouched, the mean KL moves
+by 2e-4 relative, W4A4 decode 0.26985 -> 0.26857), so the baseline gate is a tight regression gate: any change in what the engine
+computes on the 27B moves it, and then the baseline is re-recorded, as for the CUDA 35B in `5c769c8a3`.
 
-Does not contain, and is not run: the GPU window `scripts/ac/window.sh` / `stages.sh` (tatooine, one card, radiance down ~10
-min, restored in an EXIT trap). It runs, on a freshly built main `5241377b` (`~/intarsiaml-ac/ac-intarsia`, built under fleetq
-#5318), (0) the W4A16 golden with the default flags (control, expect FAIL as w12), (1) the same with `--mxfp4-act none` (expect
-PASS), then for each golden a baseline, a `--noise-perturb chunk` envelope, and the baseline + envelope gate. Its outputs would
-be the two engine baselines and envelopes (`golden/baselines/qwen3.8-27b-mxfp4-hfquark-{,w4a16-}top20.hip.{baseline,envelope}.json`)
-stamped `head 5241377 code-tree 326167668388`. tatooine's queue put it at about 15:00 (3 h 40 min); no job is queued. Until it runs, the
-W4A16 PASS on main is inferred from the 10-21 and 10-22 runs and the bitwise-unchanged W4A4 output, not measured.
+## 7. Gate policy (coordinator decision, 2026-10-25; the user approved the investigation at 11:05)
+
+1. The W4A16 golden is the correctness gate for the 27B, prefill and decode, run with `--mxfp4-act none`.
+2. The W4A4 golden (default, dynamic activations) is gated two ways: prefill against the golden, as before (0.904x the scored noise);
+   decode as a regression gate against the engine's own recorded W4A4 baseline and noise envelope, not against the HF spread.
+3. The decode-window HF spread 0.2527 is context only, not a gate. No factor is chosen.
+
+Wiring: the sidecar of the W4A4 golden carries `floor_report_only: ["decode"]` (`refnoise.rs`, `accuracy.rs`, `docs/accuracy.md`). When
+a run is gated with `--baseline` the decode mode's absolute floor is printed as report-only and the baseline + envelope judge it.
+Without `--baseline` the floor keeps gating, so no mode is left without a gate (`a4-record` above shows it: floor FAIL, no baseline).
+Commands (inside the HIP image; `<M27>` the model dir):
+
+```
+# W4A16: correctness gate
+intarsia accuracy --backend hip --model <M27> --mxfp4-act none --golden golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors \
+  --mode both --decode-positions 16 --baseline golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.baseline.json \
+  --noise-envelope golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.envelope.json --pre-change <sha>
+# W4A4: prefill vs golden; decode vs baseline + envelope
+intarsia accuracy --backend hip --model <M27> --golden golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode both --decode-positions 16 \
+  --baseline golden/baselines/qwen3.8-27b-mxfp4-hfquark-top20.hip.baseline.json \
+  --noise-envelope golden/baselines/qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json --pre-change <sha>
+```
+
+`qualify` finds the W4A4 baseline by golden stem; it does not pass `--mxfp4-act none`, so the W4A16 run stays an explicit command.
+The goldens themselves remain untracked (provenance files only); a re-record needs them from tatooine/endor.
+
+## 8. What this PR contains
+
+The note; LOG row (accepted by the coordinator); the hash-bound W4A4 sidecar with `floor_report_only` (no per-prompt values, so
+`--self-vs-ref-noise` is unchanged); `golden/baselines/qwen3.8-27b-mxfp4-hfquark-{,w4a16-}top20.hip.{baseline,envelope}.json`; the
+`floor_report_only` code and tests (`cargo test --release -p intarsia-cli`: 173 passed, including a test that reads the four committed
+27B files and checks each baseline against its envelope and golden hash); provenance files; `scripts/ac/`; the window's raw logs
+(without the two 0.8 MB dumps).

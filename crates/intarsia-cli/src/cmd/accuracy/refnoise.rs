@@ -1469,6 +1469,30 @@ mod tests {
         assert!(!serde_json::to_string(&plain).unwrap().contains("floor_report_only"));
     }
 
+    /// The committed Qwen3.8-27B HIP baselines and noise envelopes (LOG 2026-10-25, lane ac): each pairs with its envelope, binds
+    /// to its golden, and the W4A4 baseline records the decode floor as failing (the policy that makes `floor_report_only`
+    /// necessary) while the W4A16 one passes both modes.
+    #[test]
+    fn committed_27b_baselines_pair_with_their_envelopes_and_goldens() {
+        use super::super::{baseline, envelope};
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden/baselines");
+        for (stem, fnv, decode_floor_pass) in [
+            ("qwen3.8-27b-mxfp4-hfquark-top20", "725eb3ea093c0264", false),
+            ("qwen3.8-27b-mxfp4-hfquark-w4a16-top20", "b2665d1de37eb72c", true),
+        ] {
+            let b = baseline::read(&dir.join(format!("{stem}.hip.baseline.json"))).unwrap();
+            let e = envelope::read(&dir.join(format!("{stem}.hip.envelope.json"))).unwrap();
+            envelope::check_for_baseline(&e, &b, false).unwrap();
+            assert_eq!(b.golden.fnv1a64, fnv, "{stem}");
+            assert!(b.code.is_stamped() && !b.code.dirty, "{stem}: baseline must come from a stamped, clean build");
+            let floor: Vec<(String, bool)> = b.modes.iter().map(|m| (m.overall.mode.clone(), m.overall.floor_pass)).collect();
+            assert_eq!(floor, vec![("prefill".to_string(), true), ("decode".to_string(), decode_floor_pass)], "{stem}");
+            assert_eq!(b.modes[1].overall.scored_positions, Some(118), "{stem}: the decode window is 16 rows of each of 10 prompts, 118 scored");
+        }
+        // the W4A4 golden's record names the very golden its baseline was recorded against
+        assert_eq!(sidecar("qwen3.8-27b-mxfp4-hfquark-top20.safetensors").golden.fnv1a64.as_deref(), Some("725eb3ea093c0264"));
+    }
+
     #[test]
     fn prompt_factor_resolution_and_validation() {
         assert!(judge_prompts(&pk(&[("p", 1.0)]), &rec(Some(1.0), None), 1.0, 0.0, "x").is_err());

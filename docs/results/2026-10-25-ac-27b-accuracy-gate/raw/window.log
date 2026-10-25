@@ -1,0 +1,21 @@
+[window] job 5329; stopping radiance 2026-10-25 12:31:57
+[window] radiance stopped 2026-10-25 12:32:00
+12:32:00 window start, CAP 900s, pre-change bbc0cde
+12:32:20 ctl-w4a16-golden-default-flags exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+12:32:20   ctl-w4a16-golden-default-flags act: mxfp4 activations: dynamic (declared by the checkpoint)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|
+12:32:36 a16-record exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+12:32:36   a16-record act: mxfp4 activations: none (--mxfp4-act)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|
+12:32:56 a16-envelope exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|
+12:32:56   a16-envelope act: mxfp4 activations: none (--mxfp4-act)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|
+12:33:10 a16-gate exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS|golden gate: PASS|
+12:33:10   a16-gate act: mxfp4 activations: none (--mxfp4-act)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only|
+12:33:27 a4-record exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+12:33:27   a4-record act: mxfp4 activations: dynamic (declared by the checkpoint)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|
+12:33:47 a4-envelope exit 0: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: PASS|
+12:33:47   a4-envelope act: mxfp4 activations: dynamic (declared by the checkpoint)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|
+12:34:02 a4-gate exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS|golden gate: PASS|
+12:34:02   a4-gate act: mxfp4 activations: dynamic (declared by the checkpoint)|this build: head bbc0cde code-tree 2b4e07bd7337 clean|WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only|
+12:34:02 done, time left 778s
+[window] stages done 2026-10-25 12:34:02 (exit 0)
+[window] starting radiance 2026-10-25 12:34:02
+[window] radiance answers 2026-10-25 12:34:27 (after 30 s)

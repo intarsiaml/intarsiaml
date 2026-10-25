@@ -1,0 +1,13 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations dynamic (Quark even_round), 496 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.969e-1 (n=1441), scored rows 1.991e-1 (n=1279); 2026-10-25; docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces; estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); factor 1 (default)
+this build: head bbc0cde code-tree 2b4e07bd7337 clean
+note: the reference noise was measured over 1441 positions, the decode mode compares 160: the noise is applied as measured, but the subset can differ
+Error: accuracy gate FAILED
