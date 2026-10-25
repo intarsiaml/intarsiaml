@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane mx window 8 (card 0): the 16-row peel. w7 showed peel 8 bitwise for 1..8-row tails but not for 9..16-row tails
 # (split-KV attention at <= 16 rows on the 256 schedule, flash above); this window repeats w7's checks with
-# INTARSIA_PREFILL_PEEL=16 on the same 174eb83 build: tails dumps (vs w7's main chunk-256 dump), the 27B golden gate,
+# INTARSIA_PREFILL_PEEL=16 on the PR-head build (e5f849b; its qwen3_5_vl.toml already resolves to 4096 + 16): tails dumps (vs w7's main chunk-256 dump), the 27B golden gate,
 # 256 greedy ids through the engine at lengths whose last multi-row pass is 10..16 rows inside a 4096 pass (525, 529, 8459)
 # or after it (4109), prefill speed.
 set -uo pipefail
