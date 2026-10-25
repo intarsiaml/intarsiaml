@@ -21,31 +21,31 @@
     "kv_dtype": "bf16",
     "act_dtype": "bf16",
     "fp8_act": "recipe default",
-    "prefill_chunk": 2048,
+    "prefill_chunk": 8192,
     "prefill_chunk_source": "recipe qwen3_5_moe, cuda",
     "decode_positions": 16,
     "gate_class": "4bit"
   },
   "base_code": {
-    "head": "c37a8d3",
-    "code_tree": "deb63e429db1",
+    "head": "debb7cf",
+    "code_tree": "119a1e58ae49",
     "dirty": false,
     "overlay": []
   },
   "perturbations": [
     {
-      "declared": "prefill chunk 2048 -> 512",
-      "created_unix": 1792798812,
+      "declared": "prefill chunk 8192 -> 512",
+      "created_unix": 1792906020,
       "tool_version": "0.0.1",
       "code": {
-        "head": "c37a8d3",
-        "code_tree": "deb63e429db1",
+        "head": "debb7cf",
+        "code_tree": "119a1e58ae49",
         "dirty": false,
         "overlay": []
       },
       "exec": {
         "cmdline": [
-          "/home/nvidia/intarsia-decfuse/lt-dev/target/acc/release/intarsia",
+          "/home/nvidia/intarsia-decfuse/df-pfb/target/acc/release/intarsia",
           "accuracy",
           "--model",
           "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
@@ -56,7 +56,7 @@
           "--mem-budget",
           "40",
           "--golden",
-          "/home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+          "/home/nvidia/intarsia-decfuse/df-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
           "--mode",
           "both",
           "--decode-positions",
@@ -64,11 +64,11 @@
           "--max-seq",
           "4096",
           "--noise-ref",
-          "/home/nvidia/intarsia-decfuse/out/ga/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json",
+          "/home/nvidia/intarsia-decfuse/out/dfB-rebase2/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json",
           "--noise-perturb",
-          "chunk",
+          "chunk=512",
           "--write-noise-envelope",
-          "/home/nvidia/intarsia-decfuse/out/ge/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.envelope.json",
+          "/home/nvidia/intarsia-decfuse/out/dfB-rebase2/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.envelope.json",
           "--allow-same-code"
         ],
         "disable_list": "",
@@ -116,8 +116,8 @@
       },
       "reference": {
         "file": "qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json",
-        "fnv1a64": "5c1870964cb01ce7",
-        "created_unix": 1792798340
+        "fnv1a64": "8fe599f315a7f1f1",
+        "created_unix": 1792904340
       },
       "modes": [
         {
