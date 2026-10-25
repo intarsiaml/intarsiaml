@@ -110,6 +110,45 @@ pub trait Comm: Send + Sync {
     fn reserve(&self, _max_elems: usize, _stream: StreamId) -> Result<()> {
         Ok(())
     }
+
+    /// Does this communicator fuse the all-reduce with the residual add + rmsnorm that follows it
+    /// ([`Comm::all_reduce_add_rmsnorm`])? Default false: the model then never defers a reduction, and its op sequence is
+    /// exactly the unfused one.
+    fn fuses_ar_norm(&self) -> bool {
+        false
+    }
+
+    /// Would [`Comm::all_reduce_add_rmsnorm`] take these arguments? A pure function of the tensors' dtypes, shapes and
+    /// offsets (never of their contents), so every rank, the plan recorder and a captured graph decide the same.
+    fn ar_norm_supported(&self, _a: &ArNorm<'_>) -> bool {
+        false
+    }
+
+    /// The all-reduce of [`Comm::all_reduce_sum_into`] followed by `Op::RmsNormAdd` on its result, as one collective:
+    /// `out = round(sum over ranks of partial)`, `sum = round(out + residual)`, `norm = rmsnorm(sum) * (weight + w_offset)`,
+    /// bit for bit the unfused pair (HIP: `kernels/hip/ar_norm.hip`). Same collective contract as the other calls; the
+    /// caller asks [`Comm::ar_norm_supported`] first and runs the unfused pair when it says no.
+    fn all_reduce_add_rmsnorm(&self, _a: &ArNorm<'_>, _stream: StreamId) -> Result<()> {
+        Err(Error::Unsupported(format!("{} has no fused all-reduce + rmsnorm", self.name())))
+    }
+}
+
+/// Operands of [`Comm::all_reduce_add_rmsnorm`]: the `[rows, H]` activations are in the model's activation dtype.
+pub struct ArNorm<'a> {
+    /// This rank's partial of the block output (f32, or the activation dtype), `rows * H` elements.
+    pub partial: &'a TensorRef,
+    /// Receives the reduced block output (the `x` of the `RmsNormAdd`; may be `partial` for equal dtypes).
+    pub out: &'a TensorRef,
+    /// The residual stream before this block's add.
+    pub residual: &'a TensorRef,
+    /// The norm weight `[H]`.
+    pub weight: &'a TensorRef,
+    /// The normed rows (first output of `RmsNormAdd`).
+    pub norm: &'a TensorRef,
+    /// The residual stream after the add (second output of `RmsNormAdd`).
+    pub sum: &'a TensorRef,
+    pub eps: f32,
+    pub w_offset: f32,
 }
 
 fn check_reducible(x: &TensorRef) -> Result<usize> {

@@ -90,6 +90,30 @@ extern "C" {
         drain: c_int,
         stream: S,
     ) -> c_int;
+    /// `kernels/hip/ar_norm.hip`: `ik_ar2_oneshot` fused with the residual add + rmsnorm after it
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_add_rmsnorm(
+        x: *mut c_void,
+        out: *mut c_void,
+        res: *const c_void,
+        w: *const c_void,
+        nrm: *mut c_void,
+        sum: *mut c_void,
+        dtype: c_int,
+        rows: i64,
+        h: i64,
+        eps: f32,
+        w_offset: f32,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
     /// INTARSIA_HIP_STAMP diagnostics (ik_runtime.h): write the wall-clock stamps to the file; no-op when unset

@@ -296,6 +296,7 @@ impl ModelArgs {
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
+                tp_arnorm: tp_arnorm(std::env::var_os("INTARSIA_TP_ARNORM").as_deref(), &self.backend, self.tp),
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
             },
@@ -477,8 +478,33 @@ fn tp_fusion(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
     }
 }
 
+/// Whether HIP tp=2 fuses each block-end all-reduce with the residual add + rmsnorm after it by default. OFF until the GPU
+/// gates of `scripts/tp2-hip/stages-arnorm.sh` (bitwise ids and dumps, speed) are recorded; flipping it is this one constant.
+const TP_ARNORM_DEFAULT_ON: bool = false;
+
+/// Fused all-reduce + residual add + rmsnorm under tensor parallelism (`LoadOptions::tp_arnorm`; acts at world 2 with fusion
+/// on and a communicator that has it, today HIP's peer-to-peer one). `INTARSIA_TP_ARNORM=0` opts out, any other value asks
+/// for it; unset follows [`TP_ARNORM_DEFAULT_ON`] for HIP at tp=2 and is off elsewhere.
+fn tp_arnorm(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => TP_ARNORM_DEFAULT_ON && backend == "hip" && tp == 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn tp_arnorm_env_overrides_and_the_default_is_hip_tp2_only() {
+        use std::ffi::OsStr;
+        assert_eq!(super::tp_arnorm(None, "hip", 2), super::TP_ARNORM_DEFAULT_ON);
+        assert!(!super::tp_arnorm(None, "hip", 1));
+        assert!(!super::tp_arnorm(None, "cuda", 2));
+        assert!(!super::tp_arnorm(None, "cpu", 2));
+        assert!(!super::tp_arnorm(Some(OsStr::new("0")), "hip", 2));
+        assert!(super::tp_arnorm(Some(OsStr::new("1")), "hip", 2));
+    }
+
     #[test]
     fn tp_fusion_default_on_for_cuda_and_hip_tp2_and_env_overrides() {
         use std::ffi::OsStr;

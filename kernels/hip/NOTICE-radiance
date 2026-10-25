@@ -4,6 +4,10 @@ IntarsiaML HIP kernels derived from radiance (libr4d), https://codeberg.org/Stil
 Files in this repository whose design is ported from radiance (rewritten for the ik_* ABI, not copied; changed):
   kernels/hip/allreduce.hip   from libr4d/r4d_ar_oneshot_2rank_exact.hip and libr4d/r4d_ar_seq.h
                               (two-rank one-shot push all-reduce, per-block flags, double-buffered scratch)
+  kernels/hip/ar_norm.hip     from libr4d/r4d_ar_ln_had_quant_i8.hip (tag v1.12.0, commit 5a9ce49): the peer's contribution
+                              as a second operand on the norm's load, no grid barrier, a per-block handshake. Exact bf16
+                              all-reduce + residual add + rmsnorm; radiance's int8 quantisation and Hadamard transform
+                              are not ported
 
 The radiance NOTICE file follows verbatim. The all-reduce kernels it credits to tcclaviger (N-rank all-reduce kernels)
 are the origin of the design above.

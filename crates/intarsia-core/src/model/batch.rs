@@ -733,6 +733,8 @@ impl Model {
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table: self.rope_table.clone(),
             tp_fusion: false,
+            tp_arnorm: false,
+            ar_defer: Mutex::new(None),
             tp: self.tp.clone(),
             no_comm: self.no_comm,
             test_bug: self.test_bug.clone(),

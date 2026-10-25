@@ -70,6 +70,10 @@ int ik_rt_malloc_finegrained(void** p, size_t bytes);
 int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch,
                    unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
                    int nblocks, int drain, void* stream);
+/* the same all-reduce fused with the residual add + rmsnorm after it (ar_norm.hip), bitwise the pair */
+int ik_ar2_add_rmsnorm(void* x, void* out, const void* res, const void* w, void* nrm, void* sum, int dtype, int64_t rows,
+                       int64_t H, float eps, float w_offset, void* peer_scratch, void* my_scratch, unsigned int* peer_flags,
+                       unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream);
 /* D2D copy bandwidth in GB/s (read + write counted), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 const char* ik_rt_error_string(int code);
