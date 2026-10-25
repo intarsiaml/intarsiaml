@@ -102,7 +102,7 @@ hiptest() {
 mtest() {
   local tree=$1 tag=$2; shift 2
   INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree")-mtest INTARSIA_MODELS=$MI HIP_VISIBLE_DEVICES=$G timeout 1200 "$(T "$tree")/deploy/tatooine/dev.sh" \
-    env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
+    env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 INTARSIA_QWEN3_DIR=$M8 ${E:-} cargo test --release -p intarsia-models "$@" > "$O/mtest-$tag.txt" 2>&1 < /dev/null
   log "mtest $tag exit $?: $(grep -aE '^test result|FAILED|panicked|SKIPPED' "$O/mtest-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
 }
 # mxbench <tree> <tag> [M] [reps]: isolated GEMM timing v1 vs v2 tiles at the 27B shapes (binary built by build.sh BENCH=1)
@@ -126,4 +126,15 @@ accg() {
   run "$tree" 600 "accg-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both \
     --ref-noise $N27 --write-self-golden /work/mx-out/accg-$tag.safetensors --allow-unstamped --allow-dirty "$@"
   cp "$(T "$tree")/mx-out/accg-$tag.safetensors" "$O/" 2>/dev/null
+}
+# plan <tree> <tag> <model>: plan show --json
+plan() {
+  local tree=$1 tag=$2 m=$3; shift 3
+  run "$tree" 200 "plan-$tag" "$(mdir "$m")" plan show --backend hip --model "$m" --mem-budget 29 --max-seq 4096 --json "$@"
+}
+# kq <tree> <tag> <model>: kernels test --quick
+kq() {
+  local tree=$1 tag=$2 m=$3; shift 3
+  run "$tree" 400 "kq-$tag" "$(mdir "$m")" kernels test --backend hip --model "$m" --quick "$@"
+  log "kq $tag: $(grep -aE 'kernels,|cases|FAIL|NO CASES' "$O/kq-$tag.out" "$O/kq-$tag.err" | tail -3 | tr '\n' '|' | cut -c1-300)"
 }
