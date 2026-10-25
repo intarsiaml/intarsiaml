@@ -60,4 +60,90 @@ GEMM. Single card, our GEMMs run at 64.5 (chunk 4096). So of the 5.5x (6133 / 11
 and radiance's fused attention/scan. A tp1 radiance run would make this direct; it was not run (not tried in this lane's windows), so this
 split is arithmetic, not a measurement.
 
+## 2. Negative result: the fp8 WMMA cannot reproduce the bf16 chain (carried group scale)
+
+The first idea for a bitwise speed-up: keep today's W4A4 numbers but feed the gfx12 fp8 x fp8 WMMA (2x the bf16 MAC rate)
+with the bare e2m1 codes as e4m3 bytes, and carry the accumulator in units of the current 32-group's scale (a power-of-two
+rescale at each group boundary, exact). If the matrix core's "sum of 16 products + C" were the same rounding function on
+both paths, the outputs would be bitwise today's. It is not:
+
+* `scripts/mx/wmma_eq.hip` on the device (raw/w2/bin-wmma-eq.txt, 2.56M outputs per regime): where the bf16 chain's f32
+  sums are exact (cancellation regime) the paths agree; wherever they round, the fp8 WMMA rounds differently. Model-like
+  data: 534 outputs round, 164 differ; wide-span data: 2.0M round, 830k differ. The per-group fma control differs more
+  (205 / 1.06M), so the carried scale is right and the matrix core's internal accumulation is what differs.
+* The kernel built on it (`matmul_mxfp4_mma_f8`, commit 5ffb5d40) failed its own adversarial bitwise test (117547 of
+  131072 outputs differ; raw/w2/test-mxfp4-f8.txt) and was also slower: 0.54-0.91x of main in isolation (256 VGPRs, 97
+  spills, 296 B/lane scratch from the per-element exponent state) and 5916 vs 3669 ms in the engine. Backed out (c50453f1..).
+  The 256-greedy-id matches it had (raw/w2) are not evidence of bitwise equality and are not used as such.
+
+## 3. Bitwise default: `matmul_mxfp4_mma` v2
+
+`kernels/hip/mxfp4.hip` (`Mxfp4PolicyV2`, `mx_gemm_run`). Every output keeps exactly v1's chain: the same bf16 WMMA, k steps
+of 16 in order from k = 0, accumulator from zero, the same bf16 operands. Two things change:
+
+1. **Dequant without the LDS table and the f32 round trip.** For a scale byte s in [3, 250], e2m1 * 2^(s-127) is a normal
+   number with a 2-bit significand, so its bf16 is exact and is built from bits: magnitude code m >= 2 -> (m << 6) +
+   ((s-1) << 7), m = 1 -> (s-1) << 7, m = 0 -> 0, plus the sign. Other scale bytes (2^-127 subnormals, 255 = NaN) take
+   v1's path. (v1: 16 LDS table reads, 16 f32 multiplies, 16 bf16 roundings per 16 weights.)
+2. **A tile table for prefill M** (v1 used one 128 x 128 tile, 8 waves, for every M > 64): 128 x 256 with 16 waves from 512
+   tokens, 128 x 128 with 16 waves below, and a 16-wide weight tile for N <= 64 (gdn in_proj_a / b) so that launch is not
+   2 blocks. Small M (verify / tail rows <= 64) keeps v1's tiles.
+
+v1 stays registered as `matmul_mxfp4_mma_v1` (priority -10, never selected): the bitwise reference of the tests, and
+`INTARSIA_HIP_MXFP4_V1=1` makes `matmul_mxfp4_mma` run it (kill switch). `INTARSIA_HIP_MXFP4_TILE=WN,WM,TN,TM` forces one
+tile (sweeps).
+
+Bitwise evidence:
+
+* `crates/intarsia-backend-hip/tests/mxfp4_v2.rs` (raw/w3, raw/w4 test-mxfp4-v2.txt): v2 == v1 bit for bit on the 27B
+  shapes at prefill M through every table tile, partial tiles, N % 8 != 0, both activation modes and output dtypes; on every
+  weight scale byte 0..255 with outlier / zero activation groups; rows independent of M (128, 300 vs 2100: batched = solo).
+  Negative controls in the test: on its adversarial data the f32 sums do round (f64 exact != output on many elements), and
+  one flipped weight code changes the output.
+* `scripts/mx/mxbench.hip`: every tile of the sweep is checked against v1 on the 27B shapes (no element differs).
+* Engine: self-golden prefill dumps of 31876 rows (P1's 10 golden prompts plus synthetic 260 / 264 / 4089 / 4100 / 5686 /
+  16036-token prompts) are bitwise main at chunk 256 and at chunk 4096 (raw/w3 cmp-v2-vs-main-tails.txt), the golden-prompt
+  dumps (prefill and teacher-forced decode) are bitwise main, and 256 greedy ids match main (27B short / 4k, 35B short / 4k).
+
+<!-- V2SPEED -->
+
+## 4. Prefill chunk 4096 for the 27B: not bitwise, user decision
+
+Same tails method as lane ck (raw/w3 chunkcmp-base-256-vs-4096.txt, main): chunk 4096 vs 256 is bitwise on every prompt
+except those whose length leaves a tail of at most 8 rows at chunk 256 (synth_260: 4 tail rows differ, synth_264: 8), where
+the tail runs the M <= 8 GEMV at chunk 256 and the MMA at 4096. Those rows move a lot (max row KL 0.39, max |d logprob|
+2.26, 4 argmax flips over the 12 rows), which shows how hard the W4A4 model amplifies last-bit differences through the
+activation QDQ (see section 5). Prompts with longer tails (4089, 5686, 16036) and 4100 (a 4-row tail on both schedules) are
+bitwise. Speed: +9 % at 4k, +11 % at 16k (section 1). Like CUDA's `[tuning.cuda] prefill_chunk = 4096` (LOG 2026-10-22
+13:08, user-approved), this changes numerics on some prompts, so it is left as a user decision; no recipe change here.
+`--prefill-chunk 4096` works today as a flag.
+
+## 5. Opt-in: `matmul_mxfp4_mma_fold` (INTARSIA_HIP_MXFP4_FOLD=1), W4A4 folded onto the fp8 WMMA
+
+`kernels/hip/mxfp4.hip` (`launch_fold`). Both operands are folded into e4m3 against their row's largest group scale: a code of
+magnitude {0, .5, 1, 1.5, 2, 3, 4, 6} in a group with scale byte s becomes e4m3(mag * 2^t), t = s - ref + 6, exact for t in
+[-8, 6] (a row spanning up to 14 octaves; the 27B's weight rows span at most 10, `scripts/mx/scales.py`: 5 of 3.9M rows above
+8, none above 14), rounded to nearest even below that (tiny groups of activation rows with a wider span). Then one fp8 GEMM
+over the whole K (ik_f8_gemm.h's structure and tile table) and out = acc * 2^(Wn + Am - 266). The products are the same
+exact values as v1's; only the accumulation (fp8 WMMA order and rounding) and those tiny groups differ. This is closer to the
+checkpoint's W4A4 semantics than radiance's W4A8 (per-token fp8 activations without the MXFP4 activation QDQ). W4A16 calls
+and K % 64 != 0 run v2 inside (bitwise, tested). Rows do not depend on M (tested): batched = solo with the knob on.
+
+Accuracy against P1's 27B golden (HF transformers + Quark W4A4, top-20, with the ref-noise sidecar; `accuracy --mode both`,
+raw/w3 accg-*.out):
+
+| | prefill top-1 | prefill KL21 (scored) | prefill gate (<= ref noise 0.197) | decode top-1 | decode KL21 (scored) | decode gate |
+|---|---:|---:|---|---:|---:|---|
+| main | 91.33 % | 0.1799 | PASS | 88.75 % | 0.3397 | FAIL |
+| v2 (default) | 91.33 % | 0.1799 | PASS (bitwise main) | 88.75 % | 0.3397 | FAIL (bitwise main) |
+| fold (opt-in) | 91.95 % | 0.1653 | PASS | 88.12 % | 0.2606 | FAIL |
+
+* The fold is as close to the reference as main or closer on every row of this table, but it **does not pass the decode-mode
+  gate, and neither does main** (0.3397 vs the 0.197 bound; it is main's state, not this lane's). No threshold was changed.
+* Fold vs main directly (self-golden, raw/w3 cmp-golden-*): mean row KL 0.174 prefill, 0.198 decode, 115 of 1441 argmax
+  flips. That is the size of the reference noise itself (HF W4A4 bf16 vs fp32: 0.197), i.e. this W4A4 model turns last-bit
+  sum differences into ref-noise-sized logit changes (the chunk-tail rows of section 4 show the same on main).
+
+<!-- FOLDSPEED -->
+
 <!-- REST -->
