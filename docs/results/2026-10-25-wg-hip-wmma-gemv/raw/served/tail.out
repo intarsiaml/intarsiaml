@@ -1,0 +1,10 @@
+abl exit=0 5 lines
+off-1 exit=0 1: 6.09 ms/step, 164.3 tok/s 4: 13.44 ms/step, 297.7 tok/s 16: 40.66 ms/step, 393.5 tok/s 
+opt1-1 exit=0 1: 6.34 ms/step, 157.8 tok/s 4: 13.35 ms/step, 299.6 tok/s 16: 29.60 ms/step, 540.6 tok/s 
+fp8-1 exit=0 1: 6.33 ms/step, 158.1 tok/s 4: 13.51 ms/step, 296.2 tok/s 16: 32.45 ms/step, 493.1 tok/s 
+bf16-1 exit=0 1: 6.26 ms/step, 159.8 tok/s 4: 13.33 ms/step, 300.0 tok/s 16: 38.00 ms/step, 421.1 tok/s 
+off-2 exit=0 1: 6.09 ms/step, 164.2 tok/s 4: 13.50 ms/step, 296.4 tok/s 16: 40.88 ms/step, 391.4 tok/s 
+opt1-2 exit=0 1: 6.34 ms/step, 157.7 tok/s 4: 13.38 ms/step, 298.9 tok/s 16: 29.77 ms/step, 537.5 tok/s 
+fp8-2 exit=0 1: 6.34 ms/step, 157.8 tok/s 4: 13.55 ms/step, 295.2 tok/s 16: 32.56 ms/step, 491.4 tok/s 
+bf16-2 exit=0 1: 6.26 ms/step, 159.7 tok/s 4: 13.36 ms/step, 299.3 tok/s 16: 38.11 ms/step, 419.8 tok/s 
+TAIL DONE 53 s

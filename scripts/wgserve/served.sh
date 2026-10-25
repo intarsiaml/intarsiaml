@@ -69,7 +69,7 @@ for p in $(seq 1 "$PASSES"); do
   for arm in "${order[@]}"; do visit "$arm" "$p"; done
 done
 say "visits done ($(left) s left)"
-if (( $(left) > TAIL_MIN )); then
+if (( TAIL_S > 0 && $(left) > TAIL_MIN )); then
   tl=$(( $(left) - TAIL_SLACK )); (( tl > TAIL_S )) && tl=$TAIL_S
   say "tail: ${tl} s budget"
   fg to $(( tl + 150 )) ssh "$T" "bash ~/wg-tail.sh run $tl" </dev/null > "$OUT/tail.out" 2>&1

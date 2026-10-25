@@ -1,0 +1,2 @@
+fleetq: #5342 waiting (#3 in line): in line behind #5336 "tp2 w15 (rerun of void w13): mutant batch-peer-no-table, 35B tp2 run-to-run, 27B W4A16 (--mxfp4-act none) tp2-vs-tp1 dump, 27B + 35B batched==solo at tp2; per-window tree snapshot, VRAM guard; radianc" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5336 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5336 set, or it will wait for #5336 to be released.
