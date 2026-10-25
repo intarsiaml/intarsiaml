@@ -102,17 +102,32 @@ Verdict: scalar emulation of the WMMA sum is not feasible with this model family
 
 ## Gates
 
+Merged head: this branch merged with origin/main `0c142a33` (the only conflict, `crates/intarsia-core/src/plan.rs`, keeps `prefill_peel` and `weight_layout`, both added to the plan JSON only when on). Logs: `raw/merge-gates/`.
+
 | gate | status |
 |---|---|
-| unit tests, row invariance M = 1..64 with negative controls (`rows_exact`: wmma fp8 / bf16 bitwise one-row call, folds bitwise vs unfused chain, default / all-direct / all-staged, fragment layout, layout knobs) | pass (window D, tree `aa6e3e16`; kernels unchanged since). Negative controls fail as intended (3 of 3). |
-| `kernels test --quick` (hip) | not run on the final tree |
-| `batch_recurrent --test-threads=1` | not run on the final tree |
-| 35B `batch_cuda_real` hip incl. `--ignored` | timing, profile and op-listing tests run (pass); the identity / MTP-verify tests not run on this branch |
-| accuracy: KL goldens, acc-short vs HIP baseline, qualify | not run |
-| CUDA and Metal no-ops (shared crate `intarsia-core/src/plan.rs` changed) | not run |
-| speed: localeval 1/4/8/16 streams, interleaved x3, same window | done (above); 1 stream and 4-16 streams in the same window; steady ITL reported |
+| unit tests, row invariance M = 1..64 with negative controls (`rows_exact`, `wmma_folds`, `frag_layout`) | pass, knob unset and option 1 on (HIP window, merged head); the 3 negative controls fail as intended (window D) |
+| quick-coverage guard for the opt-in WMMA kernels (`quick_coverage_wmma.rs`, knob on; `quick_coverage.rs` skips `*wmma*`) | pass; control (partial table) fails on the bf16 kernels |
+| `kernels test --quick` (hip), knob unset | 76 kernels, 365 cases, no FAIL (the 10 WMMA kernels report `NO CASES` with the knob unset by construction) |
+| `kernels test --quick` (hip), option 1 on | all 10 WMMA kernels ADMITTED within tolerance (2, 2, 4, 8, 2, 4, 9, 6, 9, 6 cases); the GEMV twins report `NO CASES` by construction |
+| `batch_recurrent --test-threads=1` (hip) | 11 passed |
+| 35B `batch_cuda_real` batched == solo (hip), knob unset and option 1 on, + `--ignored` long-prompt with option 1 on | pass (2 of 2 35B tests each; long-prompt pass) |
+| 8B `batch_cuda_real` batched == solo | the first window did not set `INTARSIA_QWEN3_DIR` (skip = panic under `REQUIRE_GPU=1`); rerun: see the 8B table below |
+| no-op, knob unset, HIP: `plan show` text + json, 256 ids (8B, 35B, short and 4k) vs main | byte-identical / identical |
+| no-op CUDA (spark1): same + `kernels test --quick` (77 kernels, 531 cases, main and head) + core lib tests (127 pass) | identical / pass |
+| no-op Metal (endor): same + `kernels test` (44 kernels, 817 cases) + workspace tests | identical / pass after the two guard fixes above |
+| MTP k=2 identity with option 1 on (35B, natural-v1 128 and 1k) | ids equal within the arm: option 1 MTP == option 1 spec off at both sizes; knob-off control equal. Gate decided by the coordinator 2026-10-25: "ids equal within arm" (acceptance equal to knob-off is not a valid criterion for a knob that changes solo output). Acceptance below is info. |
+| accuracy: 35B KL golden prefill + decode, acc-short, option 1 on vs the tracked HIP baseline + envelope | see "Accuracy" |
+| speed: localeval 1/4/8/16 streams, interleaved x3 | done (above) |
 
-The accuracy, identity and no-op gates are required before any default flip; this PR is knob-only.
+MTP acceptance (info; k=2, 256 tokens, natural-v1; option 1 changes solo output, so the two arms generate different text):
+
+| prompt | knob-off passes / proposed / accepted | option 1 passes / proposed / accepted |
+|---|---|---|
+| 128 | 102 / 203 / 153 (75.4 %, 2.50 tokens per pass) | 102 / 204 / 152 (74.5 %, 2.49) |
+| 1k | 97 / 194 / 157 (80.9 %, 2.62) | 101 / 202 / 153 (75.7 %, 2.51) |
+
+Decode tok/s with MTP k=2: 190.9 vs 190.8 (128), 198.4 vs 190.9 (1k); spec off: 165.7 vs 159.8 (128), 165.4 vs 159.4 (1k).
 
 ## Method notes and limits
 
