@@ -294,7 +294,7 @@ the build itself is 6 to 8 working days of engineering at the hours above, with 
    from B = 5 to roughly B = 8; the row budget is a knob so this needs no redesign.
 3. **Head row-exactness** (section 3.3) is the one thing that can change solo MTP numbers slightly (acceptance noise, re-baseline); everything else
    leaves the single-sequence path bitwise unchanged.
-4. **Memory:** `SpecRows` is `B*k*63 MB` (unverified for the 27B); at `--max-batch 16` with spec on this is the first place a load can run out; the plan check must refuse it with a message.
+4. **Memory:** `SpecRows` is `B*k*149 MiB` (mr's figure for the 27B state; W0 cross-checks it from the plan); at `--max-batch 16` with spec on this is the first place a load can run out; the plan check must refuse it with a message.
 5. **Verify-row cost per sequence is bursty:** a sequence with a long accepted run delivers many tokens in one iteration (its ITL gap is the step), so the
    streaming smoothness of the batched path changes; tokens per iteration up to `k+1`. It is the same as solo MTP today; flagged for the server's SSE pacing.
 6. **Out of scope and unchanged:** `--mtp-draft-vocab` default (user), the measured-cost gate (off), CUDA/Metal batched speculation.
