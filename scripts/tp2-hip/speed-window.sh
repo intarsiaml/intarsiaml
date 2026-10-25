@@ -12,7 +12,7 @@
 # "INTARSIA_TP_VOCAB=0"), TAGP (label prefix), CAP (seconds, default 2400: arms that no longer fit are skipped).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
-TREE=${TREE:-batch}; ROUNDS=${ROUNDS:-3}; GEN=${GEN:-512}; SIZES=${SIZES:-1024,4096,16384}; CONC=${CONC:-4,16}
+TREE=${TREE:-batch}; ROUNDS=${ROUNDS:-3}; GEN=${GEN:-512}; SIZES=${SIZES:-1024,4096,16384}; CONC=${CONC-4,16}
 ARMS=${ARMS:-"tp1 tp2"}; TAGP=${TAGP:-tp2speed}; CAP=${CAP:-2400}
 MODEL=${MODEL:-/models/Qwen3.6-35B-A3B-NVFP4}; NAME=${NAME:-qwen36-35b}; MODELS_DIR=${MODELS_DIR:-/data/models/intarsia}
 MAXB=${MAXB:-16}; MAXSEQ=${MAXSEQ:-18432}; PORT=8090
@@ -35,9 +35,9 @@ cleanup() { $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null; exec 9>&-
 trap cleanup EXIT
 
 serve() { # serve <arm>
-  local arm=$1 envs="" args="--max-batch $MAXB" gpus=0
-  if [[ $arm == tp2 ]]; then gpus=0,1; args="$args --tp 2 --devices 0,1"; envs="$EXTRA_TP2"; fi
-  [[ $arm == tp1 ]] && envs="$EXTRA_TP1"
+  local arm=$1 envs="" args="" gpus=0; [[ $MAXB -gt 1 ]] && args="--max-batch $MAXB"
+  if [[ $arm == tp2 ]]; then gpus=0,1; args="$args --tp 2 --devices 0,1"; envs="${EXTRA_TP2:-}"; fi
+  [[ $arm == tp1 ]] && envs="${EXTRA_TP1:-}"
   RECIPE="HIP_VISIBLE_DEVICES=$gpus ${envs:+$envs }tp2-intarsia serve --backend hip --model $MODEL --served-model-name $NAME-$arm $args --profile-every 0 --mem-budget 29 --max-seq $MAXSEQ --no-supervisor --host 0.0.0.0 --port $PORT (tree $TREE, docker $IMG)"
   local envflags=""; for e in $envs; do envflags="$envflags -e $e"; done
   $SSH "docker rm -f tp2-speed >/dev/null 2>&1; docker run -d --name tp2-speed --network host --device /dev/kfd --device /dev/dri \
@@ -62,7 +62,7 @@ for r in $(seq 1 "$ROUNDS"); do
     if ! serve "$arm"; then say "round $r arm $arm: server did not come up"; $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null; continue; fi
     say "round $r arm $arm: server up, localeval"
     ( cd /opt/code/deepeval && uv run localeval speed --url "http://tatooine:$PORT/v1" --model "$NAME-$arm" --label "$TAGP-$arm-r$r" \
-        --sizes "$SIZES" --gen "$GEN" --reps 1 --concurrency "$CONC" --thinking off --wait-idle 60 --recipe "$RECIPE" ) \
+        --sizes "$SIZES" --gen "$GEN" --reps 1 ${CONC:+--concurrency "$CONC"} --thinking off --wait-idle 60 --recipe "$RECIPE" ) \
       > "$OUT/localeval-$arm-r$r.log" 2>&1 < /dev/null
     say "round $r arm $arm: localeval exit $? $(grep -aE 'run_id|results/' "$OUT/localeval-$arm-r$r.log" | tail -2 | tr '\n' '|')"
     $SSH 'docker logs tp2-speed 2>&1 | grep -aE "tensor-parallel|decode graph|batched|graph" | tail -6' < /dev/null > "$OUT/serve-$arm-r$r.log" 2>&1
