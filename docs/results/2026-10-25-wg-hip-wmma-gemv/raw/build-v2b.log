@@ -14,3 +14,4 @@ fleetq: #5214 waiting (#11 in line): in line behind #5196 "mr: 27B serve --max-b
 fleetq:   #5196 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5196 set, or it will wait for #5196 to be released.
 fleetq: #5214 waiting (#10 in line): in line behind #5197 "mr: cargo rebuild dev intarsia-cli (web assets were missing), cpu only" (claude-f31ccf91) on tatooine-r9700
 fleetq:   #5197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5197 set, or it will wait for #5197 to be released.
+fleetq: #5214 is cancelled, so it will not run: ssh tatooine 'BUILD=$HOME/wg-build-v2 REPO=$HOME/intarsiaml-wg-var bash ~/wg-bench.sh build 2>&1 | tail -5; bash ~/wg-prep.sh tests'
