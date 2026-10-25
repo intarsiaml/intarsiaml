@@ -25,6 +25,9 @@
 #ifndef IK_F8_ROWS_H
 #define IK_F8_ROWS_H
 
+#ifdef IK_F8R_ABLATE
+static int g_f8r_abl = 0;  // set through ik_f8r_set_abl
+#endif
 constexpr int kF8rWaves = 8;          // waves on K: a constant, so the cross-wave sum order is too
 constexpr int kF8rThreads = kF8rWaves * IK_WARP;
 constexpr int kF8rPad = 16;           // bytes of padding after each staged row
@@ -83,7 +86,8 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                                          const float* __restrict__ sc, OutT* __restrict__ out, int M, int N, int K, int kw, int64_t blk,
                                          const ik_bf16* __restrict__ pz = nullptr, const ik_bf16* __restrict__ pnw = nullptr,
                                          float peps = 0.f, float pwoff = 0.f, ik_bf16* __restrict__ pnormed = nullptr,
-                                         ik_bf16* __restrict__ psum = nullptr, bool pwriter = false) {
+                                         ik_bf16* __restrict__ psum = nullptr, bool pwriter = false, int abl = 0) {
+    // abl: timing ablations (IK_F8R_ABLATE builds only; wrong results): 1 no x staging, 2 no cross-wave sum, 4 no weight loads
     extern __shared__ __align__(16) unsigned char smem[];
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int h = lane >> 4, col = lane & 15;
@@ -117,7 +121,10 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
             wb[j][0] = make_uint4(0, 0, 0, 0);
             if constexpr (BF) wb[j][1] = make_uint4(0, 0, 0, 0);
             const int k0 = ws + (wave + kF8rWaves * j) * 32;
-            if (wp && j < nj) {
+            if (abl & 4) wb[j][0] = make_uint4(0x38383838u, 0x38383838u, 0x38383838u, 0x38383838u);
+            else if ((abl & 8) && !BF) {  // experiment: weights repacked in fragment order [n/16][k/32][lane = h * 16 + col][16 B] (K % 32 == 0, N % 16 == 0)
+                if (j < nj && k0 + 32 <= K) wb[j][0] = ik_ldcs(reinterpret_cast<const uint4*>(w + ((blk * (K / 32) + (k0 / 32)) * 32 + lane) * 16));
+            } else if (wp && j < nj) {
                 if constexpr (BF) {
                     if (k0 + 32 <= K) {
                         const uint4* p = reinterpret_cast<const uint4*>(wp + (int64_t)(k0 + 16 * h) * 2);
@@ -163,13 +170,13 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
         } else {
             if constexpr (PRO == 3) norm_add_stage(x, pz, pnw, pnormed, psum, xn, K, peps, pwoff, pwriter);
             const int c8 = wlen >> 3;
-            for (int i = tid; i < M * c8; i += kF8rThreads) {
+            for (int i = tid; i < ((abl & 1) ? 0 : M * c8); i += kF8rThreads) {
                 const int row = i / c8, kc = (i - row * c8) << 3;
                 const uint4 v = f8r_src<PRO>(x, pz, pnw, peps, pwoff, xn, row, K, ws + kc);
                 if (actq) *reinterpret_cast<uint2*>(xs + (size_t)row * stride + kc) = f8r_quant8(v, s_in);
                 else *reinterpret_cast<uint4*>(xs + (size_t)row * stride + kc * 2) = v;
             }
-            __syncthreads();
+            if (!(abl & 1)) __syncthreads();
         }
 #pragma unroll
         for (int j = 0; j < NJ; ++j) {
@@ -219,6 +226,18 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
         }
         if (!DIRECT && ws + kwa < K) __syncthreads();  // the next window restages x
     }
+    if (abl & 2) {  // ablation: wave 0 stores its own partial, no cross-wave traffic
+        if (wave == 0) {
+#pragma unroll
+            for (int t = 0; t < TM; ++t)
+                for (int e = 0; e < 8; ++e) {
+                    const int tok = t * 16 + col;
+                    const int64_t f = blk * 16 + h * 8 + e;
+                    if (tok < M && f < N) ik_store(out + (int64_t)tok * N + f, acc[t][e] * s_out);
+                }
+        }
+        return;
+    }
     // cross-wave sum in a fixed order, scale, store: thread = (lane, half of the 8 features, token tile)
     __syncthreads();  // every wave has read its last staged x
 #pragma unroll
@@ -257,8 +276,9 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
 template <int TM, int NJ, bool DIRECT, bool BF, typename OutT>
 __global__ void __launch_bounds__(kF8rThreads)
 f8r_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const float* __restrict__ sc,
-           OutT* __restrict__ out, int M, int N, int K, int kw) {
-    f8r_body<TM, NJ, 0, DIRECT, BF, OutT>(x, xq, w, sc, out, M, N, K, kw, (int64_t)blockIdx.x);
+           OutT* __restrict__ out, int M, int N, int K, int kw, int abl) {
+    f8r_body<TM, NJ, 0, DIRECT, BF, OutT>(x, xq, w, sc, out, M, N, K, kw, (int64_t)blockIdx.x, nullptr, nullptr, 0.f, 0.f, nullptr, nullptr,
+                                          false, abl);
 }
 
 /* The folded decode launchers (M == 1, STAGED): the same body with the prologue of the fp8 GEMV folds, so a solo step runs the
@@ -367,7 +387,11 @@ template <int TM, int NJ, bool DIRECT, bool BF, typename OutT>
 void f8r_run(const ik_bf16* x, const uint8_t* xq, const uint8_t* w, const float* sc, OutT* out, int M, int64_t N, int64_t K,
              const F8rCfg& c, hipStream_t s) {
     const unsigned grid = (unsigned)((N + 15) / 16);
-    f8r_kernel<TM, NJ, DIRECT, BF, OutT><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw);
+#ifdef IK_F8R_ABLATE
+    f8r_kernel<TM, NJ, DIRECT, BF, OutT><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, g_f8r_abl);
+#else
+    f8r_kernel<TM, NJ, DIRECT, BF, OutT><<<grid, kF8rThreads, c.smem, s>>>(x, xq, w, sc, out, M, (int)N, (int)K, c.kw, 0);
+#endif
 }
 
 /* M rows, STAGED or (scratch given, M >= direct_min) DIRECT. */

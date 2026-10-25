@@ -7,6 +7,6 @@ if [[ "${1:-}" == base ]]; then
   tmp=$(mktemp -d); git -C /opt/code/intarsiaml archive origin/main | tar -x -C "$tmp"
   rsync -a --delete --exclude target "$tmp"/ tatooine:intarsiaml-wg-base/; rm -rf "$tmp"
 else
-  rsync -a --delete --exclude .git --exclude target --exclude 'docs/results' --exclude '.claude' "$here"/ tatooine:intarsiaml-wg/
+  rsync -a --delete --exclude .git --exclude target --exclude 'docs/results' --exclude '.claude' "$here"/ tatooine:${DEST:-intarsiaml-wg}/
 fi
 echo synced

@@ -1037,6 +1037,9 @@ int ik_matmul_fp8_gemv_v2(const ik_tensor* x, const ik_tensor* w, const ik_tenso
 int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {
     return launch_rows(x, w, scales, out, stream);
 }
+#ifdef IK_F8R_ABLATE
+void ik_f8r_set_abl(int v) { g_f8r_abl = v; }
+#endif
 int ik_matmul_fp8_wmma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
                        void* stream) {
     return launch_wmma(x, w, scales, out, scratch, stream);

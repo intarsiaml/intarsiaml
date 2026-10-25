@@ -110,6 +110,55 @@ static void bench_folds(std::mt19937& rng) {
     }
 }
 
+
+#ifdef IK_F8R_ABLATE
+// M=1 ablation of the staged WMMA kernel: which part of the time is the x staging, the cross-wave sum, the weight loads (wrong results, timing only).
+static void bench_abl(std::mt19937& rng) {
+    std::normal_distribution<float> nd(0.f, 1.f);
+    struct Shape { int N, K; } shapes[] = {{2048, 2048}, {2048, 4096}, {4096, 2048}, {12288, 2048}, {512, 2048}};
+    int abls[] = {0, 1, 2, 4, 3, 5, 6, 7, 8};
+    for (auto sh : shapes) {
+        int N = sh.N, K = sh.K; size_t wb = (size_t)N * K;
+        int copies = (int)std::max<size_t>(3, std::min<size_t>(64, (size_t)(300 << 20) / wb + 1));
+        std::vector<uint8_t> hw(wb);
+        for (auto& b : hw) { b = (uint8_t)(rng() & 0xff); if ((b & 0x7f) == 0x7f) b &= 0xf7; if (((b >> 3) & 15) > 11) b = (b & 0x87) | (8 << 3); }
+        std::vector<uint8_t*> dw(copies), dp(copies);
+        for (auto& p : dw) { CK(hipMalloc(&p, wb)); CK(hipMemcpy(p, hw.data(), wb, hipMemcpyHostToDevice)); }
+        {   // fragment-order copy: [n/16][k/32][lane = h*16 + col][16 B]
+            std::vector<uint8_t> hp(wb);
+            for (int nb = 0; nb < N / 16; ++nb) for (int c = 0; c < K / 32; ++c) for (int l = 0; l < 32; ++l) {
+                int h = l / 16, col = l % 16;
+                memcpy(&hp[(((size_t)nb * (K / 32) + c) * 32 + l) * 16], &hw[(size_t)(nb * 16 + col) * K + c * 32 + 16 * h], 16);
+            }
+            for (auto& p : dp) { CK(hipMalloc(&p, wb)); CK(hipMemcpy(p, hp.data(), wb, hipMemcpyHostToDevice)); }
+        }
+        std::vector<uint16_t> hx((size_t)K); for (auto& v : hx) v = f2bf(nd(rng));
+        uint16_t *dx, *dout; CK(hipMalloc(&dx, K * 2)); CK(hipMemcpy(dx, hx.data(), K * 2, hipMemcpyHostToDevice)); CK(hipMalloc(&dout, (size_t)N * 2));
+        float hs[2] = {0.02f, 0.15f}; float* dsc; CK(hipMalloc(&dsc, 8)); CK(hipMemcpy(dsc, hs, 8, hipMemcpyHostToDevice));
+        ik_tensor sct = T(dsc, IK_DTYPE_F32, 2), xt = T(dx, IK_DTYPE_BF16, 1, K), ot = T(dout, IK_DTYPE_BF16, 1, N);
+        printf("abl fp8 %5dx%-5d M=1:", N, K);
+        for (int a : abls) {
+            ik_f8r_set_abl(a);
+            auto& src = (a & 8) ? dp : dw;
+            double us = time_us([&](int i) { ik_tensor w = T(src[i % copies], IK_DTYPE_FP8_E4M3, N, K); wmma_staged(&xt, &w, &sct, &ot, nullptr); }, 300);
+            printf("  [%d] %6.2f", a, us);
+        }
+        {   // packed vs row-major: same bits?
+            std::vector<uint16_t> r0(N), r8(N);
+            ik_tensor w0 = T(dw[0], IK_DTYPE_FP8_E4M3, N, K), w8 = T(dp[0], IK_DTYPE_FP8_E4M3, N, K);
+            ik_f8r_set_abl(0); wmma_staged(&xt, &w0, &sct, &ot, nullptr); CK(hipDeviceSynchronize()); CK(hipMemcpy(r0.data(), dout, N * 2, hipMemcpyDeviceToHost));
+            ik_f8r_set_abl(8); wmma_staged(&xt, &w8, &sct, &ot, nullptr); CK(hipDeviceSynchronize()); CK(hipMemcpy(r8.data(), dout, N * 2, hipMemcpyDeviceToHost));
+            long bad = 0; for (int i = 0; i < N; ++i) bad += r0[i] != r8[i];
+            printf("  packed-vs-rowmajor mismatches=%ld", bad);
+        }
+        ik_f8r_set_abl(0);
+        double g = time_us([&](int i) { ik_tensor w = T(dw[i % copies], IK_DTYPE_FP8_E4M3, N, K); ik_matmul_fp8_gemv_rows(&xt, &w, &sct, &ot, nullptr); }, 300);
+        printf("   | gemv_rows %6.2f us\n", g);
+        for (auto p : dw) (void)hipFree(p); for (auto p : dp) (void)hipFree(p); (void)hipFree(dx); (void)hipFree(dout); (void)hipFree(dsc);
+    }
+}
+#endif
+
 static void bench_bf16(std::mt19937& rng) {
     std::normal_distribution<float> nd(0.f, 1.f);
     struct Shape { int N, K; } shapes[] = {{256, 2048}, {32, 2048}, {1, 2048}, {4096, 4096}, {1024, 2048}};
@@ -173,11 +222,17 @@ static void bench_bf16(std::mt19937& rng) {
     }
 }
 
+#ifdef IK_F8R_ABLATE
+extern "C" void ik_f8r_set_abl(int);
+#endif
 int main(int argc, char** argv) {
     setenv("INTARSIA_HIP_WMMA_DIRECT_MIN", "1", 1);
     int dev = getenv("DEV") ? atoi(getenv("DEV")) : 0;
     CK(hipSetDevice(dev));
     bool w8a16 = getenv("A16") != nullptr;
+#ifdef IK_F8R_ABLATE
+    if (getenv("ABL")) { std::mt19937 r(11); bench_abl(r); return 0; }
+#endif
     if (getenv("FOLDS")) { std::mt19937 r(9); bench_folds(r); return 0; }
     if (getenv("BF16")) { std::mt19937 r(5); bench_bf16(r); return 0; }
     struct Shape { int N, K; } shapes[] = {{2048, 2048}, {2048, 4096}, {4096, 2048}, {8192, 2048}, {512, 2048}, {12288, 2048}, {1024, 2048}};
