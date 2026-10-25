@@ -11,6 +11,11 @@ set -uo pipefail
 O=$1; S="$(dirname "${BASH_SOURCE[0]}")"; source "$S/lib.sh"
 for t in base dev; do [[ $(T $t)/mx-intarsia -nt $(T $t)/Cargo.toml ]] || { log "NO FRESH BINARY in $(T $t); abort"; exit 3; }; done
 log "w7 start; budget $(left) s; base $(cat $(T base)/.stamp) dev $(cat $(T dev)/.stamp)"
+# batch tests: batch_recurrent on dev (w6's cargo run stopped at batch_cuda_real's failures), and main's run of the three
+# batch_cuda_real tests that failed on dev under --include-ignored (CUDA-only expectations), from a base mtest build here
+need 600 "mtest" && mtest dev recurrent --test batch_recurrent -- --test-threads=1 --include-ignored
+need 300 "build" && { TREES="base=$(cat $(T base)/.stamp)" SEED_FROM=intarsia-cargo-target-mx-dev-mtest MTEST=1 bash "$S/build.sh" > "$O/build-base-mtest.txt" 2>&1; log "base mtest build: $(grep -E 'models tests build' "$O/build-base-mtest.txt")"; }
+need 400 "mtest" && mtest base cudareal3 --test batch_cuda_real -- --test-threads=1 --include-ignored real_35b_batch_step_sampled_timing real_35b_busy_chunk_prefill_kl_gate real_qwen3_8b_batched_decode_is_bitwise_the_solo_step
 need 60 "plan" && E="INTARSIA_PREFILL_PEEL=8" plan dev dev-27 "$M27" --prefill-chunk 4096
 log "plan dev 27B: $(grep -aoE '"prefill_(chunk|chunk_source|peel)": *[^,]*' "$O/plan-dev-27.out" "$O/plan-dev-27.err" 2>/dev/null | head -3 | tr '\n' '|')"
 need 200 "acc" && GT=g27-tails2 acc base base-c256 256

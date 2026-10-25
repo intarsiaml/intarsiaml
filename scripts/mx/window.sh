@@ -14,7 +14,7 @@ mkdir -p "$RAW/$W"
 CAP=${CAP:-2400}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/mx' < /dev/null
 shopt -s nullglob
-scp -q "$S"/lib.sh "$S"/stages-*.sh "$S"/*.py "$S"/*.hip tatooine:mx/ < /dev/null
+scp -q "$S"/lib.sh "$S"/build.sh "$S"/stages-*.sh "$S"/*.py "$S"/*.hip tatooine:mx/ < /dev/null
 ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/mx/out/$W; rm -rf "$O"; mkdir -p "$O"
