@@ -124,3 +124,24 @@ captured one, 35.5 tok/s, so read shares not milliseconds):
 
 The lm_head is swept 3 times per pass (two drafts and the verify rows); the drafts alone are about 11% of the pass. 35B shares:
 moe_experts 19.8%, matmul_fp8 19.1%, matmul (bf16) 12.3%, matmul_nvfp4 12.0%, gdn_conv_delta 8.6%.
+
+## 5. Verify GEMV and lm_head cost against the row count (window 4, fleetq #5127, one R9700, idle)
+
+`rows_exact` test `timing_mxfp4_rows` (`--ignored`), W4A4 dynamic, bf16 out, microseconds per call, ratio to M=1 in brackets. The
+`_rows` twin is within 3% of the base kernel at every M (same launcher).
+
+| shape (N x K) | M=1 | M=2 | M=3 | M=4 | M=5 | M=8 |
+|---|---|---|---|---|---|---|
+| 17408 x 5120 (MLP gate / up) | 80 | 82 (1.03) | 107 (1.34) | 148 (1.85) | 222 (2.8) | 1524 (19) |
+| 5120 x 17408 (MLP down) | 80 | 86 (1.07) | 107 (1.33) | 142 (1.78) | 208 (2.6) | 1534 (19) |
+| 12288 x 5120 (q, gated) | 59 | 61 (1.04) | 79 (1.35) | 108 (1.83) | 158 (2.7) | 904 (15) |
+| 5120 x 6144 (o) | 35 | 40 (1.13) | 50 (1.42) | 63 (1.78) | 86 (2.4) | 457 (13) |
+| 1024 x 5120 (k, v) | 13 | 15 (1.12) | 16 (1.22) | 22 (1.64) | 23 (1.77) | 85 (6.4) |
+
+- One row streams the weights at about 590 GB/s (memory bound); two rows are free; **three rows cost 1.3x, four 1.8x, five 2.7x,
+  and M = 8 falls off a cliff (13 to 19x)** because the per-lane accumulators of the `M`-row GEMV no longer fit. The verify pass
+  of a k-draft step has M = k + 1 rows, so this is why k=3 loses to k=2 on the 27B and why k >= 4 would be hopeless without a
+  better small-row MXFP4 GEMV. Handed to the wg lane (row-invariant small-row GEMV family) with these numbers; no MXFP4 kernel
+  is written in this lane.
+- lm_head, 248320 x 5120 bf16: 4.25 ms per sweep for M = 1, 4.27 (M=2), 4.28 (M=3), 4.35 (M=4): flat in M. A k=2 pass sweeps it
+  3 times (two drafts and the verify rows): 12.7 ms of the 53.5 ms pass, 8.5 ms of it in the drafts.
