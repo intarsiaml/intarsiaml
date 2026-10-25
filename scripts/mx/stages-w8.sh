@@ -19,4 +19,7 @@ done
 for n in 1024 4096 16384; do
   need 60 "pf" && E="INTARSIA_PREFILL_PEEL=16" pf dev peel16-$n "$M27" $n --prefill-chunk 4096
 done
+# LDS / VALU counters on the v2 GEMM at M = 4096 (w7 passed the counters without the M argument)
+need 120 "pmc" && pmcbench dev lds 4096 SQ_LDS_BANK_CONFLICT SQ_LDS_IDX_ACTIVE
+need 120 "pmc" && pmcbench dev valu 4096 SQ_INSTS_VALU SQ_INSTS_LDS SQ_WAIT_INST_LDS
 log "w8 done; $(left) s left"

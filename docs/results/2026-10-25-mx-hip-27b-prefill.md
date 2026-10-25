@@ -188,4 +188,49 @@ Same window as the v2 table above: 1851 / 1891 / 1714 tok/s at chunk 256 and 207
 activation fold pre-pass (`mx_fold_actq_kernel`, raw/w4 prof-fold-c4096-4096.txt).
 
 
-<!-- REST -->
+## 6. Served speed (localeval, one R9700, radiance down, interleaved x3)
+
+`localeval speed --sizes 1024,4096,16384 --gen 128 --reps 2`, arms interleaved per round, medians of 3 rounds (each the
+median of 2 reps); `scripts/mx/loc-window.sh`, results in /opt/code/deepeval/results (labels `mx-loc*`).
+
+27B (raw/loc1, fleetq #5148; dev = 174eb83, which served chunk 256 because its recipe table was in the wrong file,
+section 4):
+
+| prompt | main | v2 (chunk 256) | v2 + fold (opt-in) |
+|---|---:|---:|---:|
+| 989 tok | 981 | 1120 (+14 %) | 1812 (+85 %) |
+| 4087 tok | 1013 | 1154 (+14 %) | 1895 (+87 %) |
+| 16654 tok | 947 | 1073 (+13 %) | 1695 (+79 %) |
+
+Decode is unchanged (32.9 / 32.4 / 30.8 tok/s in every arm).
+
+<!-- LOC3 -->
+
+35B regression check (raw/loc2, #5151): prefill 6492 / 9901 / 8814 (main) vs 6505 / 9925 / 8796 (dev) tok/s, decode
+163.9 / 160.3 / 145.8 vs 163.6 / 160.5 / 146.2: the same within run-to-run spread (the 35B runs no MXFP4).
+
+## 7. Gates
+
+| gate | result | evidence |
+|---|---|---|
+| `kernels test --quick`, hip | 64 kernels, 345 cases, 0 fail (default and fold on) | raw/w5 kq-*.out |
+| v2 bitwise v1, row-invariance (batched = solo), negative controls | pass | tests/mxfp4_v2.rs (raw/w3, w4<!-- W7T -->) |
+| fold opt-in: off by default, rows independent of M, negative controls | pass | tests/mxfp4_fold.rs (raw/w3, w4) |
+| peel schedule property + negative controls | pass | crates/intarsia-core/tests/scheduler.rs `prefill_peel_*` |
+| 27B golden gate (HF Quark W4A4, ref noise 0.197) | prefill PASS (0.180, bitwise main); decode-mode FAIL 0.340, **bitwise main's own result** | raw/w3, w4 accg-*.out |
+| 27B acc-short (`qualify --quick-only`) | FAIL on the same decode-mode KL (0.340), as main; fold FAIL 0.261 | raw/w5 qual-27*.err |
+| 35B acc-short / KL golden | <!-- W7_35 --> | raw/w6 qual-35 (golden dir missing in that window: SKIP), raw/w7 |
+| no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 27B short / 4k / 16k, 35B short / 4k identical; plan show 27B / 35B identical | raw/w4, raw/w5 |
+| batch_recurrent `--test-threads=1` | <!-- W7_BR --> | raw/w7 |
+| 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling); <!-- W7_BC --> | raw/w6 mtest-batch.txt |
+| CUDA no-op (spark1 #5161): plan show + 256 ids 8B / 35B, kernels quick, core lib, batch_recurrent | all identical / pass | raw/cuda |
+| Metal no-op (endor #5159): plan show + 256 ids 8B / 35B, 27B plan, kernels test, workspace tests | all identical, 0 FAIL | raw/metal |
+
+The CUDA and Metal no-ops ran on 24a49bdc / 0943111 (recipe table still in `qwen3_5.toml`); the head moves it to
+`qwen3_5_vl.toml`, whose CUDA / Metal / CPU resolution (256, no peel) is pinned by
+`crates/intarsia-models/src/recipe.rs` `qwen3_5_vl_hip_chunk_4096_with_tail_peel`.
+
+## 8. What is left: the bitwise GEMM is at 43 % of the bf16 peak
+
+<!-- W7_DIAG -->
+
