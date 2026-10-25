@@ -200,9 +200,13 @@ impl GateParams {
 /// plain steps they replace: `speedup = tokens_per_pass / (ms_per_pass / ms_per_plain_token)`. On a mixture-of-experts
 /// model a 3-row verify reads the union of three tokens' experts, so a pass costs 2.2 to 2.4 plain steps on the R9700
 /// and natural text yields 2.3 to 2.5 tokens per pass: no gain, and the fixed gate (accepted drafts only) cannot see it.
-/// The request keeps running averages of both costs and falls back to plain decode while the speedup stays under
-/// `min_speedup`; plain decode is the baseline it is measured against, so the fallback never loses to it by more than
-/// the probes cost. Greedy output is the same on either path.
+/// The request keeps running averages of both costs and falls back to plain steps while the speedup stays under
+/// `min_speedup`. The plain steps it times are the ones it would take: inside the speculating request, the MTP head
+/// still catching up on each row. On HIP such a step cost 9 to 12 ms in window 10 (implied by the served throughput of
+/// requests that fell back) where a spec-off step costs 6.3 to 6.9; the extra is most likely the head's catch-up. So the
+/// fallback pays only when a pass is worse than that, and leaving the head to catch up later (tried: 6 to 16 % slower
+/// than spec off at 1k to 16k) hides the cost from the gate.
+/// Greedy output is the same on either path.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CostParams {
     /// Speedup below which speculation is held off (<= 0: the gate is off).

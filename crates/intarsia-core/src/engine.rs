@@ -1703,7 +1703,11 @@ impl Seq {
         if let Some((t0, was_spec, g0)) = prev {
             let tokens = self.generated.saturating_sub(g0);
             if tokens > 0 && !self.spec_busy {
-                self.gate.cost_sample(was_spec, tokens, now.duration_since(t0).as_secs_f64() * 1e3);
+                let ms = now.duration_since(t0).as_secs_f64() * 1e3;
+                if crate::spec::trace_enabled() {
+                    eprintln!("spec: cost sample {} {tokens} tokens {ms:.2} ms", if was_spec { "pass" } else { "plain" });
+                }
+                self.gate.cost_sample(was_spec, tokens, ms);
             }
         }
         if crate::spec::trace_enabled() && self.gate.cost_off() {
@@ -1874,10 +1878,6 @@ impl Seq {
             Next::Plain => {}
         }
         self.cost_begin(false);
-        if let Some(m) = st.mtp.as_mut() {
-            // the gate's plain steps stand for spec-off decode: no per-step eager head layer, the next draft catches up in one pass
-            m.defer_catch_up = self.gate.cost_enabled() && !self.spec_busy;
-        }
         Ok(Some(self.plain_input()))
     }
 

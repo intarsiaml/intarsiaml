@@ -85,10 +85,6 @@ pub struct MtpState {
     /// a head pass failed; only an empty sequence (`truncate(0)`) syncs it again, so a drafting request on an unsynced
     /// state starts from an empty cache (`Seq::new`).
     pub synced: bool,
-    /// Plain steps queue their hidden row but leave the head's catch-up to the next draft (one batched pass over all
-    /// queued rows instead of one eager head layer per plain step). Set by the measured-cost gate, whose plain steps
-    /// stand for spec-off decode; the head's cache ends up identical (rows are exact, `rows_exact`).
-    pub defer_catch_up: bool,
 }
 
 /// Recurrent state after each row of the last speculative verify pass (`Model::forward_verify` on a model with

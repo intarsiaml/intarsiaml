@@ -1,0 +1,125 @@
+fleetq: #5246 waiting (#10 in line): in line behind #5237 "mr2: 27B batched step timing + per-op profile B=1/8/16 (1k ctx, one R9700; radiance down ~15 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5237 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5237 set, or it will wait for #5237 to be released.
+fleetq: #5246 waiting (#9 in line): in line behind #5238 "wg win B: 35B HIP batched step profile B=1..16, knob-off vs option 1 vs option 1 + fragment-order weights (radiance down ~40 min)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5238 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5238 set, or it will wait for #5238 to be released.
+fleetq: #5246 waiting (#6 in line): in line behind #5239 "wg win A: correctness (rows_exact, wmma_folds, frag_layout, controls, tagged weights) + microbench row-major vs fragment order (radiance down ~30 min)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5239 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5239 set, or it will wait for #5239 to be released.
+fleetq: #5246 waiting (#5 in line): in line behind #5242 "mx build8: base main 5e9cc6d + dev 584e4c1 (rebased; hip tests, models tests, mxbench), cpu only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5242 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5242 set, or it will wait for #5242 to be released.
+fleetq: #5246 waiting (#4 in line): in line behind #5243 "mx w8: 27B chunk 4096 + 16-row peel vs main 256 (rebased on 5e9cc6da): tails dumps, golden gate, no-flag plan + ids, 35B acc-short, speed" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5243 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5243 set, or it will wait for #5243 to be released.
+fleetq: #5246 waiting (#3 in line): in line behind #5244 "mx w9: 27B batched==solo (max-batch 16, head recipe), rows_exact/mxfp4 tests, kernels quick, batch_recurrent" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5244 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5244 set, or it will wait for #5244 to be released.
+fleetq: #5246 waiting (#2 in line): in line behind #5245 "mx loc3: localeval 27B main 5e9cc6d (256) vs PR head default (v2 + chunk 4096 + 16-row peel) vs + fold opt-in, 1k/4k/16k x3" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5245 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5245 set, or it will wait for #5245 to be released.
+fleetq: #5246 waiting (#1 in line): radiance-rank0 is also taken down by #5245 "mx loc3: localeval 27B main 5e9cc6d (256) vs PR head default (v2 + chunk 4096 + 16-row peel) vs + fold opt-in, 1k/4k/16k x3" (claude-f31ccf91)
+fleetq:   #5245 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5245 set, or it will wait for #5245 to be released.
+fleetq: #5246 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #5246 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5246 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-sp/scripts/sp/win10.sh'
+fleetq: #5246 went ahead of the line and must end within 62m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+[win] w10-off serving after 20 s 2026-10-25 07:57:55
+[win] saved /home/josef/sp-logs/w10-off.log (6 lines)
+[win] w10-mtp-cg0 serving after 55 s 2026-10-25 07:59:34
+[win] saved /home/josef/sp-logs/w10-mtp-cg0.log (9 lines)
+[win] w10-mtp-cg1 serving after 55 s 2026-10-25 08:01:17
+[win] saved /home/josef/sp-logs/w10-mtp-cg1.log (9 lines)
+mtp-cg0 n128 rep0 tokens=256 ttft=0.07s decode=202.7 tok/s steps=91 proposed=181 accepted=164 tok/pass=2.80 ms/pass=13.8 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n128 rep1 tokens=256 ttft=0.07s decode=208.2 tok/s steps=90 proposed=179 accepted=165 tok/pass=2.83 ms/pass=13.6 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n128 rep2 tokens=256 ttft=0.07s decode=201.7 tok/s steps=91 proposed=182 accepted=163 tok/pass=2.79 ms/pass=13.9 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n128 rep3 tokens=256 ttft=0.07s decode=197.0 tok/s steps=94 proposed=187 accepted=161 tok/pass=2.71 ms/pass=13.8 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n128 rep4 tokens=256 ttft=0.07s decode=192.6 tok/s steps=96 proposed=192 accepted=159 tok/pass=2.66 ms/pass=13.8 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n1024 rep0 tokens=256 ttft=0.14s decode=173.4 tok/s steps=105 proposed=210 accepted=150 tok/pass=2.43 ms/pass=14.0 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n1024 rep1 tokens=256 ttft=0.15s decode=168.0 tok/s steps=108 proposed=216 accepted=146 tok/pass=2.35 ms/pass=14.1 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n1024 rep2 tokens=256 ttft=0.14s decode=176.8 tok/s steps=103 proposed=206 accepted=151 tok/pass=2.47 ms/pass=14.0 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n1024 rep3 tokens=256 ttft=0.14s decode=176.7 tok/s steps=104 proposed=208 accepted=151 tok/pass=2.45 ms/pass=13.9 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n1024 rep4 tokens=256 ttft=0.15s decode=163.8 tok/s steps=111 proposed=222 accepted=143 tok/pass=2.29 ms/pass=14.0 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n4096 rep0 tokens=256 ttft=0.51s decode=168.7 tok/s steps=104 proposed=208 accepted=150 tok/pass=2.44 ms/pass=14.5 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n4096 rep1 tokens=256 ttft=0.50s decode=156.0 tok/s steps=113 proposed=226 accepted=141 tok/pass=2.25 ms/pass=14.5 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n4096 rep2 tokens=256 ttft=0.50s decode=147.4 tok/s steps=119 proposed=238 accepted=136 tok/pass=2.14 ms/pass=14.5 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n4096 rep3 tokens=256 ttft=0.51s decode=165.5 tok/s steps=106 proposed=212 accepted=148 tok/pass=2.40 ms/pass=14.5 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n4096 rep4 tokens=256 ttft=0.51s decode=165.4 tok/s steps=108 proposed=215 accepted=147 tok/pass=2.36 ms/pass=14.3 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n16384 rep0 tokens=256 ttft=2.69s decode=141.1 tok/s steps=110 proposed=220 accepted=144 tok/pass=2.31 ms/pass=16.4 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n16384 rep1 tokens=256 ttft=2.62s decode=146.8 tok/s steps=106 proposed=211 accepted=149 tok/pass=2.41 ms/pass=16.4 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n16384 rep2 tokens=256 ttft=2.62s decode=156.8 tok/s steps=99 proposed=198 accepted=155 tok/pass=2.57 ms/pass=16.4 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n16384 rep3 tokens=256 ttft=2.70s decode=148.4 tok/s steps=105 proposed=210 accepted=149 tok/pass=2.42 ms/pass=16.4 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg0 n16384 rep4 tokens=256 ttft=2.70s decode=154.9 tok/s steps=101 proposed=201 accepted=154 tok/pass=2.52 ms/pass=16.3 cg_off=0 cg_on=0 cg_plain=0
+mtp-cg1 n128 rep0 tokens=256 ttft=0.07s decode=204.1 tok/s steps=90 proposed=180 accepted=163 tok/pass=2.81 ms/pass=13.9 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep1 tokens=256 ttft=0.07s decode=199.3 tok/s steps=93 proposed=186 accepted=161 tok/pass=2.73 ms/pass=13.8 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep2 tokens=256 ttft=0.07s decode=195.5 tok/s steps=94 proposed=188 accepted=159 tok/pass=2.69 ms/pass=13.9 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep3 tokens=256 ttft=0.07s decode=202.5 tok/s steps=91 proposed=182 accepted=162 tok/pass=2.78 ms/pass=13.8 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep4 tokens=256 ttft=0.08s decode=191.5 tok/s steps=96 proposed=191 accepted=158 tok/pass=2.65 ms/pass=13.9 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep0 tokens=256 ttft=0.12s decode=162.7 tok/s steps=82 proposed=164 accepted=107 tok/pass=2.30 ms/pass=19.1 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n1024 rep1 tokens=256 ttft=0.12s decode=160.5 tok/s steps=75 proposed=150 accepted=96 tok/pass=2.28 ms/pass=21.2 cg_off=2 cg_on=1 cg_plain=84
+mtp-cg1 n1024 rep2 tokens=256 ttft=0.12s decode=165.8 tok/s steps=109 proposed=217 accepted=145 tok/pass=2.33 ms/pass=14.1 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep3 tokens=256 ttft=0.12s decode=172.8 tok/s steps=104 proposed=207 accepted=149 tok/pass=2.43 ms/pass=14.2 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep4 tokens=256 ttft=0.12s decode=162.2 tok/s steps=110 proposed=219 accepted=143 tok/pass=2.30 ms/pass=14.3 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n4096 rep0 tokens=256 ttft=0.40s decode=149.8 tok/s steps=82 proposed=163 accepted=107 tok/pass=2.30 ms/pass=20.8 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n4096 rep1 tokens=256 ttft=0.40s decode=153.6 tok/s steps=107 proposed=214 accepted=147 tok/pass=2.37 ms/pass=15.5 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n4096 rep2 tokens=256 ttft=0.40s decode=148.8 tok/s steps=69 proposed=138 accepted=91 tok/pass=2.32 ms/pass=24.8 cg_off=2 cg_on=1 cg_plain=95
+mtp-cg1 n4096 rep3 tokens=256 ttft=0.40s decode=147.9 tok/s steps=83 proposed=165 accepted=106 tok/pass=2.28 ms/pass=20.8 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n4096 rep4 tokens=256 ttft=0.40s decode=151.4 tok/s steps=80 proposed=160 accepted=108 tok/pass=2.35 ms/pass=21.0 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n16384 rep0 tokens=256 ttft=2.40s decode=126.2 tok/s steps=77 proposed=153 accepted=111 tok/pass=2.44 ms/pass=26.2 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n16384 rep1 tokens=256 ttft=2.34s decode=119.3 tok/s steps=79 proposed=158 accepted=96 tok/pass=2.22 ms/pass=27.1 cg_off=2 cg_on=1 cg_plain=80
+mtp-cg1 n16384 rep2 tokens=256 ttft=2.33s decode=122.3 tok/s steps=81 proposed=161 accepted=108 tok/pass=2.33 ms/pass=25.7 cg_off=1 cg_on=1 cg_plain=66
+mtp-cg1 n16384 rep3 tokens=256 ttft=2.33s decode=122.8 tok/s steps=83 proposed=166 accepted=110 tok/pass=2.33 ms/pass=25.0 cg_off=1 cg_on=0 cg_plain=62
+mtp-cg1 n16384 rep4 tokens=256 ttft=2.34s decode=122.0 tok/s steps=63 proposed=126 accepted=81 tok/pass=2.29 ms/pass=33.2 cg_off=2 cg_on=1 cg_plain=111
+off n128 rep0 tokens=256 ttft=0.07s decode=164.6 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep1 tokens=256 ttft=0.07s decode=165.1 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep2 tokens=256 ttft=0.07s decode=165.1 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep3 tokens=256 ttft=0.07s decode=165.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep4 tokens=256 ttft=0.07s decode=164.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep0 tokens=256 ttft=0.13s decode=164.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep1 tokens=256 ttft=0.13s decode=164.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep2 tokens=256 ttft=0.13s decode=163.7 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep3 tokens=256 ttft=0.13s decode=164.1 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep4 tokens=256 ttft=0.13s decode=164.1 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep0 tokens=256 ttft=0.40s decode=159.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep1 tokens=256 ttft=0.40s decode=159.6 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep2 tokens=256 ttft=0.40s decode=159.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep3 tokens=256 ttft=0.40s decode=158.8 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep4 tokens=256 ttft=0.40s decode=159.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n16384 rep0 tokens=256 ttft=1.83s decode=145.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n16384 rep1 tokens=256 ttft=1.82s decode=145.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n16384 rep2 tokens=256 ttft=1.81s decode=144.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n16384 rep3 tokens=256 ttft=1.84s decode=144.8 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n16384 rep4 tokens=256 ttft=1.83s decode=144.9 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+== generate
+c35-off n128 md5=29eaec13 | decode 1541 ms (165.49 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c35-off n1024 md5=c942b461 | decode 1536 ms (166.02 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c35-off n4096 md5=18193ddb | decode 1579 ms (161.44 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c35-off n16384 md5=02617b6e | decode 1738 ms (146.76 tok/s) |  | steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c35-cg0 n128 md5=29eaec13 | decode 1261 ms (202.23 tok/s) | spec: verify passes=97 proposed=194 accepted=158 (acceptance 81.4%, 2.63 tokens per pass) | steps=99 graph replays=98 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+c35-cg0 n1024 md5=c942b461 | decode 1360 ms (187.45 tok/s) | spec: verify passes=104 proposed=208 accepted=151 (acceptance 72.6%, 2.45 tokens per pass) | steps=106 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c35-cg0 n4096 md5=18193ddb | decode 1557 ms (163.83 tok/s) | spec: verify passes=115 proposed=229 accepted=140 (acceptance 61.1%, 2.22 tokens per pass) | steps=117 graph replays=115 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c35-cg0 n16384 md5=02617b6e | decode 1640 ms (155.44 tok/s) | spec: verify passes=107 proposed=214 accepted=148 (acceptance 69.2%, 2.38 tokens per pass) | steps=112 graph replays=108 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c35-cg1 n128 md5=29eaec13 | decode 1256 ms (203.10 tok/s) | spec: verify passes=96 proposed=192 accepted=158 (acceptance 82.3%, 2.65 tokens per pass) | steps=99 graph replays=98 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+c35-cg1 n1024 md5=c942b461 | decode 1355 ms (188.14 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | steps=106 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c35-cg1 n4096 md5=18193ddb | decode 1555 ms (163.95 tok/s) | spec: verify passes=91 proposed=182 accepted=113 (acceptance 62.1%, 2.24 tokens per pass) | steps=144 graph replays=142 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c35-cg1 n16384 md5=02617b6e | decode 1642 ms (155.33 tok/s) | spec: verify passes=105 proposed=210 accepted=146 (acceptance 69.5%, 2.39 tokens per pass) | steps=114 graph replays=109 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+r35-off n128 md5=ce656b29 | decode 1537 ms (165.90 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+r35-off n1024 md5=419d4320 | decode 1543 ms (165.31 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+r35-off n4096 md5=4963646e | decode 1586 ms (160.79 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+r35-cg0 n128 md5=ce656b29 | decode 1337 ms (190.77 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=103 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0m
+r35-cg0 n1024 md5=419d4320 | decode 1288 ms (198.00 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+r35-cg0 n4096 md5=4963646e | decode 1244 ms (205.05 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=91 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+r35-cg1 n128 md5=ce656b29 | decode 1331 ms (191.59 tok/s) | spec: verify passes=101 proposed=201 accepted=153 (acceptance 76.1%, 2.51 tokens per pass) | steps=104 graph replays=102 (captures 5) eager decode steps=0 (profiled 0) top ops: add=0m
+r35-cg1 n1024 md5=419d4320 | decode 1285 ms (198.39 tok/s) | spec: verify passes=96 proposed=192 accepted=157 (acceptance 81.8%, 2.64 tokens per pass) | steps=100 graph replays=98 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+r35-cg1 n4096 md5=4963646e | decode 1251 ms (203.90 tok/s) | spec: verify passes=91 proposed=181 accepted=163 (acceptance 90.1%, 2.79 tokens per pass) | steps=94 graph replays=91 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+c27-off n128 md5=6b7df45b | decode 7720 ms (33.03 tok/s) |  | steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c27-off n1024 md5=72fd143c | decode 7748 ms (32.91 tok/s) |  | steps=260 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c27-off n4096 md5=067aaf9e | decode 7879 ms (32.36 tok/s) |  | steps=272 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c27-off n16384 md5=286061bd | decode 8278 ms (30.81 tok/s) |  | steps=320 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax
+c27-cg0 n128 md5=6b7df45b | decode 4966 ms (51.35 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass) | steps=96 graph replays=95 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+c27-cg0 n1024 md5=72fd143c | decode 5588 ms (45.63 tok/s) | spec: verify passes=105 proposed=209 accepted=150 (acceptance 71.8%, 2.43 tokens per pass) | steps=110 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c27-cg0 n4096 md5=067aaf9e | decode 5452 ms (46.77 tok/s) | spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass) | steps=117 graph replays=101 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c27-cg0 n16384 md5=286061bd | decode 6781 ms (37.60 tok/s) | spec: verify passes=114 proposed=228 accepted=140 (acceptance 61.4%, 2.23 tokens per pass) | steps=180 graph replays=116 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c27-cg1 n128 md5=6b7df45b | decode 4932 ms (51.70 tok/s) | spec: verify passes=92 proposed=184 accepted=161 (acceptance 87.5%, 2.75 tokens per pass) | steps=96 graph replays=94 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/
+c27-cg1 n1024 md5=72fd143c | decode 5555 ms (45.90 tok/s) | spec: verify passes=104 proposed=207 accepted=150 (acceptance 72.5%, 2.44 tokens per pass) | steps=110 graph replays=105 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c27-cg1 n4096 md5=067aaf9e | decode 5475 ms (46.57 tok/s) | spec: verify passes=99 proposed=198 accepted=154 (acceptance 77.8%, 2.56 tokens per pass) | steps=118 graph replays=102 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+c27-cg1 n16384 md5=286061bd | decode 6765 ms (37.69 tok/s) | spec: verify passes=113 proposed=226 accepted=140 (acceptance 61.9%, 2.24 tokens per pass) | steps=180 graph replays=115 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+[win10] done
+[win] starting radiance 2026-10-25 08:02:25
+[win] radiance answers 2026-10-25 08:02:51 (after 30 s); active
+fleetq: #5246 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

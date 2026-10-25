@@ -270,7 +270,6 @@ impl Model {
             row_bytes,
             active: true,
             synced: true,
-            defer_catch_up: false,
         })))
     }
 
@@ -316,7 +315,7 @@ impl Model {
             self.backend.copy(&m.pending, m.pending_rows * m.row_bytes, &hn.buf, hn.offset, t * m.row_bytes, 0)?;
         }
         m.pending_rows += t;
-        if catch_up && !m.defer_catch_up && m.pending_rows > 1 {
+        if catch_up && m.pending_rows > 1 {
             let n = m.pending_rows - 1;
             self.mtp_run_pending(st, n, None, profile)?;
         }
