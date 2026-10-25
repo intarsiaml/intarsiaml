@@ -538,6 +538,7 @@ fn mtp_head_drafts_keep_greedy_output_identical_over_256_tokens() {
         }
         let t = tel.snapshot();
         assert!(t.spec_steps > 0 && t.spec_proposed > 0, "k {k}: the head drafted");
+        assert_eq!((t.spec_cost_off, t.spec_cost_on, t.spec_cost_plain_steps), (0, 0, 0), "k {k}: the cost gate is off by default");
         eprintln!("k {k}: {} verify passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
     }
 }

@@ -298,3 +298,48 @@ counters read around every request (`scripts/sp/servedclient.py`), medians of 3.
   1.02x at 4k and 1.05x at 16k over `generate` off.
 - No engine change fixes this at k=2. What moves it is a cheaper pass (fewer expert reads per verify row, or the draft-vocab head, section
   5) or more tokens per pass. The 27B (dense, section 2) is where spec pays on HIP.
+
+## 13. A measured-cost gate for MTP: built, measured, shipped off (fleetq #5246 HIP; #5234 CUDA; #5233 Metal)
+
+Section 12 found that at 1k and beyond a HIP 35B pass costs about what its tokens would as plain steps (speedup 1.00 to 1.03), so
+the coordinator asked for a gate on the measured cost: per request, running averages of tokens per pass and ms per pass, a probe of
+the plain-step cost (one plain step every 128 passes, the first after the 2-pass warm-up), and a fall back to plain steps while
+`tokens_per_pass / (ms_per_pass / ms_per_plain_token)` stays under 1.03 for 16 passes; after 64 plain tokens (doubling while retries
+keep failing, 16x at most) it tries speculation again with fresh averages. It extends `SpecGate` (`spec.rs`, `CostParams`/`CostGate`),
+applies to `--spec mtp` in the single-sequence engine only (beside other sequences the step time is shared), reports
+`intarsia_spec_costgate_{off,on,plain_steps,probe_steps}_total` in /metrics, and has recipe keys (`[mtp] cost_*`) and
+`INTARSIA_SPEC_COSTGATE` (0, 1 or `min_speedup,window,probe_every,reprobe_tokens`). Unit tests drive it with scripted timings, including
+samples that arrive a step late (as the engine delivers them); engine tests force constant flipping between speculation and plain decode
+and keep greedy ids equal to spec off for k = 1..3 with the model's own and scripted drafts.
+
+**Decision: off by default on every backend, the code and the opt-in kept.** It has no measured benefit anywhere.
+
+HIP, served 35B (`--max-batch 1`, localeval-shaped chat request, natural-v1, 256 forced tokens, 5 reps, median decode tok/s), the
+first version of the gate, which left the head's catch-up for the end of a plain stretch:
+
+| size | spec off | MTP, gate off | MTP, gate on | gate on vs off | requests that fell back (of 5) |
+|---|---|---|---|---|---|
+| 128 | 165.0 | 201.7 | 199.3 | -1.2% | 0 |
+| 1k | 164.1 | 173.4 | 162.7 | -6% | 2 |
+| 4k | 159.4 | 165.4 | 149.8 | -6% | 4 |
+| 16k | 144.9 | 148.4 | 122.3 | -18% | 5 |
+
+- **MTP with the gate off was at or above spec off at every size** (+22%, +6%, +4%, +2%; the 4k and 16k cells are inside the rep spread).
+- **With the gate on, a request that fell back ran far under spec off.** A plain step inside a speculating request cost 9 to 12 ms (implied by the
+  served throughput, not traced) against 6.3 to 6.9 ms for a spec-off step; the extra is most likely the MTP head catching up on each row.
+  That version deferred the catch-up to one batched pass, which made the probe look like a 6 ms step and hid the real cost in a pass the
+  gate does not time, so it fell back where it should not have. The fix (`33e13f6d`: no deferral, plain steps pay the catch-up and are timed
+  honestly) makes the gate inert on these texts: it falls back only where plain-in-session beats speculation. Reaching spec-off speed would
+  take dropping the head for the rest of the request, because the skipped positions have no saved hidden states to catch up from; not built.
+- `generate` (no fallback happened): ids equal spec off at 128 / 1k / 4k / 16k for the 35B (md5 29eaec13, c942b461, 18193ddb, 02617b6e) and the
+  27B, and tok/s equal with the gate on and off (35B 203.1 / 188.1 / 164.0 / 155.3 against 202.2 / 187.5 / 163.8 / 155.4; 27B 51.7 / 45.9 / 46.6 / 37.7
+  against 51.4 / 45.6 / 46.8 / 37.6).
+
+CUDA and Metal, gate forced on (`INTARSIA_SPEC_COSTGATE=1`), served 35B, 3 reps: it never switched off (`cg_off` 0, one plain probe per
+request) and made no difference outside the rep spread. Metal 128 / 1k / 4k: 193.4 / 163.5 / 142.3 tok/s forced on against 187.1 / 154.9 / 144.4
+default (the 4k cell is -1.5%, inside the 141 to 145 against 144 to 149 spread, and the earlier -3% at 4k with two probes per request did not
+reproduce). CUDA: 118.2 / 95.8 / 96.0 against 118.5 / 98.0 / 93.9. One CUDA chat `generate` run at 1k with the gate forced on fell back after
+21 passes of early low acceptance and lost the rest of the request (85 tok/s); that is what the shorter, doubling retry stretch fixes.
+
+Gates with the default (off) on the final head: spec-off no-op against main, and MTP k=2 ids and acceptance equal to main at 128 and 1k, on
+HIP (35B and 27B), CUDA and Metal; see section 14.

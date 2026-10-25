@@ -231,16 +231,13 @@ impl CostParams {
     /// The speedup the gate holds speculation to when it is on: 3% over plain decode, about the run-to-run noise of a request.
     pub const DEFAULT_MIN_SPEEDUP: f64 = 1.03;
 
-    /// Defaults for a backend (`Backend::name`): on for HIP only. There a plain step is a captured 6 ms and a 3-row MoE
-    /// verify costs 2.2 to 2.4 of them, so natural text at 1k and beyond sits at the break-even. On CUDA and Metal the
-    /// plain step is 8 to 12 ms against a 15 to 24 ms pass (speedup 1.2 to 1.5) and the gate never switched off in any
-    /// measured run, so it would be overhead only (the probes); with it off those backends run exactly the code they ran
-    /// before. A recipe (`[mtp]`) or `INTARSIA_SPEC_COSTGATE` turns it on anywhere.
-    pub fn for_backend(backend: &str) -> CostParams {
-        match backend {
-            "hip" => CostParams { min_speedup: Self::DEFAULT_MIN_SPEEDUP, ..CostParams::OFF },
-            _ => CostParams::OFF,
-        }
+    /// Defaults for a backend (`Backend::name`): off everywhere. The gate has no measured benefit on any backend: on
+    /// CUDA and Metal it never switched off in any run (the pass is 1.2 to 1.5x a plain step there), and on HIP window 10
+    /// (fleetq #5246) showed it lose, 6 to 18 % under spec off at 1k to 16k, because the plain steps it falls back to
+    /// still pay the MTP head's catch-up on every row and cost more than a spec-off step. With it off the decode loop
+    /// runs exactly the code it ran before. A recipe (`[mtp]`) or `INTARSIA_SPEC_COSTGATE` turns it on anywhere.
+    pub fn for_backend(_backend: &str) -> CostParams {
+        CostParams::OFF
     }
 
     pub fn enabled(&self) -> bool {
@@ -1041,13 +1038,14 @@ mod tests {
 
     #[test]
     fn cost_gate_env_syntax() {
-        let d = CostParams::for_backend("hip");
+        let d = CostParams::for_backend("hip").with_env(Some("1"));
         assert_eq!(d.min_speedup, 1.03);
         assert!(d.enabled());
-        for b in ["cuda", "metal", "cpu", ""] {
+        for b in ["hip", "cuda", "metal", "cpu", ""] {
             assert!(!CostParams::for_backend(b).enabled(), "{b}: off by default");
             assert_eq!(CostParams::for_backend(b).with_env(Some("1")).min_speedup, 1.03, "{b}: forced on");
             assert!(CostParams::for_backend(b).with_env(Some("2.0,4,8,100")).enabled(), "{b}: tuple turns it on");
+            assert!(!CostParams::for_backend(b).with_env(Some("0")).enabled());
         }
         assert!(!d.with_env(Some("0")).enabled());
         assert!(!d.with_env(Some("off")).enabled());
