@@ -467,13 +467,14 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
 }
 
 /// Row-local fusion under tensor parallelism (`LoadOptions::tp_fusion`; acts only at world > 1). On by default for CUDA
-/// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md) and for HIP at tp=2 (user decision
-/// 2026-10-21, after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md), off elsewhere. `INTARSIA_TP_FUSION=0`
+/// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md) and for HIP at tp > 1 (user decisions 2026-10-21,
+/// after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md, and 2026-10-25, gate vs tp1: docs/results/2026-10-25-tp2-hip.md),
+/// off elsewhere. `INTARSIA_TP_FUSION=0`
 /// opts out; any other value asks for it (the load refuses it on a backend without `Backend::fusion_under_tp`).
 fn tp_fusion(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
     match env {
         Some(v) => v != "0",
-        None => backend == "cuda" || (backend == "hip" && tp == 2),
+        None => backend == "cuda" || (backend == "hip" && tp > 1),
     }
 }
 
@@ -485,7 +486,7 @@ mod tests {
         assert!(super::tp_fusion(None, "cuda", 2));
         assert!(super::tp_fusion(None, "hip", 2));
         assert!(!super::tp_fusion(None, "hip", 1));
-        assert!(!super::tp_fusion(None, "hip", 4));
+        assert!(super::tp_fusion(None, "hip", 4)); // HIP's collective is two ranks; a larger group is refused at load, not here
         assert!(!super::tp_fusion(None, "metal", 2));
         assert!(!super::tp_fusion(None, "cpu", 2));
         assert!(!super::tp_fusion(Some(OsStr::new("0")), "cuda", 2));

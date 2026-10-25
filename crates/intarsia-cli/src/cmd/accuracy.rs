@@ -87,8 +87,8 @@ pub struct AccuracyArgs {
     /// Ignore any reference noise: the class floor alone, as before the noise-aware gate.
     #[arg(long)]
     pub no_ref_noise: bool,
-    /// Factor on the reference noise. Default: the record's `factor` (per golden), else the recipe's
-    /// `[accuracy] ref_noise_factor` (per model), else 1.0.
+    /// Factor on the reference noise. Default: the recipe's `[accuracy] tp_ref_noise_factor` for a `--tp` > 1 `--self-vs-ref-noise` run, else the
+    /// record's `factor` (per golden), else the recipe's `[accuracy] ref_noise_factor` (per model), else 1.0.
     #[arg(long)]
     pub ref_noise_factor: Option<f64>,
     /// Change vs base (`--self-vs-ref-noise`): every prompt's mean 21-way KL may be this many times that prompt's own
@@ -2813,7 +2813,8 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             for w in warns {
                 eprintln!("WARNING: {w}");
             }
-            let (factor, factor_source) = refnoise::resolve_factor(args.ref_noise_factor, l.noise.factor, recipe_factor)?;
+            let tp_recipe_factor = recipe.as_ref().and_then(|r| r.accuracy.tp_ref_noise_factor.map(|v| (v, format!("recipe {} tp_ref_noise_factor, tp {}", r.model.family, args.model.tp))));
+            let (factor, factor_source) = refnoise::resolve_factor_tp(args.ref_noise_factor, if args.self_vs_ref_noise { args.model.tp } else { 1 }, tp_recipe_factor, l.noise.factor, recipe_factor)?;
             let recipe_prompt_factor = recipe.as_ref().and_then(|r| r.accuracy.ref_noise_prompt_factor.map(|v| (v, format!("recipe {}", r.model.family))));
             let (prompt_factor, prompt_factor_source) = refnoise::resolve_prompt_factor(args.ref_noise_prompt_factor, l.noise.prompt_factor, recipe_prompt_factor)?;
             eprintln!("reference noise [{}]: {}; factor {factor} ({factor_source})", l.origin, l.noise.describe());

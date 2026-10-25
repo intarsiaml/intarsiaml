@@ -294,6 +294,16 @@ pub fn resolve_factor(flag: Option<f64>, record: Option<f64>, recipe: Option<(f6
     resolve_named("--ref-noise-factor", 1.0, flag, record, recipe)
 }
 
+/// [`resolve_factor`] for a run that may be tensor-parallel: with `tp` > 1 the recipe's `tp_ref_noise_factor` (the tolerance of
+/// the tp=N-against-tp=1 comparison, user decision 2026-10-25 "gate vs tp1") sits between the flag and the golden's record.
+pub fn resolve_factor_tp(flag: Option<f64>, tp: usize, tp_recipe: Option<(f64, String)>, record: Option<f64>, recipe: Option<(f64, String)>) -> Result<(f64, String)> {
+    match (flag, tp > 1, tp_recipe) {
+        (None, true, Some((v, src))) if v.is_finite() && v > 0.0 => Ok((v, src)),
+        (None, true, Some((v, _))) => bail!("recipe [accuracy] tp_ref_noise_factor must be a positive number, got {v}"),
+        _ => resolve_factor(flag, record, recipe),
+    }
+}
+
 /// The change-vs-base worst-prompt check allows a prompt's mean 21-way KL up to `prompt_factor x ref_noise` (not times
 /// the main factor): `--ref-noise-prompt-factor`, else the record's `prompt_factor`, else the recipe's
 /// `[accuracy] ref_noise_prompt_factor`, else 3.0 (the user's decision of 2026-10-21 13:23).
@@ -1036,8 +1046,16 @@ mod tests {
         let recipe = Some((2.0, "recipe qwen3_5_moe".to_string()));
         assert_eq!(resolve_factor(Some(1.5), Some(3.0), recipe.clone()).unwrap(), (1.5, "--ref-noise-factor".into()));
         assert_eq!(resolve_factor(None, Some(3.0), recipe.clone()).unwrap().0, 3.0);
-        assert_eq!(resolve_factor(None, None, recipe).unwrap(), (2.0, "recipe qwen3_5_moe".into()));
+        assert_eq!(resolve_factor(None, None, recipe.clone()).unwrap(), (2.0, "recipe qwen3_5_moe".into()));
         assert_eq!(resolve_factor(None, None, None).unwrap(), (1.0, "default".into()));
+        // tp > 1: the recipe's tp factor beats the record and the recipe's plain factor, but not the flag
+        let tpr = Some((2.0, "recipe qwen3_5_moe tp_ref_noise_factor".to_string()));
+        assert_eq!(resolve_factor_tp(None, 2, tpr.clone(), Some(3.0), recipe.clone()).unwrap().0, 2.0);
+        assert_eq!(resolve_factor_tp(Some(1.5), 2, tpr.clone(), Some(3.0), recipe.clone()).unwrap(), (1.5, "--ref-noise-factor".into()));
+        // tp = 1 never sees it
+        assert_eq!(resolve_factor_tp(None, 1, tpr.clone(), Some(3.0), recipe.clone()).unwrap().0, 3.0);
+        assert_eq!(resolve_factor_tp(None, 2, None, None, None).unwrap(), (1.0, "default".into()));
+        assert!(resolve_factor_tp(None, 2, Some((0.0, "x".into())), None, None).is_err());
     }
 
     #[test]

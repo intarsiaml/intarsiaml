@@ -184,7 +184,7 @@ pub trait Backend: Send + Sync {
     /// Can this backend's fused decode ops run on one rank's shard under tensor parallelism ("row-local fusion")? True
     /// when every fused kernel takes its head counts and widths from the call (the rank's local dims), never from the
     /// unsharded model. The model still keeps the fused ops that would swallow a collective off (`Model::fused_ok`),
-    /// and fusion under TP follows `LoadOptions::tp_fusion` (the CLI turns it on for CUDA, and for HIP at tp=2). Default false:
+    /// and fusion under TP follows `LoadOptions::tp_fusion` (the CLI turns it on for CUDA, and for HIP at tp > 1). Default false:
     /// fusion off at world > 1, and an explicit request is a load error.
     fn fusion_under_tp(&self) -> bool {
         false
