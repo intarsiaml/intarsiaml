@@ -20,4 +20,4 @@ timeout 1500 uv run localeval suite --url http://tatooine:8294/v1 --model intars
   --recipe "intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch $mb $serve [$envs] tree=$tree" \
   > "$LOG/$tag.out" 2>&1
 echo "[arm $tag] localeval rc=$? $(date +%T)"; tail -4 "$LOG/$tag.out" | cut -c1-200
-ssh tatooine "bash ~/sp-win.sh snap $HOME/sp-logs/$tag.snap >/dev/null 2>&1; bash ~/sp-win.sh down $tag" 2>&1 | tail -2
+ssh tatooine "bash ~/sp-win.sh down $tag" 2>&1 | tail -2
