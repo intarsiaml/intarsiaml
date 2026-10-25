@@ -197,3 +197,74 @@ fn print_tables() {
     println!("ORDINARY\n{}", table(false));
     println!("EXACT_ROWS\n{}", table(true));
 }
+
+/// The split-KV decode row-table kernel (`attn_decode_bf16_splitkv_rows`) is reached only through `Registry::select`, and only
+/// with a row table. It returns IK_ERR_INVALID_ARG without a table (that is what `tests/attention.rs` hit when its sweep tried
+/// it with a plain call, so the sweep now skips `row_table` kernels) and IK_ERR_SHAPE outside D in {32, 64, 128, 256},
+/// group <= 8 and rows <= 64. This pins, on a grid that includes unsupported shapes, that the engine can never be handed it
+/// for a shape or a call it rejects: a plain call never selects a row-table kernel, and a call with a table selects the rows
+/// kernel exactly on the shapes the kernel supports (and fails with NoKernel, so the model runs the solo step, elsewhere).
+#[test]
+fn attn_decode_rows_kernel_is_selected_only_with_a_table_and_for_supported_shapes() {
+    use intarsia_core::ops::RowTab;
+    let reg = registry();
+    let cpu = CpuBackend::new();
+    let cap = 8usize;
+    // the kernel's own limits (kernels/cuda/attention_splitkv.cu: kMaxGroup, kMaxRows, the D dispatch), written out here, not
+    // read from the registry predicate under test
+    let kernel_supports = |n: usize, nkv: usize, d: usize, m: usize| {
+        matches!(d, 32 | 64 | 128 | 256) && nkv > 0 && n % nkv == 0 && n / nkv <= 8 && (1..=64).contains(&m)
+    };
+    let mut seen_rows = 0;
+    let mut seen_none = 0;
+    for (n, nkv, d) in [
+        (4usize, 4usize, 64usize),
+        (6, 2, 32),
+        (12, 4, 128),
+        (16, 2, 256),
+        (32, 8, 128),
+        (8, 1, 64),
+        (9, 1, 64),   // group 9
+        (64, 4, 128), // group 16
+        (16, 2, 512), // D = 512 (Gemma)
+        (4, 4, 48),
+        (4, 4, 16),
+        (4, 4, 96),
+    ] {
+        for m in [1usize, 2, 7, 16, 17, 64, 65] {
+            for window in [0usize, 128] {
+                let bf = |shape: &[usize]| put(&cpu, &HostTensor::zeros(DType::Bf16, shape));
+                let q = bf(&[m, n, d]);
+                let (kc, vc, out) = (bf(&[nkv, cap, d]), bf(&[nkv, cap, d]), bf(&[m, n, d]));
+                let attrs = OpAttrs { n_heads: n, n_kv_heads: nkv, head_dim: d, kv_cap: cap, window, ..Default::default() };
+                let call = |rows: bool| {
+                    let mut c = OpCall::new(Op::AttnDecode, vec![q.clone(), kc.clone(), vc.clone()], vec![out.clone()], attrs.clone());
+                    if rows {
+                        let ptrs = put(&cpu, &HostTensor { dtype: DType::U8, shape: vec![m, 2, 8], data: vec![0; m * 16] });
+                        c.rows = Some(RowTab { ptrs, rows: m, stride: 2, index: 0, byte_off: 0 });
+                    }
+                    c
+                };
+                let what = format!("n={n} nkv={nkv} d={d} m={m} window={window}");
+                // a plain call never gets a row-table kernel
+                if let Ok(k) = reg.select(&call(false)) {
+                    assert!(!k.row_table && !k.name.ends_with("_rows"), "{what}: plain call selected {}", k.name);
+                    seen_none += 1;
+                }
+                // a call with a table gets the rows kernel on supported shapes (no sliding window: the rows kernel has none),
+                // and nothing otherwise
+                let want = window == 0 && kernel_supports(n, nkv, d, m) && m <= 16;
+                match reg.select(&call(true)) {
+                    Ok(k) => {
+                        assert!(k.row_table, "{what}: a call with a table selected the ordinary kernel {}", k.name);
+                        assert!(window == 0 && kernel_supports(n, nkv, d, m), "{what}: rows kernel {} selected for a shape it rejects", k.name);
+                        assert_eq!(k.name, "attn_decode_bf16_splitkv_rows", "{what}");
+                        seen_rows += 1;
+                    }
+                    Err(_) => assert!(!want, "{what}: the rows kernel supports this shape but was not selected"),
+                }
+            }
+        }
+    }
+    assert!(seen_rows > 0 && seen_none > 0, "the grid selected nothing: rows {seen_rows} plain {seen_none}");
+}

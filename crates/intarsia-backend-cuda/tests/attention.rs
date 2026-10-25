@@ -89,7 +89,12 @@ fn attention_kernels_match_reference_on_random_shapes() {
                 };
                 let rname = cpu.kernels().into_iter().find(|k| k.op == op && k.is_reference).unwrap().name;
                 let want = run_host(&*cpu, &rname, &hc).unwrap();
-                for k in ckernels.iter().filter(|k| k.op == op && k.accepts(&call_shape)) {
+                // Row-table kernels (`attn_decode_bf16_splitkv_rows`) are skipped on purpose: they take their K / V caches and
+                // positions from a per-row pointer table (`OpCall::rows`) that this sweep does not build, so every launch here
+                // would be rejected with IK_ERR_INVALID_ARG. Registry::select never offers them to a call without a table;
+                // tests/row_tables.rs holds their bitwise G-B against the solo kernel and tests/rows_registry.rs pins that
+                // they are only selected for shapes the kernel supports.
+                for k in ckernels.iter().filter(|k| k.op == op && !k.row_table && k.accepts(&call_shape)) {
                     let got = run_host(&*cuda, &k.name, &hc)
                         .unwrap_or_else(|e| panic!("{} N={n} Nkv={nkv} D={d} T={t} pos0={p}: {e}", k.name));
                     let (ok, ma, rl) = judge(k, &got, &want);
@@ -160,7 +165,7 @@ fn attention_throughput() {
         s.act = Some(DType::Bf16);
         s.weight = Some(DType::Bf16);
         let mut best: Option<intarsia_core::KernelImpl> = None;
-        for k in cuda.kernels().into_iter().filter(|k| k.op == call.op && k.accepts(&s)) {
+        for k in cuda.kernels().into_iter().filter(|k| k.op == call.op && !k.row_table && k.accepts(&s)) {
             if best.as_ref().is_none_or(|b| k.priority > b.priority) {
                 best = Some(k);
             }
