@@ -82,3 +82,25 @@ unmeasured. The bench-only `nodq` arm (97 TFLOP/s) shows the dequant is not the 
 Recommendation: decide B first, because it is the user's call and it fixes which unit future work targets. If the user
 keeps main's bits, A is the route to most of the fold's speed. It is unproven: the 110-150 TFLOP/s range above is a
 target, not a measurement.
+
+## 5. Does the fold keep batched == solo and row exactness? (asked 2026-10-25 13:10, answered from code and logs, no GPU)
+
+- **Kernel, M >= 9: yes, by construction, with one test.**
+  - In `mx_fold_gemm_kernel` (`kernels/hip/mxfp4.hip`) every output is one f32 accumulator from zero, with k ascending
+    in 64-wide stages of two 16-wide fp8 WMMAs each, then one `ldexpf` by the row's `aref` and the column's `wref`.
+  - The activation fold (`mx_fold_actq_kernel`) is one block per row and reads only that row. The four tiles in the
+    table (`mx_fold_run`) change only which wave owns which output, not the instruction sequence of any output.
+  - Test: `tests/mxfp4_fold.rs` `fold_rows_do_not_depend_on_m` checks M = 9, 128 and 300 bitwise against rows of
+    M = 2100, on one shape only (N 10240, K 5120).
+- **Row exactness in the `rows_exact` sense: no.** The fold is not registered `.rows_exact()`, and below M = 9 the
+  GEMVs outrank it. So a row's bits change kernel family between an 8-row and a 9-row pass, as they do on the default
+  path (GEMV vs v2 GEMM). The peel handles that boundary; the fold does not change it.
+- **Batched decode: unaffected by the fold.** `exact_rows` calls (batched decode, MTP verify, M <= 16) select only
+  `rows_exact` kernels, and the fold is not one.
+- **Engine level, the 27B batched == solo test with FOLD=1: not run. There is no evidence either way.**
+  - #144 ran lane mr's S4 test (w9, w12) and the chunk-4096-plus-peel tails sweep (w8) with the fold off.
+  - The fold-on runs were plan, kernels quick, qualify, the goldens, speed, ids and profiles (w3, w4, w5, w7).
+  - The w7 `peelfold` runs measured speed only.
+  - Option B's gates window must run both with FOLD=1: S4 batched == solo, and the tails sweep (chunk 4096 + peel 16
+    vs chunk 256). It should also extend `fold_rows_do_not_depend_on_m` to every 27B shape and to the tile-table M
+    boundaries (64/65, 2047/2048).
