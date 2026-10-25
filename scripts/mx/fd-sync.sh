@@ -18,6 +18,6 @@ for g in golden/qwen3.8-27b-mxfp4-hfquark*-top20.safetensors.provenance.json; do
   [[ $got == "$want" ]] || { echo "GOLDEN SHA MISMATCH $f: $got != $want" >&2; exit 3; }
 done
 tree=$(git rev-parse "$rev^{tree}")
-stamp="$(git rev-parse --short=7 "$rev")_code-tree=${tree:0:12}_dirty=no"
+stamp="head=$(git rev-parse --short=7 "$rev")_code-tree=${tree:0:12}_dirty=no"   # scripts/tree-stamp.sh format (the accuracy provenance needs head=)
 echo "$stamp" | ssh -o BatchMode=yes tatooine "cat > ~/$dst/.stamp"
 echo "$name=$stamp"
