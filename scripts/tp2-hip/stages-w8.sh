@@ -35,6 +35,22 @@ need 120 "run to run dump" && [[ -f $O/repro-D-1.safetensors ]] && self $D 0,1 t
 E="INTARSIA_TP_VOCAB=0" repro "$D" D-vocab0; repro "$B" B
 journal() { dmesg 2>/dev/null | grep -i -E "amdgpu|gpu|fault" | tail -5 | tr '\n' '|'; }
 log "dmesg: $(journal)"
+# 4. mutants
+if need 300 "mutants"; then
+  gen $D 0,1 mut-ref $M35 short $TP2
+  for m in no-peer-upload drop-captured-allreduce peer-ignores-flag tp-fold-outproj batch-peer-no-table vocab-no-gather; do
+    need 90 "mutant $m" || continue
+    [[ -x $(T mut-$m)/tp2-intarsia ]] || { log "MUTANT $m: no binary"; continue; }
+    gen mut-$m 0,1 mut-$m $M35 short $TP2
+    if cmp -s "$O/gen-mut-ref.ids" "$O/gen-mut-$m.ids"; then v="ids SAME as the clean tp=2 run"; else v="ids DIFFER"; fi
+    log "MUTANT $m: $v; $(grep -ahE 'tensor-parallel rank 1: decode graph|^Error|trap|Aborted|core dumped|HSA_STATUS' "$O/gen-mut-$m.err" | head -3 | tr '\n' '|')"
+  done
+fi
+# 5. the batching step-protocol mutants (the stale-position one in its own test process), rank 1 with another row count etc.
+if need 420 "batch mutants"; then
+  mkdir -p "$O/bm"; ONLY=mut D=$D B=$B bash "$HOME/tp2/stages-batch.sh" "$O/bm" < /dev/null
+  log "batch mutants: $(grep -ah 'mtest' "$O/bm/steps.log" | cut -c1-300 | tr '\n' '|')"
+fi
 # 1a. vocab-parallel head: INTARSIA_TP_VOCAB=0 dump against the default's, floor budgets (bitwise class)
 if need 200 "vocab dump"; then
   E="INTARSIA_TP_VOCAB=0" acc $D 0,1 vocab0-35b-short $M35 $SG $TP2
@@ -68,20 +84,4 @@ if need 600 "hip crate tests"; then
 fi
 run $D 0 420 kernels-test-quick kernels test --backend hip --device 0 --model $M35 --quick
 log "kernels test --quick: $(grep -aiE 'cases|fail' "$O/kernels-test-quick.out" | tail -2 | tr '\n' '|')"
-# 4. mutants
-if need 300 "mutants"; then
-  gen $D 0,1 mut-ref $M35 short $TP2
-  for m in no-peer-upload drop-captured-allreduce peer-ignores-flag tp-fold-outproj batch-peer-no-table vocab-no-gather; do
-    need 90 "mutant $m" || continue
-    [[ -x $(T mut-$m)/tp2-intarsia ]] || { log "MUTANT $m: no binary"; continue; }
-    gen mut-$m 0,1 mut-$m $M35 short $TP2
-    if cmp -s "$O/gen-mut-ref.ids" "$O/gen-mut-$m.ids"; then v="ids SAME as the clean tp=2 run"; else v="ids DIFFER"; fi
-    log "MUTANT $m: $v; $(grep -ahE 'tensor-parallel rank 1: decode graph|^Error|trap|Aborted|core dumped|HSA_STATUS' "$O/gen-mut-$m.err" | head -3 | tr '\n' '|')"
-  done
-fi
-# 5. the batching step-protocol mutants (the stale-position one in its own test process), rank 1 with another row count etc.
-if need 420 "batch mutants"; then
-  mkdir -p "$O/bm"; ONLY=mut D=$D B=$B bash "$HOME/tp2/stages-batch.sh" "$O/bm" < /dev/null
-  log "batch mutants: $(grep -ah 'mtest' "$O/bm/steps.log" | cut -c1-300 | tr '\n' '|')"
-fi
 log "done, time left $(left)s"
