@@ -1,6 +1,8 @@
 # hd: dense Qwen3-8B batched decode on HIP (lane hd, 2026-10-25)
 
-Branch `lane-hd/hip-dense-batching` (base `main` 70ba3d22). The guard that refused `--max-batch N` (N > 1) for dense models on HIP
+Branch `lane-hd/hip-dense-batching`. The gates ran on `main` 70ba3d22 plus this change. The branch was then rebased onto a later main
+whose new commits do not touch the 8B's HIP path: mxfp4 kernels, the prefill tail peel (off unless a recipe sets it, and `qwen3.toml`
+does not) and the MTP draft vocabulary. The guard that refused `--max-batch N` (N > 1) for dense models on HIP
 (`hip_batch_needs_hybrid`, commit 1ff822ac9, LOG row 2026-10-23 15:00) is removed, with its unit test `hip_guard_tests`. No kernel or
 engine code changes: the dense batched step was never stuck. Lane hb's run of the test was stopped before the test could finish
 (section "Why lane hb saw no output", with a control run on the tree of that day).
@@ -43,7 +45,9 @@ progress lines only; no assertion changed.
 
 ## What changes for users
 
-`serve --max-batch N` (2..=16) on HIP now batches dense models too, opt-in as before. Without `--max-batch` nothing changes. The dense
+`serve --max-batch N` (2..=16) on HIP now batches dense models too, opt-in as before. Without `--max-batch` nothing changes. This
+follows from removing the guard, which was the only HIP-specific refusal on the `load_engine` path (`Model::allow_recurrent_batch`).
+The served path itself was not run for the 8B here (see Open). The dense
 batched step runs the same kernels the gate proves bitwise: row tables, a graph per row count, `matmul_bf16_gemv_rows` and
 `logits_bf16_gemv_rows`. The busy prefill chunk for a dense model stays 256. Prefill in a busy engine is therefore bitwise the solo
 prefill only where the chunk schedules coincide, the same as dense on CUDA (`docs/tuning.md`, Batch row).
