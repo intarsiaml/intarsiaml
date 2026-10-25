@@ -618,8 +618,9 @@ MOE_GATHER(moe_gather_f32, float)
 // in flight; the activation block is loaded once for all of them. No grouping by expert: the pairs that share an expert read
 // its blocks at about the same time and the second read comes from the cache (measured faster than serving the pairs of an
 // expert from one threadgroup, the moe_lead scheme of the _x kernels). h by pair, y by pair; moe_gather sums per token in k
-// order. NEG (negative control only, INTARSIA_METAL_NEGCTL): the block scale is applied by a separate multiply and add
-// instead of the fma, which the row gate must catch.
+// order. NEG (negative control only, INTARSIA_METAL_NEGCTL): each block's scale fma is split into two fmas of half the
+// block dot (two roundings instead of one), which the row gate must catch. (A plain multiply and add is not a control: the
+// compiler contracts it back into the same fma.)
 
 constant constexpr uint MOE_PR = 2;  // rows per simdgroup
 
@@ -654,7 +655,7 @@ inline void moe_dec_gu_p_impl(device const ushort* x, device const int* ids, dev
         for (int i = 0; i < 16; ++i) xv[i] = bf2f(xr[u * 16 + i]);
         for (uint j = 0; j < MOE_PR; ++j) {
             const float dg = moe_blk_dot(uint2(wg[j][u]), xv);
-            ag[j] = NEG ? ag[j] + dg * moe_e4m3(sgp[j][u]) : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
+            ag[j] = NEG ? fma(0.5f * dg, moe_e4m3(sgp[j][u]), fma(0.5f * dg, moe_e4m3(sgp[j][u]), ag[j])) : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
             au[j] = fma(moe_blk_dot(uint2(wu[j][u]), xv), moe_e4m3(sup[j][u]), au[j]);
         }
     }
@@ -692,7 +693,7 @@ inline void moe_dec_dn_p_impl(device const ushort* h, device const int* ids, dev
         for (int i = 0; i < 16; ++i) hv[i] = bf2f(hr[u * 16 + i]);
         for (uint j = 0; j < MOE_PR; ++j) {
             const float d = moe_blk_dot(uint2(wr[j][u]), hv);
-            s[j] = NEG ? s[j] + d * moe_e4m3(sr[j][u]) : fma(d, moe_e4m3(sr[j][u]), s[j]);
+            s[j] = NEG ? fma(0.5f * d, moe_e4m3(sr[j][u]), fma(0.5f * d, moe_e4m3(sr[j][u]), s[j])) : fma(d, moe_e4m3(sr[j][u]), s[j]);
         }
     }
     for (uint j = 0; j < MOE_PR; ++j) {

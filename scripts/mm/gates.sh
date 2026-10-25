@@ -25,7 +25,7 @@ for s in $ST; do
     long) INTARSIA_QWEN36_DIR=$M35 $C -p intarsia-models --test batch_metal_real -- --ignored --nocapture --test-threads=1 --exact real_35b_batched_engine_long_prompts_equal_the_local_engine > "$OUT/gc-long.log" 2>&1; echo "long exit $?"; grep -E "test result" "$OUT/gc-long.log" ;;
     rec) INTARSIA_BATCH_TEST_BACKEND=metal $C -p intarsia-models --test batch_recurrent -- --test-threads=1 > "$OUT/batch_recurrent.log" 2>&1; echo "batch_recurrent exit $?"; grep "test result" "$OUT/batch_recurrent.log" ;;
     dense) INTARSIA_TEST_REAL_MODEL=1 $C -p intarsia-models --test batch_metal -- --test-threads=1 --nocapture > "$OUT/dense-8b.log" 2>&1; echo "dense exit $?"; grep -E "test result|identical" "$OUT/dense-8b.log" | tail -3 ;;
-    ws) $C --workspace --no-fail-fast > "$OUT/workspace.log" 2>&1; echo "workspace exit $?"; grep -E "^test result" "$OUT/workspace.log" | awk '{p+=$4; f+=$6; i+=$8} END {print "passed", p, "failed", f, "ignored", i}' ;;
+    ws) env -u INTARSIA_REQUIRE_GPU $C --workspace --no-fail-fast > "$OUT/workspace.log" 2>&1; echo "workspace exit $?"; grep -E "^test result" "$OUT/workspace.log" | awk '{p+=$4; f+=$6; i+=$8} END {print "passed", p, "failed", f, "ignored", i}' ;;
   esac
 done
 echo "== done $(date +%H:%M:%S)"
