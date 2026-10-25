@@ -34,7 +34,7 @@ run)
   gen() { # gen <side b|d> <card> <tag> <size> -- <generate args>
     side=$1; card=$2; tag=$3; n=$4; shift 5
     if [ $side = b ]; then t=$TB; v=$VB; else t=$TD; v=$VD; fi
-    dev $t $v $card bash -c "/target/release/intarsia generate -m $M27 --backend hip --mem-budget 29 --max-seq 20480 --profile-every 0 --ignore-eos --show-ids --max-tokens 256 $* -p \"\$(cat /work/sp-out/n$n.txt)\"" \
+    dev $t $v $card -- bash -c "/target/release/intarsia generate -m $M27 --backend hip --mem-budget 29 --max-seq 20480 --profile-every 0 --ignore-eos --show-ids --max-tokens 256 $* -p \"\$(cat /work/sp-out/n$n.txt)\"" \
       > $O/$tag-n$n.out 2> $O/$tag-n$n.err < /dev/null
     grep -a '^ids:' $O/$tag-n$n.err > $O/$tag-n$n.ids
     echo "$tag n$n md5=$(md5sum < $O/$tag-n$n.ids | cut -c1-8) | $(grep -a 'finish=' $O/$tag-n$n.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60) | $(grep -a '^spec:' $O/$tag-n$n.err | tail -1 | cut -c1-110)"
