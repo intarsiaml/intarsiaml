@@ -36,9 +36,9 @@ fi
 # 3. 27B at W4A16: tp=1 dump, tp=2 against it (bitwise class)
 export INTARSIA_MODELS=$HUB
 if need 300 "27B dump compare"; then
-  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
+  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
   mv "$(T $D)/tp2-out/acc-27b-tp1.safetensors" "$O/" 2>/dev/null; cp "$O/acc-27b-tp1.safetensors" "$(T $D)/tp2-out/"
-  run $D 0,1 600 self-27b-tp2-vs-tp1 accuracy --backend hip --model $M27 --mem-budget 29 --mode both --self-golden /work/tp2-out/acc-27b-tp1.safetensors \
+  run $D 0,1 600 self-27b-tp2-vs-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --mode both --self-golden /work/tp2-out/acc-27b-tp1.safetensors \
     --allow-same-code --allow-config-mismatch $TP2 $FLOOR
 fi
 # 4. 27B batched == solo at tp=2 (N = 2..16 sequences, 130 steps; ~10 min), and at tp=1 is main's own gate (mr, #145)

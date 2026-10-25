@@ -29,9 +29,9 @@ G27=/work/p1-golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
 N27=/work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json
 export INTARSIA_MODELS=/data/models/radiance/hf-cache/hub
 if need 400 "27B"; then
-  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
+  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
   mv "$(T $D)/tp2-out/acc-27b-tp1.safetensors" "$O/" 2>/dev/null; cp "$O/acc-27b-tp1.safetensors" "$(T $D)/tp2-out/"
-  run $D 0,1 600 self-27b-tp2-vs-tp1 accuracy --backend hip --model $M27 --mem-budget 29 --mode both --self-golden /work/tp2-out/acc-27b-tp1.safetensors \
+  run $D 0,1 600 self-27b-tp2-vs-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --mode both --self-golden /work/tp2-out/acc-27b-tp1.safetensors \
     --allow-same-code --allow-config-mismatch $TP2 $FLOOR
 fi
 # 3. batch-peer-no-table: the mutant's models test binary must fail the batched-vs-solo test at tp=2
