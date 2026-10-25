@@ -749,8 +749,12 @@ fn check_packed(v: Variant, rows: usize, chunk: usize) {
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = false;
     o.pack_prefill = true;
+    // Hold the scheduler thread until every request is queued: otherwise a slow machine lets it admit and prefill the first
+    // prompts one at a time before the rest are submitted, and nothing is packed (main run 40228193513).
+    o.hold_start = true;
     let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
     let rxs: Vec<_> = reqs(n).into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    eng.release();
     for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
         let got = collect(rx).unwrap();
         assert_eq!(&got, w, "case {i} ({v:?}, rows {rows}, chunk {chunk})");

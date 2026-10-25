@@ -1306,6 +1306,16 @@ struct EngineShared {
     failed: Arc<Mutex<Option<String>>>,
     shutdown: AtomicBool,
     metrics: Arc<Mutex<BatchMetrics>>,
+    /// Start gate (`BatchEngine::spawn_held`): the scheduler thread does not read its channel until it is open. Open from the
+    /// start unless the engine was spawned held.
+    gate: (Mutex<bool>, std::sync::Condvar),
+}
+
+impl EngineShared {
+    fn open_gate(&self) {
+        *self.gate.0.lock().unwrap() = true;
+        self.gate.1.notify_all();
+    }
 }
 
 /// The scheduler on its own thread, which owns the model (design 2.1). `submit` only queues.
@@ -1322,6 +1332,17 @@ where
     S: BatchSeq<M> + 'static,
 {
     pub fn spawn(model: M, cfg: SchedulerConfig) -> Result<Self> {
+        Self::spawn_gated(model, cfg, false)
+    }
+
+    /// Like [`BatchEngine::spawn`], but the scheduler thread reads nothing until [`BatchEngine::release`]: tests submit a whole
+    /// workload first, so the first iteration sees all of it (otherwise how many requests are queued when it admits depends on
+    /// thread timing).
+    pub fn spawn_held(model: M, cfg: SchedulerConfig) -> Result<Self> {
+        Self::spawn_gated(model, cfg, true)
+    }
+
+    fn spawn_gated(model: M, cfg: SchedulerConfig, held: bool) -> Result<Self> {
         let sched: Scheduler<M, S> = Scheduler::new(model, cfg)?;
         let shared = Arc::new(EngineShared {
             queued: sched.queued.clone(),
@@ -1330,6 +1351,7 @@ where
             failed: sched.failed_shared.clone(),
             shutdown: AtomicBool::new(false),
             metrics: sched.metrics.clone(),
+            gate: (Mutex::new(!held), std::sync::Condvar::new()),
         });
         let (tx, rx) = mpsc::channel();
         let sh = shared.clone();
@@ -1379,6 +1401,11 @@ where
         }
     }
 
+    /// Open the start gate of an engine spawned with [`BatchEngine::spawn_held`] (no effect on any other).
+    pub fn release(&self) {
+        self.shared.open_gate();
+    }
+
     /// Counters and histograms as of now; `queue_depth` is live (the engine's queue counter), `running` is as of the
     /// end of the scheduler's last iteration.
     pub fn metrics(&self) -> BatchMetrics {
@@ -1395,6 +1422,7 @@ where
 impl<M, S> Drop for BatchEngine<M, S> {
     fn drop(&mut self) {
         self.shared.shutdown.store(true, Ordering::SeqCst);
+        self.shared.open_gate();
         drop(self.tx.take());
         if let Some(t) = self.thread.take() {
             let _ = t.join();
@@ -1412,6 +1440,12 @@ fn run_scheduler<M: BatchModel, S: BatchSeq<M>>(
     sh: Arc<EngineShared>,
 ) {
     use std::panic::{catch_unwind, AssertUnwindSafe};
+    {
+        let mut go = sh.gate.0.lock().unwrap();
+        while !*go {
+            go = sh.gate.1.wait(go).unwrap();
+        }
+    }
     let mut open = true;
     loop {
         if sh.shutdown.load(Ordering::SeqCst) {
