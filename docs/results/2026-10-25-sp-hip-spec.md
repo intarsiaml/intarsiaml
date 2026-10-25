@@ -364,3 +364,23 @@ parallel), CUDA #5266, Metal #5265. 0 failing checks on all three:
 
 So the default decode path is unchanged against main on all three backends: same ids, same acceptance counts, same plans. HIP follow-up gates
 (window 8, head `1ee4d0ac`, section 11 follow-ups) also passed: eager head catch-up cost +0.7 to +0.9% faster than main (35B) and +0.5% (27B).
+
+## 15. Draft-vocab default gates (PR #148, code head `835d0103`; HIP window fleetq #5344, CUDA no-op #5314)
+
+`[tuning.hip] mtp_draft_vocab = 65536` for the Qwen3.8-27B recipe. Raw: `docs/results/2026-10-25-sp-hip-spec/raw/dv/` (`verdict.txt`, per-card logs, the two default-path load logs).
+
+| check (27B MXFP4, HIP, 128 and 1k natural prompts, 256 greedy ids, k=2) | result |
+|---|---|
+| spec off: `plan show` text and json byte-identical to main `5241377b` | pass |
+| spec off ids equal main's | pass |
+| MTP with the recipe default (no flag) ids equal spec off | pass |
+| MTP `--mtp-draft-vocab 65536` and `--mtp-draft-vocab 0` ids equal spec off | pass |
+| default acceptance equals explicit 65536 (128: 154 of 199; 1k: 149 of 210) | pass |
+| `--mtp-draft-vocab 0` acceptance equals main's full head (128: 154 of 199; 1k: 150 of 208) | pass |
+| load log names `recipe qwen3_5_vl, hip` with the default, no such line with `0` | pass |
+
+18 of 18 checks pass. At 1k the default runs at 53.7 tok/s against 48.0 for main's full-head MTP and 33.0 with spec off (single run each, timings are indicative only).
+
+CUDA (spark1, #5314): spec off `plan show` json and text of the 8B and 35B byte-identical to main, and 256 ids identical on short and 4k prompts. The default does not apply on CUDA or Metal.
+
+Two earlier HIP windows did not count: #5312 ran every generate as `exec -c` (a missing `--` in `dv.sh`), and #5333 ran out of memory on the dev plan text and the spec-off 128 ids (a `plan show` beside a generate on one card). Both were script faults, fixed in `dv.sh` before #5344.
