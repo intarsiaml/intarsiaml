@@ -76,6 +76,10 @@ impl QuantFormat for Fp8E4m3 {
                 (s, true)
             }
         };
+        // lane wg (opt-in, HIP): the backend may store the weight in fragment order; the tag lives on the allocation (backend::Layout)
+        if frag_eligible(n, k) && backend.fp8_frag_wanted(n, k, act_quant) {
+            backend.relayout_fp8_frag(&w)?;
+        }
         let st = upload_new(backend, &scales_tensor(ws, is).data)?;
         Ok(QTensor { format: FP8_E4M3, n, k, parts: vec![w, TensorRef::new(st, DType::F32, &[2])], act_quant })
     }
@@ -128,6 +132,67 @@ pub fn random_rows(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, act_qua
             scales_tensor(ws, if act_quant { 0.125 } else { 0.0 }),
         ],
         act_quant,
+    }
+}
+
+/// Fragment-order fp8 weights ([`crate::backend::Layout::Fp8Frag`]): `[N/16][K/32][lane = 16 h + col][16 B]`, where byte `b` of lane
+/// `16 h + col` of chunk `c` of tile `t` is `w[16 t + col][32 c + 16 h + b]`. Needs N % 16 == 0 and K % 32 == 0.
+pub fn frag_eligible(n: usize, k: usize) -> bool {
+    n > 0 && n % 16 == 0 && k > 0 && k % 32 == 0
+}
+
+/// Byte offset in the fragment-order tensor of the 16 bytes of row `n`, columns `k .. k + 16` (`k % 16 == 0`).
+pub fn frag_offset(n: usize, k: usize, kk: usize) -> usize {
+    (((n / 16) * (kk / 32) + k / 32) * 32 + ((k / 16) % 2) * 16 + n % 16) * 16
+}
+
+/// Row-major `[n, k]` bytes -> fragment order (host reference of `ik_fp8_relayout_frag`).
+pub fn frag_pack(rm: &[u8], n: usize, k: usize) -> Vec<u8> {
+    assert!(frag_eligible(n, k) && rm.len() == n * k, "frag_pack: {n} x {k} needs N % 16 == 0, K % 32 == 0");
+    let mut out = vec![0u8; n * k];
+    for r in 0..n {
+        for c in (0..k).step_by(16) {
+            let o = frag_offset(r, c, k);
+            out[o..o + 16].copy_from_slice(&rm[r * k + c..r * k + c + 16]);
+        }
+    }
+    out
+}
+
+/// Fragment order -> row-major `[n, k]` bytes (the inverse of [`frag_pack`]).
+pub fn frag_unpack(fr: &[u8], n: usize, k: usize) -> Vec<u8> {
+    assert!(frag_eligible(n, k) && fr.len() == n * k, "frag_unpack: {n} x {k} needs N % 16 == 0, K % 32 == 0");
+    let mut out = vec![0u8; n * k];
+    for r in 0..n {
+        for c in (0..k).step_by(16) {
+            let o = frag_offset(r, c, k);
+            out[r * k + c..r * k + c + 16].copy_from_slice(&fr[o..o + 16]);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod frag_tests {
+    use super::*;
+
+    #[test]
+    fn pack_unpack_round_trip_and_layout() {
+        let (n, k) = (48usize, 96usize);
+        let rm: Vec<u8> = (0..n * k).map(|i| (i * 7 + i / 13) as u8).collect();
+        let fr = frag_pack(&rm, n, k);
+        assert_ne!(fr, rm);
+        assert_eq!(frag_unpack(&fr, n, k), rm);
+        // lane 16 h + col of chunk c of tile t holds w[16 t + col][32 c + 16 h ..]
+        let (t, c, h, col) = (2usize, 1usize, 1usize, 5usize);
+        let o = ((t * (k / 32) + c) * 32 + 16 * h + col) * 16;
+        assert_eq!(&fr[o..o + 16], &rm[(16 * t + col) * k + 32 * c + 16 * h..][..16]);
+    }
+
+    #[test]
+    fn eligibility() {
+        assert!(frag_eligible(512, 2048) && frag_eligible(16, 32));
+        assert!(!frag_eligible(300, 2048) && !frag_eligible(512, 2064) && !frag_eligible(0, 32) && !frag_eligible(16, 0));
     }
 }
 

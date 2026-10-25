@@ -5,7 +5,8 @@
 
 #[test]
 fn every_hip_kernel_has_a_quick_case() {
-    let kernels = intarsia_backend_hip::kernels::all();
+    // the opt-in WMMA family (INTARSIA_HIP_WMMA_ROWS=1) rejects every shape with the knob unset; tests/quick_coverage_wmma.rs checks it with the knob on
+    let kernels: Vec<_> = intarsia_backend_hip::kernels::all().into_iter().filter(|k| !k.name.contains("wmma")).collect();
     assert!(!kernels.is_empty(), "no hip kernels registered");
     let uncovered = intarsia_core::admission::kernels_without_quick_case(&kernels);
     assert!(uncovered.is_empty(), "hip kernels with no quick sweep case: {uncovered:?}");

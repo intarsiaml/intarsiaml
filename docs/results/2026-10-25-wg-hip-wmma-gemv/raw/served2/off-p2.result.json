@@ -1,0 +1,198 @@
+{
+ "run_id": "20261025-130526-adhoc-wg-served-off-p2",
+ "kind": "speed",
+ "label": "wg-served-off-p2",
+ "started_at": "2026-10-25T13:05:26-04:00",
+ "finished_at": "2026-10-25T13:06:22-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://tatooine:8090/v1",
+  "model": "wg-35b",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": null,
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model wg-35b --sizes 1024 --gen 512 --reps 3 --concurrency 4,8,16 --thinking off --label wg-served-off-p2",
+  "git": "301fae0"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "wg-35b"
+   ],
+   "root": "Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 512,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 987,
+    "completion_tokens": {
+     "median": 512,
+     "min": 512,
+     "max": 512,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.156,
+     "min": 0.155,
+     "max": 0.161,
+     "n": 3,
+     "spread_pct": 3.7
+    },
+    "prefill_tok_s": {
+     "median": 6338.006,
+     "min": 6139.277,
+     "max": 6370.031,
+     "n": 3,
+     "spread_pct": 3.6
+    },
+    "decode_tok_s": {
+     "median": 164.867,
+     "min": 164.736,
+     "max": 164.918,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 173.8,
+     "min": 169.5,
+     "max": 110060.2,
+     "n": 3,
+     "spread_pct": 63228.3
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 270.4,
+    "per_stream_decode_tok_s": {
+     "median": 72.442,
+     "min": 72.4,
+     "max": 73.329,
+     "n": 4,
+     "spread_pct": 1.3
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 1125.3,
+     "min": 1103.0,
+     "max": 1142.5,
+     "n": 4,
+     "spread_pct": 3.5
+    },
+    "ttft_s": {
+     "median": 0.429,
+     "min": 0.423,
+     "max": 0.593,
+     "n": 4,
+     "spread_pct": 39.6
+    },
+    "errors": []
+   },
+   {
+    "streams": 8,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 317.5,
+    "per_stream_decode_tok_s": {
+     "median": 42.058,
+     "min": 40.451,
+     "max": 44.001,
+     "n": 8,
+     "spread_pct": 8.4
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 55.25,
+     "min": 49.7,
+     "max": 63.3,
+     "n": 8,
+     "spread_pct": 24.6
+    },
+    "ttft_s": {
+     "median": 0.702,
+     "min": 0.158,
+     "max": 1.272,
+     "n": 8,
+     "spread_pct": 158.8
+    },
+    "errors": []
+   },
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 335.4,
+    "per_stream_decode_tok_s": {
+     "median": 22.25,
+     "min": 21.426,
+     "max": 23.463,
+     "n": 16,
+     "spread_pct": 9.2
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 27.8,
+     "min": 27.3,
+     "max": 27.9,
+     "n": 16,
+     "spread_pct": 2.2
+    },
+    "ttft_s": {
+     "median": 1.284,
+     "min": 0.156,
+     "max": 2.624,
+     "n": 16,
+     "spread_pct": 192.3
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "wg-35b",
+  "activity_checks": {
+   "idle": 7,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

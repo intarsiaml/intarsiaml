@@ -1,0 +1,404 @@
+fleetq: #5286 waiting (#4 in line): in line behind #5283 "tp2: compile models gpu tests of the batch-peer-no-table mutant tree (CPU only)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5283 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5283 set, or it will wait for #5283 to be released.
+fleetq: #5286 waiting (#2 in line): in line behind #5284 "tp2 w12: bitwise dump compares (tp2 run-to-run, vocab0, arnorm, fusion0; 27B W4A16), batch-peer-no-table mutant, radiance down <=25 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5284 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5284 set, or it will wait for #5284 to be released.
+fleetq: #5286 waiting (#1 in line): radiance-rank0 is also taken down by #5284 "tp2 w12: bitwise dump compares (tp2 run-to-run, vocab0, arnorm, fusion0; 27B W4A16), batch-peer-no-table mutant, radiance down <=25 min" (claude-f31ccf91)
+fleetq:   #5284 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5284 set, or it will wait for #5284 to be released.
+fleetq: #5286 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5286 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 47% busy with work fleetq does not track
+fleetq: #5286 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'WG_NEED="tests probe" bash ~/wg-win.sh bash -c "export HIP_VISIBLE_DEVICES=0; bash ~/wg-probe.sh run; bash ~/wg-chase.sh"'
+[win] stopping radiance 2026-10-25 10:49:03 (tree 1b16702ab398c582)
+[probe] running 10:49:04
+probe device 0: AMD Radeon Graphics gfx1201
+layout check: 0 of 256 elements differ from the exact integer product
+diag sanity: 0 of 11 easy cases differ from the exact sum
+crafted cases: 1955, repeat-run differences: 0
+crafted (all)                      n=1955     nan/inf=2      hw==exactRNE  73.68%  hw==seqRNE  75.12%  hw==exactTRUNC  73.68%  hw==any  79.62%  within1ulp(exact)  75.32%
+  F1 pos=0 e=0                       hw=16             (41800000)  exactRNE=16              same
+  F1 pos=0 e=1                       hw=17             (41880000)  exactRNE=17              same
+  F1 pos=0 e=2                       hw=19             (41980000)  exactRNE=19              same
+  F1 pos=0 e=3                       hw=23             (41b80000)  exactRNE=23              same
+  F1 pos=0 e=4                       hw=31             (41f80000)  exactRNE=31              same
+  F1 pos=0 e=5                       hw=47             (423c0000)  exactRNE=47              same
+  F1 pos=0 e=6                       hw=79             (429e0000)  exactRNE=79              same
+  F1 pos=0 e=7                       hw=143            (430f0000)  exactRNE=143             same
+  F1 pos=0 e=8                       hw=271            (43878000)  exactRNE=271             same
+  F1 pos=0 e=9                       hw=527            (4403c000)  exactRNE=527             same
+  F1 pos=0 e=10                      hw=1039           (4481e000)  exactRNE=1039            same
+  F1 pos=0 e=11                      hw=2063           (4500f000)  exactRNE=2063            same
+  F1 pos=0 e=12                      hw=4111           (45807800)  exactRNE=4111            same
+  F1 pos=0 e=13                      hw=8207           (46003c00)  exactRNE=8207            same
+  F1 pos=0 e=14                      hw=16399          (46801e00)  exactRNE=16399           same
+  F1 pos=0 e=15                      hw=32783          (47000f00)  exactRNE=32783           same
+  F1 pos=0 e=16                      hw=65551          (47800780)  exactRNE=65551           same
+  F1 pos=15 e=0                      hw=16             (41800000)  exactRNE=16              same
+  F1 pos=15 e=1                      hw=17             (41880000)  exactRNE=17              same
+  F1 pos=15 e=2                      hw=19             (41980000)  exactRNE=19              same
+  F1 pos=15 e=3                      hw=23             (41b80000)  exactRNE=23              same
+  F1 pos=15 e=4                      hw=31             (41f80000)  exactRNE=31              same
+  F1 pos=15 e=5                      hw=47             (423c0000)  exactRNE=47              same
+  F1 pos=15 e=6                      hw=79             (429e0000)  exactRNE=79              same
+  F1 pos=15 e=7                      hw=143            (430f0000)  exactRNE=143             same
+  F1 pos=15 e=8                      hw=271            (43878000)  exactRNE=271             same
+  F1 pos=15 e=9                      hw=527            (4403c000)  exactRNE=527             same
+  F1 pos=15 e=10                     hw=1039           (4481e000)  exactRNE=1039            same
+  F1 pos=15 e=11                     hw=2063           (4500f000)  exactRNE=2063            same
+  F1 pos=15 e=12                     hw=4111           (45807800)  exactRNE=4111            same
+  F1 pos=15 e=13                     hw=8207           (46003c00)  exactRNE=8207            same
+  F1 pos=15 e=14                     hw=16399          (46801e00)  exactRNE=16399           same
+  F1 pos=15 e=15                     hw=32783          (47000f00)  exactRNE=32783           same
+  F1 pos=15 e=16                     hw=65551          (47800780)  exactRNE=65551           same
+  F2 c=2^-20 prod=2^-0 x16           hw=16             (41800000)  exactRNE=16              same
+  F2 c=2^-20 prod=2^-6 x16           hw=0.250000954    (3e800020)  exactRNE=0.250000954     same
+  F2 c=2^-20 prod=2^-12 x16          hw=0.00390720367  (3b800800)  exactRNE=0.00390720367   same
+  F2 c=2^-20 prod=2^-18 x16          hw=6.19888306e-05 (38820000)  exactRNE=6.19888306e-05  same
+  F2 c=2^-19 prod=2^-0 x16           hw=16.0000019     (41800001)  exactRNE=16.0000019      same
+  F2 c=2^-19 prod=2^-6 x16           hw=0.250001907    (3e800040)  exactRNE=0.250001907     same
+  F2 c=2^-19 prod=2^-12 x16          hw=0.00390815735  (3b801000)  exactRNE=0.00390815735   same
+  F2 c=2^-19 prod=2^-18 x16          hw=6.29425049e-05 (38840000)  exactRNE=6.29425049e-05  same
+  F2 c=2^-18 prod=2^-0 x16           hw=16.0000038     (41800002)  exactRNE=16.0000038      same
+  F2 c=2^-18 prod=2^-6 x16           hw=0.250003815    (3e800080)  exactRNE=0.250003815     same
+  F2 c=2^-18 prod=2^-12 x16          hw=0.0039100647   (3b802000)  exactRNE=0.0039100647    same
+  F2 c=2^-18 prod=2^-18 x16          hw=6.48498535e-05 (38880000)  exactRNE=6.48498535e-05  same
+  F2 c=2^-17 prod=2^-0 x16           hw=16.0000076     (41800004)  exactRNE=16.0000076      same
+  F2 c=2^-17 prod=2^-6 x16           hw=0.250007629    (3e800100)  exactRNE=0.250007629     same
+  F2 c=2^-17 prod=2^-12 x16          hw=0.00391387939  (3b804000)  exactRNE=0.00391387939   same
+  F2 c=2^-17 prod=2^-18 x16          hw=6.86645508e-05 (38900000)  exactRNE=6.86645508e-05  same
+  F2 c=2^-16 prod=2^-0 x16           hw=16.0000153     (41800008)  exactRNE=16.0000153      same
+  F2 c=2^-16 prod=2^-6 x16           hw=0.250015259    (3e800200)  exactRNE=0.250015259     same
+  F2 c=2^-16 prod=2^-12 x16          hw=0.00392150879  (3b808000)  exactRNE=0.00392150879   same
+  F2 c=2^-16 prod=2^-18 x16          hw=7.62939453e-05 (38a00000)  exactRNE=7.62939453e-05  same
+  F2 c=2^-15 prod=2^-0 x16           hw=16.0000305     (41800010)  exactRNE=16.0000305      same
+  F2 c=2^-15 prod=2^-6 x16           hw=0.250030518    (3e800400)  exactRNE=0.250030518     same
+  F2 c=2^-15 prod=2^-12 x16          hw=0.00393676758  (3b810000)  exactRNE=0.00393676758   same
+  F2 c=2^-15 prod=2^-18 x16          hw=9.15527344e-05 (38c00000)  exactRNE=9.15527344e-05  same
+  F2 c=2^-14 prod=2^-0 x16           hw=16.000061      (41800020)  exactRNE=16.000061       same
+  F2 c=2^-14 prod=2^-6 x16           hw=0.250061035    (3e800800)  exactRNE=0.250061035     same
+  F2 c=2^-14 prod=2^-12 x16          hw=0.00396728516  (3b820000)  exactRNE=0.00396728516   same
+  F2 c=2^-14 prod=2^-18 x16          hw=0.000122070312 (39000000)  exactRNE=0.000122070312  same
+  F2 c=2^-13 prod=2^-0 x16           hw=16.0001221     (41800040)  exactRNE=16.0001221      same
+  F2 c=2^-13 prod=2^-6 x16           hw=0.25012207     (3e801000)  exactRNE=0.25012207      same
+  F2 c=2^-13 prod=2^-12 x16          hw=0.00402832031  (3b840000)  exactRNE=0.00402832031   same
+  F2 c=2^-13 prod=2^-18 x16          hw=0.000183105469 (39400000)  exactRNE=0.000183105469  same
+  F2 c=2^-12 prod=2^-0 x16           hw=16.0002441     (41800080)  exactRNE=16.0002441      same
+  F2 c=2^-12 prod=2^-6 x16           hw=0.250244141    (3e802000)  exactRNE=0.250244141     same
+  F2 c=2^-12 prod=2^-12 x16          hw=0.00415039062  (3b880000)  exactRNE=0.00415039062   same
+  F2 c=2^-12 prod=2^-18 x16          hw=0.000305175781 (39a00000)  exactRNE=0.000305175781  same
+  F2 c=2^-11 prod=2^-0 x16           hw=16.0004883     (41800100)  exactRNE=16.0004883      same
+  F2 c=2^-11 prod=2^-6 x16           hw=0.250488281    (3e804000)  exactRNE=0.250488281     same
+  F2 c=2^-11 prod=2^-12 x16          hw=0.00439453125  (3b900000)  exactRNE=0.00439453125   same
+  F2 c=2^-11 prod=2^-18 x16          hw=0.000549316406 (3a100000)  exactRNE=0.000549316406  same
+  F2 c=2^-10 prod=2^-0 x16           hw=16.0009766     (41800200)  exactRNE=16.0009766      same
+  F2 c=2^-10 prod=2^-6 x16           hw=0.250976562    (3e808000)  exactRNE=0.250976562     same
+  F2 c=2^-10 prod=2^-12 x16          hw=0.0048828125   (3ba00000)  exactRNE=0.0048828125    same
+  F2 c=2^-10 prod=2^-18 x16          hw=0.00103759766  (3a880000)  exactRNE=0.00103759766   same
+  F2 c=2^-9 prod=2^-0 x16            hw=16.0019531     (41800400)  exactRNE=16.0019531      same
+  F2 c=2^-9 prod=2^-6 x16            hw=0.251953125    (3e810000)  exactRNE=0.251953125     same
+  F2 c=2^-9 prod=2^-12 x16           hw=0.005859375    (3bc00000)  exactRNE=0.005859375     same
+  F2 c=2^-9 prod=2^-18 x16           hw=0.00201416016  (3b040000)  exactRNE=0.00201416016   same
+  F2 c=2^-8 prod=2^-0 x16            hw=16.0039062     (41800800)  exactRNE=16.0039062      same
+  F2 c=2^-8 prod=2^-6 x16            hw=0.25390625     (3e820000)  exactRNE=0.25390625      same
+  F2 c=2^-8 prod=2^-12 x16           hw=0.0078125      (3c000000)  exactRNE=0.0078125       same
+  F2 c=2^-8 prod=2^-18 x16           hw=0.00396728516  (3b820000)  exactRNE=0.00396728516   same
+  F2 c=2^-7 prod=2^-0 x16            hw=16.0078125     (41801000)  exactRNE=16.0078125      same
+  F2 c=2^-7 prod=2^-6 x16            hw=0.2578125      (3e840000)  exactRNE=0.2578125       same
+  F2 c=2^-7 prod=2^-12 x16           hw=0.01171875     (3c400000)  exactRNE=0.01171875      same
+  F2 c=2^-7 prod=2^-18 x16           hw=0.00787353516  (3c010000)  exactRNE=0.00787353516   same
+  F2 c=2^-6 prod=2^-0 x16            hw=16.015625      (41802000)  exactRNE=16.015625       same
+  F2 c=2^-6 prod=2^-6 x16            hw=0.265625       (3e880000)  exactRNE=0.265625        same
+  F2 c=2^-6 prod=2^-12 x16           hw=0.01953125     (3ca00000)  exactRNE=0.01953125      same
+  F2 c=2^-6 prod=2^-18 x16           hw=0.0156860352   (3c808000)  exactRNE=0.0156860352    same
+  F2 c=2^-5 prod=2^-0 x16            hw=16.03125       (41804000)  exactRNE=16.03125        same
+  F2 c=2^-5 prod=2^-6 x16            hw=0.28125        (3e900000)  exactRNE=0.28125         same
+  F2 c=2^-5 prod=2^-12 x16           hw=0.03515625     (3d100000)  exactRNE=0.03515625      same
+  F2 c=2^-5 prod=2^-18 x16           hw=0.0313110352   (3d004000)  exactRNE=0.0313110352    same
+  F2 c=2^-4 prod=2^-0 x16            hw=16.0625        (41808000)  exactRNE=16.0625         same
+  F2 c=2^-4 prod=2^-6 x16            hw=0.3125         (3ea00000)  exactRNE=0.3125          same
+  F2 c=2^-4 prod=2^-12 x16           hw=0.06640625     (3d880000)  exactRNE=0.06640625      same
+  F2 c=2^-4 prod=2^-18 x16           hw=0.0625610352   (3d802000)  exactRNE=0.0625610352    same
+  F2 c=2^-3 prod=2^-0 x16            hw=16.125         (41810000)  exactRNE=16.125          same
+  F2 c=2^-3 prod=2^-6 x16            hw=0.375          (3ec00000)  exactRNE=0.375           same
+  F2 c=2^-3 prod=2^-12 x16           hw=0.12890625     (3e040000)  exactRNE=0.12890625      same
+  F2 c=2^-3 prod=2^-18 x16           hw=0.125061035    (3e001000)  exactRNE=0.125061035     same
+  F2 c=2^-2 prod=2^-0 x16            hw=16.25          (41820000)  exactRNE=16.25           same
+  F2 c=2^-2 prod=2^-6 x16            hw=0.5            (3f000000)  exactRNE=0.5             same
+  F2 c=2^-2 prod=2^-12 x16           hw=0.25390625     (3e820000)  exactRNE=0.25390625      same
+  F2 c=2^-2 prod=2^-18 x16           hw=0.250061035    (3e800800)  exactRNE=0.250061035     same
+  F2 c=2^-1 prod=2^-0 x16            hw=16.5           (41840000)  exactRNE=16.5            same
+  F2 c=2^-1 prod=2^-6 x16            hw=0.75           (3f400000)  exactRNE=0.75            same
+  F2 c=2^-1 prod=2^-12 x16           hw=0.50390625     (3f010000)  exactRNE=0.50390625      same
+  F2 c=2^-1 prod=2^-18 x16           hw=0.500061035    (3f000400)  exactRNE=0.500061035     same
+  F2 c=2^0 prod=2^-0 x16             hw=17             (41880000)  exactRNE=17              same
+  F2 c=2^0 prod=2^-6 x16             hw=1.25           (3fa00000)  exactRNE=1.25            same
+  F2 c=2^0 prod=2^-12 x16            hw=1.00390625     (3f808000)  exactRNE=1.00390625      same
+  F2 c=2^0 prod=2^-18 x16            hw=1.00006104     (3f800200)  exactRNE=1.00006104      same
+  F2 c=2^1 prod=2^-0 x16             hw=18             (41900000)  exactRNE=18              same
+  F2 c=2^1 prod=2^-6 x16             hw=2.25           (40100000)  exactRNE=2.25            same
+  F2 c=2^1 prod=2^-12 x16            hw=2.00390625     (40004000)  exactRNE=2.00390625      same
+  F2 c=2^1 prod=2^-18 x16            hw=2.00006104     (40000100)  exactRNE=2.00006104      same
+  F2 c=2^2 prod=2^-0 x16             hw=20             (41a00000)  exactRNE=20              same
+  F2 c=2^2 prod=2^-6 x16             hw=4.25           (40880000)  exactRNE=4.25            same
+  F2 c=2^2 prod=2^-12 x16            hw=4.00390625     (40802000)  exactRNE=4.00390625      same
+  F2 c=2^2 prod=2^-18 x16            hw=4.00006104     (40800080)  exactRNE=4.00006104      same
+  F2 c=2^3 prod=2^-0 x16             hw=24             (41c00000)  exactRNE=24              same
+  F2 c=2^3 prod=2^-6 x16             hw=8.25           (41040000)  exactRNE=8.25            same
+  F2 c=2^3 prod=2^-12 x16            hw=8.00390625     (41001000)  exactRNE=8.00390625      same
+  F2 c=2^3 prod=2^-18 x16            hw=8.00006104     (41000040)  exactRNE=8.00006104      same
+  F2 c=2^4 prod=2^-0 x16             hw=32             (42000000)  exactRNE=32              same
+  F2 c=2^4 prod=2^-6 x16             hw=16.25          (41820000)  exactRNE=16.25           same
+  F2 c=2^4 prod=2^-12 x16            hw=16.0039062     (41800800)  exactRNE=16.0039062      same
+  F2 c=2^4 prod=2^-18 x16            hw=16.000061      (41800020)  exactRNE=16.000061       same
+  F2 c=2^5 prod=2^-0 x16             hw=48             (42400000)  exactRNE=48              same
+  F2 c=2^5 prod=2^-6 x16             hw=32.25          (42010000)  exactRNE=32.25           same
+  F2 c=2^5 prod=2^-12 x16            hw=32.0039062     (42000400)  exactRNE=32.0039062      same
+  F2 c=2^5 prod=2^-18 x16            hw=32.000061      (42000010)  exactRNE=32.000061       same
+  F2 c=2^6 prod=2^-0 x16             hw=80             (42a00000)  exactRNE=80              same
+  F2 c=2^6 prod=2^-6 x16             hw=64.25          (42808000)  exactRNE=64.25           same
+  F2 c=2^6 prod=2^-12 x16            hw=64.0039062     (42800200)  exactRNE=64.0039062      same
+  F2 c=2^6 prod=2^-18 x16            hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F2 c=2^7 prod=2^-0 x16             hw=144            (43100000)  exactRNE=144             same
+  F2 c=2^7 prod=2^-6 x16             hw=128.25         (43004000)  exactRNE=128.25          same
+  F2 c=2^7 prod=2^-12 x16            hw=128.003906     (43000100)  exactRNE=128.003906      same
+  F2 c=2^7 prod=2^-18 x16            hw=128.000061     (43000004)  exactRNE=128.000061      same
+  F2 c=2^8 prod=2^-0 x16             hw=272            (43880000)  exactRNE=272             same
+  F2 c=2^8 prod=2^-6 x16             hw=256.25         (43802000)  exactRNE=256.25          same
+  F2 c=2^8 prod=2^-12 x16            hw=256.003906     (43800080)  exactRNE=256.003906      same
+  F2 c=2^8 prod=2^-18 x16            hw=256.000061     (43800002)  exactRNE=256.000061      same
+  F2 c=2^9 prod=2^-0 x16             hw=528            (44040000)  exactRNE=528             same
+  F2 c=2^9 prod=2^-6 x16             hw=512.25         (44001000)  exactRNE=512.25          same
+  F2 c=2^9 prod=2^-12 x16            hw=512.003906     (44000040)  exactRNE=512.003906      same
+  F2 c=2^9 prod=2^-18 x16            hw=512            (44000000)  exactRNE=512.000061      DIFF
+  F2 c=2^10 prod=2^-0 x16            hw=1040           (44820000)  exactRNE=1040            same
+  F2 c=2^10 prod=2^-6 x16            hw=1024.25        (44800800)  exactRNE=1024.25         same
+  F2 c=2^10 prod=2^-12 x16           hw=1024.00391     (44800020)  exactRNE=1024.00391      same
+  F2 c=2^10 prod=2^-18 x16           hw=1024           (44800000)  exactRNE=1024            same
+  F2 c=2^11 prod=2^-0 x16            hw=2064           (45010000)  exactRNE=2064            same
+  F2 c=2^11 prod=2^-6 x16            hw=2048.25        (45000400)  exactRNE=2048.25         same
+  F2 c=2^11 prod=2^-12 x16           hw=2048.00391     (45000010)  exactRNE=2048.00391      same
+  F2 c=2^11 prod=2^-18 x16           hw=2048           (45000000)  exactRNE=2048            same
+  F2 c=2^12 prod=2^-0 x16            hw=4112           (45808000)  exactRNE=4112            same
+  F2 c=2^12 prod=2^-6 x16            hw=4096.25        (45800200)  exactRNE=4096.25         same
+  F2 c=2^12 prod=2^-12 x16           hw=4096.00391     (45800008)  exactRNE=4096.00391      same
+  F2 c=2^12 prod=2^-18 x16           hw=4096           (45800000)  exactRNE=4096            same
+  F2 c=2^13 prod=2^-0 x16            hw=8208           (46004000)  exactRNE=8208            same
+  F2 c=2^13 prod=2^-6 x16            hw=8192.25        (46000100)  exactRNE=8192.25         same
+  F2 c=2^13 prod=2^-12 x16           hw=8192.00391     (46000004)  exactRNE=8192.00391      same
+  F2 c=2^13 prod=2^-18 x16           hw=8192           (46000000)  exactRNE=8192            same
+  F2 c=2^14 prod=2^-0 x16            hw=16400          (46802000)  exactRNE=16400           same
+  F2 c=2^14 prod=2^-6 x16            hw=16384.25       (46800080)  exactRNE=16384.25        same
+  F2 c=2^14 prod=2^-12 x16           hw=16384.0039     (46800002)  exactRNE=16384.0039      same
+  F2 c=2^14 prod=2^-18 x16           hw=16384          (46800000)  exactRNE=16384           same
+  F2 c=2^15 prod=2^-0 x16            hw=32784          (47001000)  exactRNE=32784           same
+  F2 c=2^15 prod=2^-6 x16            hw=32768.25       (47000040)  exactRNE=32768.25        same
+  F2 c=2^15 prod=2^-12 x16           hw=32768          (47000000)  exactRNE=32768.0039      DIFF
+  F2 c=2^15 prod=2^-18 x16           hw=32768          (47000000)  exactRNE=32768           same
+  F2 c=2^16 prod=2^-0 x16            hw=65552          (47800800)  exactRNE=65552           same
+  F2 c=2^16 prod=2^-6 x16            hw=65536.25       (47800020)  exactRNE=65536.25        same
+  F2 c=2^16 prod=2^-12 x16           hw=65536          (47800000)  exactRNE=65536           same
+  F2 c=2^16 prod=2^-18 x16           hw=65536          (47800000)  exactRNE=65536           same
+  F2 c=2^17 prod=2^-0 x16            hw=131088         (48000400)  exactRNE=131088          same
+  F2 c=2^17 prod=2^-6 x16            hw=131072.25      (48000010)  exactRNE=131072.25       same
+  F2 c=2^17 prod=2^-12 x16           hw=131072         (48000000)  exactRNE=131072          same
+  F2 c=2^17 prod=2^-18 x16           hw=131072         (48000000)  exactRNE=131072          same
+  F2 c=2^18 prod=2^-0 x16            hw=262160         (48800200)  exactRNE=262160          same
+  F2 c=2^18 prod=2^-6 x16            hw=262144.25      (48800008)  exactRNE=262144.25       same
+  F2 c=2^18 prod=2^-12 x16           hw=262144         (48800000)  exactRNE=262144          same
+  F2 c=2^18 prod=2^-18 x16           hw=262144         (48800000)  exactRNE=262144          same
+  F2 c=2^19 prod=2^-0 x16            hw=524304         (49000100)  exactRNE=524304          same
+  F2 c=2^19 prod=2^-6 x16            hw=524288.25      (49000004)  exactRNE=524288.25       same
+  F2 c=2^19 prod=2^-12 x16           hw=524288         (49000000)  exactRNE=524288          same
+  F2 c=2^19 prod=2^-18 x16           hw=524288         (49000000)  exactRNE=524288          same
+  F2 c=2^20 prod=2^-0 x16            hw=1048592        (49800080)  exactRNE=1048592         same
+  F2 c=2^20 prod=2^-6 x16            hw=1048576.25     (49800002)  exactRNE=1048576.25      same
+  F2 c=2^20 prod=2^-12 x16           hw=1048576        (49800000)  exactRNE=1048576         same
+  F2 c=2^20 prod=2^-18 x16           hw=1048576        (49800000)  exactRNE=1048576         same
+  F2 c=2^21 prod=2^-0 x16            hw=2097168        (4a000040)  exactRNE=2097168         same
+  F2 c=2^21 prod=2^-6 x16            hw=2097152        (4a000000)  exactRNE=2097152.25      DIFF
+  F2 c=2^21 prod=2^-12 x16           hw=2097152        (4a000000)  exactRNE=2097152         same
+  F2 c=2^21 prod=2^-18 x16           hw=2097152        (4a000000)  exactRNE=2097152         same
+  F2 c=2^22 prod=2^-0 x16            hw=4194320        (4a800020)  exactRNE=4194320         same
+  F2 c=2^22 prod=2^-6 x16            hw=4194304        (4a800000)  exactRNE=4194304         same
+  F2 c=2^22 prod=2^-12 x16           hw=4194304        (4a800000)  exactRNE=4194304         same
+  F2 c=2^22 prod=2^-18 x16           hw=4194304        (4a800000)  exactRNE=4194304         same
+  F2 c=2^23 prod=2^-0 x16            hw=8388624        (4b000010)  exactRNE=8388624         same
+  F2 c=2^23 prod=2^-6 x16            hw=8388608        (4b000000)  exactRNE=8388608         same
+  F2 c=2^23 prod=2^-12 x16           hw=8388608        (4b000000)  exactRNE=8388608         same
+  F2 c=2^23 prod=2^-18 x16           hw=8388608        (4b000000)  exactRNE=8388608         same
+  F2 c=2^24 prod=2^-0 x16            hw=16777232       (4b800008)  exactRNE=16777232        same
+  F2 c=2^24 prod=2^-6 x16            hw=16777216       (4b800000)  exactRNE=16777216        same
+  F2 c=2^24 prod=2^-12 x16           hw=16777216       (4b800000)  exactRNE=16777216        same
+  F2 c=2^24 prod=2^-18 x16           hw=16777216       (4b800000)  exactRNE=16777216        same
+  F2 c=2^25 prod=2^-0 x16            hw=33554448       (4c000004)  exactRNE=33554448        same
+  F2 c=2^25 prod=2^-6 x16            hw=33554432       (4c000000)  exactRNE=33554432        same
+  F2 c=2^25 prod=2^-12 x16           hw=33554432       (4c000000)  exactRNE=33554432        same
+  F2 c=2^25 prod=2^-18 x16           hw=33554432       (4c000000)  exactRNE=33554432        same
+  F2 c=2^26 prod=2^-0 x16            hw=67108880       (4c800002)  exactRNE=67108880        same
+  F2 c=2^26 prod=2^-6 x16            hw=67108864       (4c800000)  exactRNE=67108864        same
+  F2 c=2^26 prod=2^-12 x16           hw=67108864       (4c800000)  exactRNE=67108864        same
+  F2 c=2^26 prod=2^-18 x16           hw=67108864       (4c800000)  exactRNE=67108864        same
+  F2 c=2^27 prod=2^-0 x16            hw=134217728      (4d000000)  exactRNE=134217744       DIFF
+  F2 c=2^27 prod=2^-6 x16            hw=134217728      (4d000000)  exactRNE=134217728       same
+  F2 c=2^27 prod=2^-12 x16           hw=134217728      (4d000000)  exactRNE=134217728       same
+  F2 c=2^27 prod=2^-18 x16           hw=134217728      (4d000000)  exactRNE=134217728       same
+  F2 c=2^28 prod=2^-0 x16            hw=268435456      (4d800000)  exactRNE=268435456       same
+  F2 c=2^28 prod=2^-6 x16            hw=268435456      (4d800000)  exactRNE=268435456       same
+  F2 c=2^28 prod=2^-12 x16           hw=268435456      (4d800000)  exactRNE=268435456       same
+  F2 c=2^28 prod=2^-18 x16           hw=268435456      (4d800000)  exactRNE=268435456       same
+  F2 c=2^29 prod=2^-0 x16            hw=536870912      (4e000000)  exactRNE=536870912       same
+  F2 c=2^29 prod=2^-6 x16            hw=536870912      (4e000000)  exactRNE=536870912       same
+  F2 c=2^29 prod=2^-12 x16           hw=536870912      (4e000000)  exactRNE=536870912       same
+  F2 c=2^29 prod=2^-18 x16           hw=536870912      (4e000000)  exactRNE=536870912       same
+  F2 c=2^30 prod=2^-0 x16            hw=1.07374182e+09 (4e800000)  exactRNE=1.07374182e+09  same
+  F2 c=2^30 prod=2^-6 x16            hw=1.07374182e+09 (4e800000)  exactRNE=1.07374182e+09  same
+  F2 c=2^30 prod=2^-12 x16           hw=1.07374182e+09 (4e800000)  exactRNE=1.07374182e+09  same
+  F2 c=2^30 prod=2^-18 x16           hw=1.07374182e+09 (4e800000)  exactRNE=1.07374182e+09  same
+  F4 c=2^6+0 n=0 sign=0              hw=64             (42800000)  exactRNE=64              same
+  F4 c=2^6+0 n=0 sign=1              hw=64             (42800000)  exactRNE=64              same
+  F4 c=2^6+0 n=1 sign=0              hw=64             (42800000)  exactRNE=64              same
+  F4 c=2^6+0 n=1 sign=1              hw=63.9999962     (427fffff)  exactRNE=63.9999962      same
+  F4 c=2^6+0 n=2 sign=0              hw=64.0000076     (42800001)  exactRNE=64.0000076      same
+  F4 c=2^6+0 n=2 sign=1              hw=63.9999924     (427ffffe)  exactRNE=63.9999924      same
+  F4 c=2^6+0 n=3 sign=0              hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+0 n=3 sign=1              hw=63.9999886     (427ffffd)  exactRNE=63.9999886      same
+  F4 c=2^6+0 n=4 sign=0              hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+0 n=4 sign=1              hw=63.9999847     (427ffffc)  exactRNE=63.9999847      same
+  F4 c=2^6+0 n=5 sign=0              hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+0 n=5 sign=1              hw=63.9999809     (427ffffb)  exactRNE=63.9999809      same
+  F4 c=2^6+0 n=6 sign=0              hw=64.0000229     (42800003)  exactRNE=64.0000229      same
+  F4 c=2^6+0 n=6 sign=1              hw=63.9999771     (427ffffa)  exactRNE=63.9999771      same
+  F4 c=2^6+0 n=7 sign=0              hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+0 n=7 sign=1              hw=63.9999733     (427ffff9)  exactRNE=63.9999733      same
+  F4 c=2^6+0 n=8 sign=0              hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+0 n=8 sign=1              hw=63.9999695     (427ffff8)  exactRNE=63.9999695      same
+  F4 c=2^6+0 n=9 sign=0              hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+0 n=9 sign=1              hw=63.9999657     (427ffff7)  exactRNE=63.9999657      same
+  F4 c=2^6+0 n=10 sign=0             hw=64.0000381     (42800005)  exactRNE=64.0000381      same
+  F4 c=2^6+0 n=10 sign=1             hw=63.9999619     (427ffff6)  exactRNE=63.9999619      same
+  F4 c=2^6+0 n=11 sign=0             hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+0 n=11 sign=1             hw=63.999958      (427ffff5)  exactRNE=63.999958       same
+  F4 c=2^6+0 n=12 sign=0             hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+0 n=12 sign=1             hw=63.9999542     (427ffff4)  exactRNE=63.9999542      same
+  F4 c=2^6+0 n=13 sign=0             hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+0 n=13 sign=1             hw=63.9999504     (427ffff3)  exactRNE=63.9999504      same
+  F4 c=2^6+0 n=14 sign=0             hw=64.0000534     (42800007)  exactRNE=64.0000534      same
+  F4 c=2^6+0 n=14 sign=1             hw=63.9999466     (427ffff2)  exactRNE=63.9999466      same
+  F4 c=2^6+0 n=15 sign=0             hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F4 c=2^6+0 n=15 sign=1             hw=63.9999428     (427ffff1)  exactRNE=63.9999428      same
+  F4 c=2^6+0 n=16 sign=0             hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F4 c=2^6+0 n=16 sign=1             hw=63.999939      (427ffff0)  exactRNE=63.999939       same
+  F4 c=2^6+ulp n=0 sign=0            hw=64.0000076     (42800001)  exactRNE=64.0000076      same
+  F4 c=2^6+ulp n=0 sign=1            hw=64.0000076     (42800001)  exactRNE=64.0000076      same
+  F4 c=2^6+ulp n=1 sign=0            hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+ulp n=1 sign=1            hw=64             (42800000)  exactRNE=64              same
+  F4 c=2^6+ulp n=2 sign=0            hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+ulp n=2 sign=1            hw=64             (42800000)  exactRNE=64              same
+  F4 c=2^6+ulp n=3 sign=0            hw=64.0000153     (42800002)  exactRNE=64.0000153      same
+  F4 c=2^6+ulp n=3 sign=1            hw=63.9999962     (427fffff)  exactRNE=63.9999962      same
+  F4 c=2^6+ulp n=4 sign=0            hw=64.0000229     (42800003)  exactRNE=64.0000229      same
+  F4 c=2^6+ulp n=4 sign=1            hw=63.9999924     (427ffffe)  exactRNE=63.9999924      same
+  F4 c=2^6+ulp n=5 sign=0            hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+ulp n=5 sign=1            hw=63.9999886     (427ffffd)  exactRNE=63.9999886      same
+  F4 c=2^6+ulp n=6 sign=0            hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+ulp n=6 sign=1            hw=63.9999847     (427ffffc)  exactRNE=63.9999847      same
+  F4 c=2^6+ulp n=7 sign=0            hw=64.0000305     (42800004)  exactRNE=64.0000305      same
+  F4 c=2^6+ulp n=7 sign=1            hw=63.9999809     (427ffffb)  exactRNE=63.9999809      same
+  F4 c=2^6+ulp n=8 sign=0            hw=64.0000381     (42800005)  exactRNE=64.0000381      same
+  F4 c=2^6+ulp n=8 sign=1            hw=63.9999771     (427ffffa)  exactRNE=63.9999771      same
+  F4 c=2^6+ulp n=9 sign=0            hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+ulp n=9 sign=1            hw=63.9999733     (427ffff9)  exactRNE=63.9999733      same
+  F4 c=2^6+ulp n=10 sign=0           hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+ulp n=10 sign=1           hw=63.9999695     (427ffff8)  exactRNE=63.9999695      same
+  F4 c=2^6+ulp n=11 sign=0           hw=64.0000458     (42800006)  exactRNE=64.0000458      same
+  F4 c=2^6+ulp n=11 sign=1           hw=63.9999657     (427ffff7)  exactRNE=63.9999657      same
+  F4 c=2^6+ulp n=12 sign=0           hw=64.0000534     (42800007)  exactRNE=64.0000534      same
+  F4 c=2^6+ulp n=12 sign=1           hw=63.9999619     (427ffff6)  exactRNE=63.9999619      same
+  F4 c=2^6+ulp n=13 sign=0           hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F4 c=2^6+ulp n=13 sign=1           hw=63.999958      (427ffff5)  exactRNE=63.999958       same
+  F4 c=2^6+ulp n=14 sign=0           hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F4 c=2^6+ulp n=14 sign=1           hw=63.9999542     (427ffff4)  exactRNE=63.9999542      same
+  F4 c=2^6+ulp n=15 sign=0           hw=64.000061      (42800008)  exactRNE=64.000061       same
+  F4 c=2^6+ulp n=15 sign=1           hw=63.9999504     (427ffff3)  exactRNE=63.9999504      same
+  F4 c=2^6+ulp n=16 sign=0           hw=64.0000687     (42800009)  exactRNE=64.0000687      same
+  F4 c=2^6+ulp n=16 sign=1           hw=63.9999466     (427ffff2)  exactRNE=63.9999466      same
+  F5 c=00000001 mode=0               hw=1.40129846e-45 (00000001)  exactRNE=1.40129846e-45  same
+  F5 c=00000001 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00000001 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=80000001 mode=0               hw=-1.40129846e-45 (80000001)  exactRNE=-1.40129846e-45  same
+  F5 c=80000001 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=80000001 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00400000 mode=0               hw=5.87747175e-39 (00400000)  exactRNE=5.87747175e-39  same
+  F5 c=00400000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00400000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=007fffff mode=0               hw=1.17549421e-38 (007fffff)  exactRNE=1.17549421e-38  same
+  F5 c=007fffff mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=007fffff mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00800000 mode=0               hw=1.17549435e-38 (00800000)  exactRNE=1.17549435e-38  same
+  F5 c=00800000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00800000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=80800000 mode=0               hw=-1.17549435e-38 (80800000)  exactRNE=-1.17549435e-38  same
+  F5 c=80800000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=80800000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00000000 mode=0               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00000000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00000000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=80000000 mode=0               hw=0              (00000000)  exactRNE=0               same
+  F5 c=80000000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=80000000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00400000 mode=0               hw=5.87747175e-39 (00400000)  exactRNE=5.87747175e-39  same
+  F5 c=00400000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00400000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00180000 mode=0               hw=2.20405191e-39 (00180000)  exactRNE=2.20405191e-39  same
+  F5 c=00180000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00180000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=00c00000 mode=0               hw=1.76324153e-38 (00c00000)  exactRNE=1.76324153e-38  same
+  F5 c=00c00000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=00c00000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F5 c=03800000 mode=0               hw=7.52316385e-37 (03800000)  exactRNE=7.52316385e-37  same
+  F5 c=03800000 mode=1               hw=3.81469727e-06 (36800000)  exactRNE=3.81469727e-06  same
+  F5 c=03800000 mode=2               hw=0              (00000000)  exactRNE=0               same
+  F6 fp8 subnormals only             hw=0.00137329102  (3ab40000)  exactRNE=0.00137329102   same
+  F6 fp8 NaN in a                    hw=-nan           (ffc00a3d)  exactRNE=481             DIFF
+  F6 c=+inf                          hw=inf            (7f800000)  exactRNE=inf             same
+  F6 c=-inf                          hw=-inf           (ff800000)  exactRNE=-inf            same
+  F6 c=FLT_MAX + 2^16                hw=3.40282347e+38 (7f7fffff)  exactRNE=3.40282347e+38  same
+  F6 c=FLT_MAX + 2 * 2^16            hw=3.40282347e+38 (7f7fffff)  exactRNE=3.40282347e+38  same
+  F6 c=qNaN                          hw=nan            (7fc00000)  exactRNE=nan             same
+  F3 tiny=-0 : 0 of 240 cancel cases differ from the exact sum
+  F3 tiny=-6 : 0 of 240 cancel cases differ from the exact sum
+  F3 tiny=-12: 240 of 240 cancel cases differ from the exact sum
+  F3 tiny=-18: 240 of 240 cancel cases differ from the exact sum
+random cases: 2000000, repeat-run differences: 0
+R0 any bytes, c any                n=250000   nan/inf=0      hw==exactRNE  74.91%  hw==seqRNE  73.10%  hw==exactTRUNC  54.55%  hw==any  89.47%  within1ulp(exact)  96.69%
+R1 clustered binades               n=250000   nan/inf=0      hw==exactRNE  81.87%  hw==seqRNE  82.19%  hw==exactTRUNC  55.43%  hw==any  97.23%  within1ulp(exact)  93.95%
+R2 cancellation                    n=250000   nan/inf=0      hw==exactRNE  53.72%  hw==seqRNE  64.61%  hw==exactTRUNC  53.65%  hw==any  68.46%  within1ulp(exact)  54.74%
+R3 c = 0                           n=250000   nan/inf=0      hw==exactRNE  76.42%  hw==seqRNE  73.34%  hw==exactTRUNC  57.36%  hw==any  90.05%  within1ulp(exact)  96.94%
+R4 sparse                          n=250000   nan/inf=0      hw==exactRNE  92.45%  hw==seqRNE  93.48%  hw==exactTRUNC  73.88%  hw==any  97.17%  within1ulp(exact)  99.37%
+R5 fp8 subnormals                  n=250000   nan/inf=0      hw==exactRNE  85.27%  hw==seqRNE  85.12%  hw==exactTRUNC  75.70%  hw==any  91.82%  within1ulp(exact)  95.97%
+R6 wide range                      n=250000   nan/inf=0      hw==exactRNE  45.69%  hw==seqRNE  46.93%  hw==exactTRUNC  37.52%  hw==any  64.43%  within1ulp(exact)  79.89%
+R7 any bytes                       n=250000   nan/inf=0      hw==exactRNE  76.54%  hw==seqRNE  73.40%  hw==exactTRUNC  57.38%  hw==any  90.13%  within1ulp(exact)  96.94%
+random (all)                       n=2000000  nan/inf=0      hw==exactRNE  73.36%  hw==seqRNE  74.02%  hw==exactTRUNC  58.18%  hw==any  86.10%  within1ulp(exact)  89.31%
+random set: c subnormal in 188715 cases, hw output subnormal in 446, hw output zero in 124739
+  k-permutation trial  0 (reverse): 726 of 4000 cases change bits
+  k-permutation trial  1 (swap pairs): 0 of 4000 cases change bits
+  k-permutation trial  2 (swap halves): 726 of 4000 cases change bits
+  k-permutation trial  3 (random): 743 of 4000 cases change bits
+  k-permutation trial  4 (random): 660 of 4000 cases change bits
+  k-permutation trial  5 (random): 771 of 4000 cases change bits
+  k-permutation trial  6 (random): 728 of 4000 cases change bits
+  k-permutation trial  7 (random): 774 of 4000 cases change bits
+  k-permutation trial  8 (random): 788 of 4000 cases change bits
+  k-permutation trial  9 (random): 800 of 4000 cases change bits
+  k-permutation trial 10 (random): 712 of 4000 cases change bits
+  k-permutation trial 11 (random): 791 of 4000 cases change bits
+permutation dependence: 8219 changed outputs in total (0 = the 16-term add is order-free)
+chained: 200000 cases, chain vs two separate instructions differ in 0
+PROBE DONE
+[probe] exit=0 10:49:07
+off-trace exit=0 TIMING solo step 12.25 ms (81.6 tok/s) TIMING batch B= 1: 6.11 ms/step, 163.7 tok/s 
+opt1-trace exit=0 TIMING solo step 12.76 ms (78.4 tok/s) TIMING batch B= 1: 6.37 ms/step, 157.0 tok/s 
+off-nograph-2 exit=0 TIMING solo step 57.34 ms (17.4 tok/s) TIMING batch B= 1: 6.08 ms/step, 164.5 tok/s 
+opt1-nograph-2 exit=0 TIMING solo step 57.62 ms (17.4 tok/s) TIMING batch B= 1: 6.34 ms/step, 157.8 tok/s 
+CHASE DONE 23 s
+[win] starting radiance 2026-10-25 10:49:30
+[win] radiance answers 2026-10-25 10:49:40 (after 15 s); active
+fleetq: #5286 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
