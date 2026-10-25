@@ -6,7 +6,7 @@ set -uo pipefail
 H=$(cd "$(dirname "$0")" && pwd); OUT=${OUT:-$H/../../docs/results/2026-10-25-hg-hip-serve-gap/raw/ab}; mkdir -p "$OUT"
 LE=/opt/code/deepeval; URL=http://tatooine:8294/v1
 i=0
-for arm in base pk pkpack pkpack pk base; do
+for arm in ${ARMS:-base pk pkpack pkpack pk base}; do
   i=$((i + 1))
   case $arm in base) tree=hg-base; env="";; pk) tree=hgpk; env="";; pkpack) tree=hgpk; env="INTARSIA_PACK_PREFILL=1";; esac
   ssh tatooine "bash ~/hg-win.sh up $tree v$i-$arm $env" < /dev/null | tail -1
