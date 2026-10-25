@@ -1,0 +1,15 @@
+05:37:10 guard: [guard] radiance stopped 2026-10-25 05:37:10
+05:37:10 round 1 arm tp1: starting server
+05:37:29 round 1 arm tp1: server up, localeval
+05:38:10 round 1 arm tp1: localeval exit 0 - result file: `results/20261025-053730-adhoc-tp2speed-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261025-053730-adhoc-tp2speed-tp1-r1/result.json|
+05:38:11 round 1 arm tp2: starting server
+05:38:23 round 1 arm tp2: server up, localeval
+05:38:58 round 1 arm tp2: localeval exit 0 - result file: `results/20261025-053824-adhoc-tp2speed-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261025-053824-adhoc-tp2speed-tp2-r1/result.json|
+05:38:58 round 3 arm tp1: starting server
+05:39:14 round 3 arm tp1: server up, localeval
+05:39:55 round 3 arm tp1: localeval exit 0 - result file: `results/20261025-053914-adhoc-tp2speed-tp1-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261025-053914-adhoc-tp2speed-tp1-r3/result.json|
+05:39:55 round 3 arm tp2: starting server
+05:40:08 round 3 arm tp2: server up, localeval
+05:40:42 round 3 arm tp2: localeval exit 0 - result file: `results/20261025-054008-adhoc-tp2speed-tp2-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261025-054008-adhoc-tp2speed-tp2-r3/result.json|
+05:40:43 done, time left 2184s
+05:40:53 guard: [guard] radiance answers 2026-10-25 05:40:53 (after 15 s)
