@@ -176,3 +176,19 @@ the verify pass keeps the full head. Captured k=2, natural-v1, 256 ids. **The 25
   1.61x / 1.53x / 1.72x / 1.64x.
 - Larger N (98304, 131072) was not run; N=65536 already sits near the full-head acceptance.
 - Single runs, one prompt per size: differences of 1 to 2% are noise.
+
+## 7. Gates
+
+| gate | result |
+|---|---|
+| MTP equality, CPU backend (`tests/mtp.rs`: captured step, eager, scripted acceptance, dense head, draft equality, draft vocab) | 11 pass |
+| `intarsia-core` lib, `intarsia-models`, `intarsia-backend-hip` lib on the rebased tree | pass |
+| HIP `rows_exact` + `rows_registry` incl. MXFP4 rows | pass |
+| HIP `kernels test --quick` | 64 kernels, 353 cases, all admitted |
+| HIP 35B `batch_cuda_real` (`real_35b_*`) | pass |
+| HIP 35B `batch_cuda_real --ignored` long prompts | pass |
+| HIP `batch_recurrent --test-threads=1` | 11 pass |
+| HIP dense-8B `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step` | n/a on HIP (dense batching refused by design, same as #133); `gates.sh` runs the `real_35b` tests only |
+| HIP no-op, spec off, branch vs main (35B ids 128/1k/4k/16k) | identical md5 (section 1); re-checked against main 0b84f499 in window 6 |
+| CUDA (spark1): MTP equality + no-op vs main, core lib, `mtp`, `batch_recurrent` | pass (`raw/cuda`) |
+| Metal (endor): MTP equality + no-op vs main | pass (`raw/metal`) |
