@@ -1,6 +1,7 @@
 # Lane mx: Qwen3.8-27B MXFP4 prefill on one R9700 (HIP, gfx1201), 2026-10-25
 
-Lane mx, branch `lane-mx/27b-prefill`, rebased on origin/main 0b84f499 (started from 2c2d9941). Every GPU number comes from a fleetq slot on tatooine with
+Lane mx, branch `lane-mx/27b-prefill`, rebased on origin/main 5e9cc6da (lane mr's row-exact MXFP4 GEMVs, #145; started from 2c2d9941). Windows w1-w7 ran on
+the tree before that rebase; w8, w9 and loc3 run on the rebased tree against main 5e9cc6da. Every GPU number comes from a fleetq slot on tatooine with
 radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored and confirmed `active` after each window
 (`raw/downtime.log`). Raw output: `2026-10-25-mx-hip-27b-prefill/raw/<window>/`. Scripts: `scripts/mx/`.
 
@@ -202,6 +203,9 @@ Speed, same window (raw/w7, `generate --max-tokens 1`, tok/s): 1k 990 (main) / 1
 (+ fold opt-in); 4k 1012 / 1153 / 1435 / 2410; 16k 959 / 1084 / 1367 / 2227. The new default is +35 % / +42 % / +43 % over
 main.
 
+
+Batched decode (lane mr, max-batch up to 16 on the 27B) runs passes of at most 16 rows, below the 256 rows a peel acts
+on, so the peel never changes a decode step; w9 reruns mr's 27B batched == solo test with the head recipe.
 
 Serving: the batched scheduler picks a request's chunk once, when its first chunk runs: the solo chunk (now 4096) when no
 other sequence is decoding, 256 (`BUSY_PREFILL_CHUNK`) otherwise (`crates/intarsia-core/src/scheduler.rs` module docs).
