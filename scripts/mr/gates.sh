@@ -24,6 +24,8 @@ now() { date '+%F %T'; }
 [ -x /data/mr-target-dev/release/intarsia ] || INTARSIA_REPO=$RD INTARSIA_TARGET_VOL=$VD $D cargo build --release --locked --features hip -p intarsia-cli 2>&1 < /dev/null | tail -2
 trap 'bash $S/mr/win.sh restore' EXIT
 bash $S/mr/win.sh stop
+# fleetq counts radiance as 31 GB of the box memory, so a cargo build only fits once radiance is down: build here when asked
+[ "${GATE_BUILD:-0}" = 1 ] && bash $S/mr/build.sh both
 dev() { # dev <repo> <vol> <gpu> <cmd...>
   r=$1; v=$2; g=$3; shift 3
   INTARSIA_REPO=$r INTARSIA_TARGET_VOL=$v HIP_VISIBLE_DEVICES=$g $D "$@" < /dev/null
@@ -33,7 +35,7 @@ F='^test |^test result|FAILED|panicked|^error|G-B|SKIPPED'
 if want S1; then
 echo "[gates] S1 timing $(now)"
 dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_exact -- --ignored --nocapture timing_mxfp4_rows 2>&1 \
-  | grep -aE "^TIME mxfp4|^test |panicked|^error" | tee "$O/timing-mxfp4.log"
+  | grep -aE "^TIME |^test |panicked|^error" | tee "$O/timing-mxfp4.log"
 fi
 
 noop() { # noop <tag> <repo> <vol> <gpu>
