@@ -5,6 +5,7 @@
 # docs/results/2026-10-25-tp2-hip/raw/<W>/ (dumps excluded) and appends the window to raw/downtime.log.
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --expect 40 --mem 60 --label "tp2 <W>" -- env W=w1 scripts/tp2-hip/window.sh
 #   (both cards, ONE job; the radiance unit serves TP=2 over both)
+# XENV="D=stack B=base" passes extra variables to the stages script.
 # Lane cap (lane tp2 brief, 2026-10-25): at most 45 min of radiance downtime per window, so CAP (stages) + restore (<= 240 s) <= 45 min.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
@@ -15,7 +16,7 @@ mkdir -p "$RAW/$W"
 CAP=${CAP:-2400}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/tp2' < /dev/null
 scp -q "$S"/lib.sh "$S"/stages-*.sh tatooine:tp2/
-ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
+ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP ${XENV:-} bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/tp2/out/$W; rm -rf "$O"; mkdir -p "$O"
 now() { date '+%F %T'; }
