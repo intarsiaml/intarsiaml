@@ -966,6 +966,49 @@ mod tests {
         assert_eq!(k.scratch_bytes(&sh(1, 16, 2, 256, 16, 32)), 256 + 256);
     }
 
+    /// Lane l7: `moe_block_bf16_grouped` serves exactly the rows the fused rows block leaves out (5..=16 at any K <= 8), is on unless
+    /// INTARSIA_HIP_MOE_GROUPED=0 (or INTARSIA_HIP_MOE_BLOCK=0), is a `rows_exact` kernel, and its scratch is the experts' plus four small regions.
+    #[test]
+    fn moe_block_grouped_serves_5_to_16_rows_only() {
+        assert!(moe_grouped_from(None));
+        assert!(!moe_grouped_from(Some("0")));
+        assert!(moe_grouped_from(Some("1")));
+        let ks = all();
+        let g = ks.iter().find(|k| k.name == "moe_block_bf16_grouped").unwrap();
+        let r = ks.iter().find(|k| k.name == "moe_block_bf16_rows").unwrap();
+        assert!(g.rows_exact && r.rows_exact);
+        let sh = |m: usize, e: usize, top_k: usize, h: usize, i: usize, is: usize| ShapeInfo {
+            m,
+            k: h,
+            n: i,
+            head_dim: is,
+            experts: e,
+            top_k,
+            act: Some(DType::Bf16),
+            weight: Some(DType::U8),
+            out: Some(DType::Bf16),
+            ..Default::default()
+        };
+        let on = moe_block_enabled() && moe_grouped_enabled();
+        for m in 0..=20usize {
+            let s = sh(m, 256, 8, 2048, 512, 512);
+            assert_eq!(moe_block_grouped_shape_ok(&s), (5..=16).contains(&m), "m={m}");
+            assert_eq!(g.accepts(&s), (5..=16).contains(&m) && on, "m={m}");
+            // the two rows blocks never both take a shape
+            assert!(!(moe_block_rows_shape_ok(&s) && moe_block_grouped_shape_ok(&s)), "m={m}");
+        }
+        assert!(moe_block_grouped_shape_ok(&sh(5, 16, 4, 128, 32, 48)));
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 16, 9, 128, 32, 48)), "K > 8");
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 1024, 8, 2048, 512, 512)), "E > 512");
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 256, 8, 2048, 512, 520)), "IS % 16");
+        // scratch: top-k weights f32 [T, K], ids i32 [T, K], routed bf16 [T, H], shared activation bf16 [T, IS], then the experts' scratch
+        let s = sh(16, 256, 8, 2048, 512, 512);
+        let r256 = |x: usize| (x + 255) & !255;
+        let experts = r256(128 * 4) + r256(257 * 4) + r256(257 * 4) + r256(128 * 512 * 2) + r256(128 * 2048 * 2);
+        assert_eq!(g.scratch_bytes(&s), r256(128 * 4) * 2 + r256(16 * 2048 * 2) + r256(16 * 512 * 2) + experts);
+        assert_eq!(moe_block_grouped_scratch(&s), g.scratch_bytes(&s));
+    }
+
     #[test]
     fn moe_v3_is_opt_in() {
         assert!(!moe_v3_from(None));
