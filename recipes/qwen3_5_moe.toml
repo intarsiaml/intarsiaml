@@ -93,7 +93,7 @@ prefill_chunk = 4096
 [accuracy]
 chat_turns = "chatml"
 # tensor parallelism (`--tp` > 1) gate (coordinator, 2026-10-25, docs/decisions/LOG.md): mutants killed through a direct partial-sum
-# check, tp=2 run-to-run ids identical, KL(tp vs vLLM) <= KL(tp1 vs vLLM) x 1.02 mean / x 1.10 per prompt (scripts/tp2-hip/tp-gate.py);
+# check, tp=2 run-to-run ids identical, KL(tp vs vLLM) <= KL(tp1 vs vLLM) x 1.02 mean, per prompt x max(1.10, 1.1 x the worst tp=1 control variant in that cell) (scripts/tp2-hip/tp-gate.py);
 # KL(tp vs tp1) is reported, not gating. `tp_ref_noise_factor` (the tolerance of `accuracy --self-golden <tp1 dump> --self-vs-ref-noise`
 # for a `--tp` > 1 run) is therefore deliberately UNSET: HIP tp=2 measures 1.66x the vLLM re-run noise there (CUDA tp=2 1.10x), which
 # does not separate it from a 0.3 % partial-scale bug (docs/results/2026-10-25-tp2-hip.md).
