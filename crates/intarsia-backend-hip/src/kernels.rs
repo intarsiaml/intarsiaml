@@ -543,6 +543,9 @@ mod tests {
     /// nvfp4 one) and nothing else, so prefill and every other row count keep the unfused ops.
     #[test]
     fn phase1_fold_selection_is_pinned() {
+        if crate::quantmoe::wmma_rows_enabled() {
+            return; // main's pins: with the WMMA knob the folds follow the table (quantmoe::wmma_*_selection_is_pinned)
+        }
         let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
         let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
         let p = |op: Op, s: ShapeInfo| pick(op, &s);

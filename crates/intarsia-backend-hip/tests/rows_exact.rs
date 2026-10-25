@@ -410,7 +410,11 @@ fn wmma_fp8_switch_from_the_gemv_is_not_bitwise() {
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv_v2", "matmul_fp8_wmma_rows", &[w, sc], &x_rows, n, DType::Bf16, "switch fp8 W8A8 gemv -> wmma", 16)
     }));
-    assert!(r.is_err(), "the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all");
+    let msg = match r {
+        Ok(()) => panic!("the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all"),
+        Err(p) => p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default(),
+    };
+    assert!(msg.contains("G-B FAIL"), "the switch must fail the bitwise comparison, not die some other way: {msg}");
 }
 
 /// The same for the bf16 router/gate kind (INTARSIA_HIP_WMMA_TABLE=bf16=lo-16).
@@ -424,7 +428,11 @@ fn wmma_bf16_switch_from_the_gemv_is_not_bitwise() {
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         gb_matmul(&rig, Op::Matmul, "matmul_bf16_gemv", "matmul_bf16_wmma_rows", &[w], &x_rows, n, DType::Bf16, "switch bf16 gemv -> wmma", 16)
     }));
-    assert!(r.is_err(), "the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all");
+    let msg = match r {
+        Ok(()) => panic!("the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all"),
+        Err(p) => p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default(),
+    };
+    assert!(msg.contains("G-B FAIL"), "the switch must fail the bitwise comparison, not die some other way: {msg}");
 }
 
 /// The family agrees with the dequantised reference (the cpu `ref` arithmetic) as well as the GEMV does: rel_l2 against the f64 sum of

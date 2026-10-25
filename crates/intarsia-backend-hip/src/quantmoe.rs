@@ -698,6 +698,26 @@ mod tests {
         best.expect("a MatmulFp8 kernel for every shape").name.clone()
     }
 
+    /// With INTARSIA_HIP_WMMA_ROWS=1 (run the suite with it set; a no-op otherwise): the decode shapes (M 1..=4, the plain
+    /// registration; the batched rows twins are `rows_exact` and picked by `exact_rows`) take `matmul_fp8_wmma` exactly where
+    /// the table in force says so, per kind (W8A8 / W8A16), and the GEMV where it does not.
+    #[test]
+    fn wmma_fp8_selection_is_pinned() {
+        let Some(t) = wmma_table() else { return };
+        let ks = all();
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (2048, 4096), (512, 2048)] {
+            for a8 in [false, true] {
+                for m in 1..=4 {
+                    let mut s = fp8_shape(m, n, k);
+                    s.fp8_static_act = a8;
+                    let kind = if a8 { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 };
+                    let want = if t.takes(kind, m) { "matmul_fp8_wmma" } else { "matmul_fp8_gemv_v2" };
+                    assert_eq!(pick(&ks, &s), want, "m={m} n={n} k={k} a8={a8}");
+                }
+            }
+        }
+    }
+
     /// The f8 default (round 5): on when INTARSIA_HIP_FP8_F8 is unset or anything but "0"; "0" is the kill switch.
     #[test]
     fn fp8_f8_is_the_default() {
@@ -714,6 +734,9 @@ mod tests {
     /// reference of tests/fp8_mma_v2.rs) but is never chosen.
     #[test]
     fn fp8_selection_is_pinned() {
+        if wmma_rows_enabled() {
+            return; // main's pins; `wmma_fp8_selection_is_pinned` pins the table's selection
+        }
         let ks = all();
         let gemm = if fp8_f8_enabled() { "matmul_fp8_mma_f8" } else { "matmul_fp8_mma_v2" };
         let f8 = ks.iter().find(|k| k.name == "matmul_fp8_mma_f8").unwrap();
