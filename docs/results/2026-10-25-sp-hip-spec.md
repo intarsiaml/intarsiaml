@@ -94,3 +94,33 @@ compared as bytes against the one-row GEMV; `raw/hip/w2-rows-mxfp4.log`).
 All md5 equal to spec off. A pass costs 9.9 / 13.2 / 16.0 ms at k=1 / 2 / 3 (plain step 6.0 ms): each extra row costs about 3 ms
 because the MoE verify touches more experts. The best k depends on the text (1k: k=2; 4k: k=3, +7%), so an acceptance-driven
 draft length would beat any fixed k by a few percent on the 35B; not implemented.
+
+## 4. Eager verify fix, host round trip, per-op tables (window 3, fleetq #5095)
+
+**Eager verify with per-row attention is lossless on both models.** Graph capture off (`INTARSIA_SPEC_GRAPH=0`), k=2, 256 ids:
+27B md5 equals spec off at 128 / 1k / 4k / 16k (abcdf0cf, 3592ef43, 7755ec5a, b1b0bea4; the 4k and 16k cells differed before the
+fix); 35B md5 equals window 1 at all four sizes (ce656b29, 419d4320, 4963646e, 62089f5c). Eager decode, tok/s: 27B 47.5 / 45.1 /
+50.9 / 45.5 (captured 47.7 / 45.6 / 51.6 / 46.1), 35B 185.3 / 192.5 / 199.8 / 155.7 (captured 190.8 / 199.1 / 205.7 / 159.9).
+
+**The host round trip is not worth removing.** `INTARSIA_SPEC_TRACE=1` prints, per captured step, the replay-and-download time and the
+host time since the previous step ended (acceptance, rollback, emission, stop checks): 27B 53.5 ms per step, 0.004 ms gap
+(104 steps); 35B 13.1 ms per step, 0.008 ms gap (97 steps). Whole-run decode time per pass is 53.8 ms (27B) and 13.2 ms (35B),
+so everything outside the graph replay is 0.3 ms and 0.1 ms per pass: under 1%, against the 5% bar for device-side acceptance.
+Not implemented. (The upload of the position table and the download of the outputs are inside the step time; they are a few
+microseconds of copies next to a 13 to 53 ms graph.)
+
+**Where the 27B pass goes** (eager k=2 run with the profiler on, `--op-table`, 1k prompt; the profiled run is slower than the
+captured one, 35.5 tok/s, so read shares not milliseconds):
+
+| op | share |
+|---|---|
+| matmul_mxfp4 + matmul_mxfp4_pair (all dense projections, main and head) | 59.3% |
+| logits (lm_head: 104 verify calls of 3 rows, 208 draft calls of 1 row) | 16.2% |
+| matmul (bf16: the head layer's projections) | 6.2% |
+| gdn_conv_delta | 5.4% |
+| rmsnorm_add | 4.2% |
+| attn_decode (one call per row) | 2.5% |
+| rest | 6.2% |
+
+The lm_head is swept 3 times per pass (two drafts and the verify rows); the drafts alone are about 11% of the pass. 35B shares:
+moe_experts 19.8%, matmul_fp8 19.1%, matmul (bf16) 12.3%, matmul_nvfp4 12.0%, gdn_conv_delta 8.6%.
