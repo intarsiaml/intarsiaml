@@ -390,6 +390,9 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
+    /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
+    prefill_peel: usize,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
     /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
     /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
@@ -464,6 +467,11 @@ impl Model {
     /// [`crate::scheduler::next_prefill_chunk_tm`].
     pub fn tail_merge(&self) -> usize {
         self.tail_merge
+    }
+
+    /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
+    pub fn prefill_peel(&self) -> usize {
+        self.prefill_peel
     }
 
     pub fn load(
@@ -889,6 +897,12 @@ impl Model {
             crate::scheduler::parse_tail_merge(std::env::var(crate::scheduler::TAIL_MERGE_ENV).ok().as_deref())?,
             chunk,
         );
+        // the recipe's prefill tail peel for this backend, `INTARSIA_PREFILL_PEEL` over it (0 = off)
+        let prefill_peel =
+            match crate::scheduler::parse_peel(std::env::var(crate::scheduler::PEEL_ENV).ok().as_deref())? {
+                Some(v) => v,
+                None => recipe.resolve_prefill_peel(b.name()).0,
+            };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
         let mt = chunk + tail_merge;
         let esz = act.size_bytes();
@@ -1088,6 +1102,7 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
+            prefill_peel,
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             spec_cost,
@@ -1742,13 +1757,15 @@ impl Model {
     /// `ids` cut into forward passes of at most `max_tokens` rows, by the engine's prefill rule
     /// ([`crate::scheduler::next_prefill_chunk`]): on a backend that avoids a 1-row tail (Metal) a `max_tokens + 1`
     /// remainder runs as `(max_tokens - 1, 2)`, so accuracy tooling scores the bits serving produces. Recurrent states keep
-    /// the plain split, as in the engine.
+    /// the plain split, as in the engine. With the prefill tail peel ([`Model::prefill_peel`]) a pass whose rows mod 256
+    /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
         let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
         let mut pos = 0;
         while pos < ids.len() {
             let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
+            let n = crate::scheduler::peel_tail(n, self.prefill_peel);
             out.push(&ids[pos..pos + n]);
             pos += n;
         }

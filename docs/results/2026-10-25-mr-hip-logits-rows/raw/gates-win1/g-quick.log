@@ -1,0 +1,5 @@
+-- kernels test --quick
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+64 kernels, 353 cases in 3.0s

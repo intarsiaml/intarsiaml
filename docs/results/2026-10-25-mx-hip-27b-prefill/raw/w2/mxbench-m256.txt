@@ -1,0 +1,11 @@
+M = 256, W4A4, bf16 out, 20 reps over 4 weight copies
+shape                     N      K  mma TFLOP/s   f8 TFLOP/s  speedup bitwise
+mlp gate / up         17408   5120         27.2         18.7    0.69x same (0 differ)
+mlp down               5120  17408         31.0         17.7    0.57x same (0 differ)
+gdn in_proj_qkv       10240   5120         46.1         26.2    0.57x same (0 differ)
+gdn in_proj_z          6144   5120         48.3         24.7    0.51x same (0 differ)
+gdn out / attn o       5120   6144         42.8         21.5    0.50x same (0 differ)
+attn q + gate         12288   5120         52.5         28.0    0.53x same (0 differ)
+attn k / v             1024   5120         14.4          9.4    0.65x same (0 differ)
+gdn in_proj_a / b        48   5120          0.7          0.5    0.70x same (0 differ)
+whole-model GEMM time per 256-token chunk: mma 409.5 ms (30.4 TFLOP/s), f8 658.1 ms (18.9 TFLOP/s)

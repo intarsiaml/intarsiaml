@@ -1,0 +1,49 @@
+[window] job 5243 w8; stopping radiance 2026-10-25 07:14:57
+[window] radiance stopped 2026-10-25 07:15:01
+07:15:01 w8 start; budget 2460 s; base 5e9cc6d_code-tree=f4af44d0c8c2_dirty=no dev 584e4c1_code-tree=f0c69c5ebed2_dirty=no
+07:15:07 plan-base-27 exit 0: 
+07:15:09 plan-dev-27 exit 0: 
+07:15:09 plan 27B main vs head default: ops[18].scratch_bytes: 8912912 -> 142606352; prefill_chunk: 256 -> 4096; prefill_chunk_source: default -> recipe qwen3_5_vl, hip; prefill_peel: None -> 16; probed_sizes[27]: None -> 257; probed_sizes[28]: None -> 511; probed_sizes[29]: None -> 512; probed_sizes[30]: None -> 513; probed_sizes[31]: None -> 1023; probed_sizes[32]: None -> 1024; probed_sizes[33]: None -> 1025; probed_sizes[34]: None -> 2047; probed_sizes[35]: None -> 2048; probed_sizes[36]: None -> 2049; probed_sizes[37]: None -> 4095; probed_sizes[38]: None -> 4096; scratch_bytes: 8912912 -> 142606352
+07:15:19 ids-hd-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 149 ms (80.7 tok/s) | decode 7695 ms (33.14 tok/s)|
+07:15:19 ids hd-short md5 2086b6a4
+07:15:28 ids-hb-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 186 ms (64.5 tok/s) | decode 7703 ms (33.11 tok/s)|
+07:15:28 ids hb-short md5 2086b6a4
+07:15:28 SAME 27B short ids head default (no flags) vs main (ids-hd-short.ids == ids-hb-short.ids)
+07:15:41 ids-hd-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 3139 ms (1404.4 tok/s) | decode 7875 ms (32.38 tok/s)|
+07:15:41 ids hd-4k md5 ef88d237
+07:15:55 ids-hb-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4477 ms (984.6 tok/s) | decode 7882 ms (32.35 tok/s)|
+07:15:55 ids hb-4k md5 ef88d237
+07:15:55 SAME 27B 4k ids head default (no flags) vs main (ids-hd-4k.ids == ids-hb-4k.ids)
+07:18:05 qual-35g exit 0: 
+07:18:05 qual 35g: /home/josef/mx/out/w8/qual-35g.err:[qualify     77s] == acc-short [short accuracy against a golden]|/home/josef/mx/out/w8/qual-35g.err:[qualify     85s] acc-short: PASS in 7.8s (prefill top-1 98.61% KL 7.63e-3; decode top-1 98.75% KL 1.18e-2)|/home/josef/mx/out/w8/qual-35g.err:[qualify    118s] acc-
+07:23:40 acc-dev-peel16 exit 1 [INTARSIA_PREFILL_PEEL=16]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+07:23:56 accg-dev16 exit 1 [INTARSIA_PREFILL_PEEL=16]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF|Error: accuracy gate FAILED|
+07:24:06 ids-dev16-525 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 525 tokens|finish=length prompt=525 (cached 0) completion=256 | prefill 555 ms (946.7 tok/s) | decode 7745 ms (32.92 tok/s)|
+07:24:06 ids dev16-525 md5 f74f4ebc
+07:24:16 ids-base-525 exit 0: prompt: 525 tokens|finish=length prompt=525 (cached 0) completion=256 | prefill 692 ms (758.4 tok/s) | decode 7749 ms (32.91 tok/s)|
+07:24:16 ids base-525 md5 f74f4ebc
+07:24:16 SAME 27B 525 ids dev (4096 + peel 16) vs main (256) (ids-dev16-525.ids == ids-base-525.ids)
+07:24:26 ids-dev16-529 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 529 tokens|finish=length prompt=529 (cached 0) completion=256 | prefill 561 ms (943.0 tok/s) | decode 7745 ms (32.92 tok/s)|
+07:24:26 ids dev16-529 md5 cd3b2ff2
+07:24:36 ids-base-529 exit 0: prompt: 529 tokens|finish=length prompt=529 (cached 0) completion=256 | prefill 686 ms (771.2 tok/s) | decode 7747 ms (32.92 tok/s)|
+07:24:36 ids base-529 md5 cd3b2ff2
+07:24:36 SAME 27B 529 ids dev (4096 + peel 16) vs main (256) (ids-dev16-529.ids == ids-base-529.ids)
+07:24:52 ids-dev16-8459 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 8459 tokens|finish=length prompt=8459 (cached 0) completion=256 | prefill 6155 ms (1374.3 tok/s) | decode 8004 ms (31.86 tok/s)|
+07:24:52 ids dev16-8459 md5 03c52b7d
+07:25:11 ids-base-8459 exit 0: prompt: 8459 tokens|finish=length prompt=8459 (cached 0) completion=256 | prefill 8671 ms (975.5 tok/s) | decode 8006 ms (31.85 tok/s)|
+07:25:11 ids base-8459 md5 03c52b7d
+07:25:11 SAME 27B 8459 ids dev (4096 + peel 16) vs main (256) (ids-dev16-8459.ids == ids-base-8459.ids)
+07:25:23 ids-dev16-4109 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 4109 tokens|finish=length prompt=4109 (cached 0) completion=256 | prefill 2976 ms (1380.8 tok/s) | decode 7880 ms (32.36 tok/s)|
+07:25:23 ids dev16-4109 md5 f96ae492
+07:25:37 ids-base-4109 exit 0: prompt: 4109 tokens|finish=length prompt=4109 (cached 0) completion=256 | prefill 4206 ms (977.0 tok/s) | decode 7883 ms (32.35 tok/s)|
+07:25:37 ids base-4109 md5 f96ae492
+07:25:37 SAME 27B 4109 ids dev (4096 + peel 16) vs main (256) (ids-dev16-4109.ids == ids-base-4109.ids)
+07:25:40 pf-peel16-1024 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 770 ms (1329.9 tok/s) | decode 0 ms (0.00 tok/s)|
+07:25:44 pf-peel16-4096 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 2868 ms (1428.0 tok/s) | decode 0 ms (0.00 tok/s)|
+07:25:58 pf-peel16-16384 exit 0 [INTARSIA_PREFILL_PEEL=16]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 12003 ms (1365.0 tok/s) | decode 0 ms (0.00 tok/s)|
+07:26:03 pmcbench lds (SQ_LDS_BANK_CONFLICT SQ_LDS_IDX_ACTIVE): no csv: whole-model GEMM ms per 4096-token chunk:     3412.7     2525.8     3077.4     2584.6     2493.8     5444.1     2715.8     2793.9     2865.6     3045.7     4620.2     4132.9    12940.5    13157.2    1
+07:26:07 pmcbench valu (SQ_INSTS_VALU SQ_INSTS_LDS SQ_WAIT_INST_LDS): csv
+07:26:07 w8 done; 1794 s left
+[window] stages done 2026-10-25 07:26:07, exit 0
+[window] starting radiance 2026-10-25 07:26:07
+[window] radiance answers 2026-10-25 07:26:27 (after 25 s); active

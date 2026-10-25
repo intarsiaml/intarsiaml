@@ -1,0 +1,62 @@
+[window] job 5132 w4; stopping radiance 2026-10-25 03:29:20
+[window] radiance stopped 2026-10-25 03:29:24
+03:29:24 w4 start; budget 2340 s; base 2c2d994_code-tree=9c5d8a7cbe1b_dirty=no dev fb7341c_code-tree=6d0388836b17_dirty=no
+03:29:32 test mxfp4-v2 exit 0:       1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.89s|
+03:29:34 test mxfp4-fold exit 0:       1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s|
+03:29:49 mxbench m4096 exit 0: M = 4096, W4A4, bf16 out, 10 reps over 4 weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold only)|whole-model GEMM ms per 4096-token chunk:     3274.7     2402.1     2911.3     2501.4     2398.6     5012.6     2636.4     2678.6     2757.7     2917.9     4623.4     4054.9    13061.3    13533.4    12310.7     1273.5|whole-model TFLOP/s:                              60.9       83.0       68.5       79.7       83.2       39.8       75.7       74.5       72.3       68.4       43.1       49.2       15.3       14.7       16.2      156.6|
+03:29:52 mxbench m1024 exit 0: M = 1024, W4A4, bf16 out, 10 reps over 4 weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold only)|whole-model GEMM ms per 1024-token chunk:      843.1      647.6      729.6      680.8      644.8     1407.6      688.1      693.7      688.9      711.1     1016.2     1076.9     2056.9     3066.6     1798.8      376.4|whole-model TFLOP/s:                              59.2       77.0       68.4       73.3       77.3       35.4       72.5       71.9       72.4       70.1       49.1       46.3       24.2       16.3       27.7      132.5|
+03:29:54 mxbench m256 exit 0: M = 256, W4A4, bf16 out, 10 reps over 4 weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold only)|whole-model GEMM ms per 256-token chunk:      233.3      191.1      194.0      218.0      206.5      441.5      229.6      231.3      190.7      191.6      246.6      314.3      565.0      783.0      499.6      109.2|whole-model TFLOP/s:                              53.4       65.2       64.3       57.2       60.4       28.2       54.3       53.9       65.4       65.1       50.6       39.7       22.1       15.9       25.0      114.1|
+03:32:12 acc-dev-c256 exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+03:34:20 acc-dev-c4096 exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+03:34:36 accg-v2 exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF|Error: accuracy gate FAILED|
+03:34:52 accg-fold exit 1 [INTARSIA_HIP_MXFP4_FOLD=1]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF|Error: accuracy gate FAILED|
+03:35:02 ids-v2-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 144 ms (83.4 tok/s) | decode 7731 ms (32.98 tok/s)|
+03:35:02 ids v2-short md5 2086b6a4
+03:35:12 ids-base-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 192 ms (62.6 tok/s) | decode 7737 ms (32.96 tok/s)|
+03:35:12 ids base-short md5 2086b6a4
+03:35:12 SAME 27B short ids v2 vs main (ids-v2-short.ids == ids-base-short.ids)
+03:35:25 ids-v2-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 3946 ms (1117.2 tok/s) | decode 7900 ms (32.28 tok/s)|
+03:35:25 ids v2-4k md5 ef88d237
+03:35:40 ids-base-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4512 ms (976.8 tok/s) | decode 7901 ms (32.27 tok/s)|
+03:35:40 ids base-4k md5 ef88d237
+03:35:40 SAME 27B 4k ids v2 vs main (ids-v2-4k.ids == ids-base-4k.ids)
+03:36:05 ids-v2-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 15154 ms (1081.1 tok/s) | decode 8288 ms (30.77 tok/s)|
+03:36:05 ids v2-16k md5 addfc6d1
+03:36:32 ids-base-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 17124 ms (956.8 tok/s) | decode 8286 ms (30.78 tok/s)|
+03:36:32 ids base-16k md5 addfc6d1
+03:36:32 SAME 27B 16k ids v2 vs main (ids-v2-16k.ids == ids-base-16k.ids)
+03:36:39 ids-v2-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 64 ms (187.8 tok/s) | decode 1548 ms (164.72 tok/s)|
+03:36:39 ids v2-35-short md5 7f8d5c3b
+03:36:43 ids-base-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 57 ms (210.7 tok/s) | decode 1544 ms (165.21 tok/s)|
+03:36:43 ids base-35-short md5 7f8d5c3b
+03:36:43 SAME 35B short ids v2 vs main (ids-v2-35-short.ids == ids-base-35-short.ids)
+03:36:48 ids-v2-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 483 ms (9117.0 tok/s) | decode 1591 ms (160.29 tok/s)|
+03:36:48 ids v2-35-4k md5 1c4f85d0
+03:36:53 ids-base-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 484 ms (9113.0 tok/s) | decode 1587 ms (160.66 tok/s)|
+03:36:53 ids base-35-4k md5 1c4f85d0
+03:36:53 SAME 35B 4k ids v2 vs main (ids-v2-35-4k.ids == ids-base-35-4k.ids)
+03:36:56 pf-c256-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 1024 ms (999.6 tok/s) | decode 0 ms (0.00 tok/s)|
+03:36:59 pf-v2-c256-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 908 ms (1127.6 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:01 pf-fold-c256-1024 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 553 ms (1851.1 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:07 pf-c256-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 4026 ms (1017.4 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:12 pf-v2-c256-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3534 ms (1159.1 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:16 pf-fold-c256-4096 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 2167 ms (1890.5 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:35 pf-c256-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 17051 ms (960.9 tok/s) | decode 0 ms (0.00 tok/s)|
+03:37:52 pf-v2-c256-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 15097 ms (1085.2 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:03 pf-fold-c256-16384 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 9558 ms (1714.2 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:06 pf-c4096-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 959 ms (1067.3 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:09 pf-v2-c4096-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 767 ms (1335.1 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:11 pf-fold-c4096-1024 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 494 ms (2073.0 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:16 pf-c4096-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3650 ms (1122.1 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:21 pf-v2-c4096-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 2846 ms (1439.4 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:24 pf-fold-c4096-4096 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 1692 ms (2421.4 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:41 pf-c4096-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 15128 ms (1083.0 tok/s) | decode 0 ms (0.00 tok/s)|
+03:38:55 pf-v2-c4096-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 11975 ms (1368.2 tok/s) | decode 0 ms (0.00 tok/s)|
+03:39:04 pf-fold-c4096-16384 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 7351 ms (2228.7 tok/s) | decode 0 ms (0.00 tok/s)|
+03:39:10 prof v2-c256-4096: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3575 ms (1145.7 tok/s) | decode 1 ms (0.00 tok/s)| kernels in main burst: 24391 (of 25346), span 3577.8 ms, kernel time 3464.4 ms, idle 3.2 %
+03:39:15 prof v2-c4096-4096: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 2852 ms (1436.1 tok/s) | decode 0 ms (0.00 tok/s)| kernels in main burst: 2554 (of 3509), span 2860.1 ms, kernel time 2735.2 ms, idle 4.4 %
+03:39:18 prof fold-c4096-4096 [INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 1700 ms (2409.5 tok/s) | decode 0 ms (0.00 tok/s)| kernels in main burst: 3546 (of 4501), span 1699.6 ms, kernel time 1581.2 ms, idle 7.0 %
+03:39:18 w4 done; 1746 s left
+[window] stages done 2026-10-25 03:39:18, exit 0
+[window] starting radiance 2026-10-25 03:39:18
+[window] radiance answers 2026-10-25 03:39:38 (after 25 s); active

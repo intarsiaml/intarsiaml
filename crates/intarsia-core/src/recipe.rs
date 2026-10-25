@@ -282,12 +282,14 @@ impl Default for Defaults {
 pub const DEFAULT_PREFILL_CHUNK: usize = 256;
 
 /// Performance defaults a recipe may carry: `[tuning] prefill_chunk = N` for every backend, `[tuning.<backend>]`
-/// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value.
+/// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value. Same for
+/// `prefill_peel` ([`Recipe::resolve_prefill_peel`], [`crate::scheduler::peel_tail`]).
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Tuning {
     pub prefill_chunk: Option<usize>,
     /// Default of `--mtp-draft-vocab` for every backend (a multiple of 8; unset or 0: the full head). Measured defaults only.
     pub mtp_draft_vocab: Option<usize>,
+    pub prefill_peel: Option<usize>,
     #[serde(flatten)]
     pub backends: BTreeMap<String, BackendTuning>,
 }
@@ -305,6 +307,10 @@ pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
     /// Default of `--mtp-draft-vocab` for this backend (see [`Tuning::mtp_draft_vocab`]).
     pub mtp_draft_vocab: Option<usize>,
+    /// Tail peel in rows (0 = off): a forward pass longer than [`DEFAULT_PREFILL_CHUNK`] rows whose length mod
+    /// [`DEFAULT_PREFILL_CHUNK`] is `1..=prefill_peel` runs those last rows as their own pass, as the default chunk
+    /// schedule would ([`crate::scheduler::peel_tail`]).
+    pub prefill_peel: Option<usize>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -364,6 +370,19 @@ impl Recipe {
             return DraftVocab { value, source: format!("recipe {family}, base") };
         }
         DraftVocab { value: 0, source: "default".into() }
+    }
+
+    /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
+    /// base value, then 0 (off). `(rows, source)`.
+    pub fn resolve_prefill_peel(&self, backend: &str) -> (usize, String) {
+        let family = &self.model.family;
+        if let Some(v) = self.tuning.backends.get(backend).and_then(|b| b.prefill_peel) {
+            return (v, format!("recipe {family}, {backend}"));
+        }
+        if let Some(v) = self.tuning.prefill_peel {
+            return (v, format!("recipe {family}, base"));
+        }
+        (0, "default".into())
     }
 }
 
@@ -479,6 +498,16 @@ impl Recipe {
         let dv = self.tuning.mtp_draft_vocab.iter().chain(self.tuning.backends.values().filter_map(|b| b.mtp_draft_vocab.as_ref()));
         if dv.into_iter().any(|&n| n % 8 != 0) {
             return Err(Error::model("recipe [tuning] mtp_draft_vocab must be a multiple of 8 (0: the full head)"));
+        }
+        let peels = self
+            .tuning
+            .prefill_peel
+            .iter()
+            .chain(self.tuning.backends.values().filter_map(|b| b.prefill_peel.as_ref()));
+        if peels.into_iter().any(|&p| p >= DEFAULT_PREFILL_CHUNK) {
+            return Err(Error::model(format!(
+                "recipe [tuning] prefill_peel must be below {DEFAULT_PREFILL_CHUNK} (rows of a tail)"
+            )));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

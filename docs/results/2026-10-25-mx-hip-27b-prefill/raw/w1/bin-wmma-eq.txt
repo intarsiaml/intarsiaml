@@ -1,0 +1,2 @@
+clang++: error: no such file or directory: 'wmma_eq.hip'
+failed to execute:/opt/rocm-7.2.4/lib/llvm/bin/clang++  --offload-arch=gfx1201 --driver-mode=g++ --hip-link  -O3 -o "wmma_eq" -x hip wmma_eq.hip

@@ -1,0 +1,34 @@
+...
+
+## 4. Model recipes and the block library
+
+A recipe is TOML:
+
+```toml
+[recipe]
+name = "qwen3.5-35b-a3b"
+arch = "qwen3_5_moe"
+config = "config.json"
+weights = "weights.safetensors"
+chat_template = "chat.jinja"
+block_scope_fused = true
+
+[blocks]
+decoder = "decoder"
+decoder.layers = 40
+decoder.pattern = ["gdn", "attn", "moe"]      # per-layer pattern from config
+decoder.pattern_by_layer = "layer_types"        # map config layer_types to pattern entries
+
+[blocks.decoder]
+hidden = 2048
+kv_heads = 8
+head_dim = 256
+moe_experts = 256
+moe_topk = 8
+moe_shared_experts = 1
+moe_intermediate = 768
+dense_intermediate = 512
+gdn_linear_factor = 2
+gdn_head_dim = 128
+attn_sliding = 1024
+attn_window_pattern =

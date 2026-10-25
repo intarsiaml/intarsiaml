@@ -1,0 +1,6 @@
+fleetq: #5316 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/metal-ws.sh
+head c5d4e9b5 11:20:08
+cargo test exit 0
+test results: passed 914 failed 0
+== done 11:23:31
+fleetq: #5316 done (exit 0)

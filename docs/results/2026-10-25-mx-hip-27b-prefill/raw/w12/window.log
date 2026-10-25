@@ -1,0 +1,40 @@
+[window] job 5322 w12; stopping radiance 2026-10-25 12:02:20
+[window] radiance stopped 2026-10-25 12:02:23
+12:02:23 w12 start; budget 2460 s; base 5241377_code-tree=326167668388_dirty=no dev edfe6c9_code-tree=69f9ac5e6268_dirty=no
+12:02:25 plan-base-27 exit 0: 
+12:02:27 plan-dev-27 exit 0: 
+12:02:27 SAME plan show 27 main vs head (plan-base-27.out == plan-dev-27.out)
+12:02:37 ids-dev-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 148 ms (81.0 tok/s) | decode 7695 ms (33.14 tok/s)|
+12:02:37 ids dev-27-short md5 2086b6a4
+12:02:47 ids-base-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 188 ms (63.9 tok/s) | decode 7706 ms (33.09 tok/s)|
+12:02:47 ids base-27-short md5 2086b6a4
+12:02:47 SAME 27B short ids head vs main (ids-dev-27-short.ids == ids-base-27-short.ids)
+12:03:01 ids-dev-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 3892 ms (1132.7 tok/s) | decode 7876 ms (32.38 tok/s)|
+12:03:01 ids dev-27-4k md5 ef88d237
+12:03:15 ids-base-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4485 ms (982.9 tok/s) | decode 7885 ms (32.34 tok/s)|
+12:03:15 ids base-27-4k md5 ef88d237
+12:03:15 SAME 27B 4k ids head vs main (ids-dev-27-4k.ids == ids-base-27-4k.ids)
+12:03:23 plan-base-35 exit 0: 
+12:03:26 plan-dev-35 exit 0: 
+12:03:26 SAME plan show 35 main vs head (plan-base-35.out == plan-dev-35.out)
+12:03:30 ids-dev-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 62 ms (192.8 tok/s) | decode 1543 ms (165.27 tok/s)|
+12:03:30 ids dev-35-short md5 7f8d5c3b
+12:03:34 ids-base-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 58 ms (207.6 tok/s) | decode 1541 ms (165.49 tok/s)|
+12:03:34 ids base-35-short md5 7f8d5c3b
+12:03:34 SAME 35B short ids head vs main (ids-dev-35-short.ids == ids-base-35-short.ids)
+12:03:39 ids-dev-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 486 ms (9065.0 tok/s) | decode 1587 ms (160.70 tok/s)|
+12:03:39 ids dev-35-4k md5 1c4f85d0
+12:03:44 ids-base-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 483 ms (9118.3 tok/s) | decode 1589 ms (160.47 tok/s)|
+12:03:44 ids base-35-4k md5 1c4f85d0
+12:03:44 SAME 35B 4k ids head vs main (ids-dev-35-4k.ids == ids-base-35-4k.ids)
+12:04:09 test mx-rows exit 0:       1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.43s|      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s|      1 test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 
+12:04:13 kq-27 exit 0: 
+12:04:13 kq 27: /home/josef/mx/out/w12/kq-27.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/w12/kq-27.out:66 kernels, 365 cases in 3.0s|
+12:04:16 kq-35 exit 0: 
+12:04:16 kq 35: /home/josef/mx/out/w12/kq-35.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/w12/kq-35.out:66 kernels, 365 cases in 3.0s|
+12:05:49 mtest recurrent exit 0:       1 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 92.91s|
+12:17:20 mtest27 batched27 exit 0:       1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 690.76s|
+12:17:20 w12 done; 1563 s left
+[window] stages done 2026-10-25 12:17:20, exit 0
+[window] starting radiance 2026-10-25 12:17:20
+[window] radiance answers 2026-10-25 12:17:45 (after 30 s); active

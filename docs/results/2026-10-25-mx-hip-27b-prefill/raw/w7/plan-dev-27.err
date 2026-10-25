@@ -1,0 +1,2 @@
+prefill chunk 4096 (--prefill-chunk)
+mxfp4 activations: dynamic (declared by the checkpoint)

@@ -1,0 +1,46 @@
+[localeval] calibrated: 22.1 tokens/sentence, 50 base tokens, ctx=17408
+[localeval]   1024 tok rep 1/2: prompt=989 ttft=0.54s prefill=1824 tok/s decode=33.0 tok/s peak=33.2 tok/s out=128
+[localeval]   1024 tok rep 2/2: prompt=993 ttft=0.55s prefill=1800 tok/s decode=33.0 tok/s peak=35.1 tok/s out=128
+[localeval]   4096 tok rep 1/2: prompt=4088 ttft=2.16s prefill=1889 tok/s decode=32.4 tok/s peak=32.8 tok/s out=128
+[localeval]   4096 tok rep 2/2: prompt=4088 ttft=2.17s prefill=1885 tok/s decode=32.5 tok/s peak=32.7 tok/s out=128
+[localeval]  16384 tok rep 1/2: prompt=16658 ttft=9.91s prefill=1681 tok/s decode=31.5 tok/s peak=33.7 tok/s out=128
+[localeval]  16384 tok rep 2/2: prompt=16654 ttft=9.83s prefill=1694 tok/s decode=30.8 tok/s peak=30.9 tok/s out=128
+# localeval: adhoc — 2026-10-25T04:30
+
+- model: `qwen38-27b-intarsia-hip` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mx-loc1-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a21ef33
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen38-27b-intarsia-hip --sizes 1024,4096,16384 --gen 128 --reps 2 --thinking off --label mx-loc1-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1 --recipe env INTARSIA_HIP_MXFP4_FOLD=1 intarsia serve --backend hip --model /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --mem-budget 29 --max-seq 17408  (tree dev, 174eb83_code-tree=748e42eebca8_dirty=no)`
+- result file: `results/20261025-043041-adhoc-mx-loc1-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+env INTARSIA_HIP_MXFP4_FOLD=1 intarsia serve --backend hip --model /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --mem-budget 29 --max-seq 17408  (tree dev, 174eb83_code-tree=748e42eebca8_dirty=no)
+````
+
+## Speed sweep
+
+served `qwen38-27b-intarsia-hip`, fingerprint `None`, ctx 17408, 2 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.55 | 1812 (1800–1824) * | - | 33.0 (33.0–33.0) | 34.1 (33.2–35.1) | - | - | 128 |
+| 4088 | 2.17 | 1887 (1885–1889) | 1913 | 32.4 (32.4–32.5) | 32.8 (32.7–32.8) | - | - | 128 |
+| 16656 | 9.87 | 1688 (1681–1694) | 1632 | 31.1 (30.8–31.5) | 32.3 (30.9–33.7) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261025-043041-adhoc-mx-loc1-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1/result.json
+[localeval] logged to unanimis: 9b552532-91e4-4dba-9dd8-79b013a49303
