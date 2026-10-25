@@ -358,7 +358,7 @@ int gemv_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, voi
 
 // ---- row-exact multi-row GEMV for the lm_head (logits_bf16_gemv_rows, M = kLogitsWideFrom..kRowsMax) -----------------------
 // gemv_kernel<M, 2, 4> hoists the x loads and unpacks of all M rows next to U = 4 weight loads per row, and spills from M = 9
-// (256 VGPR, 16..173 spilled; docs/results/2026-10-25-mr-hip-27b-batch-profile.md: 4.5 ms at M = 8, 7.8 at 12, 16.7 at 16 on the
+// (256 VGPR, 16..173 spilled; docs/results/2026-10-25-mr-hip-logits-rows.md: 4.5 ms at M = 8, 7.8 at 12, 16.7 at 16 on the
 // 248320 x 5120 head, against 4.2 for one row). This kernel computes exactly the same numbers per (output row, activation row):
 // the lane walks idx = lane, lane + 32, ... ascending, 8 fma per idx in element order, then the same warp-sum. Only the register
 // shape differs: a warp computes kLogitsWideR = 4 weight rows (the weights of an idx are unpacked once for all M rows, and each
