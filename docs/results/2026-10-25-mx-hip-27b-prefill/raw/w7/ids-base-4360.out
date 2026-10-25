@@ -1,0 +1,25 @@
+ later the same way.
+
+### 3.4 Model recipes and the block library
+
+A model is a **recipe** (TOML) over the block library:
+
+```toml
+[arch]
+name = "qwen3.5"
+layers = 64
+hidden = 2048
+kv_heads = 2
+head_dim = 256
+attn = "gated_delta_net"        # block type
+ffn = "moe"
+moe = { experts = 256, top_k = 8, routed = 1024, shared = 1024 }
+quant = "exl3"                  # or "nvfp4", "mxfp4", "fp8", "bf16", "gguf:q4_k_m"
+tp = 1
+
+[blocks]
+gated_delta_net = { kernel = "gdn_decode", state = "recurrent" }
+moe = { gate = "topk", experts = "grouped_gemm", shared = "dense" }
+```
+
+The **plan compiler** turns a recipe into an op graph, selects kernels through the registry (with the

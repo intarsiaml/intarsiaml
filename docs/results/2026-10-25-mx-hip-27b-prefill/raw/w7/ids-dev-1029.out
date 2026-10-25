@@ -1,0 +1,11 @@
+ else a block per row with shared memory). `kernels/cuda/attention.cu`:
+`attn_bf16` (flash-style online softmax, one block per (batch, head), shared-memory tiles, `rotary_dim` attr for
+partial rope, `gate_split`/`sigmoid_mul` fused into the q path). `kernels/cuda/moe.cu`: `moe_bf16` (top-k + softmax
+routing, per-expert accumulation, fused gate/up SwiGLU).
+
+## Verification
+
+`tools/gen_hybrid_fixture.py` builds a 2-layer Qwen3.5 fixture (GatedDeltaNet + full attention, MoE or dense FFN)
+from the HF implementation and writes `tests/fixtures/hybrid_qwen3_5.pt` (the MoE variant is `hybrid_qwen3_5_moe.pt`).
+`tests/hybrid_qwen3_5.rs` runs the full recipe on CPU and checks the logits against the fixture (atol 2e-2, rtol 1e-2).
+`tests/hybrid_qwen3_5_cuda.rs` runs the same recipe on the CUDA backend (skipped without a device

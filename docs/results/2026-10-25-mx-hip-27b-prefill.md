@@ -147,7 +147,31 @@ the vision-language wrapper; the 27B MXFP4 is the only one measured. (A first ve
 the text-only recipe the 27B does not use; loc1 served chunk 256 for that reason, and w7 measured the setting with
 `--prefill-chunk 4096` and `INTARSIA_PREFILL_PEEL=8` on that build, which is what the moved table resolves to.)
 
-<!-- W7 -->
+**Evidence (raw/w7, fleetq #5158, and raw/w8).** Self-golden prefill dumps of 34 prompts (85014 rows: P1's 10 golden
+prompts, the w3 synthetic tails and 18 more lengths with 0..255 rows past a multiple of 256, below and above 4096;
+`scripts/mx/make_tails.py`) at main's chunk 256 against dev at chunk 4096, compared with `scripts/ck/chunkcmp.py`
+(raw/w7 chunkcmp-tails2-*.txt):
+
+| dev schedule | prompts not bitwise | rows differing |
+|---|---|---:|
+| chunk 4096, no peel (`INTARSIA_PREFILL_PEEL=0`, the negative control) | 11 of 34: every tail of 1..16 rows (257, 258, 260, 263, 264, 265, 272, 4360, 4361, 8456, 12553) | 81 |
+| chunk 4096, 8-row peel | 4: the 9..16-row tails (265, 272, 4361, 12553) | 43 |
+| chunk 4096, 16-row peel | <!-- W8_TAILS --> | |
+
+The 9..16-row tails are attention's: at chunk 256 a pass of at most 16 rows runs split-KV attention, larger ones the
+WMMA flash kernel (`SPLITKV_MAX_ROWS = 16`, `crates/intarsia-backend-hip/src/kernels.rs`), so the 27B needs a 16-row peel
+(MXFP4 alone would need 8). Tails of 17, 33, 64, 65, 128, 249 rows and lengths that are multiples of 256 are bitwise
+without any peel, as w3 found.
+
+Engine path (256 greedy ids through `generate`, where a recurrent prompt's last token runs alone): main chunk 256 vs dev
+chunk 4096 + peel, identical at 1029 / 4100 / 4360 / 8201 tokens (last multi-row pass 3..8 rows) and 16384 with the 8-row
+peel (raw/w7), <!-- W8_IDS -->. The 27B golden prompts (prefill and teacher-forced decode dumps) are bitwise main
+(raw/w7 cmp-golden27-*.txt).
+
+Speed, same window (raw/w7, `generate --max-tokens 1`, tok/s): 1k 990 (main) / 1129 (v2) / 1335 (v2 + 4096 + peel) / 2041
+(+ fold opt-in); 4k 1012 / 1153 / 1435 / 2410; 16k 959 / 1084 / 1367 / 2227. The new default is +35 % / +42 % / +43 % over
+main.
+
 
 Serving: the batched scheduler picks a request's chunk once, when its first chunk runs: the solo chunk (now 4096) when no
 other sequence is decoding, 256 (`BUSY_PREFILL_CHUNK`) otherwise (`crates/intarsia-core/src/scheduler.rs` module docs).
@@ -232,5 +256,16 @@ The CUDA and Metal no-ops ran on 24a49bdc / 0943111 (recipe table still in `qwen
 
 ## 8. What is left: the bitwise GEMM is at 43 % of the bf16 peak
 
-<!-- W7_DIAG -->
+The bitwise v2 GEMM runs at 82 TFLOP/s at M = 4096 (`mxbench`, raw/w4, w7), against 143-175 for hipBLASLt bf16 and
+188-218 for our own W8A8 fp8 kernel at the same shapes (raw/w2 ceiling.txt). It is 83 % of the 27B's prefill kernel time.
+
+* **The dequant is not the main cost.** The bench-only `nodq` arm (v2's table with the dequant ALU replaced by a bit move;
+  wrong results by design, `-DIK_MX_BENCH` only) runs the whole model's GEMMs in 2052 ms per 4096-token chunk instead of
+  2424 (97 vs 82 TFLOP/s, raw/w7 mxbench-m4096-nodq.txt). So at most 15 % is the dequant; the rest is the tile pipeline
+  (BK = 32 with a barrier every two WMMA k-steps, register-staged global loads, the bf16 activation tile in LDS).
+* <!-- W8_PMC -->
+* The lever is a new bitwise pipeline, not a new tile: BK = 64 or 128 with both operands kept packed in LDS (MXFP4
+  activations are exact in e2m1 x e8m0 after the QDQ, so each wave can rebuild exact bf16 fragments from 4-bit codes,
+  4x less LDS and global traffic), the same k order per output. Not attempted in this lane.
+
 
