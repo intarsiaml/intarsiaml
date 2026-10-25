@@ -465,6 +465,18 @@ struct Mxfp4PolicyV2 : Mxfp4Policy {
     }
 };
 
+#ifdef IK_MX_BENCH
+// bench only (scripts/mx/mxbench.hip arm "nodq"): v2 with the dequant replaced by a bit move, to time the GEMM without its
+// dequant ALU work. Wrong results by design; never built into the library.
+struct Mxfp4PolicyV2NoDq : Mxfp4PolicyV2 {
+    IK_DEVI void dequant(const State&, const Raw& r, uint4& lo, uint4& hi) {
+        lo = make_uint4(r.w.x, r.w.y, r.w.x ^ r.s, r.w.y ^ r.s);
+        hi = make_uint4(r.w.y, r.w.x, r.w.y ^ r.s, r.w.x ^ r.s);
+    }
+};
+static int g_mx_nodq = 0;
+#endif
+
 // Tile override for sweeps: INTARSIA_HIP_MXFP4_TILE=WN,WM,TN,TM (read once; any listed tile gives the same bits). The
 // bench (scripts/mx/mxbench.hip, -DIK_MX_BENCH) sets it per call through ik_mxfp4_bench_set().
 static int g_mx_tile[4] = {-1, 0, 0, 0};
@@ -594,6 +606,13 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
         if (f32o) dq_gemm_run<Mxfp4Policy>(a, (float*)out->data, s);
         else dq_gemm_run<Mxfp4Policy>(a, (ik_bf16*)out->data, s);
     } else {
+#ifdef IK_MX_BENCH
+        if (g_mx_nodq) {
+            if (f32o) mx_gemm_run<Mxfp4PolicyV2NoDq>(a, (float*)out->data, s);
+            else mx_gemm_run<Mxfp4PolicyV2NoDq>(a, (ik_bf16*)out->data, s);
+            return ik_launch_status();
+        }
+#endif
         if (f32o) mx_gemm_run<Mxfp4PolicyV2>(a, (float*)out->data, s);
         else mx_gemm_run<Mxfp4PolicyV2>(a, (ik_bf16*)out->data, s);
     }
@@ -1015,13 +1034,14 @@ int ik_matmul_mxfp4_mma_fold(const ik_tensor* x, const ik_tensor* w, const ik_te
     return launch_fold(x, w, scales, act, out, scratch, stream);
 }
 #ifdef IK_MX_BENCH
-// bench hook: tile (0 = the table) and v1 for the following calls
-void ik_mxfp4_bench_set(int wn, int wm, int tn, int tm, int v1) {
+// bench hook: tile (0 = the table) and mode (1 = v1, 3 = v2 without dequant) for the following calls
+void ik_mxfp4_bench_set(int wn, int wm, int tn, int tm, int mode) {
     g_mx_tile[0] = wn;
     g_mx_tile[1] = wm;
     g_mx_tile[2] = tn;
     g_mx_tile[3] = tm;
-    g_mx_v1 = v1;
+    g_mx_v1 = mode == 1;
+    g_mx_nodq = mode == 3;
 }
 #endif
 

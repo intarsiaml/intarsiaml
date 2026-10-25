@@ -105,18 +105,51 @@ Bitwise evidence:
   16036-token prompts) are bitwise main at chunk 256 and at chunk 4096 (raw/w3 cmp-v2-vs-main-tails.txt), the golden-prompt
   dumps (prefill and teacher-forced decode) are bitwise main, and 256 greedy ids match main (27B short / 4k, 35B short / 4k).
 
-<!-- V2SPEED -->
+### Speed (raw/w4, one window, same build; `generate --max-tokens 1`, prefill-only engine time, tok/s)
 
-## 4. Prefill chunk 4096 for the 27B: not bitwise, user decision
+| prompt | main c256 | v2 c256 | main c4096 | v2 c4096 | fold c256 (opt-in) | fold c4096 (opt-in) |
+|---|---:|---:|---:|---:|---:|---:|
+| 1k | 1000 | 1128 (+13 %) | 1067 | 1335 (+25 %) | 1851 | 2073 |
+| 4k | 1017 | 1159 (+14 %) | 1122 | 1439 (+28 %) | 1891 | 2421 |
+| 16k | 961 | 1085 (+13 %) | 1083 | 1368 (+26 %) | 1714 | 2229 |
 
-Same tails method as lane ck (raw/w3 chunkcmp-base-256-vs-4096.txt, main): chunk 4096 vs 256 is bitwise on every prompt
-except those whose length leaves a tail of at most 8 rows at chunk 256 (synth_260: 4 tail rows differ, synth_264: 8), where
-the tail runs the M <= 8 GEMV at chunk 256 and the MMA at 4096. Those rows move a lot (max row KL 0.39, max |d logprob|
-2.26, 4 argmax flips over the 12 rows), which shows how hard the W4A4 model amplifies last-bit differences through the
-activation QDQ (see section 5). Prompts with longer tails (4089, 5686, 16036) and 4100 (a 4-row tail on both schedules) are
-bitwise. Speed: +9 % at 4k, +11 % at 16k (section 1). Like CUDA's `[tuning.cuda] prefill_chunk = 4096` (LOG 2026-10-22
-13:08, user-approved), this changes numerics on some prompts, so it is left as a user decision; no recipe change here.
-`--prefill-chunk 4096` works today as a flag.
+The GEMMs alone (`scripts/mx/mxbench.hip`, raw/w4 mxbench-m*.txt; every 27B projection shape once, whole model, ms per
+chunk): M = 4096: v1 3275, v2 2402 (60.9 -> 83.0 TFLOP/s); M = 1024: 843 -> 648; M = 256: 233 -> 191. In the engine at
+chunk 4096 the v2 GEMM is 2261 ms of 2735 ms kernel time (82.7 %, one tile `dq_gemm_kernel<Mxfp4PolicyV2, 4, 4, 2, 4>`,
+raw/w4 prof-v2-c4096-4096.txt), against 3095 ms for main's GEMMs. v2 is at 43 % of the bf16 WMMA peak and about half of
+hipBLASLt bf16 at these shapes, so the bitwise GEMM still has room (section 7).
+
+
+## 4. Prefill chunk 4096 with an 8-row tail peel: bitwise chunk 256, the 27B's HIP default
+
+**Where chunk 4096 differs from 256 (main, raw/w3 chunkcmp-base-256-vs-4096.txt; same tails method as lane ck).** Chunk
+4096 is bitwise chunk 256 on every prompt except those whose last pass at chunk 256 has at most 8 rows (synth_260: 4 tail
+rows differ, synth_264: 8). Those rows run the M <= 8 MXFP4 GEMV at chunk 256 and the MMA inside one larger pass at
+4096. They move a lot (max row KL 0.39, max |d logprob| 2.26, 4 argmax flips over the 12 rows), which shows how hard the
+W4A4 model amplifies last-bit differences through the activation QDQ (see section 5). Prompts with longer tails (4089,
+5686, 16036) and 4100 (a 4-row tail on both schedules) are bitwise: above 8 rows every 27B kernel gives a row the same
+bits at any M (v2's tiles all give v1's bits; attention and the GDN scan are row-invariant).
+
+**The peel.** `crates/intarsia-core/src/scheduler.rs` `peel_tail`, applied in `Model::forward_chunks`: a forward pass
+longer than 256 rows whose length mod 256 is 1..=peel runs those last rows as their own pass. A pass at a larger chunk
+starts where a 256-row pass would, and the 256 schedule cuts it into 256-row passes plus that remainder, so with the peel
+every pass of at most 8 rows is one the 256 schedule runs (same start, same rows) and every larger pass is whole 256-row
+passes of more than 8 rows. `crates/intarsia-core/tests/scheduler.rs` checks exactly this over prompt lengths 1..9000 at
+chunk 512 / 1024 / 2048 / 4096 for the three ways a prompt is cut (solo recurrent prefill with its last token alone, solo
+attention-only prefill, a whole-prompt forward as the accuracy tooling runs), with negative controls (no peel: more than
+100 lengths fail; a 3-row peel misses a 4-row tail; the checker rejects a pass that is not a merge of reference passes).
+
+Knob: recipe `[tuning.<backend>] prefill_peel` (0..255, default 0 = off), `INTARSIA_PREFILL_PEEL` over it. Off, nothing
+changes: no other recipe sets it, the plan JSON gains `prefill_peel` and the prefix-store fingerprint `|peelN` only when
+it is on. `recipes/qwen3_5.toml` now sets `[tuning.hip] prefill_chunk = 4096, prefill_peel = 8` (CUDA, Metal, CPU keep
+256). That recipe covers every dense Qwen3.5-style hybrid; the 27B MXFP4 is the only one measured.
+
+<!-- W7 -->
+
+Serving: the batched scheduler picks a request's chunk once, when its first chunk runs: the solo chunk (now 4096) when no
+other sequence is decoding, 256 (`BUSY_PREFILL_CHUNK`) otherwise (`crates/intarsia-core/src/scheduler.rs` module docs).
+So a 4096-row pass never stalls running decode streams, as for the 35B (`qwen3_5_moe.toml` is 4096 on HIP), and with
+the peel both choices give the 27B the same bits: a served request's tokens do not depend on the load when it started.
 
 ## 5. Opt-in: `matmul_mxfp4_mma_fold` (INTARSIA_HIP_MXFP4_FOLD=1), W4A4 folded onto the fp8 WMMA
 
@@ -144,6 +177,12 @@ raw/w3 accg-*.out):
   flips. That is the size of the reference noise itself (HF W4A4 bf16 vs fp32: 0.197), i.e. this W4A4 model turns last-bit
   sum differences into ref-noise-sized logit changes (the chunk-tail rows of section 4 show the same on main).
 
-<!-- FOLDSPEED -->
+### Speed
+
+Same window as the v2 table above: 1851 / 1891 / 1714 tok/s at chunk 256 and 2073 / 2421 / 2229 at chunk 4096 for 1k / 4k
+/ 16k, 1.6-1.9x main's prefill at the same chunk. GEMMs alone at M = 4096: 1274 ms per chunk (156.6 TFLOP/s, 2.6x v1,
+1.9x v2); in the engine at chunk 4096 the two fold tiles take 1104 ms of 1581 ms kernel time, plus 74 ms for the
+activation fold pre-pass (`mx_fold_actq_kernel`, raw/w4 prof-fold-c4096-4096.txt).
+
 
 <!-- REST -->

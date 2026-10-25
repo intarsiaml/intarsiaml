@@ -11,7 +11,7 @@
 #include <string.h>
 #include <vector>
 #include "ik_hip_abi.h"
-extern "C" void ik_mxfp4_bench_set(int wn, int wm, int tn, int tm, int v1);
+extern "C" void ik_mxfp4_bench_set(int wn, int wm, int tn, int tm, int mode);
 
 #define CK(x)                                                                                    \
     do {                                                                                         \
@@ -94,13 +94,14 @@ int main(int argc, char** argv) {
     CK(hipEventCreate(&e1));
     const int cfgs[][5] = {{0, 0, 0, 0, 1}, {0, 0, 0, 0, 0}, {4, 2, 2, 4, 0}, {4, 4, 4, 2, 0}, {4, 4, 2, 4, 0}, {2, 2, 4, 4, 0},
                            {4, 2, 4, 4, 0}, {2, 4, 4, 4, 0}, {4, 4, 2, 2, 0}, {2, 4, 4, 2, 0}, {2, 2, 2, 2, 0}, {2, 2, 4, 2, 0},
-                           {1, 4, 1, 1, 0}, {1, 1, 1, 1, 0}, {1, 4, 1, 2, 0}, {0, 0, 0, 0, 2}};
+                           {1, 4, 1, 1, 0}, {1, 1, 1, 1, 0}, {1, 4, 1, 2, 0}, {0, 0, 0, 0, 2}, {0, 0, 0, 0, 3}};
     const int NCF = sizeof(cfgs) / sizeof(cfgs[0]);
-    printf("M = %d, W4A4, bf16 out, %d reps over %d weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold only)\n", M, reps, NC);
+    printf("M = %d, W4A4, bf16 out, %d reps over %d weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold and nodq only; nodq = v2's table without the dequant ALU, wrong by design)\n", M, reps, NC);
     printf("%-18s %6s %6s", "shape", "N", "K");
     for (int c = 0; c < NCF; ++c) {
         char b[32];
         if (cfgs[c][4] == 2) snprintf(b, sizeof b, "fold");
+        else if (cfgs[c][4] == 3) snprintf(b, sizeof b, "nodq");
         else if (cfgs[c][4]) snprintf(b, sizeof b, "v1");
         else if (!cfgs[c][0]) snprintf(b, sizeof b, "v2-table");
         else snprintf(b, sizeof b, "v2-%d%d%d%d", cfgs[c][0], cfgs[c][1], cfgs[c][2], cfgs[c][3]);
@@ -120,7 +121,7 @@ int main(int argc, char** argv) {
         if (!strcmp(s.what, "gdn out / attn o")) layers = 64;
         printf("%-18s %6d %6d", s.what, s.N, s.K);
         for (int c = 0; c < NCF; ++c) {
-            ik_mxfp4_bench_set(cfgs[c][0], cfgs[c][1], cfgs[c][2], cfgs[c][3], cfgs[c][4] == 1);
+            ik_mxfp4_bench_set(cfgs[c][0], cfgs[c][1], cfgs[c][2], cfgs[c][3], cfgs[c][4] == 2 ? 0 : cfgs[c][4]);
             const bool fold = cfgs[c][4] == 2;
             auto call = [&](int cp) {
                 ik_tensor w = mk(dw[cp], IK_DTYPE_U8, s.N, s.K / 2), sv = mk(ds[cp], IK_DTYPE_U8, s.N, s.K / 32);

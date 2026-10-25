@@ -114,6 +114,24 @@ mxbench() {
     env ${E:-} ./mx-out/mxbench "$@" > "$O/mxbench-$tag.txt" 2>&1 < /dev/null
   log "mxbench $tag exit $?: $(grep -aE 'whole-model|rror|differ' "$O/mxbench-$tag.txt" | head -4 | tr '\n' '|')"
 }
+# pmcbench <tree> <tag> <M> <counters...>: mxbench (1 rep) under rocprofv3 --pmc -> $O/pmc-<tag>.csv (+ the counters the
+# device lists, $O/pmc-avail.txt, once)
+pmcbench() {
+  local tree=$1 tag=$2 m=$3; shift 3
+  local d=/work/mx-out/pmc/$tag
+  rm -rf "$(T "$tree")/mx-out/pmc/$tag"; mkdir -p "$(T "$tree")/mx-out/pmc/$tag"
+  if [[ ! -s $O/pmc-avail.txt ]]; then
+    INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$(V "$tree") INTARSIA_REPO=$(T "$tree") HIP_VISIBLE_DEVICES=$G \
+      timeout -s KILL 120 "$(T "$tree")/deploy/tatooine/dev.sh" rocprofv3 --list-avail > "$O/pmc-avail.txt" 2>&1 < /dev/null
+  fi
+  INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_TARGET_VOL=$(V "$tree") INTARSIA_REPO=$(T "$tree") HIP_VISIBLE_DEVICES=$G \
+    timeout -s KILL 300 "$(T "$tree")/deploy/tatooine/dev.sh" rocprofv3 --pmc "$@" --output-format csv -d $d -o run -- ./mx-out/mxbench "$m" 1 \
+    > "$O/pmc-$tag.log" 2>&1 < /dev/null
+  local csv; csv=$(find "$(T "$tree")/mx-out/pmc/$tag" -name '*counter_collection.csv' | head -1)
+  if [[ -n "$csv" ]]; then cp "$csv" "$O/pmc-$tag.csv"; gzip -f "$O/pmc-$tag.csv"; fi
+  rm -rf "$(T "$tree")/mx-out/pmc/$tag"
+  log "pmcbench $tag ($*): $([[ -n "$csv" ]] && echo csv || echo "no csv: $(tail -2 "$O/pmc-$tag.log" | tr '\n' '|' | cut -c1-200)")"
+}
 # acc <tree> <tag> <chunk> [args]: 27B accuracy --mode prefill on the tails golden (scripts/mx/make_tails.py; GT=<name>
 # picks ~/mx/<name>.safetensors, default g27-tails), self-golden dump
 acc() {
