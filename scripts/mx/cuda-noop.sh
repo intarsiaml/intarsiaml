@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Lane mx (copy of scripts/hg/cuda-noop.sh with mx trees): CUDA no-op of the branch against origin/main, plus the core lib tests and CUDA batching tests on the
 # branch. Runs ON spark1 inside a fleetq job (sources from scripts/mx/cuda-sync.sh). Trees: $P/mx-src-base and $P/mx-src-dev, built
-# $P/mx-dev (seeded from an existing built tree, $SEED).
+# $P/mx-dev, each with its own target dir (FRESH=1: from scratch).
 set -uo pipefail
 P=$HOME/intarsia-decfuse; O=$P/out/mx; mkdir -p $O
-SEED=${SEED:-hg-base}
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/$(ls /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots | head -1)
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/$(ls /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots | head -1)
+# fresh per-tree target dirs: FRESH=1 removes the trees first; nothing is seeded from another lane's target
 for t in mx-base mx-dev; do
-  [ -d $P/$t ] || cp -a $P/$SEED $P/$t
+  [ "${FRESH:-0}" = 1 ] && rm -rf $P/$t
+  mkdir -p $P/$t
 done
 echo "== sync"
 rsync -rlpgoD --no-times --checksum --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv $P/mx-src-base/ $P/mx-base/
