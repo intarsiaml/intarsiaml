@@ -58,18 +58,31 @@ block, with a negative control. The fused `moe_block_bf16_rows` stays for 1..4 r
 
 ### Expected gain (central estimate, to be replaced by the microbench)
 
+What a removed launch is worth is not known well. Two data points disagree: `2026-10-19-p2prime-moeblock.md` s3 measured 3.9 us for a tiny
+1-block launch inside a graph replay (T = 1), while hr3's fused block at 3 and 4 rows (12.11 to 11.63 and 13.83 to 13.61 ms) removes about 9 launches
+per layer (360 per step) for a net 0.5 and 0.2 ms, i.e. only 0.6-1.3 us net per removed launch (the fused kernel has costs of its own).
+
 | lever | ms per step at 16 rows (8 rows) |
 |---|---|
-| 13 fewer launches x 40 layers (about 2-3 us each in a graph replay: the plan puts the dispatch gap at 1.5 us, plus tail) | 1.0-1.6 (0.6-1.0) |
-| shared expert: one weight pass instead of 4 (2) | 1.0-1.5 (0.4-0.8) |
+| 13 fewer launches x 40 layers, at 0.6-1.3 us net each | 0.3-0.7 (0.2-0.4) |
+| shared expert: one weight pass instead of 4 (2); 120 `matmul_nvfp4` ops at about 21 us real each (38 us profiled less the sync price) | 1.0-1.5 (0.4-0.8) |
 | routed kernels: not targeted in this phase (bound 1.1-1.5 ms) | 0 |
-| **total** | **2.0-3.1 ms of 41.6 = 4.8-7.5% (8 rows: 1.0-1.8 of 22.2 = 4.5-8%)** |
+| **total** | **about 1.3-2.2 ms of 41.6 = 3-5% model loop (8 rows: 0.6-1.2 of 22.2 = 3-5%)** |
 
-Served tok/s moves less than the model-loop step: hr3 s4 has 62 ms served against 41.6 ms in the model loop at 16 streams, so the same saving is
-about 3.2-5% of a served step at 16 streams. That is above the 3% stop line on the central estimate and close to it on the low end, so the first GPU
-window is a microbench (`moe_rows_timing` in `tests/moe_block.rs`: per-piece cost and the price of a launch inside a graph replay at 5, 8, 12, 16 rows,
-unfused chain against the fused block) before the kernels are written. If it shows less than 1.25 ms (3% of 41.6) available at 16 rows, the lane stops there
-and reports.
+The bar is served tok/s, not the model-loop step: hr3 s4 has 62 ms served against 41.6 ms in the model loop at 16 streams (the served burst includes
+the prefills). 3% of served tok/s at 16 streams is about 1.9 ms per step (8.1 s burst wall x 3% / 128 steps), so the **go line is 1.9 ms
+of model-loop saving at 16 rows**, and the central estimate above straddles it. The first GPU window is therefore a microbench, with existing kernels only
+(`moe_rows_timing` in `tests/moe_block.rs`, T = 5, 8, 12, 16, graph replay, 16 layers): (a) the unfused chain as the model runs it, (b) topk + experts,
+(c) the shared pieces + combine, (d) one `matmul_nvfp4_gemv_v2` launch at M = 4 per shared matrix as an optimistic floor for a single 16-row weight pass,
+(e) a tiny launch, (f) the fused rows block, plus the distinct experts per layer. Available saving is about (c) - 3 x (d) plus the launch delta. **Build
+only if that reaches about 1.9 ms at 16 rows; otherwise the lane stops there and reports.**
+
+### Constraints for the build
+
+* The shared-expert arithmetic is copied from `moe_block.hip`'s own copies of the `nvfp4_glu_kernel` and `shared_down_combine_kernel<1>` epilogues, not
+  from `gemv_rows` + `silu_glu` + `moe_combine` (lane 1 option B may move those). The new op is tested against the T = 1 block and the unfused chain.
+* New device code goes in `moe_block.hip`; `nvfp4.hip` and `matmul.hip` belong to lane 1; the `quantmoe.rs` / `kernels.rs` registry diff stays minimal.
+* B = 1 no-op: the new kernel's scratch function must not enlarge the workspace when batching is off (hr3 once changed `plan show` that way).
 
 ### Gates (from the lane table)
 
