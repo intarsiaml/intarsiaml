@@ -8,8 +8,8 @@ gate's own estimator. The GPU window of section 6 then ran (tatooine, fleetq #53
 
 ## 0. Verdict
 
-* **No evidence of an engine accuracy fault.** Measured builds only: main `5241377b` and `#144` were not run (the window in
-  section 7 would). The 27B W4A4 output on this gate is bitwise unchanged from build `ba0fa9e` (w9) through `5bee812` (w12) to `020b28c` (w13, the merged tree): all 60 dump tensors
+* **No evidence of an engine accuracy fault.** Measured builds: w9/w12/w13 and, in section 6, `bbc0cde` (main `5241377b` plus this PR's gate-only changes; no kernel or engine
+  code differs). `#144` was not measured. The 27B W4A4 output on this gate is bitwise unchanged from build `ba0fa9e` (w9) through `5bee812` (w12) to `020b28c` (w13, the merged tree): all 60 dump tensors
   are equal. Its numbers (prefill 0.1799, decode 1.392x noise) are the same to the printed digit as lane T2's on 2026-10-22 and
   lane M1's on 2026-10-21 (`#145` is bitwise against the previous main by its own gate).
 * **The two failures have two different causes, and neither is "the golden is wrong".**
