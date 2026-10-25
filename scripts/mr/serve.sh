@@ -19,7 +19,7 @@ case "$cmd" in
       -e HIP_VISIBLE_DEVICES=0 -e INTARSIA_HOSTNAME=tatooine \
       -v "$repo":/work -v "$H":/models:ro -v "$vol":/target -w /work "$IMG" \
       /target/release/intarsia serve --backend hip --model "$M27" --host 0.0.0.0 --port 8294 --served-model-name intarsia \
-      --max-seq ${MAX_SEQ:-4096} --max-batch "$mb" "$@" >/dev/null
+      --max-seq ${MAX_SEQ:-8192} --max-batch "$mb" "$@" >/dev/null
     for i in $(seq 1 90); do
       if curl -s -m 3 http://localhost:8294/v1/models | grep -q '"data"'; then echo "[serve] $tree max-batch $mb serving after $((i * 5)) s"; exit 0; fi
       if [ "$(docker inspect -f '{{.State.Running}}' intarsia-serve 2>/dev/null)" != true ]; then echo "[serve] $tree max-batch $mb EXITED:"; docker logs --tail 25 intarsia-serve 2>&1 | cut -c1-300; exit 1; fi

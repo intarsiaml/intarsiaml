@@ -12,9 +12,9 @@ for a in $arms; do
   ssh tatooine "bash ~/mr-hip/scripts/mr/serve.sh up $tree $mb" 2>&1 | tail -4 | tee "$LOG/$tree-$mb.up"
   if grep -q "serving after" "$LOG/$tree-$mb.up"; then
     conc=4,8,16  # streams above max-batch queue; the single-stream cell is the sweep itself
-    (cd /opt/code/deepeval && timeout 1500 uv run localeval speed --url http://tatooine:8294/v1 --model intarsia --sizes 1024 --gen 128 --reps 3 \
+    (cd /opt/code/deepeval && uv run localeval speed --url http://tatooine:8294/v1 --model intarsia --sizes 1024 --gen 128 --reps 3 \
       --concurrency $conc --label "$tag-$tree-mb$mb" --no-unim \
-      --recipe "intarsia serve --backend hip --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 4096 --max-batch $mb tree=$tree") > "$LOG/$tree-$mb.out" 2>&1
+      --recipe "intarsia serve --backend hip --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --max-batch $mb tree=$tree") > "$LOG/$tree-$mb.out" 2>&1
     echo "[ab $tree mb=$mb] localeval rc=$?"; tail -12 "$LOG/$tree-$mb.out" | cut -c1-200
   fi
   ssh tatooine "bash ~/mr-hip/scripts/mr/serve.sh down $tag-$tree-mb$mb" 2>&1 | tail -1
