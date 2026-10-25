@@ -1,0 +1,73 @@
+[01:27:38] == round 1 arm main2048
+[01:27:38] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 329.35, "pooled_itl_max_ms_median": 337.6, "pooled_itl_p50_ms_median": 21.0, "aggregate_decode_tok_s_median": 98.7}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 112.95, "pooled_itl_max_ms_median": 339.7, "pooled_itl_p50_ms_median": 19.6, "aggregate_decode_to
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 372.1, "pooled_itl_max_ms_median": 383.25, "pooled_itl_p50_ms_median": 26.35, "aggregate_decode_tok_s_median": 35.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 349.05, "pooled_itl_max_ms_median": 381.4, "pooled_itl_p50_ms_median": 24.450000000000003, "agg
+[01:30:20] == round 1 arm c4096
+[01:30:20] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 4096 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 583.5, "pooled_itl_max_ms_median": 594.15, "pooled_itl_p50_ms_median": 21.799999999999997, "aggregate_decode_tok_s_median": 100.45}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 29.200000000000003, "pooled_itl_max_ms_median": 587.85, "pooled_itl_p50_ms_median
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 671.4, "pooled_itl_max_ms_median": 680.45, "pooled_itl_p50_ms_median": 26.049999999999997, "aggregate_decode_tok_s_median": 37.349999999999994}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 575.25, "pooled_itl_max_ms_median": 684.95, "pooled_itl_p50_ms_median
+[01:32:56] == round 1 arm b8192
+[01:32:56] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 562.45, "pooled_itl_max_ms_median": 595.3, "pooled_itl_p50_ms_median": 21.9, "aggregate_decode_tok_s_median": 99.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 29.6, "pooled_itl_max_ms_median": 589.25, "pooled_itl_p50_ms_median": 19.799999999999997, "aggre
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1240.5, "pooled_itl_max_ms_median": 1253.1, "pooled_itl_p50_ms_median": 25.95, "aggregate_decode_tok_s_median": 38.55}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 105.5, "pooled_itl_max_ms_median": 1257.35, "pooled_itl_p50_ms_median": 23.55, "aggregate_deco
+[01:35:38] == round 1 arm a8192b2048
+[01:35:38] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 331.15, "pooled_itl_max_ms_median": 339.2, "pooled_itl_p50_ms_median": 22.05, "aggregate_decode_tok_s_median": 97.45}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 29.700000000000003, "pooled_itl_max_ms_median": 334.54999999999995, "pooled_itl_p50_ms_median":
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 371.9, "pooled_itl_max_ms_median": 383.7, "pooled_itl_p50_ms_median": 26.299999999999997, "aggregate_decode_tok_s_median": 35.8}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 349.35, "pooled_itl_max_ms_median": 381.0, "pooled_itl_p50_ms_median": 23.8, "aggreg
+[01:38:28] == round 2 arm a8192b2048
+[01:38:28] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 329.79999999999995, "pooled_itl_max_ms_median": 338.9, "pooled_itl_p50_ms_median": 22.0, "aggregate_decode_tok_s_median": 97.4}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 31.3, "pooled_itl_max_ms_median": 335.9, "pooled_itl_p50_ms_median": 19.9, "aggregate
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 371.35, "pooled_itl_max_ms_median": 383.1, "pooled_itl_p50_ms_median": 26.700000000000003, "aggregate_decode_tok_s_median": 35.75}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 350.3, "pooled_itl_max_ms_median": 379.3, "pooled_itl_p50_ms_median": 24.5, "aggre
+[01:41:04] == round 2 arm b8192
+[01:41:04] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 585.3499999999999, "pooled_itl_max_ms_median": 590.15, "pooled_itl_p50_ms_median": 22.0, "aggregate_decode_tok_s_median": 99.85}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.1, "pooled_itl_max_ms_median": 595.85, "pooled_itl_p50_ms_median": 19.9, "aggrega
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1240.85, "pooled_itl_max_ms_median": 1254.75, "pooled_itl_p50_ms_median": 26.45, "aggregate_decode_tok_s_median": 38.55}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 51.25, "pooled_itl_max_ms_median": 1253.25, "pooled_itl_p50_ms_median": 24.15, "aggregate_de
+[01:43:37] == round 2 arm c4096
+[01:43:38] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 4096 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 583.8499999999999, "pooled_itl_max_ms_median": 591.95, "pooled_itl_p50_ms_median": 21.6, "aggregate_decode_tok_s_median": 101.0}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.450000000000003, "pooled_itl_max_ms_median": 589.3, "pooled_itl_p50_ms_median": 1
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 674.05, "pooled_itl_max_ms_median": 684.05, "pooled_itl_p50_ms_median": 26.1, "aggregate_decode_tok_s_median": 37.349999999999994}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 573.55, "pooled_itl_max_ms_median": 683.55, "pooled_itl_p50_ms_median": 24.2, "agg
+[01:46:15] == round 2 arm main2048
+[01:46:15] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 331.75, "pooled_itl_max_ms_median": 335.8, "pooled_itl_p50_ms_median": 21.85, "aggregate_decode_tok_s_median": 97.15}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 91.15, "pooled_itl_max_ms_median": 334.0, "pooled_itl_p50_ms_median": 19.65, "aggregate_decode_
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 372.05, "pooled_itl_max_ms_median": 385.45000000000005, "pooled_itl_p50_ms_median": 25.9, "aggregate_decode_tok_s_median": 35.349999999999994}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 354.65, "pooled_itl_max_ms_median": 384.7, "pooled_itl_p50_ms_median":
+[01:48:52] == round 3 arm main2048
+[01:48:52] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 331.0, "pooled_itl_max_ms_median": 338.35, "pooled_itl_p50_ms_median": 21.6, "aggregate_decode_tok_s_median": 97.80000000000001}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 29.7, "pooled_itl_max_ms_median": 338.45, "pooled_itl_p50_ms_median": 20.1, "aggrega
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 376.55, "pooled_itl_max_ms_median": 427.35, "pooled_itl_p50_ms_median": 26.25, "aggregate_decode_tok_s_median": 35.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 351.65, "pooled_itl_max_ms_median": 469.8, "pooled_itl_p50_ms_median": 24.5, "aggregate_decode
+[01:51:31] == round 3 arm c4096
+[01:51:31] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 4096 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 578.65, "pooled_itl_max_ms_median": 601.5, "pooled_itl_p50_ms_median": 21.55, "aggregate_decode_tok_s_median": 100.5}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 41.25, "pooled_itl_max_ms_median": 603.8, "pooled_itl_p50_ms_median": 19.6, "aggregate_decode_t
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 672.25, "pooled_itl_max_ms_median": 680.85, "pooled_itl_p50_ms_median": 26.6, "aggregate_decode_tok_s_median": 37.150000000000006}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 579.8499999999999, "pooled_itl_max_ms_median": 837.9, "pooled_itl_p50_ms_median": 
+[01:54:06] == round 3 arm b8192
+[01:54:06] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 583.9000000000001, "pooled_itl_max_ms_median": 591.6500000000001, "pooled_itl_p50_ms_median": 21.35, "aggregate_decode_tok_s_median": 101.5}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 27.65, "pooled_itl_max_ms_median": 591.35, "pooled_itl_p50_ms_median": 1
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1246.4499999999998, "pooled_itl_max_ms_median": 1259.25, "pooled_itl_p50_ms_median": 26.15, "aggregate_decode_tok_s_median": 38.5}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 152.7, "pooled_itl_max_ms_median": 1259.65, "pooled_itl_p50_ms_median": 23.45, "ag
+[01:56:41] == round 3 arm a8192b2048
+[01:56:41] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 326.70000000000005, "pooled_itl_max_ms_median": 337.6, "pooled_itl_p50_ms_median": 21.9, "aggregate_decode_tok_s_median": 97.35}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 162.95, "pooled_itl_max_ms_median": 334.75, "pooled_itl_p50_ms_median": 19.9, "aggre
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 377.95000000000005, "pooled_itl_max_ms_median": 425.25, "pooled_itl_p50_ms_median": 26.45, "aggregate_decode_tok_s_median": 35.849999999999994}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 352.20000000000005, "pooled_itl_max_ms_median": 383.5, "pooled_itl_p5
+[01:59:25] == done

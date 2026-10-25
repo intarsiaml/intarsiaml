@@ -1,0 +1,6 @@
+[itl4] calibrated 22.1 tok/sentence, base 54; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 96.7 tok/s, pooled ITL p50/p99/max (21.8, 333.9, 339.9) ms, ttft [0.62, 1.89, 1.25, 2.54], errors []
+[itl4] rep 1 stagger: agg 113.6 tok/s, pooled ITL p50/p99/max (19.6, 59.0, 342.5) ms, ttft [0.62, 0.65, 0.67, 0.68], errors []
+[itl4] rep 2 burst: agg 100.7 tok/s, pooled ITL p50/p99/max (20.2, 324.8, 335.3) ms, ttft [1.24, 0.62, 2.52, 1.88], errors []
+[itl4] rep 2 stagger: agg 113.9 tok/s, pooled ITL p50/p99/max (19.6, 166.9, 336.9) ms, ttft [0.62, 0.64, 0.65, 0.67], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 329.35, "pooled_itl_max_ms_median": 337.6, "pooled_itl_p50_ms_median": 21.0, "aggregate_decode_tok_s_median": 98.7}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 112.95, "pooled_itl_max_ms_median": 339.7, "pooled_itl_p50_ms_median": 19.6, "aggregate_decode_tok_s_median": 113.75}}

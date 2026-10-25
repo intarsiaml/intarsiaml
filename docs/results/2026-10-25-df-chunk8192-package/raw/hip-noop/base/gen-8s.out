@@ -1,0 +1,13 @@
+</think>
+
+# IntarsiaML Architecture Plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+---
+
+## 0. Goals, honest

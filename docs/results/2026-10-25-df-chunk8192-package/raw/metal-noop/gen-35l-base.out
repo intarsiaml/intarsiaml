@@ -1,0 +1,1 @@
+This is a robust, production-grade architecture plan. The shift from "Python orchestration" to "Rust host + C ABI kernels" with a strict **Reference Oracle** pattern is the correct engineering decision for achieving both the performance of `radiance`/`TensorFold` and the correctness required for lossless speculation

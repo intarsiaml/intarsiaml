@@ -1,0 +1,64 @@
+fleetq: #4986 waiting (#5 in line): in line behind #4980 "df B noop 35B at explicit chunk 2048" (claude-f31ccf91-df) on spark2
+fleetq:   #4980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4980 set, or it will wait for #4980 to be released.
+fleetq: #4986 waiting (#4 in line): in line behind #4981 "df B baseline+envelope re-record at 8192" (claude-f31ccf91-df) on spark2
+fleetq:   #4981 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4981 set, or it will wait for #4981 to be released.
+fleetq: #4986 waiting (#3 in line): in line behind #4984 "df B 3 KL goldens at recipe chunk 8192" (claude-f31ccf91-df) on spark2
+fleetq:   #4984 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4984 set, or it will wait for #4984 to be released.
+fleetq: #4986 waiting (#2 in line): in line behind #4985 "df B reuse 8192/1024/2048 + batch_cuda_real + long + busy KL gate" (claude-f31ccf91-df) on spark2
+fleetq:   #4985 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4985 set, or it will wait for #4985 to be released.
+fleetq: #4986 waiting (#1 in line): needs gpu quiet on spark2, but #4985 "df B reuse 8192/1024/2048 + batch_cuda_real + long + busy KL gate" (claude-f31ccf91-df) loads it
+fleetq:   #4985 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4985 set, or it will wait for #4985 to be released.
+fleetq: #4986 waiting (#1 in line): needs spark2 quiet, but its GPU is 93% busy with work fleetq does not track
+fleetq: #4986 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh gputests.sh df-pfb
+== cargo test --test moe_w4a16 01:25:32
+test moe_experts_w4a16_is_as_accurate_as_old_kernel ... ok
+test moe_w4a16_is_bitwise_at_the_real_prefill_shape ... ok
+test moe_w4a16_is_bitwise_on_odd_routing ... ok
+test moe_w4a16_is_bitwise_the_grouped_kernel ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.48s
+== cargo test --test quantmoe 01:25:45
+test bench_moe_decode_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test probe_cublas_bf16_vs_gemm_reg_bits ... ignored
+test result: ok. 13 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 7.28s
+== cargo test --test moe_nvfp4 01:25:53
+test bench_moe_nvfp4_real_shapes ... ignored
+test moe_nvfp4_at_the_real_prefill_shape ... ok
+test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... ok
+test moe_nvfp4_is_independent_of_tile_height ... ok
+test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... ok
+test moe_nvfp4_matches_the_quantised_reference ... ok
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.05s
+== cargo test -p intarsia-cli --test docs_env_vars 01:25:56
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+== kernels test --quick env=X=1 01:26:08
+exit 0 FAIL lines 0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.4s
+== kernels test --quick env=INTARSIA_CUDA_MOE_W4A16_PF=0 01:26:14
+exit 0 FAIL lines 0
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.4s
+== done 01:26:20
+fleetq: #4986 done (exit 0)

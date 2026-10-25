@@ -1,0 +1,456 @@
+{
+  "format": "intarsia-accuracy-baseline-v2",
+  "created_unix": 1792904340,
+  "tool_version": "0.0.1",
+  "code": {
+    "head": "debb7cf",
+    "code_tree": "119a1e58ae49",
+    "dirty": false,
+    "overlay": []
+  },
+  "exec": {
+    "cmdline": [
+      "/home/nvidia/intarsia-decfuse/df-pfb/target/acc/release/intarsia",
+      "accuracy",
+      "--model",
+      "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+      "--backend",
+      "cuda",
+      "--device",
+      "0",
+      "--mem-budget",
+      "40",
+      "--golden",
+      "/home/nvidia/intarsia-decfuse/df-golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+      "--mode",
+      "both",
+      "--decode-positions",
+      "16",
+      "--max-seq",
+      "4096",
+      "--write-baseline",
+      "/home/nvidia/intarsia-decfuse/out/dfB-rebase/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json"
+    ],
+    "disable_list": "",
+    "fault": "",
+    "kernels": {
+      "argmax": "argmax_f32",
+      "attn_decode": "attn_decode_bf16_splitkv",
+      "attn_prefill": "attn_prefill_bf16_flash+attn_prefill_bf16_splitkv",
+      "embedding": "embedding_bf16",
+      "gate_split": "gate_split_bf16",
+      "gated_rmsnorm": "gated_rmsnorm_bf16",
+      "gated_rmsnorm_matmul_fp8": "gated_rmsnorm_matmul_fp8_gemv",
+      "gdn_conv": "gdn_conv_bf16",
+      "gdn_delta_rule": "gdn_delta_rule_bf16_split",
+      "kv_append": "kv_append_bf16",
+      "matmul": "matmul_bf16+matmul_bf16_gemv",
+      "matmul_fp8": "matmul_fp8_gemm_lt+matmul_fp8_gemv",
+      "matmul_fp8_pair": "matmul_fp8_pair_gemv",
+      "matmul_nvfp4": "matmul_nvfp4_gemm+matmul_nvfp4_gemm_reg+matmul_nvfp4_gemv+matmul_nvfp4_mma",
+      "matmul_nvfp4_glu": "matmul_nvfp4_glu_gemm+matmul_nvfp4_glu_gemv",
+      "matmul_pair": "matmul_pair_bf16_gemv",
+      "moe_combine": "moe_combine_bf16",
+      "moe_experts": "moe_experts_bf16+moe_experts_decode_v2_bf16+moe_experts_mma_bf16+moe_experts_w4a16_bf16",
+      "moe_topk": "moe_topk_bf16",
+      "qk_norm": "qk_norm_bf16",
+      "rmsnorm": "rmsnorm_bf16",
+      "rmsnorm_add": "rmsnorm_add_bf16",
+      "rmsnorm_add_matmul_pair": "rmsnorm_add_matmul_pair_bf16_gemv",
+      "rope": "rope_bf16",
+      "sigmoid_mul": "sigmoid_mul_bf16",
+      "silu_glu": "silu_glu_bf16"
+    }
+  },
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+    "fnv1a64": "cd6ef94b3dcd4c82",
+    "size": 246804,
+    "format": "intarsia-golden-topk-v1",
+    "prompts": 10,
+    "positions": 1441,
+    "topk": 20,
+    "engine": "vllm",
+    "engine_version": "0.26.1rc1.dev602+g65b7662d3",
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "model_revision": "not in the model root path",
+    "kv_dtype": "fp8"
+  },
+  "run": {
+    "model": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "backend": "cuda",
+    "device": "NVIDIA GB10",
+    "kv_dtype": "bf16",
+    "act_dtype": "bf16",
+    "fp8_act": "recipe default",
+    "prefill_chunk": 8192,
+    "prefill_chunk_source": "recipe qwen3_5_moe, cuda",
+    "decode_positions": 16,
+    "gate_class": "4bit"
+  },
+  "modes": [
+    {
+      "overall": {
+        "mode": "prefill",
+        "positions": 1441,
+        "top1_pct": 98.26509368494101,
+        "mean_kl": 0.006825140985344362,
+        "mean_kl21": 0.006648477094239854,
+        "top5_pct": 91.5614156835531,
+        "tail_ref": 0.017574283359717616,
+        "tail_ours": 0.01759066641677184,
+        "max_kl": 1.0360282822599007,
+        "max_kl21": 1.0360258337962975,
+        "tail_abs": 0.0016229428514763311,
+        "nonfinite": 0,
+        "greedy_match_pct": 4.788341429562804,
+        "floor_pass": true,
+        "mean_kl_scored": 0.0056205854786795665,
+        "mean_kl21_scored": 0.005407517639482296,
+        "scored_positions": 1279,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.006648477094239854,
+              "scored_rows_kl": 0.005407517639482296
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.006648477094239854,
+              "limit": 0.03,
+              "verdict": "PASS"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.005407517639482296,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
+      },
+      "prompts": [
+        {
+          "name": "count",
+          "positions": 38,
+          "top1_pct": 100.0,
+          "mean_kl": 0.0032907602122788327,
+          "mean_kl21": 0.0037182096509116827,
+          "top5_pct": 95.78947368421052,
+          "tail_excess": -0.003905239910887508,
+          "max_kl21": 0.03638151534019338,
+          "tail_abs": 0.005072045031758033,
+          "mean_kl21_scored": 0.0037182096509116827,
+          "scored_positions": 38
+        },
+        {
+          "name": "story",
+          "positions": 39,
+          "top1_pct": 97.43589743589743,
+          "mean_kl": 0.005800194061717334,
+          "mean_kl21": 0.005432207446929477,
+          "top5_pct": 94.87179487179488,
+          "tail_excess": -0.001511909889809509,
+          "max_kl21": 0.04189675088462512,
+          "tail_abs": 0.0032335619505136338,
+          "mean_kl21_scored": 0.005432207446929477,
+          "scored_positions": 39
+        },
+        {
+          "name": "code",
+          "positions": 87,
+          "top1_pct": 98.85057471264368,
+          "mean_kl": 0.0011746688241653872,
+          "mean_kl21": 0.001017555958805092,
+          "top5_pct": 95.86206896551724,
+          "tail_excess": 0.00031451807032175787,
+          "max_kl21": 0.011354065162223974,
+          "tail_abs": 0.0008346578172754336,
+          "mean_kl21_scored": 0.001017555958805092,
+          "scored_positions": 87
+        },
+        {
+          "name": "science",
+          "positions": 79,
+          "top1_pct": 96.20253164556962,
+          "mean_kl": 0.009571402634947485,
+          "mean_kl21": 0.011799670262111296,
+          "top5_pct": 96.45569620253164,
+          "tail_excess": 0.004504519704013674,
+          "max_kl21": 0.4939093130046819,
+          "tail_abs": 0.005324720947477407,
+          "mean_kl21_scored": 0.011799670262111296,
+          "scored_positions": 79
+        },
+        {
+          "name": "chat_short",
+          "positions": 18,
+          "top1_pct": 94.44444444444444,
+          "mean_kl": 0.00804439127869109,
+          "mean_kl21": 0.00835992187920332,
+          "top5_pct": 95.55555555555556,
+          "tail_excess": -0.0019490477202175154,
+          "max_kl21": 0.06427422993493466,
+          "tail_abs": 0.0020781438811929677,
+          "mean_kl21_scored": 0.02047710371205818,
+          "scored_positions": 5
+        },
+        {
+          "name": "chat_system",
+          "positions": 32,
+          "top1_pct": 96.875,
+          "mean_kl": 0.018642807815518254,
+          "mean_kl21": 0.018963493753299848,
+          "top5_pct": 89.375,
+          "tail_excess": 0.005405472455439247,
+          "max_kl21": 0.15525269833856573,
+          "tail_abs": 0.00842611550473472,
+          "mean_kl21_scored": 0.013291085677930225,
+          "scored_positions": 7
+        },
+        {
+          "name": "chat_multiturn",
+          "positions": 58,
+          "top1_pct": 96.55172413793103,
+          "mean_kl": 0.008796728867523761,
+          "mean_kl21": 0.008936462647500993,
+          "top5_pct": 96.20689655172414,
+          "tail_excess": -0.0011560683768263465,
+          "max_kl21": 0.4126900976718934,
+          "tail_abs": 0.001274858357556816,
+          "mean_kl21_scored": 0.024557793800611193,
+          "scored_positions": 19
+        },
+        {
+          "name": "chat_reasoning",
+          "positions": 90,
+          "top1_pct": 94.44444444444444,
+          "mean_kl": 0.023784823551542593,
+          "mean_kl21": 0.023718403726512106,
+          "top5_pct": 94.44444444444444,
+          "tail_excess": -0.00022642528454106526,
+          "max_kl21": 0.17976545818607867,
+          "tail_abs": 0.0010421423823049056,
+          "mean_kl21_scored": 0.01680398609064305,
+          "scored_positions": 5
+        },
+        {
+          "name": "long_prose_300",
+          "positions": 300,
+          "top1_pct": 99.0,
+          "mean_kl": 0.0026848806094347736,
+          "mean_kl21": 0.0028813338576838985,
+          "top5_pct": 89.93333333333334,
+          "tail_excess": 0.00038537252053741697,
+          "max_kl21": 0.10941437618608864,
+          "tail_abs": 0.001404109156215007,
+          "mean_kl21_scored": 0.0028813338576838985,
+          "scored_positions": 300
+        },
+        {
+          "name": "long_prose_700",
+          "positions": 700,
+          "top1_pct": 98.85714285714286,
+          "mean_kl": 0.006325367482351066,
+          "mean_kl21": 0.005617034851906183,
+          "top5_pct": 90.0,
+          "tail_excess": -0.00045474616501483465,
+          "max_kl21": 1.0360258337962975,
+          "tail_abs": 0.0009007660067480782,
+          "mean_kl21_scored": 0.005617034851906183,
+          "scored_positions": 700
+        }
+      ]
+    },
+    {
+      "overall": {
+        "mode": "decode",
+        "positions": 160,
+        "top1_pct": 99.375,
+        "mean_kl": 0.006986410812503033,
+        "mean_kl21": 0.0073435574910140815,
+        "top5_pct": 93.5,
+        "tail_ref": 0.025770566161384394,
+        "tail_ours": 0.024157604782233992,
+        "max_kl": 0.10926337182436718,
+        "max_kl21": 0.10974876448836529,
+        "tail_abs": 0.0028931521806524526,
+        "nonfinite": 0,
+        "greedy_match_pct": 90.0,
+        "floor_pass": true,
+        "mean_kl_scored": 0.005924078365309494,
+        "mean_kl21_scored": 0.005833070189525908,
+        "scored_positions": 118,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.0073435574910140815,
+              "scored_rows_kl": 0.005833070189525908
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.0073435574910140815,
+              "limit": 0.03,
+              "verdict": "PASS"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.005833070189525908,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
+      },
+      "prompts": [
+        {
+          "name": "count",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.0020052897890215655,
+          "mean_kl21": 0.002361001612289441,
+          "top5_pct": 92.5,
+          "tail_excess": 0.0010902239698396612,
+          "max_kl21": 0.013721504469483729,
+          "tail_abs": 0.0032232768998423857,
+          "mean_kl21_scored": 0.002361001612289441,
+          "scored_positions": 16
+        },
+        {
+          "name": "story",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.009324340787160495,
+          "mean_kl21": 0.008512246550349174,
+          "top5_pct": 98.75,
+          "tail_excess": -0.002762943497846407,
+          "max_kl21": 0.018842965530627653,
+          "tail_abs": 0.006440330829355659,
+          "mean_kl21_scored": 0.008512246550349174,
+          "scored_positions": 16
+        },
+        {
+          "name": "code",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.0007787089616408641,
+          "mean_kl21": 0.0007865904148167904,
+          "top5_pct": 95.0,
+          "tail_excess": 0.000012228275989344963,
+          "max_kl21": 0.006052765971071208,
+          "tail_abs": 0.00008073789522623239,
+          "mean_kl21_scored": 0.0007865904148167904,
+          "scored_positions": 16
+        },
+        {
+          "name": "science",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.007365524632435929,
+          "mean_kl21": 0.007114898266301063,
+          "top5_pct": 95.0,
+          "tail_excess": 0.0008576963563036236,
+          "max_kl21": 0.01611658952518255,
+          "tail_abs": 0.0032619662944428853,
+          "mean_kl21_scored": 0.007114898266301063,
+          "scored_positions": 16
+        },
+        {
+          "name": "chat_short",
+          "positions": 16,
+          "top1_pct": 93.75,
+          "mean_kl": 0.008243381998217515,
+          "mean_kl21": 0.009548194496777608,
+          "top5_pct": 96.25,
+          "tail_excess": -0.0042534952031310705,
+          "max_kl21": 0.055468446992339965,
+          "tail_abs": 0.004253552195270391,
+          "mean_kl21_scored": 0.008487110384554682,
+          "scored_positions": 5
+        },
+        {
+          "name": "chat_system",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.007946546068713655,
+          "mean_kl21": 0.010797203555346786,
+          "top5_pct": 90.0,
+          "tail_excess": -0.010696718104267318,
+          "max_kl21": 0.066007257776183,
+          "tail_abs": 0.01072070203475327,
+          "mean_kl21_scored": 0.014048000122713745,
+          "scored_positions": 7
+        },
+        {
+          "name": "chat_multiturn",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.0070544568051503125,
+          "mean_kl21": 0.007103424645575776,
+          "top5_pct": 95.0,
+          "tail_excess": -0.00016043179675608987,
+          "max_kl21": 0.08651072172444574,
+          "tail_abs": 0.00033770275197796243,
+          "mean_kl21_scored": 0.017311884332961804,
+          "scored_positions": 5
+        },
+        {
+          "name": "chat_reasoning",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.01984008615037047,
+          "mean_kl21": 0.01989606661159518,
+          "top5_pct": 96.25,
+          "tail_excess": -0.00038947061224534204,
+          "max_kl21": 0.10974876448836529,
+          "tail_abs": 0.00038965182276140564,
+          "mean_kl21_scored": 0.008704067660790182,
+          "scored_positions": 5
+        },
+        {
+          "name": "long_prose_300",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.00008614360128864003,
+          "mean_kl21": 0.00008809277310181414,
+          "top5_pct": 88.75,
+          "tail_excess": 3.5634711929976985e-7,
+          "max_kl21": 0.0004985258119873474,
+          "tail_abs": 0.00001764954076030959,
+          "mean_kl21_scored": 0.00008809277310181414,
+          "scored_positions": 16
+        },
+        {
+          "name": "long_prose_700",
+          "positions": 16,
+          "top1_pct": 100.0,
+          "mean_kl": 0.007219629331030891,
+          "mean_kl21": 0.00722785598398718,
+          "top5_pct": 87.5,
+          "tail_excess": 0.00017294047349023563,
+          "max_kl21": 0.06847343718056623,
+          "tail_abs": 0.00020595154213402822,
+          "mean_kl21_scored": 0.00722785598398718,
+          "scored_positions": 16
+        }
+      ]
+    }
+  ],
+  "reuse": null
+}

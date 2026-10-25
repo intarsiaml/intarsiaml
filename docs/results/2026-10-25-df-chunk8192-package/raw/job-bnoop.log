@@ -1,0 +1,19 @@
+fleetq: #4979 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh noop.sh dfB-noop df-dev df-pfb
+ids 35s df-dev vs df-pfb: identical (256 ids, sha 2dd7fe93)
+ids 35l df-dev vs df-pfb: DIFFER (64 ids, sha 6ba8700f)
+ids 8s df-dev vs df-pfb: identical (256 ids, sha e2c61289)
+ids 8l df-dev vs df-pfb: identical (64 ids, sha fcafb118)
+8B plan: byte-identical (8758 B)
+35B plan: DIFFER
+2c2
+< act bf16  kv bf16  prefill chunk 2048 (recipe qwen3_5_moe, cuda)  scratch 83963392 B  require_admitted false  reference_only false
+---
+> act bf16  kv bf16  prefill chunk 8192 (recipe qwen3_5_moe, cuda)  scratch 335842816 B  require_admitted false  reference_only false
+40c40
+< matmul_fp8     matmul_fp8_gemm_lt         deterministic no        0 16777216
+---
+> matmul_fp8     matmul_fp8_gemm_lt         deterministic no        0 67108864
+50c50
+< moe_experts    moe_experts_w4a16_bf16     deterministic no        0 83963392
+== done
+fleetq: #4979 done (exit 0)

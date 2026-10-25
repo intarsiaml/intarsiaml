@@ -1,0 +1,12 @@
+df-main-r1: - result file: `results/20261025-020012-adhoc-df-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020012-adhoc-df-main-r1/result.json 
+df-main0-r1: - result file: `results/20261025-020118-adhoc-df-main0-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020118-adhoc-df-main0-r1/result.json 
+df-c4096-r1: - result file: `results/20261025-020236-adhoc-df-c4096-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020236-adhoc-df-c4096-r1/result.json 
+df-c8192-r1: - result file: `results/20261025-020353-adhoc-df-c8192-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020353-adhoc-df-c8192-r1/result.json 
+df-c8192-r2: - result file: `results/20261025-020507-adhoc-df-c8192-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020507-adhoc-df-c8192-r2/result.json 
+df-c4096-r2: - result file: `results/20261025-020614-adhoc-df-c4096-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020614-adhoc-df-c4096-r2/result.json 
+df-main0-r2: - result file: `results/20261025-020719-adhoc-df-main0-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020719-adhoc-df-main0-r2/result.json 
+df-main-r2: - result file: `results/20261025-020822-adhoc-df-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020822-adhoc-df-main-r2/result.json 
+df-main-r3: - result file: `results/20261025-020930-adhoc-df-main-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-020930-adhoc-df-main-r3/result.json 
+df-main0-r3: - result file: `results/20261025-021031-adhoc-df-main0-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-021031-adhoc-df-main0-r3/result.json 
+df-c4096-r3: - result file: `results/20261025-021137-adhoc-df-c4096-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-021137-adhoc-df-c4096-r3/result.json 
+df-c8192-r3: - result file: `results/20261025-021242-adhoc-df-c8192-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-021242-adhoc-df-c8192-r3/result.json 

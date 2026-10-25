@@ -2141,12 +2141,17 @@ fn st_acc_4k(c: &mut Ctx) -> Result<Out> {
 }
 
 /// The `accuracy --mode` of the acc-4k stage: `all` (prefill, decode and prefix reuse at the plan's chunk), except `both` when
-/// no prompt of the golden can cross a chunk boundary at the plan's chunk (every prompt at most `chunk + 2` tokens, as in
-/// [`reuse_requires_all`]): the reuse gate would print "nothing ran" and fail by construction. The capped reuse run of the stage
-/// (`reuse_at_capped_chunk`, min(plan chunk, 1024)) then carries the reuse judgement. Unknown chunk or lengths: `all`.
+/// the reuse gate of `all` cannot work at the plan's chunk: no prompt of the golden can cross a chunk boundary there (every
+/// prompt at most `chunk + 2` tokens, as in [`reuse_requires_all`]; the gate would print "nothing ran" and fail by construction),
+/// or the plan's chunk is unknown (the `plan` stage was skipped, so the chunk the run uses is the recipe's, unseen here). The
+/// capped reuse run of the stage (`reuse_at_capped_chunk`, min(plan chunk, 1024)) then carries the reuse judgement. Unknown
+/// prompt lengths, or none: `all`.
 fn acc_4k_mode(plan_chunk: Option<u64>, lens: Option<&[usize]>) -> &'static str {
     match (plan_chunk, lens) {
-        (Some(c), Some(l)) if !l.is_empty() && l.iter().all(|&n| n <= c as usize + 2) => "both",
+        (_, None) => "all",
+        (_, Some(l)) if l.is_empty() => "all",
+        (None, Some(_)) => "both",
+        (Some(c), Some(l)) if l.iter().all(|&n| n <= c as usize + 2) => "both",
         _ => "all",
     }
 }
@@ -2812,7 +2817,9 @@ mod tests {
             assert_eq!(acc_4k_mode(Some(c), Some(&g4k)), "all", "chunk {c}");
         }
         assert_eq!(acc_4k_mode(Some(4064), Some(&g4k)), "all"); // 4631 > 4066
-        assert_eq!(acc_4k_mode(None, Some(&g4k)), "all");
+        // plan stage skipped: the chunk is unknown, the capped reuse run judges the reuse
+        assert_eq!(acc_4k_mode(None, Some(&g4k)), "both");
+        assert_eq!(acc_4k_mode(None, None), "all");
         assert_eq!(acc_4k_mode(Some(8192), None), "all");
         assert_eq!(acc_4k_mode(Some(8192), Some(&[])), "all");
     }

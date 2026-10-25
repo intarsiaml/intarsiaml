@@ -1,0 +1,27 @@
+fleetq: #4984 waiting (#3 in line): in line behind #4980 "df B noop 35B at explicit chunk 2048" (claude-f31ccf91-df) on spark2
+fleetq:   #4980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4980 set, or it will wait for #4980 to be released.
+fleetq: #4984 waiting (#2 in line): in line behind #4981 "df B baseline+envelope re-record at 8192" (claude-f31ccf91-df) on spark2
+fleetq:   #4981 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4981 set, or it will wait for #4981 to be released.
+fleetq: #4984 waiting (#1 in line): needs gpu quiet on spark2, but #4981 "df B baseline+envelope re-record at 8192" (claude-f31ccf91-df) loads it
+fleetq:   #4981 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4981 set, or it will wait for #4981 to be released.
+fleetq: #4984 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh kl.sh dfB-kl df-pfb
+== KL golden qwen36-35b-a3b-nvfp4-vllm-top20 extra=[] 01:00:18
+exit 0
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+gate-definition: kl_floor [prefill]: old def: PASS 6.648e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.408e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) 
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-long-top20 extra=[] 01:00:53
+exit 0
+prefill chunk 8192; longest prompt 12064; prompts spanning more than one chunk: 2/5
+gate-definition: kl_floor [prefill]: old def: FAIL 4.586e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.419e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) 
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== KL golden qwen36-35b-a3b-nvfp4-vllm-4k-top20 extra=[] 01:02:23
+exit 0
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 1543 or a golden with longer prompts
+gate-definition: kl_floor [prefill]: old def: FAIL 1.017e-1 (21-way KL over all rows <= static floor) | current def: PASS 1.247e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) 
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== done 01:03:14
+fleetq: #4984 done (exit 0)

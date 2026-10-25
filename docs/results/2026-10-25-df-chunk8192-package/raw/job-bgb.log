@@ -1,0 +1,93 @@
+fleetq: #4985 waiting (#4 in line): in line behind #4980 "df B noop 35B at explicit chunk 2048" (claude-f31ccf91-df) on spark2
+fleetq:   #4980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4980 set, or it will wait for #4980 to be released.
+fleetq: #4985 waiting (#3 in line): in line behind #4981 "df B baseline+envelope re-record at 8192" (claude-f31ccf91-df) on spark2
+fleetq:   #4981 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4981 set, or it will wait for #4981 to be released.
+fleetq: #4985 waiting (#2 in line): in line behind #4984 "df B 3 KL goldens at recipe chunk 8192" (claude-f31ccf91-df) on spark2
+fleetq:   #4984 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4984 set, or it will wait for #4984 to be released.
+fleetq: #4985 waiting (#1 in line): needs gpu quiet on spark2, but #4984 "df B 3 KL goldens at recipe chunk 8192" (claude-f31ccf91-df) loads it
+fleetq:   #4984 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4984 set, or it will wait for #4984 to be released.
+fleetq: #4985 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh gatesB2.sh dfB-gb df-pfb
+== reuse gate long golden chunk default 01:03:19
+exit 0
+prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+prefill chunk 8192; longest prompt 12064; prompts spanning more than one chunk: 2/5
+prefill chunk 8192 (recipe qwen3_5_moe, cuda); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, K
+long_docs_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+long_code_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+chat_reuse_4k      both      SKIPPED: a prompt of 4631 tokens cannot cross a chunk boundary at the default prefill chunk 8192 (no split above 8192 leaves room for turn 2)
+long_docs_12k      continue   12062  12080   12077      0     32/32  ok
+long_code_12k      continue   12062  12080   12077      0     32/32  ok
+prefix reuse: 3 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 8192 (recipe qwen3_5_moe, cuda): long_docs_4k, long_code_4k, chat_reuse_4k; 2 judged
+prefix-reuse gate: PASS
+== reuse gate long golden chunk 1024 01:04:25
+exit 0
+prefill chunk 1024 (--prefill-chunk)
+prefill chunk 1024; longest prompt 12064; prompts spanning more than one chunk: 5/5
+prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple 
+long_docs_4k       continue    2000   4080    2015      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.62e-2, mean KL(oracle||warm) 1.28e-2, warm/cold 0.79x; limit 1.5x cold + 3e-3 = 2.73e-
+long_code_4k       continue    2000   4080    2015      0     32/32  ok (oracle-relative: mean KL(oracle||cold) 4.55e-3, mean KL(oracle||warm) 2.30e-3, warm/cold 0.51x; limit 1.5x cold + 3e-3 = 9.82e-
+chat_reuse_4k      continue    4521   4647    4536      0      3/32  ok (oracle-relative: mean KL(oracle||cold) 4.38e-3, mean KL(oracle||warm) 4.86e-3, warm/cold 1.11x; limit 1.5x cold + 3e-3 = 9.58e-
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+prefix-reuse gate: PASS
+== reuse gate long golden chunk 2048 01:06:01
+exit 0
+prefill chunk 2048 (--prefill-chunk)
+prefill chunk 2048; longest prompt 12064; prompts spanning more than one chunk: 5/5
+prefill chunk 2048 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple 
+long_docs_4k       continue    3072   4080    3087      0     25/32  ok (oracle-relative: mean KL(oracle||cold) 1.72e-2, mean KL(oracle||warm) 1.53e-2, warm/cold 0.89x; limit 1.5x cold + 3e-3 = 2.87e-
+long_code_4k       continue    3072   4080    3087      0      8/32  ok (oracle-relative: mean KL(oracle||cold) 1.03e-2, mean KL(oracle||warm) 1.25e-2, warm/cold 1.22x; limit 1.5x cold + 3e-3 = 1.85e-
+chat_reuse_4k      continue    4521   4647    4536      0      3/32  ok (oracle-relative: mean KL(oracle||cold) 5.07e-3, mean KL(oracle||warm) 4.38e-3, warm/cold 0.86x; limit 1.5x cold + 3e-3 = 1.06e-
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+prefix-reuse gate: PASS
+== cargo test batch 01:07:30
+exit 0
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 59603460096, weights_bytes: 20825033460, workspace_bytes: 1491971616, kv_bytes_per_token: 20480, kv_fract
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 63704125440, weights_bytes: 16381470720, workspace_bytes: 538971424, kv_bytes_per_token: 147456, kv_
+test result: ok. 3 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 616.51s
+FAILED count: 0
+== cargo test batch-long 01:18:03
+exit 0
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 8192 (recipe qwen3_5_moe, cuda)
+LONGENG solo chunk 8192, default busy chunk 2048
+LONGENG 2 slots, requests [0, 1], busy chunk default: mixed iterations 2, prefill chunks 3, decode batches B1:770 B2:129
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG 4 slots, requests [0, 1, 2, 3], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:760 B2:10 B3:10 B4:119
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG 4 slots, requests [0, 2, 3, 1], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:766 B2:4 B3:4 B4:125
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG busy chunk 8192 (= solo): R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG busy chunk 8192 (= solo): R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG busy chunk 8192 (= solo): R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG busy chunk 8192 (= solo): R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG control busy chunk 1024: R0 200 tok, 900 gen : identical
+LONGENG control busy chunk 1024: R1 4096 tok : first differing token 12
+LONGENG control busy chunk 1024: R2 16384 tok (sampled) : first differing token 1
+LONGENG control busy chunk 1024: R3 2600 tok : first differing token 30
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 344.64s
+FAILED count: 0
+== cargo test klgate 01:23:48
+exit 101
+test real_35b_busy_chunk_prefill_kl_gate ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 59240882176, weights_bytes: 20825033460, workspace_bytes: 1743851040, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv
+KLGATE SUMMARY chunk 2048 vs 8192: 5 prompts, 320 decode rows, mean KL 6.388e-3 (21-way 4.836e-3), worst prompt mean 1.484e-2, top-1 flips 5/320 | floor 3.161e-3 | control max KL 0.0e0
+KLGATE full-vocab prompts above the floor: ["chunk 1024, len 1536: mean full-vocab KL 8.693e-3", "chunk 2048, len 2560: mean full-vocab KL 3.223e-3", "chunk 1024, len 2560: mean full-vocab KL 9.189e-3", "chunk 2048, len 4096: mean full-vocab KL 1.484e-2", "chu
+thread 'real_35b_busy_chunk_prefill_kl_gate' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:552:5:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 93.28s
+FAILED count: 1
+== done 01:25:22
+fleetq: #4985 done (exit 0)

@@ -1,0 +1,17 @@
+fleetq: #5029 waiting (#7 in line): tatooine-r9700 is held exclusively by #5014 "native upgrade rehearsal: e82764045e46ebae07e33961f17dedba981c0d07336dfcddd67e4b3b042b8600 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8 on :8081, payloads + long-context soak +" (claude-f07ec01e); then in line behind #5016 "lane sp: build sp + sp-base (HIP)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5029 waiting (#4 in line): in line behind #5017 "hg window B: HIP gates (no-op 8B/35B short+4k, batch_recurrent, batch_cuda_real +ignored, kernels quick), packed_rows, steady-state A/B" (claude-f31ccf91-hg) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5029 waiting (#3 in line): in line behind #5021 "tp2 vocab: HIP build of all-gather kernel + hip tests compile (CPU only)" (claude-f31ccf91) on tatooine-r9700
+fleetq: #5029 running on tatooine-r9700, tatooine-r9700-2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/hipwin.sh
+fleetq: #5029 went ahead of the line and must end within 6h52m (by Sun 09:00); it is stopped then
+[df] job 5029; stopping radiance 2026-10-25 02:07:33
+[df] radiance stopped 2026-10-25 02:07:37
+[df] runs done 2026-10-25 02:08:20
+hip ids 35s base vs B: identical (256 ids)
+hip ids 35l base vs B: identical (64 ids)
+hip ids 8s base vs B: identical (256 ids)
+hip ids 8l base vs B: identical (64 ids)
+hip 8B plan: byte-identical
+hip 35B plan: byte-identical
+[df] starting radiance 2026-10-25 02:08:20
+[df] radiance answers 2026-10-25 02:08:40 (after 25 s)
+fleetq: #5029 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,25 @@
+fleetq: #4981 waiting (#2 in line): in line behind #4980 "df B noop 35B at explicit chunk 2048" (claude-f31ccf91-df) on spark2
+fleetq:   #4980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4980 set, or it will wait for #4980 to be released.
+fleetq: #4981 waiting (#1 in line): needs gpu quiet on spark2, but #4980 "df B noop 35B at explicit chunk 2048" (claude-f31ccf91-df) loads it
+fleetq:   #4980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4980 set, or it will wait for #4980 to be released.
+fleetq: #4981 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh rebase.sh dfB-rebase df-pfb debb7cf
+== record baseline 00:58:22
+record exit 0
+prefill chunk 8192; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+wrote baseline /home/nvidia/intarsia-decfuse/out/dfB-rebase/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json (2 mode(s); absolute floor passed)
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+== envelope 00:59:00
+envelope exit 0
+  aggregate (information; the aggregate gate does not use the envelope): top-1 99.375 -> 99.375 %, mean KL(21) 7.3436e-3 -> 7.3436e-3, max KL(21) 1.0975e-1 -> 1.0975e-1
+wrote noise envelope /home/nvidia/intarsia-decfuse/out/dfB-rebase/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.envelope.json (1 perturbation(s): prefill chunk 8192 -> 2048)
+noise envelope run: the verdicts below are information about the perturbed build; the exit status does not depend on them
+== acc-short against baseline + envelope 00:59:38
+acc-short exit 0
+  mean KL            6.82514e-3   6.82514e-3   7.84891e-3  <= ok
+  per-prompt gate: ok
+  mean KL            6.98641e-3   6.98641e-3   8.03437e-3  <= ok
+  per-prompt gate: ok
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+== done 01:00:18
+fleetq: #4981 done (exit 0)

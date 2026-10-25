@@ -1,0 +1,28 @@
+Here is the continuation and completion of the IntarsiaML architecture plan, picking up from the `mermaid` diagram and proceeding through the remaining sections of the v0.2 specification.
+
+---
+
+```mermaid
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    SCHED["Scheduler: Pre-fill, Decode, Prefetch"]
+    KV["KV Cache: Paged, Swap, Async"]
+    MODEL["Model: Block graph, Recipe loader"]
+  end
+  subgraph Kernels["Kernel Packs (ABI: intarsia-kernel-abi)"]
+    TF["TensorFold: GEMM, MoE, FlashAttention"]
+    RAD["Radiance: Norm, Rope, Quant, Elementwise"]
+    PORT["Portable: ik_portable.h (CUDA/HIP)"]
+  end
+  subgraph Host["Host (crate: intarsia-server)"]
+    OAI --> SCHED
+    ANT --> SCHED
+    UI --> MET
+    MET --> SCHED
+    SCHED --> MODEL
+    MODEL --> Kernels
+  end
+```
+
+## 3. Kernel ABI and Packing Strategy
+
+The core innovation of Intarsia is the dec

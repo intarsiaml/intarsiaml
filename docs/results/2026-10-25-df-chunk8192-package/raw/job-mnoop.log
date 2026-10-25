@@ -1,0 +1,9 @@
+fleetq: #4989 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mnoop.sh
+metal ids 35s base vs B: identical (     256 ids)
+metal ids 35l base vs B: identical (      64 ids)
+metal ids 8s base vs B: identical (     256 ids)
+metal ids 8l base vs B: identical (      64 ids)
+8B plan: byte-identical
+35B plan: byte-identical
+== done
+fleetq: #4989 done (exit 0)

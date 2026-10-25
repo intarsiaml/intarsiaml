@@ -1,0 +1,11 @@
+fleetq: #4980 waiting (#1 in line): needs gpu quiet on spark2, but #4979 "df B noop 8B + default 35B" (claude-f31ccf91-df) loads it
+fleetq:   #4979 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=4979 set, or it will wait for #4979 to be released.
+fleetq: #4980 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/rj.sh noop2.sh dfB-noop2 df-dev df-pfb
+ids 35s df-dev vs df-pfb: identical (256 ids, sha 2dd7fe93)
+ids 35l df-dev vs df-pfb: identical (64 ids, sha 5efcc225)
+ids 8s df-dev vs df-pfb: identical (256 ids, sha e2c61289)
+ids 8l df-dev vs df-pfb: identical (64 ids, sha fcafb118)
+8B plan: byte-identical (8758 B)
+35B plan: byte-identical (3496 B)
+== done
+fleetq: #4980 done (exit 0)
