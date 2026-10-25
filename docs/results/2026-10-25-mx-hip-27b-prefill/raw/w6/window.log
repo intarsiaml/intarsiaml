@@ -1,0 +1,11 @@
+[window] job 5150 w6; stopping radiance 2026-10-25 04:47:33
+[window] radiance stopped 2026-10-25 04:47:37
+04:47:37 w6 start; budget 2340 s; dev 174eb83_code-tree=748e42eebca8_dirty=no
+04:53:29 mtest batch exit 101:       1 test real_35b_batch_step_sampled_timing ... FAILED|      1 test real_35b_busy_chunk_prefill_kl_gate ... FAILED|      1 test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED|      1 test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 351
+04:53:47 test mx-rest exit 0:       1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.26s|      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s|      1 test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 
+04:55:46 qual-35 exit 0: 
+04:55:46 qual 35: /home/josef/mx/out/w6/qual-35.err:[qualify     74s] == acc-short [short accuracy against a golden]|/home/josef/mx/out/w6/qual-35.err:[qualify     74s] acc-short: SKIP in 0.1s (no golden found, and a golden for a MoE / hybrid / quantized model is made from a reference server: pass --reference <vLLM u
+04:55:46 w6 done; 1851 s left
+[window] stages done 2026-10-25 04:55:46, exit 0
+[window] starting radiance 2026-10-25 04:55:46
+[window] radiance answers 2026-10-25 04:56:11 (after 30 s); active
