@@ -1,0 +1,224 @@
+[mr] radiance inactive
+## lgbench variant 0 248320x5120
+logits rows 248320x5120 variant 0
+M= 1   4230.1 us  bitwise
+M= 2   4256.9 us  bitwise
+M= 3   4272.3 us  bitwise
+M= 4   4336.8 us  bitwise
+M= 5   4425.3 us  bitwise
+M= 6   4455.3 us  bitwise
+M= 7   4476.2 us  bitwise
+M= 8   4500.0 us  bitwise
+M= 9   4558.4 us  bitwise
+rows status 3 (M=10)
+## lgbench variant 1 248320x5120
+logits rows 248320x5120 variant 1
+M= 1   4238.3 us  bitwise
+M= 2   4249.2 us  bitwise
+M= 3   4271.1 us  bitwise
+M= 4   4334.7 us  bitwise
+M= 5   4425.0 us  bitwise
+M= 6   4458.3 us  bitwise
+M= 7   4476.4 us  bitwise
+M= 8   4497.3 us  bitwise
+M= 9   4554.4 us  bitwise
+rows status 3 (M=10)
+## lgbench variant 3 248320x5120
+logits rows 248320x5120 variant 3
+M= 1   4237.4 us  bitwise
+M= 2   4250.7 us  bitwise
+M= 3   4272.1 us  bitwise
+M= 4   4335.1 us  bitwise
+M= 5   4427.5 us  bitwise
+M= 6   4453.9 us  bitwise
+M= 7   4477.4 us  bitwise
+M= 8   4499.0 us  bitwise
+M= 9   4562.4 us  bitwise
+rows status 3 (M=10)
+## lgbench variant 6 248320x5120
+logits rows 248320x5120 variant 6
+M= 1   4237.1 us  bitwise
+M= 2   4251.1 us  bitwise
+M= 3   4272.5 us  bitwise
+M= 4   4336.5 us  bitwise
+M= 5   4425.7 us  bitwise
+M= 6   4456.6 us  bitwise
+M= 7   4475.8 us  bitwise
+M= 8   4497.3 us  bitwise
+M= 9   4563.5 us  bitwise
+rows status 3 (M=10)
+## mxbench gemv baseline 17408x5120
+gemv 17408x5120
+M= 1    80.90 us  x1.00  bitwise
+M= 2    85.67 us  x1.06  bitwise
+M= 3   117.26 us  x1.45  bitwise
+M= 4   162.63 us  x2.01  bitwise
+M= 5   227.25 us  x2.81  bitwise
+M= 6   447.97 us  x5.54  bitwise
+M= 7   900.56 us  x11.13  bitwise
+M= 8  1531.63 us  x18.93  bitwise
+## mxbench variant 0 17408x5120
+rows 17408x5120
+M= 1    80.85 us  x1.00  bitwise
+M= 2    83.96 us  x1.04  bitwise
+M= 3    88.39 us  x1.09  bitwise
+M= 4    97.20 us  x1.20  bitwise
+M= 8   151.18 us  x1.87  bitwise
+M=16   263.80 us  x3.26  bitwise
+## mxbench variant 1 17408x5120
+rows 17408x5120
+M= 1    80.82 us  x1.00  bitwise
+M= 2    83.07 us  x1.03  bitwise
+M= 3    87.12 us  x1.08  bitwise
+M= 4    97.69 us  x1.21  bitwise
+M= 8   165.34 us  x2.05  bitwise
+M=16   279.75 us  x3.46  bitwise
+## mxbench variant 2 17408x5120
+rows 17408x5120
+M= 1    80.81 us  x1.00  bitwise
+M= 2    83.16 us  x1.03  bitwise
+M= 3    91.59 us  x1.13  bitwise
+M= 4   102.89 us  x1.27  bitwise
+M= 8   168.90 us  x2.09  bitwise
+M=16   314.11 us  x3.89  bitwise
+## mxbench variant 3 17408x5120
+rows 17408x5120
+M= 1    80.78 us  x1.00  bitwise
+M= 2    83.46 us  x1.03  bitwise
+M= 3    87.53 us  x1.08  bitwise
+M= 4    94.89 us  x1.17  bitwise
+M= 8   145.68 us  x1.80  bitwise
+M=16   248.53 us  x3.08  bitwise
+## mxbench variant 4 17408x5120
+rows 17408x5120
+M= 1    80.84 us  x1.00  bitwise
+M= 2    82.62 us  x1.02  bitwise
+M= 3    86.17 us  x1.07  bitwise
+M= 4    94.58 us  x1.17  bitwise
+M= 8   157.88 us  x1.95  bitwise
+M=16   268.33 us  x3.32  bitwise
+## mxbench variant 5 17408x5120
+rows 17408x5120
+M= 1    80.80 us  x1.00  bitwise
+M= 2    82.59 us  x1.02  bitwise
+M= 3    88.85 us  x1.10  bitwise
+M= 4    98.71 us  x1.22  bitwise
+M= 8   161.19 us  x1.99  bitwise
+M=16   285.34 us  x3.53  bitwise
+## mxbench gemv baseline 5120x17408
+gemv 5120x17408
+M= 1    80.70 us  x1.00  bitwise
+M= 2    85.89 us  x1.06  bitwise
+M= 3   115.24 us  x1.43  bitwise
+M= 4   154.10 us  x1.91  bitwise
+M= 5   217.79 us  x2.70  bitwise
+M= 6   437.27 us  x5.42  bitwise
+M= 7   899.37 us  x11.15  bitwise
+M= 8  1545.77 us  x19.16  bitwise
+## mxbench variant 0 5120x17408
+rows 5120x17408
+M= 1    80.79 us  x1.00  bitwise
+M= 2    88.11 us  x1.09  bitwise
+M= 3    97.65 us  x1.21  bitwise
+M= 4   107.70 us  x1.33  bitwise
+M= 8   154.53 us  x1.91  bitwise
+M=16   268.04 us  x3.32  bitwise
+## mxbench variant 1 5120x17408
+rows 5120x17408
+M= 1    80.70 us  x1.00  bitwise
+M= 2    84.26 us  x1.04  bitwise
+M= 3    92.25 us  x1.14  bitwise
+M= 4    97.82 us  x1.21  bitwise
+M= 8   167.40 us  x2.07  bitwise
+M=16   278.37 us  x3.45  bitwise
+## mxbench variant 2 5120x17408
+rows 5120x17408
+M= 1    80.69 us  x1.00  bitwise
+M= 2    84.35 us  x1.05  bitwise
+M= 3    99.00 us  x1.23  bitwise
+M= 4   103.76 us  x1.29  bitwise
+M= 8   167.67 us  x2.08  bitwise
+M=16   310.21 us  x3.84  bitwise
+## mxbench variant 3 5120x17408
+rows 5120x17408
+M= 1    80.67 us  x1.00  bitwise
+M= 2    87.72 us  x1.09  bitwise
+M= 3    96.95 us  x1.20  bitwise
+M= 4   106.82 us  x1.32  bitwise
+M= 8   152.67 us  x1.89  bitwise
+M=16   259.65 us  x3.22  bitwise
+## mxbench variant 4 5120x17408
+rows 5120x17408
+M= 1    80.80 us  x1.00  bitwise
+M= 2    83.81 us  x1.04  bitwise
+M= 3    91.59 us  x1.13  bitwise
+M= 4    96.85 us  x1.20  bitwise
+M= 8   164.38 us  x2.03  bitwise
+M=16   272.52 us  x3.37  bitwise
+## mxbench variant 5 5120x17408
+rows 5120x17408
+M= 1    80.75 us  x1.00  bitwise
+M= 2    83.99 us  x1.04  bitwise
+M= 3    98.14 us  x1.22  bitwise
+M= 4   102.67 us  x1.27  bitwise
+M= 8   165.62 us  x2.05  bitwise
+M=16   298.95 us  x3.70  bitwise
+## mxbench gemv baseline 5120x6144
+gemv 5120x6144
+M= 1    36.69 us  x1.00  bitwise
+M= 2    39.90 us  x1.09  bitwise
+M= 3    52.30 us  x1.43  bitwise
+M= 4    66.36 us  x1.81  bitwise
+M= 5    90.86 us  x2.48  bitwise
+M= 6   171.14 us  x4.66  bitwise
+M= 7   325.14 us  x8.86  bitwise
+M= 8   461.47 us  x12.58  bitwise
+## mxbench variant 0 5120x6144
+rows 5120x6144
+M= 1    38.28 us  x1.00  bitwise
+M= 2    43.44 us  x1.13  bitwise
+M= 3    49.24 us  x1.29  bitwise
+M= 4    56.34 us  x1.47  bitwise
+M= 8    77.05 us  x2.01  bitwise
+M=16   117.54 us  x3.07  bitwise
+## mxbench variant 1 5120x6144
+rows 5120x6144
+M= 1    38.46 us  x1.00  bitwise
+M= 2    41.41 us  x1.08  bitwise
+M= 3    46.23 us  x1.20  bitwise
+M= 4    47.31 us  x1.23  bitwise
+M= 8    78.86 us  x2.05  bitwise
+M=16   112.81 us  x2.93  bitwise
+## mxbench variant 2 5120x6144
+rows 5120x6144
+M= 1    38.56 us  x1.00  bitwise
+M= 2    41.49 us  x1.08  bitwise
+M= 3    52.95 us  x1.37  bitwise
+M= 4    55.58 us  x1.44  bitwise
+M= 8    77.24 us  x2.00  bitwise
+M=16   132.37 us  x3.43  bitwise
+## mxbench variant 3 5120x6144
+rows 5120x6144
+M= 1    37.90 us  x1.00  bitwise
+M= 2    42.88 us  x1.13  bitwise
+M= 3    48.53 us  x1.28  bitwise
+M= 4    55.09 us  x1.45  bitwise
+M= 8    71.65 us  x1.89  bitwise
+M=16   109.81 us  x2.90  bitwise
+## mxbench variant 4 5120x6144
+rows 5120x6144
+M= 1    38.01 us  x1.00  bitwise
+M= 2    40.87 us  x1.08  bitwise
+M= 3    45.59 us  x1.20  bitwise
+M= 4    46.32 us  x1.22  bitwise
+M= 8    75.01 us  x1.97  bitwise
+M=16   106.82 us  x2.81  bitwise
+## mxbench variant 5 5120x6144
+rows 5120x6144
+M= 1    38.40 us  x1.00  bitwise
+M= 2    40.89 us  x1.06  bitwise
+M= 3    52.37 us  x1.36  bitwise
+M= 4    54.70 us  x1.42  bitwise
+M= 8    73.96 us  x1.93  bitwise
+M=16   121.67 us  x3.17  bitwise
+[mr] radiance active after 20 s
