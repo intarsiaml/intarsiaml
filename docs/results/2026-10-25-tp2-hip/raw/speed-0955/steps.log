@@ -1,0 +1,6 @@
+09:55:10 guard: [guard] radiance stopped 2026-10-25 09:55:10
+09:55:10 phase b16 round 1 arm tp1: starting server
+09:55:26 phase b16 round 1 arm tp1: server up, localeval
+09:56:08 phase b16 round 1 arm tp1: localeval exit 0 - result file: `results/20261025-095527-adhoc-tp2s35-b16-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261025-095527-adhoc-tp2s35-b16-tp1-r1/result.json|
+09:56:08 phase b16 round 1 arm tp2: starting server
+09:56:21 phase b16 round 1 arm tp2: server up, localeval
