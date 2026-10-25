@@ -1,0 +1,20 @@
+
+
+This is a great request. The article you shared is a classic "internal memo" style—dense, practical, and focused on the *why* and *how* of a very specific problem.
+
+Here is a breakdown of that article for a new engineer, followed by the code, failure modes, and a design checklist.
+
+---
+
+### Part 1: The Concept (The "Why")
+
+Imagine a pipeline of three workers:
+1.  **The Reader:** Reads data very fast (2,000 items/sec).
+2.  **The Transformer:** Processes data (fast, but let's say it's not the bottleneck).
+3.  **The Writer:** Writes to a database (slow, 500 items/sec).
+
+**The Problem:**
+If the Reader pushes 2,000 items/sec into a queue, and the Writer can only take 500 items/sec, the queue grows by 1,500 items every second.
+*   **1 minute:** 90,000 items in memory.
+*   **10 minutes:** 900,000 items in memory.
+*   **Result:** The server runs out of RAM,

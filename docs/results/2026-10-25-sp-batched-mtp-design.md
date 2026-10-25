@@ -308,3 +308,23 @@ verify=lambda B,q: plain(B*q)-0.75*(B*q-B)+B*((q-1)*0.26+0.3)
 spec=lambda B,k: hl(2.5*B)+lm(B)+(k-1)*(hl(B)+lm(B))+verify(B,k+1)
 TAU={1:1.8,2:2.5,3:2.95}; gain=lambda B,k: TAU[k]*plain(B)/spec(B,k)
 ```
+
+## W0 measurement (solo 27B on HIP, main `5241377b`, fleetq #5300)
+
+Natural prompts, 256 greedy tokens, `--ignore-eos`, one run each; raw in `2026-10-25-sp-batched-mtp-design-raw-w0/`. Output ids equal spec off in every row (`k2b` repeats k=2 at 1k and 4k with the same ids and acceptance).
+
+| text | spec off tok/s | k=2 tok/s | k=2 gain | k=2 acceptance, tokens per pass |
+|---|---|---|---|---|
+| 128 | 33.1 | 50.1 | 1.51x | 77.4%, 2.54 |
+| 1k | 33.0 | 48.0 | 1.45x | 72.1%, 2.44 |
+| 4k | 32.4 | 54.3 | 1.68x | 91.7%, 2.83 |
+| 16k | 30.9 | 48.7 | 1.58x | 87.1%, 2.74 |
+
+| k | text | tok/s | gain | acceptance, tokens per pass |
+|---|---|---|---|---|
+| 1 | 1k | 43.4 | 1.31x | 80.9%, 1.81 |
+| 1 | 4k | 46.3 | 1.43x | 97.7%, 1.98 |
+| 3 | 1k | 49.0 | 1.49x | 64.0%, 2.92 |
+| 3 | 4k | 58.5 | 1.80x | 86.4%, 3.59 |
+
+Spec off is fully graph-captured (one capture, 256 replays); MTP makes 3 to 5 captures per run and nearly every step is a replay. The plan-state-size step of the script failed (`plan show` takes no `--max-batch`); the 149 MiB per saved row per sequence figure above stands. Status: batched MTP deferred by the user on 2026-10-25 12:57 (LOG row on PR #148).

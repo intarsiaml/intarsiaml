@@ -1,0 +1,33 @@
+
+
+<think>
+Let me analyze the bug report carefully to identify the root causes of both problems.
+
+**Problem 1: Zombie threads causing double-processing**
+
+Looking at `Worker._execute`:
+```python
+def _execute(self, job: Job) -> None:
+    fn = get_handler(job.name)
+    box: dict[str, Any] = {}
+
+    def target() -> None:
+        try:
+            box["result"] = fn(*job.args)
+        except BaseException as exc:
+            box["error"] = exc
+
+    t = threading.Thread(target=target, name=f"taskq-job-{job.id}", daemon=True)
+    t.start()
+    t.join(self.job_timeout)
+    if t.is_alive():
+        raise JobTimeout(f"{job.name} exceeded {self.job_timeout}s")
+    if "error" in box:
+        raise box["error"]
+```
+
+When a handler times out:
+1. `t.join(self.job_timeout)` returns (the thread is still alive)
+2. `t.is_alive()` is True, so `JobTimeout` is raised
+3. The exception propagates to `run_once` → `_record_failure`
+4. `_
