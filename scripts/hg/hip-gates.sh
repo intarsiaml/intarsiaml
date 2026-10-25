@@ -39,6 +39,8 @@ dev() { # dev <gpu> <cmd...>
     cargo test --release -p intarsia-models --test batch_recurrent -- --test-threads=1 --nocapture 2>&1 | grep -aE "^test |^test result|FAILED|panicked|^error"
   echo "-- kernels test --quick"
   dev 1 /target/release/intarsia kernels test --backend hip --quick 2>&1 | tail -4
+  echo "-- packed_rows (lane 4 row-invariance of the prefill kernels)"
+  dev 1 cargo test --release -p intarsia-backend-hip --test packed_rows -- --test-threads=1 --nocapture 2>&1 | grep -aE "rows identical|segment of|^test |^test result|FAILED|panicked|differ"
 ) > "$O/g-r.log" 2>&1 &
 wait
 echo "== batch_cuda_real (35B, hip)"; cat "$O/g-c.log"
