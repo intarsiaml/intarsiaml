@@ -252,7 +252,8 @@ impl MetalBackend {
         if self.download(&ids.buf, ids.offset, &mut raw, 0).is_err() {
             return;
         }
-        let mut v: Vec<i32> = raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).filter(|&i| i >= 0).collect();
+        let mut v: Vec<i32> =
+            raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).filter(|&i| i >= 0).collect();
         let pairs = v.len();
         v.sort_unstable();
         v.dedup();

@@ -33,49 +33,33 @@ const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe
 const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
-/// Fat-threadgroup forms of `DEC_GU_X` / `DEC_DN_X` (rows per simdgroup; `a`: arithmetic e2m1 decode).
-const GU_X2: [(&str, usize); 10] = [
-    ("moe_dec_gu_x2_r1_xr1", 1),
-    ("moe_dec_gu_x2_r4_xr1", 4),
-    ("moe_dec_gu_x2_r2_xr1", 2),
-    ("moe_dec_gu_x2_r2_xr2", 2),
-    ("moe_dec_gu_x2_r2_xr4", 2),
-    ("moe_dec_gu_x2_r1", 1),
-    ("moe_dec_gu_x2_r2", 2),
-    ("moe_dec_gu_x2_r4", 4),
-    ("moe_dec_gu_x2_r2a", 2),
-    ("moe_dec_gu_x2_r4a", 4),
-];
-const DN_X2: [(&str, usize); 11] = [
-    ("moe_dec_dn_x2_r2_xr1", 2),
-    ("moe_dec_dn_x2_r8_xr1", 8),
-    ("moe_dec_dn_x2_r4_xr1", 4),
-    ("moe_dec_dn_x2_r4_xr2", 4),
-    ("moe_dec_dn_x2_r4_xr4", 4),
-    ("moe_dec_dn_x2_r1", 1),
-    ("moe_dec_dn_x2_r2", 2),
-    ("moe_dec_dn_x2_r4", 4),
-    ("moe_dec_dn_x2_r8", 8),
-    ("moe_dec_dn_x2_r4a", 4),
-    ("moe_dec_dn_x2_r8a", 8),
-];
+/// The row-exact decode's fat-threadgroup gate+up / down kernels (`MOE_PR` = 2 rows per simdgroup, no grouping by expert;
+/// lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md) and their negative-control forms.
+const GU_P: &str = "moe_dec_gu_p";
+const DN_P: &str = "moe_dec_dn_p";
+const GU_P_NEG: &str = "moe_dec_gu_p_neg";
+const DN_P_NEG: &str = "moe_dec_dn_p_neg";
+const PR: usize = 2;
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 40] = [
-    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
-    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_X2[0].0, GU_X2[1].0, GU_X2[2].0, GU_X2[3].0, GU_X2[4].0, GU_X2[5].0, GU_X2[6].0, GU_X2[7].0, GU_X2[8].0, GU_X2[9].0,
-    DN_X2[0].0, DN_X2[1].0, DN_X2[2].0, DN_X2[3].0, DN_X2[4].0, DN_X2[5].0, DN_X2[6].0, DN_X2[7].0, DN_X2[8].0, DN_X2[9].0, DN_X2[10].0,
+pub const SHADERS: [&str; 23] = [
+    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3],
+    MM_DN[0], MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_P, DN_P, GU_P_NEG, DN_P_NEG,
 ];
 
-/// The rows-path gate+up / down shaders and rows per simdgroup: `INTARSIA_METAL_MOE_ROWS_GU` / `_DN` name one of
-/// `GU_X2` / `DN_X2` (experiments), else `x` (the one-row-per-simdgroup kernels).
+/// The rows path's gate+up and down shaders with their rows per simdgroup: the fat-threadgroup kernels unless
+/// `INTARSIA_METAL_MOE_ROWS_FAT=0` (the expert-grouped `_x` kernels of lane mb); `INTARSIA_METAL_NEGCTL=moe_gu` / `moe_dn`
+/// swaps in a negative-control kernel (tests only: its output is NOT the solo call's).
 fn rows_shaders() -> ((&'static str, usize), (&'static str, usize)) {
     static PICK: std::sync::OnceLock<((&'static str, usize), (&'static str, usize))> = std::sync::OnceLock::new();
     *PICK.get_or_init(|| {
-        let pick = |var: &str, set: &[(&'static str, usize)], dflt: (&'static str, usize)| {
-            std::env::var(var).ok().and_then(|v| set.iter().copied().find(|(n, _)| *n == v)).unwrap_or(dflt)
-        };
-        (pick("INTARSIA_METAL_MOE_ROWS_GU", &GU_X2, (DEC_GU_X, 1)), pick("INTARSIA_METAL_MOE_ROWS_DN", &DN_X2, (DEC_DN_X, 1)))
+        if std::env::var("INTARSIA_METAL_MOE_ROWS_FAT").is_ok_and(|v| v == "0") {
+            return ((DEC_GU_X, 1), (DEC_DN_X, 1));
+        }
+        let neg = std::env::var("INTARSIA_METAL_NEGCTL").unwrap_or_default();
+        let gu = if neg == "moe_gu" { GU_P_NEG } else { GU_P };
+        let dn = if neg == "moe_dn" { DN_P_NEG } else { DN_P };
+        ((gu, PR), (dn, PR))
     })
 }
 

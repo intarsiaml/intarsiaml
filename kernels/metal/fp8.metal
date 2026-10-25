@@ -256,15 +256,13 @@ FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
 // K = 2048); `matmul_fp8_gemv_rows` takes it past M = 4 at K = 4096 (the 35B's GDN / attention output projections)
 FP8_GEMV(fp8_gemv_bf16_m4, 4, 2, 2, ushort)
 FP8_GEMV(fp8_gemv_f32_m4, 4, 2, 2, float)
-// `matmul_fp8_gemv_rows` over a q(x) prep buffer (any K; lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md)
-FP8_GEMV_XD(fp8_gemv_bf16_m8_xd, 8, 2, 2, ushort)
-FP8_GEMV_XD(fp8_gemv_f32_m8_xd, 8, 2, 2, float)
-FP8_GEMV_XD(fp8_gemv_bf16_m8_xd4, 8, 4, 2, ushort)
-FP8_GEMV_XD(fp8_gemv_bf16_m2_xd, 2, 2, 2, ushort)
+// `matmul_fp8_gemv_rows` over the q(x) prep buffer (lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md): 4 rows per
+// threadgroup (2..8 rows: one or two threadgroup rows; with no staging the tile is free of the threadgroup-memory limit, and
+// 4 measured faster than 8 or 2 at every 35B shape); _neg is the negative control (INTARSIA_METAL_NEGCTL=fp8_xd)
 FP8_GEMV_XD(fp8_gemv_bf16_m4_xd, 4, 2, 2, ushort)
-FP8_GEMV_XD(fp8_gemv_f32_m2_xd, 2, 2, 2, float)
 FP8_GEMV_XD(fp8_gemv_f32_m4_xd, 4, 2, 2, float)
-FP8_GEMV_XD(fp8_gemv_f32_m8_xd4, 8, 4, 2, float)
+FP8_GEMV_XDN(fp8_gemv_bf16_m4_xd_neg, 4, 2, 2, ushort, true)
+FP8_GEMV_XDN(fp8_gemv_f32_m4_xd_neg, 4, 2, 2, float, true)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 

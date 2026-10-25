@@ -18,30 +18,23 @@ pub const MATMUL_NVFP4_MMA: &str = "matmul_nvfp4_mma";
 pub const MATMUL_NVFP4_GEMV_ROWS: &str = "matmul_nvfp4_gemv_rows";
 
 /// Shader entry points (kernels/metal/nvfp4.metal).
-pub const SHADERS: [&str; 10] = [
-    "nv_gemv_bf16_m1",
-    "nv_gemv_bf16_m8",
-    "nv_gemv_f32_m1",
-    "nv_gemv_f32_m8",
-    "nv_mma_bf16",
-    "nv_mma_f32",
-    "nv_gemv_bf16_m2",
-    "nv_gemv_bf16_m4",
-    "nv_gemv_f32_m2",
-    "nv_gemv_f32_m4",
-];
+pub const SHADERS: [&str; 6] =
+    ["nv_gemv_bf16_m1", "nv_gemv_bf16_m8", "nv_gemv_f32_m1", "nv_gemv_f32_m8", "nv_mma_bf16", "nv_mma_f32"];
 
-/// Rows per threadgroup of the multi-row GEMV over an N-row matrix (lane mm): narrow matrices split the M rows across
-/// threadgroups (a small grid gets more threadgroups; the weights come again from cache), wide ones take all 8 rows in one.
-/// Per row the arithmetic is the same whatever the split, so are the bits (tests/rows_exact.rs). `INTARSIA_METAL_NV_ROWS_MB`
-/// / `INTARSIA_METAL_NV_NARROW_N` override the split / the widest narrow matrix (experiments).
+/// The widest matrix whose multi-row GEMV runs one row per threadgroup row (lane mm): an N-row matrix with N at most this
+/// gets the one-row shader over a grid of M threadgroup rows (each row is then the one-row launch itself; the weights come
+/// again from cache), wider ones the 8-row shader. The 35B's shared-expert matrices (512 / 2048 rows) give the 8-row shader
+/// only 32 / 128 threadgroups. `INTARSIA_METAL_NV_ROWS_SPLIT=0` keeps the 8-row shader everywhere.
+const NARROW_N: usize = 4096;
+
 fn nv_rows_mb(n: usize) -> usize {
-    static CFG: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
-    let (mb, narrow) = *CFG.get_or_init(|| {
-        let v = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
-        (v("INTARSIA_METAL_NV_ROWS_MB", 8), v("INTARSIA_METAL_NV_NARROW_N", 4096))
-    });
-    if n <= narrow { mb } else { GEMV_MB }
+    static SPLIT: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let split = *SPLIT.get_or_init(|| std::env::var("INTARSIA_METAL_NV_ROWS_SPLIT").map_or(true, |v| v != "0"));
+    if split && n <= NARROW_N {
+        1
+    } else {
+        GEMV_MB
+    }
 }
 
 /// Simdgroups per GEMV threadgroup (`NV_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
@@ -120,18 +113,19 @@ impl MetalBackend {
                 if m > GEMV_MB || (kernel == MATMUL_NVFP4_GEMV_ROWS && m < 2) {
                     return Err(Error::invalid(format!("metal {kernel}: M = {m} outside the kernel's rows")));
                 }
-                let mb = if m == 1 { 1 } else if kernel == MATMUL_NVFP4_GEMV_ROWS { nv_rows_mb(n) } else { GEMV_MB };
+                let mb = if m == 1 {
+                    1
+                } else if kernel == MATMUL_NVFP4_GEMV_ROWS {
+                    nv_rows_mb(n)
+                } else {
+                    GEMV_MB
+                };
                 let (name, rs) = match (f32_out, mb) {
                     (false, 1) => (SHADERS[0], GEMV_RS[0]),
-                    (false, 2) => (SHADERS[6], GEMV_RS[1]),
-                    (false, 4) => (SHADERS[7], GEMV_RS[1]),
                     (false, _) => (SHADERS[1], GEMV_RS[1]),
                     (true, 1) => (SHADERS[2], GEMV_RS[0]),
-                    (true, 2) => (SHADERS[8], GEMV_RS[1]),
-                    (true, 4) => (SHADERS[9], GEMV_RS[1]),
                     (true, _) => (SHADERS[3], GEMV_RS[1]),
                 };
-                let mb = if mb == 1 || mb == 2 || mb == 4 { mb } else { GEMV_MB };
                 let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
                 (pso, (n.div_ceil(GEMV_SG * rs), m.div_ceil(mb)), GEMV_SG * 32)
             }

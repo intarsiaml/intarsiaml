@@ -427,7 +427,9 @@ fn differing(a: &[u8], b: &[u8]) -> usize {
 
 /// Each control computes something a broken rows kernel could plausibly compute instead (rows mixed up, q(x) skipped,
 /// another accumulation order) and asserts that it does NOT match the one-row launches bit for bit, so a pass of
-/// `fp8_rows_are_bitwise_the_one_row_gemv` / `moe_experts_rows_are_bitwise_the_one_token_call` is not vacuous.
+/// `fp8_rows_are_bitwise_the_one_row_gemv` / `moe_experts_rows_are_bitwise_the_one_token_call` is not vacuous. The kernels'
+/// own order is controlled separately: `INTARSIA_METAL_NEGCTL=fp8_xd` / `moe_gu` / `moe_dn` swap in a form of the new rows
+/// kernel with one association changed, and those two gates must then fail (scripts/mm/gates.sh).
 #[test]
 fn negative_controls_differ_from_the_one_row_calls() {
     let be = backend();
@@ -448,11 +450,17 @@ fn negative_controls_differ_from_the_one_row_calls() {
         let yt = t(&y, 0, DType::Bf16, &[m, n]);
         if kern == "matmul_fp8_gemv" {
             for r in 0..m {
-                let c = OpCall::new(Op::MatmulFp8, vec![x.rows(r, 1), wt.clone(), sc.clone()], vec![yt.rows(r, 1)], OpAttrs::default());
+                let c = OpCall::new(
+                    Op::MatmulFp8,
+                    vec![x.rows(r, 1), wt.clone(), sc.clone()],
+                    vec![yt.rows(r, 1)],
+                    OpAttrs::default(),
+                );
                 be.launch(kern, &c, 0).unwrap();
             }
         } else {
-            let mut c = OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
+            let mut c =
+                OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
             if scratch {
                 let need = m * k * 2 + 16;
                 c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
@@ -466,7 +474,6 @@ fn negative_controls_differ_from_the_one_row_calls() {
     let controls = [
         ("fp8 rows (_xd) with rows 0 and 1 swapped", fp8("matmul_fp8_gemv_rows", &xswt, &st, true)),
         ("fp8 rows (_xd) with q(x) skipped (is = 0)", fp8("matmul_fp8_gemv_rows", &xt, &st0, true)),
-        ("fp8 GEMM (matmul_fp8_mma, another accumulation order)", fp8("matmul_fp8_mma", &xt, &st, true)),
     ];
     for (what, got) in &controls {
         let d = differing(&solo, got);
