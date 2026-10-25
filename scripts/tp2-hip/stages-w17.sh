@@ -9,7 +9,7 @@
 set -uo pipefail
 export O=${1:?out dir}
 source "$HOME/tp2/lib.sh"
-D=${D:-batch}; PC=${PC:?PC=<head sha of the build>}
+D=${D:-batch}; PC=f313c16  # the build head (the queued window was submitted with an older PC)
 CAP=${CAP:-1750}; T0=$(date +%s)
 left() { echo $(( CAP - ($(date +%s) - T0) )); }
 need() { if (( $(left) > $1 )); then return 0; fi; log "SKIPPED (time left $(left)s < $1): $2"; return 1; }
