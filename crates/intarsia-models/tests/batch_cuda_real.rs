@@ -11,14 +11,16 @@
 //! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels.
 //!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
-//! `INTARSIA_QWEN3_DIR` (8B); a test without its directory prints SKIPPED (and panics under `INTARSIA_REQUIRE_GPU=1`).
+//! `INTARSIA_QWEN3_DIR` (8B); a test whose variable is unset prints SKIPPED and passes, also under `INTARSIA_REQUIRE_GPU=1`
+//! (a checkpoint left out is not a missing GPU); one set to a directory without config.json, or without a usable GPU,
+//! panics under `INTARSIA_REQUIRE_GPU=1`. The tests run one at a time ([`serial`]).
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
 use intarsia_models::{load_engine, read_model_spec, EngineOptions};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 #[path = "common/batch_identity.rs"]
@@ -39,7 +41,7 @@ fn model_dir(var: &str) -> Option<PathBuf> {
             None
         }
         None => {
-            skip(&format!("{var} not set"));
+            eprintln!("SKIPPED: {var} not set");
             None
         }
     }
@@ -56,6 +58,14 @@ fn cuda() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
             None
         }
     }
+}
+
+/// The tests of this file one at a time (every test takes it first): each loads a real checkpoint with most of the free
+/// device memory for its KV cache (`kv_fraction` 0.95), so two at once under the default parallel test runner do not fit.
+/// A failed test does not poison it.
+fn serial() -> MutexGuard<'static, ()> {
+    static SERIAL: Mutex<()> = Mutex::new(());
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 /// The model of `dir` on the GPU with batching enabled for `rows` sequences of `max_seq` tokens.
@@ -105,6 +115,7 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
 
 #[test]
 fn real_35b_batched_decode_is_bitwise_the_solo_step() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     eprintln!("batch plan notes: {:?}", m.plan.notes);
@@ -122,6 +133,7 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
 
 #[test]
 fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
@@ -185,6 +197,7 @@ fn requests(engine: &dyn Engine, n: usize, max_tokens: usize) -> Vec<GenRequest>
 
 #[test]
 fn real_35b_batched_engine_equals_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let mk = |max_batch: Option<usize>| EngineOptions {
         load: LoadOptions { max_seq: 2048, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
@@ -225,6 +238,7 @@ fn real_35b_batched_engine_equals_the_local_engine() {
 #[test]
 #[ignore]
 fn real_35b_batch_step_timing() {
+    let _serial = serial();
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
@@ -275,6 +289,7 @@ fn real_35b_batch_step_timing() {
 #[test]
 #[ignore]
 fn real_35b_batch_step_sampled_timing() {
+    let _serial = serial();
     use intarsia_core::model::{HeadMode, StepOut};
     use intarsia_core::sampler::{Sampler, SamplingParams};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
@@ -317,6 +332,7 @@ fn real_35b_batch_step_sampled_timing() {
 #[test]
 #[ignore]
 fn real_35b_batch_step_profile() {
+    let _serial = serial();
     use intarsia_core::model::HeadMode;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let (m, tel) = load_with(&dir, be, 16, 2048, 1);
@@ -386,6 +402,7 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 #[test]
 #[ignore]
 fn real_35b_busy_chunk_prefill_kl_gate() {
+    let _serial = serial();
     use intarsia_core::engine::TextCodec;
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
@@ -546,6 +563,7 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let all = corpus_tokens(&dir);
     let window = |start: usize, len: usize| all[start..start + len].to_vec();
@@ -669,6 +687,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
 #[test]
 #[ignore]
 fn real_35b_batch_op_listing() {
+    let _serial = serial();
     use intarsia_core::plan::Phase;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
@@ -701,6 +720,7 @@ fn real_35b_batch_op_listing() {
 #[test]
 #[ignore]
 fn real_35b_packed_prefill_equals_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let all = corpus_tokens(&dir);
     let lens = [300usize, 1100, 40, 700, 520, 90, 1024, 260, 33, 880, 410, 150];
