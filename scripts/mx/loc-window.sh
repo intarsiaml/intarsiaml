@@ -4,7 +4,8 @@
 # and stops it; rounds alternate the arm order. radiance comes back in an EXIT trap (polls /v1/models <= 200 s).
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --mem 30 --expect 45 \
 #     --label "mx loc ..." -- env W=loc1 ARMS="base27 dev27 base35 dev35" ROUNDS=3 scripts/mx/loc-window.sh
-# An arm is <tree><model>[:<extra serve args, commas for spaces>]: tree base|dev (~/intarsiaml-mx-<tree>), model 27|35.
+# An arm is <tree><model>[@K=V[@K2=V2]][:<extra serve args, commas for spaces>]: tree base|dev (~/intarsiaml-mx-<tree>),
+# model 27|35, @K=V environment for that arm's server only.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,16 +40,20 @@ restore() {
   return 1
 }
 arm() {  # arm <spec> <round>
-  local spec=$1 r=$2 tree model extra name mdir mpath
+  local spec=$1 r=$2 tree model extra name mdir mpath envs="" e
   local base=${spec%%:*}; extra=""; [[ $spec == *:* ]] && extra=${spec#*:} && extra=${extra//,/ }
+  if [[ $base == *@* ]]; then
+    for e in $(echo "${base#*@}" | tr '@' ' '); do envs="$envs -e $e"; done
+    base=${base%%@*}
+  fi
   tree=${base%??}; model=${base: -2}
   if [[ $model == 27 ]]; then mdir=/data/models/radiance/hf-cache/hub; mpath=$M27; name=qwen38-27b-intarsia-hip
   else mdir=/data/models/intarsia; mpath=/models/Qwen3.6-35B-A3B-NVFP4; name=qwen36-35b-intarsia-hip; fi
-  local label="mx-$W-$base${extra:+-$(echo "$extra" | tr -c 'A-Za-z0-9=' '_')}-r$r"
+  local label="mx-$W-$base${envs:+-$(echo "$envs" | tr -c 'A-Za-z0-9=' '_')}${extra:+-$(echo "$extra" | tr -c 'A-Za-z0-9=' '_')}-r$r"
   ssh $T "docker rm -f intarsia-serve >/dev/null 2>&1; docker run -d --name intarsia-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0 \
-    ${ENVX:-} -v \$HOME/intarsiaml-mx-$tree:/work -v $mdir:/models:ro -w /work intarsia-hip-dev:rocm7.2.4-rust1.90.0 \
+    ${ENVX:-} $envs -v \$HOME/intarsiaml-mx-$tree:/work -v $mdir:/models:ro -w /work intarsia-hip-dev:rocm7.2.4-rust1.90.0 \
     /work/mx-intarsia serve --backend hip --model $mpath --profile-every 0 --mem-budget 29 --host 0.0.0.0 --port 8090 \
     --served-model-name $name --max-seq 17408 $extra" < /dev/null > "$OUT/$label-start.out" 2>&1
   local i up=0
@@ -57,12 +62,12 @@ arm() {  # arm <spec> <round>
   if ((up == 0)); then say "arm $label DID NOT COME UP"; ssh $T 'docker rm -f intarsia-serve' < /dev/null > /dev/null 2>&1; return 1; fi
   say "arm $label up"
   (cd /opt/code/deepeval && uv run localeval speed --url "http://$T:8090/v1" --model $name --sizes "$SIZES" --gen 128 --reps "$REPS" \
-    --thinking off --label "$label" --recipe "intarsia serve --backend hip --model $mpath --mem-budget 29 --max-seq 17408 $extra (tree $tree, $(ssh $T "cat ~/intarsiaml-mx-$tree/.stamp 2>/dev/null" < /dev/null))") > "$OUT/$label.txt" 2>&1
+    --thinking off --label "$label" --recipe "${envs:+env${envs//-e /} }intarsia serve --backend hip --model $mpath --mem-budget 29 --max-seq 17408 $extra (tree $tree, $(ssh $T "cat ~/intarsiaml-mx-$tree/.stamp 2>/dev/null" < /dev/null))") > "$OUT/$label.txt" 2>&1
   say "arm $label localeval exit $?: $(grep -aE 'run id|run_id|results/' "$OUT/$label.txt" | head -2 | tr '\n' ' ')"
   ssh $T 'docker logs intarsia-serve > /dev/null 2>&1; docker rm -f intarsia-serve' < /dev/null > /dev/null 2>&1
 }
 # preflight: nothing below stops radiance until it passes
-for spec in $ARMS; do b=${spec%%:*}; t=${b%??}
+for spec in $ARMS; do b=${spec%%:*}; b=${b%%@*}; t=${b%??}
   ssh $T "test -x ~/intarsiaml-mx-$t/mx-intarsia" < /dev/null || { echo "preflight failed ($t), radiance untouched"; exit 3; }
 done
 trap restore EXIT
