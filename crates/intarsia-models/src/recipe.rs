@@ -291,10 +291,11 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn qwen3_5_moe_chunk_is_2048_on_cuda_and_4096_on_hip() {
+    fn qwen3_5_moe_chunk_is_8192_on_cuda_and_4096_on_hip() {
         let cfg = serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]});
         let (_, r) = select_recipe(&cfg, &[]).unwrap();
-        assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 2048);
+        // 8192 on CUDA since 2026-10-25 (user decision; 2048 before)
+        assert_eq!(r.resolve_prefill_chunk(None, "cuda").value, 8192);
         let hip = r.resolve_prefill_chunk(None, "hip");
         assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5_moe, hip"));
         assert_eq!(r.resolve_prefill_chunk(Some(256), "hip").value, 256);
