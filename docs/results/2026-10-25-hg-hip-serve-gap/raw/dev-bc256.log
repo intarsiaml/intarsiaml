@@ -1,0 +1,14 @@
+[supervisor] started server pid 7
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 40 kernel(s) checked, 630 case(s) run, 0 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+loaded Qwen3.6-35B-A3B-NVFP4 on hip (AMD Radeon Graphics) in 13.3s, context 8192 tokens
+intarsia server listening on http://0.0.0.0:8294
+host-profile prefill-only   iters      1 rows  0.00 wall 155.648 ms | reap+admit 0.075 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.014 send 0.002 finish 0.010 prefill 155.544 | other 0.003
+host-profile prefill-only   iters      1 rows  0.00 wall 135.091 ms | reap+admit 0.051 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.002 finish 0.004 prefill 135.031 | other 0.001
+host-profile prefill-only   iters      1 rows  0.00 wall 135.207 ms | reap+admit 0.047 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.002 finish 0.004 prefill 135.151 | other 0.001
+host-profile decode-only    iters    256 rows 15.05 wall  39.506 ms | reap+admit 0.000 prepare 0.000 step-setup 0.001 upload 0.008 launch 3.207 sync 36.269 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.007 send 0.011 finish 0.000 prefill 0.000 | other 0.001 | gpu-idle-gap 0.022 ms (253 gaps)
+host-profile decode-only    iters    233 rows 12.75 wall  34.858 ms | reap+admit 0.000 prepare 0.000 step-setup 0.131 upload 0.007 launch 3.176 sync 31.526 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.006 send 0.009 finish 0.000 prefill 0.000 | other 0.001 | gpu-idle-gap 0.019 ms (228 gaps)
+host-profile decode+prefill iters     92 rows  9.29 wall  89.311 ms | reap+admit 0.005 prepare 0.000 step-setup 3.142 upload 0.008 launch 7.371 sync 66.938 step-tail 0.001 accept 0.001 metrics 0.000 on_token 0.001 detok 0.007 send 0.021 finish 0.000 prefill 11.815 | other 0.002 | gpu-idle-gap 0.060 ms (2 gaps)
+host-profile prefill-only   iters      1 rows  0.00 wall 125.035 ms | reap+admit 0.043 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.002 finish 0.000 prefill 124.986 | other 0.001

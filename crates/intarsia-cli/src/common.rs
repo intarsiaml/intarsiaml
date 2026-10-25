@@ -107,6 +107,12 @@ pub struct ModelArgs {
     /// Default: 4 for `ngram`, 2 for `mtp`.
     #[arg(long)]
     pub spec_k: Option<usize>,
+    /// With `--spec mtp`: draft over the first N lm_head rows (token ids 0..N, the frequent end of a BPE vocabulary) instead of
+    /// all of them, so each draft costs N/V of a head sweep (about 11% of a 27B pass at k=2 is the two draft sweeps). Output is
+    /// unchanged (the verify pass keeps the full head); only acceptance can move, down when the true token is outside 0..N.
+    /// N a multiple of 8. Default 0: the full head.
+    #[arg(long, default_value_t = 0)]
+    pub mtp_draft_vocab: usize,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
     /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
     #[arg(skip)]
@@ -298,6 +304,7 @@ impl ModelArgs {
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
+                mtp_draft_vocab: self.mtp_draft_vocab,
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),

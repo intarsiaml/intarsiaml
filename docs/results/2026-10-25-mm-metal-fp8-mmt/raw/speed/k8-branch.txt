@@ -1,0 +1,22 @@
+2 phases (expect 1 prefill + 1)
+
+B=8: GPU sum 27.05 ms/step (804 launches/step)
+  matmul_fp8_gemv_rows                       130.0 calls    6.820 ms   25.2%
+  moe_experts_bf16_rows                       40.0 calls    6.531 ms   24.1%  distinct experts 46.6 of 64.0 pairs
+  matmul_nvfp4_gemv_rows                     121.0 calls    4.412 ms   16.3%
+  moe_experts_bf16_rows#1                     40.0 calls    3.818 ms   14.1%  distinct experts 46.6 of 64.0 pairs
+  gdn_delta_rule_bf16_rows                    30.0 calls    1.520 ms    5.6%
+  attn_decode_bf16_splitkv_rows               10.0 calls    1.166 ms    4.3%
+  matmul_pair_bf16_gemv_rows                  70.0 calls    0.617 ms    2.3%
+  rmsnorm_add_bf16                            80.0 calls    0.597 ms    2.2%
+  moe_topk_bf16                               40.0 calls    0.451 ms    1.7%
+  moe_experts_bf16_rows#2                     40.0 calls    0.253 ms    0.9%  distinct experts 46.6 of 64.0 pairs
+  silu_glu_bf16                               70.0 calls    0.219 ms    0.8%
+  gdn_conv_bf16_rows                          30.0 calls    0.170 ms    0.6%
+  moe_combine_bf16                            40.0 calls    0.148 ms    0.5%
+  rmsnorm_bf16                                31.0 calls    0.132 ms    0.5%
+  qk_norm_rope_kv_bf16_rows                   10.0 calls    0.098 ms    0.4%
+  gate_split_bf16                             10.0 calls    0.037 ms    0.1%
+  sigmoid_mul_bf16                            10.0 calls    0.030 ms    0.1%
+  argmax_f32                                   1.0 calls    0.021 ms    0.1%
+  embedding_bf16                               1.0 calls    0.005 ms    0.0%

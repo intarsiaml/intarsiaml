@@ -1,0 +1,15 @@
+[mr] radiance inactive
+[gates] S4 27B batched decode == solo step 2026-10-25 06:01:09
+== 27B batched decode, dev
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 883770784, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 14294712140, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+batch plan notes: ["2244 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 149 MiB per sequence)"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 694.35s
+== 27B batched decode, base
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 883770784, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 14294712140, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:93:49:
+called `Result::unwrap()` on an `Err` value: NoKernel("1 op(s) of this model have no kernel on hip/gfx1201:\n  - matmul_mxfp4: 64 shape(s) without a kernel, e.g. no kernel for matmul_mxfp4 on hip/gfx1201 (m=9 n=10240 k=5120 act=Some(Bf16) w=Some(U8)) [row-exact verify kernels only] (heads 0/0 head_dim 0 kv_len 0); needed by Batch t=10, Batch t=11, Batch t=12, Batch t=13, ...")
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.79s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+[gates] done 2026-10-25 06:12:46
+[mr] radiance active after 25 s

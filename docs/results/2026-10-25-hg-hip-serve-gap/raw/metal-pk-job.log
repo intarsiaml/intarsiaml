@@ -1,0 +1,50 @@
+fleetq: #5089 waiting (#1 in line): endor is held exclusively by #5084 "mm2: fp8 xd sweep (MB, RS, f32 x): gate + timing_rows" (claude-f31ccf91)
+fleetq: #5089 running on endor: bash /opt/code/wt-hg-pk/scripts/hg/metal-noop.sh
+fleetq: #5089 went ahead of the line and must end within 6h15m (by Sun 09:00); it is stopped then
+== build base
+    Finished `release` profile [optimized] target(s) in 8.05s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev
+    Finished `release` profile [optimized] target(s) in 9.84s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+== kernels test metal (dev)
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.4s
+== workspace tests on the branch
+  63 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 thread 'every_env_var_in_the_code_has_a_row_in_docs_tuning_md' (2552095) panicked at crates/intarsia-cli/tests/docs_env_vars.rs:90:5:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.97s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.76s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+== done
+fleetq: #5089 done (exit 0)

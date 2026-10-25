@@ -1,0 +1,26 @@
+fleetq: #5072 running on spark1: ssh spark1 'bash ~/sp-cuda-gates.sh run'
+fleetq: #5072 went ahead of the line and must end within 6h34m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+base off n128 md5=a74ec2ca | decode 3014 ms (84.62 tok/s) | 
+base mtp2 n128 md5=a74ec2ca | decode 2208 ms (115.49 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+base off n1024 md5=1caf3d10 | decode 2972 ms (85.81 tok/s) | 
+base mtp2 n1024 md5=1caf3d10 | decode 2478 ms (102.92 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+dev off n128 md5=a74ec2ca | decode 2986 ms (85.38 tok/s) | 
+dev mtp2 n128 md5=a74ec2ca | decode 2200 ms (115.89 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+dev off n1024 md5=1caf3d10 | decode 2975 ms (85.71 tok/s) | 
+dev mtp2 n1024 md5=1caf3d10 | decode 2498 ms (102.10 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+== equality (spec off == mtp, per tree) and no-op (base == dev)
+n128 base: spec off == mtp k=2
+n128 dev: spec off == mtp k=2
+n128 off: base == dev
+n128 mtp2: base == dev
+n1024 base: spec off == mtp k=2
+n1024 dev: spec off == mtp k=2
+n1024 off: base == dev
+n1024 mtp2: base == dev
+== tests on the branch
+test result: ok. 115 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.64s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.07s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.41s
+== done
+fleetq: #5072 done (exit 0)

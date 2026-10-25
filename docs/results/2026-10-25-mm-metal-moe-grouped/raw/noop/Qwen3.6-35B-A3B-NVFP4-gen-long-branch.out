@@ -1,0 +1,18 @@
+anks 0/1/2) so a block hit reuses both KV and recurrent state.
+- **Speculation**: MTP (multi-token prediction) and DFlash-style drafter. The drafter is a separate block type (e.g. `Qwen3DFlashDrafter`) with its own recipe entry and kernels. Acceptance rate is measured per model/quant/shape; the plan compiler can disable drafter if the measured rate falls below a threshold.
+- **Structured output**: `llguidance` integration via a JSON schema / regex parser that constrains the sampler.
+- **Metrics**: Prometheus `/metrics`, OTLP traces, SSE `/events` for the UI.
+
+---
+
+## 5. Testing and quality gates
+
+### 5.1 Admission test (every kernel)
+
+```bash
+intarsia kernels test --backend cuda --arch sm_121 --shape-sweep --tolerance-file recipes/qwen3.toml
+```
+
+Runs every registered kernel for the op over a shape sweep (including the recipe's real shapes). Records pass/fail, max abs error, relative L2 error, and time. A kernel that fails is unselectable on that host.
+
+### 5
