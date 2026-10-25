@@ -25,4 +25,5 @@ for step in "$@"; do
     bench) bash ~/wg-bench.sh build 2>&1 | tail -20 ;;
   esac
 done
+for step in "$@"; do [ "$step" = tests ] && bash "$HOME/wg-win.sh" --stamp tests; done
 echo PREP DONE

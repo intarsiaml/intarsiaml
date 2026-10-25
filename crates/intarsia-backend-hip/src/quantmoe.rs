@@ -742,6 +742,36 @@ mod tests {
         }
     }
 
+    /// With the knobs on and the table giving W8A8 (or W8A16) every row count 1..=ROWS_MAX: a call with a fragment-order weight
+    /// (`ShapeInfo::frag`) has a kernel at EVERY M the engine can emit (decode 1..=16, MTP verify streams x (k + 1) up to 64, prefill
+    /// chunks), each of them a fragment reader; and the GEMVs are not among the candidates. Otherwise a tagged weight would fail mid-serve.
+    #[test]
+    fn wmma_frag_weights_have_a_reader_at_every_row_count() {
+        let Some(t) = wmma_table() else { return };
+        let ks = all();
+        for (a8, kind) in [(true, WmmaKind::Fp8A8), (false, WmmaKind::Fp8A16)] {
+            if !fp8_frag_serves(kind) {
+                continue;
+            }
+            for (n, k) in [(8192usize, 2048usize), (2048, 2048), (512, 2048), (2048, 4096), (12288, 2048), (4096, 2048)] {
+                for m in (1..=64usize).chain([96, 128, 256, 512, 1024, 4096]) {
+                    let mut s = fp8_shape(m, n, k);
+                    s.fp8_static_act = a8;
+                    s.frag = true;
+                    let acc: Vec<&KernelImpl> = ks.iter().filter(|x| x.op == Op::MatmulFp8 && x.accepts(&s)).collect();
+                    assert!(!acc.is_empty(), "no kernel for a tagged weight at m={m} n={n} k={k} a8={a8}");
+                    for x in &acc {
+                        assert!(x.frag && !x.name.contains("gemv"), "{} accepts a tagged weight (m={m})", x.name);
+                    }
+                    if m <= ROWS_MAX {
+                        assert!(t.takes(kind, m));
+                        assert!(acc.iter().any(|x| x.name.starts_with("matmul_fp8_wmma")), "m={m}: the family does not serve the tagged weight: {:?}", acc.iter().map(|x| &x.name).collect::<Vec<_>>());
+                    }
+                }
+            }
+        }
+    }
+
     /// The f8 default (round 5): on when INTARSIA_HIP_FP8_F8 is unset or anything but "0"; "0" is the kill switch.
     #[test]
     fn fp8_f8_is_the_default() {

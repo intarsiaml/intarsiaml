@@ -13,6 +13,7 @@ docker run --rm -i --device /dev/kfd --device /dev/dri --group-add "$(stat -c %g
   -v "$REPO":/work -v "$BUILD":/b -w /b "$IMG" bash -c "
 set -e
 if [ '$mode' = build ]; then
+  rm -f bench
   hipcc -c -O3 -std=c++17 -fPIC -Wall -Wno-unused-function --offload-arch=gfx1201 $XFLAGS -I /work/kernels -o fp8.o /work/kernels/hip/fp8.hip
   hipcc -c -O3 -std=c++17 --offload-arch=gfx1201 $XFLAGS -I /work/kernels -o bench.o /work/scripts/wg/bench_f8.cpp
   hipcc -c -O3 -std=c++17 -fPIC -Wno-unused-function --offload-arch=gfx1201 $XFLAGS -I /work/kernels -o matmul.o /work/kernels/hip/matmul.hip
@@ -23,3 +24,7 @@ else
   ./bench
 fi
 "
+rc=$?
+# a successful build stamps the tree it built (win.sh refuses to take radiance down on a stale or missing stamp)
+if [ "$mode" = build ] && [ $rc -eq 0 ]; then bash "$HOME/wg-win.sh" --stamp "bench-$(basename "$REPO")"; fi
+exit $rc
