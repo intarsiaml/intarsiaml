@@ -36,19 +36,23 @@ if need 400 "27B accuracy" && clear "27B accuracy"; then
   run $D 0,1 600 self-27b-tp2-b-vs-a accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --mode both \
     --self-golden /work/tp2-out/acc-27b-tp2-a.safetensors --allow-same-code --allow-config-mismatch $TP2 $FLOOR
 fi
-repro() { # repro <tag> <timeout> <env...>
-  local tag=$1 to=$2; shift 2
+repro() { # repro <tag> <timeout> <test> <env...>
+  local tag=$1 to=$2 test=$3; shift 3
   local keep; keep=$(docker ps -q)
   INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" \
     "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" \
-    cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact real_35b_tp2_batch_first_steps_repro \
+    cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test \
     > "$O/repro-$tag.log" 2>&1 < /dev/null
   local rc=$?
   sweep "$keep"
   log "repro $tag exit $rc [$*]: $(grep -aE '^REPRO failures' "$O/repro-$tag.log" | tail -1) | $(grep -aE '^REPRO rep .*FAIL' "$O/repro-$tag.log" | head -3 | cut -c1-200 | tr '\n' '|')"
 }
-need 480 "V0 baseline" && clear "V0" && repro v0-baseline 470 INTARSIA_REPRO_REPS=6
-need 480 "V1 prepare" && clear "V1" && repro v1-prepare 470 INTARSIA_REPRO_REPS=6 INTARSIA_TP_BATCH_PREPARE=1
-need 330 "V2 graphs off" && clear "V2" && repro v2-graphs0 320 INTARSIA_REPRO_REPS=2 INTARSIA_REPRO_STEPS=10 INTARSIA_BATCH_GRAPHS=0
-need 330 "V3 launch blocking" && clear "V3" && repro v3-blocking 320 INTARSIA_REPRO_REPS=2 HIP_LAUNCH_BLOCKING=1
+FS=real_35b_tp2_batch_first_steps_repro; WP=real_35b_tp2_batch_with_prefill_repro
+# W: decode rows beside a prefill, graphs off (w16: failed deterministically at its first step) and on, then with launch blocking
+need 200 "W0 prefill graphs off" && clear "W0" && repro w0-prefill-graphs0 190 $WP INTARSIA_BATCH_GRAPHS=0 INTARSIA_REPRO_REPS=3
+need 200 "W1 prefill graphs on" && clear "W1" && repro w1-prefill-graphs1 190 $WP INTARSIA_REPRO_REPS=3
+need 200 "W2 prefill graphs off, blocking" && clear "W2" && repro w2-prefill-blocking 190 $WP INTARSIA_BATCH_GRAPHS=0 HIP_LAUNCH_BLOCKING=1 INTARSIA_REPRO_REPS=2
+# V: first steps of every size 2..16 on a fresh model per rep: baseline, peer graphs recorded first
+need 480 "V0 baseline" && clear "V0" && repro v0-baseline 470 $FS INTARSIA_REPRO_REPS=6
+need 480 "V1 prepare" && clear "V1" && repro v1-prepare 470 $FS INTARSIA_REPRO_REPS=6 INTARSIA_TP_BATCH_PREPARE=1
 log "done, time left $(left)s"

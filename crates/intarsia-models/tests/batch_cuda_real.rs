@@ -172,6 +172,36 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     }
 }
 
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w16/w17): w16 ran the full gate with the batched graphs off (`INTARSIA_BATCH_GRAPHS=0`): the
+/// 17,550 pairs of the sizes passed, then "decode rows beside prefill chunks" (4 decode rows, one prefill of 700 tokens in chunks of 256) failed at
+/// its first batched step: `batch 4 step 0 row 0 (sequence 0, context 36 -> 37): logits differ at 248320 of 248320 entries, solo 2.16 batch 5.72`.
+/// This runs only that part on one model load, `INTARSIA_REPRO_REPS` (3) times, and counts the mismatches (`REPRO failures f/reps`).
+#[test]
+#[ignore]
+fn real_35b_tp2_batch_with_prefill_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let reps = std::env::var("INTARSIA_REPRO_REPS").ok().and_then(|v| v.parse().ok()).unwrap_or(3);
+    let m = load(&dir, be, 16, 2048);
+    let mut failures = 0;
+    for rep in 0..reps {
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000))));
+        match r {
+            Ok(n) => eprintln!("REPRO rep {rep}: ok ({n} rows)"),
+            Err(e) => {
+                failures += 1;
+                let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                eprintln!("REPRO rep {rep}: FAIL {msg}");
+            }
+        }
+    }
+    eprintln!("REPRO failures {failures}/{reps}");
+    assert_eq!(failures, 0, "{failures} of {reps} reps mismatched");
+}
+
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w15/w17): repro of an intermittent mismatch of the FIRST batched step of a batch size
 /// at tp=2 (27B, N = 4, step 0, every logit about 8 % off; the same test passed on the next run). Each rep loads the model afresh (so every
 /// batch size records its graphs again), runs `INTARSIA_REPRO_STEPS` (3) batched steps per size in `INTARSIA_REPRO_SIZES` ("2-16") against
