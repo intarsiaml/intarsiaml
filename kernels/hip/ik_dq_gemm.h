@@ -39,7 +39,14 @@ struct DqArgs {
     int64_t N;
     int K;
     int vec_out;        // N % 8 == 0 and out 16-byte aligned
+    int frag = 0;       // fp8 only: w is in fragment order (ik_f8_rows.h, ik_f8frag_off); 0 = the checkpoint's row-major order
 };
+
+/* Byte offset of the 16 weight bytes (n, k .. k + 15), k % 16 == 0, in a fragment-order fp8 tensor [N/16][K/32][lane = 16 h + col][16 B]
+ * (N % 16 == 0, K % 32 == 0): tile n / 16, chunk k / 32, lane = 16 * ((k / 16) % 2) + n % 16. */
+IK_DEVI int64_t ik_f8frag_off(int64_t n, int k, int K) {
+    return (((n >> 4) * (int64_t)(K >> 5) + (k >> 5)) * 32 + (((k >> 4) & 1) << 4) + (n & 15)) * 16;
+}
 
 typedef __bf16 ik_dq_v8bf __attribute__((ext_vector_type(8)));
 typedef float ik_dq_v8f __attribute__((ext_vector_type(8)));

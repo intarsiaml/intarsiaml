@@ -443,6 +443,7 @@ struct Fp8Policy {
         return s;
     }
     IK_DEVI Raw load(const DqArgs& a, int64_t n, int k) {
+        if (a.frag) return *reinterpret_cast<const uint4*>(a.w + ik_f8frag_off(n, k, a.K));
         return *reinterpret_cast<const uint4*>(a.w + n * a.K + k);
     }
     IK_DEVI Raw zero() { return make_uint4(0, 0, 0, 0); }
@@ -555,6 +556,11 @@ int frag_move(const ik_tensor* src, ik_tensor* dst, void* stream, bool inv) {
 // variant: 0 = tensor-core GEMM, 1 = GEMV, 2 = GEMV v2 (vectorised activation staging)
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream, int variant) {
     const bool gemv = variant != 0;
+    ik_tensor wfp;
+    bool frag = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frag));
+    if (frag && gemv) return IK_ERR_DTYPE;  // the GEMVs read row-major bytes only
+    w = &wfp;
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0) return IK_OK;
@@ -582,6 +588,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_t
     a.N = N;
     a.K = (int)K;
     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
+    a.frag = frag;
     if (f32o) dq_gemm_run<Fp8Policy>(a, (float*)out->data, s);
     else dq_gemm_run<Fp8Policy>(a, (ik_bf16*)out->data, s);
     return ik_launch_status();
@@ -731,6 +738,10 @@ int bf16_norm_pair_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tenso
 // for W8A8, the dequantise-to-bf16 GEMM (the matmul_fp8_mma kernel) for weight-only activations. Needs scratch: M * K bytes.
 int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
               void* stream) {
+    ik_tensor wfp;
+    bool frag = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frag));
+    w = &wfp;
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0 || K == 0) return launch(x, w, scales, out, stream, 0);
@@ -753,11 +764,12 @@ int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, i
     a.N = N;
     a.K = (int)K;
     a.vec_out = vec_out;
+    a.frag = frag;
     if (out->dtype == IK_DTYPE_F32) {
-        f8_gemm_run<float>(xq, wp, sp, (float*)out->data, (int)M, N, (int)K, vec_out, s);
+        f8_gemm_run<float>(xq, wp, sp, (float*)out->data, (int)M, N, (int)K, vec_out, s, frag);
         dq_gemm_run<Fp8PolicyW16>(a, (float*)out->data, s);
     } else {
-        f8_gemm_run<ik_bf16>(xq, wp, sp, (ik_bf16*)out->data, (int)M, N, (int)K, vec_out, s);
+        f8_gemm_run<ik_bf16>(xq, wp, sp, (ik_bf16*)out->data, (int)M, N, (int)K, vec_out, s, frag);
         dq_gemm_run<Fp8PolicyW16>(a, (ik_bf16*)out->data, s);
     }
     return ik_launch_status();
@@ -766,6 +778,10 @@ int launch_f8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, i
 // matmul_fp8_mma_v2 (HIP only: ik_hip_abi.h): Fp8PolicyQ above. Needs scratch: M * K bytes (the quantised activations).
 int launch_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, const ik_scratch* scratch,
               void* stream) {
+    ik_tensor wfp;
+    bool frag = false;
+    IK_TRY(frag_unwrap(w, &wfp, &frag));
+    w = &wfp;
     IK_TRY(check(x, w, scales, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
     if (M == 0 || N == 0 || K == 0) return launch(x, w, scales, out, stream, 0);
@@ -787,6 +803,7 @@ int launch_v2(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, i
     a.N = N;
     a.K = (int)K;
     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
+    a.frag = frag;
     if (out->dtype == IK_DTYPE_F32) dq_gemm_run<Fp8PolicyQ>(a, (float*)out->data, s);
     else dq_gemm_run<Fp8PolicyQ>(a, (ik_bf16*)out->data, s);
     return ik_launch_status();
