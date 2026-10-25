@@ -53,20 +53,25 @@ serve() { # serve <arm>
   return 1
 }
 
-for r in $(seq 1 "$ROUNDS"); do
-  order="$ARMS"
-  (( r % 2 == 0 )) && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
-  for arm in $order; do
-    if (( $(left) < 420 )); then say "SKIPPED round $r arm $arm (time left $(left)s)"; continue; fi
-    say "round $r arm $arm: starting server"
-    if ! serve "$arm"; then say "round $r arm $arm: server did not come up"; $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null; continue; fi
-    say "round $r arm $arm: server up, localeval"
-    ( cd /opt/code/deepeval && uv run localeval speed --url "http://tatooine:$PORT/v1" --model "$NAME-$arm" --label "$TAGP-$arm-r$r" \
-        --sizes "$SIZES" --gen "$GEN" --reps 1 ${CONC:+--concurrency "$CONC"} --thinking off --wait-idle 60 --recipe "$RECIPE" ) \
-      > "$OUT/localeval-$arm-r$r.log" 2>&1 < /dev/null
-    say "round $r arm $arm: localeval exit $? $(grep -aE 'run_id|results/' "$OUT/localeval-$arm-r$r.log" | tail -2 | tr '\n' '|')"
-    $SSH 'docker logs tp2-speed 2>&1 | grep -aE "tensor-parallel|decode graph|batched|graph" | tail -6' < /dev/null > "$OUT/serve-$arm-r$r.log" 2>&1
-    $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null
+# PHASES: "name:maxbatch:sizes:concurrency" separated by spaces (concurrency may be empty). Default: one phase from MAXB/SIZES/CONC.
+PHASES=${PHASES:-"main:$MAXB:$SIZES:$CONC"}
+for ph in $PHASES; do
+  IFS=: read -r PNAME MAXB SIZES CONC <<<"$ph"
+  for r in $(seq 1 "$ROUNDS"); do
+    order="$ARMS"
+    (( r % 2 == 0 )) && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
+    for arm in $order; do
+      if (( $(left) < 420 )); then say "SKIPPED phase $PNAME round $r arm $arm (time left $(left)s)"; continue; fi
+      say "phase $PNAME round $r arm $arm: starting server"
+      if ! serve "$arm"; then say "phase $PNAME round $r arm $arm: server did not come up"; $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null; continue; fi
+      say "phase $PNAME round $r arm $arm: server up, localeval"
+      ( cd /opt/code/deepeval && uv run localeval speed --url "http://tatooine:$PORT/v1" --model "$NAME-$arm" --label "$TAGP-$PNAME-$arm-r$r" \
+          --sizes "$SIZES" --gen "$GEN" --reps 1 ${CONC:+--concurrency "$CONC"} --thinking off --wait-idle 60 --recipe "$RECIPE" ) \
+        > "$OUT/localeval-$PNAME-$arm-r$r.log" 2>&1 < /dev/null
+      say "phase $PNAME round $r arm $arm: localeval exit $? $(grep -aE 'run_id|results/' "$OUT/localeval-$PNAME-$arm-r$r.log" | tail -2 | tr '\n' '|')"
+      $SSH 'docker logs tp2-speed 2>&1 | grep -aE "tensor-parallel|decode graph|batched|graph" | tail -6' < /dev/null > "$OUT/serve-$PNAME-$arm-r$r.log" 2>&1
+      $SSH 'docker rm -f tp2-speed' >/dev/null 2>&1 < /dev/null
+    done
   done
 done
 say "done, time left $(left)s"
