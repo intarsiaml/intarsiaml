@@ -1,0 +1,42 @@
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test batched_engine_with_packed_prefill_equals_solo ... Dense rows 2: 1 packed passes carried 2 chunks of 9 (9 chunks in all)
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 93.48s
+-- kernels test --quick
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+64 kernels, 353 cases in 3.1s
+-- rows_exact
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:21/21/853388 2:21/42/1706776 3:21/63/2560164 4:21/84/3413552 5:21/105/4266940 6:21/126/5120328 7:21/147/5973716 8:21/168/6827104 9:21/189/7680492 10:21/210/8533880 11:21/231/9387268 12:21/252/10240656 13:21/273/11094044 14:21/294/11947432 15:21/315/12800820 16:21/336/13654208
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:22/22/88100 2:22/44/176200 3:22/66/264300 4:22/88/352400 5:22/110/440500 6:22/132/528600 7:22/154/616700 8:22/176/704800 9:22/198/792900 10:22/220/881000 11:22/242/969100 12:22/264/1057200 13:22/286/1145300 14:22/308/1233400 15:22/330/1321500 16:22/352/1409600
+test fp8_rows_are_bitwise_the_one_row_gemv ... G-B fp8 matmul_fp8_gemv_rows: M:cases/rows/bytes 1:132/132/550044 2:132/264/1100088 3:132/396/1650132 4:132/528/2200176 5:132/660/2750220 6:132/792/3300264 7:132/924/3850308 8:132/1056/4400352 9:132/1188/4950396 10:132/1320/5500440 11:132/1452/6050484 12:132/1584/6600528 13:132/1716/7150572 14:132/1848/7700616 15:132/1980/8250660 16:132/2112/8800704
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... G-B moe moe_experts_bf16_rows: M:cases/rows/bytes 1:16/16/34816 2:16/32/69632 3:16/48/104448 4:16/64/139264 5:16/80/174080 6:16/96/208896 7:16/112/243712 8:16/128/278528 9:16/144/313344 10:16/160/348160 11:16/176/382976 12:16/192/417792 13:16/208/452608 14:16/224/487424 15:16/240/522240 16:16/256/557056
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:48/48/693012 2:48/96/1386024 3:48/144/2079036 4:48/192/2772048 5:48/240/3465060 6:48/288/4158072 7:48/336/4851084 8:48/384/5544096
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... G-B nvfp4 matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:32/32/6006480 2:32/64/12012960 3:32/96/18019440 4:32/128/24025920 5:32/160/30032400 6:32/192/36038880 7:32/224/42045360 8:32/256/48051840 9:32/288/54058320 10:32/320/60064800 11:32/352/66071280 12:32/384/72077760 13:32/416/78084240 14:32/448/84090720 15:32/480/90097200 16:32/512/96103680
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel argmax_f32: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel embedding_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel gated_rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_combine_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_topk_bf16: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel moe_topk_bf16_v2: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel rmsnorm_add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel sigmoid_mul_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel silu_glu_bf16: M:cases/rows/bytes 16:1/16/0
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.20s
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.22s

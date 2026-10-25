@@ -431,5 +431,17 @@ int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor*
                         ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return launch(x, w, scales, act, out, scratch, stream, false);
 }
+// Row-exact twins (OpCall::exact_rows, speculative verify): M <= 8, row r bitwise the M == 1 launch on row r alone. The
+// arithmetic of every output row is the one-row kernel's (same lane-to-group map, same fma chain, same warp sum; the QDQ
+// is per group of 32), so the twins ARE the gemv launchers; tests/rows_exact.rs holds the bitwise proof on the device.
+int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                              ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return ik_matmul_mxfp4_gemv(x, w, scales, act, out, scratch, stream);
+}
+int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                                   const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                                   const ik_scratch* scratch, void* stream) {
+    return ik_matmul_mxfp4_pair_gemv(x, w0, s0, w1, s1, act, out0, out1, scratch, stream);
+}
 
 }  // extern "C"

@@ -34,6 +34,8 @@ mod gdn_block;
 mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
+mod spec_graph;
+pub use spec_graph::SpecPass;
 pub(crate) mod mtp;
 pub use mtp::DraftScript;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -79,6 +81,10 @@ pub struct LoadOptions {
     /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
     /// largest k ([`crate::spec::SPEC_K_MAX`]).
     pub mtp_k: usize,
+    /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
+    /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
+    /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
+    pub mtp_draft_vocab: usize,
 }
 
 impl Default for LoadOptions {
@@ -97,6 +103,7 @@ impl Default for LoadOptions {
             tp_fusion: false,
             mtp: false,
             mtp_k: 0,
+            mtp_draft_vocab: 0,
         }
     }
 }
@@ -154,6 +161,15 @@ enum Block {
     Gemma(GemmaLayer),
 }
 
+/// Bytes of `Workspace::pos`: [`POS_TAB_ENTRIES`] i32 positions.
+const POS_TAB_ENTRIES: usize = 96;
+const POS_TAB_BYTES: usize = POS_TAB_ENTRIES * 4;
+/// First entry of the verify rows' positions (`P + r`), the MTP head's catch-up rows (`P - n + i`) and its chained rows
+/// (`P + i`) in `Workspace::pos`. Each region holds up to 16 consecutive entries.
+const POS_VERIFY: usize = 0;
+const POS_CATCH_UP: usize = 16;
+const POS_CHAIN: usize = 32;
+
 struct Workspace {
     max_tokens: usize,
     ids: Buffer,
@@ -171,7 +187,9 @@ struct Workspace {
     /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
     /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
     part: Option<Buffer>,
-    /// `i32 [1]`: position of the token a captured decode step processes (rewritten before every replay).
+    /// `i32` position table (rewritten before every replay of a captured step). Entry 0 is the position of the token a
+    /// captured decode step processes; a captured speculative step ([`Model::spec_step`]) uses the regions
+    /// [`POS_VERIFY`], [`POS_CATCH_UP`] and [`POS_CHAIN`], each a run of consecutive positions.
     pos: Buffer,
     /// Buffers of the gated-attention and GatedDeltaNet blocks (empty when the model has none).
     x: ExtraWs,
@@ -297,6 +315,8 @@ pub struct Model {
     final_norm: TensorRef,
     /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
     lm_head: Option<QTensor>,
+    /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or None.
+    draft_head: Option<QTensor>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -935,7 +955,7 @@ impl Model {
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
             part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
-            pos: wb(16)?,
+            pos: wb(POS_TAB_BYTES)?,
             x,
             moe,
         };
@@ -980,6 +1000,17 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
+        let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
+            match lm_head.as_ref().and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
+                Some(h) => Some(h),
+                None => {
+                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let mut model = Model {
             backend,
             registry,
@@ -993,6 +1024,7 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            draft_head,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             slot_specs,
@@ -1120,7 +1152,9 @@ impl Model {
             return Err(Error::invalid(format!("verify rows {max_rows} outside 2..={most}")));
         }
         if self.verify_tok.is_none() {
-            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 4, MemKind::Device)?);
+            // [0, rows): the argmax of each row; [rows, 2 rows): the pass's input ids (a captured speculative step reads its
+            // drafts back with the outputs, `Model::spec_step`)
+            self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 8, MemKind::Device)?);
         }
         self.verify_rows = max_rows;
         Ok(())
@@ -2552,6 +2586,30 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
+        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+            // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
+            // partition follows the call's row count, and it takes no device position): one decode call per row
+            // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a
+            // table of consecutive device positions, row r reading entry r.
+            for r in 0..t {
+                let mut a = attrs.clone();
+                a.pos0 = pos0 + r;
+                let dp = dpos.map(|d| {
+                    let mut v = d.clone();
+                    v.offset += 4 * r;
+                    v
+                });
+                self.exec_pos(
+                    Op::AttnDecode,
+                    vec![bufs.q[qc].rows(r, 1), kcache.clone(), vcache.clone()],
+                    vec![attn_out.rows(r, 1)],
+                    a,
+                    dp.as_ref(),
+                    profile,
+                )?;
+            }
+            return Ok((attn_out, qc));
+        }
         self.exec_pos(
             if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
             vec![bufs.q[qc].clone(), kcache, vcache],
@@ -2889,6 +2947,29 @@ impl Model {
         let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
         self.proj(&x, self.head()?, &logits, profile)?;
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on.
+    fn draft_head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
+        let Some(h) = self.draft_head.as_ref() else { return self.head_to_device_into(hn, row, profile, tok) };
+        let x = hn.rows(row, 1);
+        let logits = self.view(&self.ws.logits, DType::F32, &[1, h.n]);
+        self.proj(&x, h, &logits, profile)?;
+        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// [`Model::head_argmax`] for the MTP drafter.
+    fn draft_head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {
+        if self.draft_head.is_none() {
+            return self.head_argmax(hn, row, profile);
+        }
+        self.draft_head_to_device_into(hn, row, profile, self.view(&self.ws.tok, DType::I32, &[1]))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
+        Ok(i32::from_le_bytes(b) as u32)
     }
 
     fn head_argmax(&self, hn: &TensorRef, row: usize, profile: bool) -> Result<u32> {

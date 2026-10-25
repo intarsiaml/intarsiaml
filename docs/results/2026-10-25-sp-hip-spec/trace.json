@@ -1,0 +1,198 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:sp-hip-spec:20261025-0100",
+ "project": "intarsiaml",
+ "lane_id": "sp-hip-spec",
+ "follows": [
+  "intarsiaml:hb-hip-hybrid-batching:20261023-1255"
+ ],
+ "agent_model": "claude-sonnet-5-5",
+ "started": "2026-10-25T00:50:00-04:00",
+ "ended": "2026-10-25T05:00:00-04:00",
+ "brief": "Lane sp: make speculative decoding fast on the R9700 (gfx1201): baseline MTP on HIP for the 35B and 27B, graph-captured MTP step, device-side acceptance, batched MTP, short-draft policy; lossless only.",
+ "hypothesis": "Radiance's 3x decode lead on the 27B comes from speculation; intarsiaml's MTP on HIP is eager and loses time to graph breaks and a host round trip.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "AMD Radeon AI PRO R9700 (gfx1201)",
+  "family": "Qwen3.6-35B-A3B; Qwen3.8-27B",
+  "quant": "NVFP4; MXFP4",
+  "phase": "decode",
+  "lane": "spec:mtp",
+  "rival": "Radiance 1.12.0 DFlash2 (27B TP2, 325.5 tok/s at 128)"
+ },
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-sp/hip-spec",
+  "base_commit": "0b84f499",
+  "pr": null,
+  "default_changed": false,
+  "merged": false
+ },
+ "checks": [
+  {
+   "name": "MTP equality, CPU backend (tests/mtp.rs)",
+   "verdict": "pass",
+   "detail": "11 tests: captured step, eager, scripted acceptance, dense head, draft equality, draft vocab"
+  },
+  {
+   "name": "HIP rows_exact incl. mxfp4, rows_registry",
+   "verdict": "pass"
+  },
+  {
+   "name": "HIP kernels test --quick",
+   "verdict": "pass",
+   "detail": "64 kernels, 353 cases"
+  },
+  {
+   "name": "HIP 35B batch_cuda_real incl. --ignored",
+   "verdict": "pass"
+  },
+  {
+   "name": "HIP batch_recurrent --test-threads=1",
+   "verdict": "pass",
+   "detail": "11 tests"
+  },
+  {
+   "name": "HIP no-op spec off vs main (35B ids, served plain A/B)",
+   "verdict": "pass"
+  },
+  {
+   "name": "CUDA spark1 MTP equality + no-op + core/mtp/batch_recurrent",
+   "verdict": "pass"
+  },
+  {
+   "name": "Metal endor MTP equality + no-op",
+   "verdict": "pass"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "decode_tps",
+   "model": "27B",
+   "spec": "off",
+   "prompt_tokens": [
+    128,
+    1024,
+    4096,
+    16384
+   ],
+   "value": [
+    33.06,
+    32.92,
+    32.36,
+    30.81
+   ]
+  },
+  {
+   "metric": "decode_tps",
+   "model": "27B",
+   "spec": "mtp k=2 captured",
+   "prompt_tokens": [
+    128,
+    1024,
+    4096,
+    16384
+   ],
+   "value": [
+    47.73,
+    45.6,
+    51.62,
+    46.12
+   ]
+  },
+  {
+   "metric": "decode_tps",
+   "model": "27B",
+   "spec": "mtp k=2 captured + draft-vocab 65536",
+   "prompt_tokens": [
+    128,
+    1024,
+    4096,
+    16384
+   ],
+   "value": [
+    53.2,
+    50.3,
+    55.8,
+    50.5
+   ]
+  },
+  {
+   "metric": "decode_tps",
+   "model": "35B",
+   "spec": "off",
+   "prompt_tokens": [
+    128,
+    1024,
+    4096,
+    16384
+   ],
+   "value": [
+    164.9,
+    164.9,
+    160.6,
+    146.2
+   ]
+  },
+  {
+   "metric": "decode_tps",
+   "model": "35B",
+   "spec": "mtp k=2 captured",
+   "prompt_tokens": [
+    128,
+    1024,
+    4096,
+    16384
+   ],
+   "value": [
+    190.8,
+    199.1,
+    205.7,
+    159.9
+   ]
+  },
+  {
+   "metric": "host_gap_share",
+   "model": "27B",
+   "value": 7e-05,
+   "note": "0.004 ms gap on a 53.5 ms step"
+  },
+  {
+   "metric": "host_gap_share",
+   "model": "35B",
+   "value": 0.0006,
+   "note": "0.008 ms gap on a 13.1 ms step"
+  }
+ ],
+ "accuracy": {
+  "gate": "greedy 256 ids bitwise equal to spec off (md5) at 128/1k/4k/16k, 27B and 35B, eager and captured, k=1..3, draft-vocab sweep",
+  "verdict": "pass",
+  "bitwise": true
+ },
+ "verdict": "partial",
+ "summary": "Captured MTP step and the 27B dense MTP head land (27B 1.39-1.60x lossless on HIP; 35B 1.08-1.27x). Eager HIP MTP was not lossless on the 27B at 4k/16k; verify attention is now per row. Device-side acceptance not built (host gap under 1%). Batched MTP and a short-draft policy NOT done. --mtp-draft-vocab is an opt-in knob (+8-12% 27B English/code, loses on Chinese). The 27B stays far below Radiance's 325 tok/s (TP2 DFlash2 7-token drafter): the limit here is the 3-row MXFP4 GEMV cost and the lm_head sweeps.",
+ "lessons": [
+  "HIP's multi-row split-KV attention is not bitwise the decode step's per row at long context: an MTP equality test on a tiny model at 256 tokens does not see it, only the 27B at 4k/16k does.",
+  "Measure the host gap before building device-side acceptance: it was under 1% here.",
+  "A reduced-vocab draft head helps English/code and hurts CJK; measure on the traffic."
+ ],
+ "cost": {
+  "wall_min": 250,
+  "slot_jobs": [
+   5016,
+   5039,
+   5064,
+   5066,
+   5070,
+   5071,
+   5072,
+   5095,
+   5127,
+   5136,
+   5137,
+   5145,
+   5146,
+   5155
+  ]
+ }
+}
