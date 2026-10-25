@@ -61,3 +61,29 @@ here. Every other stage passes.
 
 `crates/intarsia-cli` `committed_27b_baselines_pair_with_their_envelopes_and_goldens` passes with the new files.
 The W4A16 baseline and envelope are unchanged, because their bits did not move.
+
+## L: served speed (fleetq #5381, 15:16-15:29, localeval, one R9700, radiance down; raw/fdloc)
+
+Method: `localeval speed --sizes 1024,4096,16384 --gen 128 --reps 2`, through `scripts/mx/loc-window.sh`.
+- Arms: main 7198932 (`base`) vs this branch 092c961 (`dev`), both at the recipe's default chunk 256, no flags.
+- Order: interleaved per round, with the order reversed in round 2. Each cell is the median of 3 rounds, each round
+  the median of 2 reps.
+- Per-round values are in raw/fdloc/served-medians.txt; the localeval results are in /opt/code/deepeval/results
+  (labels `mx-fdloc-*`).
+
+| model, prompt | main (v2) prefill tok/s | **branch (fold default)** | change | decode main / branch |
+|---|---:|---:|---:|---:|
+| 27B, 990 tok | 1120 | **1822** | +63 % | 33.0 / 33.0 |
+| 27B, 4088 tok | 1153 | **1892** | +64 % | 32.4 / 32.4 |
+| 27B, 16654 tok | 1073 | **1697** | +58 % | 30.8 / 30.8 |
+| 35B, 990 tok | 6451 | 6511 | +0.9 % (spread 1.5 %) | 164.5 / 164.3 |
+| 35B, 4089 tok | 9939 | 10032 | +0.9 % (spread 1.5-7.9 %) | 160.7 / 160.5 |
+| 35B, 16655 tok | 8820 | 8827 | +0.1 % (spread 1.3-2.8 %) | 145.9 / 146.2 |
+
+- The 27B main column reproduces #144's served v2 numbers (1120 / 1154 / 1073), and the branch reproduces #144's fold
+  arm at chunk 256 (loc1: 1812 / 1895 / 1695).
+- With the opt-in `--prefill-chunk 4096` + `INTARSIA_PREFILL_PEEL=16`, the same kernel served 2043 / 2416 / 2186 in
+  #144's loc3. That arm was not rerun here: the default recipe keeps chunk 256 (serve `--max-batch 16` context, #144
+  section 4).
+- The 35B runs no MXFP4 and is the same within its spread. One 35B 4k round of the branch was low (9239); the other two
+  read 10035 and 10032.
