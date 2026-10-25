@@ -1,1 +1,5 @@
 fleetq: #5366 waiting (#4 in line): in line behind #5363 "hd: control, 8B HIP batch gate on the hb-era tree f3b9f19e5 (25 min cap)" (claude-32e49a7a) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5366 waiting (#3 in line): in line behind #5364 "wg #152 merge gates: 8B batched==solo rerun (INTARSIA_QWEN3_DIR was unset), knob off and option 1, radiance down <=12 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5364 set, or it will wait for #5364 to be released.
+fleetq: #5366 waiting (#2 in line): in line behind #5365 "localeval suite adhoc suite-v1 speed-spec+conc-spec natural-v1: tatooine Radiance 1.12.0 Qwen3.8-27B MXFP4 TP2 dflash2 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8" (claude-f07ec01e) on tatooine-r9700
+fleetq: #5366 waiting (#1 in line): needs gpu quiet on tatooine-r9700, but #5365 "localeval suite adhoc suite-v1 speed-spec+conc-spec natural-v1: tatooine Radiance 1.12.0 Qwen3.8-27B MXFP4 TP2 dflash2 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8" (claude-f07ec01e) loads it
