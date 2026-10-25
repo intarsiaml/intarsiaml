@@ -5,7 +5,10 @@
 #   S2 parallel     : card 0 base no-op, card 1 dev no-op (batching off: 8B, 35B, 27B plan show text/json + 256 greedy ids, short and 4k)
 #   S3 parallel     : card 0 rows_exact (mxfp4) + negative control + rows_registry; card 1 kernels test --quick
 #   S4 parallel     : 27B batched decode == solo step (M = 2..16) with the dev tree (card 0) and the base tree (card 1)
+#   gates.sh [sections: "S1 S2 S3 S4", default all]    (the fleetq jobs run them in separate slots: S1 S3 / S4 / S2)
 set -uo pipefail
+SECTIONS=${*:-S1 S2 S3 S4}
+want() { [[ " $SECTIONS " == *" $1 "* ]]; }
 O=$HOME/mr-logs/gates; mkdir -p "$O"
 S=$HOME/mr-hip/scripts
 D=$HOME/mr-hip/deploy/tatooine/dev.sh
@@ -23,11 +26,12 @@ dev() { # dev <repo> <vol> <gpu> <cmd...>
 }
 F='^test |^test result|FAILED|panicked|^error|G-B|SKIPPED'
 
+if want S1; then
 echo "[gates] S1 timing $(now)"
 dev $RD $VD 0 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test rows_exact -- --ignored --nocapture timing_mxfp4_rows 2>&1 \
   | grep -aE "^TIME mxfp4|^test |panicked|^error" | tee "$O/timing-mxfp4.log"
+fi
 
-echo "[gates] S2 no-op $(now)"
 noop() { # noop <tag> <repo> <vol> <gpu>
   RUN="env INTARSIA_REPO=$2 INTARSIA_TARGET_VOL=$3 HIP_VISIBLE_DEVICES=$4 $D /target/release/intarsia" \
     bash $RD/scripts/hg/noop.sh run "$O" "$1" hip $M8 $M35 $RD/scripts/hg/prompts < /dev/null
@@ -45,6 +49,8 @@ noop27() { # noop27 <tag> <repo> <vol> <gpu>
       --max-seq 8192 ${j%%:*} < /dev/null > "$O/plan-27-$1.${j##*:}" 2> "$O/plan-27-$1.${j##*:}.err"
   done
 }
+if want S2; then
+echo "[gates] S2 no-op $(now)"
 ( noop base $RB $VB 0; noop27 base $RB $VB 0 ) > "$O/noop-base.log" 2>&1 &
 ( noop dev $RD $VD 1; noop27 dev $RD $VD 1 ) > "$O/noop-dev.log" 2>&1 &
 wait
@@ -52,7 +58,9 @@ cat "$O/noop-base.log" "$O/noop-dev.log"
 bash $RD/scripts/hg/noop.sh cmp "$O" base dev
 for p in short 4k; do cmp -s "$O/gen-27-$p-base.ids" "$O/gen-27-$p-dev.ids" && [ -s "$O/gen-27-$p-dev.ids" ] && echo "ids 27 $p: identical" || echo "ids 27 $p: DIFFER or empty"; done
 for k in json txt; do cmp -s "$O/plan-27-base.$k" "$O/plan-27-dev.$k" && [ -s "$O/plan-27-dev.$k" ] && echo "plan 27 $k: byte-identical" || echo "plan 27 $k: DIFFER or empty"; done
+fi
 
+if want S3; then
 echo "[gates] S3 rows_exact + quick $(now)"
 (
   echo "-- rows_exact mxfp4 (dev)"
@@ -66,7 +74,9 @@ echo "[gates] S3 rows_exact + quick $(now)"
 ( echo "-- kernels test --quick"; dev $RD $VD 1 /target/release/intarsia kernels test --backend hip --quick 2>&1 | tail -4 ) > "$O/g-quick.log" 2>&1 &
 wait
 cat "$O/g-rows.log" "$O/g-quick.log"
+fi
 
+if want S4; then
 echo "[gates] S4 27B batched decode == solo step $(now)"
 T="env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M27"
 ( INTARSIA_MODELS=$H dev $RD $VD 0 $T cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched_decode_is_bitwise -- --test-threads=1 --nocapture 2>&1 \
@@ -75,4 +85,5 @@ T="env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DI
     | grep -aE "$F|batch plan notes|bitwise in|not row-exact|row-exact" ) > "$O/g-27-base.log" 2>&1 &
 wait
 echo "== 27B batched decode, dev"; cat "$O/g-27-dev.log"; echo "== 27B batched decode, base"; cat "$O/g-27-base.log"
+fi
 echo "[gates] done $(now)"
