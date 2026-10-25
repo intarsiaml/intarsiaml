@@ -274,12 +274,13 @@ int main(int argc, char** argv) {
         }
         // correctness: wmma vs gemv_rows (different order, expect ~1e-3 rel) and row invariance across M
         {
-            int mcheck = 16;
+            int mcheck = 12;  // largest M the staged form fits at every bench shape (M=16 staged returns rc=3 at K>=2048 and must not be compared)
             std::vector<uint16_t> ref((size_t)mcheck * N), got((size_t)mcheck * N);
             ik_tensor xt = T(dx, IK_DTYPE_BF16, mcheck, K), ot = T(dout, IK_DTYPE_BF16, mcheck, N), wt = T(dw[0], IK_DTYPE_FP8_E4M3, N, K);
             ik_matmul_fp8_gemv_rows(&xt, &wt, &sct, &ot, nullptr); CK(hipDeviceSynchronize());
             CK(hipMemcpy(ref.data(), dout, ref.size() * 2, hipMemcpyDeviceToHost));
-            wmma_staged(&xt, &wt, &sct, &ot, nullptr); CK(hipDeviceSynchronize());
+            if (int rc0 = wmma_staged(&xt, &wt, &sct, &ot, nullptr)) { printf("  check: staged call rc=%d, check invalid\n", rc0); exit(2); }
+            CK(hipDeviceSynchronize());
             CK(hipMemcpy(got.data(), dout, got.size() * 2, hipMemcpyDeviceToHost));
             double num = 0, den = 0; for (size_t i = 0; i < ref.size(); ++i) { double d = bf2f(got[i]) - bf2f(ref[i]); num += d * d; den += (double)bf2f(ref[i]) * bf2f(ref[i]); }
             // row invariance: M=1 on each row vs the 16-row call
