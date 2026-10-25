@@ -19,7 +19,8 @@ P8 = float(sys.argv[3]) if len(sys.argv) > 3 else 377.0
 P16 = float(sys.argv[4]) if len(sys.argv) > 4 else 190.0
 H, L, LG, LA, I = 5120, 64, 48, 16, 17408
 SHAPES = {17408: ("mlp gate / up", 5120), 10240: ("gdn in_proj_qkv", 5120), 6144: ("gdn in_proj_z", 5120),
-          12288: ("attn q + gate", 5120), 1024: ("attn k / v", 5120), 128: ("gdn in_proj_a / b (N=48)", 5120)}
+          12288: ("attn q + gate", 5120), 1024: ("attn k / v", 5120), 48: ("gdn in_proj_a / b (N=48)", 5120),
+          64: ("gdn in_proj_a / b (N=48)", 5120), 128: ("gdn in_proj_a / b (N=48)", 5120)}
 
 rows = []
 with open(trace) as f:
@@ -49,9 +50,15 @@ chunk_tokens = None
 prev = ""
 for s, e, name, gx, gy, wg in main:
     ns = e - s
-    if "gemm" in name and ("Mxfp4" in name or "mxf8" in name):
-        m = (gx // max(wg, 1))  # blocks along M; tokens per launch derived below
-        n = gy * 128
+    if "gemm" in name and "PolicyV2A16" in name:
+        add("fold: W4A16 half (exits at once)", ns)
+        continue
+    if "gemm" in name and ("Mxfp4" in name or "mxf8" in name or "mx_fold" in name):
+        t = [int(v) for v in re.findall(r"<(?:[^,]*Policy\w*, )?(\d+), (\d+), (\d+), (\d+)", name)[0]] if re.search(r"<(?:[^,]*Policy\w*, )?\d+, \d+, \d+, \d+", name) else [4, 2, 2, 4]
+        bn = t[0] * t[2] * 16  # WN * TN * 16 weight rows per block
+        n = gy * bn
+        if n not in SHAPES and n != 5120:
+            n = min([*SHAPES, 5120], key=lambda v: abs(v - n) if v >= n else 1 << 30)
         if n == 5120:
             what, k = ("mlp down", 17408) if "silu" in prev else ("gdn out_proj / attn o_proj", 6144)
         else:
@@ -66,7 +73,7 @@ for s, e, name, gx, gy, wg in main:
     else:
         nm = name.replace("(anonymous namespace)::", "")
         add("other: " + re.sub(r"<.*", "", re.sub(r"^void ", "", nm.split("(")[0]))[:40], ns)
-    if not ("xprep" in name or "actq" in name):
+    if not ("xprep" in name or "actq" in name or "wref" in name):
         prev = name
 
 # useful FLOPs per class (whole prompt)

@@ -50,6 +50,22 @@ IK_DEVI float mx_fp4_round(float v) {
     return copysignf(r, v);
 }
 
+// the e2m1 code (sign bit 3, magnitude index 0..7) of mx_fp4_round(v): same thresholds, same ties; -0 for negative
+// inputs that round to 0 (copysignf(0, v) in mx_fp4_round)
+IK_DEVI uint32_t mx_fp4_code(float v) {
+    const float a = fabsf(v);
+    uint32_t m;
+    if (a <= 0.25f) m = 0u;
+    else if (a < 0.75f) m = 1u;
+    else if (a <= 1.25f) m = 2u;
+    else if (a < 1.75f) m = 3u;
+    else if (a <= 2.5f) m = 4u;
+    else if (a < 3.5f) m = 5u;
+    else if (a <= 5.f) m = 6u;
+    else m = 7u;
+    return m | ((__float_as_uint(v) >> 28) & 8u);
+}
+
 // QDQ one group of 32 activations in place
 IK_DEVI void mx_qdq32(float* f) {
     float amax = 0.f;
@@ -687,13 +703,18 @@ __global__ void __launch_bounds__(256) mx_fold_actq_kernel(const ik_bf16* __rest
         const uint32_t sb = sb_s[g];
         const float inv = mx_e8m0(254u - sb);
         const int t = (int)sb - (int)ar + 6;
+        uint32_t t0, t1;
+        mx_fold_tab(t, t0, t1);
+        // e2m1 codes of mx_qdq32's rounding (mx_fp4_code == the code of mx_fp4_round), 8 per word, then the fold table
         uint32_t d[8];
 #pragma unroll
-        for (int q = 0; q < 8; ++q) {
-            uint32_t v = 0;
+        for (int q = 0; q < 4; ++q) {
+            uint32_t w = 0;
 #pragma unroll
-            for (int b = 0; b < 4; ++b) v |= (uint32_t)ik_f_to_e4m3(ldexpf(mx_fp4_round(f[q * 4 + b] * inv), t)) << (8 * b);
-            d[q] = v;
+            for (int e = 0; e < 8; ++e) w |= mx_fp4_code(f[q * 8 + e] * inv) << (4 * e);
+            const uint2 b = mx_fold8(w, t0, t1);
+            d[2 * q] = b.x;
+            d[2 * q + 1] = b.y;
         }
         uint4* dp = reinterpret_cast<uint4*>(xc + row * K + g * kG);
         dp[0] = make_uint4(d[0], d[1], d[2], d[3]);
