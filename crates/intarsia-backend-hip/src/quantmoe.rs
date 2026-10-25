@@ -47,6 +47,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_block_bf16", Op::MoeBlock),
     // row-exact form for batched decode (`rows_exact`, T = 1..=ROWS_MAX at any K <= 8; tests/moe_block.rs)
     ("moe_block_bf16_rows", Op::MoeBlock),
+    // lane l7: the grouped form for the rows `moe_block_bf16_rows` does not serve (`rows_exact`, 5..=16 rows; kernels/hip/moe_block_grouped.hip)
+    ("moe_block_bf16_grouped", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     // lane wg: bf16 router / gate on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
@@ -355,6 +357,36 @@ pub fn moe_block_rows_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
     s.m >= 1 && s.m <= MOE_BLOCK_ROWS_MAX && moe_block_shape_ok(&one)
 }
 
+/// Rows served by `moe_block_bf16_grouped` (lane l7): the rows `moe_block_bf16_rows` leaves to the unfused chain, up to the 16 the batched step takes.
+pub const MOE_GROUPED_ROWS: std::ops::RangeInclusive<usize> = (MOE_BLOCK_ROWS_MAX + 1)..=16;
+
+/// `moe_block_bf16_grouped` (lane l7, kernels/hip/moe_block_grouped.hip: topk, grouped routed experts, one shared-expert pass for all rows, bitwise the
+/// T = 1 block per token) is admissible unless INTARSIA_HIP_MOE_GROUPED=0 (and INTARSIA_HIP_MOE_BLOCK is not 0). Off, `fused_ok` finds no MoeBlock
+/// kernel for 5..=16 rows and the model runs the unfused chain exactly as before.
+pub fn moe_grouped_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| moe_grouped_from(std::env::var("INTARSIA_HIP_MOE_GROUPED").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MOE_GROUPED -> the grouped block admissible: only exactly "0" disables; unset or anything else enables.
+pub fn moe_grouped_from(v: Option<&str>) -> bool {
+    v != Some("0")
+}
+
+/// The shapes `moe_block_bf16_grouped` serves: the weights and widths of `moe_block_shape_ok` at any K <= 8, 5..=16 tokens.
+pub fn moe_block_grouped_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
+    let mut one = s.clone();
+    one.m = 1;
+    MOE_GROUPED_ROWS.contains(&s.m) && moe_block_shape_ok(&one)
+}
+
+/// Scratch bytes of `moe_block_bf16_grouped` (`ik_moe_block_grouped_scratch_bytes`): top-k weights f32 `[T, K]`, ids i32 `[T, K]`, routed bf16
+/// `[T, H]`, shared activation bf16 `[T, IS]`, then the routed experts' scratch; each region rounded up to 256 bytes.
+pub fn moe_block_grouped_scratch(s: &intarsia_core::ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    r(s.m * s.top_k * 4) * 2 + r(s.m * s.k * 2) + r(s.m * s.head_dim * 2) + moe_experts_scratch(s)
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -613,6 +645,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_block_scratch)
+                    .priority(-1)
+                    .rows_exact(),
+                // Grouped row-exact form (lane l7): 5..=16 tokens, each token bitwise the T = 1 launch on it alone; the routed experts of the unfused
+                // `moe_experts_bf16_rows` plus one shared-expert pass over all rows. Selected only by `exact_rows` calls.
+                "moe_block_bf16_grouped" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| moe_block_enabled() && moe_grouped_enabled() && moe_block_grouped_shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_block_grouped_scratch)
                     .priority(-1)
                     .rows_exact(),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces (tests/
