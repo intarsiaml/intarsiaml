@@ -12,6 +12,9 @@
 
 #define CK(x) do { hipError_t e = (x); if (e != hipSuccess) { printf("HIP error %s at %d\n", hipGetErrorString(e), __LINE__); exit(1); } } while (0)
 
+#ifdef IK_F8R_ABLATE
+extern "C" void ik_f8r_set_abl(int);
+#endif
 typedef int (*Fn)(const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
 extern "C" int ik_matmul_fp8_gemv_v2(const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
 extern "C" int ik_matmul_fp8_gemv_rows(const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
@@ -222,9 +225,6 @@ static void bench_bf16(std::mt19937& rng) {
     }
 }
 
-#ifdef IK_F8R_ABLATE
-extern "C" void ik_f8r_set_abl(int);
-#endif
 int main(int argc, char** argv) {
     setenv("INTARSIA_HIP_WMMA_DIRECT_MIN", "1", 1);
     int dev = getenv("DEV") ? atoi(getenv("DEV")) : 0;

@@ -1,0 +1,12 @@
+fleetq: #5133 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wg-win.sh bash -c "export HIP_VISIBLE_DEVICES=0; BUILD=\$HOME/wg-build-var REPO=\$HOME/intarsiaml-wg-var ABL=1 bash ~/wg-bench.sh run"'
+fleetq: #5133 went ahead of the line and must end within 5h19m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+[win] stopping radiance 2026-10-25 03:40:33
+abl fp8  2048x2048  M=1:  [0]  16.53  [1]  13.17  [2]  14.25  [4]   5.55  [3]  13.40  [5]   5.06  [6]   5.66  [7]   5.14  [8]  11.83  packed-vs-rowmajor mismatches=0   | gemv_rows  11.86 us
+abl fp8  2048x4096  M=1:  [0]  24.43  [1]  23.26  [2]  24.57  [4]   6.63  [3]  23.36  [5]   5.47  [6]   6.80  [7]   5.49  [8]  19.49  packed-vs-rowmajor mismatches=0   | gemv_rows  17.53 us
+abl fp8  4096x2048  M=1:  [0]  31.89  [1]  30.85  [2]  32.75  [4]  13.04  [3]  26.42  [5]  13.03  [6]  13.05  [7]  13.03  [8]  23.31  packed-vs-rowmajor mismatches=0   | gemv_rows  18.65 us
+abl fp8 12288x2048  M=1:  [0]  57.35  [1]  54.08  [2]  57.22  [4]  13.08  [3]  54.54  [5]  10.31  [6]  13.65  [7]  10.54  [8]  45.44  packed-vs-rowmajor mismatches=0   | gemv_rows  44.69 us
+abl fp8   512x2048  M=1:  [0]   7.06  [1]   6.58  [2]   7.42  [4]   4.50  [3]   6.76  [5]   3.93  [6]   4.71  [7]   3.89  [8]   5.62  packed-vs-rowmajor mismatches=0   | gemv_rows   5.71 us
+[win] starting radiance 2026-10-25 03:40:35
+[win] radiance answers 2026-10-25 03:40:45 (after 15 s); active
+fleetq: #5133 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -4,6 +4,7 @@
 set -euo pipefail
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
 REPO=${REPO:-$HOME/intarsiaml-wg}
+XFLAGS=${XFLAGS:-}
 mode=${1:-run}; shift || true
 BUILD=${BUILD:-$HOME/wg-build}; mkdir -p "$BUILD"
 docker run --rm -i --device /dev/kfd --device /dev/dri --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" --group-add video \
