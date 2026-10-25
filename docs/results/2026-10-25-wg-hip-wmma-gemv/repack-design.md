@@ -65,3 +65,33 @@ bulk of the bytes (stage 2) and have their own layout, where a repack would be a
 Wait for the coalesced-load variant's M = 1 number. If it is within 1 % of the GEMV, skip the repack. If it is 1-5 % slower, the repack
 would make M = 1 faster than the GEMV by about 15-20 % (extrapolating the ablation), which is worth the 1.5 days only if the NVFP4
 stage will also repack; otherwise take the small solo loss against the batched gain and let the user decide.
+
+## Plan, if the 8 % rule approves it (lane wg, written 2026-10-25 for the coordinator)
+
+Scope: the dense fp8 weights of the 35B only (30 GDN `in_proj_qkv`/`in_proj_z`/`out_proj`, 10 attention `q/k/v/o`; 1.28 GB), HIP only, behind
+`INTARSIA_HIP_WMMA_ROWS=1` plus an opt-in `INTARSIA_HIP_FP8_FRAG=1`. Knob off: nothing is permuted and every reader is main's.
+
+1. **In-place reorder.** After `load_tensor` / `load_tensor_shard` has uploaded `[n_local, k_local]` row-major (TP slices host bytes first, so the
+   permutation always sees the local shard), a HIP `relayout_fp8_frag` kernel permutes into one reusable scratch buffer sized to the largest dense
+   tensor (12288 x 2048 = 25 MB) and copies back on the same stream. No second copy of the model: peak extra memory is 25 MB (the 20.8 GB
+   resident set fits the 32 GB card with the same margin as today). Cost about 5 ms for the 1.28 GB (HBM-bound, read + write + copy-back).
+   Hook: `QuantFormat::load` for `fp8_e4m3` in `quant/fp8.rs` (the only place that builds the dense fp8 `QTensor`), through a new
+   `Backend::relayout(TensorRef, Layout::Fp8Frag{n,k})` default no-op, implemented by HIP only. `QTensor` gets a `layout` tag (default
+   `RowMajor`); `dequant_ref` / `download` un-permute on the tag, so CPU oracle semantics and the `Layout rule (v1)` in `quant/mod.rs` stay true for
+   every consumer that does not look at device bytes. (That rule says tensors keep the checkpoint layout: this plan is an exception to
+   it, so it needs the owner's nod as well as the 8 % result.)
+2. **Readers, each by tag.** Registry predicates add `layout == Fp8Frag` / `RowMajor`, so a kernel never sees a layout it was not written for:
+   * the WMMA family (`ik_f8_rows.h`) reads fragment order (one 16-B load per lane, LDS transpose gone) and is the only decode reader of a
+     tagged tensor; the fp8 GEMV family is gated off for tagged tensors (it cannot read them and would be 2-3x slower if taught to).
+   * prefill: `matmul_fp8_mma_f8` / `_v2` / `_mma` take their B tile through `Fp8Policy::load` (`ik_dq_gemm.h`, `ik_f8_gemm.h:81`). That one
+     address formula learns the fragment offset ((n/16, k/32) block, lane = 16*h + col, 16-B piece), so prefill keeps its summation order and
+     stays bitwise (tests/fp8_mma_v2.rs, prefill goldens as the gate). Tile loads become contiguous per block.
+   * pair / fused-prologue kernels (`fp8_gemv_pair_kernel`, `norm_pair`, gated, sigmoid) have WMMA twins already; each tensor is permuted
+     independently.
+   * TP readers: sharding happens before the relayout (item 1); the all-reduce paths see activations only. The `tp` tests that build
+     `QTensor.parts` by hand get a helper that applies the relayout (or sets the `RowMajor` tag).
+3. **Gates.** rows_exact + wmma_folds on tagged tensors with negative controls; bitwise `tagged == untagged` WMMA output (same sums, new
+   addresses); prefill goldens + `fp8_mma_v2` bitwise; 35B KL goldens, acc-short, 256-id identity across batch sizes; M=1 WMMA vs `gemv_rows`
+   time (the ablation says 16.5 -> 11.8 us at 2048x2048, i.e. parity); serve 1/4/8/16.
+4. **Estimate**: about 1.5 days of work plus 3 windows. Stop condition: if M=1 W8A8 on fragment order is still more than 1 % slower than
+   `gemv_rows` at the 35B shapes, the repack buys nothing for option 1 and is reverted.
