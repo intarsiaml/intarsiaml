@@ -110,7 +110,9 @@ pub fn fp8_kind(s: &intarsia_core::ShapeInfo) -> WmmaKind {
 /// THE dispatch table: the rows `lo..=hi` each kind runs on the WMMA family when INTARSIA_HIP_WMMA_ROWS=1 (`None` = never). Every
 /// registration above asks `wmma_takes(kind, m)`; nothing else decides. A kind that is not 1..=ROWS_MAX switches kernels inside a
 /// batch-size range, so one row's bits differ between rows=1 and rows=M across the switch: that is a numerics change, not row
-/// invariance (tests/rows_exact.rs shows it at each boundary). Default: every kind 1..=ROWS_MAX, which is row invariant at every M.
+/// invariance (tests/rows_exact.rs shows it at each boundary). Default (user decision 2026-10-25): W8A16 on 1..=ROWS_MAX (WMMA wins at every M, row
+/// invariant), W8A8 and bf16 stay on the GEMV (the WMMA is 2-13 % slower at M=1, so a switch inside the batch range would break solo == batched,
+/// and all-M WMMA would cost single-stream). Option 1 (all kinds WMMA at all M) is the override "fp8a8=all,bf16=all".
 /// A/B override (read once): INTARSIA_HIP_WMMA_TABLE="fp8a8=4-16,fp8a16=1-16,bf16=off" (`lo-hi`, `off`, or `all`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WmmaTable {
@@ -120,7 +122,7 @@ pub struct WmmaTable {
 }
 
 impl WmmaTable {
-    pub const DEFAULT: WmmaTable = WmmaTable { fp8a8: Some((1, ROWS_MAX)), fp8a16: Some((1, ROWS_MAX)), bf16: Some((1, ROWS_MAX)) };
+    pub const DEFAULT: WmmaTable = WmmaTable { fp8a8: None, fp8a16: Some((1, ROWS_MAX)), bf16: None };
 
     /// Parse the override on top of the default; Err names the bad entry.
     pub fn parse(spec: &str) -> Result<WmmaTable, String> {
@@ -183,12 +185,15 @@ mod wmma_table_tests {
     use super::*;
 
     #[test]
-    fn default_takes_every_kind_at_every_row_count() {
+    fn default_is_w8a16_only_and_whole_range() {
+        for m in 1..=ROWS_MAX {
+            assert!(WmmaTable::DEFAULT.takes(WmmaKind::Fp8A16, m));
+            assert!(!WmmaTable::DEFAULT.takes(WmmaKind::Fp8A8, m) && !WmmaTable::DEFAULT.takes(WmmaKind::Bf16, m));
+        }
+        assert!(!WmmaTable::DEFAULT.takes(WmmaKind::Fp8A16, ROWS_MAX + 1));
+        let all = WmmaTable::parse("fp8a8=all,bf16=all").unwrap();
         for kind in [WmmaKind::Fp8A8, WmmaKind::Fp8A16, WmmaKind::Bf16] {
-            for m in 1..=ROWS_MAX {
-                assert!(WmmaTable::DEFAULT.takes(kind, m));
-            }
-            assert!(!WmmaTable::DEFAULT.takes(kind, ROWS_MAX + 1));
+            assert!((1..=ROWS_MAX).all(|m| all.takes(kind, m)));
         }
     }
 
