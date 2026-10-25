@@ -13,7 +13,6 @@ trap 'bash $HOME/sp-win.sh restore' EXIT
 systemctl --user stop radiance; sleep 3
 ( export HIP_VISIBLE_DEVICES=1
   CHAT="--chat --no-think --temperature 0"
-  for sz in 128,1024,4096,16384; do :; done
   bash $S/ids.sh sp c35-off 128,1024,4096,16384 $CHAT --spec off
   INTARSIA_SPEC_COSTGATE=0 bash $S/ids.sh sp c35-cg0 128,1024,4096,16384 $CHAT --spec mtp --spec-k 2
   bash $S/ids.sh sp c35-cg1 128,1024,4096,16384 $CHAT --spec mtp --spec-k 2
