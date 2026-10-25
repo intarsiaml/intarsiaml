@@ -1,0 +1,6 @@
+fleetq: #5292 waiting (#5 in line): in line behind #5286 "wg win F: probe re-run (fixed) + B=1 chase (HIP_TRACE graphs off, off vs option 1), radiance down <=8 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5286 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5286 set, or it will wait for #5286 to be released.
+fleetq: #5292 waiting (#4 in line): in line behind #5287 "mr3: cargo build dev (logits rows) + base (main 5e9cc6da) trees into /data/mr-target-*, tests compiled (cpu only)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5287 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5287 set, or it will wait for #5287 to be released.
+fleetq: #5292 waiting (#4 in line): in line behind #5287 "mr3: cargo build dev (logits rows) + base (main 5e9cc6da) trees into /data/mr-target-*, tests compiled (cpu only)" (claude-f31ccf91) on tatooine-r9700; #5287 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5287 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5287 set, or it will wait for #5287 to be released.
