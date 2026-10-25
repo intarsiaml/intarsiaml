@@ -2,7 +2,7 @@
 
 Lane mm, 2026-10-25, endor (Apple M5 Max, 128 GB), Qwen3.6-35B-A3B NVFP4, `serve --backend metal --max-batch 8`. Follows
 [mm step 1](2026-10-25-mm-metal-moe-grouped.md) (PR #136, merged 5b7205ca). Branch `lane-mm/metal-fp8-mmt` on main
-0b84f499. Experiment history (losers included) on branch `lane-mm/metal-step2`.
+0b84f499, draft PR #141. Experiment history (losers included) on branch `lane-mm/metal-step2`.
 
 ## Result
 

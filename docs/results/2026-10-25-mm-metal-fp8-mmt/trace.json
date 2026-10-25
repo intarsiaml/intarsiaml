@@ -35,8 +35,8 @@
   "repo": "intarsiaml/intarsiaml",
   "branch": "lane-mm/metal-fp8-mmt",
   "base_commit": "0b84f499",
-  "head_commit": "HEAD",
-  "pr": null,
+  "head_commit": "c45c383a",
+  "pr": 141,
   "files": [
    "kernels/metal/fp8.metal",
    "crates/intarsia-backend-metal/src/fp8.rs",
