@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane mr, LOCAL (endor), with the fleetq job variable set in the environment to the id of the slot that holds tatooine with
 # radiance down (localeval then runs inside that slot instead of queueing):
-# 27B MXFP4 batched decode A/B, base (lane-sp/hip-spec) vs dev, `serve --max-batch 8` and `16`, localeval speed at 1/4/8/16 streams.
+# 27B MXFP4 batched decode A/B, base (origin/main) vs dev, `serve --max-batch 8` and `16`, localeval speed at 1/4/8/16 streams.
 #   <fleetq job env>=<id> scripts/mr/ab.sh [arms: "base:8 dev:8 base:16 dev:16"] [tag]
 set -uo pipefail
 arms=${1:-"base:8 dev:8 base:16 dev:16"}; tag=${2:-mr}
