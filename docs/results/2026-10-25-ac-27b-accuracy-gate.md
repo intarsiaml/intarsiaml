@@ -9,8 +9,8 @@ not yet run (section 7).
 
 ## 0. Verdict
 
-* **The engine has no accuracy regression and no evidence of a decode-path fault.** The 27B W4A4 output on this gate is
-  bitwise unchanged from build `ba0fa9e` (w9) through `5bee812` (w12) to `020b28c` (w13, the merged tree): all 60 dump tensors
+* **No evidence of an engine accuracy fault.** Measured builds only: main `5241377b` and `#144` were not run (the window in
+  section 7 would). The 27B W4A4 output on this gate is bitwise unchanged from build `ba0fa9e` (w9) through `5bee812` (w12) to `020b28c` (w13, the merged tree): all 60 dump tensors
   are equal. Its numbers (prefill 0.1799, decode 1.392x noise) are the same to the printed digit as lane T2's on 2026-10-22 and
   lane M1's on 2026-10-21 (`#145` is bitwise against the previous main by its own gate).
 * **The two failures have two different causes, and neither is "the golden is wrong".**
@@ -77,12 +77,13 @@ activations = the golden's mode, so this one is matched), prefill chunk 256, `--
 The sidecar was back-filled on 2026-10-21 from M1's table; its golden was "not available when this record was filled in" and was
 matched by name and position count only (`2026-10-21-a2-ref-noise-gate.md`). The goldens are available now. Re-measured with
 `intarsia ref-noise` (this PR's `golden/ref_noise/...json`, bound by FNV-1a `725eb3ea093c0264`): all rows 0.19692 (n=1441), scored
-rows 0.19913 (n=1279). The old 0.197 is reproduced.
+rows 0.19913 (n=1279). The old 0.197 is reproduced. All 12 copies of the W4A4 golden on tatooine (every lane's `p1-golden`, incl.
+`~/intarsiaml-p1/`) have the same sha256 `1b32357eaa08...`, so the binding does not orphan any lane's `--ref-noise` run.
 
 ## 4. Decode: the reference noise on the decode window
 
-The decode mode feeds the last 16 positions of each prompt through the single-token path (`dec_pos` in the dumps confirms rows
-`n-16 .. n-1`, 118 of 160 inside assistant turns). The same two HF runs, restricted to those rows (`scripts/ac/win.py`; the all-rows
+The decode mode feeds the last 16 positions of each prompt through the single-token path (`dec_pos` in the dumps equals `arange(n-16, n)` for all 10
+prompts, checked directly; 118 of the 160 rows are scored). The same two HF runs, restricted to those rows (`scripts/ac/win.py`; the all-rows
 and scored numbers reproduce the Rust tool to 4 digits):
 
 | HF W4A4 bf16 vs f32 | all rows | scored rows |
@@ -147,7 +148,8 @@ All offline, on the three engine dumps. The dumps hold the engine's top-64 only,
 ## 7. What this PR contains, and what it does not
 
 Contains: this note; `golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json` re-measured and hash-bound (adds the
-scored-row value 0.1991, per-prompt values, FNV-1a, size; the prefill verdict is unchanged, 0.1799 against 0.1991 = 0.90x; decode
+scored-row value 0.1991, FNV-1a and size; **no per-prompt values**, because those would tighten `--self-vs-ref-noise`, which now judges
+every prompt against the golden-wide mean; the prefill verdict is unchanged, 0.1799 against 0.1991 = 0.90x; decode
 is still FAIL; the golden-bound test in `refnoise.rs` is updated and `cargo test -p intarsia-cli` passes, 171 tests);
 `golden/*.provenance.json` for the three goldens; `scripts/ac/` (the offline analysis, reproducible with `DUMPDIR=<dir with the
 three dumps> uv run --with numpy --with tokenizers python scripts/ac/pair.py`, and the GPU window); a LOG row (status proposed).

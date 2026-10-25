@@ -16,7 +16,7 @@ set -uo pipefail
 O=$HOME/ac-logs/out; rm -rf "$O"; mkdir -p "$O"
 now() { date '+%F %T'; }
 restore() {
-  for c in $(docker ps -q --filter ancestor=intarsia-hip-dev:rocm7.2.4-rust1.90.0 --format '{{.ID}} {{.Command}}' | grep ac-intarsia | cut -d' ' -f1); do docker rm -f "$c" >/dev/null 2>&1; done
+  for c in $(docker ps --no-trunc --filter ancestor=intarsia-hip-dev:rocm7.2.4-rust1.90.0 --format '{{.ID}} {{.Command}}' | grep '/work/ac-intarsia' | cut -d' ' -f1); do docker rm -f "$c" >/dev/null 2>&1; done
   echo "[window] starting radiance $(now)"
   systemctl --user start radiance
   for i in $(seq 1 36); do

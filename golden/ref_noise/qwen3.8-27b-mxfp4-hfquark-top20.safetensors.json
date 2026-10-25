@@ -13,69 +13,7 @@
   "n_scored": 1279,
   "runs": 2,
   "date": "2026-10-25",
-  "how": "Qwen3.8-27B (AMD Quark MXFP4, declared mode W4A4: MXFP4 weights, dynamically fp4-rounded activations), the HF reference at bf16 (golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors) against the same HF reference at f32 (golden/qwen3.8-27b-mxfp4-hfquark-f32-top20.safetensors), teacher-forced over the 10 golden prompts. All 1441 rows and the 1279 scored rows (chatml: rows outside system and user turns). Measures the prefill rows only: the decode mode scores the last 16 rows of each prompt (118 scored rows), where the same pair spreads 0.2527 (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 4); this record is not a decode-window noise.",
+  "how": "Qwen3.8-27B (AMD Quark MXFP4, declared mode W4A4: MXFP4 weights, dynamically fp4-rounded activations), the HF reference at bf16 (golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors) against the same HF reference at f32 (golden/qwen3.8-27b-mxfp4-hfquark-f32-top20.safetensors), teacher-forced over the 10 golden prompts. All 1441 rows and the 1279 scored rows (chatml: rows outside system and user turns). Measures the prefill rows only: the decode mode scores the last 16 rows of each prompt (118 scored rows), where the same pair spreads 0.2527 (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 4); this record is not a decode-window noise. Per-prompt values are deliberately not recorded (they would tighten --self-vs-ref-noise, which today judges every prompt against the golden-wide mean).",
   "estimator": "kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule)",
-  "source": "docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces",
-  "prompts": {
-    "chat_multiturn": {
-      "kl21_mean": 0.3277281466494869,
-      "kl21_mean_scored": 0.4187743955727753,
-      "n": 58,
-      "n_scored": 19
-    },
-    "chat_reasoning": {
-      "kl21_mean": 0.15259842055037992,
-      "kl21_mean_scored": 0.3326450165247563,
-      "n": 90,
-      "n_scored": 5
-    },
-    "chat_short": {
-      "kl21_mean": 0.10122579221367434,
-      "kl21_mean_scored": 0.32483096223696195,
-      "n": 18,
-      "n_scored": 5
-    },
-    "chat_system": {
-      "kl21_mean": 0.17987372553644684,
-      "kl21_mean_scored": 0.0017519335210739266,
-      "n": 32,
-      "n_scored": 7
-    },
-    "code": {
-      "kl21_mean": 0.010986748085229937,
-      "kl21_mean_scored": 0.010986748085229937,
-      "n": 87,
-      "n_scored": 87
-    },
-    "count": {
-      "kl21_mean": 0.015307358906237412,
-      "kl21_mean_scored": 0.015307358906237412,
-      "n": 38,
-      "n_scored": 38
-    },
-    "long_prose_300": {
-      "kl21_mean": 0.17831806908095996,
-      "kl21_mean_scored": 0.17831806908095996,
-      "n": 300,
-      "n_scored": 300
-    },
-    "long_prose_700": {
-      "kl21_mean": 0.26106246287531754,
-      "kl21_mean_scored": 0.26106246287531754,
-      "n": 700,
-      "n_scored": 700
-    },
-    "science": {
-      "kl21_mean": 0.04549971425431519,
-      "kl21_mean_scored": 0.04549971425431519,
-      "n": 79,
-      "n_scored": 79
-    },
-    "story": {
-      "kl21_mean": 0.05291835990614832,
-      "kl21_mean_scored": 0.05291835990614832,
-      "n": 39,
-      "n_scored": 39
-    }
-  }
+  "source": "docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces"
 }
