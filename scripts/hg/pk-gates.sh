@@ -7,6 +7,10 @@ D="env INTARSIA_REPO=$HOME/intarsiaml-hgpk INTARSIA_TARGET_VOL=intarsia-cargo-ta
 M35=/models/Qwen3.6-35B-A3B-NVFP4
 T="env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35"
 f() { grep -aE "packed|^test |^test result|FAILED|panicked|^error|slots:"; }
+echo "== no-op, packed-prefill build with the knob unset, vs origin/main (base logs of the first window)"
+RUN="env INTARSIA_REPO=$HOME/intarsiaml-hgpk INTARSIA_TARGET_VOL=intarsia-cargo-target-hgpk HIP_VISIBLE_DEVICES=0 $HOME/intarsiaml-hgpk/deploy/tatooine/dev.sh /target/release/intarsia" \
+  bash $HOME/intarsiaml-hgpk/scripts/hg/noop.sh run "$O" pk hip /models/Qwen3-8B /models/Qwen3.6-35B-A3B-NVFP4 $HOME/intarsiaml-hgpk/scripts/hg/prompts < /dev/null
+bash $HOME/intarsiaml-hgpk/scripts/hg/noop.sh cmp "$O" base pk
 echo "== batch_recurrent (hip), packed test included"
 $D $T cargo test --release -p intarsia-models --test batch_recurrent -- --test-threads=1 --nocapture < /dev/null 2>&1 | f
 echo "== packed_rows"
