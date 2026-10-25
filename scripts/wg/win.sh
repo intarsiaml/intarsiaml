@@ -13,7 +13,19 @@ tree_sha() { (cd "$HOME/intarsiaml-wg" && find kernels crates scripts/wg Cargo.t
 if [ "${1:-}" = --sha ]; then tree_sha; exit 0; fi
 if [ "${1:-}" = --stamp ]; then tree_sha > "$LOG/stamp-$2"; echo "[win] stamped $2 $(cat "$LOG/stamp-$2")"; exit 0; fi
 want=$(tree_sha)
-for n in ${WG_NEED:-tests bench-intarsiaml-wg-var}; do
+# Self-heal (radiance still UP): a stale or missing stamp means the tree changed after its last build (a queue-order accident, not a failure).
+# Rebuild that stamp here, in the job's own slot, instead of wasting the window; a build that fails still leaves the stamp stale and we refuse below.
+heal() {
+  case $1 in
+    tests) echo "[win] healing stamp tests"; bash "$HOME/wg-prep.sh" tests > "$LOG/heal-tests.log" 2>&1 ;;
+    bench-intarsiaml-wg-var) echo "[win] healing stamp $1"; BUILD=$HOME/wg-build-v2 REPO=$HOME/intarsiaml-wg-var bash "$HOME/wg-bench.sh" build > "$LOG/heal-bench.log" 2>&1 ;;
+    probe) [ -f "$HOME/wg-probe.sh" ] && { echo "[win] healing stamp probe"; bash "$HOME/wg-probe.sh" build > "$LOG/heal-probe.log" 2>&1; } ;;
+  esac
+}
+for n in ${WG_NEED:-tests bench-intarsiaml-wg-var probe}; do
+  [ "$(cat "$LOG/stamp-$n" 2>/dev/null || echo none)" = "$want" ] || heal "$n"
+done
+for n in ${WG_NEED:-tests bench-intarsiaml-wg-var}; do   # (the probe is optional: its tail skips itself)
   have=$(cat "$LOG/stamp-$n" 2>/dev/null || echo none)
   if [ "$have" != "$want" ]; then
     echo "[win] REFUSING to stop radiance: stamp '$n' is $have, tree is $want (the tree did not build, or changed after the build). Radiance untouched."
