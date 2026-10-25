@@ -263,10 +263,38 @@ the PR #142 head (captured step), and the PR head with `--mtp-draft-vocab 65536`
 - The captured step gains +3.8% / +2.2% / +1.7% / -0.6% over main's eager MTP: small, as in the in-process numbers (about 1%), and the
   16k cell is inside the rep spread (4 to 7%). Draft-vocab 65536 gains +8.8% at 1k and +2.1% at 4k over the captured arm and nothing
   at 128 or 16k; with 3 reps at 4 to 9% spread, only the 1k gain is clearly outside the noise.
-- **Served MTP is much less effective than `generate` MTP, and this is unexplained.** In process the same model gives 191 / 199 / 206 /
-  160 tok/s at 128 / 1k / 4k / 16k with k=2 (section 1), 1.15 to 1.27x over spec off; served, the 1k, 4k and 16k cells are at spec-off speed
-  (164 / 160 / 152 against 163 / 159 plain in window 7), and only 128 tokens shows a gain (+19%). Acceptance of the run is 73%, so the
-  verify passes do accept; the per-request peak decode rate (240 to 250 tok/s) shows that bursts run at the in-process speed. Candidates
-  not yet tested: the serve path's chat template changes the generated text (and with it the acceptance, per cell); the adaptive
-  speculation gate (`INTARSIA_SPEC_GATE`, default fails 6 / skip 2) switches speculation off for stretches; the stream's per-token
-  emission cost. Next step: `INTARSIA_SPEC_TRACE=1` on a served 1k request, and the same cells with `INTARSIA_SPEC_GATE=0`.
+- **Served MTP at 1k, 4k and 16k is at spec-off speed.** Explained in section 12: it is the 35B's pass cost against a fast captured
+  plain step on natural text, not the serve path.
+
+## 12. Why served MTP gains so little on the 35B at 1k+ (HIP window 9, fleetq #5189; CUDA #5208; Metal #5206)
+
+Same request body as localeval (chat, temperature 0, `ignore_eos`, 256 forced tokens, `--max-batch 1`, natural-v1), `/metrics` spec
+counters read around every request (`scripts/sp/servedclient.py`), medians of 3. Chat-template `generate` with the same prompts beside it
+(`scripts/sp/served-split.sh`, `win9.sh`; raw: `raw/followup/served-split/{cuda,metal}.log`).
+
+| backend, size | served off | served MTP | `generate` off | `generate` MTP | served tok/pass | served ms/pass | plain ms/token |
+|---|---|---|---|---|---|---|---|
+| HIP 128 | 164.7 | 204.0 | 165.5 | 200.9 | 2.79 | 13.7 | 6.1 |
+| HIP 1k | 164.0 | 168.1 | 165.6 | 187.3 | 2.33 | 13.9 | 6.1 |
+| HIP 4k | 159.3 | 158.5 | 161.3 | 163.9 | 2.29 | 14.4 | 6.3 |
+| HIP 16k | 144.6 | 149.8 | 146.7 | 154.8 | 2.47 | 16.5 | 6.9 |
+| CUDA 128 | 84.4 | 118.9 | 84.5 | 113.6 | 2.80 | 23.6 | 11.8 |
+| CUDA 1k | 83.9 | 100.8 | 84.8 | 99.7 | 2.41 | 24.0 | 11.9 |
+| CUDA 4k | 81.6 | 96.7 | 82.3 | 95.5 | 2.36 | 24.4 | 12.3 |
+| Metal 128 | 125.2 | 187.5 | 125.1 | 179.7 | 2.77 | 14.5 | 8.0 |
+| Metal 1k | 123.8 | 159.3 | 123.8 | 162.6 | 2.40 | 15.1 | 8.1 |
+| Metal 4k | 120.8 | 142.9 | 120.8 | 143.1 | 2.33 | 16.4 | 8.3 |
+
+- **The serve path is not the cause.** `INTARSIA_SPEC_GATE=0` and `INTARSIA_SPEC_TRACE=1` change nothing outside the rep spread on any
+  backend; with the gate off HIP serves 201.7 / 175.9 / 164.3 / 145.8 at the same acceptance. Served and `generate` agree within the
+  rep spread on CUDA and Metal. On HIP the served pass is 4 to 7% slower than `generate`'s (`generate` ran on the other card at the
+  same time, so some of it is host contention), which is smaller than the gain being missed.
+- **The cause is economics.** A HIP pass costs 13.7 to 16.5 ms against 6.1 to 6.9 ms for a graph-replayed plain step: 2.2x to 2.4x.
+  MTP breaks even at 2.2 to 2.4 tokens per pass; natural chat text gives 2.3 to 2.5 at 1k and beyond, so there is no gain. At 128
+  tokens it gives 2.8 and the gain is +24%. CUDA and Metal keep a gain because their plain step is slow (11.8 and 8.0 ms), so the
+  same pass is only 1.8 to 2.0x a plain step. The 35B is a mixture of experts: a 3-row verify reads the union of three tokens' experts
+  (section 1), which a dense model does not pay.
+- Earlier in-process "1.15 to 1.27x" numbers were on text with higher acceptance; on these chat prompts `generate` MTP is 1.13x at 1k,
+  1.02x at 4k and 1.05x at 16k over `generate` off.
+- No engine change fixes this at k=2. What moves it is a cheaper pass (fewer expert reads per verify row, or the draft-vocab head, section
+  5) or more tokens per pass. The 27B (dense, section 2) is where spec pays on HIP.
