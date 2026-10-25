@@ -223,11 +223,19 @@ impl CostParams {
     pub const OFF: CostParams =
         CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 256, warmup: 2, alpha: 0.125 };
 
-    /// Defaults for a backend (`Backend::name`). The break-even is the same everywhere (3% over plain decode, about the
-    /// run-to-run noise of a request); CUDA and Metal sit far above it on natural text (plain step 8 to 12 ms against a
-    /// 15 to 24 ms pass), so only HIP, where the plain step is a captured 6 ms, is ever held off.
-    pub fn for_backend(_backend: &str) -> CostParams {
-        CostParams { min_speedup: 1.03, ..CostParams::OFF }
+    /// The speedup the gate holds speculation to when it is on: 3% over plain decode, about the run-to-run noise of a request.
+    pub const DEFAULT_MIN_SPEEDUP: f64 = 1.03;
+
+    /// Defaults for a backend (`Backend::name`): on for HIP only. There a plain step is a captured 6 ms and a 3-row MoE
+    /// verify costs 2.2 to 2.4 of them, so natural text at 1k and beyond sits at the break-even. On CUDA and Metal the
+    /// plain step is 8 to 12 ms against a 15 to 24 ms pass (speedup 1.2 to 1.5) and the gate never switched off in any
+    /// measured run, so it would be overhead only (the probes); with it off those backends run exactly the code they ran
+    /// before. A recipe (`[mtp]`) or `INTARSIA_SPEC_COSTGATE` turns it on anywhere.
+    pub fn for_backend(backend: &str) -> CostParams {
+        match backend {
+            "hip" => CostParams { min_speedup: Self::DEFAULT_MIN_SPEEDUP, ..CostParams::OFF },
+            _ => CostParams::OFF,
+        }
     }
 
     pub fn enabled(&self) -> bool {
@@ -246,13 +254,16 @@ impl CostParams {
         }
     }
 
-    /// `INTARSIA_SPEC_COSTGATE`: `0` off, `1` the defaults, or `min_speedup,window,probe_every,reprobe_tokens`.
+    /// `INTARSIA_SPEC_COSTGATE`: `0` off, `1` on with the backend's values (the 3% line where it is off by default), or `min_speedup,window,probe_every,reprobe_tokens`.
     pub fn with_env(self, v: Option<&str>) -> CostParams {
         let Some(v) = v.map(str::trim) else { return self };
         match v {
             "" => self,
             "0" | "off" => CostParams { min_speedup: 0.0, ..self },
-            "1" | "on" => self,
+            "1" | "on" => CostParams {
+                min_speedup: if self.enabled() { self.min_speedup } else { Self::DEFAULT_MIN_SPEEDUP },
+                ..self
+            },
             _ => {
                 let f: Vec<&str> = v.split(',').map(str::trim).collect();
                 let num = |i: usize| f.get(i).and_then(|x| x.parse::<f64>().ok());
@@ -985,6 +996,11 @@ mod tests {
         let d = CostParams::for_backend("hip");
         assert_eq!(d.min_speedup, 1.03);
         assert!(d.enabled());
+        for b in ["cuda", "metal", "cpu", ""] {
+            assert!(!CostParams::for_backend(b).enabled(), "{b}: off by default");
+            assert_eq!(CostParams::for_backend(b).with_env(Some("1")).min_speedup, 1.03, "{b}: forced on");
+            assert!(CostParams::for_backend(b).with_env(Some("2.0,4,8,100")).enabled(), "{b}: tuple turns it on");
+        }
         assert!(!d.with_env(Some("0")).enabled());
         assert!(!d.with_env(Some("off")).enabled());
         assert_eq!(d.with_env(Some("1")), d);

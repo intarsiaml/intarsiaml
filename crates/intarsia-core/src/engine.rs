@@ -1695,7 +1695,7 @@ impl Seq {
     /// before it, from its start to now, token emission included, over the tokens it yielded. Beside other sequences
     /// (`spec_busy`) the time is shared, so nothing is timed.
     fn cost_begin(&mut self, spec: bool) {
-        if !self.spec_mtp || !self.spec_on {
+        if !self.spec_mtp || !self.spec_on || !self.gate.cost_enabled() {
             return;
         }
         let now = Instant::now();

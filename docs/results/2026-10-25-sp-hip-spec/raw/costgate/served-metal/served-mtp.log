@@ -1,0 +1,9 @@
+mtp n128 rep0 tokens=256 ttft=0.14s decode=193.7 tok/s steps=90 proposed=180 accepted=163 tok/pass=2.81 ms/pass=14.6 cg_off=0 cg_on=0 cg_plain=2
+mtp n128 rep1 tokens=256 ttft=0.14s decode=194.9 tok/s steps=89 proposed=178 accepted=163 tok/pass=2.83 ms/pass=14.7 cg_off=0 cg_on=0 cg_plain=2
+mtp n128 rep2 tokens=256 ttft=0.14s decode=188.4 tok/s steps=92 proposed=184 accepted=160 tok/pass=2.74 ms/pass=14.7 cg_off=0 cg_on=0 cg_plain=2
+mtp n1024 rep0 tokens=256 ttft=0.68s decode=158.2 tok/s steps=105 proposed=210 accepted=148 tok/pass=2.41 ms/pass=15.4 cg_off=0 cg_on=0 cg_plain=2
+mtp n1024 rep1 tokens=256 ttft=0.69s decode=144.2 tok/s steps=116 proposed=232 accepted=136 tok/pass=2.17 ms/pass=15.2 cg_off=0 cg_on=0 cg_plain=2
+mtp n1024 rep2 tokens=256 ttft=0.69s decode=158.3 tok/s steps=105 proposed=210 accepted=147 tok/pass=2.40 ms/pass=15.3 cg_off=0 cg_on=0 cg_plain=2
+mtp n4096 rep0 tokens=256 ttft=2.42s decode=144.5 tok/s steps=105 proposed=210 accepted=147 tok/pass=2.40 ms/pass=16.8 cg_off=0 cg_on=0 cg_plain=2
+mtp n4096 rep1 tokens=256 ttft=2.34s decode=140.1 tok/s steps=109 proposed=218 accepted=144 tok/pass=2.32 ms/pass=16.7 cg_off=0 cg_on=0 cg_plain=2
+mtp n4096 rep2 tokens=256 ttft=2.34s decode=139.9 tok/s steps=109 proposed=218 accepted=143 tok/pass=2.31 ms/pass=16.7 cg_off=0 cg_on=0 cg_plain=2

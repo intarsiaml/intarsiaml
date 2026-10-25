@@ -28,10 +28,10 @@ arm() { # arm <label> <serve args> [KEY=VAL ...]
 }
 arm off ""
 arm mtp "--spec mtp --spec-k 2"
-arm mtp-cg0 "--spec mtp --spec-k 2" INTARSIA_SPEC_COSTGATE=0
-for a in "off:--spec off" "mtp2:--spec mtp --spec-k 2" "mtp2cg0:--spec mtp --spec-k 2"; do
+arm mtp-cg1 "--spec mtp --spec-k 2" INTARSIA_SPEC_COSTGATE=1
+for a in "off:--spec off" "mtp2:--spec mtp --spec-k 2" "mtp2cg1:--spec mtp --spec-k 2"; do
   tag=${a%%:*}; args=${a#*:}
-  if [ $tag = mtp2cg0 ]; then export INTARSIA_SPEC_COSTGATE=0; else unset INTARSIA_SPEC_COSTGATE; fi
+  if [ $tag = mtp2cg1 ]; then export INTARSIA_SPEC_COSTGATE=1; else unset INTARSIA_SPEC_COSTGATE; fi
   for n in ${SIZES//,/ }; do
     $BIN generate -m $M --backend $BE $EXTRA --max-seq 20480 --profile-every 0 --ignore-eos --show-ids --max-tokens 256 --chat --no-think --temperature 0 $args \
       -p "$(cat $NAT/n$n.txt)" > /dev/null 2> $O/chat-$tag-n$n.err < /dev/null
