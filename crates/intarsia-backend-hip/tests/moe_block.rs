@@ -706,8 +706,7 @@ fn moe_block_timing() {
 /// median of 50 replays, 3 interleaved rounds, us per layer. Variants: (a) the unfused chain exactly as the model runs it after the gate logit
 /// (topk, `moe_experts_bf16_rows`, shared gate and up `matmul_nvfp4_gemv_rows`, `silu_glu`, shared down, `moe_combine`); (b) topk + experts;
 /// (c) the shared pieces + combine; (d) one `matmul_nvfp4_gemv_v2` launch at M = 4 per shared matrix, the optimistic floor of one weight pass;
-/// (e) a tiny launch (the price of a launch boundary in a replay); (f) the fused `moe_block_bf16_rows`; (g) `moe_block_bf16_grouped` (needs the
-/// l7 kernel; skipped when the build has none). Also logs the distinct experts per layer.
+/// (e) a tiny launch (the price of a launch boundary in a replay); (f) the fused `moe_block_bf16_rows`; (g) `moe_block_bf16_grouped` (lane l7). Also logs the distinct experts per layer.
 #[test]
 fn moe_rows_timing() {
     if std::env::var("INTARSIA_HIP_MOE_ROWS_BENCH").as_deref() != Ok("1") {

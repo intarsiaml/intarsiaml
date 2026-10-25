@@ -21,6 +21,11 @@ fi
 export INTARSIA_REGISTRY_VOL=intarsia-cargo-l7-registry
 D=$HOME/intarsiaml-l7-hip/deploy/tatooine/dev.sh
 if [ "$what" != base ]; then
+  echo "== syntax check of the new translation unit"
+  out=$($HOME/intarsiaml-l7-hip/scripts/l7/syntax.sh); echo "$out"
+  echo "$out" | grep -q "rc=0" || { echo "SYNTAX CHECK FAILED, no build"; exit 1; }
+fi
+if [ "$what" != base ]; then
   echo "== dev: intarsia"
   INTARSIA_REPO=$HOME/intarsiaml-l7-hip INTARSIA_TARGET_VOL=intarsia-cargo-l7-dev $D cargo build --release --locked --features hip -p intarsia-cli 2>&1 < /dev/null | tail -3
   echo "== dev: tests (compile only)"
