@@ -13,7 +13,7 @@ nat = sys.argv[5] if len(sys.argv) > 5 else "/home/josef/intarsiaml-sp/sp-out"
 def metrics():
     t = urllib.request.urlopen(url + "/metrics", timeout=10).read().decode()
     out = {}
-    for k in ("steps", "proposed_tokens", "accepted_tokens"):
+    for k in ("steps", "proposed_tokens", "accepted_tokens", "costgate_off", "costgate_on", "costgate_plain_steps"):
         m = re.search(rf"^intarsia_spec_{k}_total\s+([0-9.e+]+)", t, re.M)
         out[k] = float(m.group(1)) if m else 0.0
     return out
@@ -48,4 +48,4 @@ for s in sizes:
     text = open(f"{nat}/n{s}.txt").read()
     for r in range(reps):
         toks, ttft, dec, d, tpp, mspp = one(text)
-        print(f"{tag} n{s} rep{r} tokens={toks} ttft={ttft:.2f}s decode={dec:.1f} tok/s steps={d['steps']:.0f} proposed={d['proposed_tokens']:.0f} accepted={d['accepted_tokens']:.0f} tok/pass={tpp:.2f} ms/pass={mspp:.1f}", flush=True)
+        print(f"{tag} n{s} rep{r} tokens={toks} ttft={ttft:.2f}s decode={dec:.1f} tok/s steps={d['steps']:.0f} proposed={d['proposed_tokens']:.0f} accepted={d['accepted_tokens']:.0f} tok/pass={tpp:.2f} ms/pass={mspp:.1f} cg_off={d['costgate_off']:.0f} cg_on={d['costgate_on']:.0f} cg_plain={d['costgate_plain_steps']:.0f}", flush=True)
