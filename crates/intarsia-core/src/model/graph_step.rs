@@ -23,7 +23,7 @@
 //! group down (ADR-0006): falling back to eager on one rank only would leave the ranks deciding differently.
 
 use super::*;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
 /// Graph decode profiles every `profile_every * PROFILE_STRETCH`-th step instead of every `profile_every`-th: a
 /// profiled step is an eager one (844 synchronised launches on the 35B model).
@@ -55,8 +55,8 @@ pub(super) struct GraphState {
     batched_off: AtomicBool,
     /// Speculative MTP steps (`model/spec_graph.rs`): one recording per (sequence state, catch-up rows, verify rows, scripted drafts).
     pub(super) spec: Mutex<std::collections::HashMap<(u64, usize, usize, bool), Captured>>,
-    /// A speculative step failed to capture: they run eagerly from here on.
-    pub(super) spec_off: AtomicBool,
+    /// Captures of the speculative step that failed (`spec_graph::SPEC_CAPTURE_FAILURES_MAX` of them turn it off).
+    pub(super) spec_fail: AtomicUsize,
     pub(super) spec_captures: AtomicU64,
     pub(super) spec_replays: AtomicU64,
     /// Set by the per-row fallbacks of a batched step while a recording is being made.
@@ -89,7 +89,7 @@ impl GraphState {
             batched: Mutex::new(Default::default()),
             batched_off: AtomicBool::new(false),
             spec: Mutex::new(Default::default()),
-            spec_off: AtomicBool::new(false),
+            spec_fail: AtomicUsize::new(0),
             spec_captures: AtomicU64::new(0),
             spec_replays: AtomicU64::new(0),
             state_bound: AtomicBool::new(false),
@@ -144,6 +144,9 @@ impl Model {
         self.graphs.enabled.store(on, Ordering::Relaxed);
         if !on {
             self.graphs.invalidate();
+        } else {
+            // a capture failure of the speculative step is not permanent: turning graphs on again lets it retry
+            self.graphs.spec_fail.store(0, Ordering::Relaxed);
         }
     }
 

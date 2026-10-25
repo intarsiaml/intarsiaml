@@ -1,0 +1,9 @@
+off n128 rep0 tokens=256 ttft=0.14s decode=125.3 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n128 rep1 tokens=256 ttft=0.14s decode=125.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n128 rep2 tokens=256 ttft=0.14s decode=124.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep0 tokens=256 ttft=0.68s decode=123.8 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep1 tokens=256 ttft=0.67s decode=123.8 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep2 tokens=256 ttft=0.67s decode=123.9 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep0 tokens=256 ttft=2.31s decode=121.3 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep1 tokens=256 ttft=2.31s decode=121.3 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep2 tokens=256 ttft=2.31s decode=120.2 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
