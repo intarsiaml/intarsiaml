@@ -1,6 +1,6 @@
 # HIP WMMA small-row GEMV/GEMM family (lane wg), 2026-10-25
 
-Draft. Opt-in behind `INTARSIA_HIP_WMMA_ROWS=1`; with the knob off nothing changes. A default flip is a separate user decision.
+Opt-in behind `INTARSIA_HIP_WMMA_ROWS=1`; with the knob off nothing changes. Decided by the user 2026-10-25 13:14: option 1 does not become the default; it stays off until the B=1 cost is fixed or explained (the M=1 candidates below are later work).
 Raw logs: `2026-10-25-wg-hip-wmma-gemv/raw/`; machine-readable summary: `2026-10-25-wg-hip-wmma-gemv/trace.json`.
 Measured on tatooine (R9700, gfx1201, one card), Qwen3.6-35B-A3B-NVFP4, tree stamp `1b16702a` (branch on origin/main `5e9cc6da`; the branch is
 105 commits behind main now and has at least one conflict, `crates/intarsia-core/src/plan.rs`, so it needs a rebase and a re-run of the gates).
