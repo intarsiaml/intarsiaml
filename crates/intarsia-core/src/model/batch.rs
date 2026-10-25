@@ -733,6 +733,7 @@ impl Model {
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table: self.rope_table.clone(),
             tp_fusion: false,
+            vocab_par: self.vocab_par,
             tp: self.tp.clone(),
             no_comm: self.no_comm,
             test_bug: self.test_bug.clone(),

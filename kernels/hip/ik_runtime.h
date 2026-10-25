@@ -70,6 +70,10 @@ int ik_rt_malloc_finegrained(void** p, size_t bytes);
 int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch,
                    unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
                    int nblocks, int drain, void* stream);
+/* two-rank all-gather launcher (allreduce.hip), same scratch / flags / counters as ik_ar2_oneshot */
+int ik_ag2_gather(void* x, void* out, int64_t bytes, int64_t out_stride_bytes, void* peer_scratch, void* my_scratch,
+                  unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks,
+                  int rank, int drain, void* stream);
 /* D2D copy bandwidth in GB/s (read + write counted), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 const char* ik_rt_error_string(int code);
