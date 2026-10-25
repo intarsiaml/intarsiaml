@@ -14,7 +14,7 @@ cmd=${1:?}; shift
 case "$cmd" in
   up)
     tree=$1; label=$2; shift 2
-    case "$tree" in hg) vol=intarsia-cargo-target-hg ;; hg-base) vol=intarsia-cargo-target-hgbase ;; *) echo "unknown tree $tree"; exit 2 ;; esac
+    case "$tree" in hg) vol=intarsia-cargo-target-hg ;; hg-base) vol=intarsia-cargo-target-hgbase ;; hgpk) vol=intarsia-cargo-target-hgpk ;; *) echo "unknown tree $tree"; exit 2 ;; esac
     docker rm -f intarsia-serve >/dev/null 2>&1
     echo "[win] stopping radiance $(now)"
     systemctl --user stop radiance
