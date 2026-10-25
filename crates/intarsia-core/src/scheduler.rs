@@ -336,6 +336,42 @@ pub fn next_prefill_chunk_tm(remaining: usize, chunk: usize, avoid_one_row: bool
     }
 }
 
+/// Env knob: `INTARSIA_PREFILL_PEEL=<rows>` overrides the recipe's `prefill_peel` (`0`: off; unset / empty: the recipe).
+pub const PEEL_ENV: &str = "INTARSIA_PREFILL_PEEL";
+
+/// Parse [`PEEL_ENV`]: `None` / empty = not set (the recipe decides), a row count below
+/// [`crate::recipe::DEFAULT_PREFILL_CHUNK`] otherwise (0 = off).
+pub fn parse_peel(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(s) => match s.parse::<usize>() {
+            Ok(n) if n < crate::recipe::DEFAULT_PREFILL_CHUNK => Ok(Some(n)),
+            _ => Err(Error::invalid(format!(
+                "{PEEL_ENV}={s} (a row count below {}, 0 = off)",
+                crate::recipe::DEFAULT_PREFILL_CHUNK
+            ))),
+        },
+    }
+}
+
+/// Prefill tail peel (`peel` rows, 0 = off = `n`): a forward pass of `n` rows, longer than the default chunk
+/// ([`crate::recipe::DEFAULT_PREFILL_CHUNK`], 256), whose length mod 256 is `1..=peel`, runs its first `n - n % 256` rows
+/// first and its last `n % 256` rows as their own pass. The default chunk schedule cuts a pass at the same rows (a pass
+/// at a larger chunk starts where a 256-row pass would and is cut into 256-row passes plus that remainder), so the
+/// short tail runs with exactly the row count, and so the small-row kernels (an M <= 8 GEMV), that the default
+/// schedule runs it with. Passes of more rows take the same kernels at either size where every kernel is row-invariant
+/// (HIP 27B, docs/results/2026-10-25-mx-hip-27b-prefill.md section 4): with the peel a larger chunk gives the bits
+/// of the default one. Returns the rows of the first pass.
+pub fn peel_tail(n: usize, peel: usize) -> usize {
+    let r = crate::recipe::DEFAULT_PREFILL_CHUNK;
+    let t = n % r;
+    if peel > 0 && n > r && t >= 1 && t <= peel {
+        n - t
+    } else {
+        n
+    }
+}
+
 /// The prefill chunk schedule of a request: `(start, len)` of every forward pass, the last one carrying the head.
 /// Same rule as `engine::Seq::prefill_step` ([`next_prefill_chunk`]): from `cached`, full chunks of `chunk` while more
 /// than `chunk` tokens remain, then the rest (1..=`chunk` tokens) as the final chunk; with `avoid_one_row` a

@@ -762,6 +762,7 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
+            prefill_peel: self.prefill_peel,
             skip_dead: std::sync::atomic::AtomicBool::new(false),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,
