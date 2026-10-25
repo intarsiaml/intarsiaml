@@ -296,6 +296,14 @@ impl Telemetry {
         }
     }
 
+    /// Count the launches of a replayed graph: one lock for the whole step instead of one per op.
+    pub fn record_ops(&self, ops: &[Op]) {
+        let mut g = self.inner.lock().unwrap();
+        for &op in ops {
+            g.ops.entry(op).or_default().calls += 1;
+        }
+    }
+
     /// Count a tensor-parallel all-reduce; pass `Some(duration)` when it was timed (profiled steps).
     pub fn record_comm(&self, dur: Option<Duration>) {
         let mut s = self.comm.lock().unwrap();

@@ -237,9 +237,7 @@ impl Model {
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
-        for &op in &c.ops {
-            self.telemetry.record_op(op, None);
-        }
+        self.telemetry.record_ops(&c.ops);
         for _ in 0..c.comms {
             self.telemetry.record_comm(None);
         }
@@ -267,9 +265,11 @@ impl Model {
             }
         }
         // the step's device inputs: tokens, then the row table and positions (stream-ordered before the replay)
+        let prof_upload = crate::hostprof::span(crate::hostprof::Cat::Upload);
         let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
         self.backend.upload(&self.ws.ids, 0, &ids_i32, self.stream)?;
         self.upload_row_table(states)?;
+        drop(prof_upload);
         let mut cache = self.graphs.batched.lock().unwrap();
         if !cache.contains_key(&b) {
             *self.capture_ops.lock().unwrap() = Some(Vec::new());
@@ -305,9 +305,7 @@ impl Model {
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
         self.telemetry.graph_event(true);
-        for &op in &c.ops {
-            self.telemetry.record_op(op, None);
-        }
+        self.telemetry.record_ops(&c.ops);
         Ok(true)
     }
 
