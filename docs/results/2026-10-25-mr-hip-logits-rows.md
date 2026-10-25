@@ -88,7 +88,7 @@ us per call, MXFP4 rows kernel, f32 out (raw/win3-harness-variants.log):
 
 Reduce-scatter alone is a consistent 3-7 % at M=8..16 (more on the short-K shapes); 2 rows per group helps only M <= 4 on the small shape and loses on the big ones (more registers).
 The GEMVs are about 75 % of the 16-row step (83 of 111 ms profiled), so reduce-scatter is worth roughly 2-5 ms of a 100 ms step: real but small, with a larger and more intricate
-kernel; I did not make it a PR. Packed/dot instructions (bf16 dot2 accumulates in a different order) are not an option without changing bits against main. The remaining
+kernel. Decision (coordinator, 2026-10-25): no PR; it stays a measured option on branch `lane-mr/hip-mxfp4-alu-experiment`, to be revisited if the MXFP4 GEMV becomes the bottleneck again. Packed/dot instructions (bf16 dot2 accumulates in a different order) are not an option without changing bits against main. The remaining
 levers are the compiler's VOPD pairing (574 singles) and a cheaper fp4 decode, neither controllable from HIP source with certainty.
 
 ## Method and reproduction
@@ -102,5 +102,5 @@ levers are the compiler's VOPD pairing (574 singles) and a cheaper fp4 decode, n
 ## Not done
 
 * lm_head rows below 9 rows (4.5 ms at M=8 against 4.24 at M=1: 6 % over the byte floor; not worth a new kernel).
-* `matmul_bf16_gemv_rows` above 8 rows (same old kernel and the same spill; lane wg's file family, not touched).
+* `matmul_bf16_gemv_rows` above 8 rows (same old kernel and the same spill; lane wg's file family, not touched). Left for now by decision (coordinator, 2026-10-25): wg's WMMA recommendation may move bf16 rows to WMMA and make the fix moot.
 * A decode-only 16-sequence served measurement (localeval's streams are staggered by prefill).
