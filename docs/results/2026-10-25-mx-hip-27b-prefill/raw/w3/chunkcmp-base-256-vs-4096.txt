@@ -1,0 +1,21 @@
+/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mx/cmp: prefill, reference chunk 256, 16 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+  4096count                 38      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096story                 39      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096code                  87      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096science               79      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_short            18      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_system           32      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_multiturn        58      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096chat_reasoning        90      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_300       300      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096long_prose_700       700      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_260            260      4      NO  2.260e+00  3.90e-01  1.85e-03     1
+  4096synth_264            264      8      NO  2.260e+00  3.90e-01  2.92e-03     3
+  4096synth_4089          4089      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_4100          4100      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_5686          5686      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+  4096synth_16036        16036      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+aggregate over all prompts (row-weighted mean KL):
+  chunk 4096: rows 31876, rows differing 12, max|dlp| 2.260e+00, max KL 3.90e-01, mean KL 3.93e-05, flips 4
+ALL BITWISE: NO  (chunks compared: [4096])

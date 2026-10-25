@@ -24,6 +24,8 @@ pub const TABLE: &[(&str, Op)] = &[
     // M1 drill (kernels/hip/mxfp4.hip): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
     ("matmul_mxfp4_mma", Op::MatmulMxfp4),
+    ("matmul_mxfp4_mma_v1", Op::MatmulMxfp4),
+    ("matmul_mxfp4_mma_fold", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv", Op::MatmulMxfp4Pair),
     // row-exact twins of the two GEMVs (`rows_exact`, M <= ROWS_MAX = 16): M == 1 is the GEMV launcher itself, M = 2..16 runs
     // mxfp4_gemv_rows_kernel, which keeps the arithmetic of every output row of the one-row kernel (same lane-to-group map,
@@ -115,6 +117,18 @@ pub fn fp8_staging_default_from(q: Option<&str>, pair: Option<&str>) -> bool {
         }
     };
     q_default && pair_default
+}
+
+/// `matmul_mxfp4_mma_fold` (lane mx, docs/results/2026-10-25-mx-hip-27b-prefill.md): OPT-IN MXFP4 prefill GEMM on the fp8
+/// WMMA that changes numerics (last-bit sums, rounded tiny activation groups); selected only with INTARSIA_HIP_MXFP4_FOLD=1.
+pub fn mxfp4_fold_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| mxfp4_fold_from(std::env::var("INTARSIA_HIP_MXFP4_FOLD").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MXFP4_FOLD -> on only when it is exactly "1".
+pub fn mxfp4_fold_from(v: Option<&str>) -> bool {
+    v == Some("1")
 }
 
 /// The value of INTARSIA_HIP_FP8_F8 -> f8 on: on unless it is exactly "0".
@@ -315,6 +329,28 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2 + 16),
+                // matmul_mxfp4_mma before lane mx's v2 (kernels/hip/mxfp4.hip Mxfp4PolicyV2 / mx_gemm_run): the same bits, never
+                // selected; the bitwise reference of tests/mxfp4_v2.rs. INTARSIA_HIP_MXFP4_V1=1 makes matmul_mxfp4_mma run it.
+                "matmul_mxfp4_mma_v1" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + 16)
+                    .priority(-10),
+                // OPT-IN, changes numerics (lane mx): W4A4 folded onto the fp8 WMMA (kernels/hip/mxfp4.hip launch_fold); only with
+                // INTARSIA_HIP_MXFP4_FOLD=1 (`mxfp4_fold_enabled`), else never selected. M >= 9 in practice (the GEMVs outrank it).
+                "matmul_mxfp4_mma_fold" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.k % 64 == 0 && s.k <= 32768)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| s.m * s.k * 2 + s.m + s.n + 16)
+                    .priority(if mxfp4_fold_enabled() { 5 } else { -20 }),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
@@ -639,5 +675,41 @@ mod tests {
         ] {
             assert_eq!(v3.accepts(&s), v2.accepts(&s), "v3 must take exactly the shapes v2 takes");
         }
+    }
+
+    /// The MXFP4 fold path (lane mx) is opt-in: off unless INTARSIA_HIP_MXFP4_FOLD is exactly "1".
+    #[test]
+    fn mxfp4_fold_is_opt_in() {
+        assert!(!mxfp4_fold_from(None));
+        assert!(!mxfp4_fold_from(Some("0")));
+        assert!(!mxfp4_fold_from(Some("true")));
+        assert!(mxfp4_fold_from(Some("1")));
+        assert_eq!(mxfp4_fold_enabled(), std::env::var("INTARSIA_HIP_MXFP4_FOLD").as_deref() == Ok("1"));
+    }
+
+    /// Pins the MXFP4 selection at the 27B's shapes: the GEMVs for 1..=8 rows, `matmul_mxfp4_mma` (v2, bitwise v1) above,
+    /// `matmul_mxfp4_mma_fold` there only with INTARSIA_HIP_MXFP4_FOLD=1; `matmul_mxfp4_mma_v1` never.
+    #[test]
+    fn mxfp4_selection_is_pinned() {
+        let ks = all();
+        let pick_mx = |s: &ShapeInfo| -> String {
+            let mut best: Option<&KernelImpl> = None;
+            for k in ks.iter().filter(|k| k.op == Op::MatmulMxfp4 && k.accepts(s) && !k.rows_exact) {
+                if best.is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.expect("a MatmulMxfp4 kernel for every shape").name.clone()
+        };
+        let big = if mxfp4_fold_enabled() { "matmul_mxfp4_mma_fold" } else { "matmul_mxfp4_mma" };
+        for (n, k) in [(17408usize, 5120usize), (10240, 5120), (6144, 5120), (12288, 5120), (1024, 5120), (48, 5120), (5120, 6144), (5120, 17408)] {
+            for (m, want) in [(1usize, "matmul_mxfp4_gemv"), (8, "matmul_mxfp4_gemv"), (9, big), (64, big), (256, big), (4096, big)] {
+                let s = ShapeInfo { m, n, k, act: Some(DType::Bf16), weight: Some(DType::U8), out: Some(DType::Bf16), ..Default::default() };
+                assert_eq!(pick_mx(&s), want, "m={m} n={n} k={k}");
+            }
+        }
+        // K % 64 == 32: the fold never takes it
+        let s = ShapeInfo { m: 300, n: 512, k: 1056, act: Some(DType::Bf16), weight: Some(DType::U8), out: Some(DType::Bf16), ..Default::default() };
+        assert_eq!(pick_mx(&s), "matmul_mxfp4_mma");
     }
 }

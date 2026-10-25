@@ -1,0 +1,30 @@
+W20261025 11:26:03.527739 128651044131584 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.057111 sec
+W20261025 11:26:03.528028 128651044131584 simple_timer.cpp:55] [rocprofv3] './mx-out/mxbench 4096 1' ::     0.000000 sec
+W20261025 11:26:03.709141 128651044131584 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+W20261025 11:26:03.875439 128651044131584 tool.cpp:1189] Unable to find all counters for agent 1 (gpu-0, gfx1201) in [SQ_INSTS_LDS, SQ_INSTS_VALU, SQ_WAIT_INST_LDS]. Found: [SQ_INSTS_LDS, SQ_INSTS_VALU]. Missing: [SQ_WAIT_INST_LDS]
+W20261025 11:26:03.875481 128651044131584 tool.cpp:1189] Unable to find all counters for agent 2 (gpu-1, gfx1201) in [SQ_INSTS_LDS, SQ_INSTS_VALU, SQ_WAIT_INST_LDS]. Found: [SQ_INSTS_LDS, SQ_INSTS_VALU]. Missing: [SQ_WAIT_INST_LDS]
+mlp gate / up cfg 16: 71303168 outputs differ from v1
+mlp down cfg 16: 20971520 outputs differ from v1
+gdn in_proj_qkv cfg 16: 41943040 outputs differ from v1
+gdn in_proj_z cfg 16: 25165824 outputs differ from v1
+gdn out / attn o cfg 16: 20971520 outputs differ from v1
+attn q + gate cfg 16: 50331648 outputs differ from v1
+attn k / v cfg 16: 4194304 outputs differ from v1
+gdn in_proj_a / b cfg 16: 196608 outputs differ from v1
+W20261025 11:26:07.358652 128651044131584 simple_timer.cpp:55] [rocprofv3] './mx-out/mxbench 4096 1' ::     3.830624 sec
+E20261025 11:26:07.372057 128651044131584 output_stream.cpp:111] Opened result file: /work/mx-out/pmc/valu/run_counter_collection.csv
+E20261025 11:26:07.375836 128651044131584 output_stream.cpp:111] Opened result file: /work/mx-out/pmc/valu/run_agent_info.csv
+W20261025 11:26:07.376628 128651044131584 simple_timer.cpp:55] [rocprofv3] output generation ::     0.017349 sec
+W20261025 11:26:07.376678 128651044131584 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.017403 sec
+M = 4096, W4A4, bf16 out, 1 reps over 4 weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold and nodq only; nodq = v2's table without the dequant ALU, wrong by design)
+shape                   N      K         v1   v2-table    v2-4224    v2-4442    v2-4424    v2-2244    v2-4244    v2-2444    v2-4422    v2-2442    v2-2222    v2-2242    v2-1411    v2-1111    v2-1412       fold       nodq
+mlp gate / up       17408   5120      61.4       79.9       70.8       77.7       80.1       35.8       71.5       71.0       72.6       71.5       51.7       47.4       24.4       16.6       26.3      145.0       95.8!
+mlp down             5120  17408      54.1       83.6       52.5       81.8       85.3       38.7       79.2       74.7       63.1       53.3       27.8       48.9        6.9       11.8        7.7      171.2       95.7!
+gdn in_proj_qkv     10240   5120      58.5       76.1       68.2       74.0       76.0       37.9       74.5       71.8       74.0       71.7       52.9       50.5       25.7       17.2       25.0      148.4       91.3!
+gdn in_proj_z        6144   5120      55.9       72.9       65.4       71.9       74.2       38.2       74.0       73.4       74.4       73.6       53.6       50.7       26.2       17.4       22.7      141.5       95.2!
+gdn out / attn o     5120   6144      58.7       76.3       70.1       76.8       78.6       36.9       73.5       69.6       72.4       70.2       52.3       49.3       25.6       17.0       14.2      142.2       93.1!
+attn q + gate       12288   5120      60.0       77.5       69.3       75.1       77.1       36.1       70.8       68.4       70.9       69.2       50.2       47.4       24.9       16.8       24.8      138.6       91.4!
+attn k / v           1024   5120      46.4       58.1       52.2       58.0       59.0       24.0       53.1       53.6       53.3       52.8       42.4       42.3       20.6       15.0       18.5       92.4       72.7!
+gdn in_proj_a / b      48   5120       6.0        6.8        6.6        5.9        6.2        4.2        5.6        5.2        6.9        6.5        7.1        5.8        6.9        5.5        6.9        7.7        8.1!
+whole-model GEMM ms per 4096-token chunk:     3439.6     2544.4     3111.0     2606.9     2523.8     5467.9     2742.5     2818.7     2870.5     3049.4     4648.9     4154.1    12925.6    13106.0    12617.0     1359.2     2129.7
+whole-model TFLOP/s:                              58.0       78.4       64.1       76.5       79.0       36.5       72.7       70.8       69.5       65.4       42.9       48.0       15.4       15.2       15.8      146.8       93.7

@@ -1,0 +1,47 @@
+[window] job 5149 w5; stopping radiance 2026-10-25 04:42:34
+[window] radiance stopped 2026-10-25 04:42:37
+04:42:37 w5 start; budget 2340 s; base 0b84f49_code-tree=a2582ab69fa2_dirty=no dev 174eb83_code-tree=748e42eebca8_dirty=no
+04:42:39 plan-base-27 exit 0: 
+04:42:42 plan-dev-27 exit 0: 
+04:42:42 SAME plan show 27 base vs dev (plan-base-27.out == plan-dev-27.out)
+04:42:44 plan-fold-27 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: 
+04:42:44 DIFF plan show 27 base vs dev+fold (differs where the fold is selected) (plan-base-27.out != plan-fold-27.out)
+04:42:52 plan-base-35 exit 0: 
+04:42:55 plan-dev-35 exit 0: 
+04:42:55 SAME plan show 35 base vs dev (plan-base-35.out == plan-dev-35.out)
+04:42:57 plan-fold-35 exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: 
+04:42:57 SAME plan show 35 base vs dev+fold (differs where the fold is selected) (plan-base-35.out == plan-fold-35.out)
+04:43:01 kq-27 exit 0: 
+04:43:01 kq 27: /home/josef/mx/out/w5/kq-27.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/w5/kq-27.out:64 kernels, 345 cases in 3.0s|
+04:43:05 kq-27-fold exit 0 [INTARSIA_HIP_MXFP4_FOLD=1]: 
+04:43:05 kq 27-fold: /home/josef/mx/out/w5/kq-27-fold.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/w5/kq-27-fold.out:64 kernels, 345 cases in 3.0s|
+04:43:08 kq-35 exit 0: 
+04:43:08 kq 35: /home/josef/mx/out/w5/kq-35.out:op             kernel                      cases   fail     max_abs      rel_l2  result|/home/josef/mx/out/w5/kq-35.out:64 kernels, 345 cases in 3.0s|
+04:44:36 qual-27 exit 1: 
+04:44:36 qual 27: /home/josef/mx/out/w5/qual-27.err:[qualify     13s] gate: PASS in 12.2s (perplexity 1.64, 5/5 sanity prompts ok, no non-finite rows)|/home/josef/mx/out/w5/qual-27.err:[qualify     13s] == acc-short [short accuracy against a golden]|/home/josef/mx/out/w5/qual-27.err:[qualify     27s] acc-short: FAIL 
+04:45:55 qual-27-fold exit 1 [INTARSIA_HIP_MXFP4_FOLD=1]: 
+04:45:55 qual 27-fold: /home/josef/mx/out/w5/qual-27-fold.err:[qualify     12s] gate: PASS in 11.7s (perplexity 1.59, 5/5 sanity prompts ok, no non-finite rows)|/home/josef/mx/out/w5/qual-27-fold.err:[qualify     12s] == acc-short [short accuracy against a golden]|/home/josef/mx/out/w5/qual-27-fold.err:[qualify     24s] a
+04:46:05 ids-dev-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 151 ms (79.4 tok/s) | decode 7723 ms (33.02 tok/s)|
+04:46:05 ids dev-27-short md5 2086b6a4
+04:46:15 ids-base-27-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 192 ms (62.6 tok/s) | decode 7727 ms (33.00 tok/s)|
+04:46:15 ids base-27-short md5 2086b6a4
+04:46:15 SAME 27B short ids dev vs main (ids-dev-27-short.ids == ids-base-27-short.ids)
+04:46:19 ids-dev-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 51 ms (233.7 tok/s) | decode 1543 ms (165.28 tok/s)|
+04:46:19 ids dev-35-short md5 7f8d5c3b
+04:46:24 ids-base-35-short exit 0: 1.  **Deconstruct the prompt:**|prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 56 ms (214.4 tok/s) | decode 1543 ms (165.21 tok/s)|
+04:46:24 ids base-35-short md5 7f8d5c3b
+04:46:24 SAME 35B short ids dev vs main (ids-dev-35-short.ids == ids-base-35-short.ids)
+04:46:37 ids-dev-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 3916 ms (1125.7 tok/s) | decode 7889 ms (32.32 tok/s)|
+04:46:37 ids dev-27-4k md5 ef88d237
+04:46:52 ids-base-27-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4498 ms (980.0 tok/s) | decode 7895 ms (32.30 tok/s)|
+04:46:52 ids base-27-4k md5 ef88d237
+04:46:52 SAME 27B 4k ids dev vs main (ids-dev-27-4k.ids == ids-base-27-4k.ids)
+04:46:57 ids-dev-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 486 ms (9063.3 tok/s) | decode 1596 ms (159.78 tok/s)|
+04:46:57 ids dev-35-4k md5 1c4f85d0
+04:47:02 ids-base-35-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 490 ms (8989.7 tok/s) | decode 1591 ms (160.23 tok/s)|
+04:47:02 ids base-35-4k md5 1c4f85d0
+04:47:02 SAME 35B 4k ids dev vs main (ids-dev-35-4k.ids == ids-base-35-4k.ids)
+04:47:02 w5 done; 2075 s left
+[window] stages done 2026-10-25 04:47:02, exit 0
+[window] starting radiance 2026-10-25 04:47:02
+[window] radiance answers 2026-10-25 04:47:17 (after 20 s); active

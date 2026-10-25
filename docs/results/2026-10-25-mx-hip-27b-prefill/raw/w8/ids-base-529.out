@@ -1,0 +1,12 @@
+: `x * (1 + w / sqrt(x^2 + eps))` (eps 1e-6).
+* GatedDeltaNet: `g = sigmoid(g_proj(x))`, `beta = sigmoid(beta_proj(x))`, `z = norm(z_proj(x))`,
+  `v = v_proj(x) * z`; per-head `A_log`/`DT_bias` (log-space decay, `dt_proj` bias); `h' = exp(A_log + dt) * h + beta * (v - h)`.
+* Gated attention: `q = q_norm(q_proj(x))`, `k = k_norm(k_proj(x))`, `v = v_proj(x)`; RoPE on q/k;
+  `attn = softmax(qk^T / sqrt(dk) + mask) * v`; `o = o_proj(attn * sigmoid(o_proj_gate(x)))`.
+* MoE: `gate = gate_proj(x)`, `topk = topk(gate, k)`, `weights = softmax(gate[topk])`,
+  `y = sum_i weights_i * expert_i(x)`.
+
+## Kernels
+
+| Kernel | Backend |
+| --- | ---

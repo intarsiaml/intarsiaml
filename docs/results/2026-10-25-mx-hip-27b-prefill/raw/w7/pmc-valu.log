@@ -1,0 +1,22 @@
+W20261025 09:30:16.769551 130756757590784 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.058081 sec
+W20261025 09:30:16.769854 130756757590784 simple_timer.cpp:55] [rocprofv3] './mx-out/mxbench SQ_INSTS_VALU 1' ::     0.000000 sec
+W20261025 09:30:16.840193 130756757590784 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+W20261025 09:30:17.001970 130756757590784 tool.cpp:1189] Unable to find all counters for agent 1 (gpu-0, gfx1201) in [SQ_INSTS_LDS, SQ_WAIT_INST_LDS]. Found: [SQ_INSTS_LDS]. Missing: [SQ_WAIT_INST_LDS]
+W20261025 09:30:17.002007 130756757590784 tool.cpp:1189] Unable to find all counters for agent 2 (gpu-1, gfx1201) in [SQ_INSTS_LDS, SQ_WAIT_INST_LDS]. Found: [SQ_INSTS_LDS]. Missing: [SQ_WAIT_INST_LDS]
+W20261025 09:30:17.005710 130756757590784 simple_timer.cpp:55] [rocprofv3] './mx-out/mxbench SQ_INSTS_VALU 1' ::     0.235857 sec
+E20261025 09:30:17.012083 130756757590784 output_stream.cpp:111] Opened result file: /work/mx-out/pmc/valu/run_counter_collection.csv
+E20261025 09:30:17.014454 130756757590784 output_stream.cpp:111] Opened result file: /work/mx-out/pmc/valu/run_agent_info.csv
+W20261025 09:30:17.015120 130756757590784 simple_timer.cpp:55] [rocprofv3] output generation ::     0.009060 sec
+W20261025 09:30:17.015138 130756757590784 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.009081 sec
+M = 0, W4A4, bf16 out, 1 reps over 4 weight copies; TFLOP/s per config, '!' = differs from v1 (expected for fold and nodq only; nodq = v2's table without the dequant ALU, wrong by design)
+shape                   N      K         v1   v2-table    v2-4224    v2-4442    v2-4424    v2-2244    v2-4244    v2-2444    v2-4422    v2-2442    v2-2222    v2-2242    v2-1411    v2-1111    v2-1412       fold       nodq
+mlp gate / up       17408   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+mlp down             5120  17408       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+gdn in_proj_qkv     10240   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+gdn in_proj_z        6144   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+gdn out / attn o     5120   6144       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+attn q + gate       12288   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+attn k / v           1024   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+gdn in_proj_a / b      48   5120       0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0 
+whole-model GEMM ms per 0-token chunk:        2.2        2.1        2.1        2.1        2.2        2.1        2.1        2.1        2.1        2.1        2.2        2.1        2.1        2.1        2.1        2.2        2.2
+whole-model TFLOP/s:                               0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0

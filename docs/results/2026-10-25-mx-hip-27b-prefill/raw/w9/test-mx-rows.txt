@@ -1,0 +1,64 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:711:9
+    |
+711 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/mxfp4_fold.rs (/target/release/deps/mxfp4_fold-ec6a33cd8540d588)
+
+running 4 tests
+test fold_falls_back_bitwise ... ok
+test fold_matches_mma_closely ... ok
+test fold_rows_do_not_depend_on_m ... ok
+test fold_wide_activation_span ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+
+     Running tests/mxfp4_v2.rs (/target/release/deps/mxfp4_v2-aef003b7074df676)
+
+running 3 tests
+test v2_is_bitwise_v1 ... ok
+test v2_is_bitwise_v1_on_every_scale_byte ... ok
+test v2_rows_do_not_depend_on_m ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.52s
+
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 8 tests
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 15.84s
+

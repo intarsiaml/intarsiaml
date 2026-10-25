@@ -131,6 +131,7 @@ missing feature.
 |---|---|---|---|
 | `prefill_chunk` | int, at least 1 | `256` (code default) | Tokens per prefill forward pass, for every backend. Override with `--prefill-chunk`. |
 | `[tuning.<backend>] prefill_chunk` | int, at least 1 | the base value | Same, for one backend: `cpu`, `cuda`, `hip` or `metal`. A backend without a table uses the base value. |
+| `prefill_peel`, `[tuning.<backend>] prefill_peel` | int, 0..255 | `0` (off) | Prefill tail peel in rows: a forward pass longer than 256 rows whose length mod 256 is 1..=N runs those last rows as their own pass, as the default 256-row schedule cuts them, so a larger chunk gives the default chunk's bits where every kernel is row-invariant above N rows (`crates/intarsia-core/src/scheduler.rs` `peel_tail`). Same resolution as `prefill_chunk`; `INTARSIA_PREFILL_PEEL` overrides it. No builtin recipe sets it: for Qwen3.8-27B on HIP, `--prefill-chunk 4096` with `INTARSIA_PREFILL_PEEL=16` is bitwise chunk 256 and +35-43 % prefill, but under `serve --max-batch 16` it costs context and runs 4096-row busy chunks (docs/results/2026-10-25-mx-hip-27b-prefill.md section 4). |
 
 Order of resolution: `--prefill-chunk`, then `[tuning.<backend>]`, then `[tuning]`, then 256; `plan show` prints which
 one won. The chunk is a numerics knob, so commit a value only with the measurement behind it in a comment

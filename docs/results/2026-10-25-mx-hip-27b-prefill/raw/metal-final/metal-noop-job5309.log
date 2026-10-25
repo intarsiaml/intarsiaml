@@ -1,0 +1,53 @@
+fleetq: #5309 waiting (#1 in line): needs endor to itself; running there: #5308 "ac: build intarsia-cli release for offline ref-noise (27B baseline analysis)" (claude-f31ccf91); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #5308 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5308 set, or it will wait for #5308 to be released.
+fleetq: #5309 running on endor: env OUT=/opt/code/wt-mx/docs/results/2026-10-25-mx-hip-27b-prefill/raw/metal-final bash /opt/code/wt-mx/scripts/mx/metal-noop.sh
+== build base 5241377b 11:12:50
+    Finished `release` profile [optimized] target(s) in 21.06s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+plan 27 base exit 0
+== build dev c5d4e9b5 11:14:13
+    Finished `release` profile [optimized] target(s) in 21.85s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+plan 27 dev exit 0
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+plan 27 json: identical (12627 B, err 84 B)
+== kernels test metal (dev) 11:15:13
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 27.2s
+== workspace tests on the branch (--features intarsia-cli/metal, own target dir so the release intarsia binary keeps metal) 11:15:40
+  65 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.59s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.31s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+   1 test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.85s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.55s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+== done 11:19:48
+fleetq: #5309 done (exit 0)

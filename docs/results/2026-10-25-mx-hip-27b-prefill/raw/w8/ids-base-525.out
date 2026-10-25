@@ -1,0 +1,6 @@
+: `x * (1/sqrt(mean(x^2) + eps)) * w` (weight after the scale).
+* GDN: `z = x @ Wz + bz`; `h = x @ Wh + bh`; `g = x @ Wg + bg`; `b = x @ Wb + bb`; `a = x @ Wa + ba`;
+  `z = silu(z) * z`; `h = silu(h) * h`; `g = sigmoid(g) * z`; `b = sigmoid(b) * b`; `a = sigmoid(a) * a`.
+  `q = x @ Wq + bq` (4 heads), `k = x @ Wk + bk` (16 heads), `v = x @ Wv + bv` (16 heads).
+  `q = q * (1 + bq)`, `k = k * (1 + bk)` (per-channel bias).
+  `a = a * (1 + ba)`, `b = b * (1 + bb)`, `g = g * (1 + bg)`, `h = h * (1 + bh)`, `z = z * (1 + bz
