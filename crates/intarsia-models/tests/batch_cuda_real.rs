@@ -336,15 +336,23 @@ fn real_35b_batch_step_profile() {
     for b in rows_list {
         let ids: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
         let modes = vec![HeadMode::LastArgmax; b];
+        // B = 1 is the solo step (`forward`, eager, the same per-op syncs): the batched path replays a captured graph at one row,
+        // whose ops are not timed one by one
+        let step = |states: &mut Vec<_>| {
+            if b == 1 {
+                m.forward(&mut states[0], &ids, HeadMode::LastArgmax, None).unwrap();
+            } else {
+                let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+                m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            }
+        };
         for _ in 0..2 {
-            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
-            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            step(&mut states);
         }
         let before = tel.snapshot().ops;
         let t0 = std::time::Instant::now();
         for _ in 0..8 {
-            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
-            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            step(&mut states);
         }
         let wall = t0.elapsed().as_secs_f64() * 1e3 / 8.0;
         let after = tel.snapshot().ops;

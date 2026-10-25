@@ -805,7 +805,8 @@ fn timing_mxfp4_rows() {
     let w = rig.put(&fast_bf16(&mut rng, n, k));
     let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
     for kernel in ["logits_bf16_gemv", "logits_bf16_gemv_rows"] {
-        for m in [1usize, 2, 3, 4] {
+        let ms: &[usize] = if kernel.ends_with("_rows") { &[1, 2, 3, 4, 5, 6, 8, 12, 16] } else { &[1, 2, 3, 4] };
+        for &m in ms {
             let us = rig.time_us(kernel, Op::Logits, &[x.rows(0, m), w.clone()], &[(DType::F32, vec![m, n])], &OpAttrs::default(), 100);
             println!("TIME lm_head {n}x{k} {kernel:<24} M={m:<2} {us:8.2} us  {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
         }
