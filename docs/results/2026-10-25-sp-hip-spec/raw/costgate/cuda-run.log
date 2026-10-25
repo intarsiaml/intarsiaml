@@ -1,0 +1,113 @@
+fleetq: #5234 running on spark1: bash -c 'rsync -a --delete --exclude=.git --exclude=target --exclude=.worktrees --exclude=docs/results/raw-vr --exclude=sp-out --exclude=node_modules --exclude=golden --exclude=tools/.venv --exclude=HEAD.txt /opt/code/wt-sp/ spark1:intarsia-decfuse/sp-src-dev/ && echo 629e77d0 | ssh spark1 '"'"'tee intarsia-decfuse/sp-src-dev/HEAD.txt intarsia-decfuse/sp-dev/HEAD.txt >/dev/null'"'"' && scp -q /opt/code/wt-sp/scripts/sp/final-gates.sh spark1:sp-final-gates.sh && ssh spark1 bash sp-final-gates.sh build cuda && ssh spark1 '"'"'bash sp-final-gates.sh run cuda; bash intarsia-decfuse/sp-src-dev/scripts/sp/served-split.sh cuda 128,1024,4096'"'"''
+fleetq: #5234 went ahead of the line and must end within 2h39m (by Sun 09:00); it is stopped then
+== build /home/nvidia/intarsia-decfuse/sp-base
+    Finished `release` profile [optimized] target(s) in 0.11s
+== build /home/nvidia/intarsia-decfuse/sp-dev
+    Finished `release` profile [optimized] target(s) in 13.92s
+    Finished `release` profile [optimized] target(s) in 8.16s
+dev head: 629e77d0
+dev binary costgate strings: 2
+BUILD DONE
+source head: 629e77d0; dev binary costgate strings: 2 (base: 0); dev binary 79216800 Oct 25 06:21
+== 1. spec-off no-op vs main
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+ids 8 short: identical (256 ids, sha b8edafab)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8758 B)
+plan 8 txt: byte-identical (1478 B)
+ids 35 short: identical (256 ids, sha 4e8fc691)
+ids 35 4k: identical (256 ids, sha 905cb3f0)
+plan 35 json: byte-identical (13975 B)
+plan 35 txt: byte-identical (3505 B)
+PASS spec-off no-op (plan json/text + 256 ids, 8B and 35B, short and 4k)
+== 2. MTP k=2 equality and acceptance, 35B natural-v1
+dev-off n128 md5=a74ec2ca decode 3039 ms (83.90 tok/s) | 
+dev-mtp2 n128 md5=a74ec2ca decode 2374 ms (107.40 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+base-mtp2 n128 md5=a74ec2ca decode 2278 ms (111.93 tok/s) | spec: verify passes=93 proposed=186 accepted=161 (acceptance 86.6%, 2.73 tokens per pass)
+dev-cg1-mtp2 n128 md5=a74ec2ca decode 2205 ms (115.67 tok/s) | spec: verify passes=92 proposed=184 accepted=161 (acceptance 87.5%, 2.75 tokens per pass)
+PASS n128: dev MTP k=2 ids == dev spec off
+PASS n128: dev MTP k=2 ids == main MTP k=2
+PASS n128: acceptance equal to main (the cost gate is off by default on cuda: same code path) (spec: verify passes=93 proposed=186 accepted=161 )
+PASS n128: dev MTP k=2 with the cost gate forced on (INTARSIA_SPEC_COSTGATE=1) ids == dev spec off
+info n128: cost gate forced on: decode 2205 ms (115.67 tok/s) spec: verify passes=92 proposed=184 accepted=161 ; default: decode 2374 ms (107.40 tok/s)
+dev-off n1024 md5=1caf3d10 decode 3031 ms (84.14 tok/s) | 
+dev-mtp2 n1024 md5=1caf3d10 decode 2521 ms (101.16 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+base-mtp2 n1024 md5=1caf3d10 decode 2510 ms (101.59 tok/s) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+dev-cg1-mtp2 n1024 md5=1caf3d10 decode 2486 ms (102.57 tok/s) | spec: verify passes=103 proposed=205 accepted=151 (acceptance 73.7%, 2.47 tokens per pass)
+PASS n1024: dev MTP k=2 ids == dev spec off
+PASS n1024: dev MTP k=2 ids == main MTP k=2
+PASS n1024: acceptance equal to main (the cost gate is off by default on cuda: same code path) (spec: verify passes=104 proposed=207 accepted=151 )
+PASS n1024: dev MTP k=2 with the cost gate forced on (INTARSIA_SPEC_COSTGATE=1) ids == dev spec off
+info n1024: cost gate forced on: decode 2486 ms (102.57 tok/s) spec: verify passes=103 proposed=205 accepted=151 ; default: decode 2521 ms (101.16 tok/s)
+== 3. --mtp-draft-vocab 65536, 35B natural-v1 128
+dev-v65536 n128 md5=a74ec2ca decode 2065 ms (123.48 tok/s) | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+PASS n128: --mtp-draft-vocab 65536 ids == spec off
+== 4. tests on the dev tree
+test result: ok. 124 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.62s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.59s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.22s
+== done: 0 failing check(s)
+chat-generate off n128 | decode 3018 ms (84.49 tok/s) |  | ms/pass=
+chat-generate off n1024 | decode 3008 ms (84.76 tok/s) |  | ms/pass=
+chat-generate off n4096 | decode 3133 ms (81.40 tok/s) |  | ms/pass=
+chat-generate mtp2 n128 | decode 2245 ms (113.57 tok/s) | spec: verify passes=95 proposed=190 accepted=159 (acceptance 83.7%, 2.67 tokens per pass) | ms/pass=23.6
+chat-generate mtp2 n1024 | decode 2553 ms (99.88 tok/s) | spec: verify passes=108 proposed=215 accepted=147 (acceptance 68.4%, 2.36 tokens per pass) | ms/pass=23.6
+chat-generate mtp2 n4096 | decode 2659 ms (95.92 tok/s) | spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass) | ms/pass=24.2
+chat-generate mtp2cg1 n128 | decode 2233 ms (114.17 tok/s) | spec: verify passes=94 proposed=188 accepted=159 (acceptance 84.6%, 2.69 tokens per pass) | ms/pass=23.8
+chat-generate mtp2cg1 n1024 | decode 2994 ms (85.17 tok/s) | spec: verify passes=21 proposed=42 accepted=23 (acceptance 54.8%, 2.10 tokens per pass) | ms/pass=142.6
+chat-generate mtp2cg1 n4096 | decode 2652 ms (96.17 tok/s) | spec: verify passes=109 proposed=217 accepted=145 (acceptance 66.8%, 2.33 tokens per pass) | ms/pass=24.3
+== served
+mtp-cg1 n128 rep0 tokens=256 ttft=0.10s decode=118.1 tok/s steps=91 proposed=181 accepted=163 tok/pass=2.79 ms/pass=23.7 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep1 tokens=256 ttft=0.10s decode=118.2 tok/s steps=91 proposed=182 accepted=163 tok/pass=2.79 ms/pass=23.7 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n128 rep2 tokens=256 ttft=0.10s decode=119.8 tok/s steps=90 proposed=179 accepted=164 tok/pass=2.82 ms/pass=23.6 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep0 tokens=256 ttft=0.20s decode=94.9 tok/s steps=110 proposed=219 accepted=142 tok/pass=2.29 ms/pass=24.4 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep1 tokens=256 ttft=0.19s decode=95.8 tok/s steps=110 proposed=219 accepted=144 tok/pass=2.31 ms/pass=24.2 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n1024 rep2 tokens=256 ttft=0.19s decode=101.1 tok/s steps=104 proposed=208 accepted=149 tok/pass=2.43 ms/pass=24.2 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n4096 rep0 tokens=256 ttft=0.64s decode=92.5 tok/s steps=111 proposed=221 accepted=142 tok/pass=2.28 ms/pass=24.8 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n4096 rep1 tokens=256 ttft=0.63s decode=97.5 tok/s steps=106 proposed=212 accepted=148 tok/pass=2.40 ms/pass=24.7 cg_off=0 cg_on=0 cg_plain=1
+mtp-cg1 n4096 rep2 tokens=256 ttft=0.63s decode=96.0 tok/s steps=107 proposed=214 accepted=146 tok/pass=2.36 ms/pass=24.8 cg_off=0 cg_on=0 cg_plain=1
+mtp-gate0 n128 rep0 tokens=256 ttft=0.11s decode=114.9 tok/s steps=94 proposed=187 accepted=161 tok/pass=2.71 ms/pass=23.6
+mtp-gate0 n128 rep1 tokens=256 ttft=0.10s decode=110.6 tok/s steps=97 proposed=194 accepted=157 tok/pass=2.62 ms/pass=23.8
+mtp-gate0 n128 rep2 tokens=256 ttft=0.10s decode=120.6 tok/s steps=90 proposed=179 accepted=165 tok/pass=2.83 ms/pass=23.5
+mtp-gate0 n1024 rep0 tokens=256 ttft=0.20s decode=95.6 tok/s steps=111 proposed=222 accepted=143 tok/pass=2.29 ms/pass=24.0
+mtp-gate0 n1024 rep1 tokens=256 ttft=0.19s decode=97.7 tok/s steps=109 proposed=218 accepted=146 tok/pass=2.34 ms/pass=24.0
+mtp-gate0 n1024 rep2 tokens=256 ttft=0.19s decode=105.8 tok/s steps=100 proposed=200 accepted=154 tok/pass=2.54 ms/pass=24.1
+mtp-gate0 n4096 rep0 tokens=256 ttft=0.65s decode=96.0 tok/s steps=108 proposed=215 accepted=146 tok/pass=2.35 ms/pass=24.6
+mtp-gate0 n4096 rep1 tokens=256 ttft=0.64s decode=95.4 tok/s steps=109 proposed=218 accepted=146 tok/pass=2.34 ms/pass=24.5
+mtp-gate0 n4096 rep2 tokens=256 ttft=0.64s decode=92.6 tok/s steps=112 proposed=224 accepted=143 tok/pass=2.28 ms/pass=24.6
+mtp n128 rep0 tokens=256 ttft=0.11s decode=118.5 tok/s steps=91 proposed=181 accepted=164 tok/pass=2.80 ms/pass=23.6 cg_off=0 cg_on=0 cg_plain=0
+mtp n128 rep1 tokens=256 ttft=0.11s decode=119.7 tok/s steps=90 proposed=179 accepted=165 tok/pass=2.83 ms/pass=23.7 cg_off=0 cg_on=0 cg_plain=0
+mtp n128 rep2 tokens=256 ttft=0.11s decode=117.8 tok/s steps=92 proposed=184 accepted=163 tok/pass=2.77 ms/pass=23.5 cg_off=0 cg_on=0 cg_plain=0
+mtp n1024 rep0 tokens=256 ttft=0.20s decode=98.0 tok/s steps=108 proposed=216 accepted=146 tok/pass=2.35 ms/pass=24.1 cg_off=0 cg_on=0 cg_plain=0
+mtp n1024 rep1 tokens=256 ttft=0.19s decode=100.3 tok/s steps=105 proposed=210 accepted=149 tok/pass=2.42 ms/pass=24.2 cg_off=0 cg_on=0 cg_plain=0
+mtp n1024 rep2 tokens=256 ttft=0.19s decode=97.4 tok/s steps=109 proposed=217 accepted=146 tok/pass=2.34 ms/pass=24.0 cg_off=0 cg_on=0 cg_plain=0
+mtp n4096 rep0 tokens=256 ttft=0.64s decode=101.6 tok/s steps=102 proposed=203 accepted=152 tok/pass=2.49 ms/pass=24.6 cg_off=0 cg_on=0 cg_plain=0
+mtp n4096 rep1 tokens=256 ttft=0.63s decode=93.9 tok/s steps=110 proposed=220 accepted=144 tok/pass=2.31 ms/pass=24.7 cg_off=0 cg_on=0 cg_plain=0
+mtp n4096 rep2 tokens=256 ttft=0.63s decode=89.9 tok/s steps=115 proposed=230 accepted=139 tok/pass=2.21 ms/pass=24.7 cg_off=0 cg_on=0 cg_plain=0
+mtp-trace n128 rep0 tokens=256 ttft=0.11s decode=108.1 tok/s steps=98 proposed=196 accepted=156 tok/pass=2.59 ms/pass=24.1
+mtp-trace n128 rep1 tokens=256 ttft=0.11s decode=115.7 tok/s steps=92 proposed=184 accepted=162 tok/pass=2.76 ms/pass=23.9
+mtp-trace n128 rep2 tokens=256 ttft=0.11s decode=108.4 tok/s steps=98 proposed=196 accepted=156 tok/pass=2.59 ms/pass=24.0
+mtp-trace n1024 rep0 tokens=256 ttft=0.20s decode=91.1 tok/s steps=115 proposed=230 accepted=139 tok/pass=2.21 ms/pass=24.3
+mtp-trace n1024 rep1 tokens=256 ttft=0.19s decode=101.5 tok/s steps=104 proposed=208 accepted=151 tok/pass=2.45 ms/pass=24.2
+mtp-trace n1024 rep2 tokens=256 ttft=0.19s decode=94.8 tok/s steps=111 proposed=222 accepted=144 tok/pass=2.30 ms/pass=24.2
+mtp-trace n4096 rep0 tokens=256 ttft=0.64s decode=95.1 tok/s steps=109 proposed=217 accepted=146 tok/pass=2.34 ms/pass=24.6
+mtp-trace n4096 rep1 tokens=256 ttft=0.64s decode=97.3 tok/s steps=106 proposed=211 accepted=149 tok/pass=2.41 ms/pass=24.7
+mtp-trace n4096 rep2 tokens=256 ttft=0.64s decode=98.8 tok/s steps=104 proposed=207 accepted=150 tok/pass=2.44 ms/pass=24.8
+off n128 rep0 tokens=256 ttft=0.10s decode=84.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep1 tokens=256 ttft=0.10s decode=84.6 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n128 rep2 tokens=256 ttft=0.10s decode=84.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep0 tokens=256 ttft=0.19s decode=83.9 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep1 tokens=256 ttft=0.19s decode=84.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n1024 rep2 tokens=256 ttft=0.19s decode=84.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep0 tokens=256 ttft=0.62s decode=81.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep1 tokens=256 ttft=0.62s decode=81.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+off n4096 rep2 tokens=256 ttft=0.62s decode=81.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan cg_off=0 cg_on=0 cg_plain=0
+== done
+fleetq: #5234 done (exit 0)

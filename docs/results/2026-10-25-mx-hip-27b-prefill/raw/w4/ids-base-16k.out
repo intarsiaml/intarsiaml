@@ -1,0 +1,15 @@
+Id) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()>;
+    fn event(&self, stream: StreamId) -> Result<Event>;
+    fn comm(&self) -> Option<&dyn Comm>;                 // TP collectives
+}
+```
+
+Everything else (ops, quant, attention) lives above the trait. A Vulkan or SYCL backend for Arc only has to implement this plus its kernel packs. Backend init applies known-bad-default fixes as data (for example `GPU_MAX_HW_QUEUES=1` on HIP, which removed a permanent 20% slowdown).
+
+### 3.2 Kernel registry: the core of modularity and accuracy
+
+Every **op** (e.g. `matmul`, `rmsnorm_add`, `rope`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) has:
+
+1. A **signature**: typed inputs/outputs, layouts, quant format.
+2. A **reference implementation** in `cpu-ref` (f32/f64 accumulate). This is the oracle.

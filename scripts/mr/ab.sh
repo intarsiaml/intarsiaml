@@ -4,7 +4,7 @@
 # 27B MXFP4 batched decode A/B, base (origin/main) vs dev, `serve --max-batch 1` (main's only 27B mode), `8` and `16`, localeval speed at 1/4/8/16 streams.
 #   <fleetq job env>=<id> scripts/mr/ab.sh [arms: "base:8 dev:8 base:16 dev:16"] [tag]
 set -uo pipefail
-arms=${1:-"base:1 dev:1 base:8 dev:8 dev:16"}; tag=${2:-mr}
+arms=${1:-"base:16 dev:16"}; tag=${2:-mr}
 LOG=${LOG:-/tmp/mr-ab}; mkdir -p "$LOG"
 for a in $arms; do
   tree=${a%%:*}; mb=${a##*:}

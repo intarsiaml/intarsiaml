@@ -1,0 +1,24 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Understand User Request:**
+   - **Original Function:** `apply_discount(cents, pct)` returns `cents - cents * pct // 100`
+   - **Requirements:**
+     - Validate inputs (types and ranges)
+     - Never return a negative amount
+     - Round half up instead of truncating (integer division `//` truncates toward negative infinity, which is problematic for discounts)
+     - Optionally accept a per-customer cap in cents
+     - Write a thorough pytest suite
+     - Explain each design decision in detail
+   - **Language:** Python 3.12
+
+2.  **Analyze Original Function & Issues:**
+   - `cents - cents * pct // 100` uses integer division `//`, which truncates toward negative infinity. For positive numbers, it's equivalent to floor, but it doesn't round half up.
+   - No input validation (types, ranges, negative values, etc.)
+   - Could return negative if `pct > 100`
+   - No cap functionality
+   - Needs to handle rounding properly (half up)
+
+3.  **Design Requirements &

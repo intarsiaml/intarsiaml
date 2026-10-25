@@ -1,0 +1,12 @@
+ingerprint>.toml`) so results reproduce.
+- **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
+
+### 3.3 Kernel ABI and kernel packs
+
+Every pack is a **port, not an import** (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
+
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out,

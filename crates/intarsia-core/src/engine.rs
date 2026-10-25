@@ -1139,6 +1139,9 @@ pub(crate) struct Seq {
     ctx: Vec<u32>,
     /// Stops drafting where it does not pay (open-ended text), see `spec::GateParams`.
     gate: crate::spec::SpecGate,
+    /// Start of the last step the measured-cost gate times (`spec::CostParams`): when it began, whether it was a
+    /// speculative pass, and the tokens generated before it.
+    cost_mark: Option<(Instant, bool, usize)>,
     /// The request's constraint state (`GenRequest::constraint`), or why it could not start (reported by `admit`).
     cons: Option<std::result::Result<crate::constrain::ConstraintRun, String>>,
     /// The prefix store's view of this request (single-sequence engine with the store on); `None`: the store is off and
@@ -1171,6 +1174,10 @@ impl Seq {
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        if seq.spec_mtp {
+            // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
+            seq.gate.set_cost(model.spec_cost_params());
+        }
         // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
         // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
         let drafting = seq.spec_on && seq.spec_mtp;
@@ -1295,6 +1302,7 @@ impl Seq {
             plain_next: false,
             ctx,
             gate: crate::spec::SpecGate::new(crate::spec::GateParams::from_env()),
+            cost_mark: None,
             cons,
             codec: env.codec.clone(),
             telemetry: env.telemetry.clone(),
@@ -1675,12 +1683,46 @@ impl Seq {
         Ok(false)
     }
 
+    /// Telemetry of the measured-cost gate since the last call.
+    fn drain_cost_events(&mut self) {
+        let e = self.gate.take_cost_events();
+        if e != crate::spec::CostEvents::default() {
+            self.telemetry.spec_cost(e);
+        }
+    }
+
+    /// A speculative pass (`spec`) or a plain step is about to run: hand the measured-cost gate the wall time of the step
+    /// before it, from its start to now, token emission included, over the tokens it yielded. Beside other sequences
+    /// (`spec_busy`) the time is shared, so nothing is timed.
+    fn cost_begin(&mut self, spec: bool) {
+        if !self.spec_mtp || !self.spec_on || !self.gate.cost_enabled() {
+            return;
+        }
+        let now = Instant::now();
+        let prev = self.cost_mark.replace((now, spec, self.generated));
+        if let Some((t0, was_spec, g0)) = prev {
+            let tokens = self.generated.saturating_sub(g0);
+            if tokens > 0 && !self.spec_busy {
+                let ms = now.duration_since(t0).as_secs_f64() * 1e3;
+                if crate::spec::trace_enabled() {
+                    eprintln!("spec: cost sample {} {tokens} tokens {ms:.2} ms", if was_spec { "pass" } else { "plain" });
+                }
+                self.gate.cost_sample(was_spec, tokens, ms);
+            }
+        }
+        if crate::spec::trace_enabled() && self.gate.cost_off() {
+            eprintln!("spec: cost gate holds speculation off at token {}", self.generated);
+        }
+    }
+
     /// What the sequence needs to produce its next token.
     pub(crate) fn plan_step(&mut self, st: &SequenceState) -> Next {
         if let Some(t) = self.pending.pop_front() {
             return Next::Emit(t);
         }
-        if self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow(self.spec_busy) {
+        let may = self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow(self.spec_busy);
+        self.drain_cost_events();
+        if may {
             // verify feeds 1 + d tokens: keep them inside the context window
             let room = st.cap.saturating_sub(st.len + 1);
             if self.spec_mtp {
@@ -1775,8 +1817,9 @@ impl Seq {
                     return Ok(None);
                 }
             }
-            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, k) => {
+            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
                 // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
+                self.cost_begin(true);
                 let t0 = Instant::now();
                 let len0 = st.len;
                 match model.spec_step(st, self.tok, k)? {
@@ -1801,6 +1844,7 @@ impl Seq {
                 }
             }
             Next::Draft(k) => {
+                self.cost_begin(true);
                 let t0 = Instant::now();
                 let drafts = model.mtp_draft(st, self.tok, k)?;
                 if mtp_verify_check() {
@@ -1833,6 +1877,7 @@ impl Seq {
             }
             Next::Plain => {}
         }
+        self.cost_begin(false);
         Ok(Some(self.plain_input()))
     }
 

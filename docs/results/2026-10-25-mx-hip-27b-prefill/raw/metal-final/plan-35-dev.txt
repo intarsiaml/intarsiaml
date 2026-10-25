@@ -1,0 +1,47 @@
+model Qwen3.6-35B-A3B-NVFP4  backend metal  device Apple M5 Max (110100 MiB)  exactness deterministic
+act bf16  kv bf16  prefill chunk 2048 (recipe qwen3_5_moe, metal)  scratch 83954176 B  require_admitted false  reference_only false
+
+layers (40):
+    0..2   gated_delta_net+moe
+    3..3   attention+moe
+    4..6   gated_delta_net+moe
+    7..7   attention+moe
+    8..10  gated_delta_net+moe
+   11..11  attention+moe
+   12..14  gated_delta_net+moe
+   15..15  attention+moe
+   16..18  gated_delta_net+moe
+   19..19  attention+moe
+   20..22  gated_delta_net+moe
+   23..23  attention+moe
+   24..26  gated_delta_net+moe
+   27..27  attention+moe
+   28..30  gated_delta_net+moe
+   31..31  attention+moe
+   32..34  gated_delta_net+moe
+   35..35  attention+moe
+   36..38  gated_delta_net+moe
+   39..39  attention+moe
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        31 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        80 0
+attn_prefill   attn_prefill_bf16_flash    deterministic no        0 0
+attn_decode    attn_decode_bf16_splitkv   deterministic no        10 1056768
+silu_glu       silu_glu_bf16              deterministic no        70 0
+argmax         argmax_f32                 exact         no        1 0
+matmul_fp8     matmul_fp8_gemv            deterministic no        130 0
+matmul_fp8     matmul_fp8_mma             deterministic no        0 16777232
+matmul_nvfp4   matmul_nvfp4_gemv          deterministic no        121 0
+matmul_nvfp4   matmul_nvfp4_mma           deterministic no        0 0
+moe_topk       moe_topk_bf16              deterministic no        40 0
+moe_experts    moe_experts_bf16           deterministic no        40 83954176
+moe_combine    moe_combine_bf16           deterministic no        40 0
+gate_split     gate_split_bf16            deterministic no        10 0
+sigmoid_mul    sigmoid_mul_bf16           deterministic no        10 0
+gdn_conv       gdn_conv_bf16              deterministic no        30 0
+gdn_delta_rule gdn_delta_rule_bf16        deterministic no        30 0
+matmul_pair    matmul_pair_bf16_gemv      deterministic no        70 0
+matmul_pair    matmul_pair_bf16_nax       deterministic no        0 0
+qk_norm_rope_kv qk_norm_rope_kv_bf16       deterministic no        10 0

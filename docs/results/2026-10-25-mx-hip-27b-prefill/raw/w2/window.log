@@ -1,0 +1,50 @@
+[window] job 5036 w2; stopping radiance 2026-10-25 02:09:35
+[window] radiance stopped 2026-10-25 02:09:39
+02:09:39 w2 start; budget 2340 s; base 2026-10-25 01:16:57.827712021 -0400 dev 2026-10-25 02:08:46.673838245 -0400
+02:10:05 bin wmma-eq exit 1: wmma_eq.hip:204:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]|wmma_eq.hip:205:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]|wmma_eq.hip:206:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]|
+02:10:30 ceiling exit 0: WMMA issue peak bf16 190.7 TFLOPS|WMMA issue peak fp8  366.3 TFLOPS|mlp down                           4096   5120  17408    157.4 (16)    282.6 (16)        209.6|mlp down M=1024                    1024   5120  17408    164.8 (16)    313.3 (16)        197.6|
+02:10:35 test mxfp4-f8 exit 101:       1 test f8_is_bitwise_mma_on_adversarial_scales ... FAILED|      1 test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.64s|      1 thread 'f8_is_bitwise_mma_on_adversarial_scales' panicked at crates/intarsia-backend-hip/tests/mxfp4_f8.rs:48:9:|
+02:10:52 mxbench m4096 exit 0: whole-model GEMM time per 4096-token chunk: mma 3873.8 ms (51.5 TFLOP/s), f8 5370.8 ms (37.1 TFLOP/s)|
+02:11:06 mxbench m256 exit 0: whole-model GEMM time per 256-token chunk: mma 409.5 ms (30.4 TFLOP/s), f8 658.1 ms (18.9 TFLOP/s)|
+02:11:25 ids-c256-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4487 ms (982.5 tok/s) | decode 7895 ms (32.30 tok/s)|
+02:11:25 ids c256-4k md5 ef88d237
+02:11:39 ids-c4096-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 4050 ms (1088.5 tok/s) | decode 7901 ms (32.27 tok/s)|
+02:11:39 ids c4096-4k md5 ef88d237
+02:11:39 SAME 27B 4k ids chunk 256 vs 4096 (base) (ids-c256-4k.ids == ids-c4096-4k.ids)
+02:12:06 ids-c256-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 17172 ms (954.1 tok/s) | decode 8291 ms (30.76 tok/s)|
+02:12:06 ids c256-16k md5 addfc6d1
+02:12:31 ids-c4096-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 15236 ms (1075.3 tok/s) | decode 8290 ms (30.76 tok/s)|
+02:12:31 ids c4096-16k md5 addfc6d1
+02:12:31 SAME 27B 16k ids chunk 256 vs 4096 (base) (ids-c256-16k.ids == ids-c4096-16k.ids)
+02:12:41 ids-f8-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 193 ms (62.2 tok/s) | decode 7733 ms (32.97 tok/s)|
+02:12:41 ids f8-short md5 2086b6a4
+02:12:50 ids-base-short exit 0: prompt: 12 tokens|finish=length prompt=12 (cached 0) completion=256 | prefill 189 ms (63.7 tok/s) | decode 7734 ms (32.97 tok/s)|
+02:12:50 ids base-short md5 2086b6a4
+02:12:50 SAME 27B short ids f8 vs main (ids-f8-short.ids == ids-base-short.ids)
+02:13:08 ids-f8-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 8478 ms (519.9 tok/s) | decode 7902 ms (32.27 tok/s)|
+02:13:08 ids f8-4k md5 ef88d237
+02:13:08 SAME 27B 4k ids f8 vs main (chunk 256) (ids-f8-4k.ids == ids-c256-4k.ids)
+02:13:25 ids-f8-c4096-4k exit 0: prompt: 4408 tokens|finish=length prompt=4408 (cached 0) completion=256 | prefill 6525 ms (675.5 tok/s) | decode 7901 ms (32.27 tok/s)|
+02:13:25 ids f8-c4096-4k md5 ef88d237
+02:13:25 SAME 27B 4k ids f8 vs main (chunk 4096) (ids-f8-c4096-4k.ids == ids-c4096-4k.ids)
+02:13:59 ids-f8-c4096-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 24180 ms (677.6 tok/s) | decode 8293 ms (30.75 tok/s)|
+02:13:59 ids f8-c4096-16k md5 addfc6d1
+02:13:59 SAME 27B 16k ids f8 vs main (chunk 4096) (ids-f8-c4096-16k.ids == ids-c4096-16k.ids)
+02:14:04 pf-c1024-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3800 ms (1077.8 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:10 pf-c2048-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3661 ms (1119.0 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:15 pf-c4096-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3669 ms (1116.4 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:24 pf-f8-c256-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 7771 ms (527.1 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:32 pf-f8-c1024-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 6453 ms (634.8 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:40 pf-f8-c2048-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 6147 ms (666.3 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:48 pf-f8-c4096-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 5916 ms (692.4 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:53 pf-off-c4096-4096 exit 0 [INTARSIA_HIP_MXFP4_F8=0]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3667 ms (1116.8 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:56 pf-c4096-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 973 ms (1052.5 tok/s) | decode 0 ms (0.00 tok/s)|
+02:14:59 pf-f8-c4096-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 1632 ms (627.4 tok/s) | decode 0 ms (0.00 tok/s)|
+02:15:16 pf-c4096-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 15241 ms (1075.0 tok/s) | decode 0 ms (0.00 tok/s)|
+02:15:42 pf-f8-c4096-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 24352 ms (672.8 tok/s) | decode 0 ms (0.00 tok/s)|
+02:15:50 prof f8-c4096-4096: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 5911 ms (692.9 tok/s) | decode 0 ms (0.00 tok/s)| kernels in main burst: 3050 (of 4005), span 5920.9 ms, kernel time 5784.9 ms, idle 2.3 %
+02:15:55 prof c4096-4096: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3668 ms (1116.8 tok/s) | decode 0 ms (0.00 tok/s)| kernels in main burst: 2554 (of 3509), span 3673.4 ms, kernel time 3552.5 ms, idle 3.3 %
+02:15:55 w2 done; 1964 s left
+[window] stages done 2026-10-25 02:15:55, exit 0
+[window] starting radiance 2026-10-25 02:15:55
+[window] radiance answers 2026-10-25 02:16:25 (after 35 s); active

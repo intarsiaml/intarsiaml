@@ -41,6 +41,17 @@ pub struct MtpSpec {
     /// Tensor-name prefix: `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`,
     /// `{prefix}.layers.0.{input_layernorm, self_attn.*, post_attention_layernorm, mlp.*}`.
     pub prefix: String,
+    /// Measured-cost gate (`spec::CostParams`), per recipe: the speedup under which a request falls back to plain
+    /// decode (0 turns the gate off), the passes it must stay under for, the passes between probes of the plain-step
+    /// cost, and the plain tokens before speculation is tried again. Unset: the backend's default.
+    #[serde(default)]
+    pub cost_min_speedup: Option<f64>,
+    #[serde(default)]
+    pub cost_window: Option<u32>,
+    #[serde(default)]
+    pub cost_probe_every: Option<u32>,
+    #[serde(default)]
+    pub cost_reprobe_tokens: Option<u32>,
 }
 
 /// `[accuracy]` table of a recipe, read only by `intarsia accuracy`.
@@ -271,10 +282,12 @@ impl Default for Defaults {
 pub const DEFAULT_PREFILL_CHUNK: usize = 256;
 
 /// Performance defaults a recipe may carry: `[tuning] prefill_chunk = N` for every backend, `[tuning.<backend>]`
-/// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value.
+/// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value. Same for
+/// `prefill_peel` ([`Recipe::resolve_prefill_peel`], [`crate::scheduler::peel_tail`]).
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Tuning {
     pub prefill_chunk: Option<usize>,
+    pub prefill_peel: Option<usize>,
     #[serde(flatten)]
     pub backends: BTreeMap<String, BackendTuning>,
 }
@@ -290,6 +303,10 @@ pub struct MaxBatch {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
+    /// Tail peel in rows (0 = off): a forward pass longer than [`DEFAULT_PREFILL_CHUNK`] rows whose length mod
+    /// [`DEFAULT_PREFILL_CHUNK`] is `1..=prefill_peel` runs those last rows as their own pass, as the default chunk
+    /// schedule would ([`crate::scheduler::peel_tail`]).
+    pub prefill_peel: Option<usize>,
 }
 
 /// A resolved prefill chunk and where it came from.
@@ -322,6 +339,21 @@ impl Recipe {
             return PrefillChunk { value, source: format!("recipe {family}, base") };
         }
         PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into() }
+    }
+}
+
+impl Recipe {
+    /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
+    /// base value, then 0 (off). `(rows, source)`.
+    pub fn resolve_prefill_peel(&self, backend: &str) -> (usize, String) {
+        let family = &self.model.family;
+        if let Some(v) = self.tuning.backends.get(backend).and_then(|b| b.prefill_peel) {
+            return (v, format!("recipe {family}, {backend}"));
+        }
+        if let Some(v) = self.tuning.prefill_peel {
+            return (v, format!("recipe {family}, base"));
+        }
+        (0, "default".into())
     }
 }
 
@@ -433,6 +465,16 @@ impl Recipe {
         let chunks = self.tuning.prefill_chunk.iter().chain(self.tuning.backends.values().filter_map(|b| b.prefill_chunk.as_ref()));
         if chunks.into_iter().any(|&c| c == 0) {
             return Err(Error::model("recipe [tuning] prefill_chunk must be at least 1"));
+        }
+        let peels = self
+            .tuning
+            .prefill_peel
+            .iter()
+            .chain(self.tuning.backends.values().filter_map(|b| b.prefill_peel.as_ref()));
+        if peels.into_iter().any(|&p| p >= DEFAULT_PREFILL_CHUNK) {
+            return Err(Error::model(format!(
+                "recipe [tuning] prefill_peel must be below {DEFAULT_PREFILL_CHUNK} (rows of a tail)"
+            )));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

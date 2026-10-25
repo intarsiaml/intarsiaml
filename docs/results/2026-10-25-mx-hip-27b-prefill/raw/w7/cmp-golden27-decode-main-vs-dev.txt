@@ -1,0 +1,15 @@
+/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mx/g35/c27: decode, reference chunk 1, 10 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+     2count                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2story                 16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2code                  16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2science               16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2chat_short            16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2chat_system           16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2chat_multiturn        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2chat_reasoning        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2long_prose_300        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     2long_prose_700        16      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+aggregate over all prompts (row-weighted mean KL):
+  chunk 2: rows 160, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+ALL BITWISE: yes  (chunks compared: [2])

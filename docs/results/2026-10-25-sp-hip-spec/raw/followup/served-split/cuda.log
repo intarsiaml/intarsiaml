@@ -1,0 +1,48 @@
+fleetq: #5208 running on spark1: ssh spark1 'bash intarsia-decfuse/sp-src-dev/scripts/sp/served-split.sh cuda 128,1024,4096'
+fleetq: #5208 went ahead of the line and must end within 3h15m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+chat-generate off n128 | decode 3018 ms (84.48 tok/s) |  | ms/pass=
+chat-generate off n1024 | decode 3006 ms (84.84 tok/s) |  | ms/pass=
+chat-generate off n4096 | decode 3097 ms (82.33 tok/s) |  | ms/pass=
+chat-generate mtp2 n128 | decode 2245 ms (113.61 tok/s) | spec: verify passes=95 proposed=190 accepted=159 (acceptance 83.7%, 2.67 tokens per pass) | ms/pass=23.6
+chat-generate mtp2 n1024 | decode 2559 ms (99.65 tok/s) | spec: verify passes=108 proposed=215 accepted=147 (acceptance 68.4%, 2.36 tokens per pass) | ms/pass=23.7
+chat-generate mtp2 n4096 | decode 2669 ms (95.54 tok/s) | spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass) | ms/pass=24.3
+== served
+mtp-gate0 n128 rep0 tokens=256 ttft=0.11s decode=114.9 tok/s steps=94 proposed=187 accepted=161 tok/pass=2.71 ms/pass=23.6
+mtp-gate0 n128 rep1 tokens=256 ttft=0.10s decode=110.6 tok/s steps=97 proposed=194 accepted=157 tok/pass=2.62 ms/pass=23.8
+mtp-gate0 n128 rep2 tokens=256 ttft=0.10s decode=120.6 tok/s steps=90 proposed=179 accepted=165 tok/pass=2.83 ms/pass=23.5
+mtp-gate0 n1024 rep0 tokens=256 ttft=0.20s decode=95.6 tok/s steps=111 proposed=222 accepted=143 tok/pass=2.29 ms/pass=24.0
+mtp-gate0 n1024 rep1 tokens=256 ttft=0.19s decode=97.7 tok/s steps=109 proposed=218 accepted=146 tok/pass=2.34 ms/pass=24.0
+mtp-gate0 n1024 rep2 tokens=256 ttft=0.19s decode=105.8 tok/s steps=100 proposed=200 accepted=154 tok/pass=2.54 ms/pass=24.1
+mtp-gate0 n4096 rep0 tokens=256 ttft=0.65s decode=96.0 tok/s steps=108 proposed=215 accepted=146 tok/pass=2.35 ms/pass=24.6
+mtp-gate0 n4096 rep1 tokens=256 ttft=0.64s decode=95.4 tok/s steps=109 proposed=218 accepted=146 tok/pass=2.34 ms/pass=24.5
+mtp-gate0 n4096 rep2 tokens=256 ttft=0.64s decode=92.6 tok/s steps=112 proposed=224 accepted=143 tok/pass=2.28 ms/pass=24.6
+mtp n128 rep0 tokens=256 ttft=0.11s decode=119.8 tok/s steps=90 proposed=180 accepted=164 tok/pass=2.82 ms/pass=23.6
+mtp n128 rep1 tokens=256 ttft=0.11s decode=118.9 tok/s steps=91 proposed=182 accepted=164 tok/pass=2.80 ms/pass=23.6
+mtp n128 rep2 tokens=256 ttft=0.10s decode=118.2 tok/s steps=92 proposed=183 accepted=163 tok/pass=2.77 ms/pass=23.5
+mtp n1024 rep0 tokens=256 ttft=0.20s decode=101.3 tok/s steps=105 proposed=210 accepted=150 tok/pass=2.43 ms/pass=24.0
+mtp n1024 rep1 tokens=256 ttft=0.19s decode=99.6 tok/s steps=106 proposed=212 accepted=148 tok/pass=2.40 ms/pass=24.2
+mtp n1024 rep2 tokens=256 ttft=0.19s decode=100.8 tok/s steps=106 proposed=211 accepted=149 tok/pass=2.41 ms/pass=23.9
+mtp n4096 rep0 tokens=256 ttft=0.64s decode=99.8 tok/s steps=105 proposed=210 accepted=150 tok/pass=2.43 ms/pass=24.3
+mtp n4096 rep1 tokens=256 ttft=0.64s decode=96.7 tok/s steps=108 proposed=215 accepted=147 tok/pass=2.36 ms/pass=24.4
+mtp n4096 rep2 tokens=256 ttft=0.64s decode=96.0 tok/s steps=108 proposed=216 accepted=147 tok/pass=2.36 ms/pass=24.6
+mtp-trace n128 rep0 tokens=256 ttft=0.11s decode=108.1 tok/s steps=98 proposed=196 accepted=156 tok/pass=2.59 ms/pass=24.1
+mtp-trace n128 rep1 tokens=256 ttft=0.11s decode=115.7 tok/s steps=92 proposed=184 accepted=162 tok/pass=2.76 ms/pass=23.9
+mtp-trace n128 rep2 tokens=256 ttft=0.11s decode=108.4 tok/s steps=98 proposed=196 accepted=156 tok/pass=2.59 ms/pass=24.0
+mtp-trace n1024 rep0 tokens=256 ttft=0.20s decode=91.1 tok/s steps=115 proposed=230 accepted=139 tok/pass=2.21 ms/pass=24.3
+mtp-trace n1024 rep1 tokens=256 ttft=0.19s decode=101.5 tok/s steps=104 proposed=208 accepted=151 tok/pass=2.45 ms/pass=24.2
+mtp-trace n1024 rep2 tokens=256 ttft=0.19s decode=94.8 tok/s steps=111 proposed=222 accepted=144 tok/pass=2.30 ms/pass=24.2
+mtp-trace n4096 rep0 tokens=256 ttft=0.64s decode=95.1 tok/s steps=109 proposed=217 accepted=146 tok/pass=2.34 ms/pass=24.6
+mtp-trace n4096 rep1 tokens=256 ttft=0.64s decode=97.3 tok/s steps=106 proposed=211 accepted=149 tok/pass=2.41 ms/pass=24.7
+mtp-trace n4096 rep2 tokens=256 ttft=0.64s decode=98.8 tok/s steps=104 proposed=207 accepted=150 tok/pass=2.44 ms/pass=24.8
+off n128 rep0 tokens=256 ttft=0.10s decode=84.3 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n128 rep1 tokens=256 ttft=0.10s decode=84.4 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n128 rep2 tokens=256 ttft=0.10s decode=84.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep0 tokens=256 ttft=0.19s decode=84.0 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep1 tokens=256 ttft=0.19s decode=83.9 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n1024 rep2 tokens=256 ttft=0.19s decode=83.8 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep0 tokens=256 ttft=0.62s decode=81.6 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep1 tokens=256 ttft=0.62s decode=81.5 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+off n4096 rep2 tokens=256 ttft=0.62s decode=81.6 tok/s steps=0 proposed=0 accepted=0 tok/pass=nan ms/pass=nan
+== done
+fleetq: #5208 done (exit 0)

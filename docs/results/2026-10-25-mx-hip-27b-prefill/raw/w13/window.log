@@ -1,0 +1,10 @@
+[window] job 5337 w13; stopping radiance 2026-10-25 12:47:35
+[window] radiance stopped 2026-10-25 12:47:39
+12:47:39 w13 start; budget 1740 s; base 5241377_code-tree=326167668388_dirty=no dev edfe6c9_code-tree=69f9ac5e6268_dirty=no
+12:53:28 mtest batch35-base exit 101:       1 test real_35b_batch_step_sampled_timing ... FAILED|      1 test real_35b_busy_chunk_prefill_kl_gate ... FAILED|      1 test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED|      1 test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 349
+12:59:12 mtest batch35-dev exit 101:       1 test real_35b_batch_step_sampled_timing ... FAILED|      1 test real_35b_busy_chunk_prefill_kl_gate ... FAILED|      1 test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED|      1 test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 342
+12:59:12 SAME 35B batch_cuda_real per-test outcomes main vs head (batch35-base.list == batch35-dev.list)
+12:59:12 w13 done; 1047 s left
+[window] stages done 2026-10-25 12:59:12, exit 0
+[window] starting radiance 2026-10-25 12:59:12
+[window] radiance answers 2026-10-25 12:59:37 (after 30 s); active

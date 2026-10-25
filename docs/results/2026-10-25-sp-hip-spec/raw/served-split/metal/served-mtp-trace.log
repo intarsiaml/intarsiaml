@@ -1,0 +1,9 @@
+mtp-trace n128 rep0 tokens=256 ttft=0.15s decode=186.0 tok/s steps=94 proposed=188 accepted=160 tok/pass=2.70 ms/pass=14.6
+mtp-trace n128 rep1 tokens=256 ttft=0.15s decode=192.2 tok/s steps=92 proposed=183 accepted=163 tok/pass=2.77 ms/pass=14.4
+mtp-trace n128 rep2 tokens=256 ttft=0.15s decode=184.4 tok/s steps=96 proposed=191 accepted=159 tok/pass=2.66 ms/pass=14.4
+mtp-trace n1024 rep0 tokens=256 ttft=0.69s decode=166.5 tok/s steps=102 proposed=204 accepted=153 tok/pass=2.50 ms/pass=15.0
+mtp-trace n1024 rep1 tokens=256 ttft=0.69s decode=156.0 tok/s steps=109 proposed=218 accepted=145 tok/pass=2.33 ms/pass=15.0
+mtp-trace n1024 rep2 tokens=256 ttft=0.69s decode=160.5 tok/s steps=107 proposed=213 accepted=148 tok/pass=2.38 ms/pass=14.9
+mtp-trace n4096 rep0 tokens=256 ttft=2.37s decode=137.3 tok/s steps=114 proposed=228 accepted=140 tok/pass=2.23 ms/pass=16.3
+mtp-trace n4096 rep1 tokens=256 ttft=2.42s decode=144.1 tok/s steps=108 proposed=216 accepted=146 tok/pass=2.35 ms/pass=16.4
+mtp-trace n4096 rep2 tokens=256 ttft=2.47s decode=142.7 tok/s steps=109 proposed=217 accepted=146 tok/pass=2.34 ms/pass=16.4

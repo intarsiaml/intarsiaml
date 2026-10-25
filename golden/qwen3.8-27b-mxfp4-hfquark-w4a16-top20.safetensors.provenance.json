@@ -1,0 +1,13 @@
+{
+ "format": "intarsia-golden-provenance-v1",
+ "golden": "qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors",
+ "sha256": "32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd",
+ "fnv1a64": "b2665d1de37eb72c",
+ "size": 245572,
+ "source": "HF W4A16, bf16: transformers 5.19.0 + torch 2.14.1 (CPU, layer-streamed), Quark emulation (MXFP4 weights dequantised to bf16), activations none, 0 QDQ'd linears, KV bf16; model amd/Qwen3.8-27B-Quark-AWQ-MXFP4 (snapshot 5233554c5fa56afda40150556b95573c2d7d29c0)",
+ "prompts": "golden.jsonl + golden_long.jsonl (10 prompts, 1441 positions, top-20 log-probs, one full-sequence forward per prompt, no continuation)",
+ "tool": "tools/golden_quark_mxfp4.py, run on endor (CPU) by lane m1, docs/results/2026-10-21-m1-qwen38-drill.md",
+ "date": "2026-10-21 14:42 UTC",
+ "lane": "m1 (built), ac (hashed and described)",
+ "note": "gate golden for the engine run with `--mxfp4-act none` ONLY; run with the default flags (dynamic activations) the engine is a different model and sits about 0.14 KL21 away (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 2). The file is NOT tracked in git (golden/*.safetensors is ignored): it lives at tatooine:~/intarsiaml-p1/p1-golden/ and was copied from there on 2026-10-25."
+}

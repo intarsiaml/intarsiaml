@@ -1,0 +1,351 @@
+{
+ "trace_version": "1",
+ "trace_id": "intarsiaml:mx:20261025-0100",
+ "project": "intarsiaml",
+ "lane_id": "mx",
+ "agent_model": "claude-opus-5-5",
+ "started": "2026-10-25T01:00:00-04:00",
+ "ended": "2026-10-25T09:50:00-04:00",
+ "brief": "docs/plans/2026-10-25-r9700-push.md Lane 3 (+ Lane 8): close the Qwen3.8-27B MXFP4 prefill gap on one R9700 (HIP gfx1201) vs radiance 1.12.0 TP2 (5210 / 6133 / 5852 tok/s at 1k / 4k / 16k); bitwise work may become default with evidence, W4A8 / numerics-changing prefill only opt-in gated on KL; draft PR, results doc, trace, LOG and tuning rows.",
+ "hypothesis": "The 27B prefill is GEMM-bound (MXFP4 W4A4 dequant-to-bf16 WMMA at a third of the bf16 peak), so a cheaper exact dequant plus prefill-sized tiles would speed it up bit for bit; a W4A4 fold onto the 2x-rate fp8 WMMA would roughly double the GEMM as an opt-in; and the chunk-4096 gain (rejected before as not bitwise) could be made bitwise by running short tails as chunk 256 does.",
+ "target": {
+  "engine": "IntarsiaML",
+  "hardware": "AMD Radeon AI PRO R9700 (gfx1201)",
+  "family": "Qwen3.8-27B",
+  "quant": "MXFP4",
+  "phase": "prefill",
+  "buckets": [
+   "1k",
+   "4k",
+   "16k"
+  ],
+  "lane": "plain",
+  "regime_cells": [
+   "AMD Radeon AI PRO R9700 · Qwen3.8-27B | plain | prefill | 1k",
+   "AMD Radeon AI PRO R9700 · Qwen3.8-27B | plain | prefill | 4k",
+   "AMD Radeon AI PRO R9700 · Qwen3.8-27B | plain | prefill | 16k"
+  ]
+ },
+ "techniques": [
+  {
+   "id": "tcclaviger-vllm-libr4d-mxfp4-w4-fp8act-moe-lane-qwen36-prefill",
+   "role": "consulted"
+  }
+ ],
+ "code": {
+  "repo": "intarsiaml/intarsiaml",
+  "branch": "lane-mx/27b-prefill",
+  "base_commit": "5e9cc6da",
+  "head_commit": "d2d3c6f4",
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/144",
+  "files": [
+   "crates/intarsia-backend-hip/src/device.rs",
+   "crates/intarsia-backend-hip/src/ffi.rs",
+   "crates/intarsia-backend-hip/src/kernels.rs",
+   "crates/intarsia-backend-hip/src/quantmoe.rs",
+   "crates/intarsia-backend-hip/tests/mxfp4_fold.rs",
+   "crates/intarsia-backend-hip/tests/mxfp4_v2.rs",
+   "crates/intarsia-cli/src/cmd/plan.rs",
+   "crates/intarsia-core/src/model.rs",
+   "crates/intarsia-core/src/model/batch.rs",
+   "crates/intarsia-core/src/plan.rs",
+   "crates/intarsia-core/src/prefix_store.rs",
+   "crates/intarsia-core/src/recipe.rs",
+   "crates/intarsia-core/src/scheduler.rs",
+   "crates/intarsia-core/tests/scheduler.rs",
+   "crates/intarsia-models/src/recipe.rs",
+   "docs/decisions/LOG.md",
+   "docs/recipes.md",
+   "docs/tuning.md",
+   "kernels/hip/ik_hip_abi.h",
+   "kernels/hip/mxfp4.hip"
+  ],
+  "diff_stat": "686 files changed, 32295 insertions(+), 11 deletions(-)",
+  "default_changed": true,
+  "merged": false,
+  "merge_commit": null
+ },
+ "checks": [
+  {
+   "name": "kernels test --quick (hip), default and fold",
+   "command": "intarsia kernels test --quick --backend hip",
+   "result": "pass",
+   "detail": "64 kernels, 345 cases, 0 fail (raw/w5)"
+  },
+  {
+   "name": "v2 bitwise v1 + row-invariance + negative controls",
+   "command": "cargo test -p intarsia-backend-hip --test mxfp4_v2 --test mxfp4_fold",
+   "result": "pass",
+   "detail": "3 + 4 passed on the PR-head build (raw/w7)"
+  },
+  {
+   "name": "prefill peel schedule property + negative controls",
+   "command": "cargo test -p intarsia-core --test scheduler prefill_peel",
+   "result": "pass",
+   "detail": "lengths 1..9000, chunk 512..4096, peel 8 and 16"
+  },
+  {
+   "name": "tails sweep main chunk 256 vs dev chunk 4096 + peel",
+   "command": "intarsia accuracy --write-self-golden + scripts/ck/chunkcmp.py",
+   "result": "pass",
+   "detail": "peel 16 (rebased tree): 0 of 34 prompts / 0 of 85014 rows differ; peel 8: 4 differ; no peel: 11 differ (control)"
+  },
+  {
+   "name": "27B golden gate (HF Quark W4A4, ref noise)",
+   "command": "intarsia accuracy --mode both",
+   "result": "fail",
+   "detail": "prefill PASS 0.180; decode-mode FAIL 0.340 = main's own result (bitwise); fold 0.165 / 0.261; head setting (4096 + peel 16) matches main to the printed digits"
+  },
+  {
+   "name": "35B KL golden (vLLM top-20)",
+   "command": "intarsia accuracy --mode both",
+   "result": "pass",
+   "detail": "main and dev PASS, dev dumps bitwise main"
+  },
+  {
+   "name": "35B acc-short",
+   "command": "intarsia qualify --quick-only",
+   "result": "pass",
+   "detail": "prefill top-1 98.61 % KL 7.63e-3, decode top-1 98.75 % KL 1.18e-2 (raw/w8)"
+  },
+  {
+   "name": "no-op vs main, HIP: plan show + 256 ids 27B / 35B",
+   "command": "scripts/mx/stages-w4.sh, w5, w7",
+   "result": "pass",
+   "detail": "identical"
+  },
+  {
+   "name": "batch_recurrent (hip)",
+   "command": "cargo test -p intarsia-models --test batch_recurrent -- --test-threads=1 --include-ignored",
+   "result": "pass",
+   "detail": "11 passed"
+  },
+  {
+   "name": "batch_cuda_real (hip, --include-ignored)",
+   "command": "cargo test -p intarsia-models --test batch_cuda_real -- --include-ignored",
+   "result": "fail",
+   "detail": "7 pass, 3 fail on CUDA-only expectations, code untouched by this diff"
+  },
+  {
+   "name": "CUDA no-op (spark1)",
+   "command": "scripts/mx/cuda-noop.sh",
+   "result": "pass",
+   "detail": "plan + ids 8B/35B identical, kernels quick, core lib, batch_recurrent"
+  },
+  {
+   "name": "Metal no-op (endor)",
+   "command": "scripts/mx/metal-noop.sh",
+   "result": "pass",
+   "detail": "plan + ids 8B/35B identical, 27B plan identical, kernels test 0 FAIL"
+  },
+  {
+   "name": "27B batched decode == solo (max-batch 16, head recipe)",
+   "command": "cargo test -p intarsia-models --test batch_cuda_real real_35b_batched_decode_is_bitwise (INTARSIA_QWEN36_DIR=27B)",
+   "result": "pass",
+   "detail": "raw/w9"
+  },
+  {
+   "name": "27B recipe chunk 4096 + peel 16: serve --max-batch 16 and --spec mtp",
+   "command": "scripts/mx/stages-w10.sh",
+   "result": "fail",
+   "detail": "--spec mtp ids equal main and spec-off; serve --max-batch 16 context 4930 -> 4407 tokens and busy prefill chunk 4096: recipe default reverted, knob stays opt-in"
+  }
+ ],
+ "measurements": [
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 989,
+   "streams": 1,
+   "before": 981,
+   "after": 1120,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4087,
+   "streams": 1,
+   "before": 1013,
+   "after": 1154,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16654,
+   "streams": 1,
+   "before": 947,
+   "after": 1073,
+   "unit": "tok/s (localeval served; main vs the default: v2 GEMM, chunk 256, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5148,
+   "before_run_id": "20261025-042707-adhoc-mx-loc1-base27-r1,20261025-043520-adhoc-mx-loc1-base27-r2,20261025-043710-adhoc-mx-loc1-base27-r3",
+   "after_run_id": "20261025-042857-adhoc-mx-loc1-dev27-r1,20261025-043336-adhoc-mx-loc1-dev27-r2,20261025-043859-adhoc-mx-loc1-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 990,
+   "streams": 1,
+   "before": 980,
+   "after": 1323,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4088,
+   "streams": 1,
+   "before": 1010,
+   "after": 1437,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16655,
+   "streams": 1,
+   "before": 946,
+   "after": 1351,
+   "unit": "tok/s (localeval served; main 5e9cc6da vs opt-in --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16, bitwise)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074436-adhoc-mx-loc3-dev27-r1,20261025-074854-adhoc-mx-loc3-dev27-r2,20261025-075409-adhoc-mx-loc3-dev27-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "1k",
+   "prompt_tokens": 990,
+   "streams": 1,
+   "before": 980,
+   "after": 2043,
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "4k",
+   "prompt_tokens": 4088,
+   "streams": 1,
+   "before": 1010,
+   "after": 2416,
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
+  },
+  {
+   "metric": "prefill_tps",
+   "bucket": "16k",
+   "prompt_tokens": 16655,
+   "streams": 1,
+   "before": 946,
+   "after": 2186,
+   "unit": "tok/s (localeval served; opt-in fold + chunk 4096 + peel 16, changes numerics)",
+   "n": 3,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5245,
+   "before_run_id": "20261025-074246-adhoc-mx-loc3-base27-r1,20261025-075029-adhoc-mx-loc3-base27-r2,20261025-075219-adhoc-mx-loc3-base27-r3",
+   "after_run_id": "20261025-074611-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r1,20261025-074733-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r2,20261025-075544-adhoc-mx-loc3-dev27-__e_INTARSIA_HIP_MXFP4_FOLD=1_-r3"
+  },
+  {
+   "metric": "gemm_ms_per_chunk",
+   "bucket": "4k",
+   "prompt_tokens": 4096,
+   "streams": null,
+   "before": 3274.7,
+   "after": 2402.1,
+   "unit": "ms (all 27B MXFP4 GEMMs, mxbench, v1 -> v2)",
+   "n": 10,
+   "spread_pct": null,
+   "slot": "quiet",
+   "slot_job": 5132,
+   "before_run_id": null,
+   "after_run_id": null
+  }
+ ],
+ "accuracy": {
+  "gate": "Default path bitwise main (golden dumps 27B and 35B, 256 ids, tails sweep 0 of 34 prompts at peel 16): pass. The 27B decode-mode golden gate fails identically on main and the head (KL 0.340); the opt-in fold passes prefill (0.165) and is 0.261 in decode mode (decision mx-1).",
+  "verdict": "pass",
+  "bitwise": true,
+  "run_ids": []
+ },
+ "verdict": "win",
+ "summary": "Default (bitwise): MXFP4 GEMM v2 (exact bf16 dequant from bits, prefill tile table): served 27B prefill on one R9700 981 -> 1120, 1013 -> 1154, 947 -> 1073 tok/s at 1k / 4k / 16k (+13-14 %). Opt-in, bitwise: new prefill tail peel knob; --prefill-chunk 4096 + INTARSIA_PREFILL_PEEL=16 gives 1323 / 1437 / 1351 (+35-43 %, 0 of 34 tail prompts differ) but was not made the recipe default because serve --max-batch 16 loses context (4930 -> 4407) and runs 4096-row busy chunks. Opt-in, numerics (decision mx-1): INTARSIA_HIP_MXFP4_FOLD=1, 2043 / 2416 / 2186 with chunk 4096; prefill KL 0.165 PASS, decode-mode 0.261 vs main 0.340.",
+ "lessons": [
+  "On gfx12 the fp8 and bf16 WMMA round their 16-product sums differently, so carrying a power-of-two group scale through the fp8 matrix core is not bitwise the bf16 chain, even though every product is exact.",
+  "A W4A4 checkpoint with activation QDQ amplifies last-bit sum differences into ref-noise-sized logit changes (row KL up to 0.39 on 4 tail rows), so 'nearly bitwise' schedule changes are not small for it.",
+  "Chunk-size numerics changes came only from small-row kernels (MXFP4 GEMV <= 8 rows, split-KV attention <= 16 rows); peeling those tails makes any multiple-of-256 chunk bitwise the 256 schedule on the 27B.",
+  "With the dequant ALU removed the bitwise MXFP4 GEMM only goes 82 -> 97 TFLOP/s: its cost is the BK=32 tile pipeline, not the dequant.",
+  "git archive mtimes plus a target volume seeded from a newer build make cargo reuse the newer artifacts: touch sources or seed from an older build before an A/B.",
+  "On hybrid models the serve busy prefill chunk defaults to the solo chunk (bitwise batched == solo), so raising the recipe chunk also raises the chunk run while other streams decode, and the larger workspace lowers the admitted context at --max-batch 16; check serve --max-batch startup before changing a recipe chunk."
+ ],
+ "cost": {
+  "wall_min": null,
+  "gpu_slot_min": null,
+  "slot_jobs": [
+   5008,
+   5025,
+   5036,
+   5082,
+   5093,
+   5125,
+   5132,
+   5147,
+   5148,
+   5149,
+   5150,
+   5151,
+   5158,
+   5159,
+   5161,
+   5242,
+   5243,
+   5244,
+   5245,
+   5259,
+   5281,
+   5282
+  ],
+  "tokens": null
+ }
+}

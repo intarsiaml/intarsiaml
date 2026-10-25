@@ -1,0 +1,16 @@
+2026-10-25 01:20:08 job 5008 window w1: [window] job 5008 w1; stopping radiance 2026-10-25 01:18:32 [window] radiance answers 2026-10-25 01:20:08 (after 20 s); active (row added by hand: the Mac side stopped on a bash 3.2 parse error after the restore)
+2026-10-25 02:16:26 job 5036 window w2: [window] job 5036 w2; stopping radiance 2026-10-25 02:09:35 [window] radiance answers 2026-10-25 02:16:25 (after 35 s); active 
+2026-10-25 03:22:09 job 5093 window w3: [window] job 5093 w3; stopping radiance 2026-10-25 03:07:42 [window] radiance answers 2026-10-25 03:22:08 (after 25 s); active 
+2026-10-25 03:39:39 job 5132 window w4: [window] job 5132 w4; stopping radiance 2026-10-25 03:29:20 [window] radiance answers 2026-10-25 03:39:38 (after 25 s); active 
+2026-10-25 04:41:52 job 5148 window loc1: [window] job 5148 loc1 arms [base27 dev27 dev27@INTARSIA_HIP_MXFP4_FOLD=1] rounds 3; stopping radiance 2026-10-25 04:26:25 [window] radiance answers (after 20 s); active 2026-10-25 04:41:52 
+2026-10-25 04:47:17 job 5149 window w5: [window] job 5149 w5; stopping radiance 2026-10-25 04:42:34 [window] radiance answers 2026-10-25 04:47:17 (after 20 s); active 
+2026-10-25 04:59:49 job 5151 window loc2: [window] job 5151 loc2 arms [base35 dev35] rounds 3; stopping radiance 2026-10-25 04:57:03 [window] radiance answers (after 15 s); active 2026-10-25 04:59:49 
+2026-10-25 05:00:36 job 5150 window w6: stages done 04:55:46; window.sh hit a syntax error at its end (the file was edited while bash read it), so the rsync and this line ran by hand; radiance restored by the remote EXIT trap and confirmed active by loc2 (#5151) at 04:59:49
+2026-10-25 05:30:37 job 5158 window w7: [window] job 5158 w7; stopping radiance 2026-10-25 05:04:34 [window] radiance answers 2026-10-25 05:30:37 (after 25 s); active 
+2026-10-25 07:26:27 job 5243 window w8: [window] job 5243 w8; stopping radiance 2026-10-25 07:14:57 [window] radiance answers 2026-10-25 07:26:27 (after 25 s); active 
+2026-10-25 07:41:03 job 5244 window w9: [window] job 5244 w9; stopping radiance 2026-10-25 07:27:03 [window] radiance answers 2026-10-25 07:41:02 (after 20 s); active 
+2026-10-25 07:56:52 job 5245 window loc3: [window] job 5245 loc3 arms [base27 dev27 dev27@INTARSIA_HIP_MXFP4_FOLD=1] rounds 3; stopping radiance 2026-10-25 07:42:03 [window] radiance answers (after 25 s); active 2026-10-25 07:56:52 
+2026-10-25 09:31:14 job 5259 window w10: [window] job 5259 w10; stopping radiance 2026-10-25 09:23:35 [window] radiance answers 2026-10-25 09:31:13 (after 20 s); active 
+2026-10-25 10:45:07 job 5282 window w11: [window] job 5282 w11; stopping radiance 2026-10-25 10:43:11 [window] radiance answers 2026-10-25 10:45:07 (after 30 s); active 
+2026-10-25 12:17:46 job 5322 window w12: [window] job 5322 w12; stopping radiance 2026-10-25 12:02:20 [window] radiance answers 2026-10-25 12:17:45 (after 30 s); active 
+2026-10-25 12:59:37 job 5337 window w13: [window] job 5337 w13; stopping radiance 2026-10-25 12:47:35 [window] radiance answers 2026-10-25 12:59:37 (after 30 s); active 
