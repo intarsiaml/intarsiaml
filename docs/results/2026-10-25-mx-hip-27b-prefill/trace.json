@@ -37,7 +37,7 @@
   "branch": "lane-mx/27b-prefill",
   "base_commit": "0b84f499",
   "head_commit": "4b885495",
-  "pr": null,
+  "pr": "https://github.com/intarsiaml/intarsiaml/pull/144",
   "files": [
    "crates/intarsia-backend-hip/src/device.rs",
    "crates/intarsia-backend-hip/src/ffi.rs",
