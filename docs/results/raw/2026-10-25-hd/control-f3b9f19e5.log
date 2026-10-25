@@ -1,0 +1,13 @@
+    Finished `release` profile [optimized] target(s) in 0.16s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+running 1 test
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17326669824, weights_bytes: 16381470720, workspace_bytes: 274722080, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16460336126, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+recurrent bytes per state 0
+17550 (row, step) pairs bitwise identical in 606.7 s
+ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 612.80s
+exit 0
+vram 14:11:31 card0 vram 25401 MiB gtt 20 MiB; card1 vram 57 MiB
+vram 14:12:31 card0 vram 25401 MiB gtt 20 MiB; card1 vram 57 MiB
+vram 14:13:31 card0 vram 25401 MiB gtt 20 MiB; card1 vram 57 MiB
+radiance back

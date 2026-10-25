@@ -13,6 +13,11 @@
 use intarsia_core::model::{HeadMode, Model, StepOut};
 use intarsia_core::sampler::{argmax, Sampler, SamplingParams};
 use intarsia_core::state::SequenceState;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Wall time of the solo and the batched steps so far (progress lines only).
+static SOLO_NS: AtomicU64 = AtomicU64::new(0);
+static BATCH_NS: AtomicU64 = AtomicU64::new(0);
 
 pub struct Cfg {
     /// Prompt length of each sequence (one state pair per entry).
@@ -78,6 +83,7 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
     let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].solo.len).collect();
 
     // solo steps
+    let t = std::time::Instant::now();
     let solo: Vec<StepOut> = idxs
         .iter()
         .zip(&modes)
@@ -86,11 +92,14 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
             model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap()
         })
         .collect();
+    SOLO_NS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
     // one batched step
+    let t = std::time::Instant::now();
     let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
     let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
     let batched = bm.forward_batch(&mut refs, &ids, &modes).unwrap();
+    BATCH_NS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
     drop(refs);
     assert_eq!(batched.len(), b);
 
@@ -127,7 +136,9 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
 
 /// Returns the number of (row, step) pairs compared.
 pub fn run(model: &Model, cfg: &Cfg) -> usize {
+    let t0 = std::time::Instant::now();
     let mut seqs = make_seqs(model, &cfg.lens, cfg.vocab_range);
+    eprintln!("{} sequences prefilled twice in {:.1} s", seqs.len(), t0.elapsed().as_secs_f64());
     let n = seqs.len();
     let mut compared = 0;
     let mut offset = 0;
@@ -136,9 +147,19 @@ pub fn run(model: &Model, cfg: &Cfg) -> usize {
         // a rotating window, so every sequence length meets every batch size over the run
         let idxs: Vec<usize> = (0..b).map(|j| (offset + j) % n).collect();
         offset += b + 1;
+        let t0 = std::time::Instant::now();
+        let (s0, b0) = (SOLO_NS.load(Ordering::Relaxed), BATCH_NS.load(Ordering::Relaxed));
         for s in 0..cfg.steps {
             compared += step(model, &mut seqs, &idxs, s);
         }
+        let per = |ns: u64| ns as f64 / 1e6 / cfg.steps as f64;
+        eprintln!(
+            "batch {b}: {} steps bitwise in {:.1} s (per step: {:.1} ms batched, {:.1} ms for the {b} solo steps)",
+            cfg.steps,
+            t0.elapsed().as_secs_f64(),
+            per(BATCH_NS.load(Ordering::Relaxed) - b0),
+            per(SOLO_NS.load(Ordering::Relaxed) - s0)
+        );
     }
     compared
 }

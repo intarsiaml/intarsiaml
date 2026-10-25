@@ -91,6 +91,13 @@ fn load_with(
     // plan resolution dry-runs every batch size at both ends of the context: a batched op that would pick a kernel that is
     // neither the solo step's nor a row-exact one fails here (`plan::check_batch_ops`)
     m.configure_plan(&Default::default(), None).unwrap();
+    eprintln!(
+        "batch plan: {} KV tokens per sequence, {} KV bytes in all, {} bytes per token; notes {:?}",
+        m.plan.kv_cap_tokens,
+        m.plan.kv_total_bytes,
+        m.kv_bytes_per_token(),
+        m.plan.notes
+    );
     assert!(m.plan.kv_cap_tokens >= max_seq, "{} tokens per sequence", m.plan.kv_cap_tokens);
     (m, tel)
 }
