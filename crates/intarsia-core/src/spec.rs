@@ -321,6 +321,10 @@ struct CostGate {
     low: u32,
     /// The next step is a probe of the plain-step cost.
     probe: bool,
+    /// A probe step was taken and its sample has not arrived yet (samples arrive one step late).
+    probe_inflight: bool,
+    /// Passes since then: a sample that never arrives (a probe step with no yielded token) must not stop probing.
+    probe_age: u32,
     events: CostEvents,
 }
 
@@ -336,6 +340,8 @@ impl CostGate {
             since_plain: 0,
             low: 0,
             probe: false,
+            probe_inflight: false,
+            probe_age: 0,
             events: CostEvents::default(),
         }
     }
@@ -350,6 +356,8 @@ impl CostGate {
             return false;
         }
         if std::mem::take(&mut self.probe) {
+            self.probe_inflight = true;
+            self.probe_age = 0;
             self.events.plain_steps += 1;
             self.events.probes += 1;
             return false;
@@ -369,7 +377,15 @@ impl CostGate {
         }
         self.passes += 1;
         self.since_plain += 1;
-        if self.since_plain >= self.p.probe_every || (self.ms_per_plain.0.is_none() && self.passes > self.p.warmup) {
+        if self.probe_inflight {
+            self.probe_age += 1;
+            if self.probe_age > 2 {
+                self.probe_inflight = false;
+            }
+        }
+        if !self.probe_inflight
+            && (self.since_plain >= self.p.probe_every || (self.ms_per_plain.0.is_none() && self.passes > self.p.warmup))
+        {
             self.probe = true;
         }
         if self.passes <= self.p.warmup {
@@ -396,6 +412,8 @@ impl CostGate {
         }
         self.ms_per_plain.add(ms / tokens as f64, self.p.alpha);
         self.since_plain = 0;
+        self.probe_inflight = false;
+        self.probe = false;
         if let CostMode::Plain { left } = self.mode {
             let left = left.saturating_sub(tokens as u32);
             if left == 0 {
@@ -863,6 +881,40 @@ mod tests {
         assert_eq!(ev.plain_steps as usize, t.matches('p').count());
         assert_eq!(ev.probes, ev.plain_steps);
         assert!(!g.cost_off());
+    }
+
+    /// [`drive`] with the engine's sample delivery: a step's wall time is known when the next step begins, after that
+    /// step's own `allow`.
+    fn drive_lagged(g: &mut SpecGate, steps: usize, spec: impl Fn(usize) -> (usize, f64), plain: f64) -> String {
+        let mut out = String::new();
+        let mut held: Option<(bool, usize, f64)> = None;
+        for i in 0..steps {
+            let spec_step = g.allow(false);
+            if let Some((s, t, ms)) = held.take() {
+                g.cost_sample(s, t, ms);
+            }
+            if spec_step {
+                let (t, ms) = spec(i);
+                held = Some((true, t, ms));
+                out.push('S');
+            } else {
+                held = Some((false, 1, plain));
+                out.push('p');
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn cost_gate_probes_once_when_samples_arrive_a_step_late() {
+        let mut g = cost_gate(CostParams { probe_every: 1000, ..cp() });
+        let t = drive_lagged(&mut g, 100, |_| (3, 13.7), 6.1);
+        assert_eq!(t.matches('p').count(), 1, "one probe to learn the plain cost: {t}");
+        assert_eq!(g.take_cost_events().probes, 1);
+        // and the periodic probe is one step, not one per pass until its sample lands
+        let mut g = cost_gate(cp());
+        let t = drive_lagged(&mut g, 200, |_| (3, 13.7), 6.1);
+        assert!(t.matches('p').count() <= 1 + 200 / 16, "{t}");
     }
 
     #[test]
