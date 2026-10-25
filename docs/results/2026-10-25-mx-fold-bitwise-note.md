@@ -104,3 +104,50 @@ target, not a measurement.
   - Option B's gates window must run both with FOLD=1: S4 batched == solo, and the tails sweep (chunk 4096 + peel 16
     vs chunk 256). It should also extend `fold_rows_do_not_depend_on_m` to every 27B shape and to the tile-table M
     boundaries (64/65, 2047/2048).
+
+## 6. Plan if the user says yes to B (not queued)
+
+**Code, no GPU (about 3 h):**
+1. `crates/intarsia-backend-hip/src/quantmoe.rs`: the fold becomes the default for W4A4 MXFP4 at M >= 9.
+   `INTARSIA_HIP_MXFP4_FOLD=0` returns to v2 (the kill switch). The `mxfp4_fold_is_opt_in` and `pick_mx` tests become
+   default-on tests that keep a check of the kill switch.
+2. `tests/mxfp4_fold.rs`: widen `fold_rows_do_not_depend_on_m` to every 27B shape:
+   - shapes (N x K): 17408 x 5120, 5120 x 17408, 10240 x 5120, 5120 x 6144, 6144 x 5120, 12288 x 5120, 1024 x 5120,
+     48 x 5120;
+   - M = 9, 16, 17, 63, 64, 65, 255, 256, 257, 2047, 2048, 2049, 4096, compared against the same rows of an M = 4100 run;
+   - negative controls: perturbing one activation row changes that row only; one flipped weight code changes the output.
+3. A LOG row (proposed), docs, and a results doc.
+
+**Build:** one CPU slot of about 15 min. Dev is the B branch, base is main. It builds the HIP and models test binaries.
+Each target dir starts fresh or comes from its own earlier build, never seeded from another tree.
+
+**Window G1 (about 40 min, radiance down):**
+
+| order | step | pass condition |
+|---|---|---|
+| 1 | hip tests: mxfp4_fold (widened), mxfp4_v2, rows_exact | all pass, negative controls fire |
+| 2 | kernels test --quick, 27B and 35B | 0 fail |
+| 3 | 35B plan show + 256 ids short / 4k, head vs main | identical (the 35B runs no MXFP4) |
+| 4 | 27B W4A16 golden, `--mxfp4-act none`, dumps vs main and gated with #150's baseline + envelope | dumps bitwise main; PASS |
+| 5 | 27B W4A4 golden, `--mode both`, vs HF; decode also vs the current baseline + envelope | prefill <= ref noise 0.197 (fold measured 0.165); decode-vs-baseline numbers recorded, expected to move |
+| 6 | 27B S4 batched == solo at max-batch 16 (lane mr's test), fold default | PASS |
+| 7 | 27B `--spec mtp` 256 ids == spec off, short / 4k | identical |
+| 8 | batch_recurrent `--test-threads=1 --include-ignored` | pass |
+
+**Window G2 (about 35 min):**
+
+| order | step | pass condition |
+|---|---|---|
+| 1 | tails sweep under the fold: 34 prompts / 85014 rows, chunk 4096 + peel 16 vs chunk 256 | 0 rows differ |
+| 2 | 27B acc-short (`qualify --quick-only`) with the re-recorded baseline | PASS |
+| 3 | **re-record** the 27B W4A4 baseline + envelope (`--write-baseline`, `--noise-perturb chunk=64 --write-noise-envelope`; about 3 min in #5329) | runs only if every step of G1 passed and the user approved the re-record; the W4A16 baseline is kept (its bits do not change) |
+
+The re-record must come before acc-short, so the G2 script runs step 3 first and then step 2.
+
+**Window L (about 40 min):** localeval, served prefill 1k / 4k / 16k interleaved x3, main vs head. It also runs the
+35B to catch regressions.
+
+**Not needed:** CUDA and Metal no-ops. Only `intarsia-backend-hip` changes; if a shared crate turns out to change,
+they come back into the plan.
+
+**Totals:** 3 windows, about 2 h of radiance down. With today's queue that is about a day of wall clock.
