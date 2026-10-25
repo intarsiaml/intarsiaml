@@ -21,3 +21,97 @@ ids 35 4k: identical (256 ids, sha d626e2f1)
 plan 35 json: byte-identical (12961 B)
 plan 35 txt: byte-identical (3184 B)
 [gates] B 2026-10-25 13:25:08
+== batch_cuda_real
+-- 35B/8B batched==solo, knob unset
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:30:9:
+FAILED
+test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 6 filtered out; finished in 222.60s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+-- 35B/8B batched==solo, option 1 ON (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all)
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+thread 'real_qwen3_8b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:30:9:
+FAILED
+test result: FAILED. 2 passed; 1 failed; 1 ignored; 0 measured; 6 filtered out; finished in 216.48s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+-- ignored long-prompt, option 1 ON
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 59.11s
+== batch_recurrent + kernels quick + rows_exact + MTP
+-- batch_recurrent
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test batched_engine_with_packed_prefill_equals_solo ... Dense rows 2: 1 packed passes carried 2 chunks of 9 (9 chunks in all)
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 94.19s
+-- kernels test --quick (hip)
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+76 kernels, 365 cases in 3.1s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+-- kernels test --quick (hip), option 1 ON (the WMMA kernels are exercised only with the knob)
+matmul         matmul_bf16_gemv                0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul         matmul_bf16_gemv_rows           0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul         matmul_bf16_wmma                2      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_wmma_rows           2      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                 0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8     matmul_fp8_gemv_v2              0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8     matmul_fp8_gemv_rows            0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8     matmul_fp8_wmma                 4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_wmma_rows            8      0     0.000e0     0.000e0  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_pair    matmul_pair_bf16_wmma           2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma      4      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_gemv            0      0     0.000e0     0.000e0  NO CASES (untested)
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      0      0     0.000e0     0.000e0  NO CASES (untested)
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      0      0     0.000e0     0.000e0  NO CASES (untested)
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      0      0     0.000e0     0.000e0  NO CASES (untested)
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8_pair matmul_fp8_pair_wmma            9      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      6      0     0.000e0     0.000e0  ADMITTED
+76 kernels, 354 cases in 3.1s
+incomplete: 11 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+-- rows_exact + wmma_folds + frag_layout, knob unset
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 22.05s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+-- same, option 1 on
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 21.88s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+-- C: 35B MTP k=2 identity, option 1 on (2026-10-25 13:27:50)
+off-spec-off n128 md5=ce656b29 decode 1539 ms (165.72 tok/s) | 
+off-mtp2 n128 md5=ce656b29 decode 1336 ms (190.93 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass)
+opt1-spec-off n128 md5=2e2ec091 decode 1596 ms (159.79 tok/s) | 
+opt1-mtp2 n128 md5=2e2ec091 decode 1336 ms (190.81 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+PASS n128: option 1 MTP k=2 ids == option 1 spec off
+PASS n128 (control): knob-off MTP k=2 ids == knob-off spec off
+FAIL n128: acceptance counts differ: knob-off [spec: verify passes=102 proposed=203 accepted=153 ] option 1 [spec: verify passes=102 proposed=204 accepted=152 ]
+info n128: option 1 spec-off ids differ from knob-off (solo output changes once, expected)
+off-spec-off n1024 md5=419d4320 decode 1542 ms (165.38 tok/s) | 
+off-mtp2 n1024 md5=419d4320 decode 1285 ms (198.38 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass)
+opt1-spec-off n1024 md5=a0b4077e decode 1600 ms (159.40 tok/s) | 
+opt1-mtp2 n1024 md5=a0b4077e decode 1336 ms (190.87 tok/s) | spec: verify passes=101 proposed=202 accepted=153 (acceptance 75.7%, 2.51 tokens per pass)
+PASS n1024: option 1 MTP k=2 ids == option 1 spec off
+PASS n1024 (control): knob-off MTP k=2 ids == knob-off spec off
+FAIL n1024: acceptance counts differ: knob-off [spec: verify passes=97 proposed=194 accepted=157 ] option 1 [spec: verify passes=101 proposed=202 accepted=153 ]
+info n1024: option 1 spec-off ids differ from knob-off (solo output changes once, expected)
+[gates] done 2026-10-25 13:33:28
+[win] starting radiance 2026-10-25 13:33:28
+[win] radiance answers 2026-10-25 13:34:04 (after 40 s); active
+fleetq: #5355 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
