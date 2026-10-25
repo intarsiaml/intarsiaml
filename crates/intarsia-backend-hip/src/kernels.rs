@@ -205,7 +205,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_rows_enabled() && (1..=4).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -222,7 +222,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
@@ -232,14 +232,14 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_wmma" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| crate::quantmoe::wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                .when(|s| crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(30),
             "matmul_bf16_wmma_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| crate::quantmoe::wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                .when(|s| crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(0)

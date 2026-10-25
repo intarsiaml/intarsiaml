@@ -157,7 +157,7 @@ static void bench_abl(std::mt19937& rng) {
 static void bench_bf16(std::mt19937& rng) {
     std::normal_distribution<float> nd(0.f, 1.f);
     struct Shape { int N, K; } shapes[] = {{256, 2048}, {32, 2048}, {1, 2048}, {4096, 4096}, {1024, 2048}};
-    int ms[] = {1, 2, 4, 8, 12, 16};
+    int ms[] = {1, 2, 3, 4, 8, 12, 16};
     for (auto sh : shapes) {
         int N = sh.N, K = sh.K;
         size_t wb = (size_t)N * K * 2;
@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
     if (getenv("FOLDS")) { std::mt19937 r(9); bench_folds(r); return 0; }
     if (getenv("BF16")) { std::mt19937 r(5); bench_bf16(r); return 0; }
     struct Shape { int N, K; } shapes[] = {{2048, 2048}, {2048, 4096}, {4096, 2048}, {8192, 2048}, {512, 2048}, {12288, 2048}, {1024, 2048}};
-    int ms[] = {1, 2, 4, 8, 12, 16};
+    int ms[] = {1, 2, 3, 4, 8, 12, 16};
     std::mt19937 rng(7);
     std::normal_distribution<float> nd(0.f, 1.f);
     { void* p; CK(hipMalloc(&p, 64 << 20)); g_scr.data = p; g_scr.bytes = 64 << 20; }

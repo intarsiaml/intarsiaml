@@ -393,6 +393,40 @@ fn wmma_bf16_rows_are_bitwise_the_one_row_call() {
     rig.report("wmma bf16");
 }
 
+/// Lane wg, the dispatch-table boundary (`WmmaTable`, quantmoe.rs): a kind that switches kernels at M = lo (INTARSIA_HIP_WMMA_TABLE=fp8a8=lo-16)
+/// serves rows 1..lo-1 from the GEMV and rows lo.. from the WMMA family. This pins what that costs: a row of the WMMA call is NOT bitwise
+/// the GEMV one-row call, so rows1 vs rowsM differs across the switch and the switch is a numerics change (KL gate), never row invariance.
+/// The G-B comparison is expected to fail (caught here); if it ever passes the two summation orders became identical and the table needs no caveat.
+#[test]
+fn wmma_fp8_switch_from_the_gemv_is_not_bitwise() {
+    let Some(rig) = Rig::new("wmma_fp8_switch_from_the_gemv_is_not_bitwise") else { return };
+    let mut rng = SplitMix64::new(821);
+    let (n, k) = (512usize, 2048usize);
+    let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+    let scales = scales_tensor(hc.inputs[2].to_f32()[0] / 16.0, 0.0117);
+    let w = rig.put(&wide_fp8_weights(&mut rng, n, k));
+    let sc = rig.put(&scales);
+    let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), 16);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv_v2", "matmul_fp8_wmma_rows", &[w, sc], &x_rows, n, DType::Bf16, "switch fp8 W8A8 gemv -> wmma", 16)
+    }));
+    assert!(r.is_err(), "the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all");
+}
+
+/// The same for the bf16 router/gate kind (INTARSIA_HIP_WMMA_TABLE=bf16=lo-16).
+#[test]
+fn wmma_bf16_switch_from_the_gemv_is_not_bitwise() {
+    let Some(rig) = Rig::new("wmma_bf16_switch_from_the_gemv_is_not_bitwise") else { return };
+    let mut rng = SplitMix64::new(823);
+    let (n, k) = (256usize, 2048usize);
+    let w = rig.put(&wide_bf16(&mut rng, n, k));
+    let x_rows = nasty_rows_n(&mut rng, k, 448.0, 16);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        gb_matmul(&rig, Op::Matmul, "matmul_bf16_gemv", "matmul_bf16_wmma_rows", &[w], &x_rows, n, DType::Bf16, "switch bf16 gemv -> wmma", 16)
+    }));
+    assert!(r.is_err(), "the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all");
+}
+
 /// The family agrees with the dequantised reference (the cpu `ref` arithmetic) as well as the GEMV does: rel_l2 against the f64 sum of
 /// the exact products. Not a bitwise gate; it catches a wrong fragment layout or k permutation, which row invariance cannot.
 #[test]

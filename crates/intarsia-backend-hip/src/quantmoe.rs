@@ -94,6 +94,121 @@ pub fn wmma_rows_from(v: Option<&str>) -> bool {
     v == Some("1")
 }
 
+/// What a WMMA small-row GEMV replaces: fp8 W8A8 (static input scale), fp8 W8A16 (weight-only), bf16 weights (router, gates, pairs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WmmaKind {
+    Fp8A8,
+    Fp8A16,
+    Bf16,
+}
+
+/// The kind of an fp8 matmul call (`OpAttrs::fp8_static_act` = W8A8).
+pub fn fp8_kind(s: &intarsia_core::ShapeInfo) -> WmmaKind {
+    if s.fp8_static_act { WmmaKind::Fp8A8 } else { WmmaKind::Fp8A16 }
+}
+
+/// THE dispatch table: the rows `lo..=hi` each kind runs on the WMMA family when INTARSIA_HIP_WMMA_ROWS=1 (`None` = never). Every
+/// registration above asks `wmma_takes(kind, m)`; nothing else decides. A kind that is not 1..=ROWS_MAX switches kernels inside a
+/// batch-size range, so one row's bits differ between rows=1 and rows=M across the switch: that is a numerics change, not row
+/// invariance (tests/rows_exact.rs shows it at each boundary). Default: every kind 1..=ROWS_MAX, which is row invariant at every M.
+/// A/B override (read once): INTARSIA_HIP_WMMA_TABLE="fp8a8=4-16,fp8a16=1-16,bf16=off" (`lo-hi`, `off`, or `all`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WmmaTable {
+    pub fp8a8: Option<(usize, usize)>,
+    pub fp8a16: Option<(usize, usize)>,
+    pub bf16: Option<(usize, usize)>,
+}
+
+impl WmmaTable {
+    pub const DEFAULT: WmmaTable = WmmaTable { fp8a8: Some((1, ROWS_MAX)), fp8a16: Some((1, ROWS_MAX)), bf16: Some((1, ROWS_MAX)) };
+
+    /// Parse the override on top of the default; Err names the bad entry.
+    pub fn parse(spec: &str) -> Result<WmmaTable, String> {
+        let mut t = WmmaTable::DEFAULT;
+        for ent in spec.split(',').map(str::trim).filter(|e| !e.is_empty()) {
+            let (k, v) = ent.split_once('=').ok_or_else(|| format!("{ent:?}: want kind=lo-hi|off|all"))?;
+            let range = match v.trim() {
+                "off" => None,
+                "all" => Some((1, ROWS_MAX)),
+                r => {
+                    let (lo, hi) = r.split_once('-').ok_or_else(|| format!("{ent:?}: want lo-hi"))?;
+                    let (lo, hi) = (lo.parse::<usize>().map_err(|e| format!("{ent:?}: {e}"))?, hi.parse::<usize>().map_err(|e| format!("{ent:?}: {e}"))?);
+                    if lo == 0 || hi < lo {
+                        return Err(format!("{ent:?}: need 1 <= lo <= hi"));
+                    }
+                    Some((lo, hi))
+                }
+            };
+            match k.trim() {
+                "fp8a8" => t.fp8a8 = range,
+                "fp8a16" => t.fp8a16 = range,
+                "bf16" => t.bf16 = range,
+                other => return Err(format!("unknown kind {other:?} (fp8a8, fp8a16, bf16)")),
+            }
+        }
+        Ok(t)
+    }
+
+    pub fn takes(&self, kind: WmmaKind, m: usize) -> bool {
+        let r = match kind {
+            WmmaKind::Fp8A8 => self.fp8a8,
+            WmmaKind::Fp8A16 => self.fp8a16,
+            WmmaKind::Bf16 => self.bf16,
+        };
+        r.is_some_and(|(lo, hi)| (lo..=hi).contains(&m))
+    }
+}
+
+/// The table in force: all-off with the knob unset (registry identical to main), else the default or the override.
+pub fn wmma_table() -> Option<&'static WmmaTable> {
+    static T: std::sync::OnceLock<Option<WmmaTable>> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        if !wmma_rows_enabled() {
+            return None;
+        }
+        match std::env::var("INTARSIA_HIP_WMMA_TABLE") {
+            Ok(spec) => Some(WmmaTable::parse(&spec).unwrap_or_else(|e| panic!("INTARSIA_HIP_WMMA_TABLE: {e}"))),
+            Err(_) => Some(WmmaTable::DEFAULT),
+        }
+    })
+    .as_ref()
+}
+
+pub fn wmma_takes(kind: WmmaKind, m: usize) -> bool {
+    wmma_table().is_some_and(|t| t.takes(kind, m))
+}
+
+#[cfg(test)]
+mod wmma_table_tests {
+    use super::*;
+
+    #[test]
+    fn default_takes_every_kind_at_every_row_count() {
+        for kind in [WmmaKind::Fp8A8, WmmaKind::Fp8A16, WmmaKind::Bf16] {
+            for m in 1..=ROWS_MAX {
+                assert!(WmmaTable::DEFAULT.takes(kind, m));
+            }
+            assert!(!WmmaTable::DEFAULT.takes(kind, ROWS_MAX + 1));
+        }
+    }
+
+    #[test]
+    fn override_switches_one_kind_at_its_boundary() {
+        let t = WmmaTable::parse("fp8a8=4-16, bf16=off").unwrap();
+        assert!(!t.takes(WmmaKind::Fp8A8, 3) && t.takes(WmmaKind::Fp8A8, 4) && t.takes(WmmaKind::Fp8A8, 16));
+        assert!(t.takes(WmmaKind::Fp8A16, 1));
+        assert!(!t.takes(WmmaKind::Bf16, 1) && !t.takes(WmmaKind::Bf16, 16));
+        assert_eq!(WmmaTable::parse("").unwrap(), WmmaTable::DEFAULT);
+    }
+
+    #[test]
+    fn bad_override_is_an_error() {
+        for bad in ["fp8a8", "fp8a8=0-4", "fp8a8=5-4", "x=1-2", "bf16=a-b"] {
+            assert!(WmmaTable::parse(bad).is_err(), "{bad}");
+        }
+    }
+}
+
 /// `matmul_fp8_mma_f8` is the default prefill GEMM for the fp8 projections (M >= 5); INTARSIA_HIP_FP8_F8=0 is the kill switch
 /// that puts `matmul_fp8_mma_v2` back (any other value, or unset, keeps f8). Its products are exact like the bf16 kernel's
 /// and it agrees with the cpu reference to 5e-7 (f32 out), but the order of the f32 additions differs (fp8 x fp8 WMMA
@@ -214,7 +329,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| !wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -222,7 +337,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_v2" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| !wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= 49152)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -232,7 +347,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| !wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k * 2 <= 49152 && fp8_q_is_default())
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -243,7 +358,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_wmma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| wmma_rows_enabled() && (1..=4).contains(&s.m) && s.k % 16 == 0)
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=4).contains(&s.m) && s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -252,7 +367,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_wmma_rows" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| wmma_rows_enabled() && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -441,14 +556,14 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 8 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -463,7 +578,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "gated_rmsnorm_matmul_fp8_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -476,7 +591,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
@@ -485,7 +600,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        !wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
+                        !wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16) && fp8_staging_default()
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
@@ -494,7 +609,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_fp8_pair_wmma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k * 2 <= 49152 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -502,7 +617,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| {
-                        wmma_rows_enabled() && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16)
+                        wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.head_dim == 128 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16)
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
@@ -511,14 +626,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     // the norm runs in one window of the (half-width, weight-only) staging: K <= 2048
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "sigmoid_mul_matmul_fp8_wmma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_takes(fp8_kind(s), s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
@@ -532,21 +647,21 @@ pub fn all() -> Vec<KernelImpl> {
                 "rmsnorm_add_matmul_pair_bf16_gemv" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| !wmma_rows_enabled() && s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
+                    .when(|s| !wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 8 == 0 && (8..=8192).contains(&s.k) && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "matmul_pair_bf16_wmma" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 16 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
                 "rmsnorm_add_matmul_pair_bf16_wmma" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_takes(WmmaKind::Bf16, s.m) && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
