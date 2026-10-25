@@ -22,8 +22,8 @@ tm() {  # tag, host env (arm knobs)..., then inner env after "--"
 # (rocprofv3 cannot run in the dev image: `env: error while loading shared libraries: libdw.so.1`, window E 2026-10-25.)
 # With INTARSIA_BATCH_GRAPHS=0 the B=1 batched steps are eager, so the engine's own INTARSIA_HIP_TRACE (event pair per launch) covers them;
 # the solo steps are graph replays and are not traced. Prefill is identical in both arms, so the table diff is the decode difference.
-tm off-trace INTARSIA_WG_ARM=off INTARSIA_HIP_TRACE=1
+tm off-trace WG_ARM=off INTARSIA_HIP_TRACE=1
 tm opt1-trace $OPT1 INTARSIA_HIP_TRACE=1
-tm off-nograph-2 INTARSIA_WG_ARM=off
+tm off-nograph-2 WG_ARM=off
 tm opt1-nograph-2 $OPT1
 echo "CHASE DONE $(( $(date +%s) - T0 )) s"

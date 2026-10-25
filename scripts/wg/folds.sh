@@ -13,7 +13,7 @@ run() {  # tag, env...
   echo "$tag exit=$?  $(grep -E 'TIMING batch B= ?(1|16):' "$LOG/folds-$tag.log" | sed 's/ aggregate.*//' | tr '\n' ' ')"
 }
 for i in 1 2 3; do
-  run off-$i INTARSIA_WG_ARM=off
+  run off-$i WG_ARM=off
   run opt1-$i $OPT1
 done
 ROWS=1 run off-trace INTARSIA_HIP_TRACE=1

@@ -1,0 +1,16 @@
+fleetq: #5353 running on tatooine-r9700: ssh tatooine 'bash ~/wgm-prep.sh all'
+fleetq: #5353 went ahead of the line and must end within 65m (by Sun 14:22); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+== build dev 13:16:55
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 05s
+  Executable tests/tp_mxfp4.rs (/target/release/deps/tp_mxfp4-f7c1b3f080fb479c)
+  Executable tests/tp_remote_acks.rs (/target/release/deps/tp_remote_acks-de8850b5631a40eb)
+  Executable tests/tp_test_bug.rs (/target/release/deps/tp_test_bug-d3cffb5be10603d3)
+== build base 13:18:16
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 40.21s
+PREP DONE 13:18:58
+fleetq: #5353 done (exit 0)

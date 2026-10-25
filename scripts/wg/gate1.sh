@@ -21,7 +21,7 @@ run frag-rows wmma_fp8 INTARSIA_WG_FRAG=1
 run frag-folds wmma INTARSIA_WG_FRAG=1 INTARSIA_HIP_WMMA_DIRECT_MIN=4
 run frag-folds-alldirect wmma INTARSIA_WG_FRAG=1 INTARSIA_HIP_WMMA_DIRECT_MIN=1
 run frag-folds-allstaged wmma INTARSIA_WG_FRAG=1 INTARSIA_HIP_WMMA_DIRECT_MIN=65
-run layout-knobs-off frag_ INTARSIA_WG_NONE=1
+run layout-knobs-off frag_ WG_NONE=1
 run layout-knobs-on frag_ INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_FP8_FRAG=1
 run layout-knobs-on-opt1 frag_ INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_FP8_FRAG=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all
 echo "--- negative controls (each must FAIL)"

@@ -1,0 +1,10 @@
+fleetq: #5354 running on spark1: ssh spark1 'bash ~/wg-cuda-noop.sh'
+== sync 13:17:44
+== build wg-base 13:17:44
+    Finished `release` profile [optimized] target(s) in 21.65s
+== build wg-dev 13:18:06
+    Finished `release` profile [optimized] target(s) in 21.31s
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids

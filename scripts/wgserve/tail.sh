@@ -26,7 +26,7 @@ if [ -x "$HOME/wg-build-abl/bench" ]; then
   ABL=1 BUILD=$HOME/wg-build-abl REPO=$REPO timeout 100 bash "$HOME/wg-bench.sh" run > "$LOG/abl.log" 2>&1
   echo "abl exit=$? $(grep -c '^abl' "$LOG/abl.log") lines"
 else echo "abl: no ablation binary (run tail.sh build first)"; fi
-arm_env() { case $1 in off) echo "INTARSIA_WG_ARM=off" ;; opt1) echo "$K INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all" ;;
+arm_env() { case $1 in off) echo "WG_ARM=off" ;; opt1) echo "$K INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all" ;;
             fp8) echo "$K INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=off" ;; bf16) echo "$K INTARSIA_HIP_WMMA_TABLE=fp8a8=off,bf16=all" ;; esac; }
 for rep in 1 2; do
   for arm in off opt1 fp8 bf16; do
