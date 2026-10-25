@@ -113,7 +113,8 @@ int main(int argc, char** argv) {
             } else {
                 CK(hipMemcpy(got.data(), y1, ob, hipMemcpyDeviceToHost));
                 same = memcmp(ref.data(), got.data(), ob) == 0;
-                if (!same) ++bad;
+                if (!same && !strstr(v.name, "NEG") && !strstr(v.name, "ABL")) ++bad;
+                if (same && strstr(v.name, "NEG")) { ++bad; printf("  NEGATIVE CONTROL DID NOT DIFFER\n"); }
             }
             printf("  %-18s %8.1f us %7.1f TFLOPS %s\n", v.name, best * 1e3,
                    2.0 * s.M * s.N * s.K / (best * 1e-3) / 1e12, same ? "bitwise" : "DIFFERS");
