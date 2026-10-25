@@ -573,6 +573,341 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     return ik_launch_status();
 }
 
+// ---- matmul_mxfp4_mma_fold (lane mx): OPT-IN (INTARSIA_HIP_MXFP4_FOLD=1), changes numerics -----------------------
+//
+// W4A4 MXFP4 on the fp8 x fp8 WMMA at the speed of ik_f8_gemm.h's W8A8 GEMM. Both operands are folded into e4m3 relative to
+// their row's largest group scale: weight row n with ref Wn = max scale byte of the row, activation row m with ref Am = max
+// scale byte over its nonzero groups (after today's QDQ, mx_qdq32). A code of magnitude {0, .5, 1, 1.5, 2, 3, 4, 6} in a
+// group with scale byte s becomes e4m3(mag * 2^t), t = s - ref + 6, which is EXACT for t in [-8, 6] (a row's scales spanning
+// at most 14 octaves; the 27B's weights span at most 10, scripts/mx/scales.py) and rounds to nearest even below (tiny groups
+// of activation rows with a wider span). Then out = acc * 2^(Wn + Am - 266), one fp8 GEMM over the whole K.
+// Against matmul_mxfp4_mma: the products are the same exact values; the sums differ in the last bits (the fp8 WMMA adds
+// in its own order and rounding, scripts/mx/wmma_eq.hip) and the rounded tiny groups. Opt-in only, gated on the 27B KL
+// goldens (docs/results/2026-10-25-mx-hip-27b-prefill.md). W4A16 (act == 0) runs matmul_mxfp4_mma v2 inside.
+// Fragments and k layout as ik_f8_gemm.h (the k order inside a 32-k pair is permuted the same way for both operands).
+
+typedef int mxf8_v2i __attribute__((ext_vector_type(2)));
+IK_DEVI ik_dq_v8f mxf8_wmma(uint32_t alo, uint32_t ahi, uint32_t blo, uint32_t bhi, ik_dq_v8f c) {
+    const uint2 a = make_uint2(alo, ahi), b = make_uint2(blo, bhi);
+    return __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(__builtin_bit_cast(mxf8_v2i, a), __builtin_bit_cast(mxf8_v2i, b),
+                                                                c);
+}
+
+// byte m of row t + 8 = e4m3(mag[m] * 2^t), t = -8 .. 6 (exact; checked when written, scripts/mx/fold_table.py)
+__constant__ uint32_t kMxFoldTab[15][2] = {
+    {0x03020100u, 0x0c080604u}, {0x06040200u, 0x14100c08u}, {0x0c080400u, 0x1c181410u}, {0x14100800u, 0x24201c18u},
+    {0x1c181000u, 0x2c282420u}, {0x24201800u, 0x34302c28u}, {0x2c282000u, 0x3c383430u}, {0x34302800u, 0x44403c38u},
+    {0x3c383000u, 0x4c484440u}, {0x44403800u, 0x54504c48u}, {0x4c484000u, 0x5c585450u}, {0x54504800u, 0x64605c58u},
+    {0x5c585000u, 0x6c686460u}, {0x64605800u, 0x74706c68u}, {0x6c686000u, 0x7c787470u},
+};
+
+// the 8-byte magnitude table for shift t: exact rows for -8 <= t <= 6, else e4m3 RNE of each magnitude (rare)
+IK_DEVI void mx_fold_tab(int t, uint32_t& t0, uint32_t& t1) {
+    if (t >= -8 && t <= 6) {
+        t0 = kMxFoldTab[t + 8][0];
+        t1 = kMxFoldTab[t + 8][1];
+        return;
+    }
+    const float mag[8] = {0.f, 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f, 6.f};
+    uint32_t b[8];
+#pragma unroll
+    for (int m = 0; m < 8; ++m) b[m] = ik_f_to_e4m3(ldexpf(mag[m], t));
+    t0 = b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
+    t1 = b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24);
+}
+
+// 8 e2m1 codes (element j = nibble j) -> 8 e4m3 bytes (element j = byte j) through the magnitude table, sign bit 3 -> 7
+IK_DEVI uint2 mx_fold8(uint32_t w, uint32_t t0, uint32_t t1) {
+    const uint32_t ev = w & 0x0F0F0F0Fu, od = (w >> 4) & 0x0F0F0F0Fu;
+    const uint32_t be = __builtin_amdgcn_perm(t1, t0, ev & 0x07070707u) | ((ev & 0x08080808u) << 4);
+    const uint32_t bo = __builtin_amdgcn_perm(t1, t0, od & 0x07070707u) | ((od & 0x08080808u) << 4);
+    return make_uint2(__builtin_amdgcn_perm(bo, be, 0x05010400u), __builtin_amdgcn_perm(bo, be, 0x07030602u));
+}
+
+// weight row refs: wref[n] = max scale byte of row n (one thread per row)
+__global__ void mx_fold_wref_kernel(const uint8_t* __restrict__ ws, uint8_t* __restrict__ wref, int64_t N, int KG) {
+    const int64_t n = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (n >= N) return;
+    uint32_t mx = 0;
+    const uint8_t* p = ws + n * KG;
+    for (int g = 0; g < KG; ++g) mx = max(mx, (uint32_t)p[g]);
+    wref[n] = (uint8_t)mx;
+}
+
+// activations, one block per row: act != 0 -> xc[m, :] = folded e4m3 of mx_qdq32's codes, aref[m]; act == 0 -> xs = x (bf16)
+constexpr int kFoldMaxG = 1024;  // groups per row (K <= 32768)
+__global__ void __launch_bounds__(256) mx_fold_actq_kernel(const ik_bf16* __restrict__ x, const float* __restrict__ act,
+                                                           uint8_t* __restrict__ xc, uint8_t* __restrict__ aref,
+                                                           ik_bf16* __restrict__ xs, int K) {
+    const int64_t row = blockIdx.x;
+    const int G = K / kG, tid = threadIdx.x;
+    const uint4* xp = reinterpret_cast<const uint4*>(x + row * K);
+    if (act[0] == 0.f) {
+        uint4* dp = reinterpret_cast<uint4*>(xs + row * K);
+        for (int i = tid; i < K / 8; i += blockDim.x) dp[i] = xp[i];
+        return;
+    }
+    __shared__ uint8_t sb_s[kFoldMaxG];
+    __shared__ uint32_t red[8];
+    uint32_t mymax = 0;
+    for (int g = tid; g < G; g += blockDim.x) {
+        float f[kG];
+#pragma unroll
+        for (int i = 0; i < 4; ++i) ik_unpack8(xp[g * 4 + i], f + 8 * i);
+        float amax = 0.f;
+#pragma unroll
+        for (int e = 0; e < kG; ++e) amax = fmaxf(amax, fabsf(f[e]));
+        const uint32_t sb = mx_scale_even(amax);
+        sb_s[g] = (uint8_t)sb;
+        if (amax > 0.f && sb < 255u) mymax = max(mymax, sb);
+    }
+#pragma unroll
+    for (int o = 16; o > 0; o >>= 1) mymax = max(mymax, (uint32_t)__shfl_xor((int)mymax, o, 32));
+    if ((tid & 31) == 0) red[tid >> 5] = mymax;
+    __syncthreads();
+    uint32_t ar = 0;
+    for (int i = 0; i < (int)(blockDim.x >> 5); ++i) ar = max(ar, red[i]);
+    if (ar == 0u) ar = 127u;  // all-zero row: any ref
+    if (tid == 0) aref[row] = (uint8_t)ar;
+    for (int g = tid; g < G; g += blockDim.x) {
+        float f[kG];
+#pragma unroll
+        for (int i = 0; i < 4; ++i) ik_unpack8(xp[g * 4 + i], f + 8 * i);
+        const uint32_t sb = sb_s[g];
+        const float inv = mx_e8m0(254u - sb);
+        const int t = (int)sb - (int)ar + 6;
+        uint32_t d[8];
+#pragma unroll
+        for (int q = 0; q < 8; ++q) {
+            uint32_t v = 0;
+#pragma unroll
+            for (int b = 0; b < 4; ++b) v |= (uint32_t)ik_f_to_e4m3(ldexpf(mx_fp4_round(f[q * 4 + b] * inv), t)) << (8 * b);
+            d[q] = v;
+        }
+        uint4* dp = reinterpret_cast<uint4*>(xc + row * K + g * kG);
+        dp[0] = make_uint4(d[0], d[1], d[2], d[3]);
+        dp[1] = make_uint4(d[4], d[5], d[6], d[7]);
+    }
+}
+
+constexpr int kFoldBK = 64;           // k per stage: two groups
+constexpr int kFoldLD = kFoldBK + 16;  // LDS row stride in bytes (ik_f8_gemm.h's kF8LD)
+
+template <int WN, int WM, int TN, int TM, typename OutT>
+__global__ void __launch_bounds__(WN * WM * 32)
+mx_fold_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__ aref, const uint8_t* __restrict__ w,
+                    const uint8_t* __restrict__ ws, const uint8_t* __restrict__ wref, const float* __restrict__ act,
+                    OutT* __restrict__ out, int M, int64_t N, int K, int vec_out) {
+    if (act[0] == 0.f) return;  // W4A16: the bf16 kernel does this launch
+    constexpr int NT = WN * WM * IK_WARP;
+    constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
+    constexpr int CHW = BN * 2, CHX = BM * 4;  // 16-byte chunks of one stage: weights one group (32 codes), x 16 bytes
+    constexpr int CW = (CHW + NT - 1) / NT, CX = (CHX + NT - 1) / NT;
+    __shared__ __align__(16) uint8_t sw[2][BN * kFoldLD];
+    __shared__ __align__(16) uint8_t sx[2][BM * kFoldLD];
+
+    const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
+    const int wn = wave % WN, wm = wave / WN;
+    const int m_blk = blockIdx.x * BM;
+    const int64_t n_blk = (int64_t)blockIdx.y * BN;
+    const int nk = K / kFoldBK, KG = K / kG;
+
+    uint4 rw[CW], rx[CX];
+    int rt[CW];  // fold shift of the chunk's group
+    int wr[CW];
+#pragma unroll
+    for (int c = 0; c < CW; ++c) {
+        const int64_t n = n_blk + ((tid + c * NT) >> 1);
+        wr[c] = (n < N) ? (int)wref[n] : 127;
+    }
+    auto gload = [&](int k0) {
+#pragma unroll
+        for (int c = 0; c < CW; ++c) {
+            const int idx = tid + c * NT, r = idx >> 1, ch = idx & 1;
+            const int64_t n = n_blk + r;
+            if (idx < CHW && n < N) {
+                rw[c] = *reinterpret_cast<const uint4*>(w + n * (K / 2) + (k0 + ch * kG) / 2);
+                const uint32_t s = ws[n * KG + k0 / kG + ch];
+                rt[c] = s == 255u ? 1000 : (int)s - wr[c] + 6;
+            } else {
+                rw[c] = make_uint4(0, 0, 0, 0);
+                rt[c] = 0;
+            }
+        }
+#pragma unroll
+        for (int c = 0; c < CX; ++c) {
+            const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
+            const int m = m_blk + r;
+            rx[c] = (idx < CHX && m < M) ? *reinterpret_cast<const uint4*>(xc + (int64_t)m * K + k0 + ch * 16) : make_uint4(0, 0, 0, 0);
+        }
+    };
+    auto sstore = [&](int buf) {
+#pragma unroll
+        for (int c = 0; c < CW; ++c) {
+            const int idx = tid + c * NT;
+            if (idx < CHW) {
+                const int r = idx >> 1, ch = idx & 1;
+                uint32_t t0, t1;
+                if (rt[c] == 1000) {
+                    t0 = t1 = 0x7f7f7f7fu;  // scale byte 255: NaN
+                } else {
+                    mx_fold_tab(rt[c], t0, t1);
+                }
+                const uint2 a = mx_fold8(rw[c].x, t0, t1), b = mx_fold8(rw[c].y, t0, t1);
+                const uint2 cc = mx_fold8(rw[c].z, t0, t1), d = mx_fold8(rw[c].w, t0, t1);
+                uint8_t* p = &sw[buf][r * kFoldLD + ch * kG];
+                *reinterpret_cast<uint4*>(p) = make_uint4(a.x, a.y, b.x, b.y);
+                *reinterpret_cast<uint4*>(p + 16) = make_uint4(cc.x, cc.y, d.x, d.y);
+            }
+        }
+#pragma unroll
+        for (int c = 0; c < CX; ++c) {
+            const int idx = tid + c * NT;
+            if (idx < CHX) *reinterpret_cast<uint4*>(&sx[buf][(idx >> 2) * kFoldLD + (idx & 3) * 16]) = rx[c];
+        }
+    };
+
+    ik_dq_v8f acc[TN][TM];
+#pragma unroll
+    for (int i = 0; i < TN; ++i)
+#pragma unroll
+        for (int j = 0; j < TM; ++j)
+#pragma unroll
+            for (int e = 0; e < 8; ++e) acc[i][j][e] = 0.f;
+
+    gload(0);
+    sstore(0);
+    __syncthreads();
+    const int lr = lane & 15, lh = (lane >> 4) * 16;
+    for (int kt = 0; kt < nk; ++kt) {
+        const int buf = kt & 1;
+        if (kt + 1 < nk) gload((kt + 1) * kFoldBK);
+#pragma unroll
+        for (int kk = 0; kk < kFoldBK; kk += 32) {
+            uint4 af[TN], bf[TM];
+#pragma unroll
+            for (int i = 0; i < TN; ++i)
+                af[i] = *reinterpret_cast<const uint4*>(&sw[buf][(wn * TN * 16 + i * 16 + lr) * kFoldLD + kk + lh]);
+#pragma unroll
+            for (int j = 0; j < TM; ++j)
+                bf[j] = *reinterpret_cast<const uint4*>(&sx[buf][(wm * TM * 16 + j * 16 + lr) * kFoldLD + kk + lh]);
+#pragma unroll
+            for (int i = 0; i < TN; ++i)
+#pragma unroll
+                for (int j = 0; j < TM; ++j) {
+                    acc[i][j] = mxf8_wmma(af[i].x, af[i].y, bf[j].x, bf[j].y, acc[i][j]);
+                    acc[i][j] = mxf8_wmma(af[i].z, af[i].w, bf[j].z, bf[j].w, acc[i][j]);
+                }
+        }
+        if (kt + 1 < nk) sstore(buf ^ 1);
+        __syncthreads();
+    }
+
+    const int ln = (lane >> 4) * 8;
+#pragma unroll
+    for (int i = 0; i < TN; ++i) {
+#pragma unroll
+        for (int j = 0; j < TM; ++j) {
+            const int m = m_blk + wm * TM * 16 + j * 16 + lr;
+            const int64_t n = n_blk + wn * TN * 16 + i * 16 + ln;
+            if (m >= M || n >= N) continue;
+            const int ea = (int)aref[m] - 266;
+            float v[8];
+#pragma unroll
+            for (int e = 0; e < 8; ++e) v[e] = ldexpf(acc[i][j][e], ea + (n + e < N ? (int)wref[n + e] : 0));
+            OutT* o = out + (int64_t)m * N + n;
+            if (vec_out) {
+                if (sizeof(OutT) == 2) {
+                    *reinterpret_cast<uint4*>(o) = ik_pack8(v);
+                } else {
+                    reinterpret_cast<float4*>(o)[0] = make_float4(v[0], v[1], v[2], v[3]);
+                    reinterpret_cast<float4*>(o)[1] = make_float4(v[4], v[5], v[6], v[7]);
+                }
+            } else {
+                for (int e = 0; e < 8 && n + e < N; ++e) ik_store(o + e, v[e]);
+            }
+        }
+    }
+}
+
+template <typename OutT>
+void mx_fold_run(const uint8_t* xc, const uint8_t* aref, const uint8_t* w, const uint8_t* ws, const uint8_t* wref,
+                 const float* act, OutT* out, int M, int64_t N, int K, int vec_out, hipStream_t s) {
+#define IK_FOLD_TILE(WN, WM, TN, TM)                                                                                      \
+    {                                                                                                                    \
+        dim3 grid((unsigned)(((int64_t)M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((N + WN * TN * 16 - 1) / (WN * TN * 16))); \
+        mx_fold_gemm_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(xc, aref, w, ws, wref, act, out, M, N, K, vec_out); \
+        return;                                                                                                          \
+    }
+    const int* t = g_mx_tile;
+    if (t[0] > 0) {
+        if (t[0] == 4 && t[1] == 4 && t[2] == 4 && t[3] == 2) IK_FOLD_TILE(4, 4, 4, 2)
+        if (t[0] == 4 && t[1] == 4 && t[2] == 2 && t[3] == 4) IK_FOLD_TILE(4, 4, 2, 4)
+        if (t[0] == 4 && t[1] == 2 && t[2] == 2 && t[3] == 4) IK_FOLD_TILE(4, 2, 2, 4)
+        if (t[0] == 2 && t[1] == 2 && t[2] == 4 && t[3] == 4) IK_FOLD_TILE(2, 2, 4, 4)
+    }
+    // ik_f8_gemm.h's f8_gemm_run table (weights x tokens)
+    if (M <= 64) IK_FOLD_TILE(4, 1, 2, 2)
+    if (M >= 2048 && N >= 8192) IK_FOLD_TILE(4, 4, 4, 2)
+    if (M >= 2048 && ((N + 127) / 128) * (((int64_t)M + 255) / 256) >= 64) IK_FOLD_TILE(4, 4, 2, 4)
+    IK_FOLD_TILE(4, 2, 2, 4)
+#undef IK_FOLD_TILE
+}
+
+// matmul_mxfp4_mma's W4A16 half for the fold launch: exits when act != 0
+struct Mxfp4PolicyV2A16 : Mxfp4PolicyV2 {
+    IK_DEVI bool skip(const DqArgs& a) { return a.sc[0] != 0.f; }
+};
+
+// scratch: [0, 2MK) the bf16 copy (W4A16) or the folded codes [0, MK) (W4A4); then aref [M], wref [N]
+int launch_fold(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out,
+                const ik_scratch* scratch, void* stream) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(act, IK_DTYPE_F32, 1, 4));
+    if (!out || (out->dtype != IK_DTYPE_BF16 && out->dtype != IK_DTYPE_F32)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check(out, out->dtype, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (K % kFoldBK != 0 || K / kG > kFoldMaxG || M == 0 || N == 0) return launch(x, w, sc, act, out, scratch, stream, false);
+    if (w->shape[1] != K / 2 || sc->shape[0] != N || sc->shape[1] != K / kG || act->shape[0] != 1 || out->shape[0] != M ||
+        out->shape[1] != N)
+        return IK_ERR_SHAPE;
+    if (M > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!scratch || !scratch->data || scratch->bytes < M * K * 2 + M + N) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    hipStream_t s = IK_STREAM(stream);
+    uint8_t* xc = (uint8_t*)scratch->data;
+    uint8_t* aref = xc + M * K * 2;
+    uint8_t* wref = aref + M;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const uint8_t* sp = (const uint8_t*)sc->data;
+    const float* ap = (const float*)act->data;
+    mx_cfg_init();
+    mx_fold_wref_kernel<<<(unsigned)((N + 255) / 256), 256, 0, s>>>(sp, wref, N, (int)(K / kG));
+    IK_TRY(ik_launch_status());
+    mx_fold_actq_kernel<<<(unsigned)M, 256, 0, s>>>((const ik_bf16*)x->data, ap, xc, aref, (ik_bf16*)xc, (int)K);
+    IK_TRY(ik_launch_status());
+    const int vec_out = (N % 8 == 0) && ik_aligned16(out->data);
+    const bool f32o = out->dtype == IK_DTYPE_F32;
+    if (f32o) mx_fold_run<float>(xc, aref, wp, sp, wref, ap, (float*)out->data, (int)M, N, (int)K, vec_out, s);
+    else mx_fold_run<ik_bf16>(xc, aref, wp, sp, wref, ap, (ik_bf16*)out->data, (int)M, N, (int)K, vec_out, s);
+    IK_TRY(ik_launch_status());
+    DqArgs a;
+    a.x = (const ik_bf16*)xc;
+    a.w = wp;
+    a.bs = sp;
+    a.sc = ap;
+    a.xq = nullptr;
+    a.M = (int)M;
+    a.N = N;
+    a.K = (int)K;
+    a.vec_out = vec_out;
+    if (f32o) mx_gemm_run<Mxfp4PolicyV2A16>(a, (float*)out->data, s);
+    else mx_gemm_run<Mxfp4PolicyV2A16>(a, (ik_bf16*)out->data, s);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -640,6 +975,12 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
 int ik_matmul_mxfp4_mma_v1(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                            ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return launch(x, w, scales, act, out, scratch, stream, false, false, true);
+}
+// matmul_mxfp4_mma_fold (lane mx, OPT-IN, changes numerics): W4A4 folded onto the fp8 WMMA (launch_fold above). Scratch
+// M * K * 2 + M + N bytes, 16-byte aligned.
+int ik_matmul_mxfp4_mma_fold(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                             ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return launch_fold(x, w, scales, act, out, scratch, stream);
 }
 #ifdef IK_MX_BENCH
 // bench hook: tile (0 = the table) and v1 for the following calls

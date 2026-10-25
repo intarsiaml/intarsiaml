@@ -120,3 +120,10 @@ acc() {
     --mode prefill --prefill-chunk "$c" --max-seq 18432 --allow-unstamped --allow-dirty --write-self-golden /work/mx-out/acc-$tag.safetensors "$@"
   cp "$(T "$tree")/mx-out/acc-$tag.safetensors" "$O/" 2>/dev/null
 }
+# accf <tree> <tag> [args]: 27B accuracy --mode both on P1's W4A4 golden + ref-noise sidecar (the gate), self-golden dump
+accg() {
+  local tree=$1 tag=$2; shift 2
+  run "$tree" 600 "accg-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both \
+    --ref-noise $N27 --write-self-golden /work/mx-out/accg-$tag.safetensors --allow-unstamped --allow-dirty "$@"
+  cp "$(T "$tree")/mx-out/accg-$tag.safetensors" "$O/" 2>/dev/null
+}
