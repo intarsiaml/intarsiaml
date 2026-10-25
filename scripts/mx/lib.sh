@@ -35,12 +35,13 @@ pf() {
   run "$tree" 300 "pf-$tag" "$(mdir "$m")" generate -m "$m" --backend hip --mem-budget 29 --max-seq 18432 --profile-every 0 \
     --ignore-eos -p "$(cat "$(T "$tree")/mx-out/prompt$n.txt")" --max-tokens 1 "$@"
 }
-# ids <tree> <tag> <model> <short|4k> [args]: 256 greedy ids -> $O/ids-<tag>.ids (P1/T2 flags, so md5s compare: 27B tp1 main
+# ids <tree> <tag> <model> <short|4k|16k> [args]: 256 greedy ids -> $O/ids-<tag>.ids (P1/T2 flags, so md5s compare: 27B tp1 main
 # short 2086b6a4, 4k ef88d237 at T2's head)
 ids() {
   local tree=$1 tag=$2 m=$3 kind=$4; shift 4
   local p="$SHORT"; [[ $kind == 4k ]] && p="$(cat "$(T "$tree")/scripts/hip-decode/prompt4k.txt")"
-  run "$tree" 300 "ids-$tag" "$(mdir "$m")" generate -m "$m" --backend hip --mem-budget 29 --max-seq 8192 \
+  [[ $kind == 16k ]] && p="$(cat "$(T "$tree")/mx-out/prompt16384.txt")"
+  run "$tree" 300 "ids-$tag" "$(mdir "$m")" generate -m "$m" --backend hip --mem-budget 29 --max-seq 18432 \
     --profile-every 0 --ignore-eos --show-ids -p "$p" --max-tokens 256 "$@"
   grep -a '^ids:' "$O/ids-$tag.err" > "$O/ids-$tag.ids"
   log "ids $tag md5 $(md5sum < "$O/ids-$tag.ids" | cut -c1-8)"
@@ -89,4 +90,11 @@ ceiling() {
     --group-add video --security-opt seccomp=unconfined -e HIP_VISIBLE_DEVICES=$G -v "$t":/work -w /work --entrypoint bash \
     fx6-rocm-llama:7.2.4 -c "timeout 220 ./mx-out/ceiling27 /opt/rocm/lib/libhipblaslt.so.1" < /dev/null > "$O/ceiling.txt" 2>&1
   log "ceiling exit $?: $(grep -aE 'peak|mlp down ' "$O/ceiling.txt" | head -4 | tr '\n' '|')"
+}
+# hiptest <tree> <tag> <cargo test args...>: the HIP crate's GPU tests from the ...-hiptest volume (built by build.sh HIPTEST=1)
+hiptest() {
+  local tree=$1 tag=$2; shift 2
+  INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=$(V "$tree")-hiptest HIP_VISIBLE_DEVICES=$G timeout 600 "$(T "$tree")/deploy/tatooine/dev.sh" \
+    env ${E:-} cargo test --release -p intarsia-backend-hip "$@" > "$O/test-$tag.txt" 2>&1 < /dev/null
+  log "test $tag exit $?: $(grep -aE '^test result|FAILED|panicked' "$O/test-$tag.txt" | sort | uniq -c | tr '\n' '|' | cut -c1-300)"
 }
