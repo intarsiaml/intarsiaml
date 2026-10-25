@@ -5,7 +5,7 @@ set -uo pipefail
 export HIP_VISIBLE_DEVICES=0
 LOG=$HOME/wg-logs; mkdir -p "$LOG"
 DEV="env INTARSIA_REPO=$HOME/intarsiaml-wg INTARSIA_TARGET_VOL=intarsia-cargo-target-wg $HOME/intarsiaml-wg/deploy/tatooine/dev.sh"
-T="cargo test --release --locked -p intarsia-backend-hip --test rows_exact --test wmma_folds"
+T="cargo test --release --locked -p intarsia-backend-hip --test rows_exact --test wmma_folds --no-fail-fast"
 run() {  # name, env assignments..., then filter
   local name=$1 filter=$2; shift 2
   echo "=== $name  ($*)  filter=$filter  $(date +%T)"

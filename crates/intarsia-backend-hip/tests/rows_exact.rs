@@ -409,7 +409,7 @@ fn wmma_fp8_matches_the_reference_sum() {
             let sc = rig.put(&scales);
             let m = 5;
             let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), m);
-            let flat: Vec<f32> = x_rows.iter().flatten().copied().collect();
+            let flat: Vec<f32> = x_rows[..m].iter().flatten().copied().collect();
             let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[m, k], &flat));
             let got = rig.run("matmul_fp8_wmma", Op::MatmulFp8, &[x.clone(), w, sc], &[(DType::F32, vec![m, n])], &OpAttrs::default())[0].to_f32();
             // reference: the cpu quantiser + exact f64 sum
