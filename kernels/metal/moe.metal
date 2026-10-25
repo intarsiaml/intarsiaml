@@ -618,9 +618,12 @@ MOE_GATHER(moe_gather_f32, float)
 // in flight; the activation block is loaded once for all of them. No grouping by expert: the pairs that share an expert read
 // its blocks at about the same time and the second read comes from the cache (measured faster than serving the pairs of an
 // expert from one threadgroup, the moe_lead scheme of the _x kernels). h by pair, y by pair; moe_gather sums per token in k
-// order. NEG (negative control only, INTARSIA_METAL_NEGCTL): the 16-term fma chain of each block runs in reverse order,
-// which the row gate must catch. (Neither a plain multiply and add, which the compiler contracts back into the fma, nor a
-// split scale fma, which rounds identically when a lane holds one block as in down at I = 512, is a control.)
+// order. NEG (negative control only, INTARSIA_METAL_NEGCTL), each measured to fail the row gate (scripts/mm/gates.sh):
+// gate+up splits each block's scale fma into two fmas of half the block dot (two roundings; at H = 2048 a lane sums 4
+// blocks), down runs the 16-term fma chain of its block in reverse. Neither works for the other: a lane of down holds a
+// single block at I = 512, so the split rounds to the same value, and the in-block sum of e2m1 x bf16 products of
+// gate+up's data is exact in either order. A plain multiply and add is no control either: the compiler contracts it
+// back into the fma.
 
 inline float moe_blk_dot_rev(uint2 wv, thread const float* xv) {
     float t = 0.f;
@@ -664,7 +667,8 @@ inline void moe_dec_gu_p_impl(device const ushort* x, device const int* ids, dev
         for (int i = 0; i < 16; ++i) xv[i] = bf2f(xr[u * 16 + i]);
         for (uint j = 0; j < MOE_PR; ++j) {
             const float dg = moe_blk_dot(uint2(wg[j][u]), xv);
-            ag[j] = fma(NEG ? moe_blk_dot_rev(uint2(wg[j][u]), xv) : dg, moe_e4m3(sgp[j][u]), ag[j]);
+            ag[j] = NEG ? fma(0.5f * dg, moe_e4m3(sgp[j][u]), fma(0.5f * dg, moe_e4m3(sgp[j][u]), ag[j]))
+                        : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
             au[j] = fma(moe_blk_dot(uint2(wu[j][u]), xv), moe_e4m3(sup[j][u]), au[j]);
         }
     }
