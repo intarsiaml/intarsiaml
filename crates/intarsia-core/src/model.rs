@@ -1456,9 +1456,10 @@ impl Model {
         true
     }
 
-    /// Most rows one packed pass holds: the workspace's.
+    /// Most rows one packed pass holds: the workspace's, and no more than the KV capacity: plan resolution sizes the kernel scratch
+    /// for chunks that fit the context, and a packed pass of several prompts must not need more than a solo chunk could.
     pub fn pack_rows_max(&self) -> usize {
-        self.ws.max_tokens
+        self.ws.max_tokens.min(self.plan.kv_cap_tokens.max(1))
     }
 
     /// Whether this model can run [`Model::forward_packed`]: a single rank, no Gemma layers, no plan recording.
@@ -1494,8 +1495,8 @@ impl Model {
             return Err(Error::Unsupported("packed prefill needs a single-rank model without Gemma layers".into()));
         }
         let total: usize = items.iter().map(|(_, ids)| ids.len()).sum();
-        if items.is_empty() || total > self.ws.max_tokens {
-            return Err(Error::invalid(format!("packed prefill of {} prompts, {total} rows (workspace {})", items.len(), self.ws.max_tokens)));
+        if items.is_empty() || total > self.pack_rows_max() {
+            return Err(Error::invalid(format!("packed prefill of {} prompts, {total} rows (at most {})", items.len(), self.pack_rows_max())));
         }
         let mut all: Vec<u32> = Vec::with_capacity(total);
         for (st, ids) in items.iter() {
