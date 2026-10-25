@@ -211,6 +211,8 @@ int main(int argc, char** argv) {
     IK_VAR("p64 sk+dp", 64, kMf8Skip | kMf8Deep)
     IK_VAR("p64 sk+zf", 64, kMf8Skip | kMf8ZFast)
     IK_VAR("p64 s+d+zf", 64, kMf8Skip | kMf8Deep | kMf8ZFast)
+    IK_VAR("p64 sz+pipe", 64, kMf8Skip | kMf8ZFast | kMf8Pipe)
+    IK_VAR("p64 sz+pip+s", 64, kMf8Skip | kMf8ZFast | kMf8Pipe | kMf8Sched)
     IK_VAR("p64 sz+bar", 64, kMf8Skip | kMf8ZFast | kMf8LdsBar)
     IK_VAR("p64 szd+bar", 64, kMf8Skip | kMf8Deep | kMf8ZFast | kMf8LdsBar)
     IK_VAR("p128 sk+zf", 128, kMf8Skip | kMf8ZFast)

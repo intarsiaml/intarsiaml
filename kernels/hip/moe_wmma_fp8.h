@@ -38,8 +38,10 @@ typedef int ik_mf8_v2i __attribute__((ext_vector_type(2)));
 
 constexpr int kMf8KB = 64;          // k per block of the loop
 constexpr int kMf8LD = kMf8KB + 16;  // LDS row of the activation tile (bytes): 80
-constexpr int kMf8Skip = 1, kMf8Deep = 2, kMf8ZFast = 4, kMf8LdsBar = 8;  // variant bits V
-/* kMf8LdsBar: the k loop's barriers order the LDS only (release/acquire fences of the local address space around s_barrier), not global memory.
+constexpr int kMf8Skip = 1, kMf8Deep = 2, kMf8ZFast = 4, kMf8LdsBar = 8, kMf8Pipe = 256, kMf8Sched = 512;  // variant bits V
+/* kMf8Pipe: software-pipelined scale fold: the 4 WMMAs of k16 step t are issued before the 4 x 8 FMAs of step t-1 (independent of them), so the FMAs can
+ * co-issue with the matrix unit instead of waiting for each WMMA's result. kMf8Sched additionally pins the interleave with sched_group_barrier. Same bits.
+ * kMf8LdsBar: the k loop's barriers order the LDS only (release/acquire fences of the local address space around s_barrier), not global memory.
  * __syncthreads() is also a workgroup fence on global memory: s_wait_loadcnt 0, i.e. it waits for the weight and activation prefetches the loop
  * has just issued, which makes the prefetch depth zero (gdn.hip, ik_hip.h). Same bits; speed only.
  * kMf8ZFast: the grid is (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile), so the blocks of one expert's
@@ -143,7 +145,7 @@ __global__ void __launch_bounds__(kMwThreads)
 moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
               const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
               const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk, int y0) {
-    constexpr bool SKIP = (V & kMf8Skip) != 0, ZFAST = (V & kMf8ZFast) != 0, LDSBAR = (V & kMf8LdsBar) != 0;
+    constexpr bool SKIP = (V & kMf8Skip) != 0, ZFAST = (V & kMf8ZFast) != 0, LDSBAR = (V & kMf8LdsBar) != 0, PIPE = (V & kMf8Pipe) != 0, SCHED = (V & kMf8Sched) != 0;
 #ifdef IK_F8_ABLATE
     constexpr bool NOW = (V & kMf8NoW) != 0, NOFMA = (V & kMf8NoFma) != 0, NOLDS = (V & kMf8NoLds) != 0, NODEC = (V & kMf8NoDec) != 0;
 #endif
@@ -234,6 +236,8 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
                 const uint32_t r1 = ik_mf8_xor16(send1), r2 = ik_mf8_xor16(send2);
                 const uint32_t sw[4] = {hi ? r1 : W.c.x, hi ? r2 : W.c.z, hi ? W.c.y : r1, hi ? W.c.w : r2};
                 const ik_mw_v8f zero = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+                ik_mw_v8f pp[JN];  // PIPE: the partials of step t-1, and its block scale
+                float scp = 0.f;
 #pragma unroll
                 for (int t = 0; t < 4; ++t) {
                     uint32_t ev, od;
@@ -243,6 +247,31 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
 #endif
                     const uint2 bw = make_uint2(ev, od);
                     const float sc = ik_mf8_byte(W.s, t);
+                    if constexpr (PIPE) {
+                        ik_mw_v8f pc[JN];
+#pragma unroll
+                        for (int j = 0; j < JN; ++j) {
+                            const uint2 af = *reinterpret_cast<const uint2*>(&sx[buf][(j * 16 + lr) * kMf8LD + t * 16 + h * 8]);
+                            pc[j] = ik_mf8_wmma(af, bw, zero);
+                        }
+                        if (t > 0) {
+#pragma unroll
+                            for (int j = 0; j < JN; ++j)
+#pragma unroll
+                                for (int i = 0; i < 8; ++i) acc[j][i] = __builtin_fmaf(pp[j][i], scp, acc[j][i]);
+                            if constexpr (SCHED) {
+#pragma unroll
+                                for (int j = 0; j < JN; ++j) {
+                                    __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);  // one WMMA
+                                    __builtin_amdgcn_sched_group_barrier(0x002, 8, 0);  // then the 8 FMAs of one fragment of the previous step
+                                }
+                            }
+                        }
+#pragma unroll
+                        for (int j = 0; j < JN; ++j) pp[j] = pc[j];
+                        scp = sc;
+                        continue;
+                    }
 #pragma unroll
                     for (int j = 0; j < JN; ++j) {
                         uint2 af = *reinterpret_cast<const uint2*>(&sx[buf][(j * 16 + lr) * kMf8LD + t * 16 + h * 8]);
@@ -257,6 +286,12 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
 #pragma unroll
                         for (int i = 0; i < 8; ++i) acc[j][i] = __builtin_fmaf(p[i], sc, acc[j][i]);
                     }
+                }
+                if constexpr (PIPE) {
+#pragma unroll
+                    for (int j = 0; j < JN; ++j)
+#pragma unroll
+                        for (int i = 0; i < 8; ++i) acc[j][i] = __builtin_fmaf(pp[j][i], scp, acc[j][i]);
                 }
             };
 

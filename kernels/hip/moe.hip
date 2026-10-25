@@ -261,6 +261,8 @@ void moe_f8_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_
             case kMf8Skip | kMf8Deep | kMf8ZFast: IK_F8_CALL(64, kMf8Skip | kMf8Deep | kMf8ZFast); break;
             case kMf8Skip | kMf8ZFast | kMf8LdsBar: IK_F8_CALL(64, kMf8Skip | kMf8ZFast | kMf8LdsBar); break;
             case kMf8Skip | kMf8Deep | kMf8ZFast | kMf8LdsBar: IK_F8_CALL(64, kMf8Skip | kMf8Deep | kMf8ZFast | kMf8LdsBar); break;
+            case kMf8Skip | kMf8ZFast | kMf8Pipe: IK_F8_CALL(64, kMf8Skip | kMf8ZFast | kMf8Pipe); break;
+            case kMf8Skip | kMf8ZFast | kMf8Pipe | kMf8Sched: IK_F8_CALL(64, kMf8Skip | kMf8ZFast | kMf8Pipe | kMf8Sched); break;
             case 0: IK_F8_CALL(64, 0); break;
             default: IK_F8_CALL(64, kMf8Skip); break;
         }
