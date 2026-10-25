@@ -722,6 +722,9 @@ fn moe_rows_timing() {
     let reps = 50usize;
     let mut rng = SplitMix64::new(77);
     let (e, k, h, i, is) = (256usize, 8usize, 2048usize, 512usize, 512usize);
+    // the standard table runs the old grouped projections (INTARSIA_HIP_MOE_G2=0); the several-rows-per-warp configs follow (INTARSIA_HIP_MOE_ROWS_BENCH_G2)
+    std::env::set_var("INTARSIA_HIP_MOE_G2", "0");
+    let g2_cfgs: Vec<String> = std::env::var("INTARSIA_HIP_MOE_ROWS_BENCH_G2").unwrap_or_default().split(',').filter(|v| !v.is_empty()).map(String::from).collect();
     let base = block_case(&mut rng, 1, e, k, h, i, is, true, false);
     let dev_t = |t: &HostTensor| {
         let buf = be.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
@@ -884,5 +887,47 @@ fn moe_rows_timing() {
             eprintln!("  {n:24} {}", v.iter().map(|x| format!("{x:8.2}")).collect::<Vec<_>>().join(" "));
         }
         drop((g_full, g_topk_ex, g_shared, g_floor, g_tiny, g_fused, g_grouped));
+        // the G2 configs: topk + experts (b) and the grouped block (g) again with another rows-per-warp mapping; the grouped output must stay bit for bit
+        if !g2_cfgs.is_empty() {
+            let rd = |t: &TensorRef| {
+                let mut d = vec![0u8; t.nbytes()];
+                be.download(&t.buf, t.offset, &mut d, 0).unwrap();
+                d
+            };
+            let g_ref = capture(&|| {
+                for l in &ls {
+                    be.launch("moe_block_bf16_grouped", &l.grouped, 0)?;
+                }
+                Ok(())
+            });
+            be.graph_replay(&g_ref, 0).unwrap();
+            be.synchronize(0).unwrap();
+            let want: Vec<Vec<u8>> = ls.iter().map(|l| rd(&l.grouped.outputs[0])).collect();
+            for cfg in &g2_cfgs {
+                std::env::set_var("INTARSIA_HIP_MOE_G2", cfg);
+                let g_b = cap_all(&|l| &l.topk_ex);
+                let g_g = capture(&|| {
+                    for l in &ls {
+                        be.launch("moe_block_bf16_grouped", &l.grouped, 0)?;
+                    }
+                    Ok(())
+                });
+                let g_a = cap_all(&|l| &l.full);
+                be.graph_replay(&g_g, 0).unwrap();
+                be.synchronize(0).unwrap();
+                for (j, l) in ls.iter().enumerate() {
+                    assert!(rd(&l.grouped.outputs[0]) == want[j], "G2={cfg} T={t} layer {j}: the grouped block changed bits");
+                }
+                let (mut tb, mut tg, mut ta) = (Vec::new(), Vec::new(), Vec::new());
+                for _round in 0..3 {
+                    ta.push(time(&g_a));
+                    tb.push(time(&g_b));
+                    tg.push(time(&g_g));
+                }
+                let f = |v: &Vec<f64>| v.iter().map(|x| format!("{x:8.2}")).collect::<Vec<_>>().join(" ");
+                eprintln!("  G2={cfg:<5} (a) unfused {}  (b) topk+experts {}  (g) grouped {}", f(&ta), f(&tb), f(&tg));
+            }
+            std::env::set_var("INTARSIA_HIP_MOE_G2", "0");
+        }
     }
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Lane l7, ON tatooine inside a fleetq job (--load cpu, a few minutes): compile the new HIP translation unit(s) with the build.rs flags, object
-# discarded, so a syntax or type error shows before the long build queues. usage: syntax.sh [file.hip ...] (default moe_block_grouped.hip)
+# discarded, so a syntax or type error shows before the long build queues. usage: syntax.sh [file.hip ...] (default moe.hip moe_block_grouped.hip)
 set -uo pipefail
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
-files=("$@"); [ ${#files[@]} -eq 0 ] && files=(moe_block_grouped.hip)
+files=("$@"); [ ${#files[@]} -eq 0 ] && files=(moe.hip moe_block_grouped.hip)
 for f in "${files[@]}"; do
   echo "== $f"
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$HOME/intarsiaml-l7-hip":/work -w /work "$IMG" \
