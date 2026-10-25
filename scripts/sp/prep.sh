@@ -17,6 +17,10 @@ for t in "${trees[@]}"; do
   INTARSIA_REPO=$HOME/intarsiaml-$t INTARSIA_TARGET_VOL=$vol \
     ~/intarsiaml-sp/deploy/tatooine/dev.sh cargo build --release --locked --features hip -p intarsia-cli 2>&1 | tail -4
 done
+for t in "${trees[@]}"; do
+  vol=intarsia-cargo-target-${t/-base/base}
+  echo "== stamp $t: source $(cat $HOME/intarsiaml-$t/HEAD.txt 2>/dev/null || echo unstamped); cost-gate strings in the binary: $(docker run --rm -v $vol:/t:ro alpine sh -c 'grep -ac intarsia_spec_costgate /t/release/intarsia'); built $(docker run --rm -v $vol:/t:ro alpine sh -c 'ls -l /t/release/intarsia' | awk '{print $6, $7, $8}')"
+done
 echo "== compile gate tests (sp tree)"
 for spec in "-p intarsia-models --test batch_recurrent --test batch_cuda_real --test mtp" "-p intarsia-backend-hip --test rows_exact --test rows_registry"; do
   INTARSIA_REPO=$HOME/intarsiaml-sp INTARSIA_TARGET_VOL=intarsia-cargo-target-sp \

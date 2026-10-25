@@ -1,0 +1,9 @@
+mtp-gate0 n128 rep0 tokens=256 ttft=0.15s decode=185.4 tok/s steps=95 proposed=190 accepted=159 tok/pass=2.67 ms/pass=14.5
+mtp-gate0 n128 rep1 tokens=256 ttft=0.15s decode=194.2 tok/s steps=91 proposed=181 accepted=164 tok/pass=2.80 ms/pass=14.4
+mtp-gate0 n128 rep2 tokens=256 ttft=0.15s decode=188.6 tok/s steps=94 proposed=188 accepted=161 tok/pass=2.71 ms/pass=14.4
+mtp-gate0 n1024 rep0 tokens=256 ttft=0.69s decode=158.4 tok/s steps=108 proposed=215 accepted=147 tok/pass=2.36 ms/pass=14.9
+mtp-gate0 n1024 rep1 tokens=256 ttft=0.69s decode=158.6 tok/s steps=108 proposed=215 accepted=147 tok/pass=2.36 ms/pass=14.9
+mtp-gate0 n1024 rep2 tokens=256 ttft=0.69s decode=155.8 tok/s steps=109 proposed=218 accepted=145 tok/pass=2.33 ms/pass=15.0
+mtp-gate0 n4096 rep0 tokens=256 ttft=2.45s decode=147.9 tok/s steps=105 proposed=210 accepted=150 tok/pass=2.43 ms/pass=16.4
+mtp-gate0 n4096 rep1 tokens=256 ttft=2.55s decode=139.4 tok/s steps=110 proposed=220 accepted=145 tok/pass=2.32 ms/pass=16.6
+mtp-gate0 n4096 rep2 tokens=256 ttft=2.66s decode=135.8 tok/s steps=114 proposed=227 accepted=141 tok/pass=2.24 ms/pass=16.5

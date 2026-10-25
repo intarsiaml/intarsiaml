@@ -1,0 +1,9 @@
+chat-generate off n128 | decode 2032 ms (125.52 tok/s) |  | ms/pass=
+chat-generate off n1024 | decode 2072 ms (123.04 tok/s) |  | ms/pass=
+chat-generate off n4096 | decode 2137 ms (119.34 tok/s) |  | ms/pass=
+chat-generate mtp2 n128 | decode 1420 ms (179.60 tok/s) | spec: verify passes=98 proposed=196 accepted=156 (acceptance 79.6%, 2.59 tokens per pass) | ms/pass=14.5
+chat-generate mtp2 n1024 | decode 1562 ms (163.30 tok/s) | spec: verify passes=105 proposed=209 accepted=150 (acceptance 71.8%, 2.43 tokens per pass) | ms/pass=14.9
+chat-generate mtp2 n4096 | decode 1790 ms (142.48 tok/s) | spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass) | ms/pass=16.3
+chat-generate mtp2cg1 n128 | decode 1400 ms (182.21 tok/s) | spec: verify passes=96 proposed=192 accepted=157 (acceptance 81.8%, 2.64 tokens per pass) | ms/pass=14.6
+chat-generate mtp2cg1 n1024 | decode 1553 ms (164.23 tok/s) | spec: verify passes=104 proposed=207 accepted=150 (acceptance 72.5%, 2.44 tokens per pass) | ms/pass=14.9
+chat-generate mtp2cg1 n4096 | decode 1778 ms (143.46 tok/s) | spec: verify passes=109 proposed=217 accepted=145 (acceptance 66.8%, 2.33 tokens per pass) | ms/pass=16.3
