@@ -2,7 +2,8 @@
 
 Lane mm, 2026-10-25, endor (Apple M5 Max, 128 GB), Qwen3.6-35B-A3B NVFP4, `serve --backend metal --max-batch 8`. Follows
 [mr3](2026-10-23-mr3-metal-row-axis.md) (PR #126) and [mb](2026-10-23-mb-metal-hybrid-batching.md) (PR #124). Branch
-`lane-mm/metal-moe-grouped`, base origin/main 2c2d9941.
+`lane-mm/metal-moe-grouped`. Measured and gated against main 2c2d9941, then rebased on 971f1dcd (between the two, main
+changed only CUDA test files and docs).
 
 ## Result
 
@@ -60,7 +61,9 @@ the fp8 / nvfp4 weight shape and the MoE routing (distinct experts, pairs). New 
 ## Profile (milestone 1)
 
 The per-kernel mode waits on every launch, which lowers the GPU clock: absolute sums are about 1.5x the real step. Read
-the shares. Raw traces in `raw/k*.jsonl.gz`.
+the shares. Raw traces in `raw/k*.jsonl.gz`. The "main" column is the branch's test binary with
+`INTARSIA_METAL_FP8_ROWS_XD=0` before the MoE and nvfp4 changes existed, so it ran main's kernels (`raw/k8base.jsonl.gz`);
+the branch column is the final build (`raw/speed/k8-branch.jsonl.gz`).
 
 | B = 8 share of GPU time | main | branch |
 |---|---:|---:|
@@ -129,7 +132,8 @@ the MoE kernels changed; the default (`NEG = false`) code is the same, and so ar
 | `batch_recurrent` (Metal) | pass, 10 of 10 | `raw/gates/batch_recurrent.log` |
 | Dense Qwen3-8B batched bitwise (`batch_metal`) | pass: 138 (row, step) pairs, 48 decode rows beside 256-token prefill chunks | `raw/gates/dense-8b.log` |
 | Metal batching-off no-op vs main (8B and 35B: `plan show` text and `--json`, 256 greedy ids and output text after an 11-token and a 4.6k-token prompt) | 12 of 12 byte-identical | `raw/noop/` |
-| Workspace tests | 879 passed, 3 failed. 2 are `intarsia-backend-cuda/tests/rows_registry.rs`, which fail on main 2c2d9941 too (the fp8 picks after the cuBLASLt default; open PR #128 re-pins them). 1 was `docs_env_vars` (a tuning row cited two files), fixed, passes on the branch | `raw/gates/workspace.log` |
+| Workspace tests | 879 passed, 3 failed. 2 are `intarsia-backend-cuda/tests/rows_registry.rs`, which fail on main 2c2d9941 too (the fp8 picks after the cuBLASLt default; PR #128 re-pinned them and was merged during
+the lane, so they pass on the rebased branch). 1 was `docs_env_vars` (a tuning row cited two files), fixed, passes on the branch | `raw/gates/workspace.log` |
 
 ## Not run, and why
 
