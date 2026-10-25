@@ -35,7 +35,10 @@ for a in "off:--spec off" "mtp2:--spec mtp --spec-k 2"; do
   for n in ${SIZES//,/ }; do
     $BIN generate -m $M --backend $BE $EXTRA --max-seq 20480 --profile-every 0 --ignore-eos --show-ids --max-tokens 256 --chat --no-think --temperature 0 $args \
       -p "$(cat $NAT/n$n.txt)" > /dev/null 2> $O/chat-$tag-n$n.err < /dev/null
-    echo "chat-generate $tag n$n | $(grep -a 'finish=' $O/chat-$tag-n$n.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60) | $(grep -a '^spec:' $O/chat-$tag-n$n.err | tail -1 | cut -c1-120)"
+    dl=$(grep -a 'finish=' $O/chat-$tag-n$n.err | tail -1 | sed 's/.*| decode/decode/')
+    sl=$(grep -a '^spec:' $O/chat-$tag-n$n.err | tail -1)
+    mspp=$(echo "$dl | $sl" | sed -E 's/decode ([0-9]+) ms.*passes=([0-9]+).*/\1 \2/' | awk 'NF==2{printf "%.1f",$1/$2}')
+    echo "chat-generate $tag n$n | $(echo $dl | cut -c1-40) | $(echo $sl | cut -c1-120) | ms/pass=$mspp"
   done
 done | tee $O/chat-generate.log
 echo "== served"; cat $O/served-*.log

@@ -40,11 +40,12 @@ def one(text):
     dec = (toks - 1) / (last - first) if first and last and last > first else float("nan")
     d = {k: m1[k] - m0[k] for k in m0}
     tpp = (d["accepted_tokens"] + d["steps"]) / d["steps"] if d["steps"] else float("nan")
-    return toks, (first - t0) if first else float("nan"), dec, d, tpp
+    mspp = (last - first) / d["steps"] * 1000 if d["steps"] and first and last else float("nan")
+    return toks, (first - t0) if first else float("nan"), dec, d, tpp, mspp
 
 one("warm up " * 20)
 for s in sizes:
     text = open(f"{nat}/n{s}.txt").read()
     for r in range(reps):
-        toks, ttft, dec, d, tpp = one(text)
-        print(f"{tag} n{s} rep{r} tokens={toks} ttft={ttft:.2f}s decode={dec:.1f} tok/s steps={d['steps']:.0f} proposed={d['proposed_tokens']:.0f} accepted={d['accepted_tokens']:.0f} tok/pass={tpp:.2f}", flush=True)
+        toks, ttft, dec, d, tpp, mspp = one(text)
+        print(f"{tag} n{s} rep{r} tokens={toks} ttft={ttft:.2f}s decode={dec:.1f} tok/s steps={d['steps']:.0f} proposed={d['proposed_tokens']:.0f} accepted={d['accepted_tokens']:.0f} tok/pass={tpp:.2f} ms/pass={mspp:.1f}", flush=True)
