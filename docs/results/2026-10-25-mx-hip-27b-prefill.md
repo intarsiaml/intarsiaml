@@ -1,7 +1,7 @@
 # Lane mx: Qwen3.8-27B MXFP4 prefill on one R9700 (HIP, gfx1201), 2026-10-25
 
-Lane mx, branch `lane-mx/27b-prefill`, rebased on origin/main 5e9cc6da (lane mr's row-exact MXFP4 GEMVs, #145; started from 2c2d9941). Windows w1-w7 ran on
-the tree before that rebase; w8, w9 and loc3 run on the rebased tree against main 5e9cc6da. Every GPU number comes from a fleetq slot on tatooine with
+Lane mx, branch `lane-mx/27b-prefill`, rebased on origin/main 5241377b (#143; before that 5e9cc6da, lane mr's row-exact MXFP4 GEMVs, #145; started from 2c2d9941). It merges cleanly with main a745b624 (#151, HIP lm_head rows), which touches no file this branch changes except docs. w12 and the final CUDA / Metal no-ops run on the 5241377b rebase. Windows w1-w7 ran on
+the tree before the 5e9cc6da rebase; w8-w11 and loc3 ran on the 5e9cc6da rebase against main 5e9cc6da. Every GPU number comes from a fleetq slot on tatooine with
 radiance down (`--takes-down radiance --quiet gpu,cpu`), card 0 only, restored and confirmed `active` after each window
 (`raw/downtime.log`). Raw output: `2026-10-25-mx-hip-27b-prefill/raw/<window>/`. Scripts: `scripts/mx/`.
 
@@ -306,7 +306,9 @@ Spread within each arm is at most 1.7 %; decode 33.0 / 32.4 / 30.8 tok/s in ever
 | 35B KL golden (vLLM top-20, ref noise; prefill + teacher-forced decode) | PASS on main and dev, and the dev dumps are bitwise main (1441 + 160 rows) | raw/w7 accg35-*.out, cmp-golden35-*.txt |
 | 35B acc-short (`qualify --quick-only`), raw/w8 on the rebased tree | **PASS**: prefill top-1 98.61 % KL 7.63e-3, decode top-1 98.75 % KL 1.18e-2; acc-oracle, gate, kernels, bench PASS | raw/w8 qual-35g.err |
 | 35B acc-short, earlier windows | **not obtained**: w6 had no golden dir (SKIP); in w7 `doctor` failed on tatooine's disk (4.5 GB / 2 % free), which blocked `plan`, so acc-short could not match the HIP baseline (MISSING-BASELINE); gate, acc-oracle (top-1 95.86 %, KL 1.07e-2) and bench PASS | raw/w6, raw/w7 qual-35*.err |
-| **final no-op, PR head d2d3c6f vs main 5e9cc6da**, HIP: plan show + 256 ids, no flags | 27B and 35B plan show identical; ids identical for 27B and 35B, short and 4k | raw/w11 |
+| **final HIP no-op, head edfe6c9 (rebased) vs main 5241377b** (#5322), plan show + 256 ids, no flags | 27B and 35B plan show identical; ids identical for 27B and 35B, short and 4k | raw/w12 |
+| gates on the final rebased head (raw/w12) | tests/mxfp4_v2.rs, mxfp4_fold.rs, rows_exact.rs: 3 + 4 + 6 passed; kernels test --quick 27B / 35B: 66 kernels, 365 cases, 0 fail; batch_recurrent `--include-ignored`: 11 passed; 27B batched decode == solo at max-batch 16 (lane mr's S4 test, recipe chunk 256): PASS | raw/w12 |
+| no-op before the last rebase, PR head d2d3c6f vs main 5e9cc6da, HIP: plan show + 256 ids, no flags | 27B and 35B plan show identical; ids identical for 27B and 35B, short and 4k | raw/w11 |
 | earlier no-op vs origin/main 0b84f49, HIP: plan show + 256 ids | 35B: plan show and ids short / 4k identical (raw/w5). 27B: identical at chunk 256 (raw/w4, w5, builds before the recipe table moved to qwen3_5_vl.toml); at the head the 27B plan differs by design (prefill_chunk, its source, prefill_peel); the no-flag plan diff and ids vs main are in w8 | raw/w4, w5, w8 |
 | batch_recurrent `--test-threads=1 --include-ignored` (hip) | 11 passed | raw/w7 mtest-recurrent.txt |
 | 35B batch_cuda_real, hip, `--include-ignored` | 7 pass, 3 fail: the three are CUDA-only expectations (35B solo chunk 2048 is CUDA's; dense 8B batching is refused on HIP; device sampling `forward_batch` top-k). The 8B one fails the same way on main-era code in lane hg's HIP run (`batch_cuda_real.rs:89`, /opt/code/wt-sp/docs/results/2026-10-25-hg-hip-serve-gap/raw/hip/g-c.log); the two 35B ones were not run with `--include-ignored` there, and they fail on a hard-coded CUDA chunk (2048) and on device-sampling `forward_batch`, code this diff does not touch. A main run in w7 is not valid evidence (its test build was seeded from dev's target and git-archive mtimes made cargo reuse dev's artifacts) | raw/w6 mtest-batch.txt |
