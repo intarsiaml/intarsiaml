@@ -145,3 +145,34 @@ moe_experts 19.8%, matmul_fp8 19.1%, matmul (bf16) 12.3%, matmul_nvfp4 12.0%, gd
   is written in this lane.
 - lm_head, 248320 x 5120 bf16: 4.25 ms per sweep for M = 1, 4.27 (M=2), 4.28 (M=3), 4.35 (M=4): flat in M. A k=2 pass sweeps it
   3 times (two drafts and the verify rows): 12.7 ms of the 53.5 ms pass, 8.5 ms of it in the drafts.
+
+## 6. `--mtp-draft-vocab N` (window 5, fleetq #5136; opt-in)
+
+The MTP head's argmax runs over lm_head rows 0..N (token ids 0..N: the frequent end of the BPE vocabulary) instead of all 248320;
+the verify pass keeps the full head. Captured k=2, natural-v1, 256 ids. **The 256-id md5 equals spec off in all 24 cells**
+(same md5 as sections 1 and 2); only acceptance and speed move. Decode tok/s (acceptance):
+
+27B (full head: 47.7 / 45.6 / 51.6 / 46.1; acceptance 77.4 / 72.1 / 91.7 / 87.1%):
+
+| prompt | N=16384 | N=32768 | N=65536 |
+|---|---|---|---|
+| 128 | 49.1 (62.7%) | 52.3 (70.1%) | **53.2** (77.4%) |
+| 1k | 47.6 (59.7%) | 49.8 (65.2%) | **50.3** (71.0%) |
+| 4k | 52.8 (75.4%) | 55.2 (81.9%) | **55.8** (88.0%) |
+| 16k | 48.3 (75.7%) | 50.3 (81.9%) | **50.5** (86.1%) |
+
+35B (full head: 190.8 / 199.1 / 205.7 / 159.9; acceptance 75.4 / 80.9 / 90.6 / 73.3%):
+
+| prompt | N=16384 | N=32768 | N=65536 |
+|---|---|---|---|
+| 128 | 179.9 (60.2%) | 186.5 (65.2%) | **199.1** (74.1%) |
+| 1k | 185.8 (64.4%) | 192.4 (68.7%) | **209.5** (80.9%) |
+| 4k | 196.1 (75.7%) | 205.7 (82.7%) | **216.2** (90.6%) |
+| 16k | 146.0 (55.6%) | 157.8 (64.5%) | **163.1** (69.8%) |
+
+- N=65536 (26% of the vocabulary) is the best of the three on both models: **27B +8 to +12%** over the full head (53.2 / 50.3 /
+  55.8 / 50.5 tok/s against 47.7 / 45.6 / 51.6 / 46.1), **35B +2 to +5%**, with acceptance within about 4 points of the full
+  head. Smaller N saves more head time but loses more tokens than it saves. Total against spec off on the 27B at N=65536:
+  1.61x / 1.53x / 1.72x / 1.64x.
+- Larger N (98304, 131072) was not run; N=65536 already sits near the full-head acceptance.
+- Single runs, one prompt per size: differences of 1 to 2% are noise.
