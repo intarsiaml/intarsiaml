@@ -361,7 +361,7 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
 
 // ---- mxfp4 (Qwen3.8-27B) ---------------------------------------------------------------------------------------------
 
-/// MXFP4 rows (W4A4 dynamic and W4A16) are bitwise the one-row GEMV, M = 1..=8 (the `rows` kernel's cap), on the 27B's
+/// MXFP4 rows (W4A4 dynamic and W4A16) are bitwise the one-row GEMV, M = 1..=16 (the `rows` kernel's cap, ROWS_MAX), on the 27B's
 /// projection shapes and odd edges; the pair kernel too.
 #[test]
 fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
@@ -399,7 +399,7 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
                     n,
                     out_dt,
                     &format!("mxfp4 n={n} k={k} act={act:?} {out_dt:?}"),
-                    8,
+                    CAP,
                 );
             }
         }
@@ -790,7 +790,8 @@ fn timing_mxfp4_rows() {
         let ws: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
         let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
         for kernel in ["matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows"] {
-            for m in [1usize, 2, 3, 4, 5, 8] {
+            let ms: &[usize] = if kernel.ends_with("_rows") { &[1, 2, 3, 4, 5, 6, 7, 8, 12, 16] } else { &[1, 2, 3, 4, 5, 8] };
+            for &m in ms {
                 let mut ins = vec![x.rows(0, m)];
                 ins.extend(ws.iter().cloned());
                 let us = rig.time_us(kernel, Op::MatmulMxfp4, &ins, &[(DType::Bf16, vec![m, n])], &OpAttrs::default(), iters);
