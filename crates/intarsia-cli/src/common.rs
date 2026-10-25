@@ -297,6 +297,7 @@ impl ModelArgs {
                 graphs: !self.no_graphs,
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
                 tp_vocab: tp_vocab(std::env::var_os("INTARSIA_TP_VOCAB").as_deref(), &self.backend, self.tp, &self.comm),
+                tp_arnorm: tp_arnorm(std::env::var_os("INTARSIA_TP_ARNORM").as_deref(), &self.backend, self.tp),
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
             },
@@ -491,6 +492,20 @@ fn tp_vocab(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize, comm: &str)
     }
 }
 
+/// Whether HIP tp=2 fuses each block-end all-reduce with the residual add + rmsnorm after it by default. OFF until the GPU
+/// gates of `scripts/tp2-hip/stages-arnorm.sh` (bitwise ids and dumps, speed) are recorded; flipping it is this one constant.
+const TP_ARNORM_DEFAULT_ON: bool = false;
+
+/// Fused all-reduce + residual add + rmsnorm under tensor parallelism (`LoadOptions::tp_arnorm`; acts at world 2 with fusion
+/// on and a communicator that has it, today HIP's peer-to-peer one). `INTARSIA_TP_ARNORM=0` opts out, any other value asks
+/// for it; unset follows [`TP_ARNORM_DEFAULT_ON`] for HIP at tp=2 and is off elsewhere.
+fn tp_arnorm(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => TP_ARNORM_DEFAULT_ON && backend == "hip" && tp == 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -506,6 +521,17 @@ mod tests {
         assert!(!super::tp_vocab(Some(OsStr::new("0")), "hip", 2, "auto"));
         assert!(super::tp_vocab(Some(OsStr::new("1")), "cpu", 2, "host"));
         assert!(super::tp_vocab(Some(OsStr::new("1")), "hip", 2, "host"));
+    }
+
+    #[test]
+    fn tp_arnorm_env_overrides_and_the_default_is_hip_tp2_only() {
+        use std::ffi::OsStr;
+        assert_eq!(super::tp_arnorm(None, "hip", 2), super::TP_ARNORM_DEFAULT_ON);
+        assert!(!super::tp_arnorm(None, "hip", 1));
+        assert!(!super::tp_arnorm(None, "cuda", 2));
+        assert!(!super::tp_arnorm(None, "cpu", 2));
+        assert!(!super::tp_arnorm(Some(OsStr::new("0")), "hip", 2));
+        assert!(super::tp_arnorm(Some(OsStr::new("1")), "hip", 2));
     }
 
     #[test]

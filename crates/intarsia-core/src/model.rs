@@ -28,6 +28,7 @@ use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+mod ar_norm;
 mod batch;
 mod gdn_batch;
 mod gdn_block;
@@ -79,6 +80,10 @@ pub struct LoadOptions {
     /// library default is off, and a head that cannot be split (vocabulary not a multiple of the communicator's gather quantum x world, a format
     /// without a row-sharded loader) keeps the replicated head on rank 0.
     pub tp_vocab: bool,
+    /// Tensor parallelism: fuse each block-end all-reduce with the standalone residual add + rmsnorm that follows it
+    /// (`Comm::all_reduce_add_rmsnorm`), when the communicator can and `tp_fusion` is on at world 2. Bit for bit the unfused
+    /// pair (`model/ar_norm.rs`). The CLI sets it from `INTARSIA_TP_ARNORM` (default off); the library default is off.
+    pub tp_arnorm: bool,
     /// Load the checkpoint's multi-token-prediction head (recipe `[mtp]`) as the `--spec mtp` drafter. Off: nothing under
     /// the head's prefix is read and the model is exactly the one without it.
     pub mtp: bool,
@@ -103,6 +108,7 @@ impl Default for LoadOptions {
             graphs: true,
             tp_fusion: false,
             tp_vocab: false,
+            tp_arnorm: false,
             mtp: false,
             mtp_k: 0,
         }
@@ -314,6 +320,13 @@ pub struct Model {
     rope_table: Option<RopeTable>,
     /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
     tp_fusion: bool,
+    /// Block-end all-reduces are deferred to the norm that follows (`model/ar_norm.rs`).
+    tp_arnorm: bool,
+    /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
+    ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+    /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
+    ar_fused_eager: std::sync::atomic::AtomicU64,
+    ar_fused_captured: std::sync::atomic::AtomicU64,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -994,6 +1007,8 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
+        let no_comm = std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0");
+        let test_bug = parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?;
         let mut model = Model {
             backend,
             registry,
@@ -1024,9 +1039,13 @@ impl Model {
             rope_table,
             tp_fusion: opts.tp_fusion && tp.world > 1,
             vocab_par,
+            tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
+            ar_defer: Mutex::new(None),
+            ar_fused_eager: Default::default(),
+            ar_fused_captured: Default::default(),
             tp,
-            no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
-            test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
+            no_comm,
+            test_bug,
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
@@ -1748,6 +1767,10 @@ impl Model {
         let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;
+        // a block-end all-reduce held back for this op (`model/ar_norm.rs`): fused with it, or issued before it
+        if self.tp_arnorm && self.resolve_ar(&call, profile)? {
+            return Ok(());
+        }
         {
             let mut rec = self.recorder.lock().unwrap();
             if let Some(r) = rec.as_mut() {
@@ -1977,10 +2000,12 @@ impl Model {
         }
         if dead_tail {
             // nothing reads the hidden state of a chunk that feeds no head
+            self.flush_ar(profile)?;
             return Ok(nv);
         }
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
+        self.flush_ar(profile)?;
         Ok(nv)
     }
 
@@ -2647,6 +2672,9 @@ impl Model {
     /// nothing runs: the call is counted instead (it would otherwise wait for ranks that are not running).
     fn all_reduce(&self, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         let Some(comm) = &self.tp.comm else { return Ok(()) };
+        if self.tp_arnorm {
+            self.flush_ar(profile)?; // a reduction still pending (nothing between two block-end reductions emits an op, but be exact)
+        }
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.comm.push(crate::plan::PlannedComm {
                 phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
@@ -2654,7 +2682,11 @@ impl Model {
                 pos0: r.pos0,
                 bytes: partial.nbytes(),
                 extra: r.extra,
+                fused_norm: false,
             });
+            if self.tp_arnorm {
+                self.defer_ar(partial, out, Some(r.comm.len() - 1));
+            }
             return Ok(());
         }
         if self.no_comm {
@@ -2665,6 +2697,16 @@ impl Model {
                 self.scale_partial(partial, f)?;
             }
         }
+        if self.tp_arnorm {
+            // deferred whether or not this rank profiles the step: rank 1 never does, and the ranks must issue the same collectives
+            self.defer_ar(partial, out, None);
+            return Ok(());
+        }
+        self.reduce_now(comm, partial, out, profile)
+    }
+
+    /// Issue the all-reduce `partial -> out` on the rank's stream (timed and synchronised when `profile`).
+    fn reduce_now(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         if profile {
             self.backend.synchronize(self.stream)?;
         }
@@ -2696,6 +2738,7 @@ impl Model {
                 pos0: r.pos0,
                 bytes: send.nbytes(),
                 extra: r.extra,
+                fused_norm: false,
             });
             return Ok(());
         }

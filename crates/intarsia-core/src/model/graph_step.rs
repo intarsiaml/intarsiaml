@@ -115,6 +115,12 @@ impl GraphState {
 /// that the other ranks replayed in lockstep (a rank that ran eagerly while rank 0 replayed gives the same bits).
 impl Drop for Model {
     fn drop(&mut self) {
+        if self.tp_arnorm {
+            // evidence that the fused all-reduce + rmsnorm ran (eager calls, and calls recorded into a graph: each replay runs those)
+            for m in std::iter::once(&*self).chain(self.peers.iter()) {
+                eprintln!("tensor-parallel rank {}: fused all-reduce+rmsnorm {}", m.tp.rank, m.ar_fused_counts());
+            }
+        }
         for p in &self.peers {
             let g = p.graph_stats();
             eprintln!(

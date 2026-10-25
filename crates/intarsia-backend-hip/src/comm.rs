@@ -13,7 +13,7 @@
 use crate::device::HipBackend;
 use crate::ffi;
 use intarsia_core::backend::{StreamId, TensorRef};
-use intarsia_core::comm::{Comm, CommCounters, CommStats};
+use intarsia_core::comm::{ArNorm, Comm, CommCounters, CommStats};
 use intarsia_core::{DType, Error, Result};
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -308,5 +308,97 @@ impl Comm for P2pComm {
     /// eager one already in the kernel does.
     fn capture_safe(&self) -> bool {
         true
+    }
+
+    fn fuses_ar_norm(&self) -> bool {
+        true
+    }
+    fn ar_norm_supported(&self, a: &ArNorm<'_>) -> bool {
+        self.ar_norm_shape(a).is_some()
+    }
+    fn all_reduce_add_rmsnorm(&self, a: &ArNorm<'_>, stream: StreamId) -> Result<()> {
+        self.all_reduce_add_rmsnorm_impl(a, stream)
+    }
+}
+
+impl P2pComm {
+    /// `(rows, hidden)` when the fused all-reduce + residual add + rmsnorm (`kernels/hip/ar_norm.hip`) takes these operands,
+    /// else None. A pure function of the tensors' dtypes, shapes and offsets, so both ranks, the plan recorder and a captured
+    /// graph decide alike: bf16 activations `[rows, H]` with H a multiple of 8 (the norm's vector path), rows <= NBLOCKS, an
+    /// f32 or bf16 partial, every operand 16-byte aligned, the partial within one scratch slot (decode and small verify
+    /// steps; a prefill chunk keeps the unfused pair).
+    fn ar_norm_shape(&self, a: &ArNorm<'_>) -> Option<(usize, usize)> {
+        let act = [a.out, a.residual, a.weight, a.norm, a.sum];
+        if act.iter().any(|t| t.dtype != DType::Bf16) || !matches!(a.partial.dtype, DType::F32 | DType::Bf16) {
+            return None;
+        }
+        let h = a.weight.numel();
+        if h < 8 || h % 8 != 0 || a.partial.numel() == 0 || a.partial.numel() % h != 0 {
+            return None;
+        }
+        let rows = a.partial.numel() / h;
+        let n = rows * h;
+        // Decode-sized only: block b of the kernel owns whole rows and the grid is NBLOCKS, so more rows would be normed serially
+        // within a block where the unfused norm runs one block per row (a prefill chunk would get slower). Above it, and above
+        // one scratch slot, the model keeps the unfused pair.
+        if rows > NBLOCKS as usize {
+            return None;
+        }
+        if [a.out, a.residual, a.norm, a.sum].iter().any(|t| t.numel() != n || t.nbytes() != n * 2) || a.partial.nbytes() > SLOT_BYTES {
+            return None;
+        }
+        // the unfused pair reads `out` and writes it in place for bf16 partials: it is `partial` or disjoint from it
+        if a.partial.check_bounds().is_err() || act.iter().any(|t| t.check_bounds().is_err()) {
+            return None;
+        }
+        if [a.partial, a.out, a.residual, a.weight, a.norm, a.sum].iter().any(|t| t.offset % 16 != 0) {
+            return None;
+        }
+        Some((rows, h))
+    }
+
+    fn all_reduce_add_rmsnorm_impl(&self, a: &ArNorm<'_>, stream: StreamId) -> Result<()> {
+        if self.group.aborted.load(Ordering::Acquire) {
+            return Err(Error::backend("communicator aborted (another rank failed)"));
+        }
+        let (rows, h) = self
+            .ar_norm_shape(a)
+            .ok_or_else(|| Error::Unsupported("hip all_reduce_add_rmsnorm: operands not supported (ask ar_norm_supported)".into()))?;
+        let total = a.partial.nbytes();
+        self.counters.call(total);
+        self.backend.bind()?;
+        let s = self.backend.stream(stream)?;
+        let ptr = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes());
+        let (me, peer) = (&self.group.bufs[self.rank], &self.group.bufs[1 - self.rank]);
+        // SAFETY: every range is inside its tensor (`ar_norm_shape` bounds-checked them); scratch / flags / counters are
+        // live for the group's lifetime, which the comm keeps alive through `group`.
+        let rc = unsafe {
+            ffi::ik_ar2_add_rmsnorm(
+                ptr(a.partial)? as *mut c_void,
+                ptr(a.out)? as *mut c_void,
+                ptr(a.residual)? as *const c_void,
+                ptr(a.weight)? as *const c_void,
+                ptr(a.norm)? as *mut c_void,
+                ptr(a.sum)? as *mut c_void,
+                a.partial.dtype as i32,
+                rows as i64,
+                h as i64,
+                a.eps,
+                a.w_offset,
+                peer.scratch,
+                me.scratch,
+                peer.flags,
+                me.flags,
+                me.ctrs,
+                SLOT_BYTES as i64,
+                NBLOCKS,
+                self.drain,
+                s,
+            )
+        };
+        if rc != 0 {
+            return Err(Error::backend(format!("ik_ar2_add_rmsnorm returned {} ({rc})", ffi::status_name(rc))));
+        }
+        Ok(())
     }
 }

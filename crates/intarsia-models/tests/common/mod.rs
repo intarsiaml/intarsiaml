@@ -9,6 +9,8 @@ use intarsia_core::weights::MemWeights;
 use intarsia_core::{DType, HostTensor, Result, Telemetry};
 use std::sync::Arc;
 
+pub mod arnorm_comm;
+
 pub const H: usize = 32;
 pub const NH: usize = 4;
 pub const NKV: usize = 2;
