@@ -8,7 +8,8 @@
 //!   chunks, sampling) over greedy and seeded-sampled requests: at one stream it equals `LocalEngine` token for token, and
 //!   with 4 and 16 requests in flight each request's tokens still equal its solo run. (Prefill of a busy engine runs in
 //!   smaller chunks than a solo one: for the greedy prompts below the chunk schedule is the same, see the test.)
-//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels.
+//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels. Where the
+//!   backend refuses to batch a dense model (HIP today, `hip_batch_needs_hybrid`) it prints SKIPPED and passes.
 //!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
 //! `INTARSIA_QWEN3_DIR` (8B); a test whose variable is unset prints SKIPPED and passes, also under `INTARSIA_REQUIRE_GPU=1`
@@ -80,6 +81,17 @@ fn load_with(
     max_seq: usize,
     profile_every: u32,
 ) -> (Model, Arc<Telemetry>) {
+    try_load_with(dir, backend, rows, max_seq, profile_every).unwrap()
+}
+
+/// [`load_with`], with the refusal of `Model::allow_recurrent_batch` returned instead of panicking.
+fn try_load_with(
+    dir: &PathBuf,
+    backend: Arc<dyn intarsia_core::backend::Backend>,
+    rows: usize,
+    max_seq: usize,
+    profile_every: u32,
+) -> intarsia_core::Result<(Model, Arc<Telemetry>)> {
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, backend.name()).value;
@@ -96,13 +108,13 @@ fn load_with(
     assert!(m.batch_capable(), "the GPU backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
-    m.allow_recurrent_batch().unwrap();
+    m.allow_recurrent_batch()?;
     m.enable_batch(rows).unwrap();
     // plan resolution dry-runs every batch size at both ends of the context: a batched op that would pick a kernel that is
     // neither the solo step's nor a row-exact one fails here (`plan::check_batch_ops`)
     m.configure_plan(&Default::default(), None).unwrap();
     assert!(m.plan.kv_cap_tokens >= max_seq, "{} tokens per sequence", m.plan.kv_cap_tokens);
-    (m, tel)
+    Ok((m, tel))
 }
 
 fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_range: (u32, u32)) {
@@ -135,7 +147,16 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
 fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
     let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
-    let m = load(&dir, be, 16, 2048);
+    let m = match try_load_with(&dir, be, 16, 2048, 0) {
+        Ok((m, _)) => m,
+        // the backend refuses to batch a dense model (`hip_batch_needs_hybrid` in model/batch.rs: HIP, until the dense gate
+        // finishes there): nothing to compare. Keyed to that refusal, not to the backend, so the test runs once it is lifted.
+        Err(intarsia_core::Error::Unsupported(e)) if e.contains("dense models are not yet verified") => {
+            eprintln!("SKIPPED: {e}");
+            return;
+        }
+        Err(e) => panic!("{e:?}"),
+    };
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
     // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
     let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
