@@ -220,7 +220,8 @@ void moe_f8_launch_p(int64_t N, unsigned slots, unsigned zt, const uint8_t* xq, 
                      const float* gsc, const int* pairs, const int* offsets, const int* active, ik_bf16* dst, int64_t E, int64_t Kd,
                      int64_t K, hipStream_t s) {
     constexpr int feat = mf8_feat(GATEUP);
-    const dim3 g(slots, (unsigned)((N + feat - 1) / feat), zt);
+    const unsigned yt = (unsigned)((N + feat - 1) / feat);
+    const dim3 g = (V & kMf8ZFast) ? dim3(zt, yt, slots) : dim3(slots, yt, zt);
     ik_rt_stamp(s, GATEUP ? "f8_gate_up" : "f8_down", -1);
     moe_f8_kernel<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(xq, xs, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, 0);
     ik_rt_stamp(s, GATEUP ? "f8_gate_up" : "f8_down", 0);
@@ -252,16 +253,12 @@ void moe_f8_launch(int64_t T, int64_t P, int64_t E, int64_t H, int64_t I, int64_
                    const int* active, ik_bf16* hbuf, ik_bf16* ybuf, uint8_t* qx, float* qxs, uint8_t* qh, float* qhs, hipStream_t s) {
 #define IK_F8_CALL(PAIRS, V) moe_f8_launch_v<PAIRS, V>(T, P, E, H, I, K, slots, x, guw, gus, dw, ds, gsc, pairs, offsets, active, hbuf, ybuf, qx, qxs, qh, qhs, s)
     if (g_f8_pairs == 128) {
-        switch (g_f8_variant) {
-            case kMf8Skip | kMf8Deep: IK_F8_CALL(128, kMf8Skip | kMf8Deep); break;
-            case kMf8Deep: IK_F8_CALL(128, kMf8Deep); break;
-            case 0: IK_F8_CALL(128, 0); break;
-            default: IK_F8_CALL(128, kMf8Skip); break;
-        }
+        IK_F8_CALL(128, kMf8Skip);
     } else {
         switch (g_f8_variant) {
             case kMf8Skip | kMf8Deep: IK_F8_CALL(64, kMf8Skip | kMf8Deep); break;
-            case kMf8Deep: IK_F8_CALL(64, kMf8Deep); break;
+            case kMf8Skip | kMf8ZFast: IK_F8_CALL(64, kMf8Skip | kMf8ZFast); break;
+            case kMf8Skip | kMf8Deep | kMf8ZFast: IK_F8_CALL(64, kMf8Skip | kMf8Deep | kMf8ZFast); break;
             case 0: IK_F8_CALL(64, 0); break;
             default: IK_F8_CALL(64, kMf8Skip); break;
         }

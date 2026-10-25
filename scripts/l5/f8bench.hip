@@ -2,12 +2,13 @@
 // Qwen3.6-35B-A3B shapes (E = 256, top-8, H = 2048, I = 512) on one R9700, in ONE binary.
 //   Build (dev image, repo root): hipcc -O3 -std=c++17 --offload-arch=gfx1201 -I kernels/hip -I kernels/abi scripts/l5/f8bench.hip \
 //         kernels/hip/ik_runtime.hip -ldl -o <out>/f8bench
-//   Run: f8bench [T=4096] [reps=10] [skew=0|1] [check=1]    (T = tokens of the call; pairs = 8 T)
+//   Run: f8bench [T=4096] [reps=10] [skew=0|1] [check=1] [ablate=0]    (T = tokens of the call; pairs = 8 T)
 // Prints per projection ms and TFLOP/s of r7 and of the fp8 kernels (variants), the quantiser passes, and the reference check:
 //   * the quantiser bytes and scales against a host RNE e4m3 quantiser (exact);
 //   * the fp8 gate_up / down outputs of three experts against an f64 reference over the SAME e4m3 inputs read back from the device (what
 //     the kernel must agree with up to f32 accumulation: reported as max |err| in units of the bf16 ulp of the reference and as the number of bf16 outputs that differ);
 //   * the fp8 outputs against the bf16 r7 outputs (relative Frobenius error: the cost of quantising the activations).
+#define IK_F8_ABLATE 1
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -80,6 +81,7 @@ int main(int argc, char** argv) {
     const int reps = argc > 2 ? atoi(argv[2]) : 10;
     const int skew = argc > 3 ? atoi(argv[3]) : 0;
     const int check = argc > 4 ? atoi(argv[4]) : 1;
+    const int ablate = argc > 5 ? atoi(argv[5]) : 0;
     const int64_t E = 256, H = 2048, I = 512, K = 8, P = T * K;
     g_e4.resize(256);
     for (int i = 0; i < 256; ++i) g_e4[i] = e4m3f((uint8_t)i);
@@ -196,9 +198,19 @@ int main(int argc, char** argv) {
     }
     IK_VAR("p64 v0", 64, 0)
     IK_VAR("p64 skip", 64, kMf8Skip)
-    IK_VAR("p64 skp+dp", 64, kMf8Skip | kMf8Deep)
+    IK_VAR("p64 sk+dp", 64, kMf8Skip | kMf8Deep)
+    IK_VAR("p64 sk+zf", 64, kMf8Skip | kMf8ZFast)
+    IK_VAR("p64 s+d+zf", 64, kMf8Skip | kMf8Deep | kMf8ZFast)
     IK_VAR("p128 skip", 128, kMf8Skip)
-    IK_VAR("p128 s+dp", 128, kMf8Skip | kMf8Deep)
+    IK_VAR("p128 sk+zf", 128, kMf8Skip | kMf8ZFast)
+    if (ablate) {
+        IK_VAR("sz NoW", 64, kMf8Skip | kMf8ZFast | kMf8NoW)
+        IK_VAR("sz NoFma", 64, kMf8Skip | kMf8ZFast | kMf8NoFma)
+        IK_VAR("sz NoLds", 64, kMf8Skip | kMf8ZFast | kMf8NoLds)
+        IK_VAR("sz NoDec", 64, kMf8Skip | kMf8ZFast | kMf8NoDec)
+        IK_VAR("sz NoW+Fma", 64, kMf8Skip | kMf8ZFast | kMf8NoW | kMf8NoFma)
+        IK_VAR("sz all-off", 64, kMf8Skip | kMf8ZFast | kMf8NoW | kMf8NoFma | kMf8NoLds | kMf8NoDec)
+    }
 #undef IK_VAR
     printf("best fp8 variant: %s  %.3f ms (r7 %.3f ms, x%.2f)\n", best_name, best_total, t_r7_gu + t_r7_dn, (t_r7_gu + t_r7_dn) / best_total);
 

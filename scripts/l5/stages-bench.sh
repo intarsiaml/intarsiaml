@@ -11,3 +11,4 @@ hb() { # hb <tag> <args...>: f8bench inside the dev image (ROCm libraries) on ca
 }
 for t in $T; do hb "T$t" "$t" 10 0 1; done
 hb "T4096-skew" 4096 10 1 1
+hb "T4096-abl" 4096 10 0 0 1

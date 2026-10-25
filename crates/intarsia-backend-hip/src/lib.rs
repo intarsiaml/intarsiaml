@@ -55,6 +55,15 @@ pub fn moe_down_variants() -> (i32, i32) {
     unsafe { (ffi::ik_hip_moe_mw_down(64), ffi::ik_hip_moe_mw_down(32)) }
 }
 
+/// Lane l5: the fp8-WMMA routed experts as the kernel library resolves them in this process (INTARSIA_HIP_MOE_FP8_WMMA /
+/// INTARSIA_HIP_MOE_FP8_MIN; host-only, no device): (on, fewest tokens that take it, extra scratch bytes for T = 4096, H = 2048,
+/// I = 512, top-8). Pinned by tests/moe_f8_knob.rs, which also checks `quantmoe::moe_f8_extra` against the library's number.
+#[cfg(ik_hip)]
+pub fn moe_f8_state(t: i64, top_k: i64, h: i64, i: i64) -> (bool, i64, i64) {
+    // SAFETY: plain host functions of the kernel library without pointer arguments
+    unsafe { (ffi::ik_hip_moe_f8_enabled() != 0, ffi::ik_hip_moe_f8_min_tokens(), ffi::ik_hip_moe_f8_extra(t, t * top_k, h, i)) }
+}
+
 /// The number of launch pieces the kernel library gives a launch estimated at `est_us` microseconds with at most `max_pieces`
 /// pieces, under the current INTARSIA_HIP_SPLIT_US / INTARSIA_HIP_SPLIT_MIN_US (round 8 split, round 9 trigger;
 /// docs/results/2026-10-19-hip-round9.md). Host-only; pinned by tests/split_trigger.rs.

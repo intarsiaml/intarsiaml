@@ -1,0 +1,13 @@
+T = 512  pairs = 4096  active experts = 256  avg 16.0 max 27 pairs/expert  skew=0  reps=10
+r7 bf16     gate_up    0.784 ms    21.9 TFLOP/s | down    0.351 ms    24.5 TFLOP/s | total    1.135 ms    22.7 TFLOP/s
+quant       x 0.006 ms (512 rows)   h 0.008 ms (4096 rows)
+fp8 p64 v0    gate_up    0.690 ms    24.9 TFLOP/s | down    0.404 ms    21.2 TFLOP/s | +quant total    1.108 ms    23.3 TFLOP/s  x1.03 vs r7
+fp8 p64 skip  gate_up    0.652 ms    26.4 TFLOP/s | down    0.367 ms    23.4 TFLOP/s | +quant total    1.032 ms    25.0 TFLOP/s  x1.10 vs r7
+fp8 p64 skp+dp gate_up    0.615 ms    28.0 TFLOP/s | down    0.375 ms    22.9 TFLOP/s | +quant total    1.003 ms    25.7 TFLOP/s  x1.13 vs r7
+fp8 p128 skip gate_up    1.352 ms    12.7 TFLOP/s | down    0.385 ms    22.3 TFLOP/s | +quant total    1.751 ms    14.7 TFLOP/s  x0.65 vs r7
+fp8 p128 s+dp gate_up    1.558 ms    11.0 TFLOP/s | down    0.388 ms    22.1 TFLOP/s | +quant total    1.960 ms    13.1 TFLOP/s  x0.58 vs r7
+best fp8 variant: p64 skp+dp  1.003 ms (r7 1.135 ms, x1.13)
+quant x check: 0 of 1048576 bytes differ, 0 of 512 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 148 255): gate_up 0 of 5229 bf16 outputs differ, max 0.50 bf16 ulp | down 1 of 11193 differ, max 1.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0367   down y (own h) 0.0438  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0246 (h quantisation alone)

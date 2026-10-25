@@ -38,7 +38,12 @@ typedef int ik_mf8_v2i __attribute__((ext_vector_type(2)));
 
 constexpr int kMf8KB = 64;          // k per block of the loop
 constexpr int kMf8LD = kMf8KB + 16;  // LDS row of the activation tile (bytes): 80
-constexpr int kMf8Skip = 1, kMf8Deep = 2;  // variant bits V
+constexpr int kMf8Skip = 1, kMf8Deep = 2, kMf8ZFast = 4;  // variant bits V
+/* kMf8ZFast: the grid is (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile), so the blocks of one expert's
+ * pair tiles are launched next to each other and read the expert's weights from the L2 together (launch geometry only: same bits). */
+#ifdef IK_F8_ABLATE  /* scripts/l5/f8bench.hip only: timing ablations (the results are wrong by design) */
+constexpr int kMf8NoW = 16, kMf8NoFma = 32, kMf8NoLds = 64, kMf8NoDec = 128;
+#endif
 
 IK_DEVI ik_mw_v8f ik_mf8_wmma(const uint2& a, const uint2& b, const ik_mw_v8f& c) {
     return __builtin_amdgcn_wmma_f32_16x16x16_fp8_fp8_w32_gfx12(__builtin_bit_cast(ik_mf8_v2i, a), __builtin_bit_cast(ik_mf8_v2i, b), c);
@@ -124,7 +129,10 @@ __global__ void __launch_bounds__(kMwThreads)
 moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
               const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
               const int* __restrict__ active, ik_bf16* __restrict__ dst, int E, int Kd, int Nd, int topk, int y0) {
-    constexpr bool SKIP = (V & kMf8Skip) != 0;
+    constexpr bool SKIP = (V & kMf8Skip) != 0, ZFAST = (V & kMf8ZFast) != 0;
+#ifdef IK_F8_ABLATE
+    constexpr bool NOW = (V & kMf8NoW) != 0, NOFMA = (V & kMf8NoFma) != 0, NOLDS = (V & kMf8NoLds) != 0, NODEC = (V & kMf8NoDec) != 0;
+#endif
     constexpr int RING = (V & kMf8Deep) ? 6 : 3;  // weight blocks in flight per lane
     constexpr int FEAT = mf8_feat(GATEUP);
     constexpr int J = PAIRS / 16;   // 16-pair A fragments per weight fragment
@@ -135,11 +143,12 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
     __shared__ int spair[PAIRS];     // pair index of every row of the tile (-1: none)
     __shared__ float srow[PAIRS];    // 64 * a_row of every row of the tile
 
-    const int slot = blockIdx.x;
+    const int slot = ZFAST ? (int)blockIdx.z : (int)blockIdx.x;
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
     const int n0 = ((int)blockIdx.y + y0) * FEAT;
+    const int pt0 = ZFAST ? (int)blockIdx.x : (int)blockIdx.z, ptn = ZFAST ? (int)gridDim.x : (int)gridDim.z;  // first pair tile of this block, stride
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, h = lane >> 4;
     const bool hi = h != 0;
@@ -157,6 +166,13 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
     const uint8_t* wsc = n < Nd ? ws + wrow * kb16 : nullptr;
     auto loadW = [&](int kb) {
         Mf8W r;
+#ifdef IK_F8_ABLATE
+        if (NOW) {
+            r.c = make_uint4(0x12345678u * (kb + 1), 0x9abcdef0u + kb, 0x0fedcba9u ^ kb, 0x87654321u + lane);
+            r.s = 0x38383838u;
+            return r;
+        }
+#endif
         if (wcode) {
             r.c = *reinterpret_cast<const uint4*>(wcode + (int64_t)kb * 32);
             r.s = *reinterpret_cast<const uint32_t*>(wsc + (int64_t)kb * 4);
@@ -167,7 +183,7 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
         return r;
     };
 
-    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+    for (int pt = pt0; pt * PAIRS < cnt; pt += ptn) {
         // this thread's activation rows (rows xr + 64 * r of the tile) and its 16-byte column chunk of the 64-byte k block
         const int xr = tid >> 2, xch = tid & 3;
         const uint8_t* xrow[XR];
@@ -208,11 +224,21 @@ moe_f8_kernel(const uint8_t* __restrict__ xq, const float* __restrict__ xs, cons
                 for (int t = 0; t < 4; ++t) {
                     uint32_t ev, od;
                     ik_fp4x8_to_e4m3(sw[t], ev, od);
+#ifdef IK_F8_ABLATE
+                    if (NODEC) { ev = sw[t]; od = sw[t] ^ 0x01010101u; }
+#endif
                     const uint2 bw = make_uint2(ev, od);
                     const float sc = ik_mf8_byte(W.s, t);
 #pragma unroll
                     for (int j = 0; j < JN; ++j) {
-                        const uint2 af = *reinterpret_cast<const uint2*>(&sx[buf][(j * 16 + lr) * kMf8LD + t * 16 + h * 8]);
+                        uint2 af = *reinterpret_cast<const uint2*>(&sx[buf][(j * 16 + lr) * kMf8LD + t * 16 + h * 8]);
+#ifdef IK_F8_ABLATE
+                        if (NOLDS) af = make_uint2(0x38383838u + t * 0x01010101u + j, 0x30303030u + lane);
+                        if (NOFMA) {
+                            acc[j] = ik_mf8_wmma(af, bw, acc[j]);
+                            continue;
+                        }
+#endif
                         const ik_mw_v8f p = ik_mf8_wmma(af, bw, zero);
 #pragma unroll
                         for (int i = 0; i < 8; ++i) acc[j][i] = __builtin_fmaf(p[i], sc, acc[j][i]);

@@ -7,7 +7,7 @@
 
 use crate::kernels::{ARCH, ROWS_MAX};
 use intarsia_core::quant::ops::{moe_block_scratch, moe_experts_scratch};
-use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
+use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("matmul_fp8_gemv", Op::MatmulFp8),
@@ -312,6 +312,39 @@ pub fn moe_v3_from(v: Option<&str>) -> bool {
     v == Some("1")
 }
 
+/// Lane l5 (kernels/hip/moe_wmma_fp8.h, docs/results/2026-10-25-l5-moe-fp8-wmma.md): the routed experts of a prefill-sized call run on
+/// the fp8 WMMA (activations quantised to e4m3, which CHANGES the numerics) only with INTARSIA_HIP_MOE_FP8_WMMA=1, from
+/// INTARSIA_HIP_MOE_FP8_MIN tokens on. The decision is made inside the kernel library (moe.hip); this mirrors the one thing the host must
+/// know: the extra scratch (the quantised activations) the grouped path takes. Off (the default), `moe_experts_scratch_hip` is exactly
+/// the core's `moe_experts_scratch`.
+pub fn moe_f8_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| moe_f8_from(std::env::var("INTARSIA_HIP_MOE_FP8_WMMA").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MOE_FP8_WMMA -> on: only exactly "1".
+pub fn moe_f8_from(v: Option<&str>) -> bool {
+    v == Some("1")
+}
+
+/// Extra scratch bytes (after `moe_experts_scratch`) of the fp8 path, `moe_f8_extra_bytes` in kernels/hip/moe.hip: quantised gate_up
+/// input `[T, H]` e4m3 + its row scales `[T]` f32, quantised down input `[T*K, I]` e4m3 + `[T*K]` f32, each rounded up to 256 bytes;
+/// 0 when `H` or `I` is not one of the K the quantiser takes (256 * {1, 2, 4, 8, 16}).
+pub fn moe_f8_extra(s: &ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    let ok = |k: usize| matches!(k, 256 | 512 | 1024 | 2048 | 4096);
+    if !ok(s.k) || !ok(s.n) {
+        return 0;
+    }
+    let pairs = s.m * s.top_k;
+    r(s.m * s.k) + r(s.m * 4) + r(pairs * s.n) + r(pairs * 4)
+}
+
+/// The scratch of the grouped (non row-exact) routed-experts launchers: the core layout, plus the fp8 path's when it is on.
+pub fn moe_experts_scratch_hip(s: &ShapeInfo) -> usize {
+    moe_experts_scratch(s) + if moe_f8_enabled() { moe_f8_extra(s) } else { 0 }
+}
+
 /// `moe_block_bf16` (P2', `Op::MoeBlock`: top-k, routed experts, shared expert and combine in one launch, bitwise the default
 /// chain) is ON BY DEFAULT: admissible unless INTARSIA_HIP_MOE_BLOCK=0 (the kill switch; docs/results/2026-10-19-p2prime-moeblock.md). Off, its
 /// `when` is false, so `fused_ok` finds no kernel and the model runs the unfused chain exactly as before. Registered either
@@ -562,7 +595,7 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
-                    .scratch(moe_experts_scratch)
+                    .scratch(moe_experts_scratch_hip)
                     .priority(match *name {
                         "moe_experts_bf16_v3" => {
                             if moe_v3_enabled() {
