@@ -3,7 +3,8 @@
 # scripts/tp2-hip/stages-<W>.sh ON tatooine (timeout CAP s), restores radiance in an EXIT trap on tatooine (so it runs
 # even if the Mac side dies) and waits until it answers, then fetches ~/tp2/out/<W>/ into
 # docs/results/2026-10-25-tp2-hip/raw/<W>/ (dumps excluded) and appends the window to raw/downtime.log.
-#   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --expect 40 --mem 60 --label "tp2 <W>" -- env W=w1 scripts/tp2-hip/window.sh
+#   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 40 --mem 30 --label "tp2 <W>" -- env W=w1 scripts/tp2-hip/window.sh
+#   (--quiet gpu,cpu: a cpu-load build cannot share the box with a window; XENV="D=batch SNAP=batch,mut-x" runs from per-window snapshots of the trees)
 #   (both cards, ONE job; the radiance unit serves TP=2 over both)
 # XENV="D=stack B=base" passes extra variables to the stages script.
 # Lane cap (lane tp2 brief, 2026-10-25): at most 45 min of radiance downtime per window, so CAP (stages) + restore (<= 240 s) <= 45 min.
@@ -30,7 +31,17 @@ restore() {
   done
   echo "[window] RADIANCE DID NOT ANSWER within 240 s $(now)"; return 1
 }
-trap restore EXIT
+# A window runs from its own snapshot of the trees (SNAP=batch,mut-batch-peer-no-table in XENV): no other job (a sync, a rebuild) can write to
+# ~/intarsiaml-tp2-run-<W>-<tree> (w13 lost its tree to a sync). lib.sh's T() reads RUN. Removed when the window ends.
+if [ -n "${SNAP:-}" ]; then
+  for t in ${SNAP//,/ }; do
+    rm -rf "$HOME/intarsiaml-tp2-run-$W-$t"
+    cp -a "$HOME/intarsiaml-tp2-$t" "$HOME/intarsiaml-tp2-run-$W-$t" || { echo "[window] SNAPSHOT OF $t FAILED"; exit 3; }
+  done
+  export RUN=$W
+  echo "[window] running from snapshots $HOME/intarsiaml-tp2-run-$W-{${SNAP}} $(now)"
+fi
+trap 'rm -rf "$HOME"/intarsiaml-tp2-run-"$W"-*; restore' EXIT
 echo "[window] job $FLEETQ_JOB $W; stopping radiance $(now)"
 systemctl --user stop radiance < /dev/null
 sleep 2

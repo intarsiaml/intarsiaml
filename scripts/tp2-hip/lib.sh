@@ -11,7 +11,7 @@ NS=/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json
 NL=/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json
 SHORT='Write a long story about a robot who learns to paint.'
 TP2="--tp 2 --devices 0,1"
-T() { echo "$HOME/intarsiaml-tp2-$1"; }
+T() { echo "$HOME/intarsiaml-tp2-${RUN:+run-$RUN-}$1"; }  # RUN=<window>: the window runs from its own snapshot (window.sh SNAP=)
 log() { echo "$(date +%T) $*" | tee -a "$O/steps.log"; }
 # run <tree> <gpus> <timeout> <tag> <intarsia args...>
 run() {
