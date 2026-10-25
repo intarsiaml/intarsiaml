@@ -117,7 +117,7 @@ Merged head: this branch merged with origin/main `0c142a33` (the only conflict, 
 | no-op CUDA (spark1): same + `kernels test --quick` (77 kernels, 531 cases, main and head) + core lib tests (127 pass) | identical / pass |
 | no-op Metal (endor): same + `kernels test` (44 kernels, 817 cases) + workspace tests | identical / pass after the two guard fixes above |
 | MTP k=2 identity with option 1 on (35B, natural-v1 128 and 1k) | ids equal within the arm: option 1 MTP == option 1 spec off at both sizes; knob-off control equal. Gate decided by the coordinator 2026-10-25: "ids equal within arm" (acceptance equal to knob-off is not a valid criterion for a knob that changes solo output). Acceptance below is info. |
-| accuracy: 35B KL golden prefill + decode, acc-short, option 1 on vs the tracked HIP baseline + envelope | see "Accuracy" |
+| accuracy: 35B KL golden prefill + decode, acc-short, option 1 on vs the tracked HIP baseline + envelope | pass: see "Accuracy" |
 | speed: localeval 1/4/8/16 streams, interleaved x3 | done (above) |
 
 MTP acceptance (info; k=2, 256 tokens, natural-v1; option 1 changes solo output, so the two arms generate different text):
@@ -128,6 +128,21 @@ MTP acceptance (info; k=2, 256 tokens, natural-v1; option 1 changes solo output,
 | 1k | 97 / 194 / 157 (80.9 %, 2.62) | 101 / 202 / 153 (75.7 %, 2.51) |
 
 Decode tok/s with MTP k=2: 190.9 vs 190.8 (128), 198.4 vs 190.9 (1k); spec off: 165.7 vs 159.8 (128), 165.4 vs 159.4 (1k).
+
+## Accuracy (35B, HIP, option 1 on vs knob off; window #5366, merged head, `raw/winAcc/`)
+
+Option 1 (`fp8a8=all,bf16=all`) against the tracked HIP baseline and noise envelope (`golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.{baseline,envelope}.json`, recorded unstamped, so `--allow-unstamped --allow-same-code`), same flags as the recorded run (`--mode both --decode-positions 16 --max-seq 4096 --mem-budget 29`). Thresholds unchanged: class floor 3.0e-2 (21-way KL), baseline margins, envelope k = 2.
+
+| golden | mode | knob off: top-1 / 21-way KL (scored rows) | option 1: top-1 / 21-way KL | floor | baseline + envelope |
+|---|---|---|---|---|---|
+| short (acc-short, 10 prompts) | prefill (n=1279) | 98.61 % / 5.978e-3 | 98.61 % / 5.978e-3 | PASS | PASS |
+| short | decode (n=118) | 98.75 % / 1.214e-2 | 98.12 % / 9.781e-3 | PASS | PASS |
+| long (5 prompts, 16k) | prefill (n=32349) | 94.32 % / 1.420e-2 | 94.32 % / 1.420e-2 | PASS | not requested (no HIP baseline for this golden) |
+| long | decode (n=320) | 96.88 % / 9.273e-3 | 95.94 % / 9.168e-3 | PASS | not requested |
+
+Reading: prefill is bitwise unchanged (the family only serves 64 rows or fewer, prefill chunks are larger). Decode KL is lower with option 1 on both goldens and top-1 moves by one position in 118 and three in 320 (-0.6 and -0.9 pt), inside the margins. Per-prompt, the knob-off control passes the envelope at k = 0; option 1 on the short golden needs k = 2 for one decode check (information row: k = 0: 2 checks, k = 1: 1 check, k = 2: 0, which is the pre-registered default `--envelope-k 2`), so one prompt sits in the spread of correct builds, not outside it. The reference noise (3.0e-3 scored rows on the short golden) is below the static floor, so the floor binds. The warnings printed in all four logs (golden recorded with an fp8 KV cache, run with bf16; unstamped baseline; kernel set differs from the baseline's, which is the knob) are the same in both arms.
+
+Not run: the `qualify` stage set on HIP (it wraps the same acc-short run) and the 8B/27B goldens (the family is not taken for them with the default table).
 
 ## Method notes and limits
 

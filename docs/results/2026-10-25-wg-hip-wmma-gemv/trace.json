@@ -84,5 +84,77 @@
   "f3_cancel_cases_differ": "240/240",
   "swap_adjacent_k_pairs_changes": 0,
   "reverse_k_changes": "726/4000"
+ },
+ "accuracy_35b_hip_option1": {
+  "short_prefill": {
+   "off": [
+    98.61,
+    0.005978
+   ],
+   "opt1": [
+    98.61,
+    0.005978
+   ]
+  },
+  "short_decode": {
+   "off": [
+    98.75,
+    0.01214
+   ],
+   "opt1": [
+    98.12,
+    0.009781
+   ]
+  },
+  "long_prefill": {
+   "off": [
+    94.32,
+    0.0142
+   ],
+   "opt1": [
+    94.32,
+    0.0142
+   ]
+  },
+  "long_decode": {
+   "off": [
+    96.88,
+    0.009273
+   ],
+   "opt1": [
+    95.94,
+    0.009168
+   ]
+  },
+  "verdicts": "floor PASS all; baseline+envelope PASS (short)"
+ },
+ "mtp_k2_option1": {
+  "ids_equal_within_arm": true,
+  "acceptance": {
+   "128": {
+    "off": [
+     102,
+     203,
+     153
+    ],
+    "opt1": [
+     102,
+     204,
+     152
+    ]
+   },
+   "1024": {
+    "off": [
+     97,
+     194,
+     157
+    ],
+    "opt1": [
+     101,
+     202,
+     153
+    ]
+   }
+  }
  }
 }

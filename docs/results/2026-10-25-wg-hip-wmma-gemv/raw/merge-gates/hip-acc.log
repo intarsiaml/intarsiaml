@@ -3,3 +3,14 @@ fleetq: #5366 waiting (#3 in line): in line behind #5364 "wg #152 merge gates: 8
 fleetq:   #5364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5364 set, or it will wait for #5364 to be released.
 fleetq: #5366 waiting (#2 in line): in line behind #5365 "localeval suite adhoc suite-v1 speed-spec+conc-spec natural-v1: tatooine Radiance 1.12.0 Qwen3.8-27B MXFP4 TP2 dflash2 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8" (claude-f07ec01e) on tatooine-r9700
 fleetq: #5366 waiting (#1 in line): needs gpu quiet on tatooine-r9700, but #5365 "localeval suite adhoc suite-v1 speed-spec+conc-spec natural-v1: tatooine Radiance 1.12.0 Qwen3.8-27B MXFP4 TP2 dflash2 + --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8" (claude-f07ec01e) loads it
+fleetq: #5366 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (3 in flight)
+fleetq: #5366 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wgm-win.sh bash ~/wgm-acc.sh'
+[win] stopping radiance 2026-10-25 14:25:41
+opt1-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 9.781e-3 PASS | KL / ref noise = 3.250 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+off-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+opt1-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.168e-3 PASS | KL / ref noise = 0.413 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+off-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+ACC DONE 192 s
+[win] starting radiance 2026-10-25 14:28:56
+[win] radiance answers 2026-10-25 14:29:16 (after 25 s); active
+fleetq: #5366 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
