@@ -11,6 +11,7 @@ set -uo pipefail
 O=$1; S="$(dirname "${BASH_SOURCE[0]}")"; source "$S/lib.sh"
 for t in base dev; do [[ $(T $t)/mx-intarsia -nt $(T $t)/Cargo.toml ]] || { log "NO FRESH BINARY in $(T $t); abort"; exit 3; }; done
 log "w7 start; budget $(left) s; base $(cat $(T base)/.stamp) dev $(cat $(T dev)/.stamp)"
+need 150 "v2 test" && hiptest dev mxfp4-v2 --test mxfp4_v2 --test mxfp4_fold -- --test-threads=1
 # batch tests: batch_recurrent on dev (w6's cargo run stopped at batch_cuda_real's failures), and main's run of the three
 # batch_cuda_real tests that failed on dev under --include-ignored (CUDA-only expectations), from a base mtest build here
 need 600 "mtest" && mtest dev recurrent --test batch_recurrent -- --test-threads=1 --include-ignored
