@@ -2567,8 +2567,9 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
-        if t > 1 && dpos.is_some() && self.backend.verify_attn_per_row() {
-            // captured speculative step on a backend whose multi-row attention takes no device position (HIP): one decode call per row
+        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+            // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
+            // partition follows the call's row count, and it takes no device position): one decode call per row
             // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a
             // table of consecutive device positions, row r reading entry r.
             for r in 0..t {
