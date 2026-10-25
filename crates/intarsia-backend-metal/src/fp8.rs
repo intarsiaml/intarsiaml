@@ -20,7 +20,7 @@ pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 const XPREP: &str = "fp8_xprep_bf16";
 const XPREP_F32: &str = "fp8_xprep_f32";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 79] = [
+pub const SHADERS: [&str; 88] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -35,6 +35,15 @@ pub const SHADERS: [&str; 79] = [
     "fp8_gemv_bf16_m4_xd_neg",
     "fp8_gemv_f32_m4_xd_neg",
     XPREP_F32,
+    "fp8_xprep_t",
+    "fp8_rows_mmt_bf16",
+    "fp8_rows_mmt_bf16_neg",
+    "fp8_rows_mmt_f32",
+    "fp8_rows_mmt_f32_neg",
+    "fp8_rows_mmt_bf16_r2",
+    "fp8_rows_mmt_bf16_neg_r2",
+    "fp8_rows_mmt_f32_r2",
+    "fp8_rows_mmt_f32_neg_r2",
     "fp8_rows_mma_bf16",
     "fp8_rows_mma_f32",
     "fp8_rows_mma_bf16_neg",
@@ -294,12 +303,13 @@ impl MetalBackend {
             Some((mb, rs, xf)) if !f32_out => (Some((mb, rs, xf)), if xf { 4 } else { 2 }),
             _ => (None, if mma_rows() || v2_exp().is_some() || sw_exp().is_some_and(|e| e.2) { 4 } else { 2 }),
         };
-        if xs.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < m * k * xesz + pad {
+        let need = if mmt_rows(m) { k * if m > 8 { 32 } else { 16 } } else { m * k * xesz };
+        if xs.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < need + pad {
             return Err(Error::invalid(format!(
                 "metal {MATMUL_FP8_GEMV_ROWS}: scratch of {} bytes at offset {}, need {} (4-byte aligned)",
                 scratch.numel() * scratch.dtype.size_bytes(),
                 xs.off,
-                m * k * xesz + pad
+                need + pad
             )));
         }
         let xs = crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off + pad, skip: 0 };
@@ -312,6 +322,9 @@ impl MetalBackend {
             (true, true) => (SHADERS[12], GEMV_RS[1], XD_MB),
         };
         let v2 = v2_exp().map(|(mb, rs)| (format!("fp8r2_{}_m{mb}_r{rs}", if f32_out { "f32" } else { "bf16" }), rs, mb));
+        if mmt_rows(m) {
+            return self.launch_fp8_rows_mmt(&xs, (xb, wb, sb, ob), pdims, f32_out, neg);
+        }
         if mma_rows() {
             return self.launch_fp8_rows_mma(&xs, (xb, wb, sb, ob), pdims, f32_out, neg);
         }
@@ -374,7 +387,7 @@ fn xd_on() -> bool {
 
 /// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form; room for f32 rows).
 pub fn rows_scratch(s: &ShapeInfo) -> usize {
-    s.m * s.k * 4 + 16
+    s.m.max(4) * s.k * 4 + 16
 }
 
 /// `INTARSIA_METAL_NEGCTL=fp8_xd`: the `_xd` GEMV with another association on odd blocks (tests only: NOT the solo bits).
@@ -481,6 +494,69 @@ impl MetalBackend {
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(8 * t), height: 1, depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+}
+
+/// `INTARSIA_METAL_FP8_MMT=MIN`: the transposed simdgroup-matrix multi-row GEMV (`fp8_rows_mmt_*`) from MIN rows on.
+fn mmt_rows(m: usize) -> bool {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    m >= *V.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_MMT").ok().and_then(|v| v.parse().ok()).unwrap_or(usize::MAX))
+}
+
+impl MetalBackend {
+    /// `matmul_fp8_gemv_rows` as fp8_xprep_t (block-transposed bf16 q(x), rows padded to 8 or 16) then fp8_rows_mmt_*.
+    fn launch_fp8_rows_mmt(
+        &self,
+        xs: &crate::dense::Bind,
+        (xb, wb, sb, ob): (&crate::dense::Bind, &crate::dense::Bind, &crate::dense::Bind, &crate::dense::Bind),
+        mut pdims: [u32; 8],
+        f32_out: bool,
+        neg: bool,
+    ) -> Result<()> {
+        let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
+        let r = if m > 8 { 2 } else { 1 };
+        let mp = 8 * r;
+        pdims[3] = mp as u32;
+        let name = format!(
+            "fp8_rows_mmt_{}{}{}",
+            if f32_out { "f32" } else { "bf16" },
+            if neg { "_neg" } else { "" },
+            if r > 1 { "_r2" } else { "" }
+        );
+        let pso_x = self.pso("fp8_xprep_t").ok_or_else(|| Error::backend("metal: no pipeline 'fp8_xprep_t'".to_string()))?;
+        let pso = self.pso(&name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let px = OpP { dims: pdims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
+        let pg = OpP { dims: pdims, skips: [0, ob.skip, 0, 0, 0], ..Default::default() };
+        let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size by the caller).
+            unsafe {
+                enc.setComputePipelineState(pso_x);
+                for (i, b) in [xb, sb, xs].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &px, 3);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: k * mp / 2, height: 1, depth: 1 },
+                MTLSize { width: tx, height: 1, depth: 1 },
+            );
+            // SAFETY: as above.
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [xs, wb, sb, ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &pg, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(8), height: 1, depth: 1 },
                 MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
             );
         })
