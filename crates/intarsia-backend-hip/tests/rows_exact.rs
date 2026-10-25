@@ -390,6 +390,17 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
         (33, 2080),
         (1, 4096),
         (64, 6176),
+        // --tp 2 shards of the 27B (lane tp2: w15 found a batched step of 4 rows that differs from the solo step at tp=2 only):
+        // column-parallel halves of q (gated) / k,v / gate,up / the GDN in projections, row-parallel halves of o / down / the GDN
+        // out projection (K = 3072, 8704: not multiples of the 512- and 1024-element lane strides), the vocab-parallel head's half
+        (6144, 5120),
+        (512, 5120),
+        (5120, 3072),
+        (8704, 5120),
+        (5120, 8704),
+        (5120, 5120),
+        (3072, 5120),
+        (124160, 5120),
     ];
     for (n, k) in shapes {
         for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
