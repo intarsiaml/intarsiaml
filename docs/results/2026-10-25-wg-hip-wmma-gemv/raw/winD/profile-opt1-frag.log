@@ -1,0 +1,164 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:599:45
+    |
+599 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 3 tests
+test real_35b_batch_op_listing ... relayout: 130 tensors -> frag order (1279.3 MB)
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12599689216, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11969704605, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+OPLIST solo: 255 launches
+OPLIST   solo         1 x argmax                     argmax_f32
+OPLIST   solo        10 x attn_decode                attn_decode_bf16_splitkv
+OPLIST   solo         1 x embedding                  embedding_bf16
+OPLIST   solo        10 x gate_split_qk_norm_rope_kv gate_split_qk_norm_rope_kv_bf16
+OPLIST   solo        30 x gated_rmsnorm_matmul_fp8   gated_rmsnorm_matmul_fp8_wmma
+OPLIST   solo        30 x gdn_conv_delta             gdn_conv_delta_bf16
+OPLIST   solo        10 x matmul_fp8                 matmul_fp8_wmma
+OPLIST   solo        30 x matmul_fp8_pair            matmul_fp8_pair_wmma
+OPLIST   solo         1 x matmul_nvfp4               matmul_nvfp4_gemv_v2
+OPLIST   solo         1 x matmul_pair                matmul_pair_bf16_wmma
+OPLIST   solo        40 x moe_block                  moe_block_bf16
+OPLIST   solo         1 x rmsnorm                    rmsnorm_bf16
+OPLIST   solo         1 x rmsnorm_add                rmsnorm_add_bf16
+OPLIST   solo        10 x rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma
+OPLIST   solo        69 x rmsnorm_add_matmul_pair    rmsnorm_add_matmul_pair_bf16_wmma
+OPLIST   solo        10 x sigmoid_mul_matmul_fp8     sigmoid_mul_matmul_fp8_wmma
+OPLIST batch4: 574 launches
+OPLIST   batch4       1 x argmax                     argmax_f32
+OPLIST   batch4      10 x attn_decode                attn_decode_bf16_splitkv_rows
+OPLIST   batch4       1 x embedding                  embedding_bf16
+OPLIST   batch4      10 x gate_split                 gate_split_bf16
+OPLIST   batch4      30 x gated_rmsnorm              gated_rmsnorm_bf16
+OPLIST   batch4      30 x gdn_conv                   gdn_conv_bf16_rows
+OPLIST   batch4      30 x gdn_delta_rule             gdn_delta_rule_bf16_v2_rows
+OPLIST   batch4      20 x kv_append                  kv_append_bf16_rows
+OPLIST   batch4     140 x matmul                     matmul_bf16_wmma_rows
+OPLIST   batch4     130 x matmul_fp8                 matmul_fp8_wmma_rows
+OPLIST   batch4       1 x matmul_nvfp4               matmul_nvfp4_gemv_rows
+OPLIST   batch4      40 x moe_block                  moe_block_bf16_rows
+OPLIST   batch4      20 x qk_norm                    qk_norm_bf16
+OPLIST   batch4       1 x rmsnorm                    rmsnorm_bf16
+OPLIST   batch4      80 x rmsnorm_add                rmsnorm_add_bf16
+OPLIST   batch4      20 x rope                       rope_bf16
+OPLIST   batch4      10 x sigmoid_mul                sigmoid_mul_bf16
+OPLIST batch16: 814 launches
+OPLIST   batch16      1 x argmax                     argmax_f32
+OPLIST   batch16     10 x attn_decode                attn_decode_bf16_splitkv_rows
+OPLIST   batch16      1 x embedding                  embedding_bf16
+OPLIST   batch16     10 x gate_split                 gate_split_bf16
+OPLIST   batch16     30 x gated_rmsnorm              gated_rmsnorm_bf16
+OPLIST   batch16     30 x gdn_conv                   gdn_conv_bf16_rows
+OPLIST   batch16     30 x gdn_delta_rule             gdn_delta_rule_bf16_v2_rows
+OPLIST   batch16     20 x kv_append                  kv_append_bf16_rows
+OPLIST   batch16    140 x matmul                     matmul_bf16_wmma_rows
+OPLIST   batch16    130 x matmul_fp8                 matmul_fp8_wmma_rows
+OPLIST   batch16    121 x matmul_nvfp4               matmul_nvfp4_gemv_rows
+OPLIST   batch16     40 x moe_combine                moe_combine_bf16
+OPLIST   batch16     40 x moe_experts                moe_experts_bf16_rows
+OPLIST   batch16     40 x moe_topk                   moe_topk_bf16_v2
+OPLIST   batch16     20 x qk_norm                    qk_norm_bf16
+OPLIST   batch16      1 x rmsnorm                    rmsnorm_bf16
+OPLIST   batch16     80 x rmsnorm_add                rmsnorm_add_bf16
+OPLIST   batch16     20 x rope                       rope_bf16
+OPLIST   batch16     10 x sigmoid_mul                sigmoid_mul_bf16
+OPLIST   batch16     40 x silu_glu                   silu_glu_bf16
+ok
+test real_35b_batch_step_profile ... relayout: 130 tensors -> frag order (1279.3 MB)
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12599689216, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11969704605, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+PROFILE B=1: wall 7.49 ms/step (profiled), op time sum 1.82 ms/step
+PROFILE B=1   moe_block                      40.0 calls/step   0.379 ms/step
+PROFILE B=1   attn_decode                    10.0 calls/step   0.335 ms/step
+PROFILE B=1   matmul_fp8_pair                30.0 calls/step   0.238 ms/step
+PROFILE B=1   rmsnorm_add_matmul_pair        69.0 calls/step   0.215 ms/step
+PROFILE B=1   gdn_conv_delta                 30.0 calls/step   0.176 ms/step
+PROFILE B=1   gated_rmsnorm_matmul_fp8       30.0 calls/step   0.152 ms/step
+PROFILE B=1   matmul_fp8                     10.0 calls/step   0.064 ms/step
+PROFILE B=1   matmul_nvfp4                    1.0 calls/step   0.064 ms/step
+PROFILE B=1   argmax                          1.0 calls/step   0.062 ms/step
+PROFILE B=1   sigmoid_mul_matmul_fp8         10.0 calls/step   0.050 ms/step
+PROFILE B=1   rmsnorm_add_matmul_fp8_pair    10.0 calls/step   0.037 ms/step
+PROFILE B=1   gate_split_qk_norm_rope_kv     10.0 calls/step   0.033 ms/step
+PROFILE B=1   matmul_pair                     1.0 calls/step   0.003 ms/step
+PROFILE B=1   rmsnorm_add                     1.0 calls/step   0.003 ms/step
+PROFILE B=4: wall 23.68 ms/step (profiled), op time sum 23.10 ms/step
+PROFILE B=4   moe_block                      40.0 calls/step   6.762 ms/step
+PROFILE B=4   matmul_fp8                    130.0 calls/step   5.420 ms/step
+PROFILE B=4   matmul                        140.0 calls/step   3.074 ms/step
+PROFILE B=4   rmsnorm_add                    80.0 calls/step   1.821 ms/step
+PROFILE B=4   gdn_delta_rule                 30.0 calls/step   1.622 ms/step
+PROFILE B=4   matmul_nvfp4                    1.0 calls/step   0.682 ms/step
+PROFILE B=4   gdn_conv                       30.0 calls/step   0.666 ms/step
+PROFILE B=4   gated_rmsnorm                  30.0 calls/step   0.661 ms/step
+PROFILE B=4   attn_decode                    10.0 calls/step   0.619 ms/step
+PROFILE B=4   rope                           20.0 calls/step   0.466 ms/step
+PROFILE B=4   qk_norm                        20.0 calls/step   0.416 ms/step
+PROFILE B=4   kv_append                      20.0 calls/step   0.379 ms/step
+PROFILE B=4   sigmoid_mul                    10.0 calls/step   0.215 ms/step
+PROFILE B=4   gate_split                     10.0 calls/step   0.194 ms/step
+PROFILE B=16: wall 44.15 ms/step (profiled), op time sum 43.46 ms/step
+PROFILE B=16   moe_experts                    40.0 calls/step  13.758 ms/step
+PROFILE B=16   matmul_nvfp4                  121.0 calls/step   7.715 ms/step
+PROFILE B=16   matmul_fp8                    130.0 calls/step   5.572 ms/step
+PROFILE B=16   gdn_delta_rule                 30.0 calls/step   3.870 ms/step
+PROFILE B=16   matmul                        140.0 calls/step   3.073 ms/step
+PROFILE B=16   rmsnorm_add                    80.0 calls/step   1.819 ms/step
+PROFILE B=16   attn_decode                    10.0 calls/step   1.408 ms/step
+PROFILE B=16   gdn_conv                       30.0 calls/step   0.995 ms/step
+PROFILE B=16   moe_topk                       40.0 calls/step   0.989 ms/step
+PROFILE B=16   silu_glu                       40.0 calls/step   0.790 ms/step
+PROFILE B=16   moe_combine                    40.0 calls/step   0.768 ms/step
+PROFILE B=16   gated_rmsnorm                  30.0 calls/step   0.683 ms/step
+PROFILE B=16   rope                           20.0 calls/step   0.507 ms/step
+PROFILE B=16   qk_norm                        20.0 calls/step   0.427 ms/step
+ok
+test real_35b_batch_step_timing ... relayout: 130 tensors -> frag order (1279.3 MB)
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12570329088, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11941812483, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+TIMING solo step 57.91 ms (17.3 tok/s)
+TIMING batch B= 1: 6.31 ms/step, 158.4 tok/s aggregate (0.11x solo step)
+TIMING batch B= 2: 9.59 ms/step, 208.6 tok/s aggregate (0.17x solo step)
+TIMING batch B= 4: 13.31 ms/step, 300.5 tok/s aggregate (0.23x solo step)
+TIMING batch B= 8: 19.05 ms/step, 420.0 tok/s aggregate (0.33x solo step)
+TIMING batch B=16: 30.15 ms/step, 530.7 tok/s aggregate (0.52x solo step)
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 14.20s
+

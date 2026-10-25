@@ -911,6 +911,10 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
     if model.prefill_peel() > 0 {
         v["prefill_peel"] = model.prefill_peel().into();
     }
+    // additive and only when a backend re-laid weights out at load (lane wg: HIP `INTARSIA_HIP_FP8_FRAG=1`), so a default plan is unchanged
+    if let Some(l) = model.backend.layout_report() {
+        v["weight_layout"] = l.into();
+    }
     v
 }
 

@@ -21,7 +21,7 @@ pub mod ops;
 pub mod reference;
 pub mod scheme;
 
-use crate::backend::{Backend, TensorRef};
+use crate::backend::{Backend, Layout, TensorRef};
 use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::ops::{Op, OpAttrs, OpCall};
@@ -212,11 +212,18 @@ impl QTensor {
         self.parts.iter().map(|p| p.nbytes()).sum()
     }
 
+    /// The byte order of the weight (`parts[0]`), read from its allocation: [`Layout::RowMajor`] unless a backend rearranged it on
+    /// purpose (HIP, opt-in, dense fp8). Never inferred and never a field that can disagree with the bytes.
+    pub fn layout(&self) -> Layout {
+        self.parts.first().map_or(Layout::RowMajor, |p| p.layout())
+    }
+
+    /// Host copy in the checkpoint's order: a tagged weight is un-permuted (`Backend::download_row_major`), so `dequant` is always
+    /// checkpoint semantics.
     pub fn download(&self, backend: &dyn Backend) -> Result<HostQTensor> {
         let mut parts = Vec::new();
         for p in &self.parts {
-            let mut data = vec![0u8; p.nbytes()];
-            backend.download(&p.buf, p.offset, &mut data, 0)?;
+            let data = backend.download_row_major(p)?;
             parts.push(HostTensor::new(p.dtype, p.shape.clone(), data)?);
         }
         Ok(HostQTensor { format: self.format, n: self.n, k: self.k, parts, act_quant: self.act_quant })

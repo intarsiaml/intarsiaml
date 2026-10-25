@@ -1,0 +1,3 @@
+45:TIMING solo step 12.25 ms (81.6 tok/s)
+46:TIMING batch B= 1: 6.11 ms/step, 163.7 tok/s aggregate (0.50x solo step)
+47:hip trace: 16 batches, 12032 launches, kernel GPU time 2223.9 ms, stream wall time 2268.1 ms, idle between launches 44.2 ms (2% of wall)

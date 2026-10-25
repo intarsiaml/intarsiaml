@@ -1,0 +1,39 @@
+fleetq: #5331 waiting (#7 in line): in line behind #5311 "lane sp: dvocab-default build (tree dv, cpu only, radiance stays up)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5311 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5311 set, or it will wait for #5311 to be released.
+fleetq: #5331 waiting (#6 in line): in line behind #5312 "lane sp: dvocab-default HIP gates, 27B 128/1k (no-op vs main, MTP ids == spec off, explicit 0, acceptance); radiance down <=25 min, restored after" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5312 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5312 set, or it will wait for #5312 to be released.
+fleetq: #5331 waiting (#5 in line): in line behind #5321 "mx build10: trees dev edfe6c9 (PR #144 rebased head) + base 5241377b main, HIP CLI + hip/models test builds (cpu only, radiance stays up)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5321 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5321 set, or it will wait for #5321 to be released.
+fleetq: #5331 waiting (#4 in line): in line behind #5322 "mx w12: final HIP no-op PR #144 rebased head vs main 5241377b (plan show + 256 ids 27B/35B short/4k) + mxfp4/rows tests, kernels quick, batch_recurrent, 27B batched==solo; radiance down <=45 min, rest" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5322 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5322 set, or it will wait for #5322 to be released.
+fleetq: #5331 waiting (#3 in line): in line behind #5327 "gt lane: batch_recurrent/batch_cuda_real/row_tables HIP default-threads gates (base vs branch), radiance down <=60 min, restored after" (claude-416b48ae) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5331 waiting (#2 in line): in line behind #5329 "ac: 27B accuracy window on main 5241377b: W4A16 control + --mxfp4-act none, baselines + envelopes (radiance down <=15 min, restored)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5329 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5329 set, or it will wait for #5329 to be released.
+fleetq: #5331 waiting (#1 in line): radiance-rank0 is also taken down by #5329 "ac: 27B accuracy window on main 5241377b: W4A16 control + --mxfp4-act none, baselines + envelopes (radiance down <=15 min, restored)" (claude-f31ccf91)
+fleetq:   #5329 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5329 set, or it will wait for #5329 to be released.
+fleetq: #5331 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 82% busy with work fleetq does not track
+fleetq: #5331 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5331 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/wt-wg/docs/results/2026-10-25-wg-hip-wmma-gemv/raw/served bash scripts/wgserve/served.sh
+[12:36:06] pre-step: ablation build exit=0 [win] stamped bench-intarsiaml-wg 1b16702ab398c582
+[12:36:09] radiance down; arms off opt1 x 3 passes
+[12:36:31] off-p1: up (1325 s left)
+[12:36:33] off-p1: localeval exit 2 (1323 s left)
+[12:36:51] opt1-p1: up (1305 s left)
+[12:36:51] opt1-p1: localeval exit 2 (1305 s left)
+[12:37:09] opt1-p2: up (1287 s left)
+[12:37:10] opt1-p2: localeval exit 2 (1286 s left)
+[12:37:28] off-p2: up (1268 s left)
+[12:37:29] off-p2: localeval exit 2 (1267 s left)
+[12:37:47] off-p3: up (1249 s left)
+[12:37:48] off-p3: localeval exit 2 (1248 s left)
+[12:38:06] opt1-p3: up (1230 s left)
+[12:38:07] opt1-p3: localeval exit 2 (1229 s left)
+[12:38:09] visits done (1227 s left)
+[12:38:09] tail: 300 s budget
+[12:39:02] tail exit 0: fp8-2 exit=0 1: 6.34 ms/step, 157.8 tok/s 4: 13.55 ms/step, 295.2 tok/s 16: 32.56 ms/step, 491.4 tok/s  bf16-2 exit=0 1: 6.26 ms/step, 159.7 tok/s 4: 13.36 ms/step, 299.3 tok/s 16: 38.11 ms/step, 419.8 tok/s  TAIL DONE 53 s 
+[12:39:24] window process ended
+[win] stopping radiance 2026-10-25 12:36:07 (tree 1b16702ab398c582)
+[hold] done-file 12:39:04
+[win] starting radiance 2026-10-25 12:39:04
+[win] radiance answers 2026-10-25 12:39:24 (after 25 s); active
+fleetq: #5331 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

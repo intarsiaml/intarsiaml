@@ -1,0 +1,8 @@
+fleetq: #5217 waiting (#15 in line): in line behind #5195 "mr gates g3 (S2): MXFP4 rows (radiance down ~30 min, restored after)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5195 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5195 set, or it will wait for #5195 to be released.
+fleetq: #5217 waiting (#15 in line): in line behind #5195 "mr gates g3 (S2): MXFP4 rows (radiance down ~30 min, restored after)" (claude-f31ccf91) on tatooine-r9700; #5195 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5195 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5195 set, or it will wait for #5195 to be released.
+fleetq: #5217 waiting (#14 in line): in line behind #5196 "mr: 27B serve --max-batch 8/16 A/B base vs MXFP4 rows (localeval 1/4/8/16 streams; radiance down ~40 min)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5196 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5196 set, or it will wait for #5196 to be released.
+fleetq: #5217 waiting (#13 in line): in line behind #5197 "mr: cargo rebuild dev intarsia-cli (web assets were missing), cpu only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5197 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5197 set, or it will wait for #5197 to be released.

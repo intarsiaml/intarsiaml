@@ -1,0 +1,104 @@
+/work/kernels/hip/fp8.hip:184:21: warning: unused variable 'r_in' [-Wunused-variable]
+  184 |         const float r_in = Q == 3 ? 1.f / s_in : 0.f;
+      |                     ^~~~
+1 warning generated when compiling for host.
+/work/scripts/wg/bench_f8.cpp:84:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:84:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                                                         ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:97:26: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   97 |         for (auto p : w) hipFree(p);
+      |                          ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:112:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  112 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:112:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  112 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                                                         ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:273:34: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  273 |                 hipEvent_t a, b; hipEventCreate(&a); hipEventCreate(&b);
+      |                                  ^~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:273:54: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  273 |                 hipEvent_t a, b; hipEventCreate(&a); hipEventCreate(&b);
+      |                                                      ^~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:275:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  275 |                 hipEventRecord(a);
+      |                 ^~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:277:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  277 |                 hipEventRecord(b); hipEventSynchronize(b);
+      |                 ^~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:277:36: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  277 |                 hipEventRecord(b); hipEventSynchronize(b);
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:278:32: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  278 |                 float ms_ = 0; hipEventElapsedTime(&ms_, a, b);
+      |                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:323:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  323 |         for (auto p : dw) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:324:28: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  324 |         for (auto p : dwf) hipFree(p);
+      |                            ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |         ^~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |                      ^~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:36: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |                                    ^~~~~~~~~~~~~
+16 warnings generated when compiling for gfx1201.
+/work/scripts/wg/bench_f8.cpp:84:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:84:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                                                         ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:97:26: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   97 |         for (auto p : w) hipFree(p);
+      |                          ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:112:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  112 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:112:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  112 |         for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+      |                                                         ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:273:34: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  273 |                 hipEvent_t a, b; hipEventCreate(&a); hipEventCreate(&b);
+      |                                  ^~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:273:54: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  273 |                 hipEvent_t a, b; hipEventCreate(&a); hipEventCreate(&b);
+      |                                                      ^~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:275:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  275 |                 hipEventRecord(a);
+      |                 ^~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:277:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  277 |                 hipEventRecord(b); hipEventSynchronize(b);
+      |                 ^~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:277:36: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  277 |                 hipEventRecord(b); hipEventSynchronize(b);
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:278:32: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  278 |                 float ms_ = 0; hipEventElapsedTime(&ms_, a, b);
+      |                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:323:27: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  323 |         for (auto p : dw) hipFree(p);
+      |                           ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:324:28: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  324 |         for (auto p : dwf) hipFree(p);
+      |                            ^~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |         ^~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |                      ^~~~~~~~~~~~
+/work/scripts/wg/bench_f8.cpp:325:36: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  325 |         hipFree(dx); hipFree(dsc); hipFree(dout);
+      |                                    ^~~~~~~~~~~~~
+16 warnings generated when compiling for host.
+built
+[win] stamped bench-intarsiaml-wg 1b16702ab398c582
