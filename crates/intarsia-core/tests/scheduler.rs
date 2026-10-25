@@ -1924,21 +1924,21 @@ fn prefill_peel_gives_the_default_chunks_small_passes() {
     // at chunk 512..4096 with the peel, every pass of <= 8 rows is one the default 256 schedule runs (same start, same
     // rows) and every larger pass is whole 256-schedule passes of more than 8 rows: solo prefill (recurrent and not) and a
     // whole-prompt forward (accuracy tooling)
-    for chunk in [512usize, 1024, 2048, 4096] {
+    for (chunk, peel) in [512usize, 1024, 2048, 4096].into_iter().flat_map(|c| [(c, 8usize), (c, 16)]) {
         for len in 1..=9000 {
             for recurrent in [false, true] {
                 let r = prefill_passes(len, 256, 0, recurrent);
-                let b = prefill_passes(len, chunk, 8, recurrent);
-                if let Err(e) = same_small_passes(&r, &b, 8) {
-                    panic!("chunk {chunk} len {len} recurrent {recurrent}: {e}");
+                let b = prefill_passes(len, chunk, peel, recurrent);
+                if let Err(e) = same_small_passes(&r, &b, peel) {
+                    panic!("chunk {chunk} peel {peel} len {len} recurrent {recurrent}: {e}");
                 }
-                let peel_ref = prefill_passes(len, 256, 8, recurrent);
+                let peel_ref = prefill_passes(len, 256, peel, recurrent);
                 assert_eq!(peel_ref, r, "the peel never changes the 256 schedule itself");
             }
             let (mut r, mut b) = (Vec::new(), Vec::new());
             forward_passes(0, len, 256, 0, &mut r);
-            forward_passes(0, len, chunk, 8, &mut b);
-            same_small_passes(&r, &b, 8).unwrap_or_else(|e| panic!("forward chunk {chunk} len {len}: {e}"));
+            forward_passes(0, len, chunk, peel, &mut b);
+            same_small_passes(&r, &b, peel).unwrap_or_else(|e| panic!("forward chunk {chunk} peel {peel} len {len}: {e}"));
         }
     }
 }
@@ -1953,6 +1953,12 @@ fn prefill_peel_negative_controls() {
     assert!(same_small_passes(&r, &b, 8).is_err());
     // a peel smaller than the tail does not reach it
     assert!(same_small_passes(&r, &prefill_passes(261, 4096, 3, true), 8).is_err());
+    // the 27B's case: a 12-row tail (split-KV attention at <= 16 rows at chunk 256) is missed by an 8-row peel
+    let r = prefill_passes(525, 256, 0, true);
+    assert_eq!(r, vec![(0, 256), (256, 256), (512, 12), (524, 1)]);
+    assert!(same_small_passes(&r, &prefill_passes(525, 4096, 8, true), 16).is_err());
+    assert_eq!(prefill_passes(525, 4096, 16, true), vec![(0, 512), (512, 12), (524, 1)]);
+    assert!(same_small_passes(&r, &prefill_passes(525, 4096, 16, true), 16).is_ok());
     // the checker sees a pass that is not a merge of whole reference passes
     assert!(same_small_passes(&[(0, 256), (256, 100)], &[(0, 300), (300, 56)], 8).is_err());
     let fails = (1..=9000)

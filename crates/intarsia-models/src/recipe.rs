@@ -316,7 +316,7 @@ lm_head = { tensor = "h" }
         assert_eq!(id, "builtin:qwen3_5_vl");
         let hip = vl.resolve_prefill_chunk(None, "hip");
         assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5_vl, hip"));
-        assert_eq!(vl.resolve_prefill_peel("hip"), (8, "recipe qwen3_5_vl, hip".to_string()));
+        assert_eq!(vl.resolve_prefill_peel("hip"), (16, "recipe qwen3_5_vl, hip".to_string()));
         assert_eq!(vl.resolve_prefill_chunk(Some(256), "hip").value, 256);
         for be in ["cuda", "metal", "cpu"] {
             assert_eq!(vl.resolve_prefill_chunk(None, be).value, 256, "{be}");

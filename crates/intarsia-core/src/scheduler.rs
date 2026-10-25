@@ -358,10 +358,10 @@ pub fn parse_peel(v: Option<&str>) -> Result<Option<usize>> {
 /// ([`crate::recipe::DEFAULT_PREFILL_CHUNK`], 256), whose length mod 256 is `1..=peel`, runs its first `n - n % 256` rows
 /// first and its last `n % 256` rows as their own pass. The default chunk schedule cuts a pass at the same rows (a pass
 /// at a larger chunk starts where a 256-row pass would and is cut into 256-row passes plus that remainder), so the
-/// short tail runs with exactly the row count, and so the small-row kernels (an M <= 8 GEMV), that the default
-/// schedule runs it with. Passes of more rows take the same kernels at either size where every kernel is row-invariant
-/// (HIP 27B, docs/results/2026-10-25-mx-hip-27b-prefill.md section 4): with the peel a larger chunk gives the bits
-/// of the default one. Returns the rows of the first pass.
+/// short tail runs with exactly the row count, and so the small-row kernels (HIP: the MXFP4 GEMV at <= 8 rows, split-KV
+/// attention at <= 16), that the default schedule runs it with. Passes of more rows take the same kernels at either size
+/// where every kernel is row-invariant above `peel` rows (HIP 27B with peel 16, docs/results/2026-10-25-mx-hip-27b-prefill.md
+/// section 4): with the peel a larger chunk gives the bits of the default one. Returns the rows of the first pass.
 pub fn peel_tail(n: usize, peel: usize) -> usize {
     let r = crate::recipe::DEFAULT_PREFILL_CHUNK;
     let t = n % r;
