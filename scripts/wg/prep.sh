@@ -20,6 +20,9 @@ for step in "$@"; do
     volumes) vols ;;
     base) build wg-base wgbase ;;
     dev) build wg wg ;;
+    tests) INTARSIA_REPO=$HOME/intarsiaml-wg INTARSIA_TARGET_VOL=intarsia-cargo-target-wg ~/intarsiaml-wg/deploy/tatooine/dev.sh \
+             cargo test --release --locked -p intarsia-backend-hip -p intarsia-models --no-run 2>&1 | tail -15 ;;
+    bench) bash ~/wg-bench.sh build 2>&1 | tail -20 ;;
   esac
 done
 echo PREP DONE

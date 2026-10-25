@@ -628,7 +628,7 @@ int bf16_pair_wmma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* w1,
     if (M != 1 || K == 0 || N0 == 0 || N1 == 0 || N0 > 0x7fffffffLL || N1 > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
     if (!ik_aligned16(x->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data)) return IK_ERR_INVALID_ARG;
     F8rCfg c;
-    if (!f8r_cfg(1, K, false, 0, false, &c)) return IK_ERR_SHAPE;
+    if (!f8r_cfg(1, K, false, 0, false, 2, &c)) return IK_ERR_SHAPE;
     const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
     hipStream_t s = IK_STREAM(stream);
     if (c.nj == 16)
@@ -656,7 +656,8 @@ int bf16_norm_pair_wmma(const ik_tensor* x, const ik_tensor* res, const ik_tenso
         return IK_ERR_SHAPE;
     if (K == 0 || N0 == 0 || N1 == 0 || N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
     F8rCfg c;
-    if (!f8r_cfg(1, K, true, (size_t)K * 2, false, &c)) return IK_ERR_SHAPE;
+    // the norm runs once, in one window (it writes `normed` / `sum`)
+    if (!f8r_cfg(1, K, true, (size_t)K * 2, false, 2, &c)) return IK_ERR_SHAPE;  // bf16 weights: the window is in elements, 2 B each
     const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
     hipStream_t s = IK_STREAM(stream);
 #define IK_BF_NP(NJV)                                                                                                                  \
@@ -806,7 +807,7 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik
     ik_bf16 *q0 = (ik_bf16*)o0->data, *q1 = (ik_bf16*)o1->data;
     if (wmma) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, false, 0, false, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, false, 0, false, 1, &c)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
         if (c.nj == 16) f8r_pair_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
         else f8r_pair_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, p0, s0, q0, (int)N0, p1, s1, q1, (int)N1, (int)K, c.kw);
@@ -868,7 +869,7 @@ int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, fl
     ik_bf16* op = (ik_bf16*)out->data;
     if (wmma) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, true, 0, false, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N + 15) / 16);
         if (c.nj == 16) f8r_gated_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
         else f8r_gated_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(xp, zp, np, eps, woff, wp, sp, op, (int)N, (int)K, c.kw);
@@ -928,7 +929,9 @@ int norm_pair(const ik_tensor* x, const ik_tensor* res, const ik_tensor* nw, flo
     if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL) return IK_ERR_SHAPE;
     if (wmma) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, true, (size_t)K * 2, false, &c)) return IK_ERR_SHAPE;
+        // the norm runs once, in one window (it writes `normed` / `sum`): size the window for the weight-only form, which stages the row as
+    // bf16 (kw / 2 elements), i.e. ask for a window of 2 * K rounded up to the chunk (K <= 2048)
+    if (!f8r_cfg(1, 2 * ((K + 255) / 256 * 256), true, (size_t)K * 2, false, 1, &c)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N0 + 15) / 16 + (N1 + 15) / 16);
         if (c.nj == 16)
             f8r_norm_pair_kernel<16><<<grid, kF8rThreads, c.smem, IK_STREAM(stream)>>>(
@@ -986,7 +989,7 @@ int sigmoid_matmul(const ik_tensor* a, const ik_tensor* gate, const ik_tensor* w
     ik_bf16* op = (ik_bf16*)out->data;
     if (wmma) {
         F8rCfg c;
-        if (!f8r_cfg(1, K, true, 0, false, &c)) return IK_ERR_SHAPE;
+        if (!f8r_cfg(1, K, true, 0, false, 1, &c)) return IK_ERR_SHAPE;
         const unsigned grid = (unsigned)((N + 15) / 16);
         if (c.nj == 16) f8r_sigmoid_kernel<16><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);
         else f8r_sigmoid_kernel<8><<<grid, kF8rThreads, c.smem, s>>>(ap, gp, wp, sp, op, (int)N, (int)K, c.kw);

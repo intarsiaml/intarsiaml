@@ -31,6 +31,85 @@ static float bf2f(uint16_t b) { uint32_t u = (uint32_t)b << 16; float f; memcpy(
 extern "C" int ik_matmul_bf16_gemv(const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
 extern "C" int ik_matmul_bf16_gemv_rows(const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
 
+
+extern "C" int ik_matmul_fp8_pair_gemv(const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, ik_tensor*, void*);
+extern "C" int ik_sigmoid_mul_matmul_fp8_gemv(const ik_tensor*, const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, void*);
+extern "C" int ik_matmul_pair_bf16_gemv(const ik_tensor*, const ik_tensor*, const ik_tensor*, ik_tensor*, ik_tensor*, void*);
+
+template <class F> static double time_us(F f, int reps) {
+    f(0); CK(hipDeviceSynchronize());
+    hipEvent_t a, b; (void)hipEventCreate(&a); (void)hipEventCreate(&b);
+    for (int i = 0; i < 4; ++i) f(i);
+    (void)hipEventRecord(a);
+    for (int r = 0; r < reps; ++r) f(r);
+    (void)hipEventRecord(b); (void)hipEventSynchronize(b);
+    float ms = 0; (void)hipEventElapsedTime(&ms, a, b);
+    return ms * 1e3 / reps;
+}
+
+// M = 1 folds, old GEMV fold vs the WMMA fold, weights rotated over enough copies to be DRAM-cold.
+static void bench_folds(std::mt19937& rng) {
+    std::normal_distribution<float> nd(0.f, 1.f);
+    const int K = 2048;
+    std::vector<uint16_t> hx(4096);
+    for (auto& v : hx) v = f2bf(nd(rng));
+    uint16_t *dx, *dg, *o0, *o1; CK(hipMalloc(&dx, 8192)); CK(hipMemcpy(dx, hx.data(), 8192, hipMemcpyHostToDevice));
+    CK(hipMalloc(&dg, 8192)); CK(hipMemcpy(dg, hx.data(), 8192, hipMemcpyHostToDevice));
+    CK(hipMalloc(&o0, 1 << 20)); CK(hipMalloc(&o1, 1 << 20));
+    float hs[2] = {0.02f, 0.15f}; float* dsc; CK(hipMalloc(&dsc, 8)); CK(hipMemcpy(dsc, hs, 8, hipMemcpyHostToDevice));
+    ik_tensor sct = T(dsc, IK_DTYPE_F32, 2);
+    auto fillw = [&](size_t bytes, int copies, bool fp8) {
+        std::vector<uint8_t> h(bytes);
+        for (size_t i = 0; i < bytes; ++i) { uint8_t b = (uint8_t)(rng() & 0xff); if (fp8) { if ((b & 0x7f) == 0x7f) b &= 0xf7; if (((b >> 3) & 15) > 11) b = (b & 0x87) | (8 << 3); } else b = (i & 1) ? (b & 0x3f) | 0x3c * 0 : b; h[i] = b; }
+        std::vector<uint8_t*> d(copies);
+        for (auto& p : d) { CK(hipMalloc(&p, bytes)); CK(hipMemcpy(p, h.data(), bytes, hipMemcpyHostToDevice)); }
+        return d;
+    };
+    struct P { int n0, n1; } fp[] = {{8192, 4096}, {512, 512}, {4096, 2048}};
+    for (auto sh : fp) {
+        size_t b0 = (size_t)sh.n0 * K, b1 = (size_t)sh.n1 * K;
+        int copies = (int)std::max<size_t>(3, (size_t)(300 << 20) / (b0 + b1) + 1);
+        auto w0 = fillw(b0, copies, true), w1 = fillw(b1, copies, true);
+        ik_tensor xt = T(dx, IK_DTYPE_BF16, 1, K);
+        ik_tensor ot0 = T(o0, IK_DTYPE_BF16, 1, sh.n0), ot1 = T(o1, IK_DTYPE_BF16, 1, sh.n1);
+        auto run = [&](bool wm, int i) {
+            ik_tensor a = T(w0[i % copies], IK_DTYPE_FP8_E4M3, sh.n0, K), b = T(w1[i % copies], IK_DTYPE_FP8_E4M3, sh.n1, K);
+            return wm ? ik_matmul_fp8_pair_wmma(&xt, &a, &sct, &b, &sct, &ot0, &ot1, nullptr) : ik_matmul_fp8_pair_gemv(&xt, &a, &sct, &b, &sct, &ot0, &ot1, nullptr);
+        };
+        double g = time_us([&](int i) { run(false, i); }, 200), w = time_us([&](int i) { run(true, i); }, 200);
+        printf("fold fp8 pair  %5d+%-5d x%d M=1: gemv %7.2f us  wmma %7.2f us  (%.2fx)\n", sh.n0, sh.n1, K, g, w, g / w);
+        for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+    }
+    {   // sigmoid_mul + fp8 o_proj 2048 x 4096
+        int N = 2048, KK = 4096; size_t bw = (size_t)N * KK; int copies = (int)((300 << 20) / bw + 1);
+        auto w = fillw(bw, copies, true);
+        ik_tensor at = T(dx, IK_DTYPE_BF16, 1, KK), gt = T(dg, IK_DTYPE_BF16, 1, KK), ot = T(o0, IK_DTYPE_BF16, 1, N);
+        // dx holds 4096 bf16 (8192 B): fits KK = 4096
+        auto run = [&](bool wm, int i) {
+            ik_tensor wt = T(w[i % copies], IK_DTYPE_FP8_E4M3, N, KK);
+            return wm ? ik_sigmoid_mul_matmul_fp8_wmma(&at, &gt, &wt, &sct, &ot, nullptr) : ik_sigmoid_mul_matmul_fp8_gemv(&at, &gt, &wt, &sct, &ot, nullptr);
+        };
+        double g = time_us([&](int i) { run(false, i); }, 200), wm = time_us([&](int i) { run(true, i); }, 200);
+        printf("fold sigmoid+fp8 %dx%d M=1: gemv %7.2f us  wmma %7.2f us  (%.2fx)\n", N, KK, g, wm, g / wm);
+        for (auto p : w) hipFree(p);
+    }
+    struct B { int n0, n1; } bp[] = {{32, 32}, {256, 1}};
+    for (auto sh : bp) {
+        size_t b0 = (size_t)sh.n0 * K * 2, b1 = (size_t)sh.n1 * K * 2;
+        int copies = 256;
+        auto w0 = fillw(b0, copies, false), w1 = fillw(b1, copies, false);
+        ik_tensor xt = T(dx, IK_DTYPE_BF16, 1, K);
+        ik_tensor ot0 = T(o0, IK_DTYPE_BF16, 1, sh.n0), ot1 = T(o1, IK_DTYPE_BF16, 1, sh.n1);
+        auto run = [&](bool wm, int i) {
+            ik_tensor a = T(w0[i % copies], IK_DTYPE_BF16, sh.n0, K), b = T(w1[i % copies], IK_DTYPE_BF16, sh.n1, K);
+            return wm ? ik_matmul_pair_bf16_wmma(&xt, &a, &b, &ot0, &ot1, nullptr) : ik_matmul_pair_bf16_gemv(&xt, &a, &b, &ot0, &ot1, nullptr);
+        };
+        double g = time_us([&](int i) { run(false, i); }, 1000), w = time_us([&](int i) { run(true, i); }, 1000);
+        printf("fold bf16 pair %5d+%-5d x%d M=1: gemv %7.2f us  wmma %7.2f us  (%.2fx)  [L2-warm: weights %zu KB]\n", sh.n0, sh.n1, K, g, w, g / w, (b0 + b1) >> 10);
+        for (auto p : w0) hipFree(p); for (auto p : w1) hipFree(p);
+    }
+}
+
 static void bench_bf16(std::mt19937& rng) {
     std::normal_distribution<float> nd(0.f, 1.f);
     struct Shape { int N, K; } shapes[] = {{256, 2048}, {32, 2048}, {1, 2048}, {4096, 4096}, {1024, 2048}};
@@ -99,6 +178,7 @@ int main(int argc, char** argv) {
     int dev = getenv("DEV") ? atoi(getenv("DEV")) : 0;
     CK(hipSetDevice(dev));
     bool w8a16 = getenv("A16") != nullptr;
+    if (getenv("FOLDS")) { std::mt19937 r(9); bench_folds(r); return 0; }
     if (getenv("BF16")) { std::mt19937 r(5); bench_bf16(r); return 0; }
     struct Shape { int N, K; } shapes[] = {{2048, 2048}, {2048, 4096}, {4096, 2048}, {8192, 2048}, {512, 2048}, {12288, 2048}, {1024, 2048}};
     int ms[] = {1, 2, 4, 8, 12, 16};

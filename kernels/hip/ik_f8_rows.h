@@ -29,7 +29,7 @@ constexpr int kF8rWaves = 8;          // waves on K: a constant, so the cross-wa
 constexpr int kF8rThreads = kF8rWaves * IK_WARP;
 constexpr int kF8rPad = 16;           // bytes of padding after each staged row
 constexpr int kF8rSpBytes = kF8rWaves * IK_WARP * 8 * 4;   // the cross-wave buffer of one token tile
-constexpr int kF8rLdsBudget = 61440;  // dynamic LDS a launch may ask for (gfx1201 allows 64 KiB without opt-in)
+constexpr int kF8rLdsBudget = 49152;  // dynamic LDS a launch may ask for (48 KiB, what every other kernel here stays under)
 
 /* 8 bf16 -> 8 e4m3 bytes (x / input_scale, RNE, saturating at +-448), bit-identical to fp8_gemv_body's Q = 2 staging. */
 IK_DEVI uint2 f8r_quant8(const uint4& v, float s_in) {
@@ -94,7 +94,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
     const int64_t n = blk * 16 + col;
     const uint8_t* wp = n < N ? w + n * K * (BF ? 2 : 1) : nullptr;
     // staged window: W8A8 kw bytes a row, W8A16 kw / 2 bf16 (the same bytes); a DIRECT window is kw k in registers
-    const int kwa = (DIRECT || actq) ? kw : (kw / 2 / 256) * 256;
+    const int kwa = (DIRECT || actq || BF) ? kw : (kw / 2 / 256) * 256;  // BF: the launch sized kw in elements (bpk = 2)
     const int stride = actq ? kw + kF8rPad : kwa * 2 + kF8rPad;
     unsigned char* xs = smem;
     float* sp = reinterpret_cast<float*>(smem);  // [wave][tile][lane][8], over the staged x once every wave is done with it
@@ -337,7 +337,7 @@ struct F8rCfg {
 };
 
 /* direct: the DIRECT form (window = NJ chunks per wave in registers, no staging). */
-inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool direct, F8rCfg* c) {
+inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool direct, int bpk, F8rCfg* c) {
     if (M < 1 || M > 64) return false;
     c->tm = (int)((M + 15) / 16);
     c->direct = direct;
@@ -348,7 +348,8 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
         return !single_window;
     }
     const int64_t kmax = (K + 255) / 256 * 256;
-    int64_t kw = ((int64_t)kF8rLdsBudget - (int64_t)extra) / M - kF8rPad;
+    // bpk: bytes of LDS per staged k (1 for W8A8; 2 for bf16 weights, whose activations are always bf16)
+    int64_t kw = (((int64_t)kF8rLdsBudget - (int64_t)extra) / M - kF8rPad) / bpk;
     kw = kw / 256 * 256;
     kw = std::min<int64_t>(kw, std::min<int64_t>(kmax, 4096));
     if (single_window && kw < kmax) return false;
@@ -358,7 +359,7 @@ inline bool f8r_cfg(int64_t M, int64_t K, bool single_window, size_t extra, bool
     }
     c->kw = (int)kw;
     c->nj = kw > 2048 ? 16 : 8;
-    c->smem = std::max<size_t>((size_t)M * (kw + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra;
+    c->smem = std::max<size_t>((size_t)M * (kw * bpk + kF8rPad), (size_t)c->tm * kF8rSpBytes) + extra;
     return true;
 }
 
@@ -375,7 +376,7 @@ int f8r_dispatch(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out,
                  int direct_min, hipStream_t s) {
     const bool direct = (BF || scratch != nullptr) && M >= direct_min;
     F8rCfg c;
-    if (!f8r_cfg(M, K, false, 0, direct, &c)) return IK_ERR_SHAPE;
+    if (!f8r_cfg(M, K, false, 0, direct, BF ? 2 : 1, &c)) return IK_ERR_SHAPE;
     if (direct && !BF) {
         const int64_t n8 = (int64_t)M * K / 8;
         f8r_actq_kernel<<<(unsigned)((n8 + 255) / 256), 256, 0, s>>>(x, scratch, sc, n8);

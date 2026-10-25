@@ -507,7 +507,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
-                "rmsnorm_add_matmul_fp8_pair_wmma" | "sigmoid_mul_matmul_fp8_wmma" => k
+                "rmsnorm_add_matmul_fp8_pair_wmma" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    // the norm runs in one window of the (half-width, weight-only) staging: K <= 2048
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(10),
+                "sigmoid_mul_matmul_fp8_wmma" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
@@ -538,7 +546,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "rmsnorm_add_matmul_pair_bf16_wmma" => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 4096 && s.out == Some(DType::Bf16))
+                    .when(|s| wmma_rows_enabled() && s.m == 1 && s.k % 16 == 0 && s.k <= 2048 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
