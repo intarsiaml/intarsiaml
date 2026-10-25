@@ -786,10 +786,10 @@ impl Backend for MetalBackend {
         if !prof {
             return self.launch_call(kernel, call, s);
         }
-        if call.op == Op::MoeExperts {
-            let mut st = self.stream.lock().unwrap();
-            st.label = Some(profile::Label::of(kernel, call));
-            drop(st);
+        // per-kernel mode only: the routing label needs the ids read back. In `cb` mode a buffer keeps the label of its
+        // first launch, so a MoE launch inside a buffer must not overwrite it.
+        if call.op == Op::MoeExperts && self.stream.lock().unwrap().prof.as_ref().is_some_and(|p| p.per_kernel) {
+            self.stream.lock().unwrap().label = Some(profile::Label::of(kernel, call));
             self.label_moe_routing(call);
         }
         {

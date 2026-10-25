@@ -18,8 +18,32 @@ pub const MATMUL_NVFP4_MMA: &str = "matmul_nvfp4_mma";
 pub const MATMUL_NVFP4_GEMV_ROWS: &str = "matmul_nvfp4_gemv_rows";
 
 /// Shader entry points (kernels/metal/nvfp4.metal).
-pub const SHADERS: [&str; 6] =
-    ["nv_gemv_bf16_m1", "nv_gemv_bf16_m8", "nv_gemv_f32_m1", "nv_gemv_f32_m8", "nv_mma_bf16", "nv_mma_f32"];
+pub const SHADERS: [&str; 24] = [
+    "nv_gemv_bf16_m1",
+    "nv_gemv_bf16_m8",
+    "nv_gemv_f32_m1",
+    "nv_gemv_f32_m8",
+    "nv_mma_bf16",
+    "nv_mma_f32",
+    "nvx_bf16_m2_r1",
+    "nvx_f32_m2_r1",
+    "nvx_bf16_m2_r2",
+    "nvx_f32_m2_r2",
+    "nvx_bf16_m2_r4",
+    "nvx_f32_m2_r4",
+    "nvx_bf16_m4_r1",
+    "nvx_f32_m4_r1",
+    "nvx_bf16_m4_r2",
+    "nvx_f32_m4_r2",
+    "nvx_bf16_m4_r4",
+    "nvx_f32_m4_r4",
+    "nvx_bf16_m8_r1",
+    "nvx_f32_m8_r1",
+    "nvx_bf16_m8_r2",
+    "nvx_f32_m8_r2",
+    "nvx_bf16_m8_r4",
+    "nvx_f32_m8_r4",
+];
 
 /// The widest matrix whose multi-row GEMV runs one row per threadgroup row (lane mm): an N-row matrix with N at most this
 /// gets the one-row shader over a grid of M threadgroup rows (each row is then the one-row launch itself; the weights come
@@ -126,6 +150,14 @@ impl MetalBackend {
                     (true, 1) => (SHADERS[2], GEMV_RS[0]),
                     (true, _) => (SHADERS[3], GEMV_RS[1]),
                 };
+                let exp = (kernel == MATMUL_NVFP4_GEMV_ROWS && m > 1).then(nv_exp).flatten();
+                let (name, rs, mb) = match exp {
+                    Some((emb, ers)) => {
+                        let n = SHADERS.iter().find(|s| **s == format!("nvx_{}_m{emb}_r{ers}", if f32_out { "f32" } else { "bf16" }));
+                        (*n.unwrap_or(&name), ers, emb)
+                    }
+                    None => (name, rs, mb),
+                };
                 let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
                 (pso, (n.div_ceil(GEMV_SG * rs), m.div_ceil(mb)), GEMV_SG * 32)
             }
@@ -154,4 +186,14 @@ impl MetalBackend {
             );
         })
     }
+}
+
+/// Experiments of lane mm step 2: `INTARSIA_METAL_NV_EXP=MB,RS` picks `nvx_{bf16|f32}_m{MB}_r{RS}` for 2+ rows.
+fn nv_exp() -> Option<(usize, usize)> {
+    static V: std::sync::OnceLock<Option<(usize, usize)>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_NV_EXP").ok()?;
+        let p: Vec<usize> = v.split(',').filter_map(|t| t.trim().parse().ok()).collect();
+        (p.len() == 2).then(|| (p[0], p[1]))
+    })
 }

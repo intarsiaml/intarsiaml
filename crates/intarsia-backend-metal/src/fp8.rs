@@ -18,8 +18,9 @@ pub const MATMUL_FP8_MMA: &str = "matmul_fp8_mma";
 pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 
 const XPREP: &str = "fp8_xprep_bf16";
+const XPREP_F32: &str = "fp8_xprep_f32";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 13] = [
+pub const SHADERS: [&str; 79] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -33,6 +34,72 @@ pub const SHADERS: [&str; 13] = [
     "fp8_gemv_f32_m4_xd",
     "fp8_gemv_bf16_m4_xd_neg",
     "fp8_gemv_f32_m4_xd_neg",
+    XPREP_F32,
+    "fp8_rows_mma_bf16",
+    "fp8_rows_mma_f32",
+    "fp8_rows_mma_bf16_neg",
+    "fp8_rows_mma_f32_neg",
+    "fp8_rows_mma_bf16_t2",
+    "fp8_rows_mma_bf16_neg_t2",
+    "fp8_rows_mma_f32_t2",
+    "fp8_rows_mma_f32_neg_t2",
+    "fp8_rows_mma_bf16_t4",
+    "fp8_rows_mma_bf16_neg_t4",
+    "fp8_rows_mma_f32_t4",
+    "fp8_rows_mma_f32_neg_t4",
+    "fp8_rows_mma_bf16_a1",
+    "fp8_rows_mma_bf16_a2",
+    "fp8_rows_mma_bf16_a3",
+    "fp8s_m2_u1_x0",
+    "fp8s_m2_u1_x1",
+    "fp8s_m2_u2_x0",
+    "fp8s_m2_u2_x1",
+    "fp8s_m4_u1_x0",
+    "fp8s_m4_u1_x1",
+    "fp8s_m4_u2_x0",
+    "fp8s_m4_u2_x1",
+    "fp8s_m8_u1_x0",
+    "fp8s_m8_u1_x1",
+    "fp8s_m8_u2_x0",
+    "fp8s_m8_u2_x1",
+    "fp8r2_bf16_m4_r2",
+    "fp8r2_f32_m4_r2",
+    "fp8r2_bf16_m8_r2",
+    "fp8r2_f32_m8_r2",
+    "fp8r2_bf16_m8_r1",
+    "fp8r2_f32_m8_r1",
+    "fp8r2_bf16_m4_r4",
+    "fp8r2_f32_m4_r4",
+    "fp8r2_bf16_m8_r4",
+    "fp8r2_f32_m8_r4",
+    "fp8r2_bf16_m4_r1",
+    "fp8r2_f32_m4_r1",
+    "fp8x_m4_r1_u2_h",
+    "fp8x_m4_r1_u2_f",
+    "fp8x_m4_r2_u2_h",
+    "fp8x_m4_r2_u2_f",
+    "fp8x_m4_r4_u2_h",
+    "fp8x_m4_r4_u2_f",
+    "fp8x_m8_r1_u2_h",
+    "fp8x_m8_r1_u2_f",
+    "fp8x_m8_r2_u2_h",
+    "fp8x_m8_r2_u2_f",
+    "fp8x_m8_r4_u2_h",
+    "fp8x_m8_r4_u2_f",
+    "fp8x_m8_r2_u4_h",
+    "fp8x_m8_r2_u4_f",
+    "fp8x_m8_r1_u4_h",
+    "fp8x_m8_r1_u4_f",
+    "fp8x_m8_r1_u8_h",
+    "fp8x_m8_r1_u8_f",
+    "fp8x_m4_r2_u4_h",
+    "fp8x_m4_r2_u4_f",
+    "fp8x_m4_r2_u1_h",
+    "fp8x_m4_r2_u1_f",
+    "fp8x_m8_r2_u1_h",
+    "fp8x_m8_r2_u1_f",
+    "fp8x_m4_r1_u4_h",
+    "fp8x_m4_r1_u4_f",
 ];
 
 /// Simdgroups per GEMV threadgroup (`FP8_SG`), output rows per simdgroup of `_m1` / `_m8` (`RS`), activation rows of `_m8`.
@@ -223,23 +290,42 @@ impl MetalBackend {
         let xs = self.bind(scratch, DType::U8, true, "scratch")?;
         // the GEMV reads q(x) as uint4: start it at the next 16-byte boundary inside the scratch's 16 bytes of slack
         let pad = xs.off.next_multiple_of(16) - xs.off;
-        if xs.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < m * k * 2 + pad {
+        let (exp, xesz) = match xd_exp() {
+            Some((mb, rs, xf)) if !f32_out => (Some((mb, rs, xf)), if xf { 4 } else { 2 }),
+            _ => (None, if mma_rows() || v2_exp().is_some() || sw_exp().is_some_and(|e| e.2) { 4 } else { 2 }),
+        };
+        if xs.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < m * k * xesz + pad {
             return Err(Error::invalid(format!(
                 "metal {MATMUL_FP8_GEMV_ROWS}: scratch of {} bytes at offset {}, need {} (4-byte aligned)",
                 scratch.numel() * scratch.dtype.size_bytes(),
                 xs.off,
-                m * k * 2 + pad
+                m * k * xesz + pad
             )));
         }
         let xs = crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off + pad, skip: 0 };
         let neg = xd_neg();
+        let exp_name = exp.map(|(mb, rs, xf)| (format!("fp8x_m{mb}_r{rs}_u{}_{}", xd_exp_un(), if xf { "f" } else { "h" }), rs, mb, xf));
         let (name, rs, mb) = match (f32_out, neg) {
             (false, false) => (SHADERS[9], GEMV_RS[1], XD_MB),
             (true, false) => (SHADERS[10], GEMV_RS[1], XD_MB),
             (false, true) => (SHADERS[11], GEMV_RS[1], XD_MB),
             (true, true) => (SHADERS[12], GEMV_RS[1], XD_MB),
         };
-        let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
+        let v2 = v2_exp().map(|(mb, rs)| (format!("fp8r2_{}_m{mb}_r{rs}", if f32_out { "f32" } else { "bf16" }), rs, mb));
+        if mma_rows() {
+            return self.launch_fp8_rows_mma(&xs, (xb, wb, sb, ob), pdims, f32_out, neg);
+        }
+        let sw = sw_exp().map(|(mb, un, xf)| (format!("fp8s_m{mb}_u{un}_x{}", xf as u8), mb, xf));
+        let (name, rs, mb, prep) = match (&v2, &exp_name) {
+            _ if sw.is_some() && !f32_out => {
+                let (n, mb, xf) = sw.as_ref().unwrap();
+                (n.as_str(), 2, *mb, if *xf { XPREP_F32 } else { XPREP })
+            }
+            (Some((n, rs, mb)), _) => (n.as_str(), *rs, *mb, XPREP_F32),
+            (None, Some((n, rs, mb, xf))) => (n.as_str(), *rs, *mb, if *xf { XPREP_F32 } else { XPREP }),
+            (None, None) => (name, rs, mb, XPREP),
+        };
+        let pso_x = self.pso(prep).ok_or_else(|| Error::backend(format!("metal: no pipeline '{prep}'")))?;
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
             return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
@@ -269,7 +355,11 @@ impl MetalBackend {
             }
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: n.div_ceil(GEMV_SG * rs), height: m.div_ceil(mb), depth: 1 },
+                if sw.is_some() && !f32_out {
+                    MTLSize { width: m.div_ceil(mb), height: n.div_ceil(GEMV_SG * rs), depth: 1 }
+                } else {
+                    MTLSize { width: n.div_ceil(GEMV_SG * rs), height: m.div_ceil(mb), depth: 1 }
+                },
                 MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
             );
         })
@@ -282,9 +372,9 @@ fn xd_on() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_ROWS_XD").map_or(true, |v| v != "0"))
 }
 
-/// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form).
+/// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form; room for f32 rows).
 pub fn rows_scratch(s: &ShapeInfo) -> usize {
-    s.m * s.k * 2 + 16
+    s.m * s.k * 4 + 16
 }
 
 /// `INTARSIA_METAL_NEGCTL=fp8_xd`: the `_xd` GEMV with another association on odd blocks (tests only: NOT the solo bits).
@@ -293,5 +383,112 @@ fn xd_neg() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_METAL_NEGCTL").is_ok_and(|v| v == "fp8_xd"))
 }
 
+/// Experiments of lane mm step 2: `INTARSIA_METAL_FP8_XD_EXP=MB,RS,XF` picks `fp8x_m{MB}_r{RS}_{h|f}` (bf16 out only).
+fn xd_exp() -> Option<(usize, usize, bool)> {
+    static V: std::sync::OnceLock<Option<(usize, usize, bool)>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_FP8_XD_EXP").ok()?;
+        let p: Vec<usize> = v.split(',').filter_map(|t| t.trim().parse().ok()).collect();
+        (p.len() >= 3).then(|| (p[0], p[1], p[2] == 1))
+    })
+}
+
+/// `INTARSIA_METAL_FP8_V2=MB,RS`: the word-interleaved `fp8r2_*` GEMV over f32 q(x) (experiments).
+fn v2_exp() -> Option<(usize, usize)> {
+    static V: std::sync::OnceLock<Option<(usize, usize)>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_FP8_V2").ok()?;
+        let p: Vec<usize> = v.split(',').filter_map(|t| t.trim().parse().ok()).collect();
+        (p.len() == 2).then(|| (p[0], p[1]))
+    })
+}
+
+/// `INTARSIA_METAL_FP8_SW=MB,UN,XF`: the `_xd` GEMV with the row tile on the fastest grid axis (experiments).
+fn sw_exp() -> Option<(usize, usize, bool)> {
+    static V: std::sync::OnceLock<Option<(usize, usize, bool)>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_FP8_SW").ok()?;
+        let p: Vec<usize> = v.split(',').filter_map(|t| t.trim().parse().ok()).collect();
+        (p.len() == 3).then(|| (p[0], p[1], p[2] == 1))
+    })
+}
+
+/// `INTARSIA_METAL_FP8_MMA_ROWS=1`: the simdgroup-matrix multi-row GEMV (`fp8_rows_mma_*`).
+fn mma_rows() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_MMA_ROWS").is_ok_and(|v| v == "1"))
+}
+
+fn xd_exp_un() -> usize {
+    std::env::var("INTARSIA_METAL_FP8_XD_EXP").ok().and_then(|v| v.split(',').nth(3).and_then(|t| t.trim().parse().ok())).unwrap_or(2)
+}
+
 /// Rows per threadgroup of the `_xd` GEMV.
 const XD_MB: usize = 4;
+
+impl MetalBackend {
+    /// `matmul_fp8_gemv_rows` on simdgroup matrices: f32 q(x) of all rows into the scratch (`fp8_xprep_f32`), then one
+    /// threadgroup per 8 outputs (`fp8_rows_mma_*`). Every row's bits are the one-row kernel's (tests/rows_exact.rs).
+    fn launch_fp8_rows_mma(
+        &self,
+        xs: &crate::dense::Bind,
+        (xb, wb, sb, ob): (&crate::dense::Bind, &crate::dense::Bind, &crate::dense::Bind, &crate::dense::Bind),
+        pdims: [u32; 8],
+        f32_out: bool,
+        neg: bool,
+    ) -> Result<()> {
+        let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
+        let t = mma_tiles();
+        let name = format!(
+            "fp8_rows_mma_{}{}{}",
+            if f32_out { "f32" } else { "bf16" },
+            if neg { "_neg" } else { "" },
+            if t > 1 { format!("_t{t}") } else { String::new() }
+        );
+        let name = match std::env::var("INTARSIA_METAL_FP8_MMA_ABL") {
+            Ok(a) if !f32_out => format!("fp8_rows_mma_bf16_a{a}"),
+            _ => name,
+        };
+        let name = name.as_str();
+        let pso_x = self.pso(XPREP_F32).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP_F32}'")))?;
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let px = OpP { dims: pdims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
+        let pg = OpP { dims: pdims, skips: [0, ob.skip, 0, 0, 0], ..Default::default() };
+        let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size by the caller).
+            unsafe {
+                enc.setComputePipelineState(pso_x);
+                for (i, b) in [xb, sb, xs].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &px, 3);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: (m * k).div_ceil(8), height: 1, depth: 1 },
+                MTLSize { width: tx, height: 1, depth: 1 },
+            );
+            // SAFETY: as above.
+            unsafe {
+                enc.setComputePipelineState(pso);
+                for (i, b) in [xs, wb, sb, ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &pg, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(8 * t), height: 1, depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+}
+
+/// `INTARSIA_METAL_FP8_MMA_T`: output tiles of 8 per simdgroup in `fp8_rows_mma_*` (1, 2 or 4).
+fn mma_tiles() -> usize {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_MMA_T").ok().and_then(|v| v.parse().ok()).filter(|t| [1, 2, 4].contains(t)).unwrap_or(1))
+}

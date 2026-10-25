@@ -174,7 +174,7 @@ fn fp8_case(
         be.upload(&ym, 0, &vec![0xEEu8; tot], 0).unwrap();
         let mut rows = call(xt.clone(), ymt.clone());
         if xd {
-            let need = m * k * 2 + 16;
+            let need = m * k * 4 + 16;
             let sb = be.alloc(need + 32, MemKind::Device).unwrap();
             // an offset that is 4- but not 16-byte aligned (the launcher realigns inside the 16 bytes of slack)
             rows.scratch = Some(TensorRef { buf: sb, offset: 4 + 4 * (m % 3), dtype: DType::U8, shape: vec![need] });
@@ -462,7 +462,7 @@ fn negative_controls_differ_from_the_one_row_calls() {
             let mut c =
                 OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
             if scratch {
-                let need = m * k * 2 + 16;
+                let need = m * k * 4 + 16;
                 c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
             }
             be.launch(kern, &c, 0).unwrap();
@@ -892,7 +892,7 @@ fn timing_rows() {
                 serial
             };
             let xd = if m >= 2 {
-                let need = m * k * 2 + 16;
+                let need = m * k * 4 + 16;
                 let mut c = call(xt.clone(), yt.clone());
                 c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
                 time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &c, 0).unwrap())
