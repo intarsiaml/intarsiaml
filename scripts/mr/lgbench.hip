@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     std::vector<float> ref((size_t)MMAX * N), got((size_t)MMAX * N);
     HC(hipMemcpy(ref.data(), dref, ref.size() * 4, hipMemcpyDeviceToHost));
     hipEvent_t e0, e1; HC(hipEventCreate(&e0)); HC(hipEventCreate(&e1));
-    printf("logits rows %ldx%ld variant %s\n", (long)N, (long)K, getenv("LGR_VARIANT") ? getenv("LGR_VARIANT") : "default");
+    printf("logits rows %ldx%ld\n", (long)N, (long)K);
     for (int M = 1; M <= MMAX; ++M) {
         rows(M, dout);
         for (int i = 0; i < 5; ++i) rows(M, dout);
