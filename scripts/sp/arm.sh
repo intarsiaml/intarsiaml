@@ -12,7 +12,7 @@ ssh tatooine "SERVE_ARGS='$serve' MAX_BATCH=$mb bash ~/sp-win.sh up $tree $tag $
 if [ "$mode" = plain ]; then
   cells=speed-plain,conc-plain-1k; lane="--lane plain"
 else
-  cells=speed-spec,conc-plain-1k; lane="--lane spec:mtp --drafter mtp"
+  cells=speed-spec; lane="--lane spec:mtp --drafter mtp"
 fi
 cd /opt/code/deepeval
 timeout 1500 uv run localeval suite --url http://tatooine:8294/v1 --model intarsia --tier adhoc --cells "$cells" $lane \
