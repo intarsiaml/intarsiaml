@@ -5,6 +5,8 @@ Sources: `kernels/hip/mxfp4.hip` (`mxfp4_gemv_rows_kernel`), docs/results/2026-1
 variant timings), docs/results/2026-10-25-mr-hip-logits-rows.md section 2 (ISA of `mxfp4_gemv_rows_kernel<16, float>`,
 raw/isa.log), PR #147 profile (GEMVs 69 % of the 16-row step; 83 ms of 111 ms profiled; 100 ms unprofiled).
 
+UPDATE after the P0 ablation (docs/results/2026-10-25-mr-hip-mxfp4-p0.md): lever A failed its gate (f32 x is 13 to 14 % SLOWER at M=16 on both big shapes) and B gave nothing. Two figures below were wrong: only about 13 % of the fmas pair with another fma (not 57 %), and the bf16 unpack is about 200 VALU (not 330). Even with all x-side work removed the kernel is only 13 to 17 % faster, so the table in section 3 is withdrawn. Recommendation: stop.
+
 ## Answer in three lines
 
 1. The rows kernel already loads and dequantises each weight block once for all M rows. That lever is spent.
