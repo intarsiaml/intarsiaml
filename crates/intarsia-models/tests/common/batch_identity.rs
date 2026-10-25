@@ -105,7 +105,22 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
                 assert_eq!(a.len(), c.len(), "{what}: logits length");
                 if let Some(k) = (0..a.len()).find(|&k| a[k].to_bits() != c[k].to_bits()) {
                     let diff = (0..a.len()).filter(|&k| a[k].to_bits() != c[k].to_bits()).count();
-                    panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}", a.len(), a[k], c[k]);
+                    // which rows of this step differ, and by how much: all rows (a rank-wide fault, e.g. one wrong collective) or one (a row fault)
+                    let rows: Vec<String> = solo
+                        .iter()
+                        .zip(&batched)
+                        .enumerate()
+                        .filter_map(|(q, (x, y))| match (x, y) {
+                            (StepOut::Logits(x), StepOut::Logits(y)) => {
+                                let n = (0..x.len()).filter(|&j| x[j].to_bits() != y[j].to_bits()).count();
+                                let md = (0..x.len()).map(|j| (x[j] - y[j]).abs()).fold(0f32, f32::max);
+                                Some(format!("row {q}: {n} differ, max |d| {md:.3e}, argmax solo {} batch {}", argmax(x), argmax(y)))
+                            }
+                            (StepOut::Token(x), StepOut::Token(y)) => Some(format!("row {q}: token solo {x} batch {y}")),
+                            _ => None,
+                        })
+                        .collect();
+                    panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}; step rows [{}]", a.len(), a[k], c[k], rows.join("; "));
                 }
                 assert_eq!(bits(a), bits(c));
                 let s = &mut seqs[i];

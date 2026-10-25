@@ -24,18 +24,6 @@ mkdir -p "$(T $D)/tp2-out"
 FLOOR="--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8 --pre-change $PC"
 # every container started by a step is removed when the step ends (a timeout kills the docker client, not the container)
 sweep() { local keep=$1 c; for c in $(docker ps -q); do grep -q "$c" <<< "$keep" || { docker rm -f "$c" > /dev/null 2>&1 && log "removed leftover container $c"; }; done; }
-if need 400 "27B accuracy" && clear "27B accuracy"; then
-  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
-  mv "$(T $D)/tp2-out/acc-27b-tp1.safetensors" "$O/" 2>/dev/null
-  for r in a b; do
-    run $D 0,1 600 acc-27b-tp2-$r accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both \
-      --write-self-golden /work/tp2-out/acc-27b-tp2-$r.safetensors $TP2
-    mv "$(T $D)/tp2-out/acc-27b-tp2-$r.safetensors" "$O/" 2>/dev/null
-  done
-  cp "$O/acc-27b-tp2-a.safetensors" "$(T $D)/tp2-out/"
-  run $D 0,1 600 self-27b-tp2-b-vs-a accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --mode both \
-    --self-golden /work/tp2-out/acc-27b-tp2-a.safetensors --allow-same-code --allow-config-mismatch $TP2 $FLOOR
-fi
 repro() { # repro <tag> <timeout> <test> <env...>
   local tag=$1 to=$2 test=$3; shift 3
   local keep; keep=$(docker ps -q)
@@ -48,11 +36,28 @@ repro() { # repro <tag> <timeout> <test> <env...>
   log "repro $tag exit $rc [$*]: $(grep -aE '^REPRO failures' "$O/repro-$tag.log" | tail -1) | $(grep -aE '^REPRO rep .*FAIL' "$O/repro-$tag.log" | head -3 | cut -c1-200 | tr '\n' '|')"
 }
 FS=real_35b_tp2_batch_first_steps_repro; WP=real_35b_tp2_batch_with_prefill_repro
-# W: decode rows beside a prefill, graphs off (w16: failed deterministically at its first step) and on, then with launch blocking
-need 200 "W0 prefill graphs off" && clear "W0" && repro w0-prefill-graphs0 190 $WP INTARSIA_BATCH_GRAPHS=0 INTARSIA_REPRO_REPS=3
-need 200 "W1 prefill graphs on" && clear "W1" && repro w1-prefill-graphs1 190 $WP INTARSIA_REPRO_REPS=3
-need 200 "W2 prefill graphs off, blocking" && clear "W2" && repro w2-prefill-blocking 190 $WP INTARSIA_BATCH_GRAPHS=0 HIP_LAUNCH_BLOCKING=1 INTARSIA_REPRO_REPS=2
-# V: first steps of every size 2..16 on a fresh model per rep: baseline, peer graphs recorded first
-need 480 "V0 baseline" && clear "V0" && repro v0-baseline 470 $FS INTARSIA_REPRO_REPS=6
-need 480 "V1 prepare" && clear "V1" && repro v1-prepare 470 $FS INTARSIA_REPRO_REPS=6 INTARSIA_TP_BATCH_PREPARE=1
+# The mismatch is rare (w15: N=4 step 0 of the size loop, graphs on; w16: first step of the prefill part, graphs off; both ran once and the full gate
+# passed in every other run), so each variant counts failures over reps; the first line is the baseline everything is compared with.
+# W: decode rows beside a prefill, 3 reps per model load.
+need 250 "W0" && clear "W0" && repro w0-prefill-graphs0 240 $WP INTARSIA_BATCH_GRAPHS=0 INTARSIA_REPRO_REPS=3
+# the all-reduce's memory ordering: INTARSIA_HIP_AR_DRAIN=1 = a system fence in every thread before the flag (safe baseline) instead of waiting for the stores
+need 250 "W3" && clear "W3" && repro w3-prefill-drain1 240 $WP INTARSIA_BATCH_GRAPHS=0 INTARSIA_HIP_AR_DRAIN=1 INTARSIA_REPRO_REPS=3
+# host-side launch races: blocking launches serialise the host
+need 250 "W2" && clear "W2" && repro w2-prefill-blocking 240 $WP INTARSIA_BATCH_GRAPHS=0 HIP_LAUNCH_BLOCKING=1 INTARSIA_REPRO_REPS=3
+need 250 "W1" && clear "W1" && repro w1-prefill-graphs1 240 $WP INTARSIA_REPRO_REPS=3
+# V: first steps of every size 2..16 on a fresh model per rep (w15's shape)
+need 340 "V0" && clear "V0" && repro v0-baseline 330 $FS INTARSIA_REPRO_REPS=3
+need 340 "V1" && clear "V1" && repro v1-drain1 330 $FS INTARSIA_REPRO_REPS=3 INTARSIA_HIP_AR_DRAIN=1
+if need 560 "27B accuracy" && clear "27B accuracy"; then
+  run $D 0 600 acc-27b-tp1 accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both --write-self-golden /work/tp2-out/acc-27b-tp1.safetensors
+  mv "$(T $D)/tp2-out/acc-27b-tp1.safetensors" "$O/" 2>/dev/null
+  for r in a b; do
+    run $D 0,1 600 acc-27b-tp2-$r accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --golden $G27 --mode both \
+      --write-self-golden /work/tp2-out/acc-27b-tp2-$r.safetensors $TP2
+    mv "$(T $D)/tp2-out/acc-27b-tp2-$r.safetensors" "$O/" 2>/dev/null
+  done
+  cp "$O/acc-27b-tp2-a.safetensors" "$(T $D)/tp2-out/"
+  run $D 0,1 600 self-27b-tp2-b-vs-a accuracy --backend hip --model $M27 --mxfp4-act none --mem-budget 29 --mode both \
+    --self-golden /work/tp2-out/acc-27b-tp2-a.safetensors --allow-same-code --allow-config-mismatch $TP2 $FLOOR
+fi
 log "done, time left $(left)s"

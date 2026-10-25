@@ -9,6 +9,8 @@
 //! comparison fail or the step error, never pass and never hang (the communicator waits a few seconds at most here).
 
 mod common;
+#[path = "common/batch_identity.rs"]
+mod batch_identity;
 use common::arnorm_comm::ArNormComm;
 use common::ByteCodec;
 use intarsia_backend_cpu::CpuBackend;
@@ -331,6 +333,22 @@ fn tp2_batched_hybrid_is_bitwise_the_tp2_solo_step_with_and_without_the_vocab_sp
     let a = check_all_sizes(&split, "hybrid, vocab-parallel head");
     let b = check_all_sizes(&replicated, "hybrid, replicated head");
     assert!(a == b, "batched hybrid steps: the vocab-parallel head is not bitwise the replicated head");
+}
+
+/// Decode rows beside the prefill chunks of another sequence (`batch_identity::run_with_prefill`, the shape of the GPU gate that failed on
+/// the 27B at tp=2 in w15/w16): the prefill goes through `Model::forward` before, between and after the batched steps, on both ranks, and the
+/// decode rows, the prefilled state and its KV stay bitwise the solo ones. The ranks run the same op sequence by construction on the cpu
+/// reference, so a failure here would be a protocol bug; a pass means the GPU failure is not one (see docs/results/2026-10-25-tp2-hip.md).
+#[test]
+fn tp2_batched_decode_beside_prefill_chunks_is_bitwise_solo() {
+    for kind in [Kind::Dense, Kind::Hybrid] {
+        for vocab in [true, false] {
+            let m = model(Setup { vocab, ..setup(kind) });
+            let v = vocab_of(kind);
+            let n = batch_identity::run_with_prefill(&m, &[9, 26, 33, 5], 64, 8, (1, v - 2));
+            assert_eq!(n, 4 * 2 * 8, "{kind:?} vocab {vocab}");
+        }
+    }
 }
 
 #[test]
