@@ -766,6 +766,7 @@ impl Model {
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,
             mtp_k: self.mtp_k,
+            spec_cost: self.spec_cost,
         };
         t.enable_batch(rows)?;
         crate::plan::resolve(&mut t)?;

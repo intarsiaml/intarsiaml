@@ -196,6 +196,223 @@ impl GateParams {
     }
 }
 
+/// Parameters of the measured-cost gate. A speculative pass only pays when the tokens it yields cost less than the
+/// plain steps they replace: `speedup = tokens_per_pass / (ms_per_pass / ms_per_plain_token)`. On a mixture-of-experts
+/// model a 3-row verify reads the union of three tokens' experts, so a pass costs 2.2 to 2.4 plain steps on the R9700
+/// and natural text yields 2.3 to 2.5 tokens per pass: no gain, and the fixed gate (accepted drafts only) cannot see it.
+/// The request keeps running averages of both costs and falls back to plain decode while the speedup stays under
+/// `min_speedup`; plain decode is the baseline it is measured against, so the fallback never loses to it by more than
+/// the probes cost. Greedy output is the same on either path.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CostParams {
+    /// Speedup below which speculation is held off (<= 0: the gate is off).
+    pub min_speedup: f64,
+    /// Consecutive passes (after the warm-up) whose averaged speedup is below `min_speedup` before falling back.
+    pub window: u32,
+    /// While speculating, one plain step every `probe_every` passes keeps the plain-step cost current.
+    pub probe_every: u32,
+    /// Tokens decoded plainly before speculation is tried again (acceptance changes with the text).
+    pub reprobe_tokens: u32,
+    /// Passes after a (re)start that are timed but not averaged (graph capture, the head catching up on skipped rows).
+    pub warmup: u32,
+    /// Weight of a new sample in the running averages.
+    pub alpha: f64,
+}
+
+impl CostParams {
+    pub const OFF: CostParams =
+        CostParams { min_speedup: 0.0, window: 16, probe_every: 32, reprobe_tokens: 256, warmup: 2, alpha: 0.125 };
+
+    /// Defaults for a backend (`Backend::name`). The break-even is the same everywhere (3% over plain decode, about the
+    /// run-to-run noise of a request); CUDA and Metal sit far above it on natural text (plain step 8 to 12 ms against a
+    /// 15 to 24 ms pass), so only HIP, where the plain step is a captured 6 ms, is ever held off.
+    pub fn for_backend(_backend: &str) -> CostParams {
+        CostParams { min_speedup: 1.03, ..CostParams::OFF }
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.min_speedup > 0.0
+    }
+
+    /// The recipe's `[mtp]` overrides.
+    pub fn with_recipe(self, m: Option<&crate::recipe::MtpSpec>) -> CostParams {
+        let Some(m) = m else { return self };
+        CostParams {
+            min_speedup: m.cost_min_speedup.unwrap_or(self.min_speedup),
+            window: m.cost_window.map_or(self.window, |w| w.max(1)),
+            probe_every: m.cost_probe_every.map_or(self.probe_every, |w| w.max(1)),
+            reprobe_tokens: m.cost_reprobe_tokens.map_or(self.reprobe_tokens, |w| w.max(1)),
+            ..self
+        }
+    }
+
+    /// `INTARSIA_SPEC_COSTGATE`: `0` off, `1` the defaults, or `min_speedup,window,probe_every,reprobe_tokens`.
+    pub fn with_env(self, v: Option<&str>) -> CostParams {
+        let Some(v) = v.map(str::trim) else { return self };
+        match v {
+            "" => self,
+            "0" | "off" => CostParams { min_speedup: 0.0, ..self },
+            "1" | "on" => self,
+            _ => {
+                let f: Vec<&str> = v.split(',').map(str::trim).collect();
+                let num = |i: usize| f.get(i).and_then(|x| x.parse::<f64>().ok());
+                match (f.len(), num(0)) {
+                    (4, Some(sp)) if sp > 0.0 && f.iter().all(|x| x.parse::<f64>().is_ok()) => CostParams {
+                        min_speedup: sp,
+                        window: (num(1).unwrap() as u32).max(1),
+                        probe_every: (num(2).unwrap() as u32).max(1),
+                        reprobe_tokens: (num(3).unwrap() as u32).max(1),
+                        ..self
+                    },
+                    _ => {
+                        eprintln!("spec costgate: ignoring INTARSIA_SPEC_COSTGATE={v:?} (want 0, 1 or min_speedup,window,probe_every,reprobe_tokens)");
+                        self
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Counters of the measured-cost gate, drained into telemetry.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CostEvents {
+    /// Switches from speculating to plain decode.
+    pub off: u32,
+    /// Switches back (the re-probe after `reprobe_tokens`).
+    pub on: u32,
+    /// Steps the gate took plainly: held off, or a probe of the plain-step cost.
+    pub plain_steps: u32,
+    /// Of those, probes.
+    pub probes: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CostMode {
+    Spec,
+    /// Decoding plainly; this many tokens until speculation is tried again.
+    Plain { left: u32 },
+}
+
+/// A running average that starts at its first sample.
+#[derive(Clone, Copy, Debug, Default)]
+struct Ewma(Option<f64>);
+
+impl Ewma {
+    fn add(&mut self, x: f64, alpha: f64) {
+        self.0 = Some(match self.0 {
+            None => x,
+            Some(m) => m + alpha * (x - m),
+        });
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CostGate {
+    p: CostParams,
+    mode: CostMode,
+    tokens_per_pass: Ewma,
+    ms_per_pass: Ewma,
+    ms_per_plain: Ewma,
+    /// Passes since speculation (re)started, and since the last plain step.
+    passes: u32,
+    since_plain: u32,
+    /// Consecutive evaluations under `min_speedup`.
+    low: u32,
+    /// The next step is a probe of the plain-step cost.
+    probe: bool,
+    events: CostEvents,
+}
+
+impl CostGate {
+    fn new(p: CostParams) -> CostGate {
+        CostGate {
+            p,
+            mode: CostMode::Spec,
+            tokens_per_pass: Ewma::default(),
+            ms_per_pass: Ewma::default(),
+            ms_per_plain: Ewma::default(),
+            passes: 0,
+            since_plain: 0,
+            low: 0,
+            probe: false,
+            events: CostEvents::default(),
+        }
+    }
+
+    /// May the next step speculate? `false` counts a plain step taken by this gate.
+    fn allow(&mut self) -> bool {
+        if !self.p.enabled() {
+            return true;
+        }
+        if let CostMode::Plain { .. } = self.mode {
+            self.events.plain_steps += 1;
+            return false;
+        }
+        if std::mem::take(&mut self.probe) {
+            self.events.plain_steps += 1;
+            self.events.probes += 1;
+            return false;
+        }
+        true
+    }
+
+    /// Current speedup estimate, once both costs are known.
+    fn speedup(&self) -> Option<f64> {
+        let (t, m, pl) = (self.tokens_per_pass.0?, self.ms_per_pass.0?, self.ms_per_plain.0?);
+        (m > 0.0).then(|| t * pl / m)
+    }
+
+    fn spec_sample(&mut self, tokens: usize, ms: f64) {
+        if !self.p.enabled() || self.mode != CostMode::Spec || tokens == 0 {
+            return;
+        }
+        self.passes += 1;
+        self.since_plain += 1;
+        if self.since_plain >= self.p.probe_every || (self.ms_per_plain.0.is_none() && self.passes > self.p.warmup) {
+            self.probe = true;
+        }
+        if self.passes <= self.p.warmup {
+            return;
+        }
+        self.tokens_per_pass.add(tokens as f64, self.p.alpha);
+        self.ms_per_pass.add(ms, self.p.alpha);
+        match self.speedup() {
+            Some(sp) if sp < self.p.min_speedup => {
+                self.low += 1;
+                if self.low >= self.p.window {
+                    self.mode = CostMode::Plain { left: self.p.reprobe_tokens };
+                    self.events.off += 1;
+                    self.low = 0;
+                }
+            }
+            _ => self.low = 0,
+        }
+    }
+
+    fn plain_sample(&mut self, tokens: usize, ms: f64) {
+        if !self.p.enabled() || tokens == 0 {
+            return;
+        }
+        self.ms_per_plain.add(ms / tokens as f64, self.p.alpha);
+        self.since_plain = 0;
+        if let CostMode::Plain { left } = self.mode {
+            let left = left.saturating_sub(tokens as u32);
+            if left == 0 {
+                // try speculation again on the text as it is now: the averages of the old stretch are dropped
+                self.mode = CostMode::Spec;
+                self.events.on += 1;
+                self.tokens_per_pass = Ewma::default();
+                self.ms_per_pass = Ewma::default();
+                self.passes = 0;
+                self.low = 0;
+            } else {
+                self.mode = CostMode::Plain { left };
+            }
+        }
+    }
+}
+
 /// Per-request drafter gate: decides whether a step may draft (see [`GateParams`]).
 #[derive(Clone, Copy, Debug)]
 pub struct SpecGate {
@@ -209,11 +426,13 @@ pub struct SpecGate {
     skip: u32,
     /// Length of the next skip.
     next_skip: u32,
+    /// The measured-cost gate (MTP only, off until [`SpecGate::set_cost`]).
+    cost: CostGate,
 }
 
 impl SpecGate {
     pub fn new(p: GateParams) -> SpecGate {
-        SpecGate { p, passes: 0, accepted: 0, streak: 0, skip: 0, next_skip: p.skip0 }
+        SpecGate { p, passes: 0, accepted: 0, streak: 0, skip: 0, next_skip: p.skip0, cost: CostGate::new(CostParams::OFF) }
     }
 
     /// Shortest suffix the drafter may match.
@@ -231,6 +450,10 @@ impl SpecGate {
         if busy && !self.busy_ok() {
             return false;
         }
+        // beside other sequences the step time is not this request's own, so the measured-cost gate only runs alone
+        if !busy && !self.cost.allow() {
+            return false;
+        }
         if self.skip > 0 {
             self.skip -= 1;
             return false;
@@ -244,6 +467,35 @@ impl SpecGate {
             || self.p.busy_min_accept == 0
             || self.passes < self.p.busy_warmup
             || self.accepted >= self.passes.saturating_mul(self.p.busy_min_accept)
+    }
+
+    /// Switch the measured-cost gate on with these parameters (see [`CostParams`]); `CostParams::OFF` switches it off.
+    pub fn set_cost(&mut self, p: CostParams) {
+        self.cost = CostGate::new(p);
+    }
+
+    /// A finished step as the request's wall clock saw it: a speculative pass (`spec`) or a plain step that yielded
+    /// `tokens` tokens in `ms` milliseconds, host work included.
+    pub fn cost_sample(&mut self, spec: bool, tokens: usize, ms: f64) {
+        if spec {
+            self.cost.spec_sample(tokens, ms);
+        } else {
+            self.cost.plain_sample(tokens, ms);
+        }
+    }
+
+    /// Measured-cost gate counters since the last call (telemetry), and whether it holds speculation off now.
+    pub fn take_cost_events(&mut self) -> CostEvents {
+        std::mem::take(&mut self.cost.events)
+    }
+
+    /// Is the measured-cost gate on for this request?
+    pub fn cost_enabled(&self) -> bool {
+        self.cost.p.enabled()
+    }
+
+    pub fn cost_off(&self) -> bool {
+        matches!(self.cost.mode, CostMode::Plain { .. })
     }
 
     /// Result of a verify pass: `accepted` of its drafts were accepted.
@@ -553,5 +805,142 @@ mod tests {
         // out-of-range min_n is clamped
         assert_eq!(propose_min(&ctx, 3, 0), propose(&ctx, 3));
         assert_eq!(propose_min(&ctx, 3, 9), propose_min(&ctx, 3, NGRAM_MAX));
+    }
+
+    // ---- measured-cost gate (scripted timings) ----
+
+    fn cost_gate(p: CostParams) -> SpecGate {
+        let mut g = SpecGate::new(GateParams::default());
+        g.set_cost(p);
+        g
+    }
+
+    fn cp() -> CostParams {
+        CostParams { min_speedup: 1.03, window: 8, probe_every: 16, reprobe_tokens: 40, warmup: 2, alpha: 0.25 }
+    }
+
+    /// Drive `steps` decode steps: a speculative step yields `spec(i)` = (tokens, ms), a plain step 1 token in `plain` ms.
+    /// Returns `S` for a speculative step and `p` for a plain one.
+    fn drive(g: &mut SpecGate, steps: usize, spec: impl Fn(usize) -> (usize, f64), plain: f64) -> String {
+        let mut out = String::new();
+        for i in 0..steps {
+            if g.allow(false) {
+                let (t, ms) = spec(i);
+                g.cost_sample(true, t, ms);
+                out.push('S');
+            } else {
+                g.cost_sample(false, 1, plain);
+                out.push('p');
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn cost_gate_holds_speculation_off_where_a_pass_costs_what_its_tokens_would() {
+        // the 35B on HIP at 1k: 2.33 tokens per pass in 13.9 ms against a 6.1 ms plain step = speedup 1.02
+        let mut g = cost_gate(cp());
+        let t = drive(&mut g, 200, |_| (2, 13.9), 6.1);
+        // warm-up 2 + the first plain probe + 8 low evaluations, then 40 plain tokens, then speculation again
+        let first_off = t.find("pppp").expect("falls back");
+        assert!((10..=14).contains(&first_off), "{t}");
+        let run = t[first_off..].chars().take_while(|c| *c == 'p').count();
+        assert_eq!(run, 40, "reprobe_tokens plain steps: {t}");
+        assert!(g.take_cost_events().off >= 2, "falls back again on the same text: {t}");
+        // plain steps dominate: speculation only spends the warm-up and window of each probe
+        assert!(t.matches('p').count() > t.matches('S').count(), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_keeps_speculating_where_it_pays() {
+        // the 35B on HIP at 128 tokens: 2.8 tokens per pass in 13.7 ms = speedup 1.25
+        let mut g = cost_gate(cp());
+        let t = drive(&mut g, 200, |_| (3, 13.7), 6.1);
+        let ev = g.take_cost_events();
+        assert_eq!(ev.off, 0, "{t}");
+        // only probes: one plain step per probe_every passes (plus the first, which measures the plain cost)
+        assert!(t.matches('p').count() <= 1 + 200 / 16, "{t}");
+        assert_eq!(ev.plain_steps as usize, t.matches('p').count());
+        assert_eq!(ev.probes, ev.plain_steps);
+        assert!(!g.cost_off());
+    }
+
+    #[test]
+    fn cost_gate_measures_the_plain_step_before_it_decides() {
+        // without a plain sample there is no speedup: it speculates until the first probe has run, never off blind
+        let mut g = cost_gate(CostParams { probe_every: 1000, ..cp() });
+        assert!(g.allow(false));
+        for _ in 0..2 {
+            g.cost_sample(true, 2, 14.0);
+            assert!(g.allow(false), "warm-up passes");
+        }
+        g.cost_sample(true, 2, 14.0);
+        assert!(!g.allow(false), "the first timed pass asks for a probe of the plain step");
+        g.cost_sample(false, 1, 6.0);
+        assert!(g.allow(false));
+        assert!(!g.cost_off());
+    }
+
+    #[test]
+    fn cost_gate_needs_a_whole_window_under_the_line() {
+        // speedup alternates 1.0 and 1.5 per pass: the average sits above 1.03, and a single low evaluation never counts
+        let mut g = cost_gate(cp());
+        let t = drive(&mut g, 300, |i| if i % 2 == 0 { (2, 12.2) } else { (3, 12.2) }, 6.1);
+        assert_eq!(g.take_cost_events().off, 0, "{t}");
+        // a text that gets worse after 60 steps is caught: a long low stretch
+        let mut g = cost_gate(cp());
+        let t = drive(&mut g, 120, |i| if i < 60 { (3, 12.2) } else { (2, 12.2) }, 6.1);
+        assert_eq!(g.take_cost_events().off, 1, "{t}");
+        assert!(t[60..].contains('p'), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_retries_on_the_text_as_it_is_now() {
+        let mut g = cost_gate(cp());
+        // bad text until the gate is off and has taken its 40 plain tokens ...
+        let mut steps = String::new();
+        while !g.cost_off() {
+            steps += &drive(&mut g, 1, |_| (2, 13.9), 6.1);
+            assert!(steps.len() < 100, "falls back: {steps}");
+        }
+        assert_eq!(g.take_cost_events().off, 1);
+        let plain = drive(&mut g, 40, |_| (2, 13.9), 6.1);
+        assert_eq!(plain, "p".repeat(40));
+        // ... then the text is good (3 tokens per pass in 12 ms = 1.5x): it stays on from here on
+        assert!(!g.cost_off());
+        let t = drive(&mut g, 100, |_| (3, 12.0), 6.1);
+        let ev = g.take_cost_events();
+        assert_eq!((ev.on, ev.off), (1, 0), "{t}");
+        assert!(!g.cost_off() && !t.contains("pppp"), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_is_off_with_zero_and_beside_other_sequences() {
+        let mut off = cost_gate(CostParams::OFF);
+        let t = drive(&mut off, 100, |_| (2, 13.9), 6.1);
+        assert!(!t.contains('p'), "{t}");
+        assert_eq!(off.take_cost_events(), CostEvents::default());
+        // busy: the step time is shared with the batch, the gate neither decides nor counts
+        let mut g = cost_gate(cp());
+        for _ in 0..50 {
+            assert!(g.allow(true));
+        }
+        assert_eq!(g.take_cost_events(), CostEvents::default());
+    }
+
+    #[test]
+    fn cost_gate_env_syntax() {
+        let d = CostParams::for_backend("hip");
+        assert_eq!(d.min_speedup, 1.03);
+        assert!(d.enabled());
+        assert!(!d.with_env(Some("0")).enabled());
+        assert!(!d.with_env(Some("off")).enabled());
+        assert_eq!(d.with_env(Some("1")), d);
+        assert_eq!(d.with_env(None), d);
+        let e = d.with_env(Some("1.1, 4, 8, 100"));
+        assert_eq!((e.min_speedup, e.window, e.probe_every, e.reprobe_tokens), (1.1, 4, 8, 100));
+        assert_eq!(e.warmup, d.warmup);
+        assert_eq!(d.with_env(Some("1.1,4")), d, "malformed values are ignored");
+        assert_eq!(d.with_env(Some("x,4,8,100")), d);
     }
 }

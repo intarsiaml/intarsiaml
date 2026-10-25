@@ -400,6 +400,8 @@ pub struct Model {
     mtp: Option<mtp::MtpHead>,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
     mtp_k: usize,
+    /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
+    spec_cost: crate::spec::CostParams,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -1027,6 +1029,9 @@ impl Model {
         } else {
             None
         };
+        let spec_cost = crate::spec::CostParams::for_backend(b.name())
+            .with_recipe(recipe.mtp.as_ref())
+            .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
         let mut model = Model {
             backend,
             registry,
@@ -1078,6 +1083,7 @@ impl Model {
             tail_merge,
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            spec_cost,
             mtp: mtp_head,
             mtp_k,
         };
@@ -1178,6 +1184,11 @@ impl Model {
     }
 
     /// Most rows a verify pass may have (0: speculative verify not enabled).
+    /// The measured-cost gate parameters for `--spec mtp` requests (single-sequence engine).
+    pub fn spec_cost_params(&self) -> crate::spec::CostParams {
+        self.spec_cost
+    }
+
     pub fn verify_rows(&self) -> usize {
         self.verify_rows
     }

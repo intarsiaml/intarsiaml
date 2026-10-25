@@ -41,6 +41,17 @@ pub struct MtpSpec {
     /// Tensor-name prefix: `{prefix}.fc`, `{prefix}.pre_fc_norm_embedding`, `{prefix}.pre_fc_norm_hidden`, `{prefix}.norm`,
     /// `{prefix}.layers.0.{input_layernorm, self_attn.*, post_attention_layernorm, mlp.*}`.
     pub prefix: String,
+    /// Measured-cost gate (`spec::CostParams`), per recipe: the speedup under which a request falls back to plain
+    /// decode (0 turns the gate off), the passes it must stay under for, the passes between probes of the plain-step
+    /// cost, and the plain tokens before speculation is tried again. Unset: the backend's default.
+    #[serde(default)]
+    pub cost_min_speedup: Option<f64>,
+    #[serde(default)]
+    pub cost_window: Option<u32>,
+    #[serde(default)]
+    pub cost_probe_every: Option<u32>,
+    #[serde(default)]
+    pub cost_reprobe_tokens: Option<u32>,
 }
 
 /// `[accuracy]` table of a recipe, read only by `intarsia accuracy`.

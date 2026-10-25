@@ -446,8 +446,27 @@ fn engine_full(
     script: Option<DraftScript>,
     draft_vocab: usize,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    engine_cost(backend, w, k, script, draft_vocab, None)
+}
+
+/// `cost`: recipe `[mtp]` measured-cost gate overrides (min speedup, window, probe every, reprobe tokens).
+fn engine_cost(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    draft_vocab: usize,
+    cost: Option<(f64, u32, u32, u32)>,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
-    let (recipe, dims) = dims();
+    let (mut recipe, dims) = dims();
+    if let Some((sp, win, probe, re)) = cost {
+        let m = recipe.mtp.as_mut().expect("recipe has [mtp]");
+        m.cost_min_speedup = Some(sp);
+        m.cost_window = Some(win);
+        m.cost_probe_every = Some(probe);
+        m.cost_reprobe_tokens = Some(re);
+    }
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1219,5 +1238,59 @@ fn short_scripted_drafts_behave_alike_on_both_paths() {
         }
         let t = tel.snapshot();
         assert!(t.spec_proposed > 0 && t.spec_proposed <= t.spec_steps, "one scripted draft per pass: {} over {}", t.spec_proposed, t.spec_steps);
+    }
+}
+
+/// The measured-cost gate holds speculation off and retries it as often as the parameters allow (here: every pass is "too
+/// slow", so it falls back after one pass, decodes 5 tokens plainly, and tries again), with the head catching up in one
+/// batched pass after every plain stretch. Greedy output equals spec off on either path, for the model's own drafts and
+/// for scripted drafts that hit every acceptance pattern.
+#[test]
+fn cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for k in 1..=3 {
+        let (on, tel) = engine_cost(CpuBackend::arc(), &w, Some(k), None, 0, Some((1e9, 1, 2, 5)));
+        for p in PROMPTS {
+            let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+            assert_eq!(a, b, "k {k} prompt {p:?}");
+        }
+        let t = tel.snapshot();
+        assert!(t.spec_steps > 0, "k {k}: speculated between the plain stretches");
+        assert!(t.spec_cost_off > 5 && t.spec_cost_on > 5, "k {k}: flipped: off {} on {}", t.spec_cost_off, t.spec_cost_on);
+        assert!(t.spec_cost_plain_steps > t.spec_steps, "k {k}: mostly plain: {} plain, {} passes", t.spec_cost_plain_steps, t.spec_steps);
+        eprintln!(
+            "k {k}: {} passes, {} plain by the gate ({} probes), off {} on {}",
+            t.spec_steps, t.spec_cost_plain_steps, t.spec_cost_probes, t.spec_cost_off, t.spec_cost_on
+        );
+    }
+}
+
+#[test]
+fn cost_gate_with_scripted_drafts_stays_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        for cost in [(1e9, 1, 2, 5), (1e9, 3, 4, 11), (1e-9, 1, 2, 5)] {
+            let (on, tel) = engine_cost(CpuBackend::arc(), &w, Some(k), Some(scripted(truth.clone(), 3 + k as u64)), 0, Some(cost));
+            for p in PROMPTS {
+                let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+                assert_eq!(a, b, "k {k} cost {cost:?} prompt {p:?}");
+            }
+            let t = tel.snapshot();
+            assert!(t.spec_steps > 0, "k {k} cost {cost:?}");
+            if cost.0 > 1.0 {
+                assert!(t.spec_cost_off > 0 && t.spec_cost_plain_steps > 0, "k {k} cost {cost:?}");
+            } else {
+                assert_eq!(t.spec_cost_off, 0, "k {k} cost {cost:?}: never too slow");
+            }
+        }
     }
 }
