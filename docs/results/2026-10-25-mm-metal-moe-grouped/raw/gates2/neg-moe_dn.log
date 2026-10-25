@@ -1,0 +1,40 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.02s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-31ca8bc2b56c4560)
+
+running 1 test
+test moe_experts_rows_are_bitwise_the_one_token_call ... FAILED
+
+failures:
+
+---- moe_experts_rows_are_bitwise_the_one_token_call stdout ----
+
+thread 'moe_experts_rows_are_bitwise_the_one_token_call' (2368345) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:72:9:
+moe_experts T=8 routing=identical out=f32 w_off=0: first differing byte 58041 of 65552 (one-row launches 0x4f, M-row launch 0x57)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    moe_experts_rows_are_bitwise_the_one_token_call
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test rows_exact`

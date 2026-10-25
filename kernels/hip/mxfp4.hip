@@ -255,6 +255,99 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, cons
     return ik_launch_status();
 }
 
+// ---- row-exact multi-row GEMV (_rows launchers, M = 2..16) ------------------------------------------------------------
+// Output row m of an M-row call is bitwise the M == 1 launch on row m alone: per (output row n, activation row m) the lane
+// walks the groups u = lane, lane + 32, ... in order, t = fma chain over the 32 elements of the group, acc = fma(t, s, acc),
+// then the xor-butterfly warp sum, exactly as mxfp4_gemv_kernel<1>. What differs from mxfp4_gemv_kernel<M> is the register
+// shape only. That kernel hoists the loads and bf16 unpacks of all M activation rows (~33 VGPR per row) and spills from
+// M = 6 (256 VGPR, 126 spilled at M = 8: 19x the one-row time). Here a warp computes kRowsR = 2 weight rows, so the
+// activation loads and unpacks of a group are shared by two rows, and each activation row is loaded, unpacked and consumed
+// 8 elements at a time behind a scheduler barrier, so the registers do not grow with M (104 VGPR at M = 2, 134 at M = 16).
+// x is the QDQ'd (or copied) pre-pass output, plain bf16.
+constexpr int kRowsR = 2;  // weight rows per warp (measured against 1, 3 and 4: docs/results/2026-10-25-mr-hip-mxfp4-rows.md)
+
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                       OutT* __restrict__ out, int64_t N, int K) {
+    constexpr int R = kRowsR;
+    IK_FP4_LUT(lut);
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
+    if (n0 >= N) return;  // whole warp exits together
+    const int G = K / kG;
+    const uint4* wr[R];
+    const uint8_t* sr[R];
+#pragma unroll
+    for (int r = 0; r < R; ++r) {
+        const int64_t n = n0 + r < N ? n0 + r : N - 1;  // a tail row past N re-reads the last row and is not stored
+        wr[r] = reinterpret_cast<const uint4*>(w + n * (K / 2));
+        sr[r] = sc + n * G;
+    }
+    float acc[R][M];
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
+    for (int u = lane; u < G; u += IK_WARP) {
+        float wf[R][kG], s[R];
+#pragma unroll
+        for (int r = 0; r < R; ++r) {
+            const uint4 wv = ik_ldcs(wr[r] + u);
+            s[r] = mx_e8m0(sr[r][u]);
+            ik_fp4x8_to_f32(wv.x, lut, wf[r]);
+            ik_fp4x8_to_f32(wv.y, lut, wf[r] + 8);
+            ik_fp4x8_to_f32(wv.z, lut, wf[r] + 16);
+            ik_fp4x8_to_f32(wv.w, lut, wf[r] + 24);
+        }
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            __builtin_amdgcn_sched_barrier(0);  // keeps the loads of row m + 1 from being hoisted above the fmas of row m
+            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * kG);
+            float t[R];
+#pragma unroll
+            for (int r = 0; r < R; ++r) t[r] = 0.f;
+#pragma unroll
+            for (int c = 0; c < 4; ++c) {
+                float xf[8];
+                ik_unpack8(xp[c], xf);
+#pragma unroll
+                for (int r = 0; r < R; ++r)
+#pragma unroll
+                    for (int e = 0; e < 8; ++e) t[r] = fmaf(wf[r][8 * c + e], xf[e], t[r]);
+            }
+#pragma unroll
+            for (int r = 0; r < R; ++r) acc[r][m] = fmaf(t[r], s[r], acc[r][m]);
+        }
+    }
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            const float t = ik_warp_sum(acc[r][m]);
+            if (lane == 0 && n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, t);
+        }
+}
+
+template <int M, typename OutT>
+void rows_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    const unsigned grid = (unsigned)((N + kWarps * kRowsR - 1) / (kWarps * kRowsR));
+    mxfp4_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, sc, out, N, (int)K);
+}
+
+template <typename OutT>
+int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+#define IK_MX_ROWS(MM) case MM: rows_launch<MM, OutT>(x, w, sc, out, N, K, s); break
+    switch (M) {
+        IK_MX_ROWS(2); IK_MX_ROWS(3); IK_MX_ROWS(4); IK_MX_ROWS(5); IK_MX_ROWS(6); IK_MX_ROWS(7); IK_MX_ROWS(8);
+        IK_MX_ROWS(9); IK_MX_ROWS(10); IK_MX_ROWS(11); IK_MX_ROWS(12); IK_MX_ROWS(13); IK_MX_ROWS(14); IK_MX_ROWS(15);
+        IK_MX_ROWS(16);
+        default: return IK_ERR_SHAPE;
+    }
+#undef IK_MX_ROWS
+    return ik_launch_status();
+}
+
 // ---- activation pre-pass (mma): xs[M, K] = act ? QDQ(x) : x, one thread per 32-element group --------------------
 
 __global__ void mxfp4_xprep_kernel(const ik_bf16* __restrict__ x, const float* __restrict__ act, ik_bf16* __restrict__ xs,
@@ -322,7 +415,7 @@ struct Mxfp4Policy {
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out,
-           const ik_scratch* scratch, void* stream, bool gemv) {
+           const ik_scratch* scratch, void* stream, bool gemv, bool rows = false) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
@@ -346,7 +439,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     const float* ap = (const float*)act->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
-        if (M > 8) return IK_ERR_SHAPE;
+        if (M > (rows ? 16 : 8)) return IK_ERR_SHAPE;
         if (M == 1 && K * 2 <= kLdsMax && mx_lds_blocks() > 0) {
             return f32o ? lds_launch(xp, wp, sp, (float*)out->data, N, (const uint8_t*)nullptr, (const uint8_t*)nullptr,
                                      (float*)nullptr, 0, ap, K, s)
@@ -361,6 +454,12 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
             IK_TRY(ik_launch_status());
             xp = xs;
             ap = nullptr;
+        }
+        if (rows && M >= 2) {  // register-shaped kernels: x must be the plain pre-pass output
+            if (!(scratch && scratch->data && scratch->bytes >= M * K * 2 && !(reinterpret_cast<uintptr_t>(scratch->data) & 15u)))
+                return IK_ERR_INVALID_ARG;
+            return f32o ? rows_by_m((int)M, xp, wp, sp, (float*)out->data, N, K, s)
+                        : rows_by_m((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
         }
         return f32o ? gemv_by_m((int)M, xp, wp, sp, ap, (float*)out->data, N, K, s)
                     : gemv_by_m((int)M, xp, wp, sp, ap, (ik_bf16*)out->data, N, K, s);
@@ -396,9 +495,9 @@ int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor
 }
 // MatmulMxfp4Pair: out0 = matmul_mxfp4(x, w0, s0, act), out1 = matmul_mxfp4(x, w1, s1, act). M == 1 and K <= 8192: one
 // launch of the LDS kernel over the rows of both (each row bitwise as in the single op); otherwise the two single ops.
-int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
-                              const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
-                              const ik_scratch* scratch, void* stream) {
+static int pair_impl(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                     const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                     const ik_scratch* scratch, void* stream, bool rows) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w0, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(w1, IK_DTYPE_U8, 2, 16));
@@ -424,12 +523,30 @@ int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_
                    ? lds_launch(xp, a0, b0, (float*)out0->data, N0, a1, b1, (float*)out1->data, N1, ap, K, s)
                    : lds_launch(xp, a0, b0, (ik_bf16*)out0->data, N0, a1, b1, (ik_bf16*)out1->data, N1, ap, K, s);
     }
-    IK_TRY(launch(x, w0, s0, act, out0, scratch, stream, true));
-    return launch(x, w1, s1, act, out1, scratch, stream, true);
+    IK_TRY(launch(x, w0, s0, act, out0, scratch, stream, true, rows));
+    return launch(x, w1, s1, act, out1, scratch, stream, true, rows);
+}
+int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                              const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                              const ik_scratch* scratch, void* stream) {
+    return pair_impl(x, w0, s0, w1, s1, act, out0, out1, scratch, stream, false);
 }
 int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                         ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return launch(x, w, scales, act, out, scratch, stream, false);
+}
+// Row-exact twins (OpCall::exact_rows, speculative verify, batched decode): M <= 16, row r bitwise the M == 1 launch on row r
+// alone (tests/rows_exact.rs holds the bitwise proof on the device). M == 1 is the gemv launcher itself; M = 2..16 runs
+// mxfp4_gemv_rows_kernel: the same per-row arithmetic (lane-to-group map, fma chain, warp sum; the QDQ is per group of
+// 32), with a register shape that does not grow with M.
+int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                              ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return launch(x, w, scales, act, out, scratch, stream, true, true);
+}
+int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                                   const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                                   const ik_scratch* scratch, void* stream) {
+    return pair_impl(x, w0, s0, w1, s1, act, out0, out1, scratch, stream, true);
 }
 
 }  // extern "C"

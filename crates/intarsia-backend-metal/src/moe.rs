@@ -33,11 +33,35 @@ const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe
 const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
+/// The row-exact decode's fat-threadgroup gate+up / down kernels (`MOE_PR` = 2 rows per simdgroup, no grouping by expert;
+/// lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md) and their negative-control forms.
+const GU_P: &str = "moe_dec_gu_p";
+const DN_P: &str = "moe_dec_dn_p";
+const GU_P_NEG: &str = "moe_dec_gu_p_neg";
+const DN_P_NEG: &str = "moe_dec_dn_p_neg";
+const PR: usize = 2;
+
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 19] = [
-    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3], MM_DN[0],
-    MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X,
+pub const SHADERS: [&str; 23] = [
+    TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3],
+    MM_DN[0], MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_P, DN_P, GU_P_NEG, DN_P_NEG,
 ];
+
+/// The rows path's gate+up and down shaders with their rows per simdgroup: the fat-threadgroup kernels unless
+/// `INTARSIA_METAL_MOE_ROWS_FAT=0` (the expert-grouped `_x` kernels of lane mb); `INTARSIA_METAL_NEGCTL=moe_gu` / `moe_dn`
+/// swaps in a negative-control kernel (tests only: its output is NOT the solo call's).
+fn rows_shaders() -> ((&'static str, usize), (&'static str, usize)) {
+    static PICK: std::sync::OnceLock<((&'static str, usize), (&'static str, usize))> = std::sync::OnceLock::new();
+    *PICK.get_or_init(|| {
+        if std::env::var("INTARSIA_METAL_MOE_ROWS_FAT").is_ok_and(|v| v == "0") {
+            return ((DEC_GU_X, 1), (DEC_DN_X, 1));
+        }
+        let neg = std::env::var("INTARSIA_METAL_NEGCTL").unwrap_or_default();
+        let gu = if neg == "moe_gu" { GU_P_NEG } else { GU_P };
+        let dn = if neg == "moe_dn" { DN_P_NEG } else { DN_P };
+        ((gu, PR), (dn, PR))
+    })
+}
 
 /// Tokens the row-exact decode takes (`MOE_XR` pairs per tile: an expert has at most one pair per token).
 pub const ROWS_MAX: usize = 8;
@@ -193,10 +217,11 @@ impl MetalBackend {
             // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
             // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
             let yb = at(&sc, o_y);
-            let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
-            self.moe_dispatch(DEC_GU_X, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
-            let g2 = MTLSize { width: h.div_ceil(DEC_SG), height: pairs, depth: 1 };
-            self.moe_dispatch(DEC_DN_X, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
+            let ((gu, rg), (dn, rd)) = rows_shaders();
+            let g1 = MTLSize { width: i.div_ceil(DEC_SG * rg), height: pairs, depth: 1 };
+            self.moe_dispatch(gu, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let g2 = MTLSize { width: h.div_ceil(DEC_SG * rd), height: pairs, depth: 1 };
+            self.moe_dispatch(dn, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
             return self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
         }

@@ -1,0 +1,29 @@
+fleetq: #5095 waiting (#5 in line): in line behind #5088 "wg: WMMA microbench (fp8 A8/A16, bf16, folds; standalone, card 0)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5088 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5088 set, or it will wait for #5088 to be released.
+fleetq: #5095 waiting (#4 in line): in line behind #5092 "tp2 arnorm build + mutants (hip CLI, hiptest, warm volumes)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5092 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5092 set, or it will wait for #5092 to be released.
+fleetq: #5095 waiting (#2 in line): in line behind #5093 "mx w3: MXFP4 v2 GEMM bitwise test + tile sweep, chunk self-golden, 27B golden gate main/v2/fold, no-op ids, speed (one R9700)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5093 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5093 set, or it will wait for #5093 to be released.
+fleetq: #5095 waiting (#1 in line): radiance-rank0 is also taken down by #5093 "mx w3: MXFP4 v2 GEMM bitwise test + tile sweep, chunk self-golden, 27B golden gate main/v2/fold, no-op ids, speed (one R9700)" (claude-f31ccf91)
+fleetq:   #5093 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5093 set, or it will wait for #5093 to be released.
+fleetq: #5095 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 82% busy with work fleetq does not track
+fleetq: #5095 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5095 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 98% busy with work fleetq does not track
+fleetq: #5095 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-sp/scripts/sp/win3.sh'
+fleetq: #5095 went ahead of the line and must end within 5h36m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+w3-t27-mtp2e n128 md5=abcdf0cf | decode 5374 ms (47.45 tok/s) | spec: verify passes=100 proposed=199 accepted=154 (acceptance 77.4%, 2.54 tokens per pass) | steps=103 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-t27-mtp2e n1024 md5=3592ef43 | decode 5654 ms (45.10 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass) | steps=110 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-t27-mtp2e n4096 md5=7755ec5a | decode 5015 ms (50.85 tok/s) | spec: verify passes=90 proposed=180 accepted=165 (acceptance 91.7%, 2.83 tokens per pass) | steps=107 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-t27-mtp2e n16384 md5=b1b0bea4 | decode 5604 ms (45.51 tok/s) | spec: verify passes=93 proposed=186 accepted=162 (acceptance 87.1%, 2.74 tokens per pass) | steps=158 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-t27-trace n1024 md5=3592ef43 | decode 5600 ms (45.54 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass) | steps=110 graph replays=106 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0m
+w3-t27-prof n1024 md5=3592ef43 | decode 7178 ms (35.53 tok/s) | spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass) | steps=110 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_m
+w3-35-mtp2e n128 md5=ce656b29 | decode 1376 ms (185.33 tok/s) | spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass) | steps=104 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-35-mtp2e n1024 md5=419d4320 | decode 1325 ms (192.45 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-35-mtp2e n4096 md5=4963646e | decode 1277 ms (199.75 tok/s) | spec: verify passes=91 proposed=181 accepted=164 (acceptance 90.6%, 2.80 tokens per pass) | steps=93 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/1
+w3-35-mtp2e n16384 md5=62089f5c | decode 1638 ms (155.67 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | steps=109 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/
+w3-35-trace n1024 md5=419d4320 | decode 1281 ms (199.04 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=99 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms
+w3-35-prof n1024 md5=419d4320 | decode 2805 ms (90.91 tok/s) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass) | steps=100 graph replays=2 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_f
+[win] starting radiance 2026-10-25 03:24:20
+[win] radiance answers 2026-10-25 03:24:35 (after 20 s); active
+fleetq: #5095 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

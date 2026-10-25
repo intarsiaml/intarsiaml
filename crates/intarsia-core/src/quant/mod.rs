@@ -196,6 +196,18 @@ impl QTensor {
         OpCall::new(self.op(f32_out), inputs, vec![out], attrs)
     }
 
+    /// The first `n` output rows of this weight as a `QTensor` over the same device memory (a reduced lm_head for the MTP drafter).
+    /// Parts with a leading dimension of `self.n` (weights, per-row scales) are cut to `n` rows; the others (a global scale, the
+    /// MXFP4 `act` flag) are shared. `None` for formats whose layout is not row-prefix addressable (EXL3), or `n` outside
+    /// `1..self.n`.
+    pub fn row_prefix(&self, n: usize) -> Option<QTensor> {
+        if n == 0 || n >= self.n || self.format == EXL3 || n % 8 != 0 {
+            return None;
+        }
+        let parts = self.parts.iter().map(|p| if p.shape.len() >= 2 && p.shape[0] == self.n { p.rows(0, n) } else { p.clone() }).collect();
+        Some(QTensor { n, parts, ..self.clone() })
+    }
+
     pub fn weight_bytes(&self) -> usize {
         self.parts.iter().map(|p| p.nbytes()).sum()
     }

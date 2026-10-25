@@ -1,0 +1,82 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-mm/crates/intarsia-backend-metal)
+   Compiling intarsia-cli v0.0.1 (/opt/code/wt-mm/crates/intarsia-cli)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1735:13
+     |
+1735 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6.05s
+     Running `target/release/intarsia kernels test --backend metal`
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+embedding      embedding_bf16                  6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm        rmsnorm_bf16                   12      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add    rmsnorm_add_bf16               12      0     0.000e0     0.000e0  ADMITTED
+add            add_bf16                        6      0     0.000e0     0.000e0  ADMITTED
+qk_norm        qk_norm_bf16                   18      0     0.000e0     0.000e0  ADMITTED
+rope           rope_bf16                      36      0    2.016e-3    1.087e-4  ADMITTED
+rope_scaled    rope_scaled_bf16               36      0    9.328e-4    3.045e-5  ADMITTED
+add_bias       add_bias_bf16                  12      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16                    21      0    2.041e-3    2.423e-4  ADMITTED
+matmul         matmul_bf16_gemv                7      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16                     4      0    6.237e-7    2.548e-7  ADMITTED
+logits         logits_bf16_gemv                2      0    9.645e-8    7.172e-8  ADMITTED
+kv_append      kv_append_bf16                  4      0     0.000e0     0.000e0  ADMITTED
+silu_glu       silu_glu_bf16                   9      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_f32                      4      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+attn_prefill   attn_prefill_bf16              31      0    1.263e-3    6.104e-5  ADMITTED
+attn_prefill   attn_prefill_bf16_flash        24      0    5.587e-3    2.414e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax      7      0    7.353e-3    2.394e-3  ADMITTED
+attn_decode    attn_decode_bf16               23      0    4.883e-4    4.828e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       23      0    9.191e-5    7.266e-6  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv           6      0     0.000e0     0.000e0  ADMITTED
+qk_norm_rope_kv qk_norm_rope_kv_bf16           36      0    1.773e-3    3.712e-5  ADMITTED
+matmul         matmul_bf16_nax                14      0    1.938e-3    4.490e-5  ADMITTED
+matmul_pair    matmul_pair_bf16_nax           18      0    8.633e-5    3.758e-6  ADMITTED
+matmul         matmul_bf16_gemv_rows           7      0    6.829e-6    3.183e-7  ADMITTED
+matmul_pair    matmul_pair_bf16_gemv_rows     12      0     0.000e0     0.000e0  ADMITTED
+logits         logits_bf16_gemv_rows           2      0    1.106e-7    7.238e-8  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows     13      0    1.309e-3    6.227e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv              53      0    2.075e-3    8.968e-5  ADMITTED
+gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
+gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
+gdn_delta_rule gdn_delta_rule_bf16            20      0    1.221e-4    4.729e-5  ADMITTED
+moe_topk       moe_topk_bf16                  96      0    1.953e-3    2.159e-4  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_combine    moe_combine_bf16                6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8     matmul_fp8_gemv                34      0    2.252e-3    5.880e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    3.030e-3    1.226e-4  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv              21      0    1.776e-4    2.907e-6  ADMITTED
+matmul_nvfp4   matmul_nvfp4_mma               36      0    2.392e-3    3.758e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemv_rows           24      0    2.252e-3    8.245e-5  ADMITTED
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 26.3s

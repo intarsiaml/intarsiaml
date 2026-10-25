@@ -67,3 +67,12 @@ max_batch = 32
 # written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B.
 [accuracy]
 chat_turns = "chatml"
+
+# Multi-token-prediction head (`mtp.*`, bf16 even in a quantised checkpoint): fc over [norm(embed) | norm(hidden)], one gated
+# full-attention + dense SwiGLU layer, a final norm, the model's lm_head. Read only by `--spec mtp`; without that flag
+# nothing under `mtp.*` is loaded.
+
+[mtp]
+
+kind = "qwen3_5_mtp"
+prefix = "mtp"

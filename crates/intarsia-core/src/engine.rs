@@ -1013,6 +1013,22 @@ fn spec_verify(
     ids.push(last);
     ids.extend_from_slice(drafts);
     let out = model.forward_verify(st, &ids)?;
+    spec_accept(model, st, len0, drafts, out, generated, min_tokens, stop_ids)
+}
+
+/// The acceptance and rollback half of [`spec_verify`]: `out` is the greedy token of each row of the verify pass over
+/// `[last, drafts...]` that started at `len0` tokens and has been committed to `st`.
+#[allow(clippy::too_many_arguments)]
+fn spec_accept(
+    model: &Model,
+    st: &mut SequenceState,
+    len0: usize,
+    drafts: &[u32],
+    out: Vec<u32>,
+    generated: usize,
+    min_tokens: usize,
+    stop_ids: &[u32],
+) -> Result<SpecStep> {
     let j = crate::spec::accept(drafts, &out);
     let masked_stop =
         (0..=j).find(|&i| generated + 1 + i <= min_tokens && !stop_ids.is_empty() && stop_ids.contains(&out[i]));
@@ -1629,12 +1645,17 @@ impl Seq {
         if let Some(Ok(c)) = &mut self.cons {
             c.commit(tok).map_err(|e| Error::Other(format!("structured output: {e}")))?;
         }
+        let prof_detok = crate::hostprof::span(crate::hostprof::Cat::Detok);
         let delta = self.dec.push(&*self.codec, tok)?;
+        drop(prof_detok);
         if self.req.min_tokens > 0 && self.generated == self.req.min_tokens + 1 {
             self.stops = StopMatcher::new(&self.req.stop);
         }
         let (text, stopped) = self.stops.push(&delta);
-        if self.tx.send(GenEvent::Token { id: tok, text }).is_err() {
+        let prof_send = crate::hostprof::span(crate::hostprof::Cat::Send);
+        let sent = self.tx.send(GenEvent::Token { id: tok, text });
+        drop(prof_send);
+        if sent.is_err() {
             self.reason = Some(FinishReason::Cancelled);
             return Ok(true);
         }
@@ -1684,6 +1705,27 @@ impl Seq {
     pub(crate) fn verify(&mut self, model: &Model, st: &mut SequenceState, drafts: &[u32]) -> Result<()> {
         let pos = st.len;
         let step = spec_verify(model, st, self.tok, drafts, self.generated, self.req.min_tokens, &self.stop_ids)?;
+        self.account_verify(pos, drafts, step);
+        Ok(())
+    }
+
+    /// [`Seq::verify`] for a pass that already ran (a captured speculative step): `out` are the rows' tokens, the pass
+    /// started at `len0` tokens.
+    fn verify_pass(
+        &mut self,
+        model: &Model,
+        st: &mut SequenceState,
+        len0: usize,
+        drafts: &[u32],
+        out: Vec<u32>,
+    ) -> Result<()> {
+        let step = spec_accept(model, st, len0, drafts, out, self.generated, self.req.min_tokens, &self.stop_ids)?;
+        self.account_verify(len0, drafts, step);
+        Ok(())
+    }
+
+    /// Telemetry, gate and the queue of tokens a verify pass yields.
+    fn account_verify(&mut self, pos: usize, drafts: &[u32], step: SpecStep) {
         self.telemetry.spec_step(drafts.len(), step.accepted);
         self.gate.record(step.accepted);
         if crate::spec::trace_enabled() {
@@ -1699,7 +1741,6 @@ impl Seq {
         }
         self.pending.extend(step.emit);
         self.plain_next = step.plain_next;
-        Ok(())
     }
 
     /// The input of a plain decode step: the token to feed and how the head of that step must run
@@ -1732,6 +1773,31 @@ impl Seq {
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(None);
+                }
+            }
+            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, k) => {
+                // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
+                let t0 = Instant::now();
+                let len0 = st.len;
+                match model.spec_step(st, self.tok, k)? {
+                    Some(pass) => {
+                        self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
+                        if crate::spec::trace_enabled() {
+                            // step = the graph replay and its download; gap = host time since the previous step ended (acceptance,
+                            // rollback, token emission, stop checks)
+                            static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+                            let mut last = LAST.lock().unwrap();
+                            let gap = last.map_or(0.0, |l| t0.duration_since(l).as_secs_f64() * 1e3);
+                            eprintln!("spec: mtp graph step {:.3} ms gap {:.3} ms", t0.elapsed().as_secs_f64() * 1e3, gap);
+                            *last = Some(Instant::now());
+                        }
+                        if let Some(t) = self.pending.pop_front() {
+                            self.tok = t;
+                            return Ok(None);
+                        }
+                    }
+                    // capture failed (graph steps are off now): the eager path below
+                    None => return self.prepare(model, st),
                 }
             }
             Next::Draft(k) => {

@@ -168,15 +168,25 @@ fn fp8_case(
     for r in 0..m {
         be.launch("matmul_fp8_gemv", &call(xt.rows(r, 1), yst.rows(r, 1)), 0).unwrap();
     }
-    let rows = call(xt.clone(), ymt);
-    be.launch("matmul_fp8_gemv_rows", &rows, 0).unwrap();
     let tot = yo + m * n * esz + 16;
-    same(
-        &dl(be, &ys, tot),
-        &dl(be, &ym, tot),
-        &format!("matmul_fp8 N={n} K={k} M={m} is={is} f32_out={f32_out} w_off={w_off} x_off={x_off}"),
-    );
-    tally(m);
+    // both forms of the rows kernel: staged (no scratch) and `_xd` (the q(x) prep in the scratch, at a 16-byte offset)
+    for xd in [false, true] {
+        be.upload(&ym, 0, &vec![0xEEu8; tot], 0).unwrap();
+        let mut rows = call(xt.clone(), ymt.clone());
+        if xd {
+            let need = m.max(8) * k * 2 + 16;
+            let sb = be.alloc(need + 32, MemKind::Device).unwrap();
+            // an offset that is 4- but not 16-byte aligned (the launcher realigns inside the 16 bytes of slack)
+            rows.scratch = Some(TensorRef { buf: sb, offset: 4 + 4 * (m % 3), dtype: DType::U8, shape: vec![need] });
+        }
+        be.launch("matmul_fp8_gemv_rows", &rows, 0).unwrap();
+        same(
+            &dl(be, &ys, tot),
+            &dl(be, &ym, tot),
+            &format!("matmul_fp8 N={n} K={k} M={m} is={is} f32_out={f32_out} w_off={w_off} x_off={x_off} xd={xd}"),
+        );
+        tally(m);
+    }
 }
 
 #[test]
@@ -407,6 +417,132 @@ fn moe_experts_rows_are_bitwise_the_one_token_call() {
         }
     }
     report("moe_experts");
+}
+
+// ---- negative controls (lane mm): the bitwise comparisons above can see the mistakes they guard against ------------
+
+fn differing(a: &[u8], b: &[u8]) -> usize {
+    a.iter().zip(b).filter(|(x, y)| x != y).count()
+}
+
+/// Each control computes something a broken rows kernel could plausibly compute instead (rows mixed up, q(x) skipped,
+/// another accumulation order) and asserts that it does NOT match the one-row launches bit for bit, so a pass of
+/// `fp8_rows_are_bitwise_the_one_row_gemv` / `moe_experts_rows_are_bitwise_the_one_token_call` is not vacuous. The kernels'
+/// own order is controlled separately: `INTARSIA_METAL_NEGCTL=fp8_xd` / `fp8_mmt` / `moe_gu` / `moe_dn` swap in a form of the new rows
+/// kernel with one association changed, and those two gates must then fail (scripts/mm/gates.sh).
+#[test]
+fn negative_controls_differ_from_the_one_row_calls() {
+    let be = backend();
+    // fp8 512 x 2048 (k / v projections), M = 4, static W8A8 input scale
+    let (n, k, m) = (512usize, 2048usize, 4usize);
+    let wb = put_bytes(&be, 8, &rand_e4m3(n * k, 77, 0));
+    let wt = t(&wb, 8, DType::Fp8E4m3, &[n, k]);
+    let x = act_rows(m, k, 78);
+    let mut xsw = x.clone();
+    xsw[..k].copy_from_slice(&x[k..2 * k]);
+    xsw[k..2 * k].copy_from_slice(&x[..k]);
+    let xt = t(&put_bytes(&be, 0, &bf16_bytes(&x)), 0, DType::Bf16, &[m, k]);
+    let xswt = t(&put_bytes(&be, 0, &bf16_bytes(&xsw)), 0, DType::Bf16, &[m, k]);
+    let st = t(&put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37])), 4, DType::F32, &[2]);
+    let st0 = t(&put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.0])), 4, DType::F32, &[2]);
+    let fp8 = |kern: &str, x: &TensorRef, sc: &TensorRef, scratch: bool| -> Vec<u8> {
+        let y = guarded(&be, 0, m * n * 2);
+        let yt = t(&y, 0, DType::Bf16, &[m, n]);
+        if kern == "matmul_fp8_gemv" {
+            for r in 0..m {
+                let c = OpCall::new(
+                    Op::MatmulFp8,
+                    vec![x.rows(r, 1), wt.clone(), sc.clone()],
+                    vec![yt.rows(r, 1)],
+                    OpAttrs::default(),
+                );
+                be.launch(kern, &c, 0).unwrap();
+            }
+        } else {
+            let mut c =
+                OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
+            if scratch {
+                let need = m.max(8) * k * 2 + 16;
+                c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+            }
+            be.launch(kern, &c, 0).unwrap();
+        }
+        dl(&be, &y, m * n * 2)
+    };
+    let solo = fp8("matmul_fp8_gemv", &xt, &st, false);
+    assert_eq!(differing(&solo, &fp8("matmul_fp8_gemv_rows", &xt, &st, true)), 0, "the control setup itself");
+    let controls = [
+        ("fp8 rows (_xd) with rows 0 and 1 swapped", fp8("matmul_fp8_gemv_rows", &xswt, &st, true)),
+        ("fp8 rows (_xd) with q(x) skipped (is = 0)", fp8("matmul_fp8_gemv_rows", &xt, &st0, true)),
+    ];
+    for (what, got) in &controls {
+        let d = differing(&solo, got);
+        eprintln!("NEGATIVE CONTROL {what}: {d} of {} output bytes differ", solo.len());
+        assert!(d > 0, "{what}: bitwise equal to the one-row launches, so the gate could not see it");
+    }
+
+    // MoE at T = 8, random routing
+    let t8 = 8usize;
+    let mut rng = SplitMix64::new(0x6e_6e);
+    let ex = random_experts(&mut rng, E, H, I);
+    let (guw, gus, dw, ds, gs) = (
+        put_host(&be, &ex.gate_up_w, 8),
+        put_host(&be, &ex.gate_up_s, 0),
+        put_host(&be, &ex.down_w, 8),
+        put_host(&be, &ex.down_s, 0),
+        put_host(&be, &ex.gscales, 0),
+    );
+    let xr = put_host(&be, &HostTensor::from_f32_as(DType::Bf16, &[t8, H], &rng.normal_vec(t8 * H, 1.0)), 0);
+    let (_, ids, ws) = routings(&mut rng, t8).into_iter().next().unwrap();
+    let mut ids_sw = ids.clone();
+    ids_sw[..K].copy_from_slice(&ids[K..2 * K]);
+    ids_sw[K..2 * K].copy_from_slice(&ids[..K]);
+    let ks = be.kernels();
+    let solo_k = ks.iter().find(|k| k.name == "moe_experts_bf16").unwrap();
+    let moe = |kern: &str, ids: &[i32], per_token: bool| -> Vec<u8> {
+        let idt = put_host(&be, &HostTensor::from_i32(&[t8, K], ids), 0);
+        let wst = put_host(&be, &HostTensor::from_f32(&[t8, K], &ws), 0);
+        let y = guarded(&be, 0, t8 * H * 2);
+        let mk = |rows: usize, r0: usize| {
+            let mut c = OpCall::new(
+                Op::MoeExperts,
+                vec![
+                    xr.rows(r0, rows),
+                    idt.rows(r0, rows),
+                    wst.rows(r0, rows),
+                    guw.clone(),
+                    gus.clone(),
+                    dw.clone(),
+                    ds.clone(),
+                    gs.clone(),
+                ],
+                vec![t(&y, r0 * H * 2, DType::Bf16, &[rows, H])],
+                OpAttrs { top_k: K, ..OpAttrs::default() },
+            );
+            let need = solo_k.scratch_bytes(&ShapeInfo::from_call(&c)).max(16);
+            c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+            c
+        };
+        if per_token {
+            for r in 0..t8 {
+                be.launch(kern, &mk(1, r), 0).unwrap();
+            }
+        } else {
+            be.launch(kern, &mk(t8, 0), 0).unwrap();
+        }
+        dl(&be, &y, t8 * H * 2)
+    };
+    let solo = moe("moe_experts_bf16", &ids, true);
+    assert_eq!(differing(&solo, &moe("moe_experts_bf16_rows", &ids, false)), 0, "the MoE control setup itself");
+    let controls = [
+        ("moe rows with the routing of tokens 0 and 1 swapped", moe("moe_experts_bf16_rows", &ids_sw, false)),
+        ("moe grouped prefill path at T = 8 (simdgroup matrices, another order)", moe("moe_experts_bf16", &ids, false)),
+    ];
+    for (what, got) in &controls {
+        let d = differing(&solo, got);
+        eprintln!("NEGATIVE CONTROL {what}: {d} of {} output bytes differ", solo.len());
+        assert!(d > 0, "{what}: bitwise equal to the one-token calls, so the gate could not see it");
+    }
 }
 
 // ---- the bf16 pair kernel at the 35B's pairs ------------------------------------------------------------------------
@@ -730,10 +866,10 @@ fn time_us(be: &MetalBackend, reps: usize, mut f: impl FnMut()) -> f64 {
 fn timing_rows() {
     let be = backend();
     // fp8 8192 x 2048 (GDN in_qkv) and 2048 x 4096 (out projections); nvfp4 512 x 2048 (shared expert gate/up)
-    for (n, k) in [(8192usize, 2048usize), (2048, 4096)] {
+    for (n, k) in [(8192usize, 2048usize), (4096, 2048), (512, 2048), (2048, 4096)] {
         let w = put_bytes(&be, 8, &rand_e4m3(n * k, 5, 0));
         let sb = put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37]));
-        for m in [1usize, 2, 4, 8] {
+        for m in [1usize, 2, 4, 5, 8] {
             let xb = put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9)));
             let y = guarded(&be, 8, m * n * 2);
             let (xt, wt, st, yt) = (
@@ -755,14 +891,22 @@ fn timing_rows() {
             } else {
                 serial
             };
+            let xd = if m >= 2 {
+                let need = m.max(8) * k * 2 + 16;
+                let mut c = call(xt.clone(), yt.clone());
+                c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+                time_us(&be, 200, || be.launch("matmul_fp8_gemv_rows", &c, 0).unwrap())
+            } else {
+                serial
+            };
             eprintln!(
-                "TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x)",
-                serial / rows
+                "TIMING fp8 {n}x{k} M={m}: {m} one-row launches {serial:.1} us, rows launch {rows:.1} us ({:.2}x), xd {xd:.1} us ({:.2}x)",
+                serial / rows,
+                serial / xd
             );
         }
     }
-    {
-        let (n, k) = (512usize, 2048usize);
+    for (n, k, f32o) in [(512usize, 2048usize, false), (2048, 512, false), (248320, 2048, true)] {
         let mut r = Rng(5);
         let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 32) as u8).collect();
         let (wb, bb, gb) = (
@@ -772,8 +916,9 @@ fn timing_rows() {
         );
         for m in [1usize, 2, 4, 8] {
             let xb = put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9)));
-            let y = guarded(&be, 8, m * n * 2);
-            let (xt, yt) = (t(&xb, 0, DType::Bf16, &[m, k]), t(&y, 8, DType::Bf16, &[m, n]));
+            let (odt, esz) = if f32o { (DType::F32, 4) } else { (DType::Bf16, 2) };
+            let y = guarded(&be, 8, m * n * esz);
+            let (xt, yt) = (t(&xb, 0, DType::Bf16, &[m, k]), t(&y, 8, odt, &[m, n]));
             let (wt, bt, gt) = (
                 t(&wb, 8, DType::U8, &[n, k / 2]),
                 t(&bb, 3, DType::Fp8E4m3, &[n, k / 16]),
@@ -819,7 +964,7 @@ fn timing_rows() {
     for m in [1usize, 2, 4, 8] {
         let x = HostTensor::from_f32_as(DType::Bf16, &[m, H], &rng.normal_vec(m * H, 1.0));
         let xr = put_host(&be, &x, 0);
-        for (kind, name) in [(0usize, "random"), (1, "identical")] {
+        for (kind, name) in [(0usize, "random"), (1, "identical"), (2, "overlap")] {
             let ys = guarded(&be, 0, m * H * 2);
             let mk = |idt: &TensorRef, wst: &TensorRef, rows: usize, r0: usize, kern: &intarsia_core::KernelImpl| {
                 let mut c = OpCall::new(

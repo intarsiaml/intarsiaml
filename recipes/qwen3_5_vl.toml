@@ -64,3 +64,12 @@ lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
 [defaults]
 kv_dtype = "bf16"
 max_batch = 32
+
+# Multi-token-prediction head (`mtp.*`, bf16 even in a quantised checkpoint): fc over [norm(embed) | norm(hidden)], one gated
+# full-attention + dense SwiGLU layer, a final norm, the model's lm_head. Read only by `--spec mtp`; without that flag
+# nothing under `mtp.*` is loaded.
+
+[mtp]
+
+kind = "qwen3_5_mtp"
+prefix = "mtp"

@@ -1,0 +1,45 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:5
+   |
+35 | struct Captured {
+   |        -------- field in this struct
+36 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/wt-mm/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.81s
+     Running tests/row_tables.rs (target/release/deps/row_tables-153e1eed96bae8a3)
+
+running 8 tests
+test a_swapped_table_entry_is_seen ... G-B negative control: a swapped table entry changes the output
+ok
+test attn_decode_rows_are_the_solo_decode ... negative control nh=16: 43824 of 81920 output bytes differ from the device-position launch
+negative control nh=32: 44720 of 81920 output bytes differ from the device-position launch
+G-B attn_decode_bf16_splitkv_rows: 2531328 bytes bitwise equal (M 1..=16, 3 shapes; negative control: 2 cases differ from the device-position launch)
+ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 53037552 bytes bitwise equal (M 1..=16, 4 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_rows: 609784832 bytes bitwise equal (M 1..=16, dk 128 / 64 / 32)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 1007923200 bytes bitwise equal (M 1..=16, 3 shapes, includes a dropped out-of-range position)
+ok
+test qk_norm_rope_kv_rows_are_the_solo_prologue ... G-B qk_norm_rope_kv_bf16_rows: 1015382528 bytes bitwise equal (M 1..=16, 35B / 8B / tiny shapes)
+ok
+test rope_with_one_position_per_token_is_the_solo_rope ... G-B rope_bf16 per-token positions: 2350080 bytes bitwise equal (M 2..=16, 3 shapes)
+ok
+test swapped_state_entries_are_seen ... G-B negative controls: swapped table entries change the conv state, the KV cache and the delta state
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.46s
+
