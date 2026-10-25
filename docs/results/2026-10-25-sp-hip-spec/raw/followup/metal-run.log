@@ -1,0 +1,38 @@
+fleetq: #5187 running on endor: bash /opt/code/wt-sp/scripts/sp/final-gates.sh run metal
+fleetq: #5187 went ahead of the line and must end within 3h34m (by Sun 09:00); it is stopped then
+== 1. spec-off no-op vs main
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+PASS spec-off no-op (plan json/text + 256 ids, 8B and 35B, short and 4k)
+== 2. MTP k=2 equality and acceptance, 35B natural-v1
+dev-off n128 md5=3773b2177dd2bf967553abd53846a53b decode 2041 ms (124.95 tok/s) | 
+dev-mtp2 n128 md5=3773b2177dd2bf967553abd53846a53b decode 1426 ms (178.78 tok/s) | spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)
+base-mtp2 n128 md5=3773b2177dd2bf967553abd53846a53b decode 1440 ms (177.14 tok/s) | spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)
+PASS n128: dev MTP k=2 ids == dev spec off
+PASS n128: dev MTP k=2 ids == main MTP k=2
+PASS n128: acceptance equal to main (spec: verify passes=98 proposed=195 accepted=156 )
+dev-off n1024 md5=f206c9461411dcdec9e320069df1c7bc decode 2051 ms (124.34 tok/s) | 
+dev-mtp2 n1024 md5=f206c9461411dcdec9e320069df1c7bc decode 1462 ms (174.37 tok/s) | spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)
+base-mtp2 n1024 md5=f206c9461411dcdec9e320069df1c7bc decode 1437 ms (177.50 tok/s) | spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)
+PASS n1024: dev MTP k=2 ids == dev spec off
+PASS n1024: dev MTP k=2 ids == main MTP k=2
+PASS n1024: acceptance equal to main (spec: verify passes=96 proposed=191 accepted=159 )
+== 3. --mtp-draft-vocab 65536, 35B natural-v1 128
+dev-v65536 n128 md5=3773b2177dd2bf967553abd53846a53b decode 1361 ms (187.35 tok/s) | spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)
+PASS n128: --mtp-draft-vocab 65536 ids == spec off
+== done: 0 failing check(s)
+fleetq: #5187 done (exit 0)

@@ -18,8 +18,13 @@
 //! recurrent buffers, the per-row recurrent copies (`SpecRows`), the head's KV cache and its pending queue.
 //!
 //! Output is what the eager draft + verify passes produce, bit for bit: the same launches in the same order on the same
-//! kernels, only recorded (the head runs on the ordinary kernels, the verify pass on the row-exact ones). Acceptance and
-//! rollback stay on the host after the one download of the outputs and the drafts.
+//! kernels, only recorded (the head runs on the ordinary kernels, the verify pass on the row-exact ones). Where that needs
+//! care is attention: the recording cannot name a position, so it runs the head's catch-up rows and the verify rows as one
+//! single-row decode call per row, each at its device position. A backend whose multi-row attention is not bitwise the
+//! decode step's per row ([`Backend::verify_attn_per_row`], HIP) therefore runs the eager head's multi-row catch-up
+//! (`n >= 2`) the same way (`Model::head_rows_attn`), and the eager verify pass too; on the other backends the multi-row
+//! call is bitwise the per-row ones, so both paths agree without it. Acceptance and rollback stay on the host after the one
+//! download of the outputs and the drafts.
 
 use super::*;
 use std::sync::atomic::Ordering;
@@ -31,6 +36,16 @@ const CATCH_IDS: usize = 48;
 /// First entry of the scripted drafts in `ws.pos` (tests: [`Model::mtp_script`] replaces the drafts the verify pass takes).
 const SCRIPT_IDS: usize = 64;
 
+/// `INTARSIA_SPEC_GRAPH` (`0` turns the captured step off), read once.
+fn spec_graph_env_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_SPEC_GRAPH").map_or(true, |v| v != "0"))
+}
+
+/// Consecutive capture failures after which captured speculative steps stay off (until [`Model::set_graphs`]`(true)` resets the count):
+/// the first failure may be transient (a memory spike during capture), the second is taken as the backend's answer.
+const SPEC_CAPTURE_FAILURES_MAX: usize = 2;
+
 /// What one captured speculative step returns.
 pub struct SpecPass {
     /// The drafts `d_1..d_k` the head produced.
@@ -41,15 +56,17 @@ pub struct SpecPass {
 
 impl Model {
     /// Whether [`Model::spec_step`] can run `k` drafts on `st` now (else the caller drafts and verifies eagerly).
-    pub fn spec_step_ok(&self, st: &SequenceState, k: usize) -> bool {
+    pub fn spec_step_ok(&self, st: &SequenceState, next: u32, k: usize) -> bool {
         let Some(m) = st.mtp.as_ref() else { return false };
         let q = k + 1;
         let n = m.pending_rows;
         k >= 1
             && self.graphs.usable(self)
-            && !self.graphs.spec_off.load(Ordering::Relaxed)
+            && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
             && self.backend.verify_attn_per_row()
             && self.mtp.is_some()
+            // scripted drafts (tests) the recording cannot take: fewer than k, the eager path verifies exactly those
+            && self.scripted_drafts(st, next, k).map_or(true, |d| d.len() == k)
             && self.recorder.lock().unwrap().is_none()
             && self.tp.world == 1
             && st.id != 0
@@ -64,7 +81,7 @@ impl Model {
             // the verify rows, and the head's chained rows (positions st.len .. st.len + k - 1), fit their caches
             && st.len + q <= st.cap
             && st.len + k <= m.kv.cap
-            && std::env::var("INTARSIA_SPEC_GRAPH").map_or(true, |v| v != "0")
+            && spec_graph_env_on()
             && !(self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0)
     }
 
@@ -75,7 +92,7 @@ impl Model {
     /// [`Model::forward_verify`]; the caller accepts and rolls back (`spec_verify`). `Ok(None)`: capture failed, graph
     /// steps are off from here on and nothing ran.
     pub fn spec_step(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Option<SpecPass>> {
-        if !self.spec_step_ok(st, k) {
+        if !self.spec_step_ok(st, next, k) {
             return Err(Error::invalid("spec_step: not applicable (check Model::spec_step_ok)"));
         }
         if next as usize >= self.dims.vocab {
@@ -112,16 +129,7 @@ impl Model {
         }
         // tests: scripted drafts replace the head's for the verify pass (the head still runs, so its cache and queue behave
         // as in real use), as `Model::mtp_draft` does
-        let scripted: Option<Vec<u32>> = self.mtp.as_ref().and_then(|h| {
-            h.script.lock().unwrap().as_ref().map(|f| {
-                let mut ctx = st.tokens.clone();
-                ctx.push(next);
-                let mut d = f(&ctx, k);
-                d.truncate(k);
-                d
-            })
-        });
-        let scripted = scripted.filter(|d| d.len() == k && d.iter().all(|&t| (t as usize) < self.dims.vocab));
+        let scripted = self.scripted_drafts(st, next, k);
         // the step's device inputs: the verify input row 0 (`ws.ids`), then the position table and the catch-up / scripted
         // ids (`ws.pos`)
         self.backend.upload(&self.ws.ids, 0, &(next as i32).to_le_bytes(), self.stream)?;
@@ -153,12 +161,16 @@ impl Model {
                     Ok(c) => {
                         cache.insert(key, c);
                         self.graphs.spec_captures.fetch_add(1, Ordering::Relaxed);
+                    self.graphs.spec_fail.store(0, Ordering::Relaxed); // consecutive failures only
                         self.telemetry.graph_event(false);
                     }
                     Err(e) => {
-                        eprintln!("speculative step graph capture failed ({e}); speculative steps run eagerly from here on");
-                        self.graphs.spec_off.store(true, Ordering::Relaxed);
-                        return Ok(None);
+                        let n = self.graphs.spec_fail.fetch_add(1, Ordering::Relaxed) + 1;
+                    eprintln!(
+                        "speculative step graph capture failed ({e}); {}",
+                        if n < SPEC_CAPTURE_FAILURES_MAX { "this step runs eagerly, the next one retries" } else { "speculative steps run eagerly from here on" }
+                    );
+                    return Ok(None);
                     }
                 }
             }

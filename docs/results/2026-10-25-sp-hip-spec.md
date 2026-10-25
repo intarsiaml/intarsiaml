@@ -245,3 +245,122 @@ Dev = PR head (code of `98bf81b1`, plus the scripts-only commit `928ceab6`) agai
 | MTP acceptance equal to main (128 / 1k, accepted of proposed) | 161/186, 151/207 | 156/195, 159/191 |
 | `--mtp-draft-vocab 65536` + MTP k=2 ids == spec off, 128 | pass | pass |
 | `intarsia-core` lib / `tests/mtp` / `batch_recurrent` on CUDA | 116 / 11 / 11 pass | n/a |
+
+## 11. Served natural-text speed, MTP k=2, 35B (window 6b, localeval `speed-spec`, fleetq #5155)
+
+`localeval suite --tier adhoc --cells speed-spec --lane spec:mtp`, one `intarsia serve` per arm on one R9700 (`--max-batch 1`), natural-v1
+128 / 1k / 4k / 16k, 256 forced tokens, 3 reps (5 at 4k), median decode tok/s (min to max in `raw/serve/*.result.json`). Runs:
+`/opt/code/deepeval/results/20261025-0500*-adhoc-sp-{main-mtp2,br-mtp2,br-mtp2-v65536}`. Arms: main `0b84f499` (eager MTP),
+the PR #142 head (captured step), and the PR head with `--mtp-draft-vocab 65536`.
+
+| arm | 128 | 1k | 4k | 16k | accepted of drafted (whole run) |
+|---|---|---|---|---|---|
+| main, eager MTP k=2 | 195.9 | 164.4 | 160.3 | 151.8 | 73.3% (3614/4928) |
+| branch, captured | 203.4 | 168.0 | 163.1 | 150.9 | 73.7% (3638/4936) |
+| branch + draft-vocab 65536 | 197.0 | 178.9 | 166.5 | 151.7 | 70.5% (3274/4642) |
+| main spec off, window 7 (filler text, not the same prompts) | 164.2 | 163.3 | 159.3 | not run | |
+
+- The captured step gains +3.8% / +2.2% / +1.7% / -0.6% over main's eager MTP: small, as in the in-process numbers (about 1%), and the
+  16k cell is inside the rep spread (4 to 7%). Draft-vocab 65536 gains +8.8% at 1k and +2.1% at 4k over the captured arm and nothing
+  at 128 or 16k; with 3 reps at 4 to 9% spread, only the 1k gain is clearly outside the noise.
+- **Served MTP at 1k, 4k and 16k is at spec-off speed.** Explained in section 12: it is the 35B's pass cost against a fast captured
+  plain step on natural text, not the serve path.
+
+## 12. Why served MTP gains so little on the 35B at 1k+ (HIP window 9, fleetq #5189; CUDA #5208; Metal #5206)
+
+Same request body as localeval (chat, temperature 0, `ignore_eos`, 256 forced tokens, `--max-batch 1`, natural-v1), `/metrics` spec
+counters read around every request (`scripts/sp/servedclient.py`), medians of 3. Chat-template `generate` with the same prompts beside it
+(`scripts/sp/served-split.sh`, `win9.sh`; raw: `raw/followup/served-split/{cuda,metal}.log`).
+
+| backend, size | served off | served MTP | `generate` off | `generate` MTP | served tok/pass | served ms/pass | plain ms/token |
+|---|---|---|---|---|---|---|---|
+| HIP 128 | 164.7 | 204.0 | 165.5 | 200.9 | 2.79 | 13.7 | 6.1 |
+| HIP 1k | 164.0 | 168.1 | 165.6 | 187.3 | 2.33 | 13.9 | 6.1 |
+| HIP 4k | 159.3 | 158.5 | 161.3 | 163.9 | 2.29 | 14.4 | 6.3 |
+| HIP 16k | 144.6 | 149.8 | 146.7 | 154.8 | 2.47 | 16.5 | 6.9 |
+| CUDA 128 | 84.4 | 118.9 | 84.5 | 113.6 | 2.80 | 23.6 | 11.8 |
+| CUDA 1k | 83.9 | 100.8 | 84.8 | 99.7 | 2.41 | 24.0 | 11.9 |
+| CUDA 4k | 81.6 | 96.7 | 82.3 | 95.5 | 2.36 | 24.4 | 12.3 |
+| Metal 128 | 125.2 | 187.5 | 125.1 | 179.7 | 2.77 | 14.5 | 8.0 |
+| Metal 1k | 123.8 | 159.3 | 123.8 | 162.6 | 2.40 | 15.1 | 8.1 |
+| Metal 4k | 120.8 | 142.9 | 120.8 | 143.1 | 2.33 | 16.4 | 8.3 |
+
+- **The serve path is not the cause.** `INTARSIA_SPEC_GATE=0` and `INTARSIA_SPEC_TRACE=1` change nothing outside the rep spread on any
+  backend; with the gate off HIP serves 201.7 / 175.9 / 164.3 / 145.8 at the same acceptance. Served and `generate` agree within the
+  rep spread on CUDA and Metal. On HIP the served pass is 4 to 7% slower than `generate`'s (`generate` ran on the other card at the
+  same time, so some of it is host contention), which is smaller than the gain being missed.
+- **The cause is economics.** A HIP pass costs 13.7 to 16.5 ms against 6.1 to 6.9 ms for a graph-replayed plain step: 2.2x to 2.4x.
+  MTP breaks even at 2.2 to 2.4 tokens per pass; natural chat text gives 2.3 to 2.5 at 1k and beyond, so there is no gain. At 128
+  tokens it gives 2.8 and the gain is +24%. CUDA and Metal keep a gain because their plain step is slow (11.8 and 8.0 ms), so the
+  same pass is only 1.8 to 2.0x a plain step. The 35B is a mixture of experts: a 3-row verify reads the union of three tokens' experts
+  (section 1), which a dense model does not pay.
+- Earlier in-process "1.15 to 1.27x" numbers were on text with higher acceptance; on these chat prompts `generate` MTP is 1.13x at 1k,
+  1.02x at 4k and 1.05x at 16k over `generate` off.
+- No engine change fixes this at k=2. What moves it is a cheaper pass (fewer expert reads per verify row, or the draft-vocab head, section
+  5) or more tokens per pass. The 27B (dense, section 2) is where spec pays on HIP.
+
+## 13. A measured-cost gate for MTP: built, measured, shipped off (fleetq #5246 HIP; #5234 CUDA; #5233 Metal)
+
+Section 12 found that at 1k and beyond a HIP 35B pass costs about what its tokens would as plain steps (speedup 1.00 to 1.03), so
+the coordinator asked for a gate on the measured cost: per request, running averages of tokens per pass and ms per pass, a probe of
+the plain-step cost (one plain step every 128 passes, the first after the 2-pass warm-up), and a fall back to plain steps while
+`tokens_per_pass / (ms_per_pass / ms_per_plain_token)` stays under 1.03 for 16 passes; after 64 plain tokens (doubling while retries
+keep failing, 16x at most) it tries speculation again with fresh averages. It extends `SpecGate` (`spec.rs`, `CostParams`/`CostGate`),
+applies to `--spec mtp` in the single-sequence engine only (beside other sequences the step time is shared), reports
+`intarsia_spec_costgate_{off,on,plain_steps,probe_steps}_total` in /metrics, and has recipe keys (`[mtp] cost_*`) and
+`INTARSIA_SPEC_COSTGATE` (0, 1 or `min_speedup,window,probe_every,reprobe_tokens`). Unit tests drive it with scripted timings, including
+samples that arrive a step late (as the engine delivers them); engine tests force constant flipping between speculation and plain decode
+and keep greedy ids equal to spec off for k = 1..3 with the model's own and scripted drafts.
+
+**Decision: off by default on every backend, the code and the opt-in kept.** It has no measured benefit anywhere.
+
+HIP, served 35B (`--max-batch 1`, localeval-shaped chat request, natural-v1, 256 forced tokens, 5 reps, median decode tok/s), the
+first version of the gate, which left the head's catch-up for the end of a plain stretch:
+
+| size | spec off | MTP, gate off | MTP, gate on | gate on vs off | requests that fell back (of 5) |
+|---|---|---|---|---|---|
+| 128 | 165.0 | 201.7 | 199.3 | -1.2% | 0 |
+| 1k | 164.1 | 173.4 | 162.7 | -6% | 2 |
+| 4k | 159.4 | 165.4 | 149.8 | -6% | 4 |
+| 16k | 144.9 | 148.4 | 122.3 | -18% | 5 |
+
+- **MTP with the gate off was at or above spec off at every size** (+22%, +6%, +4%, +2%; the 4k and 16k cells are inside the rep spread).
+- **With the gate on, a request that fell back ran far under spec off.** A plain step inside a speculating request cost 9 to 12 ms (implied by the
+  served throughput, not traced) against 6.3 to 6.9 ms for a spec-off step; the extra is most likely the MTP head catching up on each row.
+  That version deferred the catch-up to one batched pass, which made the probe look like a 6 ms step and hid the real cost in a pass the
+  gate does not time, so it fell back where it should not have. The fix (`33e13f6d`: no deferral, plain steps pay the catch-up and are timed
+  honestly) makes the gate inert on these texts: it falls back only where plain-in-session beats speculation. Reaching spec-off speed would
+  take dropping the head for the rest of the request, because the skipped positions have no saved hidden states to catch up from; not built.
+- `generate` (no fallback happened): ids equal spec off at 128 / 1k / 4k / 16k for the 35B (md5 29eaec13, c942b461, 18193ddb, 02617b6e) and the
+  27B, and tok/s equal with the gate on and off (35B 203.1 / 188.1 / 164.0 / 155.3 against 202.2 / 187.5 / 163.8 / 155.4; 27B 51.7 / 45.9 / 46.6 / 37.7
+  against 51.4 / 45.6 / 46.8 / 37.6).
+
+CUDA and Metal, gate forced on (`INTARSIA_SPEC_COSTGATE=1`), served 35B, 3 reps: it never switched off (`cg_off` 0, one plain probe per
+request) and made no difference outside the rep spread. Metal 128 / 1k / 4k: 193.4 / 163.5 / 142.3 tok/s forced on against 187.1 / 154.9 / 144.4
+default (the 4k cell is -1.5%, inside the 141 to 145 against 144 to 149 spread, and the earlier -3% at 4k with two probes per request did not
+reproduce). CUDA: 118.2 / 95.8 / 96.0 against 118.5 / 98.0 / 93.9. One CUDA chat `generate` run at 1k with the gate forced on fell back after
+21 passes of early low acceptance and lost the rest of the request (85 tok/s); that is what the shorter, doubling retry stretch fixes.
+
+Gates with the default (off) on the final head: spec-off no-op against main, and MTP k=2 ids and acceptance equal to main at 128 and 1k, on
+HIP (35B and 27B), CUDA and Metal; see section 14.
+
+## 14. Gates on the final head `4c317919` (default path: cost gate off)
+
+Every run stamps the source head and counts the `intarsia_spec_costgate` strings in the binary it runs (CUDA 2, Metal 1, HIP 2; main's binary 0).
+Logs: `raw/final-head/{hip,cuda,metal}-run.log`; HIP window 11 is fleetq #5275 (35B and 27B, 128 and 1k, natural-v1, main against the head on the two cards in
+parallel), CUDA #5266, Metal #5265. 0 failing checks on all three:
+
+| check | HIP | CUDA | Metal |
+|---|---|---|---|
+| spec-off no-op against main: plan json and text byte-identical, 256 greedy ids identical (8B and 35B, short and 4k) | PASS | PASS | PASS |
+| 35B MTP k=2 ids == spec off, 128 and 1k | PASS | PASS | PASS |
+| 35B MTP k=2 ids == main's MTP, 128 and 1k | PASS | PASS | PASS |
+| 35B acceptance counts == main's (passes / proposed / accepted) | 102/203/153, 97/194/157 | 93/186/161, 104/207/151 | 98/195/156, 96/191/159 |
+| 27B MTP k=2 ids == spec off and == main's MTP, 128 and 1k | PASS | not run | not run |
+| 27B acceptance == main's | 100/199/154, 104/208/150 | | |
+| `--mtp-draft-vocab 65536` ids == spec off (35B, 128) | PASS (window 8) | PASS | PASS |
+| cost gate forced on (`INTARSIA_SPEC_COSTGATE=1`) ids == spec off | PASS (chat `generate` 35B and 27B, window 10) | PASS | PASS |
+| `cargo test` intarsia-core lib / MTP / `batch_recurrent --test-threads=1` (on the box) | not run (CPU run on the Mac: 123 / 17 / n/a) | 125 / 17 / 11 | not run |
+
+So the default decode path is unchanged against main on all three backends: same ids, same acceptance counts, same plans. HIP follow-up gates
+(window 8, head `1ee4d0ac`, section 11 follow-ups) also passed: eager head catch-up cost +0.7 to +0.9% faster than main (35B) and +0.5% (27B).

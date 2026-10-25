@@ -450,6 +450,34 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
         "Draft tokens accepted by speculative verify passes.",
         snap.spec_accepted,
     );
+    metric(
+        &mut o,
+        "intarsia_spec_costgate_off_total",
+        "counter",
+        "Times the measured-cost gate switched a request from speculation to plain decode.",
+        snap.spec_cost_off,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_costgate_on_total",
+        "counter",
+        "Times the measured-cost gate switched a request back to speculation (re-probe).",
+        snap.spec_cost_on,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_costgate_plain_steps_total",
+        "counter",
+        "Plain steps taken by the measured-cost gate (held off, or a probe of the plain-step cost).",
+        snap.spec_cost_plain_steps,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_costgate_probe_steps_total",
+        "counter",
+        "Of those, probes of the plain-step cost.",
+        snap.spec_cost_probes,
+    );
     metric(&mut o, "intarsia_uptime_seconds", "gauge", "Seconds since engine start.", snap.uptime_s);
     metric(
         &mut o,

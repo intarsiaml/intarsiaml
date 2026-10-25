@@ -440,16 +440,24 @@ impl Model {
         st.mtp = Some(m);
         r?;
         cut?;
-        if let Some(f) = head.script.lock().unwrap().as_ref() {
-            let mut ctx = st.tokens.clone();
-            ctx.push(next);
-            let mut d = f(&ctx, drafts.len());
-            d.truncate(drafts.len());
-            if !d.is_empty() {
-                drafts = d;
-            }
+        if let Some(d) = self.scripted_drafts(st, next, drafts.len()) {
+            drafts = d;
         }
         Ok(drafts)
+    }
+
+    /// The scripted drafts of a test (`Model::mtp_script`) for the sequence `st` followed by `next`: at most `k`, all inside the
+    /// vocabulary, at least one; None when there is no script or it gave nothing usable (the head's own drafts then stand).
+    /// Both draft paths (eager [`Model::mtp_draft`] and the captured step) read the script through here.
+    pub(super) fn scripted_drafts(&self, st: &SequenceState, next: u32, k: usize) -> Option<Vec<u32>> {
+        let head = self.mtp.as_ref()?;
+        let guard = head.script.lock().unwrap();
+        let f = guard.as_ref()?;
+        let mut ctx = st.tokens.clone();
+        ctx.push(next);
+        let mut d = f(&ctx, k);
+        d.truncate(k);
+        (!d.is_empty() && d.iter().all(|&t| (t as usize) < self.dims.vocab)).then_some(d)
     }
 
     /// Plan dry-run (`Model::dry_run`, recorder installed): record the head's ops over `t` rows at `pos0`, so plan
@@ -471,6 +479,14 @@ impl Model {
         // the head never runs inside a verify pass, so it selects ordinary (not row-exact) kernels
         let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let out = self.mtp_layer(head, &kv, &ids, &hid, false);
+        // the reduced draft head (`--mtp-draft-vocab`): its `[1, N]` projection and argmax are shapes the full-head passes
+        // never record, so kernel selection, admission and scratch sizing for them happen here, at load
+        let out = out.and_then(|o| {
+            if self.draft_head.is_some() {
+                self.draft_head_argmax(&o, t - 1, false)?;
+            }
+            Ok(o)
+        });
         self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.extra = extra;
@@ -614,7 +630,10 @@ impl Model {
         self.exec(Op::Add, vec![h1.clone(), n.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
-        self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile)?;
+        self.head_rows_attn.store(t > 1, std::sync::atomic::Ordering::Relaxed);
+        let attn = self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile);
+        self.head_rows_attn.store(false, std::sync::atomic::Ordering::Relaxed);
+        attn?;
         let ffn_norm = match &head.ffn {
             HeadFfn::Moe(m) => &m.pre_norm,
             HeadFfn::Dense(f) => &f.pre_norm,
