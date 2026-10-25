@@ -254,7 +254,7 @@
   }
  ],
  "accuracy": {
-  "gate": "default path bitwise main (dumps, ids, tails sweep); fold opt-in vs the 27B HF golden",
+  "gate": "Default path bitwise main (golden dumps 27B and 35B, 256 ids, tails sweep 0 of 34 prompts at peel 16): pass. The 27B decode-mode golden gate fails identically on main and the head (KL 0.340); the opt-in fold passes prefill (0.165) and is 0.261 in decode mode (decision mx-1).",
   "verdict": "pass",
   "bitwise": true,
   "run_ids": []

@@ -188,6 +188,11 @@ prompts, the w3 synthetic tails and 18 more lengths with 0..255 rows past a mult
 | chunk 4096, 8-row peel | 4: the 9..16-row tails (265, 272, 4361, 12553) | 43 |
 | chunk 4096, 16-row peel (raw/w8, tree rebased on 5e9cc6da) | **0 of 34** | **0 of 85014** |
 
+The reference of every row is main 0b84f499's chunk-256 dump (raw/w7). The peel-16 dump is from the tree rebased onto
+5e9cc6da; the result carries over to that main because v2 is bitwise v1, #145's GEMV twins are registered for
+`rows_exact` calls only (prefill does not select them), and the rebased dev's small passes matching the old main shows
+the prefill GEMV bits did not move. The no-flag 256 ids vs 5e9cc6da itself (below) agree.
+
 The 9..16-row tails are attention's: at chunk 256 a pass of at most 16 rows runs split-KV attention, larger ones the
 WMMA flash kernel (`SPLITKV_MAX_ROWS = 16`, `crates/intarsia-backend-hip/src/kernels.rs`), so the 27B needs a 16-row peel
 (MXFP4 alone would need 8). Tails of 17, 33, 64, 65, 128, 249 rows and lengths that are multiples of 256 are bitwise
