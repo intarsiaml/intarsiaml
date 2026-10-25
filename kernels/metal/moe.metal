@@ -609,3 +609,130 @@ inline void moe_gather_impl(device const ushort* y, device const int* ids, devic
 
 MOE_GATHER(moe_gather_bf16, ushort)
 MOE_GATHER(moe_gather_f32, float)
+
+// ---- row-exact decode with fat threadgroups (lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md) ---------------
+// T <= 8 tokens in one launch, every pair's value bitwise what moe_dec_gu / moe_dec_dn compute for it alone: per (pair, row)
+// the same lane-strided block loop, the same moe_blk_dot fma chain, the same scale fma, the same simd_sum and roundings.
+// Threadgroup row y is pair y; a simdgroup covers MOE_PR gate+up rows / down rows of that pair's expert (the one-token kernels
+// and moe_dec_{gu,dn}_x cover one), so a call runs MOE_PR times fewer threadgroups and each lane keeps MOE_PR weight blocks
+// in flight; the activation block is loaded once for all of them. No grouping by expert: the pairs that share an expert read
+// its blocks at about the same time and the second read comes from the cache (measured faster than serving the pairs of an
+// expert from one threadgroup, the moe_lead scheme of the _x kernels). h by pair, y by pair; moe_gather sums per token in k
+// order. NEG (negative control only, INTARSIA_METAL_NEGCTL), each measured to fail the row gate (scripts/mm/gates.sh):
+// gate+up splits each block's scale fma into two fmas of half the block dot (two roundings; at H = 2048 a lane sums 4
+// blocks), down runs the 16-term fma chain of its block in reverse. Neither works for the other: a lane of down holds a
+// single block at I = 512, so the split rounds to the same value, and the in-block sum of e2m1 x bf16 products of
+// gate+up's data is exact in either order. A plain multiply and add is no control either: the compiler contracts it
+// back into the fma.
+
+inline float moe_blk_dot_rev(uint2 wv, thread const float* xv) {
+    float t = 0.f;
+    for (int q = 1; q >= 0; --q) {
+        const uint v = wv[q];
+        for (int b = 7; b >= 0; --b) t = fma(moe_fp4[(v >> (4 * b)) & 0xFu], xv[q * 8 + b], t);
+    }
+    return t;
+}
+
+constant constexpr uint MOE_PR = 2;  // rows per simdgroup
+
+// gate + up: grid (ceil(I / (4 * MOE_PR)), pairs)
+template <bool NEG>
+inline void moe_dec_gu_p_impl(device const ushort* x, device const int* ids, device const uchar* guw, device const uchar* gus,
+                              device const float* gsc, device ushort* h, constant OpP& p, uint2 tg, uint sg, uint lane) {
+    const uint r0 = (tg.x * MOE_DEC_SG + sg) * MOE_PR, pr = tg.y;
+    const uint E = p.b, K = p.c, H = p.d, I = p.e;
+    if (r0 >= I) return;
+    const int id = ids[pr];
+    if (id < 0 || (uint)id >= E) return;
+    device const ushort* xr = x + p.s0 + (ulong)(pr / K) * H;
+    device const packed_uint2* wg[MOE_PR];
+    device const packed_uint2* wu[MOE_PR];
+    device const uchar* sgp[MOE_PR];
+    device const uchar* sup[MOE_PR];
+    for (uint j = 0; j < MOE_PR; ++j) {
+        const ulong rg = (ulong)id * 2 * I + min(r0 + j, I - 1u), ru = rg + I;
+        wg[j] = (device const packed_uint2*)(guw + rg * (H / 2));
+        wu[j] = (device const packed_uint2*)(guw + ru * (H / 2));
+        sgp[j] = gus + p.s1 + rg * (H / 16);
+        sup[j] = gus + p.s1 + ru * (H / 16);
+    }
+    float ag[MOE_PR], au[MOE_PR];
+    for (uint j = 0; j < MOE_PR; ++j) {
+        ag[j] = 0.f;
+        au[j] = 0.f;
+    }
+    for (uint u = lane; u < H / 16; u += 32u) {
+        float xv[16];
+        for (int i = 0; i < 16; ++i) xv[i] = bf2f(xr[u * 16 + i]);
+        for (uint j = 0; j < MOE_PR; ++j) {
+            const float dg = moe_blk_dot(uint2(wg[j][u]), xv);
+            ag[j] = NEG ? fma(0.5f * dg, moe_e4m3(sgp[j][u]), fma(0.5f * dg, moe_e4m3(sgp[j][u]), ag[j]))
+                        : fma(dg, moe_e4m3(sgp[j][u]), ag[j]);
+            au[j] = fma(moe_blk_dot(uint2(wu[j][u]), xv), moe_e4m3(sup[j][u]), au[j]);
+        }
+    }
+    for (uint j = 0; j < MOE_PR; ++j) {
+        const float a = simd_sum(ag[j]), b = simd_sum(au[j]);
+        if (lane == 0 && r0 + j < I) {
+            const float g = moe_rb(a * gsc[id * 3]), uu = moe_rb(b * gsc[id * 3 + 1]);
+            const float act = moe_rb(g / (1.f + exp(-g)));
+            h[(ulong)pr * I + r0 + j] = f2bf(act * uu);
+        }
+    }
+}
+
+// down: grid (ceil(H / (4 * MOE_PR)), pairs); y[pair, n] = bf16(simd_sum * gs)
+template <bool NEG>
+inline void moe_dec_dn_p_impl(device const ushort* h, device const int* ids, device const uchar* dw, device const uchar* ds,
+                              device const float* gsc, device ushort* y, constant OpP& p, uint2 tg, uint sg, uint lane) {
+    const uint n0 = (tg.x * MOE_DEC_SG + sg) * MOE_PR, pr = tg.y;
+    const uint E = p.b, H = p.d, I = p.e;
+    if (n0 >= H) return;
+    const int id = ids[pr];
+    if (id < 0 || (uint)id >= E) return;
+    device const packed_uint2* wr[MOE_PR];
+    device const uchar* sr[MOE_PR];
+    for (uint j = 0; j < MOE_PR; ++j) {
+        const ulong rn = (ulong)id * H + min(n0 + j, H - 1u);
+        wr[j] = (device const packed_uint2*)(dw + rn * (I / 2));
+        sr[j] = ds + p.s2 + rn * (I / 16);
+    }
+    device const ushort* hr = h + (ulong)pr * I;
+    float s[MOE_PR];
+    for (uint j = 0; j < MOE_PR; ++j) s[j] = 0.f;
+    for (uint u = lane; u < I / 16; u += 32u) {
+        float hv[16];
+        for (int i = 0; i < 16; ++i) hv[i] = bf2f(hr[u * 16 + i]);
+        for (uint j = 0; j < MOE_PR; ++j) {
+            const float d = moe_blk_dot(uint2(wr[j][u]), hv);
+            s[j] = fma(NEG ? moe_blk_dot_rev(uint2(wr[j][u]), hv) : d, moe_e4m3(sr[j][u]), s[j]);
+        }
+    }
+    for (uint j = 0; j < MOE_PR; ++j) {
+        const float t = simd_sum(s[j]);
+        if (lane == 0 && n0 + j < H) y[(ulong)pr * H + n0 + j] = f2bf(t * gsc[id * 3 + 2]);
+    }
+}
+
+#define MOE_GU_P(NAME, NEG)                                                                                         \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const int* ids [[buffer(1)]],                    \
+                     device const uchar* guw [[buffer(2)]], device const uchar* gus [[buffer(3)]],                  \
+                     device const float* gsc [[buffer(4)]], device ushort* h [[buffer(5)]],                         \
+                     constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                      \
+                     uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        moe_dec_gu_p_impl<NEG>(x, ids, guw, gus, gsc, h, p, tg, sg, lane);                                          \
+    }
+#define MOE_DN_P(NAME, NEG)                                                                                         \
+    kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                    \
+                     device const uchar* dw [[buffer(2)]], device const uchar* ds [[buffer(3)]],                    \
+                     device const float* gsc [[buffer(4)]], device ushort* y [[buffer(5)]],                         \
+                     constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                      \
+                     uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        moe_dec_dn_p_impl<NEG>(h, ids, dw, ds, gsc, y, p, tg, sg, lane);                                            \
+    }
+
+MOE_GU_P(moe_dec_gu_p, false)
+MOE_DN_P(moe_dec_dn_p, false)
+MOE_GU_P(moe_dec_gu_p_neg, true)
+MOE_DN_P(moe_dec_dn_p_neg, true)

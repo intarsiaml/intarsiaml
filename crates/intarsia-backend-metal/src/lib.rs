@@ -179,6 +179,9 @@ struct Stream {
     prof: Option<profile::Prof>,
     /// Label of the launch being encoded, taken by the next flush when profiling.
     label: Option<profile::Label>,
+    /// Profiling: the label of the launch in progress and its dispatches flushed so far, so that the second and later
+    /// dispatches of a multi-dispatch launch are recorded as `<kernel>#1`, `#2`, ... instead of "other".
+    launch_label: Option<(profile::Label, usize)>,
     /// Dispatches per command buffer before it is committed (`COMMIT_EVERY`, overridable for experiments).
     commit_every: usize,
     /// After a `synchronize` (the GPU idle, e.g. between decode steps) the first command buffer is committed after this
@@ -239,6 +242,26 @@ fn err<E: std::fmt::Debug>(what: &str, e: E) -> Error {
 }
 
 impl MetalBackend {
+    /// Per-kernel profiling only (`INTARSIA_METAL_PROFILE=kernel:..`, where every launch is waited on before the next):
+    /// label a `MoeExperts` launch with its routing, `n` = distinct experts, `k` = valid (token, slot) pairs, read back from
+    /// the ids the top-k launch wrote. Observes only; outside the per-kernel mode it does nothing.
+    fn label_moe_routing(&self, call: &OpCall) {
+        let per_kernel = self.stream.lock().unwrap().prof.as_ref().is_some_and(|p| p.per_kernel);
+        let Some(ids) = call.inputs.get(1).filter(|t| per_kernel && t.dtype == DType::I32) else { return };
+        let mut raw = vec![0u8; ids.numel() * 4];
+        if self.download(&ids.buf, ids.offset, &mut raw, 0).is_err() {
+            return;
+        }
+        let mut v: Vec<i32> =
+            raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).filter(|&i| i >= 0).collect();
+        let pairs = v.len();
+        v.sort_unstable();
+        v.dedup();
+        if let Some(l) = self.stream.lock().unwrap().label.as_mut() {
+            (l.n, l.k) = (v.len(), pairs);
+        }
+    }
+
     pub fn new() -> Result<MetalBackend> {
         Self::with_metal4(std::env::var_os("INTARSIA_METAL_NO_METAL4").is_none_or(|v| v.is_empty() || v == "0"))
     }
@@ -370,7 +393,12 @@ impl MetalBackend {
             let commit = st.prof.is_some().then(profile::host_now);
             cb.commit();
             st.last_commit.store(host::now_ms(), Ordering::Relaxed);
-            let label = st.label.take();
+            let label = st.label.take().or_else(|| {
+                st.launch_label.as_mut().map(|(l, n)| {
+                    *n += 1;
+                    profile::Label { op: format!("{}#{n}", l.op), ..l.clone() }
+                })
+            });
             if let Some(p) = st.prof.as_mut() {
                 let host = profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
                 p.note(cb.clone(), label, st.dispatches, host);
@@ -752,91 +780,29 @@ impl Backend for MetalBackend {
         self.gpu_zero(dst)
     }
 
-    fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+    fn launch(&self, kernel: &str, call: &OpCall, s: StreamId) -> Result<()> {
         call.check()?;
+        let prof = self.stream.lock().unwrap().prof.is_some();
+        if !prof {
+            return self.launch_call(kernel, call, s);
+        }
+        if call.op == Op::MoeExperts {
+            let mut st = self.stream.lock().unwrap();
+            st.label = Some(profile::Label::of(kernel, call));
+            drop(st);
+            self.label_moe_routing(call);
+        }
         {
             let mut st = self.stream.lock().unwrap();
-            if st.prof.is_some() {
+            if st.label.is_none() {
                 st.label = Some(profile::Label::of(kernel, call));
             }
+            st.launch_label = st.label.clone().map(|l| (l, 0));
         }
-        if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
-            let plan = self.plan_gemv(call)?;
-            let pso =
-                self.pso(plan.name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{}'", plan.name)))?;
-            return self.with_encoder(|enc| {
-                encode_gemv(
-                    enc,
-                    pso,
-                    (&plan.w.0, plan.w.1),
-                    (&plan.x.0, plan.x.1),
-                    (&plan.y.0, plan.y.1),
-                    &plan.params,
-                    plan.groups,
-                    plan.threads,
-                )
-            });
-        }
-        if kernel == kernels::MATMUL_BF16_NAX && call.op == Op::Matmul {
-            return self.launch_nax(kernel, call);
-        }
-        if kernel == kernels::MATMUL_PAIR_BF16_NAX && call.op == Op::MatmulPair {
-            return self.launch_nax_pair(kernel, call);
-        }
-        if kernel == kernels::ATTN_PREFILL_BF16_FLASH && call.op == Op::AttnPrefill {
-            return self.launch_attn_flash(call);
-        }
-        if kernel == kernels::ATTN_PREFILL_BF16_FLASH_NAX && call.op == Op::AttnPrefill {
-            return self.launch_attn_flash_nax(call);
-        }
-        if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
-            return self.launch_matmul_pair(call);
-        }
-        if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
-            return self.launch_attn_rows(call);
-        }
-        if kernel == mxfp4::MATMUL_MXFP4_GEMV && call.op == Op::MatmulMxfp4 {
-            return self.launch_mxfp4(call);
-        }
-        if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
-            return self.launch_moe_topk(call);
-        }
-        if (kernel == moe::MOE_EXPERTS_BF16 || kernel == moe::MOE_EXPERTS_BF16_ROWS) && call.op == Op::MoeExperts {
-            return self.launch_moe_experts(call, kernel == moe::MOE_EXPERTS_BF16_ROWS);
-        }
-        if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
-            return self.launch_moe_combine(call);
-        }
-        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
-            return self.launch_fp8(kernel, call);
-        }
-        if matches!(kernel, nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_GEMV_ROWS)
-            && call.op == Op::MatmulNvfp4
-        {
-            return self.launch_nvfp4(kernel, call);
-        }
-        if call.rows.is_some() {
-            return self.launch_rowtab(kernel, call);
-        }
-        if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
-            return self.launch_matmul_rows(call);
-        }
-        if kernel == multirow::MATMUL_PAIR_BF16_GEMV_ROWS && call.op == Op::MatmulPair {
-            return self.launch_pair_rows(call);
-        }
-        if kernel == multirow::LOGITS_BF16_GEMV_ROWS && call.op == Op::Logits {
-            return self.launch_logits_rows(call);
-        }
-        if matches!(
-            (kernel, call.op),
-            (kernels::GATE_SPLIT_BF16, Op::GateSplit)
-                | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
-                | (kernels::GDN_CONV_BF16, Op::GdnConv)
-                | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
-        ) {
-            return self.launch_gdn(kernel, call);
-        }
-        self.launch_dense(kernel, call)
+        let r = self.launch_call(kernel, call, s);
+        let mut st = self.stream.lock().unwrap();
+        st.launch_label = None;
+        r
     }
 
     /// Device-side token feedback is supported and on by default (`INTARSIA_TOKEN_FEEDBACK=0` turns it off): every T1
@@ -960,5 +926,88 @@ impl Backend for MetalBackend {
             Some(e) => Err(Error::backend(e)),
             None => Ok(()),
         }
+    }
+}
+
+impl MetalBackend {
+    /// The launch itself (`Backend::launch` wraps it with the profile labels).
+    fn launch_call(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+        if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
+            let plan = self.plan_gemv(call)?;
+            let pso =
+                self.pso(plan.name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{}'", plan.name)))?;
+            return self.with_encoder(|enc| {
+                encode_gemv(
+                    enc,
+                    pso,
+                    (&plan.w.0, plan.w.1),
+                    (&plan.x.0, plan.x.1),
+                    (&plan.y.0, plan.y.1),
+                    &plan.params,
+                    plan.groups,
+                    plan.threads,
+                )
+            });
+        }
+        if kernel == kernels::MATMUL_BF16_NAX && call.op == Op::Matmul {
+            return self.launch_nax(kernel, call);
+        }
+        if kernel == kernels::MATMUL_PAIR_BF16_NAX && call.op == Op::MatmulPair {
+            return self.launch_nax_pair(kernel, call);
+        }
+        if kernel == kernels::ATTN_PREFILL_BF16_FLASH && call.op == Op::AttnPrefill {
+            return self.launch_attn_flash(call);
+        }
+        if kernel == kernels::ATTN_PREFILL_BF16_FLASH_NAX && call.op == Op::AttnPrefill {
+            return self.launch_attn_flash_nax(call);
+        }
+        if kernel == kernels::MATMUL_PAIR_BF16_GEMV && call.op == Op::MatmulPair {
+            return self.launch_matmul_pair(call);
+        }
+        if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
+            return self.launch_attn_rows(call);
+        }
+        if kernel == mxfp4::MATMUL_MXFP4_GEMV && call.op == Op::MatmulMxfp4 {
+            return self.launch_mxfp4(call);
+        }
+        if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
+            return self.launch_moe_topk(call);
+        }
+        if (kernel == moe::MOE_EXPERTS_BF16 || kernel == moe::MOE_EXPERTS_BF16_ROWS) && call.op == Op::MoeExperts {
+            return self.launch_moe_experts(call, kernel == moe::MOE_EXPERTS_BF16_ROWS);
+        }
+        if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
+            return self.launch_moe_combine(call);
+        }
+        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
+            return self.launch_fp8(kernel, call);
+        }
+        if matches!(kernel, nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_GEMV_ROWS)
+            && call.op == Op::MatmulNvfp4
+        {
+            return self.launch_nvfp4(kernel, call);
+        }
+        if call.rows.is_some() {
+            return self.launch_rowtab(kernel, call);
+        }
+        if kernel == multirow::MATMUL_BF16_GEMV_ROWS && call.op == Op::Matmul {
+            return self.launch_matmul_rows(call);
+        }
+        if kernel == multirow::MATMUL_PAIR_BF16_GEMV_ROWS && call.op == Op::MatmulPair {
+            return self.launch_pair_rows(call);
+        }
+        if kernel == multirow::LOGITS_BF16_GEMV_ROWS && call.op == Op::Logits {
+            return self.launch_logits_rows(call);
+        }
+        if matches!(
+            (kernel, call.op),
+            (kernels::GATE_SPLIT_BF16, Op::GateSplit)
+                | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
+                | (kernels::GDN_CONV_BF16, Op::GdnConv)
+                | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
+        ) {
+            return self.launch_gdn(kernel, call);
+        }
+        self.launch_dense(kernel, call)
     }
 }

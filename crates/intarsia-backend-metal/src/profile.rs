@@ -35,7 +35,7 @@ pub struct Label {
 impl Label {
     pub fn of(kernel: &str, call: &OpCall) -> Label {
         let mut l = Label { op: kernel.to_string(), t: call.inputs.first().and_then(|t| t.shape.first().copied()).unwrap_or(0), ..Default::default() };
-        if matches!(call.op, Op::Matmul | Op::Logits) {
+        if matches!(call.op, Op::Matmul | Op::Logits | Op::MatmulFp8 | Op::MatmulNvfp4) {
             if let Some(w) = call.inputs.get(1).filter(|w| w.shape.len() == 2) {
                 (l.n, l.k, l.bytes) = (w.shape[0], w.shape[1], weight_bytes(w));
             }
