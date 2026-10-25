@@ -141,8 +141,11 @@ attention-only prefill, a whole-prompt forward as the accuracy tooling runs), wi
 
 Knob: recipe `[tuning.<backend>] prefill_peel` (0..255, default 0 = off), `INTARSIA_PREFILL_PEEL` over it. Off, nothing
 changes: no other recipe sets it, the plan JSON gains `prefill_peel` and the prefix-store fingerprint `|peelN` only when
-it is on. `recipes/qwen3_5.toml` now sets `[tuning.hip] prefill_chunk = 4096, prefill_peel = 8` (CUDA, Metal, CPU keep
-256). That recipe covers every dense Qwen3.5-style hybrid; the 27B MXFP4 is the only one measured.
+it is on. `recipes/qwen3_5_vl.toml` (the 27B's recipe, `Qwen3_5ForConditionalGeneration`) now sets `[tuning.hip]
+prefill_chunk = 4096, prefill_peel = 8` (CUDA, Metal, CPU keep 256). That recipe covers every Qwen3.5-style dense hybrid in
+the vision-language wrapper; the 27B MXFP4 is the only one measured. (A first version put the table in `qwen3_5.toml`,
+the text-only recipe the 27B does not use; loc1 served chunk 256 for that reason, and w7 measured the setting with
+`--prefill-chunk 4096` and `INTARSIA_PREFILL_PEEL=8` on that build, which is what the moved table resolves to.)
 
 <!-- W7 -->
 

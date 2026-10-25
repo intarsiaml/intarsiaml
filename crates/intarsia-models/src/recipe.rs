@@ -310,17 +310,20 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn qwen3_5_dense_hip_chunk_4096_with_tail_peel() {
-        let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
-        let hip = q35.resolve_prefill_chunk(None, "hip");
-        assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5, hip"));
-        assert_eq!(q35.resolve_prefill_peel("hip"), (8, "recipe qwen3_5, hip".to_string()));
+    fn qwen3_5_vl_hip_chunk_4096_with_tail_peel() {
+        // the 27B (Qwen3_5ForConditionalGeneration) runs the vl recipe; the text-only qwen3_5 recipe has no tuning
+        let (id, vl) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
+        assert_eq!(id, "builtin:qwen3_5_vl");
+        let hip = vl.resolve_prefill_chunk(None, "hip");
+        assert_eq!((hip.value, hip.source.as_str()), (4096, "recipe qwen3_5_vl, hip"));
+        assert_eq!(vl.resolve_prefill_peel("hip"), (8, "recipe qwen3_5_vl, hip".to_string()));
+        assert_eq!(vl.resolve_prefill_chunk(Some(256), "hip").value, 256);
         for be in ["cuda", "metal", "cpu"] {
-            assert_eq!(q35.resolve_prefill_chunk(None, be).value, 256, "{be}");
-            assert_eq!(q35.resolve_prefill_peel(be).0, 0, "{be}");
+            assert_eq!(vl.resolve_prefill_chunk(None, be).value, 256, "{be}");
+            assert_eq!(vl.resolve_prefill_peel(be).0, 0, "{be}");
         }
         // no other builtin recipe sets a peel (their schedules are unchanged)
-        for arch in ["Qwen3_5MoeForConditionalGeneration", "Qwen3ForCausalLM"] {
+        for arch in ["Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "Qwen3ForCausalLM"] {
             let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
             for be in ["cuda", "hip", "metal", "cpu"] {
                 assert_eq!(r.resolve_prefill_peel(be).0, 0, "{arch} {be}");
