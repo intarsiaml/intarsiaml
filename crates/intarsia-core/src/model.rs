@@ -381,6 +381,9 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
+    /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
+    head_rows_attn: std::sync::atomic::AtomicBool,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
@@ -422,6 +425,8 @@ pub struct Model {
     mtp: Option<mtp::MtpHead>,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
     mtp_k: usize,
+    /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
+    spec_cost: crate::spec::CostParams,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -1049,16 +1054,32 @@ impl Model {
         let no_comm = std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0");
         let test_bug = parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?;
         let draft_head = if opts.mtp && opts.mtp_draft_vocab > 0 {
-            match lm_head.as_ref().filter(|_| !vocab_par).and_then(|h| h.row_prefix(opts.mtp_draft_vocab)) {
-                Some(h) => Some(h),
+            match lm_head.as_ref().filter(|_| !vocab_par) {
                 None => {
-                    eprintln!("--mtp-draft-vocab {}: not applicable to this lm_head (format or size); drafting with the full head", opts.mtp_draft_vocab);
+                    eprintln!(
+                        "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
+                        opts.mtp_draft_vocab, tp.rank
+                    );
                     None
                 }
+                Some(h) => match h.row_prefix(opts.mtp_draft_vocab) {
+                    Some(d) => Some(d),
+                    None => {
+                        eprintln!(
+                            "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
+                             not EXL3); drafting with the full head",
+                            opts.mtp_draft_vocab, h.n, h.format
+                        );
+                        None
+                    }
+                },
             }
         } else {
             None
         };
+        let spec_cost = crate::spec::CostParams::for_backend(b.name())
+            .with_recipe(recipe.mtp.as_ref())
+            .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
         let mut model = Model {
             backend,
             registry,
@@ -1100,6 +1121,7 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -1114,6 +1136,7 @@ impl Model {
             tail_merge,
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            spec_cost,
             mtp: mtp_head,
             mtp_k,
         };
@@ -1214,6 +1237,11 @@ impl Model {
     }
 
     /// Most rows a verify pass may have (0: speculative verify not enabled).
+    /// The measured-cost gate parameters for `--spec mtp` requests (single-sequence engine).
+    pub fn spec_cost_params(&self) -> crate::spec::CostParams {
+        self.spec_cost
+    }
+
     pub fn verify_rows(&self) -> usize {
         self.verify_rows
     }
@@ -2661,7 +2689,10 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
-        if t > 1 && (self.verifying() || dpos.is_some()) && self.backend.verify_attn_per_row() {
+        if t > 1
+            && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
+            && self.backend.verify_attn_per_row()
+        {
             // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
             // partition follows the call's row count, and it takes no device position): one decode call per row
             // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a

@@ -1,0 +1,15 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Analyze User Input:**
+   - **Source Material:** An excerpt from an internal engineering newsletter about backpressure in streaming pipelines.
+   - **Key Concepts in Excerpt:**
+     - Streaming pipelines have stages with different speeds.
+     - Without backpressure, slow stages cause unbounded queues, memory growth, latency spikes, and OOM kills.
+     - Three backpressure techniques: bounded queue with blocking, credit-based flow control, load shedding.
+     - Choice depends on cost of dropping/delaying records.
+     - Often combined: small bounded queue + credits + shedding at high/low watermarks.
+     - Concrete example: reader (2k/s), transformer, writer (500/s). Unbounded queue → backlog grows 1.5k/s, 900k after 10 min, 9 min latency. Bounded queue (1k) → reader throttled after 0.5s, flat memory, max 2s latency.
+     - Credit windows: too small = starvation, too large = unbounded queue. Formula: throughput * RTT + headroom. Return credits in batches (e.g., 2
