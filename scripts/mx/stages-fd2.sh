@@ -9,6 +9,9 @@ O=$1; S="$(dirname "${BASH_SOURCE[0]}")"; source "$S/lib.sh"
 stamp=$(cat "$(T dev)/.stamp")
 if [[ "$(cat "$HOME/mx/G1_OK" 2>/dev/null)" != "$stamp" ]]; then log "G1_OK missing or not for $stamp: NO re-record, abort"; exit 4; fi
 log "fd2 start; budget $(left) s; dev $stamp (G1_OK)"
+# HARD STOP first: the fold_rows test with the wide-span (rounding) regime added after G1 (its synthetic data summed exactly)
+need 200 "hip tests" && hiptest dev fold2 --test mxfp4_fold -- --test-threads=1 --nocapture
+if ! grep -aq "^test result: ok. 4 passed; 0 failed" "$O/test-fold2.txt"; then log "mxfp4_fold FAILED or did not run: NO re-record, abort"; exit 5; fi
 PC=${stamp%%_*}
 B4=/work/mx-out/qwen3.8-27b-mxfp4-hfquark-top20.hip.baseline.json
 E4=/work/mx-out/qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json

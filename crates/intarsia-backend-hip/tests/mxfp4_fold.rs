@@ -127,8 +127,9 @@ fn rows_of(big: &HostCall, r0: usize, m: usize, k: usize, n: usize) -> HostCall 
 /// Batched = solo at every prefill M (lane mx fold-default): for every 27B projection shape, rows of an M = 4100 call are
 /// bitwise the same rows run at M in {9, 16, 17, 63, 64, 65, 255, 256, 257, 2047, 2048, 2049, 4096} (the GEMV / fold
 /// boundary, the fold tile table's M <= 64 and M >= 2048 switches, the 256-row chunk). Negative controls: one flipped weight
-/// code changes its column and no other; one changed activation row changes that row and no other. How often v2 differs
-/// from the fold on the same rows is printed (context).
+/// code changes its column and no other; one changed activation row changes that row and no other. Synthetic data sums
+/// exactly (v2 == fold there), so three shapes are repeated on wide-span rows whose f32 sums round, with the control that
+/// v2 and the fold disagree on them.
 #[test]
 fn fold_rows_do_not_depend_on_m() {
     let Some(hip) = device() else { return };
@@ -150,6 +151,36 @@ fn fold_rows_do_not_depend_on_m() {
         let es = odt.size_bytes();
         let differ = v2[0].data.chunks(es).zip(full[0].data[7 * ob..307 * ob].chunks(es)).filter(|(a, b)| a != b).count();
         eprintln!("n={n} k={k} {odt:?}: rows independent of M at 13 sizes; v2 differs from the fold on {differ} of {} outputs", 300 * n);
+    }
+    // The synthetic data above sums exactly in f32 (v2 and the fold agree on every output), so it cannot see an M-dependent
+    // summation order. Wide-span rows (one group 2^18 above the rest, every 7th group 2^-6 below, as in
+    // fold_wide_activation_span) make the f32 sums round: there v2 and the fold must disagree (the control that order and
+    // rounding are visible), and the fold's rows must still be the same at every M.
+    for (n, k) in [(17408usize, 5120usize), (5120, 17408), (1024, 5120)] {
+        let mut big = matmul_mxfp4_case(&mut rng, BIG, n, k, Mxfp4Act::Dynamic, DType::Bf16, DType::F32);
+        let mut x = big.inputs[0].to_f32();
+        for r in 0..BIG {
+            for e in 0..32 {
+                x[r * k + (r % (k / 32)) * 32 + e] *= 262144.0;
+            }
+            for g in (3..k / 32).step_by(7) {
+                for e in 0..32 {
+                    x[r * k + g * 32 + e] *= 1.0 / 64.0;
+                }
+            }
+        }
+        big.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[BIG, k], &x);
+        let full = run_host(&*hip, "matmul_mxfp4_mma_fold", &big).unwrap();
+        let ob = 4 * n;
+        for m in [9usize, 17, 65, 256, 257, 2049, 4096] {
+            let r0 = 1000usize.min(BIG - m) - (m % 3);
+            let part = run_host(&*hip, "matmul_mxfp4_mma_fold", &rows_of(&big, r0, m, k, n)).unwrap();
+            assert!(part[0].data == full[0].data[r0 * ob..(r0 + m) * ob], "wide span n={n} k={k}: rows {r0}..{} at M={m} differ from M={BIG}", r0 + m);
+        }
+        let v2 = run_host(&*hip, "matmul_mxfp4_mma", &rows_of(&big, 7, 300, k, n)).unwrap();
+        let differ = v2[0].data.chunks(4).zip(full[0].data[7 * ob..307 * ob].chunks(4)).filter(|(a, b)| a != b).count();
+        eprintln!("wide span n={n} k={k}: rows independent of M at 7 sizes; v2 differs from the fold on {differ} of {} outputs", 300 * n);
+        assert!(differ > 0, "wide span n={n} k={k}: v2 equals the fold everywhere, so these sums do not round and the check is blind");
     }
     // negative control 1: one flipped weight code (column 5) moves column 5 and nothing else, so the bitwise comparison
     // above sees a one-code change
