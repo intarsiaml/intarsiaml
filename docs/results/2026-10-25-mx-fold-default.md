@@ -90,9 +90,16 @@ Method: `localeval speed --sizes 1024,4096,16384 --gen 128 --reps 2`, through `s
 
 ## Merge state
 
-The gates ran on 092c961. The branch then merged main 7cb96938 (#152, lane wg's fp8 WMMA small-row GEMVs; #155): that
-merge adds no line that mentions MXFP4 to crates/ or kernels/, and it shares only `quantmoe.rs` with this change, in
-regions far apart. The HIP crate's unit tests (25, including `mxfp4_fold_is_default_with_a_kill_switch` and
+The gates ran on 092c961. The branch then merged main 7cb96938 (#152, lane wg's fp8 WMMA small-row GEMVs; #155). Why
+the gates still hold for the merged tree:
+- `kernels/hip/mxfp4.hip`, the fold and v2, includes only `ik_dq_gemm.h` from the files #152 changed.
+- There #152 adds a `DqArgs::frag` field (default 0, read only by the fp8 kernels) and a helper, `ik_f8frag_off`, that
+  only the fp8 path calls. `mxfp4.hip` does not reference `frag`.
+- `ik_f8_gemm.h` (also changed) is not included by `mxfp4.hip`.
+- In crates/, #152's selection changes (`wmma_takes`) are on the fp8 op only. The merge adds no line that mentions
+  MXFP4 and shares only `quantmoe.rs` with this change, in regions far apart.
+
+So neither the 27B's MXFP4 prefill path nor the re-recorded baseline is affected. The HIP crate's unit tests (25, including `mxfp4_fold_is_default_with_a_kill_switch` and
 `mxfp4_selection_is_pinned` in both switch states) and the hip-cfg check pass on the merged tree. CUDA and Metal
 no-ops are not needed: only `intarsia-backend-hip` and docs / scripts / golden baselines change.
 
