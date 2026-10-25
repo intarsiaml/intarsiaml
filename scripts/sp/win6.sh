@@ -7,4 +7,3 @@ trap 'ssh tatooine "bash ~/sp-win.sh restore" 2>&1 | tail -2' EXIT
 bash $S/arm.sh sp-base main-mtp2 spec "--spec mtp --spec-k 2" "" 1
 bash $S/arm.sh sp br-mtp2 spec "--spec mtp --spec-k 2" "" 1
 bash $S/arm.sh sp br-mtp2-v65536 spec "--spec mtp --spec-k 2 --mtp-draft-vocab 65536" "" 1
-ssh tatooine "bash ~/intarsiaml-sp/scripts/sp/extras.sh"

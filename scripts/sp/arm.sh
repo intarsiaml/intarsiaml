@@ -15,7 +15,7 @@ else
   cells=speed-spec; lane="--lane spec:mtp --drafter mtp"
 fi
 cd /opt/code/deepeval
-timeout 1500 uv run localeval suite --url http://tatooine:8294/v1 --model intarsia --tier adhoc --cells "$cells" $lane \
+uv run localeval suite --url http://tatooine:8294/v1 --model intarsia --tier adhoc --cells "$cells" $lane \
   --tokenizer-file "$TOK" --max-context 20480 --max-num-seqs "$mb" --kv-dtype bf16 --label "sp-$tag" \
   --recipe "intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch $mb $serve [$envs] tree=$tree" \
   > "$LOG/$tag.out" 2>&1
