@@ -42,7 +42,7 @@ beside `retro` (container image not reachable from the `nvidia` user; not attemp
 ## Finding: `serve --spec mtp` did not start on main (fixed by #166)
 
 Since #162 (macro prefill default 8192 rows on the CUDA 35B) `intarsia serve --spec mtp` exits at start: `invalid op call: MTP pass of 8192 rows at 0 (cap 20480, chunk
-2048)` (`raw/base1/`, server log). The macro plan probe is sized above the MTP drafter head's chunk-sized workspace. Workaround on main: `INTARSIA_PREFILL_MACRO=0`.
+2048)` (`raw/dec-base1.log`, server log tail). The macro plan probe is sized above the MTP drafter head's chunk-sized workspace. Workaround on main: `INTARSIA_PREFILL_MACRO=0`.
 PR #166 sets the macro rows to 0 when the MTP head is loaded (a speculative sequence never took macro passes anyway); the CPU test
 `mtp_model_ignores_the_macro_prefill_knob` fails before and passes after, and the `mtp1` window ran `serve --spec mtp` on the fixed build (89.9 tok/s above). No test
 had covered `serve --spec mtp` plus the recipe default on GPU; the 35B MTP check is `mtp1`.
