@@ -269,6 +269,7 @@ impl Model {
         let c = cache.get(&key).expect("captured above");
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
+        self.coll_trace.replay("graph-solo", 1, c.comms);
         self.telemetry.graph_event(true);
         self.telemetry.record_ops(&c.ops);
         for _ in 0..c.comms {
@@ -359,6 +360,7 @@ impl Model {
         let c = cache.get(&b).ok_or_else(|| Error::invalid(format!("no batched decode graph recorded for {b} rows")))?;
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
+        self.coll_trace.replay("graph-batch", b, c.comms);
         self.telemetry.graph_event(true);
         self.telemetry.record_ops(&c.ops);
         for _ in 0..c.comms {

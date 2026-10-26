@@ -172,6 +172,47 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     }
 }
 
+/// Print both ranks' collective ledgers (`INTARSIA_TP_COLL_TRACE=1`, `Model::coll_trace_dump`): the first line where they differ, then the last
+/// 40 lines of each. The first differing pass is the step the ranks decided differently.
+fn dump_ledgers(m: &Model, why: &str) {
+    let a = m.coll_trace_dump();
+    let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
+    eprintln!("LEDGER {why}: rank 0 {} lines, rank 1 {} lines", a.len(), b.len());
+    match (0..a.len().max(b.len())).find(|&i| a.get(i) != b.get(i)) {
+        Some(i) => eprintln!("LEDGER first difference at line {i}:\n  rank 0: {:?}\n  rank 1: {:?}", a.get(i), b.get(i)),
+        None => eprintln!("LEDGER the ledgers are identical"),
+    }
+    for (r, l) in [(0, &a), (1, &b)] {
+        for line in &l[l.len().saturating_sub(40)..] {
+            eprintln!("LEDGER rank {r}: {line}");
+        }
+    }
+}
+
+/// Run `f`; if it takes longer than `INTARSIA_REPRO_WATCHDOG` seconds (25) the ranks are probably stuck in a collective: dump the ledgers and
+/// leave (the bounded wait would trap after about a minute and take the evidence with it).
+fn with_watchdog<R>(m: &Model, f: impl FnOnce() -> R) -> R {
+    let wd: u64 = std::env::var("INTARSIA_REPRO_WATCHDOG").ok().and_then(|v| v.parse().ok()).unwrap_or(25);
+    let done = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|sc| {
+        sc.spawn(|| {
+            let t0 = std::time::Instant::now();
+            while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(250));
+                if t0.elapsed().as_secs() > wd {
+                    eprintln!("REPRO watchdog: a rep took more than {wd} s, the ranks are stuck");
+                    dump_ledgers(m, "watchdog");
+                    eprintln!("REPRO failures 1 (hang)");
+                    std::process::exit(4);
+                }
+            }
+        });
+        let r = f();
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        r
+    })
+}
+
 /// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w18): w18 showed the size-loop mismatch with the batched graphs off, with launch blocking and
 /// with the peers' graphs prepared first, and the SOLO logit of the failing row differed between runs (2.473 vs 2.125 for the same
 /// sequence and context): the solo step of a fresh state is wrong too. This takes the batched step out: `INTARSIA_REPRO_STATES` (60) fresh
@@ -198,12 +239,13 @@ fn real_35b_tp2_solo_fresh_states_repro() {
         let mut first: Option<Vec<u32>> = None;
         for k in 0..states {
             if between && k % 2 == 1 {
-                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let r = with_watchdog(&m, || std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     batch_identity::run(&m, &batch_identity::Cfg { lens: vec![11, 29, 53], batches: vec![3], steps: 1, vocab_range: (1000, 30000) })
-                }));
+                })));
                 if let Err(e) = r {
                     let msg = e.downcast_ref::<String>().cloned().unwrap_or_default();
                     eprintln!("REPRO rep {rep} state {k}: the batched step between FAILED: {msg}");
+                    dump_ledgers(&m, "batched step between");
                     eprintln!("REPRO failures 1 (batched step, rep {rep}, state {k})");
                     std::process::exit(3);
                 }
@@ -288,10 +330,10 @@ fn real_35b_tp2_batch_first_steps_repro() {
         if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
             m.set_graphs(false); // every step eager, solo and batched, on both ranks
         }
-        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let r = with_watchdog(&m, || std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let n = batch_identity::run(&m, &batch_identity::Cfg { lens: lens.clone(), batches: sizes.clone(), steps, vocab_range: (1000, 30000) });
             assert_eq!(n, sizes.iter().sum::<usize>() * steps);
-        }));
+        })));
         match r {
             Ok(()) => eprintln!("REPRO rep {rep}: ok"),
             Err(e) => {
@@ -299,6 +341,7 @@ fn real_35b_tp2_batch_first_steps_repro() {
                 let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
                 eprintln!("REPRO rep {rep}: FAIL {msg}");
                 eprintln!("REPRO graphs at the failure: rank 0 {:?}, rank 1 {:?}", m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
+                dump_ledgers(&m, "mismatch");
                 // the ranks are out of step after a bad step (a rank waits in a collective its peer never launches), and freeing
                 // device memory would wait for it until the bounded wait traps: report and leave
                 eprintln!("REPRO failures {failures}/{} (stopped at the first, after {} reps)", reps, rep + 1);

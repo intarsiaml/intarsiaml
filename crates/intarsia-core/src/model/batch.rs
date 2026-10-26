@@ -656,6 +656,13 @@ impl Model {
         Ok(())
     }
 
+    /// The collective ledger of this rank (`INTARSIA_TP_COLL_TRACE=1`; empty otherwise): one line per pass or graph replay, oldest first,
+    /// with the cumulative collective count before and after. Diff rank 0 against `rank_model(1)`: the first line where the counts differ
+    /// is the pass the ranks decided differently.
+    pub fn coll_trace_dump(&self) -> Vec<String> {
+        self.coll_trace.dump()
+    }
+
     /// Test hook: make tensor-parallel rank `rank` (1..world) apply `mutant` to its share of every batched step from now on
     /// (`None` clears it). Each is a protocol bug the batched-vs-solo tests must catch (`tests/tp_batch.rs`); production code
     /// never sets one.
@@ -1096,6 +1103,7 @@ impl Model {
             topk: None,
             batch_tile: None,
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
+            coll_trace: super::coll_trace::CollTrace::new(false),
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,

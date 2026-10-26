@@ -30,6 +30,7 @@ use std::time::Instant;
 
 mod ar_norm;
 mod batch;
+mod coll_trace;
 mod gdn_batch;
 mod gdn_block;
 mod gemma;
@@ -415,6 +416,8 @@ pub struct Model {
     /// Test hook (`Model::set_tp_batch_mutant`, tests only): a deliberate protocol bug a tensor-parallel peer applies to its
     /// share of a batched step, which the batched-vs-solo tests must catch. 0 = none (always, outside those tests).
     tp_batch_mutant: std::sync::atomic::AtomicU8,
+    /// `INTARSIA_TP_COLL_TRACE=1`: the ledger of passes and collectives (model/coll_trace.rs).
+    coll_trace: coll_trace::CollTrace,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
@@ -1141,6 +1144,7 @@ impl Model {
             topk: None,
             batch_tile: None,
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
+            coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
@@ -2045,6 +2049,11 @@ impl Model {
         ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
+        let _pass = if self.coll_trace.on {
+            self.coll_trace.pass(if matches!(seqs, Seqs::Batch(_)) { "layers-batch" } else { "layers" }, t, self.capture_ops.lock().unwrap().is_some())
+        } else {
+            None
+        };
         let d = &self.dims;
         let act = self.act;
         let h = d.hidden;
@@ -3012,6 +3021,9 @@ impl Model {
         }
         let t0 = Instant::now();
         comm.all_reduce_sum_into(partial, out, 0)?;
+        if self.coll_trace.on && self.capture_ops.lock().unwrap().is_none() {
+            self.coll_trace.issue();
+        }
         if profile {
             self.backend.synchronize(self.stream)?;
             let d = t0.elapsed();
@@ -3050,6 +3062,9 @@ impl Model {
         }
         let t0 = Instant::now();
         comm.all_gather(send, recv, 0)?;
+        if self.coll_trace.on && self.capture_ops.lock().unwrap().is_none() {
+            self.coll_trace.issue();
+        }
         if profile {
             self.backend.synchronize(self.stream)?;
             let d = t0.elapsed();
