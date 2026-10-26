@@ -1,0 +1,11 @@
+This is a robust and well-scoped architectural plan. The shift from "per-family engines" to a "recipe-based block library" is the critical insight that separates Intarsia from the maintenance nightmares of previous generations (like the CUDA-specific engines in early TensorFold or the Python-heavy vLLM stack).
+
+Here is a breakdown of the strengths, potential risks, and immediate next steps based on the v0.2 plan.
+
+### 1. Strengths of the Architecture
+
+*   **The "Recipe" Abstraction:**
+    *   By decoupling the *block type* (e.g., Attention, MLP, MoE) from the *model family* (e.g., Llama, Mistral), you avoid code duplication.
+    *   This directly addresses the anti-goal of "No per-family engines." A new model is just a new JSON/YAML config pointing to existing blocks, unless the architecture is fundamentally novel.
+*   **Rust Host + Native Kernels:**
+    *   **Startup Time:** 11s vs 160s is a massive UX win for local/dev environments. Rust’s zero-cost abstractions and lack of JIT overhead (unlike Python/CUDA graph compilation) are key here

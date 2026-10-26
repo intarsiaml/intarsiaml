@@ -1,0 +1,12 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a deep understanding of the specific pain points in modern LLM serving (cold starts, Python overhead, kernel fragmentation, and accuracy drift) and proposes a rigorous, modular solution.
+
+Here is an analysis of the plan, highlighting its strengths, potential risks, and immediate next steps for Phase 0.
+
+### 1. Core Strengths & Architectural Decisions
+
+#### A. The "Piece" Abstraction (Modularity)
+The decision to treat every op, kernel, quant format, and model block as a "piece" with a strict contract is the engine's greatest asset.
+*   **Why it works:** It decouples *model definition* (recipes) from *execution* (kernels). Adding a new model family (e.g., Llama 4) should only require a TOML recipe and potentially one new block type, not a rewrite of the scheduler or KV manager.
+*   **Reference Oracle:** The `cpu-ref` oracle is critical. By forcing every kernel to pass an admission test against a high-precision CPU reference, you eliminate the "it compiles but produces garbage" problem that plagues many custom kernel projects.
+
+

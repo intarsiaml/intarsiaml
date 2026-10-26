@@ -1,0 +1,6 @@
+fleetq: #5504 running on spark2: scripts/sk/gpu-tests.sh main run g-klgate-main batch_cuda_real real_35b_busy_chunk_prefill_kl_gate
+test real_35b_busy_chunk_prefill_kl_gate ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 58471309312, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 55547743149, kv_cap_tokens: 16456, kv_total_bytes: 337018880, notes: [] }
+thread 'real_35b_busy_chunk_prefill_kl_gate' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:592:5:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 84.78s
+fleetq: #5504 done (exit 0)

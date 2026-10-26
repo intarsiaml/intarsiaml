@@ -290,6 +290,8 @@ pub struct Tuning {
     /// Default of `--mtp-draft-vocab` for every backend (a multiple of 8; unset or 0: the full head). Measured defaults only.
     pub mtp_draft_vocab: Option<usize>,
     pub prefill_peel: Option<usize>,
+    /// Macro prefill pass size in rows ([`Recipe::resolve_prefill_macro`], `INTARSIA_PREFILL_MACRO`; unset or 0: off).
+    pub prefill_macro: Option<usize>,
     #[serde(flatten)]
     pub backends: BTreeMap<String, BackendTuning>,
 }
@@ -311,6 +313,8 @@ pub struct BackendTuning {
     /// [`DEFAULT_PREFILL_CHUNK`] is `1..=prefill_peel` runs those last rows as their own pass, as the default chunk
     /// schedule would ([`crate::scheduler::peel_tail`]).
     pub prefill_peel: Option<usize>,
+    /// Macro prefill pass size in rows for this backend (see [`Tuning::prefill_macro`]).
+    pub prefill_macro: Option<usize>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -380,6 +384,21 @@ impl Recipe {
             return (v, format!("recipe {family}, {backend}"));
         }
         if let Some(v) = self.tuning.prefill_peel {
+            return (v, format!("recipe {family}, base"));
+        }
+        (0, "default".into())
+    }
+}
+
+impl Recipe {
+    /// Macro prefill pass size for `backend` (rows; [`crate::scheduler::effective_macro_rows`] rounds it to whole chunks): the
+    /// recipe's value for that backend, then its base value, then 0 (off). `(rows, source)`.
+    pub fn resolve_prefill_macro(&self, backend: &str) -> (usize, String) {
+        let family = &self.model.family;
+        if let Some(v) = self.tuning.backends.get(backend).and_then(|b| b.prefill_macro) {
+            return (v, format!("recipe {family}, {backend}"));
+        }
+        if let Some(v) = self.tuning.prefill_macro {
             return (v, format!("recipe {family}, base"));
         }
         (0, "default".into())
