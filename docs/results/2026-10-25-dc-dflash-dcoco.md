@@ -382,3 +382,13 @@ Notes:
   the flag off by default and the prose case 2% slower, I left the shared gate untouched.
 - DCOCO arm: only in the filler sweep (its prompts have low tau) where it is below plain DFlash; not repeated on categories-rcp since
   section 11.2 already fails G7 (tau +1.8% at +7% decode time).
+
+### 10.6 `--spec mtp` failed to load on the 35B at `--max-seq 8192` (main as of 2026-10-26 ~00:30): not a limit, already fixed on main
+
+First try of the 35B MTP exactness check (back-off gate off, main binary built from origin/main `fecf2d24e`): all runs exited at model
+load with "MTP pass of 8192 rows at 0 (cap 8192, chunk 2048)" (`raw/mtp35-ids.log`). `--spec off` at the same settings loaded. A probe of
+the dev binary of this branch (cf84efa43 base, `raw/m35probe.log`) loads at `--max-seq` 4096, 6144 and 8192 with `--spec mtp`. The
+cause is the macro-prefill change #162 (35B CUDA recipe default 8192-row macro pass); origin/main `596b85eb8` ("Fix serve --spec mtp
+failing to start since #162") is the fix, and this branch now includes it (merge `b8fb4e6dd`). Nothing to do for this lane beyond
+re-running the 35B check on a fixed binary; this branch also turns the macro pass off when a DFlash draft is loaded (its feature taps
+are per chunk).
