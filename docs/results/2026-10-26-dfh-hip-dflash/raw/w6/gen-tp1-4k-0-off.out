@@ -1,0 +1,11 @@
+Based on the provided document, here is the section-by-section summary followed by the open questions.
+
+### Section-by-Section Summary
+
+**Status vs Plan (Table)**
+This table provides a high-level status update (as of 2026-10-25) for the IntarsiaML architecture. It categorizes components as **implemented**, **partial**, or **planned**.
+*   **Implemented:** Rust host/server/CLI, CPU/CUDA/HIP backends, Metal backend, kernel registry, torch-free C ABI, quant formats (BF16, FP8, etc.), watchdog/supervisor, Prometheus metrics.
+*   **Partial:** Backend trait, kernel registration, block library (GQA, GDN, etc.), recipes, plan compiler, scheduler, prefix cache, host-RAM KV tier, speculation, sampler, tool parsers, tensor parallelism, accuracy system, bench plugins, OpenAI/Anthropic APIs, containers/replay.
+*   **Planned:** Vulkan/SYCL backend, autotuner/tuning DB, GGUF/AWQ/GPTQ quant formats, `intarsia-quant` crate, paged KV blocks.
+
+**0. Goals, Honest Targets, Anti-

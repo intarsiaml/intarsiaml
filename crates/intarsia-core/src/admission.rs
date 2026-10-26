@@ -281,6 +281,35 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::DynConv => {
+            // the DFlash2 draft's conv (lane dfh): two taps, groups of 16 channels (the 27B draft: H 5120, 320 groups), block rows
+            let trows: &[usize] = if quick { &[1, 8] } else { &[1, 3, 8, 16] };
+            let mut widths = hs.clone();
+            if !quick {
+                widths.push(5120);
+            }
+            for &t in trows {
+                for &h in &widths {
+                    let gs = if h % 16 == 0 { 16 } else { 2 };
+                    let (taps, g) = (2usize, h / gs);
+                    for dt in act_dtypes() {
+                        push(
+                            format!("T={t} H={h} K={taps} G={g} {dt}"),
+                            HostCall {
+                                op,
+                                inputs: vec![
+                                    rand_t(&mut rng, dt, &[t, h], 1.0),
+                                    rand_t(&mut rng, dt, &[t, taps * g], 0.5),
+                                    rand_t(&mut rng, dt, &[taps, h], 0.5),
+                                ],
+                                outputs: vec![OutSpec::new(dt, &[t, h])],
+                                attrs: attrs(),
+                            },
+                        );
+                    }
+                }
+            }
+        }
         Op::AddBias => {
             let mut widths = hs.clone();
             if !quick {

@@ -1,0 +1,43 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1202:4
+     |
+1202 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.07s
+     Running tests/verify_rows_real.rs (/target/release/deps/verify_rows_real-f04bb1f08083af24)
+
+running 1 test
+plan notes: []
+len=17: q=2..=8 checked
+len=130: q=2..=8 checked
+len=1024: q=2..=8 checked
+len=4000: q=2..=8 checked
+len=16000: q=2..=8 checked
+PROBE_TIME decode1 31.29 ms, verify2 36.69 ms (1.17x), verify3 39.72 ms (1.27x), verify4 43.12 ms (1.38x), verify5 47.38 ms (1.51x), verify6 52.08 ms (1.66x), verify7 56.71 ms (1.81x), verify8 61.99 ms (1.98x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 8, replays: 452, batch_captures: 0, batch_replays: 0, spec_captures: 43, spec_replays: 135 }
+PROBE_RESULT rows=303 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test verify_rows_are_bitwise_the_single_row_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.45s
+

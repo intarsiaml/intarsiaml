@@ -1,0 +1,7 @@
+I am the GPU. I sit here in the rack, humming with the low-level satisfaction of raw compute, but I am not a machine that just "runs." I am a machine that *tunes*.
+
+You think you just hand me a model and ask for tokens? No. You hand me a **recipe**, and I decide how to eat it.
+
+First, there is the **Prefill Chunk**. It’s the size of the bite I take of your prompt. If you feed me 256 tokens at a time, I’m careful, precise, and slightly slow. If you feed me 1024, I’m faster, but the math changes. The order in which I sum the numbers shifts. The reduction order changes. The KV writes happen in a different sequence. So, if you change the chunk size, you change the **numerics**. The logits shift. The top-1 token might stay the same, but the probability distribution wobbles. If you want to quote my speed, you must also run an accuracy check against a golden file. Otherwise, you’re just telling me I’m fast at being wrong.
+
+Then there is the **KV Cache**. I store the memory of the conversation here. By default,

@@ -1,0 +1,12 @@
+Here is the list of every number found in the provided text, categorized by what they measure, followed by commentary on the three most surprising findings.
+
+### Part 1: List of Numbers and What They Measure
+
+**Dates and Times (EDT)**
+*   **2026-10-12**: Start date of Phase 0.
+*   **2026-10-21**: Date of the quota-burn plan; date the log was built; date open decisions were checked.
+*   **2026-10-26 00:52**: Timestamp for the HIP LDS-only block barrier decision.
+*   **2026-10-26 06:51**: Timestamp for the CUDA 35B prefill chunk decision.
+*   **2026-10-26 00:15**: Timestamp for the Spark decode decision.
+*   **2026-10-25 22:10**: Timestamp for the Macro prefill extension decision.
+*   **2026-10-25 21:30**: Timestamp for the HIP

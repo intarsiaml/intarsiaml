@@ -1,0 +1,28 @@
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n: int) -> int:
+    """Return the n-th Fibonacci number using memoization.
+
+    Args:
+        n: A non-negative integer index (0-based).
+
+    Returns:
+        The n-th Fibonacci number.
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+```
+
+### Time Complexity Explanation
+
+**Time Complexity: O(n)**
+
+With memoization (via `@lru_cache`), each distinct value of `n` is computed only once. The first call to `fib(n)` triggers recursive calls for `fib(n-1)` and `fib(n-2)`, but subsequent calls to any previously computed subproblem are served directly from the cache in O(1) time.
+
+- There are exactly `n + 1` distinct subproblems: `fib(0), fib(1), ..., fib(n)`.
+- Each subproblem is computed once, and each computation involves O(1)

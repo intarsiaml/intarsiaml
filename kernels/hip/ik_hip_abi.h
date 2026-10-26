@@ -117,6 +117,16 @@ int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, c
                                      const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
                                      const ik_tensor* pos, void* stream);
 
+/* DFlash2 draft kernels (lane dfh; dyn_conv_bf16 in kernels/hip/dflash.hip, attn_decode_bf16_window in attention.hip).
+ *   dyn_conv_bf16 (Op::DynConv): x[T,H], k[T,K*G] (row t: K taps x G groups, tap-major), base[K,H] -> out[T,H], all bf16:
+ *     out[t,c] = sum over taps o < K with t >= o of (base[o,c] + k[t, o*G + c / (H/G)]) * x[t-o, c], f32 accumulation, one rounding.
+ *     K = base rows (1..64), G = k cols / K, H % G == 0.
+ *   attn_decode_bf16_window (Op::AttnDecode with OpAttrs::window): ik_attn_decode_bf16 (T == 1, D <= 256) with the key loop starting at
+ *     max(0, pos0 + 1 - window); window == 0 attends all keys. `pos` as in ik_attn_decode_bf16. Registered `.ext()` at priority -1. */
+int ik_dyn_conv_bf16(const ik_tensor* x, const ik_tensor* k, const ik_tensor* base, ik_tensor* out, void* stream);
+int ik_attn_decode_bf16_window(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, int64_t window, float scale,
+                               ik_tensor* out, const ik_tensor* pos, void* stream);
+
 /* Row-exact multi-row twins of the decode kernels (lane hb, hybrid continuous batching on HIP, docs/results/2026-10-23-hb-hip-hybrid-batching.md):
  * row m (token t of the MoE) of an M-row call is BITWISE the one-row kernel on row m alone, for every M from 1 to 16
  * (G-B, crates/intarsia-backend-hip/tests/rows_exact.rs). Registered `rows_exact`: only a batched step's calls pick them.

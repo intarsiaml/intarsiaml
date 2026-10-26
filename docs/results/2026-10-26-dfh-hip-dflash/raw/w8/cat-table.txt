@@ -1,0 +1,9 @@
+window w8: 42 localeval runs; problems: 0
+category                        off                   mtp2
+ho-chat        53.3  1.00x            85.6  1.61x  2.32t/p
+ho-code        53.2  1.00x           102.9  1.93x  2.78t/p
+ho-prose       53.2  1.00x            76.0  1.43x  2.07t/p
+ho-recall      53.2  1.00x            89.5  1.68x  2.43t/p
+rcp-code       53.2  1.00x           100.2  1.88x  2.71t/p
+rcp-prose      53.2  1.00x            77.4  1.45x  2.10t/p
+rcp-recall     53.2  1.00x            90.6  1.70x  2.46t/p

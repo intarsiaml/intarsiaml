@@ -1,0 +1,17 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+mxfp4 activations: dynamic (declared by the checkpoint)
+--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.8s: 64 layers, hidden 5120, act bf16, kv bf16, weights 10.76 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+ids: [12646, 25, 65565, 12368, 25066, 471, 498, 7525, 51014, 5447, 60, 271, 12675, 498, 40571, 24783, 579, 3855, 1089, 271, 40, 3769, 488, 3029, 3604, 1575, 13, 353, 4110, 4237, 310, 1716, 383, 279, 2552, 314, 279, 22842, 303, 821, 12772, 13, 1049, 682, 978, 4847, 8981, 364, 279, 3162, 2342, 2756, 11, 321, 353, 557, 19677, 413, 424, 2493, 381, 3102, 310, 615, 424, 49992, 411, 1936, 30, 271, 5328, 1042, 728, 1366, 413, 1017, 725, 3977, 353, 1144, 310, 635, 310, 26701, 279, 12368, 11, 466, 413, 1017, 725, 264, 3050, 854, 421, 4138, 1786, 364, 279, 51715, 310, 2445, 539, 13, 271, 12295, 364, 678, 1438, 0, 271, 14055, 11, 271, 58, 7525, 3855, 60, 198, 58, 7525, 13897, 5447, 60, 248046, 198, 248044, 248045, 248046, 198, 248045, 248046, 198, 248045, 248068, 271, 248069, 271, 12646, 25, 65565, 12368, 25066, 471, 498, 7525, 51014, 5447, 60, 271, 12675, 498, 40571, 24783, 579, 3855, 1089, 271, 40, 3769, 488, 3029, 3604, 1575, 13, 353, 4110, 4237, 310, 1716, 383, 279, 2552, 314, 279, 22842, 303, 821, 12772, 13, 1049, 682, 978, 4847, 8981, 364, 279, 3162, 2342, 2756, 11, 321, 353, 557, 19677, 413, 424, 2493, 381, 3102, 310, 615, 424, 49992, 411, 1936, 30, 271, 5328, 1042, 728, 1366, 413, 1017, 725, 3977, 353, 1144, 310, 635, 310, 26701, 279, 12368, 11, 466, 413, 1017, 725, 264, 3050, 854, 421, 4138, 1786, 364, 279, 51715, 310, 2445, 539, 13, 271, 12295, 364, 678, 1438, 0, 271, 14055, 11, 271, 58, 7525, 3855, 60]
+finish=length prompt=41 (cached 0) completion=256 | prefill 98 ms (416.3 tok/s) | decode 2832 ms (90.04 tok/s)
+tensor parallel: 14093 all-reduces (133.0 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+spec: verify passes=104 proposed=208 accepted=151 (acceptance 72.6%, 2.45 tokens per pass)
+steps=106 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/210 all_reduce=0ms/14093 argmax=0ms/313 attn_decode=0ms/5405 attn_prefill=0ms/16
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1

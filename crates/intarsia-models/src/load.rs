@@ -67,6 +67,10 @@ pub struct EngineOptions {
     pub max_queue: Option<usize>,
     /// The server's `--spec-off-at` (batched engine only; `None`: the scheduler default).
     pub spec_off_at: Option<usize>,
+    /// No `--spec` was given (the CLI): the loader may switch `--spec mtp` on where the recipe makes it the default for this backend
+    /// under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`, in-process ranks, one sequence; `INTARSIA_SPEC_DEFAULT=0`
+    /// turns the default off). `false` (the library default): `spec` is taken as it is.
+    pub spec_auto: bool,
     /// The server's `--busy-chunk` (batched engine only; `None`: the scheduler default, 256).
     pub busy_chunk: Option<usize>,
     /// Content-addressed prefix store (`--prefix-store`, docs/results/2026-10-22-pc-prefix-store.md). `None`: the
@@ -325,9 +329,68 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         emb_dim: dn("dcoco_emb_dim"),
         state_dim: dn("dcoco_state_dim"),
         mlp_dim: dn("dcoco_mlp_dim"),
+        v2: cfg.get("architectures").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some("DFlash2DraftModel"))),
+        rms_eps: cfg.get("rms_norm_eps").and_then(Value::as_f64).unwrap_or(1e-6) as f32,
+        rope_theta: cfg
+            .get("rope_theta")
+            .and_then(Value::as_f64)
+            .or_else(|| cfg.get("rope_parameters").and_then(|r| r.get("rope_theta")).and_then(Value::as_f64))
+            .unwrap_or(10000.0) as f32,
+        sliding_window: if cfg.get("use_sliding_window").and_then(Value::as_bool) == Some(false) {
+            0
+        } else {
+            cfg.get("sliding_window").and_then(Value::as_u64).unwrap_or(0) as usize
+        },
+        conv_kernel: dn("conv_kernel_size"),
+        conv_group: dn("conv_group_size"),
+        selector_rank: dn("selector_rank"),
+        selector_top_k: dn("selector_top_k"),
     };
+    if config.v2 {
+        // what this port implements (docs/results/2026-10-26-dfh-hip-dflash.md): non-causal sliding-window layers, default rope
+        let types = cfg.get("layer_types").and_then(Value::as_array);
+        let all_sliding = types.is_some_and(|a| a.iter().all(|x| x.as_str() == Some("sliding_attention")));
+        let rope_default = cfg
+            .get("rope_parameters")
+            .or_else(|| cfg.get("rope_scaling"))
+            .and_then(|r| r.get("rope_type"))
+            .and_then(Value::as_str)
+            .is_none_or(|t| t == "default");
+        let causal = cfg.get("is_causal").and_then(Value::as_bool).unwrap_or(false);
+        if !all_sliding || !rope_default || causal || config.sliding_window == 0 {
+            return Err(Error::Unsupported(format!(
+                "{}: DFlash2 drafts with sliding-window, non-causal layers and default rope only",
+                cfg_path.display()
+            )));
+        }
+    }
     let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
+}
+
+/// Whether the checkpoint holds a dense MTP head the tensor-parallel default can load: the recipe's `[mtp]` prefix has its `fc`
+/// weight and the model's FFN is not MoE (an MoE head's experts are not sharded under tp).
+fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &intarsia_core::recipe::ModelDims) -> bool {
+    let Some(m) = recipe.mtp.as_ref() else { return false };
+    dims.moe.is_none()
+        && SafeTensors::open_dir(dir).is_ok_and(|st| intarsia_core::weights::WeightSource::info(&st, &format!("{}.fc.weight", m.prefix)).is_some())
+}
+
+/// The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07): `Some(k)`
+/// when no `--spec` was given (`spec_auto`), the group is `world > 1` in-process ranks on `backend`, one sequence (MTP does not
+/// batch), the recipe sets `[tuning.<backend>] mtp_default_tp_k = k`, and `INTARSIA_SPEC_DEFAULT` is not `0`.
+pub fn tp_mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
+    if !opts.spec_auto
+        || opts.spec.mode != intarsia_core::spec::SpecMode::Off
+        || opts.load.mtp
+        || world < 2
+        || !local
+        || opts.max_batch.is_some_and(|n| n > 1)
+        || std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
+    {
+        return None;
+    }
+    recipe.resolve_mtp_default_tp(backend)
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
@@ -335,21 +398,43 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Group::Local(b, _) => b.clone(),
         Group::Remote { backend, .. } => vec![backend.clone()],
     };
-    // `--spec mtp` is single-process, single-rank only: the drafter head, its per-row recurrent verify state and (with the vocab-parallel
-    // lm_head, where every rank holds V / world rows of the head) the drafter's argmax over the head are not sharded, so a group would
-    // draft from one shard's rows or from state the peers never see. Refuse before any weight is read, whatever else is on
-    // (`Model::load_tp` refuses it too, behind this).
-    let world = match &group {
-        Group::Local(b, _) => b.len(),
-        Group::Remote { .. } => 2,
-    };
-    if world > 1 && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
-        return Err(Error::Unsupported(format!(
-            "--spec mtp with tensor parallelism (--tp {world}): the MTP drafter is not sharded, so it would draft from one rank's slice of the \
-             lm_head and of the recurrent state; run with --tp 1 or without --spec mtp"
-        )));
+    // `--spec mtp` under tensor parallelism (lane dfh): in-process ranks only. Every rank loads its shard of the head and runs it in
+    // lockstep with rank 0, which drafts (from its share of a vocab-parallel head, or a whole copy) and verifies across the group; a
+    // rank in another process is not driven through the drafting passes, so that group is refused before any weight is read.
+    if matches!(group, Group::Remote { .. }) && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
+        return Err(Error::Unsupported(
+            "--spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)"
+                .into(),
+        ));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
+    // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07 EDT, "turn MTP on by default at tp2 if it passes"): only
+    // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
+    let defaulted;
+    let local = matches!(group, Group::Local(..));
+    let opts = match backends.first().and_then(|b0| tp_mtp_default(opts, &recipe, b0.name(), backends.len(), local).map(|k| (b0, k))) {
+        // a checkpoint on this recipe without the head's weights, or with an MoE head (not sharded under tp): plain decode, as before
+        Some((_, k)) if !mtp_head_usable(dir, &recipe, &dims) => {
+            eprintln!("--spec mtp --spec-k {k} (the recipe's tensor-parallel default) not applied: no dense MTP head in this checkpoint; --spec off");
+            opts
+        }
+        Some((b0, k)) => {
+            eprintln!(
+                "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
+                 INTARSIA_SPEC_DEFAULT=0 turns it off)",
+                recipe.model.family,
+                b0.name(),
+                backends.len(),
+                b0.name()
+            );
+            let mut o = opts.clone();
+            o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Mtp, k };
+            o.load.mtp = true;
+            defaulted = o;
+            &defaulted
+        }
+        None => opts,
+    };
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 8, CUDA 16).
     let backend_name = backends.first().map_or("cpu", |b| b.name());
@@ -376,13 +461,20 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     }
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
     let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
-        if !matches!(backend_name, "cpu" | "cuda") {
-            return Err(Error::Unsupported(format!("--spec dflash on the {backend_name} backend (cpu and cuda only so far)")));
-        }
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
         }
-        Some(open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?)
+        let dl = open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?;
+        // DFlash (dense Qwen3 targets): cpu and CUDA. DFlash2 (lane dfh): cpu and HIP, which have its conv and sliding-window kernels.
+        let ok = if dl.config.v2 { matches!(backend_name, "cpu" | "hip") } else { matches!(backend_name, "cpu" | "cuda") };
+        if !ok {
+            return Err(Error::Unsupported(format!(
+                "--spec dflash with a {} draft on the {backend_name} backend ({} only so far)",
+                if dl.config.v2 { "DFlash2" } else { "DFlash" },
+                if dl.config.v2 { "cpu and hip" } else { "cpu and cuda" }
+            )));
+        }
+        Some(dl)
     } else {
         if opts.spec_draft.is_some() || opts.dcoco {
             return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash"));
@@ -445,12 +537,23 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
         if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
-            if model.tp_world() != 1 {
-                return Err(Error::Unsupported("--spec dflash under tensor parallelism".into()));
+            if model.tp_world() != 1 && !model.has_dflash() {
+                return Err(Error::Unsupported("--spec dflash under tensor parallelism without the draft on rank 0".into()));
             }
             eprintln!(
                 "--spec dflash on {}: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)",
                 model.backend.name()
+            );
+        } else if mtp && model.tp_world() > 1 {
+            // in-process tensor parallelism (lane dfh): every rank runs the verify pass on the row-exact kernels and the drafter's
+            // passes in lockstep with rank 0 (`Model::mtp_draft`); a rank in another process was refused above
+            if !model.has_mtp() {
+                return Err(Error::Unsupported("--spec mtp under tensor parallelism without the MTP head".into()));
+            }
+            eprintln!(
+                "--spec mtp on {} with tp={}: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)",
+                model.backend.name(),
+                model.tp_world()
             );
         } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
             // CUDA since lane rb2: the verify rows take the `_rows` kernels (G-B: bitwise the one-row kernel per row)

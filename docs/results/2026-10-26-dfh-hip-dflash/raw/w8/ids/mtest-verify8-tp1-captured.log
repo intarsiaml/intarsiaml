@@ -1,0 +1,40 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1203:4
+     |
+1203 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/verify_rows_real.rs (/target/release/deps/verify_rows_real-f04bb1f08083af24)
+
+running 1 test
+PROBE_CONFIG dir=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 rows=8 lens=1024 backend=hip INTARSIA_VERIFY_GRAPH=unset profile_every=0
+plan notes: []
+len=1024: q=2..=8 checked
+PROBE_TIME decode1 31.24 ms, verify2 34.05 ms (1.09x), verify3 35.93 ms (1.15x), verify4 37.42 ms (1.20x), verify5 39.04 ms (1.25x), verify6 40.36 ms (1.29x), verify7 42.10 ms (1.35x), verify8 44.24 ms (1.42x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 4, replays: 312, batch_captures: 0, batch_replays: 0, spec_captures: 0, spec_replays: 0 }
+PROBE_RESULT rows=163 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test verify_rows_are_bitwise_the_single_row_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.61s
+

@@ -1,0 +1,9 @@
+[window] job 5711 w3; stopping radiance 2026-10-26 08:55:24
+[window] radiance stopped 2026-10-26 08:55:27
+08:55:27 w3 start, VRAM in use 57 MiB
+08:55:52 mtest probe-27b-tp1-eager exit 0 [INTARSIA_VERIFY_DIR=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 INTARSIA_VERIFY_ROWS=8 INTARSIA_VERIFY_LENS=1024 INTARSIA_VERIFY_GRAPH=0]: PROBE_TIME decode1 31.12 ms, verify2 37.41 ms (1.20x), verify3 40.39 ms (1.30x), verify4 43.58 ms (1.40x), verify5 47.81 ms (1.54x), verify6 52.34 ms (1.68x), verify7 56.86 ms (1.83x), verify8 61.85 m|PROBE_GRAPHS GraphStats { enabled: true, captures: 4, replays: 312, batch_captures: 0, batch_replays: 0, spec_captures: 0, spec_replays: 0 }|PROBE_RESULT rows=163 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.56s|
+08:56:09 mtest probe-27b-tp1-captured exit 0 [INTARSIA_VERIFY_DIR=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 INTARSIA_VERIFY_ROWS=8 INTARSIA_VERIFY_LENS=17,130,1024,4000,16000]: PROBE_TIME decode1 31.29 ms, verify2 36.69 ms (1.17x), verify3 39.72 ms (1.27x), verify4 43.12 ms (1.38x), verify5 47.38 ms (1.51x), verify6 52.08 ms (1.66x), verify7 56.71 ms (1.81x), verify8 61.99 m|PROBE_GRAPHS GraphStats { enabled: true, captures: 8, replays: 452, batch_captures: 0, batch_replays: 0, spec_captures: 43, spec_replays: 135 }|PROBE_RESULT rows=303 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.45s|
+08:56:09 w3 done
+[window] stages done 2026-10-26 08:56:09 (exit 0)
+[window] starting radiance 2026-10-26 08:56:09
+[window] radiance answers 2026-10-26 08:56:19 (after 15 s)

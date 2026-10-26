@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: dfh-off — 2026-10-26T10:01
+
+- model: `qwen38-27b-off` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: dfh-w5-off-rcp-prose-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dfh-off --thinking off --label dfh-w5-off-rcp-prose-r1 --recipe HIP_VISIBLE_DEVICES=0 dfh-intarsia serve --backend hip --model 27B --spec off --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane dfh) --dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-100156-dfh-off-dfh-w5-off-rcp-prose-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 dfh-intarsia serve --backend hip --model 27B --spec off --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane dfh)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.111 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 33.0 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | yes | 0.0 | 0.12 | 33.0 | The wind on the Isle of Solitude did not blow; it screamed. … |
+| prose-city-essay | yes | 0.0 | 0.11 | 33.0 | Home is often mistaken for a physical structure—a set of wal… |
+| prose-product-launch | yes | 0.0 | 0.11 | 33.0 | **Fresh from the Oven, Straight to Your Door: Introducing Ou… |
+| prose-mountain-letter | yes | 0.0 | 0.11 | 33.0 | Dear Leo, I’m writing this by the light of a small headlamp,… |
+| prose-ocean-poem | yes | 0.0 | 0.11 | 33.0 | The sun has long since surrendered its crown, and the horizo… |
+| prose-robot-fable | yes | 0.0 | 0.11 | 33.0 | Bolt was a small, silver robot with a single, blinking blue … |
+| prose-travel | yes | 0.0 | 0.11 | 33.0 | The fog has not yet lifted from the harbor, hanging low and … |
+| prose-history-scene | yes | 0.0 | 0.11 | 33.0 | The air in the workshop did not smell of ink; it smelled of … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-100156-dfh-off-dfh-w5-off-rcp-prose-r1/result.json
+[localeval] logged to unanimis: 33b4fb60-e481-484d-a4f2-ccaae72bc555

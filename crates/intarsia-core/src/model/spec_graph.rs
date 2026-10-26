@@ -299,4 +299,112 @@ impl Model {
         self.capture_comms.swap(0, Ordering::Relaxed);
         Ok(Captured { state_id: st.id, graph: graph?, ops, comms: 0 })
     }
+
+    /// Whether [`Model::forward_verify`] can run its `q` rows on `st` as the replay of a captured verify-only pass: graphs
+    /// usable, a backend whose verify attention is one decode call per row at a device position (so the recording names no
+    /// position; HIP), one rank, and `INTARSIA_VERIFY_GRAPH=1` (default off). The eager pass and the replay launch the same ops on
+    /// the same kernels in the same order, so their outputs are bitwise equal (`tests/verify_rows_real.rs` checks it on the
+    /// real model).
+    pub(super) fn verify_graph_ok(&self, st: &SequenceState, q: usize, profile: bool) -> bool {
+        !profile
+            && verify_graph_env_on()
+            && self.graphs.usable(self)
+            && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
+            && self.backend.verify_attn_per_row()
+            // HIP only so far: there it is measured (lane dfh window 2); CUDA and Metal keep the eager pass until someone measures them
+            && self.backend.name() == "hip"
+            && self.recorder.lock().unwrap().is_none()
+            && self.tp.world == 1
+            && self.peers.is_empty()
+            && st.id != 0
+            && (2..=self.verify_rows).contains(&q)
+            && q <= POS_TAB_ENTRIES
+            && self.verify_tok.is_some()
+            && self.ws.max_tokens >= q
+            && st.len + q <= st.cap
+    }
+
+    /// The layers and the head of a verify pass over `ids` (`[last token, drafts...]`) as one graph replay, recorded on first
+    /// use per (sequence state, row count). Inputs: the ids in `ws.ids`, row r's position `st.len + r` in `ws.pos`
+    /// ([`POS_VERIFY`]). Leaves the greedy token of every row in `verify_tok` and returns the pass's hidden rows (the
+    /// output [`Model::run_chunk`] would have returned); commits nothing. `Ok(None)`: the capture failed and nothing ran
+    /// (the caller runs the pass eagerly).
+    pub(super) fn verify_replay(&self, st: &SequenceState, ids: &[u32]) -> Result<Option<TensorRef>> {
+        let q = ids.len();
+        let bytes: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+        self.backend.upload(&self.ws.ids, 0, &bytes, self.stream)?;
+        let mut tab = vec![0i32; POS_TAB_ENTRIES];
+        for (r, v) in tab.iter_mut().enumerate().skip(POS_VERIFY).take(q) {
+            *v = (st.len + r - POS_VERIFY) as i32;
+        }
+        let tab_bytes: Vec<u8> = tab.iter().flat_map(|v| v.to_le_bytes()).collect();
+        self.backend.upload(&self.ws.pos, 0, &tab_bytes, self.stream)?;
+        let key = (st.id, q);
+        let mut cache = self.graphs.verify.lock().unwrap();
+        if !cache.contains_key(&key) {
+            if cache.len() >= 96 {
+                cache.clear(); // recordings of states that are gone
+            }
+            match self.capture_verify(st, q) {
+                Ok(c) => {
+                    cache.insert(key, c);
+                    self.graphs.spec_captures.fetch_add(1, Ordering::Relaxed);
+                    self.graphs.spec_fail.store(0, Ordering::Relaxed);
+                    self.telemetry.graph_event(false);
+                }
+                Err(e) => {
+                    let n = self.graphs.spec_fail.fetch_add(1, Ordering::Relaxed) + 1;
+                    eprintln!(
+                        "verify pass graph capture failed ({e}); {}",
+                        if n < SPEC_CAPTURE_FAILURES_MAX { "this pass runs eagerly, the next one retries" } else { "speculative passes run eagerly from here on" }
+                    );
+                    return Ok(None);
+                }
+            }
+        }
+        let (c, hn) = cache.get(&key).expect("captured above");
+        self.backend.graph_replay(&c.graph, self.stream)?;
+        self.graphs.spec_replays.fetch_add(1, Ordering::Relaxed);
+        self.telemetry.graph_event(true);
+        for &op in &c.ops {
+            self.telemetry.record_op(op, None);
+        }
+        Ok(Some(hn.clone()))
+    }
+
+    /// Record the verify-only pass of `q` rows for `st` (the eager [`Model::forward_verify`]'s launches, positions from the
+    /// table). Executes nothing.
+    fn capture_verify(&self, st: &SequenceState, q: usize) -> Result<(Captured, TensorRef)> {
+        let pos = {
+            let mut v = self.view(&self.ws.pos, DType::I32, &[1]);
+            v.offset = 4 * POS_VERIFY;
+            v
+        };
+        *self.capture_ops.lock().unwrap() = Some(Vec::new());
+        self.capture_comms.store(0, Ordering::Relaxed);
+        let mut out = None;
+        let graph = self.backend.graph_capture(self.stream, &mut || {
+            self.exact_rows.store(true, Ordering::Relaxed);
+            let run = (|| -> Result<TensorRef> {
+                let hn = self.run_layers(Seqs::One(st), &vec![0u32; q], false, Some(&pos), false, None)?;
+                self.verify_head(&hn, q, false)?;
+                Ok(hn)
+            })();
+            self.exact_rows.store(false, Ordering::Relaxed);
+            out = Some(run?);
+            Ok(())
+        });
+        let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
+        self.capture_comms.swap(0, Ordering::Relaxed);
+        let graph = graph?;
+        let hn = out.ok_or_else(|| Error::invalid("verify capture produced no output"))?;
+        Ok((Captured { state_id: st.id, graph, ops, comms: 0 }, hn))
+    }
+}
+
+/// `INTARSIA_VERIFY_GRAPH=1` turns the captured verify-only pass on (default off: at tp=1 on HIP it gains 0.2-2% over the eager
+/// pass, lane dfh window 3; default-on is decided at tp=2 from an interleaved measurement), read once.
+fn verify_graph_env_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").is_ok_and(|v| v == "1"))
 }

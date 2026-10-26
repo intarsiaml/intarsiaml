@@ -1,0 +1,12 @@
+Here is the list of every number in the document, categorized by what they measure, followed by commentary on the three most surprising findings.
+
+### List of Numbers and What They Measure
+
+**Dates and Times (EDT)**
+*   **2026-10-12**: Phase 0 start date.
+*   **2026-10-21**: Date the decision log was built; date of the quota-burn plan; date of user decisions on O3 and the six quota-burn questions.
+*   **2026-10-22**: Date of re-measurements for gates (O1, O4, O5).
+*   **2026-10-23**: Date of multiple Metal/CUDA batched decode decisions and lt/fp8 reuse investigations.
+*   **2026-10-24**: Date of HIP batched decode decisions.
+*   **2026-10-25**: Date of numerous HIP/CUDA/Metal performance and feature decisions (MTP, GEMM, prefill macro, etc.).
+*   **2026-10-26**:

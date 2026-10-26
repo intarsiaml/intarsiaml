@@ -40,6 +40,7 @@ mod spec_graph;
 pub use spec_graph::SpecPass;
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
+mod dflash2;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;
@@ -424,6 +425,9 @@ pub struct Model {
     verify_rows_attn: bool,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
+    /// Verify passes with a vocab-parallel head (every rank): the gather tile `f32 [world, VERIFY_MAX_ROWS * V / world]`,
+    /// rank-major as the all-gather leaves it (as `batch_tile`; [`Model::verify_head`]).
+    verify_tile: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
     verify_rows: usize,
     /// Most sequences of a batched decode step ([`Model::forward_batch`]); 0 = batching off (the default).
@@ -1054,9 +1058,8 @@ impl Model {
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
         let mtp_head = if opts.mtp {
             let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
-            if tp.world > 1 {
-                return Err(Error::Unsupported("--spec mtp under tensor parallelism".into()));
-            }
+            // tensor parallelism (lane dfh): every rank loads its share of the head (`mtp::load_head`) and runs it in lockstep
+            // with rank 0, which drafts; in-process ranks only (a rank in another process is refused by the engine loader)
             let main_attn = layers.iter().flatten().find_map(|b| match b {
                 Block::Attn(a) => Some(a),
                 _ => None,
@@ -1070,9 +1073,10 @@ impl Model {
                 recipe,
                 main_attn,
                 &|name, shape| load(name, 0, shape),
-                &|name, n, k| load_q(name, 0, n, k),
+                &|name, n, k, axis| load_qs(name, 0, n, k, axis),
                 &|n| weights_bytes.set(weights_bytes.get() + n),
                 mt + Self::VERIFY_MAX_ROWS + 1,
+                tp.world,
             )?;
             eprintln!("mtp: drafter head '{}' loaded in {:.1} s (routed experts quantised to nvfp4)", spec.prefix, t0.elapsed().as_secs_f64());
             Some(head)
@@ -1081,10 +1085,14 @@ impl Model {
         };
         // the DFlash drafter (`--spec dflash`): read only when asked for
         let dflash_head = match &opts.dflash {
+            // tensor parallelism (lane dfh): the drafter lives on rank 0 alone (the taps are the residual stream, which every rank
+            // holds whole after its all-reduce); with a vocab-parallel head rank 0 also keeps a whole copy of the head for the
+            // draft's logits, so drafting needs no collective
+            Some(_) if tp.rank != 0 => None,
+            Some(dl) if tp.world > 1 && !dl.config.v2 => {
+                return Err(Error::Unsupported("--spec dflash under tensor parallelism with a DFlash (v1) draft".into()));
+            }
             Some(dl) => {
-                if tp.world > 1 {
-                    return Err(Error::Unsupported("--spec dflash under tensor parallelism".into()));
-                }
                 let main_attn = layers.iter().flatten().find_map(|b| match b {
                     Block::Attn(a) => Some(a),
                     _ => None,
@@ -1092,12 +1100,17 @@ impl Model {
                 let t0 = Instant::now();
                 let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act)?;
                 eprintln!(
-                    "dflash: draft of {} layers (taps {:?}, block {}) loaded in {:.1} s",
-                    head.layers.len(),
+                    "dflash: draft of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
+                    head.n_layers(),
                     head.taps,
                     head.block,
+                    if head.v2.is_some() { ", DFlash2" } else { "" },
                     t0.elapsed().as_secs_f64()
                 );
+                let mut head = head;
+                if vocab_par {
+                    head.full_head = load_head(false)?;
+                }
                 Some(head)
             }
             None => None,
@@ -1201,29 +1214,39 @@ impl Model {
         if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
             eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
         }
-        let draft_head = if opts.mtp && draft_vocab > 0 {
-            match lm_head.as_ref().filter(|_| !vocab_par) {
+        // the reduced head the MTP drafter projects onto (`--mtp-draft-vocab`). Tensor parallelism: rank 0 alone drafts (the peers
+        // keep none). With a vocab-parallel head rank 0 holds rows [0, V / world) of it, so a reduced head inside that range is a
+        // prefix of rank 0's own share; otherwise rank 0 keeps a whole copy of the head for drafting (as the DFlash drafter does),
+        // so a draft never needs a collective.
+        let reduced = |h: &QTensor| -> Option<QTensor> {
+            match h.row_prefix(draft_vocab) {
+                Some(d) => Some(d),
                 None => {
-                    if opts.mtp_draft_vocab.is_some() {
-                        eprintln!(
-                            "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
-                            draft_vocab, tp.rank
-                        );
-                    }
+                    eprintln!(
+                        "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
+                         not EXL3); drafting with the full head",
+                        draft_vocab, h.n, h.format
+                    );
                     None
                 }
-                Some(h) => match h.row_prefix(draft_vocab) {
-                    Some(d) => Some(d),
-                    None => {
-                        eprintln!(
-                            "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
-                             not EXL3); drafting with the full head",
-                            draft_vocab, h.n, h.format
-                        );
-                        None
-                    }
-                },
             }
+        };
+        let draft_head = if !opts.mtp || tp.rank != 0 {
+            None
+        } else if vocab_par {
+            match lm_head.as_ref().filter(|h| draft_vocab > 0 && draft_vocab < h.n).and_then(|h| h.row_prefix(draft_vocab)) {
+                Some(d) => Some(d),
+                None => {
+                    let full = load_head(false)?.ok_or_else(|| Error::model("rank 0 without a head"))?;
+                    if draft_vocab > 0 {
+                        Some(reduced(&full).unwrap_or(full))
+                    } else {
+                        Some(full)
+                    }
+                }
+            }
+        } else if draft_vocab > 0 {
+            lm_head.as_ref().and_then(reduced)
         } else {
             None
         };
@@ -1283,6 +1306,7 @@ impl Model {
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
             verify_tok: None,
+            verify_tile: None,
             verify_rows: 0,
             batch_rows: 0,
             recurrent_batch: false,
@@ -1367,7 +1391,8 @@ impl Model {
             self.mtp_dry_run(t, pos0)?;
             self.dflash_dry_run()?;
             if verify {
-                return self.verify_head(&hn, t, false);
+                // a tensor-parallel peer without a head share (replicated head on rank 0) runs only the layers
+                return if self.lm_head.is_some() { self.verify_head(&hn, t, false) } else { Ok(()) };
             }
             // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
             if self.lm_head.is_some() {
@@ -1393,17 +1418,32 @@ impl Model {
     /// count, at the start and the end of the context), so a verify op without a row-exact kernel fails the load,
     /// admission covers the verify kernels and the scratch workspace is sized for them. Single-rank models only.
     pub fn enable_verify(&mut self, max_rows: usize) -> Result<()> {
-        if !self.peers.is_empty() || self.tp.world > 1 || self.lm_head.is_none() {
-            return Err(Error::Unsupported("speculative verify needs a single-rank model".into()));
+        // tensor parallelism: in-process ranks only (lane dfh); every rank runs the pass, rank 0 owns the drafter and the argmax
+        if self.remote.is_some() || self.tp.rank != 0 || self.peers.len() + 1 != self.tp.world || self.lm_head.is_none() {
+            return Err(Error::Unsupported("speculative verify needs a single-rank model or in-process tensor-parallel ranks".into()));
         }
         let most = Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens);
         if !(2..=most).contains(&max_rows) {
             return Err(Error::invalid(format!("verify rows {max_rows} outside 2..={most}")));
         }
+        for p in self.peers.iter_mut() {
+            p.enable_verify_rank(max_rows)?;
+        }
+        self.enable_verify_rank(max_rows)?;
+        Ok(())
+    }
+
+    /// This rank's share of [`Model::enable_verify`]: the argmax buffer, the gather tile of a vocab-parallel head.
+    fn enable_verify_rank(&mut self, max_rows: usize) -> Result<()> {
         if self.verify_tok.is_none() {
             // [0, rows): the argmax of each row; [rows, 2 rows): the pass's input ids (a captured speculative step reads its
             // drafts back with the outputs, `Model::spec_step`)
             self.verify_tok = Some(self.backend.alloc(Self::VERIFY_MAX_ROWS * 8, MemKind::Device)?);
+        }
+        if self.vocab_par && self.verify_tile.is_none() {
+            let bytes = Self::VERIFY_MAX_ROWS * self.dims.vocab * 4;
+            self.verify_tile = Some(self.backend.alloc(bytes, MemKind::Device)?);
+            self.plan.workspace_bytes += bytes as u64;
         }
         self.verify_rows = max_rows;
         Ok(())
@@ -1438,23 +1478,26 @@ impl Model {
         // recurrent slots (GatedDeltaNet): the delta rule runs row by row and the state after every row but the last is
         // kept (`SpecRows`), so the caller can roll back to any accepted length (`SequenceState::spec_rollback`)
         let recurrent = st.has_recurrent();
-        if recurrent {
-            let need = st.recurrent_bytes();
-            st.spec_rows.saved = 0;
-            st.spec_rows.base = st.len;
-            st.spec_rows.bufs.retain(|b| b.bytes() >= need);
-            while st.spec_rows.bufs.len() < q - 1 {
-                let b = self.backend.alloc(need.max(16), MemKind::Device)?;
-                st.spec_rows.bufs.push(b);
-            }
+        Self::prepare_spec_rows(&*self.backend, st, q)?;
+        if !self.peers.is_empty() {
+            return self.forward_verify_tp(st, ids, profile);
         }
-        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        let run = (|| -> Result<TensorRef> {
-            let hn = self.run_chunk(st, ids, profile)?;
-            self.verify_head(&hn, q, profile)?;
-            Ok(hn)
-        })();
-        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        // the same pass as one graph replay where the backend allows it (HIP: an eager pass pays every launch on the host)
+        let replayed = if self.verify_graph_ok(st, q, profile) { self.verify_replay(st, ids) } else { Ok(None) };
+        let run = match replayed {
+            Ok(Some(hn)) => Ok(hn),
+            Err(e) => Err(e),
+            Ok(None) => {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                let run = (|| -> Result<TensorRef> {
+                    let hn = self.run_chunk(st, ids, profile)?;
+                    self.verify_head(&hn, q, profile)?;
+                    Ok(hn)
+                })();
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                run
+            }
+        };
         let hn = match run {
             Ok(hn) => hn,
             Err(e) => {
@@ -1479,13 +1522,157 @@ impl Model {
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
+    /// [`Model::forward_verify`] with in-process tensor-parallel peers: every rank runs the pass on its own thread (as
+    /// [`Model::forward_tp`] does a chunk), eagerly; rank 0 takes the argmax and feeds its drafter.
+    fn forward_verify_tp(&self, st: &mut SequenceState, ids: &[u32], profile: bool) -> Result<Vec<u32>> {
+        let q = ids.len();
+        if st.peers.len() != self.peers.len() {
+            return Err(Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"));
+        }
+        for p in st.peers.iter_mut() {
+            if p.st.len < st.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, st.len)));
+            }
+            if p.st.len > st.len {
+                p.st.truncate(st.len, &*p.backend)?;
+            }
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .map(|(m, ps)| {
+                    sc.spawn(move || {
+                        let r = m.verify_peer(&mut ps.st, ids);
+                        if r.is_err() {
+                            if let Some(c) = &m.tp.comm {
+                                c.abort();
+                            }
+                        }
+                        r
+                    })
+                })
+                .collect();
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            let r0 = (|| -> Result<TensorRef> {
+                let hn = self.run_chunk(st, ids, profile)?;
+                self.verify_head(&hn, q, profile)?;
+                Ok(hn)
+            })();
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+            if r0.is_err() {
+                comm0.abort();
+            }
+            let mut res = r0;
+            for h in handles {
+                let e = match h.join() {
+                    Ok(Ok(())) => continue,
+                    Ok(Err(e)) => e,
+                    Err(_) => Error::backend("a tensor-parallel rank panicked"),
+                };
+                if res.is_ok() {
+                    res = Err(e);
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        let hn = match out {
+            Ok(hn) => hn,
+            Err(e) => {
+                if st.has_recurrent() {
+                    let _ = st.reset(&*self.backend);
+                }
+                return Err(e);
+            }
+        };
+        let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("forward_verify before enable_verify"))?;
+        let mut b = vec![0u8; q * 4];
+        self.backend.download(tok, 0, &mut b, self.stream)?;
+        st.commit(ids);
+        if st.has_recurrent() {
+            st.spec_rows.saved = q - 1;
+        }
+        self.telemetry.step();
+        self.mtp_after_forward(st, &hn, q, false, profile)?;
+        self.dflash_after_forward(st, q, profile)?;
+        Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
+    }
+
     /// lm_head of rows `[0, q)` into `ws.logits` (`[q, V]` f32) and their argmax into `verify_tok` (`i32 [q]`).
+    ///
+    /// Vocab-parallel (`vocab_par`, every rank, as [`Model::batch_head`]): each rank's `V / world` logits of every row into its
+    /// segment of the gather tile, the all-gather, then rank 0 alone copies the tile into `ws.logits` row-major and takes the
+    /// argmax (a peer returns after the gather). Every logit is the same row-exact kernel's dot product as the replicated
+    /// head's (`Model::check_vocab_split`), so the argmax is too.
     fn verify_head(&self, hn: &TensorRef, q: usize, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
+        if self.vocab_par {
+            let tile_buf = self.verify_tile.as_ref().ok_or_else(|| Error::invalid("vocab-parallel verify head without its tile"))?;
+            let (w, vh) = (self.tp.world, v / self.tp.world);
+            let tile = self.view(tile_buf, DType::F32, &[w, q * vh]);
+            let mine = tile.rows(self.tp.rank, 1);
+            self.proj(&hn.rows(0, q), self.head()?, &mine.reshaped(&[q, vh]), profile)?;
+            self.all_gather(&mine, &tile, profile)?;
+            if self.tp.rank != 0 {
+                return Ok(());
+            }
+            if self.recorder.lock().unwrap().is_none() {
+                for r in 0..w {
+                    for i in 0..q {
+                        self.backend.copy(&self.ws.logits, (i * v + r * vh) * 4, tile_buf, (r * q + i) * vh * 4, vh * 4, self.stream)?;
+                    }
+                }
+            }
+        } else {
+            let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
+            self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+        }
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
-        self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
         self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[q])], OpAttrs::default(), profile)
+    }
+
+    /// A tensor-parallel peer's share of a verify pass ([`Model::forward_verify`] on rank 0): the same layers on its slice, with
+    /// its own recurrent rows saved, and its slice of a vocab-parallel head with the gather. Commits the rows as rank 0 does.
+    fn verify_peer(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        let q = ids.len();
+        Self::prepare_spec_rows(&*self.backend, st, q)?;
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<TensorRef> {
+            let hn = self.run_chunk(st, ids, false)?;
+            if self.vocab_par {
+                self.verify_head(&hn, q, false)?;
+            }
+            Ok(hn)
+        })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        let hn = run?;
+        st.commit(ids);
+        if st.has_recurrent() {
+            st.spec_rows.saved = q - 1;
+        }
+        // the MTP head's share: queue the pass's rows as rank 0 does (no catch-up, so no collective)
+        self.mtp_after_forward(st, &hn, q, false, false)
+    }
+
+    /// Recurrent slots (GatedDeltaNet): the delta rule of a verify pass runs row by row and the state after every row but the last
+    /// is kept (`SpecRows`), so the caller can roll back to any accepted length (`SequenceState::spec_rollback`).
+    fn prepare_spec_rows(backend: &dyn Backend, st: &mut SequenceState, q: usize) -> Result<()> {
+        if st.has_recurrent() {
+            let need = st.recurrent_bytes();
+            st.spec_rows.saved = 0;
+            st.spec_rows.base = st.len;
+            st.spec_rows.bufs.retain(|b| b.bytes() >= need);
+            while st.spec_rows.bufs.len() < q - 1 {
+                let b = backend.alloc(need.max(16), MemKind::Device)?;
+                st.spec_rows.bufs.push(b);
+            }
+        }
+        Ok(())
     }
 
     /// Make sure the scratch workspace holds at least `bytes` (0 = none needed).
@@ -1559,6 +1746,14 @@ impl Model {
             if p.batch_rows > 0 {
                 // a batched tensor-parallel slot: the peer's share of the recurrent snapshots, reserved by its own enable_batch
                 ps.reserve_snapshots(&*p.backend, p.batch_snapshots())?;
+            }
+            // the MTP head's share (`--spec mtp` under tensor parallelism, lane dfh): its KV cache of this rank's heads and queue
+            ps.mtp = p.new_mtp_state(self.plan.kv_cap_tokens)?;
+            if ps.mtp.is_some() && ps.has_recurrent() {
+                let need = ps.recurrent_bytes().max(16);
+                for _ in 0..p.mtp_k {
+                    ps.spec_rows.bufs.push(p.backend.alloc(need, MemKind::Device)?);
+                }
             }
             st.peers.push(PeerState { backend: p.backend.clone(), st: ps });
         }
@@ -2045,6 +2240,12 @@ impl Model {
             }
             self.graph_peer_step(ps, ids[0])?;
             ps.commit(ids);
+            // the MTP head's share (`--spec mtp`): queue and catch up exactly as rank 0 does after its step (`forward_inner`),
+            // so the head's all-reduces pair with rank 0's
+            if ps.mtp.is_some() {
+                let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
+                self.mtp_after_forward(ps, &hn, 1, true, false)?;
+            }
             return Ok(());
         }
         let chunks = self.forward_chunks(ps, ids);
@@ -2057,6 +2258,9 @@ impl Model {
                 }
             }
             ps.commit(chunk);
+            if ps.mtp.is_some() {
+                self.mtp_after_forward(ps, &hn, chunk.len(), true, false)?;
+            }
         }
         Ok(())
     }

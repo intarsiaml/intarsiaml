@@ -1,0 +1,9 @@
+13:02:32 radiance answers, model Qwen3.8
+13:02:47 round 1 arm radiance ho-chat: localeval exit 0 results/20261026-130233-dfh-radiance-dfh-rad1-radiance-ho-chat-r1/result.json
+13:02:53 round 1 arm radiance ho-code: localeval exit 0 results/20261026-130247-dfh-radiance-dfh-rad1-radiance-ho-code-r1/result.json
+13:03:10 round 1 arm radiance ho-prose: localeval exit 0 results/20261026-130253-dfh-radiance-dfh-rad1-radiance-ho-prose-r1/result.json
+13:03:16 round 1 arm radiance ho-recall: localeval exit 0 results/20261026-130310-dfh-radiance-dfh-rad1-radiance-ho-recall-r1/result.json
+13:03:32 round 1 arm radiance rcp-code: localeval exit 0 results/20261026-130317-dfh-radiance-dfh-rad1-radiance-rcp-code-r1/result.json
+13:04:04 round 1 arm radiance rcp-prose: localeval exit 0 results/20261026-130333-dfh-radiance-dfh-rad1-radiance-rcp-prose-r1/result.json
+13:04:25 round 1 arm radiance rcp-recall: localeval exit 0 results/20261026-130405-dfh-radiance-dfh-rad1-radiance-rcp-recall-r1/result.json
+13:04:25 done

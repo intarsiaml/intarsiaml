@@ -1,0 +1,8 @@
+Here is a section-by-section summary of the **IntarsiaML architecture plan (v0.2)**, followed by a list of open questions and gaps identified from the text.
+
+### Section-by-Section Summary
+
+#### **Status vs Plan (Overview Table)**
+This table provides a high-level status check (as of 2026-10-25) against `origin/main`.
+*   **Implemented:** Rust host/server/CLI/TUI, CPU-ref/CUDA/HIP backends, Metal backend, kernel registry/oracle, exactness modes, torch-free C ABI, quant formats (BF16/FP8/NVFP4/MXFP4/EXL3), watchdog/supervisor, Prometheus metrics.
+*   **Partial:** Backend trait shape, kernel registration mechanism, block library (hard-coded, missing MLA/Mamba2/LayerNorm), recipes (expanded beyond Qwen3), plan compiler (no tuning DB), scheduler (FIFO only, no TP batching), prefix cache (content-addressed, not radix tree), host-RAM KV tier, speculation (n-gram/MTP only), sampler (missing min-p/penalties), tool/reasoning parsers (limited formats), tensor parallelism (NCCL

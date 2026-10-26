@@ -1,0 +1,11 @@
+12:11:39 ids start (arms dfl, tp1 tp2), VRAM in use 57 MiB
+12:12:02 mtest verify8-tp1-captured exit 0 [INTARSIA_VERIFY_DIR=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 INTARSIA_VERIFY_ROWS=8 INTARSIA_VERIFY_LENS=1024]: PROBE_CONFIG dir=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 rows=8 lens=1024 backend=hip INTARSIA_VERIFY_GRAPH=unset prof|PROBE_TIME decode1 31.24 ms, verify2 34.05 ms (1.09x), verify3 35.93 ms (1.15x), verify4 37.42 ms (1.20x), verify5 39.04 ms (1.25x), verify6 40.36 ms (1.29x), verify7 42.10 ms (1.35x), verify8 44.24 m|PROBE_GRAPHS GraphStats { enabled: true, captures: 4, replays: 312, batch_captures: 0, batch_replays: 0, spec_captures: 0, spec_replays: 0 }|PROBE_RESULT rows=163 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.61s|
+12:12:14 gen-tp1-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 1703 ms (1840.6 tok/s) | decode 7865 ms (32.42 tok/s)|
+12:12:24 gen-tp1-4k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 3388 drafted 1 accepted 1 emits 2|spec: mtp draft 23.886 ms, verify + rollback 34.265 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 1732 ms (1809.7 tok/s) | decode 5124 ms (49.77 tok/s)|spec: verify passes=73 proposed=498 accepted=182 (acceptance 36.5%, 3.49 tokens per pass)|
+12:12:24 PASS ids dfl tp1 4k-1 (prompt=3135)
+12:12:33 gen-tp2-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 1441 ms (2174.8 tok/s) | decode 4852 ms (52.56 tok/s)|
+12:12:42 gen-tp2-4k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3387 drafted 2 accepted 2 emits 3|spec: mtp draft 23.676 ms, verify + rollback 23.653 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 1464 ms (2140.9 tok/s) | decode 3952 ms (64.53 tok/s)|spec: verify passes=71 proposed=492 accepted=184 (acceptance 37.4%, 3.59 tokens per pass)|
+12:12:42 PASS ids dfl tp2 4k-1 (prompt=3135)
+12:12:42 ids summary dfl tp1: 1 PASS, 0 FAIL
+12:12:42 ids summary dfl tp2: 1 PASS, 0 FAIL
+12:12:42 ids done

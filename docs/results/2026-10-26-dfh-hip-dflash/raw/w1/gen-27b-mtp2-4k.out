@@ -1,0 +1,16 @@
+Based on the provided documentation, here is a structured summary of the **IntarsiaML** architecture, design philosophy, and technical specifications.
+
+### 1. Core Philosophy: "Intarsia" (Wood Inlay)
+The system is designed like a wood inlay: a picture built from **interchangeable, precisely fitted pieces**.
+*   **Modularity:** Every op, kernel, quant format, model block, and API surface is a "piece" with a strict contract.
+*   **Verification:** No piece (kernel) is admitted into the system unless it passes a reference test against a `cpu-ref` oracle.
+*   **No Per-Family Engines:** Unlike TensorFold (which ships a CUDA engine per model family), Intarsia uses a **shared block library** driven by **model recipes** (TOML files). New code is only written for genuinely new block types.
+
+### 2. System Architecture
+The system is divided into four main layers:
+
+#### A. Front Door (Server Layer)
+*   **Framework:** Rust (`axum`, `tokio`).
+*   **APIs:**
+    *   OpenAI-compatible (`/v1/chat/completions`, etc.)
+   

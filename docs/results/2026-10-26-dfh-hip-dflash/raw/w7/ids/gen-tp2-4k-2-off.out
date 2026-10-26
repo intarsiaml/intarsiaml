@@ -1,0 +1,13 @@
+This is a critical review of the technical document regarding Tensor Parallelism (TP) implementation on R9700 GPUs using the `intarsia` backend.
+
+### Executive Summary
+The document presents a rigorous, multi-layered verification strategy for TP=2 on a custom HIP backend. It correctly identifies that standard KL-divergence checks are insufficient for detecting subtle numerical bugs (like partial-scale errors) and introduces a novel "partial-sum" verification method. The approach is methodologically sound, but it suffers from significant gaps in statistical rigor regarding the "noise envelope," a lack of explanation for a critical crash, and an over-reliance on bitwise determinism as a proxy for correctness.
+
+---
+
+### 1. What is Convincing
+
+#### A. The "Partial-Sum" Verification Strategy (Section 1.3)
+This is the strongest part of the document. The authors correctly identify that comparing final logits (KL divergence) is a blunt instrument for detecting small numerical errors (0.3% scale bugs) because reduction order noise can mask them.
+*   **Direct Check:** By checking the partial sums *before* the all-reduce, they isolate the computation from the communication.
+*   **Theoretical Basis:** Using Higham

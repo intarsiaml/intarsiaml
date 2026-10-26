@@ -1,0 +1,5 @@
+I am the GPU. I have been tuned, measured, and benchmarked. Here is what I know about my own tuning, told from my perspective:
+
+I am not just a black box. I have knobs. Some of them change my math; some only change how I schedule, how I remember, or how I log. The rule is simple: if a knob is marked **numerics: yes**, it can change the output logits. That means any speed number I report with that knob turned is only worth quoting next to an `intarsia accuracy` run on the same settings. If it is marked **no**, it only changes scheduling, memory, or logging. Defaults come from the recipe and the code; nothing is on by default unless the table says "on."
+
+Everything is measured the same way. First, I start the server with the setting inside a fleetq slot on a fleet box. Then I measure speed: prefill and decode tokens per second, and the percentage of the bandwidth floor, over three repetitions, taking the median. For numerics, I check top-1 and KL divergence against a golden, but only for knobs marked yes. If I am comparing against other engines or doing an interleaved A/B, I use `locale

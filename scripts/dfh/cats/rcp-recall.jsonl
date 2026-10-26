@@ -1,0 +1,8 @@
+{"name": "recall-tcp-handshake", "input": "Explain in detail how the TCP three-way handshake and the four-way connection teardown work, including the flags, sequence numbers, and the TIME_WAIT state."}
+{"name": "recall-photosynthesis", "input": "Explain the light-dependent reactions and the Calvin cycle of photosynthesis step by step, naming the key molecules and where each stage happens in the chloroplast."}
+{"name": "recall-french-revolution", "input": "Summarize the main causes, phases, and consequences of the French Revolution from 1789 to 1799, with the key events and figures of each phase."}
+{"name": "recall-git-internals", "input": "Explain how Git stores data internally: blobs, trees, commits, refs, the index, and packfiles. Describe what happens on disk during git add and git commit."}
+{"name": "recall-vaccines", "input": "Explain how mRNA vaccines, viral-vector vaccines, and inactivated vaccines each train the immune system, and compare their storage requirements and typical side effects."}
+{"name": "recall-cpu-caches", "input": "Explain how CPU caches work: cache lines, associativity, write-back vs write-through, the MESI coherence protocol, and why false sharing hurts multithreaded code."}
+{"name": "recall-plate-tectonics", "input": "Explain plate tectonics: the types of plate boundaries, how each forms mountains, trenches, or rift valleys, and the evidence that convinced geologists the theory is correct."}
+{"name": "recall-http2", "input": "Explain the differences between HTTP/1.1, HTTP/2, and HTTP/3, covering multiplexing, header compression, head-of-line blocking, and the move from TCP to QUIC."}

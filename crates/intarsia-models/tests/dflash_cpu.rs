@@ -149,6 +149,7 @@ fn dflash_load(draft: Gen) -> DflashLoad {
             emb_dim: 0,
             state_dim: 0,
             mlp_dim: 0,
+            ..Default::default()
         },
     }
 }

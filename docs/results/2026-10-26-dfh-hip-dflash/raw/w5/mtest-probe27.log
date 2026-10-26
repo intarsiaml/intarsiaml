@@ -1,0 +1,65 @@
+09:56:01 mtest probe27 exit 0 [INTARSIA_DFLASH2_TARGET=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 INTARSIA_DFLASH2_DRAFT=/models/tensorfold/Qwen3.8-27B-DFlash2 INTARSIA_DFLASH2_LEN=3000]: PROBE_CONFIG target=Some("/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0") draft=Some("/models/tensorfold/Qwen3.8-27B-DFlash2|PROBE_TAP 0: rms 0.4874 finite true|PROBE_TAP 1: rms 1.0053 finite true|PROBE_TAP 2: rms 1.0457 finite true|PROBE_TAP 3: rms 1.3354 finite true|PROBE_TAP 4: rms 4.4282 finite true|PROBE_DRAFTS [16, 220, 220, 220, 220, 220, 220]|PROBE_DRAFT_PROFILE wall 26.45 ms (profiled), ops 24.38 ms, host/other 2.08 ms|PROBE_DRAFT_OP matmul                   calls   56   10.447 ms|PROBE_DRAFT_OP logits                   calls    1    7.811 ms|PROBE_DRAFT_OP attn_decode              calls   40    4.425 ms|PROBE_DRAFT_OP dyn_conv                 calls   20    0.409 ms|PROBE_DRAFT_OP rmsnorm                  calls   11    0.245 ms|PROBE_DRAFT_OP rope                     calls   10    0.240 ms|
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1202:4
+     |
+1202 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running tests/dflash2_real.rs (/target/release/deps/dflash2_real-11fa33a199263fba)
+
+running 1 test
+PROBE_CONFIG target=Some("/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0") draft=Some("/models/tensorfold/Qwen3.8-27B-DFlash2") backend=Some("hip") len=Some("3000") out=None INTARSIA_NO_FUSION=None
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 1.1 s
+PROBE_TAP 0: rms 0.4874 finite true
+PROBE_TAP 1: rms 1.0053 finite true
+PROBE_TAP 2: rms 1.0457 finite true
+PROBE_TAP 3: rms 1.3354 finite true
+PROBE_TAP 4: rms 4.4282 finite true
+PROBE_DRAFTS [16, 220, 220, 220, 220, 220, 220]
+PROBE_DRAFT_PROFILE wall 26.45 ms (profiled), ops 24.38 ms, host/other 2.08 ms
+PROBE_DRAFT_OP matmul                   calls   56   10.447 ms
+PROBE_DRAFT_OP logits                   calls    1    7.811 ms
+PROBE_DRAFT_OP attn_decode              calls   40    4.425 ms
+PROBE_DRAFT_OP dyn_conv                 calls   20    0.409 ms
+PROBE_DRAFT_OP rmsnorm                  calls   11    0.245 ms
+PROBE_DRAFT_OP rope                     calls   10    0.240 ms
+PROBE_DRAFT_OP qk_norm                  calls   10    0.202 ms
+PROBE_DRAFT_OP kv_append                calls   10    0.196 ms
+PROBE_DRAFT_OP add                      calls   10    0.196 ms
+PROBE_DRAFT_OP silu_glu                 calls    5    0.103 ms
+PROBE_DRAFT_OP argmax                   calls    1    0.079 ms
+PROBE_DRAFT_OP embedding                calls    1    0.025 ms
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_TIME decode1 30.66 ms (n 12), draft7 23.51 ms, verify8 65.10 ms
+test dflash2_real_taps_and_cost ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.05s
+

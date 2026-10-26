@@ -1,0 +1,11 @@
+This is a high-quality, technically dense engineering log documenting the validation of Tensor Parallelism (TP=2) on AMD R9700s (gfx1201) for Qwen models. The document demonstrates a rigorous approach to numerical stability, specifically addressing the "reduction order" problem inherent in floating-point arithmetic across distributed ranks.
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**A. The "Gate" Logic is Sound and Self-Correcting**
+The most impressive aspect of this document is the iterative refinement of the acceptance criteria (Section 0 & 1).
+*   **Initial Assumption:** The team initially thought KL divergence between TP=2 and TP=1 could be used to detect bugs.
+*   **Correction:** They realized that reduction-order noise (deterministic but non-zero) masks small scale bugs (0.3%).
+*   **Final Gate:** They switched to a **direct partial-sum check** (Section 1.3) using deterministic and probabilistic bounds (Higham & Mary 2019). This is the correct approach for verifying numerical integrity in distributed

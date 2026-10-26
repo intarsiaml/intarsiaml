@@ -1,0 +1,14 @@
+Welcome to the project. This document is a technical specification and status report for a new feature branch: **`lane-dc/dflash-dcoco`**.
+
+Here is a detailed breakdown of what this feature is, how it works, and where we stand as of October 25, 2026.
+
+### 1. High-Level Overview
+
+**What is this?**
+We are implementing a speculative decoding method called **DFlash** combined with a correction mechanism called **DCOCO**.
+
+*   **Speculative Decoding:** Instead of generating one token at a time (which is slow due to memory bandwidth), we use a small "draft" model to guess a block of tokens (e.g., 15 tokens) quickly. Then, we verify these guesses against the large "target" model in parallel. If the guesses are correct, we accept them; if not, we stop and re-draft.
+*   **DFlash:** The specific draft model architecture. It uses a small 5-layer model that mimics the target model's structure but runs much faster.
+*   **DCOCO:** A "Contextual Correction" module. It refines the draft model's predictions before verification to improve the acceptance rate.
+
+**

@@ -1,0 +1,52 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1202:4
+     |
+1202 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.12s
+     Running tests/dflash2_real.rs (/target/release/deps/dflash2_real-11fa33a199263fba)
+
+running 1 test
+PROBE_CONFIG target=Some("/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0") draft=Some("/models/tensorfold/Qwen3.8-27B-DFlash2") backend=Some("hip") len=Some("3000") out=Some("/work/dfh-taps-fused.bin") INTARSIA_NO_FUSION=None
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.2 s
+PROBE_TAPS wrote 5 taps x 184 rows x 5120 to /work/dfh-taps-fused.bin
+PROBE_TAP 0: rms 0.4874 finite true
+PROBE_TAP 1: rms 1.0053 finite true
+PROBE_TAP 2: rms 1.0457 finite true
+PROBE_TAP 3: rms 1.3354 finite true
+PROBE_TAP 4: rms 4.4282 finite true
+PROBE_DRAFTS [16, 220, 220, 220, 220, 220, 220]
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_VERIFY target [248046, 15, 16, 16, 16, 220, 220, 220], drafts accepted 0 of 7
+PROBE_TIME decode1 30.62 ms (n 12), draft7 22.19 ms, verify8 65.18 ms
+test dflash2_real_taps_and_cost ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s
+

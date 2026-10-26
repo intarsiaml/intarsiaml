@@ -709,8 +709,8 @@ impl LocalEngine {
             if meta.spec.mode == crate::spec::SpecMode::Dflash && (!model.has_dflash() || state.dflash.is_none()) {
                 return Err(Error::invalid("--spec dflash needs the model loaded with its draft (LoadOptions::dflash)"));
             }
-            // the MTP path keeps per-row recurrent states in its verify passes; n-gram drafting does not
-            if state.has_recurrent() && !mtp {
+            // the MTP and DFlash paths keep per-row recurrent states in their verify passes (`SpecRows`); n-gram drafting does not
+            if state.has_recurrent() && !mtp && meta.spec.mode != crate::spec::SpecMode::Dflash {
                 return Err(Error::Unsupported("speculative decoding on a model with recurrent state".into()));
             }
         }
@@ -1233,6 +1233,12 @@ impl Seq {
         }
         if let Some(m) = st.mtp.as_mut() {
             m.active = drafting;
+        }
+        // tensor-parallel peers run the MTP head in lockstep with rank 0 (lane dfh): the same switch on every rank
+        for p in st.peers.iter_mut() {
+            if let Some(m) = p.st.mtp.as_mut() {
+                m.active = drafting;
+            }
         }
         if let Some(d) = st.dflash.as_mut() {
             d.active = drafting;

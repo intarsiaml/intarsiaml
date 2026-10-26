@@ -1,0 +1,39 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-code.jsonl: 2 rows, judge=none
+# localeval: dfh-off — 2026-10-26T12:37
+
+- model: `qwen38-27b-off` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: dfh-w8-off-ho-code-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dfh-off --thinking off --label dfh-w8-off-ho-code-r3 --recipe HIP_VISIBLE_DEVICES=0,1 dfh-intarsia serve --backend hip --model 27B --spec off --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane dfh) --dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-code.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-123700-dfh-off-dfh-w8-off-ho-code-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 dfh-intarsia serve --backend hip --model 27B --spec off --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane dfh)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-code.jsonl` (2 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 2 | 0 |
+| TTFT (s) | 0.082 | 1.0 | 2 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 2 | 0 |
+| Decode (tok/s) | 53.2 | 1.0 | 2 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| code-csv | yes | 0.0 | 0.09 | 53.2 | ```python #!/usr/bin/env python3 """ A command-line tool tha… |
+| code-matrix | yes | 0.0 | 0.08 | 53.2 | ```rust use std::fmt; /// A fixed-size matrix with `R` rows … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-123700-dfh-off-dfh-w8-off-ho-code-r3/result.json
+[localeval] logged to unanimis: 23fc47a2-c765-46c9-9533-d00bc58c0993

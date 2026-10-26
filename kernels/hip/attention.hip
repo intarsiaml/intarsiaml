@@ -11,11 +11,14 @@ namespace {
 constexpr int kThreads = 128;   // keys per tile == threads per block
 constexpr int kMaxD = 256;      // head_dim limit (two output dims per thread)
 
-template <bool VEC>
+// WIN (sliding window, `OpAttrs::window`): the query at absolute position p attends keys max(0, p + 1 - window)..=p, so the
+// key loop starts at that key (tiles start there, not at a multiple of kThreads) and nothing else changes. window == 0 means
+// all keys. The WIN = false instantiations are the plain kernels: `start` is the constant 0 and `window` is never read.
+template <bool VEC, bool WIN = false>
 __global__ void __launch_bounds__(kThreads)
 attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
             ik_bf16* __restrict__ out, int64_t N, int64_t NKV, int D, int64_t cap, int64_t pos0_host, float scale,
-            const int32_t* pos_dev) {
+            const int32_t* pos_dev, int64_t window = 0) {
     const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;  // device position, read when the kernel runs
     __shared__ float qs[kMaxD];
     __shared__ float sc[kThreads];
@@ -25,6 +28,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
     const int64_t h = blockIdx.x % N;
     const int64_t kvh = h / (N / NKV);
     const int64_t visible = pos0 + t + 1;  // keys 0 .. pos0+t
+    const int64_t start = (WIN && window > 0 && visible > window) ? visible - window : 0;  // first key attended
     const ik_bf16* kbase = kc + kvh * cap * D;
     const ik_bf16* vbase = vc + kvh * cap * D;
     const ik_bf16* qrow = q + (t * N + h) * D;
@@ -35,7 +39,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
     float m = -INFINITY, l = 0.f;
     float acc[kMaxD / kThreads] = {0.f, 0.f};
 
-    for (int64_t tile = 0; tile < visible; tile += kThreads) {
+    for (int64_t tile = start; tile < visible; tile += kThreads) {
         const int64_t j = tile + threadIdx.x;
         float s = -INFINITY;
         if (j < visible) {
@@ -86,7 +90,8 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
 }
 
 int attn_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
-                ik_tensor* out, const ik_tensor* pos, void* stream, bool decode) {
+                ik_tensor* out, const ik_tensor* pos, void* stream, bool decode, bool windowed = false,
+                int64_t window = 0) {
     IK_TRY(ik_check_pos(pos));
     const int32_t* pos_dev = pos ? (const int32_t*)pos->data : nullptr;
     IK_TRY(ik_check(q, IK_DTYPE_BF16, 3));
@@ -104,6 +109,17 @@ int attn_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, in
     if (nblocks > 0x7fffffffLL) return IK_ERR_SHAPE;
     const bool vec = D % 8 == 0 && ik_aligned16(kc->data) && ik_aligned16(vc->data) && cap * D % 8 == 0;
     hipStream_t s = IK_STREAM(stream);
+    if (windowed) {
+        if (vec)
+            attn_kernel<true, true><<<(unsigned)nblocks, kThreads, 0, s>>>(
+                (const ik_bf16*)q->data, (const ik_bf16*)kc->data, (const ik_bf16*)vc->data, (ik_bf16*)out->data, N,
+                NKV, (int)D, cap, pos0, scale, pos_dev, window);
+        else
+            attn_kernel<false, true><<<(unsigned)nblocks, kThreads, 0, s>>>(
+                (const ik_bf16*)q->data, (const ik_bf16*)kc->data, (const ik_bf16*)vc->data, (ik_bf16*)out->data, N,
+                NKV, (int)D, cap, pos0, scale, pos_dev, window);
+        return ik_launch_status();
+    }
     if (vec)
         attn_kernel<true><<<(unsigned)nblocks, kThreads, 0, s>>>((const ik_bf16*)q->data, (const ik_bf16*)kc->data,
                                                                   (const ik_bf16*)vc->data, (ik_bf16*)out->data, N,
@@ -127,6 +143,14 @@ int ik_attn_prefill_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tenso
 int ik_attn_decode_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                         ik_tensor* out, const ik_tensor* pos, void* stream) {
     return attn_launch(q, kc, vc, pos0, scale, out, pos, stream, true);
+}
+
+// Sliding-window decode (`OpAttrs::window`, 0 = all keys): ik_attn_decode_bf16 with the key loop starting at
+// max(0, pos0 + 1 - window). Same shape rules, optional device position.
+int ik_attn_decode_bf16_window(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, int64_t window,
+                               float scale, ik_tensor* out, const ik_tensor* pos, void* stream) {
+    if (window < 0) return IK_ERR_INVALID_ARG;
+    return attn_launch(q, kc, vc, pos0, scale, out, pos, stream, true, true, window);
 }
 
 }  // extern "C"

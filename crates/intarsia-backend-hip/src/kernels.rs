@@ -88,6 +88,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_prefill_bf16_flash_v2", Op::AttnPrefill),
     ("attn_prefill_bf16_splitkv", Op::AttnPrefill),
     ("attn_decode_bf16_splitkv", Op::AttnDecode),
+    // lane dfh (DFlash2): the sliding-window decode (`.ext()`) and the draft's dynamic conv
+    ("attn_decode_bf16_window", Op::AttnDecode),
+    ("dyn_conv_bf16", Op::DynConv),
     ("silu_glu_bf16", Op::SiluGlu),
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
@@ -185,6 +188,11 @@ fn splitkv_ok(s: &ShapeInfo) -> bool {
         && s.n_kv_heads > 0
         && s.n_heads % s.n_kv_heads == 0
         && s.n_heads / s.n_kv_heads <= 8
+}
+
+/// `attn_decode_bf16_window`: the shapes `attn_decode_bf16` takes (D <= 256 and even, T == 1) and q heads a multiple of the kv heads.
+fn window_decode_ok(s: &ShapeInfo) -> bool {
+    s.m == 1 && s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0
 }
 
 fn flash_ok(s: &ShapeInfo) -> bool {
@@ -306,6 +314,18 @@ pub fn all() -> Vec<KernelImpl> {
                 .tol(BF16_TOL)
                 .priority(10)
                 .scratch(splitkv_scratch),
+            // lane dfh: attn_decode_bf16 with the key loop starting at the window's first key. `.ext()`: the only HIP kernel that
+            // takes `OpAttrs::window > 0`. A plain (window == 0) call must never pick it: priority -1 is below attn_decode_bf16 (0),
+            // whose predicate is a superset of this one (the test `window_decode_is_never_picked_by_plain_calls` pins both).
+            "attn_decode_bf16_window" => k
+                .acts(bf)
+                .weights(bf)
+                .ext()
+                .when(|s| window_decode_ok(s))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-1),
+            "dyn_conv_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
             // sequential recurrence, state rows in registers: fixed reduction order
@@ -538,6 +558,62 @@ mod tests {
             assert_eq!(pick(Op::AttnDecode, &dec).as_deref(), Some("attn_decode_bf16_splitkv"), "decode n={n} nkv={nkv} d={d}");
         }
         assert_eq!(SPLITKV_MAX_ROWS, 16);
+    }
+
+    /// Lane dfh: `attn_decode_bf16_window` is `.ext()` and serves exactly the windowed decode calls. A plain call (`window == 0`) keeps the
+    /// kernel it had before (split-KV where it applies, `attn_decode_bf16` otherwise), at every head shape.
+    #[test]
+    fn window_decode_is_never_picked_by_plain_calls() {
+        let bf = Some(DType::Bf16);
+        let ks = all();
+        let win = ks.iter().find(|k| k.name == "attn_decode_bf16_window").expect("registered");
+        let base = ks.iter().find(|k| k.name == "attn_decode_bf16").expect("registered");
+        assert!(win.ext && win.op == Op::AttnDecode);
+        assert!(win.priority < base.priority, "a plain call must rank attn_decode_bf16 above the window kernel");
+        let mk = |m: usize, n: usize, nkv: usize, d: usize, ext: bool| ShapeInfo {
+            m,
+            n_heads: n,
+            n_kv_heads: nkv,
+            head_dim: d,
+            k: d,
+            act: bf,
+            out: bf,
+            weight: bf,
+            ext,
+            ..Default::default()
+        };
+        // plain calls: unchanged picks (the split-KV kernel where it takes the shape, the SIMT decode kernel otherwise), never the window kernel
+        for (n, nkv, d, want) in [
+            (32usize, 8usize, 128usize, Some("attn_decode_bf16_splitkv")),
+            (16, 2, 256, Some("attn_decode_bf16_splitkv")),
+            (8, 8, 64, Some("attn_decode_bf16_splitkv")),
+            (4, 2, 64, Some("attn_decode_bf16_splitkv")),
+            (32, 2, 128, Some("attn_decode_bf16")), // 16 query heads per kv head: past the split-KV limit
+            (16, 2, 80, Some("attn_decode_bf16")),
+            (16, 2, 512, None),
+        ] {
+            assert_eq!(pick(Op::AttnDecode, &mk(1, n, nkv, d, false)).as_deref(), want, "plain n={n} nkv={nkv} d={d}");
+        }
+        // anything the window kernel takes, a plain call also has attn_decode_bf16 for (so priority -1 vs 0 always decides it)
+        for m in [1usize, 2, 16] {
+            for (n, nkv) in [(32usize, 8usize), (16, 2), (8, 8), (4, 2), (6, 4), (0, 0), (8, 0)] {
+                for d in [0usize, 1, 2, 32, 64, 80, 128, 256, 258, 512] {
+                    let s = mk(m, n, nkv, d, false);
+                    if win.accepts(&s) {
+                        assert!(base.accepts(&s), "m={m} n={n} nkv={nkv} d={d}");
+                        assert_ne!(pick(Op::AttnDecode, &s).as_deref(), Some("attn_decode_bf16_window"), "m={m} n={n} nkv={nkv} d={d}");
+                    }
+                }
+            }
+        }
+        // windowed calls (ext): only the window kernel takes them, at D <= 256 (D = 512 has no HIP kernel), one row
+        for (n, nkv, d) in [(32usize, 8usize, 128usize), (16, 2, 256), (16, 8, 256), (4, 2, 64)] {
+            assert_eq!(pick(Op::AttnDecode, &mk(1, n, nkv, d, true)).as_deref(), Some("attn_decode_bf16_window"), "window n={n} nkv={nkv} d={d}");
+        }
+        assert_eq!(pick(Op::AttnDecode, &mk(1, 16, 2, 512, true)), None, "D = 512");
+        assert_eq!(pick(Op::AttnDecode, &mk(2, 32, 8, 128, true)), None, "decode is one row");
+        // prefill windows have no HIP kernel yet
+        assert_eq!(pick(Op::AttnPrefill, &mk(20, 32, 8, 128, true)), None);
     }
 
     /// Vocab-parallel lm_head (tensor parallelism): each rank runs half of the head's rows, and the logits must be bitwise those

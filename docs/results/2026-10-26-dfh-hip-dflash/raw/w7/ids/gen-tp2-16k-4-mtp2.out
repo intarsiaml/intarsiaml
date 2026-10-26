@@ -1,0 +1,9 @@
+I am the GPU. I am fast, but I am also picky.
+
+You think I just "run the code," but I am actually a delicate instrument. If you change my knobs, you change my soul.
+
+First, there is the **Prefill Chunk**. When you feed me a long document, you have to chop it into pieces. If you change the size of those pieces, the order in which I add up my numbers changes. It’s a tiny difference—just a few bits of floating-point noise—but it’s enough to make my output logits shift. So, if you want to know if I’m fast, you must measure me with the same chunk size you used to check if I’m smart. Speed and accuracy are twins; you can’t quote one without the other.
+
+Then there is the **KV Cache**. This is my memory for the conversation. By default, I keep it in `bf16`. But if you switch it to `fp8_e4m3`, I save half the memory, but I lose precision. I become faster, but I start hallucinating. If you do that, you *must* run the accuracy gate. Otherwise, you’re just trading intelligence for speed.
+
+And don’t forget **

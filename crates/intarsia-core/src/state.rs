@@ -349,7 +349,7 @@ impl SequenceState {
 
     /// Roll back to `keep` tokens inside the last speculative verify pass (`base < keep <= len`): attention caches and
     /// the MTP drafter shorten, recurrent slots take the state saved after row `keep - base - 1` of that pass
-    /// ([`SpecRows`]). Single-rank states only.
+    /// ([`SpecRows`]). Every in-process tensor-parallel rank rolls back with it (each from its own saved rows).
     pub fn spec_rollback(&mut self, keep: usize, backend: &dyn Backend) -> Result<()> {
         if keep == self.len {
             return Ok(());
@@ -357,17 +357,43 @@ impl SequenceState {
         if keep > self.len {
             return Err(Error::invalid("spec rollback beyond the current length"));
         }
-        if !self.peers.is_empty() || self.remote.is_some() {
-            return Err(Error::Unsupported("speculative rollback of a tensor-parallel state".into()));
+        if self.remote.is_some() {
+            return Err(Error::Unsupported("speculative rollback of a state with a rank in another process".into()));
         }
+        // tensor parallelism (in-process peers, lane dfh): every rank ran the same verify pass and saved its own slice of the
+        // recurrent state per row; all check before any changes, so a refusal leaves every rank as it was
+        self.check_spec_rollback(keep)?;
+        for p in &self.peers {
+            if p.st.len != self.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, self.len)));
+            }
+            p.st.check_spec_rollback(keep)?;
+        }
+        for p in &mut self.peers {
+            p.st.spec_rollback_rank(keep, &*p.backend)?;
+        }
+        self.spec_rollback_rank(keep, backend)
+    }
+
+    /// Whether [`SequenceState::spec_rollback`] to `keep` can be made on this rank's state.
+    fn check_spec_rollback(&self, keep: usize) -> Result<()> {
         if self.has_recurrent() {
             let sr = &self.spec_rows;
-            let m = keep.checked_sub(sr.base).filter(|m| (1..=sr.saved).contains(m)).ok_or_else(|| {
+            keep.checked_sub(sr.base).filter(|m| (1..=sr.saved).contains(m)).ok_or_else(|| {
                 Error::invalid(format!(
                     "cannot roll recurrent state back to {keep} tokens (last verify pass from {} saved {} rows)",
                     sr.base, sr.saved
                 ))
             })?;
+        }
+        Ok(())
+    }
+
+    /// [`SequenceState::spec_rollback`] on this rank's state alone (checked by [`SequenceState::check_spec_rollback`]).
+    fn spec_rollback_rank(&mut self, keep: usize, backend: &dyn Backend) -> Result<()> {
+        if self.has_recurrent() {
+            let sr = &self.spec_rows;
+            let m = keep - sr.base;
             let src = &sr.bufs[m - 1];
             let mut off = 0;
             for s in &self.slots {
