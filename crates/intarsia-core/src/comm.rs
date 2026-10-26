@@ -86,8 +86,16 @@ pub trait Comm: Send + Sync {
     fn all_reduce_sum_into(&self, partial: &TensorRef, out: &TensorRef, stream: StreamId) -> Result<()>;
 
     /// `recv` (`world * send.numel()` elements) receives every rank's `send` in rank order. Same dtype on
-    /// both. `recv` may not alias `send`.
+    /// both. `send` is either disjoint from `recv` or exactly this rank's own segment of it (in place: nothing is
+    /// copied onto itself), which is how the vocab-parallel lm_head uses it.
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()>;
+
+    /// `Some(q)`: [`Comm::all_gather`] is implemented here, in place, for messages that are a multiple of `q` bytes per
+    /// rank (the vocab-parallel lm_head, `LoadOptions::tp_vocab`, asks before it splits the head). `None`: not
+    /// implemented (the default), so a model never relies on it.
+    fn all_gather_quantum(&self) -> Option<usize> {
+        None
+    }
 
     /// Release peers blocked in a collective with an error. Idempotent; the group stays unusable after.
     fn abort(&self);
@@ -97,6 +105,17 @@ pub trait Comm: Send + Sync {
 
     /// Record the measured duration of one collective (profiled steps).
     fn note_timed(&self, d: Duration);
+
+    /// Debugging (`INTARSIA_TP_COLL_TRACE`): the device-side handshake state (launch counters and flags of both ranks), read without
+    /// waiting for the streams, or `None` where the group has none.
+    fn debug_state(&self) -> Option<String> {
+        None
+    }
+
+    /// Debugging (`INTARSIA_HIP_CTRS_HOST=1`): the launch counter of each rank, read from host memory without any device call.
+    fn debug_counters(&self) -> Option<[u32; 2]> {
+        None
+    }
 
     /// Can the collectives be recorded into a captured graph (CUDA graph) on the rank's stream and replayed? True only
     /// when every call is a pure stream operation with no host synchronisation and no allocation once
@@ -110,6 +129,45 @@ pub trait Comm: Send + Sync {
     fn reserve(&self, _max_elems: usize, _stream: StreamId) -> Result<()> {
         Ok(())
     }
+
+    /// Does this communicator fuse the all-reduce with the residual add + rmsnorm that follows it
+    /// ([`Comm::all_reduce_add_rmsnorm`])? Default false: the model then never defers a reduction, and its op sequence is
+    /// exactly the unfused one.
+    fn fuses_ar_norm(&self) -> bool {
+        false
+    }
+
+    /// Would [`Comm::all_reduce_add_rmsnorm`] take these arguments? A pure function of the tensors' dtypes, shapes and
+    /// offsets (never of their contents), so every rank, the plan recorder and a captured graph decide the same.
+    fn ar_norm_supported(&self, _a: &ArNorm<'_>) -> bool {
+        false
+    }
+
+    /// The all-reduce of [`Comm::all_reduce_sum_into`] followed by `Op::RmsNormAdd` on its result, as one collective:
+    /// `out = round(sum over ranks of partial)`, `sum = round(out + residual)`, `norm = rmsnorm(sum) * (weight + w_offset)`,
+    /// bit for bit the unfused pair (HIP: `kernels/hip/ar_norm.hip`). Same collective contract as the other calls; the
+    /// caller asks [`Comm::ar_norm_supported`] first and runs the unfused pair when it says no.
+    fn all_reduce_add_rmsnorm(&self, _a: &ArNorm<'_>, _stream: StreamId) -> Result<()> {
+        Err(Error::Unsupported(format!("{} has no fused all-reduce + rmsnorm", self.name())))
+    }
+}
+
+/// Operands of [`Comm::all_reduce_add_rmsnorm`]: the `[rows, H]` activations are in the model's activation dtype.
+pub struct ArNorm<'a> {
+    /// This rank's partial of the block output (f32, or the activation dtype), `rows * H` elements.
+    pub partial: &'a TensorRef,
+    /// Receives the reduced block output (the `x` of the `RmsNormAdd`; may be `partial` for equal dtypes).
+    pub out: &'a TensorRef,
+    /// The residual stream before this block's add.
+    pub residual: &'a TensorRef,
+    /// The norm weight `[H]`.
+    pub weight: &'a TensorRef,
+    /// The normed rows (first output of `RmsNormAdd`).
+    pub norm: &'a TensorRef,
+    /// The residual stream after the add (second output of `RmsNormAdd`).
+    pub sum: &'a TensorRef,
+    pub eps: f32,
+    pub w_offset: f32,
 }
 
 fn check_reducible(x: &TensorRef) -> Result<usize> {
@@ -233,6 +291,20 @@ impl HostComm {
     }
 }
 
+impl HostComm {
+    /// Every rank must have sent as many bytes as this one: ranks that disagree on a collective's size (a protocol bug, e.g.
+    /// different row counts) fail it on every rank, instead of summing or concatenating mismatched data.
+    fn same_sizes(&self, all: &[Vec<u8>], what: &str) -> Result<()> {
+        let mine = all[self.rank].len();
+        if all.iter().any(|p| p.len() != mine) {
+            self.rv.abort();
+            let sizes: Vec<usize> = all.iter().map(|p| p.len()).collect();
+            return Err(Error::backend(format!("{what}: the ranks sent different sizes {sizes:?} (bytes per rank)")));
+        }
+        Ok(())
+    }
+}
+
 impl Comm for HostComm {
     fn name(&self) -> &str {
         "host"
@@ -267,6 +339,7 @@ impl Comm for HostComm {
             return Ok(());
         }
         let all = self.rv.exchange(self.rank, self.read(partial, stream)?, self.timeout)?;
+        self.same_sizes(&all, "all-reduce")?;
         let mut acc = vec![0f32; n];
         decode_to_f32(partial.dtype, &all[0], &mut acc);
         let mut tmp = vec![0f32; n];
@@ -279,6 +352,10 @@ impl Comm for HostComm {
         let mut bytes = vec![0u8; out.nbytes()];
         encode_from_f32(out.dtype, &acc, &mut bytes);
         self.backend.upload(&out.buf, out.offset, &bytes, stream)
+    }
+
+    fn all_gather_quantum(&self) -> Option<usize> {
+        Some(1)
     }
 
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()> {
@@ -296,6 +373,7 @@ impl Comm for HostComm {
         }
         self.counters.call(send.nbytes());
         let all = self.rv.exchange(self.rank, self.read(send, stream)?, self.timeout)?;
+        self.same_sizes(&all, "all-gather")?;
         let cat: Vec<u8> = all.iter().flat_map(|p| p.iter().copied()).collect();
         self.backend.upload(&recv.buf, recv.offset, &cat, stream)
     }

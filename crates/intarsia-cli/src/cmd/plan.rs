@@ -83,6 +83,13 @@ pub fn render(p: &Value) -> String {
             t["all_reduce_calls_per_decode_step"],
             t["all_reduce_bytes_per_decode_step"]
         );
+        if t["all_reduce_fused_rmsnorm_per_decode_step"].as_u64().unwrap_or(0) > 0 {
+            let _ = writeln!(
+                o,
+                "  fused all-reduce + residual add + rmsnorm: {} of the {} all-reduces per decode step (INTARSIA_TP_ARNORM)",
+                t["all_reduce_fused_rmsnorm_per_decode_step"], t["all_reduce_calls_per_decode_step"]
+            );
+        }
         for r in t["ranks"].as_array().cloned().unwrap_or_default() {
             let _ = writeln!(
                 o,

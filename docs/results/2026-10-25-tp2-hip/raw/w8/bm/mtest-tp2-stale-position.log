@@ -1,0 +1,50 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:5
+   |
+36 | struct Captured {
+   |        -------- field in this struct
+37 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:705:45
+    |
+705 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 1 test
+test real_35b_tp2_batch_stale_position_mutant_is_caught ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22663921664, weights_bytes: 10942366580, workspace_bytes: 569117216, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21530725310, kv_cap_tokens: 1024, kv_total_bytes: 10485760, notes: [] }
+recurrent bytes per state 32931840
+
+thread 'real_35b_tp2_batch_stale_position_mutant_is_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:
+batch 8 step 0 row 0 (sequence 0, context 4 -> 5): logits differ at 248320 of 248320 entries, first at 0: solo 8.492943 batch 8.651487
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+mutant StalePosition at 8 rows: caught

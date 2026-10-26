@@ -1,0 +1,109 @@
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1199:4
+     |
+1199 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 5.92s
+     Running tests/tp_partial_sum.rs (/target/release/deps/tp_partial_sum-9603b556181b6da7)
+
+running 1 test
+test tp2_partial_sums_match_tp1_within_the_derived_fp32_bound_and_mutants_do_not ... gamma_2048 1.221e-4 gammaT_2048 1.618e-5 gamma_5120 3.053e-4 gammaT_5120 2.559e-5 (u = 2^-24, lambda = 6)
+  SameSign m=1 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 1.214e-3, tp2 1.035e-3 (must be <= 1)
+  clean                  max|y2-y1| 4.883e-4  /BOUND_DET     0.001  /BOUND_PROB     0.007  bf16 differ     0/2048 (allowed DET 122.7, PROB 26.5)  [SameSign m=1 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 3.210e0  /BOUND_DET     6.302  /BOUND_PROB    47.536  bf16 differ   481/2048 (allowed DET 122.7, PROB 26.5)  [SameSign m=1 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.070e0  /BOUND_DET     2.101  /BOUND_PROB    15.847  bf16 differ   151/2048 (allowed DET 122.7, PROB 26.5)  [SameSign m=1 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.070e3  /BOUND_DET  2100.533  /BOUND_PROB 15845.014  bf16 differ  2048/2048 (allowed DET 122.7, PROB 26.5)  [SameSign m=1 n=2048 k=2048]
+  swap x halves          max|y2-y1| 1.855e1  /BOUND_DET    36.816  /BOUND_PROB   277.716  bf16 differ   657/2048 (allowed DET 122.7, PROB 26.5)  [SameSign m=1 n=2048 k=2048]
+  SameSign m=1 n=2048 k=5120: |y - exact| / (gamma_K A): tp1 4.075e-4, tp2 4.205e-4 (must be <= 1)
+  clean                  max|y2-y1| 9.766e-4  /BOUND_DET     0.000  /BOUND_PROB     0.004  bf16 differ     0/2048 (allowed DET 268.6, PROB 37.3)  [SameSign m=1 n=2048 k=5120]
+  scale:1.003 rank 1     max|y2-y1| 7.929e0  /BOUND_DET     2.503  /BOUND_PROB    29.860  bf16 differ   539/2048 (allowed DET 268.6, PROB 37.3)  [SameSign m=1 n=2048 k=5120]
+  scale:1.001 rank 1     max|y2-y1| 2.643e0  /BOUND_DET     0.834  /BOUND_PROB     9.954  bf16 differ   174/2048 (allowed DET 268.6, PROB 37.3)  [SameSign m=1 n=2048 k=5120]
+  drop rank 1 partial    max|y2-y1| 2.643e3  /BOUND_DET   834.394  /BOUND_PROB  9953.637  bf16 differ  2048/2048 (allowed DET 268.6, PROB 37.3)  [SameSign m=1 n=2048 k=5120]
+  swap x halves          max|y2-y1| 2.747e1  /BOUND_DET     8.741  /BOUND_PROB   104.271  bf16 differ   412/2048 (allowed DET 268.6, PROB 37.3)  [SameSign m=1 n=2048 k=5120]
+  SameSign m=8 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 9.765e-3, tp2 5.216e-3 (must be <= 1)
+  clean                  max|y2-y1| 2.686e-3  /BOUND_DET     0.005  /BOUND_PROB     0.041  bf16 differ     1/16384 (allowed DET 889.5, PROB 149.1)  [SameSign m=8 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 3.226e0  /BOUND_DET     6.323  /BOUND_PROB    47.693  bf16 differ  4496/16384 (allowed DET 889.5, PROB 149.1)  [SameSign m=8 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.076e0  /BOUND_DET     2.109  /BOUND_PROB    15.907  bf16 differ  1491/16384 (allowed DET 889.5, PROB 149.1)  [SameSign m=8 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.075e3  /BOUND_DET  2107.258  /BOUND_PROB 15895.739  bf16 differ 16384/16384 (allowed DET 889.5, PROB 149.1)  [SameSign m=8 n=2048 k=2048]
+  swap x halves          max|y2-y1| 2.016e1  /BOUND_DET    39.110  /BOUND_PROB   295.023  bf16 differ  6110/16384 (allowed DET 889.5, PROB 149.1)  [SameSign m=8 n=2048 k=2048]
+  SameSign m=8 n=2048 k=5120: |y - exact| / (gamma_K A): tp1 1.280e-2, tp2 4.844e-3 (must be <= 1)
+  clean                  max|y2-y1| 1.953e-2  /BOUND_DET     0.006  /BOUND_PROB     0.075  bf16 differ     4/16384 (allowed DET 1787.2, PROB 191.5)  [SameSign m=8 n=2048 k=5120]
+  scale:1.003 rank 1     max|y2-y1| 7.880e0  /BOUND_DET     2.512  /BOUND_PROB    29.964  bf16 differ  3862/16384 (allowed DET 1787.2, PROB 191.5)  [SameSign m=8 n=2048 k=5120]
+  scale:1.001 rank 1     max|y2-y1| 2.633e0  /BOUND_DET     0.840  /BOUND_PROB    10.016  bf16 differ  1260/16384 (allowed DET 1787.2, PROB 191.5)  [SameSign m=8 n=2048 k=5120]
+  drop rank 1 partial    max|y2-y1| 2.625e3  /BOUND_DET   836.895  /BOUND_PROB  9983.462  bf16 differ 16384/16384 (allowed DET 1787.2, PROB 191.5)  [SameSign m=8 n=2048 k=5120]
+  swap x halves          max|y2-y1| 3.501e1  /BOUND_DET    11.331  /BOUND_PROB   135.173  bf16 differ  3406/16384 (allowed DET 1787.2, PROB 191.5)  [SameSign m=8 n=2048 k=5120]
+  SameSign m=64 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 1.155e-2, tp2 6.481e-3 (must be <= 1)
+  clean                  max|y2-y1| 2.930e-3  /BOUND_DET     0.006  /BOUND_PROB     0.044  bf16 differ     7/131072 (allowed DET 6566.9, PROB 956.2)  [SameSign m=64 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 3.235e0  /BOUND_DET     6.396  /BOUND_PROB    48.244  bf16 differ 37102/131072 (allowed DET 6566.9, PROB 956.2)  [SameSign m=64 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.079e0  /BOUND_DET     2.132  /BOUND_PROB    16.081  bf16 differ 12673/131072 (allowed DET 6566.9, PROB 956.2)  [SameSign m=64 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.078e3  /BOUND_DET  2131.945  /BOUND_PROB 16081.964  bf16 differ 131072/131072 (allowed DET 6566.9, PROB 956.2)  [SameSign m=64 n=2048 k=2048]
+  swap x halves          max|y2-y1| 2.587e1  /BOUND_DET    51.612  /BOUND_PROB   389.323  bf16 differ 49988/131072 (allowed DET 6566.9, PROB 956.2)  [SameSign m=64 n=2048 k=2048]
+  RandomSign m=1 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 1.003e-4, tp2 7.959e-5 (must be <= 1)
+  clean                  max|y2-y1| 1.526e-5  /BOUND_DET     0.000  /BOUND_PROB     0.000  bf16 differ     0/2048 (allowed DET 1977.6, PROB 901.5)  [RandomSign m=1 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 3.401e-1  /BOUND_DET     1.086  /BOUND_PROB     8.192  bf16 differ   975/2048 (allowed DET 1977.6, PROB 901.5)  [RandomSign m=1 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.134e-1  /BOUND_DET     0.362  /BOUND_PROB     2.731  bf16 differ   503/2048 (allowed DET 1977.6, PROB 901.5)  [RandomSign m=1 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.134e2  /BOUND_DET   361.973  /BOUND_PROB  2730.484  bf16 differ  2043/2048 (allowed DET 1977.6, PROB 901.5)  [RandomSign m=1 n=2048 k=2048]
+  swap x halves          max|y2-y1| 2.436e2  /BOUND_DET   783.086  /BOUND_PROB  5907.076  bf16 differ  2047/2048 (allowed DET 1977.6, PROB 901.5)  [RandomSign m=1 n=2048 k=2048]
+  RandomSign m=1 n=2048 k=5120: |y - exact| / (gamma_K A): tp1 2.807e-5, tp2 2.319e-5 (must be <= 1)
+  clean                  max|y2-y1| 3.433e-5  /BOUND_DET     0.000  /BOUND_PROB     0.000  bf16 differ     0/2048 (allowed DET 2048.0, PROB 1444.2)  [RandomSign m=1 n=2048 k=5120]
+  scale:1.003 rank 1     max|y2-y1| 5.179e-1  /BOUND_DET     0.260  /BOUND_PROB     3.103  bf16 differ   995/2048 (allowed DET 2048.0, PROB 1444.2)  [RandomSign m=1 n=2048 k=5120]
+  scale:1.001 rank 1     max|y2-y1| 1.727e-1  /BOUND_DET     0.087  /BOUND_PROB     1.034  bf16 differ   439/2048 (allowed DET 2048.0, PROB 1444.2)  [RandomSign m=1 n=2048 k=5120]
+  drop rank 1 partial    max|y2-y1| 1.726e2  /BOUND_DET    86.704  /BOUND_PROB  1034.311  bf16 differ  2045/2048 (allowed DET 2048.0, PROB 1444.2)  [RandomSign m=1 n=2048 k=5120]
+  swap x halves          max|y2-y1| 4.011e2  /BOUND_DET   201.534  /BOUND_PROB  2404.135  bf16 differ  2045/2048 (allowed DET 2048.0, PROB 1444.2)  [RandomSign m=1 n=2048 k=5120]
+  RandomSign m=8 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 9.099e-4, tp2 4.794e-4 (must be <= 1)
+  clean                  max|y2-y1| 1.678e-4  /BOUND_DET     0.001  /BOUND_PROB     0.004  bf16 differ     5/16384 (allowed DET 15580.2, PROB 6559.2)  [RandomSign m=8 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 3.929e-1  /BOUND_DET     1.227  /BOUND_PROB     9.256  bf16 differ  7835/16384 (allowed DET 15580.2, PROB 6559.2)  [RandomSign m=8 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.310e-1  /BOUND_DET     0.409  /BOUND_PROB     3.086  bf16 differ  3647/16384 (allowed DET 15580.2, PROB 6559.2)  [RandomSign m=8 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.310e2  /BOUND_DET   409.002  /BOUND_PROB  3085.238  bf16 differ 16356/16384 (allowed DET 15580.2, PROB 6559.2)  [RandomSign m=8 n=2048 k=2048]
+  swap x halves          max|y2-y1| 2.558e2  /BOUND_DET   784.241  /BOUND_PROB  5915.784  bf16 differ 16368/16384 (allowed DET 15580.2, PROB 6559.2)  [RandomSign m=8 n=2048 k=2048]
+  RandomSign m=8 n=2048 k=5120: |y - exact| / (gamma_K A): tp1 4.973e-4, tp2 2.458e-4 (must be <= 1)
+  clean                  max|y2-y1| 4.120e-4  /BOUND_DET     0.000  /BOUND_PROB     0.003  bf16 differ     8/16384 (allowed DET 16385.2, PROB 10820.4)  [RandomSign m=8 n=2048 k=5120]
+  scale:1.003 rank 1     max|y2-y1| 5.666e-1  /BOUND_DET     0.283  /BOUND_PROB     3.376  bf16 differ  7774/16384 (allowed DET 16385.2, PROB 10820.4)  [RandomSign m=8 n=2048 k=5120]
+  scale:1.001 rank 1     max|y2-y1| 1.888e-1  /BOUND_DET     0.094  /BOUND_PROB     1.125  bf16 differ  3651/16384 (allowed DET 16385.2, PROB 10820.4)  [RandomSign m=8 n=2048 k=5120]
+  drop rank 1 partial    max|y2-y1| 1.889e2  /BOUND_DET    94.325  /BOUND_PROB  1125.214  bf16 differ 16343/16384 (allowed DET 16385.2, PROB 10820.4)  [RandomSign m=8 n=2048 k=5120]
+  swap x halves          max|y2-y1| 4.103e2  /BOUND_DET   209.300  /BOUND_PROB  2496.775  bf16 differ 16369/16384 (allowed DET 16385.2, PROB 10820.4)  [RandomSign m=8 n=2048 k=5120]
+  RandomSign m=64 n=2048 k=2048: |y - exact| / (gamma_K A): tp1 1.330e-3, tp2 5.644e-4 (must be <= 1)
+  clean                  max|y2-y1| 1.678e-4  /BOUND_DET     0.001  /BOUND_PROB     0.004  bf16 differ    14/131072 (allowed DET 123846.0, PROB 50875.6)  [RandomSign m=64 n=2048 k=2048]
+  scale:1.003 rank 1     max|y2-y1| 4.256e-1  /BOUND_DET     1.363  /BOUND_PROB    10.279  bf16 differ 61755/131072 (allowed DET 123846.0, PROB 50875.6)  [RandomSign m=64 n=2048 k=2048]
+  scale:1.001 rank 1     max|y2-y1| 1.419e-1  /BOUND_DET     0.454  /BOUND_PROB     3.426  bf16 differ 29134/131072 (allowed DET 123846.0, PROB 50875.6)  [RandomSign m=64 n=2048 k=2048]
+  drop rank 1 partial    max|y2-y1| 1.418e2  /BOUND_DET   454.260  /BOUND_PROB  3426.633  bf16 differ 130840/131072 (allowed DET 123846.0, PROB 50875.6)  [RandomSign m=64 n=2048 k=2048]
+  swap x halves          max|y2-y1| 2.898e2  /BOUND_DET   914.219  /BOUND_PROB  6896.252  bf16 differ 130950/131072 (allowed DET 123846.0, PROB 50875.6)  [RandomSign m=64 n=2048 k=2048]
+kernels selected: {
+    "m=1 k=1024: logits_bf16_gemv",
+    "m=1 k=2048: logits_bf16_gemv",
+    "m=1 k=2560: logits_bf16_gemv",
+    "m=1 k=5120: logits_bf16_gemv",
+    "m=64 k=1024: logits_bf16",
+    "m=64 k=2048: logits_bf16",
+    "m=8 k=1024: logits_bf16",
+    "m=8 k=2048: logits_bf16",
+    "m=8 k=2560: logits_bf16",
+    "m=8 k=5120: logits_bf16",
+}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s
+

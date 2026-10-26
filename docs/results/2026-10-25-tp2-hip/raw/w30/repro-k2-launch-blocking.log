@@ -1,0 +1,454 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:958:45
+    |
+958 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:244:8
+    |
+244 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_batch_first_steps_repro ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 before the solo rows: rank 0: HOST launch counters 5376; rank 1: HOST launch counters 5376; host call log: rank 0 5376 launches, rank 1 5376; the ranks' launch sequences are identical
+GRAPHNODES dev 0 nodes 869 kernels 869
+GRAPHNODES dev 1 nodes 868 kernels 868
+REPRO watchdog: a rep took more than 12 s, the ranks are stuck
+LEDGER watchdog: rank 0 155 lines, rank 1 155 lines
+LEDGER the ledgers are identical
+LEDGER rank 0: #0 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #1 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #2 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 0: #3 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 0: #4 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 0: #5 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 0: #6 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 0: #7 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 0: #8 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 0: #9 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 0: #10 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 0: #11 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 0: #12 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 0: #13 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 0: #14 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 0: #15 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 0: #16 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 0: #17 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 0: #18 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 0: #19 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 0: #20 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 0: #21 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 0: #22 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 0: #23 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 0: #24 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 0: #25 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 0: #26 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 0: #27 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #28 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #29 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #30 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #31 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 0: #32 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 0: #33 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 0: #34 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 0: #35 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 0: #36 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 0: #37 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 0: #38 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 0: #39 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 0: #40 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 0: #41 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 0: #42 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 0: #43 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 0: #44 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 0: #45 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 0: #46 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 0: #47 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 0: #48 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 0: #49 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 0: #50 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 0: #51 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 0: #52 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 0: #53 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 0: #54 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 0: #55 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 0: #56 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #57 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #58 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #59 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 0: #60 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 0: #61 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 0: #62 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 0: #63 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 0: #64 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 0: #65 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 0: #66 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 0: #67 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 0: #68 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 0: #69 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 0: #70 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 0: #71 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 0: #72 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 0: #73 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 0: #74 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 0: #75 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 0: #76 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 0: #77 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 0: #78 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 0: #79 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 0: #80 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 0: #81 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 0: #82 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 0: #83 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 0: #84 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 0: #85 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #86 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 0: #87 layers-batch rows=2 issued 0->0 dev=0/0
+LEDGER rank 0: #88 layers-batch rows=2 issued 0->0 dev=0/0
+LEDGER rank 0: #89 layers-batch rows=3 issued 0->0 dev=0/0
+LEDGER rank 0: #90 layers-batch rows=3 issued 0->0 dev=0/0
+LEDGER rank 0: #91 layers-batch rows=4 issued 0->0 dev=0/0
+LEDGER rank 0: #92 layers-batch rows=4 issued 0->0 dev=0/0
+LEDGER rank 0: #93 layers-batch rows=5 issued 0->0 dev=0/0
+LEDGER rank 0: #94 layers-batch rows=5 issued 0->0 dev=0/0
+LEDGER rank 0: #95 layers-batch rows=6 issued 0->0 dev=0/0
+LEDGER rank 0: #96 layers-batch rows=6 issued 0->0 dev=0/0
+LEDGER rank 0: #97 layers-batch rows=7 issued 0->0 dev=0/0
+LEDGER rank 0: #98 layers-batch rows=7 issued 0->0 dev=0/0
+LEDGER rank 0: #99 layers-batch rows=8 issued 0->0 dev=0/0
+LEDGER rank 0: #100 layers-batch rows=8 issued 0->0 dev=0/0
+LEDGER rank 0: #101 layers-batch rows=9 issued 0->0 dev=0/0
+LEDGER rank 0: #102 layers-batch rows=9 issued 0->0 dev=0/0
+LEDGER rank 0: #103 layers-batch rows=10 issued 0->0 dev=0/0
+LEDGER rank 0: #104 layers-batch rows=10 issued 0->0 dev=0/0
+LEDGER rank 0: #105 layers-batch rows=11 issued 0->0 dev=0/0
+LEDGER rank 0: #106 layers-batch rows=11 issued 0->0 dev=0/0
+LEDGER rank 0: #107 layers-batch rows=12 issued 0->0 dev=0/0
+LEDGER rank 0: #108 layers-batch rows=12 issued 0->0 dev=0/0
+LEDGER rank 0: #109 layers-batch rows=13 issued 0->0 dev=0/0
+LEDGER rank 0: #110 layers-batch rows=13 issued 0->0 dev=0/0
+LEDGER rank 0: #111 layers-batch rows=14 issued 0->0 dev=0/0
+LEDGER rank 0: #112 layers-batch rows=14 issued 0->0 dev=0/0
+LEDGER rank 0: #113 layers-batch rows=15 issued 0->0 dev=0/0
+LEDGER rank 0: #114 layers-batch rows=15 issued 0->0 dev=0/0
+LEDGER rank 0: #115 layers-batch rows=16 issued 0->0 dev=0/0
+LEDGER rank 0: #116 layers-batch rows=16 issued 0->0 dev=0/0
+LEDGER rank 0: #117 layers rows=4 issued 0->128 dev=128/128
+LEDGER rank 0: #118 layers rows=4 issued 128->256 dev=256/256
+LEDGER rank 0: #119 layers rows=36 issued 256->384 dev=384/384
+LEDGER rank 0: #120 layers rows=36 issued 384->512 dev=512/512
+LEDGER rank 0: #121 layers rows=129 issued 512->640 dev=640/640
+LEDGER rank 0: #122 layers rows=129 issued 640->768 dev=768/768
+LEDGER rank 0: #123 layers rows=256 issued 768->896 dev=1024/1024
+LEDGER rank 0: #124 layers rows=43 issued 896->1024 dev=1152/1152
+LEDGER rank 0: #125 layers rows=256 issued 1024->1152 dev=1408/1408
+LEDGER rank 0: #126 layers rows=43 issued 1152->1280 dev=1536/1536
+LEDGER rank 0: #127 layers rows=16 issued 1280->1408 dev=1664/1664
+LEDGER rank 0: #128 layers rows=16 issued 1408->1536 dev=1792/1792
+LEDGER rank 0: #129 layers rows=63 issued 1536->1664 dev=1920/1920
+LEDGER rank 0: #130 layers rows=63 issued 1664->1792 dev=2048/2048
+LEDGER rank 0: #131 layers rows=8 issued 1792->1920 dev=2176/2176
+LEDGER rank 0: #132 layers rows=8 issued 1920->2048 dev=2304/2304
+LEDGER rank 0: #133 layers rows=221 issued 2048->2176 dev=2560/2560
+LEDGER rank 0: #134 layers rows=221 issued 2176->2304 dev=2816/2816
+LEDGER rank 0: #135 layers rows=256 issued 2304->2432 dev=3072/3072
+LEDGER rank 0: #136 layers rows=143 issued 2432->2560 dev=3200/3200
+LEDGER rank 0: #137 layers rows=256 issued 2560->2688 dev=3456/3456
+LEDGER rank 0: #138 layers rows=143 issued 2688->2816 dev=3584/3584
+LEDGER rank 0: #139 layers rows=2 issued 2816->2944 dev=3712/3712
+LEDGER rank 0: #140 layers rows=2 issued 2944->3072 dev=3840/3840
+LEDGER rank 0: #141 layers rows=76 issued 3072->3200 dev=3968/3968
+LEDGER rank 0: #142 layers rows=76 issued 3200->3328 dev=4096/4096
+LEDGER rank 0: #143 layers rows=149 issued 3328->3456 dev=4224/4224
+LEDGER rank 0: #144 layers rows=149 issued 3456->3584 dev=4352/4352
+LEDGER rank 0: #145 layers rows=27 issued 3584->3712 dev=4480/4480
+LEDGER rank 0: #146 layers rows=27 issued 3712->3840 dev=4608/4608
+LEDGER rank 0: #147 layers rows=10 issued 3840->3968 dev=4736/4736
+LEDGER rank 0: #148 layers rows=10 issued 3968->4096 dev=4864/4864
+LEDGER rank 0: #149 layers rows=89 issued 4096->4224 dev=4992/4992
+LEDGER rank 0: #150 layers rows=89 issued 4224->4352 dev=5120/5120
+LEDGER rank 0: #151 layers rows=44 issued 4352->4480 dev=5248/5248
+LEDGER rank 0: #152 layers rows=44 issued 4480->4608 dev=5376/5376
+LEDGER rank 0: #153 layers+capture rows=1 issued 4608->4608 dev=5376/5376
+LEDGER rank 0: #154 graph-solo rows=1 issued 4608->4737 dev=5376/5376
+LEDGER rank 1: #0 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #1 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #2 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 1: #3 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 1: #4 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 1: #5 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 1: #6 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 1: #7 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 1: #8 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 1: #9 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 1: #10 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 1: #11 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 1: #12 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 1: #13 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 1: #14 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 1: #15 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 1: #16 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 1: #17 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 1: #18 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 1: #19 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 1: #20 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 1: #21 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 1: #22 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 1: #23 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 1: #24 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 1: #25 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 1: #26 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 1: #27 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #28 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #29 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #30 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #31 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 1: #32 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 1: #33 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 1: #34 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 1: #35 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 1: #36 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 1: #37 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 1: #38 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 1: #39 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 1: #40 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 1: #41 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 1: #42 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 1: #43 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 1: #44 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 1: #45 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 1: #46 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 1: #47 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 1: #48 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 1: #49 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 1: #50 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 1: #51 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 1: #52 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 1: #53 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 1: #54 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 1: #55 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 1: #56 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #57 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #58 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #59 layers rows=1 issued 0->0 dev=0/0
+LEDGER rank 1: #60 layers rows=2 issued 0->0 dev=0/0
+LEDGER rank 1: #61 layers rows=3 issued 0->0 dev=0/0
+LEDGER rank 1: #62 layers rows=4 issued 0->0 dev=0/0
+LEDGER rank 1: #63 layers rows=5 issued 0->0 dev=0/0
+LEDGER rank 1: #64 layers rows=6 issued 0->0 dev=0/0
+LEDGER rank 1: #65 layers rows=7 issued 0->0 dev=0/0
+LEDGER rank 1: #66 layers rows=8 issued 0->0 dev=0/0
+LEDGER rank 1: #67 layers rows=9 issued 0->0 dev=0/0
+LEDGER rank 1: #68 layers rows=10 issued 0->0 dev=0/0
+LEDGER rank 1: #69 layers rows=11 issued 0->0 dev=0/0
+LEDGER rank 1: #70 layers rows=12 issued 0->0 dev=0/0
+LEDGER rank 1: #71 layers rows=13 issued 0->0 dev=0/0
+LEDGER rank 1: #72 layers rows=14 issued 0->0 dev=0/0
+LEDGER rank 1: #73 layers rows=15 issued 0->0 dev=0/0
+LEDGER rank 1: #74 layers rows=16 issued 0->0 dev=0/0
+LEDGER rank 1: #75 layers rows=31 issued 0->0 dev=0/0
+LEDGER rank 1: #76 layers rows=32 issued 0->0 dev=0/0
+LEDGER rank 1: #77 layers rows=33 issued 0->0 dev=0/0
+LEDGER rank 1: #78 layers rows=63 issued 0->0 dev=0/0
+LEDGER rank 1: #79 layers rows=64 issued 0->0 dev=0/0
+LEDGER rank 1: #80 layers rows=65 issued 0->0 dev=0/0
+LEDGER rank 1: #81 layers rows=127 issued 0->0 dev=0/0
+LEDGER rank 1: #82 layers rows=128 issued 0->0 dev=0/0
+LEDGER rank 1: #83 layers rows=129 issued 0->0 dev=0/0
+LEDGER rank 1: #84 layers rows=255 issued 0->0 dev=0/0
+LEDGER rank 1: #85 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #86 layers rows=256 issued 0->0 dev=0/0
+LEDGER rank 1: #87 layers-batch rows=2 issued 0->0 dev=0/0
+LEDGER rank 1: #88 layers-batch rows=2 issued 0->0 dev=0/0
+LEDGER rank 1: #89 layers-batch rows=3 issued 0->0 dev=0/0
+LEDGER rank 1: #90 layers-batch rows=3 issued 0->0 dev=0/0
+LEDGER rank 1: #91 layers-batch rows=4 issued 0->0 dev=0/0
+LEDGER rank 1: #92 layers-batch rows=4 issued 0->0 dev=0/0
+LEDGER rank 1: #93 layers-batch rows=5 issued 0->0 dev=0/0
+LEDGER rank 1: #94 layers-batch rows=5 issued 0->0 dev=0/0
+LEDGER rank 1: #95 layers-batch rows=6 issued 0->0 dev=0/0
+LEDGER rank 1: #96 layers-batch rows=6 issued 0->0 dev=0/0
+LEDGER rank 1: #97 layers-batch rows=7 issued 0->0 dev=0/0
+LEDGER rank 1: #98 layers-batch rows=7 issued 0->0 dev=0/0
+LEDGER rank 1: #99 layers-batch rows=8 issued 0->0 dev=0/0
+LEDGER rank 1: #100 layers-batch rows=8 issued 0->0 dev=0/0
+LEDGER rank 1: #101 layers-batch rows=9 issued 0->0 dev=0/0
+LEDGER rank 1: #102 layers-batch rows=9 issued 0->0 dev=0/0
+LEDGER rank 1: #103 layers-batch rows=10 issued 0->0 dev=0/0
+LEDGER rank 1: #104 layers-batch rows=10 issued 0->0 dev=0/0
+LEDGER rank 1: #105 layers-batch rows=11 issued 0->0 dev=0/0
+LEDGER rank 1: #106 layers-batch rows=11 issued 0->0 dev=0/0
+LEDGER rank 1: #107 layers-batch rows=12 issued 0->0 dev=0/0
+LEDGER rank 1: #108 layers-batch rows=12 issued 0->0 dev=0/0
+LEDGER rank 1: #109 layers-batch rows=13 issued 0->0 dev=0/0
+LEDGER rank 1: #110 layers-batch rows=13 issued 0->0 dev=0/0
+LEDGER rank 1: #111 layers-batch rows=14 issued 0->0 dev=0/0
+LEDGER rank 1: #112 layers-batch rows=14 issued 0->0 dev=0/0
+LEDGER rank 1: #113 layers-batch rows=15 issued 0->0 dev=0/0
+LEDGER rank 1: #114 layers-batch rows=15 issued 0->0 dev=0/0
+LEDGER rank 1: #115 layers-batch rows=16 issued 0->0 dev=0/0
+LEDGER rank 1: #116 layers-batch rows=16 issued 0->0 dev=0/0
+LEDGER rank 1: #117 layers rows=4 issued 0->128 dev=128/128
+LEDGER rank 1: #118 layers rows=4 issued 128->256 dev=256/256
+LEDGER rank 1: #119 layers rows=36 issued 256->384 dev=384/384
+LEDGER rank 1: #120 layers rows=36 issued 384->512 dev=512/512
+LEDGER rank 1: #121 layers rows=129 issued 512->640 dev=640/640
+LEDGER rank 1: #122 layers rows=129 issued 640->768 dev=768/768
+LEDGER rank 1: #123 layers rows=256 issued 768->896 dev=1024/1024
+LEDGER rank 1: #124 layers rows=43 issued 896->1024 dev=1152/1152
+LEDGER rank 1: #125 layers rows=256 issued 1024->1152 dev=1408/1408
+LEDGER rank 1: #126 layers rows=43 issued 1152->1280 dev=1536/1536
+LEDGER rank 1: #127 layers rows=16 issued 1280->1408 dev=1664/1664
+LEDGER rank 1: #128 layers rows=16 issued 1408->1536 dev=1792/1792
+LEDGER rank 1: #129 layers rows=63 issued 1536->1664 dev=1920/1920
+LEDGER rank 1: #130 layers rows=63 issued 1664->1792 dev=2048/2048
+LEDGER rank 1: #131 layers rows=8 issued 1792->1920 dev=2176/2176
+LEDGER rank 1: #132 layers rows=8 issued 1920->2048 dev=2304/2304
+LEDGER rank 1: #133 layers rows=221 issued 2048->2176 dev=2560/2560
+LEDGER rank 1: #134 layers rows=221 issued 2176->2304 dev=2816/2816
+LEDGER rank 1: #135 layers rows=256 issued 2304->2432 dev=3072/3072
+LEDGER rank 1: #136 layers rows=143 issued 2432->2560 dev=3200/3200
+LEDGER rank 1: #137 layers rows=256 issued 2560->2688 dev=3456/3456
+LEDGER rank 1: #138 layers rows=143 issued 2688->2816 dev=3584/3584
+LEDGER rank 1: #139 layers rows=2 issued 2816->2944 dev=3712/3712
+LEDGER rank 1: #140 layers rows=2 issued 2944->3072 dev=3840/3840
+LEDGER rank 1: #141 layers rows=76 issued 3072->3200 dev=3968/3968
+LEDGER rank 1: #142 layers rows=76 issued 3200->3328 dev=4096/4096
+LEDGER rank 1: #143 layers rows=149 issued 3328->3456 dev=4224/4224
+LEDGER rank 1: #144 layers rows=149 issued 3456->3584 dev=4352/4352
+LEDGER rank 1: #145 layers rows=27 issued 3584->3712 dev=4480/4480
+LEDGER rank 1: #146 layers rows=27 issued 3712->3840 dev=4608/4608
+LEDGER rank 1: #147 layers rows=10 issued 3840->3968 dev=4736/4736
+LEDGER rank 1: #148 layers rows=10 issued 3968->4096 dev=4864/4864
+LEDGER rank 1: #149 layers rows=89 issued 4096->4224 dev=4992/4992
+LEDGER rank 1: #150 layers rows=89 issued 4224->4352 dev=5120/5120
+LEDGER rank 1: #151 layers rows=44 issued 4352->4480 dev=5248/5248
+LEDGER rank 1: #152 layers rows=44 issued 4480->4608 dev=5376/5376
+LEDGER rank 1: #153 layers+capture rows=1 issued 4608->4608 dev=5376/5376
+LEDGER rank 1: #154 graph-solo rows=1 issued 4608->4737 dev=5377/5376
+THREAD 16: comm "batch_cuda_real" wchan "futex_do_wait" state "S"
+STACK tid 16:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: syscall
+   3: std::thread::Thread::park
+   4: std::sync::mpmc::list::Channel<T>::recv::{{closure}}
+   5: std::sync::mpmc::list::Channel<T>::recv
+   6: test::console::run_tests_console
+   7: test::test_main
+   8: test::test_main_static
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+  10: std::rt::lang_start::{{closure}}
+  11: std::rt::lang_start_internal
+  12: main
+  13: <unknown>
+  14: __libc_start_main
+  15: _start
+
+THREAD 17: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 17:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: ik_rt_memcpy_d2h
+  17: <intarsia_backend_hip::device::HipBackend as intarsia_core::backend::Backend>::download
+  18: intarsia_core::model::Model::forward_inner
+  19: std::thread::scoped::scope
+  20: intarsia_core::model::Model::forward
+  21: <core::iter::adapters::map::Map<I,F> as core::iter::traits::iterator::Iterator>::fold
+  22: <alloc::vec::Vec<T> as alloc::vec::spec_from_iter::SpecFromIter<T,I>>::from_iter
+  23: batch_cuda_real::batch_identity::step
+  24: batch_cuda_real::batch_identity::run
+  25: std::thread::scoped::scope
+  26: core::ops::function::FnOnce::call_once
+  27: test::__rust_begin_short_backtrace
+  28: test::run_test::{{closure}}
+  29: std::sys::backtrace::__rust_begin_short_backtrace
+  30: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  31: std::sys::pal::unix::thread::Thread::new::thread_start
+  32: <unknown>
+  33: <unknown>
+
+THREAD 18: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 18:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+
+THREAD 19: comm "real_35b_tp2_ba" wchan "kfd_wait_on_events" state "S"
+STACK tid 19:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+
+THREAD 21 (this one): comm "real_35b_tp2_ba" wchan "0" state "R"
+LEDGER device state: rank 0: HOST launch counters 5480; rank 1: HOST launch counters 5479; host call log: rank 0 5505 launches, rank 1 5505; the ranks' launch sequences are identical
+REPRO failures 1 (hang)
+GPU coredump: execvp failed: No such file or directory
+Failed to write program header to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 115676051665 us:  Callback: Queue 0x7050ed800000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86 --test-threads=1 --nocapture --ignored --exact real_35b_tp2_batch_first_steps_repro` (signal: 6, SIGABRT: process abort signal)

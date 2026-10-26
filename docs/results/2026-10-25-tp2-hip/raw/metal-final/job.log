@@ -1,0 +1,48 @@
+fleetq: #5664 running on endor: bash /opt/code/wt-tp2-batch/scripts/tp2-hip/metal-noop.sh
+== build base b8fb4e6dd 03:13:04
+    Finished `release` profile [optimized] target(s) in 9.27s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev 59b1ce0aa 03:14:19
+    Finished `release` profile [optimized] target(s) in 10.22s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+== kernels test metal (dev) 03:15:08
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.2s
+== workspace tests on the head 03:15:33
+  70 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   2 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+   2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+   2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+   1 thread 'every_hip_kernel_has_a_quick_case' (10484092) panicked at crates/intarsia-backend-hip/tests/quick_coverage.rs:12:5:
+   1 thread 'every_env_var_in_the_code_has_a_row_in_docs_tuning_md' (10511186) panicked at crates/intarsia-cli/tests/docs_env_vars.rs:90:5:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.85s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.08s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+   1 test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.78s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+== done 03:19:36
+fleetq: #5664 done (exit 0)

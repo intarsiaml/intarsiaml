@@ -328,6 +328,10 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
         (64, 6144),
         (16, 16400),
         (8, 1040),
+        // --tp 2 shards of the 35B (lane tp2/batch: batched decode under tensor parallelism takes these kernels at the halved
+        // shapes): GDN in_z / out_proj and o_proj at K / 2 (2048x2048), k / v per rank (256x2048)
+        (2048, 2048),
+        (256, 2048),
     ];
     for (n, k) in shapes {
         // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
@@ -516,6 +520,10 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
         (9, 16, DType::F32),
         (1030, 160, DType::Bf16),
         (1, 16, DType::Bf16),
+        // --tp 2 shards: the shared expert per rank (256x2048, 2048x256) and the vocab-parallel head's half (124160x2048)
+        (256, 2048, DType::Bf16),
+        (2048, 256, DType::Bf16),
+        (124160, 2048, DType::F32),
     ];
     for (n, k, model_out) in shapes {
         for wide in [false, true] {
@@ -554,6 +562,17 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
         (33, 2080),
         (1, 4096),
         (64, 6176),
+        // --tp 2 shards of the 27B (lane tp2: w15 found a batched step of 4 rows that differs from the solo step at tp=2 only):
+        // column-parallel halves of q (gated) / k,v / gate,up / the GDN in projections, row-parallel halves of o / down / the GDN
+        // out projection (K = 3072, 8704: not multiples of the 512- and 1024-element lane strides), the vocab-parallel head's half
+        (6144, 5120),
+        (512, 5120),
+        (5120, 3072),
+        (8704, 5120),
+        (5120, 8704),
+        (5120, 5120),
+        (3072, 5120),
+        (124160, 5120),
     ];
     for (n, k) in shapes {
         for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
@@ -611,6 +630,8 @@ fn bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv() {
         (33, 7),
         (5, 8),
         (130, 2056),
+        // --tp 2: GDN in_a / in_b per rank
+        (16, 2048),
     ] {
         for wide in [false, true] {
             let w = rig.put(&if wide { wide_bf16(&mut rng, n, k) } else { fast_bf16(&mut rng, n, k) });
@@ -778,6 +799,8 @@ fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
     // expert id; 256 would be 400 MB of random weights per case), and a small shape with top-4
     for wide in [false, true] {
         gb_moe(&rig, "moe_experts_bf16_v2", "moe_experts_bf16_rows", &silu, 64, 8, 2048, 512, 901, wide);
+        // --tp 2: every rank holds every expert at half the routed intermediate (256)
+        gb_moe(&rig, "moe_experts_bf16_v2", "moe_experts_bf16_rows", &silu, 64, 8, 2048, 256, 903, wide);
         gb_moe(&rig, "moe_experts_bf16_v2", "moe_experts_bf16_rows", &OpAttrs { top_k: 4, ..OpAttrs::default() }, 8, 4, 128, 64, 902, wide);
     }
     rig.report("moe");

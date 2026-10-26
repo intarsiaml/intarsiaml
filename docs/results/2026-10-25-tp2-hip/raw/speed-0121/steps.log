@@ -1,0 +1,5 @@
+01:21:45 guard: [guard] radiance stopped 2026-10-26 01:21:44
+01:21:45 phase main round 1 arm tp2: starting server
+01:26:49 phase main round 1 arm tp2: server did not come up
+01:26:49 phase main round 1 arm tp2-b0: starting server
+01:27:14 guard: [guard] radiance answers 2026-10-26 01:27:14 (after 20 s)

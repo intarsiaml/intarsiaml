@@ -1,0 +1,39 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:734:9
+    |
+734 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.07s
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 1 test
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:80/80/2588436 2:80/160/5176872 3:80/240/7765308 4:80/320/10353744 5:80/400/12942180 6:80/480/15530616 7:80/560/18119052 8:80/640/20707488 9:80/720/23295924 10:80/800/25884360 11:80/880/28472796 12:80/960/31061232 13:80/1040/33649668 14:80/1120/36238104 15:80/1200/38826540 16:80/1280/41414976
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.95s
+

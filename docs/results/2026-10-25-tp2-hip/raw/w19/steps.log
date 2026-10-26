@@ -1,0 +1,9 @@
+20:14:16 window start, CAP 1650s, pre-change 2e5f3e7, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+20:15:19 repro p0-size-loop-poison00 exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_HIP_POISON=00]:  | 
+20:16:04 repro e2-solo-only exit 0 [INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60]: REPRO failures 0/3 | 
+20:16:49 repro p1-size-loop-poisonff exit 0 [INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STEPS=2 INTARSIA_HIP_POISON=ff]: REPRO failures 0/3 | 
+20:17:28 repro e3-solo-plus-batch exit 101 [INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=60 INTARSIA_REPRO_BATCH_BETWEEN=1]:  | 
+20:20:24 repro e1-size-loop-no-graphs exit 0 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_REPRO_NO_GRAPHS=1]: REPRO failures 0/12 | 
+20:20:33 repro p2-solo-only-poisonff exit 0 [INTARSIA_REPRO_REPS=2 INTARSIA_REPRO_STATES=10 INTARSIA_HIP_POISON=ff]: REPRO failures 0/2 | 
+20:21:07 repro e5-size-loop-fusion0 exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_FUSION=0]:  | 
+20:21:07 done, time left 1239s

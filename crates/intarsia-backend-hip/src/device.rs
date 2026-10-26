@@ -70,10 +70,31 @@ impl Drop for HipBuffer {
     }
 }
 
+/// The process-wide graph lock: one HIP graph API call at a time (capture with its instantiate, and each launch) in the whole process.
+///
+/// The two ranks of a tensor-parallel group capture their decode graphs concurrently from two threads, and a peer rank's replay is launched
+/// while the other rank instantiates. On the 27B tp2 reproduction (fresh solo states and batched steps in one model, 20 reps of the size loop)
+/// that interleaving made a replay intermittently run only part of its kernels (the collective launch counters 10 to 61 short for one row, then
+/// the ranks one launch apart, wrong logits in every row of the next batched step, and a collective that hangs until the bounded wait traps
+/// 0x1016): every control run failed within 1 to 8 reps, the same runs with this lock did not in 40 of 40, and with solo decode graphs off
+/// (no concurrent capture) did not either. The captures themselves are consistent (the same node counts on every rank), so the loss is in the
+/// runtime's replay. With one rank (tp 1) there is no concurrency and the lock is never contended. `INTARSIA_GRAPH_LOCK=0` turns it off.
+fn graph_lock() -> Option<std::sync::MutexGuard<'static, ()>> {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    if *ON.get_or_init(|| std::env::var("INTARSIA_GRAPH_LOCK").map_or(true, |v| v != "0")) {
+        Some(LOCK.lock().unwrap_or_else(|e| e.into_inner()))
+    } else {
+        None
+    }
+}
+
 /// An instantiated HIP graph (`hipGraphExec_t`), destroyed on drop.
 struct HipGraph {
     exec: usize,
     ordinal: i32,
+    /// Set by the first launch (INTARSIA_GRAPH_SYNC_CAPTURE syncs the stream before it).
+    launched: std::sync::atomic::AtomicBool,
 }
 
 impl GraphImpl for HipGraph {
@@ -84,9 +105,17 @@ impl GraphImpl for HipGraph {
 
 impl Drop for HipGraph {
     fn drop(&mut self) {
+        // INTARSIA_GRAPH_SYNC_DESTROY=1 (w26): wait for the device to go idle before the exec is destroyed. A peer rank's replay is enqueue-only, so the
+        // exec may still be running (or queued) when the next capture clears the cache; HIP can hand a destroyed exec's kernel-argument memory to the
+        // next instantiate at once.
+        static SYNC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let sync = *SYNC.get_or_init(|| std::env::var("INTARSIA_GRAPH_SYNC_DESTROY").is_ok_and(|v| v == "1"));
         // SAFETY: exec came from ik_rt_graph_end and is destroyed exactly once.
         unsafe {
             ffi::ik_rt_set_device(self.ordinal);
+            if sync {
+                ffi::ik_rt_device_sync();
+            }
             ffi::ik_rt_graph_destroy(self.exec as *mut c_void);
         }
     }
@@ -303,6 +332,12 @@ impl Drop for HipBackend {
     }
 }
 
+/// `INTARSIA_HIP_POISON=<hex byte>`: the byte every new device allocation is filled with (unset: none).
+fn poison_byte() -> Option<u8> {
+    static B: std::sync::OnceLock<Option<u8>> = std::sync::OnceLock::new();
+    *B.get_or_init(|| std::env::var("INTARSIA_HIP_POISON").ok().and_then(|v| u8::from_str_radix(v.trim_start_matches("0x"), 16).ok()))
+}
+
 impl HipBackend {
     pub fn new(ordinal: usize) -> Result<HipBackend> {
         let mut n = 0;
@@ -465,6 +500,17 @@ impl Backend for HipBackend {
         let rc = unsafe { ffi::ik_rt_malloc(&mut p, bytes.max(1)) };
         if rc != 0 {
             return Err(Error::Memory(format!("hipMalloc of {bytes} bytes failed: {}", hip_err("", rc))));
+        }
+        if let Some(byte) = poison_byte() {
+            // debugging aid (INTARSIA_HIP_POISON=<hex byte>, lane tp2): hipMalloc memory is not zeroed, so a read before write sees whatever the
+            // last tenant left; fill every new allocation with a known byte (ff = NaN as f32 / bf16 / -1 as i32, 00 = the benign case) so the
+            // read becomes deterministic. Not while a graph is being captured (the fill would become part of the graph).
+            if !self.capturing.load(Ordering::Relaxed) {
+                let s = self.stream(0)?;
+                // SAFETY: the whole fresh allocation, stream 0 of this device (bound above), synchronised before the buffer is handed out.
+                check("poison", unsafe { ffi::ik_rt_memset(p, byte as c_int, bytes.max(1), s) })?;
+                check("poison sync", unsafe { ffi::ik_rt_stream_sync(s) })?;
+            }
         }
         Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal, layout: AtomicU8::new(0) }))
     }
@@ -944,7 +990,7 @@ impl Backend for HipBackend {
 
     /// The fused decode kernels take every dim from the call's tensors, and their admission and launch checks hold at the
     /// 35B tp=2 shard shapes (8 q / 1 kv heads, GDN 8 / 16 heads, MoE and shared widths 256); the halved shapes are
-    /// cases in the fused-op tests (lane H1, docs/results/2026-10-21-h1-tp2-hip.md). Opt-in (`INTARSIA_TP_FUSION=1`).
+    /// cases in the fused-op tests (lane H1, docs/results/2026-10-21-h1-tp2-hip.md). Default-on at tp > 1 (`INTARSIA_TP_FUSION=0` opts out).
     fn fusion_under_tp(&self) -> bool {
         true
     }
@@ -973,6 +1019,8 @@ impl Backend for HipBackend {
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        // see `graph_lock`
+        let _lock = graph_lock();
         self.bind()?;
         let s = self.stream(stream)?;
         // SAFETY: plain FFI call; the capture is always ended below, so the stream never stays in capture mode.
@@ -984,7 +1032,7 @@ impl Backend for HipBackend {
         // SAFETY: valid out-pointer; ends the capture even when `body` failed (the recording is then dropped).
         let ended = check("hipStreamEndCapture/hipGraphInstantiate", unsafe { ffi::ik_rt_graph_end(s, &mut exec) });
         // an instantiated graph is owned (and destroyed on drop) even when the body failed
-        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal });
+        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal, launched: std::sync::atomic::AtomicBool::new(false) });
         ran?;
         ended?;
         let graph = graph.ok_or_else(|| Error::backend("graph capture produced no executable graph"))?;
@@ -995,6 +1043,12 @@ impl Backend for HipBackend {
         let g = g.downcast::<HipGraph>().ok_or_else(|| Error::backend("graph does not belong to the hip backend"))?;
         self.bind()?;
         let s = self.stream(stream)?;
+        let _lock = graph_lock();
+        // INTARSIA_GRAPH_SYNC_CAPTURE=1: the stream is idle before the first launch of a fresh exec
+        // SAFETY: plain FFI calls on this rank's bound device and stream.
+        if unsafe { ffi::ik_rt_sync_capture_on() } == 1 && !g.launched.swap(true, Ordering::Relaxed) {
+            check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) })?;
+        }
         // SAFETY: `exec` is a live hipGraphExec_t owned by `g`.
         check("hipGraphLaunch", unsafe { ffi::ik_rt_graph_launch(g.exec as *mut c_void, s) })
     }

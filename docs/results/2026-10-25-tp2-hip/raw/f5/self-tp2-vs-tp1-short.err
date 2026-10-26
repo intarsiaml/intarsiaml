@@ -1,0 +1,18 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /work/tp2-out/acc-ext-tp1.safetensors (10 prompts, 1441 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head ebf95d0 code-tree 1848e03e52d2 clean | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 4096; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md); estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl); factor 1 (--ref-noise-factor)
+change vs base: every prompt may be 3 x its own reference noise (default); 10 prompt(s) have one in the record, the others use the mean noise
+this build: head ebf95d0 code-tree 1848e03e52d2 clean
+WARNING: this run differs from the self-golden: device: self-golden AMD Radeon Graphics, this run AMD Radeon Graphics x2 (tp=2, hip-p2p comm)
+WARNING: the self-golden is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+self-golden written by: head ebf95d0 code-tree 1848e03e52d2 clean (top-64, modes prefill,decode)
+differences from the self-golden's run (kernels per op, flags): gated_rmsnorm_matmul_fp8: gated_rmsnorm_matmul_fp8_gemv -> (not in this plan); sigmoid_mul_matmul_fp8: sigmoid_mul_matmul_fp8_gemv -> (not in this plan)
+self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+Error: accuracy gate FAILED

@@ -1,0 +1,4 @@
+Error: loading /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2
+
+Caused by:
+    model error: reading /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such file or directory (os error 2)

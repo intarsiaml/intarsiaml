@@ -60,6 +60,8 @@ int ik_rt_graph_begin(void* stream);
 int ik_rt_graph_end(void* stream, void** exec);
 int ik_rt_graph_launch(void* exec, void* stream);
 int ik_rt_graph_destroy(void* exec);
+int ik_rt_sync_capture_on(void); /* INTARSIA_GRAPH_SYNC_CAPTURE=1 */
+int ik_rt_device_sync(void); /* hipDeviceSynchronize (INTARSIA_GRAPH_SYNC_DESTROY: a graph exec is destroyed only when the device is idle) */
 /* tensor parallelism (kernels/hip/allreduce.hip): peer access and the fine-grained (uncached) allocations the
  * all-reduce's scratch and flags live in */
 int ik_rt_can_access_peer(int device, int peer, int* ok);
@@ -70,9 +72,17 @@ int ik_rt_malloc_finegrained(void** p, size_t bytes);
 int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch,
                    unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
                    int nblocks, int drain, void* stream);
+/* two-rank all-gather launcher (allreduce.hip), same scratch / flags / counters as ik_ar2_oneshot */
+int ik_ag2_gather(void* x, void* out, int64_t bytes, int64_t out_stride_bytes, void* peer_scratch, void* my_scratch,
+                  unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks,
+                  int rank, int drain, void* stream);
 /* D2D copy bandwidth in GB/s (read + write counted), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 const char* ik_rt_error_string(int code);
+/* the same all-reduce fused with the residual add + rmsnorm after it (ar_norm.hip), bitwise the pair */
+int ik_ar2_add_rmsnorm(void* x, void* out, const void* res, const void* w, void* nrm, void* sum, int dtype, int64_t rows,
+                       int64_t H, float eps, float w_offset, void* peer_scratch, void* my_scratch, unsigned int* peer_flags,
+                       unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream);
 /* Round 9, INTARSIA_HIP_STAMP=<file> (diagnostics only; unset = a no-op that launches nothing): a 1-thread kernel on
  * `stream` that stores the GPU's constant-rate wall clock (wall_clock64) when it runs, tagged `tag` / `piece` on the host.
  * Launch sites bracket the prefill's long dispatches with it, so the time between the stamps before and after a dispatch,

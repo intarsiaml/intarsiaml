@@ -1,0 +1,16 @@
+[window] job 5294 w13; stopping radiance 2026-10-25 11:08:52
+[window] radiance stopped 2026-10-25 11:08:54
+11:08:54 window start, CAP 1900s, pre-change 020b28c
+11:09:07 acc-w13-a exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+11:09:22 acc-w13-b exit 1: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|Error: creating /work/tp2-out|
+cp: cannot create regular file '/home/josef/intarsiaml-tp2-batch/tp2-out/acc-w13-a.safetensors': No such file or directory
+11:09:22 self-w13-b-vs-a exit 127: 
+11:12:41 MUTANT batch-peer-no-table: SURVIVED (exit 0): test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 197.49s|
+11:13:02 acc-27b-tp1 exit 1: golden gate: FAIL|Error: accuracy gate FAILED|
+11:13:15 self-27b-tp2-vs-tp1 exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=2.642356e-12 max_kl21=1.969715e-9 flips=0 flip_pct=0.0000 tail_abs=5.113765e-9 worst_prompt_kl21=1.180862e-10|SELF-STATS mode=decode positions=160 mean_kl21=2.288803e-10 max_kl21=3.590141e-8 flips=0 flip_pct=0.0000 tail_abs=7.663781e-9 worst_prompt_kl21=2.243875e-9|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+11:13:27 mtest tp2-27b-batched exit 101: thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:127:89:|FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.24s|
+11:13:28 mtest tp2-35b-batched exit 101: thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:127:89:|FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.57s|
+11:13:28 done, time left 1626s
+[window] stages done 2026-10-25 11:13:28 (exit 0)
+[window] starting radiance 2026-10-25 11:13:28
+[window] radiance answers 2026-10-25 11:13:48 (after 25 s)

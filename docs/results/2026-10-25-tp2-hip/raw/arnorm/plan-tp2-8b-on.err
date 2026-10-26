@@ -1,0 +1,5 @@
+prefill chunk 2048 (recipe qwen3, hip)
+tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0

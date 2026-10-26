@@ -97,6 +97,11 @@ pub struct AccuracySpec {
     /// `intarsia accuracy --self-golden --self-vs-ref-noise`: the worst prompt's mean KL may be this many times the
     /// reference noise. A per-golden `prompt_factor` wins; unset: 3.0.
     pub ref_noise_prompt_factor: Option<f64>,
+    /// `intarsia accuracy --self-golden --self-vs-ref-noise` of a tensor-parallel run (`--tp` > 1) against its tp=1 dump: the
+    /// change's mean 21-way KL may be this many times the reference noise. Replaces the per-golden `factor` and
+    /// `ref_noise_factor` for those runs (the all-reduce and the halved GEMM shapes re-order sums, which is not a defect:
+    /// docs/results/2026-10-25-tp2-hip.md). `--ref-noise-factor` still wins. Unset: the usual factor.
+    pub tp_ref_noise_factor: Option<f64>,
     /// Absolute top-1 floor in percent, for a model whose bf16 forward cannot reach the class default (99.5%) against the
     /// fp32 golden: the gate uses `min(this, class default)`, never a higher one. Set it from a measurement (the top-1 of
     /// the reference's own bf16 forward against the fp32 golden, minus 0.5 points) and cite it in a comment. `--min-top1`

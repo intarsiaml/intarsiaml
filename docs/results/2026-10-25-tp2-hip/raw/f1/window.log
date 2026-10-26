@@ -1,0 +1,29 @@
+[window] job 5667 f1; stopping radiance 2026-10-26 03:17:32
+[window] radiance stopped 2026-10-26 03:17:34
+03:17:34 final stage 1 start, CAP 2350s, pre-change ebf95d0, VRAM in use 57 MiB
+03:17:45 gen-b-35-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+03:17:45 gen-d-35-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+03:17:51 gen-b-35-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+03:17:51 gen-d-35-4k exit 0: steps=258 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split_qk_norm_rope_kv=0ms/2580|
+03:17:55 plan-d-35 exit 0: 
+03:17:55 plan-b-35 exit 0: 
+03:18:08 gen-d-8-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+03:18:08 gen-b-8-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+03:18:19 gen-b-8-4k exit 0: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258 logits=0ms/256|
+03:18:19 gen-d-8-4k exit 0: steps=258 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/108 embedding=0ms/258 logits=0ms/256|
+03:18:21 plan-d-8 exit 0: 
+03:18:21 plan-b-8 exit 0: 
+03:18:21 SAME tp=1 35 short 256 ids, head vs main (gen-d-35-short.ids == gen-b-35-short.ids)
+03:18:21 SAME tp=1 35 4k 256 ids, head vs main (gen-d-35-4k.ids == gen-b-35-4k.ids)
+03:18:21 SAME plan show 35 (json)
+03:18:21 SAME tp=1 8 short 256 ids, head vs main (gen-d-8-short.ids == gen-b-8-short.ids)
+03:18:21 SAME tp=1 8 4k 256 ids, head vs main (gen-d-8-4k.ids == gen-b-8-4k.ids)
+03:18:21 SAME plan show 8 (json)
+03:21:42 mtest tp2-all exit 0 [INTARSIA_BATCH_TEST_TP=2]: 17550 (row, step) pairs bitwise identical in 138.6 s|tensor-parallel rank 1: batched decode graph captures=15 replays=1956|tensor-parallel rank 1: batched decode graph captures=3 replays=650|tensor-parallel rank 1: batched decode graph captures=15 replays=260|thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:|mutant PlainKernels at 12 rows: caught (control after it passes)|thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:|mutant ReverseRows at 8 rows: caught (control after it passes)|tensor-parallel rank 1: batched decode graph captures=2 replays=14|thread 'real_35b_tp2_batch_stale_position_mutant_is_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:|mutant StalePosition at 8 rows: caught|
+03:21:46 kernels-test-quick exit 0: 
+03:23:36 mtest tp1-batch-recurrent exit 0: test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 103.21s|
+03:23:36 kernels test --quick: 77 kernels, 365 cases in 3.0s|incomplete: 11 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)|
+03:23:36 final stage 1 done, time left 1988s
+[window] stages done 2026-10-26 03:23:36 (exit 0)
+[window] starting radiance 2026-10-26 03:23:36
+[window] radiance answers 2026-10-26 03:24:16 (after 45 s)

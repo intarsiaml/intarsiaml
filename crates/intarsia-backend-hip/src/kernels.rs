@@ -540,6 +540,43 @@ mod tests {
         assert_eq!(SPLITKV_MAX_ROWS, 16);
     }
 
+    /// Vocab-parallel lm_head (tensor parallelism): each rank runs half of the head's rows, and the logits must be bitwise those
+    /// of the full head, which holds only if the same kernel (the same reduction order per row) is picked at V / 2 head rows
+    /// as at V. Pinned for every head dtype / output the engine ships, every row count a head group can have, at the vocabularies
+    /// of the Qwen3 and Qwen3.5/3.6 families. (`Model::check_vocab_split` makes the same comparison on the real calls at plan time;
+    /// tests/vocab_split.rs compares the bits on the device.)
+    #[test]
+    fn lm_head_kernel_selection_does_not_depend_on_the_number_of_head_rows() {
+        let (bf, f8, u8_, f32_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8), Some(DType::F32));
+        let mut checked = 0;
+        for v in [151_936usize, 248_320, 129_280, 262_144] {
+            for k in [2048usize, 4096, 5120] {
+                for m in 1..=16usize {
+                    for (op, w, static_act) in [
+                        (Op::Logits, bf, false),
+                        (Op::Matmul, bf, false),
+                        (Op::MatmulNvfp4, u8_, false),
+                        (Op::MatmulFp8, f8, false),
+                        (Op::MatmulFp8, f8, true),
+                        (Op::MatmulMxfp4, u8_, false),
+                    ] {
+                        let sh = |n: usize| ShapeInfo { m, n, k, act: bf, out: f32_, weight: w, fp8_static_act: static_act, ..Default::default() };
+                        let (full, half) = (pick(op, &sh(v)), pick(op, &sh(v / 2)));
+                        assert!(full.is_some(), "{op} m={m} k={k} V={v} static={static_act}: no kernel");
+                        assert_eq!(full, half, "{op} m={m} k={k} V={v} static={static_act}");
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(checked, 4 * 3 * 16 * 6);
+        // the dense bf16 head must actually resolve to a kernel at every row count (the assertion above would also hold for None)
+        for m in 1..=16usize {
+            let s = ShapeInfo { m, n: 124_160, k: 2048, act: bf, out: f32_, weight: bf, ..Default::default() };
+            assert!(pick(Op::Logits, &s).is_some(), "no logits kernel at m={m}");
+        }
+    }
+
     #[test]
     fn arch_is_a_gfx12_target() {
         assert!(ARCH.starts_with("gfx12"), "the WMMA kernels need a gfx12 arch, got {ARCH}");

@@ -1,0 +1,145 @@
+reference: 42 cases alone -> http://127.0.0.1:8090
+token ids: requested (http://127.0.0.1:8090)
+  [  1/42] cb000 S stop 2 0.1s
+  [  2/42] cb001 S length 96 0.8s
+  [  3/42] cb002 S stop 95 0.7s
+  [  4/42] cb003 S length 16 0.2s
+  [  5/42] cb004 S length 96 0.9s
+  [  6/42] cb006 S length 128 0.7s
+  [  7/42] cb010 S stop 14 0.2s
+  [  8/42] cb016 S length 32 0.3s
+  [  9/42] cb018 S length 48 0.4s
+  [ 10/42] cb028 S length 48 0.6s
+  [ 11/42] cb034 S length 48 0.4s
+  [ 12/42] cb043 S length 128 1.0s
+  [ 13/42] cb044 S stop 2 0.1s
+  [ 14/42] cb048 S length 32 0.2s
+  [ 15/42] cb050 S length 48 0.3s
+  [ 16/42] cb058 S length 64 0.4s
+  [ 17/42] cb061 S stop 25 0.2s
+  [ 18/42] cb068 S length 64 0.4s
+  [ 19/42] cb072 S stop 2 0.1s
+  [ 20/42] cb076 S length 16 0.3s
+  [ 21/42] cb080 S length 96 0.7s
+  [ 22/42] cb083 S length 16 0.1s
+  [ 23/42] cb086 S length 48 0.3s
+  [ 24/42] cb093 S length 128 1.1s
+  [ 25/42] cb104 S length 96 0.8s
+  [ 26/42] cb108 S stop 17 0.3s
+  [ 27/42] cb110 S length 48 0.7s
+  [ 28/42] cb112 S length 64 0.6s
+  [ 29/42] cb116 S length 128 0.7s
+  [ 30/42] cb120 S length 160 1.1s
+  [ 31/42] cb124 S length 48 0.5s
+  [ 32/42] cb139 S length 96 0.7s
+  [ 33/42] cb142 S stop 4 0.3s
+  [ 34/42] cb143 S length 128 0.7s
+  [ 35/42] cb153 S length 128 0.8s
+  [ 36/42] cb156 S length 32 0.2s
+  [ 37/42] cb163 S length 32 0.2s
+  [ 38/42] cb166 S stop 8 0.3s
+  [ 39/42] cb176 S stop 96 0.5s
+  [ 40/42] cb177 S length 48 0.3s
+  [ 41/42] cb200 S length 64 0.7s
+  [ 42/42] cb201 S stop 6 0.4s
+concurrent B=4 stream=mixed: 42 cases -> http://127.0.0.1:8090
+token ids: requested (http://127.0.0.1:8090)
+  [  1/42] cb000 N stop 2 0.1s
+  [  2/42] cb002 N stop 95 1.2s
+  [  3/42] cb001 N length 96 1.2s
+  [  4/42] cb003 N length 16 0.2s
+  [  5/42] cb004 N length 96 1.1s
+  [  6/42] cb006 S length 128 0.9s
+  [  7/42] cb010 S stop 14 0.2s
+  [  8/42] cb016 S length 32 0.3s
+  [  9/42] cb018 N length 48 0.4s
+  [ 10/42] cb028 S length 48 0.6s
+  [ 11/42] cb034 S length 48 0.4s
+  [ 12/42] cb044 N stop 2 0.1s
+  [ 13/42] cb043 S length 128 1.2s
+  [ 14/42] cb048 N length 32 0.3s
+  [ 15/42] cb050 N length 48 0.3s
+  [ 16/42] cb061 N stop 25 0.3s
+  [ 17/42] cb058 S length 64 0.6s
+  [ 18/42] cb068 N length 64 0.4s
+  [ 19/42] cb072 S stop 2 0.1s
+  [ 20/42] cb076 S length 16 0.3s
+  [ 21/42] cb080 N length 96 0.7s
+  [ 22/42] cb083 S length 16 0.1s
+  [ 23/42] cb086 S length 48 0.3s
+  [ 24/42] cb093 S length 128 1.1s
+  [ 25/42] cb108 S stop 17 0.6s
+  [ 26/42] cb104 S length 96 1.7s
+  [ 27/42] cb110 S length 48 1.1s
+  [ 28/42] cb112 S length 64 1.2s
+  [ 29/42] cb124 N length 48 0.7s
+  [ 30/42] cb116 S length 128 1.6s
+  [ 31/42] cb120 S length 160 1.8s
+  [ 32/42] cb142 N stop 4 0.4s
+  [ 33/42] cb139 N length 96 1.1s
+  [ 34/42] cb143 N length 128 1.1s
+  [ 35/42] cb153 S cancelled 32 0.2s
+  [ 36/42] cb156 S length 32 0.2s
+  [ 37/42] cb163 N length 32 0.2s
+  [ 38/42] cb166 N stop 8 0.3s
+  [ 39/42] cb177 N length 48 0.5s
+  [ 40/42] cb176 S stop 96 0.7s
+  [ 41/42] cb201 N stop 6 0.8s
+  [ 42/42] cb200 N length 64 1.1s
+concurrent B=8 stream=mixed: 42 cases -> http://127.0.0.1:8090
+token ids: requested (http://127.0.0.1:8090)
+  [  1/42] cb000 N stop 2 0.1s
+  [  2/42] cb002 N stop 95 1.2s
+  [  3/42] cb001 N length 96 1.2s
+  [  4/42] cb003 N length 16 0.2s
+  [  5/42] cb004 N length 96 1.1s
+  [  6/42] cb006 S length 128 0.9s
+  [  7/42] cb010 S stop 14 0.2s
+  [  8/42] cb016 S length 32 0.3s
+  [  9/42] cb018 N length 48 0.4s
+  [ 10/42] cb028 S length 48 0.6s
+  [ 11/42] cb034 S length 48 0.4s
+  [ 12/42] cb044 N stop 2 0.1s
+  [ 13/42] cb043 S length 128 1.2s
+  [ 14/42] cb048 N length 32 0.3s
+  [ 15/42] cb050 N length 48 0.3s
+  [ 16/42] cb061 N stop 25 0.3s
+  [ 17/42] cb058 S length 64 0.6s
+  [ 18/42] cb068 N length 64 0.4s
+  [ 19/42] cb072 S stop 2 0.1s
+  [ 20/42] cb076 S length 16 0.3s
+  [ 21/42] cb080 N length 96 0.7s
+  [ 22/42] cb083 S length 16 0.1s
+  [ 23/42] cb086 S length 48 0.3s
+  [ 24/42] cb093 S length 128 1.1s
+  [ 25/42] cb108 S stop 17 0.7s
+  [ 26/42] cb104 S length 96 1.7s
+  [ 27/42] cb110 S length 48 1.1s
+  [ 28/42] cb112 S length 64 1.2s
+  [ 29/42] cb124 N length 48 0.7s
+  [ 30/42] cb116 S length 128 1.6s
+  [ 31/42] cb120 S length 160 1.8s
+  [ 32/42] cb142 N stop 4 0.4s
+  [ 33/42] cb139 N length 96 1.1s
+  [ 34/42] cb143 N length 128 1.1s
+  [ 35/42] cb153 S cancelled 32 0.2s
+  [ 36/42] cb156 S length 32 0.2s
+  [ 37/42] cb163 N length 32 0.2s
+  [ 38/42] cb166 N stop 8 0.3s
+  [ 39/42] cb177 N length 48 0.5s
+  [ 40/42] cb176 S stop 96 0.7s
+  [ 41/42] cb201 N stop 6 0.8s
+  [ 42/42] cb200 N length 64 1.1s
+
+== coverage (from the reference run) ==
+cases 42  prompt tokens min/max [131, 4434]
+prompt-token histogram: {'<=192': 5, '193-384': 5, '385-768': 6, '769-1.5k': 6, '1.5k-2.5k': 6, '2.5k-3.5k': 8, '>3.5k': 6}
+reference finish: {'stop (EOS)': 8, 'length': 31, 'stop (stop string armed: stop string or EOS)': 3}
+tags: {'cancel': 4, 'chat': 13, 'chat_greedy': 3, 'chat_sampled': 2, 'eos': 3, 'golden_4k': 2, 'greedy': 32, 'ignore_eos': 2, 'min_tokens': 3, 'raw': 29, 'raw_greedy': 12, 'raw_sampled': 6, 'sampled': 10, 'stop': 5}
+
+== identity vs reference ==
+run        cases  pass  mismatch  ref_err  stream/non  cancel(out>0)/cases  cut short  ids cmp  cached!=  mism+cached!=
+B=4 mixed  42     42    0         0        21/21       1(1)/4               1          42       0         0            
+B=8 mixed  42     42    0         0        21/21       1(1)/4               1          42       0         0            
+report: /home/josef/tp2/out/batch/cbid/report.json
+RESULT: IDENTICAL, 0 mismatches

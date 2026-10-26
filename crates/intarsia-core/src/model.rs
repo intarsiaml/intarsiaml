@@ -28,7 +28,9 @@ use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+mod ar_norm;
 mod batch;
+mod coll_trace;
 mod gdn_batch;
 mod gdn_block;
 mod gemma;
@@ -41,6 +43,7 @@ pub(crate) mod dflash;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;
+pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
@@ -89,10 +92,21 @@ pub struct LoadOptions {
     /// this off; profiled steps always run eagerly). Same kernels, same results as the eager path.
     pub graphs: bool,
     /// Tensor parallelism: run the row-local fused decode ops on each rank's shard when the backend can
-    /// (`Backend::fusion_under_tp`). The CLI turns it on by default for CUDA and for HIP at tp=2 (`INTARSIA_TP_FUSION=0` opts
+    /// (`Backend::fusion_under_tp`). The CLI turns it on by default for CUDA and for HIP at tp > 1 (`INTARSIA_TP_FUSION=0` opts
     /// out, `=1` asks for it anywhere); the library default is off. Measured bitwise to unfused on the 35B tp=2 gates
     /// (docs/results/2026-10-21-tp2-cuda-graphs.md, docs/results/2026-10-21-h1-tp2-hip.md).
     pub tp_fusion: bool,
+    /// Tensor parallelism: split the lm_head over the ranks by vocabulary rows (rank r computes the logits of rows
+    /// `[r V/w, (r+1) V/w)` and one all-gather puts the halves into rank 0's `[rows, V]` logits, bitwise those of the
+    /// unsplit head: every logit is one row's dot product). Needs a communicator that implements `all_gather`
+    /// (`INTARSIA_TP_VOCAB=0` opts out, `=1` asks for it anywhere). The CLI turns it on by default for HIP at tp=2; the
+    /// library default is off, and a head that cannot be split (vocabulary not a multiple of the communicator's gather quantum x world, a format
+    /// without a row-sharded loader) keeps the replicated head on rank 0.
+    pub tp_vocab: bool,
+    /// Tensor parallelism: fuse each block-end all-reduce with the standalone residual add + rmsnorm that follows it
+    /// (`Comm::all_reduce_add_rmsnorm`), when the communicator can and `tp_fusion` is on at world 2. Bit for bit the unfused
+    /// pair (`model/ar_norm.rs`). The CLI sets it from `INTARSIA_TP_ARNORM` (default off); the library default is off.
+    pub tp_arnorm: bool,
     /// Load the checkpoint's multi-token-prediction head (recipe `[mtp]`) as the `--spec mtp` drafter. Off: nothing under
     /// the head's prefix is read and the model is exactly the one without it.
     pub mtp: bool,
@@ -125,6 +139,8 @@ impl Default for LoadOptions {
             mxfp4_act: None,
             graphs: true,
             tp_fusion: false,
+            tp_vocab: false,
+            tp_arnorm: false,
             mtp: false,
             mtp_k: 0,
             mtp_draft_vocab: None,
@@ -342,8 +358,12 @@ pub struct Model {
     pub weights_bytes: u64,
     embed: TensorRef,
     final_norm: TensorRef,
-    /// Only rank 0 holds the head (and runs the final norm's consumer): the other ranks stop after the last layer.
+    /// Replicated head: only rank 0 holds it (and runs the final norm's consumer), the other ranks stop after the last layer.
+    /// Vocab-parallel head (`vocab_par`): every rank holds its `V / world` rows of it.
     lm_head: Option<QTensor>,
+    /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
+    /// halves are all-gathered into rank 0's `ws.logits`.
+    vocab_par: bool,
     /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or None.
     draft_head: Option<QTensor>,
     layers: Arc<Vec<Vec<Block>>>,
@@ -370,6 +390,13 @@ pub struct Model {
     rope_table: Option<RopeTable>,
     /// Row-local fusion under tensor parallelism is on (`LoadOptions::tp_fusion`, world > 1, backend capable).
     tp_fusion: bool,
+    /// Block-end all-reduces are deferred to the norm that follows (`model/ar_norm.rs`).
+    tp_arnorm: bool,
+    /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
+    ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+    /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
+    ar_fused_eager: std::sync::atomic::AtomicU64,
+    ar_fused_captured: std::sync::atomic::AtomicU64,
     /// Tensor parallelism: this rank's place in its group (rank 0 / world 1 without it).
     tp: TpRank,
     /// `INTARSIA_TP_NO_COMM=1`: skip the collectives, to time a decode step without them (the output is garbage).
@@ -418,6 +445,15 @@ pub struct Model {
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
     /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is `1` (opt-in, default off).
     topk: Option<TopkBufs>,
+    /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
+    /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`
+    /// ([`Model::batch_head`]). Allocated by [`Model::enable_batch`].
+    batch_tile: Option<Buffer>,
+    /// Test hook (`Model::set_tp_batch_mutant`, tests only): a deliberate protocol bug a tensor-parallel peer applies to its
+    /// share of a batched step, which the batched-vs-solo tests must catch. 0 = none (always, outside those tests).
+    tp_batch_mutant: std::sync::atomic::AtomicU8,
+    /// `INTARSIA_TP_COLL_TRACE=1`: the ledger of passes and collectives (model/coll_trace.rs).
+    coll_trace: coll_trace::CollTrace,
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
@@ -631,20 +667,27 @@ impl Model {
 
         // lm_head: own tensor, or tied to the embedding table.
         // (the head may be quantised: Qwen3.6 NVFP4 ships `lm_head.{weight,weight_scale,weight_scale_2,input_scale}`)
-        let lm_head = if tp.rank != 0 {
-            None
-        } else {
-            let lh = &recipe.top.lm_head;
-            let own = resolve(src, &lh.tensor).ok();
-            let dense = |t: TensorRef| QTensor {
-                format: crate::quant::BF16,
-                n: dims.vocab,
-                k: dims.hidden,
-                parts: vec![t],
-                act_quant: false,
-            };
-            Some(match (own, &lh.tied_to) {
-                (Some(_), _) if !dims.tie_embeddings => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+        let lh = &recipe.top.lm_head;
+        let own = resolve(src, &lh.tensor).ok();
+        // tied: the head is the embedding table itself (the arms below, in order)
+        let tied = dims.tie_embeddings && lh.tied_to.is_some();
+        // Vocab-parallel head: every rank holds `V / world` rows of the head, in rank order. A tied head is the matching
+        // row range of the replicated embedding table (a view: no second copy; its bytes must stay 16-aligned for the
+        // vector GEMV paths).
+        let vh = dims.vocab / tp.world.max(1);
+        let mut vocab_par = opts.tp_vocab
+            && tp.world > 1
+            && tp.comm.as_ref().and_then(|c| c.all_gather_quantum()).is_some_and(|q| dims.vocab % tp.world == 0 && (vh * 4) % q == 0)
+            && (!tied || (embed.shape == [dims.vocab, dims.hidden] && (vh * dims.hidden * embed.dtype.size_bytes()) % 16 == 0));
+        let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_quant: false };
+        let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
+            if tp.rank != 0 && !vocab_par {
+                return Ok(None);
+            }
+            // the rows this rank's head covers
+            let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
+            Ok(Some(match (&own, &lh.tied_to) {
+                (Some(_), _) if !dims.tie_embeddings => load_qs(&lh.tensor, 0, n, dims.hidden, axis)?,
                 // the config says the head is its own tensor but it is not in the checkpoint (renamed, re-exported):
                 // falling back to the embedding table would serve garbage logits without any error
                 (None, _) if !dims.tie_embeddings => {
@@ -654,15 +697,26 @@ impl Model {
                         lh.tensor, lh.tensor
                     )))
                 }
-                (_, Some(_)) => dense(embed.clone()),
-                (Some(_), None) => load_q(&lh.tensor, 0, dims.vocab, dims.hidden)?,
+                (_, Some(_)) if vocab_par => dense(embed.rows(tp.rank * vh, vh), vh),
+                (_, Some(_)) => dense(embed.clone(), dims.vocab),
+                (Some(_), None) => load_qs(&lh.tensor, 0, n, dims.hidden, axis)?,
                 (None, None) => {
                     return Err(Error::model(format!(
                         "lm_head tensor '{}' missing and the recipe has no tied_to",
                         lh.tensor
                     )))
                 }
-            })
+            }))
+        };
+        let bytes_before = weights_bytes.get();
+        let lm_head = match load_head(vocab_par) {
+            // a format without a row-sharded loader (EXL3): keep the replicated head
+            Err(Error::Unsupported(_)) if vocab_par => {
+                weights_bytes.set(bytes_before);
+                vocab_par = false;
+                load_head(false)?
+            }
+            r => r?,
         };
 
         // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
@@ -1120,7 +1174,7 @@ impl Model {
             + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 }
             // the DFlash draft layers' context caches
             + dflash_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64);
-        let plan = MemoryPlan::compute_budgeted(
+        let mut plan = MemoryPlan::compute_budgeted(
             &b.info(),
             weights_bytes.get(),
             ws_bytes,
@@ -1130,6 +1184,9 @@ impl Model {
             opts.kv_fraction,
             opts.mem_budget,
         )?;
+        if opts.tp_vocab && tp.world > 1 && !vocab_par {
+            plan.notes.push("vocab-parallel lm_head requested but not possible here (the communicator has no in-place all_gather for this size, the vocabulary does not split, or the head format has no row-sharded loader): the head stays on rank 0".into());
+        }
         let registry = Registry::new(b.name(), &b.info(), b.kernels());
         if let Some(line) = b.layout_report() {
             eprintln!("{line}");
@@ -1137,13 +1194,15 @@ impl Model {
         let token_feedback = feedback::initial(b.token_feedback(), std::env::var("INTARSIA_TOKEN_FEEDBACK").ok().as_deref());
         let feedback_hold = feedback::hold_from_env(std::env::var("INTARSIA_TOKEN_FEEDBACK_HOLD").ok().as_deref());
 
+        let no_comm = std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0");
+        let test_bug = parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?;
         let dv = recipe.resolve_mtp_draft_vocab(opts.mtp_draft_vocab, b.name());
         let draft_vocab = dv.value;
         if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
             eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
         }
         let draft_head = if opts.mtp && draft_vocab > 0 {
-            match lm_head.as_ref() {
+            match lm_head.as_ref().filter(|_| !vocab_par) {
                 None => {
                     if opts.mtp_draft_vocab.is_some() {
                         eprintln!(
@@ -1205,9 +1264,14 @@ impl Model {
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table,
             tp_fusion: opts.tp_fusion && tp.world > 1,
+            vocab_par,
+            tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
+            ar_defer: Mutex::new(None),
+            ar_fused_eager: Default::default(),
+            ar_fused_captured: Default::default(),
             tp,
-            no_comm: std::env::var_os("INTARSIA_TP_NO_COMM").is_some_and(|v| v != "0"),
-            test_bug: parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?,
+            no_comm,
+            test_bug,
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
@@ -1223,6 +1287,9 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            batch_tile: None,
+            tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
+            coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             feedback_hold,
             tail_merge,
@@ -1239,6 +1306,8 @@ impl Model {
             dflash: dflash_head,
             mtp_k,
         };
+        let tp_comm = model.tp.comm.clone();
+        model.coll_trace.set_comm(tp_comm);
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
             c.reserve(mt * dims.hidden, 0)?;
@@ -1482,10 +1551,12 @@ impl Model {
             }
         }
         for p in &self.peers {
-            st.peers.push(PeerState {
-                backend: p.backend.clone(),
-                st: SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?,
-            });
+            let mut ps = SequenceState::new(&*p.backend, &p.slot_specs, self.plan.kv_cap_tokens)?;
+            if p.batch_rows > 0 {
+                // a batched tensor-parallel slot: the peer's share of the recurrent snapshots, reserved by its own enable_batch
+                ps.reserve_snapshots(&*p.backend, p.batch_snapshots())?;
+            }
+            st.peers.push(PeerState { backend: p.backend.clone(), st: ps });
         }
         if let Some(r) = &self.remote {
             st.remote = Some(r.new_state()?);
@@ -1499,6 +1570,9 @@ impl Model {
     pub fn attach_remote(&mut self, peer: Arc<crate::tp_remote::RemotePeer>) -> Result<()> {
         if self.tp.rank != 0 || self.tp.world != 2 || !self.peers.is_empty() || self.tp.comm.is_none() {
             return Err(Error::invalid("a remote rank attaches to rank 0 of a 2-way group with a communicator and no local peers"));
+        }
+        if self.vocab_par {
+            return Err(Error::Unsupported("a vocab-parallel head with a rank in another process (INTARSIA_TP_VOCAB=0)".into()));
         }
         self.remote = Some(peer);
         Ok(())
@@ -1521,7 +1595,10 @@ impl Model {
     /// checks and failure reset as [`Model::forward`].
     pub fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
         Self::check_forward(st, ids, HeadMode::None, false)?;
-        let r = self.run_peer(st, ids, graph);
+        if self.vocab_par {
+            return Err(Error::Unsupported("a vocab-parallel head with a rank in another process (INTARSIA_TP_VOCAB=0)".into()));
+        }
+        let r = self.run_peer(st, ids, HeadMode::None, graph);
         if r.is_err() && st.has_recurrent() {
             let _ = st.reset(&*self.backend);
         }
@@ -1531,6 +1608,11 @@ impl Model {
     /// Dtype of the row-parallel partial results the collective sums ("f32" or "bf16"); None without tensor parallelism.
     pub fn tp_partials(&self) -> Option<&'static str> {
         (self.tp.world > 1).then(|| if self.ws.part.is_some() { "f32" } else { "bf16" })
+    }
+
+    /// Whether the lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`, and possible here).
+    pub fn vocab_parallel(&self) -> bool {
+        self.vocab_par
     }
 
     /// Tensor-parallel degree (1 without it).
@@ -1572,6 +1654,9 @@ impl Model {
         let world = shards[0].tp.world;
         if shards.len() != world || shards.iter().enumerate().any(|(i, m)| m.tp.rank != i || m.tp.world != world) {
             return Err(Error::invalid(format!("expected {world} shards in rank order")));
+        }
+        if shards.iter().any(|m| m.vocab_par != shards[0].vocab_par) {
+            return Err(Error::invalid("the ranks of a tensor-parallel group disagree on a vocab-parallel head"));
         }
         let cap = shards.iter().map(|m| m.plan.kv_cap_tokens).min().unwrap();
         for m in shards.iter_mut() {
@@ -1825,7 +1910,7 @@ impl Model {
                             }
                         }
                         let mut guard = Guard(comm, false);
-                        let r = m.run_peer(&mut ps.st, ids, graph);
+                        let r = m.run_peer(&mut ps.st, ids, mode, graph);
                         guard.1 = r.is_ok();
                         r
                     })
@@ -1912,9 +1997,44 @@ impl Model {
         out
     }
 
-    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head). `graph`: rank 0 replays its
-    /// decode graph in this step (`Model::decode_graph_now`), so this rank replays its own.
-    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+    /// A peer rank's share of a forward pass: the layers only (rank 0 owns the head), plus, with a vocab-parallel head, its
+    /// slice of the head and the gather of every head group rank 0 runs in `mode` (`Model::head_groups`: the collectives
+    /// must be the same sequence on every rank). `graph`: rank 0 replays its decode graph in this step
+    /// (`Model::decode_graph_now`), so this rank replays its own.
+    /// Debugging (`INTARSIA_TP_SKEW_US=<rank 0 us>,<rank 1 us>`, off by default): delay this rank's launch of every step by that long, to
+    /// skew the ranks against each other (a handshake that is only right when the ranks arrive together fails under skew).
+    pub(super) fn tp_skew(&self) {
+        static SKEW: std::sync::OnceLock<[u64; 2]> = std::sync::OnceLock::new();
+        let s = SKEW.get_or_init(|| {
+            let v = std::env::var("INTARSIA_TP_SKEW_US").unwrap_or_default();
+            let mut it = v.split(',').map(|x| x.trim().parse::<u64>().unwrap_or(0));
+            [it.next().unwrap_or(0), it.next().unwrap_or(0)]
+        });
+        if self.tp.world == 2 {
+            let us = s[self.tp.rank.min(1)];
+            if us > 0 {
+                std::thread::sleep(std::time::Duration::from_micros(us));
+            }
+        }
+    }
+
+    /// `INTARSIA_TP_PEER_SYNC=1` (w27 experiment, off by default): a peer rank's step ends with its stream idle. A peer only enqueues its share
+    /// (the next collective or download of rank 0 orders it), so its last replay can still be running when its next step starts.
+    pub(super) fn peer_sync(&self) -> Result<()> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *ON.get_or_init(|| std::env::var("INTARSIA_TP_PEER_SYNC").is_ok_and(|v| v == "1")) {
+            self.backend.synchronize(self.stream)?;
+        }
+        Ok(())
+    }
+
+    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.run_peer_inner(ps, ids, mode, graph)?;
+        self.peer_sync()
+    }
+
+    fn run_peer_inner(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.tp_skew();
         if graph {
             if ids.len() != 1 {
                 return Err(Error::invalid(format!("decode graph step with {} tokens", ids.len())));
@@ -1923,8 +2043,15 @@ impl Model {
             ps.commit(ids);
             return Ok(());
         }
-        for chunk in self.forward_chunks(ps, ids) {
-            self.run_chunk(ps, chunk, false)?;
+        let chunks = self.forward_chunks(ps, ids);
+        let n = chunks.len();
+        for (ci, chunk) in chunks.into_iter().enumerate() {
+            let hn = self.run_chunk(ps, chunk, false)?;
+            if self.vocab_par {
+                for (r0, c) in self.head_groups(mode, chunk.len(), ci + 1 == n) {
+                    self.head_peer(&hn, r0, c)?;
+                }
+            }
             ps.commit(chunk);
         }
         Ok(())
@@ -1938,6 +2065,7 @@ impl Model {
         mut on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
+        self.tp_skew();
         // a plain pass ends the window in which the last verify pass's rows could be rolled back to
         st.spec_rows.saved = 0;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
@@ -2013,18 +2141,11 @@ impl Model {
                 }
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
-                    // head groups of `LOGIT_ROWS` rows by the prefill rule too: a 1-row group runs the decode GEMV, which is
-                    // not bitwise the same row inside a >= 2-row group, so a `k * LOGIT_ROWS + 1` chunk would score its last
-                    // row differently from a schedule that ends it in a 2-row chunk (`(.., 15, 2)` instead of `(.., 16, 1)`)
-                    let avoid = self.backend.avoid_single_row_prefill();
-                    let mut r = 0;
-                    while r < chunk.len() {
-                        let c = crate::scheduler::next_prefill_chunk(chunk.len() - r, LOGIT_ROWS, avoid);
+                    for (r, c) in self.head_groups(mode, chunk.len(), last) {
                         let flat = self.head_logits(&hn, r, c, profile)?;
                         for i in 0..c {
                             cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
                         }
-                        r += c;
                     }
                 }
                 _ => {}
@@ -2145,6 +2266,10 @@ impl Model {
         let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;
+        // a block-end all-reduce held back for this op (`model/ar_norm.rs`): fused with it, or issued before it
+        if self.tp_arnorm && self.resolve_ar(&call, profile)? {
+            return Ok(());
+        }
         {
             let mut rec = self.recorder.lock().unwrap();
             if let Some(r) = rec.as_mut() {
@@ -2224,6 +2349,11 @@ impl Model {
         ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
+        let _pass = if self.coll_trace.on {
+            self.coll_trace.pass(if matches!(seqs, Seqs::Batch(_)) { "layers-batch" } else { "layers" }, t, self.capture_ops.lock().unwrap().is_some())
+        } else {
+            None
+        };
         let d = &self.dims;
         let act = self.act;
         let h = d.hidden;
@@ -2392,10 +2522,12 @@ impl Model {
         }
         if dead_tail {
             // nothing reads the hidden state of a chunk that feeds no head
+            self.flush_ar(profile)?;
             return Ok(nv);
         }
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
+        self.flush_ar(profile)?;
         Ok(nv)
     }
 
@@ -3173,6 +3305,9 @@ impl Model {
     /// nothing runs: the call is counted instead (it would otherwise wait for ranks that are not running).
     fn all_reduce(&self, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         let Some(comm) = &self.tp.comm else { return Ok(()) };
+        if self.tp_arnorm {
+            self.flush_ar(profile)?; // a reduction still pending (nothing between two block-end reductions emits an op, but be exact)
+        }
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.comm.push(crate::plan::PlannedComm {
                 phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
@@ -3180,8 +3315,15 @@ impl Model {
                 pos0: r.pos0,
                 bytes: partial.nbytes(),
                 extra: r.extra,
+                fused_norm: false,
             });
+            if self.tp_arnorm {
+                self.defer_ar(partial, out, Some(r.comm.len() - 1));
+            }
             return Ok(());
+        }
+        if self.take_dropped_collective() {
+            return Ok(()); // test-only protocol bug (`Model::set_tp_batch_mutant`): this rank skips the collective
         }
         if self.no_comm {
             return Ok(()); // INTARSIA_TP_NO_COMM: timing experiment, the activations are garbage
@@ -3191,11 +3333,24 @@ impl Model {
                 self.scale_partial(partial, f)?;
             }
         }
+        if self.tp_arnorm {
+            // deferred whether or not this rank profiles the step: rank 1 never does, and the ranks must issue the same collectives
+            self.defer_ar(partial, out, None);
+            return Ok(());
+        }
+        self.reduce_now(comm, partial, out, profile)
+    }
+
+    /// Issue the all-reduce `partial -> out` on the rank's stream (timed and synchronised when `profile`).
+    fn reduce_now(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         if profile {
             self.backend.synchronize(self.stream)?;
         }
         let t0 = Instant::now();
         comm.all_reduce_sum_into(partial, out, 0)?;
+        if self.coll_trace.on && self.capture_ops.lock().unwrap().is_none() {
+            self.coll_trace.issue();
+        }
         if profile {
             self.backend.synchronize(self.stream)?;
             let d = t0.elapsed();
@@ -3203,6 +3358,46 @@ impl Model {
             self.telemetry.record_comm(Some(d));
         } else if self.capture_ops.lock().unwrap().is_some() {
             // being captured: nothing ran, each replay counts it
+            self.capture_comms.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        } else {
+            self.telemetry.record_comm(None);
+        }
+        Ok(())
+    }
+
+    /// All-gather `send` (this rank's segment of `recv`, in place) into `recv` (rank-major) over the tensor-parallel group,
+    /// the vocab-parallel head's collective. Bookkeeping as in [`Model::all_reduce`]: while the plan is recorded the call
+    /// is counted instead of run, a captured graph counts it per replay.
+    fn all_gather(&self, send: &TensorRef, recv: &TensorRef, profile: bool) -> Result<()> {
+        let comm = self.tp.comm.as_ref().ok_or_else(|| Error::invalid("vocab-parallel head without a communicator"))?;
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.comm.push(crate::plan::PlannedComm {
+                phase: r.phase.unwrap_or(crate::plan::Phase::Decode),
+                t: r.t,
+                pos0: r.pos0,
+                bytes: send.nbytes(),
+                extra: r.extra,
+                fused_norm: false,
+            });
+            return Ok(());
+        }
+        if self.no_comm {
+            return Ok(()); // INTARSIA_TP_NO_COMM: timing experiment, the logits are garbage
+        }
+        if profile {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t0 = Instant::now();
+        comm.all_gather(send, recv, 0)?;
+        if self.coll_trace.on && self.capture_ops.lock().unwrap().is_none() {
+            self.coll_trace.issue();
+        }
+        if profile {
+            self.backend.synchronize(self.stream)?;
+            let d = t0.elapsed();
+            comm.note_timed(d);
+            self.telemetry.record_comm(Some(d));
+        } else if self.capture_ops.lock().unwrap().is_some() {
             self.capture_comms.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         } else {
             self.telemetry.record_comm(None);
@@ -3240,14 +3435,24 @@ impl Model {
     fn head_logits(&self, hn: &TensorRef, r0: usize, c: usize, profile: bool) -> Result<Vec<f32>> {
         let v = self.dims.vocab;
         let x = hn.rows(r0, c);
-        let out = self.view(&self.ws.logits, DType::F32, &[c, v]);
-        self.proj(&x, self.head()?, &out, profile)?;
+        self.head_proj(&x, c, profile)?;
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
         let mut bytes = vec![0u8; c * v * 4];
         self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
         let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+        if self.vocab_par && c > 1 {
+            // the gathered tile is rank-major `[world][c][V / world]`: put each row's slices side by side
+            let (w, vh) = (self.tp.world, v / self.tp.world);
+            let flat = std::mem::take(&mut out);
+            out = vec![0f32; c * v];
+            for r in 0..w {
+                for i in 0..c {
+                    out[i * v + r * vh..i * v + (r + 1) * vh].copy_from_slice(&flat[(r * c + i) * vh..(r * c + i + 1) * vh]);
+                }
+            }
+        }
         // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
             for x in out.iter_mut() {
@@ -3264,11 +3469,94 @@ impl Model {
 
     /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
     fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
-        let v = self.dims.vocab;
         let x = hn.rows(row, 1);
-        let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
-        self.proj(&x, self.head()?, &logits, profile)?;
+        let logits = self.head_proj(&x, 1, profile)?;
+        if self.tp.rank != 0 {
+            return Ok(()); // a vocab-parallel peer: its half is in the gather, the argmax is rank 0's
+        }
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
+    /// head: this rank's `V / world` logits of each row land in its segment of `ws.logits`, kept rank-major
+    /// (`[world][c][V / world]`), and one all-gather in place fills the other segments, on every rank; for `c == 1` that is
+    /// the `[1, V]` row itself, for more rows [`Model::head_logits`] interleaves them on the host. Every logit is the
+    /// dot product of one head row with one input row, computed by the same kernel with the same reduction order as in the
+    /// full head (the kernel and its tiling depend on the rows and K, never on the number of head rows: pinned by
+    /// `kernels.rs` selection tests and the device bitwise test), so the gathered bits are the unsplit head's.
+    fn head_proj(&self, x: &TensorRef, c: usize, profile: bool) -> Result<TensorRef> {
+        let v = self.dims.vocab;
+        if !self.vocab_par {
+            let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+            self.proj(x, self.head()?, &logits, profile)?;
+            return Ok(logits);
+        }
+        let (w, vh) = (self.tp.world, v / self.tp.world);
+        let tile = self.view(&self.ws.logits, DType::F32, &[w, c * vh]);
+        let mine = tile.rows(self.tp.rank, 1);
+        self.proj(x, self.head()?, &mine.reshaped(&[c, vh]), profile)?;
+        self.all_gather(&mine, &tile, profile)?;
+        Ok(self.view(&self.ws.logits, DType::F32, &[c, v]))
+    }
+
+    /// The `(first row, rows)` head groups of a chunk of `len` rows that feeds the head in `mode` (`last`: the final chunk
+    /// of the pass), in the order they run. One schedule for every rank: the vocab-parallel head's all-gather is a
+    /// collective, so rank 0 (which owns the logits) and the peers must issue the same sequence of groups.
+    fn head_groups(&self, mode: HeadMode, len: usize, last: bool) -> Vec<(usize, usize)> {
+        match mode {
+            HeadMode::LastLogits | HeadMode::LastArgmax if last => vec![(len - 1, 1)],
+            HeadMode::AllLogits => {
+                // groups of `LOGIT_ROWS` rows by the prefill rule too: a 1-row group runs the decode GEMV, which is not
+                // bitwise the same row inside a >= 2-row group, so a `k * LOGIT_ROWS + 1` chunk would score its last
+                // row differently from a schedule that ends it in a 2-row chunk (`(.., 15, 2)` instead of `(.., 16, 1)`)
+                let avoid = self.backend.avoid_single_row_prefill();
+                let (mut r, mut out) = (0, Vec::new());
+                while r < len {
+                    let c = crate::scheduler::next_prefill_chunk(len - r, LOGIT_ROWS, avoid);
+                    out.push((r, c));
+                    r += c;
+                }
+                out
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// The vocab-parallel head promises the replicated head's bits, which holds only while a logit comes out of the same
+    /// kernel (so the same reduction order) whatever the number of head rows. Kernels pick their variant from the row count
+    /// and K; this refuses a backend whose selection also looks at the number of head rows: for every row count a head group
+    /// can have, the kernel picked for this rank's `V / world` rows must be the one picked for the full `V`. (The full-V call
+    /// is the split call with the weight parts' row count and the output width restored: no full weight is needed.)
+    pub(crate) fn check_vocab_split(&self) -> Result<()> {
+        let head = self.head()?;
+        let (v, vh) = (self.dims.vocab, self.dims.vocab / self.tp.world);
+        // the head groups of a pass, then the batched decode steps' heads (row-exact kernels, `exact_rows`)
+        let plain = (1..=LOGIT_ROWS.min(self.ws.max_tokens)).map(|m| (m, false));
+        for (m, exact) in plain.chain((2..=self.batch_rows).map(|m| (m, true))) {
+            let mut half = head.call(self.view(&self.ws.n, self.act, &[m, self.dims.hidden]), self.view(&self.ws.logits, DType::F32, &[m, vh]));
+            half.exact_rows = exact;
+            let mut full = half.clone();
+            for t in full.inputs.iter_mut().skip(1).filter(|t| t.shape.first() == Some(&vh)) {
+                t.shape[0] = v;
+            }
+            for t in full.outputs.iter_mut() {
+                t.shape = vec![m, v];
+            }
+            let (a, b) = (self.registry.select(&half)?.name.clone(), self.registry.select(&full)?.name.clone());
+            if a != b {
+                return Err(Error::Unsupported(format!(
+                    "vocab-parallel lm_head: {} rows of the head run on '{a}' but the full {v} rows on '{b}', so the split logits \
+                     would not be bitwise the replicated head's (INTARSIA_TP_VOCAB=0)",
+                    vh
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// A vocab-parallel peer's share of the head of rows `[r0, r0 + c)`: its slice of the logits and the gather, no argmax.
+    fn head_peer(&self, hn: &TensorRef, r0: usize, c: usize) -> Result<()> {
+        self.head_proj(&hn.rows(r0, c), c, false).map(|_| ())
     }
 
     /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on.

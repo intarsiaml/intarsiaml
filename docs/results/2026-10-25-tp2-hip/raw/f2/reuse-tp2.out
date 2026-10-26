@@ -1,0 +1,20 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 4096 (recipe qwen3_5_moe, hip); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+long_code_4k       both      SKIPPED: a prompt of 4064 tokens cannot cross a chunk boundary at the default prefill chunk 4096 (no split above 4096 leaves room for turn 2)
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: mean KL(oracle||cold) 3.47e-3, mean KL(oracle||warm) 5.00e-3, warm/cold 1.44x; limit 1.5x cold + 3e-3 = 8.21e-3: PASS
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok (oracle-relative: mean KL(oracle||cold) 3.47e-3, mean KL(oracle||warm) 5.00e-3, warm/cold 1.44x; limit 1.5x cold + 3e-3 = 8.21e-3: PASS)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+long_docs_12k      continue    6000  12080    6015      0     32/32  ok
+long_docs_12k      restore     6000  12064    4096      0     32/32  ok
+long_docs_12k      aligned     4096  12064    4096      0     32/32  ok (logits bit-identical to the cold run)
+long_code_12k      continue    6000  12080    6015      0     32/32  ok
+long_code_12k      restore     6000  12064    4096      0     32/32  ok
+long_code_12k      aligned     4096  12064    4096      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 3 prompt(s) judged, 2 skipped
+prefix reuse: 2 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 4096 (recipe qwen3_5_moe, hip): long_docs_4k, long_code_4k; 3 judged
+prefix-reuse gate: PASS
+golden gate: PASS

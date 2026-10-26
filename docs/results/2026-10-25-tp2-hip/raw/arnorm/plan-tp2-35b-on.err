@@ -1,0 +1,6 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0

@@ -1,0 +1,12 @@
+19:28:04 window start, CAP 1750s, pre-change 99afb94, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+19:28:16 repro w0-prefill-graphs0 exit 0 [INTARSIA_BATCH_GRAPHS=0 INTARSIA_REPRO_REPS=3]: REPRO failures 0/3 | 
+19:28:54 repro w3-prefill-drain1 exit 101 [INTARSIA_BATCH_GRAPHS=0 INTARSIA_HIP_AR_DRAIN=1 INTARSIA_REPRO_REPS=3]:  | 
+19:29:20 repro w2-prefill-blocking exit 0 [INTARSIA_BATCH_GRAPHS=0 HIP_LAUNCH_BLOCKING=1 INTARSIA_REPRO_REPS=3]: REPRO failures 0/3 | 
+19:29:33 repro w1-prefill-graphs1 exit 0 [INTARSIA_REPRO_REPS=3]: REPRO failures 0/3 | 
+19:30:24 repro v0-baseline exit 101 [INTARSIA_REPRO_REPS=3]:  | 
+19:31:09 repro v1-drain1 exit 101 [INTARSIA_REPRO_REPS=3 INTARSIA_HIP_AR_DRAIN=1]:  | 
+19:31:36 acc-27b-tp1 exit 0: golden gate: PASS|
+19:31:52 acc-27b-tp2-a exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+19:32:07 acc-27b-tp2-b exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+19:32:21 self-27b-tp2-b-vs-a exit 0: SELF-STATS mode=prefill positions=1441 mean_kl21=1.519451e-12 max_kl21=5.145427e-10 flips=0 flip_pct=0.0000 tail_abs=4.334420e-9 worst_prompt_kl21=1.369163e-11|SELF-STATS mode=decode positions=160 mean_kl21=1.973617e-11 max_kl21=1.522771e-9 flips=0 flip_pct=0.0000 tail_abs=5.587318e-9 worst_prompt_kl21=9.520577e-11|golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+19:32:21 done, time left 1493s

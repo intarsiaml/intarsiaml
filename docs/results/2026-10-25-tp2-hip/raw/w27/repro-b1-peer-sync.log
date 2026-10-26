@@ -1,0 +1,2047 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:957:45
+    |
+957 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:241:8
+    |
+241 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_batch_first_steps_repro ... COMM group: rank 0 device 0 scratch 0x753cd7600000 flags 0x753cd7200000 ctrs 0x753cd7201000
+COMM group: rank 1 device 1 scratch 0x753cd6800000 flags 0x753cd6400000 ctrs 0x753cd6401000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: launch counters 5634 flags 5634; rank 1: launch counters 5634 flags 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: launch counters 5763 flags 5763; rank 1: launch counters 5763 flags 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: launch counters 6021 flags 6021; rank 1: launch counters 6021 flags 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: launch counters 6150 flags 6150; rank 1: launch counters 6150 flags 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: launch counters 6537 flags 6537; rank 1: launch counters 6537 flags 6537; host call log: rank 0 6150 launches, rank 1 6150; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: launch counters 6666 flags 6666; rank 1: launch counters 6666 flags 6666; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the solo rows, before the batched step: rank 0: launch counters 7053 flags 7053; rank 1: launch counters 7053 flags 7053; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the solo rows, before the batched step: rank 0: launch counters 7698 flags 7698; rank 1: launch counters 7698 flags 7698; host call log: rank 0 6795 launches, rank 1 6795; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the batched step: rank 0: launch counters 7827 flags 7827; rank 1: launch counters 7827 flags 7827; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the solo rows, before the batched step: rank 0: launch counters 8343 flags 8343; rank 1: launch counters 8343 flags 8343; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the batched step: rank 0: launch counters 8472 flags 8472; rank 1: launch counters 8472 flags 8472; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the solo rows, before the batched step: rank 0: launch counters 9117 flags 9117; rank 1: launch counters 9117 flags 9117; host call log: rank 0 7440 launches, rank 1 7440; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the batched step: rank 0: launch counters 9246 flags 9246; rank 1: launch counters 9246 flags 9246; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the solo rows, before the batched step: rank 0: launch counters 9891 flags 9891; rank 1: launch counters 9891 flags 9891; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the batched step: rank 0: launch counters 10020 flags 10020; rank 1: launch counters 10020 flags 10020; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the solo rows, before the batched step: rank 0: launch counters 10794 flags 10794; rank 1: launch counters 10794 flags 10794; host call log: rank 0 7827 launches, rank 1 7827; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the batched step: rank 0: launch counters 10923 flags 10923; rank 1: launch counters 10923 flags 10923; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the solo rows, before the batched step: rank 0: launch counters 11697 flags 11697; rank 1: launch counters 11697 flags 11697; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the solo rows, before the batched step: rank 0: launch counters 12729 flags 12729; rank 1: launch counters 12729 flags 12729; host call log: rank 0 8085 launches, rank 1 8085; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the batched step: rank 0: launch counters 12858 flags 12858; rank 1: launch counters 12858 flags 12858; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the solo rows, before the batched step: rank 0: launch counters 13761 flags 13761; rank 1: launch counters 13761 flags 13761; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the batched step: rank 0: launch counters 13890 flags 13890; rank 1: launch counters 13890 flags 13890; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the solo rows, before the batched step: rank 0: launch counters 14922 flags 14922; rank 1: launch counters 14922 flags 14922; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the batched step: rank 0: launch counters 15051 flags 15051; rank 1: launch counters 15051 flags 15051; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the solo rows, before the batched step: rank 0: launch counters 16083 flags 16083; rank 1: launch counters 16083 flags 16083; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the batched step: rank 0: launch counters 16212 flags 16212; rank 1: launch counters 16212 flags 16212; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the solo rows, before the batched step: rank 0: launch counters 17373 flags 17373; rank 1: launch counters 17373 flags 17373; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the batched step: rank 0: launch counters 17503 flags 17503; rank 1: launch counters 17503 flags 17503; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the solo rows, before the batched step: rank 0: launch counters 18664 flags 18664; rank 1: launch counters 18664 flags 18664; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the batched step: rank 0: launch counters 18794 flags 18794; rank 1: launch counters 18794 flags 18794; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the solo rows, before the batched step: rank 0: launch counters 20084 flags 20084; rank 1: launch counters 20084 flags 20084; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the batched step: rank 0: launch counters 20214 flags 20214; rank 1: launch counters 20214 flags 20214; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the solo rows, before the batched step: rank 0: launch counters 21504 flags 21504; rank 1: launch counters 21504 flags 21504; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the batched step: rank 0: launch counters 21634 flags 21634; rank 1: launch counters 21634 flags 21634; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the solo rows, before the batched step: rank 0: launch counters 23053 flags 23053; rank 1: launch counters 23053 flags 23053; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the batched step: rank 0: launch counters 23183 flags 23183; rank 1: launch counters 23183 flags 23183; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the solo rows, before the batched step: rank 0: launch counters 24602 flags 24602; rank 1: launch counters 24602 flags 24602; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the batched step: rank 0: launch counters 24732 flags 24732; rank 1: launch counters 24732 flags 24732; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the solo rows, before the batched step: rank 0: launch counters 26280 flags 26280; rank 1: launch counters 26280 flags 26280; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the batched step: rank 0: launch counters 26410 flags 26410; rank 1: launch counters 26410 flags 26410; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the solo rows, before the batched step: rank 0: launch counters 27958 flags 27958; rank 1: launch counters 27958 flags 27958; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the batched step: rank 0: launch counters 28088 flags 28088; rank 1: launch counters 28088 flags 28088; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the solo rows, before the batched step: rank 0: launch counters 29765 flags 29765; rank 1: launch counters 29765 flags 29765; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the batched step: rank 0: launch counters 29895 flags 29895; rank 1: launch counters 29895 flags 29895; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the solo rows, before the batched step: rank 0: launch counters 31572 flags 31572; rank 1: launch counters 31572 flags 31572; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the batched step: rank 0: launch counters 31702 flags 31702; rank 1: launch counters 31702 flags 31702; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the solo rows, before the batched step: rank 0: launch counters 33508 flags 33508; rank 1: launch counters 33508 flags 33508; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the batched step: rank 0: launch counters 33638 flags 33638; rank 1: launch counters 33638 flags 33638; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the solo rows, before the batched step: rank 0: launch counters 35444 flags 35444; rank 1: launch counters 35444 flags 35444; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the batched step: rank 0: launch counters 35574 flags 35574; rank 1: launch counters 35574 flags 35574; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the solo rows, before the batched step: rank 0: launch counters 37509 flags 37509; rank 1: launch counters 37509 flags 37509; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the batched step: rank 0: launch counters 37639 flags 37639; rank 1: launch counters 37639 flags 37639; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the solo rows, before the batched step: rank 0: launch counters 39574 flags 39574; rank 1: launch counters 39574 flags 39574; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the batched step: rank 0: launch counters 39704 flags 39704; rank 1: launch counters 39704 flags 39704; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the solo rows, before the batched step: rank 0: launch counters 41768 flags 41768; rank 1: launch counters 41768 flags 41768; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the batched step: rank 0: launch counters 41898 flags 41898; rank 1: launch counters 41898 flags 41898; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the solo rows, before the batched step: rank 0: launch counters 43962 flags 43962; rank 1: launch counters 43962 flags 43962; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the batched step: rank 0: launch counters 44092 flags 44092; rank 1: launch counters 44092 flags 44092; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+REPRO rep 0: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+COMM group: rank 0 device 0 scratch 0x753cd3c00000 flags 0x753733c00000 ctrs 0x753733c01000
+COMM group: rank 1 device 1 scratch 0x753cd3200000 flags 0x75345fa00000 ctrs 0x75345fa01000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: launch counters 5634 flags 5634; rank 1: launch counters 5634 flags 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: launch counters 5763 flags 5763; rank 1: launch counters 5763 flags 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: launch counters 6021 flags 6021; rank 1: launch counters 6021 flags 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: launch counters 6150 flags 6150; rank 1: launch counters 6150 flags 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: launch counters 6537 flags 6537; rank 1: launch counters 6537 flags 6537; host call log: rank 0 6150 launches, rank 1 6150; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: launch counters 6666 flags 6666; rank 1: launch counters 6666 flags 6666; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the solo rows, before the batched step: rank 0: launch counters 7053 flags 7053; rank 1: launch counters 7053 flags 7053; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the solo rows, before the batched step: rank 0: launch counters 7698 flags 7698; rank 1: launch counters 7698 flags 7698; host call log: rank 0 6795 launches, rank 1 6795; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the batched step: rank 0: launch counters 7827 flags 7827; rank 1: launch counters 7827 flags 7827; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the solo rows, before the batched step: rank 0: launch counters 8343 flags 8343; rank 1: launch counters 8343 flags 8343; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the batched step: rank 0: launch counters 8472 flags 8472; rank 1: launch counters 8472 flags 8472; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the solo rows, before the batched step: rank 0: launch counters 9117 flags 9117; rank 1: launch counters 9117 flags 9117; host call log: rank 0 7440 launches, rank 1 7440; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the batched step: rank 0: launch counters 9246 flags 9246; rank 1: launch counters 9246 flags 9246; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the solo rows, before the batched step: rank 0: launch counters 9891 flags 9891; rank 1: launch counters 9891 flags 9891; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the batched step: rank 0: launch counters 10020 flags 10020; rank 1: launch counters 10020 flags 10020; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the solo rows, before the batched step: rank 0: launch counters 10794 flags 10794; rank 1: launch counters 10794 flags 10794; host call log: rank 0 7827 launches, rank 1 7827; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the batched step: rank 0: launch counters 10923 flags 10923; rank 1: launch counters 10923 flags 10923; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the solo rows, before the batched step: rank 0: launch counters 11697 flags 11697; rank 1: launch counters 11697 flags 11697; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the solo rows, before the batched step: rank 0: launch counters 12729 flags 12729; rank 1: launch counters 12729 flags 12729; host call log: rank 0 8085 launches, rank 1 8085; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the batched step: rank 0: launch counters 12858 flags 12858; rank 1: launch counters 12858 flags 12858; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the solo rows, before the batched step: rank 0: launch counters 13761 flags 13761; rank 1: launch counters 13761 flags 13761; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the batched step: rank 0: launch counters 13890 flags 13890; rank 1: launch counters 13890 flags 13890; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the solo rows, before the batched step: rank 0: launch counters 14922 flags 14922; rank 1: launch counters 14922 flags 14922; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the batched step: rank 0: launch counters 15051 flags 15051; rank 1: launch counters 15051 flags 15051; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the solo rows, before the batched step: rank 0: launch counters 16083 flags 16083; rank 1: launch counters 16083 flags 16083; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the batched step: rank 0: launch counters 16212 flags 16212; rank 1: launch counters 16212 flags 16212; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the solo rows, before the batched step: rank 0: launch counters 17373 flags 17373; rank 1: launch counters 17373 flags 17373; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the batched step: rank 0: launch counters 17503 flags 17503; rank 1: launch counters 17503 flags 17503; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the solo rows, before the batched step: rank 0: launch counters 18664 flags 18664; rank 1: launch counters 18664 flags 18664; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the batched step: rank 0: launch counters 18794 flags 18794; rank 1: launch counters 18794 flags 18794; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the solo rows, before the batched step: rank 0: launch counters 20084 flags 20084; rank 1: launch counters 20084 flags 20084; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the batched step: rank 0: launch counters 20214 flags 20214; rank 1: launch counters 20214 flags 20214; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the solo rows, before the batched step: rank 0: launch counters 21504 flags 21504; rank 1: launch counters 21504 flags 21504; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the batched step: rank 0: launch counters 21634 flags 21634; rank 1: launch counters 21634 flags 21634; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the solo rows, before the batched step: rank 0: launch counters 23053 flags 23053; rank 1: launch counters 23053 flags 23053; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the batched step: rank 0: launch counters 23183 flags 23183; rank 1: launch counters 23183 flags 23183; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the solo rows, before the batched step: rank 0: launch counters 24602 flags 24602; rank 1: launch counters 24602 flags 24602; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the batched step: rank 0: launch counters 24732 flags 24732; rank 1: launch counters 24732 flags 24732; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the solo rows, before the batched step: rank 0: launch counters 26280 flags 26280; rank 1: launch counters 26280 flags 26280; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the batched step: rank 0: launch counters 26410 flags 26410; rank 1: launch counters 26410 flags 26410; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the solo rows, before the batched step: rank 0: launch counters 27958 flags 27958; rank 1: launch counters 27958 flags 27958; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the batched step: rank 0: launch counters 28088 flags 28088; rank 1: launch counters 28088 flags 28088; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the solo rows, before the batched step: rank 0: launch counters 29765 flags 29765; rank 1: launch counters 29765 flags 29765; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the batched step: rank 0: launch counters 29895 flags 29895; rank 1: launch counters 29895 flags 29895; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the solo rows, before the batched step: rank 0: launch counters 31572 flags 31572; rank 1: launch counters 31572 flags 31572; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the batched step: rank 0: launch counters 31702 flags 31702; rank 1: launch counters 31702 flags 31702; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the solo rows, before the batched step: rank 0: launch counters 33508 flags 33508; rank 1: launch counters 33508 flags 33508; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the batched step: rank 0: launch counters 33638 flags 33638; rank 1: launch counters 33638 flags 33638; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the solo rows, before the batched step: rank 0: launch counters 35444 flags 35444; rank 1: launch counters 35444 flags 35444; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the batched step: rank 0: launch counters 35574 flags 35574; rank 1: launch counters 35574 flags 35574; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the solo rows, before the batched step: rank 0: launch counters 37509 flags 37509; rank 1: launch counters 37509 flags 37509; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the batched step: rank 0: launch counters 37639 flags 37639; rank 1: launch counters 37639 flags 37639; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the solo rows, before the batched step: rank 0: launch counters 39574 flags 39574; rank 1: launch counters 39574 flags 39574; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the batched step: rank 0: launch counters 39704 flags 39704; rank 1: launch counters 39704 flags 39704; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the solo rows, before the batched step: rank 0: launch counters 41768 flags 41768; rank 1: launch counters 41768 flags 41768; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the batched step: rank 0: launch counters 41898 flags 41898; rank 1: launch counters 41898 flags 41898; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the solo rows, before the batched step: rank 0: launch counters 43962 flags 43962; rank 1: launch counters 43962 flags 43962; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the batched step: rank 0: launch counters 44092 flags 44092; rank 1: launch counters 44092 flags 44092; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+REPRO rep 1: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+COMM group: rank 0 device 0 scratch 0x753cd2a00000 flags 0x753728e00000 ctrs 0x753728e01000
+COMM group: rank 1 device 1 scratch 0x753cd2000000 flags 0x7534ed200000 ctrs 0x7534ed201000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: launch counters 5634 flags 5634; rank 1: launch counters 5634 flags 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: launch counters 5763 flags 5763; rank 1: launch counters 5763 flags 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: launch counters 6021 flags 6021; rank 1: launch counters 6021 flags 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: launch counters 6150 flags 6150; rank 1: launch counters 6150 flags 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: launch counters 6537 flags 6537; rank 1: launch counters 6537 flags 6537; host call log: rank 0 6150 launches, rank 1 6150; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: launch counters 6666 flags 6666; rank 1: launch counters 6666 flags 6666; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the solo rows, before the batched step: rank 0: launch counters 7053 flags 7053; rank 1: launch counters 7053 flags 7053; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the solo rows, before the batched step: rank 0: launch counters 7698 flags 7698; rank 1: launch counters 7698 flags 7698; host call log: rank 0 6795 launches, rank 1 6795; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the batched step: rank 0: launch counters 7827 flags 7827; rank 1: launch counters 7827 flags 7827; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the solo rows, before the batched step: rank 0: launch counters 8343 flags 8343; rank 1: launch counters 8343 flags 8343; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the batched step: rank 0: launch counters 8472 flags 8472; rank 1: launch counters 8472 flags 8472; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the solo rows, before the batched step: rank 0: launch counters 9117 flags 9117; rank 1: launch counters 9117 flags 9117; host call log: rank 0 7440 launches, rank 1 7440; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the batched step: rank 0: launch counters 9246 flags 9246; rank 1: launch counters 9246 flags 9246; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the solo rows, before the batched step: rank 0: launch counters 9891 flags 9891; rank 1: launch counters 9891 flags 9891; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the batched step: rank 0: launch counters 10020 flags 10020; rank 1: launch counters 10020 flags 10020; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the solo rows, before the batched step: rank 0: launch counters 10794 flags 10794; rank 1: launch counters 10794 flags 10794; host call log: rank 0 7827 launches, rank 1 7827; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the batched step: rank 0: launch counters 10923 flags 10923; rank 1: launch counters 10923 flags 10923; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the solo rows, before the batched step: rank 0: launch counters 11697 flags 11697; rank 1: launch counters 11697 flags 11697; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the solo rows, before the batched step: rank 0: launch counters 12729 flags 12729; rank 1: launch counters 12729 flags 12729; host call log: rank 0 8085 launches, rank 1 8085; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the batched step: rank 0: launch counters 12858 flags 12858; rank 1: launch counters 12858 flags 12858; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the solo rows, before the batched step: rank 0: launch counters 13761 flags 13761; rank 1: launch counters 13761 flags 13761; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the batched step: rank 0: launch counters 13890 flags 13890; rank 1: launch counters 13890 flags 13890; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the solo rows, before the batched step: rank 0: launch counters 14922 flags 14922; rank 1: launch counters 14922 flags 14922; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the batched step: rank 0: launch counters 15051 flags 15051; rank 1: launch counters 15051 flags 15051; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the solo rows, before the batched step: rank 0: launch counters 16083 flags 16083; rank 1: launch counters 16083 flags 16083; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the batched step: rank 0: launch counters 16212 flags 16212; rank 1: launch counters 16212 flags 16212; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the solo rows, before the batched step: rank 0: launch counters 17373 flags 17373; rank 1: launch counters 17373 flags 17373; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the batched step: rank 0: launch counters 17503 flags 17503; rank 1: launch counters 17503 flags 17503; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the solo rows, before the batched step: rank 0: launch counters 18664 flags 18664; rank 1: launch counters 18664 flags 18664; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the batched step: rank 0: launch counters 18794 flags 18794; rank 1: launch counters 18794 flags 18794; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the solo rows, before the batched step: rank 0: launch counters 20084 flags 20084; rank 1: launch counters 20084 flags 20084; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the batched step: rank 0: launch counters 20214 flags 20214; rank 1: launch counters 20214 flags 20214; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the solo rows, before the batched step: rank 0: launch counters 21504 flags 21504; rank 1: launch counters 21504 flags 21504; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the batched step: rank 0: launch counters 21634 flags 21634; rank 1: launch counters 21634 flags 21634; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the solo rows, before the batched step: rank 0: launch counters 23053 flags 23053; rank 1: launch counters 23053 flags 23053; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the batched step: rank 0: launch counters 23183 flags 23183; rank 1: launch counters 23183 flags 23183; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the solo rows, before the batched step: rank 0: launch counters 24602 flags 24602; rank 1: launch counters 24602 flags 24602; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the batched step: rank 0: launch counters 24732 flags 24732; rank 1: launch counters 24732 flags 24732; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the solo rows, before the batched step: rank 0: launch counters 26280 flags 26280; rank 1: launch counters 26280 flags 26280; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the batched step: rank 0: launch counters 26410 flags 26410; rank 1: launch counters 26410 flags 26410; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the solo rows, before the batched step: rank 0: launch counters 27958 flags 27958; rank 1: launch counters 27958 flags 27958; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the batched step: rank 0: launch counters 28088 flags 28088; rank 1: launch counters 28088 flags 28088; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the solo rows, before the batched step: rank 0: launch counters 29765 flags 29765; rank 1: launch counters 29765 flags 29765; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the batched step: rank 0: launch counters 29895 flags 29895; rank 1: launch counters 29895 flags 29895; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the solo rows, before the batched step: rank 0: launch counters 31572 flags 31572; rank 1: launch counters 31572 flags 31572; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the batched step: rank 0: launch counters 31702 flags 31702; rank 1: launch counters 31702 flags 31702; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the solo rows, before the batched step: rank 0: launch counters 33508 flags 33508; rank 1: launch counters 33508 flags 33508; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the batched step: rank 0: launch counters 33638 flags 33638; rank 1: launch counters 33638 flags 33638; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the solo rows, before the batched step: rank 0: launch counters 35444 flags 35444; rank 1: launch counters 35444 flags 35444; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the batched step: rank 0: launch counters 35574 flags 35574; rank 1: launch counters 35574 flags 35574; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the solo rows, before the batched step: rank 0: launch counters 37509 flags 37509; rank 1: launch counters 37509 flags 37509; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the batched step: rank 0: launch counters 37639 flags 37639; rank 1: launch counters 37639 flags 37639; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the solo rows, before the batched step: rank 0: launch counters 39574 flags 39574; rank 1: launch counters 39574 flags 39574; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the batched step: rank 0: launch counters 39704 flags 39704; rank 1: launch counters 39704 flags 39704; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the solo rows, before the batched step: rank 0: launch counters 41768 flags 41768; rank 1: launch counters 41768 flags 41768; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the batched step: rank 0: launch counters 41898 flags 41898; rank 1: launch counters 41898 flags 41898; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the solo rows, before the batched step: rank 0: launch counters 43962 flags 43962; rank 1: launch counters 43962 flags 43962; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the batched step: rank 0: launch counters 44092 flags 44092; rank 1: launch counters 44092 flags 44092; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+REPRO rep 2: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+COMM group: rank 0 device 0 scratch 0x753cd1200000 flags 0x753727400000 ctrs 0x753727401000
+COMM group: rank 1 device 1 scratch 0x753ccb800000 flags 0x7534ee200000 ctrs 0x7534ee201000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: launch counters 5634 flags 5634; rank 1: launch counters 5634 flags 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: launch counters 5763 flags 5763; rank 1: launch counters 5763 flags 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: launch counters 6021 flags 6021; rank 1: launch counters 6021 flags 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: launch counters 6150 flags 6150; rank 1: launch counters 6150 flags 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: launch counters 6537 flags 6537; rank 1: launch counters 6537 flags 6537; host call log: rank 0 6150 launches, rank 1 6150; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: launch counters 6666 flags 6666; rank 1: launch counters 6666 flags 6666; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the solo rows, before the batched step: rank 0: launch counters 7053 flags 7053; rank 1: launch counters 7053 flags 7053; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the solo rows, before the batched step: rank 0: launch counters 7698 flags 7698; rank 1: launch counters 7698 flags 7698; host call log: rank 0 6795 launches, rank 1 6795; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the batched step: rank 0: launch counters 7827 flags 7827; rank 1: launch counters 7827 flags 7827; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the solo rows, before the batched step: rank 0: launch counters 8343 flags 8343; rank 1: launch counters 8343 flags 8343; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the batched step: rank 0: launch counters 8472 flags 8472; rank 1: launch counters 8472 flags 8472; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the solo rows, before the batched step: rank 0: launch counters 9117 flags 9117; rank 1: launch counters 9117 flags 9117; host call log: rank 0 7440 launches, rank 1 7440; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the batched step: rank 0: launch counters 9246 flags 9246; rank 1: launch counters 9246 flags 9246; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the solo rows, before the batched step: rank 0: launch counters 9891 flags 9891; rank 1: launch counters 9891 flags 9891; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the batched step: rank 0: launch counters 10020 flags 10020; rank 1: launch counters 10020 flags 10020; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the solo rows, before the batched step: rank 0: launch counters 10794 flags 10794; rank 1: launch counters 10794 flags 10794; host call log: rank 0 7827 launches, rank 1 7827; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the batched step: rank 0: launch counters 10923 flags 10923; rank 1: launch counters 10923 flags 10923; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the solo rows, before the batched step: rank 0: launch counters 11697 flags 11697; rank 1: launch counters 11697 flags 11697; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+REPRO watchdog: a rep took more than 12 s, the ranks are stuck
+LEDGER watchdog: rank 0 227 lines, rank 1 227 lines
+LEDGER the ledgers are identical
+LEDGER rank 0: #187 graph-solo rows=1 issued 7446->7575
+LEDGER rank 0: #188 graph-batch rows=4 issued 7575->7704
+LEDGER rank 0: #189 layers+capture rows=1 issued 7704->7704
+LEDGER rank 0: #190 graph-solo rows=1 issued 7704->7833
+LEDGER rank 0: #191 layers+capture rows=1 issued 7833->7833
+LEDGER rank 0: #192 graph-solo rows=1 issued 7833->7962
+LEDGER rank 0: #193 layers+capture rows=1 issued 7962->7962
+LEDGER rank 0: #194 graph-solo rows=1 issued 7962->8091
+LEDGER rank 0: #195 layers+capture rows=1 issued 8091->8091
+LEDGER rank 0: #196 graph-solo rows=1 issued 8091->8220
+LEDGER rank 0: #197 graph-solo rows=1 issued 8220->8349
+LEDGER rank 0: #198 layers-batch+capture rows=5 issued 8349->8349
+LEDGER rank 0: #199 graph-batch rows=5 issued 8349->8478
+LEDGER rank 0: #200 graph-solo rows=1 issued 8478->8607
+LEDGER rank 0: #201 graph-solo rows=1 issued 8607->8736
+LEDGER rank 0: #202 graph-solo rows=1 issued 8736->8865
+LEDGER rank 0: #203 graph-solo rows=1 issued 8865->8994
+LEDGER rank 0: #204 graph-solo rows=1 issued 8994->9123
+LEDGER rank 0: #205 graph-batch rows=5 issued 9123->9252
+LEDGER rank 0: #206 layers+capture rows=1 issued 9252->9252
+LEDGER rank 0: #207 graph-solo rows=1 issued 9252->9381
+LEDGER rank 0: #208 graph-solo rows=1 issued 9381->9510
+LEDGER rank 0: #209 graph-solo rows=1 issued 9510->9639
+LEDGER rank 0: #210 graph-solo rows=1 issued 9639->9768
+LEDGER rank 0: #211 layers+capture rows=1 issued 9768->9768
+LEDGER rank 0: #212 graph-solo rows=1 issued 9768->9897
+LEDGER rank 0: #213 graph-solo rows=1 issued 9897->10026
+LEDGER rank 0: #214 layers-batch+capture rows=6 issued 10026->10026
+LEDGER rank 0: #215 graph-batch rows=6 issued 10026->10155
+LEDGER rank 0: #216 graph-solo rows=1 issued 10155->10284
+LEDGER rank 0: #217 graph-solo rows=1 issued 10284->10413
+LEDGER rank 0: #218 graph-solo rows=1 issued 10413->10542
+LEDGER rank 0: #219 graph-solo rows=1 issued 10542->10671
+LEDGER rank 0: #220 graph-solo rows=1 issued 10671->10800
+LEDGER rank 0: #221 graph-solo rows=1 issued 10800->10929
+LEDGER rank 0: #222 graph-batch rows=6 issued 10929->11058
+LEDGER rank 0: #223 graph-solo rows=1 issued 11058->11187
+LEDGER rank 0: #224 graph-solo rows=1 issued 11187->11316
+LEDGER rank 0: #225 layers+capture rows=1 issued 11316->11316
+LEDGER rank 0: #226 graph-solo rows=1 issued 11316->11445
+LEDGER rank 1: #187 graph-solo rows=1 issued 7446->7575
+LEDGER rank 1: #188 graph-batch rows=4 issued 7575->7704
+LEDGER rank 1: #189 layers+capture rows=1 issued 7704->7704
+LEDGER rank 1: #190 graph-solo rows=1 issued 7704->7833
+LEDGER rank 1: #191 layers+capture rows=1 issued 7833->7833
+LEDGER rank 1: #192 graph-solo rows=1 issued 7833->7962
+LEDGER rank 1: #193 layers+capture rows=1 issued 7962->7962
+LEDGER rank 1: #194 graph-solo rows=1 issued 7962->8091
+LEDGER rank 1: #195 layers+capture rows=1 issued 8091->8091
+LEDGER rank 1: #196 graph-solo rows=1 issued 8091->8220
+LEDGER rank 1: #197 graph-solo rows=1 issued 8220->8349
+LEDGER rank 1: #198 layers-batch+capture rows=5 issued 8349->8349
+LEDGER rank 1: #199 graph-batch rows=5 issued 8349->8478
+LEDGER rank 1: #200 graph-solo rows=1 issued 8478->8607
+LEDGER rank 1: #201 graph-solo rows=1 issued 8607->8736
+LEDGER rank 1: #202 graph-solo rows=1 issued 8736->8865
+LEDGER rank 1: #203 graph-solo rows=1 issued 8865->8994
+LEDGER rank 1: #204 graph-solo rows=1 issued 8994->9123
+LEDGER rank 1: #205 graph-batch rows=5 issued 9123->9252
+LEDGER rank 1: #206 layers+capture rows=1 issued 9252->9252
+LEDGER rank 1: #207 graph-solo rows=1 issued 9252->9381
+LEDGER rank 1: #208 graph-solo rows=1 issued 9381->9510
+LEDGER rank 1: #209 graph-solo rows=1 issued 9510->9639
+LEDGER rank 1: #210 graph-solo rows=1 issued 9639->9768
+LEDGER rank 1: #211 layers+capture rows=1 issued 9768->9768
+LEDGER rank 1: #212 graph-solo rows=1 issued 9768->9897
+LEDGER rank 1: #213 graph-solo rows=1 issued 9897->10026
+LEDGER rank 1: #214 layers-batch+capture rows=6 issued 10026->10026
+LEDGER rank 1: #215 graph-batch rows=6 issued 10026->10155
+LEDGER rank 1: #216 graph-solo rows=1 issued 10155->10284
+LEDGER rank 1: #217 graph-solo rows=1 issued 10284->10413
+LEDGER rank 1: #218 graph-solo rows=1 issued 10413->10542
+LEDGER rank 1: #219 graph-solo rows=1 issued 10542->10671
+LEDGER rank 1: #220 graph-solo rows=1 issued 10671->10800
+LEDGER rank 1: #221 graph-solo rows=1 issued 10800->10929
+LEDGER rank 1: #222 graph-batch rows=6 issued 10929->11058
+LEDGER rank 1: #223 graph-solo rows=1 issued 11058->11187
+LEDGER rank 1: #224 graph-solo rows=1 issued 11187->11316
+LEDGER rank 1: #225 layers+capture rows=1 issued 11316->11316
+LEDGER rank 1: #226 graph-solo rows=1 issued 11316->11445
+THREAD 16: comm "batch_cuda_real" wchan "futex_do_wait" state "S"
+STACK tid 16:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: syscall
+   3: std::thread::Thread::park
+   4: std::sync::mpmc::list::Channel<T>::recv::{{closure}}
+   5: std::sync::mpmc::list::Channel<T>::recv
+   6: test::console::run_tests_console
+   7: test::test_main
+   8: test::test_main_static
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+  10: std::rt::lang_start::{{closure}}
+  11: std::rt::lang_start_internal
+  12: main
+  13: <unknown>
+  14: __libc_start_main
+  15: _start
+
+THREAD 17: comm "real_35b_tp2_ba" wchan "futex_do_wait" state "S"
+STACK tid 17:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: std::sys::pal::unix::thread::Thread::join
+   5: std::thread::JoinInner<T>::join
+   6: std::thread::scoped::scope
+   7: intarsia_core::model::Model::forward
+   8: <core::iter::adapters::map::Map<I,F> as core::iter::traits::iterator::Iterator>::fold
+   9: <alloc::vec::Vec<T> as alloc::vec::spec_from_iter::SpecFromIter<T,I>>::from_iter
+  10: batch_cuda_real::batch_identity::step
+  11: batch_cuda_real::batch_identity::run
+  12: std::thread::scoped::scope
+  13: core::ops::function::FnOnce::call_once
+  14: test::__rust_begin_short_backtrace
+  15: test::run_test::{{closure}}
+  16: std::sys::backtrace::__rust_begin_short_backtrace
+  17: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  18: std::sys::pal::unix::thread::Thread::new::thread_start
+  19: <unknown>
+  20: <unknown>
+
+THREAD 18: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 18:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+
+THREAD 19: comm "real_35b_tp2_ba" wchan "kfd_wait_on_events" state "S"
+STACK tid 19:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+
+THREAD 1020 (this one): comm "real_35b_tp2_ba" wchan "0" state "R"
+THREAD 1105: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 1105:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <intarsia_backend_hip::device::HipBackend as intarsia_core::backend::Backend>::synchronize
+  14: intarsia_core::model::Model::run_peer
+  15: std::sys::backtrace::__rust_begin_short_backtrace
+  16: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  17: std::sys::pal::unix::thread::Thread::new::thread_start
+  18: <unknown>
+  19: <unknown>
+
+GPU coredump: execvp failed: No such file or directory
+Failed to write program header to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 107728277265 us:  Callback: Queue 0x753ef0400000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec918100 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eecb0e990 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec511c70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec180030 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed7e6610 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed868330 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed4b8350 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee91ff20 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee4b6ac0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed592db0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee5fab20 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef7eae80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeef3dae0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef44aa70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeec746d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc0ff990 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed784510 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed75a9f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefa3f040 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc7a2930 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed3d8330 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeecea5b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefe86830 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcc9e970 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef14fb60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc1b7900 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee7da8f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd027b50 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefd0d770 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefc29bb0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed7de140 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd3b56b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc5d10e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefc42ad0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd46ab60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd740520 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc3c46c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd7f8aa0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd7f4a30 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdacc1d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc5f6900 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc63d820 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefee8480 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fde58fd0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc5e66b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fce8b750 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefc34d70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe1e5ba0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd12b690 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd80beb0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc656f60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe5742b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeff092c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc6100d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd224660 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe9028d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fce85f20 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc2efa40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd10e8d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fec91ea0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc4cddf0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd122250 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefc53b40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd0de9d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee76c4f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc78b9a0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe55ce90 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd392c10 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed046f70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eecd16690 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcc7ec30 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee774ce0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fed1a840 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed8b6c00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee2a5be0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc677100 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef836620 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeec81e60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee1987c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee978280 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe5ca0e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcd5b270 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee31eb40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc3608b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd185e60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec865fe0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefc880d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdeee920 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee70b330 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef7e3410 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc55b820 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdb3c3e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc01b780 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef5e3c40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec886860 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdb51b80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefdb1af0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcdf1700 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdeeae80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeea3d5a0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee805ca0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefe551c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcfe0c80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fce1ee40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe02a880 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcfdc9b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec0f7cb0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fce132e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee4ffc20 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe2147b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd685ba0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe12ebb0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc88d210 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcdf43f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcdfe3b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcdf9200 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcc1b3f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc94f6e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd68cc00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc1d40d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531ff07c1a0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeed22740 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcf9d1b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee781ff0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef479710 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdb595e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed5131a0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefca9420 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee800600 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec5ac940 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed8a1770 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed40e480 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdba0fa0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eecf6fd50 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eecb39bd0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec7ec3a0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed63baf0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc14a680 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe9333c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee77ac80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef863e00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee6c2540 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcc69690 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed808dd0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeeb66cd0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeee75e60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee168c00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe570620 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee167ca0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe17f160 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe9ae0d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fcdb1de0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeebc4500 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefdc1270 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd36b920 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeedb4300 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeec4c400 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe0cde60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd34b8c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd09a060 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd669df0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef0389b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdb2ca10 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd6ce680 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd05c0c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fc46a7f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd098c30 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd095870 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeff8dc80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee5c6510 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fec41600 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fec3bfa0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fec2c690 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe4279e0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe827980 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef766c80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd6b1b80 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fdfc6920 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd6a6f60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeffcbce0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd6bea00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531ff480870 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fe4f6600 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7531fd6c07f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef274b40 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeccc4250 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefd2cd00 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eed6fbb70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec8f05b0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee7b3ea0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eefef6a30 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec575e60 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec451050 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eef45d690 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec2887d0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eee3b1760 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eec51f0c0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eecdd0c70 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x753eeec920f0 SWq=0x753ef2809000, HWq=0x753ef0400000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x753ef0aa2240, kernarg_address=0x0x753cc5c95c00
+	completion_signal=0x0, correlation_id=0
+	rptr=1147922, wptr=1148612
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vectorerror: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86 --test-threads=1 --nocapture --ignored --exact real_35b_tp2_batch_first_steps_repro` (signal: 6, SIGABRT: process abort signal)

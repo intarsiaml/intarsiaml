@@ -1,0 +1,39 @@
+04:17:44 guard: [guard] radiance stopped 2026-10-26 04:17:44
+04:17:44 phase b1 round 1 arm tp1: starting server
+04:17:56 phase b1 round 1 arm tp1: server up, localeval
+04:18:11 phase b1 round 1 arm tp1: localeval exit 0 - result file: `results/20261026-041757-adhoc-tp2final35-b1-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-041757-adhoc-tp2final35-b1-tp1-r1/result.json|
+04:18:11 phase b1 round 1 arm tp2: starting server
+04:18:21 phase b1 round 1 arm tp2: server up, localeval
+04:18:33 phase b1 round 1 arm tp2: localeval exit 0 - result file: `results/20261026-041821-adhoc-tp2final35-b1-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-041821-adhoc-tp2final35-b1-tp2-r1/result.json|
+04:18:34 phase b1 round 2 arm tp2: starting server
+04:18:43 phase b1 round 2 arm tp2: server up, localeval
+04:18:55 phase b1 round 2 arm tp2: localeval exit 0 - result file: `results/20261026-041843-adhoc-tp2final35-b1-tp2-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-041843-adhoc-tp2final35-b1-tp2-r2/result.json|
+04:18:56 phase b1 round 2 arm tp1: starting server
+04:19:08 phase b1 round 2 arm tp1: server up, localeval
+04:19:22 phase b1 round 2 arm tp1: localeval exit 0 - result file: `results/20261026-041909-adhoc-tp2final35-b1-tp1-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-041909-adhoc-tp2final35-b1-tp1-r2/result.json|
+04:19:23 phase b1 round 3 arm tp1: starting server
+04:19:35 phase b1 round 3 arm tp1: server up, localeval
+04:19:50 phase b1 round 3 arm tp1: localeval exit 0 - result file: `results/20261026-041936-adhoc-tp2final35-b1-tp1-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-041936-adhoc-tp2final35-b1-tp1-r3/result.json|
+04:19:50 phase b1 round 3 arm tp2: starting server
+04:20:00 phase b1 round 3 arm tp2: server up, localeval
+04:20:12 phase b1 round 3 arm tp2: localeval exit 0 - result file: `results/20261026-042000-adhoc-tp2final35-b1-tp2-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042000-adhoc-tp2final35-b1-tp2-r3/result.json|
+04:20:12 phase b16 round 1 arm tp1: starting server
+04:20:28 phase b16 round 1 arm tp1: server up, localeval
+04:21:02 phase b16 round 1 arm tp1: localeval exit 0 - result file: `results/20261026-042028-adhoc-tp2final35-b16-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042028-adhoc-tp2final35-b16-tp1-r1/result.json|
+04:21:03 phase b16 round 1 arm tp2: starting server
+04:21:15 phase b16 round 1 arm tp2: server up, localeval
+04:21:41 phase b16 round 1 arm tp2: localeval exit 0 - result file: `results/20261026-042116-adhoc-tp2final35-b16-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042116-adhoc-tp2final35-b16-tp2-r1/result.json|
+04:21:42 phase b16 round 2 arm tp2: starting server
+04:21:54 phase b16 round 2 arm tp2: server up, localeval
+04:22:20 phase b16 round 2 arm tp2: localeval exit 0 - result file: `results/20261026-042155-adhoc-tp2final35-b16-tp2-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042155-adhoc-tp2final35-b16-tp2-r2/result.json|
+04:22:21 phase b16 round 2 arm tp1: starting server
+04:22:36 phase b16 round 2 arm tp1: server up, localeval
+04:23:11 phase b16 round 2 arm tp1: localeval exit 0 - result file: `results/20261026-042237-adhoc-tp2final35-b16-tp1-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042237-adhoc-tp2final35-b16-tp1-r2/result.json|
+04:23:11 phase b16 round 3 arm tp1: starting server
+04:23:27 phase b16 round 3 arm tp1: server up, localeval
+04:24:01 phase b16 round 3 arm tp1: localeval exit 0 - result file: `results/20261026-042327-adhoc-tp2final35-b16-tp1-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042327-adhoc-tp2final35-b16-tp1-r3/result.json|
+04:24:02 phase b16 round 3 arm tp2: starting server
+04:24:14 phase b16 round 3 arm tp2: server up, localeval
+04:24:40 phase b16 round 3 arm tp2: localeval exit 0 - result file: `results/20261026-042415-adhoc-tp2final35-b16-tp2-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-042415-adhoc-tp2final35-b16-tp2-r3/result.json|
+04:24:41 done, time left 2081s
+04:24:51 guard: [guard] radiance answers 2026-10-26 04:24:51 (after 15 s)

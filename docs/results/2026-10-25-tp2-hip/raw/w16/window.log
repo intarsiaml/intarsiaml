@@ -1,0 +1,19 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w16-{batch} 2026-10-25 18:51:44
+[window] job 5392 w16; stopping radiance 2026-10-25 18:51:44
+[window] radiance stopped 2026-10-25 18:51:47
+18:51:47 window start, CAP 1700s, pre-change 3c473ee, VRAM in use 57 MiB
+18:51:50 rows_exact mxfp4 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.95s|
+18:51:55 acc-27b-tp1 exit 1: Error: reading /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors|
+18:51:58 acc-27b-tp2-a exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: reading /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors|
+18:52:14 acc-27b-tp2-b exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+cp: cannot stat '/home/josef/tp2/out/w16/acc-27b-tp2-a.safetensors': No such file or directory
+18:52:17 self-27b-tp2-b-vs-a exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: reading /work/tp2-out/acc-27b-tp2-a.safetensors|
+18:59:31 bt tp2-default exit 124 [INTARSIA_BATCH_TEST_TP=2]: 17550 (row, step) pairs bitwise identical in 427.3 s|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 433.67s|
+18:59:34 bt tp2-vocab0 exit 101 [INTARSIA_BATCH_TEST_TP=2 INTARSIA_TP_VOCAB=0]: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 2.84s|
+19:06:49 bt tp2-fusion0 exit 124 [INTARSIA_BATCH_TEST_TP=2 INTARSIA_TP_FUSION=0]: 17550 (row, step) pairs bitwise identical in 427.4 s|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 433.66s|
+19:14:32 bt tp2-graphs0 exit 124 [INTARSIA_BATCH_TEST_TP=2 INTARSIA_BATCH_GRAPHS=0]: 17550 (row, step) pairs bitwise identical in 432.4 s|batch 4 step 0 row 0 (sequence 0, context 36 -> 37): logits differ at 248320 of 248320 entries, first at 0: solo 2.1643724 batch 5.7217655|
+19:14:32 SKIPPED (time left 335s < 950): 27B batched at tp1
+19:14:32 done, time left 335s
+[window] stages done 2026-10-25 19:14:32 (exit 0)
+[window] starting radiance 2026-10-25 19:14:32
+[window] radiance answers 2026-10-25 19:14:52 (after 25 s)

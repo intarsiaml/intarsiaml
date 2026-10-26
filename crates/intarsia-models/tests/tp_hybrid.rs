@@ -22,6 +22,8 @@ use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+mod common;
+
 /// `INTARSIA_TP_TEST_BUG` is read at load: every test holds this while it runs so none sees another's setting.
 static ENV: Mutex<()> = Mutex::new(());
 
@@ -412,4 +414,33 @@ fn hybrid_moe_tp1_unchanged_by_shard_path() {
     for (i, (x, y)) in ra.iter().zip(&rb).enumerate() {
         assert!(x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits()), "row {i}");
     }
+}
+
+/// Fused all-reduce + residual add + rmsnorm (`LoadOptions::tp_arnorm`) on the hybrid MoE model under row-local fusion: the
+/// norms the fusion already folded into the next block's GEMV pair are not displaced (those reductions are issued before
+/// the folded op), the standalone ones (the final norm) take the fused collective, and the logits are bitwise those of the
+/// run without it.
+#[test]
+fn hybrid_moe_tp2_arnorm_next_to_the_folds_is_bitwise_and_only_takes_the_standalone_norms() {
+    use common::arnorm_comm::ArNormComm;
+    use intarsia_core::comm::Comm;
+    use std::sync::atomic::Ordering;
+    let _g = env();
+    let w = weights();
+    let (recipe, dims) = dims();
+    let go = |arnorm: bool| {
+        let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+        let (comms, mine) = ArNormComm::group(backends.clone(), usize::MAX);
+        let o = LoadOptions { tp_fusion: true, tp_arnorm: arnorm, profile_every: 0, ..opts(DType::F32) };
+        let m = Model::load_tp(backends, comms, &recipe, &dims, &w, &o, Arc::new(Telemetry::new())).unwrap();
+        let rows: Vec<Vec<u32>> = run(&m).iter().map(|r| r.iter().map(|x| x.to_bits()).collect()).collect();
+        (rows, mine[0].fused.load(Ordering::Relaxed), mine[0].stats().calls as usize)
+    };
+    let (a, fused, calls) = go(true);
+    let (b, none, _) = go(false);
+    assert!(a == b, "the logits differ from the run without the fused collective");
+    assert_eq!(none, 0);
+    // 18 forwards (2 prefill chunks + 6 decode steps, each AllLogits head): some reductions fuse, the folded ones do not
+    assert!(fused > 0, "no all-reduce took the fused collective");
+    assert!(fused < calls, "every all-reduce fused although the folds own most of the norms ({fused} of {calls})");
 }

@@ -70,6 +70,8 @@ extern "C" {
     pub fn ik_rt_graph_end(stream: S, exec: *mut S) -> c_int;
     pub fn ik_rt_graph_launch(exec: S, stream: S) -> c_int;
     pub fn ik_rt_graph_destroy(exec: S) -> c_int;
+    pub fn ik_rt_device_sync() -> c_int;
+    pub fn ik_rt_sync_capture_on() -> c_int;
     pub fn ik_rt_can_access_peer(device: c_int, peer: c_int, ok: *mut c_int) -> c_int;
     pub fn ik_rt_enable_peer_access(device: c_int, peer: c_int) -> c_int;
     pub fn ik_rt_malloc_finegrained(p: *mut *mut c_void, bytes: usize) -> c_int;
@@ -87,6 +89,23 @@ extern "C" {
         ctrs: *mut u32,
         slot_bytes: i64,
         nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ag2_gather(
+        x: *mut c_void,
+        out: *mut c_void,
+        bytes: i64,
+        out_stride_bytes: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        rank: c_int,
         drain: c_int,
         stream: S,
     ) -> c_int;
@@ -403,6 +422,31 @@ extern "C" {
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gdn_conv_delta_bf16(x: T, taps: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, cstate: TM, s: S) -> c_int;
+
+    /// `kernels/hip/ar_norm.hip`: `ik_ar2_oneshot` fused with the residual add + rmsnorm after it
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_add_rmsnorm(
+        x: *mut c_void,
+        out: *mut c_void,
+        res: *const c_void,
+        w: *const c_void,
+        nrm: *mut c_void,
+        sum: *mut c_void,
+        dtype: c_int,
+        rows: i64,
+        h: i64,
+        eps: f32,
+        w_offset: f32,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
 }
 
 /// Name of an `enum ik_status` value.

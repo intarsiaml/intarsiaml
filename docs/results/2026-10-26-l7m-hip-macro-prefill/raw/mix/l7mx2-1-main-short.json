@@ -1,0 +1,119 @@
+{
+ "run_id": "20261026-003440-adhoc-l7mx2-1-main-short",
+ "kind": "speed",
+ "label": "l7mx2-1-main-short",
+ "started_at": "2026-10-26T00:34:40-04:00",
+ "finished_at": "2026-10-26T00:35:05-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://tatooine:8296/v1",
+  "model": "intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "mix S l7mx2-1-main"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8296/v1 --model intarsia --thinking off --ignore-busy --no-unim --sizes 1024 --gen 8 --reps 40 --label l7mx2-1-main-short --recipe mix S l7mx2-1-main",
+  "git": "d12b61c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia"
+   ],
+   "root": "Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 16223
+  },
+  "gen_tokens": 8,
+  "reps": 40,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 8.0,
+     "min": 8,
+     "max": 8,
+     "n": 40,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.154,
+     "min": 0.131,
+     "max": 1.49,
+     "n": 40,
+     "spread_pct": 883.6
+    },
+    "prefill_tok_s": {
+     "median": 6434.234,
+     "min": 664.643,
+     "max": 7614.155,
+     "n": 40,
+     "spread_pct": 108.0
+    },
+    "decode_tok_s": {
+     "median": 164.296,
+     "min": 4.918,
+     "max": 174.415,
+     "n": 40,
+     "spread_pct": 103.2
+    },
+    "peak_decode_tok_s": null,
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 40,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia",
+  "activity_checks": {
+   "idle": 29,
+   "busy": 12,
+   "unknown": 0
+  },
+  "warnings": [
+   "decode spread 103.2% at 1024 tokens: noisy; rerun before comparing",
+   "server was busy with other clients at some check (--ignore-busy); numbers are contended"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "decode spread 103.2% at 1024 tokens: noisy; rerun before comparing",
+  "server was busy with other clients at some check (--ignore-busy); numbers are contended"
+ ]
+}

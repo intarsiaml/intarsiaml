@@ -5,6 +5,8 @@
 //! run is declared to need a GPU (`CI=1` or `INTARSIA_REQUIRE_GPU=1`), panics so the skip fails the run.
 #![allow(dead_code)]
 
+pub mod tp_partial;
+
 /// Is a skip a failure in this run?
 pub fn require_gpu() -> bool {
     let set = |k: &str| std::env::var(k).is_ok_and(|v| !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"));

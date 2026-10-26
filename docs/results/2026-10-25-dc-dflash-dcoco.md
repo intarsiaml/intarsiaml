@@ -428,3 +428,21 @@ Shipped state (updated 2026-10-26): the v2 gate stays in the code (measured, ids
 (`CostParams` DFlash default `min_speedup = 0`, recipe `[dflash] cost_min_speedup = 0`). v2 trades 12% of the recall/code gain for prose
 parity, so ungated DFlash with the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x) is what an opt-in user gets; the v2 gate is one
 switch away (`INTARSIA_SPEC_COSTGATE=1`, or `cost_min_speedup = 1.03` in `[dflash]`). No defaults change anywhere for runs without `--spec dflash`.
+
+## 13. Side finding: 35B `--spec mtp` is not ids-exact at long context on CUDA
+
+Not part of the DFlash work; found while checking that the #162 MTP load fix left `--spec mtp` exact. Model `nvidia/Qwen3.6-35B-A3B-NVFP4`
+on spark1 (GB10), `--spec mtp --spec-k 2` vs `--spec off`, greedy, 128 ids, raw repo-doc prompts, binary = main `b8fb4e6dd` (script
+`scripts/dc/gates.sh mtp35`).
+
+| context | prompts identical | first differing id | with `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` |
+| --- | --- | --- | --- |
+| 4k | 3 of 3 (`raw/mtp35-ids2.log`) | | not run |
+| 16k (13.7-15.4k tokens) | 1 of 3 (`raw/mtp35-ids3.log`) | 17, 18 | 2 of 2 (`raw/mtp35-ids4-perrow.log`) |
+| 32k (27.8k tokens) | 0 of 3 (`raw/mtp35-ids3.log`) | not extracted | 2 of 2 (`raw/mtp35-ids5-perrow32k.log`) |
+
+`raw/mtp35-ids2.log` first run at 16k/32k is invalid (prompts over the 20480-token context; both off and mtp errored, `raw/mtp35-ids2-undersized-ctx.log`);
+the script now sizes prompts at 2.3 chars per target token. Cause (same as section 10.1): the multi-row verify attention is not bitwise
+the single-row decode kernel at large positions. Per-row verify attention is exact by construction and costs speed (e.g. 16k p0: mtp 73.9 vs off 75.5 tok/s at
+acceptance 47.7%; p1: 100.1 vs 74.9). Proposal: default it on for `--spec mtp` on CUDA. Not done here: it is a numerics change to a shipped path and
+`verify_rows_attn` is set only with the DFlash drafter on this branch.

@@ -1,0 +1,9 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 3.7s: 40 layers, hidden 2048, act bf16, kv bf16, weights 10.94 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 24 tokens
+GPU coredump: execvp failed: No such file or directory
+Failed to write segment data to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 56729755664 us:  Callback: Queue 0x740ae4800000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016

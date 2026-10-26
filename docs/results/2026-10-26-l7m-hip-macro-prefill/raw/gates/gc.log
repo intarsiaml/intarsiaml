@@ -1,0 +1,72 @@
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+batch 2: 130 steps bitwise in 3.3 s (per step: 9.1 ms batched, 15.0 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 4.1 s (per step: 11.3 ms batched, 18.6 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 5.1 s (per step: 12.9 ms batched, 24.7 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 6.2 s (per step: 14.8 ms batched, 30.8 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 7.3 s (per step: 16.6 ms batched, 36.9 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 8.5 s (per step: 19.0 ms batched, 43.5 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 9.6 s (per step: 20.9 ms batched, 49.5 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 11.1 s (per step: 26.5 ms batched, 55.6 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 12.1 s (per step: 27.2 ms batched, 61.8 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 13.4 s (per step: 29.8 ms batched, 68.2 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 14.2 s (per step: 29.8 ms batched, 74.4 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 15.4 s (per step: 33.0 ms batched, 80.6 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 16.7 s (per step: 35.6 ms batched, 87.0 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 17.9 s (per step: 38.1 ms batched, 93.2 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 19.1 s (per step: 40.9 ms batched, 99.5 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 164.9 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+test result: ok. 3 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 215.88s
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.4 ms batched, 1.1 ms for the 2 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.7 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 6 steps bitwise in 0.0 s (per step: 2.8 ms batched, 1.4 ms for the 4 solo steps)
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.3 ms batched, 0.8 ms for the 2 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 6 steps bitwise in 0.0 s (per step: 2.8 ms batched, 1.4 ms for the 4 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.3 ms batched, 0.8 ms for the 2 solo steps)
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test batched_engine_with_packed_prefill_equals_solo ... Dense rows 2: 1 packed passes carried 2 chunks of 9 (9 chunks in all)
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.3 ms batched, 0.9 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.5 ms batched, 1.5 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.7 ms batched, 1.7 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.5 ms batched, 3.5 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.6 s (per step: 5.2 ms batched, 7.1 ms for the 16 solo steps)
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.3 ms batched, 0.8 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.8 ms batched, 1.6 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.6 ms batched, 3.2 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.5 s (per step: 5.4 ms batched, 6.4 ms for the 16 solo steps)
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.3 ms batched, 0.8 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.8 ms batched, 1.6 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.6 ms batched, 3.2 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.5 s (per step: 5.4 ms batched, 6.4 ms for the 16 solo steps)
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+Dense: 300 decode rows bitwise solo, 60468 batched steps begun while a chunk was running
+Moe: 300 decode rows bitwise solo, 131437 batched steps begun while a chunk was running
+MoeA8: 300 decode rows bitwise solo, 132554 batched steps begun while a chunk was running
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test macro_forward_equals_chunked_forward ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 103.80s
+test shipped_35b_recipe_macro_sizes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
