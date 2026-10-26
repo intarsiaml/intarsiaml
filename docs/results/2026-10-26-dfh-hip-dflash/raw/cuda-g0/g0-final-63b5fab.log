@@ -1,0 +1,19 @@
+head=63b5fab_code-tree=6dd5fb673dad_dirty=no
+head=a3e60ce_code-tree=201f61520793_dirty=no
+fleetq: #5760 running on spark1: ssh spark1 'bash -s build'
+    Finished `release` profile [optimized] target(s) in 22.70s
+build base done 12:50:37
+    Finished `release` profile [optimized] target(s) in 21.74s
+build dev done 12:50:59
+fleetq: #5760 done (exit 0)
+fleetq: #5761 running on spark1: ssh spark1 'bash -s g0'
+PASS ids 8 short identical (256 ids)
+PASS ids 8 4k identical (256 ids)
+PASS plan 8 json identical but the build stamp (8758 B)
+PASS plan 8 txt identical but the build stamp (1478 B)
+PASS ids 35 short identical (256 ids)
+PASS ids 35 4k identical (256 ids)
+PASS plan 35 json identical but the build stamp (13977 B)
+PASS plan 35 txt identical but the build stamp (3507 B)
+g0 fails=0
+fleetq: #5761 done (exit 0)

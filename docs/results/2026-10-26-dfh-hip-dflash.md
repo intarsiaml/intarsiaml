@@ -435,3 +435,18 @@ Single-stream decode of the 27B at tp=2 goes from 53.3 tok/s to 76-103 tok/s. Wi
 on by default at tp2 if it passes"), ids 18/18 and the soak (window 7), the recipe now sets `[tuning.hip] mtp_default_tp_k = 2` in
 `recipes/qwen3_5_vl.toml`: with no `--spec` at `--tp 2` the 27B on HIP runs `--spec mtp --spec-k 2`; tp=1, other models and backends
 are unchanged; `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opt out. DFlash2 stays opt-in.
+
+## 15. Window 9 and G0 at the final head
+
+Tree `63b5fabc4` (lane head with origin/main `a3e60ce6` merged and the tp MTP default on) against origin/main `a3e60ce6`:
+
+- **HIP** (window 9, #5763, 12:52-12:57:51 radiance down; `raw/w9/`): G0 8 of 8 SAME (8B and 35B, 256 ids short and 4k, `plan show`
+  JSON and text). Admission: the (kernel, verdict) diff against main is the lane's two kernels, `ADMITTED` (main's own failure set,
+  10 untested wmma kernels, unchanged).
+- **The default**: 27B at `--tp 2` with no `--spec`: the default line ("--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at
+  tp=2"), 100-123 verify passes, and 256 ids identical to `--spec off` on 6 of 6 prompts (2 short, 2 ~3k, 2 ~11k). At tp=1 with no
+  `--spec`: no default line, no speculation, ids identical to `--spec off` (2 of 2).
+- **CUDA** (spark1, #5760/#5761, `raw/cuda-g0/g0-final-63b5fab.log`): 8 of 8 PASS, `g0 fails=0`.
+- **Metal** (endor, #5758, `raw/metal/g0-final-63b5fab.log`): 8 of 8 identical; `kernels test` 44 kernels, 817 cases.
+
+The radiance reference run on the same category prompts (record-only) follows in section 16.
