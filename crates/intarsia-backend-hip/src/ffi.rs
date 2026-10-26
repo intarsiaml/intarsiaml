@@ -71,6 +71,7 @@ extern "C" {
     pub fn ik_rt_graph_launch(exec: S, stream: S) -> c_int;
     pub fn ik_rt_graph_destroy(exec: S) -> c_int;
     pub fn ik_rt_device_sync() -> c_int;
+    pub fn ik_rt_sync_capture_on() -> c_int;
     pub fn ik_rt_can_access_peer(device: c_int, peer: c_int, ok: *mut c_int) -> c_int;
     pub fn ik_rt_enable_peer_access(device: c_int, peer: c_int) -> c_int;
     pub fn ik_rt_malloc_finegrained(p: *mut *mut c_void, bytes: usize) -> c_int;

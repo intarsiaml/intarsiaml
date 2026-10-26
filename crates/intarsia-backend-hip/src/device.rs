@@ -63,6 +63,8 @@ impl Drop for HipBuffer {
 struct HipGraph {
     exec: usize,
     ordinal: i32,
+    /// Set by the first launch (INTARSIA_GRAPH_SYNC_CAPTURE syncs the stream before it).
+    launched: std::sync::atomic::AtomicBool,
 }
 
 impl GraphImpl for HipGraph {
@@ -866,7 +868,7 @@ impl Backend for HipBackend {
         // SAFETY: valid out-pointer; ends the capture even when `body` failed (the recording is then dropped).
         let ended = check("hipStreamEndCapture/hipGraphInstantiate", unsafe { ffi::ik_rt_graph_end(s, &mut exec) });
         // an instantiated graph is owned (and destroyed on drop) even when the body failed
-        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal });
+        let graph = (!exec.is_null()).then(|| HipGraph { exec: exec as usize, ordinal: self.ordinal, launched: std::sync::atomic::AtomicBool::new(false) });
         ran?;
         ended?;
         let graph = graph.ok_or_else(|| Error::backend("graph capture produced no executable graph"))?;
@@ -877,6 +879,11 @@ impl Backend for HipBackend {
         let g = g.downcast::<HipGraph>().ok_or_else(|| Error::backend("graph does not belong to the hip backend"))?;
         self.bind()?;
         let s = self.stream(stream)?;
+        // INTARSIA_GRAPH_SYNC_CAPTURE=1: the stream is idle before the first launch of a fresh exec
+        // SAFETY: plain FFI calls on this rank's bound device and stream.
+        if unsafe { ffi::ik_rt_sync_capture_on() } == 1 && !g.launched.swap(true, Ordering::Relaxed) {
+            check("stream synchronize", unsafe { ffi::ik_rt_stream_sync(s) })?;
+        }
         // SAFETY: `exec` is a live hipGraphExec_t owned by `g`.
         check("hipGraphLaunch", unsafe { ffi::ik_rt_graph_launch(g.exec as *mut c_void, s) })
     }
