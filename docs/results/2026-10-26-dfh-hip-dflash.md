@@ -333,3 +333,45 @@ Regression: `mtp`, `dflash2_cpu`, `tp`, `tp_hybrid`, `tp_vocab`, `tp_batch`, `sp
 | `mtp-peer-stale-chain` (a peer does not keep its chained row) | `46a6143c301cf033` | `mtp_tp2_drafts_equal_tp1_drafts` |
 | `mtp-draft-head-slice` (rank 0 drafts over its vocab share instead of a whole head) | `7e234f401ae3902a` | `mtp_tp2_drafts_equal_tp1_drafts` |
 | `mtp-peer-no-verify-queue` (peers never queue the verify pass's rows) | `2c330c2cad42feca` | `mtp_tp2_greedy_ids_equal_spec_off` |
+
+## 12. Window 6: G0, admission and the 27B ids gate at the lane head
+
+Window 6 (#5743, 10:45:44-11:00:53 radiance down; `raw/w6/`), tree `e745e9ea1`, `scripts/dfh/stages-w6.sh` (dry-run first, `#5742`).
+
+- **HIP G0**, dev vs origin/main `ec9e36b85`, flags off: 8B and 35B, 256 greedy ids short and 4k, `plan show` JSON and text: **12 of
+  12 SAME**. **CUDA G0** (spark1, `raw/cuda-g0/g0-head-bd51d5f.log`) and **Metal G0** (endor, `raw/metal/g0-head-bd51d5f.log`) at
+  `bd51d5ffa`: 8 of 8 identical each. (Commits after `bd51d5ffa` touch only the spec-on loader gate and tests.)
+- **HIP admission**: dev and main fail `every_hip_kernel_matches_the_reference` with the same set (10 wmma kernels, `NO CASES`); the
+  (kernel, verdict) diff is the lane's two kernels, `ADMITTED` (`raw/w6/admission-dev-vs-main.diff`).
+- **27B ids**, 18 prompts (`scripts/dfh/ids-prompts`, `scripts/dfh/mkprompts.py`: 6 short of 34-69 tokens, 6 of 2610-3381 tokens, 6 of
+  10413-12552 tokens), 256 greedy ids, byte-identical `.ids` files against `--spec off` at the same tp:
+
+| arm | tp=1 | tp=2 |
+|---|---|---|
+| `--spec dflash` k7 (DFlash2 draft) | **18 / 18** | **18 / 18** |
+| `--spec mtp` k2 | **18 / 18** | not run: the engine loader's backend gate still refused it (`raw/w6/gen-tp2-short-0-mtp2.err`); the stage skipped the arm after the first failure |
+
+  The refusal was a second check in `crates/intarsia-models/src/load.rs` (the spec / backend gate) that the cpu gates, which load
+  through `Model::load_tp`, never reach; fixed in `3503c1a53` with a cpu test through `load_engine_tp`
+  (`mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off`).
+
+**Acceptance per position** (`INTARSIA_SPEC_TRACE=1`, `tools/dfh/accept_table.py`, `raw/w6/acceptance.txt`; P(a pass accepts at
+least i drafts)):
+
+| tp | arm | prompts | passes | tokens / pass | i = 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | dflash k7 | short | 427 | 3.57 | 0.77 | 0.55 | 0.40 | 0.28 | 0.22 | 0.19 | 0.16 |
+| 1 | dflash k7 | ~3k | 416 | 3.68 | 0.80 | 0.60 | 0.44 | 0.33 | 0.24 | 0.16 | 0.11 |
+| 1 | dflash k7 | ~11k | 456 | 3.35 | 0.79 | 0.54 | 0.34 | 0.26 | 0.19 | 0.14 | 0.09 |
+| 1 | mtp k2 | short | 652 | 2.34 | 0.77 | 0.56 | | | | | |
+| 1 | mtp k2 | ~3k | 613 | 2.49 | 0.85 | 0.64 | | | | | |
+| 1 | mtp k2 | ~11k | 632 | 2.42 | 0.81 | 0.61 | | | | | |
+| 2 | dflash k7 | short | 409 | 3.72 | 0.74 | 0.53 | 0.42 | 0.33 | 0.28 | 0.23 | 0.20 |
+| 2 | dflash k7 | ~3k | 433 | 3.53 | 0.82 | 0.59 | 0.39 | 0.29 | 0.19 | 0.15 | 0.10 |
+| 2 | dflash k7 | ~11k | 475 | 3.22 | 0.75 | 0.50 | 0.34 | 0.24 | 0.17 | 0.13 | 0.10 |
+
+DFlash2's first draft is accepted about as often as MTP's (0.74-0.82 against 0.77-0.85) and as radiance's own counter on its
+traffic (0.84 at position 0, `radiance:draft_position_acceptance_ratio`; radiance reports the ratio per position given the previous one,
+which chains to about 0.84, 0.67, 0.54, 0.42, 0.32, 0.23, 0.16, i.e. about 4.2 tokens per pass, on other prompts, sampled at 0.7).
+No sign of a defect in the draft path at position 1. The gap is deeper in the block. The radiance run on the same prompts (section 14)
+tells whether this is the target or the drafter.
