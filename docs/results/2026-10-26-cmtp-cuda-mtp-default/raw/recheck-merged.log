@@ -1,0 +1,11 @@
+fleetq: #5801 running on spark1: ssh spark1 'bash -s'
+PASS ids short-0 auto (prompt: 41) 256 ids identical | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)
+PASS ids short-3 auto (prompt: 43) 256 ids identical | spec: verify passes=91 proposed=182 accepted=163 (acceptance 89.6%, 2.79 tokens per pass)
+PASS ids 4k-0 auto (prompt: 3870) 256 ids identical | spec: verify passes=106 proposed=211 accepted=149 (acceptance 70.6%, 2.41 tokens per pass)
+PASS ids 4k-2 auto (prompt: 4348) 256 ids identical | spec: verify passes=107 proposed=214 accepted=147 (acceptance 68.7%, 2.37 tokens per pass)
+PASS ids 16k-0 auto (prompt: 15481) 256 ids identical | spec: verify passes=108 proposed=216 accepted=146 (acceptance 67.6%, 2.35 tokens per pass)
+PASS ids 16k-3 auto (prompt: 16134) 256 ids identical | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+ids fails=0
+lone --spec-k 3: --spec mtp --spec-k 3 (k from --spec-k): the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; | spec: verify passes=78 proposed=233 accepted=177 (acceptance 76.0%, 3.27 tokens per pass)
+PASS lone --spec-k 3 ids == off
+fleetq: #5801 done (exit 0)
