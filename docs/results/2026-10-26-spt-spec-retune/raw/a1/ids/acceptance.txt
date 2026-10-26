@@ -1,0 +1,4 @@
+tp   arm   prompts passes t/pass  P(accepted >= i), i = 1..7
+tp2  mtp3  short      547   2.79  0.78 0.56 0.45
+tp2  mtp3  4k         554   2.75  0.79 0.57 0.39
+tp2  mtp3  16k        538   2.83  0.82 0.59 0.42

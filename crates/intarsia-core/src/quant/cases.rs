@@ -790,7 +790,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             // decode shape (256 experts, top-8, H = 2048, I = IS = 512) at one and two tokens
             let mut shapes: Vec<(usize, usize, usize, usize, usize, usize)> =
                 vec![(1, 16, 2, 256, 16, 32), (2, 32, 4, 256, 48, 64), (1, 16, 8, 208, 64, 16)];
-            if !quick {
+            // 3 tokens is the first row count of the grouped block (HIP moe_block_bf16_grouped takes T 3..=16), so the quick sweep keeps it
+            if quick {
+                shapes.push((3, 16, 8, 208, 64, 16));
+            } else {
                 shapes.extend([(2, 16, 2, 256, 16, 32), (5, 32, 4, 256, 48, 64), (3, 16, 8, 208, 64, 16)]);
             }
             for (t, e, k, h, i, is) in shapes {

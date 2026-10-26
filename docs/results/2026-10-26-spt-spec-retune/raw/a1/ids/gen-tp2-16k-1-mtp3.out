@@ -1,0 +1,10 @@
+Here is a detailed explanation of the document for a new engineer joining the project.
+
+### 1. Executive Summary
+
+This document records the development, testing, and evaluation of **DFlash** (a parallel-draft speculative decoding method) and **DCOCO** (a contextual corrector for DFlash) for the `intarsia` inference engine.
+
+**Key Takeaways:**
+1.  **DFlash is a success:** It provides a significant speedup (up to 1.86x) on math and code tasks, with bitwise-exact output matching the non-speculative baseline. It is currently **opt-in** (`--spec dflash`).
+2.  **DCOCO is a failure (for now):** The corrector provides negligible gains (+1.8% acceptance rate) but adds significant latency (7% slower decode). It fails the performance gate and remains an experimental, opt-in flag (`--dcoco`).
+3.  **Critical Bug Found & Fixed:** The standard CUDA multi-row verification kernel is **not bitwise-exact** for dense models (like Qwen3-8B) when context length > ~100 tokens. This could cause greedy decoding to diverge from the baseline. The fix is to use

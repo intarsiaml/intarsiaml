@@ -1,0 +1,25 @@
+
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:42:9:
+kernels not admitted with INTARSIA_HIP_WMMA_ROWS=1:
+matmul_fp8_pair_wmma
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/true  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 64], [64, 64], [2], [48, 64], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=false/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 64], [64, 64], [2], [48, 64], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 64], [64, 64], [2], [48, 64], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/true  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 96], [40, 96], [2], [96, 96], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=false/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 96], [40, 96], [2], [96, 96], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 96], [40, 96], [2], [96, 96], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/true  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 48], [17, 48], [2], [33, 48], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=false/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 48], [17, 48], [2], [33, 48], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 48], [17, 48], [2], [33, 48], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/true  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 2048], [8192, 2048], [2], [4096, 2048], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=false/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 2048], [8192, 2048], [2], [4096, 2048], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/false  ERROR: backend error: ik_matmul_fp8_pair_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Fp8E4m3, F32, Fp8E4m3, F32] shapes [[1, 2048], [8192, 2048], [2], [4096, 2048], [2]]
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=1.948e0 rel_l2=1.438e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=1.577e0 rel_l2=1.473e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   FAIL  max_abs=1.305e0 rel_l2=1.402e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8_pair matmul_fp8_pair_wmma           15     15     1.948e0     1.473e0  REJECTED
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -324,6 +324,14 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
     assert_eq!(tp_mtp_default(&batch, &with, "hip", 2, true), None, "--max-batch 4");
     let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
     assert_eq!(tp_mtp_default(&dfl, &with, "hip", 2, true), None, "another --spec");
+    // a lone --spec-k N (spec_auto, no --spec) keeps the default and sets only its draft length
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    assert_eq!(tp_mtp_default(&lone, &with, "hip", 2, true), Some(3), "lone --spec-k 3: default applies with k = 3");
+    assert_eq!(tp_mtp_default(&lone, &without, "hip", 2, true), None, "lone --spec-k, no recipe key: off (the loader warns)");
+    assert_eq!(tp_mtp_default(&lone, &with, "cuda", 2, true), None, "lone --spec-k, another backend: off");
+    assert_eq!(tp_mtp_default(&lone, &with, "hip", 1, true), None, "lone --spec-k, tp 1: off");
+    let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    assert_eq!(tp_mtp_default(&explicit_k, &with, "hip", 2, true), None, "--spec off --spec-k 3: unchanged, off");
     // the default through the engine loader in the same test (the env var below is process-wide): runs spec, ids equal off
     loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
@@ -428,22 +436,35 @@ fn loader_default_matches_off() {
     let dir = model_dir();
     let recipe = dir.join("qwen3_5_mtp_default.toml");
     std::fs::write(&recipe, format!("{}\n[tuning.cpu]\nmtp_default_tp_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
-    let load = |auto: bool, dir: &Path| {
+    let load = |auto: bool, k_given: bool, dir: &Path| {
         let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc() as Arc<dyn intarsia_core::backend::Backend>).collect();
         let comms = intarsia_core::HostCommGroup::new(backends.clone());
         let o = intarsia_models::EngineOptions {
             load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
             recipe: Some(recipe.clone()),
             spec_auto: auto,
+            spec_k_given: k_given,
+            spec: SpecConfig { mode: SpecMode::Off, k: if k_given { 3 } else { SpecConfig::default().k } },
             ..Default::default()
         };
         intarsia_models::load_engine_tp(dir, backends, comms, &o).unwrap()
     };
-    let (off, on) = (load(false, &dir), load(true, &dir));
+    let (off, on) = (load(false, false, &dir), load(true, false, &dir));
     for p in PROMPTS {
         assert_eq!(run(&*off.engine, req(p, 40)), run(&*on.engine, req(p, 40)), "default-on vs off, prompt {p:?}");
     }
     assert!(on.engine.telemetry().spec_steps > 0, "the default actually ran --spec mtp");
+    // a lone --spec-k 3 keeps the default (verify passes run, ids equal off); with INTARSIA_SPEC_DEFAULT=0 it stays off
+    let lone = load(true, true, &dir);
+    for p in PROMPTS {
+        assert_eq!(run(&*off.engine, req(p, 40)), run(&*lone.engine, req(p, 40)), "lone --spec-k 3 vs off, prompt {p:?}");
+    }
+    assert!(lone.engine.telemetry().spec_steps > 0, "a lone --spec-k ran the default --spec mtp");
+    std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
+    let lone_off = load(true, true, &dir);
+    std::env::remove_var("INTARSIA_SPEC_DEFAULT");
+    assert_eq!(run(&*lone_off.engine, req(PROMPTS[0], 20)), run(&*off.engine, req(PROMPTS[0], 20)));
+    assert_eq!(lone_off.engine.telemetry().spec_steps, 0, "INTARSIA_SPEC_DEFAULT=0 wins over a lone --spec-k");
     // the same recipe on a checkpoint without the head: no error, plain decode
     let bare = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model_bare");
     std::fs::create_dir_all(&bare).unwrap();
@@ -451,7 +472,7 @@ fn loader_default_matches_off() {
         std::fs::copy(dir.join(f), bare.join(f)).unwrap();
     }
     std::fs::copy(fixture_dir().join("model.safetensors"), bare.join("model.safetensors")).unwrap();
-    let b = load(true, &bare);
+    let b = load(true, false, &bare);
     assert_eq!(run(&*b.engine, req(PROMPTS[0], 20)), run(&*off.engine, req(PROMPTS[0], 20)));
     assert_eq!(b.engine.telemetry().spec_steps, 0, "no head: the default is not applied");
 }

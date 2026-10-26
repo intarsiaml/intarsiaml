@@ -108,7 +108,8 @@ pub struct ModelArgs {
     #[arg(long)]
     pub spec: Option<String>,
     /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
-    /// Default: 4 for `ngram`, 2 for `mtp`.
+    /// Default: 4 for `ngram`, 2 for `mtp`. Without `--spec`, on a backend where the recipe's tensor-parallel MTP default applies,
+    /// it sets that default's draft length (`--spec-k 3` alone runs MTP k3); elsewhere it has no effect and warns.
     #[arg(long)]
     pub spec_k: Option<usize>,
     /// With `--spec dflash`: the draft checkpoint directory (`TD-Labs/Qwen3-8B-DCOCO` layout: `config.json` with
@@ -361,8 +362,9 @@ impl ModelArgs {
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,
-            // no --spec given (and no --spec-k): the loader may apply the recipe's tensor-parallel MTP default
-            spec_auto: self.spec.is_none() && self.spec_k.is_none(),
+            // no --spec given (a lone --spec-k only sets the draft length of that default): the loader may apply the recipe's tensor-parallel MTP default
+            spec_auto: self.spec.is_none(),
+            spec_k_given: self.spec_k.is_some(),
             busy_chunk: self.busy_chunk,
             prefix_store: self.prefix_store.clone(),
         })

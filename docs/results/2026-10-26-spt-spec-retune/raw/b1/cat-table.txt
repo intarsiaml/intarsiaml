@@ -1,0 +1,9 @@
+window b1: 42 localeval runs; problems: 0
+category                        off                   dfl5                   dfl7
+ho-chat        53.2  1.00x            64.2  1.21x  3.05t/p   63.7  1.20x  3.22t/p
+ho-code        53.2  1.00x            95.8  1.80x  4.54t/p  105.7  1.99x  5.32t/p
+ho-prose       53.2  1.00x            51.9  0.98x  2.47t/p   49.5  0.93x  2.50t/p
+ho-recall      53.2  1.00x            70.8  1.33x  3.37t/p   71.2  1.34x  3.60t/p
+rcp-code       53.2  1.00x            95.0  1.79x  4.50t/p  103.3  1.94x  5.20t/p
+rcp-prose      53.2  1.00x            52.8  0.99x  2.51t/p   50.4  0.95x  2.54t/p
+rcp-recall     53.2  1.00x            75.9  1.43x  3.61t/p   76.7  1.44x  3.89t/p
