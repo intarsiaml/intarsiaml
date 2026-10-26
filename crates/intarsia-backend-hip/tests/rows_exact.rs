@@ -598,6 +598,169 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
     rig.report("mxfp4");
 }
 
+/// Row r of an M-row `matmul_mxfp4_pair_gemv_rows` call is bitwise the one-row `matmul_mxfp4_gemv` on row r alone, for both
+/// outputs (the pair's int8 path runs both matrices in one launch, so its rows straddle the boundary of the two).
+#[allow(clippy::too_many_arguments)]
+fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>], n0: usize, n1: usize, out_dt: DType, label: &str) {
+    let k = x_rows[0].len();
+    let osz = out_dt.size_bytes();
+    let attrs = OpAttrs::default();
+    let one = |w: &[TensorRef], n: usize, r: usize| {
+        let mut ins = vec![rig.put(&bf16_row(&x_rows[r]))];
+        ins.extend_from_slice(w);
+        rig.run("matmul_mxfp4_gemv", Op::MatmulMxfp4, &ins, &[(out_dt, vec![1, n])], &attrs)[0].data.clone()
+    };
+    let want: Vec<(Vec<u8>, Vec<u8>)> = (0..CAP).map(|r| (one(a, n0, r), one(b, n1, r))).collect();
+    let all: Vec<f32> = x_rows[..CAP].iter().flatten().copied().collect();
+    let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
+    for m in 1..=CAP {
+        let ins = vec![x_all.rows(0, m), a[0].clone(), a[1].clone(), b[0].clone(), b[1].clone(), a[2].clone()];
+        let o = rig.run("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair, &ins, &[(out_dt, vec![m, n0]), (out_dt, vec![m, n1])], &attrs);
+        for r in 0..m {
+            let g0 = &o[0].data[r * n0 * osz..(r + 1) * n0 * osz];
+            let g1 = &o[1].data[r * n1 * osz..(r + 1) * n1 * osz];
+            let bad0 = g0.chunks(osz).zip(want[r].0.chunks(osz)).position(|(g, w)| g != w);
+            let bad1 = g1.chunks(osz).zip(want[r].1.chunks(osz)).position(|(g, w)| g != w);
+            assert!(bad0.is_none() && bad1.is_none(), "G-B FAIL {label}: M={m} row {r}: first differing column out0 {bad0:?} out1 {bad1:?}");
+        }
+        rig.note("matmul_mxfp4_pair_gemv_rows", m, m, m * (n0 + n1) * osz);
+    }
+}
+
+/// The pair launcher: gate / up and k / v of the 27B at tp 1 and tp 2, odd sizes (a warp's two rows straddle the matrices).
+#[test]
+fn mxfp4_pair_rows_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("mxfp4_pair_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(811);
+    let shapes = [(17408usize, 17408usize, 5120usize), (1024, 1024, 5120), (8704, 8704, 5120), (512, 512, 5120), (9, 33, 2080), (301, 1, 4096), (5, 7, 32)];
+    for (n0, n1, k) in shapes {
+        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
+            let qa = intarsia_core::quant::mxfp4::random_rows(&mut rng, n0, k, act);
+            let qb = intarsia_core::quant::mxfp4::random_rows(&mut rng, n1, k, act);
+            let a: Vec<TensorRef> = qa.parts.iter().map(|p| rig.put(p)).collect();
+            let b: Vec<TensorRef> = qb.parts.iter().map(|p| rig.put(p)).collect();
+            let x_rows = nasty_rows(&mut rng, k, 448.0);
+            for out_dt in [DType::Bf16, DType::F32] {
+                gb_mxfp4_pair(&rig, &a, &b, &x_rows, n0, n1, out_dt, &format!("mxfp4 pair n={n0}+{n1} k={k} act={act:?} {out_dt:?}"));
+            }
+        }
+    }
+    rig.report("mxfp4 pair");
+}
+
+/// A row of normal values with each 32-group scaled so that its largest magnitude is exactly `amax(g)` (bf16-exact powers of 2
+/// times 1 or 1.75 are kept as is), for the int8 path's range bound: x scale bytes 3 and 244 are inside, 2 and 245 outside.
+fn mx_groups_at(rng: &mut SplitMix64, k: usize, amax: impl Fn(usize) -> f32) -> Vec<f32> {
+    let mut v = rng.normal_vec(k, 1.0);
+    for (g, grp) in v.chunks_mut(32).enumerate() {
+        let a = grp.iter().fold(0f32, |m, x| m.max(x.abs()));
+        let t = amax(g);
+        for x in grp.iter_mut() {
+            *x = *x / a * t;
+        }
+        // the largest element exactly at t (the others are rounded to bf16 by the upload, never above t)
+        let i = grp.iter().enumerate().fold(0, |b, (i, x)| if x.abs() > grp[b].abs() { i } else { b });
+        grp[i] = grp[i].signum() * t;
+    }
+    v
+}
+
+/// Edge inputs of the int8 path, each compared bytewise with the one-row GEMV on every row:
+/// set A stays on the int8 path for every prefix (all-zero rows of both signs mixed with live rows, -0 activations with live
+/// weights, a first group of zeros, groups exactly at the bound x scale bytes 3 and 244 incl. the rounding edge 1.75 * 2^e);
+/// set B flags the call from row 5 on (groups at scale bytes 0..2 and 245..254, subnormal, inf, NaN), so M = 2..5 run the int8
+/// path and M >= 6 the flagged-call fp chain. Weights carry edge scale bytes (0..3, 250..254, NaN 255 on some rows).
+#[test]
+fn mxfp4_rows_edge_inputs_are_bitwise() {
+    let Some(rig) = Rig::new("mxfp4_rows_edge_inputs_are_bitwise") else { return };
+    let mut rng = SplitMix64::new(827);
+    let p2 = |e: i32| 2f32.powi(e);
+    for (n, k) in [(1024usize, 5120usize), (512, 5120), (5120, 8704), (300, 2048), (64, 6176), (33, 2080), (9, 32)] {
+        let g = k / 32;
+        let normal = |rng: &mut SplitMix64| rng.normal_vec(k, 1.0);
+        let r0 = normal(&mut rng);
+        let mut neg0 = normal(&mut rng);
+        for (i, x) in neg0.iter_mut().enumerate() {
+            if i % 3 == 0 {
+                *x = -0.0;
+            }
+        }
+        let mut first0 = normal(&mut rng);
+        for x in first0[..32].iter_mut() {
+            *x = 0.0;
+        }
+        if k >= 64 {
+            for x in first0[32..64].iter_mut() {
+                *x = -0.0;
+            }
+        }
+        let wide = nasty_rows_n(&mut rng, k, 448.0, 4)[3].clone();
+        let set_a: Vec<Vec<f32>> = vec![
+            r0.clone(),
+            vec![0.0; k],
+            vec![-0.0; k],
+            first0,
+            neg0,
+            mx_groups_at(&mut rng, k, |g| if g % 2 == 0 { p2(-122) } else { p2(119) }), // x scale bytes 3 and 244
+            mx_groups_at(&mut rng, k, |g| if g % 2 == 0 { 1.75 * p2(-123) } else { 1.75 * p2(118) }), // rounds up to 3 / 244
+            r0.clone(),
+            wide,
+            rng.normal_vec(k, 1e-20),
+            rng.normal_vec(k, 1e30),
+            vec![-0.0; k],
+            rng.normal_vec(k, 1e-3),
+            vec![0.0; k],
+            rng.normal_vec(k, 1e3),
+            normal(&mut rng),
+        ];
+        let mut inf_row = normal(&mut rng);
+        inf_row[5 % k] = f32::INFINITY;
+        let mut nan_row = normal(&mut rng);
+        nan_row[(k / 2 + 9) % k] = f32::NAN;
+        let set_b: Vec<Vec<f32>> = vec![
+            r0.clone(),
+            vec![0.0; k],
+            normal(&mut rng),
+            vec![-0.0; k],
+            normal(&mut rng),
+            mx_groups_at(&mut rng, k, |g| [p2(-123), p2(-124), p2(-125), 1e-40][g % 4]), // bytes 2, 1, 0 and subnormal
+            mx_groups_at(&mut rng, k, |g| [p2(120), p2(124), p2(126), 1.75 * p2(119)][g % 4]), // bytes 245, 249, 251 (+ inf in QDQ), 245
+            inf_row,
+            nan_row,
+            normal(&mut rng),
+            vec![0.0; k],
+            rng.normal_vec(k, 1e-30),
+            normal(&mut rng),
+            rng.normal_vec(k, 1e30),
+            vec![-0.0; k],
+            normal(&mut rng),
+        ];
+        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
+            let mut q = intarsia_core::quant::mxfp4::random_rows(&mut rng, n, k, act);
+            for (i, sb) in q.parts[1].data.iter_mut().enumerate() {
+                let r = rng.next_u64();
+                if r % 32 == 0 {
+                    *sb = [0u8, 1, 2, 3, 250, 251, 252, 253, 254][((r >> 8) % 9) as usize];
+                }
+                if (i / g) % 97 == 5 && (r >> 20) % 8 == 0 {
+                    *sb = 255;
+                }
+            }
+            let weights: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
+            let q1 = intarsia_core::quant::mxfp4::random_rows(&mut rng, n / 2 + 1, k, act);
+            let w1: Vec<TensorRef> = q1.parts.iter().map(|p| rig.put(p)).collect();
+            for (set, rows) in [("A", &set_a), ("B", &set_b)] {
+                for out_dt in [DType::Bf16, DType::F32] {
+                    let label = format!("mxfp4 edge set {set} n={n} k={k} act={act:?} {out_dt:?}");
+                    gb_matmul(&rig, Op::MatmulMxfp4, "matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", &weights, rows, n, out_dt, &label, CAP);
+                    gb_mxfp4_pair(&rig, &weights, &w1, rows, n, n / 2 + 1, out_dt, &format!("{label} pair"));
+                }
+            }
+        }
+    }
+    rig.report("mxfp4 edge");
+}
+
 // ---- bf16 matmul / logits -----------------------------------------------------------------------------------------
 
 fn fast_bf16(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {

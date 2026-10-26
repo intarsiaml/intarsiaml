@@ -52,6 +52,13 @@ Raw: raw/w3-timing.log (window w3); the M=1 / prefetch-free arms are in raw/w2-t
 That is 0 mismatches in 42 of 42 runs per round (raw/w{1,2,3}-edge.log). The variant without the fallback mismatches on every mode-1 run,
 14 of 14, so the edge inputs do reach the fallback. It matches on modes 0 and 2. This works as a built-in negative control.
 
+Correction (review after Phase 0): about 1 in 24 mode-2 groups is an all-zero group. In these harness rounds an all-zero group had
+scale byte 0 and flagged the call, so the per-call-flag arms (fb4, xp*) took the fp chain on every mode-2 run. At scale bytes 3..6 and
+238..244, only the arms without the fallback show that the int8 path is bitwise. They match on every mode-2 run.
+Phase 1 lets amax == 0 stay on the int8 path (T = 0, factor 1, so t = +0, the same as the fp chain, which starts at +0.f and never yields
+-0). It tests this in `rows_exact.rs` (`mxfp4_rows_edge_inputs_are_bitwise`): zero rows of both signs mixed with live rows, -0
+activations, a zero first group, and groups at exactly bytes 3 and 244.
+
 **Step-level estimate (not measured yet).** Main's 27B one-row step is 30.3 ms and its batched 8-row step 59.5 ms (from the mr batch
 profile). Weighting the table by calls per step:
 - the MXFP4 GEMVs take 23.2 ms at M=1;
@@ -61,8 +68,12 @@ profile). Weighting the table by calls per step:
 | | step M=1 | step M=8 | ratio | step M=16 |
 |---|---|---|---|---|
 | main (measured, batched decode of 8 sequences) | 30.3 | 59.5 | 1.96 | 110.9 |
-| int8 rows (estimate: main minus the GEMV saving) | ~30 | ~42 | ~1.4 | ~72 |
+| int8 rows (estimate: main minus the GEMV saving) | ~30 | ~42-45 | ~1.4-1.5 | ~72-78 |
 | floor if the MXFP4 GEMVs cost nothing extra | 30.3 | ~38.7 | ~1.28 | |
+
+Cross-check against the mr batch profile (`matmul_mxfp4_pair` + `matmul_mxfp4` op times, profiled, B=2 to B=8: 33.98 to 50.56 ms,
++16.6 ms): the harness says +19.6 ms over the same range, about 15 % more growth than the measured step. Scaled by 0.85, the saving
+at M=8 is about 14.8 ms instead of 17.4, which gives the range in the table. The measured step at M=8 comes in W5.
 
 The non-GEMV part of the batched 8-sequence step grows from about 7.1 to 15.5 ms. The main items:
 - GatedDeltaNet state: about 0.5 ms per sequence, a byte floor;
