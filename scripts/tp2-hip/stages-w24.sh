@@ -50,4 +50,6 @@ variant s3-skew-rank1-300us 200 $SO $B INTARSIA_TP_SKEW_US=0,300
 variant s4-skew-rank1-20ms 200 $SO $B INTARSIA_TP_SKEW_US=0,20000
 variant s5-skew-rank0-20ms 200 $SO $B INTARSIA_TP_SKEW_US=20000,0
 variant s6-w21-config 200 $SO $B INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1
+variant s7-size-loop-control 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2
+variant s8-size-loop-skew-rank1-2ms 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_SKEW_US=0,2000
 log "done, time left $(left)s"
