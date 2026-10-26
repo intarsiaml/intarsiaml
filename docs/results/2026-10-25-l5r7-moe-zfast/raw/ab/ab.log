@@ -1,0 +1,20 @@
+[serve] v1-base (base) serving after 20 s 2026-10-25 23:07:06
+[serve] saved /home/josef/intarsiaml-l5-logs/v1-base.log (6 lines)
+visit 1 base done 23:07:20
+[serve] v2-dev (dev) serving after 15 s 2026-10-25 23:07:30
+[serve] saved /home/josef/intarsiaml-l5-logs/v2-dev.log (6 lines)
+visit 2 dev done 23:07:41
+[serve] v3-base (base) serving after 15 s 2026-10-25 23:07:52
+[serve] saved /home/josef/intarsiaml-l5-logs/v3-base.log (6 lines)
+visit 3 base done 23:08:06
+[serve] v4-dev (dev) serving after 15 s 2026-10-25 23:08:17
+[serve] saved /home/josef/intarsiaml-l5-logs/v4-dev.log (6 lines)
+visit 4 dev done 23:08:31
+[serve] v5-base (base) serving after 15 s 2026-10-25 23:08:41
+[serve] saved /home/josef/intarsiaml-l5-logs/v5-base.log (6 lines)
+visit 5 base done 23:08:53
+[serve] v6-dev (dev) serving after 15 s 2026-10-25 23:09:03
+[serve] saved /home/josef/intarsiaml-l5-logs/v6-dev.log (6 lines)
+visit 6 dev done 23:09:14
+[serve] starting radiance 2026-10-25 23:09:14
+[serve] radiance answers 2026-10-25 23:09:29 (after 20 s); active

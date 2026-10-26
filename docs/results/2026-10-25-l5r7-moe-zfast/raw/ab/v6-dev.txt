@@ -1,0 +1,58 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=20480
+[localeval]    512 tok rep 1/3: prompt=497 ttft=0.10s prefill=5024 tok/s decode=164.8 tok/s peak=0.0 tok/s out=8
+[localeval]    512 tok rep 2/3: prompt=498 ttft=0.10s prefill=5049 tok/s decode=165.2 tok/s peak=0.0 tok/s out=8
+[localeval]    512 tok rep 3/3: prompt=502 ttft=0.10s prefill=4931 tok/s decode=156.1 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 1/3: prompt=1982 ttft=0.22s prefill=9132 tok/s decode=153.3 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 2/3: prompt=1986 ttft=0.21s prefill=9582 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 3/3: prompt=1986 ttft=0.21s prefill=9633 tok/s decode=167.3 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.39s prefill=10365 tok/s decode=158.1 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=0.40s prefill=10277 tok/s decode=167.0 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.39s prefill=10380 tok/s decode=158.5 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=1.80s prefill=9228 tok/s decode=140.0 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 2/3: prompt=16656 ttft=1.81s prefill=9196 tok/s decode=143.4 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=1.82s prefill=9143 tok/s decode=146.5 tok/s peak=0.0 tok/s out=8
+[localeval] 1 streams: aggregate 30.1 tok/s
+# localeval: adhoc — 2026-10-25T23:09
+
+- model: `intarsia` on ? (?), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: l5r7-v6-dev
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8296/v1 --model intarsia --thinking off --sizes 512,2048,4096,16384 --gen 8 --reps 3 --concurrency 1 --recipe intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch 1 (arm dev, l5r7 zfast A/B) --label l5r7-v6-dev`
+- result file: `results/20261025-230904-adhoc-l5r7-v6-dev/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch 1 (arm dev, l5r7 zfast A/B)
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 20480, 3 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 498 | 0.10 | 5024 (4931–5049) * | - | 164.8 (156.1–165.2) | - | - | - | 8 |
+| 1986 | 0.21 | 9582 (9132–9633) | 13778 | 164.2 (153.3–167.3) | - | - | - | 8 |
+| 4088 | 0.39 | 10365 (10277–10380) | 11241 | 158.5 (158.1–167.0) | - | - | - | 8 |
+| 16656 | 1.81 | 9196 (9143–9228) | 8869 | 143.4 (140.0–146.5) | - | - | - | 8 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 30.1 | 147.0 (147.0–147.0) | 0.21 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261025-230904-adhoc-l5r7-v6-dev/result.json
+[localeval] logged to unanimis: ddd1229b-8147-482e-9d27-079d3a72c351
