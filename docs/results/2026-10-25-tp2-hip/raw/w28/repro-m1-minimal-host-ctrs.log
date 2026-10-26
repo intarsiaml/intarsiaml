@@ -1,0 +1,252 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:957:45
+    |
+957 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:241:8
+    |
+241 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_solo_fresh_states_repro ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 0 state 0 before: rank 0: HOST launch counters 0; rank 1: HOST launch counters 0; host call log: rank 0 0 launches, rank 1 0; the ranks' launch sequences are identical
+CTRS rep 0 state 0 after the solo prefill + decode step: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS rep 0 state 1 before: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: HOST launch counters 1412; rank 1: HOST launch counters 1412; host call log: rank 0 1412 launches, rank 1 1412; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: HOST launch counters 1541; rank 1: HOST launch counters 1541; host call log: rank 0 1541 launches, rank 1 1541; the ranks' launch sequences are identical
+CTRS rep 0 state 1 after the solo prefill + decode step: rank 0: HOST launch counters 1798; rank 1: HOST launch counters 1798; host call log: rank 0 1798 launches, rank 1 1798; the ranks' launch sequences are identical
+REPRO rep 0: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 1 state 0 before: rank 0: HOST launch counters 0; rank 1: HOST launch counters 0; host call log: rank 0 0 launches, rank 1 0; the ranks' launch sequences are identical
+CTRS rep 1 state 0 after the solo prefill + decode step: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS rep 1 state 1 before: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: HOST launch counters 1412; rank 1: HOST launch counters 1412; host call log: rank 0 1412 launches, rank 1 1412; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: HOST launch counters 1541; rank 1: HOST launch counters 1541; host call log: rank 0 1541 launches, rank 1 1541; the ranks' launch sequences are identical
+CTRS rep 1 state 1 after the solo prefill + decode step: rank 0: HOST launch counters 1798; rank 1: HOST launch counters 1798; host call log: rank 0 1798 launches, rank 1 1798; the ranks' launch sequences are identical
+REPRO rep 1: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 2 state 0 before: rank 0: HOST launch counters 0; rank 1: HOST launch counters 0; host call log: rank 0 0 launches, rank 1 0; the ranks' launch sequences are identical
+CTRS rep 2 state 0 after the solo prefill + decode step: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS rep 2 state 1 before: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: HOST launch counters 1412; rank 1: HOST launch counters 1412; host call log: rank 0 1412 launches, rank 1 1412; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: HOST launch counters 1541; rank 1: HOST launch counters 1541; host call log: rank 0 1541 launches, rank 1 1541; the ranks' launch sequences are identical
+CTRS rep 2 state 1 after the solo prefill + decode step: rank 0: HOST launch counters 1798; rank 1: HOST launch counters 1798; host call log: rank 0 1798 launches, rank 1 1798; the ranks' launch sequences are identical
+REPRO rep 2: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 3 state 0 before: rank 0: HOST launch counters 0; rank 1: HOST launch counters 0; host call log: rank 0 0 launches, rank 1 0; the ranks' launch sequences are identical
+CTRS rep 3 state 0 after the solo prefill + decode step: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS rep 3 state 1 before: rank 0: HOST launch counters 257; rank 1: HOST launch counters 257; host call log: rank 0 257 launches, rank 1 257; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: HOST launch counters 1402; rank 1: HOST launch counters 1403; host call log: rank 0 1412 launches, rank 1 1412; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: HOST launch counters 1531; rank 1: HOST launch counters 1532; host call log: rank 0 1541 launches, rank 1 1541; the ranks' launch sequences are identical
+
+thread 'real_35b_tp2_solo_fresh_states_repro' panicked at crates/intarsia-models/tests/common/batch_identity.rs:137:21:
+batch 3 step 0 row 0 (sequence 0, context 10 -> 11): logits differ at 248320 of 248320 entries, first at 0: solo 3.3600478 batch 2.7677693; step rows [row 0: 248320 differ, max |d| 4.362e1, argmax solo 1091 batch 128154; row 1: 248320 differ, max |d| 2.561e2, argmax solo 1091 batch 172954; row 2: 248320 differ, max |d| 1.999e2, argmax solo 128154 batch 130714]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+REPRO watchdog: a rep took more than 12 s, the ranks are stuck
+LEDGER watchdog: rank 0 134 lines, rank 1 134 lines
+LEDGER the ledgers are identical
+LEDGER rank 0: #94 layers-batch rows=5 issued 0->0
+LEDGER rank 0: #95 layers-batch rows=6 issued 0->0
+LEDGER rank 0: #96 layers-batch rows=6 issued 0->0
+LEDGER rank 0: #97 layers-batch rows=7 issued 0->0
+LEDGER rank 0: #98 layers-batch rows=7 issued 0->0
+LEDGER rank 0: #99 layers-batch rows=8 issued 0->0
+LEDGER rank 0: #100 layers-batch rows=8 issued 0->0
+LEDGER rank 0: #101 layers-batch rows=9 issued 0->0
+LEDGER rank 0: #102 layers-batch rows=9 issued 0->0
+LEDGER rank 0: #103 layers-batch rows=10 issued 0->0
+LEDGER rank 0: #104 layers-batch rows=10 issued 0->0
+LEDGER rank 0: #105 layers-batch rows=11 issued 0->0
+LEDGER rank 0: #106 layers-batch rows=11 issued 0->0
+LEDGER rank 0: #107 layers-batch rows=12 issued 0->0
+LEDGER rank 0: #108 layers-batch rows=12 issued 0->0
+LEDGER rank 0: #109 layers-batch rows=13 issued 0->0
+LEDGER rank 0: #110 layers-batch rows=13 issued 0->0
+LEDGER rank 0: #111 layers-batch rows=14 issued 0->0
+LEDGER rank 0: #112 layers-batch rows=14 issued 0->0
+LEDGER rank 0: #113 layers-batch rows=15 issued 0->0
+LEDGER rank 0: #114 layers-batch rows=15 issued 0->0
+LEDGER rank 0: #115 layers-batch rows=16 issued 0->0
+LEDGER rank 0: #116 layers-batch rows=16 issued 0->0
+LEDGER rank 0: #117 layers rows=39 issued 0->128
+LEDGER rank 0: #118 layers+capture rows=1 issued 128->128
+LEDGER rank 0: #119 graph-solo rows=1 issued 128->257
+LEDGER rank 0: #120 layers rows=10 issued 257->385
+LEDGER rank 0: #121 layers rows=10 issued 385->513
+LEDGER rank 0: #122 layers rows=28 issued 513->641
+LEDGER rank 0: #123 layers rows=28 issued 641->769
+LEDGER rank 0: #124 layers rows=52 issued 769->897
+LEDGER rank 0: #125 layers rows=52 issued 897->1025
+LEDGER rank 0: #126 layers+capture rows=1 issued 1025->1025
+LEDGER rank 0: #127 graph-solo rows=1 issued 1025->1154
+LEDGER rank 0: #128 layers+capture rows=1 issued 1154->1154
+LEDGER rank 0: #129 graph-solo rows=1 issued 1154->1283
+LEDGER rank 0: #130 layers+capture rows=1 issued 1283->1283
+LEDGER rank 0: #131 graph-solo rows=1 issued 1283->1412
+LEDGER rank 0: #132 layers-batch+capture rows=3 issued 1412->1412
+LEDGER rank 0: #133 graph-batch rows=3 issued 1412->1541
+LEDGER rank 1: #94 layers-batch rows=5 issued 0->0
+LEDGER rank 1: #95 layers-batch rows=6 issued 0->0
+LEDGER rank 1: #96 layers-batch rows=6 issued 0->0
+LEDGER rank 1: #97 layers-batch rows=7 issued 0->0
+LEDGER rank 1: #98 layers-batch rows=7 issued 0->0
+LEDGER rank 1: #99 layers-batch rows=8 issued 0->0
+LEDGER rank 1: #100 layers-batch rows=8 issued 0->0
+LEDGER rank 1: #101 layers-batch rows=9 issued 0->0
+LEDGER rank 1: #102 layers-batch rows=9 issued 0->0
+LEDGER rank 1: #103 layers-batch rows=10 issued 0->0
+LEDGER rank 1: #104 layers-batch rows=10 issued 0->0
+LEDGER rank 1: #105 layers-batch rows=11 issued 0->0
+LEDGER rank 1: #106 layers-batch rows=11 issued 0->0
+LEDGER rank 1: #107 layers-batch rows=12 issued 0->0
+LEDGER rank 1: #108 layers-batch rows=12 issued 0->0
+LEDGER rank 1: #109 layers-batch rows=13 issued 0->0
+LEDGER rank 1: #110 layers-batch rows=13 issued 0->0
+LEDGER rank 1: #111 layers-batch rows=14 issued 0->0
+LEDGER rank 1: #112 layers-batch rows=14 issued 0->0
+LEDGER rank 1: #113 layers-batch rows=15 issued 0->0
+LEDGER rank 1: #114 layers-batch rows=15 issued 0->0
+LEDGER rank 1: #115 layers-batch rows=16 issued 0->0
+LEDGER rank 1: #116 layers-batch rows=16 issued 0->0
+LEDGER rank 1: #117 layers rows=39 issued 0->128
+LEDGER rank 1: #118 layers+capture rows=1 issued 128->128
+LEDGER rank 1: #119 graph-solo rows=1 issued 128->257
+LEDGER rank 1: #120 layers rows=10 issued 257->385
+LEDGER rank 1: #121 layers rows=10 issued 385->513
+LEDGER rank 1: #122 layers rows=28 issued 513->641
+LEDGER rank 1: #123 layers rows=28 issued 641->769
+LEDGER rank 1: #124 layers rows=52 issued 769->897
+LEDGER rank 1: #125 layers rows=52 issued 897->1025
+LEDGER rank 1: #126 layers+capture rows=1 issued 1025->1025
+LEDGER rank 1: #127 graph-solo rows=1 issued 1025->1154
+LEDGER rank 1: #128 layers+capture rows=1 issued 1154->1154
+LEDGER rank 1: #129 graph-solo rows=1 issued 1154->1283
+LEDGER rank 1: #130 layers+capture rows=1 issued 1283->1283
+LEDGER rank 1: #131 graph-solo rows=1 issued 1283->1412
+LEDGER rank 1: #132 layers-batch+capture rows=3 issued 1412->1412
+LEDGER rank 1: #133 graph-batch rows=3 issued 1412->1541
+THREAD 16: comm "batch_cuda_real" wchan "futex_do_wait" state "S"
+STACK tid 16:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: syscall
+   3: std::thread::Thread::park
+   4: std::sync::mpmc::list::Channel<T>::recv::{{closure}}
+   5: std::sync::mpmc::list::Channel<T>::recv
+   6: test::console::run_tests_console
+   7: test::test_main
+   8: test::test_main_static
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+  10: std::rt::lang_start::{{closure}}
+  11: std::rt::lang_start_internal
+  12: main
+  13: <unknown>
+  14: __libc_start_main
+  15: _start
+
+THREAD 17: comm "real_35b_tp2_so" wchan "0" state "R"
+STACK tid 17:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: alloc::sync::Arc<T,A>::drop_slow
+  15: <alloc::vec::Vec<T,A> as core::ops::drop::Drop>::drop
+  16: core::ptr::drop_in_place<intarsia_core::state::SequenceState>
+  17: core::ptr::drop_in_place<intarsia_core::state::SequenceState>
+  18: <alloc::vec::Vec<T,A> as core::ops::drop::Drop>::drop
+  19: batch_cuda_real::batch_identity::run
+  20: std::thread::scoped::scope
+  21: core::ops::function::FnOnce::call_once
+  22: test::__rust_begin_short_backtrace
+  23: test::run_test::{{closure}}
+  24: std::sys::backtrace::__rust_begin_short_backtrace
+  25: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  26: std::sys::pal::unix::thread::Thread::new::thread_start
+  27: <unknown>
+  28: <unknown>
+
+THREAD 18: comm "real_35b_tp2_so" wchan "kfd_wait_on_events" state "S"
+STACK tid 18:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+
+THREAD 19: comm "real_35b_tp2_so" wchan "kfd_wait_on_events" state "S"
+STACK tid 19:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+
+THREAD 75 (this one): comm "real_35b_tp2_so" wchan "0" state "R"
+LEDGER device state: rank 0: HOST launch counters 1531; rank 1: HOST launch counters 1532; host call log: rank 0 1541 launches, rank 1 1541; the ranks' launch sequences are identical
+REPRO failures 1 (hang)

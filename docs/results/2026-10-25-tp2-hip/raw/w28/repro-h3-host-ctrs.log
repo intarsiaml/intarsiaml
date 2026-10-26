@@ -1,0 +1,227 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:957:45
+    |
+957 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:241:8
+    |
+241 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_batch_first_steps_repro ... COMM group: rank 0 device 0 scratch 0x73c81f600000 flags 0x73c81f200000 ctrs 0x73ca391f6000
+COMM group: rank 1 device 1 scratch 0x73c81e800000 flags 0x73c81e400000 ctrs 0x73ca391f4000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: HOST launch counters 5634; rank 1: HOST launch counters 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: HOST launch counters 5763; rank 1: HOST launch counters 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: HOST launch counters 6021; rank 1: HOST launch counters 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: HOST launch counters 6150; rank 1: HOST launch counters 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+REPRO watchdog: a rep took more than 12 s, the ranks are stuck
+LEDGER watchdog: rank 0 166 lines, rank 1 166 lines
+LEDGER the ledgers are identical
+LEDGER rank 0: #126 layers rows=43 issued 1152->1280
+LEDGER rank 0: #127 layers rows=16 issued 1280->1408
+LEDGER rank 0: #128 layers rows=16 issued 1408->1536
+LEDGER rank 0: #129 layers rows=63 issued 1536->1664
+LEDGER rank 0: #130 layers rows=63 issued 1664->1792
+LEDGER rank 0: #131 layers rows=8 issued 1792->1920
+LEDGER rank 0: #132 layers rows=8 issued 1920->2048
+LEDGER rank 0: #133 layers rows=221 issued 2048->2176
+LEDGER rank 0: #134 layers rows=221 issued 2176->2304
+LEDGER rank 0: #135 layers rows=256 issued 2304->2432
+LEDGER rank 0: #136 layers rows=143 issued 2432->2560
+LEDGER rank 0: #137 layers rows=256 issued 2560->2688
+LEDGER rank 0: #138 layers rows=143 issued 2688->2816
+LEDGER rank 0: #139 layers rows=2 issued 2816->2944
+LEDGER rank 0: #140 layers rows=2 issued 2944->3072
+LEDGER rank 0: #141 layers rows=76 issued 3072->3200
+LEDGER rank 0: #142 layers rows=76 issued 3200->3328
+LEDGER rank 0: #143 layers rows=149 issued 3328->3456
+LEDGER rank 0: #144 layers rows=149 issued 3456->3584
+LEDGER rank 0: #145 layers rows=27 issued 3584->3712
+LEDGER rank 0: #146 layers rows=27 issued 3712->3840
+LEDGER rank 0: #147 layers rows=10 issued 3840->3968
+LEDGER rank 0: #148 layers rows=10 issued 3968->4096
+LEDGER rank 0: #149 layers rows=89 issued 4096->4224
+LEDGER rank 0: #150 layers rows=89 issued 4224->4352
+LEDGER rank 0: #151 layers rows=44 issued 4352->4480
+LEDGER rank 0: #152 layers rows=44 issued 4480->4608
+LEDGER rank 0: #153 layers+capture rows=1 issued 4608->4608
+LEDGER rank 0: #154 graph-solo rows=1 issued 4608->4737
+LEDGER rank 0: #155 layers+capture rows=1 issued 4737->4737
+LEDGER rank 0: #156 graph-solo rows=1 issued 4737->4866
+LEDGER rank 0: #157 layers-batch+capture rows=2 issued 4866->4866
+LEDGER rank 0: #158 graph-batch rows=2 issued 4866->4995
+LEDGER rank 0: #159 graph-solo rows=1 issued 4995->5124
+LEDGER rank 0: #160 graph-solo rows=1 issued 5124->5253
+LEDGER rank 0: #161 graph-batch rows=2 issued 5253->5382
+LEDGER rank 0: #162 layers+capture rows=1 issued 5382->5382
+LEDGER rank 0: #163 graph-solo rows=1 issued 5382->5511
+LEDGER rank 0: #164 layers+capture rows=1 issued 5511->5511
+LEDGER rank 0: #165 graph-solo rows=1 issued 5511->5640
+LEDGER rank 1: #126 layers rows=43 issued 1152->1280
+LEDGER rank 1: #127 layers rows=16 issued 1280->1408
+LEDGER rank 1: #128 layers rows=16 issued 1408->1536
+LEDGER rank 1: #129 layers rows=63 issued 1536->1664
+LEDGER rank 1: #130 layers rows=63 issued 1664->1792
+LEDGER rank 1: #131 layers rows=8 issued 1792->1920
+LEDGER rank 1: #132 layers rows=8 issued 1920->2048
+LEDGER rank 1: #133 layers rows=221 issued 2048->2176
+LEDGER rank 1: #134 layers rows=221 issued 2176->2304
+LEDGER rank 1: #135 layers rows=256 issued 2304->2432
+LEDGER rank 1: #136 layers rows=143 issued 2432->2560
+LEDGER rank 1: #137 layers rows=256 issued 2560->2688
+LEDGER rank 1: #138 layers rows=143 issued 2688->2816
+LEDGER rank 1: #139 layers rows=2 issued 2816->2944
+LEDGER rank 1: #140 layers rows=2 issued 2944->3072
+LEDGER rank 1: #141 layers rows=76 issued 3072->3200
+LEDGER rank 1: #142 layers rows=76 issued 3200->3328
+LEDGER rank 1: #143 layers rows=149 issued 3328->3456
+LEDGER rank 1: #144 layers rows=149 issued 3456->3584
+LEDGER rank 1: #145 layers rows=27 issued 3584->3712
+LEDGER rank 1: #146 layers rows=27 issued 3712->3840
+LEDGER rank 1: #147 layers rows=10 issued 3840->3968
+LEDGER rank 1: #148 layers rows=10 issued 3968->4096
+LEDGER rank 1: #149 layers rows=89 issued 4096->4224
+LEDGER rank 1: #150 layers rows=89 issued 4224->4352
+LEDGER rank 1: #151 layers rows=44 issued 4352->4480
+LEDGER rank 1: #152 layers rows=44 issued 4480->4608
+LEDGER rank 1: #153 layers+capture rows=1 issued 4608->4608
+LEDGER rank 1: #154 graph-solo rows=1 issued 4608->4737
+LEDGER rank 1: #155 layers+capture rows=1 issued 4737->4737
+LEDGER rank 1: #156 graph-solo rows=1 issued 4737->4866
+LEDGER rank 1: #157 layers-batch+capture rows=2 issued 4866->4866
+LEDGER rank 1: #158 graph-batch rows=2 issued 4866->4995
+LEDGER rank 1: #159 graph-solo rows=1 issued 4995->5124
+LEDGER rank 1: #160 graph-solo rows=1 issued 5124->5253
+LEDGER rank 1: #161 graph-batch rows=2 issued 5253->5382
+LEDGER rank 1: #162 layers+capture rows=1 issued 5382->5382
+LEDGER rank 1: #163 graph-solo rows=1 issued 5382->5511
+LEDGER rank 1: #164 layers+capture rows=1 issued 5511->5511
+LEDGER rank 1: #165 graph-solo rows=1 issued 5511->5640
+THREAD 16: comm "batch_cuda_real" wchan "futex_do_wait" state "S"
+STACK tid 16:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: syscall
+   3: std::thread::Thread::park
+   4: std::sync::mpmc::list::Channel<T>::recv::{{closure}}
+   5: std::sync::mpmc::list::Channel<T>::recv
+   6: test::console::run_tests_console
+   7: test::test_main
+   8: test::test_main_static
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+  10: std::rt::lang_start::{{closure}}
+  11: std::rt::lang_start_internal
+  12: main
+  13: <unknown>
+  14: __libc_start_main
+  15: _start
+
+THREAD 17: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 17:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: ik_rt_memcpy_d2h
+  17: <intarsia_backend_hip::device::HipBackend as intarsia_core::backend::Backend>::download
+  18: intarsia_core::model::Model::forward_inner
+  19: std::thread::scoped::scope
+  20: intarsia_core::model::Model::forward
+  21: <core::iter::adapters::map::Map<I,F> as core::iter::traits::iterator::Iterator>::fold
+  22: <alloc::vec::Vec<T> as alloc::vec::spec_from_iter::SpecFromIter<T,I>>::from_iter
+  23: batch_cuda_real::batch_identity::step
+  24: batch_cuda_real::batch_identity::run
+  25: std::thread::scoped::scope
+  26: core::ops::function::FnOnce::call_once
+  27: test::__rust_begin_short_backtrace
+  28: test::run_test::{{closure}}
+  29: std::sys::backtrace::__rust_begin_short_backtrace
+  30: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  31: std::sys::pal::unix::thread::Thread::new::thread_start
+  32: <unknown>
+  33: <unknown>
+
+THREAD 18: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 18:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+
+THREAD 19: comm "real_35b_tp2_ba" wchan "kfd_wait_on_events" state "S"
+STACK tid 19:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+
+THREAD 21 (this one): comm "real_35b_tp2_ba" wchan "0" state "R"
+LEDGER device state: rank 0: HOST launch counters 6351; rank 1: HOST launch counters 6350; host call log: rank 0 6021 launches, rank 1 6021; the ranks' launch sequences are identical
+REPRO failures 1 (hang)
+GPU coredump: execvp failed: No such file or directory
+Failed to write program header to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 109808662660 us:  Callback: Queue 0x73ca38200000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86 --test-threads=1 --nocapture --ignored --exact real_35b_tp2_batch_first_steps_repro` (signal: 6, SIGABRT: process abort signal)

@@ -49,8 +49,12 @@ variant() { need 215 "$1" && clear "$1" && repro "$@"; }
 # counters read when the line is written), 400 lines are dumped: the first line where (dev1 - issued1) exceeds (dev0 - issued0) names the pass that launched the extra kernel.
 E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1"
 E20="${E/REPS=8/REPS=20}"
+# the minimal repro (3 fresh states, one batched step of 3 rows, ~4 s a rep) also fails with host counters (w28 m1: rep 3 of 4): its failing rep has the SAME +1 (1402/1403 after the
+# solo rows against 1412/1412 in every passing rep, host call log 1412), and both ranks 9-10 launches short of the host accounting. Its ledger is short: start with it.
+M="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1"
+variant m1-minimal-dev 200 $SO $M
+variant m2-minimal-dev 200 $SO $M
+variant m3-minimal-dev 200 $SO $M
 variant h1-host-ctrs-dev 330 $FS $E20
 variant h2-host-ctrs-dev 330 $FS $E20
-variant h3-host-ctrs-dev 330 $FS $E20
-variant h4-host-ctrs-dev 330 $FS $E20
 log "done, time left $(left)s"

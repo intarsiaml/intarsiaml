@@ -4,3 +4,14 @@
 00:16:08 window start, CAP 1500s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
 00:16:09 env: load average: 4.12, 2.84, 2.65 | top:  1.1 tailscaled; 0.5 kworker/u96:1-sdma0; 0.4 kworker/2:0-events; 0.4 kworker/0:2-events; | containers: 
 00:19:45 repro h1-host-ctrs exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1]: REPRO failures 1 (hang) | 
+/home/josef/tp2/stages-w28.sh: line 27: 1281459 Killed                  INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test > "$O/repro-$tag.log" 2>&1 < /dev/null
+00:25:36 removed leftover container 5ad0b43bb64e
+00:25:36 repro h2-host-ctrs exit 137 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1]: REPRO failures 1 (hang) | 
+00:29:17 repro h3-host-ctrs exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1]: REPRO failures 1 (hang) | 
+/home/josef/tp2/stages-w28.sh: line 27: 1304830 Killed                  INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test > "$O/repro-$tag.log" 2>&1 < /dev/null
+00:32:57 removed leftover container c88fe494786e
+00:32:57 repro m1-minimal-host-ctrs exit 137 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1]: REPRO failures 1 (hang) | 
+00:32:57 done, time left 491s
+[window] stages done 2026-10-26 00:32:57 (exit 0)
+[window] starting radiance 2026-10-26 00:32:57
+[window] radiance answers 2026-10-26 00:33:17 (after 25 s)
