@@ -9,7 +9,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STAMP=${INTARSIA_STAMP:-$("$REPO/scripts/tree-stamp.sh")}
 echo "stamp: $STAMP"
 ssh -n -o BatchMode=yes tatooine "mkdir -p ~/intarsiaml-$LANE"
-rsync -a --delete --exclude target --exclude .git --exclude 'golden/*.safetensors' --exclude tools/.venv --exclude .claude --exclude "$LANE-intarsia" --exclude onboard-runs "$REPO/" tatooine:intarsiaml-$LANE/
+rsync -a --delete --exclude target --exclude .git --exclude 'golden/*.safetensors' --exclude tools/.venv --exclude .claude --exclude scratch --exclude "$LANE-intarsia" --exclude onboard-runs "$REPO/" tatooine:intarsiaml-$LANE/
 # the canonical cached goldens (their reference-noise sidecars in golden/ref_noise bind to these file hashes; the older copies
 # in /models/golden on the box have other hashes, which makes `acc-short` fail with "ref_noise was measured on golden hash ...")
 rsync -a /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors tatooine:intarsiaml-$LANE/golden/
