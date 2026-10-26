@@ -172,6 +172,18 @@ impl BatchModel for SlotModel {
     type Mode = HeadMode;
     type Out = StepOut;
 
+    fn macro_step(&self, slot: usize, remaining: usize, chunk: usize) -> Option<usize> {
+        let m = &self.model;
+        if m.macro_rows() == 0 || chunk != m.prefill_chunk() || !self.states[slot].has_recurrent() || remaining < 2 {
+            return None;
+        }
+        // the plain schedule runs the last token alone, so the body is everything before it; a step that takes the whole body
+        // is the final call (which then ends with that token)
+        let body = remaining - 1;
+        let n = crate::scheduler::macro_step_rows(body, chunk, m.macro_rows())?;
+        Some(if n == body { remaining } else { n })
+    }
+
     fn slots(&self) -> usize {
         self.states.len()
     }
