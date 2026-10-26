@@ -3,7 +3,7 @@
 Branch `lane-dc/dflash-dcoco`. Opt-in only; with the flags off nothing is loaded and `plan show` plus the 256 greedy ids
 of the 8B on CUDA are bitwise main. Raw metadata for this note is in `2026-10-25-dc-dflash-dcoco/raw/`.
 
-Status: phase 1 (scope note) accepted by the coordinator; **phase 2 in progress** (section 10).
+Status: phase 1 (scope note) accepted by the coordinator; **phase 2 done, phase 3 in progress** (section 10, 11).
 
 ## 0. Decision and sources
 
@@ -285,3 +285,27 @@ it on our own runs and G7 decides. (4) Speculative output equals plain greedy fo
 at a bf16 near-tie (0 to 2 ulps, 4 exact ties) of the MLX 16-row verify versus 1-row decode: the MLX GPU verify is not
 row-exact either, which is why our own gate is the exactness in section 10.1.
 Fixtures for the Rust cpu-ref tests (not committed, 10-14 MB each): `/opt/code/intarsiaml/.worktrees/dc-ref/out/fixture_{math2,code1,chat2}.npz`.
+
+### 10.4 Phase 2 gates on CUDA (Qwen3-8B BF16, `--spec dflash`, spark1 GB10, greedy, 192 tokens)
+
+Code: `crates/intarsia-core/src/model/dflash.rs` (draft, ingest, taps via `run_layers`), `spec.rs` (`SpecMode::Dflash`,
+`DFLASH_K_MAX = 15`), `engine.rs` (`spec_dflash`), `state.rs` (`DflashState`), CLI `--spec dflash --spec-draft DIR`.
+Scripts: `scripts/dc/gates.sh`, `scripts/dc/spark1.sh`. Logs in `raw/`.
+
+| gate | result |
+|---|---|
+| G0 flags off vs main `5300bfde6` (`raw/g0-noop.log`) | PASS: `plan show` json (8758 B) and text (1478 B) byte-identical, 256 greedy ids identical for the short and the 4k prompt |
+| G2 cpu-ref (`tests/dflash_cpu.rs`, 6 tests) | PASS: tiny Qwen3 + random draft, ids equal spec-off for k = 1, 3, 7 with `spec_proposed > 0`, rollback and prefix reuse, partial acceptance (near-identity draft), f64 host reference of the draft (rel-L2 1.1e-2, 0 argmax flips), bad geometry refused |
+| draft vs MLX reference, real weights (`tests/dflash_fixture.rs`, `raw/g4-fixture-cuda.log`) | 45/45 drafts equal for reference features and for the real target prefill through the taps; block output rel-L2 0.9-3.0e-2 (bf16) |
+| G3 ids == spec-off, 16 chat-templated prompts, gate off (`raw/g4-tau-16.log`), plus 6 with the default gate (`raw/g3-ids.log`) | **PASS 16/16 and 6/6**, with verify passes 24-136 and 54-167 accepted drafts per prompt (drafting really ran) |
+| G4 acceptance vs the MLX reference, same 16 prompts, gate off | pooled tau (accepted + 1) **3.288 engine vs 3.298 reference** (-0.3%); per prompt 0.92-1.02 except the short-output chat prompts (1.29, 1.15: the reference run ends earlier or differs by a near-tie) |
+| G5 go/no-go (tau >= 2.5, >= 1.5x spec-off at batch 1) | **PASS**: pooled decode speedup **2.12x** (gate off, 16 prompts, 192 tokens, spec-off 15.4 tok/s): math 3.3-5.1x, code 1.4-4.0x, chat 0.91-1.54x |
+
+Reference note: the reference is the z-lab MLX DFlash on this Mac with the same checkpoint (section 10.3), not vLLM. A vLLM 0.31
+arm64 image run on spark1 was not attempted (the production vLLM services share the box; the MLX comparison already pins the
+layout to 0.3%). The paper's own numbers (tau 3.913 over its ten suites, 2.95x) are on B200 with math/code heavy suites; our
+pooled 3.29 is on 6 math, 5 code, 5 chat prompts.
+
+Finding: with the back-off gate off, chat prompts with tau < 1.5 (chat4: 1.40) run slower than spec-off (0.91x); the default
+`SpecGate` (backs off after consecutive passes with nothing accepted) is what protects them; its effect is part of the localeval
+runs in section 11.

@@ -1,0 +1,23 @@
+fleetq: #5582 waiting (#1 in line): needs gpu quiet on spark1, but #5576 "od: accuracy vs the W4A16 policy golden, --mxfp4-act none, CUDA 27B" (claude-f31ccf91) loads it
+fleetq:   #5576 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5576 set, or it will wait for #5576 to be released.
+fleetq: #5582 waiting (#1 in line): needs spark1 quiet, but its GPU is 94% busy with work fleetq does not track
+fleetq: #5582 running on spark1: scripts/dc/spark1.sh gates g3 math1 math2 math3 math4 math5 math6 code1 code2 code3 code4 code5 chat1 chat2 chat3 chat4 chat5
+PASS g3 math1 ids identical (192 ids) | off: decode 12400 ms (15.40 tok/s) | dflash: decode 2866 ms (66.64 tok/s) | spec: verify passes=28 proposed=413 accepted=163 (acceptance 39.5%, 6.82 tokens per pass)
+PASS g3 math2 ids identical (192 ids) | off: decode 12402 ms (15.40 tok/s) | dflash: decode 3060 ms (62.42 tok/s) | spec: verify passes=30 proposed=430 accepted=161 (acceptance 37.4%, 6.37 tokens per pass)
+PASS g3 math3 ids identical (192 ids) | off: decode 12414 ms (15.39 tok/s) | dflash: decode 2451 ms (77.92 tok/s) | spec: verify passes=24 proposed=345 accepted=167 (acceptance 48.4%, 7.96 tokens per pass)
+PASS g3 math4 ids identical (192 ids) | off: decode 12415 ms (15.38 tok/s) | dflash: decode 2459 ms (77.66 tok/s) | spec: verify passes=24 proposed=358 accepted=167 (acceptance 46.6%, 7.96 tokens per pass)
+PASS g3 math5 ids identical (192 ids) | off: decode 12415 ms (15.38 tok/s) | dflash: decode 3744 ms (51.01 tok/s) | spec: verify passes=37 proposed=544 accepted=154 (acceptance 28.3%, 5.16 tokens per pass)
+PASS g3 math6 ids identical (192 ids) | off: decode 12427 ms (15.37 tok/s) | dflash: decode 3063 ms (62.36 tok/s) | spec: verify passes=30 proposed=441 accepted=161 (acceptance 36.5%, 6.37 tokens per pass)
+PASS g3 code1 ids identical (192 ids) | off: decode 12414 ms (15.39 tok/s) | dflash: decode 3710 ms (51.48 tok/s) | spec: verify passes=36 proposed=516 accepted=154 (acceptance 29.8%, 5.28 tokens per pass)
+PASS g3 code2 ids identical (192 ids) | off: decode 12417 ms (15.38 tok/s) | dflash: decode 3827 ms (49.91 tok/s) | spec: verify passes=38 proposed=524 accepted=153 (acceptance 29.2%, 5.03 tokens per pass)
+PASS g3 code3 ids identical (192 ids) | off: decode 12418 ms (15.38 tok/s) | dflash: decode 4924 ms (38.79 tok/s) | spec: verify passes=49 proposed=704 accepted=142 (acceptance 20.2%, 3.90 tokens per pass)
+PASS g3 code4 ids identical (192 ids) | off: decode 12435 ms (15.36 tok/s) | dflash: decode 8947 ms (21.35 tok/s) | spec: verify passes=89 proposed=1293 accepted=101 (acceptance 7.8%, 2.13 tokens per pass)
+PASS g3 code5 ids identical (192 ids) | off: decode 12430 ms (15.37 tok/s) | dflash: decode 3135 ms (60.93 tok/s) | spec: verify passes=30 proposed=446 accepted=160 (acceptance 35.9%, 6.33 tokens per pass)
+PASS g3 chat1 ids identical (192 ids) | off: decode 12435 ms (15.36 tok/s) | dflash: decode 9172 ms (20.82 tok/s) | spec: verify passes=91 proposed=1352 accepted=99 (acceptance 7.3%, 2.09 tokens per pass)
+PASS g3 chat2 ids identical (192 ids) | off: decode 12430 ms (15.37 tok/s) | dflash: decode 9763 ms (19.56 tok/s) | spec: verify passes=97 proposed=1398 accepted=93 (acceptance 6.7%, 1.96 tokens per pass)
+PASS g3 chat3 ids identical (192 ids) | off: decode 12431 ms (15.36 tok/s) | dflash: decode 10845 ms (17.61 tok/s) | spec: verify passes=108 proposed=1582 accepted=82 (acceptance 5.2%, 1.76 tokens per pass)
+PASS g3 chat4 ids identical (192 ids) | off: decode 12418 ms (15.38 tok/s) | dflash: decode 13588 ms (14.06 tok/s) | spec: verify passes=136 proposed=1956 accepted=54 (acceptance 2.8%, 1.40 tokens per pass)
+PASS g3 chat5 ids identical (192 ids) | off: decode 12435 ms (15.36 tok/s) | dflash: decode 8062 ms (23.69 tok/s) | spec: verify passes=80 proposed=1144 accepted=110 (acceptance 9.6%, 2.38 tokens per pass)
+g3 fails=0
+fleetq: #5582 done (exit 0)
+exit 0

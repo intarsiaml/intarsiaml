@@ -1,0 +1,3 @@
+fleetq: #5583 waiting (#1 in line): needs gpu quiet on spark1, but #5582 "dc: G3/G4 dflash gate off, 16 prompts vs spec-off + tau vs MLX ref" (claude-f31ccf91) loads it
+fleetq:   #5582 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5582 set, or it will wait for #5582 to be released.
+fleetq: #5583 running on spark1: scripts/dc/spark1.sh fxrun
