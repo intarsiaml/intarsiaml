@@ -454,7 +454,7 @@ The radiance reference run on the same category prompts (record-only) follows in
 ## 16. Reference: radiance on the same prompts (record-only)
 
 radiance (the production engine on tatooine, `~/.local/opt/radiance/radiance-native.sh`, `qwen3.8-27b-mxfp4.rad`, `--tp 2`, its own
-DFlash-style drafter, `--num-speculative-tokens 7`), read-only, radiance up, fleetq #5765 (12:02:32-13:04:25 quiet slot), the same
+DFlash-style drafter, `--num-speculative-tokens 7`), read-only, radiance up, fleetq #5765 (13:02:32-13:04:25 quiet slot), the same
 category files, localeval `--judge none`, 512 forced tokens, temperature 0, one round, 7 runs, 0 problems (`raw/rad1/`; tokens per
 pass from its `/metrics`: decode tokens / decode steps). Pooled beside window 8 (`raw/rad1/cat-table-with-w8.txt`):
 
