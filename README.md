@@ -79,3 +79,13 @@ Golden logits come from `cd tools && uv run golden.py --model $MODEL --out ../go
 
 More: `docs/accuracy.md`, `docs/benchmarking.md`, `docs/observability.md`, `docs/telemetry.md`,
 `docs/adding-a-model.md`.
+
+## Before you push
+
+Enable the repo's pre-push hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook runs `scripts/prepush.sh`, which takes about 45 s cold. It runs the two docs-sync tests that CI fails on most often: every env var read in the code needs a row in `docs/tuning.md`, and every recipe schema key needs documenting. `git push --no-verify` skips it for one push.
