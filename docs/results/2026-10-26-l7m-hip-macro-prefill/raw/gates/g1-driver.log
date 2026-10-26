@@ -1,0 +1,106 @@
+fleetq: #5649 waiting (#4 in line): in line behind #5636 "tp2 speed: 27B tp2 batch-sync mitigation cost (tp2 default vs sync off vs solo graphs off, 4k prefill + 4/16-stream decode, 2 rounds); radiance down <=40 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5636 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5636 set, or it will wait for #5636 to be released.
+fleetq: #5649 waiting (#3 in line): in line behind #5646 "tp2: sync + build the eager tree (ff1c218: solo graphs off by default at tp>1, stages-w30), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5646 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5646 set, or it will wait for #5646 to be released.
+fleetq: #5649 waiting (#2 in line): in line behind #5647 "tp2 w30: solo-eager default at tp>1 soak (40 reps x3) + root-cause probes (serialize/launch blocking, solo graphs forced on); radiance down <=42 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5647 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5647 set, or it will wait for #5647 to be released.
+fleetq: #5649 waiting (#1 in line): radiance-rank0 is also taken down by #5647 "tp2 w30: solo-eager default at tp>1 soak (40 reps x3) + root-cause probes (serialize/launch blocking, solo graphs forced on); radiance down <=42 min" (claude-f31ccf91)
+fleetq:   #5647 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5647 set, or it will wait for #5647 to be released.
+fleetq: #5649 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #5649 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5649 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 99% busy with work fleetq does not track
+fleetq: #5649 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'CARD=1 bash ~/intarsiaml-l7m-hip/scripts/l7m/gates.sh BIT IDS PLAN CTX'
+[l7] radiance inactive
+[gates] BIT 02:08:15
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+MACRO batched alone: 4 prefill calls (plain schedule: 17 chunks)
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+thread 'real_35b_macro_prefill_is_bitwise_the_plain_schedule' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:876:17:
+FAILED
+    real_35b_macro_prefill_is_bitwise_the_plain_schedule
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 37.80s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+error: 1 target failed:
+[gates] IDS 02:08:53
+base 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+IDS 4950 base vs dev: identical
+IDS 4950 base vs dev0: identical
+IDS 4950 base vs dev8: identical
+IDS 13600 base vs dev: identical
+IDS 13600 base vs dev0: identical
+IDS 13600 base vs dev8: identical
+IDS 27300 base vs dev: identical
+IDS 27300 base vs dev0: identical
+IDS 27300 base vs dev8: identical
+IDS 56000 base vs dev: identical
+IDS 56000 base vs dev0: identical
+IDS 56000 base vs dev8: identical
+[gates] PLAN 02:10:29
+plan mb1 txt base vs macro-off: byte-identical
+plan mb1 json base vs macro-off: byte-identical
+-- mb1 dev vs base (text diff)
+2c2
+< act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 167905792 B  require_admitted false  reference_only false
+---
+> act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 671615488 B  require_admitted false  reference_only false
+38c38
+< matmul_fp8     matmul_fp8_mma_f8          deterministic no        0 16777232
+---
+> matmul_fp8     matmul_fp8_mma_f8          deterministic no        0 67108880
+42c42
+< moe_experts    moe_experts_bf16_v2        deterministic no        0 167905792
+---
+> moe_experts    moe_experts_bf16_v2        deterministic no        0 671615488
+[gates] CTX 02:10:51
+[serve] dev max-batch - serving after 15 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m0-sb.log
+macro 0 sb: context 17408 tokens
+[serve] dev max-batch 16 serving after 20 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m0-mb16.log
+macro 0 mb16: context 16223 tokens
+[serve] dev max-batch - serving after 15 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m8192-sb.log
+macro 8192 sb: context 17408 tokens
+[serve] dev max-batch 16 serving after 20 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m8192-mb16.log
+macro 8192 mb16: context 15410 tokens
+[serve] dev max-batch - serving after 20 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m16384-sb.log
+macro 16384 sb: context 17408 tokens
+[serve] dev max-batch 16 serving after 20 s
+[serve] saved /home/josef/intarsiaml-l7m-logs/ctx-m16384-mb16.log
+macro 16384 mb16: context 13788 tokens
+sb macro 8192: context 17408 vs 17408 off = +0.0 %
+sb macro 16384: context 17408 vs 17408 off = +0.0 %
+mb16 macro 8192: context 15410 vs 16223 off = -5.0 %
+mb16 macro 16384: context 13788 vs 16223 off = -15.0 %
+[gates] done 02:12:34
+[l7] radiance active after 20 s
+fleetq: #5649 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

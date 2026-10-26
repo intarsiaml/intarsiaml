@@ -1,0 +1,28 @@
+base 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev8 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+IDS 4950 base vs dev: identical
+IDS 4950 base vs dev0: identical
+IDS 4950 base vs dev8: identical
+IDS 13600 base vs dev: identical
+IDS 13600 base vs dev0: identical
+IDS 13600 base vs dev8: identical
+IDS 27300 base vs dev: identical
+IDS 27300 base vs dev0: identical
+IDS 27300 base vs dev8: identical
+IDS 56000 base vs dev: identical
+IDS 56000 base vs dev0: identical
+IDS 56000 base vs dev8: identical

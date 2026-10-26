@@ -1,0 +1,10 @@
+macro 0 sb: context 17408 tokens
+macro 0 mb16: context 16223 tokens
+macro 8192 sb: context 17408 tokens
+macro 8192 mb16: context 15410 tokens
+macro 16384 sb: context 17408 tokens
+macro 16384 mb16: context 13788 tokens
+sb macro 8192: context 17408 vs 17408 off = +0.0 %
+sb macro 16384: context 17408 vs 17408 off = +0.0 %
+mb16 macro 8192: context 15410 vs 16223 off = -5.0 %
+mb16 macro 16384: context 13788 vs 16223 off = -15.0 %
