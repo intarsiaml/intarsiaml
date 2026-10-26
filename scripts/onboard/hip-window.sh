@@ -28,6 +28,11 @@ restore() {
   done
   echo "[window] RADIANCE DID NOT ANSWER within 180 s $(now)"; return 1
 }
+# check what the window needs BEFORE radiance goes down: a missing binary or model must not cost a stop and a start of radiance
+HOSTMODELS=${INTARSIA_MODELS:-/data/models/intarsia}
+if [ ! -x "$HOME/intarsiaml-$LANE/$LANE-intarsia" ] || [ ! -e "$HOSTMODELS/${MODEL#/models/}" ]; then
+  echo "[window] missing $HOME/intarsiaml-$LANE/$LANE-intarsia or $HOSTMODELS/${MODEL#/models/}; radiance left up"; exit 2
+fi
 trap restore EXIT
 echo "[window] job $FLEETQ_JOB $RUN; stopping radiance $(now)"
 systemctl --user stop radiance
