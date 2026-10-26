@@ -69,7 +69,8 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
     let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(&dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
-    let opts = LoadOptions { max_seq: max_len.next_multiple_of(1024), prefill_chunk: chunk, kv_fraction: 0.5, ..Default::default() };
+    // profile_every 0 as the engine runs (`--profile-every 0`): the default (1) profiles every pass, eagerly and synchronised per op
+    let opts = LoadOptions { max_seq: max_len.next_multiple_of(1024), prefill_chunk: chunk, kv_fraction: 0.5, profile_every: 0, ..Default::default() };
     let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
     m.enable_verify(most).unwrap();
     m.configure_plan(&Default::default(), None).unwrap();
