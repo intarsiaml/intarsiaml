@@ -1,0 +1,198 @@
+[window] job 5431 win w5 snapshot w5; stopping radiance 2026-10-25 20:13:46
+[window] radiance stopped 2026-10-25 20:13:50
+f8bench T4096 exit 0
+T = 4096  pairs = 32768  active experts = 256  avg 128.0 max 157 pairs/expert  skew=0  reps=10
+r7 bf16 zf  gate_up    2.212 ms    62.1 TFLOP/s | down    0.962 ms    71.4 TFLOP/s | total    3.174 ms    64.9 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    2.458 ms    55.9 TFLOP/s | down    1.406 ms    48.9 TFLOP/s | total    3.864 ms    53.4 TFLOP/s
+quant       x 0.023 ms (4096 rows)   h 0.036 ms (32768 rows)
+fp8 p64 v0    gate_up    2.224 ms    61.8 TFLOP/s | down    1.857 ms    37.0 TFLOP/s | +quant total    4.140 ms    49.8 TFLOP/s  x0.93 vs r7
+            x0.77 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    2.258 ms    60.9 TFLOP/s | down    1.824 ms    37.7 TFLOP/s | +quant total    4.140 ms    49.8 TFLOP/s  x0.93 vs r7
+            x0.77 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    2.089 ms    65.8 TFLOP/s | down    1.774 ms    38.7 TFLOP/s | +quant total    3.922 ms    52.6 TFLOP/s  x0.99 vs r7
+            x0.81 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    1.866 ms    73.7 TFLOP/s | down    1.038 ms    66.2 TFLOP/s | +quant total    2.963 ms    69.6 TFLOP/s  x1.30 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    2.047 ms    67.1 TFLOP/s | down    1.015 ms    67.7 TFLOP/s | +quant total    3.121 ms    66.1 TFLOP/s  x1.24 vs r7
+            x1.02 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    2.080 ms    66.1 TFLOP/s | down    1.170 ms    58.7 TFLOP/s | +quant total    3.309 ms    62.3 TFLOP/s  x1.17 vs r7
+            x0.96 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    1.972 ms    69.7 TFLOP/s | down    1.046 ms    65.7 TFLOP/s | +quant total    3.076 ms    67.0 TFLOP/s  x1.26 vs r7
+            x1.03 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    1.908 ms    72.0 TFLOP/s | down    0.996 ms    69.0 TFLOP/s | +quant total    2.963 ms    69.6 TFLOP/s  x1.30 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    2.001 ms    68.7 TFLOP/s | down    0.963 ms    71.3 TFLOP/s | +quant total    3.023 ms    68.2 TFLOP/s  x1.28 vs r7
+            x1.05 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    2.378 ms    57.8 TFLOP/s | down    1.024 ms    67.1 TFLOP/s | +quant total    3.461 ms    59.6 TFLOP/s  x1.12 vs r7
+            x0.92 vs r7 zf (the same launch order)
+best fp8 variant: p64 sk+zf  2.963 ms (r7 3.864 ms, x1.30)
+r7 zf vs r7: h bitwise equal, y bitwise equal (y of zf is computed from zf's h; r7's from r7's h)
+quant x check: 0 of 8388608 bytes differ, 0 of 4096 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 68 255): gate_up 0 of 14487 bf16 outputs differ, max 0.50 bf16 ulp | down 0 of 30989 differ, max 0.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0365   down y (own h) 0.0444  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0252 (h quantisation alone)
+f8bench T2048 exit 0
+T = 2048  pairs = 16384  active experts = 256  avg 64.0 max 86 pairs/expert  skew=0  reps=10
+r7 bf16 zf  gate_up    1.317 ms    52.2 TFLOP/s | down    0.539 ms    63.8 TFLOP/s | total    1.855 ms    55.6 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    1.684 ms    40.8 TFLOP/s | down    0.743 ms    46.2 TFLOP/s | total    2.427 ms    42.5 TFLOP/s
+quant       x 0.016 ms (2048 rows)   h 0.020 ms (16384 rows)
+fp8 p64 v0    gate_up    1.459 ms    47.1 TFLOP/s | down    0.917 ms    37.5 TFLOP/s | +quant total    2.411 ms    42.7 TFLOP/s  x1.01 vs r7
+            x0.77 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    1.390 ms    49.4 TFLOP/s | down    0.872 ms    39.4 TFLOP/s | +quant total    2.299 ms    44.8 TFLOP/s  x1.06 vs r7
+            x0.81 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    1.355 ms    50.7 TFLOP/s | down    0.848 ms    40.5 TFLOP/s | +quant total    2.239 ms    46.0 TFLOP/s  x1.08 vs r7
+            x0.83 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    0.932 ms    73.7 TFLOP/s | down    0.576 ms    59.7 TFLOP/s | +quant total    1.544 ms    66.8 TFLOP/s  x1.57 vs r7
+            x1.20 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    1.004 ms    68.4 TFLOP/s | down    0.576 ms    59.6 TFLOP/s | +quant total    1.617 ms    63.8 TFLOP/s  x1.50 vs r7
+            x1.15 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    0.998 ms    68.8 TFLOP/s | down    0.584 ms    58.9 TFLOP/s | +quant total    1.618 ms    63.7 TFLOP/s  x1.50 vs r7
+            x1.15 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    0.970 ms    70.9 TFLOP/s | down    0.583 ms    58.9 TFLOP/s | +quant total    1.589 ms    64.9 TFLOP/s  x1.53 vs r7
+            x1.17 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    0.921 ms    74.6 TFLOP/s | down    0.569 ms    60.4 TFLOP/s | +quant total    1.527 ms    67.5 TFLOP/s  x1.59 vs r7
+            x1.22 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    1.012 ms    67.9 TFLOP/s | down    0.578 ms    59.5 TFLOP/s | +quant total    1.626 ms    63.4 TFLOP/s  x1.49 vs r7
+            x1.14 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    1.914 ms    35.9 TFLOP/s | down    0.726 ms    47.3 TFLOP/s | +quant total    2.676 ms    38.5 TFLOP/s  x0.91 vs r7
+            x0.69 vs r7 zf (the same launch order)
+best fp8 variant: p64 sz+bar  1.527 ms (r7 2.427 ms, x1.59)
+r7 zf vs r7: h bitwise equal, y bitwise equal (y of zf is computed from zf's h; r7's from r7's h)
+quant x check: 0 of 4194304 bytes differ, 0 of 2048 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 30 255): gate_up 2 of 14480 bf16 outputs differ, max 2.79 bf16 ulp | down 4 of 30989 differ, max 1.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0348   down y (own h) 0.0432  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0249 (h quantisation alone)
+f8bench T1024 exit 0
+T = 1024  pairs = 8192  active experts = 256  avg 32.0 max 50 pairs/expert  skew=0  reps=10
+r7 bf16 zf  gate_up    0.804 ms    42.7 TFLOP/s | down    0.386 ms    44.5 TFLOP/s | total    1.190 ms    43.3 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    0.905 ms    38.0 TFLOP/s | down    0.426 ms    40.4 TFLOP/s | total    1.331 ms    38.7 TFLOP/s
+quant       x 0.008 ms (1024 rows)   h 0.012 ms (8192 rows)
+fp8 p64 v0    gate_up    0.742 ms    46.3 TFLOP/s | down    0.552 ms    31.1 TFLOP/s | +quant total    1.314 ms    39.2 TFLOP/s  x1.01 vs r7
+            x0.91 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    0.692 ms    49.7 TFLOP/s | down    0.520 ms    33.1 TFLOP/s | +quant total    1.231 ms    41.9 TFLOP/s  x1.08 vs r7
+            x0.97 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    0.672 ms    51.1 TFLOP/s | down    0.501 ms    34.3 TFLOP/s | +quant total    1.193 ms    43.2 TFLOP/s  x1.12 vs r7
+            x1.00 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    0.727 ms    47.2 TFLOP/s | down    0.494 ms    34.8 TFLOP/s | +quant total    1.241 ms    41.5 TFLOP/s  x1.07 vs r7
+            x0.96 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    0.702 ms    49.0 TFLOP/s | down    0.493 ms    34.9 TFLOP/s | +quant total    1.214 ms    42.4 TFLOP/s  x1.10 vs r7
+            x0.98 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    0.707 ms    48.6 TFLOP/s | down    0.496 ms    34.7 TFLOP/s | +quant total    1.222 ms    42.2 TFLOP/s  x1.09 vs r7
+            x0.97 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    0.740 ms    46.4 TFLOP/s | down    0.500 ms    34.4 TFLOP/s | +quant total    1.260 ms    40.9 TFLOP/s  x1.06 vs r7
+            x0.94 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    0.722 ms    47.6 TFLOP/s | down    0.454 ms    37.9 TFLOP/s | +quant total    1.196 ms    43.1 TFLOP/s  x1.11 vs r7
+            x1.00 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    0.680 ms    50.5 TFLOP/s | down    0.452 ms    38.0 TFLOP/s | +quant total    1.152 ms    44.7 TFLOP/s  x1.15 vs r7
+            x1.03 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    1.567 ms    21.9 TFLOP/s | down    0.521 ms    33.0 TFLOP/s | +quant total    2.108 ms    24.5 TFLOP/s  x0.63 vs r7
+            x0.56 vs r7 zf (the same launch order)
+best fp8 variant: p64 szd+bar  1.152 ms (r7 1.331 ms, x1.15)
+r7 zf vs r7: h bitwise equal, y bitwise equal (y of zf is computed from zf's h; r7's from r7's h)
+quant x check: 0 of 2097152 bytes differ, 0 of 1024 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 165 255): gate_up 1 of 11372 bf16 outputs differ, max 1.48 bf16 ulp | down 2 of 24328 differ, max 16.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0356   down y (own h) 0.0430  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0245 (h quantisation alone)
+f8bench T512 exit 0
+T = 512  pairs = 4096  active experts = 256  avg 16.0 max 27 pairs/expert  skew=0  reps=10
+r7 bf16 zf  gate_up    0.759 ms    22.6 TFLOP/s | down    0.334 ms    25.7 TFLOP/s | total    1.094 ms    23.6 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    0.840 ms    20.5 TFLOP/s | down    0.350 ms    24.5 TFLOP/s | total    1.190 ms    21.7 TFLOP/s
+quant       x 0.006 ms (512 rows)   h 0.008 ms (4096 rows)
+fp8 p64 v0    gate_up    0.666 ms    25.8 TFLOP/s | down    0.405 ms    21.2 TFLOP/s | +quant total    1.084 ms    23.8 TFLOP/s  x1.10 vs r7
+            x1.01 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    0.635 ms    27.0 TFLOP/s | down    0.370 ms    23.2 TFLOP/s | +quant total    1.019 ms    25.3 TFLOP/s  x1.17 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    0.623 ms    27.6 TFLOP/s | down    0.376 ms    22.9 TFLOP/s | +quant total    1.012 ms    25.5 TFLOP/s  x1.18 vs r7
+            x1.08 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    0.678 ms    25.3 TFLOP/s | down    0.442 ms    19.4 TFLOP/s | +quant total    1.134 ms    22.7 TFLOP/s  x1.05 vs r7
+            x0.96 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    0.641 ms    26.8 TFLOP/s | down    0.418 ms    20.5 TFLOP/s | +quant total    1.073 ms    24.0 TFLOP/s  x1.11 vs r7
+            x1.02 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    0.672 ms    25.5 TFLOP/s | down    0.435 ms    19.8 TFLOP/s | +quant total    1.121 ms    23.0 TFLOP/s  x1.06 vs r7
+            x0.98 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    0.678 ms    25.3 TFLOP/s | down    0.436 ms    19.7 TFLOP/s | +quant total    1.128 ms    22.8 TFLOP/s  x1.06 vs r7
+            x0.97 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    0.667 ms    25.7 TFLOP/s | down    0.384 ms    22.4 TFLOP/s | +quant total    1.065 ms    24.2 TFLOP/s  x1.12 vs r7
+            x1.03 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    0.631 ms    27.2 TFLOP/s | down    0.377 ms    22.8 TFLOP/s | +quant total    1.022 ms    25.2 TFLOP/s  x1.16 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    1.372 ms    12.5 TFLOP/s | down    0.466 ms    18.4 TFLOP/s | +quant total    1.851 ms    13.9 TFLOP/s  x0.64 vs r7
+            x0.59 vs r7 zf (the same launch order)
+best fp8 variant: p64 sk+dp  1.012 ms (r7 1.190 ms, x1.18)
+r7 zf vs r7: h bitwise equal, y bitwise equal (y of zf is computed from zf's h; r7's from r7's h)
+quant x check: 0 of 1048576 bytes differ, 0 of 512 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 148 255): gate_up 0 of 5229 bf16 outputs differ, max 0.50 bf16 ulp | down 1 of 11193 differ, max 1.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0367   down y (own h) 0.0438  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0246 (h quantisation alone)
+f8bench T4096-skew exit 0
+T = 4096  pairs = 32768  active experts = 256  avg 128.0 max 2787 pairs/expert  skew=1  reps=10
+r7 bf16 zf  gate_up    2.202 ms    62.4 TFLOP/s | down    1.040 ms    66.1 TFLOP/s | total    3.242 ms    63.6 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    2.502 ms    54.9 TFLOP/s | down    1.344 ms    51.1 TFLOP/s | total    3.845 ms    53.6 TFLOP/s
+quant       x 0.023 ms (4096 rows)   h 0.036 ms (32768 rows)
+fp8 p64 v0    gate_up    2.283 ms    60.2 TFLOP/s | down    1.616 ms    42.5 TFLOP/s | +quant total    3.958 ms    52.1 TFLOP/s  x0.97 vs r7
+            x0.82 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    2.125 ms    64.7 TFLOP/s | down    1.558 ms    44.1 TFLOP/s | +quant total    3.742 ms    55.1 TFLOP/s  x1.03 vs r7
+            x0.87 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    2.215 ms    62.0 TFLOP/s | down    1.535 ms    44.8 TFLOP/s | +quant total    3.809 ms    54.1 TFLOP/s  x1.01 vs r7
+            x0.85 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    1.956 ms    70.3 TFLOP/s | down    1.294 ms    53.1 TFLOP/s | +quant total    3.308 ms    62.3 TFLOP/s  x1.16 vs r7
+            x0.98 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    2.152 ms    63.9 TFLOP/s | down    1.259 ms    54.6 TFLOP/s | +quant total    3.471 ms    59.4 TFLOP/s  x1.11 vs r7
+            x0.93 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    2.121 ms    64.8 TFLOP/s | down    1.306 ms    52.6 TFLOP/s | +quant total    3.486 ms    59.1 TFLOP/s  x1.10 vs r7
+            x0.93 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    2.027 ms    67.8 TFLOP/s | down    1.289 ms    53.3 TFLOP/s | +quant total    3.375 ms    61.1 TFLOP/s  x1.14 vs r7
+            x0.96 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    1.961 ms    70.1 TFLOP/s | down    1.141 ms    60.2 TFLOP/s | +quant total    3.161 ms    65.2 TFLOP/s  x1.22 vs r7
+            x1.03 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    2.097 ms    65.5 TFLOP/s | down    1.096 ms    62.7 TFLOP/s | +quant total    3.252 ms    63.4 TFLOP/s  x1.18 vs r7
+            x1.00 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    2.617 ms    52.5 TFLOP/s | down    1.340 ms    51.3 TFLOP/s | +quant total    4.015 ms    51.3 TFLOP/s  x0.96 vs r7
+            x0.81 vs r7 zf (the same launch order)
+best fp8 variant: p64 sz+bar  3.161 ms (r7 3.845 ms, x1.22)
+r7 zf vs r7: h bitwise equal, y bitwise equal (y of zf is computed from zf's h; r7's from r7's h)
+quant x check: 0 of 8388608 bytes differ, 0 of 4096 scales differ (host RNE e4m3)
+reference (f64 over the same e4m3 inputs; experts 0 0 255): gate_up 0 of 14477 bf16 outputs differ, max 0.50 bf16 ulp | down 2 of 31002 differ, max 1.00 ulp
+fp8 vs bf16 r7 (relative Frobenius): gate_up h 0.0360   down y (own h) 0.0444  [down compares y of different h inputs]
+down on the same h: fp8 vs bf16 r7 relative Frobenius 0.0251 (h quantisation alone)
+f8bench T4096-abl exit 0
+T = 4096  pairs = 32768  active experts = 256  avg 128.0 max 157 pairs/expert  skew=0  reps=10
+r7 bf16 zf  gate_up    2.214 ms    62.1 TFLOP/s | down    0.962 ms    71.5 TFLOP/s | total    3.175 ms    64.9 TFLOP/s  (r7 with the fp8 kernel's launch order)
+r7 bf16     gate_up    2.481 ms    55.4 TFLOP/s | down    1.408 ms    48.8 TFLOP/s | total    3.889 ms    53.0 TFLOP/s
+quant       x 0.023 ms (4096 rows)   h 0.036 ms (32768 rows)
+fp8 p64 v0    gate_up    2.254 ms    61.0 TFLOP/s | down    1.855 ms    37.0 TFLOP/s | +quant total    4.168 ms    49.5 TFLOP/s  x0.93 vs r7
+            x0.76 vs r7 zf (the same launch order)
+fp8 p64 skip  gate_up    2.246 ms    61.2 TFLOP/s | down    1.822 ms    37.7 TFLOP/s | +quant total    4.127 ms    50.0 TFLOP/s  x0.94 vs r7
+            x0.77 vs r7 zf (the same launch order)
+fp8 p64 sk+dp gate_up    2.137 ms    64.3 TFLOP/s | down    1.777 ms    38.7 TFLOP/s | +quant total    3.972 ms    51.9 TFLOP/s  x0.98 vs r7
+            x0.80 vs r7 zf (the same launch order)
+fp8 p64 sk+zf gate_up    1.864 ms    73.7 TFLOP/s | down    1.041 ms    66.0 TFLOP/s | +quant total    2.964 ms    69.6 TFLOP/s  x1.31 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p64 s+d+zf gate_up    2.064 ms    66.6 TFLOP/s | down    1.100 ms    62.5 TFLOP/s | +quant total    3.222 ms    64.0 TFLOP/s  x1.21 vs r7
+            x0.99 vs r7 zf (the same launch order)
+fp8 p64 sz+pipe gate_up    2.088 ms    65.8 TFLOP/s | down    1.169 ms    58.8 TFLOP/s | +quant total    3.316 ms    62.2 TFLOP/s  x1.17 vs r7
+            x0.96 vs r7 zf (the same launch order)
+fp8 p64 sz+pip+s gate_up    1.988 ms    69.1 TFLOP/s | down    1.001 ms    68.6 TFLOP/s | +quant total    3.048 ms    67.6 TFLOP/s  x1.28 vs r7
+            x1.04 vs r7 zf (the same launch order)
+fp8 p64 sz+bar gate_up    1.908 ms    72.0 TFLOP/s | down    0.997 ms    68.9 TFLOP/s | +quant total    2.964 ms    69.6 TFLOP/s  x1.31 vs r7
+            x1.07 vs r7 zf (the same launch order)
+fp8 p64 szd+bar gate_up    2.018 ms    68.1 TFLOP/s | down    0.966 ms    71.1 TFLOP/s | +quant total    3.043 ms    67.7 TFLOP/s  x1.28 vs r7
+            x1.04 vs r7 zf (the same launch order)
+fp8 p128 sk+zf gate_up    2.391 ms    57.5 TFLOP/s | down    1.020 ms    67.4 TFLOP/s | +quant total    3.470 ms    59.4 TFLOP/s  x1.12 vs r7
+            x0.92 vs r7 zf (the same launch order)
+fp8 szb NoW   gate_up    1.693 ms    81.2 TFLOP/s | down    0.825 ms    83.3 TFLOP/s | +quant total    2.577 ms    80.0 TFLOP/s  x1.51 vs r7
+            x1.23 vs r7 zf (the same launch order)
+fp8 szb NoFma gate_up    1.561 ms    88.1 TFLOP/s | down    0.673 ms   102.2 TFLOP/s | +quant total    2.292 ms    90.0 TFLOP/s  x1.70 vs r7
+            x1.39 vs r7 zf (the same launch order)
+fp8 szb NoLds gate_up    1.782 ms    77.1 TFLOP/s | down    1.163 ms    59.1 TFLOP/s | +quant total    3.003 ms    68.6 TFLOP/s  x1.29 vs r7
+            x1.06 vs r7 zf (the same launch order)
+fp8 szb NoDec gate_up    1.858 ms    74.0 TFLOP/s | down    0.974 ms    70.6 TFLOP/s | +quant total    2.891 ms    71.3 TFLOP/s  x1.35 vs r7
+            x1.10 vs r7 zf (the same launch order)
+fp8 szb NoW+Fma gate_up    1.494 ms    92.0 TFLOP/s | down    0.606 ms   113.4 TFLOP/s | +quant total    2.159 ms    95.5 TFLOP/s  x1.80 vs r7
+            x1.47 vs r7 zf (the same launch order)
+fp8 szb all-off gate_up    0.849 ms   161.9 TFLOP/s | down    0.425 ms   161.9 TFLOP/s | +quant total    1.332 ms   154.8 TFLOP/s  x2.92 vs r7
+            x2.38 vs r7 zf (the same launch order)
+best fp8 variant: szb all-off  1.332 ms (r7 3.889 ms, x2.92)
+[window] stages done 2026-10-25 20:14:02 (exit 0)
+[window] starting radiance 2026-10-25 20:14:02
+[window] radiance answers 2026-10-25 20:14:12 (after 15 s)
