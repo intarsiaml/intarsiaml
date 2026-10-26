@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane l7m, LOCAL, run as the command of ONE fleetq job that holds both tatooine hosts and takes radiance down (as ab.sh): concurrency-2
 # head-of-line check. Per arm the 35B server runs with `--max-batch 16`; two localeval `speed` processes run against it at the same time
-# (--ignore-busy, the load is ours): L = 16384-token prompts back to back (8 generated tokens, mostly prefill), S = 1024-token prompts back to back
+# (--ignore-busy, the load is ours): L = 12288-token prompts (three 4096-row chunks: a 16384-token prompt does not fit the --max-batch 16 context) back to back (8 generated tokens, mostly prefill), S = 1024-token prompts back to back
 # (8 generated tokens) started 4 s later, so most S requests arrive while an L prefill is running. S's TTFT is the number: median, and the max
 # of its reps (n = S reps per arm; pooled over the interleaved rounds the max is above the 99th percentile when n_total >= 100).
 #   scripts/l7m/mix.sh "main|base||--max-batch 16" "branch|dev||--max-batch 16" ... @tag     (arms as ab.sh)
@@ -19,7 +19,7 @@ for a in "${arms[@]}"; do
   ssh tatooine "env $envs CARD=$CARD MAX_SEQ=${MAX_SEQ:-17408} bash ~/intarsiaml-l7m-hip/scripts/l7m/serve.sh up $tree - $args" 2>&1 | tail -4 | tee "$LOG/$lab.up"
   if grep -q "serving after" "$LOG/$lab.up"; then
     U="--url http://tatooine:${PORT:-8296}/v1 --model intarsia --thinking off --ignore-busy --no-unim"
-    (cd /opt/code/deepeval && uv run localeval speed $U --sizes 16384 --gen 8 --reps ${LREPS:-14} --label "$lab-long" \
+    (cd /opt/code/deepeval && uv run localeval speed $U --sizes ${LSIZE:-12288} --gen 8 --reps ${LREPS:-14} --label "$lab-long" \
         --recipe "mix L $lab" > "$LOG/$lab-long.out" 2>&1) &
     lp=$!
     sleep 4

@@ -14,11 +14,12 @@ ssh tatooine "bash ~/intarsiaml-l7m-hip/scripts/l7m/win.sh stop"
 n=0
 for a in "${arms[@]}"; do
   n=$((n + 1)); IFS='|' read -r name tree envv args <<<"$a"
+  SZ=1024,4096,16384; [[ "$args" == *--max-batch* ]] && SZ=1024,4096,12288  # --max-batch 16 caps the context at 16223 (13788 with the 16384-row macro workspace): no 16k prompt fits
   lab="$tag-$n-$name"; envs=$(echo "$envv" | tr ',' ' ')
   echo "[ab $n $name] up $(date +%T)  tree=$tree env=[$envs] args=[$args]"
   ssh tatooine "env $envs CARD=$CARD MAX_SEQ=${MAX_SEQ:-17408} bash ~/intarsiaml-l7m-hip/scripts/l7m/serve.sh up $tree - $args" 2>&1 | tail -4 | tee "$LOG/$lab.up"
   if grep -q "serving after" "$LOG/$lab.up"; then
-    (cd /opt/code/deepeval && uv run localeval speed --url http://tatooine:${PORT:-8296}/v1 --model intarsia --thinking off --sizes 1024,4096,16384 --gen ${GEN:-16} --reps 3 \
+    (cd /opt/code/deepeval && uv run localeval speed --url http://tatooine:${PORT:-8296}/v1 --model intarsia --thinking off --sizes $SZ --gen ${GEN:-16} --reps 3 \
       --label "$lab" --no-unim \
       --recipe "intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq ${MAX_SEQ:-17408} tree=$tree env=[$envs] args=[$args] card=$CARD") > "$LOG/$lab.out" 2>&1
     echo "[ab $n $name] localeval rc=$?"; grep -aE "^\| (99|10[0-9]|40|41|16)[0-9]* \|" "$LOG/$lab.out" | cut -c1-200
