@@ -98,16 +98,21 @@ fn split_rows(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), name
     Ok([mk(&raw[..half])?, mk(&raw[half..2 * half])?])
 }
 
-/// `[2, K, H]` base kernel as two `[K, H]` views.
-fn base2(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), name: &str, kk: usize, h: usize) -> Result<[TensorRef; 2]> {
-    let t = load_tensor(b, src, name, Some(&[2, kk, h]))?;
-    if t.dtype != DType::Bf16 {
-        return Err(Error::model(format!("draft '{name}' is {}, expected bf16", t.dtype)));
+/// `[2, K, H]` base kernel as two `[K, H]` tensors in the activation dtype (`Op::DynConv` takes all three inputs in one dtype).
+fn base2(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), name: &str, kk: usize, h: usize, act: DType) -> Result<[TensorRef; 2]> {
+    let info = src.info(name).ok_or_else(|| Error::model(format!("draft tensor '{name}' missing")))?;
+    if info.dtype != DType::Bf16 || info.shape != [2, kk, h] {
+        return Err(Error::model(format!("draft '{name}' is {} {:?}, expected bf16 [2, {kk}, {h}]", info.dtype, info.shape)));
     }
-    bytes(t.nbytes() as u64);
-    let mut b1 = TensorRef::new(t.buf.clone(), DType::Bf16, &[kk, h]);
-    b1.offset = t.offset + kk * h * 2;
-    Ok([TensorRef { shape: vec![kk, h], ..t.clone() }, b1])
+    let host = crate::tensor::HostTensor::new(DType::Bf16, vec![2 * kk, h], src.bytes(name)?.to_vec())?;
+    let vals = host.to_f32();
+    let mk = |part: &[f32]| -> Result<TensorRef> {
+        let t = crate::tensor::HostTensor::from_f32_as(act, &[kk, h], part);
+        let buf = crate::backend::upload_new(b, &t.data)?;
+        bytes(t.data.len() as u64);
+        Ok(TensorRef::new(buf, act, &[kk, h]))
+    };
+    Ok([mk(&vals[..kk * h])?, mk(&vals[kk * h..])?])
 }
 
 /// The DFlash2 draft's layers onto the device (`dflash::load_head`, a `DFlash2DraftModel` checkpoint). `rows`: the most context
@@ -144,7 +149,7 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
         let conv = |name: &str| -> Result<Conv2> {
             Ok(Conv2 {
                 kp: split_rows(src, b, add_bytes, &resolve(src, &format!("{p}.{name}.kernel_projection"))?, kk * g, h)?,
-                base: base2(src, b, add_bytes, &format!("{p}.{name}.base_kernel"), kk, h)?,
+                base: base2(src, b, add_bytes, &format!("{p}.{name}.base_kernel"), kk, h, act)?,
             })
         };
         layers.push(Layer2 {

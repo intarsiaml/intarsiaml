@@ -590,6 +590,24 @@ impl Model {
         Ok(())
     }
 
+    /// Tests: the feature taps of the last target pass (`[rows, H]` f32 per tapped layer, in `taps` order): the target's residual
+    /// stream after each tapped layer, as the draft reads it.
+    #[doc(hidden)]
+    pub fn dflash_taps(&self, rows: usize) -> Result<Vec<Vec<f32>>> {
+        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("no DFlash draft"))?;
+        let n = rows * self.dims.hidden;
+        head.feat
+            .iter()
+            .map(|f| {
+                let mut b = vec![0u8; n * self.act.size_bytes()];
+                self.backend.download(f, 0, &mut b, self.stream)?;
+                let mut out = vec![0f32; n];
+                crate::dtype::decode_to_f32(self.act, &b, &mut out);
+                Ok(out)
+            })
+            .collect()
+    }
+
     /// Tests: the draft's last normed block output (`[rows, H]` f32), valid right after [`Model::dflash_draft`].
     #[doc(hidden)]
     pub fn dflash_last_hidden(&self, rows: usize) -> Result<Vec<f32>> {
