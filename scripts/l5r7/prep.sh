@@ -14,7 +14,7 @@ mkvol() { # mkvol <new> : copy the hg volume once so the deps are not rebuilt fr
 build() { # build <tree> <vol> [cargo args...]
   local tree=$1 vol=$2; shift 2
   echo "== build $tree ($vol)"
-  INTARSIA_REPO=$tree INTARSIA_TARGET_VOL=$vol ${DEVSH:-$tree/scripts/l5r7/dev.sh} cargo build --release --locked --features hip -p intarsia-cli "$@" > ~/intarsiaml-l5-logs/prep-build-$(basename $tree).log 2>&1 < /dev/null; rc=$?; tail -4 ~/intarsiaml-l5-logs/prep-build-$(basename $tree).log; echo "build rc=$rc"; [ $rc = 0 ]
+  INTARSIA_REPO=$tree INTARSIA_TARGET_VOL=$vol ${DEVSH:-$tree/scripts/l5r7/dev.sh} cargo build --release --locked --features hip -p intarsia-cli "$@" > ~/intarsiaml-l5-logs/prep-build-$(basename $tree).log 2>&1 < /dev/null && rc=0 || rc=$?; tail -4 ~/intarsiaml-l5-logs/prep-build-$(basename $tree).log; echo "build rc=$rc"; [ $rc = 0 ]
 }
 if [ "$WHAT" != base ]; then mkvol intarsia-cargo-target-l5-zdev; build "$SRC_DEV" intarsia-cargo-target-l5-zdev; fi
 if [ "$WHAT" != dev ]; then mkvol intarsia-cargo-target-l5-zbase; DEVSH=$HOME/intarsiaml-l5-zbase/deploy/tatooine/dev.sh build "$HOME/intarsiaml-l5-zbase" intarsia-cargo-target-l5-zbase; fi
