@@ -1,0 +1,10 @@
+fleetq: #5774 running on spark1: ssh spark1 'bash -s ids short-0 short-1 short-2 short-3 short-4 short-5 4k-0 4k-1 4k-2 4k-3 4k-4 4k-5 16k-0 16k-1 16k-2 16k-3 16k-4 16k-5'
+PASS ids short-0 (prompt: 41) 256 ids identical | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)
+PASS ids short-1 (prompt: 34) 256 ids identical | spec: verify passes=119 proposed=237 accepted=136 (acceptance 57.4%, 2.14 tokens per pass)
+PASS ids short-2 (prompt: 42) 256 ids identical | spec: verify passes=91 proposed=181 accepted=163 (acceptance 90.1%, 2.79 tokens per pass)
+PASS ids short-3 (prompt: 43) 256 ids identical | spec: verify passes=91 proposed=182 accepted=163 (acceptance 89.6%, 2.79 tokens per pass)
+PASS ids short-4 (prompt: 69) 256 ids identical | spec: verify passes=88 proposed=176 accepted=166 (acceptance 94.3%, 2.89 tokens per pass)
+PASS ids short-5 (prompt: 39) 256 ids identical | spec: verify passes=117 proposed=234 accepted=131 (acceptance 56.0%, 2.12 tokens per pass)
+PASS ids 4k-0 (prompt: 2610) 256 ids identical | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+PASS ids 4k-1 (prompt: 3135) 256 ids identical | spec: verify passes=109 proposed=218 accepted=145 (acceptance 66.5%, 2.33 tokens per pass)
+PASS ids 4k-2 (prompt: 3284) 256 ids identical | spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass)

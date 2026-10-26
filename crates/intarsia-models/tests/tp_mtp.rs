@@ -245,7 +245,14 @@ fn mtp_tp2_greedy_ids_equal_spec_off() {
 }
 
 /// The model as a checkpoint directory (config, weights with the MTP head, a word-level tokenizer) for the engine loader.
+///
+/// Written once per process: tests run in parallel threads, and rewriting `model.safetensors` under an engine that has it mapped is a SIGBUS.
 fn model_dir() -> PathBuf {
+    static DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    DIR.get_or_init(write_model_dir).clone()
+}
+
+fn write_model_dir() -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::copy(fixture_dir().join("config.json"), dir.join("config.json")).unwrap();
@@ -294,10 +301,14 @@ fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
     }
 }
 
+/// `INTARSIA_SPEC_DEFAULT` is process-wide: the tests that read or set it take this lock for their whole body.
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The recipe's tensor-parallel MTP default (`[tuning.<backend>] mtp_default_tp_k`, `intarsia_models::load::tp_mtp_default`): on only
 /// without --spec, at tp > 1 on in-process ranks of that backend, one sequence, and not with INTARSIA_SPEC_DEFAULT=0.
 #[test]
 fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     use intarsia_models::load::tp_mtp_default;
     let with = intarsia_models::parse_recipe(&format!("{}\n[tuning.hip]\nmtp_default_tp_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
     let without = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
@@ -326,6 +337,7 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
 /// answer for each other's world size. Through the engine loader: runs spec, ids equal off; a checkpoint without the head falls back.
 #[test]
 fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     use intarsia_models::load::{mtp_default, tp_mtp_default};
     let base = include_str!("../../../recipes/qwen3_5.toml");
     let with = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 2\n")).unwrap();
@@ -353,6 +365,31 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     let off = mtp_default(&auto, &with, "cuda", 1, true);
     std::env::remove_var("INTARSIA_SPEC_DEFAULT");
     assert_eq!(off, None, "INTARSIA_SPEC_DEFAULT=0");
+}
+
+/// G0 for the shipped recipes: exactly these (recipe, backend) pairs make `--spec mtp` the default, so every other model and backend
+/// (the 8B, Metal and HIP at tp=1, the 35B on HIP and Metal, CPU) runs without --spec as before.
+#[test]
+fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let recipe = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if let Some(k) = recipe.resolve_mtp_default_tp(backend) {
+                got.push(format!("{} {backend} tp {k}", recipe.model.family));
+            }
+            if let Some(k) = recipe.resolve_mtp_default(backend) {
+                got.push(format!("{} {backend} tp1 {k}", recipe.model.family));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_vl hip tp 2"], "the recipes that turn MTP on by default");
 }
 
 fn single_rank_loader_default_matches_off() {

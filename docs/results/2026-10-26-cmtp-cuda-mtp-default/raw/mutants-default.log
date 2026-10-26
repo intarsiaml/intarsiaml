@@ -1,0 +1,7 @@
+clean (tp_mtp) b6f682fb6 test binary sha256 ccfa77d989e1ac16
+mutant default-optout-ignored applied to crates/intarsia-models/src/load.rs
+mutant default-optout-ignored: sha256 a999e3c8fc76228c (clean ccfa77d989e1ac16): CAUGHT by:     single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out     tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out 
+mutant default-batch-ignored applied to crates/intarsia-models/src/load.rs
+mutant default-batch-ignored: sha256 fda5f4d018498b1a (clean ccfa77d989e1ac16): CAUGHT by:     single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out     tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out 
+mutant default-world-any applied to crates/intarsia-models/src/load.rs
+mutant default-world-any: sha256 2272b08ffcffa113 (clean ccfa77d989e1ac16): CAUGHT by:     single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out 

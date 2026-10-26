@@ -1,0 +1,6 @@
+fleetq: #5772 running on spark1: ssh spark1 'bash -s build'
+    Finished `release` profile [optimized] target(s) in 32.03s
+build dev done 13:36:13 b3fa447331bd
+    Finished `release` profile [optimized] target(s) in 33.03s
+build base done 13:36:46 057c74a37ebd
+fleetq: #5772 done (exit 0)
