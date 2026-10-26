@@ -37,7 +37,8 @@ serve() { # serve <arm>
   $SSH "tail -20 $LOG-$arm.log" < /dev/null > "$OUT/serve-fail-$arm.log" 2>&1; return 1
 }
 metric() { curl -s -m 5 "http://spark-4e77:$PORT/metrics" | grep -E '^intarsia_spec_(steps|proposed_tokens|accepted_tokens|costgate_[a-z_]+)_total' | sed 's/{[^}]*}//' | tr '\n' ' '; }
-SOAK_P=("Write a long story about a robot who learns to paint." "Explain, step by step, how a hash map handles collisions, with code in Rust.")
+# prompt 1 is a ~3k-token document (more than one 2048-row prefill chunk: the macro prefill pass runs) with a question
+SOAK_P=("Write a long story about a robot who learns to paint." "$(cat "$HERE/ids-prompts/4k-1.txt")")
 soak() { # soak <arm> <n>
   local arm=$1 n=$2 i p h
   for i in $(seq 1 "$n"); do
