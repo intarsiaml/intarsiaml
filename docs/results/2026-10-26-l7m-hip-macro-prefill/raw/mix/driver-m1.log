@@ -1,0 +1,47 @@
+fleetq: #5613 waiting (#6 in line): in line behind #5594 "l7m: build dev (recipe macro 16384) + base (origin/main 85824cef) trees (CPU)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5594 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5594 set, or it will wait for #5594 to be released.
+fleetq: #5613 waiting (#4 in line): in line behind #5600 "lb: per-kernel rocprof base vs dev (35B pf4k/pf16k/dec/dec4k x2) + base admission test, card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5600 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5600 set, or it will wait for #5600 to be released.
+fleetq: #5613 waiting (#3 in line): in line behind #5603 "tp2: sync + build the batch tree (a324298: TP_PEER_SYNC, stages-w27), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5603 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5603 set, or it will wait for #5603 to be released.
+fleetq: #5613 waiting (#2 in line): in line behind #5610 "tp2 w27: PEER_SYNC / SYNC_CAPTURE / drain 5 vs control on the size loop (20 reps each, interleaved) and the minimal repro; radiance down <=40 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5610 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5610 set, or it will wait for #5610 to be released.
+fleetq: #5613 waiting (#1 in line): radiance-rank0 is also taken down by #5610 "tp2 w27: PEER_SYNC / SYNC_CAPTURE / drain 5 vs control on the size loop (20 reps each, interleaved) and the minimal repro; radiance down <=40 min" (claude-f31ccf91)
+fleetq:   #5610 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5610 set, or it will wait for #5610 to be released.
+fleetq: #5613 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 73% busy with work fleetq does not track
+fleetq: #5613 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 80% busy with work fleetq does not track
+fleetq: #5613 running on tatooine-r9700, tatooine-r9700-2: env CARD=1 bash scripts/l7m/mix.sh 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' @l7mx1
+[l7] radiance inactive
+[mix 1 main] up 00:05:45  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 25 s
+[mix 1 main] short rc=0
+[mix 1 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-1-main.log
+[mix 2 branch] up 00:06:19  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 2 branch] short rc=0
+[mix 2 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-2-branch.log
+[mix 3 main] up 00:06:49  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[mix 3 main] short rc=0
+[mix 3 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-3-main.log
+[mix 4 branch] up 00:07:19  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 4 branch] short rc=0
+[mix 4 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-4-branch.log
+[mix 5 main] up 00:07:48  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[mix 5 main] short rc=0
+[mix 5 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-5-main.log
+[mix 6 branch] up 00:08:18  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 6 branch] short rc=0
+[mix 6 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx1-6-branch.log
+[mix] done 00:08:48
+[l7] radiance active after 30 s
+fleetq: #5613 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1232,7 +1232,12 @@ fn real_35b_macro_prefill_is_bitwise_the_plain_schedule() {
                 let got = bits(&run(&m, prompt, whole));
                 let passes = m.macro_passes() - before;
                 eprintln!("MACRO len {len} whole {whole} macro {rows}: {passes} macro passes, logits of {} rows", got.len());
-                assert!(len < 2 * chunk || passes > 0, "len {len}: the macro schedule did not run");
+                // a macro size below two chunks is the plain schedule by definition (`effective_macro_rows`; HIP: chunk 4096, so
+                // macro 4096 is one chunk): only then may a long prompt run without a macro pass. `rows` and `chunk` are the test's
+                // own numbers, not what the model reports, so a model that silently dropped the macro schedule still fails here.
+                let macro_expected = len >= 2 * chunk && rows >= 2 * chunk;
+                assert!(!macro_expected || passes > 0, "len {len}, macro {rows}, chunk {chunk}: the macro schedule did not run");
+                assert!(macro_expected || passes == 0, "len {len}, macro {rows}, chunk {chunk}: a macro pass ran below two chunks");
                 assert!(got == want, "len {len}, whole {whole}, macro {rows}: logits differ from the plain schedule");
             }
         }

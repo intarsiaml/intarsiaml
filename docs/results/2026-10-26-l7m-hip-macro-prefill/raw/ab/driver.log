@@ -1,0 +1,95 @@
+fleetq: #5623 waiting (#5 in line): in line behind #5615 "lb: served A/B base vs dev x3 interleaved (localeval 512/4k/16k + 8 streams), 35B card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5615 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5615 set, or it will wait for #5615 to be released.
+fleetq: #5623 waiting (#4 in line): in line behind #5619 "tp2: sync + build the batch tree (6b17aff: host-pinned launch counters, spin x8, stages-w28), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5619 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5619 set, or it will wait for #5619 to be released.
+fleetq: #5623 waiting (#3 in line): in line behind #5620 "tp2 w28: host-pinned launch counters read at the hang (size loop 3x20 reps + minimal repro); radiance down <=30 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5620 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5620 set, or it will wait for #5620 to be released.
+fleetq: #5623 waiting (#2 in line): in line behind #5622 "l7m: m2 concurrency-2 head-of-line check, 12k + 1k arriving, main vs branch x3, serve --max-batch 16, card 1" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5622 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5622 set, or it will wait for #5622 to be released.
+fleetq: #5623 waiting (#1 in line): radiance-rank0 is also taken down by #5622 "l7m: m2 concurrency-2 head-of-line check, 12k + 1k arriving, main vs branch x3, serve --max-batch 16, card 1" (claude-f31ccf91)
+fleetq:   #5622 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5622 set, or it will wait for #5622 to be released.
+fleetq: #5623 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5623 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 62% busy with work fleetq does not track
+fleetq: #5623 running on tatooine-r9700, tatooine-r9700-2: env CARD=1 bash scripts/l7m/ab.sh 'main-sb|base||' 'branch-sb|dev||' 'main-mb16|base||--max-batch 16' 'branch-mb16|dev||--max-batch 16' 'main-sb|base||' 'branch-sb|dev||' 'main-mb16|base||--max-batch 16' 'branch-mb16|dev||--max-batch 16' 'main-sb|base||' 'branch-sb|dev||' 'main-mb16|base||--max-batch 16' 'branch-mb16|dev||--max-batch 16' @l7ma2
+[l7] radiance inactive
+[ab 1 main-sb] up 00:40:15  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 1 main-sb] localeval rc=0
+| 992 | 0.15 | 6463 (6377–6562) * | - | 165.5 (165.2–170.5) | - | - | - | 16 |
+| 4090 | 0.41 | 10027 (9959–10058) | 12149 | 161.0 (158.5–165.5) | - | - | - | 16 |
+| 16656 | 1.88 | 8869 (8817–8910) | 8548 | 146.9 (146.5–148.8) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-1-main-sb.log
+[ab 2 branch-sb] up 00:40:35  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 2 branch-sb] localeval rc=0
+| 990 | 0.15 | 6455 (6381–6539) * | - | 163.8 (163.1–165.6) | - | - | - | 16 |
+| 4089 | 0.41 | 9962 (9948–10070) | 12058 | 161.2 (160.8–162.7) | - | - | - | 16 |
+| 16679 | 1.79 | 9324 (9166–9339) | 9136 | 145.8 (143.6–146.3) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-2-branch-sb.log
+[ab 3 main-mb16] up 00:40:55  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 3 main-mb16] localeval rc=0
+| 993 | 0.15 | 6482 (6369–7605) * | - | 163.6 (160.5–165.4) | - | - | - | 16 |
+| 4090 | 0.41 | 10016 (9961–10065) | 12145 | 160.9 (157.1–163.5) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-3-main-mb16.log
+[ab 4 branch-mb16] up 00:41:19  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 4 branch-mb16] localeval rc=0
+| 992 | 0.15 | 6512 (6462–6554) * | - | 164.7 (161.4–165.0) | - | - | - | 16 |
+| 4091 | 0.41 | 10030 (9803–10031) | 12106 | 159.2 (156.2–160.5) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-4-branch-mb16.log
+[ab 5 main-sb] up 00:41:43  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 5 main-sb] localeval rc=0
+| 991 | 0.15 | 6395 (6286–6402) * | - | 164.2 (161.9–165.0) | - | - | - | 16 |
+| 4088 | 0.41 | 10027 (10007–10029) | 12241 | 156.7 (156.0–160.1) | - | - | - | 16 |
+| 16677 | 1.89 | 8830 (8768–8833) | 8500 | 148.8 (146.5–149.9) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-5-main-sb.log
+[ab 6 branch-sb] up 00:42:03  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 20 s
+[ab 6 branch-sb] localeval rc=0
+| 991 | 0.15 | 6412 (6402–6527) * | - | 164.6 (163.9–164.7) | - | - | - | 16 |
+| 4089 | 0.41 | 9949 (9869–9985) | 12054 | 159.6 (152.7–160.2) | - | - | - | 16 |
+| 16656 | 1.80 | 9250 (9083–9321) | 9048 | 147.1 (145.9–152.6) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-6-branch-sb.log
+[ab 7 main-mb16] up 00:42:28  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 7 main-mb16] localeval rc=0
+| 991 | 0.15 | 6461 (6350–7558) * | - | 164.8 (164.6–167.6) | - | - | - | 16 |
+| 4086 | 0.41 | 9927 (9916–9983) | 11950 | 159.4 (159.4–160.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-7-main-mb16.log
+[ab 8 branch-mb16] up 00:42:52  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 8 branch-mb16] localeval rc=0
+| 994 | 0.13 | 7498 (6432–7581) * | - | 165.1 (164.9–165.1) | - | - | - | 16 |
+| 4090 | 0.41 | 9980 (9935–10017) | 11177 | 158.2 (157.1–158.5) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-8-branch-mb16.log
+[ab 9 main-sb] up 00:43:16  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 9 main-sb] localeval rc=0
+| 991 | 0.15 | 6447 (6339–6504) * | - | 165.3 (162.6–165.7) | - | - | - | 16 |
+| 4090 | 0.41 | 9887 (9851–10012) | 11919 | 159.6 (157.7–160.1) | - | - | - | 16 |
+| 16654 | 1.88 | 8840 (8806–8843) | 8547 | 146.3 (144.3–150.3) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-9-main-sb.log
+[ab 10 branch-sb] up 00:43:36  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 20 s
+[ab 10 branch-sb] localeval rc=0
+| 993 | 0.15 | 6450 (6339–7644) * | - | 164.8 (162.3–165.1) | - | - | - | 16 |
+| 4089 | 0.41 | 9931 (9794–10025) | 12000 | 160.2 (157.3–161.6) | - | - | - | 16 |
+| 16656 | 1.80 | 9258 (9114–9296) | 9061 | 146.2 (146.2–149.3) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-10-branch-sb.log
+[ab 11 main-mb16] up 00:44:01  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 11 main-mb16] localeval rc=0
+| 990 | 0.15 | 6527 (6521–7670) * | - | 164.8 (164.7–164.9) | - | - | - | 16 |
+| 4090 | 0.41 | 9961 (9894–9970) | 12016 | 161.1 (156.0–165.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-11-main-mb16.log
+[ab 12 branch-mb16] up 00:44:25  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 12 branch-mb16] localeval rc=0
+| 991 | 0.15 | 6504 (6366–6543) * | - | 164.4 (159.8–165.3) | - | - | - | 16 |
+| 4088 | 0.41 | 9924 (9900–9933) | 11912 | 160.4 (155.1–161.0) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ma2-12-branch-mb16.log
+[ab] done 00:44:49
+[l7] radiance active after 15 s
+fleetq: #5623 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

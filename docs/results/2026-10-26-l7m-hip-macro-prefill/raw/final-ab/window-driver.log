@@ -1,0 +1,223 @@
+fleetq: #5676 running on tatooine-r9700, tatooine-r9700-2: scripts/l7m/window.sh
+[l7] radiance inactive
+[gates] OLD (unchanged test, origin/main tree) 03:50:26
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+thread 'real_35b_macro_prefill_is_bitwise_the_plain_schedule' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:876:17:
+FAILED
+    real_35b_macro_prefill_is_bitwise_the_plain_schedule
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 12.25s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+error: 1 target failed:
+[gates] BIT 03:50:38
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+MACRO batched alone: 6 prefill calls (plain schedule: 17 chunks)
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 8192: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 16384: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 8192: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 16384: 1 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 8192: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 16384: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 8192: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 16384: 2 macro passes, logits of 17 rows
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 52.86s
+[gates] NEG none 03:51:32
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 8192: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 16384: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 8192: 1 macro passes, logits of 17 rows
+MACRO len 8292 whole true macro 16384: 1 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 8192: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole false macro 16384: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 8192: 2 macro passes, logits of 17 rows
+MACRO len 16655 whole true macro 16384: 2 macro passes, logits of 17 rows
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 31.67s
+[gates] NEG nomacro 03:52:04
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 8192: 0 macro passes, logits of 17 rows
+thread 'real_35b_macro_prefill_is_bitwise_the_plain_schedule' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:880:17:
+FAILED
+    real_35b_macro_prefill_is_bitwise_the_plain_schedule
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 12.16s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+error: 1 target failed:
+[gates] NEG ulp 03:52:16
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 8192: 1 macro passes, logits of 17 rows
+thread 'real_35b_macro_prefill_is_bitwise_the_plain_schedule' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:882:17:
+FAILED
+    real_35b_macro_prefill_is_bitwise_the_plain_schedule
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 12.12s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+error: 1 target failed:
+[gates] IDS 03:52:29
+base 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+base 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 4950: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 13600: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 27300: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+dev0 56000: prefill chunk 4096 (recipe qwen3_5_moe ids=256
+IDS 4950 base vs dev: identical
+IDS 4950 base vs dev0: identical
+IDS 13600 base vs dev: identical
+IDS 13600 base vs dev0: identical
+IDS 27300 base vs dev: identical
+IDS 27300 base vs dev0: identical
+IDS 56000 base vs dev: identical
+IDS 56000 base vs dev0: identical
+[gates] done 03:53:42
+[window] gates done 03:53:42
+[ab 1 main] up 03:53:42  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 1 main] localeval rc=0
+| 992 | 0.14 | 7301 (7169–7332) * | - | 165.1 (159.7–165.5) | - | - | - | 16 |
+| 4090 | 0.40 | 10348 (10137–10447) | 11961 | 159.7 (158.3–160.4) | - | - | - | 16 |
+| 16655 | 1.83 | 9082 (9067–9174) | 8732 | 149.1 (147.1–168.2) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-1-main.log
+[ab 2 branch] up 03:54:02  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 2 branch] localeval rc=0
+| 993 | 0.14 | 7214 (7159–7325) * | - | 164.4 (162.9–165.7) | - | - | - | 16 |
+| 4088 | 0.39 | 10402 (10357–10433) | 12137 | 159.8 (159.7–159.8) | - | - | - | 16 |
+| 16654 | 1.76 | 9441 (9272–9488) | 9166 | 146.1 (144.7–158.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-2-branch.log
+[ab 3 main] up 03:54:22  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 3 main] localeval rc=0
+| 991 | 0.14 | 7199 (7145–7244) * | - | 167.7 (167.0–169.2) | - | - | - | 16 |
+| 4090 | 0.39 | 10389 (9517–10411) | 12106 | 160.7 (160.3–265.6) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-3-main.log
+[ab 4 branch] up 03:54:46  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 4 branch] localeval rc=0
+| 992 | 0.14 | 7164 (7065–7228) * | - | 164.5 (164.4–167.3) | - | - | - | 16 |
+| 4090 | 0.39 | 10420 (10289–10492) | 12149 | 160.8 (156.0–160.9) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-4-branch.log
+[ab 5 main] up 03:55:09  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 5 main] localeval rc=0
+| 992 | 0.14 | 7189 (7018–7193) * | - | 164.7 (163.7–165.0) | - | - | - | 16 |
+| 4090 | 0.40 | 10253 (8182–10408) | 11870 | 161.9 (161.2–5201.3) | - | - | - | 16 |
+| 16655 | 1.81 | 9191 (9148–9199) | 8892 | 146.7 (146.4–147.9) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-5-main.log
+[ab 6 branch] up 03:55:29  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 6 branch] localeval rc=0
+| 990 | 0.14 | 7343 (7159–7391) * | - | 164.6 (164.3–165.1) | - | - | - | 16 |
+| 4088 | 0.40 | 10348 (10334–10443) | 11915 | 159.8 (156.0–160.3) | - | - | - | 16 |
+| 16655 | 1.76 | 9438 (9303–9480) | 9173 | 146.6 (146.5–148.3) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-6-branch.log
+[ab 7 main] up 03:55:49  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 7 main] localeval rc=0
+| 992 | 0.14 | 7100 (7000–7365) * | - | 163.9 (163.4–164.8) | - | - | - | 16 |
+| 4090 | 0.39 | 10373 (10315–10439) | 12197 | 160.9 (157.1–161.1) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-7-main.log
+[ab 8 branch] up 03:56:13  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 8 branch] localeval rc=0
+| 993 | 0.14 | 7256 (7098–7267) * | - | 164.5 (161.3–164.6) | - | - | - | 16 |
+| 4090 | 0.39 | 10404 (10384–10501) | 12098 | 160.3 (157.3–160.4) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-8-branch.log
+[ab 9 main] up 03:56:36  tree=base env=[] args=[]
+[serve] base max-batch - serving after 15 s
+[ab 9 main] localeval rc=0
+| 991 | 0.14 | 7262 (7161–7376) * | - | 161.1 (161.0–162.6) | - | - | - | 16 |
+| 4086 | 0.40 | 10312 (9539–10381) | 11950 | 160.7 (153.6–234.2) | - | - | - | 16 |
+| 16678 | 1.82 | 9159 (9125–9184) | 8836 | 147.2 (146.3–149.1) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-9-main.log
+[ab 10 branch] up 03:56:56  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 10 branch] localeval rc=0
+| 992 | 0.14 | 7194 (7064–7678) * | - | 165.1 (164.8–166.8) | - | - | - | 16 |
+| 4089 | 0.40 | 10260 (10060–10276) | 11866 | 160.3 (160.1–192.4) | - | - | - | 16 |
+| 16657 | 1.76 | 9443 (9143–9483) | 9214 | 147.1 (146.3–221.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-10-branch.log
+[ab 11 main] up 03:57:16  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[ab 11 main] localeval rc=0
+| 992 | 0.14 | 7096 (7014–7147) * | - | 164.9 (164.5–166.8) | - | - | - | 16 |
+| 4090 | 0.40 | 10364 (10315–10497) | 12149 | 160.4 (158.0–160.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-11-main.log
+[ab 12 branch] up 03:57:40  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[ab 12 branch] localeval rc=0
+| 991 | 0.13 | 7376 (7349–7401) * | - | 164.9 (161.7–165.0) | - | - | - | 16 |
+| 4086 | 0.39 | 10438 (10301–10481) | 11996 | 160.2 (160.2–160.8) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mf-12-branch.log
+[ab] done 03:58:03
+[window] done 03:58:03
+[l7] radiance active after 25 s
+fleetq: #5676 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

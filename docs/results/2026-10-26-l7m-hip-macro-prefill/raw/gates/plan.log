@@ -1,0 +1,15 @@
+plan mb1 txt base vs macro-off: byte-identical
+plan mb1 json base vs macro-off: byte-identical
+-- mb1 dev vs base (text diff)
+2c2
+< act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 167905792 B  require_admitted false  reference_only false
+---
+> act bf16  kv bf16  prefill chunk 4096 (recipe qwen3_5_moe, hip)  scratch 671615488 B  require_admitted false  reference_only false
+38c38
+< matmul_fp8     matmul_fp8_mma_f8          deterministic no        0 16777232
+---
+> matmul_fp8     matmul_fp8_mma_f8          deterministic no        0 67108880
+42c42
+< moe_experts    moe_experts_bf16_v2        deterministic no        0 167905792
+---
+> moe_experts    moe_experts_bf16_v2        deterministic no        0 671615488
