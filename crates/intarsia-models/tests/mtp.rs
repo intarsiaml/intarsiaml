@@ -1383,3 +1383,38 @@ fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
         }
     }
 }
+
+/// `--spec mtp` with the macro prefill pass on (a recipe default since #162, 8192 rows on the CUDA 35B) must load and plan: the
+/// macro pass is a single-sequence prefill feature and an MTP model never takes it, so asking for it changes nothing (the
+/// drafter head's workspace is chunk-sized; a macro-sized plan probe failed with "MTP pass of 8192 rows" at server start).
+#[test]
+fn mtp_model_ignores_the_macro_prefill_knob() {
+    let w = weights(12);
+    let (recipe, dims) = dims();
+    let opts = |macro_rows: Option<usize>| LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        prefill_macro: macro_rows,
+        ..Default::default()
+    };
+    let mut plain = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(0)), Arc::new(Telemetry::new())).unwrap();
+    let mut mac = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(64)), Arc::new(Telemetry::new())).unwrap();
+    assert_eq!(mac.macro_rows(), 0, "an MTP model takes no macro passes");
+    for m in [&mut plain, &mut mac] {
+        m.enable_verify(3).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+    }
+    let ids: Vec<u32> = (0..40).map(|i| (i * 7 + 3) % 90).collect();
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        match m.forward(&mut st, &ids, HeadMode::LastLogits, None).unwrap() {
+            StepOut::Logits(l) => l,
+            o => panic!("{o:?}"),
+        }
+    };
+    assert_eq!(run(&plain), run(&mac));
+}
