@@ -116,7 +116,7 @@ impl Model {
         profile: bool,
         fold: Option<&NormFold>,
     ) -> Result<()> {
-        self.gdn_block_segs(g, &[Seg { st, lo: 0, len: t }], n, out, t, profile, fold)
+        self.gdn_block_segs(g, &[Seg { st, lo: 0, len: t, pos: st.len }], n, out, t, profile, fold)
     }
 
     /// [`Model::gdn_block`] over the rows of one or several segments (a packed prefill pass): the projections, the gated norm and

@@ -1,0 +1,6 @@
+alone 3300: prompt=1004 ids=256 finish=length
+alone 13600: prompt=4074 ids=256 finish=length
+alone 54700: prompt=16255 ids=256 finish=length
+conc 3300: prompt=1004 ids=256 finish=length
+conc 13600: prompt=4074 ids=256 finish=length
+conc 54700: prompt=16255 ids=256 finish=length

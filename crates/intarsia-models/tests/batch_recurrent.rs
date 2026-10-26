@@ -230,6 +230,11 @@ fn load_model(v: Variant, tel: &Arc<Telemetry>) -> Model {
 
 /// [`load_model`] with prefill chunk `chunk`.
 fn load_model_c(v: Variant, tel: &Arc<Telemetry>, chunk: usize) -> Model {
+    load_model_cm(v, tel, chunk, Some(0))
+}
+
+/// [`load_model_c`] with the macro prefill pass size `macro_rows` (`Some(0)`: off, `None`: the environment's).
+fn load_model_cm(v: Variant, tel: &Arc<Telemetry>, chunk: usize, macro_rows: Option<usize>) -> Model {
     let backend = backend().expect("a backend (tests skip first when there is none)");
     let dir = fixture_dir();
     let mut cfg: serde_json::Value =
@@ -255,6 +260,7 @@ fn load_model_c(v: Variant, tel: &Arc<Telemetry>, chunk: usize) -> Model {
         // a budget that holds MAX_SEQ tokens for every batched slot (the plan otherwise shrinks the context to share the KV budget)
         mem_budget: Some(4 << 30),
         prefill_chunk: chunk,
+        prefill_macro: macro_rows,
         // the cpu reference runs in f32; the CUDA kernels are bf16
         act_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
         kv_dtype: Some(if on_cuda() { DType::Bf16 } else { DType::F32 }),
@@ -434,16 +440,17 @@ fn check_gpu_batch_picks(m: &Model, v: Variant) {
         // on HIP a batched step of up to 4 rows runs the whole MoE block as the row-exact `moe_block_bf16_rows` (lane hr3), which replaces
         // the experts op: one of the two must be a row-exact kernel
         assert!(
-            picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)) || picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows")),
+            picks(&rec, Op::MoeExperts).iter().any(|k| k.contains(want)) || picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows") || k.contains("grouped")),
             "{:?} {:?}",
             picks(&rec, Op::MoeExperts),
             picks(&rec, Op::MoeBlock)
         );
         // when the fused block runs, the experts op and the shared expert's nvfp4 GEMV are inside it; otherwise both stay separate calls
-        let fused = picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows"));
+        // lane hr3: `moe_block_bf16_rows`; lane l7: `moe_block_bf16_grouped` from 3 rows on
+        let fused = picks(&rec, Op::MoeBlock).iter().any(|k| k.contains("rows") || k.contains("grouped"));
         if m.backend.name() == "hip" && matches!(v, Variant::Moe) {
             // positive check: on HIP a 4-row step of the tiny MoE must take the row-exact fused block, not silently fall back to the chain
-            assert!(fused, "{v:?}: a 4-row batched step must pick the fused moe_block rows kernel, got {:?}", picks(&rec, Op::MoeBlock));
+            assert!(fused, "{v:?}: a 4-row batched step must pick a fused moe_block rows or grouped kernel, got {:?}", picks(&rec, Op::MoeBlock));
         }
         if fused {
             assert!(picks(&rec, Op::MoeExperts).is_empty(), "{v:?}: the fused block replaces the experts op, got {:?}", picks(&rec, Op::MoeExperts));
@@ -792,6 +799,148 @@ fn batched_engine_with_packed_prefill_equals_solo() {
     for v in VARIANTS {
         for rows in [2usize, 4] {
             check_packed(v, rows, 64);
+        }
+    }
+}
+
+// ---- macro prefill (INTARSIA_PREFILL_MACRO): several chunks of one prompt in one layer-by-layer pass ----------------
+
+/// The two macro tests one at a time: the first reads the process-wide pass counter.
+static MACRO_TESTS: Mutex<()> = Mutex::new(());
+
+fn solo_macro(v: Variant, macro_rows: usize) -> LocalEngine {
+    let tel = Arc::new(Telemetry::new());
+    let mut m = load_model_cm(v, &tel, CHUNK, Some(macro_rows));
+    assert_eq!(m.macro_rows(), if macro_rows >= 2 * CHUNK { macro_rows / CHUNK * CHUNK } else { 0 });
+    m.configure_plan(&Default::default(), None).unwrap();
+    LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap()
+}
+
+/// A prompt prefilled in macro passes (any row cap, 2 to 5 chunks per pass, balanced groups, a tail shorter than a segment may
+/// be) generates exactly the tokens, text and cached length the plain chunk-by-chunk schedule does: every state byte the same.
+#[test]
+fn macro_prefill_equals_the_plain_chunk_schedule() {
+    let _m = MACRO_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+    let _g = serial();
+    if backend().is_none() {
+        return;
+    }
+    // 16-row chunks; prompts of 1 to 9 chunks, with tails of 1, 2, 15 and 16 rows (a pass never holds a segment below 16 rows)
+    let lens = [16, 17, 32, 33, 49, 64, 65, 80, 97, 111, 129, 144];
+    let reqs: Vec<GenRequest> = lens
+        .iter()
+        .enumerate()
+        .map(|(i, &n)| GenRequest { prompt: prompt(100 + i as u64, n), max_tokens: 20, ignore_eos: true, ..Default::default() })
+        .collect();
+    for v in VARIANTS {
+        let plain = solo(v);
+        let want: Vec<Out> = reqs.iter().map(|r| run_solo(&plain, r.clone())).collect();
+        for rows in [32, 48, 64, 80] {
+            let passes0 = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+            let e = solo_macro(v, rows);
+            for (i, r) in reqs.iter().enumerate() {
+                assert_eq!(run_solo(&e, r.clone()), want[i], "{v:?}, macro {rows} rows, prompt of {} tokens", lens[i]);
+            }
+            assert!(
+                intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed) > passes0,
+                "{v:?}, macro {rows} rows: no macro pass ran"
+            );
+        }
+    }
+}
+
+/// The model-level contract behind it: `forward` over a long prompt returns the logits, and leaves the state, of the plain schedule
+/// (the next decode steps agree), for the head modes the macro schedule serves.
+#[test]
+fn macro_forward_equals_chunked_forward() {
+    let _m = MACRO_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+    let _g = serial();
+    if backend().is_none() {
+        return;
+    }
+    for v in VARIANTS {
+        let tel = Arc::new(Telemetry::new());
+        let mut plain = load_model_cm(v, &tel, CHUNK, Some(0));
+        plain.configure_plan(&Default::default(), None).unwrap();
+        let mut mac = load_model_cm(v, &tel, CHUNK, Some(4 * CHUNK));
+        mac.configure_plan(&Default::default(), None).unwrap();
+        assert_eq!(mac.macro_rows(), 4 * CHUNK);
+        for len in [2 * CHUNK, 3 * CHUNK + 5, 4 * CHUNK, 6 * CHUNK + 1, 9 * CHUNK + 15] {
+            let ids = prompt(7 + len as u64, len);
+            let mut outs = Vec::new();
+            for m in [&plain, &mac] {
+                let mut st = m.new_state().unwrap();
+                let mut rows = Vec::new();
+                match m.forward(&mut st, &ids, HeadMode::LastLogits, None).unwrap() {
+                    intarsia_core::model::StepOut::Logits(l) => rows.push(l),
+                    o => panic!("{o:?}"),
+                }
+                // four decode steps on the resulting state
+                let mut tok = 3u32;
+                for _ in 0..4 {
+                    match m.forward(&mut st, &[tok], HeadMode::LastLogits, None).unwrap() {
+                        intarsia_core::model::StepOut::Logits(l) => {
+                            tok = l.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0 as u32;
+                            rows.push(l);
+                        }
+                        o => panic!("{o:?}"),
+                    }
+                }
+                outs.push(rows);
+            }
+            assert_eq!(outs[0], outs[1], "{v:?}: {len} tokens, logits of the prompt and four decode steps");
+            assert!(mac.macro_passes() > 0 && plain.macro_passes() == 0, "{v:?}: the macro schedule ran");
+        }
+    }
+}
+
+/// The batched engine with the macro prefill pass (sole prefill, nothing decoding) generates what the plain solo engine does: long
+/// prompts of 1 to 9 chunks, queued together (so some prefill beside others, some alone), prefix reuse off and on.
+#[test]
+fn batched_engine_with_macro_prefill_equals_plain_solo() {
+    let _m = MACRO_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = serial();
+    if backend().is_none() {
+        return;
+    }
+    let lens = [16usize, 17, 33, 64, 65, 97, 129, 144, 49, 111];
+    let reqs = || -> Vec<GenRequest> {
+        lens.iter()
+            .enumerate()
+            .map(|(i, &n)| GenRequest { prompt: prompt(300 + i as u64, n), max_tokens: 24, ignore_eos: true, ..Default::default() })
+            .collect()
+    };
+    for v in VARIANTS {
+        let plain = solo(v);
+        let want: Vec<Out> = reqs().into_iter().map(|r| run_solo(&plain, r)).collect();
+        for reuse in [false, true] {
+            for macro_rows in [32usize, 64] {
+                let passes0 = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+                let tel = Arc::new(Telemetry::new());
+                let mut m = load_model_cm(v, &tel, CHUNK, Some(macro_rows));
+                m.allow_recurrent_batch().unwrap();
+                m.enable_batch(3).unwrap();
+                m.configure_plan(&Default::default(), None).unwrap();
+                let mut o = BatchedOptions::new(3, 64);
+                o.prefix_reuse = reuse;
+                let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
+                // one at a time (each prefills alone: macro steps), then all at once (prefills overlap: plain chunks and macro steps mix)
+                for (i, r) in reqs().into_iter().enumerate() {
+                    let mut got = collect(&eng.submit(r).unwrap()).unwrap();
+                    got.cached_tokens = want[i].cached_tokens;
+                    assert_eq!(&got, &want[i], "{v:?} macro {macro_rows} reuse {reuse}: alone, prompt of {} tokens", lens[i]);
+                }
+                let rxs: Vec<_> = reqs().into_iter().map(|r| eng.submit(r).unwrap()).collect();
+                for (i, rx) in rxs.iter().enumerate() {
+                    let mut got = collect(rx).unwrap();
+                    got.cached_tokens = want[i].cached_tokens;
+                    assert_eq!(&got, &want[i], "{v:?} macro {macro_rows} reuse {reuse}: together, prompt of {} tokens", lens[i]);
+                }
+                assert!(
+                    intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed) > passes0,
+                    "{v:?} macro {macro_rows}: no macro pass ran in the batched engine"
+                );
+            }
         }
     }
 }

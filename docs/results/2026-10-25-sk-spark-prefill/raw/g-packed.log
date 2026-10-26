@@ -1,0 +1,23 @@
+binary target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f
+
+running 1 test
+test real_35b_packed_prefill_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+
+thread 'real_35b_packed_prefill_equals_the_local_engine' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:798:13:
+assertion `left == right` failed: request 0 (300 prompt tokens) on 8 slots, packed prefill
+  left: Out { ids: [25377, 17907, 24822, 63, 321, 1510, 4920, 942, 30096, 1506, 667, 25459, 13050, 2600, 446, 30364, 24822, 63, 735, 198, 91, 1510, 390, 1506, 667, 25459, 63, 735, 2972, 52256, 332, 735, 9830, 3421, 440, 5097, 15015, 77450, 5165, 27718, 4920, 942, 30096, 1506, 667, 25459, 13050, 36022, 24822, 31789, 735, 198, 91, 1510, 390, 1506, 667, 52953, 63, 735, 2972, 52256, 332, 735, 37978, 2849, 27718, 4920, 942, 30096, 1506, 667, 52953, 13050, 14905, 24822, 31789, 735, 198, 91, 1510, 390, 1506, 667, 1402, 19159, 63, 735, 2972, 52256, 332, 735, 27502, 286, 5224, 27718, 4920, 942, 30096, 1506], text: "/watchdog.rs` and `crates/intarsia-server/src/supervisor.rs` |\n| `intarsia-server` | **implemented** | HTTP server with OpenAI-compatible API (`crates/intarsia-server/src/server.rs`) |\n| `intarsia-cli` | **implemented** | CLI client (`crates/intarsia-cli/src/main.rs`) |\n| `intarsia-bench` | **implemented** | benchmarking tool (`crates/intars", reason: Some(Length) }
+ right: Out { ids: [25377, 17907, 24822, 63, 321, 1510, 12410, 30364, 24822, 63, 735, 198, 91, 1510, 390, 1506, 667, 25459, 63, 735, 2972, 52256, 332, 735, 9830, 3421, 440, 5097, 15015, 77450, 5165, 27718, 4920, 942, 30096, 1506, 667, 25459, 13050, 36022, 24822, 31789, 735, 198, 91, 1510, 390, 1506, 667, 52953, 63, 735, 2972, 52256, 332, 735, 37978, 2849, 27718, 4920, 942, 30096, 1506, 667, 52953, 13050, 14905, 24822, 31789, 735, 198, 91, 1510, 390, 1506, 667, 1402, 19159, 63, 735, 2972, 52256, 332, 735, 27502, 286, 5224, 27718, 4920, 942, 30096, 1506, 667, 1402, 19159, 13050, 14905, 24822, 31789, 735], text: "/watchdog.rs` and `supervisor.rs` |\n| `intarsia-server` | **implemented** | HTTP server with OpenAI-compatible API (`crates/intarsia-server/src/server.rs`) |\n| `intarsia-cli` | **implemented** | CLI client (`crates/intarsia-cli/src/main.rs`) |\n| `intarsia-bench` | **implemented** | benchmarking tool (`crates/intarsia-bench/src/main.rs`) |", reason: Some(Length) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_35b_packed_prefill_equals_the_local_engine
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 105.08s
+

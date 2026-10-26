@@ -1,0 +1,323 @@
+fleetq: #5510 waiting (#6 in line): in line behind #5498 "l7: build base tree at origin/main (CPU)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5498 set, or it will wait for #5498 to be released.
+fleetq: #5510 waiting (#5 in line): in line behind #5499 "l7: ab1 speed A/B 35B base vs dev interleaved x3, localeval 1/4/8/16 streams, card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5499 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5499 set, or it will wait for #5499 to be released.
+fleetq: #5510 waiting (#4 in line): in line behind #5507 "l7: t1 model-loop step timing 2..16 rows default vs grouped off vs main-like + B=16 profile, card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5507 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5507 set, or it will wait for #5507 to be released.
+fleetq: #5510 waiting (#3 in line): in line behind #5508 "tp2: sync + build the batch tree (7e719dd: CTRS probes, stages-w21), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5508 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5508 set, or it will wait for #5508 to be released.
+fleetq: #5510 waiting (#2 in line): in line behind #5509 "tp2 w21: per-rank device launch counters around a solo graph step and a batched step (27B tp2 repro), radiance down <=20 min" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5509 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5509 set, or it will wait for #5509 to be released.
+fleetq: #5510 waiting (#1 in line): radiance-rank0 is also taken down by #5509 "tp2 w21: per-rank device launch counters around a solo graph step and a batched step (27B tp2 repro), radiance down <=20 min" (claude-f31ccf91)
+fleetq:   #5509 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5509 set, or it will wait for #5509 to be released.
+fleetq: #5510 running on tatooine-r9700: ssh tatooine 'bash ~/intarsiaml-l8-src/scripts/l8/win.sh bench 4 f8bench'
+[l8] radiance inactive; window w4 starts 21:19:42
+
+qkv M4096 M=4096 N=8192 K=2048
+  ref                   818.0 us   168.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    792.3 us   173.5 TFLOPS DIFFERS
+  4442 s pf2 lb1        708.3 us   194.0 TFLOPS bitwise
+  4442 p pf2 lb1 cl     955.8 us   143.8 TFLOPS bitwise
+  4442 s pf2 lb1 cl     850.1 us   161.7 TFLOPS bitwise
+  4442 s pf1 lb1 cl     829.0 us   165.8 TFLOPS bitwise
+  4442 s pf3 lb1 cl    1551.5 us    88.6 TFLOPS bitwise
+  4442 s pf4 lb1 cl    1673.3 us    82.1 TFLOPS bitwise
+  4424 s pf2 lb1 cl     976.6 us   140.7 TFLOPS bitwise
+  4424 s pf3 lb1 cl    1848.0 us    74.4 TFLOPS bitwise
+  4224 s pf2 lb1 cl    1942.5 us    70.8 TFLOPS bitwise
+  4224 s pf3 lb1 cl    2184.2 us    62.9 TFLOPS bitwise
+  4444 s pf2 lb1        709.8 us   193.6 TFLOPS bitwise
+  4444 s pf2 lb1 cl    1394.1 us    98.6 TFLOPS bitwise
+  4444 s pf3 lb1 cl    1441.3 us    95.4 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    817.0 us   168.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    554.2 us   248.0 TFLOPS DIFFERS
+
+z M4096 M=4096 N=4096 K=2048
+  ref                   390.5 us   176.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    389.8 us   176.3 TFLOPS DIFFERS
+  4442 s pf2 lb1        360.6 us   190.6 TFLOPS bitwise
+  4442 p pf2 lb1 cl     411.1 us   167.2 TFLOPS bitwise
+  4442 s pf2 lb1 cl     395.0 us   174.0 TFLOPS bitwise
+  4442 s pf1 lb1 cl     413.4 us   166.2 TFLOPS bitwise
+  4442 s pf3 lb1 cl     502.9 us   136.6 TFLOPS bitwise
+  4442 s pf4 lb1 cl     591.6 us   116.2 TFLOPS bitwise
+  4424 s pf2 lb1 cl     410.0 us   167.6 TFLOPS bitwise
+  4424 s pf3 lb1 cl     650.3 us   105.7 TFLOPS bitwise
+  4224 s pf2 lb1 cl     683.8 us   100.5 TFLOPS bitwise
+  4224 s pf3 lb1 cl     796.1 us    86.3 TFLOPS bitwise
+  4444 s pf2 lb1        345.7 us   198.8 TFLOPS bitwise
+  4444 s pf2 lb1 cl     451.6 us   152.2 TFLOPS bitwise
+  4444 s pf3 lb1 cl     463.6 us   148.2 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    353.0 us   194.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    284.0 us   242.0 TFLOPS DIFFERS
+
+o M4096 M=4096 N=2048 K=4096
+  ref                   380.1 us   180.8 TFLOPS bitwise
+  NEG 4442 hi-before-lo    379.9 us   180.9 TFLOPS DIFFERS
+  4442 s pf2 lb1        351.4 us   195.6 TFLOPS bitwise
+  4442 p pf2 lb1 cl     443.7 us   154.9 TFLOPS bitwise
+  4442 s pf2 lb1 cl     381.3 us   180.2 TFLOPS bitwise
+  4442 s pf1 lb1 cl     402.1 us   170.9 TFLOPS bitwise
+  4442 s pf3 lb1 cl     595.1 us   115.5 TFLOPS bitwise
+  4442 s pf4 lb1 cl     710.7 us    96.7 TFLOPS bitwise
+  4424 s pf2 lb1 cl     379.0 us   181.3 TFLOPS bitwise
+  4424 s pf3 lb1 cl     735.4 us    93.4 TFLOPS bitwise
+  4224 s pf2 lb1 cl     810.2 us    84.8 TFLOPS bitwise
+  4224 s pf3 lb1 cl     907.2 us    75.7 TFLOPS bitwise
+  4444 s pf2 lb1        310.4 us   221.4 TFLOPS bitwise
+  4444 s pf2 lb1 cl     462.4 us   148.6 TFLOPS bitwise
+  4444 s pf3 lb1 cl     508.0 us   135.3 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    338.3 us   203.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    268.2 us   256.2 TFLOPS DIFFERS
+
+kv M4096 M=4096 N=512 K=2048
+  ref                    55.1 us   156.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo     54.3 us   158.3 TFLOPS DIFFERS
+  4442 s pf2 lb1         51.2 us   167.6 TFLOPS bitwise
+  4442 p pf2 lb1 cl      58.8 us   146.1 TFLOPS bitwise
+  4442 s pf2 lb1 cl      54.4 us   157.8 TFLOPS bitwise
+  4442 s pf1 lb1 cl      58.7 us   146.3 TFLOPS bitwise
+  4442 s pf3 lb1 cl      68.2 us   126.0 TFLOPS bitwise
+  4442 s pf4 lb1 cl      77.0 us   111.6 TFLOPS bitwise
+  4424 s pf2 lb1 cl      54.0 us   159.2 TFLOPS bitwise
+  4424 s pf3 lb1 cl      66.8 us   128.6 TFLOPS bitwise
+  4224 s pf2 lb1 cl      72.5 us   118.5 TFLOPS bitwise
+  4224 s pf3 lb1 cl      90.5 us    94.9 TFLOPS bitwise
+  4444 s pf2 lb1         48.0 us   179.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl      55.1 us   155.9 TFLOPS bitwise
+  4444 s pf3 lb1 cl      55.9 us   153.8 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB     48.5 us   177.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob     40.5 us   212.0 TFLOPS DIFFERS
+
+qkv M1024 M=1024 N=8192 K=2048
+  ref                   201.7 us   170.3 TFLOPS bitwise
+  NEG 4442 hi-before-lo    191.8 us   179.2 TFLOPS DIFFERS
+  4442 s pf2 lb1        180.7 us   190.2 TFLOPS bitwise
+  4442 p pf2 lb1 cl     207.0 us   166.0 TFLOPS bitwise
+  4442 s pf2 lb1 cl     197.1 us   174.3 TFLOPS bitwise
+  4442 s pf1 lb1 cl     210.4 us   163.3 TFLOPS bitwise
+  4442 s pf3 lb1 cl     227.3 us   151.1 TFLOPS bitwise
+  4442 s pf4 lb1 cl     245.3 us   140.1 TFLOPS bitwise
+  4424 s pf2 lb1 cl     192.4 us   178.6 TFLOPS bitwise
+  4424 s pf3 lb1 cl     228.3 us   150.5 TFLOPS bitwise
+  4224 s pf2 lb1 cl     266.0 us   129.2 TFLOPS bitwise
+  4224 s pf3 lb1 cl     291.6 us   117.8 TFLOPS bitwise
+  4444 s pf2 lb1        183.7 us   187.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl     208.7 us   164.7 TFLOPS bitwise
+  4444 s pf3 lb1 cl     219.2 us   156.8 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    175.4 us   195.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    142.5 us   241.1 TFLOPS DIFFERS
+
+z M1024 M=1024 N=4096 K=2048
+  ref                   107.5 us   159.8 TFLOPS bitwise
+  NEG 4442 hi-before-lo     99.8 us   172.2 TFLOPS DIFFERS
+  4442 s pf2 lb1         93.8 us   183.2 TFLOPS bitwise
+  4442 p pf2 lb1 cl     105.7 us   162.6 TFLOPS bitwise
+  4442 s pf2 lb1 cl     102.5 us   167.7 TFLOPS bitwise
+  4442 s pf1 lb1 cl     108.5 us   158.3 TFLOPS bitwise
+  4442 s pf3 lb1 cl     115.6 us   148.7 TFLOPS bitwise
+  4442 s pf4 lb1 cl     123.9 us   138.6 TFLOPS bitwise
+  4424 s pf2 lb1 cl     101.7 us   168.9 TFLOPS bitwise
+  4424 s pf3 lb1 cl     116.5 us   147.4 TFLOPS bitwise
+  4224 s pf2 lb1 cl     132.9 us   129.2 TFLOPS bitwise
+  4224 s pf3 lb1 cl     140.8 us   122.0 TFLOPS bitwise
+  4444 s pf2 lb1         92.8 us   185.1 TFLOPS bitwise
+  4444 s pf2 lb1 cl     106.0 us   162.1 TFLOPS bitwise
+  4444 s pf3 lb1 cl     110.4 us   155.7 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB     92.1 us   186.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob     73.6 us   233.4 TFLOPS DIFFERS
+
+o M1024 M=1024 N=2048 K=4096
+  ref                   116.1 us   148.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo     98.2 us   174.9 TFLOPS DIFFERS
+  4442 s pf2 lb1         91.2 us   188.4 TFLOPS bitwise
+  4442 p pf2 lb1 cl     113.6 us   151.2 TFLOPS bitwise
+  4442 s pf2 lb1 cl     103.8 us   165.5 TFLOPS bitwise
+  4442 s pf1 lb1 cl     105.6 us   162.7 TFLOPS bitwise
+  4442 s pf3 lb1 cl     126.4 us   135.9 TFLOPS bitwise
+  4442 s pf4 lb1 cl     144.7 us   118.7 TFLOPS bitwise
+  4424 s pf2 lb1 cl      99.6 us   172.5 TFLOPS bitwise
+  4424 s pf3 lb1 cl     129.8 us   132.4 TFLOPS bitwise
+  4224 s pf2 lb1 cl     158.8 us   108.2 TFLOPS bitwise
+  4224 s pf3 lb1 cl     172.9 us    99.4 TFLOPS bitwise
+  4444 s pf2 lb1         86.6 us   198.4 TFLOPS bitwise
+  4444 s pf2 lb1 cl     108.7 us   158.0 TFLOPS bitwise
+  4444 s pf3 lb1 cl     111.2 us   154.5 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB     93.9 us   182.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob     70.4 us   244.0 TFLOPS DIFFERS
+
+kv M1024 M=1024 N=512 K=2048
+  ref                    24.4 us    88.1 TFLOPS bitwise
+  NEG 4442 hi-before-lo     31.8 us    67.5 TFLOPS DIFFERS
+  4442 s pf2 lb1         27.1 us    79.2 TFLOPS bitwise
+  4442 p pf2 lb1 cl      31.2 us    68.8 TFLOPS bitwise
+  4442 s pf2 lb1 cl      29.5 us    72.7 TFLOPS bitwise
+  4442 s pf1 lb1 cl      31.0 us    69.3 TFLOPS bitwise
+  4442 s pf3 lb1 cl      31.2 us    68.7 TFLOPS bitwise
+  4442 s pf4 lb1 cl      30.8 us    69.8 TFLOPS bitwise
+  4424 s pf2 lb1 cl      26.7 us    80.4 TFLOPS bitwise
+  4424 s pf3 lb1 cl      28.6 us    75.0 TFLOPS bitwise
+  4224 s pf2 lb1 cl      29.2 us    73.6 TFLOPS bitwise
+  4224 s pf3 lb1 cl      30.1 us    71.4 TFLOPS bitwise
+  4444 s pf2 lb1         35.6 us    60.3 TFLOPS bitwise
+  4444 s pf2 lb1 cl      39.1 us    54.9 TFLOPS bitwise
+  4444 s pf3 lb1 cl      39.4 us    54.5 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB     24.9 us    86.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob     19.8 us   108.7 TFLOPS DIFFERS
+
+qkv M2049 M=2049 N=8192 K=2048
+  ref                   395.2 us   174.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    398.0 us   172.8 TFLOPS DIFFERS
+  4442 s pf2 lb1        384.4 us   178.9 TFLOPS bitwise
+  4442 p pf2 lb1 cl     467.7 us   147.0 TFLOPS bitwise
+  4442 s pf2 lb1 cl     423.9 us   162.2 TFLOPS bitwise
+  4442 s pf1 lb1 cl     442.3 us   155.4 TFLOPS bitwise
+  4442 s pf3 lb1 cl     579.1 us   118.7 TFLOPS bitwise
+  4442 s pf4 lb1 cl     634.7 us   108.3 TFLOPS bitwise
+  4424 s pf2 lb1 cl     448.2 us   153.4 TFLOPS bitwise
+  4424 s pf3 lb1 cl     649.2 us   105.9 TFLOPS bitwise
+  4224 s pf2 lb1 cl     628.3 us   109.4 TFLOPS bitwise
+  4224 s pf3 lb1 cl     755.2 us    91.0 TFLOPS bitwise
+  4444 s pf2 lb1        386.3 us   178.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl     486.8 us   141.2 TFLOPS bitwise
+  4444 s pf3 lb1 cl     533.0 us   129.0 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    386.9 us   177.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    292.3 us   235.2 TFLOPS DIFFERS
+
+qkv M4089 M=4089 N=8192 K=2048
+  ref                   821.5 us   167.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    800.6 us   171.4 TFLOPS DIFFERS
+  4442 s pf2 lb1        747.2 us   183.6 TFLOPS bitwise
+  4442 p pf2 lb1 cl     964.3 us   142.3 TFLOPS bitwise
+  4442 s pf2 lb1 cl     847.5 us   161.9 TFLOPS bitwise
+  4442 s pf1 lb1 cl     827.6 us   165.8 TFLOPS bitwise
+  4442 s pf3 lb1 cl    1549.1 us    88.6 TFLOPS bitwise
+  4442 s pf4 lb1 cl    1674.0 us    82.0 TFLOPS bitwise
+  4424 s pf2 lb1 cl     986.2 us   139.1 TFLOPS bitwise
+  4424 s pf3 lb1 cl    1844.4 us    74.4 TFLOPS bitwise
+  4224 s pf2 lb1 cl    1947.7 us    70.4 TFLOPS bitwise
+  4224 s pf3 lb1 cl    2181.9 us    62.9 TFLOPS bitwise
+  4444 s pf2 lb1        714.0 us   192.2 TFLOPS bitwise
+  4444 s pf2 lb1 cl    1395.0 us    98.4 TFLOPS bitwise
+  4444 s pf3 lb1 cl    1439.1 us    95.3 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    811.8 us   169.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    551.0 us   249.0 TFLOPS DIFFERS
+
+z M3000 M=3000 N=4096 K=2048
+  ref                   282.4 us   178.3 TFLOPS bitwise
+  NEG 4442 hi-before-lo    285.4 us   176.3 TFLOPS DIFFERS
+  4442 s pf2 lb1        269.1 us   187.0 TFLOPS bitwise
+  4442 p pf2 lb1 cl     309.1 us   162.8 TFLOPS bitwise
+  4442 s pf2 lb1 cl     294.8 us   170.7 TFLOPS bitwise
+  4442 s pf1 lb1 cl     314.1 us   160.2 TFLOPS bitwise
+  4442 s pf3 lb1 cl     383.9 us   131.1 TFLOPS bitwise
+  4442 s pf4 lb1 cl     435.9 us   115.5 TFLOPS bitwise
+  4424 s pf2 lb1 cl     294.4 us   171.0 TFLOPS bitwise
+  4424 s pf3 lb1 cl     447.4 us   112.5 TFLOPS bitwise
+  4224 s pf2 lb1 cl     423.8 us   118.8 TFLOPS bitwise
+  4224 s pf3 lb1 cl     531.4 us    94.7 TFLOPS bitwise
+  4444 s pf2 lb1        259.1 us   194.2 TFLOPS bitwise
+  4444 s pf2 lb1 cl     316.7 us   158.9 TFLOPS bitwise
+  4444 s pf3 lb1 cl     335.3 us   150.1 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    263.4 us   191.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    211.5 us   238.0 TFLOPS DIFFERS
+
+o M4089 M=4089 N=2048 K=4096
+  ref                   377.6 us   181.7 TFLOPS bitwise
+  NEG 4442 hi-before-lo    374.6 us   183.1 TFLOPS DIFFERS
+  4442 s pf2 lb1        355.6 us   192.9 TFLOPS bitwise
+  4442 p pf2 lb1 cl     444.9 us   154.2 TFLOPS bitwise
+  4442 s pf2 lb1 cl     389.4 us   176.2 TFLOPS bitwise
+  4442 s pf1 lb1 cl     403.9 us   169.9 TFLOPS bitwise
+  4442 s pf3 lb1 cl     594.1 us   115.5 TFLOPS bitwise
+  4442 s pf4 lb1 cl     709.9 us    96.6 TFLOPS bitwise
+  4424 s pf2 lb1 cl     382.5 us   179.3 TFLOPS bitwise
+  4424 s pf3 lb1 cl     731.7 us    93.8 TFLOPS bitwise
+  4224 s pf2 lb1 cl     807.6 us    84.9 TFLOPS bitwise
+  4224 s pf3 lb1 cl     905.7 us    75.7 TFLOPS bitwise
+  4444 s pf2 lb1        316.4 us   216.8 TFLOPS bitwise
+  4444 s pf2 lb1 cl     465.4 us   147.4 TFLOPS bitwise
+  4444 s pf3 lb1 cl     510.3 us   134.4 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB    346.2 us   198.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob    274.7 us   249.7 TFLOPS DIFFERS
+
+kv M2049 M=2049 N=512 K=2048
+  ref                    43.7 us    98.4 TFLOPS bitwise
+  NEG 4442 hi-before-lo     49.7 us    86.5 TFLOPS DIFFERS
+  4442 s pf2 lb1         44.0 us    97.7 TFLOPS bitwise
+  4442 p pf2 lb1 cl      45.6 us    94.2 TFLOPS bitwise
+  4442 s pf2 lb1 cl      44.7 us    96.1 TFLOPS bitwise
+  4442 s pf1 lb1 cl      49.2 us    87.4 TFLOPS bitwise
+  4442 s pf3 lb1 cl      47.8 us    89.8 TFLOPS bitwise
+  4442 s pf4 lb1 cl      46.8 us    91.8 TFLOPS bitwise
+  4424 s pf2 lb1 cl      42.8 us   100.4 TFLOPS bitwise
+  4424 s pf3 lb1 cl      47.1 us    91.2 TFLOPS bitwise
+  4224 s pf2 lb1 cl      41.7 us   103.1 TFLOPS bitwise
+  4224 s pf3 lb1 cl      46.7 us    92.0 TFLOPS bitwise
+  4444 s pf2 lb1         38.1 us   112.8 TFLOPS bitwise
+  4444 s pf2 lb1 cl      42.0 us   102.3 TFLOPS bitwise
+  4444 s pf3 lb1 cl      42.5 us   101.0 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB     38.8 us   110.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob     32.9 us   130.6 TFLOPS DIFFERS
+
+o M300 M=300 N=2048 K=4096
+  ref                    51.3 us    98.1 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 p pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf1 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf4 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+odd N 1000 M=2100 N=1000 K=2048
+  ref                    64.7 us   133.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 p pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf1 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf4 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+K 1056 M=2100 N=1280 K=1056
+  ref                    39.5 us   143.7 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 p pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf1 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4442 s pf4 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4424 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4224 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf3 lb1 cl  1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 cl noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 cl noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+ALL BITWISE (0 candidate outputs differ from ref)
+[l8] radiance active after 20 s
+window w4 down 21:19:38 -> 21:20:07
+fleetq: #5510 done (exit 0); radiance-rank0 must come back before others can use it

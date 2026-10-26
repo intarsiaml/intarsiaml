@@ -311,6 +311,7 @@ impl ModelArgs {
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
+                prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
             },
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),

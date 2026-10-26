@@ -1,0 +1,93 @@
+fleetq: #5527 waiting (#1 in line): needs gpu quiet on spark2, but #5525 "sk2: real_35b_batched_macro_prefill test" (claude-f31ccf91) loads it
+fleetq:   #5525 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5525 set, or it will wait for #5525 to be released.
+fleetq: #5527 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5527 running on spark2: scripts/sk/le-window.sh ab1 3 main:main:::--max-batch_4 dev:dev:::--max-batch_4 vllm
+== round 1 arm main 21:30:11
+main r1: MemAvailable 52875 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-main-r1: - result file: `results/20261025-213047-adhoc-sk-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213047-adhoc-sk-main-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 0.19 | 5236 (5228–5236) * | - | 83.8 (83.6–83.9) | 84.8 (84.4–85.0) | - | - | 128 |
+| 4089 | 0.62 | 6588 (6583–6589) | 7183 | 81.4 (81.2–81.4) | 82.1 (81.9–82.3) | - | - | 128 |
+| 16655 | 2.75 | 6051 (6017–6061) | 5897 | 73.8 (72.9–74.1) | 78.8 (75.1–79.9) | - | - | 128 |
+== round 1 arm dev 21:31:16
+dev r1: MemAvailable 52868 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-dev-r1: - result file: `results/20261025-213204-adhoc-sk-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213204-adhoc-sk-dev-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.20 | 5079 (4966–5191) * | - | 83.9 (83.9–84.3) | 90.1 (88.5–95.7) | - | - | 128 |
+| 4089 | 0.61 | 6651 (6582–6655) | 7379 | 82.0 (81.8–82.3) | 86.7 (86.4–87.0) | - | - | 128 |
+| 16656 | 2.54 | 6567 (6555–6636) | 6542 | 74.0 (73.0–74.8) | 78.4 (76.6–78.5) | - | - | 128 |
+== round 1 arm vllm 21:32:32
+sk-vllm-r1: - result file: `results/20261025-213233-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213233-adhoc-sk-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5224 (5192–5261) * | - | 80.1 (79.7–80.1) | 81.8 (81.5–84.0) | - | - | 128 |
+| 4089 | 0.65 | 6259 (6051–6312) | 6693 | 78.7 (78.5–79.2) | 80.4 (79.7–80.7) | - | - | 128 |
+| 16657 | 2.65 | 6278 (6221–6298) | 6284 | 76.1 (76.1–76.2) | 77.6 (76.7–77.6) | - | - | 128 |
+== round 2 arm vllm 21:33:00
+sk-vllm-r2: - result file: `results/20261025-213300-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213300-adhoc-sk-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5377 (5237–5396) * | - | 80.1 (78.4–80.2) | 80.8 (80.7–81.3) | - | - | 128 |
+| 4088 | 0.64 | 6364 (6354–6439) | 6760 | 78.9 (78.8–79.1) | 80.2 (79.5–83.5) | - | - | 128 |
+| 16658 | 2.66 | 6270 (6268–6288) | 6238 | 76.0 (76.0–76.4) | 76.9 (76.4–78.8) | - | - | 128 |
+== round 2 arm dev 21:33:27
+dev r2: MemAvailable 52843 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-dev-r2: - result file: `results/20261025-213407-adhoc-sk-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213407-adhoc-sk-dev-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 0.19 | 5199 (5188–5234) * | - | 84.3 (84.1–84.9) | 85.7 (85.0–87.8) | - | - | 128 |
+| 4090 | 0.59 | 6887 (6406–6932) | 7666 | 81.9 (81.5–84.1) | 91.4 (82.7–95.0) | - | - | 128 |
+| 16676 | 2.52 | 6615 (6612–6620) | 6531 | 74.3 (73.8–74.9) | 74.9 (74.5–76.0) | - | - | 128 |
+== round 2 arm main 21:34:34
+main r2: MemAvailable 52858 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-main-r2: - result file: `results/20261025-213522-adhoc-sk-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213522-adhoc-sk-main-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5254 (5223–5343) * | - | 83.8 (83.2–84.1) | 84.8 (84.1–85.0) | - | - | 128 |
+| 4090 | 0.63 | 6477 (6464–6523) | 7014 | 81.1 (80.7–81.4) | 82.3 (82.2–82.5) | - | - | 128 |
+| 16653 | 2.77 | 6015 (6009–6032) | 5876 | 73.7 (73.3–74.2) | 74.2 (74.0–74.8) | - | - | 128 |
+== round 3 arm main 21:35:50
+main r3: MemAvailable 52874 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-main-r3: - result file: `results/20261025-213629-adhoc-sk-main-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213629-adhoc-sk-main-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5226 (5214–5245) * | - | 83.7 (83.4–84.0) | 84.8 (84.5–85.1) | - | - | 128 |
+| 4092 | 0.62 | 6569 (6537–6606) | 7162 | 81.3 (81.0–81.5) | 81.9 (81.9–84.3) | - | - | 128 |
+| 16656 | 2.76 | 6043 (6032–6054) | 5890 | 73.7 (73.5–73.9) | 74.4 (74.2–74.7) | - | - | 128 |
+== round 3 arm dev 21:36:57
+dev r3: MemAvailable 52774 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 537 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+sk-dev-r3: - result file: `results/20261025-213737-adhoc-sk-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213737-adhoc-sk-dev-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5200 (5181–5217) * | - | 84.2 (84.1–84.6) | 85.7 (85.1–85.9) | - | - | 128 |
+| 4089 | 0.59 | 6929 (6925–6990) | 7764 | 81.7 (81.5–82.0) | 82.6 (82.2–83.0) | - | - | 128 |
+| 16654 | 2.52 | 6611 (6585–6665) | 6514 | 74.3 (73.7–74.4) | 74.8 (74.4–75.0) | - | - | 128 |
+== round 3 arm vllm 21:38:04
+sk-vllm-r3: - result file: `results/20261025-213805-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-213805-adhoc-sk-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5375 (5357–5409) * | - | 77.6 (77.6–78.1) | 78.5 (78.2–79.6) | - | - | 128 |
+| 4089 | 0.64 | 6398 (6389–6418) | 6807 | 78.8 (78.6–79.0) | 79.8 (79.6–80.0) | - | - | 128 |
+| 16678 | 2.66 | 6275 (6275–6276) | 6235 | 76.2 (76.2–76.3) | 77.7 (77.7–78.1) | - | - | 128 |
+== done 21:38:31
+fleetq: #5527 done (exit 0)

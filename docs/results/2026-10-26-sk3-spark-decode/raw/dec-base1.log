@@ -1,0 +1,86 @@
+fleetq: #5560 waiting (#1 in line): needs gpu quiet on spark2, but #5559 "sk3: decode main b8/mtp vs vLLM, 1k gen256, conc 4,8, x3" (claude-f31ccf91) loads it
+fleetq:   #5559 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5559 set, or it will wait for #5559 to be released.
+fleetq: #5560 running on spark2: scripts/sk/dec-window.sh base1 3 b8:main:4,8::--max-batch_8 mtp:main:none::--spec_mtp vllm
+== round 1 arm b8 22:06:10
+b8 r1: MemAvailable 50676 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 585 case(s) run, 0 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r1: - result file: `results/20261025-220657-adhoc-sk-b8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-220657-adhoc-sk-b8-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.19 | 5241 (5195–5250) * | - | 83.2 (83.2–83.2) | 84.3 (84.2–85.7) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 165.5 | 44.9 (42.9–47.2) | 0.48 |
+| 8 | 203.4 | 28.0 (26.3–30.2) | 0.88 |
+sk-b8-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-220725-adhoc-sk-b8-r1/result.json
+== round 1 arm mtp 22:08:52
+server mtp did not come up
+[supervisor] started server pid 139689
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 1.2 s (routed experts quantised to nvfp4)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5: invalid op call: MTP pass of 8192 rows at 0 (cap 20480, chunk 2048)
+[supervisor] server failed to start (exit 78); not restarting
+== round 1 arm vllm 22:13:58
+sk-vllm-r1: - result file: `results/20261025-221359-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-221359-adhoc-sk-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.18 | 5418 (5324–5488) * | - | 79.8 (79.8–79.8) | 80.6 (80.6–80.7) | - | - | 256 |
+sk-vllm-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-221411-adhoc-sk-vllm-r1/result.json
+== round 2 arm vllm 22:15:47
+sk-vllm-r2: - result file: `results/20261025-221547-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-221547-adhoc-sk-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.18 | 5383 (5349–5408) * | - | 80.0 (79.9–80.2) | 81.1 (80.9–81.1) | - | - | 256 |
+sk-vllm-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-221559-adhoc-sk-vllm-r2/result.json
+== round 2 arm mtp 22:17:28
+server mtp did not come up
+[supervisor] started server pid 140385
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5: invalid op call: MTP pass of 8192 rows at 0 (cap 20480, chunk 2048)
+[supervisor] server failed to start (exit 78); not restarting
+== round 2 arm b8 22:22:34
+b8 r2: MemAvailable 51671 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 585 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r2: - result file: `results/20261025-222318-adhoc-sk-b8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-222318-adhoc-sk-b8-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5295 (5279–5340) * | - | 83.7 (83.5–83.8) | 86.4 (84.6–86.6) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 161.7 | 43.9 (42.0–46.1) | 0.49 |
+| 8 | 207.0 | 28.5 (26.7–30.8) | 0.88 |
+sk-b8-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-222347-adhoc-sk-b8-r2/result.json
+== round 3 arm b8 22:25:14
+b8 r3: MemAvailable 51021 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 585 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r3: - result file: `results/20261025-222602-adhoc-sk-b8-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-222602-adhoc-sk-b8-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5258 (5179–5269) * | - | 84.3 (84.1–84.3) | 85.2 (85.1–85.3) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 161.4 | 43.7 (41.8–46.0) | 0.48 |
+| 8 | 208.7 | 28.7 (26.9–31.1) | 0.87 |
+sk-b8-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-222630-adhoc-sk-b8-r3/result.json
+== round 3 arm mtp 22:27:56
+server mtp did not come up
+[supervisor] started server pid 142655
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5: invalid op call: MTP pass of 8192 rows at 0 (cap 20480, chunk 2048)
+[supervisor] server failed to start (exit 78); not restarting
+== round 3 arm vllm 22:33:02
+sk-vllm-r3: - result file: `results/20261025-223303-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-223303-adhoc-sk-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.18 | 5431 (5400–5479) * | - | 79.6 (77.8–80.0) | 81.2 (78.7–82.3) | - | - | 256 |
+sk-vllm-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-223315-adhoc-sk-vllm-r3/result.json
+== done 22:34:44
+fleetq: #5560 done (exit 0)

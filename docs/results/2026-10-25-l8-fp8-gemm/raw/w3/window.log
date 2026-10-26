@@ -1,0 +1,258 @@
+fleetq: #5464 waiting (#4 in line): in line behind #5436 "l7: g1 gates GB+GC+BENCH (G-B moe_block/rows_exact/rows_registry, G-C 35B batched==solo, T=3,4 bench), card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5436 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5436 set, or it will wait for #5436 to be released.
+fleetq: #5464 waiting (#3 in line): in line behind #5460 "tp2: sync + build the batch tree (de4f061: collective ledger, stages-w20), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5460 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5460 set, or it will wait for #5460 to be released.
+fleetq: #5464 waiting (#2 in line): in line behind #5461 "tp2 w20: minimal repro (fresh model, one solo state, one batched step of 3 rows) with the per-rank collective ledger and watchdog; graphs on/off, blocking, fusion off, poison 00; radiance down <=30 mi" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5461 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5461 set, or it will wait for #5461 to be released.
+fleetq: #5464 waiting (#1 in line): radiance-rank0 is also taken down by #5461 "tp2 w20: minimal repro (fresh model, one solo state, one batched step of 3 rows) with the per-rank collective ledger and watchdog; graphs on/off, blocking, fusion off, poison 00; radiance down <=30 mi" (claude-f31ccf91)
+fleetq:   #5461 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5461 set, or it will wait for #5461 to be released.
+fleetq: #5464 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #5464 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5464 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 66% busy with work fleetq does not track
+fleetq: #5464 running on tatooine-r9700: ssh tatooine 'bash ~/intarsiaml-l8-src/scripts/l8/win.sh bench 3 f8bench'
+[l8] radiance inactive; window w3 starts 20:39:44
+
+qkv M4096 M=4096 N=8192 K=2048
+  ref                   838.7 us   163.9 TFLOPS bitwise
+  NEG 4442 hi-before-lo    809.3 us   169.8 TFLOPS DIFFERS
+  4442 s pf2 lb1        726.1 us   189.3 TFLOPS bitwise
+  4444 s pf2 lb1        702.0 us   195.8 TFLOPS bitwise
+  ABL 4442 s pf2 noA    664.6 us   206.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    678.0 us   202.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    561.1 us   244.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    513.0 us   267.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    617.7 us   222.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    426.8 us   322.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    502.5 us   273.5 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    725.5 us   189.5 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    568.0 us   242.0 TFLOPS DIFFERS
+
+z M4096 M=4096 N=4096 K=2048
+  ref                   382.5 us   179.7 TFLOPS bitwise
+  NEG 4442 hi-before-lo    390.6 us   175.9 TFLOPS DIFFERS
+  4442 s pf2 lb1        366.7 us   187.4 TFLOPS bitwise
+  4444 s pf2 lb1        356.9 us   192.5 TFLOPS bitwise
+  ABL 4442 s pf2 noA    322.2 us   213.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    325.7 us   211.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    288.6 us   238.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    262.2 us   262.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    303.3 us   226.6 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    141.2 us   486.6 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    247.1 us   278.1 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    350.1 us   196.3 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    287.5 us   239.0 TFLOPS DIFFERS
+
+o M4096 M=4096 N=2048 K=4096
+  ref                   372.9 us   184.3 TFLOPS bitwise
+  NEG 4442 hi-before-lo    377.1 us   182.2 TFLOPS DIFFERS
+  4442 s pf2 lb1        354.8 us   193.7 TFLOPS bitwise
+  4444 s pf2 lb1        334.4 us   205.5 TFLOPS bitwise
+  ABL 4442 s pf2 noA    324.2 us   211.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    316.9 us   216.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    281.3 us   244.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    242.9 us   282.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    300.9 us   228.4 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    153.1 us   449.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    229.5 us   299.4 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    311.6 us   220.5 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    247.7 us   277.4 TFLOPS DIFFERS
+
+kv M4096 M=4096 N=512 K=2048
+  ref                    54.2 us   158.4 TFLOPS bitwise
+  NEG 4442 hi-before-lo     54.7 us   157.0 TFLOPS DIFFERS
+  4442 s pf2 lb1         51.2 us   167.8 TFLOPS bitwise
+  4444 s pf2 lb1         47.7 us   180.1 TFLOPS bitwise
+  ABL 4442 s pf2 noA     44.9 us   191.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB     43.2 us   198.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob     40.6 us   211.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB     37.2 us   230.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma     50.2 us   171.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     25.5 us   337.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma     35.2 us   244.2 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB     43.4 us   198.1 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB     34.6 us   248.3 TFLOPS DIFFERS
+
+qkv M1024 M=1024 N=8192 K=2048
+  ref                   198.6 us   173.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    192.1 us   178.9 TFLOPS DIFFERS
+  4442 s pf2 lb1        181.6 us   189.2 TFLOPS bitwise
+  4444 s pf2 lb1        182.8 us   188.0 TFLOPS bitwise
+  ABL 4442 s pf2 noA    164.6 us   208.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    159.8 us   215.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    146.6 us   234.4 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    130.7 us   262.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    162.6 us   211.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     78.1 us   439.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    122.6 us   280.3 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    164.3 us   209.2 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    141.2 us   243.4 TFLOPS DIFFERS
+
+z M1024 M=1024 N=4096 K=2048
+  ref                   107.0 us   160.5 TFLOPS bitwise
+  NEG 4442 hi-before-lo     99.7 us   172.3 TFLOPS DIFFERS
+  4442 s pf2 lb1         95.1 us   180.7 TFLOPS bitwise
+  4444 s pf2 lb1         90.0 us   190.9 TFLOPS bitwise
+  ABL 4442 s pf2 noA     86.9 us   197.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB     82.8 us   207.6 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob     73.4 us   234.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB     66.0 us   260.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma     90.0 us   190.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     44.1 us   389.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma     62.3 us   275.7 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB     82.5 us   208.2 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB     66.3 us   259.3 TFLOPS DIFFERS
+
+o M1024 M=1024 N=2048 K=4096
+  ref                   112.3 us   153.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo     97.6 us   176.0 TFLOPS DIFFERS
+  4442 s pf2 lb1         93.4 us   183.9 TFLOPS bitwise
+  4444 s pf2 lb1         87.0 us   197.5 TFLOPS bitwise
+  ABL 4442 s pf2 noA     85.2 us   201.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB     87.0 us   197.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob     72.2 us   237.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB     62.5 us   275.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma     90.8 us   189.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     64.0 us   268.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma     59.3 us   289.5 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB     78.1 us   219.9 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB     62.3 us   275.6 TFLOPS DIFFERS
+
+kv M1024 M=1024 N=512 K=2048
+  ref                    23.7 us    90.7 TFLOPS bitwise
+  NEG 4442 hi-before-lo     30.5 us    70.4 TFLOPS DIFFERS
+  4442 s pf2 lb1         26.1 us    82.3 TFLOPS bitwise
+  4444 s pf2 lb1         37.4 us    57.5 TFLOPS bitwise
+  ABL 4442 s pf2 noA     21.8 us    98.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB     20.5 us   104.6 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob     18.8 us   114.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB     16.0 us   134.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma     25.0 us    85.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     12.1 us   177.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma     16.1 us   133.7 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB     34.9 us    61.6 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB     27.7 us    77.5 TFLOPS DIFFERS
+
+qkv M2049 M=2049 N=8192 K=2048
+  ref                   393.4 us   174.8 TFLOPS bitwise
+  NEG 4442 hi-before-lo    398.0 us   172.8 TFLOPS DIFFERS
+  4442 s pf2 lb1        387.2 us   177.6 TFLOPS bitwise
+  4444 s pf2 lb1        398.9 us   172.4 TFLOPS bitwise
+  ABL 4442 s pf2 noA    334.9 us   205.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    339.8 us   202.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    294.8 us   233.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    271.4 us   253.3 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    318.7 us   215.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    156.8 us   438.4 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    254.8 us   269.8 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    381.3 us   180.3 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    301.5 us   228.0 TFLOPS DIFFERS
+
+qkv M4089 M=4089 N=8192 K=2048
+  ref                   816.5 us   168.0 TFLOPS bitwise
+  NEG 4442 hi-before-lo    802.0 us   171.1 TFLOPS DIFFERS
+  4442 s pf2 lb1        749.1 us   183.2 TFLOPS bitwise
+  4444 s pf2 lb1        733.4 us   187.1 TFLOPS bitwise
+  ABL 4442 s pf2 noA    660.7 us   207.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    675.8 us   203.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    561.2 us   244.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    516.7 us   265.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    617.8 us   222.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    424.5 us   323.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    502.8 us   272.9 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    733.1 us   187.2 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    569.5 us   240.9 TFLOPS DIFFERS
+
+z M3000 M=3000 N=4096 K=2048
+  ref                   275.3 us   182.8 TFLOPS bitwise
+  NEG 4442 hi-before-lo    288.7 us   174.3 TFLOPS DIFFERS
+  4442 s pf2 lb1        273.1 us   184.3 TFLOPS bitwise
+  4444 s pf2 lb1        265.5 us   189.6 TFLOPS bitwise
+  ABL 4442 s pf2 noA    238.9 us   210.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    236.2 us   213.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    216.3 us   232.7 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    197.0 us   255.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    231.3 us   217.6 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    102.5 us   490.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    183.3 us   274.6 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    248.1 us   202.9 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    205.2 us   245.3 TFLOPS DIFFERS
+
+o M4089 M=4089 N=2048 K=4096
+  ref                   373.0 us   183.9 TFLOPS bitwise
+  NEG 4442 hi-before-lo    380.4 us   180.3 TFLOPS DIFFERS
+  4442 s pf2 lb1        358.8 us   191.2 TFLOPS bitwise
+  4444 s pf2 lb1        330.0 us   207.9 TFLOPS bitwise
+  ABL 4442 s pf2 noA    328.2 us   209.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB    320.3 us   214.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob    282.1 us   243.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB    242.5 us   282.9 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma    301.1 us   227.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds    152.8 us   448.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma    232.8 us   294.7 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB    309.4 us   221.7 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB    251.8 us   272.5 TFLOPS DIFFERS
+
+kv M2049 M=2049 N=512 K=2048
+  ref                    43.6 us    98.6 TFLOPS bitwise
+  NEG 4442 hi-before-lo     49.4 us    86.9 TFLOPS DIFFERS
+  4442 s pf2 lb1         44.1 us    97.3 TFLOPS bitwise
+  4444 s pf2 lb1         40.7 us   105.6 TFLOPS bitwise
+  ABL 4442 s pf2 noA     37.2 us   115.5 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB     35.3 us   121.8 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob     33.5 us   128.1 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB     30.9 us   139.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma     41.3 us   104.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds     15.6 us   276.2 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma     30.3 us   141.6 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB     35.8 us   120.1 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB     28.8 us   149.2 TFLOPS DIFFERS
+
+o M300 M=300 N=2048 K=4096
+  ref                    50.2 us   100.2 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 noA 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+odd N 1000 M=2100 N=1000 K=2048
+  ref                    65.2 us   131.9 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 noA 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+K 1056 M=2100 N=1280 K=1056
+  ref                    39.6 us   143.2 TFLOPS bitwise
+  NEG 4442 hi-before-lo 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  4442 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  4444 s pf2 lb1     1000000015047466219876688855040000.0 us     0.0 TFLOPS bitwise
+  ABL 4442 s pf2 noA 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 noWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyGlobLds 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4442 s pf2 onlyWmma 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+  ABL 4444 s pf2 noGlob+noAB 1000000015047466219876688855040000.0 us     0.0 TFLOPS DIFFERS
+
+ALL BITWISE (0 candidate outputs differ from ref)
+[l8] radiance active after 15 s
+window w3 down 20:39:41 -> 20:39:59
+fleetq: #5464 done (exit 0); radiance-rank0 must come back before others can use it

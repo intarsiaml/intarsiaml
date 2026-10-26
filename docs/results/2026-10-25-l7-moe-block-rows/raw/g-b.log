@@ -1,0 +1,17 @@
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... moe_block_dispatch_order: 90 launches bitwise
+test moe_block_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_is_the_solo_block_per_token ... moe_block_bf16_grouped: 240 launches, 1780 tokens bitwise the T = 1 block, 216 negative controls differ
+test moe_block_grouped_negative_controls ... moe_block_grouped_negative_controls: tensor-core experts differ in 4 of 16 tokens, tensor-core shared GEMVs in 0 of 16
+thread 'moe_block_grouped_negative_controls' panicked at crates/intarsia-backend-hip/tests/moe_block.rs:300:5:
+FAILED
+test moe_block_is_bitwise_the_chain ... moe_block_is_bitwise_the_chain: 52 cases bitwise
+test moe_block_rows_are_the_solo_block_per_token ... moe_block_bf16_rows: 120 launches, 808 tokens bitwise the T = 1 block, 96 negative controls differ
+test moe_block_sentinel_stress ...   [routed last late] t=1 e=256 k=8 h=2048 i=512 is=512, 120 rounds: skew 0: 0 differ (0 NaN), skew 20: 0 differ (0 NaN), skew 40: 0 differ (0 NaN); stream 1: 0 differ
+moe_block_sentinel_stress: 6000 launches, 0 differ from the chain
+test moe_block_timing ... ok
+test moe_rows_timing ... ok
+    moe_block_grouped_negative_controls
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.15s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test moe_block`
