@@ -22,6 +22,9 @@
 use super::*;
 use crate::state::DflashState;
 
+/// Rows of single-token decode steps the draft keeps back before one batched ingest (`DflashState::store`, 8 KB per tap and row).
+const PEND_MAX: usize = 512;
+
 /// What the draft checkpoint's `config.json` (`dflash_config`) says, parsed by the loader.
 #[derive(Clone, Debug)]
 pub struct DflashConfig {
@@ -216,7 +219,7 @@ impl Model {
         let specs: Vec<SlotSpec> = (0..head.layers.len())
             .map(|_| SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv })
             .collect();
-        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true })))
+        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new() })))
     }
 
     /// After a target pass over the `t` rows just committed to `st` (positions `st.len - t .. st.len`; the taps' staging
@@ -229,12 +232,27 @@ impl Model {
             d.synced = false;
             return Ok(());
         }
-        if d.kv.len + t != st.len || st.len > d.kv.cap {
+        if d.kv.len + d.pending + t != st.len || st.len > d.kv.cap {
             d.synced = false;
             return Ok(());
         }
         let mut d = st.dflash.take().unwrap();
-        let r = self.dflash_ingest(head, &mut d.kv, t, profile);
+        let r = (|| -> Result<()> {
+            // a batch that would overflow the store goes in first (from the store, so the staging rows stay untouched)
+            if d.pending > 0 && d.pending + t > self.dflash_pend_max() {
+                self.dflash_flush(head, &mut d, profile)?;
+            }
+            if t == 1 || d.pending > 0 {
+                // single-token decode steps are stashed; any other pass behind pending rows goes in with them
+                self.dflash_stash(head, &mut d, t)?;
+                if t != 1 {
+                    self.dflash_flush(head, &mut d, profile)?;
+                }
+                Ok(())
+            } else {
+                self.dflash_ingest(head, &mut d.kv, &head.feat, t, profile)
+            }
+        })();
         if r.is_err() {
             d.synced = false;
         }
@@ -242,9 +260,40 @@ impl Model {
         r
     }
 
+    /// Rows the store holds: a flush is one ingest pass, which the workspace limits to `max_tokens` rows.
+    fn dflash_pend_max(&self) -> usize {
+        PEND_MAX.min(self.ws.max_tokens)
+    }
+
+    /// Copy the staging rows of the pass just run (`t` rows) behind the pending rows of the store.
+    fn dflash_stash(&self, head: &DflashHead, d: &mut DflashState, t: usize) -> Result<()> {
+        let (h, esz) = (self.dims.hidden, self.act.size_bytes());
+        if d.store.is_empty() {
+            for _ in 0..head.taps.len() {
+                d.store.push(self.backend.alloc((self.dflash_pend_max() * h * esz).max(16), MemKind::Device)?);
+            }
+        }
+        for (src, dst) in head.feat.iter().zip(&d.store) {
+            self.backend.copy(dst, d.pending * h * esz, src, 0, t * h * esz, self.stream)?;
+        }
+        d.pending += t;
+        Ok(())
+    }
+
+    /// The pending rows into the draft's context cache, one batch.
+    fn dflash_flush(&self, head: &DflashHead, d: &mut DflashState, profile: bool) -> Result<()> {
+        let n = d.pending;
+        if n == 0 {
+            return Ok(());
+        }
+        self.dflash_ingest(head, &mut d.kv, &d.store, n, profile)?;
+        d.pending = 0;
+        Ok(())
+    }
+
     /// Context rows of `t` target positions into the draft caches: `h_ctx = hidden_norm(sum_i fc_i feat_i)`, then every draft
     /// layer's k/v projection, k-norm, rope at the absolute positions and cache append (`attn_block_kv_only`).
-    fn dflash_ingest(&self, head: &DflashHead, kv: &mut SequenceState, t: usize, profile: bool) -> Result<()> {
+    fn dflash_ingest(&self, head: &DflashHead, kv: &mut SequenceState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
         let (h, act, ws) = (self.dims.hidden, self.act, &self.ws);
         let v = |b: &Buffer| self.view(b, act, &[t, h]);
         let (h0, h1, blk, n) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.blk), v(&ws.n));
@@ -252,7 +301,7 @@ impl Model {
             self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile)
         };
         // sum over the taps, ping-ponging h0 / blk (an Add never writes one of its inputs)
-        let feat = |i: usize| self.view(&head.feat[i], act, &[t, h]);
+        let feat = |i: usize| self.view(&src[i], act, &[t, h]);
         self.proj(&feat(0), &head.fc[0], &h0, profile)?;
         let (mut acc, mut other) = (h0.clone(), blk.clone());
         for i in 1..head.fc.len() {
@@ -278,6 +327,19 @@ impl Model {
         if k == 0 {
             return Ok(Vec::new());
         }
+        if d.active && !d.synced {
+            return Ok(Vec::new()); // the context cache lost a pass: this request decodes plainly from here
+        }
+        if d.pending > 0 {
+            let mut d = st.dflash.take().unwrap();
+            let r = self.dflash_flush(head, &mut d, false);
+            if r.is_err() {
+                d.synced = false;
+            }
+            st.dflash = Some(d);
+            r?;
+        }
+        let d = st.dflash.as_ref().unwrap();
         if !d.active || !d.synced || d.kv.len != st.len {
             return Err(Error::invalid(format!(
                 "DFlash state at {} (active {}, synced {}), sequence at {}",
@@ -372,7 +434,7 @@ impl Model {
                     let host = crate::tensor::HostTensor::from_f32_as(self.act, &[t, h], &part);
                     self.backend.upload(&head.feat[i], 0, &host.data, self.stream)?;
                 }
-                self.dflash_ingest(head, &mut d.kv, t, false)?;
+                self.dflash_ingest(head, &mut d.kv, &head.feat, t, false)?;
                 done += t;
             }
             Ok(())
@@ -414,9 +476,9 @@ impl Model {
         }
         let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let t = head.block;
-        let r = self.dflash_ingest(head, &mut kv, t, false).and_then(|_| {
+        let r = self.dflash_ingest(head, &mut kv, &head.feat, t, false).and_then(|_| {
             let mut st = crate::plan::phantom_state(&[], self.plan.kv_cap_tokens, kv.len);
-            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true }));
+            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new() }));
             self.dflash_draft(&mut st, 0, t).map(|_| ())
         });
         self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);

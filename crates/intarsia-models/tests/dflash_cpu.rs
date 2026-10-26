@@ -552,3 +552,51 @@ fn dflash_draft_matches_host_reference() {
     eprintln!("drafts {drafts:?}; undecidable ties skipped: {skipped}");
     assert_eq!(flips, 0, "draft tokens differ from the host reference beyond the numeric noise");
 }
+
+/// Single-token decode steps stash their feature rows and the draft flushes them in one batch: the draft after (prefill + 5 steps)
+/// matches the draft after the same 26 tokens went through prefill chunks, and a rollback into the pending rows follows.
+#[test]
+fn dflash_deferred_rows_give_the_same_draft_as_direct_ingest() {
+    use intarsia_core::model::HeadMode;
+    let (m, _) = model(1, 2, true, Some(BLOCK));
+    let toks: Vec<u32> = (0..26u32).map(|i| (i * 7 + 3) % 200).collect();
+    let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+    for c in toks[..21].chunks(16) {
+        m.forward(&mut a, c, HeadMode::None, None).unwrap();
+    }
+    for t in &toks[21..] {
+        m.forward(&mut a, &[*t], HeadMode::None, None).unwrap();
+    }
+    assert_eq!(a.dflash.as_ref().unwrap().pending, 5, "decode steps were not stashed");
+    for c in toks.chunks(16) {
+        m.forward(&mut b, c, HeadMode::None, None).unwrap();
+    }
+    assert_eq!(b.dflash.as_ref().unwrap().pending, 0);
+    let da = m.dflash_draft(&mut a, 9, BLOCK).unwrap();
+    assert_eq!(a.dflash.as_ref().unwrap().pending, 0, "the draft did not flush");
+    assert_eq!(a.dflash.as_ref().unwrap().kv.len, 26);
+    let ha = m.dflash_last_hidden(BLOCK).unwrap();
+    let db = m.dflash_draft(&mut b, 9, BLOCK).unwrap();
+    let hb = m.dflash_last_hidden(BLOCK).unwrap();
+    let (mut num, mut den) = (0f64, 0f64);
+    for (x, y) in ha.iter().zip(&hb) {
+        num += ((x - y) as f64).powi(2);
+        den += (*y as f64).powi(2);
+    }
+    let rel = (num / den).sqrt();
+    eprintln!("deferred vs direct: rel-L2 {rel:.3e}, drafts {da:?} vs {db:?}");
+    assert!(rel < 0.02, "deferred ingest moves the draft: rel-L2 {rel}");
+    assert!(da.iter().zip(&db).filter(|(x, y)| x != y).count() <= 1, "{da:?} vs {db:?}");
+
+    // a rollback into the pending rows: 21 + 5 stashed, cut back to 23
+    let mut c = m.new_state().unwrap();
+    for ch in toks[..21].chunks(16) {
+        m.forward(&mut c, ch, HeadMode::None, None).unwrap();
+    }
+    for t in &toks[21..] {
+        m.forward(&mut c, &[*t], HeadMode::None, None).unwrap();
+    }
+    c.truncate(23, &*m.backend).unwrap();
+    let d = c.dflash.as_ref().unwrap();
+    assert_eq!((d.kv.len, d.pending), (21, 2), "rollback did not follow into the pending rows");
+}

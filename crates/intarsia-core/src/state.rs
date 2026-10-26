@@ -112,6 +112,25 @@ pub struct DflashState {
     /// ingest failed or rows were restored from a prefix store; only `truncate(0)` syncs it again, so a drafting request
     /// on an unsynced state starts from an empty cache (`Seq::new`).
     pub synced: bool,
+    /// Rows of single-token decode steps whose features sit in [`DflashState::store`] and are not yet in `kv`
+    /// (positions `kv.len .. kv.len + pending`): a plain step stashes its row (a copy) instead of running the draft's context
+    /// projection, which a long fallback stretch of the cost gate would pay for nothing. Flushed in one batch before the next draft.
+    pub pending: usize,
+    /// Per-tap feature rows `[PEND_MAX, H]` of the pending rows (allocated at the first stash).
+    pub store: Vec<crate::backend::Buffer>,
+}
+
+impl DflashState {
+    /// The target rolled back to `len` tokens: the context cache and the pending rows follow it.
+    pub fn cut(&mut self, len: usize, backend: &dyn crate::backend::Backend) -> crate::error::Result<()> {
+        if len < self.kv.len {
+            self.kv.truncate(len, backend)?;
+            self.pending = 0;
+        } else {
+            self.pending = self.pending.min(len - self.kv.len);
+        }
+        Ok(())
+    }
 }
 
 static NEXT_STATE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -375,9 +394,7 @@ impl SequenceState {
             m.pending_rows = keep - m.kv.len;
         }
         if let Some(d) = &mut self.dflash {
-            if d.kv.len > keep {
-                d.kv.truncate(keep, backend)?;
-            }
+            d.cut(keep, backend)?;
         }
         Ok(())
     }
@@ -465,9 +482,10 @@ impl SequenceState {
         if let Some(d) = &mut self.dflash {
             if len == 0 {
                 d.kv.truncate(0, backend)?;
+                d.pending = 0;
                 d.synced = true;
-            } else if d.kv.len > len {
-                d.kv.truncate(len, backend)?;
+            } else {
+                d.cut(len, backend)?;
             }
         }
         self.spec_rows.saved = 0;

@@ -1,0 +1,28 @@
+fleetq: #5669 waiting (#1 in line): needs gpu quiet on spark1, but #5663 "tp2 final: CUDA no-op vs main + core tests" (claude-f31ccf91) loads it
+fleetq:   #5663 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5663 set, or it will wait for #5663 to be released.
+fleetq: #5669 waiting (#1 in line): needs spark1 quiet, but its GPU is 55% busy with work fleetq does not track
+fleetq: #5669 running on spark1: scripts/dc/spark1.sh gates prosediag prose-lighthouse prose-ocean-poem
+prose-lighthouse off: decode 16629 ms (15.33 tok/s) | 
+  plain samples: 0
+  gate-off notes: 0
+prose-lighthouse gate: decode 17592 ms (14.50 tok/s) | spec: verify passes=66 proposed=990 accepted=27 (acceptance 2.7%, 1.41 tokens per pass)
+  plain samples: 161
+  plain: 161 samples, 1.00 tokens/sample, 67.4 ms/sample
+  pass: 66 samples, 1.41 tokens/sample, 101.1 ms/sample
+  gate-off notes: 150
+prose-lighthouse nogate: decode 17854 ms (14.28 tok/s) | spec: verify passes=146 proposed=2182 accepted=62 (acceptance 2.8%, 1.42 tokens per pass)
+  plain samples: 0
+  gate-off notes: 0
+prose-ocean-poem off: decode 16621 ms (15.34 tok/s) | 
+  plain samples: 0
+  gate-off notes: 0
+prose-ocean-poem gate: decode 17272 ms (14.76 tok/s) | spec: verify passes=75 proposed=1125 accepted=36 (acceptance 3.2%, 1.48 tokens per pass)
+  plain samples: 143
+  plain: 143 samples, 1.00 tokens/sample, 67.3 ms/sample
+  pass: 75 samples, 1.48 tokens/sample, 101.1 ms/sample
+  gate-off notes: 128
+prose-ocean-poem nogate: decode 17319 ms (14.72 tok/s) | spec: verify passes=129 proposed=1864 accepted=61 (acceptance 3.3%, 1.47 tokens per pass)
+  plain samples: 0
+  gate-off notes: 0
+fleetq: #5669 done (exit 1)
+exit 1

@@ -233,16 +233,20 @@ pub struct CostParams {
     pub warmup: u32,
     /// Weight of a new sample in the running averages.
     pub alpha: f64,
+    /// Decide on the smoothed speedup alone: fall back once `warmup + window` passes have run since the (re)start and the
+    /// running-mean speedup is under `min_speedup`. Default (false): `window` consecutive passes under it, which a noisy
+    /// estimate near the line keeps resetting (DFlash prose: 24+ passes before the fallback, docs/results/2026-10-25-dc-dflash-dcoco.md).
+    pub smooth: bool,
 }
 
 impl CostParams {
     pub const OFF: CostParams =
-        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
+        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125, smooth: false };
 
     /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): on at
     /// the 3% line; a pass is about 100 ms there, so the window is short.
     pub const DFLASH: CostParams =
-        CostParams { min_speedup: 1.03, window: 8, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
+        CostParams { min_speedup: 1.03, window: 8, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125, smooth: true };
 
     /// The recipe's `[dflash]` overrides.
     pub fn with_dflash_recipe(self, m: Option<&crate::recipe::DflashSpec>) -> CostParams {
@@ -440,7 +444,7 @@ impl CostGate {
         match self.speedup() {
             Some(sp) if sp < self.p.min_speedup => {
                 self.low += 1;
-                if self.low >= self.p.window {
+                if self.low >= self.p.window || (self.p.smooth && self.passes >= self.p.warmup + self.p.window) {
                     self.mode = CostMode::Plain { left: self.next_reprobe };
                     self.next_reprobe = self.next_reprobe.saturating_mul(2).min(self.p.reprobe_tokens.saturating_mul(16));
                     self.events.off += 1;
@@ -885,7 +889,7 @@ mod tests {
     }
 
     fn cp() -> CostParams {
-        CostParams { min_speedup: 1.03, window: 8, probe_every: 16, reprobe_tokens: 40, warmup: 2, alpha: 0.25 }
+        CostParams { min_speedup: 1.03, window: 8, probe_every: 16, reprobe_tokens: 40, warmup: 2, alpha: 0.25, smooth: false }
     }
 
     /// Drive `steps` decode steps: a speculative step yields `spec(i)` = (tokens, ms), a plain step 1 token in `plain` ms.
@@ -995,6 +999,23 @@ mod tests {
         let t = drive(&mut g, 120, |i| if i < 60 { (3, 12.2) } else { (2, 12.2) }, 6.1);
         assert_eq!(g.take_cost_events().off, 1, "{t}");
         assert!(t[60..].contains('p'), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_smooth_falls_back_on_a_noisy_estimate_near_the_line() {
+        // DFlash prose: 1 or 2 tokens per 101 ms pass against a 67.4 ms plain step, mean speedup 1.00 with jitter around the 1.03 line
+        let noisy = |i: usize| (if i % 3 == 0 { 2 } else { 1 }, 101.0);
+        let first_off = |smooth: bool| {
+            let mut g = cost_gate(CostParams { smooth, probe_every: 1000, ..cp() });
+            let t = drive(&mut g, 120, noisy, 67.4);
+            (t.find("pppp"), t)
+        };
+        let (smooth, t) = first_off(true);
+        assert!(smooth.is_some_and(|i| i <= 2 * (2 + 8 + 4)), "smooth gate falls back late: {t}");
+        // a pass that pays stays on with the smooth decision too
+        let mut g = cost_gate(CostParams { smooth: true, ..cp() });
+        let t = drive(&mut g, 200, |_| (3, 101.0), 67.4);
+        assert_eq!(g.take_cost_events().off, 0, "{t}");
     }
 
     #[test]

@@ -85,4 +85,18 @@ m35probe)
   for MS in "$@"; do
     echo "== max-seq $MS"; $BIN_DEV generate -m $M35 --backend cuda --mem-budget 34 --max-seq $MS --profile-every 0 --max-tokens 4 --spec mtp --spec-k 2 -p "Hello" < /dev/null 2>&1 >/dev/null | grep -aE "Error|Caused|probe|loaded|invalid" | cut -c1-300
   done ;;
+prosediag)
+  # why does the gate not recover the prose loss? off vs dflash (gate on) vs dflash (INTARSIA_SPEC_COSTGATE=0), trace on. args: prompt ids
+  shift
+  for id in "$@"; do
+    f=$SRC/scripts/dc/prompts/$id.txt
+    for cfg in off gate nogate; do
+      case $cfg in off) A="--spec off"; E="" ;; gate) A="--spec dflash --spec-draft $DR"; E="INTARSIA_SPEC_TRACE=1" ;; nogate) A="--spec dflash --spec-draft $DR"; E="INTARSIA_SPEC_TRACE=1 INTARSIA_SPEC_COSTGATE=0" ;; esac
+      env $E $BIN_DEV generate -m $M8 --backend cuda --mem-budget 30 --max-seq 8192 $A --chat --no-think --temperature 0 --profile-every 0 --ignore-eos --show-ids -p "$(cat $f)" --max-tokens 256 < /dev/null > /dev/null 2> $O/pd-$id-$cfg.err
+      echo "$id $cfg: $(grep -a 'finish=' $O/pd-$id-$cfg.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60) | $(grep -a '^spec:' $O/pd-$id-$cfg.err | grep -v 'cost sample\|gate holds' | tail -1 | cut -c1-140)"
+      grep -a -c 'cost sample plain' $O/pd-$id-$cfg.err | sed "s/^/  plain samples: /"
+      grep -a 'cost sample' $O/pd-$id-$cfg.err | awk '{k=$4; n[k]++; t[k]+=$5; ms[k]+=$7} END {for (k in n) printf "  %s: %d samples, %.2f tokens/sample, %.1f ms/sample\n", k, n[k], t[k]/n[k], ms[k]/n[k]}'
+      grep -a -c 'holds speculation off' $O/pd-$id-$cfg.err | sed "s/^/  gate-off notes: /"
+    done
+  done ;;
 esac

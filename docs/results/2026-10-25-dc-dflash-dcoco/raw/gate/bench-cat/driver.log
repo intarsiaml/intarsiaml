@@ -3,3 +3,29 @@ fleetq:   #5655 has your owner name. If this work belongs inside it, stop and re
 fleetq: #5656 waiting (#1 in line): needs spark1 quiet, but its GPU is 95% busy with work fleetq does not track
 fleetq: #5656 running on spark1: scripts/dc/bench.sh 3 off dflash
 == off-r1 02:33:11
+
+[localeval] saved /opt/code/deepeval/results/20261026-023453-adhoc-dc-cat-off-r1/result.json
+[localeval] logged to unanimis: b635d8aa-230a-49c0-862b-3101493a5ce7
+== dflash-r1 02:41:36
+
+[localeval] saved /opt/code/deepeval/results/20261026-024347-adhoc-dc-cat-dflash-r1/result.json
+[localeval] logged to unanimis: 3e2cb8d4-b5d4-4db4-9382-bfa3020ea013
+== off-r2 02:48:41
+
+[localeval] saved /opt/code/deepeval/results/20261026-024953-adhoc-dc-cat-off-r2/result.json
+[localeval] logged to unanimis: ac916a54-df43-45a7-8c17-7f55e0757605
+== dflash-r2 02:56:36
+
+[localeval] saved /opt/code/deepeval/results/20261026-025827-adhoc-dc-cat-dflash-r2/result.json
+[localeval] logged to unanimis: e82e1465-87dd-4393-aaec-96b03a0fc035
+== off-r3 03:03:20
+
+[localeval] saved /opt/code/deepeval/results/20261026-030436-adhoc-dc-cat-off-r3/result.json
+[localeval] logged to unanimis: ef3f5e7d-27e9-4280-900d-2631cd6ecae6
+== dflash-r3 03:11:19
+
+[localeval] saved /opt/code/deepeval/results/20261026-031310-adhoc-dc-cat-dflash-r3/result.json
+[localeval] logged to unanimis: 9fdf6f34-1f7e-4ae6-a202-c8ad3e035488
+== bench done
+fleetq: #5656 done (exit 0)
+exit 0
