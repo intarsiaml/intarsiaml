@@ -14,7 +14,7 @@ for l in open(sys.argv[1]):
     m = re.match(r'^\s+(.+?)\s+([\d.e+]+) us\s+([\d.]+) TFLOPS (\S+)', l)
     if m and shape:
         data[shape][m.group(1)] = float(m.group(3))
-        if m.group(4) != 'bitwise' and m.group(1) != 'ref' and not m.group(1).startswith('NEG'):
+        if m.group(4) != 'bitwise' and m.group(1) != 'ref' and not m.group(1).startswith(('NEG','ABL')):
             bad.append((shape, m.group(1)))
 print('non-NEG outputs differing from ref:', bad or 'none')
 cols = [k for k in data if not k.startswith(('o M300', 'odd', 'K 1056'))]

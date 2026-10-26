@@ -13,7 +13,10 @@
 // RD: 0 = fragments of one 32-k group at a time, 1 = both groups' fragments read before the first WMMA.
 // ABL (ablation, outputs NOT bitwise, timing only): bit 0 = A fragments read from LDS once, bit 1 = B fragments read once,
 // bit 2 = no global loads / LDS stores in the loop, bit 3 = no WMMA (one VALU op instead).
-template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB, int ABL, typename OutT>
+// CL: clamped, unpredicated global loads (rows past M / N re-read the last valid row, whose outputs the epilogue drops);
+// needs K % 64 == 0 and N * K, M * K < 2^31 (the launcher checks), so every load is straight-line code and the compiler can keep
+// several stages of loads in flight (predicated loads get s_wait_loadcnt 0 at every merge).
+template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB, int ABL, int CL, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32)
 f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const float* __restrict__ sc,
            OutT* __restrict__ out, int M, int64_t N, int K, int vec_out) {
@@ -35,7 +38,29 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
     auto soff = [](int row, int ch) -> int {
         return SWZ ? row * 64 + ((ch ^ ((row >> 1) & 3)) << 4) : row * 80 + ch * 16;
     };
+    uint32_t woff[CW], xoff[CX];
+    if constexpr (CL) {
+#pragma unroll
+        for (int c = 0; c < CW; ++c) {
+            const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
+            const int64_t n = min(n_blk + r, N - 1);
+            woff[c] = (uint32_t)(n * K + ch * 16);
+        }
+#pragma unroll
+        for (int c = 0; c < CX; ++c) {
+            const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
+            const int m = min(m_blk + r, M - 1);
+            xoff[c] = (uint32_t)((int64_t)m * K + ch * 16);
+        }
+    }
     auto gload = [&](int k0, uint4(&rw)[CW], uint4(&rx)[CX]) {
+        if constexpr (CL) {
+#pragma unroll
+            for (int c = 0; c < CW; ++c) rw[c] = *reinterpret_cast<const uint4*>(w + (woff[c] + (uint32_t)k0));
+#pragma unroll
+            for (int c = 0; c < CX; ++c) rx[c] = *reinterpret_cast<const uint4*>(xq + (xoff[c] + (uint32_t)k0));
+            return;
+        }
 #pragma unroll
         for (int c = 0; c < CW; ++c) {
             const int idx = tid + c * NT, r = idx >> 2, ch = idx & 3;
@@ -119,8 +144,7 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
         }
     };
     uint4 afc[2][TN], bfc[2][TM];
-    if constexpr ((ABL & 3) != 0) {
-        bar();
+    if constexpr ((ABL & 3) != 0) {  // ablation only: reads whatever the LDS holds (timing does not depend on the values)
 #pragma unroll
         for (int g = 0; g < 2; ++g) {
 #pragma unroll
@@ -259,24 +283,34 @@ f8v_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, const 
     }
 }
 
-template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB = 0, int ABL = 0>
+template <int WN, int WM, int TN, int TM, bool SWZ, int PF, int ORD, int RD, int LB = 0, int ABL = 0, int CL = 0>
 static void lv(const uint8_t* xq, const uint8_t* w, const float* sc, ik_bf16* out, int M, int64_t N, int K, hipStream_t s) {
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
     dim3 grid((unsigned)(((int64_t)M + BM - 1) / BM), (unsigned)((N + BN - 1) / BN));
-    f8v_kernel<WN, WM, TN, TM, SWZ, PF, ORD, RD, LB, ABL, ik_bf16><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, 1);
+    if constexpr (CL) {
+        if (K % kF8BK != 0 || N * K >= (1ll << 31) || (int64_t)M * K >= (1ll << 31)) {
+            f8v_kernel<WN, WM, TN, TM, SWZ, PF, ORD, RD, LB, ABL, 0, ik_bf16><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, 1);
+            return;
+        }
+    }
+    f8v_kernel<WN, WM, TN, TM, SWZ, PF, ORD, RD, LB, ABL, CL, ik_bf16><<<grid, WN * WM * 32, 0, s>>>(xq, w, sc, out, M, N, K, 1);
 }
 
-// name encodes: WN,WM,TN,TM / s = swizzled 64 B rows (p = 80 B padded) / pf (stages of loads in flight) / o (issue order) / r (frag reads) / lb
+// name encodes: WN,WM,TN,TM / s = swizzled 64 B rows (p = 80 B padded) / pf (stages of loads in flight) / o (issue order) / r (frag reads) / lb / cl
 #define L8_VARIANTS(X)                                                           \
     X("NEG 4442 hi-before-lo", (lv<4, 4, 4, 2, false, 1, 2, 0, 1>))             \
     X("4442 s pf2 lb1", (lv<4, 4, 4, 2, true, 2, 0, 0, 1>))                    \
+    X("4442 p pf2 lb1 cl", (lv<4, 4, 4, 2, false, 2, 0, 0, 1, 0, 1>))          \
+    X("4442 s pf2 lb1 cl", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 0, 1>))           \
+    X("4442 s pf1 lb1 cl", (lv<4, 4, 4, 2, true, 1, 0, 0, 1, 0, 1>))           \
+    X("4442 s pf3 lb1 cl", (lv<4, 4, 4, 2, true, 3, 0, 0, 1, 0, 1>))           \
+    X("4442 s pf4 lb1 cl", (lv<4, 4, 4, 2, true, 4, 0, 0, 1, 0, 1>))           \
+    X("4424 s pf2 lb1 cl", (lv<4, 4, 2, 4, true, 2, 0, 0, 1, 0, 1>))           \
+    X("4424 s pf3 lb1 cl", (lv<4, 4, 2, 4, true, 3, 0, 0, 1, 0, 1>))           \
+    X("4224 s pf2 lb1 cl", (lv<4, 2, 2, 4, true, 2, 0, 0, 1, 0, 1>))           \
+    X("4224 s pf3 lb1 cl", (lv<4, 2, 2, 4, true, 3, 0, 0, 1, 0, 1>))           \
     X("4444 s pf2 lb1", (lv<4, 4, 4, 4, true, 2, 0, 0, 1>))                    \
-    X("ABL 4442 s pf2 noA", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 1>))             \
-    X("ABL 4442 s pf2 noAB", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 3>))            \
-    X("ABL 4442 s pf2 noGlob", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 4>))          \
-    X("ABL 4442 s pf2 noGlob+noAB", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 7>))     \
-    X("ABL 4442 s pf2 noWmma", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 8>))          \
-    X("ABL 4442 s pf2 onlyGlobLds", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 11>))    \
-    X("ABL 4442 s pf2 onlyWmma", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 7>))        \
-    X("ABL 4444 s pf2 noAB", (lv<4, 4, 4, 4, true, 2, 0, 0, 1, 3>))            \
-    X("ABL 4444 s pf2 noGlob+noAB", (lv<4, 4, 4, 4, true, 2, 0, 0, 1, 7>))
+    X("4444 s pf2 lb1 cl", (lv<4, 4, 4, 4, true, 2, 0, 0, 1, 0, 1>))           \
+    X("4444 s pf3 lb1 cl", (lv<4, 4, 4, 4, true, 3, 0, 0, 1, 0, 1>))           \
+    X("ABL 4442 s pf2 cl noAB", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 3, 1>))      \
+    X("ABL 4442 s pf2 cl noGlob", (lv<4, 4, 4, 2, true, 2, 0, 0, 1, 4, 1>))
