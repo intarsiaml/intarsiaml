@@ -38,13 +38,14 @@ g3)
   for id in "$@"; do
     f=$SRC/scripts/dc/prompts/$id.txt; [ -f "$f" ] || f=$SRC/scripts/hg/prompts/$id.txt
     for mode in off dflash; do
-      if [ $mode = off ]; then A="--spec off"; else A="--spec dflash --spec-draft $DR"; fi
-      env ${GATE:+INTARSIA_SPEC_GATE=$GATE} $BIN_DEV generate -m $M8 --backend cuda --mem-budget 30 --max-seq 8192 $A --chat --no-think --temperature 0 --profile-every 0 --ignore-eos --show-ids \
-        -p "$(cat $f)" --max-tokens ${NTOK:-192} < /dev/null > /dev/null 2> $O/g3-$id-$mode.err
-      grep -a '^ids:' $O/g3-$id-$mode.err > $O/g3-$id-$mode.ids
+      if [ $mode = off ] && [ "${MODE:-dflash}" != dflash ] && [ -s $O/g3-dflash-$id-off.err ]; then cp $O/g3-dflash-$id-off.err $O/g3-ngram-$id-off.err; cp $O/g3-dflash-$id-off.ids $O/g3-ngram-$id-off.ids; continue; fi
+      if [ $mode = off ]; then A="--spec off"; elif [ "${MODE:-dflash}" = ngram ]; then A="--spec ngram --spec-k ${K:-4}"; elif [ "${MODE:-dflash}" = dcoco ] || [ "${MODE:-dflash}" = dcoco0 ]; then A="--spec dflash --spec-draft $DR --dcoco"; else A="--spec dflash --spec-draft $DR"; fi
+      env ${GATE:+INTARSIA_SPEC_GATE=$GATE} ${ZERO:+INTARSIA_DCOCO_ZERO=1} $BIN_DEV generate -m $M8 --backend cuda --mem-budget 30 --max-seq 8192 $A --chat --no-think --temperature 0 --profile-every 0 --ignore-eos --show-ids \
+        -p "$(cat $f)" --max-tokens ${NTOK:-192} < /dev/null > /dev/null 2> $O/g3-${MODE:-dflash}-$id-$mode.err
+      grep -a '^ids:' $O/g3-${MODE:-dflash}-$id-$mode.err > $O/g3-${MODE:-dflash}-$id-$mode.ids
     done
-    st=$(grep -a '^spec:' $O/g3-$id-dflash.err | tail -1 | cut -c1-160); fin=$(grep -a 'finish=' $O/g3-$id-dflash.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60); fo=$(grep -a 'finish=' $O/g3-$id-off.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60)
-    if cmp -s $O/g3-$id-off.ids $O/g3-$id-dflash.ids && [ -s $O/g3-$id-off.ids ]; then echo "PASS g3 $id ids identical ($(tr ',' '\n' < $O/g3-$id-off.ids | wc -l) ids) | off: $fo | dflash: $fin | $st"; else echo "FAIL g3 $id ids differ | $st"; fails=$((fails+1)); fi
+    st=$(grep -a '^spec:' $O/g3-${MODE:-dflash}-$id-dflash.err | tail -1 | cut -c1-160); fin=$(grep -a 'finish=' $O/g3-${MODE:-dflash}-$id-dflash.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60); fo=$(grep -a 'finish=' $O/g3-${MODE:-dflash}-$id-off.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-60)
+    if cmp -s $O/g3-${MODE:-dflash}-$id-off.ids $O/g3-${MODE:-dflash}-$id-dflash.ids && [ -s $O/g3-${MODE:-dflash}-$id-off.ids ]; then echo "PASS g3 $id ids identical ($(tr ',' '\n' < $O/g3-${MODE:-dflash}-$id-off.ids | wc -l) ids) | off: $fo | dflash: $fin | $st"; else echo "FAIL g3 $id ids differ | $st"; fails=$((fails+1)); fi
   done
   echo "g3 fails=$fails" ;;
 esac

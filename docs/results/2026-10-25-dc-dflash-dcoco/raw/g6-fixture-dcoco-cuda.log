@@ -1,3 +1,18 @@
 fleetq: #5583 waiting (#1 in line): needs gpu quiet on spark1, but #5582 "dc: G3/G4 dflash gate off, 16 prompts vs spec-off + tau vs MLX ref" (claude-f31ccf91) loads it
 fleetq:   #5582 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5582 set, or it will wait for #5582 to be released.
 fleetq: #5583 running on spark1: scripts/dc/spark1.sh fxrun
+test dcoco_drafts_after_real_prefill_match_the_mlx_reference ... dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 4.8 s
+raw_chat2: P=64 drafts [323, 33848, 882, 334, 13, 1096, 374, 264, 3070, 11, 323, 3070, 44364, 14374, 3070] want [323, 33848, 882, 334, 13, 1096, 374, 264, 3070, 11, 323, 3070, 44364, 14374, 3070] mismatches 0/15, hidden rel-L2 0.0137 max|d| 0.188, draft pass 145.9 ms
+raw_code1: P=66 drafts [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 982, 750, 21438, 1445] want [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 982, 750, 21438, 1445] mismatches 0/15, hidden rel-L2 0.0175 max|d| 0.156, draft pass 24.8 ms
+raw_math2: P=93 drafts [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 4416, 11] want [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 4416, 11] mismatches 0/15, hidden rel-L2 0.0296 max|d| 0.375, draft pass 25.5 ms
+test draft_after_real_target_prefill_matches_the_mlx_reference ... dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 5.5 s
+raw_chat2: P=64 drafts [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] want [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] mismatches 0/15, hidden rel-L2 0.0137 max|d| 0.188, draft pass 15.6 ms
+raw_code1: P=66 drafts [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] want [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] mismatches 0/15, hidden rel-L2 0.0175 max|d| 0.156, draft pass 14.9 ms
+raw_math2: P=93 drafts [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] want [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] mismatches 0/15, hidden rel-L2 0.0296 max|d| 0.375, draft pass 15.7 ms
+test draft_from_reference_features_matches_the_mlx_reference ... dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 5.2 s
+raw_chat2: P=64 drafts [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] want [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] mismatches 0/15, hidden rel-L2 0.0086 max|d| 0.250, draft pass 16.9 ms
+raw_code1: P=66 drafts [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] want [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] mismatches 0/15, hidden rel-L2 0.0098 max|d| 0.078, draft pass 16.8 ms
+raw_math2: P=93 drafts [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] want [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] mismatches 0/15, hidden rel-L2 0.0094 max|d| 0.188, draft pass 18.0 ms
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 134.19s
+fleetq: #5583 done (exit 0)
+exit 0

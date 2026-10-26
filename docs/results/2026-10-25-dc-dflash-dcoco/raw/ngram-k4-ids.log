@@ -1,0 +1,4 @@
+fleetq: #5591 waiting (#2 in line): in line behind #5585 "od: generate speed, mxfp4-act dynamic vs none, CUDA 27B (1k prompt)" (claude-f31ccf91) on spark1
+fleetq:   #5585 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5585 set, or it will wait for #5585 to be released.
+fleetq: #5591 waiting (#1 in line): needs gpu quiet on spark1, but #5585 "od: generate speed, mxfp4-act dynamic vs none, CUDA 27B (1k prompt)" (claude-f31ccf91) loads it
+fleetq:   #5585 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5585 set, or it will wait for #5585 to be released.

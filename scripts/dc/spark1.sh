@@ -40,4 +40,4 @@ if [ "${1:-}" = basesync ]; then
   git -C "$HERE" archive origin/main | ssh spark1 'rm -rf ~/intarsiaml-dc-base && mkdir -p ~/intarsiaml-dc-base && tar -x -C ~/intarsiaml-dc-base' && echo synced "$(git -C "$HERE" rev-parse --short origin/main)"
 fi
 # gates: run scripts/dc/gates.sh <args> on spark1 from the rsynced tree
-if [ "${1:-}" = gates ]; then shift; ssh spark1 "GATE='${GATE:-}' NTOK='${NTOK:-}' bash ~/intarsiaml-dc-src/scripts/dc/gates.sh $*"; fi
+if [ "${1:-}" = gates ]; then shift; ssh spark1 "GATE='${GATE:-}' NTOK='${NTOK:-}' MODE='${MODE:-}' K='${K:-}' ZERO='${ZERO:-}' bash ~/intarsiaml-dc-src/scripts/dc/gates.sh $*"; fi
