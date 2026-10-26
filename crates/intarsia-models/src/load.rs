@@ -369,19 +369,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Group::Local(b, _) => b.clone(),
         Group::Remote { backend, .. } => vec![backend.clone()],
     };
-    // `--spec mtp` is single-process, single-rank only: the drafter head, its per-row recurrent verify state and (with the vocab-parallel
-    // lm_head, where every rank holds V / world rows of the head) the drafter's argmax over the head are not sharded, so a group would
-    // draft from one shard's rows or from state the peers never see. Refuse before any weight is read, whatever else is on
-    // (`Model::load_tp` refuses it too, behind this).
-    let world = match &group {
-        Group::Local(b, _) => b.len(),
-        Group::Remote { .. } => 2,
-    };
-    if world > 1 && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
-        return Err(Error::Unsupported(format!(
-            "--spec mtp with tensor parallelism (--tp {world}): the MTP drafter is not sharded, so it would draft from one rank's slice of the \
-             lm_head and of the recurrent state; run with --tp 1 or without --spec mtp"
-        )));
+    // `--spec mtp` under tensor parallelism (lane dfh): in-process ranks only. Every rank loads its shard of the head and runs it in
+    // lockstep with rank 0, which drafts (from its share of a vocab-parallel head, or a whole copy) and verifies across the group; a
+    // rank in another process is not driven through the drafting passes, so that group is refused before any weight is read.
+    if matches!(group, Group::Remote { .. }) && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
+        return Err(Error::Unsupported(
+            "--spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)"
+                .into(),
+        ));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.

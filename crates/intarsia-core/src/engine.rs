@@ -1234,6 +1234,12 @@ impl Seq {
         if let Some(m) = st.mtp.as_mut() {
             m.active = drafting;
         }
+        // tensor-parallel peers run the MTP head in lockstep with rank 0 (lane dfh): the same switch on every rank
+        for p in st.peers.iter_mut() {
+            if let Some(m) = p.st.mtp.as_mut() {
+                m.active = drafting;
+            }
+        }
         if let Some(d) = st.dflash.as_mut() {
             d.active = drafting;
         }

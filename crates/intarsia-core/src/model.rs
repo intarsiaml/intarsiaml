@@ -1058,9 +1058,8 @@ impl Model {
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
         let mtp_head = if opts.mtp {
             let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
-            if tp.world > 1 {
-                return Err(Error::Unsupported("--spec mtp under tensor parallelism".into()));
-            }
+            // tensor parallelism (lane dfh): every rank loads its share of the head (`mtp::load_head`) and runs it in lockstep
+            // with rank 0, which drafts; in-process ranks only (a rank in another process is refused by the engine loader)
             let main_attn = layers.iter().flatten().find_map(|b| match b {
                 Block::Attn(a) => Some(a),
                 _ => None,
@@ -1074,9 +1073,10 @@ impl Model {
                 recipe,
                 main_attn,
                 &|name, shape| load(name, 0, shape),
-                &|name, n, k| load_q(name, 0, n, k),
+                &|name, n, k, axis| load_qs(name, 0, n, k, axis),
                 &|n| weights_bytes.set(weights_bytes.get() + n),
                 mt + Self::VERIFY_MAX_ROWS + 1,
+                tp.world,
             )?;
             eprintln!("mtp: drafter head '{}' loaded in {:.1} s (routed experts quantised to nvfp4)", spec.prefix, t0.elapsed().as_secs_f64());
             Some(head)
@@ -1214,29 +1214,39 @@ impl Model {
         if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
             eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
         }
-        let draft_head = if opts.mtp && draft_vocab > 0 {
-            match lm_head.as_ref().filter(|_| !vocab_par) {
+        // the reduced head the MTP drafter projects onto (`--mtp-draft-vocab`). Tensor parallelism: rank 0 alone drafts (the peers
+        // keep none). With a vocab-parallel head rank 0 holds rows [0, V / world) of it, so a reduced head inside that range is a
+        // prefix of rank 0's own share; otherwise rank 0 keeps a whole copy of the head for drafting (as the DFlash drafter does),
+        // so a draft never needs a collective.
+        let reduced = |h: &QTensor| -> Option<QTensor> {
+            match h.row_prefix(draft_vocab) {
+                Some(d) => Some(d),
                 None => {
-                    if opts.mtp_draft_vocab.is_some() {
-                        eprintln!(
-                            "--mtp-draft-vocab {}: rank {} of the tensor-parallel group keeps no lm_head (only rank 0 drafts); ignored here",
-                            draft_vocab, tp.rank
-                        );
-                    }
+                    eprintln!(
+                        "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
+                         not EXL3); drafting with the full head",
+                        draft_vocab, h.n, h.format
+                    );
                     None
                 }
-                Some(h) => match h.row_prefix(draft_vocab) {
-                    Some(d) => Some(d),
-                    None => {
-                        eprintln!(
-                            "--mtp-draft-vocab {}: not applicable to this lm_head ({} rows, format {:?}; needs a multiple of 8 below the row count, \
-                             not EXL3); drafting with the full head",
-                            draft_vocab, h.n, h.format
-                        );
-                        None
-                    }
-                },
             }
+        };
+        let draft_head = if !opts.mtp || tp.rank != 0 {
+            None
+        } else if vocab_par {
+            match lm_head.as_ref().filter(|h| draft_vocab > 0 && draft_vocab < h.n).and_then(|h| h.row_prefix(draft_vocab)) {
+                Some(d) => Some(d),
+                None => {
+                    let full = load_head(false)?.ok_or_else(|| Error::model("rank 0 without a head"))?;
+                    if draft_vocab > 0 {
+                        Some(reduced(&full).unwrap_or(full))
+                    } else {
+                        Some(full)
+                    }
+                }
+            }
+        } else if draft_vocab > 0 {
+            lm_head.as_ref().and_then(reduced)
         } else {
             None
         };
@@ -1632,20 +1642,21 @@ impl Model {
         let q = ids.len();
         Self::prepare_spec_rows(&*self.backend, st, q)?;
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        let run = (|| -> Result<()> {
+        let run = (|| -> Result<TensorRef> {
             let hn = self.run_chunk(st, ids, false)?;
             if self.vocab_par {
                 self.verify_head(&hn, q, false)?;
             }
-            Ok(())
+            Ok(hn)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-        run?;
+        let hn = run?;
         st.commit(ids);
         if st.has_recurrent() {
             st.spec_rows.saved = q - 1;
         }
-        Ok(())
+        // the MTP head's share: queue the pass's rows as rank 0 does (no catch-up, so no collective)
+        self.mtp_after_forward(st, &hn, q, false, false)
     }
 
     /// Recurrent slots (GatedDeltaNet): the delta rule of a verify pass runs row by row and the state after every row but the last
@@ -1735,6 +1746,14 @@ impl Model {
             if p.batch_rows > 0 {
                 // a batched tensor-parallel slot: the peer's share of the recurrent snapshots, reserved by its own enable_batch
                 ps.reserve_snapshots(&*p.backend, p.batch_snapshots())?;
+            }
+            // the MTP head's share (`--spec mtp` under tensor parallelism, lane dfh): its KV cache of this rank's heads and queue
+            ps.mtp = p.new_mtp_state(self.plan.kv_cap_tokens)?;
+            if ps.mtp.is_some() && ps.has_recurrent() {
+                let need = ps.recurrent_bytes().max(16);
+                for _ in 0..p.mtp_k {
+                    ps.spec_rows.bufs.push(p.backend.alloc(need, MemKind::Device)?);
+                }
             }
             st.peers.push(PeerState { backend: p.backend.clone(), st: ps });
         }
@@ -2221,6 +2240,12 @@ impl Model {
             }
             self.graph_peer_step(ps, ids[0])?;
             ps.commit(ids);
+            // the MTP head's share (`--spec mtp`): queue and catch up exactly as rank 0 does after its step (`forward_inner`),
+            // so the head's all-reduces pair with rank 0's
+            if ps.mtp.is_some() {
+                let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
+                self.mtp_after_forward(ps, &hn, 1, true, false)?;
+            }
             return Ok(());
         }
         let chunks = self.forward_chunks(ps, ids);
@@ -2233,6 +2258,9 @@ impl Model {
                 }
             }
             ps.commit(chunk);
+            if ps.mtp.is_some() {
+                self.mtp_after_forward(ps, &hn, chunk.len(), true, false)?;
+            }
         }
         Ok(())
     }

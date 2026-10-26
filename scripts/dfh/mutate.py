@@ -29,6 +29,19 @@ MUTANTS = {
     "tp-peer-no-rollback": ("crates/intarsia-core/src/state.rs",
         "            p.st.spec_rollback_rank(keep, &*p.backend)?;",
         "            let _ = &p.st;"),
+    # --- MTP under tensor parallelism (TEST=tp_mtp scripts/dfh/mutants.sh <name>; tp-peer-no-rollback above too) ---
+    # a peer does not keep its chained row: its next chained pass reads a stale hidden state, the all-reduce sums mismatched halves
+    "mtp-peer-stale-chain": ("crates/intarsia-core/src/model/mtp.rs",
+        "                if self.recorder.lock().unwrap().is_none() {\n                    self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;",
+        "                if self.recorder.lock().unwrap().is_none() && !matches!(link, DraftLink::Follow(_)) {\n                    self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;"),
+    # rank 0 drafts over its own vocab-parallel share of the head (tokens 0 .. V / world) instead of a whole copy
+    "mtp-draft-head-slice": ("crates/intarsia-core/src/model.rs",
+        'let full = load_head(false)?.ok_or_else(|| Error::model("rank 0 without a head"))?;',
+        'let full = lm_head.clone().ok_or_else(|| Error::model("rank 0 without a head"))?;'),
+    # the peers' MTP heads never see the verify pass's rows (their queue falls behind rank 0's)
+    "mtp-peer-no-verify-queue": ("crates/intarsia-core/src/model.rs",
+        "        self.mtp_after_forward(st, &hn, q, false, false)\n",
+        "        let _ = hn;\n        Ok(())\n"),
 }
 
 tree, name = sys.argv[1], sys.argv[2]

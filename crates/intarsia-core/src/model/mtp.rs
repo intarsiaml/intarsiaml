@@ -47,6 +47,14 @@ pub(super) enum HeadFfn {
     Dense(FfnBlock),
 }
 
+/// A rank's part in [`Model::mtp_draft`] (tensor parallelism, lane dfh): one rank alone, rank 0 sending each chained draft
+/// id to the peers, or a peer receiving them.
+enum DraftLink {
+    Solo,
+    Lead(Vec<std::sync::mpsc::Sender<Option<u32>>>),
+    Follow(std::sync::mpsc::Receiver<Option<u32>>),
+}
+
 /// `(sequence tokens followed by the next token, k) -> drafts`.
 pub type DraftScript = Box<dyn Fn(&[u32], usize) -> Vec<u32> + Send>;
 
@@ -65,9 +73,10 @@ pub(super) fn load_head(
     recipe: &Recipe,
     main_attn: Option<&AttnBlock>,
     load: &dyn Fn(&str, Option<&[usize]>) -> Result<TensorRef>,
-    load_q: &dyn Fn(&str, usize, usize) -> Result<QTensor>,
+    load_q: &dyn Fn(&str, usize, usize, Option<ShardAxis>) -> Result<QTensor>,
     add_bytes: &dyn Fn(u64),
     pending_rows: usize,
+    tp_world: usize,
 ) -> Result<MtpHead> {
     if spec.kind != "qwen3_5_mtp" {
         return Err(Error::Unsupported(format!("[mtp] kind '{}' (this build has qwen3_5_mtp)", spec.kind)));
@@ -78,8 +87,15 @@ pub(super) fn load_head(
         .as_ref()
         .ok_or_else(|| Error::model("[mtp] needs the recipe's [layer.attn] (the head is an attention layer)"))?;
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
+    // tensor parallelism (lane dfh): the head's layer is sharded as the model's own layers are (`dims` is this rank's share:
+    // q / k / v / gate / up by rows, o / down by columns, its KV cache holds this rank's heads), so every rank runs it in
+    // lockstep with the same all-reduces; fc and the norms are replicated. The MoE head's experts are not sharded.
+    if tp_world > 1 && dims.moe.is_some() {
+        return Err(Error::Unsupported("--spec mtp under tensor parallelism with an MoE head (its experts are not sharded)".into()));
+    }
     let (h, p) = (dims.hidden, spec.prefix.as_str());
     let l = format!("{p}.layers.0");
+    let (rows, cols) = (Some(ShardAxis::Rows), Some(ShardAxis::Cols));
     let qdim = dims.n_heads * dims.head_dim;
     let kvdim = dims.n_kv_heads * dims.head_dim;
     let gate = usize::from(a.gated);
@@ -118,10 +134,10 @@ pub(super) fn load_head(
 
     let attn = AttnBlock {
         pre_norm: load(&format!("{l}.input_layernorm"), Some(&[h]))?,
-        wq: load_q(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h)?,
-        wk: load_q(&format!("{l}.self_attn.k_proj"), kvdim, h)?,
-        wv: load_q(&format!("{l}.self_attn.v_proj"), kvdim, h)?,
-        wo: load_q(&format!("{l}.self_attn.o_proj"), h, qdim)?,
+        wq: load_q(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h, rows)?,
+        wk: load_q(&format!("{l}.self_attn.k_proj"), kvdim, h, rows)?,
+        wv: load_q(&format!("{l}.self_attn.v_proj"), kvdim, h, rows)?,
+        wo: load_q(&format!("{l}.self_attn.o_proj"), h, qdim, cols)?,
         q_norm: a
             .q_norm
             .as_ref()
@@ -141,7 +157,7 @@ pub(super) fn load_head(
     };
     let pre_norm = load(&format!("{l}.post_attention_layernorm"), Some(&[h]))?;
     let ffn = match dims.moe.as_ref() {
-        Some(mc) => HeadFfn::Moe(MoeBlock { pre_norm, w: load_moe(b, src, &format!("{l}.mlp"), mc, load_q, add_bytes)? }),
+        Some(mc) => HeadFfn::Moe(MoeBlock { pre_norm, w: load_moe(b, src, &format!("{l}.mlp"), mc, &|n, r, c| load_q(n, r, c, None), add_bytes)? }),
         None => {
             // dense SwiGLU (Qwen3.5 / 3.8 dense: bf16 gate / up / down)
             let i = dims.intermediate;
@@ -150,9 +166,9 @@ pub(super) fn load_head(
             }
             HeadFfn::Dense(FfnBlock {
                 pre_norm,
-                gate: load_q(&format!("{l}.mlp.gate_proj"), i, h)?,
-                up: load_q(&format!("{l}.mlp.up_proj"), i, h)?,
-                down: load_q(&format!("{l}.mlp.down_proj"), h, i)?,
+                gate: load_q(&format!("{l}.mlp.gate_proj"), i, h, rows)?,
+                up: load_q(&format!("{l}.mlp.up_proj"), i, h, rows)?,
+                down: load_q(&format!("{l}.mlp.down_proj"), h, i, cols)?,
             })
         }
     };
@@ -260,7 +276,8 @@ impl Model {
     /// The drafter state a new sequence gets (`None` without the head).
     pub(super) fn new_mtp_state(&self, cap: usize) -> Result<Option<Box<MtpState>>> {
         let Some(head) = &self.mtp else { return Ok(None) };
-        let spec = SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv };
+        // this rank's KV heads (under tensor parallelism the head's attention is sharded as the model's)
+        let spec = SlotSpec::AttnKv { n_kv_heads: self.ldims.n_kv_heads, head_dim: self.ldims.head_dim, dtype: self.kv };
         let row_bytes = self.dims.hidden * self.act.size_bytes();
         Ok(Some(Box::new(MtpState {
             kv: SequenceState::new(&*self.backend, &[spec], cap)?,
@@ -351,7 +368,8 @@ impl Model {
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
                 if done == n {
-                    tok = if next.is_some() { self.draft_head_argmax(&out, c - 1, profile)? } else { 0 };
+                    // tensor parallelism: rank 0 alone holds the drafting head (a peer only keeps its chain row)
+                    tok = if next.is_some() && self.tp.rank == 0 { self.draft_head_argmax(&out, c - 1, profile)? } else { 0 };
                     if next.is_some() && self.recorder.lock().unwrap().is_none() {
                         self.backend.copy(
                             &head.chain,
@@ -389,6 +407,68 @@ impl Model {
     /// over the queued rows (the last of which pairs with `next`), its argmax is draft 1; drafts 2.. chain the head on its
     /// own output. Afterwards the head's cache holds the committed positions only (`kv.len == st.len`, empty queue).
     pub fn mtp_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        if self.peers.is_empty() {
+            return self.mtp_draft_rank(st, next, k, DraftLink::Solo);
+        }
+        self.mtp_draft_tp(st, next, k)
+    }
+
+    /// [`Model::mtp_draft`] with in-process tensor-parallel peers (lane dfh): every rank runs the head's catch-up and chained
+    /// passes on its shard in lockstep (the layer's all-reduces pair up), rank 0 takes each draft's argmax and hands the id
+    /// to the peers for the next chained pass. Afterwards every rank's head cache is back at the committed length.
+    fn mtp_draft_tp(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        if st.peers.len() != self.peers.len() {
+            return Err(Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"));
+        }
+        if let Some(p) = st.peers.iter().find(|p| p.st.len != st.len) {
+            return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, st.len)));
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let (txs, rxs): (Vec<_>, Vec<_>) = self.peers.iter().map(|_| std::sync::mpsc::channel::<Option<u32>>()).unzip();
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .zip(rxs)
+                .map(|((m, ps), rx)| {
+                    sc.spawn(move || {
+                        let r = m.mtp_draft_rank(&mut ps.st, next, k, DraftLink::Follow(rx));
+                        if r.is_err() {
+                            if let Some(c) = &m.tp.comm {
+                                c.abort();
+                            }
+                        }
+                        r
+                    })
+                })
+                .collect();
+            // the senders move into rank 0's run: they drop when it returns, so a peer waiting for an id never outlives it
+            let r0 = self.mtp_draft_rank(st, next, k, DraftLink::Lead(txs));
+            if r0.is_err() {
+                comm0.abort();
+            }
+            let mut res = r0;
+            for h in handles {
+                let e = match h.join() {
+                    Ok(Ok(_)) => continue,
+                    Ok(Err(e)) => e,
+                    Err(_) => Error::backend("a tensor-parallel rank panicked"),
+                };
+                if res.is_ok() {
+                    res = Err(e);
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        out
+    }
+
+    /// One rank's share of [`Model::mtp_draft`]: `Solo` (one rank), `Lead` (rank 0: drafts, sends each chained id on),
+    /// `Follow` (a peer: runs the same passes on the ids rank 0 sends; returns no drafts).
+    fn mtp_draft_rank(&self, st: &mut SequenceState, next: u32, k: usize, link: DraftLink) -> Result<Vec<u32>> {
         let head =
             self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
         let m = st.mtp.as_ref().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
@@ -419,14 +499,37 @@ impl Model {
         let base = m.kv.len;
         let r = (|| -> Result<()> {
             let k = k.min(m.kv.cap.saturating_sub(base) + 1);
-            while drafts.len() < k {
+            loop {
+                // the id the next chained pass embeds: rank 0's last draft (a peer receives it; `None` or a closed channel: done)
+                let id = match &link {
+                    DraftLink::Follow(rx) => match rx.recv() {
+                        Ok(Some(id)) => id,
+                        Ok(None) => break,
+                        Err(_) => return Err(Error::backend("MTP draft: rank 0 stopped before the chained passes ended")),
+                    },
+                    _ if drafts.len() >= k => break,
+                    _ => *drafts.last().unwrap(),
+                };
+                if let DraftLink::Lead(txs) = &link {
+                    for tx in txs {
+                        // a peer that is gone has failed and aborted the communicator: the pass below reports it
+                        let _ = tx.send(Some(id));
+                    }
+                }
                 let hid = TensorRef::new(head.chain.clone(), self.act, &[1, self.dims.hidden]);
-                let ids = [*drafts.last().unwrap()];
+                let ids = [id];
                 let out = self.mtp_layer(head, &m.kv, &ids, &hid, profile)?;
                 m.kv.commit(&ids);
-                drafts.push(self.draft_head_argmax(&out, 0, profile)?);
+                if !matches!(link, DraftLink::Follow(_)) {
+                    drafts.push(self.draft_head_argmax(&out, 0, profile)?);
+                }
                 if self.recorder.lock().unwrap().is_none() {
                     self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;
+                }
+            }
+            if let DraftLink::Lead(txs) = &link {
+                for tx in txs {
+                    let _ = tx.send(None);
                 }
             }
             Ok(())
@@ -440,6 +543,9 @@ impl Model {
         st.mtp = Some(m);
         r?;
         cut?;
+        if matches!(link, DraftLink::Follow(_)) {
+            return Ok(Vec::new());
+        }
         if let Some(d) = self.scripted_drafts(st, next, drafts.len()) {
             drafts = d;
         }
@@ -468,7 +574,7 @@ impl Model {
         if self.recorder.lock().unwrap().is_none() {
             return Err(Error::invalid("mtp_dry_run outside a dry run"));
         }
-        let spec = SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv };
+        let spec = SlotSpec::AttnKv { n_kv_heads: self.ldims.n_kv_heads, head_dim: self.ldims.head_dim, dtype: self.kv };
         let kv = crate::plan::phantom_state(&[spec], self.plan.kv_cap_tokens, pos0);
         let ids = vec![0u32; t];
         let hid = self.view(&self.ws.blk, self.act, &[t, self.dims.hidden]);
