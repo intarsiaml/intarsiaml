@@ -49,13 +49,15 @@ variant() { need 215 "$1" && clear "$1" && repro "$@"; }
 SAMPLER=$!; trap 'kill $SAMPLER 2>/dev/null' EXIT
 log "env: $(uptime | sed 's/.*load/load/') | top: $(ps -eo pcpu,comm --sort=-pcpu | sed -n 2,5p | tr -s ' ' | tr '\n' ';') | containers: $(docker ps --format '{{.Names}}' | tr '\n' ' ')"
 B="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12"
+# delay sweep on rank 1 (coordinator, after w24: s0 none 1/11, s3 300 us 1/4, s1 2 ms 0/20, s2 rank 0 2 ms 0/20), then the drain mode at the delay that fails most
 variant c0-control-a 200 $SO $B
+variant d1-rank1-50us 200 $SO $B INTARSIA_TP_SKEW_US=0,50
+variant d2-rank1-150us 200 $SO $B INTARSIA_TP_SKEW_US=0,150
+variant d3-rank1-300us 200 $SO $B INTARSIA_TP_SKEW_US=0,300
+variant d4-rank1-600us 200 $SO $B INTARSIA_TP_SKEW_US=0,600
+variant d5-rank1-1000us 200 $SO $B INTARSIA_TP_SKEW_US=0,1000
+variant d6-rank0-300us 200 $SO $B INTARSIA_TP_SKEW_US=300,0
+variant d7-rank1-300us-drain1 200 $SO $B INTARSIA_TP_SKEW_US=0,300 INTARSIA_HIP_AR_DRAIN=1
 variant c1-control-b 200 $SO $B
-variant c2-skew-rank1-2ms 200 $SO $B INTARSIA_TP_SKEW_US=0,2000
-variant c3-skew-rank0-2ms 200 $SO $B INTARSIA_TP_SKEW_US=2000,0
-variant c4-skew-rank1-300us 200 $SO $B INTARSIA_TP_SKEW_US=0,300
-variant c5-skew-rank1-20ms 200 $SO $B INTARSIA_TP_SKEW_US=0,20000
-variant c6-skew-rank0-20ms 200 $SO $B INTARSIA_TP_SKEW_US=20000,0
 variant c7-size-loop-control 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12
-variant c8-control-after-size-loop 200 $SO $B
 log "done, time left $(left)s"
