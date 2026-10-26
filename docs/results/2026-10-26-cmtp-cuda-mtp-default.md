@@ -6,6 +6,8 @@ Scripts: `scripts/cmtp/`, `tools/cmtp/round_table.py`.
 
 ## 0. Result
 
+**Update 2026-10-26 17:33 EDT (user, "do your recommendations"): the CUDA default is left OFF.** The mechanism, tests and docs are merged; `mtp_default_k` is commented out in `recipes/qwen3_5_moe.toml` until the macro prefill pass works with MTP (lane mpf). New rule, for this default and the HIP tp>1 one: a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) skips the default with one stderr line. The measurements below were taken with the key set to 2.
+
 **All five gates pass; the default is shipped as `[tuning.cuda] mtp_default_k = 2` in `recipes/qwen3_5_moe.toml`.** One cost the gates do not
 cover is large and is listed first because it decides whether to merge: **prefill is slower with the default** (section 7: 4k -20 %, 16k -37 %, 33k -51 % prefill tok/s;
 +0.15 s, +1.5 s, +6.0 s time to first token). Decode is faster in every category and at every length measured.
