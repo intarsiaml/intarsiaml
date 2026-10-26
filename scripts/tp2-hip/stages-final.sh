@@ -64,6 +64,42 @@ if [[ $STAGE == 1 ]]; then
     wait
     log "kernels test --quick: $(grep -aiE 'cases|fail' "$O/kernels-test-quick.out" | tail -2 | tr '\n' '|')"
   fi
+elif [[ $STAGE == 3 ]]; then
+  # F3: the direct partial-sum check and the whole HIP crate suite, the comm/sharding mutants, KL of tp=2 against tp=1 (report-only in the agreed gate)
+  ht() { # ht <tag> <cargo test args...>
+    local tag=$1; shift
+    INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest timeout 600 "$(T $D)/deploy/tatooine/dev.sh" \
+      cargo test --release -p intarsia-backend-hip --no-fail-fast "$@" > "$O/hiptest-$tag.log" 2>&1 < /dev/null
+    log "hiptest $tag exit $?: $(grep -aE '^test result' "$O/hiptest-$tag.log" | awk '{p+=$4; f+=$6; i+=$8} END {print p " passed, " f " failed, " i " ignored"}') $(grep -aE 'FAILED|panicked|HSA_STATUS' "$O/hiptest-$tag.log" | head -4 | tr '\n' '|')"
+  }
+  clear "tp_partial_sum" && ht tp-partial-sum --test tp_partial_sum -- --nocapture --test-threads=1
+  need 600 "all hip tests" && clear "all hip tests" && ht all
+  if need 900 "mutants" && clear "mutants"; then
+    gen $D 0,1 mut-ref $M35 short $TP2
+    for m in no-peer-upload drop-captured-allreduce peer-ignores-flag tp-fold-outproj batch-peer-no-table vocab-no-gather; do
+      need 90 "mutant $m" || continue
+      [[ -x $(T mut-$m)/tp2-intarsia ]] || { log "MUTANT $m: no binary"; continue; }
+      gen mut-$m 0,1 mut-$m $M35 short $TP2
+      if cmp -s "$O/gen-mut-ref.ids" "$O/gen-mut-$m.ids"; then v="ids SAME as the clean tp=2 run (SURVIVED)"; else v="ids DIFFER (killed)"; fi
+      log "MUTANT $m: $v; $(grep -ahE 'tensor-parallel rank 1: decode graph|^Error|trap|Aborted|core dumped|HSA_STATUS' "$O/gen-mut-$m.err" | head -3 | tr '\n' '|')"
+    done
+    MT=mut-batch-peer-no-table
+    INTARSIA_REPO=$(T $MT) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-mutb-hiptest HIP_VISIBLE_DEVICES=0,1 timeout 540 \
+      "$(T $MT)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 INTARSIA_BATCH_TEST_TP=2 \
+      cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --exact real_35b_batched_decode_is_bitwise_the_solo_step \
+      > "$O/mtest-mut-batch-peer-no-table.log" 2>&1 < /dev/null
+    rc=$?
+    if grep -aq 'SKIPPED' "$O/mtest-mut-batch-peer-no-table.log"; then v="NO VERDICT (the test skipped)"; elif (( rc == 124 )); then v="TIMEOUT"; elif (( rc != 0 )); then v="KILLED (exit $rc)"; else v="SURVIVED"; fi
+    log "MUTANT batch-peer-no-table (batched test): $v: $(grep -aE 'panicked|differ|HSA_STATUS' "$O/mtest-mut-batch-peer-no-table.log" | head -2 | cut -c1-200 | tr '\n' '|')"
+  fi
+  if need 700 "KL tp2 vs tp1" && clear "KL tp2 vs tp1"; then
+    acc $D 0 ext-tp1 $M35 $SG
+    run $D 0,1 420 self-tp2-vs-tp1-short accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408 --self-golden /work/tp2-out/acc-ext-tp1.safetensors \
+      --mode both --allow-same-code --allow-config-mismatch $TP2 --self-vs-ref-noise --ref-noise $NS --ref-noise-factor 1.0 --pre-change $PC
+    run $D 0 600 acc-tp1-35b-long accuracy --backend hip --model $M35 --golden $LG --mode both --mem-budget 29 --max-seq 17408 --write-self-golden /work/tp2-out/acc-tp1-35b-long.safetensors
+    run $D 0,1 600 self-tp2-vs-tp1-long accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408 --self-golden /work/tp2-out/acc-tp1-35b-long.safetensors \
+      --mode both --allow-same-code --allow-config-mismatch $TP2 --self-vs-ref-noise --ref-noise $NL --ref-noise-factor 1.0 --pre-change $PC
+  fi
 else
   # 1. 35B tp=2: run to run at floor budgets, tp=1 and tp=2 against vLLM (check 3), prefix reuse, ids short and 4k run to run
   if clear "35B tp2"; then
