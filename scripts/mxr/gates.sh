@@ -47,7 +47,10 @@ if want T; then
               8704x5120 5120x8704 5120x5120 3072x5120 5120x3072 512x5120 24x5120; do
       dr 0 /work/.mxrbin/mxr3 ${sh%x*} ${sh#*x} 200 3 1
     done
-    for sh in 17408x5120 5120x17408 5120x6144 1024x5120; do dr 0 /work/.mxrbin/mxr3 ${sh%x*} ${sh#*x} 100 2 0; done ) > "$O/t-timing.log" 2>&1 &
+    # W4A16 (act 0): main's bf16 rows kernel (what INTARSIA_HIP_MXFP4_I8=0 runs) against the int8 kernel's flagged path
+    for sh in 17408x5120 5120x17408 12288x5120 10240x5120 6144x5120 5120x6144 1024x5120 8704x5120 5120x8704 5120x3072; do
+      dr 0 /work/.mxrbin/mxr3 ${sh%x*} ${sh#*x} 200 3 0 1 2 4 8 16
+    done ) > "$O/t-timing.log" 2>&1 &
   ( echo "-- kernels test --quick (dev)"; dev $RD $VD 1 /target/release/intarsia kernels test --backend hip --quick 2>&1 | tail -6
     echo "-- admission + quick_coverage (dev)"
     dev $RD $VD 1 env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test admission --test quick_coverage -- --test-threads=1 2>&1 | grep -aE "$F" ) > "$O/t-quick.log" 2>&1 &
