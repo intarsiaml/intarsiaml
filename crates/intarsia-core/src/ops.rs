@@ -313,6 +313,10 @@ pub struct OpAttrs {
     /// `QTensor::act_quant`). Read by kernel selection only (`ShapeInfo::fp8_static_act`: CUDA's default cuBLASLt e4m3 GEMM
     /// serves W8A8 calls only), never by a kernel; false for W8A16 weights and for every other op.
     pub fp8_static_act: bool,
+    /// `MatmulMxfp4` / `MatmulMxfp4Pair`: the weights' activations are not quantised (W4A16, `QTensor::act_quant` false, the
+    /// call's `act` input is 0). Read by kernel launch routing only (HIP: the `_rows` launchers keep the bf16 kernel for W4A16),
+    /// never changes a result; false for W4A4 and for every other op.
+    pub mxfp4_w4a16: bool,
 }
 
 impl Default for OpAttrs {
@@ -337,6 +341,7 @@ impl Default for OpAttrs {
             rope_prop: false,
             gelu: false,
             fp8_static_act: false,
+            mxfp4_w4a16: false,
         }
     }
 }

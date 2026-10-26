@@ -2638,7 +2638,7 @@ impl Model {
             Op::MatmulMxfp4Pair,
             vec![x.clone(), a.parts[0].clone(), a.parts[1].clone(), b.parts[0].clone(), b.parts[1].clone(), a.parts[2].clone()],
             vec![out_a.clone(), out_b.clone()],
-            OpAttrs::default(),
+            OpAttrs { mxfp4_w4a16: !a.act_quant, ..OpAttrs::default() },
             profile,
         )
     }

@@ -17,6 +17,22 @@ restore() {
        echo "[mxr] radiance $(systemctl --user is-active radiance) after $((i * 5)) s: $(curl -s -m 3 http://localhost:8080/v1/models | head -c 90)"'
 }
 trap restore EXIT
+# first (w4 left them unread): the admission report and `kernels test --quick`, dev (card 0) and base (card 1) side by side
+rsh 'R=~/intarsiaml-mxr-dev; D=$R/deploy/tatooine/dev.sh; O=~/intarsiaml-mxr-logs/w5; mkdir -p $O
+  for t in dev base; do
+    if [ $t = dev ]; then r=$R; v=intarsia-mxr-target-dev; g=0; else r=$R/.base; v=intarsia-mxr-target-base; g=1; fi
+    ( INTARSIA_REPO=$r INTARSIA_TARGET_VOL=$v HIP_VISIBLE_DEVICES=$g $D env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip         --test admission every_hip_kernel_matches_the_reference -- --nocapture < /dev/null > $O/admission-$t.log 2>&1
+      INTARSIA_REPO=$r INTARSIA_TARGET_VOL=$v HIP_VISIBLE_DEVICES=$g $D /target/release/intarsia kernels test --backend hip --quick < /dev/null > $O/quick-$t.log 2>&1 ) &
+  done; wait
+  for t in dev base; do echo "== $t admission: $(grep -aE "^test result" $O/admission-$t.log)"; grep -aiE "fail|no cases|mismatch" $O/admission-$t.log | grep -v "^test " | head -12
+    echo "== $t quick: $(tail -2 $O/quick-$t.log | tr "\n" " ")"; grep -aiE "fail" $O/quick-$t.log | head -8; done' | tee "$OUT/admission-quick.txt"
+# the mutants rebuilt with the final launcher routing (w4 ran the c35783e9 builds): clean must pass, every mutant must fail
+rsh 'R=~/intarsiaml-mxr-dev; D=$R/deploy/tatooine/dev.sh
+  for m in clean m1-noflag m2-xscale m3-pairing m4-chainorder; do
+    echo "-- mutant $m: $(sha256sum /data/intarsiaml-mxr-target-dev/mutants/$m/rows_exact | cut -c1-16)"
+    INTARSIA_REPO=$R INTARSIA_TARGET_VOL=intarsia-mxr-target-dev HIP_VISIBLE_DEVICES=0 $D env INTARSIA_REQUIRE_GPU=1 \
+      /target/mutants/$m/rows_exact mxfp4_rows_edge_inputs_are_bitwise --test-threads=1 < /dev/null 2>&1 | grep -aE "^test result|G-B FAIL" | head -2
+  done' | tee "$OUT/mutants.txt"
 up() { # up <tree> <tp>
   local tree=$1 tp=$2 vol repo gpus
   if [ "$tree" = dev ]; then vol=intarsia-mxr-target-dev; repo='$HOME/intarsiaml-mxr-dev'; else vol=intarsia-mxr-target-base; repo='$HOME/intarsiaml-mxr-dev/.base'; fi

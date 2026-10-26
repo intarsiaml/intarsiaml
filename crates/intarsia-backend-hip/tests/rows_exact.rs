@@ -239,6 +239,7 @@ fn control(rows: &str) -> String {
 
 /// `weights`: the inputs after x (w, scales ... as the op takes them). `solo`: the 1-row kernel, `rows`: the row-exact one.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn gb_matmul(
     rig: &Rig,
     op: Op,
@@ -251,10 +252,28 @@ fn gb_matmul(
     label: &str,
     caps: usize,
 ) {
+    gb_matmul_attrs(rig, op, solo, rows, weights, x_rows, n, out_dt, label, caps, &OpAttrs::default())
+}
+
+/// `gb_matmul` with the call's attributes (MXFP4: `mxfp4_w4a16` routes W4A16 to the bf16 rows kernel, as the model does).
+#[allow(clippy::too_many_arguments)]
+fn gb_matmul_attrs(
+    rig: &Rig,
+    op: Op,
+    solo: &str,
+    rows: &str,
+    weights: &[TensorRef],
+    x_rows: &[Vec<f32>],
+    n: usize,
+    out_dt: DType,
+    label: &str,
+    caps: usize,
+    attrs: &OpAttrs,
+) {
     let rows_s = control(rows);
     let rows = rows_s.as_str();
     let k = x_rows[0].len();
-    let a = OpAttrs::default();
+    let a = attrs.clone();
     let osz = out_dt.size_bytes();
     // the solo reference: every row alone through the 1-row kernel
     let mut want: Vec<Vec<u8>> = Vec::new();
@@ -579,8 +598,11 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
             let q = intarsia_core::quant::mxfp4::random_rows(&mut rng, n, k, act);
             let weights: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
             let x_rows = nasty_rows(&mut rng, k, 448.0);
+            // as the model calls it: W4A16 carries mxfp4_w4a16 (the bf16 rows kernel); the int8 path's own W4A16 handling (the
+            // flagged fp chain) is covered by mxfp4_rows_edge_inputs_are_bitwise
+            let attrs = OpAttrs { mxfp4_w4a16: act == intarsia_core::quant::Mxfp4Act::None, ..OpAttrs::default() };
             for out_dt in [DType::Bf16, DType::F32] {
-                gb_matmul(
+                gb_matmul_attrs(
                     &rig,
                     Op::MatmulMxfp4,
                     "matmul_mxfp4_gemv",
@@ -591,6 +613,7 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
                     out_dt,
                     &format!("mxfp4 n={n} k={k} act={act:?} {out_dt:?}"),
                     CAP,
+                    &attrs,
                 );
             }
         }
@@ -601,10 +624,11 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
 /// Row r of an M-row `matmul_mxfp4_pair_gemv_rows` call is bitwise the one-row `matmul_mxfp4_gemv` on row r alone, for both
 /// outputs (the pair's int8 path runs both matrices in one launch, so its rows straddle the boundary of the two).
 #[allow(clippy::too_many_arguments)]
-fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>], n0: usize, n1: usize, out_dt: DType, label: &str) {
+fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>], n0: usize, n1: usize, out_dt: DType, label: &str, w4a16: bool) {
     let k = x_rows[0].len();
     let osz = out_dt.size_bytes();
     let attrs = OpAttrs::default();
+    let pattrs = OpAttrs { mxfp4_w4a16: w4a16, ..OpAttrs::default() };
     let one = |w: &[TensorRef], n: usize, r: usize| {
         let mut ins = vec![rig.put(&bf16_row(&x_rows[r]))];
         ins.extend_from_slice(w);
@@ -615,7 +639,7 @@ fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>
     let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
     for m in 1..=CAP {
         let ins = vec![x_all.rows(0, m), a[0].clone(), a[1].clone(), b[0].clone(), b[1].clone(), a[2].clone()];
-        let o = rig.run("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair, &ins, &[(out_dt, vec![m, n0]), (out_dt, vec![m, n1])], &attrs);
+        let o = rig.run("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair, &ins, &[(out_dt, vec![m, n0]), (out_dt, vec![m, n1])], &pattrs);
         for r in 0..m {
             let g0 = &o[0].data[r * n0 * osz..(r + 1) * n0 * osz];
             let g1 = &o[1].data[r * n1 * osz..(r + 1) * n1 * osz];
@@ -641,7 +665,8 @@ fn mxfp4_pair_rows_are_bitwise_the_one_row_gemv() {
             let b: Vec<TensorRef> = qb.parts.iter().map(|p| rig.put(p)).collect();
             let x_rows = nasty_rows(&mut rng, k, 448.0);
             for out_dt in [DType::Bf16, DType::F32] {
-                gb_mxfp4_pair(&rig, &a, &b, &x_rows, n0, n1, out_dt, &format!("mxfp4 pair n={n0}+{n1} k={k} act={act:?} {out_dt:?}"));
+                let w4a16 = act == intarsia_core::quant::Mxfp4Act::None;
+                gb_mxfp4_pair(&rig, &a, &b, &x_rows, n0, n1, out_dt, &format!("mxfp4 pair n={n0}+{n1} k={k} act={act:?} {out_dt:?}"), w4a16);
             }
         }
     }
@@ -753,7 +778,8 @@ fn mxfp4_rows_edge_inputs_are_bitwise() {
                 for out_dt in [DType::Bf16, DType::F32] {
                     let label = format!("mxfp4 edge set {set} n={n} k={k} act={act:?} {out_dt:?}");
                     gb_matmul(&rig, Op::MatmulMxfp4, "matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", &weights, rows, n, out_dt, &label, CAP);
-                    gb_mxfp4_pair(&rig, &weights, &w1, rows, n, n / 2 + 1, out_dt, &format!("{label} pair"));
+                    // default attrs: W4A16 runs the int8 kernel's flagged fp chain (the path the model routes away from)
+                    gb_mxfp4_pair(&rig, &weights, &w1, rows, n, n / 2 + 1, out_dt, &format!("{label} pair"), false);
                 }
             }
         }

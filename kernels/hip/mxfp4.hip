@@ -820,7 +820,7 @@ void mx_gemm_run(const DqArgs& a, OutT* out, hipStream_t s) {
 // ---- launchers ---------------------------------------------------------------------------------------------------
 
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out,
-           const ik_scratch* scratch, void* stream, bool gemv, bool rows = false, bool v1 = false) {
+           const ik_scratch* scratch, void* stream, bool gemv, bool rows = false, bool v1 = false, bool i8 = true) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
@@ -845,7 +845,7 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > (rows ? 16 : 8)) return IK_ERR_SHAPE;
-        if (rows && M >= 2 && mx_i8_enabled()) {  // the exact int8 path; a too small scratch keeps the bf16 kernel below
+        if (rows && i8 && M >= 2 && mx_i8_enabled()) {  // the exact int8 path; a too small scratch keeps the bf16 kernel below
             const int r = f32o ? i8_rows((int)M, 0, xp, ap, wp, sp, (float*)out->data, N, (const uint8_t*)nullptr,
                                          (const uint8_t*)nullptr, (float*)nullptr, 0, K, scratch, s)
                                : i8_rows((int)M, 0, xp, ap, wp, sp, (ik_bf16*)out->data, N, (const uint8_t*)nullptr,
@@ -1262,7 +1262,7 @@ int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor
 // launch of the LDS kernel over the rows of both (each row bitwise as in the single op); otherwise the two single ops.
 static int pair_impl(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
                      const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
-                     const ik_scratch* scratch, void* stream, bool rows) {
+                     const ik_scratch* scratch, void* stream, bool rows, bool i8 = true) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w0, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(w1, IK_DTYPE_U8, 2, 16));
@@ -1288,7 +1288,7 @@ static int pair_impl(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s
                    ? lds_launch(xp, a0, b0, (float*)out0->data, N0, a1, b1, (float*)out1->data, N1, ap, K, s)
                    : lds_launch(xp, a0, b0, (ik_bf16*)out0->data, N0, a1, b1, (ik_bf16*)out1->data, N1, ap, K, s);
     }
-    if (rows && M >= 2 && M <= 16 && K > 0 && N0 > 0 && N1 > 0 && mx_i8_enabled()) {  // one pre-pass and one launch for both
+    if (rows && i8 && M >= 2 && M <= 16 && K > 0 && N0 > 0 && N1 > 0 && mx_i8_enabled()) {  // one pre-pass and one launch for both
         hipStream_t s = IK_STREAM(stream);
         const ik_bf16* xp = (const ik_bf16*)x->data;
         const float* ap = (const float*)act->data;
@@ -1300,8 +1300,8 @@ static int pair_impl(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s
                                     scratch, s);
         if (r != IK_ERR_INVALID_ARG) return r;
     }
-    IK_TRY(launch(x, w0, s0, act, out0, scratch, stream, true, rows));
-    return launch(x, w1, s1, act, out1, scratch, stream, true, rows);
+    IK_TRY(launch(x, w0, s0, act, out0, scratch, stream, true, rows, false, i8));
+    return launch(x, w1, s1, act, out1, scratch, stream, true, rows, false, i8);
 }
 int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
                               const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
@@ -1324,6 +1324,17 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
                                    const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
                                    const ik_scratch* scratch, void* stream) {
     return pair_impl(x, w0, s0, w1, s1, act, out0, out1, scratch, stream, true);
+}
+// the _rows launchers without the int8 path (the bf16 rows kernel at M >= 2): what the HIP backend runs for W4A16 weights
+// (OpAttrs::mxfp4_w4a16), where the int8 path would take its slower flagged fp chain; bitwise the same rows either way
+int ik_matmul_mxfp4_gemv_rows_bf16(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                                   ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return launch(x, w, scales, act, out, scratch, stream, true, true, false, false);
+}
+int ik_matmul_mxfp4_pair_gemv_rows_bf16(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                                        const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                                        const ik_scratch* scratch, void* stream) {
+    return pair_impl(x, w0, s0, w1, s1, act, out0, out1, scratch, stream, true, false);
 }
 // matmul_mxfp4_mma_v1 (lane mx): matmul_mxfp4_mma as on main before v2 (the bitwise reference of tests/mxfp4_v2.rs)
 int ik_matmul_mxfp4_mma_v1(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
