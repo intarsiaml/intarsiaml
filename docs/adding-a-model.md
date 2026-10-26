@@ -149,13 +149,21 @@ block types.
   non-text groups and raises nothing; any other name is a real tensor a block must claim.
 
 **Checkpoint formats that stop at this stage** (checked 2026-10-26 on the fleet's disks,
-`docs/results/2026-10-26-od-onboarding-drill.md`): compressed-tensors (`quant_method = "compressed-tensors"`: NVFP4A16
-`nvfp4-pack-quantized` with `weight_packed` / `weight_scale` / `weight_global_scale`, INT4 `pack-quantized` AWQ, MXFP4), ModelOpt
+`docs/results/2026-10-26-od-onboarding-drill.md`): compressed-tensors INT4 `pack-quantized` (AWQ) and MXFP4, ModelOpt
 `NVFP4` declared W4A4 (see `w4a4_as_w4a16` below), block-wise FP8 (`weight_scale_inv`), GPTQ / AWQ `qweight`, and routed experts stored
 fused (`experts.gate_up_proj [E, 2I, H]`, the transformers 5 layout; the MTP head loader in `model/mtp.rs` reads it, the main
 MoE block does not). Each is named in the TODO list; none is a recipe edit. A Quark checkpoint whose `layer_quant_config`
 names only `mtp.*` (an FP8 MTP head beside MXFP4 decoder layers, e.g. `Qwen3.8-27B-MXFP4-mtpfp8`) is accepted: the engine
 reads `mtp.*` only for `--spec mtp`, and that loader reads bf16 heads.
+
+**compressed-tensors NVFP4A16** (`quant_method = "compressed-tensors"`, format `nvfp4-pack-quantized`: llm-compressor's `NVFP4A16`
+preset, weights only) is accepted since 2026-10-26 (`docs/results/2026-10-26-ct-compressed-tensors.md`): the loader reads
+`weight_packed` as `weight` and `weight_global_scale` as `weight_scale_2 = 1 / weight_global_scale` (`quant/compressed_tensors.rs`),
+so it is the ModelOpt W4A16 NVFP4 path, dense and per-expert MoE alike. The `ignore` list is not interpreted (an ignored layer is simply
+stored as plain float). The same container with quantised activations (W4A4), `transform_config` (rotations), `sparsity_config`, a
+status other than `compressed` is refused at `recipe new` and at load with the reason; another compressed-tensors format (INT4 `pack-quantized`, MXFP4, per-tensor FP8) is flagged by `recipe new` and, at load, keeps its old behaviour (no declared scheme, formats found by tensor names).
+No golden exists for a new model: `tools/golden_ct_nvfp4.py` makes one on a CPU from HF's Qwen3.5 decoder layers and the
+`compressed-tensors` package's own dequantisation (2 min for the 27B, a few GB of memory).
 
 The hand-written reference of the recipe format follows; `recipe new` produces exactly this.
 
@@ -433,7 +441,7 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   where the loader reads it (`intarsia-models` `load.rs`); `recipe new`'s classifier (`cmd/recipe.rs` `Cls`); then per
   backend a launcher in `kernels/<backend>/`, its ABI declaration, ffi, dispatch and table entry. Test the reference
   against an independent decode of real tensor slices (`tools/gen_mxfp4_fixture.py`), then `intarsia kernels test`.
-  Supported today: bf16, FP8 (per-tensor), NVFP4 (ModelOpt W4A16), MXFP4 (Quark OCP MX, W4A4 by default as declared,
+  Supported today: bf16, FP8 (per-tensor), NVFP4 (ModelOpt W4A16, compressed-tensors NVFP4A16), MXFP4 (Quark OCP MX, W4A4 by default as declared,
   `--mxfp4-act none` for W4A16). Dense FFN, attention and GatedDeltaNet projections take any of them.
 * A multimodal wrapper of a known text family (`*ForConditionalGeneration`, text weights under
   `model.language_model.*`) needs a copy of the family's recipe with the prefix changed (`recipes/qwen3_5_vl.toml`):
