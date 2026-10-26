@@ -59,11 +59,19 @@ impl Drop for HipBuffer {
     }
 }
 
-/// The process-wide graph lock of `INTARSIA_GRAPH_LOCK=1` (None otherwise).
+/// The process-wide graph lock: one HIP graph API call at a time (capture with its instantiate, and each launch) in the whole process.
+///
+/// The two ranks of a tensor-parallel group capture their decode graphs concurrently from two threads, and a peer rank's replay is launched
+/// while the other rank instantiates. On the 27B tp2 reproduction (fresh solo states and batched steps in one model, 20 reps of the size loop)
+/// that interleaving made a replay intermittently run only part of its kernels (the collective launch counters 10 to 61 short for one row, then
+/// the ranks one launch apart, wrong logits in every row of the next batched step, and a collective that hangs until the bounded wait traps
+/// 0x1016): every control run failed within 1 to 8 reps, the same runs with this lock did not in 40 of 40, and with solo decode graphs off
+/// (no concurrent capture) did not either. The captures themselves are consistent (the same node counts on every rank), so the loss is in the
+/// runtime's replay. With one rank (tp 1) there is no concurrency and the lock is never contended. `INTARSIA_GRAPH_LOCK=0` turns it off.
 fn graph_lock() -> Option<std::sync::MutexGuard<'static, ()>> {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    if *ON.get_or_init(|| std::env::var("INTARSIA_GRAPH_LOCK").is_ok_and(|v| v == "1")) {
+    if *ON.get_or_init(|| std::env::var("INTARSIA_GRAPH_LOCK").map_or(true, |v| v != "0")) {
         Some(LOCK.lock().unwrap_or_else(|e| e.into_inner()))
     } else {
         None
@@ -868,9 +876,7 @@ impl Backend for HipBackend {
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
-        // INTARSIA_GRAPH_LOCK=1 (experiment, w30): one graph API call at a time in the whole process. The two ranks of a tp group capture their
-        // solo decode graphs concurrently from two threads (and a peer's replay is launched while the other rank instantiates); w29 showed one
-        // replay running ~10 collective kernels fewer than its capture recorded.
+        // see `graph_lock`
         let _lock = graph_lock();
         self.bind()?;
         let s = self.stream(stream)?;

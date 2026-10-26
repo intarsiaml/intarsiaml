@@ -179,14 +179,9 @@ impl Model {
     /// Will rank 0's next forward of `ids` in `mode` try the decode graph? The test `forward_inner` applies; under TP
     /// the other ranks are told the answer so they replay (or not) in lockstep.
     pub(super) fn decode_graph_now(&self, st: &SequenceState, ids: &[u32], mode: HeadMode) -> bool {
-        // Solo decode graphs and tensor parallelism: on the 27B tp2 reproduction (fresh solo states and batched steps in one model) a captured
-        // solo decode step intermittently replayed with kernels missing (launch counters short, wrong logits, or a collective hang until the
-        // bounded wait traps 0x1016); with solo steps eager it did not in the four runs that tried it (8 + 20 + 8 + 20 reps), batched graphs still on. So under
-        // tp > 1 solo decode steps run eagerly by default; `INTARSIA_SOLO_GRAPHS=1` turns them back on (diagnostics), `=0` turns them off at tp 1
-        // too. Batched steps keep their own switch (INTARSIA_BATCH_GRAPHS). tp 1 is unchanged.
-        static SOLO_ENV: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
-        let env = *SOLO_ENV.get_or_init(|| std::env::var("INTARSIA_SOLO_GRAPHS").ok().map(|v| v != "0"));
-        if !env.unwrap_or(self.tp.world == 1) {
+        // INTARSIA_SOLO_GRAPHS=0 (debugging, lane tp2): solo decode steps run eagerly; batched steps keep their own switch (INTARSIA_BATCH_GRAPHS)
+        static SOLO_OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *SOLO_OFF.get_or_init(|| std::env::var("INTARSIA_SOLO_GRAPHS").is_ok_and(|v| v == "0")) {
             return false;
         }
         ids.len() == 1
