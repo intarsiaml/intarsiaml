@@ -1,0 +1,39 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-code.jsonl: 2 rows, judge=none
+# localeval: cmtp-mtp3 — 2026-10-26T14:39
+
+- model: `qwen36-35b-mtp3` on ? (?), url `http://spark-4e77:8095/v1`
+- thinking: off; run kind: quality; label: cmtp-s1-mtp3-ho-code-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality cmtp-mtp3 --thinking off --label cmtp-s1-mtp3-ho-code-r3 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 3 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp) --dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-code.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-143924-cmtp-mtp3-cmtp-s1-mtp3-ho-code-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 3 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-code.jsonl` (2 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 2 | 0 |
+| TTFT (s) | 0.074 | 1.0 | 2 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 2 | 0 |
+| Decode (tok/s) | 138.7 | 1.0 | 2 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| code-csv | yes | 0.0 | 0.08 | 140.8 | ```python #!/usr/bin/env python3 """ A command-line tool tha… |
+| code-matrix | yes | 0.0 | 0.07 | 136.7 | ```rust use std::ops::{Add, Mul, Sub}; use std::fmt; /// A f… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-143924-cmtp-mtp3-cmtp-s1-mtp3-ho-code-r3/result.json
+[localeval] logged to unanimis: f614f4ae-2264-4414-a27e-8936d2ce525a

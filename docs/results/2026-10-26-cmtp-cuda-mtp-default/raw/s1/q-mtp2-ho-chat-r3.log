@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-chat.jsonl: 4 rows, judge=none
+# localeval: cmtp-mtp2 — 2026-10-26T14:35
+
+- model: `qwen36-35b-mtp2` on ? (?), url `http://spark-4e77:8095/v1`
+- thinking: off; run kind: quality; label: cmtp-s1-mtp2-ho-chat-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality cmtp-mtp2 --thinking off --label cmtp-s1-mtp2-ho-chat-r3 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 2 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp) --dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-chat.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-143500-cmtp-mtp2-cmtp-s1-mtp2-ho-chat-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 2 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-chat.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.137 | 1.0 | 4 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 111.4 | 1.0 | 4 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-sleep | yes | 0.0 | 0.31 | 114.6 | Waking up at 3 AM and being unable to fall back asleep is a … |
+| chat-career | yes | 0.0 | 0.08 | 113.9 | Let's explore the transition from backend engineering to pro… |
+| chat-budget | yes | 0.0 | 0.08 | 111.4 | This is a classic financial dilemma. To help you decide, let… |
+| chat-travel | yes | 0.0 | 0.08 | 105.5 | Here is a relaxed, four-day itinerary for Lisbon tailored to… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-143500-cmtp-mtp2-cmtp-s1-mtp2-ho-chat-r3/result.json
+[localeval] logged to unanimis: 8cf0a0d9-019a-46f6-aff2-2069f0da78d5

@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-prose.jsonl: 4 rows, judge=none
+# localeval: cmtp-mtp3 — 2026-10-26T14:18
+
+- model: `qwen36-35b-mtp3` on ? (?), url `http://spark-4e77:8095/v1`
+- thinking: off; run kind: quality; label: cmtp-s1-mtp3-ho-prose-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality cmtp-mtp3 --thinking off --label cmtp-s1-mtp3-ho-prose-r2 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 3 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp) --dataset /opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-141802-cmtp-mtp3-cmtp-s1-mtp3-ho-prose-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec mtp --spec-k 3 --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/cmtp/scripts/cmtp/../dfh/cats/ho-prose.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.077 | 1.0 | 4 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 91.3 | 1.0 | 4 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-bakery | yes | 0.0 | 0.08 | 93.7 | The 3:00 AM silence of the bakery was usually a comfort to E… |
+| prose-glacier | yes | 0.0 | 0.07 | 92.3 | The alarm doesn’t buzz; it vibrates through the steel floorb… |
+| prose-market | yes | 0.0 | 0.08 | 88.3 | The air does not merely enter the nose; it invades the soul,… |
+| prose-duel | yes | 0.0 | 0.08 | 90.8 | The rain lashed against the stained-glass windows of the Gra… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-141802-cmtp-mtp3-cmtp-s1-mtp3-ho-prose-r2/result.json
+[localeval] logged to unanimis: 49918906-128a-445f-b1b7-1f7ecfdf6ebd
