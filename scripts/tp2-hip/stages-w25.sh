@@ -59,5 +59,11 @@ variant d5-rank1-1000us 200 $SO $B INTARSIA_TP_SKEW_US=0,1000
 variant d6-rank0-300us 200 $SO $B INTARSIA_TP_SKEW_US=300,0
 variant d7-rank1-300us-drain1 200 $SO $B INTARSIA_TP_SKEW_US=0,300 INTARSIA_HIP_AR_DRAIN=1
 variant c1-control-b 200 $SO $B
-variant c7-size-loop-control 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12
+# the size loop reproduced twice in two windows (w20 l5 and w24 s7 hung at rep 1; w24 s8, 2 ms on rank 1, 0/8): the more sensitive vehicle
+E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12"
+variant e0-size-loop-a 200 $FS $E
+variant e1-size-loop-b 200 $FS $E
+variant e2-size-loop-rank1-300us 200 $FS $E INTARSIA_TP_SKEW_US=0,300
+variant e3-size-loop-drain1 200 $FS $E INTARSIA_HIP_AR_DRAIN=1
+variant e4-size-loop-solo-graphs-off 200 $FS $E INTARSIA_SOLO_GRAPHS=0
 log "done, time left $(left)s"
