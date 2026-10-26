@@ -364,6 +364,13 @@ impl Model {
             while done < n {
                 let c = chunk.min(n - done);
                 let hid = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, self.dims.hidden]).rows(done, c);
+                // only the piece that reaches the last queued row of a drafting catch-up (`next` given) has its output read
+                if next.is_none() || done + c < n {
+                    self.mtp_layer_kv_only(head, &m.kv, &ids[done..done + c], &hid, profile)?;
+                    m.kv.commit(&ids[done..done + c]);
+                    done += c;
+                    continue;
+                }
                 let out = self.mtp_layer(head, &m.kv, &ids[done..done + c], &hid, profile)?;
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
@@ -700,6 +707,29 @@ impl Model {
         dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<TensorRef> {
+        self.mtp_layer_core(head, kv, t, ids, hid, ids_dev, dpos, false, profile)
+    }
+
+    /// [`Model::mtp_layer`] for rows whose output nobody reads (a catch-up over a prompt's rows): the layer's K / V of the rows are
+    /// appended to `kv` and nothing else is computed (no attention, output projection, FFN or final norm). The cache is bitwise
+    /// the full layer's (same projection and rope calls); returns `ws.n` (undefined content). Lane mpf.
+    fn mtp_layer_kv_only(&self, head: &MtpHead, kv: &SequenceState, ids: &[u32], hid: &TensorRef, profile: bool) -> Result<()> {
+        self.mtp_layer_core(head, kv, ids.len(), Some(ids), hid, None, None, true, profile).map(|_| ())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mtp_layer_core(
+        &self,
+        head: &MtpHead,
+        kv: &SequenceState,
+        t: usize,
+        ids: Option<&[u32]>,
+        hid: &TensorRef,
+        ids_dev: Option<&TensorRef>,
+        dpos: Option<&TensorRef>,
+        kv_only: bool,
+        profile: bool,
+    ) -> Result<TensorRef> {
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
         if t == 0 || t > ws.max_tokens || (dpos.is_none() && kv.len + t > kv.cap) {
@@ -736,6 +766,10 @@ impl Model {
         self.exec(Op::Add, vec![h1.clone(), n.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
+        if kv_only {
+            self.attn_block_kv_only(&head.attn, kv, &n, t, kv.len, false, profile)?;
+            return Ok(n);
+        }
         // per-row attention keeps a short catch-up (after a verify pass) bitwise the captured step's; a prompt's rows (longer than any
         // verify pass) take the ordinary multi-row attention: per-row decode calls over a whole prompt are quadratic (lane mpf)
         self.head_rows_attn.store(t > 1 && t <= Self::VERIFY_MAX_ROWS + 1, std::sync::atomic::Ordering::Relaxed);
