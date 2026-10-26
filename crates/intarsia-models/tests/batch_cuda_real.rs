@@ -218,12 +218,13 @@ fn dump_ledgers(m: &Model, why: &str) {
     let a = m.coll_trace_dump();
     let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
     eprintln!("LEDGER {why}: rank 0 {} lines, rank 1 {} lines", a.len(), b.len());
-    match (0..a.len().max(b.len())).find(|&i| a.get(i) != b.get(i)) {
+    let strip = |l: Option<&String>| l.map(|x| x.split(" dev=").next().unwrap_or("").to_string());
+    match (0..a.len().max(b.len())).find(|&i| strip(a.get(i)) != strip(b.get(i))) {
         Some(i) => eprintln!("LEDGER first difference at line {i}:\n  rank 0: {:?}\n  rank 1: {:?}", a.get(i), b.get(i)),
         None => eprintln!("LEDGER the ledgers are identical"),
     }
     for (r, l) in [(0, &a), (1, &b)] {
-        for line in &l[l.len().saturating_sub(40)..] {
+        for line in &l[l.len().saturating_sub(if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") { 400 } else { 40 })..] {
             eprintln!("LEDGER rank {r}: {line}");
         }
     }

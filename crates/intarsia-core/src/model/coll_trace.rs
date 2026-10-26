@@ -5,7 +5,9 @@
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+use crate::comm::Comm;
 
 const RING: usize = 4096;
 
@@ -14,11 +16,17 @@ pub(super) struct CollTrace {
     issued: AtomicU64,
     passes: AtomicU64,
     ring: Mutex<VecDeque<String>>,
+    /// When the group exposes its device launch counters on the host (INTARSIA_HIP_CTRS_HOST=1): every ledger line carries them.
+    comm: Option<Arc<dyn Comm>>,
 }
 
 impl CollTrace {
     pub(super) fn new(on: bool) -> CollTrace {
-        CollTrace { on, issued: AtomicU64::new(0), passes: AtomicU64::new(0), ring: Mutex::new(VecDeque::new()) }
+        CollTrace { on, issued: AtomicU64::new(0), passes: AtomicU64::new(0), ring: Mutex::new(VecDeque::new()), comm: None }
+    }
+
+    pub(super) fn set_comm(&mut self, c: Option<Arc<dyn Comm>>) {
+        self.comm = c;
     }
 
     /// One collective launched eagerly on this rank's stream.
@@ -28,7 +36,10 @@ impl CollTrace {
         }
     }
 
-    fn push(&self, line: String) {
+    fn push(&self, mut line: String) {
+        if let Some([a, b]) = self.comm.as_ref().and_then(|c| c.debug_counters()) {
+            line.push_str(&format!(" dev={a}/{b}"));
+        }
         let mut r = self.ring.lock().unwrap();
         if r.len() >= RING {
             r.pop_front();

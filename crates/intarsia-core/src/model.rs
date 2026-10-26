@@ -1154,6 +1154,8 @@ impl Model {
             mtp: mtp_head,
             mtp_k,
         };
+        let tp_comm = model.tp.comm.clone();
+        model.coll_trace.set_comm(tp_comm);
         // the f32-partial reduce's landing buffer, sized for the largest chunk now: a captured decode graph keeps its address
         if let (Some(c), Some(_)) = (&model.tp.comm, &model.ws.part) {
             c.reserve(mt * dims.hidden, 0)?;

@@ -338,6 +338,15 @@ impl Comm for P2pComm {
         // A rank already spinning in the kernel gives up on its own after a bounded number of polls.
         self.group.aborted.store(true, Ordering::Release);
     }
+    fn debug_counters(&self) -> Option<[u32; 2]> {
+        if !host_ctrs() {
+            return None;
+        }
+        // SAFETY: pinned host memory of NBLOCKS u32, live as long as the group
+        let rd = |b: &RankBuf| unsafe { std::ptr::read_volatile(b.ctrs) };
+        Some([rd(&self.group.bufs[0]), rd(&self.group.bufs[1])])
+    }
+
     fn debug_state(&self) -> Option<String> {
         // Read both ranks' launch counters and flags on a fresh non-blocking stream: it does not wait for a collective kernel that is
         // spinning on the rank's own stream. Equal counters across the ranks = the ranks launched the same number of collective kernels;

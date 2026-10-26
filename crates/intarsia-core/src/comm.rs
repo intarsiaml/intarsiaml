@@ -112,6 +112,11 @@ pub trait Comm: Send + Sync {
         None
     }
 
+    /// Debugging (`INTARSIA_HIP_CTRS_HOST=1`): the launch counter of each rank, read from host memory without any device call.
+    fn debug_counters(&self) -> Option<[u32; 2]> {
+        None
+    }
+
     /// Can the collectives be recorded into a captured graph (CUDA graph) on the rank's stream and replayed? True only
     /// when every call is a pure stream operation with no host synchronisation and no allocation once
     /// [`Comm::reserve`] ran. A group that says no keeps its model's decode eager at world > 1.
