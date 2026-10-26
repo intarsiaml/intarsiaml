@@ -64,6 +64,19 @@ if [[ $STAGE == 1 ]]; then
     wait
     log "kernels test --quick: $(grep -aiE 'cases|fail' "$O/kernels-test-quick.out" | tail -2 | tr '\n' '|')"
   fi
+elif [[ $STAGE == 5 ]]; then
+  # F5: KL of tp=2 against tp=1 (report-only in the agreed gate), short and long goldens; the tp=1 dump is copied into the tree first (F3 forgot, and every run died reading it)
+  if clear "KL tp2 vs tp1"; then
+    acc $D 0 ext-tp1 $M35 $SG
+    cp "$O/acc-ext-tp1.safetensors" "$(T $D)/tp2-out/"
+    run $D 0,1 420 self-tp2-vs-tp1-short accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408 --self-golden /work/tp2-out/acc-ext-tp1.safetensors \
+      --mode both --allow-same-code --allow-config-mismatch $TP2 --self-vs-ref-noise --ref-noise $NS --ref-noise-factor 1.0 --pre-change $PC
+    run $D 0 600 acc-tp1-35b-long accuracy --backend hip --model $M35 --golden $LG --mode both --mem-budget 29 --max-seq 17408 --write-self-golden /work/tp2-out/acc-tp1-35b-long.safetensors
+    run $D 0,1 600 self-tp2-vs-tp1-long accuracy --backend hip --model $M35 --mem-budget 29 --max-seq 17408 --self-golden /work/tp2-out/acc-tp1-35b-long.safetensors \
+      --mode both --allow-same-code --allow-config-mismatch $TP2 --self-vs-ref-noise --ref-noise $NL --ref-noise-factor 1.0 --pre-change $PC
+    log "KL tp2 vs tp1 short: $(grep -ahE 'SELF-STATS|ref-noise|self-vs' "$O/self-tp2-vs-tp1-short.out" "$O/self-tp2-vs-tp1-short.err" | cut -c1-240 | tr '\n' '|')"
+    log "KL tp2 vs tp1 long: $(grep -ahE 'SELF-STATS|ref-noise|self-vs' "$O/self-tp2-vs-tp1-long.out" "$O/self-tp2-vs-tp1-long.err" | cut -c1-240 | tr '\n' '|')"
+  fi
 elif [[ $STAGE == 4 ]]; then
   # F4: is the admission test's failure (kernels with no cases) the merged head's or main's? the full kernel sweep of both binaries, cards 0 and 1 at once
   if clear "kernels full"; then
