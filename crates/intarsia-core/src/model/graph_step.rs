@@ -179,6 +179,11 @@ impl Model {
     /// Will rank 0's next forward of `ids` in `mode` try the decode graph? The test `forward_inner` applies; under TP
     /// the other ranks are told the answer so they replay (or not) in lockstep.
     pub(super) fn decode_graph_now(&self, st: &SequenceState, ids: &[u32], mode: HeadMode) -> bool {
+        // INTARSIA_SOLO_GRAPHS=0 (debugging, lane tp2): solo decode steps run eagerly; batched steps keep their own switch (INTARSIA_BATCH_GRAPHS)
+        static SOLO_OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *SOLO_OFF.get_or_init(|| std::env::var("INTARSIA_SOLO_GRAPHS").is_ok_and(|v| v == "0")) {
+            return false;
+        }
         ids.len() == 1
             && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax)
             && st.id != 0

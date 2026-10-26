@@ -46,10 +46,12 @@ export_trace="INTARSIA_TP_COLL_TRACE=1"
 # So the bug needs a batched step; the minimal repro is "fresh model, one solo state, one batched step of 3 fresh rows". This window turns on the per-rank
 # collective ledger (INTARSIA_TP_COLL_TRACE=1: passes and cumulative collective counts, eager launches plus graph replays) and a 25 s watchdog that dumps both
 # ledgers and leaves: the first line where rank 0 and rank 1 differ is the step that decided differently.
+# w19 e1: with EVERY graph off (set_graphs(false)) the size loop passed 12/12 reps; with only the batched graphs off (INTARSIA_BATCH_GRAPHS=0, w18 v2) it failed at rep 0.
+# So the solo decode graphs are a necessary ingredient. INTARSIA_SOLO_GRAPHS=0 (new) turns off only those: the 2x2 matrix, on the minimal repro.
 variant l0-first-batched-step 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 $export_trace
-variant l1-first-batched-step-eager 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_REPRO_NO_GRAPHS=1 $export_trace
-variant l2-size-loop 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 $export_trace
-variant l3-first-batched-step-blocking 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 HIP_LAUNCH_BLOCKING=1 $export_trace
-variant l4-first-batched-step-fusion0 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_FUSION=0 $export_trace
-variant l5-first-batched-step-poison00 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_HIP_POISON=00 $export_trace
+variant l1-solo-graphs-off 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_SOLO_GRAPHS=0 $export_trace
+variant l2-batched-graphs-off 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_BATCH_GRAPHS=0 $export_trace
+variant l3-both-graphs-off 200 $SO INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_REPRO_NO_GRAPHS=1 $export_trace
+variant l4-size-loop-solo-graphs-off 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_SOLO_GRAPHS=0 $export_trace
+variant l5-size-loop 200 $FS INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 $export_trace
 log "done, time left $(left)s"
