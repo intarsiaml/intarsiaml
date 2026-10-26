@@ -1,0 +1,4 @@
+[targets.dfh-radiance]
+url = "http://tatooine:8080/v1"
+model = "Qwen3.8"
+extra_body = { ignore_eos = true, min_tokens = 512 }

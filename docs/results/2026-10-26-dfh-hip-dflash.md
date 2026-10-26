@@ -450,3 +450,27 @@ Tree `63b5fabc4` (lane head with origin/main `a3e60ce6` merged and the tp MTP de
 - **Metal** (endor, #5758, `raw/metal/g0-final-63b5fab.log`): 8 of 8 identical; `kernels test` 44 kernels, 817 cases.
 
 The radiance reference run on the same category prompts (record-only) follows in section 16.
+
+## 16. Reference: radiance on the same prompts (record-only)
+
+radiance (the production engine on tatooine, `~/.local/opt/radiance/radiance-native.sh`, `qwen3.8-27b-mxfp4.rad`, `--tp 2`, its own
+DFlash-style drafter, `--num-speculative-tokens 7`), read-only, radiance up, fleetq #5765 (12:02:32-13:04:25 quiet slot), the same
+category files, localeval `--judge none`, 512 forced tokens, temperature 0, one round, 7 runs, 0 problems (`raw/rad1/`; tokens per
+pass from its `/metrics`: decode tokens / decode steps). Pooled beside window 8 (`raw/rad1/cat-table-with-w8.txt`):
+
+| category | intarsia off | intarsia mtp2 (default at tp=2) | radiance | radiance tokens / step | intarsia dfl7 tokens / pass (w7) |
+|---|---|---|---|---|---|
+| ho-chat | 53.3 | 85.6 | 166.6 | 3.08 | 3.22 |
+| ho-code | 53.2 | 102.9 | 249.6 | 4.62 | 5.32 |
+| ho-prose | 53.2 | 76.0 | 133.5 | 2.48 | 2.50 |
+| ho-recall | 53.2 | 89.5 | 195.4 | 3.61 | 3.60 |
+| rcp-code | 53.2 | 100.2 | 289.0 | 5.35 | 5.20 |
+| rcp-prose | 53.2 | 77.4 | 135.6 | 2.52 | 2.54 |
+| rcp-recall | 53.2 | 90.6 | 220.2 | 4.08 | 3.89 |
+
+**Reading.** radiance's drafter accepts about as much per step as intarsia's DFlash2 path (2.5 on prose, 5.3 on code), so the
+acceptance side of DFlash2 is at parity: no defect in the draft path. The remaining gap (radiance 1.7-2.9x intarsia's mtp2) is cost per
+pass: radiance's whole step is about 18.5 ms (`decode_step_seconds_best`) with the draft and an 8-row verify included, against
+intarsia's 19 ms plain step, 24 ms DFlash2 draft and 32 ms 8-row verify at tp=2. Follow-ups that close it (not in this lane):
+fp8 / MXFP4 draft weights and a vocab-parallel draft head (the draft is 23.5-24 ms, 56 matmuls + a full `[8, V]` bf16 logits pass),
+a device-side top-k selector, a captured tp=2 verify graph (the verify is eager under tp), and overlapping the draft with the verify.

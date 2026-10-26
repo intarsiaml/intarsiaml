@@ -1,0 +1,47 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-prose.jsonl: 4 rows, judge=none
+# localeval: dfh-radiance — 2026-10-26T13:02
+
+- model: `Qwen3.8` on ? (?), url `http://tatooine:8080/v1`
+- thinking: off; run kind: quality; label: dfh-rad1-radiance-ho-prose-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dfh-radiance --thinking off --label dfh-rad1-radiance-ho-prose-r1 --recipe radiance (tatooine, ~/.local/opt/radiance/radiance-native.sh, qwen3.8-27b-mxfp4.rad, --tp 2, its DFlash2 drafter, --num-speculative-tokens 7), read-only reference, lane dfh --dataset /opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-130253-dfh-radiance-dfh-rad1-radiance-ho-prose-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+radiance (tatooine, ~/.local/opt/radiance/radiance-native.sh, qwen3.8-27b-mxfp4.rad, --tp 2, its DFlash2 drafter, --num-speculative-tokens 7), read-only reference, lane dfh
+````
+
+server-reported (llamacpp_props, server_info, version):
+
+````json
+{"llamacpp_props":{"default_generation_settings":{"n_ctx":200000,"params":{"n_predict":-1,"max_tokens":-1,"seed":-1,"temperature":0.699999988079071,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"top_k":20,"top_p":0.949999988079071,"min_p":0.0,"top_n_sigma":-1.0,"typical_p":1.0,"typ_p":1.0,"xtc_probability":0.0,"xtc_threshold":0.10000000149011612,"repeat_last_n":64,"repeat_penalty":1.0,"presence_penalty":0.0,"frequency_penalty":0.0,"dry_multiplier":0.0,"dry_base":1.75,"dry_allowed_length":2,"dry_penalty_last_n":-1,"dry_sequence_breakers":["\n",":","\"","*"],"mirostat":0,"mirostat_tau":5.0,"mirostat_eta":0.1,"stop":[],"n_keep":0,"n_discard":0,"ignore_eos":false,"stream":true,"logit_bias":[],"n_probs":0,"min_keep":0,"grammar":"","grammar_lazy":false,"grammar_triggers":[],"preserved_tokens":[],"chat_format":"","reasoning_format":"auto","reasoning_in_content":false,"generation_prompt":"","samplers":["penalties","dry","temperature","top_k","top_p","min_p","typ_p","xtc"],"backend_sampling":false,"post_sampling_probs":false,"lora":[]}},"total_slots":16,"model_path":"/models/qwen3.8-27b-mxfp4.rad","build_info":"radiance 1.12.0","modalities":{"vision":true,"video":true,"audio":false},"n_ctx":200000},"server_info":{"server":{"model":"Qwen3.8","version":"1.12.0","max_model_len":200000,"max_num_seqs":16,"queue_cap":128,"default_max_tokens":null,"max_tokens_cap":null,"max_n":16,"max_stop_strings":64,"max_stop_bytes":4096,"uptime_s":305,"in_flight":0},"request_defaults":{"temperature":0.6999 ... (full in result.json)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dfh/scripts/dfh/cats/ho-prose.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.033 | 1.0 | 4 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 133.7 | 1.0 | 4 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-bakery | yes | 0.0 | 0.03 | 138.0 | The 3:00 AM shift at *Crust & Crumb* was less about baking a… |
+| prose-glacier | yes | 0.0 | 0.03 | 131.2 | The alarm doesn’t ring here; the cold does. It seeps through… |
+| prose-market | yes | 0.0 | 0.03 | 126.8 | The air before the sun fully claims the sky is not merely em… |
+| prose-duel | yes | 0.0 | 0.03 | 138.7 | The morning mist clung to the cobblestones of Oakhaven like … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-130253-dfh-radiance-dfh-rad1-radiance-ho-prose-r1/result.json
+[localeval] logged to unanimis: 837b3bd0-c416-44df-8041-a5a10b757ce9
