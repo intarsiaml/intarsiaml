@@ -1,0 +1,7 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w27-{batch} 2026-10-25 23:52:29
+[window] job 5610 w27; stopping radiance 2026-10-25 23:52:29
+[window] radiance stopped 2026-10-25 23:52:32
+23:52:32 window start, CAP 2200s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+23:52:32 env: load average: 4.29, 4.04, 3.47 | top:  1.1 tailscaled; 0.6 kworker/0:1-mm_percpu_wq; 0.5 kworker/14:2-events_freezable; 0.4 kworker/2:0-cgroup_free; | containers: 
+23:53:07 repro a1-control exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1]: CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical | 
+23:54:37 repro b1-peer-sync exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_TP_PEER_SYNC=1]: CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical | 

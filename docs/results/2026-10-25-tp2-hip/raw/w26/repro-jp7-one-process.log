@@ -1,0 +1,115 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:957:45
+    |
+957 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:241:8
+    |
+241 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_batch_first_steps_repro ... COMM group: rank 0 device 0 scratch 0x733413600000 flags 0x733413200000 ctrs 0x733413201000
+COMM group: rank 1 device 1 scratch 0x733412800000 flags 0x733412400000 ctrs 0x733412401000
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS batch 2 step 0 after the solo rows, before the batched step: rank 0: launch counters 5634 flags 5634; rank 1: launch counters 5634 flags 5634; host call log: rank 0 5634 launches, rank 1 5634; the ranks' launch sequences are identical
+CTRS batch 2 step 0 after the batched step: rank 0: launch counters 5763 flags 5763; rank 1: launch counters 5763 flags 5763; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the solo rows, before the batched step: rank 0: launch counters 6021 flags 6021; rank 1: launch counters 6021 flags 6021; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 2 step 1 after the batched step: rank 0: launch counters 6150 flags 6150; rank 1: launch counters 6150 flags 6150; host call log: rank 0 5763 launches, rank 1 5763; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the solo rows, before the batched step: rank 0: launch counters 6537 flags 6537; rank 1: launch counters 6537 flags 6537; host call log: rank 0 6150 launches, rank 1 6150; the ranks' launch sequences are identical
+CTRS batch 3 step 0 after the batched step: rank 0: launch counters 6666 flags 6666; rank 1: launch counters 6666 flags 6666; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the solo rows, before the batched step: rank 0: launch counters 7053 flags 7053; rank 1: launch counters 7053 flags 7053; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 3 step 1 after the batched step: rank 0: launch counters 7182 flags 7182; rank 1: launch counters 7182 flags 7182; host call log: rank 0 6279 launches, rank 1 6279; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the solo rows, before the batched step: rank 0: launch counters 7698 flags 7698; rank 1: launch counters 7698 flags 7698; host call log: rank 0 6795 launches, rank 1 6795; the ranks' launch sequences are identical
+CTRS batch 4 step 0 after the batched step: rank 0: launch counters 7827 flags 7827; rank 1: launch counters 7827 flags 7827; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the solo rows, before the batched step: rank 0: launch counters 8343 flags 8343; rank 1: launch counters 8343 flags 8343; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 4 step 1 after the batched step: rank 0: launch counters 8472 flags 8472; rank 1: launch counters 8472 flags 8472; host call log: rank 0 6924 launches, rank 1 6924; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the solo rows, before the batched step: rank 0: launch counters 9117 flags 9117; rank 1: launch counters 9117 flags 9117; host call log: rank 0 7440 launches, rank 1 7440; the ranks' launch sequences are identical
+CTRS batch 5 step 0 after the batched step: rank 0: launch counters 9246 flags 9246; rank 1: launch counters 9246 flags 9246; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the solo rows, before the batched step: rank 0: launch counters 9891 flags 9891; rank 1: launch counters 9891 flags 9891; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 5 step 1 after the batched step: rank 0: launch counters 10020 flags 10020; rank 1: launch counters 10020 flags 10020; host call log: rank 0 7569 launches, rank 1 7569; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the solo rows, before the batched step: rank 0: launch counters 10794 flags 10794; rank 1: launch counters 10794 flags 10794; host call log: rank 0 7827 launches, rank 1 7827; the ranks' launch sequences are identical
+CTRS batch 6 step 0 after the batched step: rank 0: launch counters 10923 flags 10923; rank 1: launch counters 10923 flags 10923; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the solo rows, before the batched step: rank 0: launch counters 11697 flags 11697; rank 1: launch counters 11697 flags 11697; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 6 step 1 after the batched step: rank 0: launch counters 11826 flags 11826; rank 1: launch counters 11826 flags 11826; host call log: rank 0 7956 launches, rank 1 7956; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the solo rows, before the batched step: rank 0: launch counters 12729 flags 12729; rank 1: launch counters 12729 flags 12729; host call log: rank 0 8085 launches, rank 1 8085; the ranks' launch sequences are identical
+CTRS batch 7 step 0 after the batched step: rank 0: launch counters 12858 flags 12858; rank 1: launch counters 12858 flags 12858; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the solo rows, before the batched step: rank 0: launch counters 13761 flags 13761; rank 1: launch counters 13761 flags 13761; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 7 step 1 after the batched step: rank 0: launch counters 13890 flags 13890; rank 1: launch counters 13890 flags 13890; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the solo rows, before the batched step: rank 0: launch counters 14922 flags 14922; rank 1: launch counters 14922 flags 14922; host call log: rank 0 8214 launches, rank 1 8214; the ranks' launch sequences are identical
+CTRS batch 8 step 0 after the batched step: rank 0: launch counters 15051 flags 15051; rank 1: launch counters 15051 flags 15051; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the solo rows, before the batched step: rank 0: launch counters 16083 flags 16083; rank 1: launch counters 16083 flags 16083; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 8 step 1 after the batched step: rank 0: launch counters 16212 flags 16212; rank 1: launch counters 16212 flags 16212; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the solo rows, before the batched step: rank 0: launch counters 17373 flags 17373; rank 1: launch counters 17373 flags 17373; host call log: rank 0 8343 launches, rank 1 8343; the ranks' launch sequences are identical
+CTRS batch 9 step 0 after the batched step: rank 0: launch counters 17503 flags 17503; rank 1: launch counters 17503 flags 17503; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the solo rows, before the batched step: rank 0: launch counters 18664 flags 18664; rank 1: launch counters 18664 flags 18664; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 9 step 1 after the batched step: rank 0: launch counters 18794 flags 18794; rank 1: launch counters 18794 flags 18794; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the solo rows, before the batched step: rank 0: launch counters 20084 flags 20084; rank 1: launch counters 20084 flags 20084; host call log: rank 0 8473 launches, rank 1 8473; the ranks' launch sequences are identical
+CTRS batch 10 step 0 after the batched step: rank 0: launch counters 20214 flags 20214; rank 1: launch counters 20214 flags 20214; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the solo rows, before the batched step: rank 0: launch counters 21504 flags 21504; rank 1: launch counters 21504 flags 21504; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 10 step 1 after the batched step: rank 0: launch counters 21634 flags 21634; rank 1: launch counters 21634 flags 21634; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the solo rows, before the batched step: rank 0: launch counters 23053 flags 23053; rank 1: launch counters 23053 flags 23053; host call log: rank 0 8603 launches, rank 1 8603; the ranks' launch sequences are identical
+CTRS batch 11 step 0 after the batched step: rank 0: launch counters 23183 flags 23183; rank 1: launch counters 23183 flags 23183; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the solo rows, before the batched step: rank 0: launch counters 24602 flags 24602; rank 1: launch counters 24602 flags 24602; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 11 step 1 after the batched step: rank 0: launch counters 24732 flags 24732; rank 1: launch counters 24732 flags 24732; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the solo rows, before the batched step: rank 0: launch counters 26280 flags 26280; rank 1: launch counters 26280 flags 26280; host call log: rank 0 8733 launches, rank 1 8733; the ranks' launch sequences are identical
+CTRS batch 12 step 0 after the batched step: rank 0: launch counters 26410 flags 26410; rank 1: launch counters 26410 flags 26410; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the solo rows, before the batched step: rank 0: launch counters 27958 flags 27958; rank 1: launch counters 27958 flags 27958; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 12 step 1 after the batched step: rank 0: launch counters 28088 flags 28088; rank 1: launch counters 28088 flags 28088; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the solo rows, before the batched step: rank 0: launch counters 29765 flags 29765; rank 1: launch counters 29765 flags 29765; host call log: rank 0 8863 launches, rank 1 8863; the ranks' launch sequences are identical
+CTRS batch 13 step 0 after the batched step: rank 0: launch counters 29895 flags 29895; rank 1: launch counters 29895 flags 29895; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the solo rows, before the batched step: rank 0: launch counters 31572 flags 31572; rank 1: launch counters 31572 flags 31572; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 13 step 1 after the batched step: rank 0: launch counters 31702 flags 31702; rank 1: launch counters 31702 flags 31702; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the solo rows, before the batched step: rank 0: launch counters 33508 flags 33508; rank 1: launch counters 33508 flags 33508; host call log: rank 0 8993 launches, rank 1 8993; the ranks' launch sequences are identical
+CTRS batch 14 step 0 after the batched step: rank 0: launch counters 33638 flags 33638; rank 1: launch counters 33638 flags 33638; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the solo rows, before the batched step: rank 0: launch counters 35444 flags 35444; rank 1: launch counters 35444 flags 35444; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 14 step 1 after the batched step: rank 0: launch counters 35574 flags 35574; rank 1: launch counters 35574 flags 35574; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the solo rows, before the batched step: rank 0: launch counters 37509 flags 37509; rank 1: launch counters 37509 flags 37509; host call log: rank 0 9123 launches, rank 1 9123; the ranks' launch sequences are identical
+CTRS batch 15 step 0 after the batched step: rank 0: launch counters 37639 flags 37639; rank 1: launch counters 37639 flags 37639; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the solo rows, before the batched step: rank 0: launch counters 39574 flags 39574; rank 1: launch counters 39574 flags 39574; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 15 step 1 after the batched step: rank 0: launch counters 39704 flags 39704; rank 1: launch counters 39704 flags 39704; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the solo rows, before the batched step: rank 0: launch counters 41768 flags 41768; rank 1: launch counters 41768 flags 41768; host call log: rank 0 9253 launches, rank 1 9253; the ranks' launch sequences are identical
+CTRS batch 16 step 0 after the batched step: rank 0: launch counters 41898 flags 41898; rank 1: launch counters 41898 flags 41898; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the solo rows, before the batched step: rank 0: launch counters 43962 flags 43962; rank 1: launch counters 43962 flags 43962; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+CTRS batch 16 step 1 after the batched step: rank 0: launch counters 44092 flags 44092; rank 1: launch counters 44092 flags 44092; host call log: rank 0 9383 launches, rank 1 9383; the ranks' launch sequences are identical
+REPRO rep 0: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+REPRO failures 0/1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 14.78s
+

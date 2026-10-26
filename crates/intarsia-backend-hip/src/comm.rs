@@ -35,6 +35,11 @@ fn rt(what: &str, rc: i32) -> Result<()> {
     }
 }
 
+fn host_ctrs() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_CTRS_HOST").is_ok_and(|v| v == "1"))
+}
+
 /// What one rank owns on its device for the collective.
 struct RankBuf {
     ordinal: i32,
@@ -60,14 +65,23 @@ impl RankBuf {
         unsafe {
             rt("fine-grained scratch", ffi::ik_rt_malloc_finegrained(&mut s, 2 * SLOT_BYTES))?;
             rt("fine-grained flags", ffi::ik_rt_malloc_finegrained(&mut f, NBLOCKS as usize * 4))?;
-            rt("counters", ffi::ik_rt_malloc(&mut c, NBLOCKS as usize * 4))?;
+            if host_ctrs() {
+                // INTARSIA_HIP_CTRS_HOST=1 (debugging, w27): the launch counters live in pinned host memory (the kernels reach it through the unified
+                // address space), so the host can read them at a hang without any HIP call
+                rt("host counters", ffi::ik_rt_host_alloc(&mut c, NBLOCKS as usize * 4))?;
+                std::ptr::write_bytes(c as *mut u8, 0, NBLOCKS as usize * 4);
+            } else {
+                rt("counters", ffi::ik_rt_malloc(&mut c, NBLOCKS as usize * 4))?;
+            }
         }
         let rb = RankBuf { ordinal, scratch: s, flags: f as *mut u32, ctrs: c as *mut u32 };
         let st = backend.stream(0)?;
         // SAFETY: freshly allocated ranges of the stated sizes.
         unsafe {
             rt("zero flags", ffi::ik_rt_memset(f, 0, NBLOCKS as usize * 4, st))?;
-            rt("zero counters", ffi::ik_rt_memset(c, 0, NBLOCKS as usize * 4, st))?;
+            if !host_ctrs() {
+                rt("zero counters", ffi::ik_rt_memset(c, 0, NBLOCKS as usize * 4, st))?;
+            }
             rt("zero scratch", ffi::ik_rt_memset(s, 0, 2 * SLOT_BYTES, st))?;
             rt("sync", ffi::ik_rt_stream_sync(st))?;
         }
@@ -86,7 +100,11 @@ impl Drop for RankBuf {
             ffi::ik_rt_set_device(self.ordinal);
             ffi::ik_rt_free(self.scratch);
             ffi::ik_rt_free(self.flags as *mut c_void);
-            ffi::ik_rt_free(self.ctrs as *mut c_void);
+            if host_ctrs() {
+                ffi::ik_rt_host_free(self.ctrs as *mut c_void);
+            } else {
+                ffi::ik_rt_free(self.ctrs as *mut c_void);
+            }
         }
     }
 }
@@ -326,6 +344,13 @@ impl Comm for P2pComm {
         // a flag is the last sequence number the peer raised in that block.
         let mut out = String::new();
         for (r, b) in self.group.bufs.iter().enumerate() {
+            if host_ctrs() {
+                // no HIP call: safe at a hang. (The flags are device memory; only the counters are read here.)
+                let c: Vec<u32> = (0..NBLOCKS as usize).map(|i| unsafe { std::ptr::read_volatile(b.ctrs.add(i)) }).collect();
+                let (lo, hi) = (c.iter().min().unwrap(), c.iter().max().unwrap());
+                out.push_str(&format!("rank {r}: HOST launch counters {}; ", if lo == hi { format!("{lo}") } else { format!("{lo}..{hi} {c:?}") }));
+                continue;
+            }
             let mut s: *mut c_void = std::ptr::null_mut();
             let (mut c, mut f) = ([0u32; NBLOCKS as usize], [0u32; NBLOCKS as usize]);
             // SAFETY: valid out-pointers and host arrays of NBLOCKS u32; the device pointers are the group's own allocations.

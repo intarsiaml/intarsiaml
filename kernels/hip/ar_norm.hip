@@ -30,7 +30,7 @@
  */
 #include "ik_hip.h"
 
-#define ARN_SPIN_MAX 60000000u /* polls, ~1 us each: about a minute */
+#define ARN_SPIN_MAX 480000000u /* polls (w27 diagnostic: 8x the old 60M, which trapped after ~6 s) */
 
 IK_DEVI void arn_store_rel(unsigned int* p, unsigned int v) { __hip_atomic_store(p, v, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_SYSTEM); }
 IK_DEVI unsigned int arn_load_acq(const unsigned int* p) { return __hip_atomic_load(p, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_SYSTEM); }
