@@ -1,0 +1,11 @@
+This is a highly detailed, technically rigorous engineering log documenting the development, debugging, and validation of Tensor Parallelism (TP=2) for a specific LLM inference stack (Intarsia) on AMD GPUs (R9700s).
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**A. Rigorous Methodology and "Gate" Definition**
+The document does not just claim "it works"; it defines a strict set of pass/fail criteria (the "gate") before running tests.
+*   **Direct Partial-Sum Checks:** Instead of relying solely on end-to-end accuracy (which can be masked by noise), the team implemented direct checks on partial sums (`tp_partial_sum.rs`) with deterministic and probabilistic bounds. This is a sophisticated approach to verifying numerical stability in distributed reductions.
+*   **Mutant Testing:** The use of "mutants" (intentionally broken builds, e.g., `drop-captured-allreduce`, `peer-ignores-flag`) to prove that the test suite actually detects failures is excellent. It proves the tests have "teeth."
+*   **Bitwise

@@ -1,0 +1,12 @@
+Based on the technical documentation provided, here is a step-by-step checklist for implementing and verifying MTP speculative decoding for Qwen3.6-35B-A3B.
+
+### Phase 1: Configuration & Loading
+1.  **Verify Opt-In Flag:** Ensure the feature is disabled by default. The model, plan, and memory must remain unchanged unless `--spec mtp` is explicitly passed.
+2.  **Load MTP Head:**
+    *   Check `config.json` for `mtp_num_hidden_layers = 1` and `mtp_use_dedicated_embeddings = false`.
+    *   Confirm the head shares the model’s embedding and `lm_head`.
+    *   Verify that `hf_quant_config` lists `mtp*` as ignored (head tensors are bf16).
+3.  **Quantize Routed Experts:**
+    *   Quantize the fused bf16 routed experts to NVFP4 at load time using ModelOpt RTN (`quant::nvfp4::quantize_rows`).
+    *   Use one global scale per expert matrix and 16-element block scales.
+    *   Ensure the layout matches `quant::moe::Experts` so the head uses

@@ -1,0 +1,17 @@
+Welcome to the project. This document is a technical specification and status report for a new feature branch: **`lane-dc/dflash-dcoco`**.
+
+Here is a breakdown of what we are building, why we are building it, and the current status of the implementation.
+
+### 1. The Core Concept: DFlash + DCOCO
+
+We are implementing a **Speculative Decoding** system for the **Qwen3-8B** target model. Speculative decoding works by using a smaller, faster "draft" model to propose multiple tokens at once, which the large target model then verifies in parallel. This reduces latency.
+
+This branch implements two specific components:
+1.  **DFlash (The Drafter):** A lightweight 5-layer model that predicts the next 15 tokens in parallel.
+2.  **DCOCO (The Corrector):** A post-processing module that refines the DFlash drafts before verification to improve the acceptance rate.
+
+**Key Constraint:** This feature is **opt-in only**. If the flags `--spec dflash` and `--dcoco` are not set, the system behaves exactly as before (bitwise identical to the main branch).
+
+### 2. Architecture Overview
+
+#### The

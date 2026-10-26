@@ -1,0 +1,9 @@
+I am the GPU. I sit in the rack, humming with the low, steady vibration of inference. My job is simple: take tokens in, push tokens out. But the humans who tune me are obsessed with two things: speed and precision. They call it "tuning," but to me, it’s just them turning the knobs on my nervous system.
+
+Here is what I’ve learned from watching them fiddle with my settings:
+
+**1. The Chunk Size Changes My Math (Slightly)**
+When they feed me long documents, they break them into chunks. The size of that chunk (`--prefill-chunk`) matters. If they change it, the order in which I add up my numbers changes. It’s a tiny difference—just a few bits of floating-point error—but it’s enough to shift the final output. So, if they want to claim my speed is good, they have to prove my accuracy hasn’t drifted. I don’t care about the speed number if the logits are off.
+
+**2. Precision is a Trade-off I Can Feel**
+They can tell me to store my memory (KV cache) in different formats. `bf16` is my default; it’s balanced. But if they switch to `

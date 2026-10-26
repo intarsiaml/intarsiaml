@@ -1,0 +1,185 @@
+prefill chunk 256 (default)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.3 s
+mxfp4 activations: dynamic (declared by the checkpoint)
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 matmul=matmul_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 dyn_conv=dyn_conv_bf16 logits=logits_bf16 argmax=argmax_f32 logits=logits_bf16_gemv_rows
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 3.0s: 64 layers, hidden 5120, act bf16, kv bf16, weights 16.44 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 3284 tokens
+spec: token 2 pos 3284 drafted 7 accepted 6 emits 7
+spec: mtp draft 25.485 ms, verify + rollback 46.813 ms
+spec: token 9 pos 3291 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.289 ms, verify + rollback 43.672 ms
+spec: token 10 pos 3292 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.333 ms, verify + rollback 43.692 ms
+spec: token 12 pos 3294 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.072 ms, verify + rollback 43.729 ms
+spec: token 14 pos 3296 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.139 ms, verify + rollback 43.691 ms
+spec: token 17 pos 3299 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.200 ms, verify + rollback 43.863 ms
+spec: token 18 pos 3300 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.029 ms, verify + rollback 43.575 ms
+spec: token 20 pos 3302 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.130 ms, verify + rollback 43.663 ms
+spec: token 21 pos 3303 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.278 ms, verify + rollback 43.788 ms
+spec: token 22 pos 3304 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.011 ms, verify + rollback 43.602 ms
+spec: token 26 pos 3308 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.137 ms, verify + rollback 43.716 ms
+spec: token 27 pos 3309 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.085 ms, verify + rollback 43.628 ms
+spec: token 30 pos 3312 drafted 7 accepted 6 emits 7
+spec: mtp draft 24.206 ms, verify + rollback 43.633 ms
+spec: token 37 pos 3319 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.185 ms, verify + rollback 43.671 ms
+spec: token 39 pos 3321 drafted 7 accepted 4 emits 5
+spec: mtp draft 24.218 ms, verify + rollback 43.716 ms
+spec: token 44 pos 3326 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.149 ms, verify + rollback 43.647 ms
+spec: token 47 pos 3329 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.081 ms, verify + rollback 43.642 ms
+spec: token 49 pos 3331 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.145 ms, verify + rollback 43.671 ms
+spec: token 55 pos 3337 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.076 ms, verify + rollback 43.675 ms
+spec: token 56 pos 3338 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.178 ms, verify + rollback 43.610 ms
+spec: token 57 pos 3339 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.027 ms, verify + rollback 43.628 ms
+spec: token 58 pos 3340 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.062 ms, verify + rollback 43.595 ms
+spec: token 64 pos 3346 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.219 ms, verify + rollback 43.592 ms
+spec: token 65 pos 3347 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.228 ms, verify + rollback 43.774 ms
+spec: token 66 pos 3348 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.076 ms, verify + rollback 43.810 ms
+spec: token 67 pos 3349 drafted 7 accepted 6 emits 7
+spec: mtp draft 24.155 ms, verify + rollback 43.689 ms
+spec: token 74 pos 3356 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.077 ms, verify + rollback 43.612 ms
+spec: token 76 pos 3358 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.143 ms, verify + rollback 43.616 ms
+spec: token 77 pos 3359 drafted 7 accepted 4 emits 5
+spec: mtp draft 24.050 ms, verify + rollback 43.551 ms
+spec: token 82 pos 3364 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.211 ms, verify + rollback 43.719 ms
+spec: token 85 pos 3367 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.043 ms, verify + rollback 43.610 ms
+spec: token 87 pos 3369 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.158 ms, verify + rollback 43.635 ms
+spec: token 88 pos 3370 drafted 7 accepted 0 emits 1
+spec: mtp draft 23.899 ms, verify + rollback 43.590 ms
+spec: token 89 pos 3371 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.020 ms, verify + rollback 43.665 ms
+spec: token 93 pos 3375 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.175 ms, verify + rollback 43.647 ms
+spec: token 96 pos 3378 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.294 ms, verify + rollback 43.681 ms
+spec: token 98 pos 3380 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.184 ms, verify + rollback 43.759 ms
+spec: token 101 pos 3383 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.025 ms, verify + rollback 43.633 ms
+spec: token 104 pos 3386 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.070 ms, verify + rollback 43.592 ms
+spec: token 106 pos 3388 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.262 ms, verify + rollback 43.563 ms
+spec: token 108 pos 3390 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.182 ms, verify + rollback 43.476 ms
+spec: token 110 pos 3392 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.241 ms, verify + rollback 43.515 ms
+spec: token 111 pos 3393 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.062 ms, verify + rollback 43.699 ms
+spec: token 115 pos 3397 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.126 ms, verify + rollback 43.655 ms
+spec: token 117 pos 3399 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.145 ms, verify + rollback 43.705 ms
+spec: token 120 pos 3402 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.107 ms, verify + rollback 43.726 ms
+spec: token 122 pos 3404 drafted 7 accepted 4 emits 5
+spec: mtp draft 24.033 ms, verify + rollback 43.684 ms
+spec: token 127 pos 3409 drafted 7 accepted 4 emits 5
+spec: mtp draft 23.998 ms, verify + rollback 43.648 ms
+spec: token 132 pos 3414 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.248 ms, verify + rollback 43.656 ms
+spec: token 135 pos 3417 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.166 ms, verify + rollback 43.760 ms
+spec: token 137 pos 3419 drafted 7 accepted 6 emits 7
+spec: mtp draft 24.057 ms, verify + rollback 43.798 ms
+spec: token 144 pos 3426 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.319 ms, verify + rollback 43.761 ms
+spec: token 150 pos 3432 drafted 7 accepted 4 emits 5
+spec: mtp draft 24.222 ms, verify + rollback 43.654 ms
+spec: token 155 pos 3437 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.086 ms, verify + rollback 43.589 ms
+spec: token 159 pos 3441 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.049 ms, verify + rollback 43.626 ms
+spec: token 163 pos 3445 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.105 ms, verify + rollback 43.642 ms
+spec: token 166 pos 3448 drafted 7 accepted 6 emits 7
+spec: mtp draft 24.249 ms, verify + rollback 43.722 ms
+spec: token 173 pos 3455 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.393 ms, verify + rollback 43.707 ms
+spec: token 177 pos 3459 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.199 ms, verify + rollback 43.731 ms
+spec: token 183 pos 3465 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.182 ms, verify + rollback 43.643 ms
+spec: token 184 pos 3466 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.165 ms, verify + rollback 43.530 ms
+spec: token 185 pos 3467 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.076 ms, verify + rollback 43.569 ms
+spec: token 187 pos 3469 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.357 ms, verify + rollback 43.701 ms
+spec: token 188 pos 3470 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.065 ms, verify + rollback 43.664 ms
+spec: token 192 pos 3474 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.207 ms, verify + rollback 43.670 ms
+spec: token 195 pos 3477 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.178 ms, verify + rollback 43.691 ms
+spec: token 196 pos 3478 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.165 ms, verify + rollback 43.582 ms
+spec: token 198 pos 3480 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.044 ms, verify + rollback 43.667 ms
+spec: token 201 pos 3483 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.301 ms, verify + rollback 43.763 ms
+spec: token 204 pos 3486 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.217 ms, verify + rollback 43.714 ms
+spec: token 206 pos 3488 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.246 ms, verify + rollback 43.675 ms
+spec: token 207 pos 3489 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.156 ms, verify + rollback 43.670 ms
+spec: token 208 pos 3490 drafted 7 accepted 0 emits 1
+spec: mtp draft 24.290 ms, verify + rollback 43.663 ms
+spec: token 209 pos 3491 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.150 ms, verify + rollback 43.633 ms
+spec: token 212 pos 3494 drafted 7 accepted 1 emits 2
+spec: mtp draft 24.076 ms, verify + rollback 43.643 ms
+spec: token 214 pos 3496 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.158 ms, verify + rollback 43.657 ms
+spec: token 217 pos 3499 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.144 ms, verify + rollback 43.560 ms
+spec: token 223 pos 3505 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.271 ms, verify + rollback 43.716 ms
+spec: token 227 pos 3509 drafted 7 accepted 3 emits 4
+spec: mtp draft 24.016 ms, verify + rollback 43.651 ms
+spec: token 231 pos 3513 drafted 7 accepted 5 emits 6
+spec: mtp draft 24.094 ms, verify + rollback 43.737 ms
+spec: token 237 pos 3519 drafted 7 accepted 4 emits 5
+spec: mtp draft 24.381 ms, verify + rollback 43.678 ms
+spec: token 242 pos 3524 drafted 7 accepted 2 emits 3
+spec: mtp draft 24.081 ms, verify + rollback 43.671 ms
+spec: token 245 pos 3527 drafted 7 accepted 6 emits 7
+spec: mtp draft 23.953 ms, verify + rollback 43.703 ms
+spec: token 252 pos 3534 drafted 4 accepted 0 emits 1
+spec: mtp draft 24.226 ms, verify + rollback 34.087 ms
+spec: token 253 pos 3535 drafted 3 accepted 1 emits 2
+spec: mtp draft 24.122 ms, verify + rollback 31.194 ms
+spec: token 255 pos 3537 drafted 1 accepted 1 emits 2
+spec: mtp draft 23.796 ms, verify + rollback 25.860 ms
+ids: [1919, 369, 264, 8751, 3286, 314, 279, 10597, 2128, 8559, 25204, 47614, 2074, 318, 4100, 8, 7873, 383, 423, 24, 22, 15, 15, 68022, 1608, 279, 1510, 390, 1506, 667, 63, 18583, 13, 271, 13962, 17346, 20858, 198, 760, 2128, 17855, 264, 45332, 11, 7072, 45759, 290, 22188, 8024, 364, 28121, 28, 17, 383, 264, 2446, 77528, 18583, 13, 1049, 12083, 34337, 421, 5129, 65427, 31699, 2298, 738, 11988, 513, 37043, 364, 51730, 25602, 33625, 21851, 318, 4650, 6907, 12563, 5787, 8, 321, 37631, 264, 11183, 328, 36182, 73220, 1, 22188, 1654, 13, 561, 5313, 369, 1654, 28390, 4950, 11, 694, 424, 44875, 494, 4927, 31092, 303, 27534, 74730, 8559, 279, 328, 50465, 33256, 1288, 264, 6639, 314, 15673, 364, 264, 8751, 9626, 11, 321, 449, 888, 5331, 180133, 383, 94589, 6117, 2074, 430, 264, 12906, 364, 55404, 13, 271, 4277, 271, 13962, 220, 16, 13, 3437, 369, 28041, 2747, 286, 271, 794, 357, 13, 561, 328, 36079, 6027, 367, 1, 53611, 26846, 318, 9333, 220, 16, 13, 18, 8, 198, 1919, 369, 279, 28928, 919, 314, 279, 2128, 13, 561, 11672, 12083, 10229, 421, 25456, 1534, 58740, 318, 51204, 78361, 8, 369, 264, 47045, 13736, 364, 51730, 2526, 33625, 5787, 318, 15, 13, 18, 4, 5281, 21851, 8, 1521, 13550, 1906, 11639, 628, 6696, 1070, 13, 198, 9, 256, 2972, 15555, 4109, 64700, 3113, 12910, 279, 6907, 35195, 348, 14372, 9, 279, 660, 5331, 12986, 11, 781, 40729, 279, 33303, 494, 279, 10222, 13, 198, 9, 256, 2972, 760, 87643, 66693, 64700, 11747, 4962, 308]
+finish=length prompt=3284 (cached 0) completion=256 | prefill 1505 ms (2181.5 tok/s) | decode 5797 ms (43.99 tok/s)
+tensor parallel: 12887 all-reduces (128.9 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+spec: verify passes=86 proposed=589 accepted=169 (acceptance 28.7%, 2.97 tokens per pass)
+steps=100 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/1760 all_reduce=0ms/12887 argmax=0ms/173 attn_decode=0ms/14256 attn_prefill=0ms/208
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1

@@ -1,0 +1,14 @@
+clean (dflash2_cpu) bd51d5ffa test binary sha256 4bc812eaf50f928d
+mutant tap-off-by-one applied to crates/intarsia-core/src/model.rs
+mutant tap-off-by-one: sha256 e774313cca95bebd (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_taps_are_the_target_layer_outputs 
+mutant rollback-next-row applied to crates/intarsia-core/src/state.rs
+mutant rollback-next-row: sha256 4515aca5e9887ad9 (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_greedy_ids_equal_spec_off_on_the_hybrid     dflash2_scripted_drafts_hit_every_acceptance_pattern_and_stay_identical     dflash2_tp2_greedy_ids_equal_spec_off 
+mutant window-off-by-one applied to crates/intarsia-core/src/model/dflash2.rs
+mutant window-off-by-one: sha256 9fd4eea5e3869ddc (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_draft_matches_host_reference     dflash2_draft_matches_the_z_lab_mlx_reference 
+mutant draft-norm-offset applied to crates/intarsia-core/src/model/dflash2.rs
+mutant draft-norm-offset: sha256 c264eb646e48c657 (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_draft_matches_host_reference     dflash2_draft_matches_the_z_lab_mlx_reference 
+mutant selector-pred applied to crates/intarsia-core/src/model/dflash2.rs
+mutant selector-pred: sha256 fcb320f22d680a3a (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_draft_matches_the_z_lab_mlx_reference 
+mutant tp-peer-no-rollback applied to crates/intarsia-core/src/state.rs
+mutant tp-peer-no-rollback: sha256 a309fe62d8ee1f66 (clean 4bc812eaf50f928d): CAUGHT by:     dflash2_tp2_greedy_ids_equal_spec_off 
+exit 0

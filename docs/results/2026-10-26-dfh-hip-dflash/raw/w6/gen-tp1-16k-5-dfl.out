@@ -1,0 +1,12 @@
+Here is the list of every number in the document, categorized by what it measures, followed by commentary on the three most surprising findings.
+
+### List of Numbers and What They Measure
+
+#### **Performance Metrics (Throughput & Latency)**
+*   **84.0 vs 80.1 tok/s**: Spark decode (lane sk3) 1-stream throughput comparison (intarsia vs vLLM).
+*   **11.9 vs 12.5 ms**: Spark decode (lane sk3) 1-stream ITL p50 (intarsia vs vLLM).
+*   **89.9 tok/s**: Spark decode (lane sk3) MTP throughput.
+*   **162 / 209 vs 116 / 116 tok/s**: Spark decode (lane sk3) aggregate throughput at 4/8 streams (intarsia vs vLLM).
+*   **+4.9 %**: Spark decode (lane sk3) 1-stream gain over vLLM.
+*   **+12.4 %**: Spark decode (lane sk3) MTP gain over vLLM.
+*   **+0.9 % /

@@ -25,6 +25,18 @@ OUT=$REPO/docs/results/2026-10-26-dfh-hip-dflash/raw/$W; mkdir -p "$OUT"
 T0=$(date +%s); left() { echo $(( CAP - ($(date +%s) - T0) )); }
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
+# DRY=1 (a cpu slot, radiance up): print every arm's serve command, the rounds, soak and pre-stage settings, and exit
+if [[ ${DRY:-0} == 1 ]]; then
+  for r in $(seq "${R0:-1}" $(( ${R0:-1} + ROUNDS - 1 ))); do
+    order="$ARMS"; (( r % 2 == 0 )) && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
+    for arm in $order; do
+      case $arm in off) spec="--spec off" ;; mtp*) spec="--spec mtp --spec-k ${arm#mtp}" ;; dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dfl}" ;; esac
+      echo "DRY round $r arm $arm: HIP_VISIBLE_DEVICES=$GPUS serve --backend hip --model $M27 $spec $TPA --max-batch 1 --mem-budget 29 --max-seq 8192, files: $(ls "$HERE"/cats/*.jsonl | xargs -n1 basename | tr '\n' ' ')"
+    done
+  done
+  echo "DRY PRE=${PRE:-} IDARMS=${IDARMS:-} TPS=${TPS:-} SOAK=${SOAK:-0} SOAK_ARMS=${SOAK_ARMS:-mtp2} SOAK_REF=${SOAK_REF:-2} CAP=$CAP GEN=$GEN"
+  exit 0
+fi
 FIFO=$(mktemp -u "$REPO/target/dfhguard.XXXXXX"); mkfifo "$FIFO"
 $SSH 'mkdir -p ~/dfh' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" tatooine:dfh/
 $SSH 'bash ~/dfh/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &

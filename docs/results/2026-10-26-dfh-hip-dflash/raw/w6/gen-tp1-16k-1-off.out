@@ -1,0 +1,11 @@
+This document is a technical status report and design note for a feature branch (`lane-dc/dflash-dcoco`) in the **Intarsia** inference engine. It details the implementation, testing, and performance evaluation of two speculative decoding techniques: **DFlash** (a parallel drafter) and **DCOCO** (a contextual corrector).
+
+Here is a detailed breakdown for a new engineer joining the project.
+
+### 1. Executive Summary
+
+*   **Goal:** Implement `--spec dflash` and `--dcoco` flags to speed up inference for Qwen3-8B.
+*   **Status:**
+    *   **DFlash:** Successfully implemented and validated. It provides a **~2.1x speedup** on math/code prompts but regresses on prose. It remains **opt-in** (default off) because it fails the "cost gate" for general use (prose is slower).
+    *   **DCOCO:** Implemented, but **failed the performance gate**. It adds overhead (7% slower) for a negligible gain (+1.8% acceptance rate) on our test prompts. It remains an experimental opt-in flag.
+*   **Key Finding:** The CUDA multi-row verify attention is

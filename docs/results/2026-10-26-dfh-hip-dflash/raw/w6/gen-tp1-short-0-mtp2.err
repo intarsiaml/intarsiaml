@@ -1,0 +1,226 @@
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+mxfp4 activations: dynamic (declared by the checkpoint)
+--spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 2.0s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.88 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+spec: token 2 pos 41 drafted 2 accepted 1 emits 2
+spec: mtp graph step 50.679 ms gap 0.000 ms
+spec: token 4 pos 43 drafted 2 accepted 0 emits 1
+spec: mtp graph step 50.185 ms gap 0.009 ms
+spec: token 5 pos 44 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.559 ms gap 0.005 ms
+spec: token 7 pos 46 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.604 ms gap 0.004 ms
+spec: token 10 pos 49 drafted 2 accepted 2 emits 3
+spec: mtp graph step 50.486 ms gap 0.004 ms
+spec: token 13 pos 52 drafted 2 accepted 2 emits 3
+spec: mtp graph step 43.942 ms gap 0.006 ms
+spec: token 16 pos 55 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.088 ms gap 0.004 ms
+spec: token 19 pos 58 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.258 ms gap 0.005 ms
+spec: token 22 pos 61 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.275 ms gap 0.004 ms
+spec: token 24 pos 63 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.769 ms gap 0.003 ms
+spec: token 27 pos 66 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.159 ms gap 0.004 ms
+spec: token 30 pos 69 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.208 ms gap 0.004 ms
+spec: token 33 pos 72 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.095 ms gap 0.303 ms
+spec: token 36 pos 75 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.215 ms gap 0.009 ms
+spec: token 39 pos 78 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.313 ms gap 0.008 ms
+spec: token 40 pos 79 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.723 ms gap 0.002 ms
+spec: token 43 pos 82 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.278 ms gap 0.011 ms
+spec: token 45 pos 84 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.846 ms gap 0.005 ms
+spec: token 47 pos 86 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.719 ms gap 0.003 ms
+spec: token 50 pos 89 drafted 2 accepted 1 emits 2
+spec: mtp graph step 43.907 ms gap 0.008 ms
+spec: token 52 pos 91 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.883 ms gap 0.004 ms
+spec: token 53 pos 92 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.914 ms gap 0.001 ms
+spec: token 56 pos 95 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.350 ms gap 0.004 ms
+spec: token 57 pos 96 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.770 ms gap 0.003 ms
+spec: token 60 pos 99 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.268 ms gap 0.007 ms
+spec: token 62 pos 101 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.810 ms gap 0.004 ms
+spec: token 65 pos 104 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.330 ms gap 0.008 ms
+spec: token 67 pos 106 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.802 ms gap 0.006 ms
+spec: token 69 pos 108 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.789 ms gap 0.004 ms
+spec: token 72 pos 111 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.313 ms gap 0.006 ms
+spec: token 73 pos 112 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.866 ms gap 0.004 ms
+spec: token 75 pos 114 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.904 ms gap 0.005 ms
+spec: token 76 pos 115 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.832 ms gap 0.003 ms
+spec: token 78 pos 117 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.839 ms gap 0.003 ms
+spec: token 81 pos 120 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.240 ms gap 0.003 ms
+spec: token 84 pos 123 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.230 ms gap 0.004 ms
+spec: token 87 pos 126 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.313 ms gap 0.004 ms
+spec: token 90 pos 129 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.369 ms gap 0.003 ms
+spec: token 92 pos 131 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.793 ms gap 0.002 ms
+spec: token 95 pos 134 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.289 ms gap 0.007 ms
+spec: token 97 pos 136 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.948 ms gap 0.003 ms
+spec: token 99 pos 138 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.904 ms gap 0.003 ms
+spec: token 100 pos 139 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.864 ms gap 0.002 ms
+spec: token 101 pos 140 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.893 ms gap 0.001 ms
+spec: token 102 pos 141 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.891 ms gap 0.001 ms
+spec: token 103 pos 142 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.909 ms gap 0.002 ms
+spec: token 104 pos 143 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.883 ms gap 0.002 ms
+spec: token 107 pos 146 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.376 ms gap 0.005 ms
+spec: token 110 pos 149 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.393 ms gap 0.004 ms
+spec: token 113 pos 152 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.414 ms gap 0.003 ms
+spec: token 116 pos 155 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.376 ms gap 0.004 ms
+spec: token 119 pos 158 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.401 ms gap 0.004 ms
+spec: token 120 pos 159 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.928 ms gap 0.001 ms
+spec: token 121 pos 160 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.968 ms gap 0.002 ms
+spec: token 124 pos 163 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.415 ms gap 0.004 ms
+spec: token 127 pos 166 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.426 ms gap 0.005 ms
+spec: token 130 pos 169 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.413 ms gap 0.005 ms
+spec: token 133 pos 172 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.436 ms gap 0.003 ms
+spec: token 134 pos 173 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.895 ms gap 0.002 ms
+spec: token 136 pos 175 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.881 ms gap 0.002 ms
+spec: token 139 pos 178 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.335 ms gap 0.004 ms
+spec: token 142 pos 181 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.342 ms gap 0.003 ms
+spec: token 144 pos 183 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.981 ms gap 0.002 ms
+spec: token 147 pos 186 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.368 ms gap 0.003 ms
+spec: token 149 pos 188 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.911 ms gap 0.002 ms
+spec: token 150 pos 189 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.954 ms gap 0.002 ms
+spec: token 151 pos 190 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.915 ms gap 0.002 ms
+spec: token 154 pos 193 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.347 ms gap 0.003 ms
+spec: token 155 pos 194 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.968 ms gap 0.002 ms
+spec: token 158 pos 197 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.317 ms gap 0.005 ms
+spec: token 161 pos 200 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.418 ms gap 0.003 ms
+spec: token 163 pos 202 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.980 ms gap 0.002 ms
+spec: token 165 pos 204 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.941 ms gap 0.002 ms
+spec: token 168 pos 207 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.346 ms gap 0.003 ms
+spec: token 171 pos 210 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.332 ms gap 0.003 ms
+spec: token 174 pos 213 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.358 ms gap 0.003 ms
+spec: token 177 pos 216 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.381 ms gap 0.003 ms
+spec: token 180 pos 219 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.412 ms gap 0.002 ms
+spec: token 181 pos 220 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.917 ms gap 0.001 ms
+spec: token 184 pos 223 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.306 ms gap 0.003 ms
+spec: token 187 pos 226 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.360 ms gap 0.003 ms
+spec: token 190 pos 229 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.358 ms gap 0.002 ms
+spec: token 193 pos 232 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.388 ms gap 0.002 ms
+spec: token 196 pos 235 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.372 ms gap 0.003 ms
+spec: token 199 pos 238 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.415 ms gap 0.002 ms
+spec: token 201 pos 240 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.950 ms gap 0.002 ms
+spec: token 204 pos 243 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.368 ms gap 0.003 ms
+spec: token 207 pos 246 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.440 ms gap 0.002 ms
+spec: token 210 pos 249 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.458 ms gap 0.002 ms
+spec: token 212 pos 251 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.954 ms gap 0.002 ms
+spec: token 213 pos 252 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.986 ms gap 0.001 ms
+spec: token 215 pos 254 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.944 ms gap 0.002 ms
+spec: token 218 pos 257 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.365 ms gap 0.004 ms
+spec: token 221 pos 260 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.421 ms gap 0.002 ms
+spec: token 222 pos 261 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.942 ms gap 0.002 ms
+spec: token 225 pos 264 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.403 ms gap 0.002 ms
+spec: token 228 pos 267 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.356 ms gap 0.003 ms
+spec: token 231 pos 270 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.368 ms gap 0.002 ms
+spec: token 234 pos 273 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.333 ms gap 0.002 ms
+spec: token 237 pos 276 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.428 ms gap 0.003 ms
+spec: token 239 pos 278 drafted 2 accepted 1 emits 2
+spec: mtp graph step 44.987 ms gap 0.002 ms
+spec: token 241 pos 280 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.966 ms gap 0.002 ms
+spec: token 244 pos 283 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.350 ms gap 0.002 ms
+spec: token 247 pos 286 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.379 ms gap 0.003 ms
+spec: token 250 pos 289 drafted 2 accepted 2 emits 3
+spec: mtp graph step 44.355 ms gap 0.003 ms
+spec: token 253 pos 292 drafted 2 accepted 0 emits 1
+spec: mtp graph step 44.526 ms gap 0.002 ms
+spec: token 254 pos 293 drafted 2 accepted 1 emits 2
+spec: mtp graph step 45.007 ms gap 0.001 ms
+ids: [12646, 25, 65565, 12368, 1622, 271, 12675, 498, 40571, 24783, 579, 3855, 1089, 271, 40, 3769, 488, 3029, 3604, 1575, 13, 353, 4110, 4237, 310, 1042, 488, 1366, 421, 279, 22842, 303, 821, 12772, 682, 978, 680, 364, 279, 3162, 2342, 2756, 11, 3154, 279, 1925, 4847, 8981, 13, 271, 3742, 424, 3102, 310, 599, 424, 49992, 411, 1936, 30, 5044, 1042, 728, 1366, 413, 488, 1144, 866, 4945, 1928, 494, 821, 809, 310, 615, 411, 13145, 13, 271, 12295, 748, 1691, 364, 678, 1438, 0, 271, 14055, 23187, 11, 271, 58, 7525, 3855, 60, 248046, 198, 248044, 248045, 248045, 248045, 248068, 198, 760, 1156, 6587, 728, 310, 3165, 264, 2716, 11, 11321, 2469, 310, 836, 38815, 883, 264, 10548, 22842, 1785, 13, 6558, 728, 1683, 883, 1092, 3520, 264, 1603, 2469, 364, 411, 6331, 25, 271, 16, 13, 2972, 51, 588, 92217, 46804, 694, 2708, 13, 2717, 18608, 466, 24339, 11, 694, 7239, 3213, 310, 19392, 52011, 13, 561, 1156, 5024, 328, 78719, 1, 748, 353, 1220, 2426, 424, 7948, 321, 46193, 13, 198, 17, 13, 2972, 1536, 1928, 310, 2830, 92217, 198, 256, 471, 561, 22842, 682, 978, 10548, 364, 3679, 2756, 198, 256, 471, 91865, 413, 424, 628, 381, 49992, 411, 1936, 198, 256, 471, 3526, 614, 1622, 11, 524, 264, 7244, 198, 18, 13, 2972, 22238, 92217, 198, 256, 471, 16933, 1500, 198, 256, 471, 469, 42187, 198, 256, 471, 35312, 2193, 318, 377, 1060, 10548, 364, 3679, 2756, 11, 12772, 369, 8981, 8, 198, 256, 471, 561, 2466, 318, 4660, 424]
+finish=length prompt=41 (cached 0) completion=256 | prefill 125 ms (327.2 tok/s) | decode 4818 ms (52.93 tok/s)
+spec: verify passes=107 proposed=214 accepted=147 (acceptance 68.7%, 2.37 tokens per pass)
+steps=110 graph replays=109 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/217 argmax=0ms/323 attn_decode=0ms/5570 attn_prefill=0ms/16 embedding=0ms/327

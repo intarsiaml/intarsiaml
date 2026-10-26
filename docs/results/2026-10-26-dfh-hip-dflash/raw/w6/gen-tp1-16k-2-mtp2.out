@@ -1,0 +1,11 @@
+This is a highly technical, dense engineering log documenting the development, debugging, and validation of Tensor Parallelism (TP) support for a specific LLM inference engine (`intarsia`) on AMD GPUs (R9700s).
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**1.1. Rigorous Methodology and "Gate" Definition**
+The document does not just claim "it works"; it defines a strict acceptance criteria (the "gate") before testing.
+*   **Separation of Concerns:** It clearly distinguishes between *correctness* (bitwise identity, KL divergence limits) and *performance*.
+*   **Noise Calibration:** The decision to use a "mean KL" gate rather than per-prompt gates (Section 1) is well-justified. The authors realized that per-prompt noise was unmeasured and that tuning a cap after seeing data would be "tuned" (biased). This shows high statistical maturity.
+*   **Direct Bug Injection:** The use of `IA_TP_TEST_BUG` to inject specific partial-scale errors (0.1%, 0

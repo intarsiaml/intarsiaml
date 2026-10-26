@@ -1,0 +1,13 @@
+Based on the technical documentation provided, here is a step-by-step checklist for implementing and verifying the MTP speculative decoding feature for Qwen3.6-35B-A3B.
+
+### Phase 1: Configuration & Loading
+
+- [ ] **Verify Opt-In Flag**: Ensure the feature is only active when `--spec mtp` is passed.
+- [ ] **Check Recipe Key**: Confirm the recipe key `[mtp]` exists in `recipes/qwen3_5_moe.toml`.
+- [ ] **Validate Checkpoint Config**:
+    - [ ] Confirm `config.json` has `mtp_num_hidden_layers = 1`.
+    - [ ] Confirm `config.json` has `mtp_use_dedicated_embeddings = false` (head shares model embeddings/lm_head).
+- [ ] **Load Head Tensors**:
+    - [ ] Load 19 bf16 tensors from the NVFP4 checkpoint (shard 3).
+    - [ ] Verify `hf_quant_config` lists `mtp*` as ignored (ensuring they remain bf16).
+    - [ ] **Split `fc`**: Split the `mtp.fc` tensor [2048, 
