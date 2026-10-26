@@ -34,6 +34,10 @@ MUTANTS = {
     "default-batch-ignored": ("crates/intarsia-models/src/load.rs",
         "        && !opts.max_batch.is_some_and(|n| n > 1)\n",
         "\n"),
+    # the recipe default ignores a configured prefix store
+    "default-store-ignored": ("crates/intarsia-models/src/load.rs",
+        "    if !mtp_default_allowed(opts, local) || (store_blocks && prefix_store_given(opts)) {",
+        "    if !mtp_default_allowed(opts, local) {"),
     # the one-rank key answers for tensor parallelism too
     "default-world-any": ("crates/intarsia-models/src/load.rs",
         "    if world != 1 || !mtp_default_allowed(opts, local) {",

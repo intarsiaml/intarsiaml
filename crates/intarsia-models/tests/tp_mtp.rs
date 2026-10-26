@@ -332,6 +332,20 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
     assert_eq!(tp_mtp_default(&lone, &with, "hip", 1, true), None, "lone --spec-k, tp 1: off");
     let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
     assert_eq!(tp_mtp_default(&explicit_k, &with, "hip", 2, true), None, "--spec off --spec-k 3: unchanged, off");
+    // a prefix store (explicit caching intent; a drafting request bypasses it) skips the default; an explicit --spec mtp is not this function's
+    let stored = intarsia_models::EngineOptions {
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    assert_eq!(tp_mtp_default(&stored, &with, "hip", 2, true), None, "--prefix-store on: no default at hip tp 2");
+    let off_store = intarsia_models::EngineOptions { spec_auto: true, prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("off").unwrap(), ..Default::default() };
+    assert_eq!(tp_mtp_default(&off_store, &with, "hip", 2, true), Some(2), "--prefix-store off is no store");
+    std::env::set_var("INTARSIA_PREFIX_STORE", "on");
+    let env_store = tp_mtp_default(&auto, &with, "hip", 2, true);
+    std::env::remove_var("INTARSIA_PREFIX_STORE");
+    assert_eq!(env_store, None, "INTARSIA_PREFIX_STORE=on: no default");
+    assert_eq!(tp_mtp_default(&auto, &with, "hip", 2, true), Some(2), "and back on once it is unset");
     // the default through the engine loader in the same test (the env var below is process-wide): runs spec, ids equal off
     loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
@@ -373,6 +387,19 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     assert_eq!(mtp_default(&lone, &with, "hip", 1, true), None, "a lone --spec-k on another backend stays off");
     let zero = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 0\n")).unwrap();
     assert_eq!(mtp_default(&auto, &zero, "cuda", 1, true), None, "k = 0 is unset");
+    let stored = intarsia_models::EngineOptions {
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    assert_eq!(mtp_default(&stored, &with, "cuda", 1, true), None, "--prefix-store on: no default at cuda tp 1");
+    let lone_stored = intarsia_models::EngineOptions { spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..stored.clone() };
+    assert_eq!(mtp_default(&lone_stored, &with, "cuda", 1, true), None, "a lone --spec-k does not bring it back");
+    std::env::set_var("INTARSIA_PREFIX_STORE", "on");
+    let env_store = mtp_default(&auto, &with, "cuda", 1, true);
+    std::env::remove_var("INTARSIA_PREFIX_STORE");
+    assert_eq!(env_store, None, "INTARSIA_PREFIX_STORE=on: no default");
+    assert_eq!(mtp_default(&auto, &with, "cuda", 1, true), Some(2), "and back on once it is unset");
     single_rank_loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
     let off = mtp_default(&auto, &with, "cuda", 1, true);
@@ -381,7 +408,7 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
 }
 
 /// G0 for the shipped recipes: exactly these (recipe, backend) pairs make `--spec mtp` the default, so every other model and backend
-/// (the 8B, Metal and HIP at tp=1, the 35B on HIP and Metal, CPU) runs without --spec as before.
+/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B everywhere, CPU) runs without --spec as before.
 #[test]
 fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
@@ -402,7 +429,7 @@ fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
         }
     }
     got.sort();
-    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_vl hip tp 2"], "the recipes that turn MTP on by default");
+    assert_eq!(got, ["qwen3_5_vl hip tp 2"], "the recipes that turn MTP on by default (qwen3_5_moe cuda tp1: the key exists, unset until the macro prefill works with MTP)");
 }
 
 fn single_rank_loader_default_matches_off() {
@@ -424,6 +451,17 @@ fn single_rank_loader_default_matches_off() {
     }
     assert!(on.engine.telemetry().spec_steps > 0, "the one-rank default actually ran --spec mtp");
     assert_eq!(off.engine.telemetry().spec_steps, 0);
+    // with a prefix store the default is skipped: plain decode, same ids
+    let stored = intarsia_models::EngineOptions {
+        load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
+        recipe: Some(recipe.clone()),
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    let st = intarsia_models::load_engine(&dir, CpuBackend::arc(), &stored).unwrap();
+    assert_eq!(run(&*off.engine, req(PROMPTS[0], 40)), run(&*st.engine, req(PROMPTS[0], 40)));
+    assert_eq!(st.engine.telemetry().spec_steps, 0, "a prefix store: the default is not applied");
     let bare = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model_bare_k");
     std::fs::create_dir_all(&bare).unwrap();
     for f in ["config.json", "tokenizer.json"] {

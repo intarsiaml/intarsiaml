@@ -382,22 +382,31 @@ fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &in
 /// when no `--spec` was given (`spec_auto`), the group is `world > 1` in-process ranks on `backend`, one sequence (MTP does not
 /// batch), the recipe sets `[tuning.<backend>] mtp_default_tp_k = k`, and `INTARSIA_SPEC_DEFAULT` is not `0`.
 pub fn tp_mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
-    if world < 2 || !mtp_default_allowed(opts, local) {
-        return None;
-    }
-    // a lone `--spec-k N` sets only the draft length of the default; the recipe's k is used otherwise
-    recipe.resolve_mtp_default_tp(backend).map(|rk| if opts.spec_k_given { opts.spec.k } else { rk })
+    default_k(opts, recipe, backend, world, local, true)
 }
 
 /// The recipe's single-rank MTP default (lane cmtp; the Qwen3.6-35B-A3B on CUDA at tp = 1): `Some(k)` when no `--spec` was given
 /// (`spec_auto`), the group is one rank on `backend`, one sequence, the recipe sets `[tuning.<backend>] mtp_default_k = k`, and
 /// `INTARSIA_SPEC_DEFAULT` is not `0`.
 pub fn mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
-    if world != 1 || !mtp_default_allowed(opts, local) {
+    default_k(opts, recipe, backend, world, local, true)
+}
+
+/// The k of the recipe default for this group (`mtp_default_tp_k` at `world > 1`, `mtp_default_k` at one rank), or `None`. With
+/// `store_blocks` a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) means `None`: that is explicit caching intent, and
+/// a drafting request bypasses the store. Without it the answer is what the default would be were no store given (the loader's skip note).
+fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool, store_blocks: bool) -> Option<usize> {
+    if !mtp_default_allowed(opts, local) || (store_blocks && prefix_store_given(opts)) {
         return None;
     }
+    let rk = if world >= 2 { recipe.resolve_mtp_default_tp(backend) } else { recipe.resolve_mtp_default(backend) }?;
     // a lone `--spec-k N` sets only the draft length of the default; the recipe's k is used otherwise
-    recipe.resolve_mtp_default(backend).map(|rk| if opts.spec_k_given { opts.spec.k } else { rk })
+    Some(if opts.spec_k_given { opts.spec.k } else { rk })
+}
+
+/// A prefix store is configured: `--prefix-store SPEC` (anything but `off`) or `INTARSIA_PREFIX_STORE`, as the engine setup reads them.
+fn prefix_store_given(opts: &EngineOptions) -> bool {
+    opts.prefix_store.is_some() || intarsia_core::prefix_store::PrefixStoreConfig::from_env().ok().flatten().is_some()
 }
 
 /// What both recipe MTP defaults need besides the group size: no `--spec` or `--mtp` given, in-process ranks, no `--max-batch` above 1
@@ -430,6 +439,19 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
     let local = matches!(group, Group::Local(..));
+    // a prefix store means explicit caching intent, and a drafting request bypasses the store: the default is skipped, with one line
+    let mut skipped_by_store = false;
+    if let Some(b0) = backends.first() {
+        let (world, name) = (backends.len(), b0.name());
+        if default_k(opts, &recipe, name, world, local, true).is_none() && default_k(opts, &recipe, name, world, local, false).is_some() {
+            skipped_by_store = true;
+            eprintln!(
+                "--spec mtp default of recipe {} on {} not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store; \
+                 --spec mtp --prefix-store ... asks for both",
+                recipe.model.family, name
+            );
+        }
+    }
     let opts = match backends.first().and_then(|b0| {
         let world = backends.len();
         tp_mtp_default(opts, &recipe, b0.name(), world, local).or_else(|| mtp_default(opts, &recipe, b0.name(), world, local)).map(|k| (b0, k))
@@ -457,7 +479,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             &defaulted
         }
         None => {
-            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp {
+            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp && !skipped_by_store {
                 eprintln!("warning: --spec-k {} has no effect without --spec here (no recipe speculation default applies); speculation is off", opts.spec.k);
             }
             opts
