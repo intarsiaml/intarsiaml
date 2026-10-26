@@ -48,8 +48,12 @@ What ran which build:
   (raw/mutants-build-28415520.log) and run again in w5 with the same outcome.
 - No MXFP4 op runs on the 8B (bf16) or the 35B (NVFP4): the op is chosen from the checkpoint's detected format
   (`quant/mod.rs::op_for`). The 8B and 35B no-op is therefore one by construction, and checked anyway.
-- CUDA and Metal compile none of this. The only shared Rust changes are the `OpAttrs` / `ShapeInfo` field (default false) and its two
-  setters.
+- CUDA and Metal compile none of the kernel code. The only shared Rust change is the `OpAttrs::mxfp4_w4a16` field (default false)
+  and its two setters (`QTensor::call`, `Model::try_mxfp4_pair`). `OpAttrs` derives only `Clone, Debug`, and no non-test code formats,
+  hashes or serialises it (grep over `crates/`), so `plan show`, admission cache keys and fingerprints cannot depend on it. That is why
+  the c35783e9 `intarsia` binary's HIP `plan show` and ids stand for 28415520. The single-stream 27B path never reaches the `_rows`
+  launchers either: M = 1 runs `matmul_mxfp4_gemv`, prefill runs `matmul_mxfp4_mma_fold`. The CUDA and Metal G0 below ran on the
+  final source.
 
 **Kernel timing, production code (w4, raw/w4/t-timing.log; us per call including the pre-pass; ratio to the M = 1 launch):**
 
@@ -76,8 +80,15 @@ M=2 against main's 1.70x.
 **Served (w5, fleetq #5747, 11:00-11:35; raw/w5/).** localeval speed on the 27B (`intarsia serve --max-batch 16 --max-seq 8192`,
 1k-token prompt, 512 generated tokens, thinking off, 1 stream plus 4 / 8 / 16 streams). Arms were base (main ec9e36b8) and dev
 (28415520) at tp1 (card 0) and tp2 (both cards), a fresh server per arm, run x3 interleaved with round 2 reversed. Every arm was
-checked: all 12 complete, 512 tokens on the 1-stream row, n == streams on every concurrency row, no errors and no warnings
-(`scripts/mxr/le-summary.py`).
+checked (`scripts/mxr/le-summary.py`):
+- all 12 arms complete;
+- the 1-stream row has 512 completion tokens (min = max = 512);
+- every concurrency row has n == streams and no errors;
+- no warnings.
+
+localeval records no per-request token counts for the concurrency rows, and the serve logs do not print them either. There the
+512-token length rests on the harness forcing it (`ignore_eos` + `min_tokens`, "forced_length" true on every arm) plus the n and
+error checks, not on a count.
 
 Aggregate decode tok/s, mean of 3 (the three values in raw/w5/localeval-summary.txt are within 0.4 %):
 

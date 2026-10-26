@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 what=${1:-dev}
 if [ "$what" != base ]; then
-  rsync -a --delete --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude .mxrbin --exclude .mxrlogs --exclude .base ./ tatooine:intarsiaml-mxr-dev/
+  rsync -a --delete --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude .mxrbin --exclude .mxrlogs --exclude .base --exclude .base-metal --exclude .targets ./ tatooine:intarsiaml-mxr-dev/
   echo "synced dev $(git rev-parse --short HEAD) (+ working tree) to tatooine:~/intarsiaml-mxr-dev"
 fi
 if [ "$what" != dev ]; then
