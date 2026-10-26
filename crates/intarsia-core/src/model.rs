@@ -1234,6 +1234,10 @@ impl Model {
             crate::spec::CostParams::for_backend(b.name()).with_recipe(recipe.mtp.as_ref())
         }
         .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
+        // `--spec mtp`: verify attention per row where the multi-row call is not bitwise the decode step (CUDA; the user can opt out)
+        if mtp_head.is_some() {
+            b.prefer_verify_attn_per_row();
+        }
         let mut model = Model {
             backend,
             registry,
