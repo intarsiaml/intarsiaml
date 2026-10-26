@@ -39,6 +39,12 @@ pair() { # pair <gpus> <tp tag> <prompt name> [tp args]
 }
 names() { local k i; for k in short 4k 16k; do for i in 0 1 2 3 4 5; do echo "$k-$i"; done; done; }
 mapfile -t ALL < <(names)
+# IDNAMES (default: all 18): a subset of prompt names, e.g. "4k-1" for a cost-only run (window 8: traced verify cost per pass)
+[[ -n ${IDNAMES:-} ]] && read -r -a ALL <<< "$IDNAMES"
+# VERIFY8=1: also the captured 8-row verify probe at tp=1 (verify_rows_real, card 0, 1024-token context, the window 3 measurement)
+if [[ ${VERIFY8:-0} == 1 ]]; then
+  E="INTARSIA_VERIFY_DIR=$M27 INTARSIA_VERIFY_ROWS=8 INTARSIA_VERIFY_LENS=1024" mtest "$D" verify8-tp1-captured 0 900 --test verify_rows_real -- --nocapture
+fi
 if [[ " $TPS " == *" tp1 "* ]]; then
   ( for i in "${!ALL[@]}"; do (( i % 2 == 0 )) && pair 0 tp1 "${ALL[$i]}"; done ) &
   ( for i in "${!ALL[@]}"; do (( i % 2 == 1 )) && pair 1 tp1 "${ALL[$i]}"; done ) &

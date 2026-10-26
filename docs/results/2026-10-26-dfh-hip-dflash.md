@@ -375,3 +375,32 @@ traffic (0.84 at position 0, `radiance:draft_position_acceptance_ratio`; radianc
 which chains to about 0.84, 0.67, 0.54, 0.42, 0.32, 0.23, 0.16, i.e. about 4.2 tokens per pass, on other prompts, sampled at 0.7).
 No sign of a defect in the draft path at position 1. The gap is deeper in the block. The radiance run on the same prompts (section 14)
 tells whether this is the target or the drafter.
+
+## 13. Window 7: `--spec mtp` at tp=2 on HIP (exact, run-to-run identical, faster in every category)
+
+Window 7 (#5750, 11:37:09-12:04:50 radiance down; `raw/w7/`), tree `baaade4b9` (the loader gate fix included), `scripts/dfh/cat-window.sh`
+`TP=2 PRE=ids IDARMS=mtp2 TPS=tp2 SOAK=40` (dry-run first, #5749).
+
+- **ids**: `--spec mtp --spec-k 2` vs `--spec off` at tp=2, the 18 prompts of section 12, 256 greedy ids: **18 / 18 identical**
+  (`raw/w7/ids/`).
+- **Acceptance at tp=2 equals tp=1's** (`raw/w7/ids/acceptance.txt`), so the peers' graph-replayed steps hand the head the right
+  hidden rows: P(first draft accepted) 0.79 / 0.80 / 0.84, tokens per pass 2.38 / 2.38 / 2.44 (short / ~3k / ~11k; tp=1: 0.77-0.85,
+  2.34-2.49). 256-id generate runs: off 53.2 / 52.6 / 50.8 tok/s, mtp2 76.0 / 74.6 / 72.5 (1.43x / 1.42x / 1.43x); a pass costs
+  31-34 ms (draft about 5 ms, verify + rollback about 27 ms) against a 19 ms plain step.
+- **Soak** (`raw/w7/soak.txt`): 40 greedy chat requests to the mtp2 server (two prompts alternating, 256 forced tokens): one answer per
+  prompt (sha256 `84ab57f73a70d547`, `cf7458e2cfd7a032`), the same as the off server's and the dfl7 server's.
+- **Speed, one round** (early signal only; the bar is the interleaved x3 run of window 8), localeval `--judge none`, 512 forced tokens,
+  21 runs, 0 problems (`raw/w7/cat-table.txt`):
+
+| category | off | `--spec dflash` k7 | `--spec mtp` k2 |
+|---|---|---|---|
+| ho-chat | 53.3 | 51.7, 0.97x, 3.22 t/p | 74.5, 1.40x, 2.32 t/p |
+| ho-code | 53.3 | 85.7, 1.61x, 5.32 t/p | 89.4, 1.68x, 2.78 t/p |
+| ho-prose | 53.3 | 40.2, **0.75x**, 2.50 t/p | 66.1, 1.24x, 2.07 t/p |
+| ho-recall | 53.2 | 57.7, 1.08x, 3.60 t/p | 77.7, 1.46x, 2.43 t/p |
+| rcp-code | 53.3 | 83.7, 1.57x, 5.20 t/p | 87.0, 1.63x, 2.71 t/p |
+| rcp-prose | 53.3 | 40.8, **0.77x**, 2.54 t/p | 67.3, 1.26x, 2.10 t/p |
+| rcp-recall | 53.3 | 62.6, 1.18x, 3.89 t/p | 78.7, 1.48x, 2.46 t/p |
+
+At tp=2 the DFlash2 draft (whole, on rank 0) costs about 24 ms, 1.3 plain steps, and its 8-row verify plus rollback about 43.6 ms
+(2.3x the 19.1 ms step; tp=1 63.1 ms, 2.05x), so DFlash2 at tp=2 wins only on code. It stays opt-in. MTP k2 is the tp=2 speculator.

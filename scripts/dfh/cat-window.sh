@@ -34,7 +34,7 @@ if [[ ${DRY:-0} == 1 ]]; then
       echo "DRY round $r arm $arm: HIP_VISIBLE_DEVICES=$GPUS serve --backend hip --model $M27 $spec $TPA --max-batch 1 --mem-budget 29 --max-seq 8192, files: $(ls "$HERE"/cats/*.jsonl | xargs -n1 basename | tr '\n' ' ')"
     done
   done
-  echo "DRY PRE=${PRE:-} IDARMS=${IDARMS:-} TPS=${TPS:-} SOAK=${SOAK:-0} SOAK_ARMS=${SOAK_ARMS:-mtp2} SOAK_REF=${SOAK_REF:-2} CAP=$CAP GEN=$GEN"
+  echo "DRY PRE=${PRE:-} IDARMS=${IDARMS:-} TPS=${TPS:-} IDNAMES=${IDNAMES:-} VERIFY8=${VERIFY8:-0} SOAK=${SOAK:-0} SOAK_ARMS=${SOAK_ARMS:-mtp2} SOAK_REF=${SOAK_REF:-2} CAP=$CAP GEN=$GEN"
   exit 0
 fi
 FIFO=$(mktemp -u "$REPO/target/dfhguard.XXXXXX"); mkfifo "$FIFO"
@@ -53,7 +53,7 @@ trap cleanup EXIT
 # output fetched into raw/<W>/ids/
 if [[ ${PRE:-} == ids ]]; then
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
-  $SSH "rm -rf ~/dfh/out/$W-ids; mkdir -p ~/dfh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' timeout ${PRE_CAP:-1200} bash ~/dfh/stages-ids.sh ~/dfh/out/$W-ids" \
+  $SSH "rm -rf ~/dfh/out/$W-ids; mkdir -p ~/dfh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/dfh/stages-ids.sh ~/dfh/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
   say "pre: ids exit $?"
   mkdir -p "$OUT/ids"; scp -q "tatooine:dfh/out/$W-ids/*" "$OUT/ids/" 2>/dev/null
