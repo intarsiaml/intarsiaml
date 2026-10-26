@@ -12,9 +12,9 @@ if [[ $STEP == build ]]; then
   exit 0
 fi
 OUTN=$1; BIN=$2; FILTER=$3; shift 3
-ENVS=(); EXTRA=()
-for a in "$@"; do if [[ $a == *=* && $a != --* ]]; then ENVS+=("$a"); else EXTRA+=("$a"); fi; done
+ENVS=(); EXTRA=(); INCL="--include-ignored"
+for a in "$@"; do if [[ $a == --exclude-ignored ]]; then INCL=""; elif [[ $a == *=* && $a != --* ]]; then ENVS+=("$a"); else EXTRA+=("$a"); fi; done
 RAW=/opt/code/intarsiaml/.worktrees/sk/docs/results/2026-10-25-sk-spark-prefill/raw; mkdir -p "$RAW"
 ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; cd $P && B=\$(ls -t target/test/release/deps/$BIN-* | grep -v '\\.d\$' | head -1); echo \"binary \$B\"
-  env INTARSIA_QWEN36_DIR=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 INTARSIA_REQUIRE_GPU=1 ${ENVS[*]:-X=1} timeout 3000 \$B $FILTER --include-ignored --nocapture --test-threads=1 ${EXTRA[*]:-} 2>&1" > "$RAW/$OUTN.log"
+  env INTARSIA_QWEN36_DIR=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 INTARSIA_REQUIRE_GPU=1 ${ENVS[*]:-X=1} timeout 3000 \$B $FILTER $INCL --nocapture --test-threads=1 ${EXTRA[*]:-} 2>&1" > "$RAW/$OUTN.log"
 grep -aE 'test result|MACRO |panicked|FAILED|passed|^test ' "$RAW/$OUTN.log" | tail -25

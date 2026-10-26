@@ -33,6 +33,7 @@ run_arm() { # run_arm <round> <spec>
   local up=0 i
   for i in $(seq 1 150); do curl -sf "http://$HN:$PORT/health" >/dev/null && { up=1; break; }; sleep 2; done
   if [[ $up != 1 ]]; then echo "server $name did not come up"; rsh "tail -5 ~/intarsiaml-sk-$tree/out/sk-serve-$name-r$r.log"; stop_server; return; fi
+  echo "$name r$r: MemAvailable $(rsh "awk '/MemAvailable/ {print int(\$2/1024)}' /proc/meminfo") MB with the server up" | tee -a $OUT/mem.txt
   rsh "grep -aE 'prefill chunk|fp8|plan' ~/intarsiaml-sk-$tree/out/sk-serve-$name-r$r.log | head -4" | cut -c1-200
   le "sk-$name-r$r" "http://$HN:$PORT/v1" intarsia-35b "intarsia serve --backend cuda --max-seq 20480 --mem-budget 45 tree=$tree env='$envs' $sargs"
   stop_server

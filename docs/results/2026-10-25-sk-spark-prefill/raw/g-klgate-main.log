@@ -1,0 +1,42 @@
+binary target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f
+
+running 1 test
+test real_35b_busy_chunk_prefill_kl_gate ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 58471309312, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 55547743149, kv_cap_tokens: 16456, kv_total_bytes: 337018880, notes: [] }
+recurrent bytes per state 65863680
+batch plan: 16456 KV tokens per sequence, 674037760 KV bytes in all, 20480 bytes per token; notes ["62 MiB of the KV budget reserved for the recurrent state of 2 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+KLGATE corpus: 15 docs files, 113930 tokens
+KLGATE len  1536 chunk 1024 vs solo 2048: decode rows 64 mean KL 2.693e-3 (21-way 2.013e-3) max 2.215e-2 top-1 flips 1/64 | prefill-last row KL 1.931e-2 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [2.1e-3 5.1e-3 6.2e-4 4.4e-3 6.3e-4 1.5e-6 1.2e-3 2.6e-5] rows 9-64 mean 2.828e-3
+KLGATE len  1536 chunk  256 vs solo 2048: decode rows 64 mean KL 2.644e-3 (21-way 2.037e-3) max 1.376e-2 top-1 flips 0/64 | prefill-last row KL 1.097e-2 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [5.3e-3 1.4e-2 1.3e-4 5.4e-3 2.9e-4 5.3e-7 1.3e-3 2.1e-5] rows 9-64 mean 2.554e-3
+KLGATE len  2560 chunk 1024 vs solo 2048: decode rows 64 mean KL 1.375e-2 (21-way 1.058e-2) max 7.991e-2 top-1 flips 3/64 | prefill-last row KL 4.061e-3 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [5.8e-3 3.6e-5 8.0e-2 3.3e-2 1.7e-2 3.4e-4 5.3e-4 4.3e-4] rows 9-64 mean 1.328e-2
+KLGATE len  2560 chunk  256 vs solo 2048: decode rows 64 mean KL 1.607e-2 (21-way 1.214e-2) max 1.426e-1 top-1 flips 4/64 | prefill-last row KL 1.423e-2 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [5.4e-3 5.1e-5 1.4e-1 2.8e-2 2.8e-3 2.2e-4 1.0e-3 3.7e-4] rows 9-64 mean 1.515e-2
+KLGATE len  4096 chunk 1024 vs solo 2048: decode rows 64 mean KL 9.024e-3 (21-way 6.198e-3) max 3.662e-2 top-1 flips 7/64 | prefill-last row KL 6.107e-3 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [1.9e-2 2.1e-2 2.1e-2 1.2e-2 5.0e-3 3.2e-3 1.6e-2 2.4e-3] rows 9-64 mean 8.528e-3
+KLGATE len  4096 chunk  256 vs solo 2048: decode rows 64 mean KL 1.345e-2 (21-way 9.686e-3) max 1.134e-1 top-1 flips 8/64 | prefill-last row KL 1.044e-2 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [8.6e-3 1.2e-2 2.0e-2 1.6e-2 5.1e-3 2.5e-3 1.8e-2 5.2e-3] rows 9-64 mean 1.382e-2
+KLGATE len  8192 chunk 1024 vs solo 2048: decode rows 64 mean KL 7.346e-3 (21-way 6.291e-3) max 4.187e-2 top-1 flips 1/64 | prefill-last row KL 2.157e-2 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [5.7e-3 4.5e-3 1.3e-2 2.3e-3 3.5e-3 2.6e-3 1.3e-2 3.4e-5] rows 9-64 mean 7.610e-3
+KLGATE len  8192 chunk  256 vs solo 2048: decode rows 64 mean KL 8.462e-3 (21-way 7.226e-3) max 5.030e-2 top-1 flips 1/64 | prefill-last row KL 8.781e-3 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [2.8e-3 3.9e-3 5.1e-3 5.2e-3 2.5e-3 4.0e-3 1.4e-2 4.3e-5] rows 9-64 mean 9.003e-3
+KLGATE len 16384 chunk 1024 vs solo 2048: decode rows 64 mean KL 1.983e-2 (21-way 1.693e-2) max 7.778e-1 top-1 flips 1/64 | prefill-last row KL 1.347e-5 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [7.5e-3 1.1e-4 1.5e-4 1.1e-3 7.7e-4 5.2e-5 3.8e-3 5.0e-4] rows 9-64 mean 2.241e-2
+KLGATE len 16384 chunk  256 vs solo 2048: decode rows 64 mean KL 1.076e-2 (21-way 8.591e-3) max 2.791e-1 top-1 flips 0/64 | prefill-last row KL 1.666e-4 flip false | control (hand 2048 vs forward) max KL 0.0e0
+KLGATE   rows 1-8 KL [2.5e-4 7.2e-4 3.8e-4 1.1e-3 9.1e-4 2.2e-4 3.8e-3 6.2e-4] rows 9-64 mean 1.216e-2
+KLGATE SUMMARY chunk 1024 vs 2048: 5 prompts, 320 decode rows, mean KL 1.053e-2 (21-way 8.403e-3), worst prompt mean 1.983e-2, top-1 flips 13/320 | floor 3.161e-3 | control max KL 0.0e0
+KLGATE full-vocab prompts above the floor: ["len 2560: mean full-vocab KL 1.375e-2", "len 4096: mean full-vocab KL 9.024e-3", "len 8192: mean full-vocab KL 7.346e-3", "len 16384: mean full-vocab KL 1.983e-2"]
+
+thread 'real_35b_busy_chunk_prefill_kl_gate' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:592:5:
+above the ref-noise floor 3.161e-3: ["len 2560: mean 21-way KL 1.058e-2", "len 4096: mean 21-way KL 6.198e-3", "len 8192: mean 21-way KL 6.291e-3", "len 16384: mean 21-way KL 1.693e-2"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_35b_busy_chunk_prefill_kl_gate
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 84.78s
+
