@@ -348,6 +348,10 @@ pub struct BackendTuning {
     /// drafts per pass ([`Recipe::resolve_mtp_default_tp`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend
     /// only, set only where measured (the Qwen3.8-27B on HIP, user decision 2026-10-26 11:07).
     pub mtp_default_tp_k: Option<usize>,
+    /// With one rank (no tensor parallelism, tp = 1) on this backend and no `--spec` given: run `--spec mtp` with this many drafts per
+    /// pass ([`Recipe::resolve_mtp_default`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend only, set only where
+    /// measured (the Qwen3.6-35B-A3B on CUDA, lane cmtp).
+    pub mtp_default_k: Option<usize>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -414,6 +418,13 @@ impl Recipe {
     pub fn resolve_mtp_default_tp(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_tp_k).filter(|&k| k > 0)
+    }
+
+    /// The recipe's single-rank (tp = 1) MTP default for `backend` (`[tuning.<backend>] mtp_default_k`): `Some(k)` when the recipe has an
+    /// `[mtp]` head and sets it for this backend.
+    pub fn resolve_mtp_default(&self, backend: &str) -> Option<usize> {
+        self.mtp.as_ref()?;
+        self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k).filter(|&k| k > 0)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its

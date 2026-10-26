@@ -75,6 +75,9 @@ prefill_chunk = 2048
 # (docs/results/2026-10-25-sk-spark-prefill.md). Single-sequence engine (`serve` without `--max-batch`, `generate`) and, since
 # docs/results/2026-10-25-sk2-serve-macro.md, `serve --max-batch` for a prompt that prefills alone with nothing decoding.
 prefill_macro = 8192
+# `--spec mtp --spec-k 2` is the default at tp=1 on CUDA when no `--spec` is given (`--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out;
+# `--max-batch` above 1 and checkpoints without the MTP head keep plain decode). Lane cmtp, docs/results/2026-10-26-cmtp-cuda-mtp-default.md.
+mtp_default_k = 2
 
 # 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
 # long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert

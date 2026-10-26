@@ -102,7 +102,8 @@ pub struct ModelArgs {
     /// kernels (HIP also runs the verify attention one decode call per row, and replays draft + verify as one graph unless
     /// `--no-graphs` or `INTARSIA_SPEC_GRAPH=0`); elsewhere self-consistent greedy over the verify rows. Greedy requests only
     /// (sampled requests fall back to plain decode). Unset: `off`, except where the recipe makes MTP the default for this
-    /// backend under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`: the Qwen3.8-27B on HIP at `--tp 2`); `--spec off`
+    /// backend (`[tuning.<backend>] mtp_default_tp_k` under tensor parallelism: the Qwen3.8-27B on HIP at `--tp 2`; `mtp_default_k`
+    /// on one rank: the Qwen3.6-35B-A3B on CUDA); `--spec off`
     /// or `INTARSIA_SPEC_DEFAULT=0` opts out.
     #[arg(long)]
     pub spec: Option<String>,

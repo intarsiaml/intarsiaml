@@ -68,8 +68,8 @@ pub struct EngineOptions {
     /// The server's `--spec-off-at` (batched engine only; `None`: the scheduler default).
     pub spec_off_at: Option<usize>,
     /// No `--spec` was given (the CLI): the loader may switch `--spec mtp` on where the recipe makes it the default for this backend
-    /// under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`, in-process ranks, one sequence; `INTARSIA_SPEC_DEFAULT=0`
-    /// turns the default off). `false` (the library default): `spec` is taken as it is.
+    /// (`[tuning.<backend>] mtp_default_tp_k` under tensor parallelism, `mtp_default_k` on one rank; in-process ranks, one sequence;
+    /// `INTARSIA_SPEC_DEFAULT=0` turns the default off). `false` (the library default): `spec` is taken as it is.
     pub spec_auto: bool,
     /// The server's `--busy-chunk` (batched engine only; `None`: the scheduler default, 256).
     pub busy_chunk: Option<usize>,
@@ -368,11 +368,11 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
 
-/// Whether the checkpoint holds a dense MTP head the tensor-parallel default can load: the recipe's `[mtp]` prefix has its `fc`
-/// weight and the model's FFN is not MoE (an MoE head's experts are not sharded under tp).
-fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &intarsia_core::recipe::ModelDims) -> bool {
+/// Whether the checkpoint holds an MTP head the recipe default can load: the recipe's `[mtp]` prefix has its `fc` weight and, at
+/// `world > 1`, the model's FFN is not MoE (an MoE head's experts are not sharded under tp).
+fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &intarsia_core::recipe::ModelDims, world: usize) -> bool {
     let Some(m) = recipe.mtp.as_ref() else { return false };
-    dims.moe.is_none()
+    (world == 1 || dims.moe.is_none())
         && SafeTensors::open_dir(dir).is_ok_and(|st| intarsia_core::weights::WeightSource::info(&st, &format!("{}.fc.weight", m.prefix)).is_some())
 }
 
@@ -380,17 +380,31 @@ fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &in
 /// when no `--spec` was given (`spec_auto`), the group is `world > 1` in-process ranks on `backend`, one sequence (MTP does not
 /// batch), the recipe sets `[tuning.<backend>] mtp_default_tp_k = k`, and `INTARSIA_SPEC_DEFAULT` is not `0`.
 pub fn tp_mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
-    if !opts.spec_auto
-        || opts.spec.mode != intarsia_core::spec::SpecMode::Off
-        || opts.load.mtp
-        || world < 2
-        || !local
-        || opts.max_batch.is_some_and(|n| n > 1)
-        || std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
-    {
+    if world < 2 || !mtp_default_allowed(opts, local) {
         return None;
     }
     recipe.resolve_mtp_default_tp(backend)
+}
+
+/// The recipe's single-rank MTP default (lane cmtp; the Qwen3.6-35B-A3B on CUDA at tp = 1): `Some(k)` when no `--spec` was given
+/// (`spec_auto`), the group is one rank on `backend`, one sequence, the recipe sets `[tuning.<backend>] mtp_default_k = k`, and
+/// `INTARSIA_SPEC_DEFAULT` is not `0`.
+pub fn mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
+    if world != 1 || !mtp_default_allowed(opts, local) {
+        return None;
+    }
+    recipe.resolve_mtp_default(backend)
+}
+
+/// What both recipe MTP defaults need besides the group size: no `--spec` or `--mtp` given, in-process ranks, no `--max-batch` above 1
+/// (MTP does not batch), and `INTARSIA_SPEC_DEFAULT` not `0`.
+fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
+    opts.spec_auto
+        && opts.spec.mode == intarsia_core::spec::SpecMode::Off
+        && !opts.load.mtp
+        && local
+        && !opts.max_batch.is_some_and(|n| n > 1)
+        && !std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
@@ -412,20 +426,24 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
     let local = matches!(group, Group::Local(..));
-    let opts = match backends.first().and_then(|b0| tp_mtp_default(opts, &recipe, b0.name(), backends.len(), local).map(|k| (b0, k))) {
-        // a checkpoint on this recipe without the head's weights, or with an MoE head (not sharded under tp): plain decode, as before
-        Some((_, k)) if !mtp_head_usable(dir, &recipe, &dims) => {
-            eprintln!("--spec mtp --spec-k {k} (the recipe's tensor-parallel default) not applied: no dense MTP head in this checkpoint; --spec off");
+    let opts = match backends.first().and_then(|b0| {
+        let world = backends.len();
+        tp_mtp_default(opts, &recipe, b0.name(), world, local).or_else(|| mtp_default(opts, &recipe, b0.name(), world, local)).map(|k| (b0, k))
+    }) {
+        // a checkpoint on this recipe without the head's weights, or (under tp) with an MoE head (not sharded): plain decode, as before
+        Some((_, k)) if !mtp_head_usable(dir, &recipe, &dims, backends.len()) => {
+            eprintln!("--spec mtp --spec-k {k} (the recipe's default) not applied: no usable MTP head in this checkpoint; --spec off");
             opts
         }
         Some((b0, k)) => {
             eprintln!(
-                "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
+                "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] {}; --spec off or \
                  INTARSIA_SPEC_DEFAULT=0 turns it off)",
                 recipe.model.family,
                 b0.name(),
                 backends.len(),
-                b0.name()
+                b0.name(),
+                if backends.len() > 1 { "mtp_default_tp_k" } else { "mtp_default_k" }
             );
             let mut o = opts.clone();
             o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Mtp, k };
