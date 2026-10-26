@@ -1,0 +1,201 @@
+{
+ "run_id": "20261026-111551-adhoc-mxr-base-tp2-r2",
+ "kind": "speed",
+ "label": "mxr-base-tp2-r2",
+ "started_at": "2026-10-26T11:15:51-04:00",
+ "finished_at": "2026-10-26T11:17:21-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://tatooine:8294/v1",
+  "model": "intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia serve --backend hip --tp 2 --max-seq 8192 --max-batch 16 (tree base: lane-mxr/hip-mxfp4-rows fc0291746 or origin/main)"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8294/v1 --model intarsia --thinking off --sizes 1024 --gen 512 --reps 1 --concurrency 4,8,16 --label mxr-base-tp2-r2 --no-unim --recipe intarsia serve --backend hip --tp 2 --max-seq 8192 --max-batch 16 (tree base: lane-mxr/hip-mxfp4-rows fc0291746 or origin/main)",
+  "git": "d12b61c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia"
+   ],
+   "root": "amd/Qwen3.8-27B-Quark-AWQ-MXFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 512,
+  "reps": 1,
+  "tokens_per_filler_sentence": 22.08,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 994,
+    "completion_tokens": {
+     "median": 512,
+     "min": 512,
+     "max": 512,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.448,
+     "min": 0.448,
+     "max": 0.448,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 2216.915,
+     "min": 2216.915,
+     "max": 2216.915,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 53.295,
+     "min": 53.295,
+     "max": 53.295,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "peak_decode_tok_s": {
+     "median": 58.6,
+     "min": 58.6,
+     "max": 58.6,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 1,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 130.3,
+    "per_stream_decode_tok_s": {
+     "median": 35.631,
+     "min": 34.093,
+     "max": 37.471,
+     "n": 4,
+     "spread_pct": 9.5
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 40.6,
+     "min": 37.8,
+     "max": 54.8,
+     "n": 4,
+     "spread_pct": 41.9
+    },
+    "ttft_s": {
+     "median": 1.241,
+     "min": 0.452,
+     "max": 2.071,
+     "n": 4,
+     "spread_pct": 130.4
+    },
+    "errors": []
+   },
+   {
+    "streams": 8,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 180.8,
+    "per_stream_decode_tok_s": {
+     "median": 25.572,
+     "min": 23.845,
+     "max": 27.912,
+     "n": 8,
+     "spread_pct": 15.9
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 30.45,
+     "min": 27.8,
+     "max": 40.1,
+     "n": 8,
+     "spread_pct": 40.4
+    },
+    "ttft_s": {
+     "median": 2.318,
+     "min": 0.454,
+     "max": 4.328,
+     "n": 8,
+     "spread_pct": 167.2
+    },
+    "errors": []
+   },
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 213.4,
+    "per_stream_decode_tok_s": {
+     "median": 15.504,
+     "min": 14.391,
+     "max": 17.634,
+     "n": 16,
+     "spread_pct": 20.9
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 24.1,
+     "min": 21.3,
+     "max": 77.2,
+     "n": 16,
+     "spread_pct": 232.0
+    },
+    "ttft_s": {
+     "median": 4.581,
+     "min": 0.507,
+     "max": 9.392,
+     "n": 16,
+     "spread_pct": 194.0
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia",
+  "activity_checks": {
+   "idle": 5,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

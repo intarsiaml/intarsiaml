@@ -36,14 +36,16 @@ M = 1 is unchanged, both kernel and bits. Details:
 | G0 HIP: 8B and 35B `plan show` json + txt and 256 greedy ids at short / 4k, dev vs main | byte-identical |
 | 27B 256 greedy ids at short / 4k / 16k, tp1; `plan show` json + txt | identical; byte-identical |
 | 27B 256 greedy ids at short / 4k, tp2 | identical |
-| `kernels test --quick`, admission (`every_hip_kernel_matches_the_reference`) | see w5 (w4 logged no failure list) |
+| admission (`every_hip_kernel_matches_the_reference`), w5, dev on card 0 and main on card 1 | fails on both with the same set: 10 WMMA kernels with NO CASES (main's known debt), 0 kernels failing; `matmul_mxfp4_gemv_rows` 42 cases and `matmul_mxfp4_pair_gemv_rows` 82 cases (M = 1..16) ADMITTED |
+| `kernels test --quick` (dev), w5 | 77 kernels, 365 cases, 0 fail; the two rows kernels ADMITTED (8 and 12 cases). No kernel is newly registered: the int8 path sits behind the existing names, so quick and admission debt does not grow |
+| mutants rebuilt from 28415520 (final routing), w5 | clean passes; m1 (set B W4A4, M=6 row 5), m2 and m3 (set A, M=2), m4 (set A W4A16, M=5) all FAIL (raw/w5/mutants.txt) |
 
 What ran which build:
 - The rows_exact and rows_registry binaries were rebuilt inside w4 (10:25) from the final source, routing included.
 - The `intarsia` binary used for the no-op runs and the tp2 ids is the 09:48 build of c35783e9. It is the same except for the W4A16
   routing, which no single-stream W4A4 path takes.
-- The mutants run in w4 were built from c35783e9 (hashes in raw/mutants-build-c35783e9.log). They are rebuilt from 28415520 and run
-  again in w5.
+- The mutants run in w4 were built from c35783e9 (hashes in raw/mutants-build-c35783e9.log). They were rebuilt from 28415520
+  (raw/mutants-build-28415520.log) and run again in w5 with the same outcome.
 - No MXFP4 op runs on the 8B (bf16) or the 35B (NVFP4): the op is chosen from the checkpoint's detected format
   (`quant/mod.rs::op_for`). The 8B and 35B no-op is therefore one by construction, and checked anyway.
 - CUDA and Metal compile none of this. The only shared Rust changes are the `OpAttrs` / `ShapeInfo` field (default false) and its two
@@ -71,7 +73,27 @@ What ran which build:
 all-zero activation row 3 stays on the int8 path: from M = 4 the timings show none of the flagged chain's 1.5-2x cost. The GDN b / a projections (48x5120, 24x5120 per rank) are launch-bound: 1.28x at
 M=2 against main's 1.70x.
 
-**Served (w5, localeval): pending.**
+**Served (w5, fleetq #5747, 11:00-11:35; raw/w5/).** localeval speed on the 27B (`intarsia serve --max-batch 16 --max-seq 8192`,
+1k-token prompt, 512 generated tokens, thinking off, 1 stream plus 4 / 8 / 16 streams). Arms were base (main ec9e36b8) and dev
+(28415520) at tp1 (card 0) and tp2 (both cards), a fresh server per arm, run x3 interleaved with round 2 reversed. Every arm was
+checked: all 12 complete, 512 tokens on the 1-stream row, n == streams on every concurrency row, no errors and no warnings
+(`scripts/mxr/le-summary.py`).
+
+Aggregate decode tok/s, mean of 3 (the three values in raw/w5/localeval-summary.txt are within 0.4 %):
+
+| tp | arm | 1 stream | 4 streams | 8 streams | 16 streams |
+|---|---|---|---|---|---|
+| 1 | main | 32.9 | 84.8 | 114.1 | 133.0 |
+| 1 | dev | 32.9 | 98.7 | 155.7 | 201.8 |
+| | dev / main | -0.1 % | **+16.4 %** | **+36.4 %** | **+51.7 %** |
+| 2 | main | 53.3 | 130.6 | 181.0 | 213.7 |
+| 2 | dev | 53.3 | 154.4 | 241.8 | 310.2 |
+| | dev / main | +0.1 % | **+18.2 %** | **+33.5 %** | **+45.2 %** |
+
+Single-stream speed is unchanged, as it must be: M = 1 runs the same kernel. Expressed as an effective step against the 1-stream step
+(streams / aggregate vs 1 / single), 8 streams at tp1 cost 2.31x a 1-stream step on main and 1.69x on dev. That includes localeval's
+staggered prefills and is not a pure 8-row step. The captured batched-step profile (30.3 vs 59.5 ms on main) was not re-run.
+The dev ratio is in line with the ~1.4-1.5x estimate above plus the prefill interleaving.
 
 
 ## Phase 0 result: go, with design (a). The M=1 kernel and its bits stay unchanged.
