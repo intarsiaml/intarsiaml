@@ -1,0 +1,83 @@
+[localeval] calibrated: 22.1 tokens/sentence, 55 base tokens, ctx=16223
+[localeval]   1024 tok rep 1/40: prompt=993 ttft=0.16s prefill=6403 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 2/40: prompt=991 ttft=0.17s prefill=5904 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 3/40: prompt=991 ttft=0.15s prefill=6570 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 4/40: prompt=988 ttft=0.15s prefill=6684 tok/s decode=4.9 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 5/40: prompt=992 ttft=0.15s prefill=6678 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 6/40: prompt=995 ttft=0.13s prefill=7420 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 7/40: prompt=993 ttft=0.15s prefill=6521 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 8/40: prompt=993 ttft=0.15s prefill=6427 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 9/40: prompt=990 ttft=0.16s prefill=6335 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 10/40: prompt=986 ttft=0.16s prefill=6058 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 11/40: prompt=991 ttft=0.15s prefill=6432 tok/s decode=5.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 12/40: prompt=992 ttft=0.16s prefill=6334 tok/s decode=164.5 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 13/40: prompt=992 ttft=0.16s prefill=6320 tok/s decode=148.6 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 14/40: prompt=990 ttft=0.16s prefill=6379 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 15/40: prompt=992 ttft=0.15s prefill=6445 tok/s decode=164.5 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 16/40: prompt=994 ttft=0.13s prefill=7492 tok/s decode=169.9 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 17/40: prompt=993 ttft=0.16s prefill=6389 tok/s decode=166.4 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 18/40: prompt=990 ttft=0.15s prefill=6414 tok/s decode=165.4 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 19/40: prompt=991 ttft=0.15s prefill=6455 tok/s decode=165.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 20/40: prompt=993 ttft=0.15s prefill=6423 tok/s decode=162.5 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 21/40: prompt=992 ttft=0.15s prefill=6455 tok/s decode=159.3 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 22/40: prompt=990 ttft=0.15s prefill=6392 tok/s decode=169.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 23/40: prompt=993 ttft=0.16s prefill=6313 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 24/40: prompt=991 ttft=0.17s prefill=5986 tok/s decode=165.6 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 25/40: prompt=989 ttft=0.16s prefill=6355 tok/s decode=165.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 26/40: prompt=990 ttft=0.16s prefill=6319 tok/s decode=164.9 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 27/40: prompt=991 ttft=0.16s prefill=6376 tok/s decode=149.5 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 28/40: prompt=987 ttft=0.16s prefill=6275 tok/s decode=156.8 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 29/40: prompt=994 ttft=0.13s prefill=7460 tok/s decode=164.9 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 30/40: prompt=991 ttft=0.15s prefill=6407 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 31/40: prompt=990 ttft=0.16s prefill=6317 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 32/40: prompt=993 ttft=0.15s prefill=6452 tok/s decode=168.4 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 33/40: prompt=993 ttft=0.16s prefill=6284 tok/s decode=164.6 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 34/40: prompt=990 ttft=0.15s prefill=6455 tok/s decode=165.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 35/40: prompt=991 ttft=0.15s prefill=6400 tok/s decode=164.0 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 36/40: prompt=993 ttft=0.15s prefill=6457 tok/s decode=165.6 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 37/40: prompt=992 ttft=0.15s prefill=6453 tok/s decode=157.8 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 38/40: prompt=992 ttft=0.16s prefill=6340 tok/s decode=172.6 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 39/40: prompt=993 ttft=0.16s prefill=6344 tok/s decode=164.8 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 40/40: prompt=991 ttft=0.17s prefill=5988 tok/s decode=160.7 tok/s peak=0.0 tok/s out=8
+# localeval: adhoc — 2026-10-26T00:37
+
+- model: `intarsia` on ? (?), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: l7mx2-5-main-short
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8296/v1 --model intarsia --thinking off --ignore-busy --no-unim --sizes 1024 --gen 8 --reps 40 --label l7mx2-5-main-short --recipe mix S l7mx2-5-main`
+- result file: `results/20261026-003744-adhoc-l7mx2-5-main-short/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+mix S l7mx2-5-main
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 16223, 40 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.15 | 6401 (5904–7492) * | - | 164.2 (4.9–172.6) | - | - | - | 8 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 102.1% at 1024 tokens: noisy; rerun before comparing
+- server was busy with other clients at some check (--ignore-busy); numbers are contended
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-003744-adhoc-l7mx2-5-main-short/result.json
+[localeval] not logged to unanimis (--no-unim)
