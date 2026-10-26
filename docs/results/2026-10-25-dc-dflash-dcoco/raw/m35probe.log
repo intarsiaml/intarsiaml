@@ -3,3 +3,10 @@ fleetq: #5652 running on spark1: scripts/dc/spark1.sh gates m35probe 4096 6144 8
 mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
 loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 35.6s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 4096 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
 == max-seq 6144
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 35.1s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 6144 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+== max-seq 8192
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 31.1s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+fleetq: #5652 done (exit 0)
+exit 0
