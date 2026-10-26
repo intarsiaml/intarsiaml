@@ -1,0 +1,31 @@
+09:15:04 window start, CAP 2400s
+09:15:09 plan-tp1-base-27b exit 0: 
+09:15:18 gen-tp1-base-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+09:15:33 gen-tp1-base-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+09:15:34 plan-tp1-batch-27b exit 0: 
+09:15:44 gen-tp1-batch-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/4112|
+09:15:58 gen-tp1-batch-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274 gate_split_qk_norm_rope_kv=0ms/4384|
+09:15:58 SAME 27B tp=1 plan show json, D vs B (plan-tp1-base-27b.out == plan-tp1-batch-27b.out)
+09:15:58 SAME 27B tp=1 256 ids short, D vs B (gen-tp1-base-27b-short.ids == gen-tp1-batch-27b-short.ids)
+09:15:58 SAME 27B tp=1 256 ids 4k, D vs B (gen-tp1-base-27b-4k.ids == gen-tp1-batch-27b-4k.ids)
+09:16:15 acc-tp1-27b exit 1: golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/|Error: accuracy gate FAILED|
+09:16:15 tp1 done, time left 2329s
+09:16:18 plan-tp2-27b exit 0: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+09:16:18 tp2 plan: "lm_head": "vocab-parallel: every rank holds V / world rows, the logits are all-gathered into rank 0"|"all_reduce_calls_per_decode_step": 129|"all_reduce_fused_rmsnorm_per_decode_step": 0|
+09:16:26 gen-tp2-27b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:16:26 SAME 27B 256 ids short: tp=2 default vs tp=1 (want SAME: W4A4 is exact) (gen-tp1-batch-27b-short.ids == gen-tp2-27b-short.ids)
+09:16:36 gen-tp2-27b-4k exit 0: steps=274 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/35328 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/288 embedding=0ms/274|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:16:36 SAME 27B 256 ids 4k: tp=2 default vs tp=1 (want SAME: W4A4 is exact) (gen-tp1-batch-27b-4k.ids == gen-tp2-27b-4k.ids)
+09:16:51 acc-tp2-27b exit 1: golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|Error: accuracy gate FAILED|
+09:16:54 self-tp2-vs-tp1 exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head ba0fa9e code-tree a70781153ce2 clean which is not the declared pre-change commit 2c2d994|
+09:16:57 self-tp2-vs-tp1-noise exit 1: reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/|tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head ba0fa9e code-tree a70781153ce2 clean which is not the declared pre-change commit 2c2d994|
+09:17:05 gen-tp2-INTARSIA_TP_VOCAB-27b-short exit 0 [INTARSIA_TP_VOCAB=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/32896 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:17:05 SAME 27B tp=2 ids short: INTARSIA_TP_VOCAB=0 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_VOCAB-27b-short.ids)
+09:17:05 evidence INTARSIA_TP_VOCAB=0: 
+09:17:13 gen-tp2-INTARSIA_TP_ARNORM-27b-short exit 0 [INTARSIA_TP_ARNORM=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:17:13 SAME 27B tp=2 ids short: INTARSIA_TP_ARNORM=1 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_ARNORM-27b-short.ids)
+09:17:13 evidence INTARSIA_TP_ARNORM=1: tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=128|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=128|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=128|
+09:17:21 gen-tp2-INTARSIA_TP_FUSION-27b-short exit 0 [INTARSIA_TP_FUSION=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/33152 argmax=0ms/256 attn_decode=0ms/4096 attn_prefill=0ms/16 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:17:21 SAME 27B tp=2 ids short: INTARSIA_TP_FUSION=0 vs default (gen-tp2-27b-short.ids == gen-tp2-INTARSIA_TP_FUSION-27b-short.ids)
+09:17:21 evidence INTARSIA_TP_FUSION=0: 
+09:17:21 done, time left 2263s

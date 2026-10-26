@@ -54,6 +54,10 @@ impl Model {
             return Err(Error::invalid("allow_recurrent_batch after enable_batch"));
         }
         self.recurrent_batch = true;
+        // tensor parallelism: the peers run the same batched blocks on their shards
+        for p in self.peers.iter_mut() {
+            p.recurrent_batch = true;
+        }
         Ok(())
     }
 
@@ -79,11 +83,58 @@ impl Model {
     ///
     /// Memory: `max_rows` sequences each hold a KV cache of `plan.kv_cap_tokens`, so the per-sequence capacity shrinks
     /// to what `max_rows` caches fit in the KV budget the plan measured (`kv_budget_bytes / (max_rows *
-    /// kv_bytes_per_token)`, with a plan note). Dense attention-only single-rank models only.
+    /// kv_bytes_per_token)`, with a plan note).
+    ///
+    /// Tensor parallelism (in-process peers, hip and the cpu reference only): every rank reserves its own per-slot memory
+    /// out of its own KV budget and gets its own row tables, and the per-sequence capacity becomes the smallest any rank
+    /// can hold (every rank keeps the same number of tokens, as in [`Model::from_shards`]). A remote rank is refused.
     pub fn enable_batch(&mut self, max_rows: usize) -> Result<()> {
-        if !self.peers.is_empty() || self.tp.world > 1 || self.lm_head.is_none() {
-            return Err(Error::Unsupported("batched decode needs a single-rank model".into()));
+        if self.remote.is_some() || self.tp.rank != 0 || self.peers.len() + 1 != self.tp.world || self.lm_head.is_none() {
+            return Err(Error::Unsupported(
+                "batched decode needs a single-rank model or rank 0 of an in-process tensor-parallel group (no remote rank)".into(),
+            ));
         }
+        if self.tp.world > 1 && !matches!(self.backend.name(), "hip" | "cpu") {
+            return Err(Error::Unsupported(format!(
+                "--max-batch N (N > 1) with --tp {} is supported on the hip backend only (the {} backend batches at --tp 1)",
+                self.tp.world,
+                self.backend.name()
+            )));
+        }
+        if self.tp.world > 1 && self.backend.name() == "hip" && !self.vocab_par {
+            // the peers run their slice of the head and the gather inside the batched step; with the head on rank 0 alone the
+            // peer's recording has no head (it failed mid-run: "rank 1 of the tensor-parallel group has no lm_head")
+            return Err(Error::Unsupported(
+                "--max-batch N with --tp needs the vocab-parallel lm_head (INTARSIA_TP_VOCAB=0, or a communicator without all_gather, turns it off)".into(),
+            ));
+        }
+        for p in self.peers.iter_mut() {
+            p.enable_batch_rank(max_rows)?;
+        }
+        self.enable_batch_rank(max_rows)?;
+        // every rank holds the same number of tokens per sequence: the smallest rank decides
+        let cap = self.peers.iter().map(|p| p.plan.kv_cap_tokens).fold(self.plan.kv_cap_tokens, usize::min);
+        let clamp = |m: &mut Model| {
+            if m.plan.kv_cap_tokens > cap {
+                m.plan.notes.push(format!(
+                    "context clamped from {} to {cap} tokens per sequence: the smallest rank of the batched group decides",
+                    m.plan.kv_cap_tokens
+                ));
+                m.plan.kv_cap_tokens = cap;
+                m.plan.kv_total_bytes = max_rows as u64 * cap as u64 * m.kv_bytes_per_token();
+            }
+        };
+        clamp(self);
+        self.peers.iter_mut().for_each(clamp);
+        if self.peers.iter().any(|p| p.row_tab.is_some() != self.row_tab.is_some()) {
+            // the step itself would still be exact, but the ranks would record different graphs
+            return Err(Error::invalid("the ranks of a tensor-parallel group disagree on batched row tables"));
+        }
+        Ok(())
+    }
+
+    /// One rank's part of [`Model::enable_batch`]: the checks, the memory plan and the buffers of this shard.
+    fn enable_batch_rank(&mut self, max_rows: usize) -> Result<()> {
         let hybrid = self.recurrent_batch;
         let dense = self.layers.iter().flatten().all(|b| match b {
             Block::Attn(a) => hybrid || !a.gated,
@@ -121,7 +172,9 @@ impl Model {
                 per_state >> 20
             ));
         }
-        let kv_budget = self.plan.kv_budget_bytes.saturating_sub(rec_extra);
+        // the vocab-parallel batched head's gather tile (every rank) comes out of the KV budget too
+        let tile_bytes = if self.vocab_par { (Self::BATCH_MAX_ROWS * self.dims.vocab * 4) as u64 } else { 0 };
+        let kv_budget = self.plan.kv_budget_bytes.saturating_sub(rec_extra + tile_bytes);
         let bpt = self.kv_bytes_per_token();
         let mut cap = self.plan.kv_cap_tokens;
         if bpt > 0 {
@@ -150,7 +203,17 @@ impl Model {
             self.row_tab = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 2 * self.slot_specs.len().max(1) * 8, MemKind::Device)?);
             self.batch_pos = Some(self.backend.alloc(Self::BATCH_MAX_ROWS * 4, MemKind::Device)?);
         }
-        if self.topk.is_none() && self.backend.supports_topk() && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1") {
+        if self.vocab_par && self.batch_tile.is_none() {
+            // the gather tile of the vocab-parallel batched head, on every rank (each receives the other ranks' slices)
+            self.batch_tile = Some(self.backend.alloc(tile_bytes as usize, MemKind::Device)?);
+            self.plan.workspace_bytes += tile_bytes;
+        }
+        // device-side sampling reads rank 0's logits only
+        if self.tp.rank == 0
+            && self.topk.is_none()
+            && self.backend.supports_topk()
+            && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1")
+        {
             let m = Self::BATCH_MAX_ROWS;
             self.topk = Some(TopkBufs {
                 ids: self.backend.alloc(m * Self::TOPK_MAX * 4, MemKind::Device)?,
@@ -254,8 +317,12 @@ impl Model {
             return Err(Error::invalid("forward_batch rows return logits, a token or (device sampling) the top-k"));
         }
         Self::check_forward(st, &[id], if topk_ok { HeadMode::LastLogits } else { mode }, false)?;
-        if !st.peers.is_empty() || (st.has_recurrent() && !self.recurrent_batch) {
-            return Err(Error::Unsupported("batched decode of a recurrent or tensor-parallel state".into()));
+        if st.has_recurrent() && !self.recurrent_batch {
+            return Err(Error::Unsupported("batched decode of a recurrent state".into()));
+        }
+        // tensor parallelism: the state must be this group's (one sub-state per in-process peer, no remote rank)
+        if st.peers.len() != self.peers.len() || st.remote.is_some() {
+            return Err(Error::invalid("batched decode of a state that does not belong to this model (use Model::new_state)"));
         }
         if id as usize >= self.dims.vocab {
             return Err(Error::BadRequest(format!("token id {id} >= vocab {}", self.dims.vocab)));
@@ -302,6 +369,9 @@ impl Model {
         let prof_launch = crate::hostprof::span(crate::hostprof::Cat::Launch);
         crate::hostprof::mark_launch_begin();
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        if !self.peers.is_empty() {
+            return self.forward_batch_tp(states, ids, modes, profile);
+        }
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
@@ -315,7 +385,18 @@ impl Model {
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         run?;
         drop(prof_launch);
+        let out = self.batch_outputs(tok, modes)?;
+        for (st, &id) in states.iter_mut().zip(ids) {
+            st.commit(&[id]);
+        }
+        self.telemetry.step();
+        Ok(out)
+    }
 
+    /// The results of a batched step that has run (rank 0): row `r` in the form `modes[r]` asks for, from `ws.logits`
+    /// (`[b, V]` f32, row-major) and the argmax tokens in `tok`.
+    fn batch_outputs(&self, tok: &Buffer, modes: &[HeadMode]) -> Result<Vec<StepOut>> {
+        let b = modes.len();
         let v = self.dims.vocab;
         let mut toks = vec![0u8; b * 4];
         // the downloads below are the first thing to wait for the GPU (everything before them was launches)
@@ -345,7 +426,7 @@ impl Model {
         }
         drop(prof_sync);
         crate::hostprof::mark_sync_end();
-        let prof_tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
+        let _prof_tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
         let mut out = Vec::with_capacity(b);
         for r in 0..b {
             out.push(match modes[r] {
@@ -365,12 +446,260 @@ impl Model {
                 }
             });
         }
+        Ok(out)
+    }
+
+    /// [`Model::forward_batch`] of a tensor-parallel group (`b >= 2`, every row checked): every peer runs the same batched step
+    /// on its own sub-states, on its own thread ([`Model::run_peer_batch`]), rank 0 runs it here and reads the results. The
+    /// step protocol is explicit: the peers get rank 0's tokens, every row's position and the graph decision, check their
+    /// states against them before their first collective, and so issue exactly rank 0's collectives in rank 0's order. A rank
+    /// that fails aborts the communicator, so no other rank is left waiting (as in `forward_tp`).
+    fn forward_batch_tp(
+        &self,
+        states: &mut [&mut SequenceState],
+        ids: &[u32],
+        modes: &[HeadMode],
+        profile: bool,
+    ) -> Result<Vec<StepOut>> {
+        self.tp_skew();
+        let b = ids.len();
+        let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        // peers follow the primary's length: a pass that failed halfway can leave them ahead of it (never behind)
+        for st in states.iter_mut() {
+            let len = st.len;
+            for p in st.peers.iter_mut() {
+                if p.st.len < len {
+                    return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {len} tokens)", p.st.len)));
+                }
+                if p.st.len > len {
+                    p.st.truncate(len, &*p.backend)?;
+                }
+            }
+        }
+        let job = PeerBatch { ids: ids.to_vec(), pos: states.iter().map(|s| s.len).collect(), graph: false };
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        // rank 0 decides whether the step replays a recording, and records it first when there is none (a capture runs
+        // nothing, its collectives included, so it needs no other rank); a capture that fails leaves every rank eager
+        let graph = if profile || !self.batch_graph_usable() {
+            Ok(false)
+        } else {
+            let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
+            self.batch_graph_prepare(&refs, ids)
+        };
+        let graph = match graph {
+            Ok(g) => g,
+            Err(e) => {
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                return Err(e);
+            }
+        };
+        let job = PeerBatch { graph, ..job };
+        let mut taken: Vec<Vec<PeerState>> = states.iter_mut().map(|s| std::mem::take(&mut s.peers)).collect();
+        let res = {
+            // per peer: its sub-state of every row, in row order
+            let mut per_peer: Vec<Vec<&mut SequenceState>> = (0..self.peers.len()).map(|_| Vec::with_capacity(b)).collect();
+            for row in taken.iter_mut() {
+                for (i, ps) in row.iter_mut().enumerate() {
+                    per_peer[i].push(&mut ps.st);
+                }
+            }
+            let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
+            let job = &job;
+            // Experiment (w17): record the peers' graphs here, one after the other on this thread, before rank 0 replays and before the
+            // peer threads run, so a capture never overlaps another rank's launches (`INTARSIA_TP_BATCH_PREPARE=1`).
+            let pre = (|| -> Result<()> {
+                if job.graph && std::env::var("INTARSIA_TP_BATCH_PREPARE").is_ok_and(|v| v == "1") {
+                    for (m, sts) in self.peers.iter().zip(per_peer.iter()) {
+                        let prefs: Vec<&SequenceState> = sts.iter().map(|s| &**s).collect();
+                        m.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                        let r = m.batch_graph_prepare(&prefs, ids);
+                        m.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                        if !r? {
+                            return Err(Error::backend(format!("tensor-parallel rank {}: batched decode graph unavailable", m.tp.rank)));
+                        }
+                    }
+                }
+                Ok(())
+            })();
+            if pre.is_err() {
+                comm0.abort();
+            }
+            if let Err(e) = pre {
+                Err(e)
+            } else {
+            std::thread::scope(|sc| {
+                let handles: Vec<_> = self
+                    .peers
+                    .iter()
+                    .zip(per_peer)
+                    .map(|(m, mut sts)| {
+                        sc.spawn(move || {
+                            // a panic must release the other ranks too
+                            struct Guard(Option<Arc<dyn Comm>>, bool);
+                            impl Drop for Guard {
+                                fn drop(&mut self) {
+                                    if !self.1 {
+                                        if let Some(c) = &self.0 {
+                                            c.abort();
+                                        }
+                                    }
+                                }
+                            }
+                            let mut guard = Guard(m.tp.comm.clone(), false);
+                            let r = m.run_peer_batch(&mut sts, job);
+                            guard.1 = r.is_ok();
+                            r
+                        })
+                    })
+                    .collect();
+                let r0 = (|| -> Result<()> {
+                    if graph {
+                        return self.batch_graph_replay(b);
+                    }
+                    self.upload_row_table(&refs)?;
+                    let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true, None)?;
+                    self.batch_head(&hn, b, profile)
+                })();
+                if r0.is_err() {
+                    comm0.abort();
+                }
+                let mut res = r0;
+                for h in handles {
+                    let r = h.join().unwrap_or_else(|_| Err(Error::backend("a tensor-parallel rank panicked")));
+                    if res.is_ok() {
+                        res = r;
+                    }
+                }
+                res
+            })
+            }
+        };
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        for (st, p) in states.iter_mut().zip(taken) {
+            st.peers = p;
+        }
+        res?;
+        let out = self.batch_outputs(tok, modes)?;
         for (st, &id) in states.iter_mut().zip(ids) {
             st.commit(&[id]);
         }
         self.telemetry.step();
-        drop(prof_tail);
         Ok(out)
+    }
+
+    /// A tensor-parallel peer's share of a batched step (`sts[r]` is its sub-state of row `r`): the layers, plus its slice of
+    /// the head and the logits gather with a vocab-parallel head, eagerly or through its own recording as rank 0 decided. The
+    /// row count and every row's position are rank 0's (`job`): a peer whose states disagree fails before its first
+    /// collective. Commits one token to every sub-state on success.
+    fn run_peer_batch(&self, sts: &mut [&mut SequenceState], job: &PeerBatch) -> Result<()> {
+        self.run_peer_batch_inner(sts, job)?;
+        self.peer_sync()
+    }
+
+    fn run_peer_batch_inner(&self, sts: &mut [&mut SequenceState], job: &PeerBatch) -> Result<()> {
+        self.tp_skew();
+        let b = job.ids.len();
+        if sts.len() != b || job.pos.len() != b {
+            return Err(Error::invalid(format!(
+                "tensor-parallel rank {}: batched step of {b} rows with {} sub-states and {} positions",
+                self.tp.rank,
+                sts.len(),
+                job.pos.len()
+            )));
+        }
+        for (r, st) in sts.iter().enumerate() {
+            if st.len != job.pos[r] {
+                return Err(Error::backend(format!(
+                    "tensor-parallel rank {}: batched row {r} at {} tokens, rank 0 at {}",
+                    self.tp.rank, st.len, job.pos[r]
+                )));
+            }
+        }
+        // test-only protocol bugs past the checks (`Model::set_tp_batch_mutant`; never set otherwise)
+        let mutant = TpBatchMutant::from_u8(self.tp_batch_mutant.load(std::sync::atomic::Ordering::Relaxed));
+        let mut order: Vec<usize> = (0..b).collect();
+        let mut n = b;
+        match mutant {
+            Some(TpBatchMutant::DropRow) => n = b - 1,
+            Some(TpBatchMutant::ReverseRows) => order.reverse(),
+            Some(TpBatchMutant::StalePosition) => sts[0].len = sts[0].len.saturating_sub(1),
+            Some(TpBatchMutant::DropCollective) => {
+                self.tp_batch_mutant.store(DROP_ARMED, std::sync::atomic::Ordering::Relaxed);
+            }
+            Some(TpBatchMutant::SkipCommit) | Some(TpBatchMutant::PlainKernels) | None => {}
+        }
+        let ids: Vec<u32> = job.ids[..n].to_vec();
+        self.exact_rows.store(mutant != Some(TpBatchMutant::PlainKernels), std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<()> {
+            let refs: Vec<&SequenceState> = order[..n].iter().map(|&r| &*sts[r]).collect();
+            if job.graph {
+                return self.graph_batch_peer(&refs, &ids);
+            }
+            self.upload_row_table(&refs)?;
+            let hn = self.run_layers(Seqs::Batch(&refs), &ids, false, None, true, None)?;
+            if self.vocab_par {
+                self.batch_head(&hn, n, false)?;
+            }
+            Ok(())
+        })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        if self.tp_batch_mutant.load(std::sync::atomic::Ordering::Relaxed) == DROP_ARMED {
+            self.tp_batch_mutant.store(TpBatchMutant::DropCollective as u8, std::sync::atomic::Ordering::Relaxed);
+        }
+        run?;
+        for (r, (st, &id)) in sts.iter_mut().zip(&job.ids).enumerate() {
+            if r == 0 && mutant == Some(TpBatchMutant::SkipCommit) {
+                continue;
+            }
+            st.commit(&[id]);
+        }
+        Ok(())
+    }
+
+    /// The collective ledger of this rank (`INTARSIA_TP_COLL_TRACE=1`; empty otherwise): one line per pass or graph replay, oldest first,
+    /// with the cumulative collective count before and after. Diff rank 0 against `rank_model(1)`: the first line where the counts differ
+    /// is the pass the ranks decided differently.
+    pub fn coll_trace_dump(&self) -> Vec<String> {
+        self.coll_trace.dump()
+    }
+
+    /// Debugging (w26): wait until every rank's stream is idle (rank 0 and each peer), so nothing a rank enqueued earlier (a peer's
+    /// replay is enqueue-only) is still in flight.
+    pub fn sync_all_ranks(&self) -> Result<()> {
+        for r in 0..self.tp.world.max(1) {
+            if let Some(m) = self.rank_model(r) {
+                m.backend.synchronize(m.stream)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The communicator's device-side handshake state (`Comm::debug_state`), for the collective ledger's dump.
+    pub fn comm_debug_state(&self) -> Option<String> {
+        self.tp.comm.as_ref().and_then(|c| c.debug_state())
+    }
+
+    /// Test hook: make tensor-parallel rank `rank` (1..world) apply `mutant` to its share of every batched step from now on
+    /// (`None` clears it). Each is a protocol bug the batched-vs-solo tests must catch (`tests/tp_batch.rs`); production code
+    /// never sets one.
+    #[doc(hidden)]
+    pub fn set_tp_batch_mutant(&self, rank: usize, mutant: Option<TpBatchMutant>) -> Result<()> {
+        let p = rank.checked_sub(1).and_then(|i| self.peers.get(i)).ok_or_else(|| Error::invalid(format!("no peer rank {rank}")))?;
+        p.tp_batch_mutant.store(mutant.map_or(0, |m| m as u8), std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// The `DropCollective` mutant, armed for the current step: the peer's next all-reduce is skipped ([`Model::all_reduce`]).
+    pub(super) fn take_dropped_collective(&self) -> bool {
+        self.tp_batch_mutant
+            .compare_exchange(
+                DROP_ARMED,
+                TpBatchMutant::DropCollective as u8,
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+            )
+            .is_ok()
     }
 
     /// Most candidates device-side sampling returns per row.
@@ -405,22 +734,53 @@ impl Model {
 
     /// lm_head of rows `[0, b)` into `ws.logits` (`[b, V]` f32) and their argmax into `batch_tok` (`i32 [b]`), on the
     /// row-exact kernels (the `exact_rows` mark is on for the whole pass but the per-row attention).
+    ///
+    /// Vocab-parallel head (`vocab_par`, every rank): this rank's `V / world` logits of every row into its segment of the
+    /// gather tile `batch_tile` (`[world][b][V / world]`), one all-gather in place, then (rank 0 only) `world * b` device
+    /// copies put each row's slices side by side in `ws.logits` and the argmax runs there, so everything that reads the
+    /// logits sees the replicated head's layout. A peer stops after the gather. Each logit is the row-exact kernel's dot
+    /// product of one head row with one input row, the same kernel as for the full head (`Model::check_vocab_split` covers
+    /// the batched row counts), so the bits are the replicated head's; and per row the one-row kernel's, the solo step's.
     pub(super) fn batch_head(&self, hn: &TensorRef, b: usize, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
+        if self.vocab_par {
+            let tile_buf = self.batch_tile.as_ref().ok_or_else(|| Error::invalid("vocab-parallel batch head without its tile"))?;
+            let (w, vh) = (self.tp.world, v / self.tp.world);
+            let tile = self.view(tile_buf, DType::F32, &[w, b * vh]);
+            let mine = tile.rows(self.tp.rank, 1);
+            self.proj(&hn.rows(0, b), self.head()?, &mine.reshaped(&[b, vh]), profile)?;
+            self.all_gather(&mine, &tile, profile)?;
+            if self.tp.rank != 0 {
+                return Ok(());
+            }
+            if self.recorder.lock().unwrap().is_none() {
+                for r in 0..w {
+                    for i in 0..b {
+                        self.backend.copy(&self.ws.logits, (i * v + r * vh) * 4, tile_buf, (r * b + i) * vh * 4, vh * 4, self.stream)?;
+                    }
+                }
+            }
+        } else {
+            let logits = self.view(&self.ws.logits, DType::F32, &[b, v]);
+            self.proj(&hn.rows(0, b), self.head()?, &logits, profile)?;
+        }
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("batch head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[b, v]);
-        self.proj(&hn.rows(0, b), self.head()?, &logits, profile)?;
         self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[b])], OpAttrs::default(), profile)
     }
 
     /// Plan recording of a batched step ([`crate::plan::Phase::Batch`]): the real pass over `rows` phantom sequences of `pos0`
-    /// tokens each, nothing launches. The `exact_rows` mark is set by the caller ([`Model::dry_run`]).
+    /// tokens each, nothing launches. The `exact_rows` mark is set by the caller ([`Model::dry_run`]). A tensor-parallel peer
+    /// records what it runs in [`Model::run_peer_batch`]: the layers, and its slice of a vocab-parallel head.
     pub(super) fn batch_probe(&self, rows: usize, pos0: usize) -> Result<()> {
         let sts: Vec<SequenceState> =
             (0..rows).map(|_| crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0)).collect();
         let refs: Vec<&SequenceState> = sts.iter().collect();
         let ids = vec![0u32; rows];
         let hn = self.run_layers(Seqs::Batch(&refs), &ids, false, None, true, None)?;
+        if self.lm_head.is_none() {
+            return Ok(());
+        }
         self.batch_head(&hn, rows, false)
     }
 
@@ -737,6 +1097,11 @@ impl Model {
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table: self.rope_table.clone(),
             tp_fusion: false,
+            vocab_par: self.vocab_par,
+            tp_arnorm: false,
+            ar_defer: Mutex::new(None),
+            ar_fused_eager: Default::default(),
+            ar_fused_captured: Default::default(),
             tp: self.tp.clone(),
             no_comm: self.no_comm,
             test_bug: self.test_bug.clone(),
@@ -753,6 +1118,9 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            batch_tile: None,
+            tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
+            coll_trace: super::coll_trace::CollTrace::new(false),
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
@@ -776,5 +1144,77 @@ impl Model {
     /// A stand-in for a slot whose state is away on another thread (phantom buffers: no device memory).
     pub fn placeholder_state(&self) -> SequenceState {
         crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, 0)
+    }
+}
+
+/// What rank 0 tells every peer about one batched step ([`Model::run_peer_batch`]).
+pub(super) struct PeerBatch {
+    /// One token per row, in row order: the row count is `ids.len()`.
+    ids: Vec<u32>,
+    /// Every row's position (its length before the step), which the peer's sub-state must have.
+    pos: Vec<usize>,
+    /// Rank 0 replays its recording of the step: the peer replays its own.
+    graph: bool,
+}
+
+/// Deliberate protocol bugs of a tensor-parallel peer's batched step ([`Model::set_tp_batch_mutant`], tests only).
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TpBatchMutant {
+    /// The peer runs one row fewer than rank 0 (the last row dropped).
+    DropRow = 1,
+    /// The peer runs its rows in reverse order (tokens in rank 0's order).
+    ReverseRows = 2,
+    /// Row 0 of the peer runs one position behind rank 0 (and ends one token short).
+    StalePosition = 3,
+    /// The peer does not commit row 0's token.
+    SkipCommit = 4,
+    /// The peer skips its first all-reduce of the step.
+    DropCollective = 5,
+    /// The peer runs its step without the row-exact mark (`exact_rows`), so its multi-row calls may take the ordinary
+    /// kernels. Invisible on the cpu backend (its kernels are row-exact by construction); a GPU gate must catch it.
+    PlainKernels = 7,
+}
+
+/// `TpBatchMutant::DropCollective` while its step's dropped all-reduce is still to come.
+const DROP_ARMED: u8 = 6;
+
+impl TpBatchMutant {
+    fn from_u8(v: u8) -> Option<TpBatchMutant> {
+        Some(match v {
+            1 => TpBatchMutant::DropRow,
+            2 => TpBatchMutant::ReverseRows,
+            3 => TpBatchMutant::StalePosition,
+            4 => TpBatchMutant::SkipCommit,
+            5 | DROP_ARMED => TpBatchMutant::DropCollective,
+            7 => TpBatchMutant::PlainKernels,
+            _ => return None,
+        })
+    }
+}
+
+/// HIP batches only the hybrid recipes its gates cover (lane hb, `docs/results/2026-10-23-hb-hip-hybrid-batching.md`): the dense
+/// Qwen3-8B batching test did not finish on HIP (no output after the memory plan), so a dense model is refused until that is fixed.
+fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+    if backend == "hip" && !hybrid_block {
+        return Err(Error::Unsupported(
+            "--max-batch N (N > 1) on the hip backend is supported only for the gated hybrid recipes (GatedDeltaNet / mixture-of-experts / gated attention); dense models are not yet verified on HIP; use --max-batch 1".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod hip_guard_tests {
+    use super::hip_batch_needs_hybrid;
+
+    #[test]
+    fn hip_refuses_dense_batching_only() {
+        let e = hip_batch_needs_hybrid("hip", false).unwrap_err().to_string();
+        assert!(e.contains("gated hybrid recipes"), "{e}");
+        hip_batch_needs_hybrid("hip", true).unwrap();
+        hip_batch_needs_hybrid("cuda", false).unwrap();
+        hip_batch_needs_hybrid("metal", false).unwrap();
     }
 }

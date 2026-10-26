@@ -1,0 +1,17 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w29-{batch} 2026-10-26 00:52:21
+[window] job 5635 w29; stopping radiance 2026-10-26 00:52:21
+[window] radiance stopped 2026-10-26 00:52:25
+00:52:25 window start, CAP 2300s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+00:52:25 env: load average: 4.75, 2.93, 2.40 | top:  1.0 tailscaled; 0.1 muxy-server; 0.0 kworker/0:0-mm_percpu_wq; 0.0 kworker/12:3-events_freezable; | containers: 
+00:53:42 repro m1-minimal-dev exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_TP_BATCH_SYNC=0]: REPRO failures 0/20 | 
+00:57:11 repro m2-minimal-dev exit 124 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_TP_BATCH_SYNC=0]: REPRO failures 1 (solo, rep 0, state 1) | 
+01:01:58 repro y1-size-loop-sync-on exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]: REPRO failures 0/20 | 
+/home/josef/tp2/stages-w29.sh: line 27: 1350988 Killed                  INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test > "$O/repro-$tag.log" 2>&1 < /dev/null
+01:07:38 removed leftover container 66452115ad0a
+01:07:38 repro y2-size-loop-sync-on exit 137 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]:  | 
+01:14:47 repro y3-size-loop-sync-on-40 exit 101 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]:  | 
+01:20:33 repro h1-host-ctrs-dev exit 124 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_TP_BATCH_SYNC=0]: REPRO failures 1 (hang) | 
+01:20:33 done, time left 612s
+[window] stages done 2026-10-26 01:20:33 (exit 0)
+[window] starting radiance 2026-10-26 01:20:33
+[window] radiance answers 2026-10-26 01:20:58 (after 30 s)

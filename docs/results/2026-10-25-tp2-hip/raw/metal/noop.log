@@ -1,0 +1,49 @@
+fleetq: #5255 running on endor: bash scripts/tp2-hip/metal-noop.sh
+fleetq: #5255 went ahead of the line and must end within 1h47m (by Sun 09:00); it is stopped then
+== build base 2c2d9941 07:12:47
+    Finished `release` profile [optimized] target(s) in 17.75s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev f6ae1f20 07:14:00
+    Finished `release` profile [optimized] target(s) in 20.18s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+== kernels test metal (dev) 07:14:57
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.0s
+== workspace tests on the head 07:15:22
+  64 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   9 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   4 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   3 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+   2 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+   1 thread 'ordinary_calls_pick_what_they_picked_before_the_rows_kernels' (3778608) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:178:5:
+   1 thread 'exact_rows_calls_pick_the_rows_kernels_only' (3778607) panicked at crates/intarsia-backend-cuda/tests/rows_registry.rs:186:5:
+   1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.01s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+   1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+   1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+== done 07:19:19
+fleetq: #5255 done (exit 0)

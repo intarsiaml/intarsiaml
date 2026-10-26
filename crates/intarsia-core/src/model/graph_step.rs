@@ -19,7 +19,8 @@
 //! NCCL); the all-reduces are recorded into each rank's graph on the same stream as the kernels. Rank 0 decides per
 //! step whether the step replays ([`Model::decode_graph_now`]) and the other ranks follow that decision (the remote
 //! rank gets it with the `Forward` command), so every rank issues the same collectives in the same order. A rank other
-//! than 0 records the layers only (rank 0 owns the head). Under TP a failed capture fails the step, which takes the
+//! than 0 records the layers only (rank 0 owns the head), or, with a vocab-parallel head (`LoadOptions::tp_vocab`), the
+//! layers and its slice of the head with the logits all-gather. Under TP a failed capture fails the step, which takes the
 //! group down (ADR-0006): falling back to eager on one rank only would leave the ranks deciding differently.
 
 use super::*;
@@ -128,12 +129,25 @@ impl GraphState {
 /// that the other ranks replayed in lockstep (a rank that ran eagerly while rank 0 replayed gives the same bits).
 impl Drop for Model {
     fn drop(&mut self) {
+        if self.tp_arnorm {
+            // evidence that the fused all-reduce + rmsnorm ran (eager calls, and calls recorded into a graph: each replay runs those)
+            for m in std::iter::once(&*self).chain(self.peers.iter()) {
+                eprintln!("tensor-parallel rank {}: fused all-reduce+rmsnorm {}", m.tp.rank, m.ar_fused_counts());
+            }
+        }
         for p in &self.peers {
             let g = p.graph_stats();
             eprintln!(
                 "tensor-parallel rank {}: decode graph enabled={} captures={} replays={}",
                 p.tp.rank, g.enabled, g.captures, g.replays
             );
+            if p.batch_rows > 0 {
+                // batched steps (`--max-batch` with `--tp`): the peer's recordings and replays, the evidence it followed rank 0
+                eprintln!(
+                    "tensor-parallel rank {}: batched decode graph captures={} replays={}",
+                    p.tp.rank, g.batch_captures, g.batch_replays
+                );
+            }
         }
     }
 }
@@ -165,6 +179,11 @@ impl Model {
     /// Will rank 0's next forward of `ids` in `mode` try the decode graph? The test `forward_inner` applies; under TP
     /// the other ranks are told the answer so they replay (or not) in lockstep.
     pub(super) fn decode_graph_now(&self, st: &SequenceState, ids: &[u32], mode: HeadMode) -> bool {
+        // INTARSIA_SOLO_GRAPHS=0 (debugging, lane tp2): solo decode steps run eagerly; batched steps keep their own switch (INTARSIA_BATCH_GRAPHS)
+        static SOLO_OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *SOLO_OFF.get_or_init(|| std::env::var("INTARSIA_SOLO_GRAPHS").is_ok_and(|v| v == "0")) {
+            return false;
+        }
         ids.len() == 1
             && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax)
             && st.id != 0
@@ -255,6 +274,7 @@ impl Model {
         let c = cache.get(&key).expect("captured above");
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.replays.fetch_add(1, Ordering::Relaxed);
+        self.coll_trace.replay("graph-solo", 1, c.comms);
         self.telemetry.graph_event(true);
         self.telemetry.record_ops(&c.ops);
         for _ in 0..c.comms {
@@ -268,16 +288,30 @@ impl Model {
     /// nothing ran and the caller runs the step eagerly. Like the solo step, the recording is made by the step that needs it
     /// and replayed once; capture executes nothing.
     pub(super) fn graph_batch_step(&self, states: &[&SequenceState], ids: &[u32]) -> Result<bool> {
-        let b = ids.len();
-        if !self.graphs.usable(self)
-            || self.graphs.batched_off.load(Ordering::Relaxed)
-            || self.row_tab.is_none()
-            || self.recorder.lock().unwrap().is_some()
-            || self.tp.world > 1
-            || std::env::var("INTARSIA_BATCH_GRAPHS").is_ok_and(|v| v == "0")
-        {
+        if !self.batch_graph_usable() || !self.batch_graph_prepare(states, ids)? {
             return Ok(false);
         }
+        self.batch_graph_replay(ids.len())?;
+        Ok(true)
+    }
+
+    /// Whether a batched step may run through a recording at all (before any upload or capture).
+    pub(super) fn batch_graph_usable(&self) -> bool {
+        self.graphs.usable(self)
+            && !self.graphs.batched_off.load(Ordering::Relaxed)
+            && self.row_tab.is_some()
+            && self.recorder.lock().unwrap().is_none()
+            && !std::env::var("INTARSIA_BATCH_GRAPHS").is_ok_and(|v| v == "0")
+    }
+
+    /// The device inputs of a batched step (tokens, then the row table and positions, stream-ordered before the replay), and
+    /// the recording for its row count, captured now if there is none. `Ok(false)`: the capture failed or found a launch
+    /// bound to one sequence's buffers; batched graphs are then off for this model and the caller runs the step eagerly.
+    ///
+    /// Tensor parallelism: rank 0 prepares before the peers start (a capture executes nothing, the collectives in it included,
+    /// so it needs no other rank), and only a prepared step is replayed, by every rank ([`Model::graph_batch_peer`]).
+    pub(super) fn batch_graph_prepare(&self, states: &[&SequenceState], ids: &[u32]) -> Result<bool> {
+        let b = ids.len();
         for &i in ids {
             if i as usize >= self.dims.vocab {
                 return Err(Error::BadRequest(format!("token id {i} >= vocab {}", self.dims.vocab)));
@@ -292,6 +326,7 @@ impl Model {
         let mut cache = self.graphs.batched.lock().unwrap();
         if !cache.contains_key(&b) {
             *self.capture_ops.lock().unwrap() = Some(Vec::new());
+            self.capture_comms.store(0, Ordering::Relaxed);
             self.graphs.state_bound.store(false, Ordering::Relaxed);
             let zeros = vec![0u32; b];
             let graph = self.backend.graph_capture(self.stream, &mut || {
@@ -301,6 +336,7 @@ impl Model {
                 self.batch_head(&hn, b, false)
             });
             let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
+            let comms = self.capture_comms.swap(0, Ordering::Relaxed) as usize;
             if self.graphs.state_bound.swap(false, Ordering::Relaxed) {
                 // a launch of this step names one sequence's buffers: the recording would replay on that sequence only
                 eprintln!("batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly");
@@ -309,7 +345,7 @@ impl Model {
             }
             match graph {
                 Ok(graph) => {
-                    cache.insert(b, Captured { state_id: 0, graph, ops, comms: 0 });
+                    cache.insert(b, Captured { state_id: 0, graph, ops, comms });
                     self.graphs.batch_captures.fetch_add(1, Ordering::Relaxed);
                     self.telemetry.graph_event(false);
                 }
@@ -320,12 +356,39 @@ impl Model {
                 }
             }
         }
-        let c = cache.get(&b).expect("captured above");
+        Ok(true)
+    }
+
+    /// Replay the recording [`Model::batch_graph_prepare`] made for `b` rows.
+    pub(super) fn batch_graph_replay(&self, b: usize) -> Result<()> {
+        let cache = self.graphs.batched.lock().unwrap();
+        let c = cache.get(&b).ok_or_else(|| Error::invalid(format!("no batched decode graph recorded for {b} rows")))?;
         self.backend.graph_replay(&c.graph, self.stream)?;
         self.graphs.batch_replays.fetch_add(1, Ordering::Relaxed);
+        self.coll_trace.replay("graph-batch", b, c.comms);
         self.telemetry.graph_event(true);
         self.telemetry.record_ops(&c.ops);
-        Ok(true)
+        for _ in 0..c.comms {
+            self.telemetry.record_comm(None);
+        }
+        Ok(())
+    }
+
+    /// A tensor-parallel peer's share of a batched step that rank 0 replays: its own recording for this row count (captured
+    /// now if missing) over its own row table, replayed. A peer that cannot follow fails the step (the group goes down, as
+    /// for the solo step, ADR-0006): running it eagerly instead would give the same bits, but the ranks must decide alike.
+    pub(super) fn graph_batch_peer(&self, states: &[&SequenceState], ids: &[u32]) -> Result<()> {
+        if !self.batch_graph_usable() {
+            return Err(Error::invalid(format!(
+                "tensor-parallel rank {}: rank 0 replays the batched decode graph but this rank cannot (--no-graphs, \
+                 INTARSIA_BATCH_GRAPHS=0, INTARSIA_TP_TEST_BUG, no row tables or no capturable communicator)",
+                self.tp.rank
+            )));
+        }
+        if !self.batch_graph_prepare(states, ids)? {
+            return Err(Error::backend(format!("tensor-parallel rank {}: batched decode graph unavailable", self.tp.rank)));
+        }
+        self.batch_graph_replay(ids.len())
     }
 
     fn capture_decode(&self, st: &SequenceState, head: bool) -> Result<Captured> {
@@ -335,7 +398,8 @@ impl Model {
         let graph = self.backend.graph_capture(self.stream, &mut || {
             // only the length of `ids` matters: the token is read from ws.ids, the position from ws.pos
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
-            if head {
+            // a vocab-parallel peer records its slice of the head and the gather (no argmax): rank 0 replays the same collective
+            if head || self.vocab_par {
                 self.head_to_device(&hn, 0, false)
             } else {
                 Ok(())

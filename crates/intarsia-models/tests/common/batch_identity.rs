@@ -82,6 +82,15 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
     let ids: Vec<u32> = idxs.iter().map(|&i| seqs[i].tok).collect();
     let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].solo.len).collect();
 
+    // INTARSIA_REPRO_CTRS=1 (lane tp2, w26): the device-side collective counters of both ranks around the batched step (HIP P2P comm only)
+    let probe = |what: &str| {
+        if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") {
+            if let Some(st) = model.comm_debug_state() {
+                eprintln!("CTRS batch {b} step {step} {what}: {st}");
+            }
+        }
+    };
+    probe("before the solo rows");
     // solo steps
     let t = std::time::Instant::now();
     let solo: Vec<StepOut> = idxs
@@ -89,11 +98,18 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
         .zip(&modes)
         .map(|(&i, &m)| {
             let tok = seqs[i].tok;
-            model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap()
+            let o = model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap();
+            probe(&format!("after solo row {i} ({m:?}, context {})", seqs[i].solo.len));
+            o
         })
         .collect();
     SOLO_NS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
+    // INTARSIA_REPRO_SYNC_BETWEEN=1 (w26): every rank's stream idle between the last solo step and the batched step
+    if std::env::var("INTARSIA_REPRO_SYNC_BETWEEN").is_ok_and(|v| v == "1") {
+        model.sync_all_ranks().unwrap();
+    }
+    probe("after the solo rows, before the batched step");
     // one batched step
     let t = std::time::Instant::now();
     let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
@@ -102,6 +118,7 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
     BATCH_NS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
     drop(refs);
     assert_eq!(batched.len(), b);
+    probe("after the batched step");
 
     for (r, &i) in idxs.iter().enumerate() {
         let what = format!("batch {b} step {step} row {r} (sequence {i}, context {} -> {})", ctx[r], ctx[r] + 1);
@@ -114,7 +131,22 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
                 assert_eq!(a.len(), c.len(), "{what}: logits length");
                 if let Some(k) = (0..a.len()).find(|&k| a[k].to_bits() != c[k].to_bits()) {
                     let diff = (0..a.len()).filter(|&k| a[k].to_bits() != c[k].to_bits()).count();
-                    panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}", a.len(), a[k], c[k]);
+                    // which rows of this step differ, and by how much: all rows (a rank-wide fault, e.g. one wrong collective) or one (a row fault)
+                    let rows: Vec<String> = solo
+                        .iter()
+                        .zip(&batched)
+                        .enumerate()
+                        .filter_map(|(q, (x, y))| match (x, y) {
+                            (StepOut::Logits(x), StepOut::Logits(y)) => {
+                                let n = (0..x.len()).filter(|&j| x[j].to_bits() != y[j].to_bits()).count();
+                                let md = (0..x.len()).map(|j| (x[j] - y[j]).abs()).fold(0f32, f32::max);
+                                Some(format!("row {q}: {n} differ, max |d| {md:.3e}, argmax solo {} batch {}", argmax(x), argmax(y)))
+                            }
+                            (StepOut::Token(x), StepOut::Token(y)) => Some(format!("row {q}: token solo {x} batch {y}")),
+                            _ => None,
+                        })
+                        .collect();
+                    panic!("{what}: logits differ at {diff} of {} entries, first at {k}: solo {} batch {}; step rows [{}]", a.len(), a[k], c[k], rows.join("; "));
                 }
                 assert_eq!(bits(a), bits(c));
                 let s = &mut seqs[i];

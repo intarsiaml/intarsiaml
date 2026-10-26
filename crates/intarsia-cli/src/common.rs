@@ -308,6 +308,8 @@ impl ModelArgs {
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 graphs: !self.no_graphs,
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
+                tp_vocab: tp_vocab(std::env::var_os("INTARSIA_TP_VOCAB").as_deref(), &self.backend, self.tp, &self.comm),
+                tp_arnorm: tp_arnorm(std::env::var_os("INTARSIA_TP_ARNORM").as_deref(), &self.backend, self.tp),
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
@@ -481,25 +483,78 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
 }
 
 /// Row-local fusion under tensor parallelism (`LoadOptions::tp_fusion`; acts only at world > 1). On by default for CUDA
-/// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md) and for HIP at tp=2 (user decision
-/// 2026-10-21, after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md), off elsewhere. `INTARSIA_TP_FUSION=0`
+/// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md) and for HIP at tp > 1 (user decisions 2026-10-21,
+/// after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md, and 2026-10-25, gate vs tp1: docs/results/2026-10-25-tp2-hip.md),
+/// off elsewhere. `INTARSIA_TP_FUSION=0`
 /// opts out; any other value asks for it (the load refuses it on a backend without `Backend::fusion_under_tp`).
 fn tp_fusion(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
     match env {
         Some(v) => v != "0",
-        None => backend == "cuda" || (backend == "hip" && tp == 2),
+        None => backend == "cuda" || (backend == "hip" && tp > 1),
+    }
+}
+
+/// Vocab-parallel lm_head (`LoadOptions::tp_vocab`; acts only at world > 1): each rank computes half of the logits and the
+/// halves are all-gathered into rank 0's logits, bitwise those of the replicated head. On by default for HIP at tp=2 on the
+/// peer-to-peer communicator (`--comm auto`; the host-staged one would pay a host round trip per step), off elsewhere.
+/// `INTARSIA_TP_VOCAB=0` opts out; any other value asks for it (the model keeps the replicated head, with a plan note, when
+/// the communicator or the head cannot do it).
+fn tp_vocab(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize, comm: &str) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => backend == "hip" && tp == 2 && comm == "auto",
+    }
+}
+
+/// Whether HIP tp=2 fuses each block-end all-reduce with the residual add + rmsnorm after it by default. OFF until the GPU
+/// gates of `scripts/tp2-hip/stages-arnorm.sh` (bitwise ids and dumps, speed) are recorded; flipping it is this one constant.
+const TP_ARNORM_DEFAULT_ON: bool = false;
+
+/// Fused all-reduce + residual add + rmsnorm under tensor parallelism (`LoadOptions::tp_arnorm`; acts at world 2 with fusion
+/// on and a communicator that has it, today HIP's peer-to-peer one). `INTARSIA_TP_ARNORM=0` opts out, any other value asks
+/// for it; unset follows [`TP_ARNORM_DEFAULT_ON`] for HIP at tp=2 and is off elsewhere.
+fn tp_arnorm(env: Option<&std::ffi::OsStr>, backend: &str, tp: usize) -> bool {
+    match env {
+        Some(v) => v != "0",
+        None => TP_ARNORM_DEFAULT_ON && backend == "hip" && tp == 2,
     }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
+    fn tp_vocab_default_on_for_hip_tp2_p2p_only_and_env_overrides() {
+        use std::ffi::OsStr;
+        assert!(super::tp_vocab(None, "hip", 2, "auto"));
+        assert!(!super::tp_vocab(None, "hip", 2, "host"));
+        assert!(!super::tp_vocab(None, "hip", 1, "auto"));
+        assert!(!super::tp_vocab(None, "hip", 4, "auto"));
+        assert!(!super::tp_vocab(None, "cuda", 2, "auto"));
+        assert!(!super::tp_vocab(None, "metal", 2, "auto"));
+        assert!(!super::tp_vocab(None, "cpu", 2, "host"));
+        assert!(!super::tp_vocab(Some(OsStr::new("0")), "hip", 2, "auto"));
+        assert!(super::tp_vocab(Some(OsStr::new("1")), "cpu", 2, "host"));
+        assert!(super::tp_vocab(Some(OsStr::new("1")), "hip", 2, "host"));
+    }
+
+    #[test]
+    fn tp_arnorm_env_overrides_and_the_default_is_hip_tp2_only() {
+        use std::ffi::OsStr;
+        assert_eq!(super::tp_arnorm(None, "hip", 2), super::TP_ARNORM_DEFAULT_ON);
+        assert!(!super::tp_arnorm(None, "hip", 1));
+        assert!(!super::tp_arnorm(None, "cuda", 2));
+        assert!(!super::tp_arnorm(None, "cpu", 2));
+        assert!(!super::tp_arnorm(Some(OsStr::new("0")), "hip", 2));
+        assert!(super::tp_arnorm(Some(OsStr::new("1")), "hip", 2));
+    }
+
+    #[test]
     fn tp_fusion_default_on_for_cuda_and_hip_tp2_and_env_overrides() {
         use std::ffi::OsStr;
         assert!(super::tp_fusion(None, "cuda", 2));
         assert!(super::tp_fusion(None, "hip", 2));
         assert!(!super::tp_fusion(None, "hip", 1));
-        assert!(!super::tp_fusion(None, "hip", 4));
+        assert!(super::tp_fusion(None, "hip", 4)); // HIP's collective is two ranks; a larger group is refused at load, not here
         assert!(!super::tp_fusion(None, "metal", 2));
         assert!(!super::tp_fusion(None, "cpu", 2));
         assert!(!super::tp_fusion(Some(OsStr::new("0")), "cuda", 2));

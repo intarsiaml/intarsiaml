@@ -289,6 +289,20 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Group::Local(b, _) => b.clone(),
         Group::Remote { backend, .. } => vec![backend.clone()],
     };
+    // `--spec mtp` is single-process, single-rank only: the drafter head, its per-row recurrent verify state and (with the vocab-parallel
+    // lm_head, where every rank holds V / world rows of the head) the drafter's argmax over the head are not sharded, so a group would
+    // draft from one shard's rows or from state the peers never see. Refuse before any weight is read, whatever else is on
+    // (`Model::load_tp` refuses it too, behind this).
+    let world = match &group {
+        Group::Local(b, _) => b.len(),
+        Group::Remote { .. } => 2,
+    };
+    if world > 1 && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
+        return Err(Error::Unsupported(format!(
+            "--spec mtp with tensor parallelism (--tp {world}): the MTP drafter is not sharded, so it would draft from one rank's slice of the \
+             lm_head and of the recurrent state; run with --tp 1 or without --spec mtp"
+        )));
+    }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 8, CUDA 16).
@@ -403,7 +417,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 model.backend.name()
             )));
         }
-        // refuses a tensor-parallel or non-dense model
+        // refuses a non-dense model without the opt-in, a remote tensor-parallel rank, and --tp > 1 on any backend but hip (and cpu)
         model.enable_batch(max_batch.value)?;
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;

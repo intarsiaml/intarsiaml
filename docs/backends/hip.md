@@ -172,6 +172,18 @@ one-row launch of the solo step (`tests/row_tables.rs`). `moe_block_bf16_rows` s
 `moe_block_bf16` stops at T * K <= 16), token t bitwise the T = 1 block (`tests/moe_block.rs`). `INTARSIA_ROW_TABLES=0` keeps one launch per row
 per op. Results: `docs/results/2026-10-24-hr3-hip-batching-r3.md`.
 
+Batched decode under tensor parallelism (`serve --max-batch N --tp 2`, lane tp2/batch; HIP and the cpu reference only, CUDA and
+Metal keep refusing `--max-batch` with `--tp`): rank 0 runs the batched step and drives the peer through the same step on its own
+sub-states (`Model::forward_batch_tp` / `run_peer_batch` in `crates/intarsia-core/src/model/batch.rs`). The peer gets rank 0's
+tokens, every row's position and the graph decision, checks its states against them before its first collective, and both ranks
+then issue the solo step's collectives once with `b` rows of payload (`[b, hidden]` partials: 128 KiB at b = 16, far under the
+4 MiB slot). Each rank has its own row table and `batch_pos`; batched graphs are recorded per rank and row count, rank 0 records
+first and the peer follows (a peer that cannot follow fails the step). With the vocab-parallel head each rank projects its
+`V / 2` logits of every row, one all-gather fills the tile `[2][b][V / 2]` and rank 0 copies it into `ws.logits` as `[b, V]`.
+Every row must be bitwise the solo tp=2 step of that sequence: shown on the cpu backend (`crates/intarsia-models/tests/tp_batch.rs`,
+including protocol mutants); the GPU gates are written and NOT yet run (`INTARSIA_BATCH_TEST_TP=2` runs `batch_cuda_real` on two
+R9700s, the halved shard shapes are in `tests/rows_exact.rs`, window stage `scripts/tp2-hip/stages-batch.sh`).
+
 ## MoE and batch size
 
 `moe_experts_bf16` has three internal paths, and a token's result depends on which one it ran in:
@@ -230,5 +242,8 @@ runs are "inter-launch wall time", not kernel time (see the fix pass in `docs/re
 * Each rank has a fine-grained (`hipExtMallocWithFlags(hipDeviceMallocFinegrained)`) scratch (2 slots x 4 MiB) and 16 flags, mapped into the peer (`hipDeviceEnablePeerAccess`), plus 16 launch counters in ordinary memory. A collective is one kernel launch per rank on the rank's own stream, from the rank's own thread: push the local partial into the peer's scratch, `s_wait_storecnt` (drain 3, default; `INTARSIA_HIP_AR_DRAIN=1` uses a system fence instead), raise the peer's per-block flag, spin on the own flag, add own partial and the pushed one in f32, round once.
 * Scratch is double buffered on the launch counter's parity. 16 blocks, fixed, so both ranks' counters stay equal. Messages over 4 MiB split into several launches.
 * The kernel reads a partial in f32 (default: the row-parallel matmuls write f32 through the `logits` op) and writes bf16 into the activation buffer, or reduces bf16 in place (`INTARSIA_TP_PARTIAL=bf16`).
+* `ik_ag2_gather` (`ag2_kernel`, same file) is the rank-major all-gather on the same handshake, scratch, flags and counters (so gathers and all-reduces may follow each other in any order; both ranks wait for the peer's flag, which the slot-reuse argument needs): push the local words into the peer's scratch, flag, wait, then write the peer's words from the own scratch next to the local ones (skipped when the send is already this rank's segment of the receive buffer: in place). It carries the vocab-parallel lm_head's logits (`INTARSIA_TP_VOCAB`, ADR-0006); capture-safe like the all-reduce.
 * A rank that never arrives makes the other trap after a bounded number of polls (`AR_SPIN_MAX`, about a minute by estimate; the timeout path was never exercised) instead of hanging the card.
 * Not ported: the fused RMSNorm epilogue, the N-rank and two-shot variants, the tiered-int8 wire format.
+
+`kernels/hip/ar_norm.hip` (`ik_ar2_add_rmsnorm`, `P2pComm::all_reduce_add_rmsnorm`) fuses that all-reduce with the residual add and the rmsnorm after it (`INTARSIA_TP_ARNORM=1`, off by default until its GPU gates are recorded; `scripts/tp2-hip/stages-arnorm.sh`). Same wire (exact: no lossy transfer), same scratch, flags and counters, so plain and fused collectives interleave and replay in a decode graph. Bit for bit the unfused pair: `y = bf16(a + b)`, `sum = bf16(y + residual)`, the norm reads `sum`, with the norm kernel's block size and reduction order (`tests/ar_norm.rs`). It applies where the norm after a block-end all-reduce is a standalone `RmsNormAdd` (the dense FFN and attention input norms, the final norm, blocks whose first GEMV pair is not folded); a norm already folded into the next block's GEMV stays folded. A message above one scratch slot keeps the unfused pair. The model defers each block-end reduction to the next op (`crates/intarsia-core/src/model/ar_norm.rs`); `plan show` prints how many of a decode step's all-reduces fuse.

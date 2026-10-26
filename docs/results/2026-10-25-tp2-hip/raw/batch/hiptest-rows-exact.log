@@ -1,0 +1,59 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:5
+   |
+36 | struct Captured {
+   |        -------- field in this struct
+37 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-hip/tests/rows_exact.rs:675:9
+    |
+675 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 6 tests
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:23/23/853516 2:23/46/1707032 3:23/69/2560548 4:23/92/3414064 5:23/115/4267580 6:23/138/5121096 7:23/161/5974612 8:23/184/6828128 9:23/207/7681644 10:23/230/8535160 11:23/253/9388676 12:23/276/10242192 13:23/299/11095708 14:23/322/11949224 15:23/345/12802740 16:23/368/13656256
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:24/24/88164 2:24/48/176328 3:24/72/264492 4:24/96/352656 5:24/120/440820 6:24/144/528984 7:24/168/617148 8:24/192/705312 9:24/216/793476 10:24/240/881640 11:24/264/969804 12:24/288/1057968 13:24/312/1146132 14:24/336/1234296 15:24/360/1322460 16:24/384/1410624
+ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... G-B fp8 matmul_fp8_gemv_rows: M:cases/rows/bytes 1:156/156/632988 2:156/312/1265976 3:156/468/1898964 4:156/624/2531952 5:156/780/3164940 6:156/936/3797928 7:156/1092/4430916 8:156/1248/5063904 9:156/1404/5696892 10:156/1560/6329880 11:156/1716/6962868 12:156/1872/7595856 13:156/2028/8228844 14:156/2184/8861832 15:156/2340/9494820 16:156/2496/10127808
+ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... G-B moe moe_experts_bf16_rows: M:cases/rows/bytes 1:24/24/67584 2:24/48/135168 3:24/72/202752 4:24/96/270336 5:24/120/337920 6:24/144/405504 7:24/168/473088 8:24/192/540672 9:24/216/608256 10:24/240/675840 11:24/264/743424 12:24/288/811008 13:24/312/878592 14:24/336/946176 15:24/360/1013760 16:24/384/1081344
+ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... G-B nvfp4 matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:44/44/7524048 2:44/88/15048096 3:44/132/22572144 4:44/176/30096192 5:44/220/37620240 6:44/264/45144288 7:44/308/52668336 8:44/352/60192384 9:44/396/67716432 10:44/440/75240480 11:44/484/82764528 12:44/528/90288576 13:44/572/97812624 14:44/616/105336672 15:44/660/112860720 16:44/704/120384768
+ok
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel argmax_f32: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel embedding_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel gated_rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_combine_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_topk_bf16: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel moe_topk_bf16_v2: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel rmsnorm_add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel sigmoid_mul_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel silu_glu_bf16: M:cases/rows/bytes 16:1/16/0
+ok
+test timing_gemv_rows ... ignored, micro-timing
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.97s
+

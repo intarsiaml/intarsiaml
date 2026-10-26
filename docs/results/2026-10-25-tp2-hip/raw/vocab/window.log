@@ -1,0 +1,33 @@
+[window] job 5199 vocab; stopping radiance 2026-10-25 06:40:03
+[window] radiance stopped 2026-10-25 06:40:06
+06:40:11 hiptest comm exit 0: test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.04s|
+06:40:13 hiptest vocab-split exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s|
+06:40:13 hiptest kernels-unit exit 0: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.03s|
+06:40:21 gen-tp2-off-35b-short exit 0 [INTARSIA_TP_VOCAB=0]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:40:27 gen-tp2-on-35b-short exit 0 [INTARSIA_TP_VOCAB=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:40:27 SAME 35B tp=2 256 greedy ids short, split head vs replicated (graphs) (gen-tp2-off-35b-short.ids == gen-tp2-on-35b-short.ids)
+06:40:27 rank 1 graph counters (split head): tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:40:32 gen-tp2-on-nograph-35b-short exit 0 [INTARSIA_TP_VOCAB=1]: steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+06:40:32 SAME 35B tp=2 256 ids short, split head eager vs replicated graphs (gen-tp2-off-35b-short.ids == gen-tp2-on-nograph-35b-short.ids)
+06:40:38 gen-tp2-control-nocomm-35b-short exit 0 [INTARSIA_TP_VOCAB=1 INTARSIA_TP_NO_COMM=1]: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+06:40:38 DIFF CONTROL (split head, no collectives: must DIFFER) (gen-tp2-off-35b-short.ids != gen-tp2-control-nocomm-35b-short.ids)
+06:40:41 plan-tp1-batch-35b exit 0: 
+06:40:45 gen-tp1-batch-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+06:40:48 plan-tp1-base-35b exit 0: 
+06:40:51 gen-tp1-batch-8b-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+06:40:53 gen-tp1-base-35b-short exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split_qk_norm_rope_kv=0ms/2570|
+06:40:59 gen-tp1-base-8b-short exit 0: steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/9180 attn_prefill=0ms/36 embedding=0ms/256 logits=0ms/256|
+06:40:59 SAME 35B tp=1 plan show json, D vs B (plan-tp1-batch-35b.out == plan-tp1-base-35b.out)
+06:40:59 SAME 35B tp=1 256 ids short, D vs B (gen-tp1-batch-35b-short.ids == gen-tp1-base-35b-short.ids)
+06:40:59 SAME 8B tp=1 256 ids short, D vs B (gen-tp1-batch-8b-short.ids == gen-tp1-base-8b-short.ids)
+06:41:03 plan-tp2-on-35b exit 0 [INTARSIA_TP_VOCAB=1]: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+06:41:07 plan-tp2-off-35b exit 0 [INTARSIA_TP_VOCAB=0]: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+06:41:07 plan tp=2 split: "lm_head": "vocab-parallel: every rank holds V / world rows, the logits are all-gathered into rank 0"|"all_reduce_calls_per_decode_step": 81| | replicated: "lm_head": "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer"|"all_reduce_calls_per_decode_step": 80|
+06:41:07 split head ACTIVE with INTARSIA_TP_VOCAB=1 and off with =0 (the A/B above is not vacuous)
+06:41:18 acc-tp2-off-35b-short exit 0 [INTARSIA_TP_VOCAB=0]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+06:41:29 acc-tp2-on-35b-short exit 0 [INTARSIA_TP_VOCAB=1]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+06:41:33 self-on-vs-off-short exit 1 [INTARSIA_TP_VOCAB=1]: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head ac9edd6 code-tree 6d2a72302fd2 clean which is unverifiable: pass --pre-change SHA and/or --revlist FILE (git rev-list HEAD, written where the history is)|
+06:41:33 done
+[window] stages done 2026-10-25 06:41:33 (exit 0)
+[window] starting radiance 2026-10-25 06:41:33
+[window] radiance answers 2026-10-25 06:41:53 (after 25 s)

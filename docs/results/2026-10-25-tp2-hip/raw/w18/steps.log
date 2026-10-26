@@ -1,0 +1,7 @@
+19:38:07 window start, CAP 1750s, pre-change 329871f, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+19:39:19 repro v0-graphs-on exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2]:  | 
+19:40:30 repro v1-prepare exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_BATCH_PREPARE=1]:  | 
+19:41:18 repro v2-graphs-off exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 INTARSIA_BATCH_GRAPHS=0]:  | 
+19:41:53 repro v3-blocking exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2 HIP_LAUNCH_BLOCKING=1]:  | 
+19:42:37 repro v4-graphs-on-again exit 101 [INTARSIA_REPRO_REPS=12 INTARSIA_REPRO_STEPS=2]:  | 
+19:42:37 done, time left 1480s

@@ -1,0 +1,99 @@
+
+== check 3: acc-ext-tp2.out against acc-ext-tp1.out: PASS   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  5.967e-03   0.998
+decode    1.214e-02  7.102e-03   0.585
+
+-- per prompt, REPORT ONLY (no gate): acc-ext-tp2.out
+mode    prompt                   ref      cand   ratio  vLLM noise  (c-r)/noise
+prefill count              2.822e-03 3.101e-03   1.099   2.565e-03         0.11
+prefill story              5.346e-03 3.927e-03   0.735   3.073e-03        -0.46
+prefill code               1.019e-03 1.631e-03   1.601   5.372e-04         1.14
+prefill science            1.363e-02 7.206e-03   0.529   4.693e-03        -1.37
+prefill chat_short         1.970e-02 7.574e-03   0.384   4.649e-03        -2.61
+prefill chat_system        1.348e-02 1.758e-02   1.304   1.096e-02         0.37
+prefill chat_multiturn     3.272e-02 6.346e-02   1.939   4.352e-03         7.06
+prefill chat_reasoning     8.953e-03 1.514e-02   1.691   4.526e-03         1.37
+prefill long_prose_300     3.715e-03 3.229e-03   0.869   1.478e-03        -0.33
+prefill long_prose_700     5.987e-03 6.056e-03   1.012   3.403e-03         0.02
+decode  count              1.547e-03 1.934e-03   1.250           -            -
+decode  story              1.045e-02 8.113e-03   0.776           -            -
+decode  code               1.592e-03 6.701e-04   0.421           -            -
+decode  science            1.081e-02 6.355e-03   0.588           -            -
+decode  chat_short         7.014e-03 1.535e-02   2.188           -            -
+decode  chat_system        1.296e-02 1.981e-02   1.529           -            -
+decode  chat_multiturn     1.487e-01 5.531e-02   0.372           -            -
+decode  chat_reasoning     2.829e-02 5.845e-03   0.207           -            -
+decode  long_prose_300     7.957e-05 4.201e-04   5.280           -            -
+decode  long_prose_700     1.928e-03 2.311e-03   1.199           -            -
+
+== control (not gating): acc-ext-tp1-nofusion.out: PASS   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  5.978e-03   1.000
+decode    1.214e-02  1.214e-02   1.000
+
+-- per prompt, REPORT ONLY (no gate): acc-ext-tp1-nofusion.out
+mode    prompt                   ref      cand   ratio  vLLM noise  (c-r)/noise
+prefill count              2.822e-03 2.822e-03   1.000   2.565e-03         0.00
+prefill story              5.346e-03 5.346e-03   1.000   3.073e-03         0.00
+prefill code               1.019e-03 1.019e-03   1.000   5.372e-04         0.00
+prefill science            1.363e-02 1.363e-02   1.000   4.693e-03         0.00
+prefill chat_short         1.970e-02 1.970e-02   1.000   4.649e-03         0.00
+prefill chat_system        1.348e-02 1.348e-02   1.000   1.096e-02         0.00
+prefill chat_multiturn     3.272e-02 3.272e-02   1.000   4.352e-03         0.00
+prefill chat_reasoning     8.953e-03 8.953e-03   1.000   4.526e-03         0.00
+prefill long_prose_300     3.715e-03 3.715e-03   1.000   1.478e-03         0.00
+prefill long_prose_700     5.987e-03 5.987e-03   1.000   3.403e-03         0.00
+decode  count              1.547e-03 1.547e-03   1.000           -            -
+decode  story              1.045e-02 1.045e-02   1.000           -            -
+decode  code               1.592e-03 1.592e-03   1.000           -            -
+decode  science            1.081e-02 1.081e-02   1.000           -            -
+decode  chat_short         7.014e-03 7.014e-03   1.000           -            -
+decode  chat_system        1.296e-02 1.296e-02   1.000           -            -
+decode  chat_multiturn     1.487e-01 1.487e-01   1.000           -            -
+decode  chat_reasoning     2.829e-02 2.829e-02   1.000           -            -
+decode  long_prose_300     7.957e-05 7.957e-05   1.000           -            -
+decode  long_prose_700     1.928e-03 1.928e-03   1.000           -            -
+
+== control (not gating): acc-ext-tp1-chunk233.out: PASS   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  5.978e-03   1.000
+decode    1.214e-02  1.214e-02   1.000
+
+-- per prompt, REPORT ONLY (no gate): acc-ext-tp1-chunk233.out
+mode    prompt                   ref      cand   ratio  vLLM noise  (c-r)/noise
+prefill count              2.822e-03 2.822e-03   1.000   2.565e-03         0.00
+prefill story              5.346e-03 5.346e-03   1.000   3.073e-03         0.00
+prefill code               1.019e-03 1.019e-03   1.000   5.372e-04         0.00
+prefill science            1.363e-02 1.363e-02   1.000   4.693e-03         0.00
+prefill chat_short         1.970e-02 1.970e-02   1.000   4.649e-03         0.00
+prefill chat_system        1.348e-02 1.348e-02   1.000   1.096e-02         0.00
+prefill chat_multiturn     3.272e-02 3.272e-02   1.000   4.352e-03         0.00
+prefill chat_reasoning     8.953e-03 8.953e-03   1.000   4.526e-03         0.00
+prefill long_prose_300     3.715e-03 3.715e-03   1.000   1.478e-03         0.00
+prefill long_prose_700     5.987e-03 5.987e-03   1.000   3.403e-03         0.00
+decode  count              1.547e-03 1.547e-03   1.000           -            -
+decode  story              1.045e-02 1.045e-02   1.000           -            -
+decode  code               1.592e-03 1.592e-03   1.000           -            -
+decode  science            1.081e-02 1.081e-02   1.000           -            -
+decode  chat_short         7.014e-03 7.014e-03   1.000           -            -
+decode  chat_system        1.296e-02 1.296e-02   1.000           -            -
+decode  chat_multiturn     1.487e-01 1.487e-01   1.000           -            -
+decode  chat_reasoning     2.829e-02 2.829e-02   1.000           -            -
+decode  long_prose_300     7.957e-05 7.957e-05   1.000           -            -
+decode  long_prose_700     1.928e-03 1.928e-03   1.000           -            -
+
+== mutant bug0.1: detected by the mean gate: FAIL   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  6.329e-03   1.059  FAIL
+decode    1.214e-02  6.123e-03   0.504
+
+== mutant bug0.3: detected by the mean gate: FAIL   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  5.375e-03   0.899
+decode    1.214e-02  1.511e-02   1.245  FAIL
+
+== mutant bug1: NOT detected by the mean gate: PASS   (gate: mean KL ratio <= 1.02)
+mode            ref       cand   ratio
+prefill   5.978e-03  4.913e-03   0.822
+decode    1.214e-02  1.199e-02   0.988

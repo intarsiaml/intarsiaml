@@ -1,0 +1,21 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w30-{eager} 2026-10-26 01:28:59
+[window] job 5647 w30; stopping radiance 2026-10-26 01:28:59
+[window] radiance stopped 2026-10-26 01:29:03
+01:29:03 window start, CAP 2450s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+01:29:03 env: load average: 6.36, 3.07, 2.33 | top:  1.0 tailscaled; 0.4 kworker/12:3-events; 0.3 kworker/0:3-events; 0.2 kworker/2:0-events; | containers: 
+/home/josef/tp2/stages-w30.sh: line 27: 1412705 Killed                  INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test > "$O/repro-$tag.log" 2>&1 < /dev/null
+01:37:33 removed leftover container 4f9a00c8c313
+01:37:33 repro d1-default-solo-eager-40 exit 137 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]:  | 
+/home/josef/tp2/stages-w30.sh: line 27: 1441023 Killed                  INTARSIA_REPO=$(T $D) INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$D-hiptest HIP_VISIBLE_DEVICES=0,1 timeout -k 10 "$to" "$(T $D)/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR="$M27" INTARSIA_BATCH_TEST_TP=2 "$@" cargo test --release -p intarsia-models --test batch_cuda_real -- --test-threads=1 --nocapture --ignored --exact $test > "$O/repro-$tag.log" 2>&1 < /dev/null
+01:46:13 removed leftover container 45dccd94bbe2
+01:46:13 repro d2-default-solo-eager-40 exit 137 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]:  | 
+01:48:47 repro d3-default-minimal-40 exit 0 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1]: REPRO failures 0/40 | 
+01:53:30 repro k0-control exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_NODES=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_HIP_CTRS_HOST=1]: REPRO failures 1 (hang) | 
+01:58:22 repro k5-graph-lock exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_NODES=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_GRAPH_LOCK=1]: REPRO failures 0/20 | 
+02:03:04 repro k6-graph-lock exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_NODES=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_GRAPH_LOCK=1]: REPRO failures 0/20 | 
+02:03:21 repro k1-serialize3 exit 4 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_NODES=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_HIP_CTRS_HOST=1 AMD_SERIALIZE_KERNEL=3]: REPRO failures 1 (hang) | 
+02:07:04 repro k2-launch-blocking exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_NODES=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_HIP_CTRS_HOST=1 HIP_LAUNCH_BLOCKING=1]: REPRO failures 1 (hang) | 
+02:07:04 done, time left 169s
+[window] stages done 2026-10-26 02:07:04 (exit 0)
+[window] starting radiance 2026-10-26 02:07:04
+[window] radiance answers 2026-10-26 02:07:19 (after 20 s)

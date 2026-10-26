@@ -1,0 +1,9 @@
+prefill chunk 256 (default)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (--mxfp4-act)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+Error: reading /work/tp2-out/acc-27b-tp2-a.safetensors
+
+Caused by:
+    No such file or directory (os error 2)

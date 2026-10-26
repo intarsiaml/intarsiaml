@@ -1,0 +1,7 @@
+02:39:34 window start, CAP 2600s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+02:39:34 env: load average: 7.19, 3.98, 2.83 | top:  1.0 tailscaled; 0.3 kworker/6:0-cgroup_free; 0.2 kworker/14:3-events; 0.2 kworker/0:3-events; | containers: 
+02:48:59 repro l1-default-lock-40 exit 0 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]: REPRO failures 0/40 | 
+02:58:23 repro l2-default-lock-40 exit 0 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1]: REPRO failures 0/40 | 
+03:00:47 repro l3-default-lock-minimal-40 exit 0 [INTARSIA_REPRO_REPS=40 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1]: REPRO failures 0/40 | 
+03:06:27 repro l4-lock-off-control exit 124 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_GRAPH_LOCK=0]:  | 
+03:06:27 done, time left 987s

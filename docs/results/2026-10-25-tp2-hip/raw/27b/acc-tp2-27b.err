@@ -1,0 +1,15 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/p1-golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations dynamic (Quark even_round), 496 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+WARNING: ref_noise names no golden hash, so it is matched by file name and position count only (qwen3.8-27b-mxfp4-hfquark-top20.safetensors)
+reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF W4A4 bf16 vs HF W4A4 f32') and 10; backfilled by the reference-noise gate lane (decision 2026-10-21 12:39 item 2, docs/decisions/LOG.md); estimator kl21 (golden_kl.py, the gate's 21-way KL; 0.176 there against 0.180 from the gate for the same pair); factor 1 (default)
+this build: head ba0fa9e code-tree a70781153ce2 clean
+note: the reference noise was measured over 1441 positions, the decode mode compares 160: the noise is applied as measured, but the subset can differ
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+Error: accuracy gate FAILED

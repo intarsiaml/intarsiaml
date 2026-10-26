@@ -1,0 +1,20 @@
+Based on the provided text, here is the architecture diagram for **IntarsiaML**.
+
+### **IntarsiaML Architecture Diagram**
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured

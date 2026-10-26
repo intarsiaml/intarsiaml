@@ -1,0 +1,51 @@
+[window] job 5269 w8; stopping radiance 2026-10-25 09:33:11
+[window] radiance stopped 2026-10-25 09:33:14
+09:33:14 window start, CAP 2400s
+09:35:22 REPRO cold: 0 of 6 runs failed (exit codes: 0 0 0 0 0 0 )
+09:39:37 REPRO warm: 0 of 24 runs failed (exit codes: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 )
+09:39:41 self-tp2-r2-vs-r1 exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head 5bee812 code-tree a93d9b9a590c clean which is unverifiable: pass --pre-change SHA and/or --revlist FILE (git rev-list HEAD, written where the history is)|
+09:41:49 REPRO v0: 0 of 12 runs failed (exit codes: 0 0 0 0 0 0 0 0 0 0 0 0 )
+09:43:57 REPRO main: 0 of 12 runs failed (exit codes: 0 0 0 0 0 0 0 0 0 0 0 0 )
+09:43:57 repro done, time left 1757s
+09:44:03 gen-mut-ref exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:08 gen-mut-no-peer-upload exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:08 MUTANT no-peer-upload: ids DIFFER (killed); tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:38 gen-mut-drop-captured-allreduce exit 139: 
+09:44:38 MUTANT drop-captured-allreduce: ids DIFFER (killed); :0:rocdevice.cpp            :3721: 56729755664 us:  Callback: Queue 0x740ae4800000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016|
+09:44:44 gen-mut-peer-ignores-flag exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+09:44:44 MUTANT peer-ignores-flag: ids SAME as the clean tp=2 run (SURVIVED); tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+09:44:49 gen-mut-tp-fold-outproj exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/13136 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:49 MUTANT tp-fold-outproj: ids DIFFER (killed); tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:55 gen-mut-batch-peer-no-table exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:44:55 MUTANT batch-peer-no-table: ids SAME as the clean tp=2 run (SURVIVED); tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:45:00 gen-mut-vocab-no-gather exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20560 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:45:00 MUTANT vocab-no-gather: ids DIFFER (killed); tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+09:45:09 mtest tp2-mutants exit 0 [INTARSIA_BATCH_TEST_TP=2]: thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant PlainKernels at 12 rows: caught (control after it passes)|thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant ReverseRows at 8 rows: caught (control after it passes)|tensor-parallel rank 1: batched decode graph captures=2 replays=14|test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 7.97s|
+09:45:14 mtest tp2-stale-position exit 0 [INTARSIA_BATCH_TEST_TP=2]: thread 'real_35b_tp2_batch_stale_position_mutant_is_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant StalePosition at 8 rows: caught|
+09:45:14 stages-batch (mut only) done
+09:45:14 batch mutants: 09:45:09 mtest tp2-mutants exit 0 [INTARSIA_BATCH_TEST_TP=2]: thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant PlainKernels at 12 rows: caught (control after it passes)|thread 'real_35b_tp2_batch_mutants_are_caught' panic|09:45:14 mtest tp2-stale-position exit 0 [INTARSIA_BATCH_TEST_TP=2]: thread 'real_35b_tp2_batch_stale_position_mutant_is_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:108:21:|mutant StalePosition at 8 rows: caught||
+09:45:24 acc-ext-tp1 exit 0: golden gate: PASS|
+09:45:34 acc-ext-tp2 exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+09:45:46 acc-ext-tp2-bug0.3 exit 0 [INTARSIA_TP_TEST_BUG=scale:1.003]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+09:45:57 acc-ext-tp2-bug1 exit 0 [INTARSIA_TP_TEST_BUG=scale:1.01]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+09:46:09 acc-ext-tp2-bug0.1 exit 0 [INTARSIA_TP_TEST_BUG=scale:1.001]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=false captures=0 replays=0|
+09:46:19 acc-ext-tp1-nofusion exit 0 [INTARSIA_NO_FUSION=1]: golden gate: PASS|
+09:46:28 acc-ext-tp1-chunk233 exit 0: golden gate: PASS|
+09:46:28 check 3 outputs: 7 tables (read with scripts/tp2-hip/tp-gate.py)
+09:46:30 hiptest tp-partial-sum exit 0: 1 passed, 0 failed, 0 ignored 
+09:51:02 hiptest all exit 0: 127 passed, 0 failed, 13 ignored 
+09:51:05 kernels-test-quick exit 0: 
+09:51:05 kernels test --quick: op             kernel                      cases   fail     max_abs      rel_l2  result|62 kernels, 333 cases in 3.0s|
+09:51:30 reuse-tp2 exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=738|
+09:51:57 reuse-tp2-fusion0 exit 0 [INTARSIA_TP_FUSION=0]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=738|
+09:52:07 acc-vocab0-35b-short exit 0 [INTARSIA_TP_VOCAB=0]: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+09:52:11 self-vocab1-vs-vocab0-short exit 1: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head 5bee812 code-tree a93d9b9a590c clean which is not the declared pre-change commit 2c2d994|
+09:52:22 acc-arn0-35b-short exit 0: golden gate: PASS|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159|
+09:52:26 self-arn1-vs-arn0-short exit 1 [INTARSIA_TP_ARNORM=1]: tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head 5bee812 code-tree a93d9b9a590c clean which is unverifiable: pass --pre-change SHA and/or --revlist FILE (git rev-list HEAD, written where the history is)|
+09:52:26 evidence arnorm dump: tensor-parallel rank 0: fused all-reduce+rmsnorm eager=0 captured=0|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0|tensor-parallel rank 1: fused all-reduce+rmsnorm eager=0 captured=0|
+09:54:25 acc-tp1-35b-long exit 0: golden gate: PASS|
+09:54:29 self-tp2-vs-tp1-long exit 1: reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt val|tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|Error: the self-golden was recorded from head 5bee812 code-tree a93d9b9a590c clean which is unverifiable: pass --pre-change SHA and/or --revlist FILE (git rev-list HEAD, written where the history is)|
+09:54:29 done, time left 1125s
+[window] stages done 2026-10-25 09:54:29 (exit 0)
+[window] starting radiance 2026-10-25 09:54:29
+[window] radiance answers 2026-10-25 09:55:04 (after 40 s)

@@ -82,6 +82,9 @@ pub struct PlannedComm {
     /// Payload bytes of this rank's tensor.
     pub bytes: usize,
     pub extra: bool,
+    /// Fused with the `RmsNormAdd` that follows it (`Comm::all_reduce_add_rmsnorm`, `model/ar_norm.rs`): the pass runs
+    /// both as one collective. That `RmsNormAdd` is still among the recorded calls (its kernel is the unfused fallback).
+    pub fused_norm: bool,
 }
 
 /// Recorder installed by [`Model::dry_run`]; `exec` feeds it instead of launching.
@@ -124,6 +127,8 @@ pub struct ResolvedPlan {
     /// Tensor parallelism: all-reduces in one decode step (`T = 1`) and the bytes each rank contributes.
     pub comm_calls_per_decode_step: usize,
     pub comm_bytes_per_decode_step: usize,
+    /// Of those all-reduces, how many run fused with the standalone `RmsNormAdd` after them.
+    pub comm_fused_norm_per_decode_step: usize,
     /// Prefill sizes probed.
     pub sizes: Vec<usize>,
 }
@@ -205,7 +210,7 @@ fn shape_str(s: &ShapeInfo) -> String {
 }
 
 /// Record the plan: probe decode and prefill shapes, collect calls and missing kernels.
-fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize))> {
+fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize, usize))> {
     let chunk = model.prefill_chunk();
     let cap = model.plan.kv_cap_tokens.max(1);
     let sizes = probe_sizes(chunk);
@@ -252,7 +257,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
         probes.push((Phase::Batch, t, cap - 1));
     }
     let mut calls = Vec::new();
-    let mut comm_decode = (0usize, 0usize);
+    let mut comm_decode = (0usize, 0usize, 0usize);
     let mut decode0: Vec<(Op, String)> = Vec::new();
     // op -> (shapes without a kernel, first description, where it is needed)
     let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
@@ -285,6 +290,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
             for c in rec.comm.iter().filter(|c| !c.extra) {
                 comm_decode.0 += 1;
                 comm_decode.1 += c.bytes;
+                comm_decode.2 += c.fused_norm as usize;
             }
         }
         calls.extend(rec.calls);
@@ -455,6 +461,9 @@ fn position_diff(by_pos: &BTreeMap<usize, Vec<(Op, &str)>>) -> Option<String> {
 /// Resolve every `(op, shape)` of the model against the registry and (re)allocate the scratch
 /// workspace. Idempotent; call again after the registry changed (admission, `--reference`).
 pub fn resolve(model: &mut Model) -> Result<()> {
+    if model.vocab_parallel() {
+        model.check_vocab_split()?;
+    }
     let (calls, sizes, comm_decode) = record(model)?;
     let mut scratch = 0usize;
     let mut per_op: BTreeMap<(Op, String), PlanOp> = BTreeMap::new();
@@ -501,6 +510,7 @@ pub fn resolve(model: &mut Model) -> Result<()> {
         probes: calls.len(),
         comm_calls_per_decode_step: comm_decode.0,
         comm_bytes_per_decode_step: comm_decode.1,
+        comm_fused_norm_per_decode_step: comm_decode.2,
         sizes,
     };
     Ok(())
@@ -881,7 +891,7 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
                     "rank": r, "device": i.name, "mem_total": i.total_mem, "free_mem": i.free_mem,
                     "weights_bytes": m.map(|m| m.weights_bytes),
                     "kv_cap_tokens": m.map(|m| m.plan.kv_cap_tokens),
-                    "holds_lm_head": r == 0,
+                    "holds_lm_head": r == 0 || model.vocab_parallel(),
                 })
             })
             .collect();
@@ -892,8 +902,13 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
             "per_rank": {"n_heads": l.n_heads, "n_kv_heads": l.n_kv_heads, "head_dim": l.head_dim, "intermediate": l.intermediate,
                          "hidden": l.hidden, "vocab": l.vocab},
             "global": {"n_heads": model.dims.n_heads, "n_kv_heads": model.dims.n_kv_heads, "intermediate": model.dims.intermediate},
-            "lm_head": "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer",
+            "lm_head": if model.vocab_parallel() {
+                "vocab-parallel: every rank holds V / world rows, the logits are all-gathered into rank 0"
+            } else {
+                "replicated on rank 0 only (full vocabulary); other ranks stop after the last layer"
+            },
             "all_reduce_calls_per_decode_step": model.resolved.comm_calls_per_decode_step,
+            "all_reduce_fused_rmsnorm_per_decode_step": model.resolved.comm_fused_norm_per_decode_step,
             "all_reduce_bytes_per_decode_step": model.resolved.comm_bytes_per_decode_step,
             "ranks": ranks,
         })

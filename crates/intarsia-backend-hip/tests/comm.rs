@@ -262,3 +262,101 @@ fn all_reduce_rate() {
         println!("{:>10} {:>12.1} {:>12.2} {:>10}", bytes, us, bytes as f64 / us / 1e3, iters);
     }
 }
+
+fn upload_f32(be: &dyn Backend, t: &TensorRef, v: &[f32]) {
+    let mut bytes = vec![0u8; v.len() * t.dtype.size_bytes()];
+    encode_from_f32(t.dtype, v, &mut bytes);
+    be.upload(&t.buf, t.offset, &bytes, 0).unwrap();
+}
+
+/// Vocab-parallel head: the all-gather is rank-major (`recv[r * n ..]` is rank r's `send`), bit exact (f32 words are copied,
+/// never added), with `send` disjoint from `recv` or this rank's own segment of it (in place), at decode-sized messages (one
+/// logits row half of the 35B: 124160 f32), odd sizes, and messages above one scratch slot (several launches).
+#[test]
+fn all_gather_is_rank_major_exact_in_place_and_disjoint() {
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    let mut rng = SplitMix64::new(41);
+    for n in [4usize, 4096, 124_160, 3 * 1024 * 1024 + 4, 5 * 1024 * 1024] {
+        for in_place in [false, true] {
+            let a: Vec<f32> = rng.normal_vec(n, 3.0);
+            let b: Vec<f32> = rng.normal_vec(n, 3.0);
+            let vals = [&a, &b];
+            let recv: Vec<TensorRef> = (0..2).map(|r| put(&*be[r], DType::F32, &vec![f32::from_bits(0x7fc0_dead); 2 * n]).reshaped(&[2, n])).collect();
+            let send: Vec<TensorRef> = (0..2)
+                .map(|r| {
+                    if in_place {
+                        upload_f32(&*be[r], &recv[r].rows(r, 1), vals[r]);
+                        recv[r].rows(r, 1)
+                    } else {
+                        put(&*be[r], DType::F32, vals[r])
+                    }
+                })
+                .collect();
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (c, s, d) = (&comms[r], &send[r], &recv[r]);
+                    sc.spawn(move || c.all_gather(s, d, 0).unwrap());
+                }
+            });
+            let want: Vec<u32> = a.iter().chain(b.iter()).map(|x| x.to_bits()).collect();
+            for r in 0..2 {
+                let got: Vec<u32> = get(&*be[r], &recv[r]).iter().map(|x| x.to_bits()).collect();
+                assert!(got == want, "rank {r} n={n} in_place={in_place}: gathered halves differ");
+            }
+        }
+    }
+}
+
+/// The gather recorded into a hipGraph on each rank, between two all-reduces: replays (and eager rounds) with new inputs in the
+/// recorded buffers give the exact bits, and the per-block counters stay in lockstep through the mixed sequence.
+#[test]
+fn all_gather_captured_in_a_graph_replays_exactly_between_all_reduces() {
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    assert!(comms.iter().all(|c| c.capture_safe()));
+    let mut rng = SplitMix64::new(43);
+    let (nx, ng) = (2048usize, 124_160usize);
+    let bufs: Vec<(TensorRef, TensorRef)> = (0..2)
+        .map(|r| (put(&*be[r], DType::Bf16, &vec![0f32; nx]), put(&*be[r], DType::F32, &vec![0f32; 2 * ng]).reshaped(&[2, ng])))
+        .collect();
+    let body = |r: usize| {
+        let (x, g) = &bufs[r];
+        comms[r].all_reduce_sum(x, 0)?;
+        comms[r].all_gather(&g.rows(r, 1), g, 0)?;
+        comms[r].all_reduce_sum(x, 0)?;
+        comms[r].all_gather(&g.rows(r, 1), g, 0)
+    };
+    let graphs: Vec<_> = (0..2).map(|r| be[r].graph_capture(0, &mut || body(r)).unwrap()).collect();
+    for round in 0..120 {
+        let mut held = Vec::new();
+        let mut gv: Vec<Vec<f32>> = Vec::new();
+        for r in 0..2 {
+            let (x, g) = &bufs[r];
+            upload_f32(&*be[r], x, &rng.normal_vec(nx, 3.0));
+            held.push(get(&*be[r], x));
+            let v: Vec<f32> = rng.normal_vec(ng, 3.0);
+            upload_f32(&*be[r], &g.rows(r, 1), &v);
+            upload_f32(&*be[r], &g.rows(1 - r, 1), &vec![0f32; ng]); // the other segment must be written by the gather
+            gv.push(v);
+        }
+        let once = host_sum(DType::Bf16, &held[0], &held[1]);
+        let twice = host_sum(DType::Bf16, &once, &once);
+        let want: Vec<u32> = gv[0].iter().chain(gv[1].iter()).map(|x| x.to_bits()).collect();
+        let eager = round % 4 == 3;
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                let (b, g) = (&be[r], &graphs[r]);
+                let body = &body;
+                sc.spawn(move || if eager { body(r).unwrap() } else { b.graph_replay(g, 0).unwrap() });
+            }
+        });
+        for r in 0..2 {
+            let (x, g) = &bufs[r];
+            let tag = if eager { "eager" } else { "replay" };
+            assert_eq!(get(&*be[r], x), twice, "round {round} ({tag}) all-reduce rank {r}");
+            let got: Vec<u32> = get(&*be[r], g).iter().map(|v| v.to_bits()).collect();
+            assert!(got == want, "round {round} ({tag}) gather rank {r}");
+        }
+    }
+}

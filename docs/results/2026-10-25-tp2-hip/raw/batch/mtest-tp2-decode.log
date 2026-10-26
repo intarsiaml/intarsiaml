@@ -1,0 +1,54 @@
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:5
+   |
+36 | struct Captured {
+   |        -------- field in this struct
+37 |     state_id: u64,
+   |     ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:682:45
+    |
+682 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:212:8
+    |
+212 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.16s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 1 test
+test real_35b_batched_decode_is_bitwise_the_solo_step ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22663921664, weights_bytes: 10942366580, workspace_bytes: 606898720, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21530725310, kv_cap_tokens: 2048, kv_total_bytes: 20971520, notes: [] }
+recurrent bytes per state 32931840
+batch plan notes: ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+17550 (row, step) pairs bitwise identical in 141.7 s
+tp=2 batched graphs: rank 0 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956 }, rank 1 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956 }
+tensor-parallel rank 1: decode graph enabled=true captures=22 replays=17580
+tensor-parallel rank 1: batched decode graph captures=15 replays=1956
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 147.24s
+

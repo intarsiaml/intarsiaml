@@ -135,7 +135,14 @@ int ik_rt_event_destroy(void* ev) { return (int)hipEventDestroy((hipEvent_t)ev);
 /* graphs: capture a stream's launches (thread-local mode, so other threads' runtime calls stay legal), instantiate, replay.
    ik_rt_graph_end always ends the capture, even for a stream whose capture was invalidated, so the stream is never left in
    capture mode. */
+/* INTARSIA_GRAPH_SYNC_CAPTURE=1 (diagnostic, w27): the stream is idle before a capture begins and before the graph is instantiated (a peer rank only enqueues,
+   so its previous replay can still be running when its next capture starts). */
+static bool ik_sync_capture() {
+    static const bool on = [] { const char* v = getenv("INTARSIA_GRAPH_SYNC_CAPTURE"); return v && v[0] == '1'; }();
+    return on;
+}
 int ik_rt_graph_begin(void* stream) {
+    if (ik_sync_capture()) (void)hipStreamSynchronize((hipStream_t)stream);
     return (int)hipStreamBeginCapture((hipStream_t)stream, hipStreamCaptureModeThreadLocal);
 }
 int ik_rt_graph_end(void* stream, void** exec) {
@@ -149,7 +156,32 @@ int ik_rt_graph_end(void* stream, void** exec) {
         (void)hipGetLastError();
         return (int)e;
     }
+    {
+        /* INTARSIA_GRAPH_NODES=1 (diagnostic, w30): the node count of every capture. w29: a replay ran ~10 collective kernels fewer than the
+           capture issued; a capture that recorded fewer kernel nodes than launches would show here. */
+        static const bool on = [] { const char* v = getenv("INTARSIA_GRAPH_NODES"); return v && v[0] == '1'; }();
+        if (on) {
+            size_t n = 0;
+            int dev = -1;
+            (void)hipGetDevice(&dev);
+            if (hipGraphGetNodes(g, nullptr, &n) == hipSuccess && n > 0) {
+                hipGraphNode_t* nodes = (hipGraphNode_t*)malloc(n * sizeof(hipGraphNode_t));
+                size_t m = n, kernels = 0;
+                if (nodes && hipGraphGetNodes(g, nodes, &m) == hipSuccess) {
+                    for (size_t i = 0; i < m; ++i) {
+                        hipGraphNodeType t;
+                        if (hipGraphNodeGetType(nodes[i], &t) == hipSuccess && t == hipGraphNodeTypeKernel) ++kernels;
+                    }
+                }
+                free(nodes);
+                fprintf(stderr, "GRAPHNODES dev %d nodes %zu kernels %zu\n", dev, n, kernels);
+            } else {
+                fprintf(stderr, "GRAPHNODES dev %d nodes %zu (query failed)\n", dev, n);
+            }
+        }
+    }
     hipGraphExec_t ge = nullptr;
+    if (ik_sync_capture()) (void)hipStreamSynchronize((hipStream_t)stream);
     e = hipGraphInstantiate(&ge, g, nullptr, nullptr, 0);
     (void)hipGraphDestroy(g);
     if (e != hipSuccess) {
@@ -161,6 +193,8 @@ int ik_rt_graph_end(void* stream, void** exec) {
 }
 int ik_rt_graph_launch(void* exec, void* stream) { return (int)hipGraphLaunch((hipGraphExec_t)exec, (hipStream_t)stream); }
 int ik_rt_graph_destroy(void* exec) { return (int)hipGraphExecDestroy((hipGraphExec_t)exec); }
+int ik_rt_device_sync(void) { return (int)hipDeviceSynchronize(); }
+int ik_rt_sync_capture_on(void) { return ik_sync_capture() ? 1 : 0; }
 
 int ik_rt_can_access_peer(int device, int peer, int* ok) { return (int)hipDeviceCanAccessPeer(ok, device, peer); }
 

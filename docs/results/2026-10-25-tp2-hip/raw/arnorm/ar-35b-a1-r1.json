@@ -1,0 +1,93 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "ar-35b-a1-r1",
+  "timestamp_unix": 1792925241,
+  "url": "http://localhost:8092",
+  "model": "qwen36-35b-ar",
+  "config": {
+    "sizes": [
+      1024,
+      4096
+    ],
+    "gen": 128,
+    "reps": 1,
+    "warmup": 1,
+    "concurrency": [
+      1
+    ],
+    "conc_size": 1024,
+    "gb_per_token": null,
+    "bandwidth_gbs": null
+  },
+  "calibration": {
+    "base_prompt_tokens": 47.0,
+    "tokens_per_filler_sentence": 21.87
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 256,
+    "captures": 0,
+    "eager_steps": 0,
+    "profiled_steps": 0
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 980.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1111,
+      "prefill_tok_s": 8824.7,
+      "decode_tok_s": 190.94,
+      "decode_tok_s_reps": [
+        190.94
+      ],
+      "decode_tok_s_min": 190.94,
+      "decode_tok_s_max": 190.94,
+      "decode_tok_s_stdev": null,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 1,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    },
+    {
+      "target_prompt_tokens": 4096,
+      "prompt_tokens": 4016.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.3305,
+      "prefill_tok_s": 12150.4,
+      "decode_tok_s": 189.86,
+      "decode_tok_s_reps": [
+        189.86
+      ],
+      "decode_tok_s_min": 189.86,
+      "decode_tok_s_max": 189.86,
+      "decode_tok_s_stdev": null,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 1,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 128,
+        "captures": 0,
+        "eager_steps": 0,
+        "profiled_steps": 0
+      }
+    }
+  ],
+  "concurrency": [],
+  "warnings": []
+}

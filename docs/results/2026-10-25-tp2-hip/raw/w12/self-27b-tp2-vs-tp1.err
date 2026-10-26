@@ -1,0 +1,14 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /work/tp2-out/acc-27b-tp1.safetensors (10 prompts, 1441 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia head 5bee812 code-tree a93d9b9a590c clean | model amd/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+this build: head 5bee812 code-tree a93d9b9a590c clean
+WARNING: this run differs from the self-golden: device: self-golden AMD Radeon Graphics, this run AMD Radeon Graphics x2 (tp=2, hip-p2p comm)
+WARNING: the self-golden is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+self-golden written by: head 5bee812 code-tree a93d9b9a590c clean (top-64, modes prefill,decode)
+WARNING: this run resolved exactly the same kernels and flags as the self-golden's run: a kernel or graph change cannot show up in this comparison
+self-golden budgets: mean KL(21-way) <= 1.0e-9, max position KL <= 1.0e-6, top-1 flips <= 0% (>= 1 position), mean |tail diff| <= 5.0e-8, prompt KL <= x5
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159

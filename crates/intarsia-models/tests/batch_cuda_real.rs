@@ -11,14 +11,19 @@
 //! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same kernels (CUDA, and HIP
 //!   since #154 dropped `hip_batch_needs_hybrid`).
 //!
+//! Tensor parallelism (lane tp2/batch): with `INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_BATCH_TEST_TP=2` the models load as an
+//! in-process 2-way group on HIP devices 0 and 1 (peer-to-peer communicator, row-local fusion on and the vocab-parallel head
+//! as `intarsia serve --tp 2 --backend hip` loads them; `INTARSIA_TP_VOCAB=0` keeps the replicated head) and the same gates
+//! compare batched tp=2 steps against solo tp=2 steps.
+//!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
 //! `INTARSIA_QWEN3_DIR` (8B); a test whose variable is unset prints SKIPPED and passes, also under `INTARSIA_REQUIRE_GPU=1`
 //! (a checkpoint left out is not a missing GPU); one set to a directory without config.json, or without a usable GPU,
 //! panics under `INTARSIA_REQUIRE_GPU=1`. The tests run one at a time ([`serial`]).
-use intarsia_core::model::{LoadOptions, Model};
+use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
-use intarsia_models::{load_engine, read_model_spec, EngineOptions};
+use intarsia_models::{load_engine, load_engine_tp, read_model_spec, EngineOptions, Loaded};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -70,6 +75,38 @@ fn serial() -> MutexGuard<'static, ()> {
 }
 
 /// The model of `dir` on the GPU with batching enabled for `rows` sequences of `max_seq` tokens.
+/// `INTARSIA_BATCH_TEST_TP=2` (HIP only): the tensor-parallel degree the models load with (default 1).
+fn tp() -> usize {
+    let tp = std::env::var("INTARSIA_BATCH_TEST_TP").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    assert!(tp == 1 || (tp == 2 && std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip")), "INTARSIA_BATCH_TEST_TP=2 needs INTARSIA_BATCH_TEST_BACKEND=hip");
+    tp
+}
+
+/// The load options `intarsia serve --tp 2 --backend hip` adds at tp=2: row-local fusion, the vocab-parallel head (unless
+/// `INTARSIA_TP_VOCAB=0`). Unchanged at tp=1.
+fn with_tp(mut o: LoadOptions) -> LoadOptions {
+    if tp() > 1 {
+        o.tp_fusion = true;
+        o.tp_vocab = !std::env::var("INTARSIA_TP_VOCAB").is_ok_and(|v| v == "0");
+    }
+    o
+}
+
+/// The HIP group of devices 0 and 1 (backends and the peer-to-peer communicator).
+fn hip_group() -> (Vec<Arc<dyn intarsia_core::backend::Backend>>, Vec<Arc<dyn intarsia_core::Comm>>) {
+    intarsia_backend_hip::create_group(&[0, 1]).expect("two HIP devices with peer access")
+}
+
+/// `load_engine`, or at tp=2 `load_engine_tp` over the HIP group (`be` is then unused).
+fn engine(dir: &PathBuf, be: &Arc<dyn intarsia_core::backend::Backend>, opts: &EngineOptions) -> Loaded {
+    if tp() == 1 {
+        return load_engine(dir, be.clone(), opts).unwrap();
+    }
+    let (bs, comms) = hip_group();
+    let opts = EngineOptions { load: with_tp(opts.load.clone()), ..opts.clone() };
+    load_engine_tp(dir, bs, comms, &opts).unwrap()
+}
+
 fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
     load_with(dir, backend, rows, max_seq, 0).0
 }
@@ -95,16 +132,24 @@ fn try_load_with(
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, backend.name()).value;
-    let opts = LoadOptions {
+    let opts = with_tp(LoadOptions {
         max_seq,
         prefill_chunk: chunk,
         profile_every,
         // the Spark's `free` after the weights is the page-cache-reduced figure (about 2 GB on a shared box): take most of it
         kv_fraction: 0.95,
         ..Default::default()
-    };
+    });
     let tel = Arc::new(Telemetry::new());
-    let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
+    let mut m = if tp() == 1 {
+        Model::load(backend, &recipe, &dims, &weights, &opts, tel.clone()).unwrap()
+    } else {
+        drop(backend);
+        let (bs, comms) = hip_group();
+        let m = Model::load_tp(bs, comms, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
+        eprintln!("tensor parallel x{}: vocab-parallel head {}", m.tp_world(), m.vocab_parallel());
+        m
+    };
     assert!(m.batch_capable(), "the GPU backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
@@ -148,6 +193,320 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+    if tp() == 2 {
+        // the batched steps ran through recordings on BOTH ranks, in lockstep (graphs are on by default, as in serve)
+        let (g0, g1) = (m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
+        eprintln!("tp=2 batched graphs: rank 0 {g0:?}, rank 1 {g1:?}");
+        assert!(g0.batch_replays > 0, "rank 0 never replayed a batched graph: {g0:?}");
+        assert_eq!((g0.batch_captures, g0.batch_replays), (g1.batch_captures, g1.batch_replays), "the peer did not follow rank 0");
+    }
+}
+
+/// Print both ranks' collective ledgers (`INTARSIA_TP_COLL_TRACE=1`, `Model::coll_trace_dump`): the first line where they differ, then the last
+/// 40 lines of each. The first differing pass is the step the ranks decided differently.
+/// Debugging (w26): where every host thread of this process sits. A signal handler on each thread prints its backtrace (a thread blocked in
+/// an uninterruptible driver call prints nothing: its kernel wait channel is listed first). Used at a hang to tell a device-side spin from a host-side
+/// deadlock (one rank's host thread inside hipMalloc, a sync or a module load while the other rank's ar2 kernel spins).
+#[cfg(target_os = "linux")]
+fn dump_host_stacks() {
+    extern "C" fn on_signal(_: libc::c_int) {
+        // SAFETY: gettid has no preconditions.
+        let tid = unsafe { libc::syscall(libc::SYS_gettid) };
+        let bt = std::backtrace::Backtrace::force_capture();
+        eprintln!("STACK tid {tid}:\n{bt}");
+    }
+    // SAFETY: installing a handler for a signal this test process does not otherwise use.
+    unsafe {
+        libc::signal(libc::SIGUSR2, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+    }
+    let pid = std::process::id() as libc::c_long;
+    let me = unsafe { libc::syscall(libc::SYS_gettid) };
+    let Ok(rd) = std::fs::read_dir("/proc/self/task") else { return };
+    for e in rd.flatten() {
+        let Some(tid) = e.file_name().to_str().and_then(|t| t.parse::<libc::c_long>().ok()) else { continue };
+        let rd = |f: &str| std::fs::read_to_string(format!("/proc/self/task/{tid}/{f}")).unwrap_or_default().trim().replace('\n', " ");
+        eprintln!("THREAD {tid}{}: comm {:?} wchan {:?} state {:?}", if tid == me { " (this one)" } else { "" }, rd("comm"), rd("wchan"), rd("stat").split(' ').nth(2).unwrap_or(""));
+        if tid != me {
+            // SAFETY: tgkill to a thread of this process.
+            unsafe { libc::syscall(libc::SYS_tgkill, pid, tid, libc::SIGUSR2) };
+            std::thread::sleep(Duration::from_millis(150));
+        }
+    }
+}
+
+/// `INTARSIA_REPRO_WARMUP=1` (lane tp2, w26): one eager solo step and one eager batched step of 2 rows before anything else, with the graphs off, so that
+/// every lazy allocation and code-object load of the first step of a fresh model happens before the first collective of the measured steps.
+fn maybe_warm(m: &Model) {
+    if std::env::var("INTARSIA_REPRO_WARMUP").is_ok_and(|v| v == "1") {
+        m.set_graphs(false);
+        batch_identity::run(m, &batch_identity::Cfg { lens: vec![5, 7], batches: vec![2], steps: 1, vocab_range: (1000, 30000) });
+        m.set_graphs(true);
+    }
+}
+
+fn dump_ledgers(m: &Model, why: &str) {
+    let a = m.coll_trace_dump();
+    let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
+    eprintln!("LEDGER {why}: rank 0 {} lines, rank 1 {} lines", a.len(), b.len());
+    let strip = |l: Option<&String>| l.map(|x| x.split(" dev=").next().unwrap_or("").to_string());
+    match (0..a.len().max(b.len())).find(|&i| strip(a.get(i)) != strip(b.get(i))) {
+        Some(i) => eprintln!("LEDGER first difference at line {i}:\n  rank 0: {:?}\n  rank 1: {:?}", a.get(i), b.get(i)),
+        None => eprintln!("LEDGER the ledgers are identical"),
+    }
+    for (r, l) in [(0, &a), (1, &b)] {
+        for line in &l[l.len().saturating_sub(if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") { 400 } else { 40 })..] {
+            eprintln!("LEDGER rank {r}: {line}");
+        }
+    }
+    #[cfg(target_os = "linux")]
+    if why == "watchdog" || std::env::var("INTARSIA_REPRO_STACKS").is_ok_and(|v| v == "1") {
+        dump_host_stacks();
+    }
+    // Last: the read may block when the device is already in an exception state (w20: it took the process down before any ledger line printed).
+    eprintln!("LEDGER device state: {}", m.comm_debug_state().unwrap_or_else(|| "none".into()));
+}
+
+/// Run `f`; if it takes longer than `INTARSIA_REPRO_WATCHDOG` seconds (25) the ranks are probably stuck in a collective: dump the ledgers and
+/// leave (the bounded wait would trap after about a minute and take the evidence with it).
+fn with_watchdog<R>(m: &Model, f: impl FnOnce() -> R) -> R {
+    let wd: u64 = std::env::var("INTARSIA_REPRO_WATCHDOG").ok().and_then(|v| v.parse().ok()).unwrap_or(25);
+    if wd == 0 {
+        return f(); // INTARSIA_REPRO_WATCHDOG=0: no watchdog thread, no catch_unwind (the plain run of w17/w18)
+    }
+    let done = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|sc| {
+        sc.spawn(|| {
+            let t0 = std::time::Instant::now();
+            while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(250));
+                if t0.elapsed().as_secs() > wd {
+                    eprintln!("REPRO watchdog: a rep took more than {wd} s, the ranks are stuck");
+                    dump_ledgers(m, "watchdog");
+                    eprintln!("REPRO failures 1 (hang)");
+                    std::process::exit(4);
+                }
+            }
+        });
+        // A mismatch panics inside `f`: dump the ledgers at once (the idle device is still in the state the mismatch left it), then go on unwinding.
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        match r {
+            Ok(r) => r,
+            Err(e) => {
+                dump_ledgers(m, "mismatch");
+                std::panic::resume_unwind(e)
+            }
+        }
+    })
+}
+
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w18): w18 showed the size-loop mismatch with the batched graphs off, with launch blocking and
+/// with the peers' graphs prepared first, and the SOLO logit of the failing row differed between runs (2.473 vs 2.125 for the same
+/// sequence and context): the solo step of a fresh state is wrong too. This takes the batched step out: `INTARSIA_REPRO_STATES` (60) fresh
+/// states of one prompt each prefilled and decoded one token (the first decode step of a state records its decode graph on both ranks), all
+/// logits must be bit-identical to the first. `INTARSIA_REPRO_BATCH_BETWEEN=1` runs one batched step (3 rows, other prompts) between states;
+/// `INTARSIA_REPRO_NO_GRAPHS=1` runs everything eager.
+#[test]
+#[ignore]
+fn real_35b_tp2_solo_fresh_states_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let num = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (reps, states) = (num("INTARSIA_REPRO_REPS", 3), num("INTARSIA_REPRO_STATES", 60));
+    let between = std::env::var("INTARSIA_REPRO_BATCH_BETWEEN").is_ok_and(|v| v == "1");
+    let prompt: Vec<u32> = (0..40u32).map(|i| 1000 + (i * 7919) % 20000).collect();
+    for rep in 0..reps {
+        let m = load(&dir, be.clone(), 16, 2048);
+        maybe_warm(&m);
+        if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
+            m.set_graphs(false);
+        }
+        let mut first: Option<Vec<u32>> = None;
+        for k in 0..states {
+            let probe = |what: &str| {
+                if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") {
+                    eprintln!("CTRS rep {rep} state {k} {what}: {}", m.comm_debug_state().unwrap_or_default());
+                }
+            };
+            probe("before");
+            if between && k % 2 == 1 {
+                let r = with_watchdog(&m, || std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    batch_identity::run(&m, &batch_identity::Cfg { lens: vec![11, 29, 53], batches: vec![3], steps: 1, vocab_range: (1000, 30000) })
+                })));
+                if let Err(e) = r {
+                    let msg = e.downcast_ref::<String>().cloned().unwrap_or_default();
+                    eprintln!("REPRO rep {rep} state {k}: the batched step between FAILED: {msg}");
+                    dump_ledgers(&m, "batched step between");
+                    eprintln!("REPRO failures 1 (batched step, rep {rep}, state {k})");
+                    std::process::exit(3);
+                }
+            }
+            let mut st = m.new_state().unwrap();
+            // w21: a rep failed at the first solo step of a fresh model (state 0), before any batched step: watch it too
+            let solo = |st: &mut _| {
+                m.forward(st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
+                m.forward(st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap()
+            };
+            // INTARSIA_REPRO_WD_SOLO=1 only (w22: n0 with it passed 20/20 where the same config failed in w17..w21): the probes and the watchdog
+            // are the things that differ from a plain run, so each is switched separately
+            let out = if std::env::var("INTARSIA_REPRO_WD_SOLO").is_ok_and(|v| v == "1") { with_watchdog(&m, || solo(&mut st)) } else { solo(&mut st) };
+            let StepOut::Logits(l) = out else { panic!("no logits") };
+            probe("after the solo prefill + decode step");
+            let bits: Vec<u32> = l.iter().map(|x| x.to_bits()).collect();
+            match &first {
+                None => first = Some(bits),
+                Some(f) if *f != bits => {
+                    let n = f.iter().zip(&bits).filter(|(a, b)| a != b).count();
+                    eprintln!("REPRO rep {rep} state {k}: SOLO first decode step differs from state 0 at {n} of {} entries (first {} vs {})", f.len(), f32::from_bits(f[0]), f32::from_bits(bits[0]));
+                    eprintln!("REPRO failures 1 (solo, rep {rep}, state {k})");
+                    std::process::exit(3);
+                }
+                Some(_) => {}
+            }
+        }
+        eprintln!("REPRO rep {rep}: {states} fresh states, first decode step bit-identical");
+    }
+    eprintln!("REPRO failures 0/{reps}");
+}
+
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w16/w17): w16 ran the full gate with the batched graphs off (`INTARSIA_BATCH_GRAPHS=0`): the
+/// 17,550 pairs of the sizes passed, then "decode rows beside prefill chunks" (4 decode rows, one prefill of 700 tokens in chunks of 256) failed at
+/// its first batched step: `batch 4 step 0 row 0 (sequence 0, context 36 -> 37): logits differ at 248320 of 248320 entries, solo 2.16 batch 5.72`.
+/// This runs only that part on one model load, `INTARSIA_REPRO_REPS` (3) times, and counts the mismatches (`REPRO failures f/reps`).
+#[test]
+#[ignore]
+fn real_35b_tp2_batch_with_prefill_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let reps = std::env::var("INTARSIA_REPRO_REPS").ok().and_then(|v| v.parse().ok()).unwrap_or(3);
+    let m = load(&dir, be, 16, 2048);
+    let mut failures = 0;
+    for rep in 0..reps {
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000))));
+        match r {
+            Ok(n) => eprintln!("REPRO rep {rep}: ok ({n} rows)"),
+            Err(e) => {
+                failures += 1;
+                let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                eprintln!("REPRO rep {rep}: FAIL {msg}");
+            }
+        }
+    }
+    eprintln!("REPRO failures {failures}/{reps}");
+    assert_eq!(failures, 0, "{failures} of {reps} reps mismatched");
+}
+
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2, w15/w17): repro of an intermittent mismatch of the FIRST batched step of a batch size
+/// at tp=2 (27B, N = 4, step 0, every logit about 8 % off; the same test passed on the next run). Each rep loads the model afresh (so every
+/// batch size records its graphs again), runs `INTARSIA_REPRO_STEPS` (3) batched steps per size in `INTARSIA_REPRO_SIZES` ("2-16") against
+/// the solo steps, and counts a mismatch instead of stopping at it. `INTARSIA_REPRO_REPS` (6) reps. Prints `REPRO failures f/reps`.
+#[test]
+#[ignore]
+fn real_35b_tp2_batch_first_steps_repro() {
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let num = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (reps, steps) = (num("INTARSIA_REPRO_REPS", 6), num("INTARSIA_REPRO_STEPS", 3));
+    let sizes: Vec<usize> = {
+        let spec = std::env::var("INTARSIA_REPRO_SIZES").unwrap_or_else(|_| "2-16".into());
+        let (lo, hi) = spec.split_once('-').map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap())).unwrap_or_else(|| (spec.parse().unwrap(), spec.parse().unwrap()));
+        (lo..=hi).collect()
+    };
+    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
+    let mut failures = 0;
+    for rep in 0..reps {
+        if failures > 0 {
+            break;
+        }
+        let m = load(&dir, be.clone(), 16, 2048);
+        maybe_warm(&m);
+        if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
+            m.set_graphs(false); // every step eager, solo and batched, on both ranks
+        }
+        let r = with_watchdog(&m, || std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let n = batch_identity::run(&m, &batch_identity::Cfg { lens: lens.clone(), batches: sizes.clone(), steps, vocab_range: (1000, 30000) });
+            assert_eq!(n, sizes.iter().sum::<usize>() * steps);
+        })));
+        match r {
+            Ok(()) => eprintln!("REPRO rep {rep}: ok"),
+            Err(e) => {
+                failures += 1;
+                let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                eprintln!("REPRO rep {rep}: FAIL {msg}");
+                eprintln!("REPRO graphs at the failure: rank 0 {:?}, rank 1 {:?}", m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
+                dump_ledgers(&m, "mismatch");
+                // the ranks are out of step after a bad step (a rank waits in a collective its peer never launches), and freeing
+                // device memory would wait for it until the bounded wait traps: report and leave
+                eprintln!("REPRO failures {failures}/{} (stopped at the first, after {} reps)", reps, rep + 1);
+                std::process::exit(3);
+            }
+        }
+        drop(m);
+    }
+    eprintln!("REPRO failures {failures}/{reps}");
+}
+
+/// `INTARSIA_BATCH_TEST_TP=2` only (lane tp2/batch): the gate above must catch a peer that breaks the batched step protocol on
+/// the real model (`Model::set_tp_batch_mutant`): its rows in another order (its row table), row 0 one position behind (its
+/// `batch_pos`), and its multi-row calls without the row-exact mark (the ordinary kernels, invisible on the cpu reference).
+/// Not run here: a peer with another row count or a dropped collective (the P2P communicator cannot detect a size mismatch
+/// and waits on the peer; the cpu tests `tests/tp_batch.rs` cover both).
+#[test]
+fn real_35b_tp2_batch_mutants_are_caught() {
+    use intarsia_core::model::TpBatchMutant;
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 1024);
+    let lens: Vec<usize> = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
+    let cfg = |b: usize| batch_identity::Cfg { lens: lens[..b].to_vec(), batches: vec![b], steps: 4, vocab_range: (1000, 30000) };
+    // control: the unmutated gate passes at 8 rows
+    assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4);
+    // the kernels mutant first, at a row count no recording exists for yet (a recorded graph would keep the exact kernels);
+    // the other two act through the row table and positions the host rewrites before every step, recorded or not
+    for (mutant, b) in [(TpBatchMutant::PlainKernels, 12usize), (TpBatchMutant::ReverseRows, 8)] {
+        m.set_tp_batch_mutant(1, Some(mutant)).unwrap();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg(b))));
+        m.set_tp_batch_mutant(1, None).unwrap();
+        assert!(r.is_err(), "mutant {mutant:?} at {b} rows was not caught by the batched-vs-solo gate");
+        // the group is still healthy (no aborted communicator), so the next mutant's catch is its own
+        assert_eq!(batch_identity::run(&m, &cfg(8)), 8 * 4, "the control after mutant {mutant:?} failed");
+        eprintln!("mutant {mutant:?} at {b} rows: caught (control after it passes)");
+    }
+}
+
+/// The stale-position mutant is its own test: the peer's row 0 runs one position behind and stays damaged (its sequence is one
+/// token short), so the group is not usable after it. On HIP the next step then faults the device (HSA exception 0x1016, the
+/// process aborts), which is the group going down, not a failure of the gate: the gate has caught it when the batched-vs-solo
+/// comparison panics first. No control after it.
+#[test]
+fn real_35b_tp2_batch_stale_position_mutant_is_caught() {
+    use intarsia_core::model::TpBatchMutant;
+    if tp() != 2 {
+        eprintln!("SKIPPED: INTARSIA_BATCH_TEST_TP=2 only");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 1024);
+    let lens: Vec<usize> = vec![5, 37, 130, 300, 17, 64, 9, 222];
+    let cfg = batch_identity::Cfg { lens, batches: vec![8], steps: 4, vocab_range: (1000, 30000) };
+    assert_eq!(batch_identity::run(&m, &cfg), 8 * 4);
+    m.set_tp_batch_mutant(1, Some(TpBatchMutant::StalePosition)).unwrap();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch_identity::run(&m, &cfg)));
+    assert!(r.is_err(), "mutant StalePosition at 8 rows was not caught by the batched-vs-solo gate");
+    eprintln!("mutant StalePosition at 8 rows: caught");
+    std::process::exit(0); // the group is damaged: leave without tearing it down
 }
 
 #[test]
@@ -228,14 +587,14 @@ fn real_35b_batched_engine_equals_the_local_engine() {
     };
     // the reference: every request alone on the single-sequence engine
     let reference: Vec<Out> = {
-        let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
+        let l = engine(&dir, &be, &mk(None));
         assert_eq!(l.max_batch, 1);
         let reqs = requests(&*l.engine, 20, 130);
         reqs.into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
     };
     assert!(reference.iter().all(|o| o.ids.len() == 130));
     for slots in [4usize, 16] {
-        let l = load_engine(&dir, be.clone(), &mk(Some(slots))).unwrap();
+        let l = engine(&dir, &be, &mk(Some(slots)));
         assert_eq!(l.max_batch, slots);
         // one stream at a time: the batched engine at N = 1 is the local engine
         for (i, r) in requests(&*l.engine, 3, 130).into_iter().enumerate() {
@@ -632,7 +991,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
         ]
     };
     let reference: Vec<Out> = {
-        let l = load_engine(&dir, be.clone(), &mk(None, None)).unwrap();
+        let l = engine(&dir, &be, &mk(None, None));
         assert_eq!(l.max_batch, 1);
         reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect()
     };
@@ -642,7 +1001,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
                     which: &[usize],
                     busy_chunk: Option<usize>|
      -> (Vec<Out>, intarsia_core::scheduler::BatchMetrics) {
-        let l = load_engine(&dir, be.clone(), &mk(Some(slots), busy_chunk)).unwrap();
+        let l = engine(&dir, &be, &mk(Some(slots), busy_chunk));
         assert_eq!(l.max_batch, slots);
         let all_reqs = reqs();
         let rx0 = l.engine.submit(all_reqs[which[0]].1.clone()).unwrap();
