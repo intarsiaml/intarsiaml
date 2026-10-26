@@ -1,0 +1,13 @@
+binary target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f
+
+running 1 test
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+MACRO batched alone: 6 prefill calls (plain schedule: 17 chunks)
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 102.62s
+

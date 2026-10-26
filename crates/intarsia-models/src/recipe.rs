@@ -11,6 +11,7 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
     ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
     ("qwen3_5_vl", include_str!("../../../recipes/qwen3_5_vl.toml")),
+    ("minicpmv4_7", include_str!("../../../recipes/minicpmv4_7.toml")),
     ("gemma4", include_str!("../../../recipes/gemma4.toml")),
     ("llama", include_str!("../../../recipes/llama.toml")),
     ("qwen2", include_str!("../../../recipes/qwen2.toml")),

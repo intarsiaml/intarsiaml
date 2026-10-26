@@ -1,0 +1,803 @@
+# IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+---
+
+## 0. Goals, honest targets, anti-goals
+
+Requirements in priority order (user, 2026-10-12): modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → built-in UI/TUI (optional, dark) → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later.
+
+**What "top 3" means per platform** (the competitor to beat at each phase gate):
+
+| Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
+|---|---|---|---|
+| DGX Spark (GB10) | TensorFold (27B EXL3+DFlash2 83 tok/s), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
+| Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
+| Intel Arc | llama.cpp SYCL | not in scope | not in scope |
+
+Top 3 on R9700 means beating vLLM or llama.cpp, not radiance, until Phase 4. Saying so keeps the target honest.
+
+**Anti-goals** (each one cost a prior project months):
+- **No per-family engines.** TensorFold ships a CUDA engine per model family; effort multiplies per model. Here a model is a *recipe* over a shared block library. New code is needed only for a genuinely new block type.
+- **No Python in the serving path.** Native radiance starts in 11 s vs 160 s for vLLM at equal or better step time. Python stays in offline tools (golden references, converters).
+- **No scope sprawl.** Text LLM inference first. No image, audio or 3D (mlx-serve's burden). Vision encoders are a later block type, not a side product.
+- **No kernel enters without passing its reference test.** sm_121 CUTLASS NVFP4 MoE emitting `!!!!!` and a cuDNN FP8 GEMM hanging after 250k steps were both shipped by others.
+
+---
+
+## 1. Language and build
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed and startup with memory safety; best ecosystem for this exact stack: `tokenizers` (HF), `safetensors`, `minijinja` (HF chat templates), `llguidance` (structured output), `axum`/`tokio`, `ratatui`, `prometheus-client`, `opentelemetry`, `cudarc` (CUDA driver + NCCL). One static binary per platform. |
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling demands), AOT-compiled to fatbins for `sm_121` (GB10), plus `sm_90/100/120` when hardware appears | Cold JIT compiles take minutes on GB10; AOT removes that. |
+| GPU kernels, AMD | **HIP C++** (+ inline GCN/RDNA asm where needed), AOT for `gfx1201` | Same as radiance, which holds the R9700 bar. |
+| Shared kernel code | One `ik_portable.h` header that maps CUDA/HIP intrinsics; elementwise, norm, rope, sampling and quant-pack kernels compile from one source for both | Halves the simple-kernel work. GEMM and attention stay arch-specific. |
+| Apple (dev) / Arc (later) | Metal / Vulkan or SYCL backends behind the same trait | Not built now; the trait is shaped so they slot in. |
+| Offline tools | Python (uv), never imported by the server | Golden logits via HF `transformers`, plotting, converters. |
+
+Rejected: C++ host (radiance proves it works, but modularity, packaging and the server/UI ecosystem are slower to build); Zig host (mlx-serve proves it works, but the ML-adjacent library ecosystem is thin; no `tokenizers`/`llguidance` equivalents); Python host (per-step overhead, startup, container weight); Mojo (tried in `TensorFold-mojo*`, not merged). Assembly is used per hot spot, not as a language choice.
+
+---
+
+## 2. System overview
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured graphs per batch bucket"]
+  end
+  subgraph Pieces["Pieces (plugins)"]
+    REC["Recipes (TOML)"]
+    BLK["Block library: attention (GQA/MLA/SWA/GDN), FFN (dense/MoE), norms, rope"]
+    QF["Quant formats: BF16, FP8, NVFP4, MXFP4, GGUF k-quants, EXL3, AWQ/GPTQ"]
+    KR["Kernel registry: (op, backend, arch, dtype/quant, shape class) → impl + reference + autotune DB"]
+    BEN["Bench plugins: micro, e2e, localeval"]
+  end
+  subgraph HW["Backends (crate: intarsia-backend-*)"]
+    CPU["cpu-ref (always on: the oracle)"]
+    CUDA["cuda (GB10 sm_121)"]
+    HIP["hip (R9700 gfx1201)"]
+    COMM["Comm: NCCL/RCCL, P2P one-shot all-reduce"]
+  end
+  OAI & ANT & UI --> TOK --> SCH
+  SCH <--> KV
+  SCH --> SPEC --> PLAN
+  SCH --> PLAN --> KR --> CUDA & HIP & CPU
+  PLAN --> SMP
+  REC --> PLAN
+  BLK --> PLAN
+  QF --> KR
+  PLAN --> COMM
+  Core -. events .-> MET
+  MET --> UI
+```
+
+---
+
+## 3. Core abstractions (the pieces)
+
+### 3.1 Backend trait (minimal on purpose)
+
+```rust
+pub trait Backend: Send + Sync {
+    fn info(&self) -> DeviceInfo;                       // arch, mem, bandwidth (measured), features
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer>;
+    fn copy(&self, dst: &Buffer, src: &Buffer, stream: StreamId) -> Result<()>;
+    fn launch(&self, k: &LoadedKernel, args: &KernelArgs, stream: StreamId) -> Result<()>;
+    fn graph_begin(&self, stream: StreamId) -> Result<()>;
+    fn graph_end(&self, stream: StreamId) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()>;
+    fn event(&self, stream: StreamId) -> Result<Event>;
+    fn comm(&self) -> Option<&dyn Comm>;                 // TP collectives
+}
+```
+
+Everything else (ops, quant, attention) lives above the trait. A Vulkan or SYCL backend for Arc only has to implement this plus its kernel packs. Backend init applies known-bad-default fixes as data (for example `GPU_MAX_HW_QUEUES=1` on HIP, which removed a permanent 20% slowdown).
+
+### 3.2 Kernel registry: the core of modularity and accuracy
+
+Every **op** (e.g. `matmul`, `rmsnorm_add`, `rope`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) has:
+
+1. A **signature**: typed inputs/outputs, layouts, quant format.
+2. A **reference implementation** in `cpu-ref` (f32/f64 accumulate). This is the oracle.
+3. Any number of **implementations**, each declaring `(backend, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, checked at plan time
+    exact: Exactness::Deterministic,               // or BitExactVsSerial / Tolerance(...)
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions**: shape predicates are evaluated when the plan is built, so traps like "MXFP4 GEMM needs per-rank K % 128" fail loudly at load, not as token-0 output.
+- **Autotuner**: for each (op, shape bucket) on a host, time the eligible implementations and store the winner in a **tuning DB** keyed by host fingerprint (GPU, driver, toolkit, kernel-pack hash). The DB is a committed lockfile per platform (`tuning/<fingerprint>.toml`) so results reproduce.
+- **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
+
+### 3.3 Kernel ABI and kernel packs
+
+Every pack is a **port**, not an import (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
+
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
+```
+
+Kernels are compiled by `nvcc`/`hipcc` into a static library per backend and bound from Rust via `extern "C"`. The same shim pattern covers HIP, where Rust bindings are thin (no RCCL or hipBLASLt crates).
+
+| Pack | Backend | License | Port first |
+|---|---|---|---|
+| `native` (ours) | CUDA + HIP | Apache-2.0 | norms, rope, embedding, sampling, simple attention, glue |
+| `tensorfold` | CUDA (+ its ROCm variants) | MIT | EXL3 linear/experts, NVFP4 `qmmf`, GDN, DFlash verify, attention: holds the Spark bar |
+| `radiance` (`libr4d`) | HIP gfx1201 | Apache-2.0 (keep `NOTICE`) | MXFP4×FP8 GEMM, one-shot 2/3-rank all-reduce (+norm+quant), GDN recurrent update, paged attention, int2 lm_head: holds the R9700 bar |
+| `cublaslt` / `hipblaslt` | vendor | vendor | prefill GEMM, registered as `Exactness::Fast` only (algorithm choice varies by shape; graphs freeze one) |
+
+Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only when a measured gap names one. Rule: **no pack is vendored without its license file in `LICENSES/`**, pinned by commit, and every exported kernel passes the admission test.
+
+**Block-scope fused ops are first-class.** Radiance and TensorFold are fast because of hand-fused, family-specific kernels (all-reduce in a GEMV epilogue, norm+quant into GDN). A generic pattern-rewriting fuser is a compiler project we will not build. Instead the registry holds fused block ops (e.g. `gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) whose reference is the generic op chain. The plan compiler picks the fused op when one is admitted for the shape, else falls back to the chain.
+
+### 3.4 Quant formats as plugins
+
+```rust
+pub trait QuantFormat {
+    fn id(&self) -> QuantId;                                  // "nvfp4", "mxfp4", "gguf:q4_k", "exl3:3.0", ...
+    fn detect(&self, meta: &WeightMeta) -> bool;              // from safetensors/GGUF metadata
+    fn load(&self, src: &TensorSource, dst: &dyn Backend, layout: &Layout) -> Result<QTensor>;
+    fn dequant_ref(&self, q: &QTensor) -> Tensor;             // used by the oracle
+    fn quantize(&self, t: &Tensor, cfg: &QuantCfg) -> Option<QTensor>;  // optional: on-the-fly RTN
+}
+```
+
+Adding a quant = implement this trait + register matmul kernels that accept it. The oracle path (`dequant_ref` + reference matmul) works the moment `load` and `dequant_ref` exist, so correctness is testable before any fast kernel is written.
+
+Per-tensor overrides live in the recipe (e.g. drafter stays FP8: MXFP4 RTN dropped drafter acceptance from 2.5 to 2.21 on R9700).
+
+### 3.5 Block library and recipes: adding a model
+
+A **block** is a reusable layer piece with a typed config: `Attention{kind: Gqa|Mla|SlidingWindow|GatedDeltaNet|Mamba2, rope: ..., qk_norm: bool}`, `Ffn{kind: Dense|Moe{experts, top_k, shared, router}}`, `Norm{RmsNorm|LayerNorm, offset}`, `Embedding`, `LmHead{tied}`.
+
+A **recipe** maps a Hugging Face model to blocks:
+
+```toml
+# recipes/qwen3.toml
+[model]
+match.architectures = ["Qwen3ForCausalLM"]
+family = "qwen3"
+chat_template = "hf"            # use tokenizer_config.json template via minijinja
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+
+[layer]                          # applied to every layer i
+pattern = ["attn", "ffn"]
+attn = { kind = "gqa", q = "model.layers.{i}.self_attn.q_proj", k = "...k_proj", v = "...v_proj",
+         o = "...o_proj", q_norm = "...q_norm", k_norm = "...k_norm", rope = "default" }
+ffn  = { kind = "dense", act = "silu_glu", gate = "model.layers.{i}.mlp.gate_proj",
+         up = "...up_proj", down = "...down_proj" }
+norms = { pre_attn = "model.layers.{i}.input_layernorm", pre_ffn = "model.layers.{i}.post_attention_layernorm" }
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+
+[defaults]                       # tunables a user can override per deployment
+kv_dtype = "fp8_e4m3"
+max_batch = 32
+```
+
+Hybrid models (Qwen3.5/3.8 GDN + full attention every 4th layer) use `pattern_by_layer` or a `layer_types` key read from `config.json`. `intarsia recipe new <hf-dir>` inspects `config.json` + tensor names, matches the closest existing recipe, writes a draft, and lists unmapped tensors. Most new models in a known family need only a recipe; new block types are the only code.
+
+### 3.6 Plan compiler
+
+`recipe + config + weights + host` → **plan**:
+1. Build the op graph for one decode step and one prefill chunk.
+2. Prefer admitted block-scope fused ops (3.3) over their generic op chains; only trivial load-time rewrites (`gate+up` weight concat, QKV concat).
+3. For each op, pick the kernel: preconditions → admission pass → tuning DB winner → fallback chain ending at the reference (reference on GPU is never selected silently; it raises an error unless `--allow-slow`).
+4. Allocate activations (static arena), KV pool from **measured** free memory (wrong pins OOM'd radiance at startup; GB10 reports no GPU memory via nvidia-smi, so measure via the driver).
+5. Capture CUDA/HIP graphs per batch-size bucket for decode and verify steps.
+
+The plan is serializable (`intarsia plan show`) so the UI and humans can see exactly which kernel runs for every op.
+
+---
+
+## 4. Runtime
+
+- **Scheduler**: continuous batching with chunked prefill (adaptive chunk size as in radiance's MoE lane), request priorities (`priority: background`), memory-based admission. A **step watchdog** runs as a **process supervisor** (`intarsia serve` forks the engine worker): if the step counter stops advancing for N seconds while work is queued, the supervisor kills and restarts the worker, because a wedged CUDA context has sticky errors (vLLM's cuDNN FP8 hang on GB10 kept `/metrics` alive while dead).
+- **Sequence state** is designed for hybrid models from day 1: each sequence owns per-layer *state slots* that are either attention KV (grows with tokens) or recurrent state (fixed size: GDN/Mamba conv + SSM state). Prefix caching snapshots recurrent state at block boundaries (radiance's lazy-GDN snapshot bug was a state-abstraction bug). Phase 0 implements contiguous KV + recurrent slots for one sequence; Phase 1 adds paging.
+- **KV**: paged blocks; radix-tree prefix cache keyed by (model, plan hash, token ids); FP8/BF16 KV; optional host-RAM tier on discrete GPUs (refused on GB10 unified memory).
+- **Speculation**: pluggable drafters (`mtp`, `dflash` block drafter, `ngram`). Verify uses a split-KV attention kernel for q_len>1 (R9700 lesson: 8930 → 475 µs at 18k). Acceptance per workload is a first-class metric.
+- **Sampling**: greedy/temperature/top-k/top-p/min-p/penalties; seeded; `ignore_eos` + `min_tokens` honoured (localeval's speed protocol depends on it); structured output via `llguidance`.
+- **Parsers**: tool-call and reasoning parsers are plugins selected by recipe (`hermes`, `qwen3-xml`, `glm`, `deepseek`, `think-tags`, `harmony`). They are the most fragile part of any server, so each has golden fixture tests.
+
+## 5. Parallelism (TP = X)
+
+`Comm` trait with implementations: `nccl` (Spark, two nodes over ConnectX-7), `rccl` (R9700), `p2p_oneshot` (our kernel for small decode messages on PCIe P2P; radiance's one-shot exact bf16 all-reduce costs ~8.6 µs per call). Fusion `all_reduce + rmsnorm + fp8 quant` is a registry pattern. Lossy transports (6-bit rotated, `wht6`) are opt-in, threshold-gated by message size, and must pass the accuracy gate because they change greedy text. TP sharding is declared per block (column/row split) so recipes get TP for free; shape preconditions are checked per rank. Pipeline parallel and TP>2 are designed for, not built now.
+
+## 6. Accuracy system
+
+1. **Op level**: kernel admission tests (3.2).
+2. **Quick gate (day-0 safe)**: 5 greedy sanity prompts (non-empty, no repetition loops, answers a known fact) + perplexity on a fixed 2k-token text vs the expected range for the family. Works when HF has no implementation yet.
+3. **Model level, golden logits (deep pass, skippable; skips recorded in the manifest)**: `tools/golden.py` (Python, offline) runs HF `transformers` in BF16 on a fixed prompt set (~64 prompts, mixed lengths, chat-templated) and stores top-k logits + full-vocab log-probs for the first N positions. `intarsia accuracy <model>` compares: mean/max KL, top-1 agreement, top-5 overlap, greedy-token match length.
+4. **Gates** per quant (defaults, overridable per recipe): BF16 vs HF: top-1 ≥ 99.5%, mean KL ≤ 1e-3; FP8: KL ≤ 5e-3; 4-bit: KL ≤ 3e-2 and benchmark deltas within noise. A failed gate blocks publishing.
+5. **Task level**: localeval quality suites (gsm8k, mmlu, ifeval, tool use, long-context) in the deep stage.
+6. **Determinism checks**: `deterministic` mode run twice must produce identical tokens; `exact` mode with and without drafting must produce identical tokens.
+
+## 7. Benchmarks and model onboarding
+
+Benchmarks are plugins (`trait BenchPlugin { fn plan(); fn run(); fn report(); }`):
+- `micro`: per-op timing vs the byte/FLOP roofline (floor-first profiling, the method that found radiance's 2× gap).
+- `e2e`: built-in speed sweep (prompt 128/1K/4K/16K, forced generation length, fresh nonces, median of N, concurrency 1/2/4/8/16), reports decode, prefill, TTFT, and **% of measured bandwidth floor**.
+- `localeval`: shells out to `/opt/code/deepeval` (`uv run localeval speed|run`) so results land in the same tables and in unanimis.
+
+**Onboarding pipeline** (`intarsia onboard <hf-repo-or-dir>`), a staged DAG with resumable checkpoints:
+
+| Stage | Target time | Gate |
+|---|---|---|
+| inspect + recipe draft | 2 min | all tensors mapped |
+| load + quick gate (greedy sanity + perplexity) | 5 min | sane output, perplexity in range |
+| quick bench (e2e sweep at c=1,4) | 15 min | numbers sane vs floor |
+| **publish quick results** (markdown + JSON + unanimis) | 1 min | — |
+| deep: HF golden logits (KL/top-1 gate, skippable), quant matrix, long-context 4k/16k/32k, concurrency to 16, localeval quality, spec-decode acceptance by workload | 2-3 h | quality within noise of BF16 |
+
+Quick results publish while deep keeps running. Every result embeds the host fingerprint, plan hash, kernel picks, exactness mode, thinking on/off.
+
+## 8. API surface
+
+OpenAI: `/v1/chat/completions`, `/v1/completions`, `/v1/responses`, `/v1/models`, `/v1/embeddings` (later). Anthropic: `/v1/messages` (streaming events `message_start`/`content_block_*`/`message_delta`, tool use, thinking blocks), `/v1/messages/count_tokens`. Both stream `usage` including `cached_tokens`. Plus `/health`, `/metrics`, `/events`, `/v1/intarsia/plan`.
+
+## 9. UI and TUI
+
+One **embedded web UI** served by the binary (static files compiled in via `rust-embed`, no npm build in the critical path: Preact + htm ESM vendored), disabled with `--no-ui`. Dark mode default with light toggle. Three views:
+1. **Chat** (OpenAI endpoint, model/sampling controls, shows thinking, tool calls, per-message tok/s).
+2. **Dashboard**: throughput, TTFT, queue, KV use, prefix hit rate, draft acceptance, per-op time share, GPU power/temp.
+3. **Live architecture map**: an SVG of the engine (front door → scheduler → KV → plan → kernels → devices → comm), generated from the actual plan, with live metrics overlaid (request flow rates on edges, per-op time share as heat on kernel nodes, KV fill on the pool, all-reduce time on the comm link). Fed by `/events` (SSE, 4-10 Hz).
+
+TUI: `intarsia top` (ratatui) reads the same `/events` stream: one-screen dashboard over SSH.
+
+## 10. Metrics
+
+- **Prometheus** `/metrics`: requests (by status), running/waiting gauges (localeval busy check), monotonic `intarsia_engine_steps_total` (fleetq `WEDGED` detection), tokens prompt/generated/cached, TTFT/ITL/e2e histograms, KV blocks used/free, prefix hit ratio, draft proposed/accepted, per-op time (sampled with events, low overhead), comm time, device mem/power/temp.
+- **OTLP** export (optional) for traces per request.
+- Shipped: `deploy/grafana/intarsia.json` dashboard + Prometheus scrape snippet for `missioncntrl_/deploy/monitoring/prometheus.yml`.
+
+## 11. Reproducibility and deployment
+
+- **Containers per platform**, built from one `Dockerfile` with build args: `cuda-13-arm64` (Spark), `rocm-7.2-x86_64` (R9700). Toolchain pinned (`rust-toolchain.toml`, CUDA/ROCm base image digests, submodule commits).
+- **Host fingerprint** (`intarsia doctor`): GPU, driver, toolkit, kernel versions, measured bandwidth, P2P topology, NCCL/RCCL transport. It checks known pitfalls (sm_121 target, `GPU_MAX_HW_QUEUES`, memlock for ConnectX, THP) and prints fixes.
+- **Lockfiles**: `Cargo.lock`, tuning DB per fingerprint, recipe versions. A **run manifest** (JSON) captures binary hash + plan hash + tuning DB hash + model revision so any published number can be re-run with `intarsia replay manifest.json`.
+- **Fleet integration**: every start/bench on a fleet box goes through `fleetq`; register the service in `fleetq/deploy/fleet.toml`; localeval target entries in `deepeval/targets.toml`.
+
+## 12. Repository layout
+
+```
+crates/
+  intarsia-core/          # tensors, ops, registry, plan compiler, scheduler, KV, sampling, spec
+  intarsia-backend-cpu/   # reference oracle (always built)
+  intarsia-backend-cuda/  # cudarc + AOT fatbins
+  intarsia-backend-hip/   # hip bindings + AOT code objects
+  intarsia-quant/         # QuantFormat impls
+  intarsia-models/        # block library + recipe loader
+  intarsia-server/        # axum: OpenAI, Anthropic, metrics, events, UI
+  intarsia-bench/         # bench plugins
+  intarsia-cli/           # `intarsia` binary: serve, onboard, bench, accuracy, kernels, doctor, top, recipe
+kernels/
+  common/ik_portable.h
+  cuda/  hip/  packs/{ggml,flashinfer,cutlass,exl3,ck}   # submodules, pinned
+recipes/                  # *.toml
+tuning/                   # <fingerprint>.toml lockfiles
+tools/                    # python: golden.py, scribe.py, plots
+deploy/                   # Dockerfiles, grafana, fleetq/localeval snippets
+docs/                     # ARCHITECTURE, decisions/, research/, recipes/
+```
+
+## 13. Phased roadmap with gates
+
+| Phase | Scope | Gate |
+|---|---|---|
+| **0. Seams (this session)** | Rust workspace; kernel registry with cpu-ref oracle + admission tests; C kernel ABI; `cuda` backend via the ABI shim (native BF16 kernels + cuBLASLt as Fast); recipe loader + Qwen3 recipe; sequence state with recurrent slots (single sequence, contiguous KV); measured-memory allocation; OpenAI chat/completions streaming (`ignore_eos`, `min_tokens`, `usage.cached_tokens`) + Anthropic `/v1/messages`; `/metrics` + `/events` + `/health`; `intarsia top` TUI; golden-logit tool + `intarsia accuracy`; built-in speed sweep + localeval target | (a) Mac: Qwen3-0.6B-arch on cpu-ref matches HF golden. (b) spark1: Qwen3-8B BF16 on CUDA matches golden (top-1 ≥ 99%), both APIs stream, `localeval speed` runs. vLLM numbers are a smoke comparison only. |
+| 1. The hard kernels on Spark | port TensorFold NVFP4 GEMV + GDN + verify attention to the ABI; MoE block; hybrid GDN recipe; graphs; paged KV + prefix cache + continuous batching; Responses API; web UI (chat, dashboard, live architecture map) | Qwen3.6-35B-A3B NVFP4 on spark1 correct and ≥ vLLM single-stream (86-90 tok/s) |
+| 2. R9700 | HIP backend via shim; port radiance MXFP4×FP8 GEMM, GDN, attention; GPU_MAX_HW_QUEUES etc. in `doctor`; onboarding DAG | beat llama.cpp on R9700 (35B-A3B MoE > 112 tok/s); quick onboarding < 2 h |
+| 3. Speculation + TP | DFlash/MTP drafters; radiance one-shot all-reduce(+norm+quant); NCCL 2×Spark | Qwen3.8-27B TP=2 on R9700 beats vLLM-radiance (150 tok/s) |
+| 4. Chase the leaders | EXL3 pack, small-M kernels, autotuner at scale, Apple/Metal decision | within 10% of TensorFold on Spark and radiance on R9700 |
+| 5. Intel Arc | Vulkan or SYCL backend | when better hardware arrives |
+
+## 14. Risks
+
+1. **Quota/time**: the plan is larger than one week. Mitigation: phases are independently useful; Phase 0 proves every seam.
+2. **Kernel ports are the critical path** (review item 1; the operator's own estimate was 7-9 weeks for one model on one platform). Mitigation: one C ABI, two packs that already hold the bars (TensorFold, radiance), port the three hard kernels first (quant GEMV, GDN, verify attention), nothing else until a measured gap names it.
+3. **R9700 boxes are production** (radiance). Every R9700 run takes radiance down via `fleetq --takes-down radiance` and needs the user's go-ahead.
+4. **Spark disk is 95% full** (190 GB free on spark1). Containers and golden-logit files must be pruned.
+5. **Exactness vs speed**: exact mode limits kernel choice; keep it a mode.
+# Benchmarking
+
+Two tools, same methodology, so numbers are comparable:
+
+* `intarsia bench speed` (built in, no Python, ships with the binary). Use it for quick checks, CI
+  smoke runs and comparing against vLLM from any machine that can reach the server.
+* `localeval` (`/opt/code/deepeval`). Use it for the logged, fleet-aware runs: it takes its own
+  fleetq slot, refuses busy servers, and records every run in unanimis. Quality evals live there too.
+
+Both measure end to end over HTTP against an OpenAI-compatible `/v1/chat/completions` stream, so
+the same command works for IntarsiaML, vLLM, llama.cpp and oMLX.
+
+## Methodology
+
+* Prompt sizes 128 / 1K / 4K / 16K tokens. The tool calibrates tokens per filler sentence from the
+  server's own `usage.prompt_tokens`, so sizes are right for any tokenizer. The row reports the
+  measured `prompt` token count.
+* Every prompt starts with a fresh random nonce: no prefix-cache or KV-reuse hit can inflate prefill.
+* Output length is forced with `ignore_eos`, `min_tokens` and `max_tokens` (a row whose `gen` column
+  is below `--gen` means the server ignored them; a warning is printed). Servers that reject these
+  parameters with HTTP 400/422 are retried without them and a warning says so.
+* One discarded warmup call per size, then the median of `--reps` measured calls.
+* TTFT = request sent to first content delta. Prefill tok/s = prompt tokens / TTFT (includes queueing
+  and HTTP, so small prompts look slow). Decode tok/s = (completion tokens - 1) / (end - first token).
+* Concurrency rows (`--concurrency 1,4`): N simultaneous streams at `--conc-size` tokens, a warmup
+  round, then per-stream and aggregate decode tok/s (aggregate = total decoded tokens over the
+  window from the first token to the last stream finishing).
+* Bandwidth floor: decode is memory bound, so `bandwidth_gbs / gb_per_token` is a ceiling on single
+  stream tok/s. Pass both and the table adds `% of floor`. Above 100 means a measurement bug or a
+  wrong `gb_per_token` (MoE and quantised models read far fewer bytes than the file size; use the
+  bytes actually read per token). For Qwen3-8B bf16 on the GB10: `--gb-per-token 16.4
+  --bandwidth-gbs 221` gives a floor of 13.5 tok/s.
+
+## Built-in: `intarsia bench speed`
+
+```sh
+# Our engine on spark1 (start it first, inside a fleetq slot; see below)
+intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B \
+    --sizes 128,1024,4096,16384 --gen 128 --reps 3 --concurrency 1,4 \
+    --gb-per-token 16.4 --bandwidth-gbs 221 --label qwen3-8b-cuda-bf16 \
+    --fingerprint-file doctor.json
+
+# The vLLM on spark1, for comparison. Needs the guidance slot: it is a production role.
+fleetq run --uses guidance --label "intarsiaml bench smoke" -- \
+    intarsia bench speed --url http://spark-4e77:8000/v1 --model guidance \
+    --sizes 128,1024 --reps 2 --gen 64 --thinking off
+```
+
+Output is a table on stdout and `results/<label>.json` (`--out-dir`, `--no-save`, `--json`). The JSON
+holds the config, the calibration, one row per size, one row per concurrency level, warnings and a
+`fingerprint` object. Fill the fingerprint with `intarsia doctor --json > doctor.json` then
+`--fingerprint-file doctor.json` (stored under `fingerprint.host`), and/or `--fingerprint key=value`
+for things the tool cannot know (`engine=vllm-0.12`, `quant=nvfp4`, `git=<sha>`). Always do so for a
+number you will quote: GPU clocks, driver, THP and free memory change results.
+
+Other flags: `--thinking off` sends `chat_template_kwargs.enable_thinking=false`;
+`--key-env VAR` reads a bearer token from an environment variable; `--timeout-s`; `--warmup N`.
+Plain `http://` only (the client is built without TLS); tunnel for https.
+
+### Fleet rules
+
+Anything that loads or runs GPU work on spark1 takes a fleetq slot first (`fleetq status`). The slot
+must cover the **whole life of our server**, and the benchmark must run inside that same slot:
+`localeval` takes its own exclusive slot on the box behind its `--url`, so it must be started with
+`FLEETQ_JOB` set (it then sees it is already inside a covering slot and carries on) and pointed at
+`http://spark-4e77:8090`, the server's real host (not a loopback tunnel such as `127.0.0.1:18090`,
+which fleetq reads as "this machine" and locks the wrong box). Never start the server outside the
+lease and leave it running after `fleetq release`.
+
+`--mem-budget GIB` ties the KV cache to the lease: weights + workspace + KV stay within it, whatever
+the box has free (the default sizes KV from measured free memory, so a large `--max-seq` could
+otherwise take memory another lease owns). Use the same number as the lease's `--mem`.
+
+One command: `deploy/localeval/serve-and-bench.sh` starts the server on spark1, waits for `/health`,
+runs the benchmark, and stops the server on exit, all inside one `fleetq run` lease:
+
+```sh
+fleetq run --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" -- \
+    deploy/localeval/serve-and-bench.sh --mem-budget 24 -- \
+    uv run --project /opt/code/deepeval localeval speed spark-intarsia --sizes 128,1024,4096 --gen 128 --reps 3
+```
+
+By hand with a lease (every command carries `FLEETQ_JOB`, the server is stopped before the release):
+
+```sh
+fleetq acquire --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" --wait   # prints the job id
+export JOB=<id>
+FLEETQ_JOB=$JOB ssh spark1 'cd ~/intarsiaml && nohup target/release/intarsia serve --backend cuda \
+    --model /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 \
+    --port 8090 --host 0.0.0.0 --mem-budget 24 > /tmp/intarsia-serve.log 2>&1 & echo $! > /tmp/intarsia-serve.pid'
+until curl -sf http://spark-4e77:8090/health >/dev/null; do sleep 2; done
+FLEETQ_JOB=$JOB intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B ...
+FLEETQ_JOB=$JOB sh -c 'cd /opt/code/deepeval && uv run localeval speed spark-intarsia ...'   # same slot, no second queue
+FLEETQ_JOB=$JOB ssh spark1 'kill $(cat /tmp/intarsia-serve.pid)'   # SIGTERM reaches the supervisor and its child
+fleetq release $JOB
+```
+
+`localeval` refuses a busy server by reading `vllm:num_requests_running` and
+`vllm:num_requests_waiting` from `/metrics`; `intarsia serve` exports both. If a run dies and leaves
+the server busy, `curl spark-4e77:8090/metrics | grep vllm:` shows what is in flight (a disconnected
+client cancels its request, so this clears within a prefill chunk).
+
+Never use port 8000 for our server (production vLLM).
+
+## localeval
+
+`localeval` reads targets from `/opt/code/deepeval/targets.toml`. Add the engine once by pasting
+`deploy/localeval/targets-snippet.toml` (target `spark-intarsia`, `bandwidth_gbs = 221`), or use it
+ad hoc without editing anything:
+
+```sh
+cd /opt/code/deepeval
+
+# by registry name (after pasting the snippet)
+uv run localeval speed spark-intarsia --sizes 128,1024,4096,16384 --gen 128 --reps 3 --concurrency 1,4
+
+# ad hoc, any server
+uv run localeval speed --url http://spark-4e77:8090/v1 --model Qwen3-8B \
+    --label intarsia-qwen3-8b-bf16 --thinking off --sizes 128,1024,4096,16384 --gen 128 --reps 3
+```
+
+Flags (from `uv run localeval speed --help`): `--url`, `--model`, `--key-env`, `--thinking
+{on,off,default}`, `--structured`, `--label`, `--wait-idle SECONDS`, `--ignore-busy`, `--no-queue`,
+`--no-unim`, `--sizes`, `--gen`, `--reps`, `--concurrency`. localeval takes its own fleetq slot
+(`--no-queue` is for non-fleet servers only; do not use it on spark1 without sign-off), waits for the
+server to be idle, and logs the run to unanimis. If it complains the box is busy, the engine or
+another chat holds a slot: `fleetq status`. Inside a lease you hold (see Fleet rules) run it with
+`FLEETQ_JOB` set so it does not queue behind your own server.
+
+Quality (golden logits and benchmarks) is a separate gate: `docs/accuracy.md`.
+
+## Comparing runs
+
+* Same prompt sizes, `--gen`, and thinking mode on both sides, same day, same GPU state.
+* Compare decode tok/s at 128 and 1K prompts (weight streaming) and prefill tok/s at 4K and 16K
+  (compute bound). TTFT at 128 tokens mostly shows scheduling and launch overhead.
+* Check `% of floor`: a healthy bf16 dense decode on a GB10 should land at 70-90%. Far below means
+  launch overhead or an unfused path (see `intarsia top` kernel shares); above 100 means a bug.
+* `intarsia top` (or the Grafana dashboard) alongside a run shows which kernels the time goes to.
+# Observability
+
+Everything the engine reports comes from one struct, `TelemetrySnapshot` (`docs/telemetry.md`).
+`intarsia serve` exposes it three ways:
+
+| Surface | Use |
+|---|---|
+| `GET /metrics` | Prometheus text. Scrape it; the Grafana dashboard reads it. |
+| `GET /events` | SSE stream of the snapshot as JSON, 4-10 Hz. `intarsia top` reads it. |
+| `intarsia doctor` | One-shot host fingerprint and pitfall checks (no server needed). |
+
+## `intarsia top`
+
+```sh
+intarsia top --url http://spark-4e77:8090      # live
+intarsia top --demo                              # synthetic data, no server
+intarsia top --demo --exit-after 3               # smoke test, exits by itself
+```
+
+Quit with `q`, `Esc` or `Ctrl-C`. It reconnects automatically if the server restarts (status in the
+header). Panels, top to bottom:
+
+* header: model, device `[backend arch]`, uptime, connection state, steps/s, request totals by finish
+  reason, token totals, weights, device memory;
+* sparklines: decode tok/s and prefill tok/s of the last finished request (these update when a
+  request finishes), and live engine steps/s;
+* gauges: KV bytes, KV tokens, running vs waiting;
+* kernel time share: per-op share of the recent time, with ms per launch. Computed from deltas
+  between snapshots, with each op's sampled time scaled up by `calls / timed_calls`, then smoothed;
+* architecture strip `API -> scheduler -> engine -> kernels -> device`. Each segment is shaded from
+  dark slate through amber to red by live load:
+
+  | Segment | Load |
+  |---|---|
+  | API | `(running + waiting) / 4` |
+  | scheduler | 0.35 when a request runs, 0.6-1.0 as the queue grows |
+  | engine | steps/s relative to the recent peak |
+  | kernels | estimated kernel busy fraction (falls back to the engine load when ops are not timed) |
+  | device | KV cache fill |
+
+Operations are only as live as the data: GPU backends time one launch in `profile_every` (default
+16), so the kernel shares are statistical and need a few seconds of load to settle.
+
+## Prometheus
+
+Metric names (see `crates/intarsia-server/src/metrics.rs`): `intarsia_engine_steps_total`,
+`intarsia_requests_{running,waiting}`, `intarsia_requests_total`,
+`intarsia_requests_finished_total{reason}`, `intarsia_tokens_{prompt,generated,cached}_total`,
+`intarsia_ttft_seconds` and `intarsia_itl_seconds` (histograms), `intarsia_kv_bytes_{used,total}`,
+`intarsia_kv_tokens_{used,capacity}`, `intarsia_device_memory_{total,free}_bytes`,
+`intarsia_weights_bytes`, `intarsia_last_{prefill,decode}_tokens_per_second`,
+`intarsia_op_seconds_total{op}`, `intarsia_op_calls_total{op}`, `intarsia_uptime_seconds`,
+`intarsia_last_step_timestamp_seconds`, `intarsia_info{model,family,backend,device,...}`.
+
+Robustness metrics: `intarsia_requests_rejected_total` (HTTP 429, queue full),
+`intarsia_engine_failed` (1 after a worker panic), `intarsia_engine_no_progress_seconds` (time with
+work queued and no engine step; the watchdog input).
+
+vLLM-compatible gauges: `vllm:num_requests_running` and `vllm:num_requests_waiting` carry the same
+values as `intarsia_requests_{running,waiting}`. `localeval` decides "is this server busy?" from
+exactly these two names (`BUSY_GAUGES` in `/opt/code/deepeval/src/localeval/client.py`), so they must
+stay. Do not graph both; use the `intarsia_*` names in dashboards.
+
+## Health, watchdog and supervisor
+
+`GET /health` answers 200 `{"status":"ok"}`, or 503 with `"status":"failed"` (the engine worker
+panicked; every new request is refused with 503 too) or `"status":"stalled"` (work is queued or
+running but the engine step counter has not moved for `--watchdog-s`, default 60). A hung kernel
+keeps `/metrics` and `/health` answering at the HTTP layer, which is why the heartbeat is the step
+counter and not the socket. The body also carries `no_progress_s`, `running`, `waiting`, `max_queue`.
+
+`intarsia serve` is a supervisor by default: it starts `intarsia serve --child ...` and restarts it
+with doubling backoff (`--restart-backoff-s`, up to 30 s; reset after 60 s of healthy running) when
+the child dies. The child exits by itself with a distinct code when its watchdog trips:
+
+| exit code | meaning | supervisor |
+|---|---|---|
+| 0 | clean shutdown (SIGTERM/Ctrl-C) | exits 0 |
+| 2, 78 | bad command line, model or recipe did not load | exits, no restart |
+| 86 | watchdog: no engine step for `--watchdog-s` with work queued | restart |
+| 87 | engine worker failed (panic) | restart |
+| 88 | the supervisor vanished | (child gone) |
+| other / signal | crash, OOM kill | restart |
+
+A wedged CUDA context has sticky errors, so a fresh process is the only recovery. SIGTERM to the
+supervisor is forwarded to the child (30 s grace, then SIGKILL). `--no-supervisor` runs the server in
+the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503.
+
+Debug hooks (worker thread, any build): `INTARSIA_DEBUG_STALL_S=n` sleeps n seconds at the start of
+every request (forces a stall); `INTARSIA_DEBUG_PANIC=1` panics there. For testing the watchdog only.
+
+Overload: at most one request runs and `--max-queue` (default 64) wait; the next gets HTTP 429 with
+`Retry-After: 1` (`rate_limit_error` in both dialects). A client that disconnects cancels its request:
+the engine checks the flag while queued, between prefill chunks and between decode steps, so a
+cancelled 16k-token prefill frees the worker after the current chunk. `max_tokens` defaults to what is
+left of the context, at most `--default-max-tokens` (4096; 0 = context only).
+
+`GET /v1/intarsia/plan` returns the engine's execution plan (`Engine::plan()`): model, backend,
+device, exactness, `layers[]` (index, kind, blocks) and `ops[]` (op, kernel, backend, exactness,
+admitted, `calls_per_decode_step`). `null` when the engine has no plan. The `op` strings match the
+keys of `ops` in the telemetry snapshot.
+
+Scrape setup. The existing Prometheus in `/opt/code/missioncntrl_/deploy/monitoring/prometheus.yml`
+has global `scrape_interval: 15s` and one job, `missioncntrl`, that uses a bearer token and
+`metrics_path: /api/prometheus`. `intarsia serve` has no auth in Phase 0 and serves the default
+`/metrics` path, so add a separate job (also in `deploy/grafana/prometheus-scrape.yml`):
+
+```yaml
+scrape_configs:
+  # ... existing missioncntrl job unchanged ...
+  - job_name: intarsia
+    metrics_path: /metrics
+    scrape_interval: 5s          # per-job override; the 15s global default also works
+    static_configs:
+      - targets: ["spark-4e77:8090"]
+        labels: { host: spark1 }
+```
+
+The Prometheus container must be able to reach spark1:8090 and the server must listen on a
+reachable interface (`intarsia serve --host 0.0.0.0`; the default is loopback). It is unauthenticated,
+so keep it on the LAN or the tailnet. Check with `curl -s spark-4e77:8090/metrics | head` and, in
+Prometheus, `up{job="intarsia"}`.
+
+## Grafana
+
+`deploy/grafana/intarsia.json` is a dark dashboard (uid `intarsia-engine`) with a Prometheus
+datasource variable, plus `job` and `instance` filters, so it works with any Prometheus.
+
+* Import: Grafana, Dashboards, New, Import, upload the JSON, pick the datasource; or
+* Provision (as the missioncntrl dashboard does): mount `intarsia.json` into
+  `/var/lib/grafana/dashboards` and `deploy/grafana/dashboards.yml` into
+  `/etc/grafana/provisioning/dashboards/`.
+
+Sections: status (scrape up, running, waiting, last decode/prefill tok/s, KV used, uptime and a
+**Wedge** indicator), throughput (tokens/s, engine steps/s), TTFT and ITL percentiles, requests,
+memory (KV bytes/tokens, device memory), kernels (time share, op time rate, launch rate).
+
+Wedge is `1` when requests are running or waiting but `rate(intarsia_engine_steps_total[1m])` is
+zero. A hung kernel keeps `/metrics` answering, so `up == 1` alone does not mean healthy. Alert on it:
+
+With the supervisor a wedge heals itself within `--watchdog-s` plus a model load, so also alert on
+repeated restarts (`changes(intarsia_uptime_seconds[15m]) > 2`) and on `intarsia_engine_failed == 1`.
+
+```yaml
+- alert: IntarsiaWedged
+  expr: (sum(intarsia_requests_running + intarsia_requests_waiting) > 0) and (sum(rate(intarsia_engine_steps_total[1m])) == 0)
+  for: 1m
+```
+
+TTFT and ITL percentiles use `histogram_quantile` over the server's buckets; ITL is the per-request
+mean weighted by token count, not a per-token distribution. Counters advance when a request
+finishes, so `tokens/s` panels are smoothed over request length; the sparklines in `intarsia top`
+and the "last" gauges show the most recent request.
+
+## `intarsia doctor`
+
+```sh
+intarsia doctor                    # checklist (backend auto: cuda if compiled in, else cpu)
+intarsia doctor --json --out doctor.json
+```
+
+Reports OS, kernel, CPU, RAM, GPU (nvidia-smi name, driver, compute capability; `/proc/driver/nvidia/version`;
+nvcc / `/usr/local/cuda/version.json`), the backend's `DeviceInfo`, kernel counts per arch, and (with a
+real device) measured host-to-device, device-to-host and device-copy bandwidth over a 256 MiB buffer
+(`--bw-mib`, 0 skips; device copy counts read plus write bytes). Checks, each with a status
+(`ok`/`warn`/`fail`/`info`) and a fix hint where one exists:
+
+* `sm_121_target`: a compute 12.1 GPU (GB10) must have kernels registered for `sm_121`;
+* `cuda_toolkit`: CUDA >= 12.9 is needed to compile for sm_121;
+* `transparent_hugepages`: `never` slows large weight loads, `madvise` is recommended;
+* `disk_free`: warns under 10% or 20 GB, fails under 5 GB (spark1 runs near 95% full);
+* `hip_gpu_max_hw_queues`: informational, for the future HIP backend;
+* `serve_port`: port 8090 free (8000 is vLLM on spark1).
+
+The CUDA-specific fields only appear on a binary built with `--features cuda`.
+
+## Web UI
+
+`intarsia serve` serves a built-in UI at `/` (assets compiled into the binary from `web/`, no build step, no
+CDN). Tabs: Chat (streams `/v1/chat/completions`, collapses `<think>` blocks, per-message TTFT and tok/s),
+Dashboard (live `/events`: tok/s sparklines, queue, KV, memory, per-op time share) and Architecture (the engine
+map from `/v1/intarsia/plan` with the live overlay; falls back to the telemetry op names when the plan is
+null). Dark by default, light via the header toggle or the OS preference. `--no-ui` removes it: `/` and `/ui/*`
+then return 404 while the API, `/metrics` and `/events` stay. Token counters are booked when a request ends,
+so while one runs the UI shows steps/s as an approximate decode rate (marked `~`).
+# Telemetry
+
+One struct feeds everything that watches the engine: `/metrics` (Prometheus), `/events` (SSE),
+the TUI (`intarsia top`) and `intarsia doctor`/`bench`. It is
+`intarsia_core::telemetry::TelemetrySnapshot` (serde `Serialize`), obtained from
+`Engine::telemetry()`. A snapshot is cheap (atomics plus one short mutex); poll it at 4-10 Hz.
+
+JSON shape (`schema_version` 1; additive changes keep the version, breaking ones bump it):
+
+```json
+{
+  "schema_version": 1,
+  "timestamp_ms": 1760000000000,
+  "uptime_s": 12.3,
+  "model": "Qwen/Qwen3-8B",
+  "device": { "name": "NVIDIA GB10", "backend": "cuda", "arch": "sm_121",
+              "total_mem_bytes": 130000000000, "free_mem_bytes": 52000000000, "unified": true },
+  "steps_total": 1042,
+  "last_step_ms": 1760000000000,
+  "requests_total": 7,
+  "running": 1,
+  "waiting": 0,
+  "finished": { "stop": 5, "length": 1, "cancelled": 0, "error": 0 },
+  "prompt_tokens_total": 912,
+  "generation_tokens_total": 640,
+  "cached_tokens_total": 128,
+  "last_prefill_tok_s": 850.2,
+  "last_decode_tok_s": 24.1,
+  "last_ttft_ms": 140.5,
+  "kv_used_bytes": 41943040,
+  "kv_total_bytes": 603979776,
+  "kv_used_tokens": 284,
+  "kv_capacity_tokens": 4096,
+  "weights_bytes": 16400000000,
+  "ops": { "matmul": { "calls": 40320, "timed_calls": 2520, "time_ms": 3120.5 }, "...": {} }
+}
+```
+
+## Field meanings
+
+| Field | Meaning | Suggested Prometheus name |
+|---|---|---|
+| `steps_total` | Monotonic count of engine steps. One step is one forward pass: a prefill chunk or a decode step. A watchdog treats "`running + waiting > 0` and `steps_total` not advancing for N seconds" as a wedge (vLLM's cuDNN FP8 hang kept `/metrics` alive while dead). | `intarsia_engine_steps_total` (counter) |
+| `last_step_ms` | Unix ms of the latest step, `0` before the first. | gauge |
+| `requests_total` | Requests accepted by `Engine::submit` (counted at submit). | `intarsia_requests_total` |
+| `running` | Requests executing now (0 or 1 in Phase 0). | `intarsia_requests_running` (gauge) |
+| `waiting` | Requests queued behind the running one. | `intarsia_requests_waiting` (gauge) |
+| `finished` | Finished requests by reason: `stop`, `length`, `cancelled`, `error`. | `intarsia_requests_finished_total{reason}` |
+| `prompt_tokens_total` | Prompt tokens of finished requests (including cached ones). | `intarsia_prompt_tokens_total` |
+| `generation_tokens_total` | Completion tokens of finished requests (EOS counted, not emitted). | `intarsia_generation_tokens_total` |
+| `cached_tokens_total` | Prompt tokens served from the reused KV prefix. | `intarsia_cached_tokens_total` |
+| `last_prefill_tok_s` | Computed prompt tokens / prefill time of the last finished request. | gauge |
+| `last_decode_tok_s` | (completion tokens - 1) / decode time of the last finished request. | gauge |
+| `last_ttft_ms` | Time to first token of the last finished request. | gauge (the server derives histograms from `GenEvent::Done` per request) |
+| `kv_used_bytes` / `kv_total_bytes` | Filled / allocated bytes of the KV cache (attention slots; recurrent state counts fully). | gauges |
+| `kv_used_tokens` / `kv_capacity_tokens` | Tokens held / planned context length. | gauges |
+| `weights_bytes` | Bytes of loaded weights. | gauge |
+| `device.*` | Name, backend, arch, total memory, **free memory measured at snapshot time**, unified-memory flag. | `intarsia_device_free_bytes` |
+| `ops.<op>.calls` | Launch count per op id (`embedding`, `rmsnorm`, `rmsnorm_add`, `qk_norm`, `rope`, `matmul`, `logits`, `kv_append`, `attn_prefill`, `attn_decode`, `silu_glu`, `argmax`, ...). | `intarsia_op_calls_total{op}` |
+| `ops.<op>.timed_calls`, `ops.<op>.time_ms` | Launches whose duration was measured, and their cumulative milliseconds. Timing needs a device sync, so GPU backends sample (`LoadOptions::profile_every`, default 16 on GPUs; every step on cpu-ref). Estimated per-launch cost is `time_ms / timed_calls`; the share of step time per op is `time_ms` normalised across ops. | `intarsia_op_seconds_total{op}` |
+
+Notes for consumers:
+
+* All counters are monotonic since process start; compute rates from deltas of two snapshots.
+* `running`, `waiting` and `steps_total` come from separate atomics, so a snapshot is not a transaction;
+  do not assert invariants across them.
+* The architecture map (`/events`) uses `ops` for per-kernel time share, `kv_*` for pool fill,
+  `device.free_mem_bytes` for memory, and `running/waiting` for the scheduler node.
+* Per-request latencies (TTFT, ITL, e2e) are not in the snapshot: take them from
+  `GenEvent::Done { prefill_ms, decode_ms, .. }` in the server and feed histograms there.
+
+## Where it is produced
+
+`Telemetry` (`crates/intarsia-core/src/telemetry.rs`) is shared by the model (per-step and per-op
+counters) and the engine worker (request lifecycle, token totals, KV fill). Create one with
+`Telemetry::new()` and pass it to `Model::load` and `LocalEngine::new` (done by
+`intarsia_models::load_engine`). Read it with `engine.telemetry()`.
+# Quantised weights and the MoE block
+
+Code: `crates/intarsia-core/src/quant/` (formats, op validation, oracle math, admission cases), cpu kernels in
+`crates/intarsia-backend-cpu/src/quant_ref.rs`, CUDA in `kernels/cuda/{fp8,nvfp4,moe}.cu` registered by
+`crates/intarsia-backend-cuda/src/quantmoe.rs`. ARCHITECTURE 3.4 (`QuantFormat`).
+
+## Formats (`quant::QuantFormat`: `detect`, `load`, `dequant_ref`, `quantize`)
+
+| id | checkpoint tensors | meaning |
+|---|---|---|
+| `bf16` | `weight` | dense |
+| `fp8_e4m3` | `weight` e4m3 `[N,K]`, `weight_scale` f32 scalar, `input_scale` f32 scalar | `W = float(weight) * weight_scale` |
+| `nvfp4` | `weight` u8 `[N,K/2]`, `weight_scale` e4m3 `[N,K/16]`, `weight_scale_2` f32 scalar, `input_scale` | `W = e2m1(code) * e4m3(weight_scale[n,k/16]) * weight_scale_2` |
+
+NVFP4 details, checked against real tensors of the checkpoint and TensorFold's numpy dequantiser: element `2i` is
+the low nibble of byte `i`, element `2i+1` the high nibble; the e2m1 magnitudes are `0 .5 1 1.5 2 3 4 6` with
+the sign in bit 3; block scales are plain row-major `[N,K/16]` (no swizzle). The Qwen3.6 checkpoint is
+`W4A16_NVFP4` (activations stay 16-bit), so the NVFP4 `input_scale` is ignored.
+
+`dequant_ref` is the meaning of every kernel: a quantised matmul equals the dense matmul of the dequantised weight.
+Tensors keep the checkpoint layout (no repacking at load; the routed experts of a layer are stacked into one
+buffer per matrix kind, gate rows then up rows, `quant::moe::MoeWeights::load`).
+
+## FP8 activations: W8A8 or W8A16 (per recipe)
+
+`[defaults] fp8_act = "static" | "none"` (`recipe::Defaults::fp8_act`, `quant::Fp8Act`, default `static`).
+
+* `static` (W8A8): `xq = e4m3(x / input_scale)` (RNE, saturating at 448), `y = input_scale * weight_scale * xq . wq`.
+  This is the scheme the checkpoint declares and calibrated, and what vLLM runs for it.
+* `none` (W8A16): bf16 activations, `y = weight_scale * x . wq`.
+
+The mode travels in the op's `scales` tensor `[weight_scale, input_scale]` (`input_scale <= 0` = W8A16); kernels read
+it on the device, so one kernel serves both. Which mode tracks the vLLM logits better is NOT measured yet: it needs
+the assembled 35B model (no layer loop for linear attention / MoE existed when this was written). Compare both with
+`intarsia accuracy --golden qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` once the model loads. The two modes do differ
+on real slices (relative L2 of the outputs 2e-2 for `in_proj_z`, 0.28 for `o_proj` on unit-variance random inputs,
+where the tiny `o_proj` input_scale 0.0029 saturates; real activations are smaller), so the choice matters.
+
+## MoE block (HF `Qwen3_5MoeSparseMoeBlock`)
+
+```
+logits = router(x)                         Matmul (bf16 dense gate, [E,H])
+(w, id) = topk(softmax(logits)), w /= sum  Op::MoeTopk   attrs top_k, norm_topk
+routed  = sum_k w_k * down_e(silu(gate_e x) * up_e x)    Op::MoeExperts (NVFP4 experts, stacked)
+shared  = shared_down(silu(shared_gate x) * shared_up x) MatmulNvfp4 x3 + SiluGlu
+out     = routed + sigmoid(shared_expert_gate x) * shared   Op::MoeCombine
+```
+
+The generic chain is `MoeWeights::forward(&dyn OpRunner, ..)`: the model loader supplies a runner that goes through
+`Model::exec` (profiling, plan recording, scratch). Ops: `matmul_fp8`, `matmul_nvfp4`, `moe_topk`, `moe_experts`,
+`moe_combine` (signatures in `ops.rs`, ABI in `kernels/abi/ik_abi.h`).
+
+Rounding follows the HF bf16 chain (linear outputs, `silu(gate)`, `silu(gate)*up`, expert output, `y*w`, `sigmoid`, the
+final add are rounded to the activation dtype); with f32 activations the cpu oracle equals the HF float32 module.
+
+Shared expert width, the router dtype and the shared-expert-gate dtype were taken from the checkpoint: shared
+expert projections are NVFP4 (`W4A16_NVFP4`), the router `gate.weight` and `shared_expert_gate.weight` are bf16.
+
+## CUDA kernels
+
+| kernel | when | notes |
+|---|---|---|
+| `matmul_fp8_gemv` | M <= 4 | warp per output row, x staged (and quantised) once per block in shared memory |
+| `matmul_fp8_mma` | any M | 64-column tiles, e4m3 -> bf16 in shared memory (exact), bf16 `mma.sync`, f32 accumulate |
+| `matmul_nvfp4_gemv` | M <= 8 | warp per row, one 16-block per lane-iteration, fp4 decode with `prmt` |
+| `matmul_nvfp4_mma` | any M | dequantise-to-bf16 tiles, bf16 MMA (prefill, correct path) |
+| `moe_topk_bf16` | E <= 512, K <= 32 | warp per token, ties: lowest index |
+| `moe_experts_bf16` | E <= 1024 | group pairs by 

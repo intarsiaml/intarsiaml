@@ -6,7 +6,8 @@ use crate::safetensors::SafeTensors;
 use crate::tokenizer::HfCodec;
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::plan::PlanOptions;
-use intarsia_core::quant::scheme::QuantScheme;
+use intarsia_core::quant::compressed_tensors::CtNvfp4;
+use intarsia_core::quant::scheme::{QuantScheme, CT_NVFP4A16};
 use intarsia_core::recipe::{ModelDims, PrefillChunk, Recipe};
 use intarsia_core::backend::HostMemory;
 use intarsia_core::weights::{WeightInfo, WeightSource};
@@ -123,6 +124,7 @@ pub fn read_quant_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
         let qc = cfg.get("quantization_config").or_else(|| cfg.get("text_config").and_then(|t| t.get("quantization_config")));
         return match qc {
             Some(q) if q.get("quant_method").and_then(serde_json::Value::as_str) == Some("quark") => QuantScheme::parse_quark(q).map(Some),
+            Some(q) if QuantScheme::is_compressed_tensors_nvfp4(q) => QuantScheme::parse_compressed_tensors(q).map(Some),
             _ => read_exl3_scheme(dir),
         };
     }
@@ -146,31 +148,51 @@ fn read_exl3_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
 /// The checkpoint's tensors plus the quantisation scheme it declares, so `Model::load` can check every linear
 /// layer against `hf_quant_config.json` (declared algorithm implemented? agrees with the stored tensors?).
 pub struct SchemedSource {
-    inner: SafeTensors,
+    inner: Tensors,
     scheme: Option<QuantScheme>,
+}
+
+/// The safetensors as stored, or, for a compressed-tensors NVFP4A16 checkpoint, read under the ModelOpt tensor names
+/// (`intarsia_core::quant::compressed_tensors`).
+enum Tensors {
+    Plain(SafeTensors),
+    CompressedTensors(CtNvfp4<SafeTensors>),
 }
 
 impl SchemedSource {
     pub fn open(dir: &Path) -> Result<SchemedSource> {
-        Ok(SchemedSource { inner: SafeTensors::open_dir(dir)?, scheme: read_quant_scheme(dir)? })
+        let scheme = read_quant_scheme(dir)?;
+        let st = SafeTensors::open_dir(dir)?;
+        let inner = if scheme.as_ref().and_then(|s| s.quant_algo.as_deref()) == Some(CT_NVFP4A16) {
+            Tensors::CompressedTensors(CtNvfp4::new(st)?)
+        } else {
+            Tensors::Plain(st)
+        };
+        Ok(SchemedSource { inner, scheme })
     }
     pub fn scheme(&self) -> Option<&QuantScheme> {
         self.scheme.as_ref()
+    }
+    fn src(&self) -> &dyn WeightSource {
+        match &self.inner {
+            Tensors::Plain(s) => s,
+            Tensors::CompressedTensors(s) => s,
+        }
     }
 }
 
 impl WeightSource for SchemedSource {
     fn names(&self) -> Vec<String> {
-        self.inner.names()
+        self.src().names()
     }
     fn info(&self, name: &str) -> Option<WeightInfo> {
-        self.inner.info(name)
+        self.src().info(name)
     }
     fn bytes(&self, name: &str) -> Result<&[u8]> {
-        self.inner.bytes(name)
+        self.src().bytes(name)
     }
     fn host_memory(&self, name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
-        self.inner.host_memory(name)
+        self.src().host_memory(name)
     }
     fn quant_scheme(&self) -> Option<&QuantScheme> {
         self.scheme.as_ref()

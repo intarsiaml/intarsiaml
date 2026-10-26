@@ -1,0 +1,16 @@
+fleetq: #5474 waiting (#5 in line): in line behind #5470 "sk: g-macro-bitwise" (claude-f31ccf91) on spark2
+fleetq:   #5470 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5470 set, or it will wait for #5470 to be released.
+fleetq: #5474 waiting (#4 in line): in line behind #5471 "sk: g-batch-default" (claude-f31ccf91) on spark2
+fleetq:   #5471 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5471 set, or it will wait for #5471 to be released.
+fleetq: #5474 waiting (#3 in line): in line behind #5472 "sk: g-long-prompts" (claude-f31ccf91) on spark2
+fleetq:   #5472 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5472 set, or it will wait for #5472 to be released.
+fleetq: #5474 waiting (#2 in line): in line behind #5473 "sk: g-klgate" (claude-f31ccf91) on spark2
+fleetq:   #5473 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5473 set, or it will wait for #5473 to be released.
+fleetq: #5474 waiting (#1 in line): needs 76 GB on spark2; 2 GB free of 116
+fleetq: #5474 waiting (#1 in line): needs 76 GB on spark2; the box reports only 53 GB actually free (memory used by something fleetq does not track)
+fleetq: #5474 running on spark2: scripts/sk/gpu-tests.sh dev3 run g-packed batch_cuda_real real_35b_packed_prefill_equals_the_local_engine
+test real_35b_packed_prefill_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+thread 'real_35b_packed_prefill_equals_the_local_engine' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:798:13:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 105.08s
+fleetq: #5474 done (exit 0)

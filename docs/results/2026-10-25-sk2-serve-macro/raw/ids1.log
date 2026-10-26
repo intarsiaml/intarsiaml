@@ -1,0 +1,32 @@
+fleetq: #5524 running on spark2: scripts/sk/ids-serve.sh ids1 base:main dflt:dev off:dev:INTARSIA_PREFILL_MACRO=0
+alone 3300: prompt=1004 ids=256 finish=length
+alone 13600: prompt=4074 ids=256 finish=length
+alone 54700: prompt=16255 ids=256 finish=length
+conc 3300: prompt=1004 ids=256 finish=length
+conc 13600: prompt=4074 ids=256 finish=length
+conc 54700: prompt=16255 ids=256 finish=length
+alone 3300: prompt=1004 ids=256 finish=length
+alone 13600: prompt=4074 ids=256 finish=length
+alone 54700: prompt=16255 ids=256 finish=length
+conc 3300: prompt=1004 ids=256 finish=length
+conc 13600: prompt=4074 ids=256 finish=length
+conc 54700: prompt=16255 ids=256 finish=length
+alone 3300: prompt=1004 ids=256 finish=length
+alone 13600: prompt=4074 ids=256 finish=length
+alone 54700: prompt=16255 ids=256 finish=length
+conc 3300: prompt=1004 ids=256 finish=length
+conc 13600: prompt=4074 ids=256 finish=length
+conc 54700: prompt=16255 ids=256 finish=length
+IDS alone 13600 base vs dflt: identical
+IDS alone 3300 base vs dflt: identical
+IDS alone 54700 base vs dflt: identical
+IDS conc 13600 base vs dflt: identical
+IDS conc 3300 base vs dflt: identical
+IDS conc 54700 base vs dflt: identical
+IDS alone 13600 base vs off: identical
+IDS alone 3300 base vs off: identical
+IDS alone 54700 base vs off: identical
+IDS conc 13600 base vs off: identical
+IDS conc 3300 base vs off: identical
+IDS conc 54700 base vs off: identical
+fleetq: #5524 done (exit 0)

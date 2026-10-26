@@ -1,0 +1,20 @@
+This is a robust, production-grade architecture plan. The shift from "per-family engines" to a **recipe-driven block library** combined with a **strict kernel admission test** via a CPU-reference oracle is the correct architectural move to solve the modularity vs. performance trade-off.
+
+Below is the continuation of the document, completing Section 3.5 and proceeding through the remaining sections (Phases, Risk, and Appendices) to finalize the v0.2 plan.
+
+---
+
+```toml
+         down = "...down_proj" }
+norms = { pre_attn = "model.layers.{i}.input_layernorm", post_ffn = "model.layers.{i}.post_attention_layernorm" }
+
+[layer:0]                      # Special case: first layer often differs
+pattern = ["attn", "ffn"]
+attn = { kind = "gqa", ... }   # Same as above unless specific deviation
+
+[head]
+lm_head = "model.norm"         # Tied weights
+```
+
+**Key Design Decisions for Recipes:**
+1.  **Pattern Matching:** The `pattern` field allows the plan compiler to identify sequences of ops (e.g., `attn -> ffn

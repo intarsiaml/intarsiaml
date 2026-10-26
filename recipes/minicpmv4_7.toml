@@ -1,0 +1,65 @@
+# MiniCPM-V 4.7 35B-A3B text decoder (MiniCPMV4_7ForConditionalGeneration): the qwen3_5_moe blocks (GatedDeltaNet + gated GQA, routed
+# experts with a shared expert), text weights under model.language_model.*; the vision tower (model.vision_tower.*) and the projector
+# (model.merger.*) are ignored, text only. Scaffold by `intarsia recipe new` (lane ct, 2026-10-26); the one TODO, norm_offset, was
+# answered from the weights (input_layernorm mean 0.033, post_attention_layernorm min -1.0, q_norm mean 0.33: zero-centred RMSNorm,
+# x * (1 + w)). Checkpoints: bf16 experts stored per expert (not fused) and compressed-tensors NVFP4A16
+# (docs/results/2026-10-26-ct-compressed-tensors.md: quick tier on CUDA, decode 49.9 tok/s, short-golden KL 2.3e-3).
+[model]
+match.architectures = ["MiniCPMV4_7ForConditionalGeneration"]  # from config.json architectures
+family = "minicpmv4_7"                          # from config.json model_type
+chat_template = "hf"                            # default: the model's own jinja template (chat_template.jinja or tokenizer_config.json)
+# reasoning_parser / tool_parser: optional, not inferable from the checkpoint (see an existing recipe of the same lineage)
+# norm_offset checked on the weights (lane ct, 2026-10-26): input_layernorm mean 0.033, post_attention_layernorm min -1.0, q_norm mean 0.33: zero-centred RMSNorm (x * (1 + w))
+norm_offset = 1.0
+
+[layer]
+pattern = ["attn", "moe"]                       # from tensors of layer 3 (type full_attention); used only for a layer without a type
+pattern_by_layer = "layer_types"                # from text_config.layer_types
+
+[layer.by_type]
+linear_attention = ["gdn", "moe"]               # from tensors of layer 0 (first layer of type linear_attention)
+full_attention = ["attn", "moe"]                # from tensors of layer 3 (first layer of type full_attention)
+
+[layer.attn]
+kind = "gqa"                                    # from tensors: q/k/v/o_proj under model.language_model.layers.3.self_attn
+q = "model.language_model.layers.{i}.self_attn.q_proj"  # from tensors: model.language_model.layers.3.self_attn.q_proj.weight
+k = "model.language_model.layers.{i}.self_attn.k_proj"  # from tensors: model.language_model.layers.3.self_attn.k_proj.weight
+v = "model.language_model.layers.{i}.self_attn.v_proj"  # from tensors: model.language_model.layers.3.self_attn.v_proj.weight
+o = "model.language_model.layers.{i}.self_attn.o_proj"  # from tensors: model.language_model.layers.3.self_attn.o_proj.weight
+q_norm = "model.language_model.layers.{i}.self_attn.q_norm"  # from tensors: model.language_model.layers.3.self_attn.q_norm.weight
+k_norm = "model.language_model.layers.{i}.self_attn.k_norm"  # from tensors: model.language_model.layers.3.self_attn.k_norm.weight
+rope = "default"                                # from text_config.rope_parameters (rope_type absent or "default")
+# partial rotary embeddings: 0.25 of head_dim rotate (from rope_parameters.partial_rotary_factor), handled by the builder
+# rope_parameters.mrope_section is set (multimodal rope): text-only input uses the same position on all axes, i.e. plain rope
+gated = true                                    # from tensors: model.language_model.layers.3.self_attn.q_proj.weight has 8192 rows = 2 x 16 heads x head_dim 256 (query + output gate)
+
+[layer.gdn]
+kind = "gated_delta_net"                        # from tensors: in_proj_qkv / in_proj_z / in_proj_b / in_proj_a / conv1d / A_log / dt_bias under model.language_model.layers.0.linear_attn
+in_qkv = "model.language_model.layers.{i}.linear_attn.in_proj_qkv"  # from tensors: model.language_model.layers.0.linear_attn.in_proj_qkv.weight
+in_z = "model.language_model.layers.{i}.linear_attn.in_proj_z"  # from tensors: model.language_model.layers.0.linear_attn.in_proj_z.weight
+in_b = "model.language_model.layers.{i}.linear_attn.in_proj_b"  # from tensors: model.language_model.layers.0.linear_attn.in_proj_b.weight
+in_a = "model.language_model.layers.{i}.linear_attn.in_proj_a"  # from tensors: model.language_model.layers.0.linear_attn.in_proj_a.weight
+conv = "model.language_model.layers.{i}.linear_attn.conv1d"  # from tensors: model.language_model.layers.0.linear_attn.conv1d.weight
+a_log = "model.language_model.layers.{i}.linear_attn.A_log"  # from tensors: model.language_model.layers.0.linear_attn.A_log
+dt_bias = "model.language_model.layers.{i}.linear_attn.dt_bias"  # from tensors: model.language_model.layers.0.linear_attn.dt_bias
+norm = "model.language_model.layers.{i}.linear_attn.norm"  # from tensors: model.language_model.layers.0.linear_attn.norm.weight
+out = "model.language_model.layers.{i}.linear_attn.out_proj"  # from tensors: model.language_model.layers.0.linear_attn.out_proj.weight
+
+[layer.moe]
+kind = "qwen3_5_moe"                            # from tensors: model.language_model.layers.0.mlp.experts.<e>.* (routed experts) + shared_expert + shared_expert_gate
+prefix = "model.language_model.layers.{i}.mlp"  # from tensors: model.language_model.layers.0.mlp.gate.weight (router)
+
+[layer.norms]
+pre_attn = "model.language_model.layers.{i}.input_layernorm"  # from tensors: model.language_model.layers.3.input_layernorm.weight
+pre_gdn = "model.language_model.layers.{i}.input_layernorm"  # from tensors: model.language_model.layers.0.input_layernorm.weight
+pre_moe = "model.language_model.layers.{i}.post_attention_layernorm"  # from tensors: model.language_model.layers.0.post_attention_layernorm.weight
+
+[top]
+embed = "model.language_model.embed_tokens"     # from tensors: model.language_model.embed_tokens.weight
+final_norm = "model.language_model.norm"        # from tensors: model.language_model.norm.weight
+lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }  # from tensors: lm_head.weight; tied_to is used when the tensor is absent or the config ties the embeddings
+# ignored (not part of the text decoder): model.merger.* (6), model.vision_tower.* (453)
+
+[defaults]
+kv_dtype = "bf16"                               # default: bf16 KV cache (fp8_e4m3 KV is accepted by the cpu oracle only)
+max_batch = 32                                  # from closest recipe builtin:qwen3_5_moe (same block set)

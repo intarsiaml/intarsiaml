@@ -262,6 +262,14 @@ mod tests {
     const OLD_OVERLAY: &str = "head=4963b43 code-tree=bbbbbbbbbbbb dirty=yes overlay=crates/intarsia-cli/src/cmd/accuracy.rs,crates/intarsia-cli/src/cmd/accuracy/baseline.rs";
     const NEW: &str = "head=88c5285 code-tree=cccccccccccc dirty=no";
 
+    #[test]
+    fn the_deploy_script_stamp_is_a_stamp() {
+        // scripts/deploy.sh bakes this form: the tree-stamp.sh keys plus the old `tree=` / `backend=` keys, which are ignored
+        let c = CodeStamp::parse("head=88c5285 code-tree=cccccccccccc dirty=no tree=cccccccccccc backend=cuda");
+        assert!(c.is_stamped() && !c.dirty && c.code_tree == "cccccccccccc" && c.overlay.is_empty(), "{c:?}");
+        assert!(!CodeStamp::parse("head=88c5285 tree=cccccccccccc backend=cuda").is_stamped());
+    }
+
     fn pol(pre: Option<&str>, rev: &[&str]) -> Policy {
         Policy { pre_change: pre.map(String::from), revlist: rev.iter().map(|s| s.to_string()).collect(), ..Default::default() }
     }

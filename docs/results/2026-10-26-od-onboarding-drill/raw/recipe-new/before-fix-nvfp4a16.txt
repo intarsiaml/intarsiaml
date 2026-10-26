@@ -1,0 +1,13 @@
+not covered: no existing recipe handles this model (closest: 43/61 tensor templates resolve, quant: bf16)
+  note: config.json: architectures ["MiniCPMV4_7ForConditionalGeneration"], family "minicpmv4_7" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (93472 tensors; shards not present, so no dtypes or shapes)
+  note: layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)
+  note: quantisation: bf16 (not implemented in full, see TODOs)
+  note: closest existing recipe: builtin:qwen3_5_moe (blocks {"attn", "gdn", "moe"} vs inferred {"attn", "gdn", "moe"}; 43/61 tensor templates resolve; architecture differs; 18 tensor template(s) missing in the checkpoint, e.g. ["model.language_model.layers.0.mlp.experts.0.gate_proj", "model.language_model.layers.0.mlp.experts.0.up_proj", "model.language_model.layers.0.mlp.experts.0.down_proj", "model.language_model.layers.0.mlp.experts.255.gate_proj"]; quantisation not implemented)
+  note: ignored non-text tensor groups: model.vision_tower.* (453)
+wrote scratch/recipe-nvfp4a16.toml (3 TODO(recipe-new) item(s))
+3 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5_moe uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. top: 6 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["model.merger.mlp.0.linear_1.bias", "model.merger.mlp.0.linear_1.weight", "model.merger.mlp.0.linear_2.bias", "model.merger.mlp.0.linear_2.weight", "model.merger.mlp.0.pre_norm.bias"] ...; decide whether the model needs them
+  3. quant: config quantization_config.quant_method = "compressed-tensors" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3)
+Error: 3 item(s) need manual work, see the TODO(recipe-new) markers in scratch/recipe-nvfp4a16.toml

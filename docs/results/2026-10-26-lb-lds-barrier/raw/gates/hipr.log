@@ -1,0 +1,55 @@
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... FAILED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:27:5:
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.31s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test admission`
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... ok
+test moe_block_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_is_the_solo_block_per_token ... ok
+test moe_block_grouped_negative_controls ... ok
+test moe_block_is_bitwise_the_chain ... ok
+test moe_block_rows_are_the_solo_block_per_token ... ok
+test moe_block_sentinel_stress ... ok
+test moe_block_timing ... ok
+test moe_rows_timing ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.43s
+     Running tests/moe_pairs.rs (/target/release/deps/moe_pairs-c73bccbb72670486)
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.15s
+test v3_counters_reset_between_launches ... ok
+test v3_graph_replay_is_bitwise_eager ... ok
+test v3_is_bitwise_v2 ... ok
+test v3_sentinel_stress ... ok
+test v3_sentinel_stress_multitoken ... ok
+test v3_sentinel_stress_narrow ... ok
+test v3_waits_for_every_gate_up_role ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.26s
+test bf16_gemm_rows_do_not_depend_on_m ... ok
+test moe_experts_rows_do_not_depend_on_t ... ok
+test moe_experts_small_segments_cross_the_gemv_wmma_threshold ... ok
+test moe_topk_rows_do_not_depend_on_t ... ok
+test nvfp4_gemm_rows_do_not_depend_on_m ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... ok
+test wmma_bf16_switch_from_the_gemv_is_not_bitwise ... ok
+test wmma_fp8_matches_the_reference_sum ... ok
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+test wmma_fp8_switch_from_the_gemv_reports_equality ... ok
+test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 22.00s
+error: 1 target failed:

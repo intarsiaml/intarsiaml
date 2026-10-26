@@ -1,0 +1,36 @@
+binary target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f
+
+running 11 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 58627796992, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 55696406443, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan: 2048 KV tokens per sequence, 671088640 KV bytes in all, 20480 bytes per token; notes ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+batch plan notes: ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+16 sequences prefilled twice in 3.0 s
+batch 2: 130 steps bitwise in 5.5 s (per step: 16.4 ms batched, 24.6 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 7.5 s (per step: 19.2 ms batched, 36.5 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 9.7 s (per step: 22.8 ms batched, 49.2 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 18.3 s (per step: 36.3 ms batched, 98.6 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 34.9 s (per step: 62.6 ms batched, 195.1 ms for the 16 solo steps)
+4290 (row, step) pairs bitwise identical in 79.0 s
+ok
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+
+test result: ok. 2 passed; 0 failed; 9 ignored; 0 measured; 1 filtered out; finished in 289.97s
+

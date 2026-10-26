@@ -321,6 +321,7 @@ impl ModelArgs {
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
                 dflash: None, // set from --spec-draft by the loader
+                prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
             },
             spec_draft: self.spec_draft.clone(),
             dcoco: self.dcoco,

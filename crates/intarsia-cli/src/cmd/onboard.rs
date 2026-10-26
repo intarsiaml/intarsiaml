@@ -474,6 +474,11 @@ pub fn timeline_md(tl: &Value) -> String {
     let mut o = String::from("\n## Stage timeline\n\nAll times UTC. The qualify stages ran inside the `quick` / `in-depth` stages. A stage that was killed and resumed shows \
          its last attempt; the qualify rows show every sub-stage with the time it actually ran.\n\n");
     o.push_str("| Stage | Tier | Verdict | Start | End | Duration | Note |\n|---|---|---|---|---|---|---|\n");
+    // a stage that never ran (skipped by `--skip`) has unix time 0: show "-", not 1970
+    let at = |r: &Value, k: &str| match r[format!("{k}_unix")].as_u64() {
+        Some(0) => "-".to_string(),
+        _ => r[k].as_str().unwrap_or("?").to_string(),
+    };
     let row = |o: &mut String, r: &Value, tier: &str| {
         let _ = writeln!(
             o,
@@ -481,8 +486,8 @@ pub fn timeline_md(tl: &Value) -> String {
             r["id"].as_str().unwrap_or("?"),
             tier,
             r["verdict"].as_str().unwrap_or("?"),
-            r["started"].as_str().unwrap_or("?"),
-            r["ended"].as_str().unwrap_or("?"),
+            at(r, "started"),
+            at(r, "ended"),
             report::fmt_dur(r["wall_s"].as_f64().unwrap_or(0.0)),
             r["first_started"].as_str().map(|f| format!("resumed; first attempt started {f}")).unwrap_or_default(),
         );
@@ -1298,6 +1303,11 @@ mod tests {
             md.contains("| recipe | prepare | PASS | 2026-10-21T17:30:36Z | 2026-10-21T17:31:36Z | 60s |  |"),
             "{md}"
         );
+        // a stage that never ran carries unix time 0: no 1970 in the table
+        let never = json!({"stages": [], "qualify_stages": [{"id": "bench", "section": "quick", "verdict": "SKIP", "started_unix": 0,
+            "started": iso(0), "ended_unix": 0, "ended": iso(0), "wall_s": 0.0}]});
+        let md0 = timeline_md(&never);
+        assert!(md0.contains("| bench | qualify quick | SKIP | - | - | 0s |"), "{md0}");
         let prom = timeline_prom("Qwen3-8B", "metal", &tl, "quick", 5);
         assert!(
             prom.contains("intarsia_onboard_stage_seconds{model=\"Qwen3-8B\",backend=\"metal\",stage=\"recipe\""),

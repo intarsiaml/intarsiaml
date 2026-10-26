@@ -1,0 +1,20 @@
+fleetq: #5529 waiting (#3 in line): in line behind #5527 "sk2: localeval serve --max-batch 4 main vs dev vs vLLM x3" (claude-f31ccf91) on spark2
+fleetq:   #5527 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5527 set, or it will wait for #5527 to be released.
+fleetq: #5529 waiting (#2 in line): in line behind #5528 "sk2: kernels test --quick" (claude-f31ccf91) on spark2
+fleetq:   #5528 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5528 set, or it will wait for #5528 to be released.
+fleetq: #5529 waiting (#1 in line): needs 76 GB on spark2; 58 GB free of 116
+fleetq: #5529 waiting (#1 in line): needs 76 GB on spark2; the box reports only 52 GB actually free (memory used by something fleetq does not track)
+fleetq: #5529 running on spark2: scripts/sk/gpu-tests.sh dev run g-batch batch_cuda_real real_35b --exclude-ignored
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663006208, free_bytes: 58627796992, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 55696406443, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 9 ignored; 0 measured; 1 filtered out; finished in 289.97s
+fleetq: #5529 done (exit 0)

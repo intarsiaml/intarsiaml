@@ -1,0 +1,12 @@
+not covered: no existing recipe handles this model (closest: 49/61 tensor templates resolve, quant: bf16)
+  note: config.json: architectures ["MiniCPMV4_7ForConditionalGeneration"], family "minicpmv4_7" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (1152 tensors) + 16/16 shard headers
+  note: layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)
+  note: quantisation: bf16
+  note: closest existing recipe: builtin:qwen3_5_moe (blocks {"attn", "gdn", "moe"} vs inferred {"attn", "gdn", "moe"}; 49/61 tensor templates resolve; architecture differs; 12 tensor template(s) missing in the checkpoint, e.g. ["model.language_model.layers.0.mlp.experts.0.gate_proj", "model.language_model.layers.0.mlp.experts.0.up_proj", "model.language_model.layers.0.mlp.experts.0.down_proj", "model.language_model.layers.0.mlp.experts.255.gate_proj"])
+  note: ignored non-text tensor groups: model.merger.* (6), model.vision_tower.* (453)
+wrote scratch/p1.toml (2 TODO(recipe-new) item(s))
+2 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5_moe uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. layer.moe: experts of mlp.experts are stored fused (e.g. experts.gate_up_proj as one tensor); the moe block loads per-expert tensors experts.{e}.{gate,up,down}_proj, so the checkpoint needs converting or the block extending
+Error: 2 item(s) need manual work, see the TODO(recipe-new) markers in scratch/p1.toml

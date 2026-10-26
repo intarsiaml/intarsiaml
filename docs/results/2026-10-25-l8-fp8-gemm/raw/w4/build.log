@@ -1,0 +1,8 @@
+fleetq: #5487 waiting (#3 in line): in line behind #5481 "tp2: sync + build the batch tree (7e719dd: CTRS probes, stages-w21), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5481 set, or it will wait for #5481 to be released.
+fleetq: #5487 waiting (#3 in line): in line behind #5482 "tp2 w21: per-rank device launch counters around a solo graph step and a batched step (27B tp2 repro), radiance down <=20 min" (claude-f31ccf91) on tatooine-r9700; #5482 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5482 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5482 set, or it will wait for #5482 to be released.
+fleetq: #5487 running on tatooine-r9700: ssh tatooine 'bash ~/intarsiaml-l8-src/scripts/l8/build.sh f8bench'
+-rwxr-xr-x 1 josef josef  804456 Oct 25 21:04 .l8bin/f8bench
+-rw-r--r-- 1 josef josef 5032789 Oct 25 21:04 .l8bin/f8bench.s
+fleetq: #5487 done (exit 0)

@@ -1,0 +1,62 @@
+[localeval] calibrated: 22.1 tokens/sentence, 55 base tokens, ctx=20480
+[localeval]    512 tok rep 1/3: prompt=499 ttft=0.10s prefill=4810 tok/s decode=174.8 tok/s peak=0.0 tok/s out=8
+[localeval]    512 tok rep 2/3: prompt=500 ttft=0.10s prefill=4817 tok/s decode=158.5 tok/s peak=0.0 tok/s out=8
+[localeval]    512 tok rep 3/3: prompt=500 ttft=0.10s prefill=4825 tok/s decode=166.0 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 1/3: prompt=1988 ttft=0.23s prefill=8703 tok/s decode=164.2 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 2/3: prompt=1984 ttft=0.21s prefill=9257 tok/s decode=164.6 tok/s peak=0.0 tok/s out=8
+[localeval]   2048 tok rep 3/3: prompt=1988 ttft=0.22s prefill=9030 tok/s decode=166.3 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=0.41s prefill=10078 tok/s decode=153.6 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.41s prefill=10014 tok/s decode=159.3 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 3/3: prompt=4092 ttft=0.41s prefill=9956 tok/s decode=161.0 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 1/3: prompt=16657 ttft=1.88s prefill=8854 tok/s decode=145.8 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 2/3: prompt=16651 ttft=1.88s prefill=8848 tok/s decode=96.0 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=1.93s prefill=8639 tok/s decode=126.4 tok/s peak=0.0 tok/s out=8
+[localeval] 1 streams: aggregate 27.0 tok/s
+# localeval: adhoc — 2026-10-25T23:07
+
+- model: `intarsia` on ? (?), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: l5r7-v3-base
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8296/v1 --model intarsia --thinking off --sizes 512,2048,4096,16384 --gen 8 --reps 3 --concurrency 1 --recipe intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch 1 (arm base, l5r7 zfast A/B) --label l5r7-v3-base`
+- result file: `results/20261025-230752-adhoc-l5r7-v3-base/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch 1 (arm base, l5r7 zfast A/B)
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 20480, 3 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 500 | 0.10 | 4817 (4810–4825) * | - | 166.0 (158.5–174.8) | - | - | - | 8 |
+| 1988 | 0.22 | 9030 (8703–9257) | 12828 | 164.6 (164.2–166.3) | - | - | - | 8 |
+| 4090 | 0.41 | 10014 (9956–10078) | 11181 | 159.3 (153.6–161.0) | - | - | - | 8 |
+| 16652 | 1.88 | 8848 (8639–8854) | 8522 | 126.4 (96.0–145.8) | - | - | - | 8 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 27.0 | 135.8 (135.8–135.8) | 0.23 |
+
+## Warnings
+
+- decode spread 39.4% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261025-230752-adhoc-l5r7-v3-base/result.json
+[localeval] logged to unanimis: 97ae2c59-9a3b-4da8-9c9b-222218a69a5e

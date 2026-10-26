@@ -1,0 +1,66 @@
+[window] job 5538 win g2 snapshot z3; stopping radiance 2026-10-25 21:58:21
+[window] radiance stopped 2026-10-25 21:58:24
+######## stage gc 2026-10-25 21:58:24
+[gc] 2026-10-25 21:58:24 moe_pairs + quantmoe
+test moe_pair_tile_does_not_change_a_bit ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.14s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... batch invariance: strict=false, tokens differing from T=1 in the tensor-core path: 10
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.26s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... f32-output quant matmuls: 49 runs, worst max_abs 1.753e-6, worst rel_l2 5.564e-7
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.03s
+[gc] 2026-10-25 21:58:32 G-C: 35B batched decode == solo step
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... 
+thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:107:84:
+FAILED
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+thread 'real_35b_batched_engine_equals_the_local_engine' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:231:58:
+FAILED
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+test result: FAILED. 1 passed; 2 failed; 8 ignored; 0 measured; 0 filtered out; finished in 3.39s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+[gc] 2026-10-25 21:58:35 G-C ignored long-prompt engine test
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 56.75s
+[gc] done 2026-10-25 21:59:33
+######## stage noop 2026-10-25 21:59:33
+[noop] base rev 6b01ead741a5319e0165b6b9d6309a69d7d1d5cc; branch snapshot z3 2026-10-25 21:59:33
+[gen] n35-short-base: 256 ids, md5 a77f38e1  finish=length prompt=134 (cached 0) completion=256 | prefill 86 ms (1551.7 tok/s) | decode 1536 ms (166.06 tok/s)
+[gen] n35-4k-base: 256 ids, md5 99a38a48  finish=length prompt=4420 (cached 0) completion=256 | prefill 485 ms (9105.7 tok/s) | decode 1585 ms (160.85 tok/s)
+[gen] n35-short-dev: 256 ids, md5 a77f38e1  finish=length prompt=134 (cached 0) completion=256 | prefill 86 ms (1558.0 tok/s) | decode 1533 ms (166.30 tok/s)
+[gen] n35-4k-dev: 256 ids, md5 99a38a48  finish=length prompt=4420 (cached 0) completion=256 | prefill 464 ms (9530.6 tok/s) | decode 1584 ms (161.02 tok/s)
+== no-op comparison (base = merge-base 6b01ead74)
+ids 35 short: identical (256 ids, md5 a77f38e1)
+ids 35 4k: identical (256 ids, md5 99a38a48)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)
+plan 27 json: byte-identical (13790 B)
+plan 27 txt: byte-identical (2877 B)
+[noop] done 2026-10-25 22:00:23
+######## stage sg 2026-10-25 22:00:23
+base-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+dev-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+== self-golden short: merge-base vs branch (z-fast on): IDENTICAL 60 tensors, 826116 bytes
+base-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+dev-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+== self-golden long: merge-base vs branch (z-fast on): IDENTICAL 30 tensors, 19198812 bytes
+devoff-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+== self-golden short: merge-base vs branch with INTARSIA_HIP_MOE_ZFAST=0: IDENTICAL 60 tensors, 826116 bytes
+SG DONE 293 s
+######## g1 done 2026-10-25 22:05:16
+[window] stages done 2026-10-25 22:05:16 (exit 0)
+[window] starting radiance 2026-10-25 22:05:16
+[window] radiance answers 2026-10-25 22:05:56 (after 45 s)

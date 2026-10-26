@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/models/radiance/Qwen3.8-27B-MXFP4-mtpfp8",
+    "backend": "hip"
+  },
+  "created_unix": 1792982024,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant mxfp4)",
+      "started_unix": 1792982024,
+      "ended_unix": 1792982024,
+      "wall_s": 0.021388258,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_vl",
+        "family": "qwen3_5",
+        "quant": "mxfp4"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris.\\nThe capital of Germany is Berlin.\\nThe capital of Italy is\"",
+      "started_unix": 1792982024,
+      "ended_unix": 1792982030,
+      "wall_s": 6.602809222,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 33.16,
+        "completion": "Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-MXFP4-mtpfp8 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/radiance/Qwen3.8-27B-MXFP4-mtpfp8 --backend cpu --golden /models/intarsia/golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-MXFP4-mtpfp8 --write-self-golden golden/oracle/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main",
+      "started_unix": 1792982030,
+      "ended_unix": 1792982318,
+      "wall_s": 287.801632086,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-26T02:38:38Z",
+      "started_unix": 1792982318,
+      "ended_unix": 1792982318,
+      "wall_s": 0.000628583,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792982318
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    },
+    {
+      "id": "in-depth",
+      "title": "in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)",
+      "tier": "in-depth",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-MXFP4-mtpfp8 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/radiance/Qwen3.8-27B-MXFP4-mtpfp8 --backend cpu --golden /models/intarsia/golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-MXFP4-mtpfp8 --write-self-golden golden/oracle/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main",
+      "started_unix": 1792982318,
+      "ended_unix": 1792982436,
+      "wall_s": 117.768988054,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-in-depth",
+      "title": "publish in-depth.md / in-depth.json / in-depth.prom",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "in-depth.md written 2026-10-26T02:40:36Z",
+      "started_unix": 1792982436,
+      "ended_unix": 1792982436,
+      "wall_s": 0.000871171,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792982436
+      },
+      "artifacts": [
+        "in-depth.md",
+        "in-depth.json",
+        "in-depth.prom"
+      ]
+    }
+  ]
+}

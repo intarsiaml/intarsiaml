@@ -1529,6 +1529,13 @@ impl Seq {
                 model.tail_merge(),
             )
         };
+        // opt-in macro prefill (`INTARSIA_PREFILL_MACRO`, recurrent states, no prefix store): the headless body of the prompt (all
+        // but the last token, which runs alone below) goes to `forward` in steps of several chunks, which it runs as ONE
+        // layer-by-layer pass (`Model::macro_rows`); the chunks, and so every state byte, are the plain schedule's
+        let n = match remaining.checked_sub(1).filter(|_| self.ps.is_none() && !prewarm && st.has_recurrent()) {
+            Some(body) => crate::scheduler::macro_step_rows(body, chunk, model.macro_rows()).unwrap_or(n),
+            None => n,
+        };
         if n < remaining || prewarm {
             let start = self.pos;
             match model.forward(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {

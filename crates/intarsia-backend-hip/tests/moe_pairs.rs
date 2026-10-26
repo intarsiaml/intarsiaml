@@ -81,9 +81,13 @@ fn moe_pair_tile_does_not_change_a_bit() {
     }
     cases.push(("NaN scale bytes".into(), nan));
     let mut differing_from_zero = 0usize;
+    // lane l5r7: the reference `a` below runs the grid order of rounds 5-9 (INTARSIA_HIP_MOE_ZFAST=0); every variant is then compared with it
+    // in the default launch order (z-fast, kMwZFast) too, so a launch-order dependence in any kernel family shows as a diff
+    std::env::set_var("INTARSIA_HIP_MOE_ZFAST", "0");
     // the reference and every comparison above the round-8 block: one launch per projection
     std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
     for (what, hc) in &cases {
+        std::env::set_var("INTARSIA_HIP_MOE_ZFAST", "0");
         let a = run(&*hip, hc, "32");
         // round 8: the weighted expert sum with 8 features per thread (moe_reduce_v8_kernel) against the scalar kernel
         std::env::set_var("INTARSIA_HIP_MOE_REDUCE", "0");
@@ -128,10 +132,30 @@ fn moe_pair_tile_does_not_change_a_bit() {
             }
             std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
         }
+        // lane l5r7: the z-fast launch order (default) against the grid order of rounds 5-9, every kernel family at both tiles, with and
+        // without pieces; and the knob itself ("1" and unset are the same)
+        for zf in ["1", ""] {
+            if zf.is_empty() {
+                std::env::remove_var("INTARSIA_HIP_MOE_ZFAST");
+            } else {
+                std::env::set_var("INTARSIA_HIP_MOE_ZFAST", zf);
+            }
+            for split in ["0", "1", "150"] {
+                std::env::set_var("INTARSIA_HIP_SPLIT_US", split);
+                std::env::set_var("INTARSIA_HIP_SPLIT_MIN_US", "0");
+                for (pairs, mw) in [("32", "0"), ("64", "0"), ("32", "5"), ("64", "5"), ("32", "0:41"), ("64", "45:25"), ("64", "13:29"), ("32", "41"), ("64", "29")] {
+                    let v = run_mw(&*hip, hc, pairs, mw);
+                    assert!(a.data == v.data, "{what}: z-fast launch order (INTARSIA_HIP_MOE_ZFAST={zf:?}, split {split}, MW {mw}, {pairs} pairs) changed the output");
+                }
+            }
+            std::env::set_var("INTARSIA_HIP_SPLIT_US", "0");
+        }
+        std::env::set_var("INTARSIA_HIP_MOE_ZFAST", "0");
         differing_from_zero += a.to_f32().iter().filter(|v| **v != 0.0).count();
     }
     std::env::remove_var("INTARSIA_HIP_MOE_PAIRS");
     std::env::remove_var("INTARSIA_HIP_MOE_MW");
+    std::env::remove_var("INTARSIA_HIP_MOE_ZFAST");
     std::env::remove_var("INTARSIA_HIP_SPLIT_US");
     std::env::remove_var("INTARSIA_HIP_SPLIT_MIN_US");
     assert!(differing_from_zero > 0, "all outputs zero: nothing was computed");

@@ -1,0 +1,10 @@
+fleetq: #5496 waiting (#4 in line): in line behind #5474 "sk: g-packed" (claude-f31ccf91) on spark2; #5474 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5474 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5474 set, or it will wait for #5474 to be released.
+fleetq: #5496 waiting (#3 in line): in line behind #5475 "sk: localeval main vs dev3 default vs vLLM x3 (final A/B)" (claude-f31ccf91) on spark2
+fleetq:   #5475 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5475 set, or it will wait for #5475 to be released.
+fleetq: #5496 waiting (#2 in line): in line behind #5476 "sk: kernels test --quick dev3" (claude-f31ccf91) on spark2
+fleetq:   #5476 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5476 set, or it will wait for #5476 to be released.
+fleetq: #5496 running on spark2: scripts/sk/gpu-tests.sh main build
+    Finished `release` profile [optimized] target(s) in 18.91s
+  Executable tests/batch_cuda_real.rs (target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f)
+fleetq: #5496 done (exit 0)

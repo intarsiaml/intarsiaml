@@ -1,0 +1,19 @@
+not covered: no existing recipe handles this model (closest: 0/45 tensor templates resolve, quant: unknown(U32 weight without scales))
+  note: config.json: architectures ["MiniCPMV4_7ForConditionalGeneration"], family "minicpmv4_7" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (2216 tensors) + 5/5 shard headers
+  note: layer prefix language_model.model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)
+  note: quantisation: unknown(U32 weight without scales) (not implemented in full, see TODOs)
+  note: closest existing recipe: builtin:qwen3_5 (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn", "gdn"}; 0/45 tensor templates resolve; architecture differs; 45 tensor template(s) missing in the checkpoint, e.g. ["model.layers.3.self_attn.q_proj", "model.layers.3.self_attn.k_proj", "model.layers.3.self_attn.v_proj", "model.layers.3.self_attn.o_proj"]; quantisation not implemented)
+  note: ignored non-text tensor groups: model.merger.* (6), model.vision_tower.* (453)
+wrote scratch/rn-out-MiniCPM-V-4.7-35B-A3B-MLX-4bit.toml (9 TODO(recipe-new) item(s))
+9 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5 uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. top: 2 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["language_model.lm_head.biases", "language_model.model.embed_tokens.biases"]; decide whether the model needs them
+  3. layer: 27 per-layer tensor(s) are claimed by no block, e.g. ["linear_attn.in_proj_a.biases", "linear_attn.in_proj_b.biases", "linear_attn.in_proj_qkv.biases", "linear_attn.in_proj_z.biases", "linear_attn.out_proj.biases", "mlp.gate.biases"] ... (relative to language_model.model.layers.<i>.); extra norms, biases or unknown modules need a block or an explicit decision to ignore them
+  4. quant: config quantization_config has neither quant_method nor quant_algo; the scheme is unknown
+  5. quant: tensor layout of language_model.model.layers.3.self_attn.q_proj not recognised: U32 weight without scales
+  6. quant: tensor layout of language_model.model.layers.3.self_attn.k_proj not recognised: U32 weight without scales
+  7. quant: tensor layout of language_model.model.layers.3.self_attn.v_proj not recognised: U32 weight without scales
+  8. quant: tensor layout of language_model.model.layers.3.self_attn.o_proj not recognised: U32 weight without scales
+  9. quant: ... and 9 more quantisation problem(s)
+Error: 9 item(s) need manual work, see the TODO(recipe-new) markers in scratch/rn-out-MiniCPM-V-4.7-35B-A3B-MLX-4bit.toml

@@ -1,0 +1,4 @@
+fleetq: #5521 running on spark2: scripts/sk/gpu-tests.sh dev build
+    Finished `release` profile [optimized] target(s) in 17.51s
+  Executable tests/batch_cuda_real.rs (target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f)
+fleetq: #5521 done (exit 0)

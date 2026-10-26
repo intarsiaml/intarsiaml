@@ -133,13 +133,13 @@
 <path class="e" d="M402 656 L402 682"/><path class="fl g" d="M402 656 L402 682"/>
 <text class="l" x="14" y="770">PLANNED</text>
 <rect class="p" x="120" y="750" width="175" height="44" rx="9"/>
-<text class="d" x="207.5" y="769" text-anchor="middle">paged KV + radix cache</text><text class="m f" x="207.5" y="784" font-size="9" text-anchor="middle">contiguous KV today</text>
+<text class="d" x="207.5" y="769" text-anchor="middle">paged KV + radix cache</text><text class="m f" x="207.5" y="784" font-size="9" text-anchor="middle">live KV contiguous today</text>
 <rect class="p" x="315" y="750" width="175" height="44" rx="9"/>
 <text class="d" x="402.5" y="769" text-anchor="middle">autotuner + tuning DB</text><text class="m f" x="402.5" y="784" font-size="9" text-anchor="middle">static priority today</text>
 <rect class="p" x="510" y="750" width="175" height="44" rx="9"/>
 <text class="d" x="597.5" y="769" text-anchor="middle">Vulkan / SYCL backend</text><text class="m f" x="597.5" y="784" font-size="9" text-anchor="middle">no code</text>
 <rect class="p" x="705" y="750" width="175" height="44" rx="9"/>
-<text class="d" x="792.5" y="769" text-anchor="middle">MTP, GGUF, kernel packs</text><text class="m f" x="792.5" y="784" font-size="9" text-anchor="middle">n-gram only today</text>
+<text class="d" x="792.5" y="769" text-anchor="middle">DFlash, GGUF, kernel packs</text><text class="m f" x="792.5" y="784" font-size="9" text-anchor="middle">MTP and n-gram in</text>
 <rect class="n" x="120" y="810" width="14" height="10" rx="3"/><text class="d" x="140" y="819" font-size="11">implemented</text>
 <rect class="p" x="240" y="810" width="14" height="10" rx="3"/><text class="d" x="260" y="819" font-size="11">planned (see docs/ARCHITECTURE.md status tables)</text>
 </svg>

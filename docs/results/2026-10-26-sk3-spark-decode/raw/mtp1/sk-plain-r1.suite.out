@@ -1,0 +1,65 @@
+[localeval]  probe probe-copy: out=256 decode=83.8 tok/s
+[localeval]  probe probe-prose: out=256 decode=84.1 tok/s
+[localeval]  probe probe-prose: out=256 decode=84.1 tok/s
+[localeval]  probe probe-copy: out=256 decode=83.0 tok/s
+[localeval]  probe probe-copy: out=256 decode=83.9 tok/s
+[localeval]  probe probe-prose: out=256 decode=84.1 tok/s
+[localeval] cell speed-plain (speed)
+[localeval]     128 r0 p0: in=124 out=256 ttft=0.105s prefill=0 decode=84.0
+[localeval]    1024 r0 p1: in=1025 out=256 ttft=0.194s prefill=5284 decode=83.5
+[localeval]    4096 r0 p2: in=4097 out=256 ttft=0.632s prefill=6478 decode=80.9
+[localeval]   16384 r0 p3: in=16373 out=256 ttft=2.439s prefill=6714 decode=73.7
+[localeval]    1024 r1 p0: in=1023 out=256 ttft=0.195s prefill=5242 decode=83.6
+[localeval]    4096 r1 p1: in=4096 out=256 ttft=0.637s prefill=6433 decode=81.0
+[localeval]   16384 r1 p2: in=16368 out=256 ttft=2.428s prefill=6741 decode=73.7
+[localeval]     128 r1 p3: in=119 out=256 ttft=0.105s prefill=0 decode=84.1
+[localeval]    4096 r2 p0: in=4098 out=256 ttft=0.638s prefill=6427 decode=81.0
+[localeval]   16384 r2 p1: in=16371 out=256 ttft=2.458s prefill=6661 decode=73.6
+[localeval]     128 r2 p2: in=122 out=256 ttft=0.108s prefill=0 decode=84.0
+[localeval]    1024 r2 p3: in=1026 out=256 ttft=0.196s prefill=5229 decode=83.6
+# localeval: adhoc — 2026-10-25T22:51
+
+- model: `intarsia-35b` on ? (?), url `http://spark-fa00:8190/v1`
+- thinking: off; run kind: suite; label: sk-plain-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval suite --url http://spark-fa00:8190/v1 --model intarsia-35b --tier adhoc --cells speed-plain --label sk-plain-r1 --no-unim --tokenizer-repo nvidia/Qwen3.6-35B-A3B-NVFP4 --max-context 20480`
+- result file: `results/20261025-225124-adhoc-sk-plain-r1/result.json`
+
+## Launch recipe
+
+none recorded (pass `--recipe <launch script or command>`)
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `2721aa3d13e9`), tier **adhoc** (ad hoc: never a suite result)
+- cells run: speed-plain; skipped: -; rejected: none
+- lane `plain` (source counters, verified True); probe ratio 0.997; idle check metrics; context 20480 (max_model_len)
+- tokenizer: {"repo": "nvidia/Qwen3.6-35B-A3B-NVFP4", "revision": "1355db6a052410cfd62085d94b58866fd0f2c3c5", "sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"}
+- protocol compliance: request-shape, timing-defs, client-token-count, gen-length, nonce-first, cache-hit-reject, warmup-per-round, warmup-run-start, latin-square-order, quiet-slot, idle-check, spread-d2, retry-drop-one, spec-arm-plain-report, reps-raw, lane-counters, lane-probe, context-limit, sampling-pinned, tiers, exit-codes
+- exit code 0 (0 pass, 3 rejected, 2 harness error)
+
+
+## Speed sweep
+
+served `intarsia-35b`, fingerprint `None`, ctx 20480, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 122 | 0.10 | - * | - | 84.0 (84.0–84.1) | 84.8 (84.8–85.0) | - | - | 256 |
+| 1025 | 0.20 | 5242 (5229–5284) | 10033 | 83.6 (83.5–83.6) | 84.4 (84.2–84.4) | - | - | 256 |
+| 4097 | 0.64 | 6433 (6426–6478) | 6950 | 81.0 (80.9–81.0) | 82.3 (82.1–86.5) | - | - | 256 |
+| 16371 | 2.44 | 6714 (6661–6740) | 6811 | 73.7 (73.6–73.7) | 74.5 (74.5–74.9) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261025-225124-adhoc-sk-plain-r1/result.json
+[localeval] not logged to unanimis (--no-unim)

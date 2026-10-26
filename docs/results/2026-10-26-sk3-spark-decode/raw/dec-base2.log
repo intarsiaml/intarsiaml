@@ -1,0 +1,78 @@
+fleetq: #5575 waiting (#1 in line): needs gpu quiet on spark2, but #5560 "sk3: decode main b8/mtp vs vLLM, 1k gen256, conc 4,8, x3" (claude-f31ccf91) loads it
+fleetq:   #5560 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5560 set, or it will wait for #5560 to be released.
+fleetq: #5575 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #5575 running on spark2: scripts/sk/dec-window.sh base2 3 b8:main:4,8::--max-batch_8 vllm::4,8
+== round 1 arm b8 22:35:11
+b8 r1: MemAvailable 51005 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 585 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r1: - result file: `results/20261025-223551-adhoc-sk-b8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-223551-adhoc-sk-b8-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5232 (5187–5302) * | - | 84.0 (83.9–84.1) | 87.5 (85.1–91.6) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 161.9 | 43.9 (41.9–46.1) | 0.48 |
+| 8 | 208.9 | 28.8 (27.0–31.1) | 0.87 |
+sk-b8-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-223619-adhoc-sk-b8-r1/result.json
+== round 1 arm vllm 22:37:46
+sk-vllm-r1: - result file: `results/20261025-223746-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-223746-adhoc-sk-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5427 (5356–5451) * | - | 80.1 (80.0–80.1) | 81.0 (80.9–81.5) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 115.1 | 61.1 (60.7–62.1) | 2.52 |
+| 8 | 116.6 | 61.7 (61.2–63.0) | 6.87 |
+sk-vllm-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-223825-adhoc-sk-vllm-r1/result.json
+== round 2 arm vllm 22:39:54
+sk-vllm-r2: - result file: `results/20261025-223954-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-223954-adhoc-sk-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 0.19 | 5347 (5268–5392) * | - | 80.2 (79.3–80.2) | 81.1 (81.1–81.2) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 117.4 | 62.3 (62.0–63.5) | 2.47 |
+| 8 | 116.0 | 61.4 (60.5–63.3) | 6.92 |
+sk-vllm-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-224033-adhoc-sk-vllm-r2/result.json
+== round 2 arm b8 22:42:02
+b8 r2: MemAvailable 50915 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 585 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r2: - result file: `results/20261025-224250-adhoc-sk-b8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-224250-adhoc-sk-b8-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5199 (5149–5254) * | - | 83.4 (83.3–83.6) | 84.6 (84.5–85.4) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 162.3 | 44.0 (42.0–46.2) | 0.48 |
+| 8 | 206.7 | 28.5 (26.7–30.8) | 0.88 |
+sk-b8-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-224318-adhoc-sk-b8-r2/result.json
+== round 3 arm b8 22:44:46
+b8 r3: MemAvailable 50916 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 585 cached
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 2048
+sk-b8-r3: - result file: `results/20261025-224526-adhoc-sk-b8-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-224526-adhoc-sk-b8-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5259 (5066–5350) * | - | 84.5 (84.2–84.5) | 86.2 (85.2–87.5) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 161.7 | 43.8 (41.9–46.0) | 0.48 |
+| 8 | 209.2 | 28.8 (27.0–31.2) | 0.88 |
+sk-b8-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-224554-adhoc-sk-b8-r3/result.json
+== round 3 arm vllm 22:47:20
+sk-vllm-r3: - result file: `results/20261025-224721-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-224721-adhoc-sk-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.18 | 5449 (5324–5517) * | - | 80.1 (79.9–80.1) | 82.5 (80.9–83.0) | - | - | 256 |
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 116.1 | 61.6 (60.6–63.5) | 2.52 |
+| 8 | 115.5 | 61.2 (60.8–62.1) | 6.95 |
+sk-vllm-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-224759-adhoc-sk-vllm-r3/result.json
+== done 22:49:28
+fleetq: #5575 done (exit 0)
