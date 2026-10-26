@@ -79,8 +79,8 @@ human (`TODO(recipe-new)`), and a new kernel. A model whose recipe exists is far
 `docs/results/2026-10-26-od-onboarding-drill.md`).** Same weights as an onboarded checkpoint, FP8 MTP head; it needed one loader
 change to get past `recipe`. tatooine (HIP, one R9700): `recipe` 0 s, `smoke` 7 s, **quick numbers public 4 min 54 s after the start**
 (decode 33 tok/s = 82 % of the byte floor, prefill 1.8k tok/s), whole pass 6 min 52 s; but only 2 of the 6 in-depth stages could run, the others
-skip for want of a long golden, a 4k golden, a reference server and `--tp`. spark1 (CUDA): the quick tier ended in ERROR after 44 min (CUDA has
-only a GEMV for MXFP4: prefill 9 tok/s, the 4k speed sample exceeds the 30 min stage limit). Of the other unseen checkpoints on the fleet's disks
+skip for want of a long golden, a 4k golden, a reference server and `--tp`. spark1 (CUDA): the quick tier ended in ERROR after 44 min (MXFP4 W4A4 on CUDA
+prefills at 9 tok/s, so the 4k speed sample exceeds the 30 min stage limit; the cause is not split yet). Of the other unseen checkpoints on the fleet's disks
 every one stopped at `recipe new` on a quantisation format or tensor layout the loader does not read (next section).
 
 **Gotchas found by running it on CUDA and HIP.**

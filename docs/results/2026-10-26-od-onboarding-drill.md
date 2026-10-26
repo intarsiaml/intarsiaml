@@ -10,19 +10,24 @@ candidate). All times are UTC on 2026-10-26 (EDT is 4 h earlier).
 
 ## 1. Result in five lines
 
-* **Nothing that is really new gets past the `recipe` stage today.** Of the 11 candidate checkpoints on spark1, spark2, tatooine and
-  endor, 6 stop at `recipe new` on a quantisation format or tensor layout the loader does not read (section 2), 3 are
-  already-onboarded families, 1 is a new mechanism (Mamba) and 1 is over the size cap. The most common stop (4 checkpoints, three of
-  them the fleet's own freshly made quants) is `compressed-tensors`.
+* **Nothing that is really new gets past the `recipe` stage today.** Of the 14 rows of the candidate table (section 2): 9 unseen
+  rows stop at `recipe new` (7 on a quantisation format, tensor layout or policy the loader does not accept: `compressed-tensors` in
+  4 rows, fused experts, MLX, a refused W4A4 NVFP4; 2 on a new mechanism or architecture), 1 was pushed through, 3 are families
+  earlier drills already onboarded and 1 is far over the size cap. `compressed-tensors` is the most common stop.
 * The one checkpoint that could be pushed through, `Qwen3.8-27B-MXFP4-mtpfp8` (tatooine's radiance weights: the same main weights as
   the M1 drill's amd/Quark checkpoint, an FP8 MTP head, a different packaging), needed one code fix to get past `recipe`
-  (Quark `layer_quant_config` that names only `mtp.*`). After it: `recipe` 0 s, `smoke` 47 s on CUDA (61 s on the CPU backend).
-* **CUDA (spark1, GB10): quick tier published at T+52 min (ERROR, no speed numbers), in-depth tier not started.** The engine's CUDA
-  MXFP4 path has only a GEMV kernel: prefill runs at 9 tok/s and decode at 6.7 tok/s, so the 4k speed sample (3 reps x 7.5 min) hit
-  the 30 min stage limit. That is an engine gap, not a pipeline fault; the pipeline's job (stop, publish, say why) worked.
-* HIP (tatooine R9700, the box that runs this model): see section 4.
-* Top friction is not speed of the pipeline but what feeds it: formats (section 5, items 1 and 2), the reference (item 4), and moving
-  the weights to the box (item 5).
+  (Quark `layer_quant_config` that names only `mtp.*`). After it: `recipe` 0 s, `smoke` 47 s on CUDA (61 s on the CPU backend, 7 s on HIP).
+* **HIP (tatooine R9700, the box that runs this model): quick numbers public 4 min 54 s after the start, whole pass 6 min 52 s.** Two
+  caveats: `acc-short` passed only because a HIP baseline and noise envelope were already committed for these byte-identical
+  weights (a genuinely new checkpoint is gated on KL only, and the same golden FAILs decode on CUDA, where no baseline exists); and 4 of the
+  6 in-depth stages SKIPPED for want of goldens, so 6 m 52 s is not a measurement of a real in-depth tier. The requirement "quick
+  numbers public while the in-depth tier keeps running" was checked on HIP: `quick.md` written `02:38:38`, in-depth ran `02:38:38` to
+  `02:40:36`.
+* **CUDA (spark1, GB10): targets not met.** The quick tier ended in ERROR at T0 + 51 min 53 s with no speed numbers and the in-depth tier
+  was not started. The CUDA MXFP4 W4A4 path runs prefill at 9 tok/s and decode at 6.7 tok/s, so the 4k speed sample (3 reps x 7.5
+  min) hit the 30 min stage limit. That is an engine gap, not a pipeline fault; the pipeline's job (stop, publish, say why) worked.
+* Top friction is not the speed of the pipeline but what feeds it: formats (section 5, items 1 and 2), the reference and its gates
+  (items 3 and 4), and moving the weights to the box (item 6).
 
 ## 2. Candidates
 
@@ -97,12 +102,12 @@ fleetq queue behind lane dc).
 | `publish-quick` | 01:44:29 | 01:44:29 | 0 s | PASS | `quick.md` written |
 | `in-depth` | | | not run | | quick ended in ERROR: the chain stops |
 
-**Quick numbers published at T0 + 51 min 53 s (01:44:29), i.e. inside the 1 to 2 h target in time but without speed numbers and with a FAIL
-and an ERROR in them.** The in-depth tier was not started.
+**Quick numbers were published at T0 + 51 min 53 s (01:44:29), but the quick tier ended in ERROR (no speed numbers) with a FAIL in it: the target
+("basic test done") was not met on CUDA.** The in-depth tier was not started.
 
-Engine finding behind the ERROR: `kernels/cuda/mxfp4.cu` has one GEMV kernel (146 lines). There is no MXFP4 GEMM on CUDA, so prefill
-is a row-at-a-time GEMV loop (9.4 tok/s = 1.4 x decode). HIP has the GEMM/fold paths (`docs/results/2026-10-25-mx-hip-27b-prefill.md`). On
-the sizes the pipeline needs this extrapolates linearly: the quick bench alone would have been 128 (14 s x 3) + 1024 (105 s x 3) +
+Engine finding behind the ERROR (cause not yet split, see section 5 item 5): `kernels/cuda/mxfp4.cu` has one GEMV kernel (146 lines) and no
+MXFP4 GEMM, and the dynamic W4A4 activation quantiser runs per row; prefill is 9.4 tok/s = 1.4 x decode. HIP has the GEMM/fold paths
+(`docs/results/2026-10-25-mx-hip-27b-prefill.md`). On the sizes the pipeline needs this extrapolates linearly: the quick bench alone would have been 128 (14 s x 3) + 1024 (105 s x 3) +
 4096 (about 7.5 min x 3) = about 29 min, so the quick tier would have finished near T0 + 50 min and the in-depth speed sweep (1k / 4k /
 16k, 16k alone about 29 min per repetition) would have been 1.5 to 2.5 h on top.
 
@@ -161,6 +166,10 @@ noise envelope and the long-context speed sweep (2 min). With the long golden th
 (the M1 drill had it on endor; `find` on endor, spark1, spark2 and tatooine finds no `quark/` site-packages now), so it was not made.
 Exit code 1 (`FAIL`) because `acc-oracle` has no baseline.
 
+`acc-short` PASS needs its caveat next to the headline: the stage compared against a HIP baseline and noise envelope that were already committed
+for this golden (recorded by lane ac on the byte-identical amd checkpoint). A checkpoint without them is gated on KL only, "top-1 not gated"; and on
+CUDA, where this golden has no baseline, the same stage FAILs decode (section 3).
+
 TBD-HIP2
 
 
@@ -172,11 +181,11 @@ Hour estimates are for one engineer who knows the code; none was built in this l
 
 | # | Friction | Evidence | Fix and estimate |
 |---|---|---|---|
-| 1 | **`compressed-tensors` checkpoints stop at `recipe`.** 6 directories on the fleet (MiniCPM-V 4.7 NVFP4A16 x3 and AWQ, ThinkingCap-Qwen3.8-27B-NVFP4, Qwen3.6-35B-A3B-MXFP4) and 3 model families; this is the format the fleet's own recent quantisation work produces. | `raw/recipe-new/`; the TODO says "quant_method compressed-tensors is not implemented" | NVFP4A16 (`nvfp4-pack-quantized`: `weight_packed`, `weight_scale`, `weight_global_scale`) is the W4A16 NVFP4 maths the engine has, under other tensor names and a reciprocal scale convention (`weight_scale_2 = 1 / weight_global_scale`; **verify on a one-layer fixture against compressed-tensors' own dequant before trusting it**). The backends do not name tensors (grep: only `crates/intarsia-core/src/quant/nvfp4.rs`, `quant/moe.rs:447-458`, `model.rs` and `recipe new`), so it is a loader adapter, no kernel: **4 to 6 h**. MXFP4 in the same container: +2 h. INT4 `pack-quantized` AWQ is a different scheme (a kernel): 1 to 2 days, not an adapter. |
+| 1 | **`compressed-tensors` checkpoints stop at `recipe`.** 6 directories on the fleet (MiniCPM-V 4.7 NVFP4A16 x3 and AWQ, ThinkingCap-Qwen3.8-27B-NVFP4, Qwen3.6-35B-A3B-MXFP4) and 3 model families; the checkpoints came out of the fleet's quantisation work as far as the directory names and dates say (not checked). | `raw/recipe-new/`; the TODO says "quant_method compressed-tensors is not implemented" | NVFP4A16 (`nvfp4-pack-quantized`: `weight_packed`, `weight_scale`, `weight_global_scale`) is the W4A16 NVFP4 maths the engine has, under other tensor names and a reciprocal scale convention (`weight_scale_2 = 1 / weight_global_scale`; **verify on a one-layer fixture against compressed-tensors' own dequant before trusting it**). The backends do not name tensors (grep: only `crates/intarsia-core/src/quant/nvfp4.rs`, `quant/moe.rs:447-458`, `model.rs` and `recipe new`), so it is a loader adapter, no kernel: **4 to 6 h**. MXFP4 in the same container: +2 h. INT4 `pack-quantized` AWQ is a different scheme (a kernel): 1 to 2 days, not an adapter. |
 | 2 | **Routed experts stored fused** (`experts.gate_up_proj [E, 2I, H]`, the transformers 5 layout: every bf16 MoE checkpoint saved by a current transformers). The main MoE block loads per-expert tensors only. | MiniCPM-V BF16; TODO text "needs converting or the block extending" | `model/mtp.rs:204` already reads exactly this layout for the MTP head and quantises to NVFP4 at load; reuse it for the main block: **6 to 8 h** (a 35B bf16 checkpoint is 66 GB, so the load path also has to stream). |
-| 3 | **A genuinely new model has no reference, and the pipeline does not say so loudly.** `acc-short`, `acc-long`, `acc-4k`, `ab` all need a golden or a server; none can be made by `qualify` for a MoE / hybrid / quantised model. Here a committed golden existed only because the weights are byte-identical to an earlier checkpoint (checked by hand with SHA-256 of six tensors). `acc-oracle` also needs a CPU-oracle self-golden: **22 min 12 s on spark1's CPU for the 27B** (`raw/oracle1/`), then a commit and a stamped run on clean main. On HIP 5 of the 6 in-depth stages SKIPPED and the report still ends in a normal "in-depth done". | `raw/hip/hip1/report/in-depth.md`, `raw/oracle1/` | (a) `onboard` states in the verdict line "in-depth tier: N of M stages skipped for want of a reference" (1 h); (b) `onboard --make-reference` that runs the format's tool, records provenance and does the weights-identity check (6 h); (c) the Quark emulation tool needs the amd-quark wheel, which is on no box now: vendor the `even_round` function the tool already extracts with `ast` (2 h). |
+| 3 | **A genuinely new model has no reference, and the pipeline does not say so loudly.** `acc-short`, `acc-long`, `acc-4k`, `ab` all need a golden or a server; none can be made by `qualify` for a MoE / hybrid / quantised model. Here a committed golden existed only because the weights are byte-identical to an earlier checkpoint (checked by hand with SHA-256 of six tensors). `acc-oracle` also needs a CPU-oracle self-golden: **22 min 12 s on spark1's CPU for the 27B** (`raw/oracle1/`), then a commit and a stamped run on clean main. On HIP 4 of the 6 in-depth stages SKIPPED (`acc-long`, `acc-4k`, `ab`, `tp`) and the report still ends in a normal "in-depth done". | `raw/hip/hip1/report/in-depth.md`, `raw/oracle1/` | (a) `onboard` states in the verdict line "in-depth tier: N of M stages skipped for want of a reference" (1 h); (b) `onboard --make-reference` that runs the format's tool, records provenance and does the weights-identity check (6 h); (c) the Quark emulation tool needs the amd-quark wheel, which is on no box now: vendor the `even_round` function the tool already extracts with `ast` (2 h). |
 | 4 | **Default W4A4 gating reports FAIL for a correct engine.** Declared mode W4A4: `acc-short` decode KL 2.97e-1 = 1.49 x reference noise on CUDA (HIP: baseline-gated, PASS), `acc-oracle` KL 0.19 against 2e-2. With `--mxfp4-act none` and the W4A16 golden the same CUDA build passes with a 50x margin. The policy is in the decision log (2026-10-25 12:45, draft #150 pending) but not in `onboard`. | section 3.1 | `onboard` runs a second accuracy pass in W4A16 for Quark MXFP4 W4A4 and gates on it (it needs `qualify --mxfp4-act`): **2 to 3 h**. Until then the doc should say "expect FAIL on `acc-short` decode and `acc-oracle` for W4A4". |
-| 5 | **CUDA MXFP4 W4A4 is slow**: prefill 9 tok/s and decode 6.7 tok/s on GB10 (`kernels/cuda/mxfp4.cu` is one GEMV kernel); `acc-short` takes 357 s against 13 s on HIP. The 4k sample of the quick bench exceeds the 30 min stage limit, the quick tier ends in ERROR with no speed numbers, and the chain stops. TBD-GEN2 | `raw/cuda1/quick.md` | Engine: an MXFP4 GEMM for CUDA prefill (the HIP fold path is the model): **1 to 2 days**. Pipeline, **3 h**: (a) bench preflight: time the 128 sample and, if the projected 4k time passes the stage limit, run the smaller sizes and report "4096 skipped: projected N min"; (b) write the bench JSON after each size so a timeout keeps the finished rows; (c) a bench ERROR in the quick tier should not stop the in-depth accuracy stages (the brief: quick numbers public while the in-depth tier keeps running). |
+| 5 | **CUDA MXFP4 W4A4 is slow**: prefill 9 tok/s and decode 6.7 tok/s on GB10; `acc-short` takes 357 s against 13 s on HIP. The 4k sample of the quick bench exceeds the 30 min stage limit, the quick tier ends in ERROR with no speed numbers, and the chain stops. Two observations that point at different code: `kernels/cuda/mxfp4.cu` is a single GEMV kernel (no MXFP4 GEMM for prefill), and the same CUDA build ran the whole W4A16 accuracy command (`--mxfp4-act none`, 1441 + 160 positions, including a 73 s load) in 94 s against 357 s for the W4A4 `acc-short`, i.e. the dynamic activation quantiser may cost at least 4x by itself. TBD-GEN2 | `raw/cuda1/quick.md`, `raw/cuda-w4a16/driver.log` | Engine: find which of the two it is first (a `generate` or `bench` run in both modes, **1 h**); an MXFP4 GEMM for CUDA prefill (the HIP fold path is the model) is **1 to 2 days**, a fused activation quantiser less. Pipeline, **3 h**: (a) bench preflight: time the 128 sample and, if the projected 4k time passes the stage limit, run the smaller sizes and report "4096 skipped: projected N min"; (b) write the bench JSON after each size so a timeout keeps the finished rows; (c) a bench ERROR in the quick tier should not stop the in-depth accuracy stages (the brief: quick numbers public while the in-depth tier keeps running). |
 | 6 | **Moving the weights to the box.** spark1 cannot ssh tatooine (host key) and the repo has no box-to-box copy: 19.4 GB took **11 min 02 s** through the Mac (29 MB/s) plus a checksum check by hand. | `raw/` copy timestamps in section 3 | `scripts/onboard/copy-weights.sh <from> <to> <dir>` as a fleetq `net,disk` job with a header + sampled-tensor hash check: **1 h**. |
 | 7 | **Build stamp.** `deploy.sh` baked `head= tree= backend=`, which `qualify`'s `envelope` stage does not read: ERROR "carries no code stamp" on every first run of a deploy-built binary. Three build paths (`deploy.sh`, `build-tatooine.sh`, `phase1b-acceptance.sh`), two stamp forms. | `raw/cuda1-resume/in-depth.md` | `deploy.sh` stamp fixed (section 6). Making the three paths one script: **2 h**. The oracle self-golden I made on spark1 was written by that binary and is refused as a "before"; rebuild and redo before committing one. |
 | 8 | **The line.** Boxes are shared: the CUDA job waited 2 min behind lane dc, the HIP window 21 min behind five lanes (plus about 30 min for the build job), and a model-sized job holds `cpu` or `gpu` quiet for others (I stopped my CPU pre-pass at 5 min because it blocked lane dc). Not a pipeline fault; it is the part of "2 hours" nobody controls. | fleetq logs | none in the pipeline. |
@@ -232,13 +241,18 @@ The report files on spark1 are `~/intarsiaml-od/runs/{cuda1,cpu1,oracle1,w4a16}`
 ## 8. Open items and doubts
 
 * The HIP in-depth number is not comparable to the 2 to 4 h target until a long, a 4k and a reference-server comparison exist; the honest
-  statement is "quick tier 4 m 54 s, in-depth tier cannot be measured without goldens".
-* Time on the clock between "weights on the box" and the first public number for this checkpoint on HIP, if the weights arrive on tatooine:
-  build 1 m 11 s + window about 5 min; on a box that does not hold them add the 11 min copy.
-* The CUDA numbers are for the W4A4 dynamic path only; the 9 tok/s is specific to it if the generate comparison above shows a
-  difference (see the note there). The W4A16 mode was not benchmarked through `qualify`.
+  statement is "quick tier 4 m 54 s, in-depth tier cannot be measured without goldens". The MiniCPM-V and ThinkingCap-class checkpoints
+  would additionally have no committed baseline, so even the quick numbers would be KL-only.
+* Time between "weights on the box" and the first public number for this checkpoint on HIP, if the weights arrive on tatooine: build
+  1 m 11 s + window about 5 min; on a box that does not hold them add the 11 min copy.
+* The CUDA numbers are for the W4A4 dynamic path only. The W4A16 mode was run through `accuracy` (94 s) but not benchmarked through `qualify`.
 * MiniCPM-V 4.7, the brief's first choice, was never loaded: nothing here says it would run correctly once the format and layout
-  items land; its GatedDeltaNet / gated-GQA / MoE blocks are the ones `qwen3_5_moe` already has, which is the best case for "no new
-  block" but unproven.
-* Radiance was down once for 7 min 07 s (window 1) and, if window 2 ran, once more; it was restored by the script each time and
-  `fleetq status` showed neither rank DOWN afterwards.
+  items land; its blocks are the ones `qwen3_5_moe` already has, which is the best case for "no new block" but unproven.
+* **A better next subject than a repackaged checkpoint:** `Qwen3.8-27B-NVFP4-52d1adc5f38a` (spark2, 21 GB) is a different quantisation of a covered
+  family (45/45 tensor templates resolve) blocked only by the `w4a4_as_w4a16` decision. A scratch recipe passed with `--recipe` would not
+  touch any existing model. Not run here (it needs that decision first, and spark2's disk is 100 % full).
+* Radiance was taken down by this lane TBD-RAD; each time the script restored it and `fleetq status` showed neither rank DOWN afterwards.
+* Left behind for the coordinator (the worktree is not removed by this lane): the 19.4 GB model copy and the goldens at
+  `spark1:~/intarsiaml-od/` (spark1 has 7 % disk free; `models/` is the large part), the run directories there, `tatooine:~/intarsiaml-od`
+  (tree, `od-intarsia` binary, `onboard-runs`, `extra/` oracle copy), the docker volume `intarsia-cargo-target-od` on tatooine, and the
+  unstamped CPU oracle self-golden (section 5 item 7: rebuild before using it).
