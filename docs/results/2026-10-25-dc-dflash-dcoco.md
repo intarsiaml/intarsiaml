@@ -346,7 +346,7 @@ checkpoint's tensor list; the unlicensed upstream repository was not read.
 | DFlash | 3.288 | 1.000 |
 | DFlash + DCOCO | 3.347 (**+1.8%**) | 1.078 (**7% slower**: a draft pass costs 25 ms against 16 ms, the corrector runs partly on the host) |
 
-Per prompt, DCOCO raises tau on 8 prompts, keeps it on 5 and lowers it on 3 (math3 7.96 -> 7.64, code5 6.33 -> 6.16, chat1 2.09 ->
+Per prompt, DCOCO raises tau on 7 prompts, keeps it on 6 and lowers it on 3 (math3 7.96 -> 7.64, code5 6.33 -> 6.16, chat1 2.09 ->
 2.04); it is slower than plain DFlash on 15 of 16 prompts (only math6 gains, +9%). Full table: the analysis in `raw/g6-dcoco.log`
 against `raw/g4-tau-16.log`. The independent MLX run of section 10.3 gave the same +1.9%, so an implementation bug in either is unlikely.
 
