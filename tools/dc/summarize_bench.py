@@ -1,9 +1,10 @@
 """Lane dc: per-category DFlash vs spec-off from localeval categories-rcp runs (label dc-cat-<cfg>-r<n>).
-usage: python3 -I summarize_bench.py <localeval results dir> [rounds]   (stdlib only)"""
+usage: python3 -I summarize_bench.py <localeval results dir> [rounds] [label-prefix, default dc-cat]   (stdlib only)"""
 import glob, json, os, statistics as st, sys
 res = sys.argv[1]; rounds = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+label = sys.argv[3] if len(sys.argv) > 3 else "dc-cat"
 def load(cfg, r):
-    d = sorted(glob.glob(os.path.join(res, f"*-adhoc-dc-cat-{cfg}-r{r}")))
+    d = sorted(glob.glob(os.path.join(res, f"*-adhoc-{label}-{cfg}-r{r}")))
     return json.load(open(d[-1] + "/result.json"))["datasets"][0]["cases"] if d else None
 def cat(name): return name.split("-")[0]
 data = {(c, r): load(c, r) for c in ("off", "dflash") for r in range(1, rounds + 1)}
@@ -16,7 +17,8 @@ def e2e(cases, sel):
     return sum(c["speed"]["completion_tokens"] for c in cases if sel(c)) / sum(c["speed"]["total_s"] for c in cases if sel(c))
 print("per category, pooled over prompts, per round (decode tok/s = tokens / sum of decode times; e2e = tokens / total call time)")
 print(f"{'category':8} {'n':>2} | " + " ".join(f"off r{r} dfl r{r} x{r}" for r in range(1, rounds + 1)) + " | median speedup | e2e speedup")
-for k in ("recall", "code", "prose", "ALL"):
+cats = sorted({cat(c["name"]) for c in data[("off", 1)]}, key=lambda x: ["recall", "code", "prose", "chat"].index(x) if x in ["recall", "code", "prose", "chat"] else 9)
+for k in cats + ["ALL"]:
     sel = (lambda c: True) if k == "ALL" else (lambda c, k=k: cat(c["name"]) == k)
     n = sum(1 for c in data[("off", 1)] if sel(c)); row = []; sp = []; se = []
     for r in range(1, rounds + 1):

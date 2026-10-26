@@ -36,7 +36,7 @@ for r in $(seq 1 "$ROUNDS"); do
     m1=$(metric)
     if [ "${QMODE:-gsm8k}" = cat ]; then
       # speed-by-category set (recall / code / prose, 27 prompts): real answers instead of the filler sweep
-      (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "dc-cat-$tag" --recipe "$RECIPE" --dataset datasets/categories-rcp.jsonl --judge none --max-tokens ${CATTOK:-256} --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
+      (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "${LABELP:-dc-cat}-$tag" --recipe "$RECIPE" --dataset "${DATASET:-datasets/categories-rcp.jsonl}" --judge none --max-tokens ${CATTOK:-256} --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
     else
       (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "dc-$tag" --recipe "$RECIPE" --bench gsm8k --limit 20 --max-tokens 320 --judge none --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
     fi

@@ -1,0 +1,1 @@
+fleetq: #5675 running on spark1: bash -c 'scripts/dc/spark1.sh gates g0; scripts/dc/spark1.sh gates g3 math1 math2 math3 math4 math5 math6 code1 code2 code3 code4 code5 chat1 chat2 chat3 chat4 chat5 short 4k'
