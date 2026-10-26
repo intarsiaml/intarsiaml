@@ -1406,7 +1406,9 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
     let mut mac = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(64)), Arc::new(Telemetry::new())).unwrap();
     assert_eq!(plain.macro_rows(), 0);
     assert!(mac.macro_rows() > 0, "an MTP model keeps the macro knob");
-    for m in [&mut plain, &mut mac] {
+    let whole_opts = LoadOptions { prefill_chunk: 256, ..opts(Some(0)) };
+    let mut whole = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &whole_opts, Arc::new(Telemetry::new())).unwrap();
+    for m in [&mut plain, &mut mac, &mut whole] {
         m.enable_verify(3).unwrap();
         m.configure_plan(&Default::default(), None).unwrap();
     }
@@ -1418,13 +1420,33 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
             o => panic!("{o:?}"),
         };
         let mtp = st.mtp.as_ref().expect("the MTP state");
-        (l, mtp.kv.len, mtp.pending_rows)
+        // the head's own K / V cache, as the head ingest left it (every row of every KV head up to its length)
+        let be = CpuBackend::arc();
+        let kv = match &mtp.kv.slots[0] {
+            intarsia_core::state::StateSlot::AttnKv(a) => {
+                let (mut k, mut v) = (vec![0u8; a.k.bytes()], vec![0u8; a.v.bytes()]);
+                be.download(&a.k, 0, &mut k, 0).unwrap();
+                be.download(&a.v, 0, &mut v, 0).unwrap();
+                (k, v)
+            }
+            _ => panic!("the head's cache slot"),
+        };
+        (l, mtp.kv.len, mtp.pending_rows, kv)
     };
     let before = mac.macro_passes();
-    let (a, b) = (run_model(&plain), run_model(&mac));
+    let (a, b, wh) = (run_model(&plain), run_model(&mac), run_model(&whole));
     assert!(mac.macro_passes() > before, "the MTP model ran a macro pass");
     assert_eq!(plain.macro_passes(), 0);
-    assert_eq!(a, b, "logits and the head's cache position equal the chunked schedule's");
+    assert_eq!(a, b, "logits, the head's cache position and its K / V equal the chunked schedule's");
+    assert!(a.3 .0.iter().any(|&x| x != 0), "the head's cache was written");
+    assert_eq!(a.3, b.3, "the macro schedule leaves the head's K / V as the chunked schedule's");
+    // chunk 16 vs one pass: the main model's hidden rows may differ in the last bits, so compare with a tolerance; a row ingested at a
+    // wrong position (rope) differs by O(1)
+    let f = |x: &Vec<u8>| x.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect::<Vec<f32>>();
+    for (name, x, y) in [("K", &a.3 .0, &wh.3 .0), ("V", &a.3 .1, &wh.3 .1)] {
+        let worst = f(x).iter().zip(f(y)).map(|(p, q)| (p - q).abs()).fold(0f32, f32::max);
+        assert!(worst < 1e-3, "the head's {name} built in chunk-sized pieces vs one pass: worst abs diff {worst}");
+    }
     // the engine: greedy ids equal spec-off and the chunked MTP engine; the drafter proposes and accepts the same
     let engine_macro = |macro_rows: Option<usize>, k: Option<usize>, chunk: usize| {
         let tel = Arc::new(Telemetry::new());
