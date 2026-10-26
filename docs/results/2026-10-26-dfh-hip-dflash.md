@@ -141,3 +141,44 @@ the parity fixture shows draft acceptance on our W4A4 target below tau 2.5 on th
 rollback machinery exists at tp=1. But this is a DFlash2 port (new drafter pieces), on a hybrid target (new tap / rollback
 interplay), and the first speculative mode at tp>1 (a new subsystem, most of the risk), for an expected 1.4-1.8x at 1 stream,
 not radiance's 145 tok/s. Decision needed from the coordinator: go on that basis, or stop at tp=1.
+
+## 7. Window 1 (fleetq #5703, 2026-10-26 08:34:28 to 08:36:04 radiance down; `raw/w1/`)
+
+Coordinator go 08:25 with the stop conditions: the 8-row verify at tp=1 must be ids-exact against plain steps and cost at most 2.2x
+a plain step. Tree `a8046be` (origin/main `ec9e36b85` + this lane's probe and scripts, no engine change). Script `scripts/dfh/stages-w1.sh`.
+
+**Exactness: PASS.** `tests/verify_rows_real.rs` (`Model::verify_check`, the lane dc method extended to recurrent states), 27B at tp=1,
+card 0: every row count q = 2..8 at contexts 17, 130, 1024, 4000 and 16000 with random ids, plus 16 windows of the model's own greedy
+continuation: **303 rows, 0 windows with a difference, worst |logit diff| 0, 0 argmax flips** (`raw/w1/mtest-probe-27b-tp1.log`).
+
+**Cost: FAILS as measured, but the measurement compares an eager pass with a captured one.** Same test, length 1024, median of 12:
+
+| pass | ms | vs decode1 |
+|---|---|---|
+| decode1 (`Model::forward`, one row, graph-replayed) | 30.95 | 1.00x |
+| verify4 (`forward_verify`, eager) | 60.85 | 1.97x |
+| verify8 (`forward_verify`, eager) | 85.39 | **2.76x** |
+
+On HIP an eager pass pays the launch overhead the captured decode graph does not (the 27B's eager one-row step is 101 ms against 30.3
+ms captured, `2026-10-25-mr-hip-27b-batch-profile.md`), so this is not the cost of a verify pass as the engine would run it. The engine
+captures `--spec mtp`'s speculative step on HIP (`Model::spec_step`, MTP only; `gen-27b-mtp6-4k.err`: 66 graph replays, 8 captures),
+but `--spec dflash` has no captured verify on any backend (on CUDA eager launches are cheap). The captured 8-row batch step of the same
+model is 59.5 ms = 1.96x (`forward_batch`, MR doc); a captured verify8 is expected near that plus the GatedDeltaNet row saves (~2-4 ms),
+i.e. about 2.0-2.1x. Not measured.
+
+**First HIP run of `--spec mtp` (27B, tp=1, card 1, 256 greedy ids, chat template, `--ignore-eos`).** ids identical to `--spec off` in
+4 of 4 runs:
+
+| prompt | arm | decode tok/s | vs off | passes | accepted / proposed | tokens per pass | ms per pass |
+|---|---|---|---|---|---|---|---|
+| short | off | 33.23 | 1.00x | | | | 30.0 per step |
+| short | mtp k=2 | 45.41 | 1.37x | 126 | 129 / 251 (51.4%) | 2.02 | 44.6 |
+| short | mtp k=6 | 34.64 | 1.04x | 104 | 151 / 613 (24.6%) | 2.45 | 70.8 |
+| 4k (`scripts/hip-decode/prompt4k.txt`) | off | 32.46 | 1.00x | | | | 30.7 per step |
+| 4k | mtp k=2 | 56.04 | 1.73x | 98 | 157 / 196 (80.1%) | 2.60 | 46.4 |
+| 4k | mtp k=6 | 50.79 | 1.56x | 66 | 189 / 392 (48.2%) | 3.86 | 76.1 |
+
+A captured MTP pass with 7 verify rows plus 6 one-row head passes costs 76 ms (2.5x a plain step), which bounds a captured verify7 from
+above. One prompt of each kind, so these are data points, not a benchmark.
+
+**Status: stopped at the stop condition, decision asked of the coordinator** (section 8 once answered).
