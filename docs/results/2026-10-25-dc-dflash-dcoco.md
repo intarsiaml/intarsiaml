@@ -429,20 +429,41 @@ Shipped state (updated 2026-10-26): the v2 gate stays in the code (measured, ids
 parity, so ungated DFlash with the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x) is what an opt-in user gets; the v2 gate is one
 switch away (`INTARSIA_SPEC_COSTGATE=1`, or `cost_min_speedup = 1.03` in `[dflash]`). No defaults change anywhere for runs without `--spec dflash`.
 
-## 13. Side finding: 35B `--spec mtp` is not ids-exact at long context on CUDA
+## 13. 35B `--spec mtp`: ids-exact at long context only with per-row verify attention (now the default on CUDA)
 
 Not part of the DFlash work; found while checking that the #162 MTP load fix left `--spec mtp` exact. Model `nvidia/Qwen3.6-35B-A3B-NVFP4`
-on spark1 (GB10), `--spec mtp --spec-k 2` vs `--spec off`, greedy, 128 ids, raw repo-doc prompts, binary = main `b8fb4e6dd` (script
-`scripts/dc/gates.sh mtp35`).
+on spark1 (GB10), `--spec mtp --spec-k 2` vs `--spec off`, greedy, 128 ids, raw repo-doc prompts (`scripts/dc/gates.sh mtp35`).
 
-| context | prompts identical | first differing id | with `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` |
+**Finding.** The multi-row verify attention is not bitwise the single-row decode kernel at large positions (same cause as section 10.1), so
+speculation changed the ids at 16k and 32k:
+
+| context (prompt tokens) | multi-row (main `b8fb4e6dd`) | per-row, `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` | new default (no env) |
 | --- | --- | --- | --- |
-| 4k | 3 of 3 (`raw/mtp35-ids2.log`) | | not run |
-| 16k (13.7-15.4k tokens) | 1 of 3 (`raw/mtp35-ids3.log`) | 17, 18 | 2 of 2 (`raw/mtp35-ids4-perrow.log`) |
-| 32k (27.8k tokens) | 0 of 3 (`raw/mtp35-ids3.log`) | not extracted | 2 of 2 (`raw/mtp35-ids5-perrow32k.log`) |
+| 4k (3.3-3.5k) | 3 of 3 identical (`raw/mtp35-ids2.log`) | not run | 3 of 3 (`raw/mtp35-ids6-default.log`) |
+| 16k (13.7-15.4k) | 1 of 3 (`raw/mtp35-ids3.log`); first diff at id 17, 18 | 2 of 2 (`raw/mtp35-ids4-perrow.log`) | 3 of 3 |
+| 32k (27.4-28.1k) | 0 of 3 (`raw/mtp35-ids3.log`) | 2 of 2 (`raw/mtp35-ids5-perrow32k.log`) | 3 of 3 |
 
-`raw/mtp35-ids2.log` first run at 16k/32k is invalid (prompts over the 20480-token context; both off and mtp errored, `raw/mtp35-ids2-undersized-ctx.log`);
-the script now sizes prompts at 2.3 chars per target token. Cause (same as section 10.1): the multi-row verify attention is not bitwise
-the single-row decode kernel at large positions. Per-row verify attention is exact by construction and costs speed (e.g. 16k p0: mtp 73.9 vs off 75.5 tok/s at
-acceptance 47.7%; p1: 100.1 vs 74.9). Proposal: default it on for `--spec mtp` on CUDA. Not done here: it is a numerics change to a shipped path and
-`verify_rows_attn` is set only with the DFlash drafter on this branch.
+The first 16k/32k run (`raw/mtp35-ids2-undersized-ctx.log`) is invalid: prompts over the 20480-token context, so off and mtp both errored. The script now
+sizes prompts at 2.3 chars per target token.
+
+**Decision (coordinator, 2026-10-26).** Accuracy ranks above speed: `--spec mtp` on CUDA runs per-row verify attention by default
+(`Backend::prefer_verify_attn_per_row`, called when the model loads an MTP head). Opt-out: `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0` (back to the multi-row call;
+proof it is the old behaviour: 16k prompts 0 and 1 differ again, `raw/mtp35-ids7-optout.log`). No recipe key exists for this; none added. Documented in `docs/tuning.md`.
+HIP was per-row already; Metal and other backends are unchanged. Gate: 9 of 9 prompts (3 each at 4k, 16k, 32k) identical with the new default.
+
+**Speed.** `scripts/dc/bench35.sh`: `localeval speed` sweep (fleet method, 128 forced tokens, 3 reps, 1 stream) on a `serve --max-batch 1` server per arm, arms
+interleaved x2 in one fleetq window (`raw/bench35/`, localeval runs `results/20261026-0619..0628-adhoc-dc35-*` in /opt/code/deepeval). Decode tok/s, median of
+3 reps, then mean of the 2 rounds (round values in brackets):
+
+| prompt tokens | spec off | mtp multi-row (`=0`) | mtp per-row (new default) | per-row vs off | per-row vs multi-row |
+| --- | --- | --- | --- | --- | --- |
+| ~4.1k | 81.3 [81.2, 81.5] | 95.5 [98.4, 92.6] | 100.4 [98.6, 102.3] | 1.23x | 1.05x |
+| ~16.7k | 73.8 [73.6, 74.0] | 80.8 [82.1, 79.5] | 84.2 [86.9, 81.6] | 1.14x | 1.04x |
+| ~33.9k | 66.3 [65.9, 66.7] | 63.0 [62.2, 63.7] | 70.6 [73.1, 68.1] | 1.06x | 1.12x |
+
+Reading: per-row is NOT slower than spec-off at any length measured, and not slower than multi-row (the 4-5% gaps at 4k and 16k are inside the
+rep ranges, i.e. noise; at 32k it is faster). Multi-row at 32k is slower than spec-off (0.95x). A likely reason per-row does not cost speed here: the
+captured speculative step (`Model::spec_step_ok`) requires a per-row backend, so per-row also lets CUDA replay the captured verify step (not isolated by a
+separate measurement). Limits: the sweep prompt is localeval's filler text, whose draft acceptance is not representative of real answers (`raw/mtp35-ids4-perrow.log`
+shows 48-86% acceptance on repo-doc prompts, with per-row prompt 0 at 16k running mtp 73.9 vs off 75.5 tok/s, 0.98x); 1 stream only. So a low-acceptance prompt
+can still be slower than spec-off with per-row, as it can with any speculation.

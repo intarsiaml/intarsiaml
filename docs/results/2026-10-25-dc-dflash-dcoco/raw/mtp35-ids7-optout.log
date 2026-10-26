@@ -1,0 +1,6 @@
+fleetq: #5699 waiting (#1 in line): needs spark1 quiet, but its GPU is 93% busy with work fleetq does not track
+fleetq: #5699 running on spark1: scripts/dc/spark1.sh gates mtp35 16384
+FAIL mtp35 T=16384 p0 (prompt: 14002) ids differ or empty | spec: verify passes=62 proposed=124 accepted=64 (acceptance 51.6%, 2.03 tokens per pass)
+FAIL mtp35 T=16384 p1 (prompt: 15361) ids differ or empty | spec: verify passes=48 proposed=96 accepted=78 (acceptance 81.2%, 2.62 tokens per pass)
+mtp35 fails=2
+fleetq: #5699 done (exit 0)

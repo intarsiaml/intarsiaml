@@ -1,0 +1,12 @@
+fleetq: #5697 running on spark1: scripts/dc/spark1.sh gates mtp35 4096 16384 32768
+PASS mtp35 T=4096 p0 (prompt: 3464, 9420 chars) ids identical (128) | off: decode 1566 ms (81.10 tok/s) | mtp: decode 1173 ms (108.25 tok/s) | spec: verify passes=52 proposed=103 accepted=75 (acceptance 72.8%, 2.44 tokens per pass)
+PASS mtp35 T=4096 p1 (prompt: 3269, 9420 chars) ids identical (128) | off: decode 1554 ms (81.72 tok/s) | mtp: decode 1131 ms (112.26 tok/s) | spec: verify passes=49 proposed=98 accepted=77 (acceptance 78.6%, 2.57 tokens per pass)
+PASS mtp35 T=4096 p2 (prompt: 3487, 9420 chars) ids identical (128) | off: decode 1567 ms (81.03 tok/s) | mtp: decode 1205 ms (105.39 tok/s) | spec: verify passes=52 proposed=104 accepted=74 (acceptance 71.2%, 2.42 tokens per pass)
+PASS mtp35 T=16384 p0 (prompt: 14002, 37683 chars) ids identical (128) | off: decode 1703 ms (74.59 tok/s) | mtp: decode 1722 ms (73.75 tok/s) | spec: verify passes=65 proposed=130 accepted=62 (acceptance 47.7%, 1.95 tokens per pass)
+PASS mtp35 T=16384 p1 (prompt: 15361, 37683 chars) ids identical (128) | off: decode 1709 ms (74.32 tok/s) | mtp: decode 1272 ms (99.83 tok/s) | spec: verify passes=47 proposed=93 accepted=80 (acceptance 86.0%, 2.70 tokens per pass)
+PASS mtp35 T=16384 p2 (prompt: 13736, 37683 chars) ids identical (128) | off: decode 1716 ms (74.01 tok/s) | mtp: decode 1201 ms (105.73 tok/s) | spec: verify passes=43 proposed=86 accepted=83 (acceptance 96.5%, 2.93 tokens per pass)
+PASS mtp35 T=32768 p0 (prompt: 28075, 75498 chars) ids identical (128) | off: decode 1845 ms (68.84 tok/s) | mtp: decode 1790 ms (70.94 tok/s) | spec: verify passes=60 proposed=119 accepted=67 (acceptance 56.3%, 2.12 tokens per pass)
+PASS mtp35 T=32768 p1 (prompt: 27765, 75369 chars) ids identical (128) | off: decode 1836 ms (69.19 tok/s) | mtp: decode 1383 ms (91.82 tok/s) | spec: verify passes=46 proposed=91 accepted=81 (acceptance 89.0%, 2.76 tokens per pass)
+PASS mtp35 T=32768 p2 (prompt: 27442, 75366 chars) ids identical (128) | off: decode 1812 ms (70.10 tok/s) | mtp: decode 1774 ms (71.59 tok/s) | spec: verify passes=59 proposed=117 accepted=68 (acceptance 58.1%, 2.15 tokens per pass)
+mtp35 fails=0
+fleetq: #5697 done (exit 0)
