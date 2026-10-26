@@ -1426,9 +1426,9 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
     assert_eq!(plain.macro_passes(), 0);
     assert_eq!(a, b, "logits and the head's cache position equal the chunked schedule's");
     // the engine: greedy ids equal spec-off and the chunked MTP engine; the drafter proposes and accepts the same
-    let engine_macro = |macro_rows: Option<usize>, k: Option<usize>| {
+    let engine_macro = |macro_rows: Option<usize>, k: Option<usize>, chunk: usize| {
         let tel = Arc::new(Telemetry::new());
-        let o = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, prefill_macro: macro_rows, ..Default::default() };
+        let o = LoadOptions { max_seq: 512, prefill_chunk: chunk, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, prefill_macro: macro_rows, ..Default::default() };
         let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &o, tel.clone()).unwrap();
         let spec = match k {
             Some(k) => {
@@ -1441,16 +1441,20 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
         let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone()).unwrap();
         (e, tel)
     };
-    let (off, _) = engine_macro(Some(0), None);
-    let (chunked, tel_c) = engine_macro(Some(0), Some(2));
-    let (mac_e, tel_m) = engine_macro(Some(64), Some(2));
+    let (off, _) = engine_macro(Some(0), None, 16);
+    let (chunked, tel_c) = engine_macro(Some(0), Some(2), 16);
+    // the whole prompt in one pass (chunk 256): the head's cache is built in one piece, not in the chunked schedule's catch-up pieces
+    let (whole, tel_w) = engine_macro(Some(0), Some(2), 256);
+    let (mac_e, tel_m) = engine_macro(Some(64), Some(2), 16);
     let long: Vec<u32> = (0..150).map(|i| (i * 11 + 5) % 90).collect();
     for p in [PROMPTS[0], &long[..], PROMPTS[2]] {
         let r = run(&off, req(p, 96));
         assert_eq!(r, run(&chunked, req(p, 96)), "chunked mtp, prompt of {}", p.len());
         assert_eq!(r, run(&mac_e, req(p, 96)), "macro mtp, prompt of {}", p.len());
+        assert_eq!(r, run(&whole, req(p, 96)), "one-pass mtp, prompt of {}", p.len());
     }
-    let (c, m) = (tel_c.snapshot(), tel_m.snapshot());
+    let (c, m, w) = (tel_c.snapshot(), tel_m.snapshot(), tel_w.snapshot());
+    assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (w.spec_steps, w.spec_proposed, w.spec_accepted), "KV-only head ingest in pieces == in one pass");
     assert!(m.spec_steps > 0 && m.spec_proposed > 0, "the head drafted after a macro prefill");
     assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (m.spec_steps, m.spec_proposed, m.spec_accepted), "same drafts");
 }
