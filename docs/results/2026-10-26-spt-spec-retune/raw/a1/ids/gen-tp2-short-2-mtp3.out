@@ -1,0 +1,40 @@
+```python
+from functools import lru_cache
+from typing import Dict
+
+
+def fibonacci(n: int) -> int:
+    """Return the n-th Fibonacci number using memoization.
+
+    Args:
+        n: A non-negative integer representing the position in the Fibonacci sequence.
+
+    Returns:
+        The n-th Fibonacci number.
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+
+@lru_cache(maxsize=None)
+def fibonacci_memo(n: int) -> int:
+    """Return the n-th Fibonacci number using memoization.
+
+    Args:
+        n: A non-negative integer representing the position in the Fibonacci sequence.
+
+    Returns:
+        The n-th Fibonacci number.
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return fibonacci_m
