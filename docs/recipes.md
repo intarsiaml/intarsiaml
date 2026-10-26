@@ -190,6 +190,18 @@ Without that flag nothing under the prefix is loaded and the table has no effect
 | `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |
 | `cost_reprobe_tokens` | int | `64` | Plain tokens decoded before speculation is tried again on the text as it is then; each retry that falls back again doubles the next stretch (up to 16x), one that holds resets it. |
 
+### `[dflash]` (measured-cost gate of the DFlash drafter; read only by `--spec dflash`)
+
+The DFlash draft is a separate checkpoint given with `--spec-draft DIR` (docs/results/2026-10-25-dc-dflash-dcoco.md); this table only
+sets how the per-sequence gate decides to decode plainly. All keys are optional. Without `--spec dflash` the table has no effect.
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `cost_min_speedup` | float | `1.03` | Expected speedup (`tokens_per_pass / (ms_per_pass / ms_per_plain_token)`, running means) below which the sequence decodes plainly; `0` turns the gate off. |
+| `cost_window` | int | `8` | Consecutive speculative passes under `cost_min_speedup` before the fallback. |
+| `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |
+| `cost_reprobe_tokens` | int | `64` | Plain tokens decoded before speculation is tried again; each retry that falls back again doubles the next stretch (up to 16x). |
+
 ## Worked example 1: a dense model (Qwen3-8B)
 
 Pure GQA plus SwiGLU, qk-norm, one block pattern for every layer. This is `recipes/qwen3.toml` without the tuning
