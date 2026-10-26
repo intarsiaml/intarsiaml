@@ -1,0 +1,2 @@
+{"name": "code-csv", "input": "Write a Python command-line tool that reads a large CSV file in a streaming fashion, groups rows by a chosen column, and writes per-group summary statistics to JSON, with argparse, type hints and a few unit tests."}
+{"name": "code-matrix", "input": "Implement in Rust a generic fixed-size matrix type with multiplication, transpose and a determinant for square matrices, plus tests."}

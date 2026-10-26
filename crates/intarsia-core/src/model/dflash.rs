@@ -98,6 +98,8 @@ pub(super) struct DflashHead {
     norm_offset: f32,
     /// Tests: replaces the drafts (after the draft ran), see [`Model::dflash_script`].
     script: Mutex<Option<super::DraftScript>>,
+    /// Probes: profile the draft's ops (synchronised, timed per op), see [`Model::dflash_profile`].
+    profile: std::sync::atomic::AtomicBool,
 }
 
 impl DflashHead {
@@ -227,6 +229,7 @@ pub(super) fn load_head(
         eps: dims.rms_eps,
         norm_offset: _recipe.model.norm_offset,
         script: Mutex::new(None),
+        profile: Default::default(),
     })
 }
 
@@ -299,6 +302,7 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         eps: c.rms_eps,
         norm_offset: 0.0,
         script: Mutex::new(None),
+        profile: Default::default(),
     })
 }
 
@@ -330,6 +334,14 @@ impl Model {
             None => (0..head.layers.len())
                 .map(|_| SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv })
                 .collect(),
+        }
+    }
+
+    /// Probes: time every op of the following draft passes (telemetry `ops`), as a profiled decode step does.
+    #[doc(hidden)]
+    pub fn dflash_profile(&self, on: bool) {
+        if let Some(h) = &self.dflash {
+            h.profile.store(on, std::sync::atomic::Ordering::Relaxed);
         }
     }
 
@@ -474,7 +486,7 @@ impl Model {
         if p0 + t > d.kv.cap {
             return Ok(Vec::new());
         }
-        let profile = false;
+        let profile = head.profile.load(std::sync::atomic::Ordering::Relaxed);
         let (hd, act, ws) = (self.dims.hidden, self.act, &self.ws);
         if self.recorder.lock().unwrap().is_none() {
             let mut ids = vec![head.mask_id as i32; t];

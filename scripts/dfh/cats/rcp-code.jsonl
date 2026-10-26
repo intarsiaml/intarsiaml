@@ -1,0 +1,8 @@
+{"name": "code-lru-cache", "input": "Write a Python LRU cache class with get, put, and delete methods in O(1) time, full type hints and docstrings, followed by pytest tests covering eviction order and capacity edge cases."}
+{"name": "code-rate-limiter", "input": "Write a thread-safe token-bucket rate limiter in Python with a context-manager interface, type hints, and docstrings, plus unit tests that use a fake clock."}
+{"name": "code-json-parser", "input": "Write a small recursive-descent JSON parser in Python (no json module) that supports objects, arrays, strings with escapes, numbers, true/false/null, and reports the position of syntax errors."}
+{"name": "code-rust-cli", "input": "Write a complete Rust command-line program that counts word frequencies in a text file given as an argument and prints the top 20 words, with proper error handling and comments."}
+{"name": "code-sql-schema", "input": "Design a PostgreSQL schema for a library system (books, authors, members, loans, reservations) with primary and foreign keys and indexes, then write five useful queries with explanations."}
+{"name": "code-ts-debounce", "input": "Write TypeScript implementations of debounce and throttle with full generic typing, cancel and flush methods, and JSDoc comments, followed by Jest tests using fake timers."}
+{"name": "code-go-worker-pool", "input": "Write a Go worker pool that processes jobs from a channel with a configurable number of workers, context cancellation, and error collection, plus a main function that demonstrates it."}
+{"name": "code-bash-backup", "input": "Write a robust Bash script that backs up a directory to a timestamped tar.gz, keeps the last 7 backups, logs to a file, and exits with clear error messages; explain each section with comments."}

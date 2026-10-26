@@ -65,7 +65,8 @@ fn dflash2_real_taps_and_cost() {
         dflash: Some(dl),
         ..Default::default()
     };
-    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    let tel = Arc::new(Telemetry::new());
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, tel.clone()).unwrap();
     m.enable_verify(8).unwrap();
     m.configure_plan(&Default::default(), None).unwrap();
     let hi = (dims.vocab as u32).min(150_000);
@@ -121,6 +122,28 @@ fn dflash2_real_taps_and_cost() {
         st.truncate(base, &*m.backend).unwrap();
     }
     eprintln!("PROBE_DRAFTS {drafts:?}");
+    // where the draft's time goes: one profiled pass (every op synchronised and timed), op time against wall time
+    let before = tel.snapshot().ops;
+    m.dflash_profile(true);
+    let t = Instant::now();
+    m.dflash_draft(&mut st, next, 7).unwrap();
+    let wall = t.elapsed().as_secs_f64() * 1e3;
+    m.dflash_profile(false);
+    let after = tel.snapshot().ops;
+    let mut rows: Vec<(String, u64, f64)> = after
+        .iter()
+        .map(|(k, a)| {
+            let b = before.get(k).cloned().unwrap_or_default();
+            (k.clone(), a.calls - b.calls, a.time_ms - b.time_ms)
+        })
+        .filter(|r| r.1 > 0)
+        .collect();
+    rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+    let total: f64 = rows.iter().map(|r| r.2).sum();
+    eprintln!("PROBE_DRAFT_PROFILE wall {wall:.2} ms (profiled), ops {total:.2} ms, host/other {:.2} ms", wall - total);
+    for (k, n, ms) in rows.iter().take(12) {
+        eprintln!("PROBE_DRAFT_OP {k:<24} calls {n:>4} {ms:>8.3} ms");
+    }
     let mut ids = vec![next];
     ids.extend(&drafts);
     ids.truncate(8);
