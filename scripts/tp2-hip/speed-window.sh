@@ -43,6 +43,8 @@ serve() { # serve <arm>
       [[ $arm == tp2-v0 ]] && envs="$envs INTARSIA_TP_VOCAB=0"   # replicated head
       [[ $arm == tp2-a1 ]] && envs="$envs INTARSIA_TP_ARNORM=1"  # fused all-reduce + rmsnorm
       [[ $arm == tp2-f0 ]] && envs="$envs INTARSIA_TP_FUSION=0"  # no row-local fusion under tp
+      [[ $arm == tp2-g0 ]] && envs="$envs INTARSIA_SOLO_GRAPHS=0"    # solo decode steps eager
+      [[ $arm == tp2-gl ]] && envs="$envs INTARSIA_SOLO_GRAPHS=1 INTARSIA_GRAPH_LOCK=1"  # solo graphs on, one graph API call at a time (w30 k5)
       ;;
   esac
   RECIPE="HIP_VISIBLE_DEVICES=$gpus ${envs:+$envs }tp2-intarsia serve --backend hip --model $MODEL --served-model-name $NAME-$arm $args --profile-every 0 --mem-budget 29 --max-seq $MAXSEQ --no-supervisor --host 0.0.0.0 --port $PORT (tree $TREE, docker $IMG)"
