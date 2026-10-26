@@ -197,7 +197,7 @@ sets how the per-sequence gate decides to decode plainly. All keys are optional.
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
-| `cost_min_speedup` | float | `1.03` | Expected speedup (`tokens_per_pass / (ms_per_pass / ms_per_plain_token)`, running means) below which the sequence decodes plainly; `0` turns the gate off. |
+| `cost_min_speedup` | float | `0` (gate off; `1.03` is the tried value, docs/results/2026-10-25-dc-dflash-dcoco.md section 12) | Expected speedup (`tokens_per_pass / (ms_per_pass / ms_per_plain_token)`, running means) below which the sequence decodes plainly; `0` turns the gate off. |
 | `cost_window` | int | `6` | Speculative passes (after 2 warm-up passes) before the running-mean speedup is compared with `cost_min_speedup` for the fallback. |
 | `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |
 | `cost_reprobe_tokens` | int | `128` | Plain tokens decoded before speculation is tried again; each retry that falls back again doubles the next stretch (up to 16x). |

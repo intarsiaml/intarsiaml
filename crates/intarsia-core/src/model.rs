@@ -1169,7 +1169,7 @@ impl Model {
             None
         };
         let spec_cost = if dflash_head.is_some() {
-            // the DFlash drafter: gate on (built-in values, the recipe's `[dflash]` table, then the env var)
+            // the DFlash drafter: gate off by default (built-in values, the recipe's `[dflash]` table, then the env var)
             crate::spec::CostParams::DFLASH.with_dflash_recipe(recipe.dflash.as_ref())
         } else {
             crate::spec::CostParams::for_backend(b.name()).with_recipe(recipe.mtp.as_ref())

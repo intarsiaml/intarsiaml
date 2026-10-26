@@ -243,10 +243,13 @@ impl CostParams {
     pub const OFF: CostParams =
         CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125, smooth: false };
 
-    /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): on at
-    /// the 3% line; a pass is about 100 ms there, so the window is short.
+    /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): OFF by
+    /// default. Measured on Qwen3-8B CUDA (docs/results/2026-10-25-dc-dflash-dcoco.md section 12) the gate fixes low-acceptance prose
+    /// (0.98x -> 1.00x) but decides on the first passes of an answer and costs recall/code 11-12 %, so ungated DFlash is the default.
+    /// `INTARSIA_SPEC_COSTGATE=1` (or `cost_min_speedup = 1.03` in `[dflash]`) turns it on with the window below, a pass is about
+    /// 100 ms there so the window is short.
     pub const DFLASH: CostParams =
-        CostParams { min_speedup: 1.03, window: 6, probe_every: 128, reprobe_tokens: 128, warmup: 2, alpha: 0.125, smooth: true };
+        CostParams { min_speedup: 0.0, window: 6, probe_every: 128, reprobe_tokens: 128, warmup: 2, alpha: 0.125, smooth: true };
 
     /// The recipe's `[dflash]` overrides.
     pub fn with_dflash_recipe(self, m: Option<&crate::recipe::DflashSpec>) -> CostParams {

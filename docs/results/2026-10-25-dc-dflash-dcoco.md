@@ -424,7 +424,7 @@ reset by the first accepted run of 3+ tokens, or deciding per sliding window of 
 `categories-rcp` bar was not met; the 12 fresh prompts written for it (`tools/dc/heldout_prompts.jsonl`, 4 prose, 4 chat, 2 code,
 2 recall, written before the gate v2 result and never used for tuning) are ready to run.
 
-Shipped state: the code carries the v2 gate (measured, ids-identical) behind `--spec dflash`; no default changes anywhere.
-v2 trades 12% of the recall/code gain for prose parity, so an opt-in user who mostly asks recall/code questions gets more from
-`INTARSIA_SPEC_COSTGATE=0` plus the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x), or from `[dflash] cost_reprobe_tokens = 32`
-(untested).
+Shipped state (updated 2026-10-26): the v2 gate stays in the code (measured, ids-identical) but is OFF by default under `--spec dflash`
+(`CostParams` DFlash default `min_speedup = 0`, recipe `[dflash] cost_min_speedup = 0`). v2 trades 12% of the recall/code gain for prose
+parity, so ungated DFlash with the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x) is what an opt-in user gets; the v2 gate is one
+switch away (`INTARSIA_SPEC_COSTGATE=1`, or `cost_min_speedup = 1.03` in `[dflash]`). No defaults change anywhere for runs without `--spec dflash`.
