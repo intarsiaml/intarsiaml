@@ -59,6 +59,17 @@ impl Drop for HipBuffer {
     }
 }
 
+/// The process-wide graph lock of `INTARSIA_GRAPH_LOCK=1` (None otherwise).
+fn graph_lock() -> Option<std::sync::MutexGuard<'static, ()>> {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    if *ON.get_or_init(|| std::env::var("INTARSIA_GRAPH_LOCK").is_ok_and(|v| v == "1")) {
+        Some(LOCK.lock().unwrap_or_else(|e| e.into_inner()))
+    } else {
+        None
+    }
+}
+
 /// An instantiated HIP graph (`hipGraphExec_t`), destroyed on drop.
 struct HipGraph {
     exec: usize,
@@ -857,6 +868,10 @@ impl Backend for HipBackend {
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        // INTARSIA_GRAPH_LOCK=1 (experiment, w30): one graph API call at a time in the whole process. The two ranks of a tp group capture their
+        // solo decode graphs concurrently from two threads (and a peer's replay is launched while the other rank instantiates); w29 showed one
+        // replay running ~10 collective kernels fewer than its capture recorded.
+        let _lock = graph_lock();
         self.bind()?;
         let s = self.stream(stream)?;
         // SAFETY: plain FFI call; the capture is always ended below, so the stream never stays in capture mode.
@@ -879,6 +894,7 @@ impl Backend for HipBackend {
         let g = g.downcast::<HipGraph>().ok_or_else(|| Error::backend("graph does not belong to the hip backend"))?;
         self.bind()?;
         let s = self.stream(stream)?;
+        let _lock = graph_lock();
         // INTARSIA_GRAPH_SYNC_CAPTURE=1: the stream is idle before the first launch of a fresh exec
         // SAFETY: plain FFI calls on this rank's bound device and stream.
         if unsafe { ffi::ik_rt_sync_capture_on() } == 1 && !g.launched.swap(true, Ordering::Relaxed) {
