@@ -1,0 +1,77 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:656:45
+    |
+656 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:233:8
+    |
+233 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 1 test
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 4096
+LONGENG 2 slots, requests [0, 1], busy chunk default: mixed iterations 1, prefill chunks 2, decode batches B1:770 B2:129
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+LONGENG 4 slots, requests [0, 1, 2, 3], busy chunk default: mixed iterations 6, prefill chunks 7, decode batches B1:765 B2:5 B3:5 B4:124
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+LONGENG 4 slots, requests [0, 2, 3, 1], busy chunk default: mixed iterations 6, prefill chunks 7, decode batches B1:768 B2:2 B3:2 B4:127
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 1024
+LONGENG control busy chunk 1024: R0 200 tok, 900 gen : identical
+LONGENG control busy chunk 1024: R1 4096 tok : identical
+LONGENG control busy chunk 1024: R2 16384 tok (sampled) : identical
+LONGENG control busy chunk 1024: R3 2600 tok : identical
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 57.28s
+
