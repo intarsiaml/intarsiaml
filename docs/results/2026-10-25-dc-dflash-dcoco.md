@@ -3,7 +3,7 @@
 Branch `lane-dc/dflash-dcoco`. Opt-in only; with the flags off nothing is loaded and `plan show` plus the 256 greedy ids
 of the 8B on CUDA are bitwise main. Raw metadata for this note is in `2026-10-25-dc-dflash-dcoco/raw/`.
 
-Status: phase 1 (scope note) accepted by the coordinator; **phase 2 done, phase 3 in progress** (section 10, 11).
+Status: phase 1 (scope note) accepted by the coordinator; **phases 2 and 3 done; cost gate tried, DFlash stays opt-in** (sections 10-12).
 
 ## 0. Decision and sources
 
@@ -392,3 +392,39 @@ cause is the macro-prefill change #162 (35B CUDA recipe default 8192-row macro p
 failing to start since #162") is the fix, and this branch now includes it (merge `b8fb4e6dd`). Nothing to do for this lane beyond
 re-running the 35B check on a fixed binary; this branch also turns the macro pass off when a DFlash draft is loaded (its feature taps
 are per chunk).
+
+## 12. DFlash cost gate and the default-on decision (coordinator request 2026-10-26): bar not met, DFlash stays opt-in
+
+Bar: spec-off vs DFlash with the gate, `categories-rcp`, interleaved x3; no category below 0.99x and recall/code within 3% of the
+ungated 1.86x/1.65x. Both runs: spark1, 8B BF16 CUDA, `intarsia serve --max-batch 1`, localeval, answers identical in 72/72.
+
+| run (raw) | gate | recall | code | prose | all 24 |
+|---|---|---|---|---|---|
+| section 11.3 (`raw/bench-cat/`) | none (only the shared back-off gate) | 1.86x | 1.65x | 0.98x | 1.39x |
+| gate v1 (`raw/gate/bench-cat/`) | measured-cost gate: window 8 consecutive, reprobe 64, plain steps still ingest | 1.85x | 1.63x | **0.98x** | 1.38x |
+| gate v2 (`raw/gate2/bench-cat/`) | smooth decision (running mean after 2 + 6 passes), reprobe 128, plain decode steps stash their features and the draft flushes them in one batch | **1.63x** (-12%) | **1.46x** (-11%) | 1.00x | 1.31x |
+
+Exactness: ids of `--spec dflash` equal spec-off on 18/18 prompts for the gate v1 and v2 builds, G0 (flags off) byte-identical to
+origin/main `b8fb4e6dd` (`raw/gate/g0-g3.log`, `raw/gate2/g0-g3.log`).
+
+What the diagnostic showed (`raw/gate/prosediag.log`, `prosediag2.log`, lighthouse prompt, 256 tokens, spec-off 16.64 s):
+- v1: plain steps under DFlash cost 67.4 ms against 65.2 ms (every step still ran the context projection) and the gate needed about 55
+  passes to fall back, because tau 1.4 sits at the 1.03 line and a consecutive-low counter keeps resetting: 17.59 s (0.95x).
+- v2: deferred ingest brings a plain step to 65.3 ms, the smooth decision falls back after about 19 passes: 16.38 s (1.02x).
+
+Why v2 failed the bar: the decision is taken on the first 8 passes of an answer, whose preamble accepts little ("Here is...", headings),
+and the fallback then lasts 128 tokens, so the high-acceptance body is decoded plainly. Recall-cpu-caches 1.58x -> 1.07x,
+code-bash-backup 1.55x -> 1.19x, code-lru-cache 1.97x -> 1.27x (round to round 1.25-1.96x: whether the gate fires at the start decides it).
+Prose lands at 1.00x only because it also falls back early.
+
+Two attempts at the gate failed the bar (v1 prose 0.98x; v2 recall/code -11 to -12%), so under the two-attempt rule I stopped.
+The assumption that looks wrong: that a mean over the first passes of a request predicts acceptance for the rest of it. A plausible third
+design (not tried): short fallback stretches (reprobe 16 to 32 tokens, cheap now that plain steps do not ingest) with the decision window
+reset by the first accepted run of 3+ tokens, or deciding per sliding window of the last 16 passes. Held-out check: not run, because the
+`categories-rcp` bar was not met; the 12 fresh prompts written for it (`tools/dc/heldout_prompts.jsonl`, 4 prose, 4 chat, 2 code,
+2 recall, written before the gate v2 result and never used for tuning) are ready to run.
+
+Shipped state: the code carries the v2 gate (measured, ids-identical) behind `--spec dflash`; no default changes anywhere.
+v2 trades 12% of the recall/code gain for prose parity, so an opt-in user who mostly asks recall/code questions gets more from
+`INTARSIA_SPEC_COSTGATE=0` plus the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x), or from `[dflash] cost_reprobe_tokens = 32`
+(untested).
