@@ -1,9 +1,80 @@
 # mxr: multi-row MXFP4 GEMV on HIP through exact int8 dot products (lane mxr, 2026-10-26)
 
-Branch `lane-mxr/hip-mxfp4-rows` (off main ec9e36b8). Draft PR. **Phase 0 only**: a standalone harness (`scripts/mxr/`), three tatooine
-windows. No production code changed yet. Hardware: one R9700 (gfx1201, card 0), ROCm 7.2.4 dev image, radiance down inside fleetq slots.
+Branch `lane-mxr/hip-mxfp4-rows` (off main ec9e36b8), draft PR #176. Phase 0 (standalone harness, windows w1-w3) and Phase 1 (the
+production change, gate window w4, localeval window w5). Hardware: tatooine, 2x R9700 (gfx1201), ROCm 7.2.4 dev image, radiance down
+inside fleetq slots and restored after each.
 
-## Result: go, with design (a). The M=1 kernel and its bits stay unchanged.
+## Phase 1: what changed and the gates
+
+**Change.** `matmul_mxfp4_gemv_rows` and `matmul_mxfp4_pair_gemv_rows` at M = 2..16 run the exact int8 kernel by default:
+- the pre-pass `mxfp4_xprep_i8_kernel` writes the bf16 QDQ copy, the int8 codes, the group factors and per-call flags;
+- `mxfp4_i8_rows_kernel<M, XP>` does the work. The pair is one pre-pass plus one launch over the rows of both matrices; main ran two of each.
+
+M = 1 is unchanged, both kernel and bits. Details:
+- **Flags:** calls with an out-of-range activation group (x scale byte outside [3, 244]: subnormal, huge, inf, NaN) take the one-row fp
+  chain inside the same kernel. All-zero groups stay on the int8 path.
+- **W4A16** (`--mxfp4-act none`) keeps main's bf16 rows kernel. It carries the new `OpAttrs::mxfp4_w4a16`, set in `QTensor::call` and
+  in `Model::try_mxfp4_pair` (one line in `model.rs`), and the HIP backend runs the `_bf16` launcher entries for it. Through the int8
+  kernel's flagged chain, W4A16 measured 1.5-2.1x main's bf16 rows kernel (raw/w4/t-timing.log, act=0), hence the route.
+- **Kill switch:** `INTARSIA_HIP_MXFP4_I8=0` brings back the bf16 rows kernel for everything (`docs/tuning.md`).
+- **Scratch:** the registered size grows from 2MK + 16 to about 3.13MK + 32M + 64 bytes. `plan show` for the 27B is byte-identical
+  anyway.
+- **XP rule:** 4 when N <= 5120 or K > 8192, else 2. It changes speed only (w4 timing, both XP values per shape).
+
+**Gates (w4, fleetq #5739, both cards, 10:23-10:39; raw/w4/):**
+
+| gate | result |
+|---|---|
+| rows_exact `mxfp4_rows_are_bitwise_the_one_row_gemv`: 20 shapes (27B tp1 + tp2 per-rank, edges), W4A4 + W4A16, bf16 + f32 out, M = 1..16, rows reversed | pass |
+| rows_exact `mxfp4_pair_rows_are_bitwise_the_one_row_gemv` (new; main had no pair rows test): gate/up, k/v at tp1 and tp2, odd sizes | pass |
+| rows_exact `mxfp4_rows_edge_inputs_are_bitwise` (new): the zero-group and bound cases above, plus flagged rows from row 5 on (M = 2..5 int8, M >= 6 fp chain), and edge weight scale bytes 0..3, 250..255 | pass |
+| the same three with `INTARSIA_HIP_MXFP4_I8=0` | pass |
+| negative control (`INTARSIA_HIP_GB_CONTROL=matmul_mxfp4_gemv_rows=matmul_mxfp4_mma`) | fails, as it must |
+| rows_registry | pass |
+| mutants (scripts/mxr/mutants.sh: each mutation must apply exactly once; binary hashes against clean): m1 flag never read, m2 group factor one binade off, m3 code halves swapped, m4 fp chain order reversed | clean passes; all 4 caught (m1 on set B W4A4 flagged rows, m2 and m3 on set A, m4 on W4A16) |
+| 27B batched decode == solo step, M = 2..16 (`real_35b_batched_decode_is_bitwise_the_solo_step`), dev and base | pass, both |
+| G0 HIP: 8B and 35B `plan show` json + txt and 256 greedy ids at short / 4k, dev vs main | byte-identical |
+| 27B 256 greedy ids at short / 4k / 16k, tp1; `plan show` json + txt | identical; byte-identical |
+| 27B 256 greedy ids at short / 4k, tp2 | identical |
+| `kernels test --quick`, admission (`every_hip_kernel_matches_the_reference`) | see w5 (w4 logged no failure list) |
+
+What ran which build:
+- The rows_exact and rows_registry binaries were rebuilt inside w4 (10:25) from the final source, routing included.
+- The `intarsia` binary used for the no-op runs and the tp2 ids is the 09:48 build of c35783e9. It is the same except for the W4A16
+  routing, which no single-stream W4A4 path takes.
+- The mutants run in w4 were built from c35783e9 (hashes in raw/mutants-build-c35783e9.log). They are rebuilt from 28415520 and run
+  again in w5.
+- No MXFP4 op runs on the 8B (bf16) or the 35B (NVFP4): the op is chosen from the checkpoint's detected format
+  (`quant/mod.rs::op_for`). The 8B and 35B no-op is therefore one by construction, and checked anyway.
+- CUDA and Metal compile none of this. The only shared Rust changes are the `OpAttrs` / `ShapeInfo` field (default false) and its two
+  setters.
+
+**Kernel timing, production code (w4, raw/w4/t-timing.log; us per call including the pre-pass; ratio to the M = 1 launch):**
+
+| shape | M=1 | M=2 main / new | M=4 main / new | M=8 main / new | M=16 main / new |
+|---|---|---|---|---|---|
+| 17408x5120 | 80.8 | 1.04 / 0.98 | 1.14 / 1.00 | 1.77 / **1.06** | 3.32 / 1.64 |
+| 5120x17408 | 80.8 | 1.09 / 1.03 | 1.30 / 1.06 | 1.81 / **1.13** | 3.35 / 1.61 |
+| 12288x5120 | 59.8 | 1.06 / 1.00 | 1.19 / 1.01 | 1.77 / **1.09** | 3.26 / 1.65 |
+| 10240x5120 | 51.1 | 1.07 / 0.98 | 1.23 / 1.02 | 1.80 / **1.10** | 3.24 / 1.67 |
+| 6144x5120 | 34.4 | 1.13 / 0.99 | 1.30 / 1.05 | 1.81 / **1.15** | 2.91 / 1.64 |
+| 5120x6144 | 35.0 | 1.24 / 1.16 | 1.60 / 1.26 | 2.15 / **1.52** | 3.11 / 1.96 |
+| 1024x5120 | 14.1 | 1.09 / 0.94 | 1.29 / 1.03 | 1.66 / **1.06** | 2.53 / 1.34 |
+| tp2 8704x5120 | 44.7 | 1.11 / 1.00 | 1.26 / 1.03 | 1.82 / **1.13** | 2.99 / 1.66 |
+| tp2 5120x8704 | 45.6 | 1.08 / 1.00 | 1.32 / 1.06 | 1.89 / **1.14** | 3.08 / 1.59 |
+| tp2 5120x5120 | 30.8 | 1.10 / 1.00 | 1.31 / 1.07 | 1.79 / **1.13** | 2.86 / 1.58 |
+| tp2 3072x5120 | 21.8 | 1.13 / 0.98 | 1.31 / 1.03 | 1.76 / **1.13** | 3.00 / 1.48 |
+| tp2 5120x3072 | 21.3 | 1.14 / 1.00 | 1.34 / 1.11 | 1.82 / **1.22** | 2.86 / 1.63 |
+| tp2 512x5120 | 10.8 | 1.31 / 1.06 | 1.52 / 1.15 | 2.01 / **1.25** | 3.02 / 1.53 |
+
+"new" is the XP the shape rule picks. Every arm was checked bitwise against the M = 1 launch of each row, with 0 mismatches. The harness's
+all-zero activation row 3 stays on the int8 path: from M = 4 the timings show none of the flagged chain's 1.5-2x cost. The GDN b / a projections (48x5120, 24x5120 per rank) are launch-bound: 1.28x at
+M=2 against main's 1.70x.
+
+**Served (w5, localeval): pending.**
+
+
+## Phase 0 result: go, with design (a). The M=1 kernel and its bits stay unchanged.
 
 On the 27B's W4A4 path, the 32-element group sum of the production GEMV is exact in fp32. Each product is
 e2m1 x e2m1 x 2^ex, which is (integer code product) / 4 x 2^ex, with the codes doubled to integers in {0, 1, 2, 3, 4, 6, 8, 12}. Every
@@ -149,7 +220,7 @@ This is a small free win, not part of this lane's default change unless the gate
 
   Its per-kernel times were not measured; that would need a rocprof run of radiance itself in a window.
 
-## Phase 1 plan (production)
+## Phase 1 plan (as written after Phase 0; the shipped change is above)
 
 1. `kernels/hip/mxfp4.hip`: add `mxfp4_xprep_i8_kernel` and `mxfp4_i8_rows_kernel<M, R=2, XP>` (XP 2 at K <= 8192, 4 above; R and XP
    chosen per shape from this table). `matmul_mxfp4_gemv_rows` and `matmul_mxfp4_pair_gemv_rows` at M >= 2 use them:
