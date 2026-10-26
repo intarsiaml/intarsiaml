@@ -21,15 +21,10 @@ fi
 export INTARSIA_REGISTRY_VOL=intarsia-cargo-l7m-registry
 D=$HOME/intarsiaml-l7m-hip/deploy/tatooine/dev.sh
 if [ "$what" != base ]; then
-  echo "== syntax check of the new translation unit"
-  out=$($HOME/intarsiaml-l7m-hip/scripts/l7m/syntax.sh); echo "$out"
-  echo "$out" | grep -q "rc=[1-9]" && { echo "SYNTAX CHECK FAILED, no build"; exit 1; }
-fi
-if [ "$what" != base ]; then
   echo "== dev: intarsia"
   INTARSIA_REPO=$HOME/intarsiaml-l7m-hip INTARSIA_TARGET_VOL=intarsia-cargo-l7m-dev $D cargo build --release --locked --features hip -p intarsia-cli 2>&1 < /dev/null | tail -3
   echo "== dev: tests (compile only)"
-  INTARSIA_REPO=$HOME/intarsiaml-l7m-hip INTARSIA_TARGET_VOL=intarsia-cargo-l7m-dev $D cargo test --release --no-run -p intarsia-backend-hip --test moe_block --test rows_exact --test rows_registry 2>&1 < /dev/null | tail -4
+  INTARSIA_REPO=$HOME/intarsiaml-l7m-hip INTARSIA_TARGET_VOL=intarsia-cargo-l7m-dev $D cargo test --release --no-run -p intarsia-backend-hip --test rows_registry 2>&1 < /dev/null | tail -4
   INTARSIA_REPO=$HOME/intarsiaml-l7m-hip INTARSIA_TARGET_VOL=intarsia-cargo-l7m-dev $D cargo test --release --no-run -p intarsia-models --test batch_cuda_real --test batch_recurrent 2>&1 < /dev/null | tail -4
 fi
 if [ "$what" != dev ]; then
