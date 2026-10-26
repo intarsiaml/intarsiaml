@@ -42,3 +42,28 @@ Pooled mean over the 7 categories: k2 88.9, k3 90.6 tok/s (+2.0%); every categor
 than k2 (limit 2%), on both prompt sets; the gap is about 10 times the round-to-round spread (< 0.5%). **Decision: keep
 `mtp_default_tp_k = 2`.** The third draft is accepted 39-45% of the time, which pays on code (3.4 tokens per pass) and not on prose
 (2.25 tokens per pass for a 4-row verify instead of 3).
+
+## 2. Window B: DFlash2 k7 and k5 at tp=2 (record-only) -> no change
+
+Window B (#5779, 14:14:57-14:50:17 radiance down; `raw/b1/`), arms `off dfl7 dfl5; dfl5 dfl7 off` (x2, record-only per the
+coordinator), 42 runs, 0 problems (`raw/b1/cat-table.txt`). Beside window A's MTP k2 (the tp=2 default):
+
+| category | off | DFlash2 k7 | DFlash2 k5 | MTP k2 (A) | best |
+|---|---|---|---|---|---|
+| ho-chat | 53.2 | 63.7 (1.20x, 3.22 t/p) | 64.2 (1.21x, 3.05 t/p) | 85.6 | MTP k2 |
+| ho-code | 53.2 | 105.7 (1.99x, 5.32 t/p) | 95.8 (1.80x, 4.54 t/p) | 102.8 | DFlash2 k7 (+2.8%) |
+| ho-prose | 53.2 | 49.5 (**0.93x**, 2.50 t/p) | 51.9 (0.98x, 2.47 t/p) | 76.0 | MTP k2 |
+| ho-recall | 53.2 | 71.2 (1.34x, 3.60 t/p) | 70.8 (1.33x, 3.37 t/p) | 89.4 | MTP k2 |
+| rcp-code | 53.2 | 103.3 (1.94x, 5.20 t/p) | 95.0 (1.79x, 4.50 t/p) | 100.2 | DFlash2 k7 (+3.1%) |
+| rcp-prose | 53.2 | 50.4 (**0.95x**, 2.54 t/p) | 52.8 (0.99x, 2.51 t/p) | 77.4 | MTP k2 |
+| rcp-recall | 53.2 | 76.7 (1.44x, 3.89 t/p) | 75.9 (1.43x, 3.61 t/p) | 90.7 | MTP k2 |
+
+#176 made DFlash2 cheaper (k7 at tp=2 was 0.75-1.61x in lane dfh's window 7, now 0.93-1.99x; prose +23%), but it still loses to off
+on prose and to MTP k2 everywhere except code (+3%). k5 trades code for prose (prose 0.98-0.99x). DFlash2 does not beat the MTP
+default in every category, so nothing changes: DFlash2 stays opt-in. The per-pass cost is the draft (about 24 ms at tp=2, run
+whole on rank 0): see lane dfh's section 16 for what would close that.
+
+## 3. Outcome
+
+No default changes. The 27B on HIP at `--tp 2` keeps `--spec mtp --spec-k 2` (1.43-1.93x off in every category); `--spec-k 3` is a
+documented opt-in for code-heavy traffic (+9% on code, -4.5% on prose). DFlash2 stays opt-in (`--spec dflash`). Windows used: 2 of 2.
