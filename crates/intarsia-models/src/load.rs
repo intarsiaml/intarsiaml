@@ -71,6 +71,8 @@ pub struct EngineOptions {
     /// under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`, in-process ranks, one sequence; `INTARSIA_SPEC_DEFAULT=0`
     /// turns the default off). `false` (the library default): `spec` is taken as it is.
     pub spec_auto: bool,
+    /// `--spec-k` was given (with `spec_auto`: it sets the default's draft length instead of being ignored).
+    pub spec_k_given: bool,
     /// The server's `--busy-chunk` (batched engine only; `None`: the scheduler default, 256).
     pub busy_chunk: Option<usize>,
     /// Content-addressed prefix store (`--prefix-store`, docs/results/2026-10-22-pc-prefix-store.md). `None`: the
@@ -390,7 +392,8 @@ pub fn tp_mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Reci
     {
         return None;
     }
-    recipe.resolve_mtp_default_tp(backend)
+    // a lone `--spec-k N` sets only the draft length of the default; the recipe's k is used otherwise
+    recipe.resolve_mtp_default_tp(backend).map(|rk| if opts.spec_k_given { opts.spec.k } else { rk })
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
@@ -420,8 +423,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         Some((b0, k)) => {
             eprintln!(
-                "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
+                "--spec mtp --spec-k {k}{}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
                  INTARSIA_SPEC_DEFAULT=0 turns it off)",
+                if opts.spec_k_given { " (k from --spec-k)" } else { "" },
                 recipe.model.family,
                 b0.name(),
                 backends.len(),
@@ -433,7 +437,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             defaulted = o;
             &defaulted
         }
-        None => opts,
+        None => {
+            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp {
+                eprintln!("warning: --spec-k {} has no effect without --spec here (no recipe speculation default applies); speculation is off", opts.spec.k);
+            }
+            opts
+        }
     };
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 8, CUDA 16).
