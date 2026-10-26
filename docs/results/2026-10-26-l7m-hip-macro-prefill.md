@@ -60,10 +60,9 @@ Earlier runs (raw in `raw/screen1`, `screen2`, `ab`): macro 16384 gave 16k +4.9 
 - Context under `serve --max-batch 16 --max-seq 17408`: 16223 tokens (macro off) -> 15410 with 8192 (-5.0 %) -> 13788 with 16384 (-15.0 %). Single stream: 17408 at every size. This is why 8192 ships and 16384 does not (`raw/gates/ctx.log`, `ctxplan-*`).
 - Latency: a request that arrives while a macro pass runs waits for it (about 0.6 s per 4096 rows; at most about 1.2 s at 8192). The batched scheduler only takes a macro step for a prompt that prefills alone with nothing decoding (PR #165). A mixed check (12k long prompt + 1k short, `--max-batch 16`, `raw/mix`) showed short TTFT p50 0.154 s vs 0.156 s and p99 1.49 s vs 1.36 s (16384 branch, run before the size change); weak evidence, because the macro probably did not engage while the short requests decoded.
 
-## Decisions needed
+## Decision
 
-1. Default-on at 8192? Bitwise gates all pass; gain is prefill only (16k +3.1 %, 12k at 16 slots +5.9 %), loss at 1k and 4k is nil (+0.3 %). Costs: `--max-batch 16` context -5.0 % (813 tokens), and `plan show` is no longer byte-identical to main at the default (scratch +504 MB; `INTARSIA_PREFILL_MACRO=0` restores it byte for byte). If a byte-identical plan at the default is required, move the size to an opt-in env knob instead.
-2. 16384 (+4.5 % at 16k) is not shipped: -15 % context at 16 slots.
+L7 coordinator, 2026-10-26: keep `prefill_macro = 8192` default-on. The `--max-batch 16 --max-seq 17408` context goes from 16223 to 15410 tokens (-5.0 %, within the 5 % limit). `plan show` at the default moves by design (scratch 167,905,792 -> 671,615,488 B); the byte-identical `plan show` check is for changes that must not move the plan, and with `INTARSIA_PREFILL_MACRO=0` it is byte-identical to main, so it passed. 16384 (+4.5 % at 16k) is not shipped: -15 % context at 16 slots.
 
 ## Raw logs
 
