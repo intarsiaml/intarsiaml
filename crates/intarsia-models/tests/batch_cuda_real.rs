@@ -174,6 +174,46 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
 
 /// Print both ranks' collective ledgers (`INTARSIA_TP_COLL_TRACE=1`, `Model::coll_trace_dump`): the first line where they differ, then the last
 /// 40 lines of each. The first differing pass is the step the ranks decided differently.
+/// Debugging (w26): where every host thread of this process sits. A signal handler on each thread prints its backtrace (a thread blocked in
+/// an uninterruptible driver call prints nothing: its kernel wait channel is listed first). Used at a hang to tell a device-side spin from a host-side
+/// deadlock (one rank's host thread inside hipMalloc, a sync or a module load while the other rank's ar2 kernel spins).
+#[cfg(target_os = "linux")]
+fn dump_host_stacks() {
+    extern "C" fn on_signal(_: libc::c_int) {
+        // SAFETY: gettid has no preconditions.
+        let tid = unsafe { libc::syscall(libc::SYS_gettid) };
+        let bt = std::backtrace::Backtrace::force_capture();
+        eprintln!("STACK tid {tid}:\n{bt}");
+    }
+    // SAFETY: installing a handler for a signal this test process does not otherwise use.
+    unsafe {
+        libc::signal(libc::SIGUSR2, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+    }
+    let pid = std::process::id() as libc::c_long;
+    let me = unsafe { libc::syscall(libc::SYS_gettid) };
+    let Ok(rd) = std::fs::read_dir("/proc/self/task") else { return };
+    for e in rd.flatten() {
+        let Some(tid) = e.file_name().to_str().and_then(|t| t.parse::<libc::c_long>().ok()) else { continue };
+        let rd = |f: &str| std::fs::read_to_string(format!("/proc/self/task/{tid}/{f}")).unwrap_or_default().trim().replace('\n', " ");
+        eprintln!("THREAD {tid}{}: comm {:?} wchan {:?} state {:?}", if tid == me { " (this one)" } else { "" }, rd("comm"), rd("wchan"), rd("stat").split(' ').nth(2).unwrap_or(""));
+        if tid != me {
+            // SAFETY: tgkill to a thread of this process.
+            unsafe { libc::syscall(libc::SYS_tgkill, pid, tid, libc::SIGUSR2) };
+            std::thread::sleep(Duration::from_millis(150));
+        }
+    }
+}
+
+/// `INTARSIA_REPRO_WARMUP=1` (lane tp2, w26): one eager solo step and one eager batched step of 2 rows before anything else, with the graphs off, so that
+/// every lazy allocation and code-object load of the first step of a fresh model happens before the first collective of the measured steps.
+fn maybe_warm(m: &Model) {
+    if std::env::var("INTARSIA_REPRO_WARMUP").is_ok_and(|v| v == "1") {
+        m.set_graphs(false);
+        batch_identity::run(m, &batch_identity::Cfg { lens: vec![5, 7], batches: vec![2], steps: 1, vocab_range: (1000, 30000) });
+        m.set_graphs(true);
+    }
+}
+
 fn dump_ledgers(m: &Model, why: &str) {
     let a = m.coll_trace_dump();
     let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
@@ -186,6 +226,10 @@ fn dump_ledgers(m: &Model, why: &str) {
         for line in &l[l.len().saturating_sub(40)..] {
             eprintln!("LEDGER rank {r}: {line}");
         }
+    }
+    #[cfg(target_os = "linux")]
+    if why == "watchdog" || std::env::var("INTARSIA_REPRO_STACKS").is_ok_and(|v| v == "1") {
+        dump_host_stacks();
     }
     // Last: the read may block when the device is already in an exception state (w20: it took the process down before any ledger line printed).
     eprintln!("LEDGER device state: {}", m.comm_debug_state().unwrap_or_else(|| "none".into()));
@@ -245,6 +289,7 @@ fn real_35b_tp2_solo_fresh_states_repro() {
     let prompt: Vec<u32> = (0..40u32).map(|i| 1000 + (i * 7919) % 20000).collect();
     for rep in 0..reps {
         let m = load(&dir, be.clone(), 16, 2048);
+        maybe_warm(&m);
         if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
             m.set_graphs(false);
         }
@@ -352,6 +397,7 @@ fn real_35b_tp2_batch_first_steps_repro() {
             break;
         }
         let m = load(&dir, be.clone(), 16, 2048);
+        maybe_warm(&m);
         if std::env::var("INTARSIA_REPRO_NO_GRAPHS").is_ok_and(|v| v == "1") {
             m.set_graphs(false); // every step eager, solo and batched, on both ranks
         }

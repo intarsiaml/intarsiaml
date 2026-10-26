@@ -47,14 +47,20 @@ variant() { need 215 "$1" && clear "$1" && repro "$@"; }
 #   a control | drain4 (flag re-sent while waiting: hang gone = a flag store was lost) | drain5 (~25 us before the data is read: failures gone = data lands after flag)
 #   | leak (the handshake buffers are never freed: no address reuse between reps)
 # then one process per rep (REPS=1 x 10): a fresh process per model.
-E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1"
-for round in 1 2; do
-  variant f$round-control 200 $FS $E
-  variant g$round-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
-  variant h$round-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
-  variant i$round-leak 200 $FS $E INTARSIA_HIP_COMM_LEAK=1
-done
-for p in 1 2 3 4 5 6 7 8 9 10; do
+E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1"
+# w25 findings that shape this: (1) the mismatch comes FIRST (batched logits wrong in every row, solo bits identical across runs) and the hang follows it
+# (a trap ~16 s later), so the hang may be the tail of a rank-offset in collectives; (2) the device counters are now read right after the batched step,
+# before the comparison, and the host stacks of every thread at the watchdog; (3) k = lazy code-object loading off, w = one eager warm-up step first.
+variant f1-control 200 $FS $E
+variant g1-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
+variant h1-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
+variant i1-leak 200 $FS $E INTARSIA_HIP_COMM_LEAK=1
+variant k1-no-deferred-loading 200 $FS $E HIP_ENABLE_DEFERRED_LOADING=0
+variant w1-warmup 200 $FS $E INTARSIA_REPRO_WARMUP=1
+variant f2-control 200 $FS $E
+variant g2-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
+variant h2-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
+for p in 1 2 3 4 5 6 7 8; do
   variant jp$p-one-process 200 $FS ${E/REPS=8/REPS=1}
 done
 log "done, time left $(left)s"

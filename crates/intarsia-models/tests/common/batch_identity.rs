@@ -87,12 +87,22 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
         })
         .collect();
 
+    // INTARSIA_REPRO_CTRS=1 (lane tp2, w26): the device-side collective counters of both ranks around the batched step (HIP P2P comm only)
+    let probe = |what: &str| {
+        if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") {
+            if let Some(st) = model.comm_debug_state() {
+                eprintln!("CTRS batch {b} step {step} {what}: {st}");
+            }
+        }
+    };
+    probe("after the solo rows, before the batched step");
     // one batched step
     let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
     let mut refs: Vec<&mut SequenceState> = idxs.iter().map(|&i| slots[i].take().unwrap()).collect();
     let batched = bm.forward_batch(&mut refs, &ids, &modes).unwrap();
     drop(refs);
     assert_eq!(batched.len(), b);
+    probe("after the batched step");
 
     for (r, &i) in idxs.iter().enumerate() {
         let what = format!("batch {b} step {step} row {r} (sequence {i}, context {} -> {})", ctx[r], ctx[r] + 1);
