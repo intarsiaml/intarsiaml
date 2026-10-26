@@ -77,16 +77,6 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
     let ids: Vec<u32> = idxs.iter().map(|&i| seqs[i].tok).collect();
     let ctx: Vec<usize> = idxs.iter().map(|&i| seqs[i].solo.len).collect();
 
-    // solo steps
-    let solo: Vec<StepOut> = idxs
-        .iter()
-        .zip(&modes)
-        .map(|(&i, &m)| {
-            let tok = seqs[i].tok;
-            model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap()
-        })
-        .collect();
-
     // INTARSIA_REPRO_CTRS=1 (lane tp2, w26): the device-side collective counters of both ranks around the batched step (HIP P2P comm only)
     let probe = |what: &str| {
         if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") {
@@ -95,6 +85,19 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
             }
         }
     };
+    probe("before the solo rows");
+    // solo steps
+    let solo: Vec<StepOut> = idxs
+        .iter()
+        .zip(&modes)
+        .map(|(&i, &m)| {
+            let tok = seqs[i].tok;
+            let o = model.forward(&mut seqs[i].solo, &[tok], m, None).unwrap();
+            probe(&format!("after solo row {i} ({m:?}, context {})", seqs[i].solo.len));
+            o
+        })
+        .collect();
+
     // INTARSIA_REPRO_SYNC_BETWEEN=1 (w26): every rank's stream idle between the last solo step and the batched step
     if std::env::var("INTARSIA_REPRO_SYNC_BETWEEN").is_ok_and(|v| v == "1") {
         model.sync_all_ranks().unwrap();
