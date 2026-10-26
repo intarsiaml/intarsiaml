@@ -61,7 +61,7 @@ mtp35)
 import sys, glob
 d, T, k = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 files = sorted(glob.glob(d + "/results/*.md")) + sorted(glob.glob(d + "/*.md"))
-want = int(T * 3.3); out = []; n = 0; i = (k * 37 + (T // 4096) * 11) % len(files)
+want = int(T * 2.3); out = []; n = 0; i = (k * 37 + (T // 4096) * 11) % len(files)
 while n < want:
     t = open(files[i % len(files)], errors="ignore").read()
     out.append(t); n += len(t); i += 1
@@ -69,7 +69,7 @@ print("".join(out)[:want], end="")
 PY
       for mode in off mtp; do
         if [ $mode = off ]; then A="--spec off"; else A="--spec mtp --spec-k 2"; fi
-        env ${GATE:+INTARSIA_SPEC_GATE=$GATE} $B generate -m $M35 --backend cuda --mem-budget ${MEMB:-34} --max-seq $MS --profile-every 0 --ignore-eos --show-ids --max-tokens ${NTOK:-128} $A \
+        env ${GATE:+INTARSIA_SPEC_GATE=$GATE} $ENVX $B generate -m $M35 --backend cuda --mem-budget ${MEMB:-34} --max-seq $MS --profile-every 0 --ignore-eos --show-ids --max-tokens ${NTOK:-128} $A \
           -p "$(cat $f)" < /dev/null > /dev/null 2> $O/m35-$T-$k-$mode.err
         grep -a '^ids:' $O/m35-$T-$k-$mode.err > $O/m35-$T-$k-$mode.ids
       done
