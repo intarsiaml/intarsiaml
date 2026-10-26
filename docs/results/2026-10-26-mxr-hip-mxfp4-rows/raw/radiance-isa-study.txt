@@ -1,0 +1,17 @@
+Radiance ISA study (lane mxr, 2026-10-26, read-only; sub-agent report, nothing copied into intarsiaml)
+Image: stilldeadcode/radiance:1.12.0, sha256:e82764045e46ebae07e33961f17dedba981c0d07336dfcddd67e4b3b042b8600 (tatooine).
+Licence: Apache-2.0, /opt/radiance/share/doc/radiance/LICENSE; NOTICE "radiance Copyright 2026 Deadcode radiance contributors".
+Kernel library: /opt/radiance/share/radiance/kernels/libr4d.so (100 gfx1201 code objects, 5934 kernel symbols); MXFP4 matmuls built
+from /src/libr4d/r4d_gemm_mxfp4a8_{decode,gemv,tiled,nt_m64}.hip (code objects r4d_060..063). Extracted to tatooine ~/intarsiaml-mxr-radisa/.
+
+Observed (static disassembly, whole kernel bodies):
+- Activations are E4M3 fp8 with an f32 scale per row or per (row, 128 K) (W4A8, not Quark's W4A4); weights OCP MXFP4, pre-shuffled.
+- Inner products: v_wmma_f32_16x16x16_fp8_fp8 or v_dot4_f32_fp8_fp8 only; no iu8/iu4/bf16 WMMA, no v_dot2/v_dot8.
+- FP4 decode: 3-bit magnitude -> v_perm_b32 from an 8-byte table pre-shifted by the e8m0 scale (scale folded into the fp8 weight), sign via
+  v_and_or 0x80808080, two more v_perm to reorder; per-row factor applied once at the end.
+- gemv_kernel<{1,2,4,8},{1,2,4},bool> (doc string: "OCP-MXFP4 GEMM for ONE TO EIGHT rows: the weight streamed straight to registers and
+  folded to e4m3 there, no LDS staging; WMMA when K is a multiple of 128, v_dot4 otherwise, chosen from K alone so a row's bits do not
+  depend on M"). <8,1>: 320 v_dot4, 80 v_perm, 73 VGPR, 4 KB LDS. gemvw_kernel: the WMMA form (8 chained WMMAs per 128 K).
+- decode_kernel<{64,128},{1..16 split-K},{1..8 row tiles},..>: split-K across workgroups, LDS-staged fp8 weights, WMMA.
+- Which kernel the engine dispatches for its 8-row verify step was not determined (host code not disassembled).
+Not done: rocprof of radiance itself (would need its own window); the 18.5 ms 8-row verify+draft figure in the brief is radiance at TP2.

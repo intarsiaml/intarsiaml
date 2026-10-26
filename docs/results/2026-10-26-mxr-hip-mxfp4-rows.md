@@ -1,0 +1,178 @@
+# mxr: multi-row MXFP4 GEMV on HIP through exact int8 dot products (lane mxr, 2026-10-26)
+
+Branch `lane-mxr/hip-mxfp4-rows` (off main ec9e36b8). Draft PR. **Phase 0 only**: a standalone harness (`scripts/mxr/`), three tatooine
+windows. No production code changed yet. Hardware: one R9700 (gfx1201, card 0), ROCm 7.2.4 dev image, radiance down inside fleetq slots.
+
+## Result: go, with design (a). The M=1 kernel and its bits stay unchanged.
+
+On the 27B's W4A4 path, the 32-element group sum of the production GEMV is exact in fp32. Each product is
+e2m1 x e2m1 x 2^ex, which is (integer code product) / 4 x 2^ex, with the codes doubled to integers in {0, 1, 2, 3, 4, 6, 8, 12}. Every
+partial sum is a multiple of 2^(ex-2) of magnitude at most 4608 x 2^(ex-2), so it fits the 24-bit significand. The same exactness makes
+tp=2 bitwise tp=1 on this model (lane T2, unanimis 769d59ea).
+
+So t = sum_e wf[e] * xq[e] equals (float)T * 2^(sbx - 129), where T is the integer dot of the doubled codes. `v_dot4_i32_iu8` computes T
+in any order. After that the kernel keeps the production arithmetic:
+- `acc = fma(t, s_w, acc)` per lane, in the same lane-to-group order;
+- the same xor-butterfly warp sum.
+
+Every row is therefore bitwise the production M=1 launch by construction. No numerics decision and no KL gate are needed, and M=1 keeps
+its kernel and its bits.
+
+The bound needs the x scale byte to lie in [3, 244]:
+- below 3, partial sums could be subnormal and FTZ-dependent;
+- above 244, they can overflow, and 253 to 255 means inf or NaN.
+
+The pre-pass flags any call with such a group, or with W4A16 (`act == 0`). A flagged call runs the production fp chain for the whole
+call. Real activations never reach those scales: |x| would have to be about 1e-36 or 1e35.
+
+Harness results, us per call including the pre-pass. Ratios are to the production M=1 launch of the same shape. "now" is main's row-exact
+launcher `matmul_mxfp4_gemv_rows`; "int8" is the int8 kernel with 2 weight rows per warp and a 2-step activation prefetch (r2 xp2):
+
+| shape (27B role, calls/step) | M=1 now | int8 M=1 | M=2 now / int8 | M=4 now / int8 | M=8 now / int8 | M=16 now / int8 |
+|---|---|---|---|---|---|---|
+| 17408x5120 (MLP gate/up, 128) | 80.8 | 78.2 (0.97) | 1.03 / 0.97 | 1.16 / 1.00 | 1.90 / **1.09** | 3.31 / **1.66** |
+| 5120x17408 (MLP down, 64) | 80.7 | 80.3 (1.00) | 1.08 / 1.01 | 1.30 / 1.06 | 1.94 / **1.18** (xp4 1.15) | 3.36 / 1.72 (xp4 1.63) |
+| 12288x5120 (attn q+gate, 16) | 59.9 | 58.9 (0.98) | 1.05 / 1.02 | 1.17 / 1.00 | 1.89 / **1.12** | 3.25 / 1.66 |
+| 10240x5120 (GDN qkv, 48) | 51.2 | 49.2 (0.96) | 1.07 / 0.97 | 1.21 / 1.01 | 1.75 / **1.13** | 3.24 / 1.67 |
+| 6144x5120 (GDN z, 48) | 34.5 | 33.5 (0.97) | 1.14 / 0.98 | 1.30 / 1.03 | 1.77 / **1.17** | 2.89 / 1.67 |
+| 5120x6144 (attn o / GDN out, 64) | 35.0 | 38.8 (1.11) | 1.25 / 1.13 | 1.60 / 1.22 | 2.12 / 1.68 (xp4 **1.41**) | 3.19 / 1.92 (xp4 1.86) |
+| 1024x5120 (attn k, v, 32) | 14.1 | 12.9 (0.91) | 1.09 / 0.94 | 1.28 / 1.01 | 1.65 / **1.13** (xp4 1.07) | 2.52 / 1.47 (xp4 1.37) |
+
+Raw: raw/w3-timing.log (window w3); the M=1 / prefetch-free arms are in raw/w2-timing.log.
+
+**Bitwise.** Every exact arm of all three harness rounds matched the production M=1 launch on every row. The runs covered:
+- M = 1..16;
+- 14 shapes: all 27B GEMV shapes, plus N = 1, 7, 9, 33, 300, 301 and K = 32, 64, 2080, 4096, 6176, 17408 (partial warps and tails);
+- three input modes:
+  - 0: plain;
+  - 1: x groups at scale bytes 0..4 and 246..254, subnormal x, inf and NaN elements, zero and -0 groups, weight scale bytes 0..3,
+    250..255 including NaN rows;
+  - 2: x scale bytes 3..6 and 238..244, the fast path's extremes, plus the same weight scales.
+
+That is 0 mismatches in 42 of 42 runs per round (raw/w{1,2,3}-edge.log). The variant without the fallback mismatches on every mode-1 run,
+14 of 14, so the edge inputs do reach the fallback. It matches on modes 0 and 2. This works as a built-in negative control.
+
+**Step-level estimate (not measured yet).** Main's 27B one-row step is 30.3 ms and its batched 8-row step 59.5 ms (from the mr batch
+profile). Weighting the table by calls per step:
+- the MXFP4 GEMVs take 23.2 ms at M=1;
+- at M=8 they take 44.0 ms now and about 26.6 ms with int8 (1.15x of M=1);
+- at M=16 they take about 76.7 ms now and about 38 ms with int8.
+
+| | step M=1 | step M=8 | ratio | step M=16 |
+|---|---|---|---|---|
+| main (measured, batched decode of 8 sequences) | 30.3 | 59.5 | 1.96 | 110.9 |
+| int8 rows (estimate: main minus the GEMV saving) | ~30 | ~42 | ~1.4 | ~72 |
+| floor if the MXFP4 GEMVs cost nothing extra | 30.3 | ~38.7 | ~1.28 | |
+
+The non-GEMV part of the batched 8-sequence step grows from about 7.1 to 15.5 ms. The main items:
+- GatedDeltaNet state: about 0.5 ms per sequence, a byte floor;
+- attention;
+- lm_head rows.
+
+So 1.3x for **batched decode** of 8 sequences is not reachable through the GEMV alone. An 8-row speculative verify of **one** sequence
+(dfh) reads the GDN state and KV once, so its non-GEMV growth is smaller, and about 1.3x looks reachable there (estimate). The coordinator's
+dfh numbers (eager 8-row verify 85 ms) are eager and not comparable to the captured 30.3 ms step.
+
+## What limits M=8 today, and in the int8 kernel
+
+The production row-exact kernel is VALU-issue bound. Per activation row and 32-element group, a lane does:
+- 32 fma;
+- the bf16 unpack of x, shared by 2 weight rows;
+- the LDS LUT read of each weight.
+
+The ISA (raw/mxr0-isa.txt) has 958 VALU at M=8, and the slope is about 12.5 us per extra row on 17408x5120.
+
+The int8 kernel's per-row work per group is:
+- 8 `v_dot4_i32_iu8` per weight row;
+- cvt, mul and fma;
+- 2 x 128-bit loads of int8 codes (half the bytes of bf16) and one 4-byte scale load.
+
+The weight decode (nibble to int8 through 2 `v_perm_b32` tables plus a sign-mask `v_perm` and `v_bfi`, 15 VALU per 8 weights) is done once
+per weight, not once per row. Static loop body at M=8, R=2 (raw/isa-w1-i8-m8-r2-nofb-loop.s): 128 dot4, 48 perm, 16 cvt / mul / fma, 38
+64-bit address ops.
+
+Measured, kernel only (rocprofv3 kernel trace, raw/kernel-trace-summary.txt), 17408x5120:
+
+| kernel | M=1 | M=8 | M=16 |
+|---|---|---|---|
+| main `mxfp4_gemv_rows_kernel` (M=1: `mxfp4_gemv1_lds_kernel`) | ~80 | 134 | 259 |
+| int8 rows, R=2, no prefetch | 72.5 | 90.7 | 134.5 |
+
+Round by round:
+- **Round 1 (w1).** A per-group fallback branch inside the loop cost 40-100 % at M=8-16, through VGPRs (65 to 111-180) and occupancy (16
+  to 8-12).
+- **Round 2 (w2).** Moved the fallback to a per-call flag, read with scalar loads. That made it free (r2 fb4 equals the no-fallback arm
+  within 1-2 %).
+- **Round 3 (w3).** The rest was latency. The activation loads of each row sit behind a scheduler barrier, so with few waves per SIMD each
+  row's L0/L2 latency is exposed. A 2-step register queue of activation loads (xp2) took 17408x5120 M=8 from 98 to 88 us and
+  5120x17408 from 125 to 96 us.
+- **Remaining.** The small-N shapes (N = 5120: down 5120x17408 and o/out 5120x6144) have only 2560 warps at R=2. They remain the worst at
+  1.15-1.4x.
+
+rocprofv3 `--pmc` on this stack (gfx1201, ROCm 7.2.4) returns 0 for SQ_INSTS_*, SQ_INST_CYCLES_VALU, SQ_WAVE_CYCLES, TCP_* and GL2C_*.
+Only GRBM_GUI_ACTIVE, SQ_BUSY_CYCLES and SQ_WAVES count (raw/pmc-summary.txt). The limiter analysis above therefore rests on ISA
+counts, kernel-trace times and ablations, not counters.
+
+**M=1.** The int8 path runs M=1 bitwise and is 0-4 % faster than main's LDS kernel on the K=5120 shapes, even with its separate pre-pass
+launch (about 3 us):
+- 78.2 vs 80.8 on 17408x5120;
+- 12.9 vs 14.1 on 1024x5120.
+
+It is 11 % slower on 5120x6144, where the fused-pre-pass M=1 variant ("m1 lds r1": 33.7-33.8 vs 35.0, raw/w3-timing.log) wins instead.
+This is a small free win, not part of this lane's default change unless the gates show it holds in the step.
+
+## Estimates asked for in the brief
+
+- **(a) Row-exact, M=1 unchanged:** measured above.
+  - Kernel-level M=8 / M=1 is 1.09-1.18 on the five large shapes, 1.41 on 5120x6144 and 1.07-1.13 on 1024x5120.
+  - The MXFP4 GEMV share of the step goes 1.89x to about 1.15x at M=8, and 3.3x to about 1.65x at M=16.
+- **(b) Co-designed M=1 + multi-row pair:** not needed. (a) already shares one reduction order with M=1 by exactness, so (b) would only buy
+  numerics freedom (WMMA-ordered sums), which is not needed for these ratios. The remaining lever for M > 8 is an iu8 WMMA kernel. It
+  would cut the per-row cost, which is now about 2.9 us per row on 17408x5120 from M=8 to 16, mostly the fp32 chain plus x loads.
+  That kernel can stay row-exact too: the fp32 chain needs one accumulator per lane-slot, kept in waves, plus an LDS reproduction of the
+  butterfly. Not started; it is the Phase 2 candidate if M=16 matters.
+- **Radiance reference (ISA only, raw/radiance-isa-study.txt, Apache-2.0).** Radiance's 1-8 row MXFP4 GEMV is also a weight-in-registers
+  `v_dot4` / WMMA kernel. It differs in two ways:
+  - its activations are fp8 (W4A8, not Quark's W4A4);
+  - its reduction order is fixed by K alone, independent of M (same idea as here).
+
+  Its per-kernel times were not measured; that would need a rocprof run of radiance itself in a window.
+
+## Phase 1 plan (production)
+
+1. `kernels/hip/mxfp4.hip`: add `mxfp4_xprep_i8_kernel` and `mxfp4_i8_rows_kernel<M, R=2, XP>` (XP 2 at K <= 8192, 4 above; R and XP
+   chosen per shape from this table). `matmul_mxfp4_gemv_rows` and `matmul_mxfp4_pair_gemv_rows` at M >= 2 use them:
+   - the pre-pass writes the bf16 QDQ x as before, plus the int8 codes, scales and flags; scratch grows from 2MK to about 3.2MK bytes;
+   - the pair launcher's M >= 2 path does one pre-pass for both halves instead of two.
+
+   Kill switch `INTARSIA_HIP_MXFP4_I8=0` brings back today's rows kernel, with a `docs/tuning.md` row.
+2. The slow path (flagged call) is the production fp chain with a small register footprint. W4A16 (`--mxfp4-act none`, opt-in) always
+   takes it, so W4A16 multi-row may get slower than today. To be measured; if it does, the kill-switch path is used for W4A16.
+3. Gates as in the brief:
+   - `rows_exact` bitwise for M = 1..16 on all shapes, extended with the edge inputs above;
+   - quick and admission cases for each new kernel;
+   - two mutants;
+   - 27B batched == solo and ids == main;
+   - G0 no-op on 8B and 35B on HIP, CUDA and Metal;
+   - localeval at 1/4/8/16 streams, tp1 and tp2.
+
+## Method and reproduction
+
+- Harness:
+  - `scripts/mxr/mxr0.hip` (round 1);
+  - `mxr1.hip` (round 2: fallback modes, pre-pass with 4 threads per group, fused M=1);
+  - `mxr2.hip` (round 3: activation prefetch queue).
+
+  Each includes `kernels/hip/mxfp4.hip` and uses the production `ik_matmul_mxfp4_gemv` per row (W4A4, `act = 1`) as the reference. It
+  runs 3 rotating weight copies, so the 64 MB MALL cannot hold a matrix, with 200 calls x 3 rounds and the minimum taken.
+- Scripts:
+  - `scripts/mxr/build.sh <harness>`: hipcc in `intarsia-hip-dev:rocm7.2.4-rust1.90.0`, plus the ISA and resource usage, summarised by
+    `scripts/mxr/isa.py`;
+  - `scripts/mxr/win.sh`: radiance down, timing, edge runs and rocprofv3 on card 0, then radiance restored and checked on :8080;
+  - `scripts/mxr/sync.sh`.
+- fleetq: builds #5712, #5713, #5717, #5718, #5721, #5722 (`--load cpu`); windows #5714 (w1), #5719 (w2), #5723 (w3)
+  (`--takes-down radiance --quiet gpu,cpu`). Radiance answered on :8080 after each window. That is 3 of the lane's 5 windows.
+- Harness binary hashes (sha256, printed by build.sh):
+  - mxr0 b0fb1ef3… (w1);
+  - mxr1 87a862f2… (w2);
+  - mxr2 6a0ceb7a… (w3).

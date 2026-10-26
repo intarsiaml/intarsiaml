@@ -1,0 +1,86 @@
+## w1/prof-kt (rocprofv3 --kernel-trace; kernel | calls | avg us | min us)
+mxfp4_xprep_kernel | 122 | 4.73 | 4.2
+mxr_xprep_kernel | 1464 | 6.44 | 5.92
+mxfp4_gemv1_lds_kernel<float> | 138 | 84.0 | 60.84
+mxfp4_gemv_rows_kernel<16, float> | 61 | 260.82 | 250.92
+mxfp4_gemv_rows_kernel<8, float> | 61 | 134.26 | 129.72
+mxr_i8_rows_kernel<1, 1, true, float, 1> | 61 | 72.37 | 71.84
+mxr_i8_rows_kernel<1, 2, false, float, 1> | 61 | 72.83 | 72.04
+mxr_i8_rows_kernel<1, 2, true, float, 0> | 61 | 72.57 | 71.92
+mxr_i8_rows_kernel<1, 2, true, float, 1> | 61 | 72.87 | 72.16
+mxr_i8_rows_kernel<1, 2, true, float, 2> | 61 | 72.88 | 71.88
+mxr_i8_rows_kernel<1, 4, false, float, 1> | 61 | 74.06 | 73.12
+mxr_i8_rows_kernel<1, 4, true, float, 0> | 61 | 73.7 | 72.56
+mxr_i8_rows_kernel<1, 4, true, float, 1> | 61 | 74.24 | 73.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | 61 | 328.16 | 324.13
+mxr_i8_rows_kernel<16, 2, false, float, 1> | 61 | 279.49 | 276.05
+mxr_i8_rows_kernel<16, 2, true, float, 0> | 61 | 129.65 | 126.32
+mxr_i8_rows_kernel<16, 2, true, float, 1> | 61 | 290.88 | 286.05
+mxr_i8_rows_kernel<16, 2, true, float, 2> | 61 | 184.41 | 181.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | 61 | 271.25 | 269.49
+mxr_i8_rows_kernel<16, 4, true, float, 0> | 61 | 134.45 | 132.36
+mxr_i8_rows_kernel<16, 4, true, float, 1> | 61 | 277.86 | 275.05
+mxr_i8_rows_kernel<8, 1, true, float, 1> | 61 | 152.29 | 147.84
+mxr_i8_rows_kernel<8, 2, false, float, 1> | 61 | 126.07 | 121.04
+mxr_i8_rows_kernel<8, 2, true, float, 0> | 61 | 88.0 | 85.84
+mxr_i8_rows_kernel<8, 2, true, float, 1> | 61 | 132.9 | 131.36
+mxr_i8_rows_kernel<8, 2, true, float, 2> | 61 | 95.04 | 93.36
+mxr_i8_rows_kernel<8, 4, false, float, 1> | 61 | 147.48 | 146.08
+mxr_i8_rows_kernel<8, 4, true, float, 0> | 61 | 88.78 | 86.92
+mxr_i8_rows_kernel<8, 4, true, float, 1> | 61 | 152.06 | 150.56
+## w2/w2-prof-kt (rocprofv3 --kernel-trace; kernel | calls | avg us | min us)
+mxfp4_xprep_kernel | 122 | 4.71 | 4.16
+mxr_xprep4_kernel | 183 | 2.83 | 2.64
+mxr_xprep4f_kernel | 915 | 3.16 | 2.8
+mxr_xprep_kernel | 183 | 7.07 | 6.72
+mxfp4_gemv1_lds_kernel<float> | 138 | 85.27 | 78.28
+mxfp4_gemv_rows_kernel<16, float> | 61 | 258.51 | 252.16
+mxfp4_gemv_rows_kernel<8, float> | 61 | 133.88 | 127.88
+mxr_i8_m1_kernel<1, float> | 61 | 76.95 | 76.6
+mxr_i8_m1_kernel<2, float> | 61 | 77.73 | 77.24
+mxr_i8_rows_kernel<1, 1, 4, false, float> | 61 | 72.74 | 72.16
+mxr_i8_rows_kernel<1, 1, 4, true, float> | 61 | 72.71 | 72.12
+mxr_i8_rows_kernel<1, 2, 0, false, float> | 122 | 72.53 | 72.0
+mxr_i8_rows_kernel<1, 2, 4, false, float> | 61 | 72.87 | 72.16
+mxr_i8_rows_kernel<1, 2, 4, true, float> | 61 | 73.44 | 72.88
+mxr_i8_rows_kernel<1, 4, 4, true, float> | 61 | 75.74 | 74.72
+mxr_i8_rows_kernel<16, 1, 4, false, float> | 61 | 194.03 | 190.6
+mxr_i8_rows_kernel<16, 1, 4, true, float> | 61 | 191.52 | 186.88
+mxr_i8_rows_kernel<16, 2, 0, false, float> | 122 | 134.48 | 132.08
+mxr_i8_rows_kernel<16, 2, 4, false, float> | 61 | 135.01 | 132.68
+mxr_i8_rows_kernel<16, 2, 4, true, float> | 61 | 140.51 | 138.04
+mxr_i8_rows_kernel<16, 4, 4, true, float> | 61 | 147.45 | 144.6
+mxr_i8_rows_kernel<8, 1, 4, false, float> | 61 | 104.61 | 102.16
+mxr_i8_rows_kernel<8, 1, 4, true, float> | 61 | 104.24 | 101.64
+mxr_i8_rows_kernel<8, 2, 0, false, float> | 122 | 90.67 | 89.24
+mxr_i8_rows_kernel<8, 2, 4, false, float> | 61 | 91.56 | 90.2
+mxr_i8_rows_kernel<8, 2, 4, true, float> | 61 | 97.15 | 95.72
+mxr_i8_rows_kernel<8, 4, 4, true, float> | 61 | 101.0 | 98.24
+## w2/w2-prof-kt2 (rocprofv3 --kernel-trace; kernel | calls | avg us | min us)
+mxfp4_xprep_kernel | 122 | 4.56 | 4.32
+mxr_xprep4_kernel | 183 | 2.62 | 2.44
+mxr_xprep4f_kernel | 915 | 3.03 | 2.72
+mxr_xprep_kernel | 183 | 6.53 | 6.28
+mxfp4_gemv1_lds_kernel<float> | 138 | 41.72 | 26.04
+mxfp4_gemv_rows_kernel<16, float> | 61 | 104.28 | 101.04
+mxfp4_gemv_rows_kernel<8, float> | 61 | 70.91 | 66.52
+mxr_i8_m1_kernel<1, float> | 61 | 31.9 | 31.68
+mxr_i8_m1_kernel<2, float> | 61 | 32.88 | 32.68
+mxr_i8_rows_kernel<1, 1, 4, false, float> | 61 | 29.95 | 29.6
+mxr_i8_rows_kernel<1, 1, 4, true, float> | 61 | 27.84 | 27.28
+mxr_i8_rows_kernel<1, 2, 0, false, float> | 122 | 32.74 | 32.24
+mxr_i8_rows_kernel<1, 2, 4, false, float> | 61 | 32.73 | 32.36
+mxr_i8_rows_kernel<1, 2, 4, true, float> | 61 | 29.92 | 29.64
+mxr_i8_rows_kernel<1, 4, 4, true, float> | 61 | 31.64 | 31.44
+mxr_i8_rows_kernel<16, 1, 4, false, float> | 61 | 93.16 | 91.48
+mxr_i8_rows_kernel<16, 1, 4, true, float> | 61 | 88.51 | 87.36
+mxr_i8_rows_kernel<16, 2, 0, false, float> | 122 | 90.01 | 88.76
+mxr_i8_rows_kernel<16, 2, 4, false, float> | 61 | 91.63 | 90.48
+mxr_i8_rows_kernel<16, 2, 4, true, float> | 61 | 87.08 | 85.72
+mxr_i8_rows_kernel<16, 4, 4, true, float> | 61 | 94.23 | 91.12
+mxr_i8_rows_kernel<8, 1, 4, false, float> | 61 | 57.79 | 56.56
+mxr_i8_rows_kernel<8, 1, 4, true, float> | 61 | 53.82 | 52.64
+mxr_i8_rows_kernel<8, 2, 0, false, float> | 122 | 64.83 | 63.44
+mxr_i8_rows_kernel<8, 2, 4, false, float> | 61 | 65.27 | 63.88
+mxr_i8_rows_kernel<8, 2, 4, true, float> | 61 | 58.8 | 57.56
+mxr_i8_rows_kernel<8, 4, 4, true, float> | 61 | 59.53 | 59.0
