@@ -34,23 +34,24 @@ For draft layer l: `K_ctx = rope(k_norm(k_proj_l(h_ctx)), pos)`, `V_ctx = v_proj
 positions. Note the context rows do **not** pass through the layer's `input_layernorm`, only the shared `hidden_norm`.
 These K/V persist in the draft's own KV cache (5 layers x 8 kv heads x 128 x 2 x bf16 = 20 KiB per token).
 
-**Block decode (one forward per round).**
+**Block decode (one forward per round). Corrected after the MLX reference run (section 10.3).**
 Let P be the number of context rows, equal to the position of the anchor token `b` (the last committed token, which the
-target has not yet been fed). Query tokens are `[b, MASK x 15]` (`mask_token_id` 151669) at positions P..P+15, 16 rows.
-Per layer: `x = embed(tokens)`; `x += o_proj(attn(input_layernorm(x)))`; `x += mlp(post_attention_layernorm(x))`; the
-query rows' own K/V (same projections, qk-norm, rope at P..P+15) are appended **after** the context K/V and attended with
-**no causal mask** (every query row sees all context and all 16 block rows). Final `norm`, then `lm_head` on rows 1..15
-only (row 0, the anchor, is not read). Argmax of row i gives the draft for position P+i. **15 drafts, 16 verify rows.**
-The block K/V are scratch: the next round overwrites positions P'.. with real context K/V.
+target has not yet been fed). The query block is `[b, MASK x 14]` (`mask_token_id` 151669), **15 rows** (`dflash_config.block_size
+= 15`) at positions P..P+14. Per layer: `x = embed(tokens)`; `x += o_proj(attn(input_layernorm(x)))`; `x += mlp(post_attention_layernorm(x))`;
+the query rows' own K/V (same projections, qk-norm, rope at P..P+14) are appended **after** the context K/V and attended
+with **no causal mask** (every query row sees all context and all block rows). Final `norm`, then `lm_head` on **all 15
+rows, the anchor row included** (`sample_from_anchor: true`): row r predicts the token at position P+r+1, so row 0 (the
+anchor) drafts the token right after the anchor. **15 drafts, 16 verify rows.** (The z-lab convention of taking rows 1..15
+gives tau 1.04 with this checkpoint: it is the wrong layout here.) The block K/V are scratch: the next round overwrites
+positions P'.. with real context K/V.
 
 **Verify (unchanged from MTP/ngram).** Target forward on `[b, d1..d15]` (16 rows = `LOGIT_ROWS`), longest-prefix greedy
 match, commit accepted + 1 bonus, roll the target KV back. The next round's context is the features of the rows the verify
 produced for the committed positions (anchor row plus the accepted rows).
 
-Geometry note: the checkpoint's `dflash_config.block_size = 15` counts drafted slots (paper: B = 15 excluding the anchor;
-README `num_speculative_tokens: 15`; vLLM `num_query_per_req = 1 + num_speculative_tokens`). z-lab's MLX `block_size`
-includes the anchor (16). `sample_from_anchor: true` and `causal: false` are in the config; `causal: false` matches the
-above, `sample_from_anchor` is **open** (section 8).
+Geometry note: `block_size = 15` is the number of query rows and of drafted slots; `sample_from_anchor: true` means the
+anchor row is sampled too; `causal: false` is the non-causal block attention. (Whether the query block has 15 or 16 rows
+(one extra unused mask row) is a statistical tie on the reference, tau 3.298 vs 3.261; we use 15, which is also cheaper.)
 
 ## 2. Checkpoint (metadata only; weights not downloaded yet)
 
@@ -202,8 +203,7 @@ Phase 1 downloaded metadata only and wrote no code. Phase 2 results are in secti
 
 ## 8. Open items (resolved empirically in phase 2/3, not guessed)
 
-1. `sample_from_anchor: true` in the config: vLLM's `dflash` method samples only the mask rows and the layout above matches
-   the paper's 14 transitions; the flag may belong to the DCOCO vLLM overlay. Check by tau against the reference.
+1. `sample_from_anchor: true`: resolved by the MLX reference (section 10.3): rows 0..14 including the anchor row.
 2. Whether the draft's `embed_tokens` row 151669 (mask) and the rest equals Qwen3-8B's table.
 3. Corrector unknowns the paper and tensor list do not pin: LayerNorm eps, GELU erf vs tanh, whether `h_i` is the draft's
    final-norm output or the pre-norm residual, the concatenation order in the 386-wide MLP input (paper lists
@@ -255,3 +255,33 @@ Model-level flag, so the ~8 h row-exact-kernel contingency is not needed. Cost: 
 tensors byte for byte: `embed_tokens.weight` and `lm_head.weight` are **IDENTICAL** to Qwen3-8B's (all 151936 rows, so the
 mask row 151669 too); the controls `layers.0.self_attn.q_proj` and `norm.weight` differ, as they must (`raw/embed-cmp.log`).
 Decision: the draft **shares the target's embedding and lm_head**; the draft's own copies (2.5 GB) are not loaded.
+
+### 10.3 Independent reference: z-lab MLX DFlash on this Mac (Apple M5 Max, Qwen3-8B bf16), 16 chat-templated prompts
+
+Harness `tools/dc/ref/` (delegated worker, reviewed here), prompts `tools/dc/prompts_dc.jsonl` (6 math, 5 code, 5 chat; Qwen3
+chat template, thinking off), greedy, up to 192 tokens, results in `raw/ref/` (README.txt has commands and versions).
+The corrector in `dcoco_ref.py` is written from the paper only (no code from the unlicensed repo).
+
+| run | pooled tau (accepted + 1), 904-920 rounds |
+|---|---|
+| plain DFlash, 15-row block, rows 0..14 | 3.298 |
+| plain DFlash, 16-row block | 3.261 |
+| plain DFlash, z-lab layout (rows 1..15) | 1.041 (wrong layout for this checkpoint) |
+| DCOCO default (eps 1e-5, erf GELU, order `[s;za;zb;la;lb]`, h after final norm, raw logits) | 3.360 (+1.9%) |
+| DCOCO eps 1e-6 / tanh GELU / both | 3.360 (identical accepted counts) |
+| DCOCO logits log-softmaxed or minus top-1 | 3.353 |
+| DCOCO concat order `[za;zb;s;la;lb]` / `[s;zb;za;lb;la]` | 3.259 / 3.026 |
+| DCOCO h before the final norm | 3.133 |
+
+Findings: (1) the draft rows are 0..14 including the anchor row; the tap is the output of 0-based layer i for
+i in 0, 8, 16, 24, 32 (worked first try). (2) The corrector structure is confirmed by teacher-forced accuracy of slot p+1
+given the true slot p (7379 transitions): argmax 0.587, default corrector 0.748, all the wrong variants 0.54-0.58, so the
+concat order, the h tap and the fuse order are pinned; eps and GELU variant are indistinguishable (0.7477 vs 0.7479) and
+change drafts in 3-18 of 904 rounds without changing any accepted count. They stay at the PyTorch defaults (eps 1e-5, erf
+GELU). (3) The in-loop gain of the corrector on these prompts is only +1.9% pooled (math/code prompts with tau 4-8.5
+gain, chat prompts with tau 1.4-2.6 gain nothing), against +27% in the paper's ten suites (3.913 -> 4.985); the paper's
+suites are math/code heavy and its drafter is trained on its own corpus, so this may be the prompt mix; phase 3 measures
+it on our own runs and G7 decides. (4) Speculative output equals plain greedy for 9 of 16 prompts; the other 7 first differ
+at a bf16 near-tie (0 to 2 ulps, 4 exact ties) of the MLX 16-row verify versus 1-row decode: the MLX GPU verify is not
+row-exact either, which is why our own gate is the exactness in section 10.1.
+Fixtures for the Rust cpu-ref tests (not committed, 10-14 MB each): `/opt/code/intarsiaml/.worktrees/dc-ref/out/fixture_{math2,code1,chat2}.npz`.

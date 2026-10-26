@@ -1,0 +1,93 @@
+[
+ {
+  "id": "math6",
+  "first_diff": 175,
+  "plain_token": 1380,
+  "spec_token": 315,
+  "plain_logit": 30.5,
+  "spec_logit": 30.375,
+  "gap_single_step": 0.125,
+  "top2": [
+   30.375,
+   30.5
+  ]
+ },
+ {
+  "id": "code4",
+  "first_diff": 16,
+  "plain_token": 11,
+  "spec_token": 320,
+  "plain_logit": 33.5,
+  "spec_logit": 33.5,
+  "gap_single_step": 0.0,
+  "top2": [
+   33.5,
+   33.5
+  ]
+ },
+ {
+  "id": "chat1",
+  "first_diff": 24,
+  "plain_token": 4829,
+  "spec_token": 2776,
+  "plain_logit": 37.0,
+  "spec_logit": 36.5,
+  "gap_single_step": 0.5,
+  "top2": [
+   36.5,
+   37.0
+  ]
+ },
+ {
+  "id": "chat2",
+  "first_diff": 54,
+  "plain_token": 323,
+  "spec_token": 609,
+  "plain_logit": 29.125,
+  "spec_logit": 29.125,
+  "gap_single_step": 0.0,
+  "top2": [
+   29.125,
+   29.125
+  ]
+ },
+ {
+  "id": "chat3",
+  "first_diff": 66,
+  "plain_token": 15634,
+  "spec_token": 1221,
+  "plain_logit": 33.75,
+  "spec_logit": 33.5,
+  "gap_single_step": 0.25,
+  "top2": [
+   33.5,
+   33.75
+  ]
+ },
+ {
+  "id": "chat4",
+  "first_diff": 53,
+  "plain_token": 6519,
+  "spec_token": 99032,
+  "plain_logit": 24.375,
+  "spec_logit": 24.375,
+  "gap_single_step": 0.0,
+  "top2": [
+   24.375,
+   24.375
+  ]
+ },
+ {
+  "id": "chat5",
+  "first_diff": 23,
+  "plain_token": 24703,
+  "spec_token": 32131,
+  "plain_logit": 37.25,
+  "spec_logit": 37.25,
+  "gap_single_step": 0.0,
+  "top2": [
+   37.25,
+   37.25
+  ]
+ }
+]
