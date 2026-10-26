@@ -127,7 +127,8 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
         at += most;
     }
 
-    // 3. cost (probe, not a benchmark): median of 12 passes at length 1024, eager as the engine runs a verify pass
+    // 3. cost (probe, not a benchmark): median of 12 passes at length 1024, each verify row count as the engine runs it
+    //    (a captured replay where `Model::forward_verify` can, see `INTARSIA_VERIFY_GRAPH`)
     let len = 1024;
     let prompt: Vec<u32> = (0..len).map(|_| rng.next(1000, hi)).collect();
     let mut st = m.new_state().unwrap();
@@ -144,10 +145,7 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
         m.forward(&mut st, &[ids[0]], HeadMode::LastArgmax, None).unwrap();
         times[1].push(t.elapsed().as_secs_f64() * 1e3);
         st.truncate(len, &*m.backend).unwrap();
-        for q in [4usize, most] {
-            if q < 2 || q > most {
-                continue;
-            }
+        for q in 2..=most {
             let t = Instant::now();
             m.forward_verify(&mut st, &ids[..q]).unwrap();
             times[q].push(t.elapsed().as_secs_f64() * 1e3);
@@ -163,6 +161,7 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
         }
     }
     eprintln!("{line}");
+    eprintln!("PROBE_GRAPHS {:?}", m.graph_stats());
     eprintln!("PROBE_RESULT rows={rows} windows_with_diff={bad} argmax_flips={flips} worst_abs_logit_diff={worst:e}");
     assert_eq!(bad, 0, "the verify pass is not bitwise the single-row steps");
 }

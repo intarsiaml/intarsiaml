@@ -60,6 +60,9 @@ pub(super) struct GraphState {
     pub(super) spec_fail: AtomicUsize,
     pub(super) spec_captures: AtomicU64,
     pub(super) spec_replays: AtomicU64,
+    /// Verify-only passes (`Model::forward_verify` captured, `model/spec_graph.rs`): one recording per (sequence state, verify
+    /// rows), with the pass's hidden-rows output (a workspace view the eager tail reads after the replay).
+    pub(super) verify: Mutex<std::collections::HashMap<(u64, usize), (Captured, TensorRef)>>,
     /// Set by the per-row fallbacks of a batched step while a recording is being made.
     pub(super) state_bound: AtomicBool,
     batch_captures: AtomicU64,
@@ -93,6 +96,7 @@ impl GraphState {
             spec_fail: AtomicUsize::new(0),
             spec_captures: AtomicU64::new(0),
             spec_replays: AtomicU64::new(0),
+            verify: Mutex::new(Default::default()),
             state_bound: AtomicBool::new(false),
             batch_captures: AtomicU64::new(0),
             batch_replays: AtomicU64::new(0),
@@ -111,6 +115,7 @@ impl GraphState {
         self.captured.lock().unwrap().clear();
         self.batched.lock().unwrap().clear();
         self.spec.lock().unwrap().clear();
+        self.verify.lock().unwrap().clear();
     }
 
     /// Graphs requested, supported by the backend, and valid at every position for this plan. Under tensor

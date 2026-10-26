@@ -1448,13 +1448,22 @@ impl Model {
                 st.spec_rows.bufs.push(b);
             }
         }
-        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        let run = (|| -> Result<TensorRef> {
-            let hn = self.run_chunk(st, ids, profile)?;
-            self.verify_head(&hn, q, profile)?;
-            Ok(hn)
-        })();
-        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        // the same pass as one graph replay where the backend allows it (HIP: an eager pass pays every launch on the host)
+        let replayed = if self.verify_graph_ok(st, q, profile) { self.verify_replay(st, ids) } else { Ok(None) };
+        let run = match replayed {
+            Ok(Some(hn)) => Ok(hn),
+            Err(e) => Err(e),
+            Ok(None) => {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                let run = (|| -> Result<TensorRef> {
+                    let hn = self.run_chunk(st, ids, profile)?;
+                    self.verify_head(&hn, q, profile)?;
+                    Ok(hn)
+                })();
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                run
+            }
+        };
         let hn = match run {
             Ok(hn) => hn,
             Err(e) => {
