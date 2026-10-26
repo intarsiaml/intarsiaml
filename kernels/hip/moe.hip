@@ -104,6 +104,12 @@ int moe_mw_variant(int pairs, bool down) {
 // (gate_up: gate + up, 2N) x Kd. Rates measured in the 4408-token prefill profile (docs/results/2026-10-19-hip-round8.md):
 // 64-pair tile ~32 GMAC/ms (gate_up 2.14 ms, down 1.14 ms at 4096 tokens); the 32-pair tile is weight-bound at its sizes,
 // ~7-10 GMAC/ms, taken as 9 so that the 312-token tail chunk (gate_up 0.75 ms) stays one launch.
+// INTARSIA_HIP_MOE_ZFAST (default on; 0 = off, the grid order of rounds 5-9): launch order of the grouped projections, kMwZFast in moe_wmma.h. The result is
+// bit for bit the same either way (tests/moe_pairs.rs); it is read at every launch. Part of the backend fingerprint (kernels.rs).
+bool moe_zfast_enabled() {
+    const char* e = getenv("INTARSIA_HIP_MOE_ZFAST");
+    return !(e && e[0] == '0' && e[1] == 0);
+}
 constexpr double kMwMacPerUs64 = 32e6, kMwMacPerUs32 = 9e6;
 
 // one projection: the round-5 kernel (V = 0), moe_wmma_kernel_v (round 6) or moe_wmma_kernel_r7 (round 7; kMwTwo doubles
@@ -124,13 +130,22 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
     ik_rt_stamp(s, stag, -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     for (int i = 0; i < pieces; ++i) {
         const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);
-        const dim3 g(slots, (unsigned)(y1 - y0), zt);
-        if constexpr (V == 0)
-            moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
-        else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)
-            moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
-        else
-            moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+        // launch order (kMwZFast, moe_wmma.h): bitwise the same output; read at every launch like INTARSIA_HIP_MOE_PAIRS
+        const bool zf = moe_zfast_enabled();
+        const dim3 g = zf ? dim3(zt, (unsigned)(y1 - y0), slots) : dim3(slots, (unsigned)(y1 - y0), zt);
+#define IK_MW_RUN(KERNEL, ...)                                                                                                              \
+    KERNEL<__VA_ARGS__><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0)
+        if constexpr (V == 0) {
+            if (zf) IK_MW_RUN(moe_wmma_kernel, GATEUP, PAIRS, true);
+            else IK_MW_RUN(moe_wmma_kernel, GATEUP, PAIRS, false);
+        } else if constexpr ((V & (kMwCvt | kMwTwo)) == 0) {
+            if (zf) IK_MW_RUN(moe_wmma_kernel_v, GATEUP, PAIRS, V | kMwZFast);
+            else IK_MW_RUN(moe_wmma_kernel_v, GATEUP, PAIRS, V);
+        } else {
+            if (zf) IK_MW_RUN(moe_wmma_kernel_r7, GATEUP, PAIRS, V | kMwZFast);
+            else IK_MW_RUN(moe_wmma_kernel_r7, GATEUP, PAIRS, V);
+        }
+#undef IK_MW_RUN
         ik_rt_stamp(s, stag, i);
     }
 }

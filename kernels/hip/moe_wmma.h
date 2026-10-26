@@ -64,6 +64,11 @@ constexpr int kMwLD = kMwKB + 8;     // padded LDS row of the activation tile (e
 constexpr int kMwPairs = 32;         // pairs per block (the PAIRS template argument: 32, or 64 for busy experts, moe.hip)
 constexpr int kMwThreads = 256;      // 8 waves
 constexpr int kMwRing = 3;           // weight blocks in flight per lane
+/* Launch order (lane l5r7, docs/results/2026-10-25-l5-moe-fp8-wmma.md section 0): with the grid (slot, feature tile, pair tile) the blocks that run together are
+ * different experts' first pair tiles, so an expert's weights are re-read from HBM once per pair tile, far apart in time. kMwZFast runs the grid as (pair tile,
+ * feature tile, slot): one expert's pair tiles are launched next to each other and read its weights from the L2 together. Only the mapping of blockIdx to
+ * (slot, tile) changes, never the work of a block: the result is bit for bit the same (tests/moe_pairs.rs). INTARSIA_HIP_MOE_ZFAST=0 turns it off (moe.hip). */
+constexpr int kMwZFast = 64;         // variant bit of moe_wmma_kernel_v / _r7; moe_wmma_kernel takes it as its ZF template argument
 constexpr int kMwFeatGateUp = 64;    // output features per block
 constexpr int kMwFeatDown = 128;
 
@@ -72,7 +77,7 @@ struct MwW {  // one 64-k block of weights of this lane: 16 code bytes and 2 sca
     uint32_t s;
 };
 
-template <bool GATEUP, int PAIRS>
+template <bool GATEUP, int PAIRS, bool ZF = false>
 __global__ void __launch_bounds__(kMwThreads)
 moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ ws,
                 const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -85,7 +90,8 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
     __shared__ __align__(16) float sred[GATEUP ? 4 * 32 * J * 8 : 1];  // up accumulators -> gate waves
     IK_FP4_LUT(lut);
 
-    const int slot = blockIdx.x;
+    constexpr bool ZFAST = ZF;  // kMwZFast: grid (pair tile, feature tile, slot)
+    const int slot = ZFAST ? (int)blockIdx.z : (int)blockIdx.x;
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
@@ -116,7 +122,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
         return r;
     };
 
-    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+    for (int pt = ZFAST ? (int)blockIdx.x : (int)blockIdx.z; pt * PAIRS < cnt; pt += ZFAST ? (int)gridDim.x : (int)gridDim.z) {
         // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
         const int xr = tid >> 3, xch = tid & 7;
         const ik_bf16* xrow[XR];
@@ -249,7 +255,8 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
     float* const sred = ALIAS ? reinterpret_cast<float*>(&sx[0][0]) : sred_own;
     IK_FP4_LUT(lut);
 
-    const int slot = blockIdx.x;
+    constexpr bool ZFAST = (V & kMwZFast) != 0;  // kMwZFast: grid (pair tile, feature tile, slot)
+    const int slot = ZFAST ? (int)blockIdx.z : (int)blockIdx.x;
     if (slot >= active[E]) return;  // block-uniform
     const int e = active[slot];
     const int begin = offsets[e], cnt = offsets[e + 1] - begin;
@@ -280,7 +287,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
         return r;
     };
 
-    for (int pt = blockIdx.z; pt * PAIRS < cnt; pt += gridDim.z) {
+    for (int pt = ZFAST ? (int)blockIdx.x : (int)blockIdx.z; pt * PAIRS < cnt; pt += ZFAST ? (int)gridDim.x : (int)gridDim.z) {
         // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
         const int xr = tid >> 3, xch = tid & 7;
         const ik_bf16* xrow[XR];
