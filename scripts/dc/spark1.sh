@@ -35,3 +35,9 @@ if [ "${1:-}" = fetch ]; then
     ls -l $D; echo "want 4591038706 bytes"; sha256sum $D/model.safetensors
     curl -sIL https://huggingface.co/$R/resolve/$SHA/model.safetensors | grep -i "x-linked-etag"'
 fi
+# basesync: export origin/main (this repo) to spark1:~/intarsiaml-dc-base
+if [ "${1:-}" = basesync ]; then
+  git -C "$HERE" archive origin/main | ssh spark1 'rm -rf ~/intarsiaml-dc-base && mkdir -p ~/intarsiaml-dc-base && tar -x -C ~/intarsiaml-dc-base' && echo synced "$(git -C "$HERE" rev-parse --short origin/main)"
+fi
+# gates: run scripts/dc/gates.sh <args> on spark1 from the rsynced tree
+if [ "${1:-}" = gates ]; then shift; ssh spark1 "bash ~/intarsiaml-dc-src/scripts/dc/gates.sh $*"; fi

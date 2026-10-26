@@ -1,0 +1,1 @@
+A train leaves a station at 9:00 travelling at 80 km/h. A second train leaves the same station at 10:30 on the same track travelling at 110 km/h. At what time does the second train catch up with the first? Show your steps.

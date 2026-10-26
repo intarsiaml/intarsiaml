@@ -1,0 +1,1 @@
+Write a SQL query that returns the top 3 customers by total order amount in 2025 from tables customers(id, name) and orders(id, customer_id, amount, created_at), and explain each clause.

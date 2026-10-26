@@ -1,0 +1,1 @@
+A rectangle has a perimeter of 54 cm and its length is twice its width plus 3 cm. Find its area. Show the algebra.
