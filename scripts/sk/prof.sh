@@ -7,7 +7,7 @@ set -uo pipefail
 TREE=$1; OUTN=$2; shift 2
 HOST=${HOST:-spark2}
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RAW=/opt/code/intarsiaml/.worktrees/sk2/docs/results/2026-10-25-sk2-serve-macro/raw/$OUTN; mkdir -p "$RAW"
+RAW=/opt/code/intarsiaml/.worktrees/sk3/docs/results/2026-10-26-sk3-spark-decode/raw/$OUTN; mkdir -p "$RAW"
 scp -q "$HERE/rank.py" "$HOST:intarsiaml-sk-$TREE/out/rank.py" 2>/dev/null || { ssh -n $HOST "mkdir -p ~/intarsiaml-sk-$TREE/out"; scp -q "$HERE/rank.py" "$HOST:intarsiaml-sk-$TREE/out/rank.py"; }
 ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB PATH=/usr/local/cuda/bin:\$PATH; set -u; export CHARS='${CHARS:-14000 55000}' CHUNK=${CHUNK:-2048}
 P=\$HOME/intarsiaml-sk-$TREE; B=\$P/target/acc/release/intarsia; O=\$P/out/$OUTN; rm -rf \$O; mkdir -p \$O

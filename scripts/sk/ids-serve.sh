@@ -6,7 +6,7 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 OUTN=$1; shift; ARMS=("$@"); HOST=${HOST:-spark2}; HN=${HN:-spark-fa00}; PORT=${PORT:-8191}
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RAW=/opt/code/intarsiaml/.worktrees/sk2/docs/results/2026-10-25-sk2-serve-macro/raw/$OUTN; mkdir -p "$RAW"
+RAW=/opt/code/intarsiaml/.worktrees/sk3/docs/results/2026-10-26-sk3-spark-decode/raw/$OUTN; mkdir -p "$RAW"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 SPID=""
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$@"; }
