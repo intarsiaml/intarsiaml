@@ -1,2 +1,4 @@
 fleetq: #5794 waiting (#2 in line): in line behind #5793 "cmtp: user path (supervised serve, prefix store)" (claude-f31ccf91) on spark1
 fleetq:   #5793 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5793 set, or it will wait for #5793 to be released.
+fleetq: #5794 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5794 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s accept-off-by-one short-0 short-1 4k-0 4k-1 16k-0'
