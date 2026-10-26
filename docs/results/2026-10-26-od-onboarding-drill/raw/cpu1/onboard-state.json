@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/home/nvidia/intarsiaml-od/models/Qwen3.8-27B-MXFP4-mtpfp8",
+    "backend": "cpu"
+  },
+  "created_unix": 1792975989,
+  "running": {
+    "id": "quick",
+    "started_unix": 1792976050
+  },
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant mxfp4)",
+      "started_unix": 1792975989,
+      "ended_unix": 1792975989,
+      "wall_s": 0.004883732,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_vl",
+        "family": "qwen3_5",
+        "quant": "mxfp4"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris.\\nThe capital of Germany is Berlin.\\nThe capital of Italy is\"",
+      "started_unix": 1792975989,
+      "ended_unix": 1792976050,
+      "wall_s": 61.038701171,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 0.3,
+        "completion": "Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    }
+  ]
+}

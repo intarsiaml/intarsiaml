@@ -50,12 +50,6 @@ impl Model {
                 self.backend.name()
             )));
         }
-        let hybrid_block = self.layers.iter().flatten().any(|b| match b {
-            Block::Attn(a) => a.gated,
-            Block::Gdn(_) | Block::Moe(_) => true,
-            Block::Ffn(_) | Block::Gemma(_) => false,
-        });
-        hip_batch_needs_hybrid(self.backend.name(), hybrid_block)?;
         if self.batch_rows != 0 {
             return Err(Error::invalid("allow_recurrent_batch after enable_batch"));
         }
@@ -1130,6 +1124,12 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
+            prefill_peel: self.prefill_peel,
+            macro_rows: 0, // the decode twin never prefills a prompt
+            macro_cap: 0,
+            macro_split: Vec::new(),
+            macro_ctx: std::sync::Mutex::new(None),
+            macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(false),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,

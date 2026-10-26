@@ -1,0 +1,21 @@
+[window] job 5552 win g3 snapshot z4; stopping radiance 2026-10-25 22:25:11
+[window] radiance stopped 2026-10-25 22:25:14
+[vram] card1 used=60002304 B (57 MiB) after 0 s 2026-10-25 22:25:14
+[gc] 2026-10-25 22:25:14 G-C: 35B batched decode == solo step + batched engine == local engine
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+17550 (row, step) pairs bitwise identical in 166.8 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+test result: ok. 3 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 219.67s
+[gc] done 2026-10-25 22:28:54
+[window] stages done 2026-10-25 22:28:54 (exit 0)
+[window] starting radiance 2026-10-25 22:28:54
+[window] radiance answers 2026-10-25 22:29:14 (after 25 s)

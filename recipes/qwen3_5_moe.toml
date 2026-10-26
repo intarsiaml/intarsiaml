@@ -68,6 +68,13 @@ max_batch = 32
 # fails only on chat_reuse_4k, which is chunk-sensitive (docs/results/2026-10-13-prefill-cuda.md, phase1b.md section 9).
 [tuning.cuda]
 prefill_chunk = 2048
+# Macro prefill pass (INTARSIA_PREFILL_MACRO, docs/tuning.md): up to 8192 rows of consecutive 2048-row chunks of a prompt run as ONE
+# layer-by-layer pass (the routed experts read their weights once for 4 chunks; attention, the GatedDeltaNet recurrence and the vendor
+# GEMMs stay chunk-sized), bitwise the same logits and state as the chunk-by-chunk schedule (35B: 1.5k / 4k / 8.3k / 16.6k tokens,
+# `real_35b_macro_prefill_is_bitwise_the_plain_schedule`). 4k +5.4 %, 16k +10.0 % prefill tok/s, 1k unchanged
+# (docs/results/2026-10-25-sk-spark-prefill.md). Single-sequence engine (`serve` without `--max-batch`, `generate`) and, since
+# docs/results/2026-10-25-sk2-serve-macro.md, `serve --max-batch` for a prompt that prefills alone with nothing decoding.
+prefill_macro = 8192
 
 # 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
 # long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert

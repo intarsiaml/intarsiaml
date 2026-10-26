@@ -16,8 +16,8 @@ use std::time::Duration;
 
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
-    chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_tail_merge,
-    BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
+    parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     TraceEvent,
 };
 use intarsia_core::{Error, FinishReason, Result};
@@ -115,6 +115,8 @@ struct MockModel {
     inflight: Option<(usize, Vec<u32>, Option<Mode>, usize)>,
     /// While `false`, every `prefill_chunk` and `decode_step` blocks (a long step, for the live-gauge test).
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
+    /// `BatchModel::macro_step` pass size in rows (0: off).
+    macro_rows: usize,
 }
 
 impl MockModel {
@@ -132,6 +134,7 @@ impl MockModel {
             steps: 0,
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
+            macro_rows: 0,
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -183,6 +186,11 @@ impl BatchModel for MockModel {
     }
     fn avoid_single_row_prefill(&self) -> bool {
         self.avoid
+    }
+    fn macro_step(&self, _slot: usize, remaining: usize, chunk: usize) -> Option<usize> {
+        let body = remaining.checked_sub(1)?;
+        let n = intarsia_core::scheduler::macro_step_rows(body, chunk, self.macro_rows)?;
+        Some(if n == body { remaining } else { n })
     }
     fn slot_tokens(&self, slot: usize) -> &[u32] {
         &self.toks[slot]
@@ -1824,4 +1832,273 @@ fn tail_merge_fits_the_workspace() {
     // the clamp: an absurd knob cannot grow a chunk past 2 * chunk
     assert_eq!(next_prefill_chunk_tm(2 * 4096 + 1, 4096, false, usize::MAX), 4096);
     assert_eq!(next_prefill_chunk_tm(2 * 4096, 4096, false, usize::MAX), 2 * 4096);
+}
+
+/// Kernel-level passes `(start, rows)` of one forward call of `len` rows at workspace `chunk` (`Model::forward_chunks`).
+fn forward_passes(start: usize, len: usize, chunk: usize, peel: usize, out: &mut Vec<(usize, usize)>) {
+    let mut pos = 0;
+    while pos < len {
+        let n = peel_tail(next_prefill_chunk_tm(len - pos, chunk, false, 0), peel);
+        out.push((start + pos, n));
+        pos += n;
+    }
+}
+
+/// Kernel-level passes of a solo prompt prefill (`engine::Seq::prefill_step` without the prefix store; recurrent: the
+/// last token runs alone) at prefill chunk `chunk`, each forward call cut by [`forward_passes`].
+fn prefill_passes(len: usize, chunk: usize, peel: usize, recurrent: bool) -> Vec<(usize, usize)> {
+    let mut out = Vec::new();
+    let mut pos = 0;
+    while pos < len {
+        let rem = len - pos;
+        let n = if recurrent {
+            if next_prefill_chunk_tm(rem, chunk, false, 0) == rem {
+                rem
+            } else {
+                chunk
+            }
+        } else {
+            next_prefill_chunk(rem, chunk, false)
+        };
+        if n < rem {
+            forward_passes(pos, n, chunk, peel, &mut out);
+            pos += n;
+        } else {
+            if recurrent && rem > 1 {
+                forward_passes(pos, rem - 1, chunk, peel, &mut out);
+                pos += rem - 1;
+            }
+            forward_passes(pos, len - pos, chunk, peel, &mut out);
+            pos = len;
+        }
+    }
+    out
+}
+
+/// `big` reproduces `reference` up to row-invariant merges: the passes of at most `small` rows are the same (start
+/// and rows), and every other pass of `big` spans whole consecutive `reference` passes of more than `small` rows.
+fn same_small_passes(
+    reference: &[(usize, usize)],
+    big: &[(usize, usize)],
+    small: usize,
+) -> std::result::Result<(), String> {
+    let rs: Vec<_> = reference.iter().filter(|p| p.1 <= small).collect();
+    let bs: Vec<_> = big.iter().filter(|p| p.1 <= small).collect();
+    if rs != bs {
+        return Err(format!("small passes differ: reference {rs:?}, big {bs:?}"));
+    }
+    for &(s, n) in big.iter().filter(|p| p.1 > small) {
+        let inside: Vec<_> = reference.iter().filter(|p| p.0 >= s && p.0 < s + n).collect();
+        let covered: usize = inside.iter().map(|p| p.1).sum();
+        if inside.first().map(|p| p.0) != Some(s) || covered != n || inside.iter().any(|p| p.1 <= small) {
+            return Err(format!("pass ({s}, {n}) is not a merge of reference passes above {small} rows: {inside:?}"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn prefill_peel_knob_parse() {
+    assert_eq!(parse_peel(None).unwrap(), None);
+    assert_eq!(parse_peel(Some(" ")).unwrap(), None);
+    assert_eq!(parse_peel(Some("0")).unwrap(), Some(0));
+    assert_eq!(parse_peel(Some("8")).unwrap(), Some(8));
+    assert_eq!(parse_peel(Some("255")).unwrap(), Some(255));
+    assert!(parse_peel(Some("256")).is_err());
+    assert!(parse_peel(Some("-1")).is_err());
+    assert!(parse_peel(Some("x")).is_err());
+}
+
+#[test]
+fn prefill_peel_rule() {
+    // off, or a pass of at most 256 rows, or a tail outside 1..=peel: unchanged
+    for n in 1..=3000 {
+        assert_eq!(peel_tail(n, 0), n);
+    }
+    for n in 1..=256 {
+        assert_eq!(peel_tail(n, 8), n);
+    }
+    assert_eq!(peel_tail(260, 8), 256);
+    assert_eq!(peel_tail(264, 8), 256);
+    assert_eq!(peel_tail(265, 8), 265);
+    assert_eq!(peel_tail(4096, 8), 4096);
+    assert_eq!(peel_tail(4097, 8), 4096);
+    assert_eq!(peel_tail(4360, 8), 4352);
+    assert_eq!(peel_tail(4361, 8), 4361);
+}
+
+#[test]
+fn prefill_peel_gives_the_default_chunks_small_passes() {
+    // at chunk 512..4096 with the peel, every pass of <= 8 rows is one the default 256 schedule runs (same start, same
+    // rows) and every larger pass is whole 256-schedule passes of more than 8 rows: solo prefill (recurrent and not) and a
+    // whole-prompt forward (accuracy tooling)
+    for (chunk, peel) in [512usize, 1024, 2048, 4096].into_iter().flat_map(|c| [(c, 8usize), (c, 16)]) {
+        for len in 1..=9000 {
+            for recurrent in [false, true] {
+                let r = prefill_passes(len, 256, 0, recurrent);
+                let b = prefill_passes(len, chunk, peel, recurrent);
+                if let Err(e) = same_small_passes(&r, &b, peel) {
+                    panic!("chunk {chunk} peel {peel} len {len} recurrent {recurrent}: {e}");
+                }
+                let peel_ref = prefill_passes(len, 256, peel, recurrent);
+                assert_eq!(peel_ref, r, "the peel never changes the 256 schedule itself");
+            }
+            let (mut r, mut b) = (Vec::new(), Vec::new());
+            forward_passes(0, len, 256, 0, &mut r);
+            forward_passes(0, len, chunk, peel, &mut b);
+            same_small_passes(&r, &b, peel).unwrap_or_else(|e| panic!("forward chunk {chunk} peel {peel} len {len}: {e}"));
+        }
+    }
+}
+
+#[test]
+fn prefill_peel_negative_controls() {
+    // without the peel chunk 4096 merges a <= 8-row tail into a large pass (the 27B's 260 / 264-token prompts)
+    let r = prefill_passes(261, 256, 0, true);
+    let b = prefill_passes(261, 4096, 0, true);
+    assert_eq!(r, vec![(0, 256), (256, 4), (260, 1)]);
+    assert_eq!(b, vec![(0, 260), (260, 1)]);
+    assert!(same_small_passes(&r, &b, 8).is_err());
+    // a peel smaller than the tail does not reach it
+    assert!(same_small_passes(&r, &prefill_passes(261, 4096, 3, true), 8).is_err());
+    // the 27B's case: a 12-row tail (split-KV attention at <= 16 rows at chunk 256) is missed by an 8-row peel
+    let r = prefill_passes(525, 256, 0, true);
+    assert_eq!(r, vec![(0, 256), (256, 256), (512, 12), (524, 1)]);
+    assert!(same_small_passes(&r, &prefill_passes(525, 4096, 8, true), 16).is_err());
+    assert_eq!(prefill_passes(525, 4096, 16, true), vec![(0, 512), (512, 12), (524, 1)]);
+    assert!(same_small_passes(&r, &prefill_passes(525, 4096, 16, true), 16).is_ok());
+    // the checker sees a pass that is not a merge of whole reference passes
+    assert!(same_small_passes(&[(0, 256), (256, 100)], &[(0, 300), (300, 56)], 8).is_err());
+    let fails = (1..=9000)
+        .filter(|&len| {
+            same_small_passes(&prefill_passes(len, 256, 0, true), &prefill_passes(len, 4096, 0, true), 8).is_err()
+        })
+        .count();
+    assert!(fails > 100, "chunk 4096 without the peel differs on {fails} lengths");
+}
+
+// ---- macro prefill schedule (INTARSIA_PREFILL_MACRO) -------------------------------------------------------------------
+
+#[test]
+fn macro_knob_parses_and_rounds_to_whole_chunks() {
+    use intarsia_core::scheduler::{effective_macro_rows, parse_macro};
+    assert_eq!(parse_macro(None).unwrap(), 0);
+    assert_eq!(parse_macro(Some("")).unwrap(), 0);
+    assert_eq!(parse_macro(Some(" 8192 ")).unwrap(), 8192);
+    assert!(parse_macro(Some("lots")).is_err());
+    // off below two chunks, else whole chunks
+    assert_eq!(effective_macro_rows(0, 2048), 0);
+    assert_eq!(effective_macro_rows(2048, 2048), 0);
+    assert_eq!(effective_macro_rows(4095, 2048), 0);
+    assert_eq!(effective_macro_rows(4096, 2048), 4096);
+    assert_eq!(effective_macro_rows(10000, 2048), 8192);
+}
+
+#[test]
+fn macro_groups_are_as_few_as_the_cap_allows_and_even() {
+    use intarsia_core::scheduler::macro_group_len;
+    // cap 4 chunks per pass
+    assert_eq!(macro_group_len(1, 4), 1);
+    assert_eq!(macro_group_len(4, 4), 4);
+    assert_eq!(macro_group_len(5, 4), 3); // 3 + 2, not 4 + 1
+    assert_eq!(macro_group_len(8, 4), 4);
+    assert_eq!(macro_group_len(9, 4), 3); // 3 + 3 + 3, not 4 + 4 + 1
+    assert_eq!(macro_group_len(7, 2), 2);
+    // every chunk lands in exactly one group, the groups never exceed the cap, and a group is never a lone short tail
+    for n in 1..60usize {
+        for cap in 1..9usize {
+            let per = macro_group_len(n, cap);
+            assert!(per >= 1 && per <= cap.max(1) && per <= n);
+            let mut left = n;
+            let mut groups = 0;
+            while left > 0 {
+                let g = per.min(left);
+                left -= g;
+                groups += 1;
+            }
+            assert_eq!(groups, n.div_ceil(cap), "n {n} cap {cap}: as few passes as the cap allows");
+        }
+    }
+}
+
+#[test]
+fn macro_step_rows_follows_the_plain_chunking() {
+    use intarsia_core::scheduler::macro_step_rows;
+    let (chunk, cap) = (2048, 8192);
+    assert_eq!(macro_step_rows(5000, chunk, 0), None, "off");
+    assert_eq!(macro_step_rows(2048, chunk, cap), None, "one chunk is the plain schedule");
+    assert_eq!(macro_step_rows(100, chunk, cap), None);
+    // 4088 headless rows: one pass of both chunks
+    assert_eq!(macro_step_rows(4088, chunk, cap), Some(4088));
+    // 16654 = 8 chunks + 270: 9 chunks in 3 passes of 3
+    assert_eq!(macro_step_rows(16654, chunk, cap), Some(3 * 2048));
+    assert_eq!(macro_step_rows(16654 - 3 * 2048, chunk, cap), Some(3 * 2048));
+    assert_eq!(macro_step_rows(16654 - 6 * 2048, chunk, cap), Some(16654 - 6 * 2048));
+    // the steps of a prompt cover it exactly, every step a whole number of chunks except the one that ends it
+    for body in 1..40_000usize {
+        let (mut left, mut passes) = (body, 0);
+        while left > 0 {
+            let n = macro_step_rows(left, chunk, cap).unwrap_or(left.min(chunk));
+            assert!(n >= 1 && n <= left);
+            assert!(n % chunk == 0 || n == left, "body {body}: step {n} of {left}");
+            assert!(n <= cap.max(chunk));
+            left -= n;
+            passes += 1;
+        }
+        assert!(passes <= body.div_ceil(chunk), "body {body}: {passes} passes");
+    }
+}
+
+/// Macro prefill in the batched scheduler: a request prefilling alone with nothing decoding takes the model's macro steps
+/// (whole chunks, balanced, the last token with the final step); with a decoder running, or two prompts prefilling, it takes the
+/// plain 2048 / 256 chunks.
+#[test]
+fn macro_steps_only_for_a_sole_prefill_with_nothing_decoding() {
+    let mut rng = SplitMix64::new(9);
+    let cfg = || SchedulerConfig { max_batch: 3, trace: true, ..Default::default() };
+    let chunks_of = |tr: &[TraceEvent], who: RequestId| -> Vec<(usize, usize)> {
+        tr.iter()
+            .filter_map(|e| if let TraceEvent::Chunk { id, start, len, .. } = e { (*id == who).then_some((*start, *len)) } else { None })
+            .collect()
+    };
+    // alone: 16655 tokens, 8192-row passes, 2048 chunks: body 16654 = 9 chunks (8 x 2048 + 270) -> 3 passes of 3 chunks, the
+    // last carrying the tail and the final token
+    let mut m = MockModel::new(3, 20000);
+    m.macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 16655), 3));
+    run_to_end(&mut s);
+    let tr = s.take_trace();
+    assert_eq!(chunks_of(&tr, a), vec![(0, 3 * 2048), (3 * 2048, 3 * 2048), (6 * 2048, 16655 - 6 * 2048)]);
+    assert_eq!(tokens(&collect(&rxa)).len(), 3);
+    // macro off: the plain schedule
+    let mut s = Scheduler::new(MockModel::new(3, 20000), cfg()).unwrap();
+    let (a, _rx, _) = submit(&mut s, greedy(random_prompt(&mut rng, 16655), 3));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), a), chunk_schedule(0, 16655, 2048, false));
+    // a decoder running when the prompt starts: 256-row chunks, no macro step
+    let mut m = MockModel::new(3, 20000);
+    m.macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (_a, _rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 100), 400));
+    s.step();
+    let (b, _rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 6000), 2));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), b), chunk_schedule(0, 6000, 256, false));
+    // a second prompt arriving while the first prefills: from then on the first takes single chunks (the macro step is for a
+    // prefill that delays nobody)
+    let mut m = MockModel::new(3, 30000);
+    m.macro_rows = 4096;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, _rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 12000), 2));
+    s.step(); // A's first step: a 2-chunk macro step
+    let (b, _rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 3000), 2));
+    run_to_end(&mut s);
+    let tr = s.take_trace();
+    let ca = chunks_of(&tr, a);
+    assert_eq!(&ca[..2], &[(0, 4096), (4096, 2048)], "{ca:?}");
+    assert!(ca[1..].iter().all(|&(_, l)| l <= 2048), "{ca:?}");
+    assert_eq!(ca.iter().map(|c| c.1).sum::<usize>(), 12000);
+    // B runs alone once A's prefill is done: its whole 3000 rows are one macro step
+    assert_eq!(chunks_of(&tr, b), vec![(0, 3000)]);
 }

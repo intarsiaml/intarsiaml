@@ -1,0 +1,37 @@
+vram 13:12:06 card0 vram 100 MiB gtt 14 MiB; card1 vram 100 MiB
+    Finished `release` profile [optimized] target(s) in 0.17s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+running 1 test
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17326669824, weights_bytes: 16381470720, workspace_bytes: 274722448, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16460336126, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+recurrent bytes per state 0
+batch plan: 2048 KV tokens per sequence, 4831838208 KV bytes in all, 147456 bytes per token; notes []
+16 sequences prefilled twice in 1.3 s
+batch 2: 130 steps bitwise in 10.7 s (per step: 26.7 ms batched, 55.3 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 13.7 s (per step: 27.2 ms batched, 77.7 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 17.2 s (per step: 27.4 ms batched, 103.6 ms for the 4 solo steps)
+vram 13:13:06 card0 vram 25384 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 5: 130 steps bitwise in 20.5 s (per step: 27.6 ms batched, 129.3 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 24.1 s (per step: 28.2 ms batched, 155.4 ms for the 6 solo steps)
+vram 13:14:06 card0 vram 25385 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 7: 130 steps bitwise in 27.5 s (per step: 28.5 ms batched, 181.2 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 31.0 s (per step: 29.3 ms batched, 207.4 ms for the 8 solo steps)
+vram 13:15:06 card0 vram 25418 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 9: 130 steps bitwise in 47.6 s (per step: 130.8 ms batched, 233.1 ms for the 9 solo steps)
+vram 13:16:06 card0 vram 25418 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 10: 130 steps bitwise in 41.6 s (per step: 57.9 ms batched, 259.4 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 47.7 s (per step: 78.2 ms batched, 285.6 ms for the 11 solo steps)
+vram 13:17:06 card0 vram 25418 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 12: 130 steps bitwise in 48.9 s (per step: 60.5 ms batched, 312.1 ms for the 12 solo steps)
+vram 13:18:06 card0 vram 25419 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 13: 130 steps bitwise in 53.9 s (per step: 72.5 ms batched, 338.5 ms for the 13 solo steps)
+vram 13:19:06 card0 vram 25419 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 14: 130 steps bitwise in 56.8 s (per step: 68.5 ms batched, 364.9 ms for the 14 solo steps)
+vram 13:20:06 card0 vram 25419 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 15: 130 steps bitwise in 61.6 s (per step: 78.3 ms batched, 391.5 ms for the 15 solo steps)
+vram 13:21:06 card0 vram 25420 MiB gtt 20 MiB; card1 vram 57 MiB
+batch 16: 130 steps bitwise in 67.6 s (per step: 97.6 ms batched, 418.4 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 571.6 s
+ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 577.47s
+exit 0
+radiance back

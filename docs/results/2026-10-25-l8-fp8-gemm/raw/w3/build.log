@@ -1,0 +1,6 @@
+fleetq: #5463 running on tatooine-r9700: ssh tatooine 'bash ~/intarsiaml-l8-src/scripts/l8/build.sh f8bench'
+fleetq: #5463 went ahead of the line and must end within 14m (by Sun 20:36); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+-rwxr-xr-x 1 josef josef  440568 Oct 25 20:22 .l8bin/f8bench
+-rw-r--r-- 1 josef josef 2586387 Oct 25 20:22 .l8bin/f8bench.s
+fleetq: #5463 done (exit 0)

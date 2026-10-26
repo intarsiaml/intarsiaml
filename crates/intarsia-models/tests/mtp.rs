@@ -472,7 +472,7 @@ fn engine_cost(
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: k.is_some(),
-        mtp_draft_vocab: draft_vocab,
+        mtp_draft_vocab: Some(draft_vocab),
         profile_every: 0,
         ..Default::default()
     };
@@ -1083,7 +1083,7 @@ fn reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix() {
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: true,
-        mtp_draft_vocab: n,
+        mtp_draft_vocab: Some(n),
         profile_every: 0,
         ..Default::default()
     };
@@ -1124,7 +1124,7 @@ fn load_on(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, draft_vocab: usi
         prefill_chunk: 8,
         fp8_act: Some(Fp8Act::None),
         mtp: true,
-        mtp_draft_vocab: draft_vocab,
+        mtp_draft_vocab: Some(draft_vocab),
         profile_every: 0,
         ..Default::default()
     };
@@ -1294,4 +1294,127 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
             }
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// recipe default of --mtp-draft-vocab
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The drafts of 30 eager draft + verify steps on one prompt (k = 2), for a model loaded with the recipe's `[mtp] draft_vocab`
+/// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
+fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
+    let (mut recipe, dims) = dims();
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_macro: None });
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: opt,
+        profile_every: 0,
+        ..Default::default()
+    };
+    let backend: Arc<dyn Backend> = CpuBackend::arc();
+    let mut m = Model::load(backend.clone(), &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(3).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let mut st = m.new_state().unwrap();
+    let StepOut::Token(mut last) = m.forward(&mut st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    let mut all = vec![];
+    for _ in 0..30 {
+        let len0 = st.len;
+        let d = m.mtp_draft(&mut st, last, 2).unwrap();
+        let mut ids = vec![last];
+        ids.extend(&d);
+        let o = m.forward_verify(&mut st, &ids).unwrap();
+        st.spec_rollback(len0 + 1, &*backend).unwrap();
+        last = o[0];
+        all.push(d);
+    }
+    all
+}
+
+/// A recipe default for the backend narrows the draft head exactly as the flag does, an explicit `--mtp-draft-vocab 0` (the full head)
+/// overrides it, an explicit value overrides it the other way, and a recipe without the key drafts with the full head.
+#[test]
+fn recipe_draft_vocab_default_is_overridden_by_the_flag() {
+    let w = weights(11);
+    let full = drafts_of(&w, None, None);
+    let narrow = drafts_of(&w, None, Some(32));
+    assert!(narrow.iter().flatten().all(|&t| t < 32), "{narrow:?}");
+    assert_ne!(full, narrow, "the fixture's drafts leave 0..32 somewhere, else the test cannot tell the heads apart");
+    // the recipe's value for this backend, no flag: the narrow head
+    assert_eq!(drafts_of(&w, Some(32), None), narrow);
+    // flag 0 beats the recipe: the full head
+    assert_eq!(drafts_of(&w, Some(32), Some(0)), full);
+    // flag N beats the recipe's M
+    assert_eq!(drafts_of(&w, Some(8), Some(32)), narrow);
+    // recipe 0 is the full head
+    assert_eq!(drafts_of(&w, Some(0), None), full);
+}
+
+/// The shipped recipes: the default is set for the Qwen3.8-27B recipe on HIP only (the one place it was measured).
+#[test]
+fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
+    let get = |name: &str| {
+        let text = match name {
+            "qwen3_5_vl" => include_str!("../../../recipes/qwen3_5_vl.toml"),
+            "qwen3_5" => include_str!("../../../recipes/qwen3_5.toml"),
+            "qwen3_5_moe" => include_str!("../../../recipes/qwen3_5_moe.toml"),
+            "qwen3" => include_str!("../../../recipes/qwen3.toml"),
+            "gemma4" => include_str!("../../../recipes/gemma4.toml"),
+            "llama" => include_str!("../../../recipes/llama.toml"),
+            _ => include_str!("../../../recipes/qwen2.toml"),
+        };
+        intarsia_models::parse_recipe(text).unwrap()
+    };
+    let vl = get("qwen3_5_vl");
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").value, 65536);
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").source, "recipe qwen3_5_vl, hip");
+    for b in ["cuda", "metal", "cpu"] {
+        assert_eq!(vl.resolve_mtp_draft_vocab(None, b).value, 0, "{b}");
+    }
+    assert_eq!(vl.resolve_mtp_draft_vocab(Some(0), "hip").value, 0, "--mtp-draft-vocab 0 turns it off");
+    assert_eq!(vl.resolve_mtp_draft_vocab(Some(32768), "hip").value, 32768);
+    for name in ["qwen3_5", "qwen3_5_moe", "qwen3", "gemma4", "llama", "qwen2"] {
+        let r = get(name);
+        for b in ["hip", "cuda", "metal", "cpu"] {
+            assert_eq!(r.resolve_mtp_draft_vocab(None, b).value, 0, "{name} on {b}: no measured default");
+        }
+    }
+}
+
+/// `--spec mtp` with the macro prefill pass on (a recipe default since #162, 8192 rows on the CUDA 35B) must load and plan: the
+/// macro pass is a single-sequence prefill feature and an MTP model never takes it, so asking for it changes nothing (the
+/// drafter head's workspace is chunk-sized; a macro-sized plan probe failed with "MTP pass of 8192 rows" at server start).
+#[test]
+fn mtp_model_ignores_the_macro_prefill_knob() {
+    let w = weights(12);
+    let (recipe, dims) = dims();
+    let opts = |macro_rows: Option<usize>| LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        prefill_macro: macro_rows,
+        ..Default::default()
+    };
+    let mut plain = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(0)), Arc::new(Telemetry::new())).unwrap();
+    let mut mac = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(64)), Arc::new(Telemetry::new())).unwrap();
+    assert_eq!(mac.macro_rows(), 0, "an MTP model takes no macro passes");
+    for m in [&mut plain, &mut mac] {
+        m.enable_verify(3).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+    }
+    let ids: Vec<u32> = (0..40).map(|i| (i * 7 + 3) % 90).collect();
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        match m.forward(&mut st, &ids, HeadMode::LastLogits, None).unwrap() {
+            StepOut::Logits(l) => l,
+            o => panic!("{o:?}"),
+        }
+    };
+    assert_eq!(run(&plain), run(&mac));
 }

@@ -130,6 +130,11 @@ pub struct RefNoise {
     /// own value when it has one and the golden-wide `kl21_mean` otherwise. Optional, usually partial.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub prompts: BTreeMap<String, PromptNoise>,
+    /// Modes (`prefill`, `decode`) whose ABSOLUTE KL floor against this golden is report-only when the same run is also gated
+    /// against a recorded baseline (`--baseline`, with its noise envelope): the baseline judges them instead. Without
+    /// `--baseline` the floor keeps gating, so this never leaves a mode ungated. See [`RefNoise::floor_report_only_for`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub floor_report_only: Vec<String>,
 }
 
 fn default_format() -> String {
@@ -157,6 +162,11 @@ impl RefNoise {
                 }
             }
         }
+        for m in &self.floor_report_only {
+            if m != "prefill" && m != "decode" {
+                bail!("ref_noise record: floor_report_only names {m:?}, expected \"prefill\" or \"decode\"");
+            }
+        }
         for (name, f) in [("factor", self.factor), ("prompt_factor", self.prompt_factor)] {
             if let Some(f) = f {
                 if !(f > 0.0 && f.is_finite()) {
@@ -180,6 +190,12 @@ impl RefNoise {
             bail!("ref_noise record: `date` and `how` are required (a noise value without its provenance is not accepted)");
         }
         Ok(())
+    }
+
+    /// Is the absolute KL floor of `mode` (`prefill` / `decode`) report-only in this run? Only when the record says so AND the run is
+    /// gated against a baseline: a mode is never left without a gate.
+    pub fn floor_report_only_for(&self, mode: &str, have_baseline: bool) -> bool {
+        have_baseline && self.floor_report_only.iter().any(|m| m == mode)
     }
 
     /// One line for the log.
@@ -901,6 +917,7 @@ pub fn run(args: RefNoiseArgs) -> Result<()> {
         factor: args.factor,
         prompt_factor: args.prompt_factor,
         prompts: per_noise,
+        floor_report_only: Vec::new(),
     };
     rec.validate()?;
     println!("ref noise of {} ({}): {}", file_of(&args.golden), method.name(), rec.describe());
@@ -945,6 +962,7 @@ mod tests {
             factor: None,
             prompt_factor: None,
             prompts: BTreeMap::new(),
+            floor_report_only: Vec::new(),
         }
     }
 
@@ -1430,7 +1448,16 @@ mod tests {
     #[test]
     fn rescore_m1_w4a4_from_the_documented_numbers() {
         let noise = sidecar("qwen3.8-27b-mxfp4-hfquark-top20.safetensors");
-        assert_eq!((noise.method, noise.kl21_mean, noise.kl21_mean_scored), (Method::PrecisionSpread, Some(0.197), None));
+        // the sidecar is the hash-bound re-measurement of 2026-10-25 (docs/results/2026-10-25-ac-27b-accuracy-gate.md): the same
+        // pair of goldens, 0.1969 on all rows (the 0.197 above), 0.1991 on the 1279 scored rows
+        assert_eq!(noise.method, Method::PrecisionSpread);
+        assert!((noise.kl21_mean.unwrap() - 0.197).abs() < 1e-3, "{:?}", noise.kl21_mean);
+        assert!((noise.kl21_mean_scored.unwrap() - 0.1991).abs() < 1e-4, "{:?}", noise.kl21_mean_scored);
+        assert_eq!((noise.n, noise.n_scored), (Some(1441), Some(1279)));
+        // policy (LOG 2026-10-25, coordinator): W4A4 decode is gated by the engine's own baseline + envelope, not by the HF spread
+        assert_eq!(noise.floor_report_only, vec!["decode".to_string()]);
+        assert!(noise.floor_report_only_for("decode", true) && !noise.floor_report_only_for("decode", false) && !noise.floor_report_only_for("prefill", true));
+        assert_eq!(noise.golden.fnv1a64.as_deref(), Some("725eb3ea093c0264"));
         for (mode, kl, pass) in [("prefill", 0.180, true), ("prefill (golden_kl.py)", 0.176, true), ("decode", 0.274, false)] {
             let v = judge_kl(mode, "21-way KL", kl, Some(0.03), term_rows(0.197, kl, "all rows"), 1.0, "default").unwrap();
             println!(
@@ -1441,6 +1468,47 @@ mod tests {
             );
             assert_eq!((v.pass, v.bound_by), (pass, Bound::RefNoise), "{mode}");
         }
+    }
+
+    #[test]
+    fn floor_report_only_needs_a_baseline_and_names_a_known_mode() {
+        let json = |extra: &str| format!(r#"{{"method":"precision_spread","kl21_mean":0.2,"date":"d","how":"h"{extra}}}"#);
+        let r = RefNoise::parse(&json(r#","floor_report_only":["decode"]"#)).unwrap();
+        // report-only only together with a baseline, and only for the named mode
+        assert!(r.floor_report_only_for("decode", true));
+        assert!(!r.floor_report_only_for("decode", false), "without a baseline the floor keeps gating");
+        assert!(!r.floor_report_only_for("prefill", true));
+        // a record without the field gates every mode
+        let plain = RefNoise::parse(&json("")).unwrap();
+        assert!(!plain.floor_report_only_for("decode", true) && !plain.floor_report_only_for("prefill", true));
+        assert!(RefNoise::parse(&json(r#","floor_report_only":["both"]"#)).is_err());
+        // round trip keeps it; an empty list is not written
+        assert!(serde_json::to_string(&r).unwrap().contains("floor_report_only"));
+        assert!(!serde_json::to_string(&plain).unwrap().contains("floor_report_only"));
+    }
+
+    /// The committed Qwen3.8-27B HIP baselines and noise envelopes (LOG 2026-10-25, lane ac): each pairs with its envelope, binds
+    /// to its golden, and the W4A4 baseline records the decode floor as failing (the policy that makes `floor_report_only`
+    /// necessary) while the W4A16 one passes both modes.
+    #[test]
+    fn committed_27b_baselines_pair_with_their_envelopes_and_goldens() {
+        use super::super::{baseline, envelope};
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../golden/baselines");
+        for (stem, fnv, decode_floor_pass) in [
+            ("qwen3.8-27b-mxfp4-hfquark-top20", "725eb3ea093c0264", false),
+            ("qwen3.8-27b-mxfp4-hfquark-w4a16-top20", "b2665d1de37eb72c", true),
+        ] {
+            let b = baseline::read(&dir.join(format!("{stem}.hip.baseline.json"))).unwrap();
+            let e = envelope::read(&dir.join(format!("{stem}.hip.envelope.json"))).unwrap();
+            envelope::check_for_baseline(&e, &b, false).unwrap();
+            assert_eq!(b.golden.fnv1a64, fnv, "{stem}");
+            assert!(b.code.is_stamped() && !b.code.dirty, "{stem}: baseline must come from a stamped, clean build");
+            let floor: Vec<(String, bool)> = b.modes.iter().map(|m| (m.overall.mode.clone(), m.overall.floor_pass)).collect();
+            assert_eq!(floor, vec![("prefill".to_string(), true), ("decode".to_string(), decode_floor_pass)], "{stem}");
+            assert_eq!(b.modes[1].overall.scored_positions, Some(118), "{stem}: the decode window is 16 rows of each of 10 prompts, 118 scored");
+        }
+        // the W4A4 golden's record names the very golden its baseline was recorded against
+        assert_eq!(sidecar("qwen3.8-27b-mxfp4-hfquark-top20.safetensors").golden.fnv1a64.as_deref(), Some("725eb3ea093c0264"));
     }
 
     #[test]

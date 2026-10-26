@@ -1,0 +1,26 @@
+[qualify      0s] Qwen3.8-27B-MXFP4-mtpfp8 on hip, report directory /work/onboard-runs/hip1/report/qualify
+[qualify      0s] doctor: already done (PASS), not run again
+[qualify      0s] recipe: already done (PASS), not run again
+[qualify      0s] plan: already done (PASS), not run again
+[qualify      0s] kernels: already done (PASS), not run again
+[qualify      0s] gate: already done (PASS), not run again
+[qualify      0s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify      0s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify      0s] acc-short: already done (PASS), not run again
+[qualify      0s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify      0s] acc-oracle: MISSING-BASELINE in 0.0s (MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-MXFP4-mtpfp8 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/radiance/Qwen3.8-27B-MXFP4-mtpfp8 --backend cpu --golden /models/intarsia/golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-MXFP4-mtpfp8 --write-self-golden golden/oracle/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[qualify      0s] bench: already done (PASS), not run again
+[qualify      0s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify      0s] acc-long: SKIP in 0.0s (no golden found, and a golden for a MoE / hybrid / quantized model is made from a reference server: pass --reference <vLLM url> or --golden FILE; no long golden for 'Qwen3.8-27B-MXFP4-mtpfp8' in golden, /models/golden, /work/golden (give --golden-long FILE or --golden-dir DIR, then --resume))
+[qualify      0s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify      0s] acc-4k: SKIP in 0.0s (no 4k golden for 'Qwen3.8-27B-MXFP4-mtpfp8' in golden, /models/golden, /work/golden (give --golden-4k FILE or --golden-dir DIR; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl))
+[qualify      0s] == envelope [noise envelope and baseline for regression gating]
+[qualify     41s] envelope: PASS in 40.5s (baseline and envelope (chunk + attn-simt) written; they gate this build: PASS)
+[qualify     41s] == bench-long [long-context bench up to 16k]
+[qualify     65s] server up in 24s on http://127.0.0.1:8090 (max-seq 17152)
+[qualify    118s] bench-long: PASS in 77.2s (decode 33.0 tok/s at 1024 tokens (81% of the byte floor))
+[qualify    118s] == ab [A/B against the reference server via localeval]
+[qualify    118s] ab: SKIP in 0.0s (no --reference server given)
+[qualify    118s] == tp [tensor-parallel variant]
+[qualify    118s] tp: SKIP in 0.0s (--tp not given (or 1))
+[qualify    118s] exit code 1

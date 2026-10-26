@@ -1,0 +1,26 @@
+/private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/mx/c3: prefill, reference chunk 256, 10 prompts
+ chunkprompt              rows rows!= bitwise   max|dlp|     maxKL    meanKL flips
+     1count                 38      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1story                 39      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1code                  87      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1science               79      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1chat_short            18      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1chat_system           32      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1chat_multiturn        58      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1chat_reasoning        90      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1long_prose_300       300      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     1long_prose_700       700      0     yes  0.000e+00  0.00e+00  0.00e+00     0
+     3count                 38     38      NO  3.257e+00  8.72e-02  1.13e-02     0
+     3story                 39     39      NO  7.708e+00  1.45e+00  9.50e-02     7
+     3code                  87     87      NO  4.159e+00  3.20e-01  1.80e-02     1
+     3science               79     79      NO  2.826e+00  2.60e-01  4.84e-02     5
+     3chat_short            18     18      NO  6.404e+00  9.59e-01  6.73e-02     1
+     3chat_system           32     32      NO  8.166e+00  2.80e+00  2.12e-01     3
+     3chat_multiturn        58     58      NO  9.025e+00  2.83e+00  1.38e-01     7
+     3chat_reasoning        90     90      NO  1.195e+01  3.57e+00  1.17e-01    12
+     3long_prose_300       300    300      NO  1.326e+01  3.30e+00  1.59e-01    14
+     3long_prose_700       700    700      NO  1.334e+01  1.14e+01  2.39e-01    65
+aggregate over all prompts (row-weighted mean KL):
+  chunk 1: rows 1441, rows differing 0, max|dlp| 0.000e+00, max KL 0.00e+00, mean KL 0.00e+00, flips 0
+  chunk 3: rows 1441, rows differing 1441, max|dlp| 1.334e+01, max KL 1.14e+01, mean KL 1.74e-01, flips 115
+ALL BITWISE: NO  (chunks compared: [1, 3])

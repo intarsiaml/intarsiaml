@@ -11,6 +11,7 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
     ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
     ("qwen3_5_vl", include_str!("../../../recipes/qwen3_5_vl.toml")),
+    ("minicpmv4_7", include_str!("../../../recipes/minicpmv4_7.toml")),
     ("gemma4", include_str!("../../../recipes/gemma4.toml")),
     ("llama", include_str!("../../../recipes/llama.toml")),
     ("qwen2", include_str!("../../../recipes/qwen2.toml")),
@@ -308,5 +309,32 @@ lm_head = { tensor = "h" }
         assert_eq!(q3.resolve_prefill_chunk(None, "cpu").value, 256);
         let (_, q35) = select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForCausalLM"]}), &[]).unwrap();
         assert_eq!(q35.resolve_prefill_chunk(None, "cuda").value, 256);
+    }
+
+    #[test]
+    fn no_builtin_recipe_sets_a_prefill_peel() {
+        // the peel is opt-in (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`): with chunk 4096 + peel 16 the 27B
+        // is bitwise chunk 256, but on HIP serve --max-batch 16 it costs context (4930 -> 4407 tokens) and runs 4096-row
+        // busy chunks, so its recipe keeps 256 (docs/results/2026-10-25-mx-hip-27b-prefill.md section 4)
+        let (_, vl) =
+            select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
+        assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 256);
+        let archs = [
+            "Qwen3_5ForConditionalGeneration",
+            "Qwen3_5ForCausalLM",
+            "Qwen3_5MoeForConditionalGeneration",
+            "Qwen3ForCausalLM",
+        ];
+        for arch in archs {
+            let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
+            for be in ["cuda", "hip", "metal", "cpu"] {
+                assert_eq!(r.resolve_prefill_peel(be), (0, "default".to_string()), "{arch} {be}");
+            }
+        }
+        // a peel is a tail of a 256-row pass: 256 or more is refused
+        assert!(parse_recipe(&format!("{TUNED}[tuning.hip]\nprefill_peel = 256\n")).is_err());
+        let r = parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel = 4\n[tuning.hip]\nprefill_peel = 8\n")).unwrap();
+        assert_eq!(r.resolve_prefill_peel("hip").0, 8);
+        assert_eq!(r.resolve_prefill_peel("cuda"), (4, "recipe x, base".to_string()));
     }
 }

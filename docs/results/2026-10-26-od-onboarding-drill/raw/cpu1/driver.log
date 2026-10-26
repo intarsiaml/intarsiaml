@@ -1,0 +1,9 @@
+[onboard      0s] Qwen3.8-27B-MXFP4-mtpfp8 on cpu, report directory /home/nvidia/intarsiaml-od/runs/cpu1/report
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant mxfp4))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /home/nvidia/intarsiaml-od/runs/cpu1/report/logs/smoke.err
+[onboard] smoke: PASS in 61s (generated: "Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard     61s] log: /home/nvidia/intarsiaml-od/runs/cpu1/report/logs/quick.err
+exit=143

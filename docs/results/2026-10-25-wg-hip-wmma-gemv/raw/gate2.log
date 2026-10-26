@@ -1,0 +1,36 @@
+fleetq: #5128 waiting (#2 in line): in line behind #5127 "lane sp: window 4, 27B verify GEMV and lm_head micro-timing (radiance down ~5 min, restored after)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5127 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5127 set, or it will wait for #5127 to be released.
+fleetq: #5128 waiting (#1 in line): radiance-rank0 is also taken down by #5127 "lane sp: window 4, 27B verify GEMV and lm_head micro-timing (radiance down ~5 min, restored after)" (claude-f31ccf91)
+fleetq:   #5127 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5127 set, or it will wait for #5127 to be released.
+fleetq: #5128 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/wg-win.sh bash ~/wg-gate2.sh'
+fleetq: #5128 went ahead of the line and must end within 5h31m (by Sun 09:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+[win] stopping radiance 2026-10-25 03:28:51
+=== wmma_folds DIRECT_MIN=4 03:28:52
+exit=0  test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s 
+test gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch ... ok
+test matmul_fp8_pair_wmma_is_bitwise_two_launches ... ok
+test matmul_pair_bf16_wmma_is_bitwise_two_launches ... ok
+test rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches ... ok
+test rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches ... ok
+test sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch ... ok
+=== wmma_folds DIRECT_MIN=1 03:28:54
+exit=0  test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s 
+test gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch ... ok
+test matmul_fp8_pair_wmma_is_bitwise_two_launches ... ok
+test matmul_pair_bf16_wmma_is_bitwise_two_launches ... ok
+test rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches ... ok
+test rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches ... ok
+test sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch ... ok
+=== wmma_folds DIRECT_MIN=65 03:28:56
+exit=0  test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s 
+test gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch ... ok
+test matmul_fp8_pair_wmma_is_bitwise_two_launches ... ok
+test matmul_pair_bf16_wmma_is_bitwise_two_launches ... ok
+test rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches ... ok
+test rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches ... ok
+test sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch ... ok
+GATE2 DONE
+[win] starting radiance 2026-10-25 03:28:58
+[win] radiance answers 2026-10-25 03:29:08 (after 15 s); active
+fleetq: #5128 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

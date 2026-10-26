@@ -56,6 +56,21 @@ impl Rig {
         TensorRef::new(buf, t.dtype, &t.shape)
     }
 
+    /// A dense fp8 weight; with INTARSIA_WG_FRAG=1 rearranged into fragment order (`Layout::Fp8Frag`) when the shape allows it, so the
+    /// row-invariance proof of the WMMA family runs on tagged weights too (lane wg).
+    fn put_w(&self, t: &HostTensor) -> TensorRef {
+        let w = self.put(t);
+        if std::env::var("INTARSIA_WG_FRAG").as_deref() == Ok("1")
+            && t.dtype == DType::Fp8E4m3
+            && t.shape.len() == 2
+            && intarsia_core::quant::fp8::frag_eligible(t.shape[0], t.shape[1])
+        {
+            self.be.relayout_fp8_frag(&w).unwrap();
+            assert_eq!(w.layout(), intarsia_core::backend::Layout::Fp8Frag);
+        }
+        w
+    }
+
     /// Launch `kernel` on already uploaded inputs; the outputs start as a 0xA5 pattern (a NaN in bf16 / f32), so a row the
     /// kernel does not write cannot equal a computed one.
     fn run(&self, kernel: &str, op: Op, inputs: &[TensorRef], outs: &[(DType, Vec<usize>)], attrs: &OpAttrs) -> Vec<HostTensor> {
@@ -119,6 +134,11 @@ fn bf16_row(vals: &[f32]) -> HostTensor {
 /// Sixteen nasty activation rows of width `k`. `clip` is the value at which e4m3 saturates under the W8A8 input scale in use
 /// (448 * input_scale; pass 448 for W8A16 / unit scale).
 fn nasty_rows(rng: &mut SplitMix64, k: usize, clip: f32) -> Vec<Vec<f32>> {
+    nasty_rows_n(rng, k, clip, CAP)
+}
+
+/// `n` (at least 8) nasty rows.
+fn nasty_rows_n(rng: &mut SplitMix64, k: usize, clip: f32, n: usize) -> Vec<Vec<f32>> {
     let normal = |rng: &mut SplitMix64, s: f32| rng.normal_vec(k, s);
     let r0 = normal(rng, 1.0);
     let mut rows: Vec<Vec<f32>> = vec![r0.clone(), vec![0.0; k], r0.clone()];
@@ -143,7 +163,7 @@ fn nasty_rows(rng: &mut SplitMix64, k: usize, clip: f32) -> Vec<Vec<f32>> {
     rows.push(rng.normal_vec(k, clip * 1e-6));
     // the rest: random scales over six decades, every other one with a +-5 binade spread per element (inside the e4m3 range
     // after quantisation, so the products span many binades and the sums round)
-    while rows.len() < CAP {
+    while rows.len() < n {
         let s = (10.0f32).powf((rng.next_f32() - 0.5) * 6.0);
         if rows.len() % 2 == 0 {
             let spread: Vec<f32> = (0..k)
@@ -331,6 +351,158 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
     rig.report("fp8");
 }
 
+/// Lane wg: the WMMA family (kernels/hip/ik_f8_rows.h). Inside the family row r of an M-row call is bitwise the one-row call on row r
+/// alone, for every M = 1..=64, whatever the neighbouring rows hold (zeros, saturating, 40 binades, a huge element ...), in W8A8 and
+/// W8A16, bf16 and f32 out, at K with a 16-tail (K % 32 == 16), K past one staging window, N not a multiple of 16. The reference is
+/// the family's own M = 1 launch (`matmul_fp8_wmma`; the rows registration is the same launcher). Negative control:
+/// `INTARSIA_HIP_GB_CONTROL=matmul_fp8_wmma_rows=matmul_fp8_mma_f8 cargo test ... wmma_fp8` must FAIL.
+#[test]
+fn wmma_fp8_rows_are_bitwise_the_one_row_call() {
+    let Some(rig) = Rig::new("wmma_fp8_rows_are_bitwise_the_one_row_call") else { return };
+    let mut rng = SplitMix64::new(811);
+    let wmma_rows = 64;
+    // 35B shapes, then the edges: N tails, K = 16 / 48 (tail only / full chunk + tail), K past a window at M = 64 (> 768) and at M = 16
+    let shapes = [
+        (8192usize, 2048usize),
+        (512, 2048),
+        (2048, 4096),
+        (256, 2048),
+        (300, 2048),
+        (9, 16),
+        (33, 48),
+        (1, 4096),
+        (64, 6144),
+        (40, 16400),
+        (24, 1040),
+        (48, 2064),
+    ];
+    for (n, k) in shapes {
+        for (wide, aq, is) in [(true, true, 0.125f32), (true, true, 0.0117), (false, true, 3.0), (true, false, 0.0), (false, false, 0.0)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+            let ws = hc.inputs[2].to_f32()[0];
+            let scales = scales_tensor(if wide { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
+            let w = rig.put_w(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
+            let sc = rig.put(&scales);
+            let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), wmma_rows);
+            for out_dt in [DType::Bf16, DType::F32] {
+                let label = format!("wmma fp8 n={n} k={k} wide={wide} aq={aq} is={is} out={out_dt:?}");
+                gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_wmma", "matmul_fp8_wmma_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, wmma_rows);
+            }
+        }
+    }
+    rig.report("wmma fp8");
+}
+
+/// The bf16 half of the family (router / gate / GDN a, b): row r of an M = 1..=64 call is bitwise the one-row call, with nasty neighbours,
+/// wide weights, a 16-tail K and N tails, bf16 and f32 out. Control: `INTARSIA_HIP_GB_CONTROL=matmul_bf16_wmma_rows=matmul_bf16` must FAIL.
+#[test]
+fn wmma_bf16_rows_are_bitwise_the_one_row_call() {
+    let Some(rig) = Rig::new("wmma_bf16_rows_are_bitwise_the_one_row_call") else { return };
+    let mut rng = SplitMix64::new(813);
+    let wmma_rows = 64;
+    for (n, k) in [(256usize, 2048usize), (32, 2048), (1, 2048), (300, 4096), (9, 16), (33, 48), (64, 6144), (40, 16400), (130, 2064)] {
+        for wide in [false, true] {
+            let w = rig.put(&if wide { wide_bf16(&mut rng, n, k) } else { fast_bf16(&mut rng, n, k) });
+            let x_rows = nasty_rows_n(&mut rng, k, 448.0, wmma_rows);
+            let label = format!("wmma bf16 n={n} k={k} wide={wide}");
+            gb_matmul(&rig, Op::Matmul, "matmul_bf16_wmma", "matmul_bf16_wmma_rows", &[w.clone()], &x_rows, n, DType::Bf16, &label, wmma_rows);
+            gb_matmul(&rig, Op::Matmul, "matmul_bf16_wmma", "matmul_bf16_wmma_rows", &[w], &x_rows, n, DType::F32, &label, wmma_rows);
+        }
+    }
+    rig.report("wmma bf16");
+}
+
+/// Lane wg, the dispatch-table boundary (`WmmaTable`, quantmoe.rs): a kind that switches kernels at M = lo (INTARSIA_HIP_WMMA_TABLE=fp8a8=lo-16)
+/// serves rows 1..lo-1 from the GEMV and rows lo.. from the WMMA family. For fp8 W8A8 this only REPORTS whether a WMMA row equals the GEMV
+/// one-row call on this data: window A (2026-10-25) found them bitwise equal here although the standalone bench shows rel_l2 ~ 1e-6 to 3e-5 on
+/// random data (the products are exact in fp8 x fp8 and the gate's sums stay inside 24 bits), so this data cannot pin "not bitwise" and the
+/// test must not assert it. The bf16 twin below does assert it (its products round).
+#[test]
+fn wmma_fp8_switch_from_the_gemv_reports_equality() {
+    let Some(rig) = Rig::new("wmma_fp8_switch_from_the_gemv_reports_equality") else { return };
+    let mut rng = SplitMix64::new(821);
+    let (n, k) = (512usize, 2048usize);
+    let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+    let scales = scales_tensor(hc.inputs[2].to_f32()[0] / 16.0, 0.0117);
+    let w = rig.put(&wide_fp8_weights(&mut rng, n, k));
+    let sc = rig.put(&scales);
+    let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), 16);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv_v2", "matmul_fp8_wmma_rows", &[w, sc], &x_rows, n, DType::Bf16, "switch fp8 W8A8 gemv -> wmma", 16)
+    }));
+    match r {
+        Ok(()) => eprintln!("REPORT fp8 W8A8: WMMA rows are bitwise the GEMV one-row call on this data (not a proof for other data)"),
+        Err(p) => {
+            let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+            assert!(msg.contains("G-B FAIL"), "the comparison must fail by differing bits, not die some other way: {msg}");
+            eprintln!("REPORT fp8 W8A8: WMMA rows differ from the GEMV one-row call: {msg}");
+        }
+    }
+}
+
+/// The same for the bf16 router/gate kind (INTARSIA_HIP_WMMA_TABLE=bf16=lo-16).
+#[test]
+fn wmma_bf16_switch_from_the_gemv_is_not_bitwise() {
+    let Some(rig) = Rig::new("wmma_bf16_switch_from_the_gemv_is_not_bitwise") else { return };
+    let mut rng = SplitMix64::new(823);
+    let (n, k) = (256usize, 2048usize);
+    let w = rig.put(&wide_bf16(&mut rng, n, k));
+    let x_rows = nasty_rows_n(&mut rng, k, 448.0, 16);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        gb_matmul(&rig, Op::Matmul, "matmul_bf16_gemv", "matmul_bf16_wmma_rows", &[w], &x_rows, n, DType::Bf16, "switch bf16 gemv -> wmma", 16)
+    }));
+    let msg = match r {
+        Ok(()) => panic!("the WMMA rows are bitwise the GEMV one-row call: the table switch is not a numerics change after all"),
+        Err(p) => p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default(),
+    };
+    assert!(msg.contains("G-B FAIL"), "the switch must fail the bitwise comparison, not die some other way: {msg}");
+}
+
+/// The family agrees with the dequantised reference (the cpu `ref` arithmetic) as well as the GEMV does: rel_l2 against the f64 sum of
+/// the exact products. Not a bitwise gate; it catches a wrong fragment layout or k permutation, which row invariance cannot.
+#[test]
+fn wmma_fp8_matches_the_reference_sum() {
+    let Some(rig) = Rig::new("wmma_fp8_matches_the_reference_sum") else { return };
+    let mut rng = SplitMix64::new(812);
+    for (n, k) in [(256usize, 2048usize), (300, 1040), (48, 48), (64, 6144), (96, 16400)] {
+        for (aq, is) in [(true, 0.125f32), (false, 0.0)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+            let ws = hc.inputs[2].to_f32()[0];
+            let scales = scales_tensor(ws, if aq { is } else { 0.0 });
+            let wh = hc.inputs[1].clone();
+            let w = rig.put(&wh);
+            let sc = rig.put(&scales);
+            let m = 5;
+            let x_rows = nasty_rows_n(&mut rng, k, clip_of(&scales), m);
+            let flat: Vec<f32> = x_rows[..m].iter().flatten().copied().collect();
+            let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[m, k], &flat));
+            let got = rig.run("matmul_fp8_wmma", Op::MatmulFp8, &[x.clone(), w, sc], &[(DType::F32, vec![m, n])], &OpAttrs::default())[0].to_f32();
+            // reference: the cpu quantiser + exact f64 sum
+            let xq: Vec<f32> = HostTensor::from_f32_as(DType::Bf16, &[m, k], &flat).to_f32();
+            let wf = wh.to_f32();
+            let (s_w, s_in) = (scales.to_f32()[0] as f64, scales.to_f32()[1] as f64);
+            let mut num = 0f64;
+            let mut den = 0f64;
+            for r in 0..m {
+                for c in 0..n {
+                    let mut acc = 0f64;
+                    for i in 0..k {
+                        let xv = xq[r * k + i] as f64;
+                        let xv = if s_in > 0.0 { intarsia_core::dtype::fp8_e4m3_to_f32(intarsia_core::dtype::f32_to_fp8_e4m3((xv / s_in) as f32)) as f64 } else { xv };
+                        acc += xv * wf[c * k + i] as f64;
+                    }
+                    let want = acc * s_w * if s_in > 0.0 { s_in } else { 1.0 };
+                    let d = got[r * n + c] as f64 - want;
+                    num += d * d;
+                    den += want * want;
+                }
+            }
+            let rel = (num / den.max(1e-300)).sqrt();
+            assert!(rel < 2e-4, "wmma fp8 n={n} k={k} aq={aq}: rel_l2 {rel:.3e} against the f64 reference");
+        }
+    }
+}
+
 // ---- nvfp4 -----------------------------------------------------------------------------------------------------------
 
 #[test]
@@ -471,8 +643,23 @@ fn bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv() {
             }
         }
     }
+    // the 27B head (248320 x 5120, 2.5 GB): the weights are a 2048-row wide pool tiled with a shift (cheap to generate), so
+    // the rows still differ; M = 9..16 run the wide kernel, 1..8 the old one
+    {
+        let (n, k) = (248320usize, 5120usize);
+        let pool = wide_bf16(&mut rng, 2048, k);
+        let shift = 2 * 1237;
+        let mut data = Vec::with_capacity(n * k * 2);
+        while data.len() < n * k * 2 {
+            let take = (n * k * 2 - data.len()).min(pool.data.len() - shift);
+            data.extend_from_slice(&pool.data[shift..shift + take]);
+        }
+        let w = rig.put(&HostTensor::new(DType::Bf16, vec![n, k], data).unwrap());
+        let x_rows = nasty_rows(&mut rng, k, 448.0);
+        gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("logits bf16 n={n} k={k} (27B head)"), CAP);
+    }
     // the 8B head and an odd one, f32 logits
-    for (n, k) in [(151936usize, 4096usize), (129, 36), (50000, 2048)] {
+    for (n, k) in [(151936usize, 4096usize), (129, 36), (50000, 2048), (24000, 5120), (9, 5128)] {
         let w = rig.put(&wide_bf16(&mut rng, n, k));
         let x_rows = nasty_rows(&mut rng, k, 448.0);
         gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("logits bf16 n={n} k={k}"), CAP);
@@ -828,7 +1015,8 @@ fn timing_mxfp4_rows() {
     let w = rig.put(&fast_bf16(&mut rng, n, k));
     let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
     for kernel in ["logits_bf16_gemv", "logits_bf16_gemv_rows"] {
-        for m in [1usize, 2, 3, 4] {
+        let ms: &[usize] = if kernel.ends_with("_rows") { &[1, 2, 3, 4, 5, 6, 8, 12, 16] } else { &[1, 2, 3, 4] };
+        for &m in ms {
             let us = rig.time_us(kernel, Op::Logits, &[x.rows(0, m), w.clone()], &[(DType::F32, vec![m, n])], &OpAttrs::default(), 100);
             println!("TIME lm_head {n}x{k} {kernel:<24} M={m:<2} {us:8.2} us  {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
         }

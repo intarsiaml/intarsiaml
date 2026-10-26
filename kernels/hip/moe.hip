@@ -104,6 +104,12 @@ int moe_mw_variant(int pairs, bool down) {
 // (gate_up: gate + up, 2N) x Kd. Rates measured in the 4408-token prefill profile (docs/results/2026-10-19-hip-round8.md):
 // 64-pair tile ~32 GMAC/ms (gate_up 2.14 ms, down 1.14 ms at 4096 tokens); the 32-pair tile is weight-bound at its sizes,
 // ~7-10 GMAC/ms, taken as 9 so that the 312-token tail chunk (gate_up 0.75 ms) stays one launch.
+// INTARSIA_HIP_MOE_ZFAST (default on; 0 = off, the grid order of rounds 5-9): launch order of the grouped projections, kMwZFast in moe_wmma.h. The result is
+// bit for bit the same either way (tests/moe_pairs.rs); it is read at every launch. Part of the backend fingerprint (kernels.rs).
+bool moe_zfast_enabled() {
+    const char* e = getenv("INTARSIA_HIP_MOE_ZFAST");
+    return !(e && e[0] == '0' && e[1] == 0);
+}
 constexpr double kMwMacPerUs64 = 32e6, kMwMacPerUs32 = 9e6;
 
 // one projection: the round-5 kernel (V = 0), moe_wmma_kernel_v (round 6) or moe_wmma_kernel_r7 (round 7; kMwTwo doubles
@@ -124,13 +130,22 @@ void moe_wmma_launch_p(int64_t N, int64_t P, unsigned slots, unsigned zt, const 
     ik_rt_stamp(s, stag, -1);  // INTARSIA_HIP_STAMP only (round 9 diagnostics); otherwise launches nothing
     for (int i = 0; i < pieces; ++i) {
         const int y0 = (int)(Y * i / pieces), y1 = (int)(Y * (i + 1) / pieces);
-        const dim3 g(slots, (unsigned)(y1 - y0), zt);
-        if constexpr (V == 0)
-            moe_wmma_kernel<GATEUP, PAIRS><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
-        else if constexpr ((V & (kMwCvt | kMwTwo)) == 0)
-            moe_wmma_kernel_v<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
-        else
-            moe_wmma_kernel_r7<GATEUP, PAIRS, V><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0);
+        // launch order (kMwZFast, moe_wmma.h): bitwise the same output; read at every launch like INTARSIA_HIP_MOE_PAIRS
+        const bool zf = moe_zfast_enabled();
+        const dim3 g = zf ? dim3(zt, (unsigned)(y1 - y0), slots) : dim3(slots, (unsigned)(y1 - y0), zt);
+#define IK_MW_RUN(KERNEL, ...)                                                                                                              \
+    KERNEL<__VA_ARGS__><<<g, kMwThreads, 0, s>>>(src, w, ws, gsc, pairs, offsets, active, dst, (int)E, (int)Kd, (int)N, (int)K, y0)
+        if constexpr (V == 0) {
+            if (zf) IK_MW_RUN(moe_wmma_kernel, GATEUP, PAIRS, true);
+            else IK_MW_RUN(moe_wmma_kernel, GATEUP, PAIRS, false);
+        } else if constexpr ((V & (kMwCvt | kMwTwo)) == 0) {
+            if (zf) IK_MW_RUN(moe_wmma_kernel_v, GATEUP, PAIRS, V | kMwZFast);
+            else IK_MW_RUN(moe_wmma_kernel_v, GATEUP, PAIRS, V);
+        } else {
+            if (zf) IK_MW_RUN(moe_wmma_kernel_r7, GATEUP, PAIRS, V | kMwZFast);
+            else IK_MW_RUN(moe_wmma_kernel_r7, GATEUP, PAIRS, V);
+        }
+#undef IK_MW_RUN
         ik_rt_stamp(s, stag, i);
     }
 }
@@ -507,6 +522,263 @@ moe_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, 
                 if (q < pc) {
                     const float v = ik_warp_sum(acc[q]) * gd;
                     if (lane == 0) y[(int64_t)pairs[begin + c0 + q] * H + r] = ik_f2b(v);
+                }
+            }
+        }
+    }
+}
+
+// ---- row-exact grouped projections, several output rows per warp (lane l7) -------------------------------------------------
+// moe_gate_up_kernel / moe_down_kernel above give a warp ONE output row and put a 32 KiB shared-memory staging of the token rows and two barriers around
+// every chunk of pairs: at the 35B's decode shape the down projection is 2.3 KB of weights per block (the I / 2 = 256-byte row of 8 warps), tens of
+// thousands of blocks that each wait for their own staging, and gate_up's 32 KiB allocation caps a CU at two blocks. These twins give a warp RW
+// output rows (their weights requested up front, one window of kG2Pre lane-iterations like the p1 kernels), read the token rows straight from
+// global memory (a few KiB, cache resident) and use no shared memory but the fp4 table. Every (pair, row) result is the old kernel's, bit for
+// bit: the same lane / iteration order (u = lane, lane + 32, ..), one fma chain per 16-element block from 0, the block scale applied per block,
+// ik_warp_sum, the global scale after the sum, the same bf16 roundings; only the mapping of rows to warps and the loads change (tests/rows_exact.rs
+// moe G-B, tests/moe_pairs.rs). Used by the row-exact entry only (ik_moe_experts_bf16_rows); INTARSIA_HIP_MOE_G2 = "gu:dn" (rows per warp of
+// gate_up in {1, 2} and of down in {1, 2, 4}; default 2:2; 0 = the old kernels), read at every launch, part of the backend fingerprint.
+constexpr int kG2Pre = 4;
+
+struct G2Cfg {
+    int gu, dn;
+};
+G2Cfg moe_g2_cfg() {
+    G2Cfg c{2, 2};
+    const char* e = getenv("INTARSIA_HIP_MOE_G2");
+    if (!e || !e[0]) return c;
+    if (e[0] == '0' && e[1] == 0) return G2Cfg{0, 0};
+    const int a = atoi(e);
+    const char* colon = strchr(e, ':');
+    const int b = colon ? atoi(colon + 1) : 0;
+    if (a == 1 || a == 2) c.gu = a;
+    if (b == 1 || b == 2 || b == 4) c.dn = b;
+    return c;
+}
+
+template <int RW>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_gate_up_g2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
+                      const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                      const int* __restrict__ active, ik_bf16* __restrict__ h, int E, int H, int I, int K) {
+    IK_FP4_LUT(lut);
+    const int slot = blockIdx.x;
+    if (slot >= active[E]) return;  // block-uniform
+    const int e = active[slot];
+    const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int r0 = (blockIdx.y * kRowWarps + warp) * RW;
+    if (r0 >= I) return;  // warp-uniform, no barrier below
+    const int nu = H / 16;
+    const uint2* wg[RW];
+    const uint2* wu[RW];
+    const uint8_t* sg[RW];
+    const uint8_t* su[RW];
+#pragma unroll
+    for (int rr = 0; rr < RW; ++rr) {
+        const int r = min(r0 + rr, I - 1);  // rows past I are computed (clamped) and not stored
+        wg[rr] = reinterpret_cast<const uint2*>(guw + ((int64_t)e * 2 * I + r) * (H / 2));
+        wu[rr] = reinterpret_cast<const uint2*>(guw + ((int64_t)e * 2 * I + I + r) * (H / 2));
+        sg[rr] = gus + ((int64_t)e * 2 * I + r) * (H / 16);
+        su[rr] = gus + ((int64_t)e * 2 * I + I + r) * (H / 16);
+    }
+    const float gg = gscales[e * 3 + 0], gu = gscales[e * 3 + 1];
+    for (int c0 = 0; c0 < cnt; c0 += kPairChunk) {
+        const int pc = min(kPairChunk, cnt - c0);
+        int pi[kPairChunk];
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) pi[q] = q < pc ? pairs[begin + c0 + q] : 0;
+        float ag[RW][kPairChunk], au[RW][kPairChunk];
+#pragma unroll
+        for (int rr = 0; rr < RW; ++rr)
+#pragma unroll
+            for (int q = 0; q < kPairChunk; ++q) ag[rr][q] = au[rr][q] = 0.f;
+        uint2 wgv[RW][kG2Pre], wuv[RW][kG2Pre];
+        uint32_t sgb[RW][kG2Pre], sub[RW][kG2Pre];
+#pragma unroll
+        for (int j = 0; j < kG2Pre; ++j) {
+            const int u = lane + IK_WARP * j;
+            const bool ok = u < nu;
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                wgv[rr][j] = ok ? ik_ldcs(wg[rr] + u) : make_uint2(0, 0);
+                wuv[rr][j] = ok ? ik_ldcs(wu[rr] + u) : make_uint2(0, 0);
+                sgb[rr][j] = ok ? sg[rr][u] : 0u;
+                sub[rr][j] = ok ? su[rr][u] : 0u;
+            }
+        }
+        auto step = [&](int u, const uint2 (&gq)[RW], const uint2 (&uq)[RW], const uint32_t (&gb)[RW], const uint32_t (&ub)[RW]) {
+            float fg[RW][16], fu[RW][16], scg[RW], scu[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                scg[rr] = ik_e4m3_to_f(gb[rr]);
+                scu[rr] = ik_e4m3_to_f(ub[rr]);
+                ik_fp4x8_to_f32(gq[rr].x, lut, fg[rr]);
+                ik_fp4x8_to_f32(gq[rr].y, lut, fg[rr] + 8);
+                ik_fp4x8_to_f32(uq[rr].x, lut, fu[rr]);
+                ik_fp4x8_to_f32(uq[rr].y, lut, fu[rr] + 8);
+            }
+#pragma unroll
+            for (int q = 0; q < kPairChunk; ++q) {
+                if (q < pc) {
+                    const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(pi[q] / K) * H + (int64_t)u * 16);
+                    float xf[16];
+                    ik_unpack8(xp[0], xf);
+                    ik_unpack8(xp[1], xf + 8);
+#pragma unroll
+                    for (int rr = 0; rr < RW; ++rr) {
+                        float pg = 0.f, pu = 0.f;
+#pragma unroll
+                        for (int i = 0; i < 16; ++i) {
+                            pg = fmaf(fg[rr][i], xf[i], pg);
+                            pu = fmaf(fu[rr][i], xf[i], pu);
+                        }
+                        ag[rr][q] = fmaf(pg, scg[rr], ag[rr][q]);
+                        au[rr][q] = fmaf(pu, scu[rr], au[rr][q]);
+                    }
+                }
+            }
+        };
+#pragma unroll
+        for (int j = 0; j < kG2Pre; ++j) {
+            if (lane + IK_WARP * j >= nu) continue;
+            uint2 a[RW], b[RW];
+            uint32_t c[RW], d[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                a[rr] = wgv[rr][j];
+                b[rr] = wuv[rr][j];
+                c[rr] = sgb[rr][j];
+                d[rr] = sub[rr][j];
+            }
+            step(lane + IK_WARP * j, a, b, c, d);
+        }
+        for (int u = lane + IK_WARP * kG2Pre; u < nu; u += IK_WARP) {  // H > 2048: the remaining iterations, loaded as used
+            uint2 a[RW], b[RW];
+            uint32_t c[RW], d[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                a[rr] = ik_ldcs(wg[rr] + u);
+                b[rr] = ik_ldcs(wu[rr] + u);
+                c[rr] = sg[rr][u];
+                d[rr] = su[rr][u];
+            }
+            step(u, a, b, c, d);
+        }
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) {
+            if (q < pc) {
+#pragma unroll
+                for (int rr = 0; rr < RW; ++rr) {
+                    const float g = round_bf16(ik_warp_sum(ag[rr][q]) * gg);
+                    const float u = round_bf16(ik_warp_sum(au[rr][q]) * gu);
+                    const float a = round_bf16(g / (1.f + expf(-g)));
+                    if (lane == 0 && r0 + rr < I) h[(int64_t)pi[q] * I + r0 + rr] = ik_f2b(a * u);
+                }
+            }
+        }
+    }
+}
+
+template <int RW>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_down_g2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                   const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                   const int* __restrict__ active, ik_bf16* __restrict__ y, int E, int H, int I) {
+    IK_FP4_LUT(lut);
+    const int slot = blockIdx.x;
+    if (slot >= active[E]) return;
+    const int e = active[slot];
+    const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int r0 = (blockIdx.y * kRowWarps + warp) * RW;
+    if (r0 >= H) return;
+    const int nu = I / 16;
+    const uint2* wd[RW];
+    const uint8_t* sd[RW];
+#pragma unroll
+    for (int rr = 0; rr < RW; ++rr) {
+        const int r = min(r0 + rr, H - 1);
+        wd[rr] = reinterpret_cast<const uint2*>(dnw + ((int64_t)e * H + r) * (I / 2));
+        sd[rr] = dns + ((int64_t)e * H + r) * (I / 16);
+    }
+    const float gd = gscales[e * 3 + 2];
+    for (int c0 = 0; c0 < cnt; c0 += kPairChunk) {
+        const int pc = min(kPairChunk, cnt - c0);
+        int pi[kPairChunk];
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) pi[q] = q < pc ? pairs[begin + c0 + q] : 0;
+        float acc[RW][kPairChunk];
+#pragma unroll
+        for (int rr = 0; rr < RW; ++rr)
+#pragma unroll
+            for (int q = 0; q < kPairChunk; ++q) acc[rr][q] = 0.f;
+        uint2 wv[RW][kG2Pre];
+        uint32_t sb[RW][kG2Pre];
+#pragma unroll
+        for (int j = 0; j < kG2Pre; ++j) {
+            const int u = lane + IK_WARP * j;
+            const bool ok = u < nu;
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                wv[rr][j] = ok ? ik_ldcs(wd[rr] + u) : make_uint2(0, 0);
+                sb[rr][j] = ok ? sd[rr][u] : 0u;
+            }
+        }
+        auto step = [&](int u, const uint2 (&wq)[RW], const uint32_t (&sbyte)[RW]) {
+            float fw[RW][16], sv[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                sv[rr] = ik_e4m3_to_f(sbyte[rr]);
+                ik_fp4x8_to_f32(wq[rr].x, lut, fw[rr]);
+                ik_fp4x8_to_f32(wq[rr].y, lut, fw[rr] + 8);
+            }
+#pragma unroll
+            for (int q = 0; q < kPairChunk; ++q) {
+                if (q < pc) {
+                    const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)pi[q] * I + (int64_t)u * 16);
+                    float hf[16];
+                    ik_unpack8(hp[0], hf);
+                    ik_unpack8(hp[1], hf + 8);
+#pragma unroll
+                    for (int rr = 0; rr < RW; ++rr) {
+                        float p = 0.f;
+#pragma unroll
+                        for (int i = 0; i < 16; ++i) p = fmaf(fw[rr][i], hf[i], p);
+                        acc[rr][q] = fmaf(p, sv[rr], acc[rr][q]);
+                    }
+                }
+            }
+        };
+#pragma unroll
+        for (int j = 0; j < kG2Pre; ++j) {
+            if (lane + IK_WARP * j >= nu) continue;
+            uint2 a[RW];
+            uint32_t c[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                a[rr] = wv[rr][j];
+                c[rr] = sb[rr][j];
+            }
+            step(lane + IK_WARP * j, a, c);
+        }
+        for (int u = lane + IK_WARP * kG2Pre; u < nu; u += IK_WARP) {  // I > 2048: the remaining iterations
+            uint2 a[RW];
+            uint32_t c[RW];
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                a[rr] = ik_ldcs(wd[rr] + u);
+                c[rr] = sd[rr][u];
+            }
+            step(u, a, c);
+        }
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) {
+            if (q < pc) {
+#pragma unroll
+                for (int rr = 0; rr < RW; ++rr) {
+                    const float v = ik_warp_sum(acc[rr][q]) * gd;
+                    if (lane == 0 && r0 + rr < H) y[(int64_t)pi[q] * H + r0 + rr] = ik_f2b(v);
                 }
             }
         }
@@ -1339,15 +1611,37 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
                                 (const float*)gscales->data, pairs, offsets, active, hbuf, ybuf, s);
         IK_TRY(ik_launch_status());
     } else {
-        moe_gate_up_kernel<<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
-                             (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
-                                                     (const uint8_t*)gate_up_s->data, (const float*)gscales->data, pairs,
-                                                     offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, PC);
+        const G2Cfg g2 = allow_wmma ? G2Cfg{0, 0} : moe_g2_cfg();  // the row-exact entry only
+        if (g2.gu) {
+#define IK_G2_GU(RW)                                                                                                          \
+    moe_gate_up_g2_kernel<RW><<<dim3(slots, (unsigned)((I + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>( \
+        (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,                            \
+        (const float*)gscales->data, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K)
+            if (g2.gu == 1) IK_G2_GU(1);
+            else IK_G2_GU(2);
+#undef IK_G2_GU
+        } else {
+            moe_gate_up_kernel<<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+                                 (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
+                                                         (const uint8_t*)gate_up_s->data, (const float*)gscales->data, pairs,
+                                                         offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, PC);
+        }
         IK_TRY(ik_launch_status());
-        moe_down_kernel<<<dim3(slots, (unsigned)((H + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
-                          (size_t)PC * I * 2, s>>>(hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
-                                                  (const float*)gscales->data, pairs, offsets, active, ybuf, (int)E, (int)H,
-                                                  (int)I, PC);
+        if (g2.dn) {
+#define IK_G2_DN(RW)                                                                                                          \
+    moe_down_g2_kernel<RW><<<dim3(slots, (unsigned)((H + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>( \
+        hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data, pairs, offsets, active,   \
+        ybuf, (int)E, (int)H, (int)I)
+            if (g2.dn == 1) IK_G2_DN(1);
+            else if (g2.dn == 2) IK_G2_DN(2);
+            else IK_G2_DN(4);
+#undef IK_G2_DN
+        } else {
+            moe_down_kernel<<<dim3(slots, (unsigned)((H + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
+                              (size_t)PC * I * 2, s>>>(hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
+                                                      (const float*)gscales->data, pairs, offsets, active, ybuf, (int)E, (int)H,
+                                                      (int)I, PC);
+        }
         IK_TRY(ik_launch_status());
     }
     if (H % 8 == 0 && ik_aligned16(ybuf) && ik_aligned16(out->data) && moe_reduce_v8_enabled())

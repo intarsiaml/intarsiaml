@@ -1,0 +1,6 @@
+plain r1: MemAvailable 53931 MB with the server up
+mtp r1: MemAvailable 53636 MB with the server up
+mtp r2: MemAvailable 53619 MB with the server up
+plain r2: MemAvailable 54835 MB with the server up
+plain r3: MemAvailable 54815 MB with the server up
+mtp r3: MemAvailable 54281 MB with the server up

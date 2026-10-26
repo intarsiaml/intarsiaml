@@ -1,0 +1,251 @@
+test disable::tests::typos_are_rejected_and_real_names_pass ... ok
+test kernels::tests::arch_is_a_gfx12_target ... ok
+test kernels::tests::every_launcher_is_declared_in_the_abi_header ... ok
+test kernels::tests::gdn_v3_knob ... ok
+test kernels::tests::names_unique_and_ops_covered ... ok
+test kernels::tests::op_prefix_matches_launcher_name ... ok
+test kernels::tests::phase1_fold_selection_is_pinned ... ok
+test kernels::tests::phase2_fold_selection_is_pinned ... ok
+test kernels::tests::round4_selection_is_pinned ... ok
+test kernels::tests::round5_attention_selection_is_pinned ... ok
+test kernels::tests::splitkv_scratch_bounds_every_context_length ... ok
+test quantmoe::tests::fp8_f8_is_the_default ... ok
+test quantmoe::tests::fp8_folds_follow_the_staging_defaults ... ok
+test quantmoe::tests::fp8_selection_is_pinned ... ok
+test quantmoe::tests::fp8_v2_scratch_stays_below_the_moe_workspace ... ok
+test quantmoe::tests::moe_block_grouped_serves_3_to_16_rows_only ... ok
+test quantmoe::tests::moe_block_is_default_on_and_its_shapes_are_pinned ... ok
+test quantmoe::tests::moe_experts_selection_is_pinned ... ok
+test quantmoe::tests::moe_v3_is_opt_in ... ok
+test quantmoe::tests::mxfp4_fold_is_default_with_a_kill_switch ... ok
+test quantmoe::tests::mxfp4_selection_is_pinned ... ok
+test quantmoe::tests::wmma_fp8_selection_is_pinned ... ok
+test quantmoe::tests::wmma_frag_weights_have_a_reader_at_every_row_count ... ok
+test quantmoe::wmma_table_tests::bad_override_is_an_error ... ok
+test quantmoe::wmma_table_tests::default_is_w8a16_only_and_whole_range ... ok
+test quantmoe::wmma_table_tests::override_switches_one_kind_at_its_boundary ... ok
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... FAILED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:27:5:
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.62s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test admission`
+test attention_causal_and_chunk_edges_are_exact ... ok
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_throughput ... ignored
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.57s
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test collectives_captured_into_a_graph_replay_exactly_and_interleave_with_eager_ones ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.12s
+test fp8_gemv_v2_is_bitwise_v1 ... ok
+test fused_conv_state_and_rope_tail_match_the_reference ... ok
+test moe_experts_v2_is_bitwise_v1 ... ok
+test moe_topk_v2_is_bitwise_v1 ... ok
+test nvfp4_gemv_v2_is_bitwise_v1 ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.81s
+test attention_decode_device_position_is_bitwise_the_host_position ... ok
+test graph_replay_follows_the_device_position ... ok
+test rope_and_kv_append_device_position_is_bitwise_the_host_position ... ok
+test splitkv_decode_matches_the_simt_kernel_at_every_position ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+test flash_v2_is_bitwise_v1 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.95s
+test f8_is_not_the_bf16_path ... ok
+test f8_matches_cpu_reference_tightly ... ok
+test f8_prefill_tiles_match_small_calls ... ok
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s
+test v2_close_to_cpu_reference ... ok
+test v2_decodes_every_e4m3_code ... ok
+test v2_is_bitwise_mma ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.93s
+test matmul_fp8_pair_every_block_shape_is_bitwise_v2 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+test frag_raw_byte_paths_refuse_a_tagged_tensor ... ok
+test frag_readers_that_do_not_know_the_layout_fail_loudly ... ok
+test frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader ... ok
+test frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load ... ok
+test frag_the_registry_selects_only_fragment_readers_for_a_tagged_call ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.94s
+test gated_rmsnorm_is_bitwise_rmsnorm_then_silu_glu ... ok
+test gated_rmsnorm_matmul_fp8_is_bitwise_norm_then_gemv ... ok
+test gated_rmsnorm_matmul_fp8_many_draws_bitwise ... ok
+test matmul_fp8_pair_is_bitwise_two_gemvs ... ok
+test matmul_nvfp4_glu_is_bitwise_gate_up_silu ... ok
+test matmul_pair_is_bitwise_two_gemvs ... ok
+test rmsnorm_add_matmul_pair_is_bitwise_norm_then_pair ... ok
+test rmsnorm_add_matmul_pair_many_rows_bitwise ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.12s
+test out_of_range_shapes_are_refused ... ok
+test rmsnorm_add_matmul_fp8_pair_is_bitwise_norm_then_pair ... ok
+test shared_down_combine_is_bitwise_down_then_combine ... ok
+test sigmoid_mul_matmul_fp8_is_bitwise_gate_then_gemv ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+test gate_split_qk_norm_rope_kv_is_bitwise_split_then_prologue ... ok
+test gdn_conv_delta_conv_state_survives_skewed_blocks ... ok
+test gdn_conv_delta_is_bitwise_conv_then_delta_rule ... ok
+test gdn_conv_delta_many_draws_bitwise ... ok
+test gdn_conv_delta_without_a_slot_is_bitwise_too ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.01s
+test gdn_kernels_timing_at_35b_shapes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+test gdn_v2_is_bitwise_the_rows_kernel ... ok
+test gdn_v2_timing ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.26s
+test gemm_throughput_on_qwen3_8b_shapes ... ignored
+test gemv_bandwidth_on_qwen3_8b_shapes ... ignored
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test moe_block_counters_reset_between_launches ... ok
+test moe_block_dispatch_order ... ok
+test moe_block_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_graph_replay_is_bitwise_eager ... ok
+test moe_block_grouped_is_the_solo_block_per_token ... ok
+test moe_block_grouped_negative_controls ... FAILED
+test moe_block_is_bitwise_the_chain ... FAILED
+test moe_block_rows_are_the_solo_block_per_token ... FAILED
+test moe_block_sentinel_stress ... FAILED
+test moe_block_timing ... ok
+test moe_rows_timing ... ok
+---- moe_block_grouped_negative_controls stdout ----
+thread 'moe_block_grouped_negative_controls' panicked at crates/intarsia-backend-hip/tests/moe_block.rs:292:88:
+---- moe_block_is_bitwise_the_chain stdout ----
+thread 'moe_block_is_bitwise_the_chain' panicked at crates/intarsia-backend-hip/tests/moe_block.rs:101:6:
+thread 'moe_block_rows_are_the_solo_block_per_token' panicked at crates/intarsia-backend-hip/tests/moe_block.rs:220:80:
+thread 'moe_block_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_block.rs:101:6:
+    moe_block_grouped_negative_controls
+    moe_block_is_bitwise_the_chain
+test result: FAILED. 7 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 105.45s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test moe_block`
+     Running tests/moe_pairs.rs (/target/release/deps/moe_pairs-c73bccbb72670486)
+test moe_pair_tile_does_not_change_a_bit ... FAILED
+thread 'moe_pair_tile_does_not_change_a_bit' panicked at crates/intarsia-backend-hip/tests/moe_pairs.rs:38:46:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test moe_pairs`
+test v3_counters_reset_between_launches ... FAILED
+test v3_graph_replay_is_bitwise_eager ... FAILED
+test v3_is_bitwise_v2 ... FAILED
+test v3_sentinel_stress ... FAILED
+test v3_sentinel_stress_multitoken ... FAILED
+test v3_sentinel_stress_narrow ... FAILED
+test v3_waits_for_every_gate_up_role ... FAILED
+---- v3_counters_reset_between_launches stdout ----
+thread 'v3_counters_reset_between_launches' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:102:69:
+---- v3_graph_replay_is_bitwise_eager stdout ----
+thread 'v3_graph_replay_is_bitwise_eager' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:102:69:
+---- v3_is_bitwise_v2 stdout ----
+thread 'v3_is_bitwise_v2' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:52:73:
+thread 'v3_sentinel_stress' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:349:64:
+thread 'v3_sentinel_stress_multitoken' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:349:64:
+thread 'v3_sentinel_stress_narrow' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:349:64:
+thread 'v3_waits_for_every_gate_up_role' panicked at crates/intarsia-backend-hip/tests/moe_v3.rs:194:62:
+    v3_counters_reset_between_launches
+    v3_graph_replay_is_bitwise_eager
+    v3_is_bitwise_v2
+test result: FAILED. 0 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.96s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test moe_v3`
+test matmul_mxfp4_pair_is_bitwise_two_gemvs ... ok
+test mxfp4_gemv_lds_is_bitwise_prepass_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.61s
+test fold_falls_back_bitwise ... ok
+test fold_matches_mma_closely ... ok
+test fold_rows_do_not_depend_on_m ... ok
+test fold_wide_activation_span ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.85s
+test v2_is_bitwise_v1 ... ok
+test v2_is_bitwise_v1_on_every_scale_byte ... ok
+test v2_rows_do_not_depend_on_m ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.11s
+test bf16_gemm_rows_do_not_depend_on_m ... ok
+test moe_experts_rows_do_not_depend_on_t ... FAILED
+test moe_experts_small_segments_cross_the_gemv_wmma_threshold ... FAILED
+test moe_topk_rows_do_not_depend_on_t ... ok
+test nvfp4_gemm_rows_do_not_depend_on_m ... ok
+thread 'moe_experts_rows_do_not_depend_on_t' panicked at crates/intarsia-backend-hip/tests/packed_rows.rs:43:42:
+thread 'moe_experts_small_segments_cross_the_gemv_wmma_threshold' panicked at crates/intarsia-backend-hip/tests/packed_rows.rs:98:60:
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test packed_rows`
+test flash_vp_is_pinned ... ok
+test print_flash_vp ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test qk_norm_rope_kv_is_bitwise_the_unfused_chain ... ok
+test qk_norm_rope_kv_many_draws_bitwise ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.16s
+test bench_decode_variants ... ignored
+test bench_fp8_sweep ... ignored
+test bench_prefill_shapes ... ignored
+test bench_real_shapes ... ignored
+test moe_experts_batch_invariance ... 
+test moe_experts_batch_invariance ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.26s
+test moe_experts_skewed_and_invalid_routing ... ok
+test quant_f32_outputs_meet_the_f32_tolerance ... ok
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.00s
+test every_hip_kernel_has_a_quick_case ... FAILED
+thread 'every_hip_kernel_has_a_quick_case' panicked at crates/intarsia-backend-hip/tests/quick_coverage.rs:12:5:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test quick_coverage`
+test every_wmma_kernel_has_a_quick_case_with_the_knob_on ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test print_inner_variants ... ignored
+test round6_inner_variants_are_pinned ... ok
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test attn_decode_rows_are_the_solo_decode ... ok
+test control_swapped_entries_are_detected_in_delta_append_and_rope ... ok
+test control_swapped_table_entries_are_detected ... ok
+test gdn_conv_rows_are_the_solo_conv ... ok
+test gdn_delta_rows_are_the_solo_delta_rule ... ok
+test gdn_row_tables_are_the_solo_fused_conv_delta ... ok
+test kv_append_rows_are_the_solo_append ... ok
+test rope_with_one_position_per_row_is_the_solo_rope ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.63s
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... FAILED
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... ok
+test wmma_bf16_switch_from_the_gemv_is_not_bitwise ... ok
+test wmma_fp8_matches_the_reference_sum ... ok
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+test wmma_fp8_switch_from_the_gemv_reports_equality ... ok
+---- bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv stdout ----
+thread 'bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:51:70:
+    bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv
+test result: FAILED. 10 passed; 1 failed; 2 ignored; 0 measured; 0 filtered out; finished in 8.99s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test rows_exact`
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.10s
+test split_trigger_rule ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test splitkv_8_waves_is_bitwise_the_7_wave_kernel ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.49s
+test splitkv_round8_loops_are_bitwise_the_old_ones ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+test staged_copies_land_in_order ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.12s
+test gated_rmsnorm_matmul_fp8_wmma_is_bitwise_norm_then_launch ... ok
+test matmul_fp8_pair_wmma_is_bitwise_two_launches ... ok
+test matmul_pair_bf16_wmma_is_bitwise_two_launches ... ok
+test rmsnorm_add_matmul_fp8_pair_wmma_is_bitwise_norm_then_two_launches ... ok
+test rmsnorm_add_matmul_pair_bf16_wmma_is_bitwise_norm_then_two_launches ... ok
+test sigmoid_mul_matmul_fp8_wmma_is_bitwise_gate_then_launch ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.32s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+error: 7 targets failed:
+    `-p intarsia-backend-hip --test moe_pairs`

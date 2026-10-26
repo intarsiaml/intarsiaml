@@ -235,6 +235,15 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
             }
         }
     }
+    // opt-in macro prefill pass (`INTARSIA_PREFILL_MACRO`): the row-wise ops of up to `macro_rows` rows of consecutive chunks run
+    // as one call, so the kernel scratch is sized (and the kernels admitted) for that shape too; nothing is added when off
+    let big = model.macro_rows() + model.tail_merge();
+    if model.macro_rows() > 0 {
+        probes.push((Phase::Prefill, big, 0));
+        if cap > big {
+            probes.push((Phase::Prefill, big, cap - big));
+        }
+    }
     // speculative verify passes (spec on only): every row count, at both ends of the context
     for t in 2..=model.verify_rows() {
         if t < cap {
@@ -906,7 +915,7 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
     } else {
         Value::Null
     };
-    json!({
+    let mut v = json!({
         "model": model_id,
         "backend": info.backend,
         "device": {"name": info.name, "mem_total": info.total_mem, "arch": info.arch},
@@ -921,7 +930,16 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
         "probed_sizes": model.resolved.sizes,
         "require_admitted": model.registry.require_admitted,
         "reference_only": model.registry.reference_only,
-    })
+    });
+    // additive and only when on, so a plan without the prefill tail peel is unchanged
+    if model.prefill_peel() > 0 {
+        v["prefill_peel"] = model.prefill_peel().into();
+    }
+    // additive and only when a backend re-laid weights out at load (lane wg: HIP `INTARSIA_HIP_FP8_FRAG=1`), so a default plan is unchanged
+    if let Some(l) = model.backend.layout_report() {
+        v["weight_layout"] = l.into();
+    }
+    v
 }
 
 #[cfg(test)]

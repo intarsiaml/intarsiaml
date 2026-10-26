@@ -1,0 +1,30 @@
+Traceback (most recent call last):
+  File "/opt/code/deepeval/src/localeval/cli.py", line 205, in _run
+    run["speed"] = run_sweep(t, _ints(args.sizes) or None, args.gen, args.reps, _ints(args.concurrency),
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/speed.py", line 80, in run_sweep
+    raise RuntimeError(f"{target.name}: calibration failed: {base.error or cal.error or 'no usage reported'}")
+RuntimeError: adhoc: calibration failed: HTTP 400: {"error":{"message":"the prompt has 4461 tokens but the context window is 4096 tokens","type":"invalid_request_error","param":null,"code":400}}
+[localeval] RuntimeError: adhoc: calibration failed: HTTP 400: {"error":{"message":"the prompt has 4461 tokens but the context window is 4096 tokens","type":"invalid_request_error","param":null,"code":400}}
+# localeval: adhoc — 2026-10-25T12:36
+
+- model: `wg-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: wg-served-off-p1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 301fae0
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model wg-35b --sizes 1024 --gen 512 --reps 3 --concurrency 4,8,16 --thinking off --label wg-served-off-p1`
+- result file: `results/20261025-123632-adhoc-wg-served-off-p1/result.json`
+
+## Launch recipe
+
+none recorded (pass `--recipe <launch script or command>`)
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: adhoc: calibration failed: HTTP 400: {"error":{"message":"the prompt has 4461 tokens but the context window is 4096 tokens","type":"invalid_request_error","param":null,"code":400}}
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261025-123632-adhoc-wg-served-off-p1/result.json
+[localeval] not logged to unanimis (nothing measured)

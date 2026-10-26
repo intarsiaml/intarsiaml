@@ -1,0 +1,75 @@
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... 
+thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:107:84:
+FAILED
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+thread 'real_35b_batched_engine_equals_the_local_engine' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:231:58:
+FAILED
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+    real_35b_batched_decode_is_bitwise_the_solo_step
+test result: FAILED. 1 passed; 2 failed; 9 ignored; 0 measured; 0 filtered out; finished in 1.14s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+test alternating_rows_and_batches_do_not_recapture ... batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=3 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=4 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=5 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=6 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=7 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=8 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=9 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=10 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=11 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=12 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=13 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=14 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=15 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on hip/gfx1201 (m=16 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.4 ms batched, 1.2 ms for the 2 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.8 ms batched, 1.4 ms for the 3 solo steps)
+batch 4: 6 steps bitwise in 0.0 s (per step: 2.8 ms batched, 1.4 ms for the 4 solo steps)
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.3 ms batched, 0.9 ms for the 2 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 6 steps bitwise in 0.0 s (per step: 2.8 ms batched, 1.4 ms for the 4 solo steps)
+batch 3: 6 steps bitwise in 0.0 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 2: 6 steps bitwise in 0.0 s (per step: 2.3 ms batched, 0.9 ms for the 2 solo steps)
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+test batched_engine_with_packed_prefill_equals_solo ... Dense rows 2: 1 packed passes carried 2 chunks of 9 (9 chunks in all)
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.3 ms batched, 0.9 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.5 ms batched, 1.5 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.7 ms batched, 1.8 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.5 ms batched, 3.5 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.6 s (per step: 5.2 ms batched, 7.1 ms for the 16 solo steps)
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.4 ms batched, 0.8 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.8 ms batched, 1.6 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.6 ms batched, 3.2 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.6 s (per step: 5.5 ms batched, 6.5 ms for the 16 solo steps)
+batch 2: 130 steps bitwise in 0.4 s (per step: 2.4 ms batched, 0.8 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 0.5 s (per step: 2.6 ms batched, 1.3 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 0.6 s (per step: 2.8 ms batched, 1.6 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 0.9 s (per step: 3.6 ms batched, 3.2 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 1.5 s (per step: 5.5 ms batched, 6.4 ms for the 16 solo steps)
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+Dense: 300 decode rows bitwise solo, 58205 batched steps begun while a chunk was running
+Moe: 300 decode rows bitwise solo, 133424 batched steps begun while a chunk was running
+MoeA8: 300 decode rows bitwise solo, 128556 batched steps begun while a chunk was running
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test macro_forward_equals_chunked_forward ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 104.61s
+error: 1 target failed:

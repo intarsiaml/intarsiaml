@@ -8,7 +8,8 @@
 //!   chunks, sampling) over greedy and seeded-sampled requests: at one stream it equals `LocalEngine` token for token, and
 //!   with 4 and 16 requests in flight each request's tokens still equal its solo run. (Prefill of a busy engine runs in
 //!   smaller chunks than a solo one: for the greedy prompts below the chunk schedule is the same, see the test.)
-//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same CUDA kernels.
+//! * `real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`: the dense bf16 model on the same kernels (CUDA, and HIP
+//!   since #154 dropped `hip_batch_needs_hybrid`).
 //!
 //! Tensor parallelism (lane tp2/batch): with `INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_BATCH_TEST_TP=2` the models load as an
 //! in-process 2-way group on HIP devices 0 and 1 (peer-to-peer communicator, row-local fusion on and the vocab-parallel head
@@ -16,14 +17,16 @@
 //! compare batched tp=2 steps against solo tp=2 steps.
 //!
 //! Opt-in (loads 20 GB onto the GPU: take a fleetq slot on the Spark first): `INTARSIA_QWEN36_DIR` (35B checkpoint) and
-//! `INTARSIA_QWEN3_DIR` (8B); a test without its directory prints SKIPPED (and panics under `INTARSIA_REQUIRE_GPU=1`).
+//! `INTARSIA_QWEN3_DIR` (8B); a test whose variable is unset prints SKIPPED and passes, also under `INTARSIA_REQUIRE_GPU=1`
+//! (a checkpoint left out is not a missing GPU); one set to a directory without config.json, or without a usable GPU,
+//! panics under `INTARSIA_REQUIRE_GPU=1`. The tests run one at a time ([`serial`]).
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
 use intarsia_models::{load_engine, load_engine_tp, read_model_spec, EngineOptions, Loaded};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 #[path = "common/batch_identity.rs"]
@@ -44,7 +47,7 @@ fn model_dir(var: &str) -> Option<PathBuf> {
             None
         }
         None => {
-            skip(&format!("{var} not set"));
+            eprintln!("SKIPPED: {var} not set");
             None
         }
     }
@@ -61,6 +64,14 @@ fn cuda() -> Option<Arc<dyn intarsia_core::backend::Backend>> {
             None
         }
     }
+}
+
+/// The tests of this file one at a time (every test takes it first): each loads a real checkpoint with most of the free
+/// device memory for its KV cache (`kv_fraction` 0.95), so two at once under the default parallel test runner do not fit.
+/// A failed test does not poison it.
+fn serial() -> MutexGuard<'static, ()> {
+    static SERIAL: Mutex<()> = Mutex::new(());
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 /// The model of `dir` on the GPU with batching enabled for `rows` sequences of `max_seq` tokens.
@@ -107,6 +118,17 @@ fn load_with(
     max_seq: usize,
     profile_every: u32,
 ) -> (Model, Arc<Telemetry>) {
+    try_load_with(dir, backend, rows, max_seq, profile_every).unwrap()
+}
+
+/// [`load_with`], with the refusal of `Model::allow_recurrent_batch` returned instead of panicking.
+fn try_load_with(
+    dir: &PathBuf,
+    backend: Arc<dyn intarsia_core::backend::Backend>,
+    rows: usize,
+    max_seq: usize,
+    profile_every: u32,
+) -> intarsia_core::Result<(Model, Arc<Telemetry>)> {
     let (_, recipe, dims, _) = read_model_spec(dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, backend.name()).value;
@@ -131,13 +153,20 @@ fn load_with(
     assert!(m.batch_capable(), "the GPU backend registers the row-exact kernels");
     eprintln!("plan before batching: {:?}", m.plan);
     eprintln!("recurrent bytes per state {}", m.recurrent_bytes_per_state());
-    m.allow_recurrent_batch().unwrap();
+    m.allow_recurrent_batch()?;
     m.enable_batch(rows).unwrap();
     // plan resolution dry-runs every batch size at both ends of the context: a batched op that would pick a kernel that is
     // neither the solo step's nor a row-exact one fails here (`plan::check_batch_ops`)
     m.configure_plan(&Default::default(), None).unwrap();
+    eprintln!(
+        "batch plan: {} KV tokens per sequence, {} KV bytes in all, {} bytes per token; notes {:?}",
+        m.plan.kv_cap_tokens,
+        m.plan.kv_total_bytes,
+        m.kv_bytes_per_token(),
+        m.plan.notes
+    );
     assert!(m.plan.kv_cap_tokens >= max_seq, "{} tokens per sequence", m.plan.kv_cap_tokens);
-    (m, tel)
+    Ok((m, tel))
 }
 
 fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_range: (u32, u32)) {
@@ -150,6 +179,7 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
 
 #[test]
 fn real_35b_batched_decode_is_bitwise_the_solo_step() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     eprintln!("batch plan notes: {:?}", m.plan.notes);
@@ -481,8 +511,12 @@ fn real_35b_tp2_batch_stale_position_mutant_is_caught() {
 
 #[test]
 fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
-    let m = load(&dir, be, 16, 2048);
+    let m = match try_load_with(&dir, be, 16, 2048, 0) {
+        Ok((m, _)) => m,
+        Err(e) => panic!("{e:?}"),
+    };
     let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 400, 3, 77, 150, 28, 11, 90, 45];
     // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
     let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
@@ -544,6 +578,7 @@ fn requests(engine: &dyn Engine, n: usize, max_tokens: usize) -> Vec<GenRequest>
 
 #[test]
 fn real_35b_batched_engine_equals_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let mk = |max_batch: Option<usize>| EngineOptions {
         load: LoadOptions { max_seq: 2048, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
@@ -584,6 +619,7 @@ fn real_35b_batched_engine_equals_the_local_engine() {
 #[test]
 #[ignore]
 fn real_35b_batch_step_timing() {
+    let _serial = serial();
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
@@ -634,6 +670,7 @@ fn real_35b_batch_step_timing() {
 #[test]
 #[ignore]
 fn real_35b_batch_step_sampled_timing() {
+    let _serial = serial();
     use intarsia_core::model::{HeadMode, StepOut};
     use intarsia_core::sampler::{Sampler, SamplingParams};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
@@ -671,11 +708,13 @@ fn real_35b_batch_step_sampled_timing() {
     }
 }
 
-/// Per-op calls and time of 8 profiled batched steps at B = 4 and at B = 16 (profiling syncs after each op, so the sum
-/// is above the unprofiled step; the shares are what to read).
+/// Per-op calls and time of 8 profiled batched steps at B = 1, 4 and 16, or at `INTARSIA_TIMING_ROWS="1,8,16"` (profiling
+/// syncs after each op, so the sum is above the unprofiled step; the shares are what to read). Two unprofiled-in-the-table
+/// warm-up steps per B come first.
 #[test]
 #[ignore]
 fn real_35b_batch_step_profile() {
+    let _serial = serial();
     use intarsia_core::model::HeadMode;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let (m, tel) = load_with(&dir, be, 16, 2048, 1);
@@ -687,14 +726,30 @@ fn real_35b_batch_step_profile() {
             st
         })
         .collect();
-    for b in [1usize, 4, 16] {
-        let before = tel.snapshot().ops;
+    let rows_list: Vec<usize> = std::env::var("INTARSIA_TIMING_ROWS")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![1, 4, 16]);
+    for b in rows_list {
         let ids: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
         let modes = vec![HeadMode::LastArgmax; b];
+        // B = 1 is the solo step (`forward`, eager, the same per-op syncs): the batched path replays a captured graph at one row,
+        // whose ops are not timed one by one
+        let step = |states: &mut Vec<_>| {
+            if b == 1 {
+                m.forward(&mut states[0], &ids, HeadMode::LastArgmax, None).unwrap();
+            } else {
+                let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
+                m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            }
+        };
+        for _ in 0..2 {
+            step(&mut states);
+        }
+        let before = tel.snapshot().ops;
         let t0 = std::time::Instant::now();
         for _ in 0..8 {
-            let mut refs: Vec<&mut _> = states.iter_mut().take(b).collect();
-            m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            step(&mut states);
         }
         let wall = t0.elapsed().as_secs_f64() * 1e3 / 8.0;
         let after = tel.snapshot().ops;
@@ -709,8 +764,8 @@ fn real_35b_batch_step_profile() {
         rows.sort_by(|x, y| y.2.partial_cmp(&x.2).unwrap());
         let tot: f64 = rows.iter().map(|r| r.2).sum::<f64>() / 8.0;
         eprintln!("PROFILE B={b}: wall {wall:.2} ms/step (profiled), op time sum {tot:.2} ms/step");
-        for (k, calls, ms) in rows.iter().take(14) {
-            eprintln!("PROFILE B={b}   {k:<28} {:>6.1} calls/step {:>7.3} ms/step", *calls as f64 / 8.0, ms / 8.0);
+        for (k, calls, ms) in rows.iter().take(40) {
+            eprintln!("PROFILE B={b}   {k:<40} {:>6.1} calls/step {:>7.3} ms/step", *calls as f64 / 8.0, ms / 8.0);
         }
     }
 }
@@ -745,6 +800,7 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 #[test]
 #[ignore]
 fn real_35b_busy_chunk_prefill_kl_gate() {
+    let _serial = serial();
     use intarsia_core::engine::TextCodec;
     use intarsia_core::model::{HeadMode, StepOut};
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
@@ -905,6 +961,7 @@ fn real_35b_busy_chunk_prefill_kl_gate() {
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let all = corpus_tokens(&dir);
     let window = |start: usize, len: usize| all[start..start + len].to_vec();
@@ -1028,6 +1085,7 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
 #[test]
 #[ignore]
 fn real_35b_batch_op_listing() {
+    let _serial = serial();
     use intarsia_core::plan::Phase;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
@@ -1060,6 +1118,7 @@ fn real_35b_batch_op_listing() {
 #[test]
 #[ignore]
 fn real_35b_packed_prefill_equals_the_local_engine() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let all = corpus_tokens(&dir);
     let lens = [300usize, 1100, 40, 700, 520, 90, 1024, 260, 33, 880, 410, 150];
@@ -1100,5 +1159,135 @@ fn real_35b_packed_prefill_equals_the_local_engine() {
         let m = l.engine.batch_metrics().expect("batched engine metrics");
         eprintln!("{slots} slots: {} packed passes carried {} chunks ({} chunks in all)", m.pack_passes, m.packed_chunks, m.prefill_chunks);
         assert!(m.pack_passes > 0 && m.packed_chunks >= 2 * m.pack_passes, "nothing was packed: {m:?}");
+    }
+}
+
+// ---- macro prefill (INTARSIA_PREFILL_MACRO) on the real 35B ---------------------------------------------------------------
+
+/// Macro prefill (several chunks of one prompt in one layer-by-layer pass, `Model::macro_rows`) must leave the bits of the plain
+/// chunk schedule: for prompts of 1.5k, 4k, 8.3k and 16.6k tokens of repository docs text, the same weights prefill the prompt with
+/// the macro schedule off, then on (macro 4096, 8192 and 16384 rows), and the logits of the last prompt row and of 16 greedy
+/// decode steps (which read the KV cache and the recurrent state the prefill wrote) must be bit for bit the same. Also a
+/// single `forward` over the whole prompt with a head. Opt-in: `INTARSIA_QWEN36_DIR`, a fleetq slot on the Spark.
+#[test]
+#[ignore]
+fn real_35b_macro_prefill_is_bitwise_the_plain_schedule() {
+    let _serial = serial();
+    use intarsia_core::model::{HeadMode, StepOut};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE_ROWS: usize = 16;
+    let lens = [1536usize, 4096, 8192 + 100, 16384 + 271];
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions {
+        max_seq: 16384 + 271 + DECODE_ROWS + 8,
+        prefill_chunk: chunk,
+        profile_every: 0,
+        kv_fraction: 0.95,
+        prefill_macro: Some(16384),
+        ..Default::default()
+    };
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    assert_eq!(m.macro_rows(), 16384);
+    let all = corpus_tokens(&dir);
+    assert!(all.len() > 16384 + 271, "{} corpus tokens", all.len());
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    // the engine's recurrent schedule: everything but the last token headless, the last alone with the head, then greedy decode
+    let run = |m: &Model, prompt: &[u32], whole: bool| -> Vec<Vec<f32>> {
+        let mut st = m.new_state().unwrap();
+        let mut rows = Vec::new();
+        if whole {
+            rows.push(logits(m.forward(&mut st, prompt, HeadMode::LastLogits, None).unwrap()));
+        } else {
+            let (head, last) = prompt.split_at(prompt.len() - 1);
+            m.forward(&mut st, head, HeadMode::None, None).unwrap();
+            rows.push(logits(m.forward(&mut st, last, HeadMode::LastLogits, None).unwrap()));
+        }
+        for _ in 0..DECODE_ROWS {
+            let next = rows
+                .last()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b })
+                .0 as u32;
+            rows.push(logits(m.forward(&mut st, &[next], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows
+    };
+    let bits = |r: &Vec<Vec<f32>>| -> Vec<Vec<u32>> { r.iter().map(|l| l.iter().map(|x| x.to_bits()).collect()).collect() };
+    for (k, &len) in lens.iter().enumerate() {
+        let prompt = &all[k * 997..k * 997 + len];
+        for whole in [false, true] {
+            m.set_macro_rows(0);
+            let want = bits(&run(&m, prompt, whole));
+            for rows in [4096usize, 8192, 16384] {
+                m.set_macro_rows(rows);
+                let before = m.macro_passes();
+                let got = bits(&run(&m, prompt, whole));
+                let passes = m.macro_passes() - before;
+                eprintln!("MACRO len {len} whole {whole} macro {rows}: {passes} macro passes, logits of {} rows", got.len());
+                assert!(len < 2 * chunk || passes > 0, "len {len}: the macro schedule did not run");
+                assert!(got == want, "len {len}, whole {whole}, macro {rows}: logits differ from the plain schedule");
+            }
+        }
+    }
+}
+
+/// The batched engine's macro prefill (a prompt prefilling alone with nothing decoding runs several 2048-row chunks as one
+/// pass) is bitwise the plain schedule: the reference is the LocalEngine with the macro schedule OFF (`prefill_macro: Some(0)`),
+/// the batched engine runs the recipe default (8192). Prompts of 2.6k, 4k, 8.3k and 16.4k tokens, each submitted alone (macro
+/// steps), then all four at once (plain chunks while several prefill, macro steps for the last one standing); a sampled one
+/// among them. The scheduler's chunk counter must show fewer prefill calls than the plain schedule's.
+#[test]
+#[ignore]
+fn real_35b_batched_macro_prefill_equals_the_plain_local_engine() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let all = corpus_tokens(&dir);
+    let mk = |max_batch: Option<usize>, macro_rows: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 16384 + 256, kv_fraction: 0.95, profile_every: 0, prefill_macro: macro_rows, ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    let lens = [2600usize, 4096, 8192 + 100, 16384];
+    let reqs = || -> Vec<GenRequest> {
+        lens.iter()
+            .enumerate()
+            .map(|(i, &n)| {
+                let start = 1000 + i * 21000;
+                let mut r = GenRequest { prompt: all[start..start + n].to_vec(), max_tokens: 100, ignore_eos: true, ..Default::default() };
+                if i == 2 {
+                    r.temperature = 0.8;
+                    r.top_k = 40;
+                    r.top_p = 0.95;
+                    r.seed = Some(21);
+                }
+                r
+            })
+            .collect()
+    };
+    let reference: Vec<Out> = {
+        let l = load_engine(&dir, be.clone(), &mk(None, Some(0))).unwrap();
+        reqs().into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
+    };
+    let plain_chunks: usize = lens.iter().map(|&n| n.div_ceil(2048)).sum::<usize>();
+    let l = load_engine(&dir, be.clone(), &mk(Some(4), None)).unwrap();
+    let before = l.engine.batch_metrics().expect("batched metrics").prefill_chunks;
+    for (i, r) in reqs().into_iter().enumerate() {
+        let got = collect(&l.engine.submit(r).unwrap());
+        assert_eq!(&got, &reference[i], "prompt of {} tokens, alone", lens[i]);
+    }
+    let alone = l.engine.batch_metrics().unwrap().prefill_chunks - before;
+    eprintln!("MACRO batched alone: {alone} prefill calls (plain schedule: {} chunks)", plain_chunks);
+    assert!(alone < plain_chunks as u64, "no macro step ran: {alone} calls");
+    let rxs: Vec<_> = reqs().into_iter().map(|r| l.engine.submit(r).unwrap()).collect();
+    for (i, rx) in rxs.iter().enumerate() {
+        assert_eq!(&collect(rx), &reference[i], "prompt of {} tokens, together", lens[i]);
     }
 }

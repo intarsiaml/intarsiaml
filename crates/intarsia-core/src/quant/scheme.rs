@@ -20,6 +20,12 @@
 //! `exclude` list of module names). Only OCP MXFP4 weights (fp4, per_group 32, e8m0) are implemented; the activation
 //! spec decides W4A4 (dynamic fp4 `input_tensors`) or W4A16 (none).
 //!
+//! compressed-tensors checkpoints declare `quant_method = "compressed-tensors"` in `config.json` `quantization_config`:
+//! [`QuantScheme::parse_compressed_tensors`] accepts the NVFP4A16 preset (`nvfp4-pack-quantized`, weight-only) and records
+//! the global algorithm `COMPRESSED_TENSORS_NVFP4A16`, under which every linear layer is NVFP4 or plain float (the
+//! checkpoint's `ignore` list, exact names and `re:` patterns, is not interpreted: an ignored layer is simply stored as
+//! plain float, and the tensors found say which it is). The tensor names are adapted by [`super::compressed_tensors`].
+//!
 //! ExLlamaV3 checkpoints declare `quant_method = "exl3"` in `config.json` (or a sidecar `quantization_config.json`):
 //! [`QuantScheme::parse_exl3`] records the global algorithm `EXL3`, under which every linear layer must be stored as
 //! EXL3 or plain float (a `head_bits = 16` head, unquantised modules), never FP8/NVFP4.
@@ -30,6 +36,9 @@ use crate::dtype::DType;
 use crate::error::{Error, Result};
 use serde_json::Value;
 use std::collections::BTreeMap;
+
+/// The `quant_algo` [`QuantScheme::parse_compressed_tensors`] records (upper case, as [`Algo::parse`] compares).
+pub const CT_NVFP4A16: &str = "COMPRESSED_TENSORS_NVFP4A16";
 
 /// What a declared algorithm means for us.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,6 +55,9 @@ pub enum Algo {
     Mxfp4W4A16,
     /// `EXL3` (ExLlamaV3 trellis weights, 16-bit activations): layers are EXL3 or plain float.
     Exl3,
+    /// compressed-tensors `nvfp4-pack-quantized` with 16-bit activations (`NVFP4A16`): layers are NVFP4 (read through
+    /// [`super::compressed_tensors::CtNvfp4`]) or plain float.
+    CtNvfp4W4A16,
     /// Anything else (INT4_AWQ, MXFP8, per-channel FP8, ...). Not implemented.
     Other,
 }
@@ -58,6 +70,7 @@ impl Algo {
             "MXFP4_W4A4" => Algo::Mxfp4W4A4,
             "MXFP4_W4A16" => Algo::Mxfp4W4A16,
             "EXL3" => Algo::Exl3,
+            CT_NVFP4A16 => Algo::CtNvfp4W4A16,
             a if a == "NVFP4" || a.starts_with("NVFP4_") || a == "W4A4_NVFP4" || a == "W4A4_NVFP4_FP8" => Algo::Nvfp4W4A4,
             _ => Algo::Other,
         }
@@ -66,7 +79,7 @@ impl Algo {
     fn format(self) -> Option<QuantId> {
         match self {
             Algo::Fp8W8A8 => Some(FP8_E4M3),
-            Algo::Nvfp4W4A16 => Some(NVFP4),
+            Algo::Nvfp4W4A16 | Algo::CtNvfp4W4A16 => Some(NVFP4),
             Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 => Some(MXFP4),
             Algo::Exl3 => Some(EXL3),
             _ => None,
@@ -135,7 +148,7 @@ impl QuantScheme {
     /// The global weight spec must be OCP MXFP4 (`dtype fp4`, `qscheme per_group`, `group_size 32`, `scale_format e8m0`)
     /// for the declared algorithm to be one we implement; anything else is recorded verbatim (`QUARK_<dtype>...`) and
     /// rejected per layer by [`QuantScheme::check_linear`]. Per-layer overrides (`layer_quant_config`,
-    /// `layer_type_quant_config`) are not implemented and are an error when non-empty. `exclude` entries name modules,
+    /// `layer_type_quant_config`) are not implemented and are an error when non-empty, except entries for the `mtp.*` head. `exclude` entries name modules,
     /// some with a `.weight` suffix; the suffix is dropped.
     pub fn parse_quark(qc: &Value) -> Result<QuantScheme> {
         let method = qc.get("quant_method").and_then(Value::as_str).unwrap_or("");
@@ -143,8 +156,15 @@ impl QuantScheme {
             return Err(Error::model(format!("quantization_config.quant_method is '{method}', not 'quark'")));
         }
         for k in ["layer_quant_config", "layer_type_quant_config"] {
-            if qc.get(k).and_then(Value::as_object).is_some_and(|o| !o.is_empty()) {
-                return Err(Error::Unsupported(format!("Quark quantization_config.{k} (per-layer overrides) is not implemented")));
+            // Overrides that only name modules outside the text decoder (the multi-token-prediction head `mtp.*`, e.g. an FP8
+            // head in an otherwise MXFP4 checkpoint) cannot change how a decoder layer is read: `--spec mtp` loads that head
+            // through its own loader, which rejects tensors it does not read. Any other override is still an error.
+            if let Some(o) = qc.get(k).and_then(Value::as_object) {
+                if let Some(name) = o.keys().find(|n| !(n.as_str() == "mtp" || n.starts_with("mtp."))) {
+                    return Err(Error::Unsupported(format!(
+                        "Quark quantization_config.{k} (per-layer overrides) is not implemented (first override: '{name}')"
+                    )));
+                }
             }
         }
         let g = qc
@@ -181,6 +201,80 @@ impl QuantScheme {
             .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.strip_suffix(".weight").unwrap_or(s).to_string())).collect())
             .unwrap_or_default();
         Ok(QuantScheme { quant_algo: Some(algo), kv_cache_quant_algo: None, layers: BTreeMap::new(), exclude })
+    }
+
+    /// Whether a compressed-tensors `quantization_config` is the NVFP4 container (`nvfp4-pack-quantized`, top level or in a config
+    /// group), the one [`QuantScheme::parse_compressed_tensors`] judges. Other compressed-tensors checkpoints (per-tensor FP8
+    /// `float-quantized`, ...) keep the behaviour they had: no declared scheme, formats found by tensor names.
+    pub fn is_compressed_tensors_nvfp4(qc: &Value) -> bool {
+        let nv = |v: &Value| v.get("format").and_then(Value::as_str) == Some("nvfp4-pack-quantized");
+        qc.get("quant_method").and_then(Value::as_str) == Some("compressed-tensors")
+            && (nv(qc) || qc.get("config_groups").and_then(Value::as_object).is_some_and(|g| g.values().any(nv)))
+    }
+
+    /// Parse a compressed-tensors `quantization_config` (the object from `config.json`, `quant_method = "compressed-tensors"`).
+    ///
+    /// Accepted: the weight-only NVFP4 preset llm-compressor writes as `NVFP4A16` (format `nvfp4-pack-quantized`; weights 4-bit
+    /// float, `tensor_group` with group size 16, symmetric, e4m3 scales; no input or output activation quantisation), in one or
+    /// several identical `config_groups`, status `compressed`. Everything else is an error with the reason: NVFP4 with
+    /// quantised activations (W4A4), other formats (INT4 `pack-quantized`, MXFP4, FP8, ...), `transform_config` (rotations
+    /// the engine would not apply) and `sparsity_config`. A quantised `kv_cache_scheme` becomes `kv_cache_quant_algo` (its
+    /// scales are not used, [`QuantScheme::kv_note`]).
+    pub fn parse_compressed_tensors(qc: &Value) -> Result<QuantScheme> {
+        let method = qc.get("quant_method").and_then(Value::as_str).unwrap_or("");
+        if method != "compressed-tensors" {
+            return Err(Error::model(format!("quantization_config.quant_method is '{method}', not 'compressed-tensors'")));
+        }
+        let unsup = |what: String| Error::Unsupported(format!("compressed-tensors quantization_config: {what} (implemented: NVFP4A16, format nvfp4-pack-quantized)"));
+        let nonempty = |k: &str| qc.get(k).is_some_and(|v| v.as_object().map_or(!v.is_null(), |o| !o.is_empty()));
+        for k in ["transform_config", "sparsity_config"] {
+            if nonempty(k) {
+                return Err(unsup(format!("{k} is set and would be ignored")));
+            }
+        }
+        if let Some(st) = qc.get("quantization_status").and_then(Value::as_str).filter(|s| *s != "compressed") {
+            return Err(unsup(format!("quantization_status is '{st}', the tensors are not stored packed")));
+        }
+        let fmt_of = |v: &Value| v.get("format").and_then(Value::as_str).map(String::from);
+        let groups = qc.get("config_groups").and_then(Value::as_object).filter(|g| !g.is_empty());
+        let groups = groups.ok_or_else(|| unsup("no config_groups".into()))?;
+        let top = fmt_of(qc);
+        for (name, g) in groups {
+            let fmt = fmt_of(g).or_else(|| top.clone()).unwrap_or_default();
+            if fmt != "nvfp4-pack-quantized" {
+                return Err(unsup(format!("config group '{name}' has format '{fmt}'")));
+            }
+            for k in ["input_activations", "output_activations"] {
+                if g.get(k).is_some_and(|v| !v.is_null()) {
+                    return Err(Error::Unsupported(format!(
+                        "compressed-tensors config group '{name}' quantises its {} ({}): NVFP4 with 4-bit activations (W4A4) is not implemented, \
+                         only the weight-only NVFP4A16 scheme (the engine would run it with 16-bit activations, different from the \
+                         checkpoint's declared scheme and from vLLM)",
+                        k.trim_end_matches("_activations"),
+                        g[k]
+                    )));
+                }
+            }
+            let w = g.get("weights").filter(|v| v.is_object()).ok_or_else(|| unsup(format!("config group '{name}' has no weights spec")))?;
+            let s = |k: &str| w.get(k).and_then(Value::as_str).unwrap_or("");
+            let ok = w.get("num_bits").and_then(Value::as_u64) == Some(4)
+                && s("type") == "float"
+                && w.get("group_size").and_then(Value::as_u64) == Some(16)
+                && s("strategy") == "tensor_group"
+                && w.get("symmetric").and_then(Value::as_bool) != Some(false)
+                && (w.get("scale_dtype").is_none_or(Value::is_null) || s("scale_dtype").contains("float8_e4m3fn"));
+            if !ok {
+                return Err(unsup(format!("config group '{name}' weights spec {w} is not 4-bit float, group 16, tensor_group, symmetric, e4m3 scales")));
+            }
+        }
+        let kv = qc.get("kv_cache_scheme").filter(|v| !v.is_null()).map(|v| {
+            if v.get("num_bits").and_then(Value::as_u64) == Some(8) && v.get("type").and_then(Value::as_str) == Some("float") {
+                "FP8".to_string()
+            } else {
+                format!("COMPRESSED_TENSORS_{v}")
+            }
+        });
+        Ok(QuantScheme { quant_algo: Some(CT_NVFP4A16.into()), kv_cache_quant_algo: kv, layers: BTreeMap::new(), exclude: Vec::new() })
     }
 
     /// The MXFP4 activation mode the checkpoint declares (`None` when it declares no MXFP4 algorithm).
@@ -258,6 +352,8 @@ impl QuantScheme {
             ))),
             // EXL3 checkpoints keep some layers plain (an fp16 head with head_bits 16, unquantised modules)
             Algo::Exl3 if format == EXL3 || format == BF16 => Ok(()),
+            // compressed-tensors keeps `ignore`d modules (lm_head, norms' neighbours, MoE routers, ...) as plain float
+            Algo::CtNvfp4W4A16 if format == NVFP4 || format == BF16 => Ok(()),
             _ => {
                 let want = a.format().unwrap();
                 if format != want {
@@ -406,6 +502,57 @@ mod tests {
         let mut v = quark("null");
         v["layer_quant_config"] = serde_json::json!({"model.layers.0.mlp.up_proj": {}});
         assert!(QuantScheme::parse_quark(&v).is_err());
+        // an FP8 head `mtp.*` in an MXFP4 checkpoint is outside the decoder layers: accepted; mixed with a decoder override it is not
+        let mut v = quark("null");
+        v["layer_quant_config"] = serde_json::json!({"mtp.fc": {}, "mtp.layers.0.mlp.up_proj": {}});
+        let s = QuantScheme::parse_quark(&v).unwrap();
+        s.check_linear("model.layers.0.mlp.up_proj", MXFP4).unwrap();
+        v["layer_quant_config"] = serde_json::json!({"mtp.fc": {}, "model.layers.0.mlp.up_proj": {}});
+        let e = QuantScheme::parse_quark(&v).unwrap_err().to_string();
+        assert!(e.contains("model.layers.0.mlp.up_proj"), "{e}");
+        v["layer_quant_config"] = serde_json::json!({"mtpx.fc": {}});
+        assert!(QuantScheme::parse_quark(&v).is_err());
+    }
+
+    fn ct_cfg(group: &str, extra: &str) -> Value {
+        serde_json::from_str(&format!(
+            r#"{{"quant_method":"compressed-tensors","format":"nvfp4-pack-quantized","quantization_status":"compressed",
+            "config_groups":{{"group_0":{group}}},"ignore":["lm_head","re:.*mlp\\.gate$"],"sparsity_config":{{}},"transform_config":{{}}{extra}}}"#
+        ))
+        .unwrap()
+    }
+    const CT_W: &str = r#"{"format":"nvfp4-pack-quantized","input_activations":null,"output_activations":null,"targets":["Linear"],
+        "weights":{"num_bits":4,"type":"float","group_size":16,"strategy":"tensor_group","symmetric":true,"scale_dtype":"torch.float8_e4m3fn"}}"#;
+
+    #[test]
+    fn compressed_tensors_nvfp4a16_is_nvfp4_or_plain() {
+        let s = QuantScheme::parse_compressed_tensors(&ct_cfg(CT_W, "")).unwrap();
+        assert_eq!(s.quant_algo.as_deref(), Some(CT_NVFP4A16));
+        s.check_linear("model.language_model.layers.0.mlp.up_proj", NVFP4).unwrap();
+        s.check_linear("lm_head", BF16).unwrap(); // ignored by the checkpoint: stored plain
+        let e = s.check_linear("model.layers.0.mlp.up_proj", FP8_E4M3).unwrap_err().to_string();
+        assert!(e.contains(CT_NVFP4A16), "{e}");
+        assert!(s.kv_note(DType::Bf16).is_none() && s.mxfp4_act().is_none());
+        let kv = QuantScheme::parse_compressed_tensors(&ct_cfg(CT_W, r#","kv_cache_scheme":{"num_bits":8,"type":"float"}"#)).unwrap();
+        assert!(kv.kv_note(DType::Bf16).unwrap().contains("FP8"));
+    }
+
+    #[test]
+    fn compressed_tensors_other_schemes_are_refused_with_the_reason() {
+        let refuse = |g: &str, extra: &str| QuantScheme::parse_compressed_tensors(&ct_cfg(g, extra)).unwrap_err().to_string();
+        let w4a4 = CT_W.replace(r#""input_activations":null"#, r#""input_activations":{"num_bits":4,"type":"float","group_size":16,"strategy":"tensor_group"}"#);
+        assert!(refuse(&w4a4, "").contains("W4A4"));
+        let int4 = CT_W.replace("nvfp4-pack-quantized", "pack-quantized");
+        assert!(refuse(&int4, "").contains("'pack-quantized'"));
+        let g32 = CT_W.replace(r#""group_size":16"#, r#""group_size":32"#);
+        assert!(refuse(&g32, "").contains("group 16"));
+        let mut v = ct_cfg(CT_W, "");
+        v["transform_config"] = serde_json::json!({"config_groups": {"u": {}}});
+        assert!(QuantScheme::parse_compressed_tensors(&v).unwrap_err().to_string().contains("transform_config"));
+        let mut v = ct_cfg(CT_W, "");
+        v["quantization_status"] = "frozen".into();
+        assert!(QuantScheme::parse_compressed_tensors(&v).unwrap_err().to_string().contains("frozen"));
+        assert!(QuantScheme::parse_compressed_tensors(&serde_json::json!({"quant_method":"gptq"})).is_err());
     }
 
     #[test]

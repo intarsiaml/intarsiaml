@@ -1,0 +1,6 @@
+prefill chunk 4096 (--prefill-chunk)
+mxfp4 activations: dynamic (declared by the checkpoint)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 1.3s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 18432 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=1 | prefill 3667 ms (1116.8 tok/s) | decode 0 ms (0.00 tok/s)
+steps=2 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/1 attn_decode=0ms/16 attn_prefill=0ms/16 embedding=0ms/2 gate_split_qk_norm_rope_kv=0ms/32

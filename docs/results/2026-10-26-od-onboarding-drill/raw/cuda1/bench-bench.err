@@ -1,0 +1,10 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.8-27B-MXFP4-mtpfp8
+server context window: 4608 tokens
+calibration: 49 base tokens, 21.70 tokens per filler sentence
+  size    128 rep: prompt=138 gen=128 ttft=14.61s prefill=9 tok/s decode=6.7 tok/s
+  size    128 rep: prompt=130 gen=128 ttft=13.76s prefill=9 tok/s decode=6.7 tok/s
+  size    128 rep: prompt=134 gen=128 ttft=14.19s prefill=9 tok/s decode=6.7 tok/s
+  size   1024 rep: prompt=1014 gen=128 ttft=106.93s prefill=9 tok/s decode=6.7 tok/s
+  size   1024 rep: prompt=1000 gen=128 ttft=105.46s prefill=9 tok/s decode=6.7 tok/s
+  size   1024 rep: prompt=989 gen=128 ttft=104.30s prefill=9 tok/s decode=6.7 tok/s
+  size   4096 rep: prompt=4088 gen=128 ttft=430.99s prefill=9 tok/s decode=6.6 tok/s

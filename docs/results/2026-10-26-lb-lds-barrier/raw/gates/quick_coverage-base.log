@@ -1,0 +1,15 @@
+fleetq: #5633 waiting (#6 in line): in line behind #5622 "l7m: m2 concurrency-2 head-of-line check, 12k + 1k arriving, main vs branch x3, serve --max-batch 16, card 1" (claude-f31ccf91) on tatooine-r9700; #5622 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5622 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5622 set, or it will wait for #5622 to be released.
+fleetq: #5633 waiting (#5 in line): in line behind #5623 "l7m: a2 served A/B 1k/4k/16k (12k under max-batch) main vs branch x3, single-stream and --max-batch 16, card 1" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5623 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5623 set, or it will wait for #5623 to be released.
+fleetq: #5633 waiting (#3 in line): in line behind #5623 "l7m: a2 served A/B 1k/4k/16k (12k under max-batch) main vs branch x3, single-stream and --max-batch 16, card 1" (claude-f31ccf91) on tatooine-r9700; #5623 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5623 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5623 set, or it will wait for #5623 to be released.
+fleetq: #5633 waiting (#2 in line): in line behind #5626 "lb: gates C (G-C batched==solo 35B, rerun with full log) card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5626 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5626 set, or it will wait for #5626 to be released.
+fleetq: #5633 waiting (#1 in line): #5626 "lb: gates C (G-C batched==solo 35B, rerun with full log) card 0" (claude-f31ccf91) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #5626 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5626 set, or it will wait for #5626 to be released.
+fleetq: #5633 running on tatooine-r9700: ssh tatooine 'INTARSIA_REGISTRY_VOL=intarsia-cargo-lb-registry INTARSIA_REPO=$HOME/intarsiaml-lb/base INTARSIA_TARGET_VOL=intarsia-cargo-lb-base $HOME/intarsiaml-lb/base/deploy/tatooine/dev.sh cargo test --release -p intarsia-backend-hip --test quick_coverage 2>&1 < /dev/null | grep -aE "^test |test result|no quick sweep" '
+test every_hip_kernel_has_a_quick_case ... FAILED
+hip kernels with no quick sweep case: ["moe_block_bf16_grouped"]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.66s
+fleetq: #5633 done (exit 0)

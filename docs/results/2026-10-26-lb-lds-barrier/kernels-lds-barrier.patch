@@ -1,0 +1,680 @@
+diff --git a/kernels/hip/attention.hip b/kernels/hip/attention.hip
+index 07eed39fe..0cacaabc3 100644
+--- a/kernels/hip/attention.hip
++++ b/kernels/hip/attention.hip
+@@ -30,7 +30,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
+     const ik_bf16* qrow = q + (t * N + h) * D;
+ 
+     for (int d = threadIdx.x; d < D; d += kThreads) qs[d] = ik_b2f(qrow[d]);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+ 
+     float m = -INFINITY, l = 0.f;
+     float acc[kMaxD / kThreads] = {0.f, 0.f};
+@@ -53,12 +53,12 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
+             }
+             s = dot * scale;
+         }
+-        const float tmax = ik_block_max(s, red);
++        const float tmax = ik_block_max<true>(s, red);
+         const float m_new = fmaxf(m, tmax);
+         const float p = (j < visible) ? expf(s - m_new) : 0.f;
+         const float corr = expf(m - m_new);  // m == -inf on the first tile -> 0
+         sc[threadIdx.x] = p;
+-        const float tsum = ik_block_sum(p, red);  // also orders the sc[] write before the reads below
++        const float tsum = ik_block_sum<true>(p, red);  // also orders the sc[] write before the reads below
+         l = l * corr + tsum;
+         m = m_new;
+ 
+@@ -74,7 +74,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
+                 acc[u] = a;
+             }
+         }
+-        __syncthreads();  // sc[] is rewritten by the next tile
++        IK_LDS_BARRIER();  // sc[] is rewritten by the next tile
+     }
+ 
+     const float inv = 1.f / l;
+diff --git a/kernels/hip/attention_flash.hip b/kernels/hip/attention_flash.hip
+index e28fcba44..83da52a1f 100644
+--- a/kernels/hip/attention_flash.hip
++++ b/kernels/hip/attention_flash.hip
+@@ -81,7 +81,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
+     float m = -INFINITY, l = 0.f;
+ 
+     for (int kt = 0; kt < ntiles; ++kt) {
+-        __syncthreads();  // the previous tile's reads of Ks / Vt are done
++        IK_LDS_BARRIER();  // the previous tile's reads of Ks / Vt are done
+         for (int idx = tid; idx < BK * CH; idx += kThreads) {
+             const int r = idx / CH, ch = idx % CH;
+             const int64_t key = (int64_t)kt * BK + r;
+@@ -98,7 +98,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
+                 Vt[(ch * 8 + 2 * e + 1) * LDV + r] = (uint16_t)(vw[e] >> 16);
+             }
+         }
+-        __syncthreads();
++        IK_LDS_BARRIER();
+ 
+         // ---- S^T = K Q^T : lane holds key (kb*16 + lk + i) of its query row ----
+         ik_v8f s[NKB];
+@@ -302,7 +302,7 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc,
+     }
+ 
+     for (int kt = 0; kt < ntiles; ++kt) {
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         if constexpr (PF) {
+             store_regs();
+             if (kt + 1 < ntiles) load_regs(kt + 1);  // in flight during the barrier and this tile's math
+@@ -327,7 +327,7 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc,
+                 }
+             }
+         }
+-        __syncthreads();
++        IK_LDS_BARRIER();
+ 
+         ik_v8f sacc[NKB];
+ #pragma unroll
+diff --git a/kernels/hip/attention_splitkv.hip b/kernels/hip/attention_splitkv.hip
+index bbdafaee8..de89d2adb 100644
+--- a/kernels/hip/attention_splitkv.hip
++++ b/kernels/hip/attention_splitkv.hip
+@@ -182,14 +182,14 @@ splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
+ #pragma unroll
+     for (int g = 0; g < GP; ++g) {
+         if (g < G) {
+-            __syncthreads();  // s_acc / s_m / s_l are reused for every head
++            IK_LDS_BARRIER();  // s_acc / s_m / s_l are reused for every head
+ #pragma unroll
+             for (int e = 0; e < 8; ++e) s_acc[gk * D + c * 8 + e] = acc[g][e];
+             if (c == 0) {
+                 s_m[gk] = m[g];
+                 s_l[gk] = l[g];
+             }
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             const int64_t slot = ((int64_t)t * N + (int64_t)kvh * G + g) * nsplit + sp;
+             if (threadIdx.x < D) {
+                 float M = -INFINITY;
+diff --git a/kernels/hip/elementwise.hip b/kernels/hip/elementwise.hip
+index f1f429cc4..1c87dc985 100644
+--- a/kernels/hip/elementwise.hip
++++ b/kernels/hip/elementwise.hip
+@@ -295,7 +295,7 @@ qk_norm_rope_kv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict_
+         for (int e = 0; e < 8; ++e) f[e] = f[e] * r * (g[e] + woff);
+         reinterpret_cast<uint4*>(nr)[i] = ik_pack8(f);
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     ik_bf16 *dst_q = nullptr;
+     CacheT* dst_k = nullptr;
+     if (is_k) dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;
+diff --git a/kernels/hip/fp8.hip b/kernels/hip/fp8.hip
+index e671e4e03..79bd4209e 100644
+--- a/kernels/hip/fp8.hip
++++ b/kernels/hip/fp8.hip
+@@ -93,7 +93,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
+ #pragma unroll
+         for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+     }
+-    ss = ik_block_sum(ss, red);
++    ss = ik_block_sum<true>(ss, red);
+     const float r = rsqrtf(ss / (float)K + eps);
+     for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+         float f[8], g[8];
+@@ -105,7 +105,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
+         xs[i] = p;
+         if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+ }
+ 
+ // The attention output gate folded into the o_proj staging (PRO == 4, core-op fusion P4b): chunk `i8` of
+@@ -226,7 +226,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
+             reinterpret_cast<uint4*>(xs)[i8] = o;
+         }
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!wr[0]) return;  // (all rows of the warp are past N; rows are consecutive)
+ 
+     float acc[R][M];
+diff --git a/kernels/hip/gate_qkr.hip b/kernels/hip/gate_qkr.hip
+index 248ef3bc0..5fd66fdb1 100644
+--- a/kernels/hip/gate_qkr.hip
++++ b/kernels/hip/gate_qkr.hip
+@@ -97,7 +97,7 @@ gate_qk_norm_rope_kv_kernel(const ik_bf16* __restrict__ qg, const ik_bf16* __res
+     // gate_split_kernel's second output: the gate half of the query head's gated row, copied
+     if (!is_k)
+         for (int m = lane; m < D; m += IK_WARP) gate[qrow * D + m] = qg[qrow * 2 * D + D + m];
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     ik_bf16 *dst_q = nullptr;
+     CacheT* dst_k = nullptr;
+     if (is_k) dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;
+diff --git a/kernels/hip/ik_dq_gemm.h b/kernels/hip/ik_dq_gemm.h
+index ac7c2fb3f..26aea8f5c 100644
+--- a/kernels/hip/ik_dq_gemm.h
++++ b/kernels/hip/ik_dq_gemm.h
+@@ -134,7 +134,7 @@ __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* _
+ 
+     gload(0);
+     sstore(0);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int lr = lane & 15, lk = (lane >> 4) * 8;
+     for (int kt = 0; kt < nk; ++kt) {
+         const int buf = kt & 1;
+@@ -154,7 +154,7 @@ __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* _
+                 for (int j = 0; j < TM; ++j) acc[i][j] = ik_dq_wmma(af[i], bf[j], acc[i][j]);
+         }
+         if (kt + 1 < nk) sstore(buf ^ 1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+     }
+ 
+     const float so = P::out_scale(st);
+diff --git a/kernels/hip/ik_f8_gemm.h b/kernels/hip/ik_f8_gemm.h
+index a7e0d3c5e..f9487027e 100644
+--- a/kernels/hip/ik_f8_gemm.h
++++ b/kernels/hip/ik_f8_gemm.h
+@@ -113,7 +113,7 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
+ 
+     gload(0);
+     sstore(0);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int lr = lane & 15, lh = (lane >> 4) * 16;
+     for (int kt = 0; kt < nk; ++kt) {
+         const int buf = kt & 1;
+@@ -136,7 +136,7 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
+                 }
+         }
+         if (kt + 1 < nk) sstore(buf ^ 1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+     }
+ 
+     const float so = sc[0] * sc[1];
+diff --git a/kernels/hip/ik_f8_rows.h b/kernels/hip/ik_f8_rows.h
+index e3251d8e1..44ffa4312 100644
+--- a/kernels/hip/ik_f8_rows.h
++++ b/kernels/hip/ik_f8_rows.h
+@@ -205,7 +205,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
+                 if (actq) *reinterpret_cast<uint2*>(xs + (size_t)row * stride + kc) = f8r_quant8(v, s_in);
+                 else *reinterpret_cast<uint4*>(xs + (size_t)row * stride + kc * 2) = v;
+             }
+-            if (!(abl & 1)) __syncthreads();
++            if (!(abl & 1)) IK_LDS_BARRIER();
+         }
+ #pragma unroll
+         for (int j = 0; j < NJ; ++j) {
+@@ -275,7 +275,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
+                 }
+             }
+         }
+-        if (!DIRECT && ws + kwa < K) __syncthreads();  // the next window restages x
++        if (!DIRECT && ws + kwa < K) IK_LDS_BARRIER();  // the next window restages x
+     }
+     if (abl & 2) {  // ablation: wave 0 stores its own partial, no cross-wave traffic
+         if (wave == 0) {
+@@ -290,14 +290,14 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
+         return;
+     }
+     // cross-wave sum in a fixed order, scale, store: thread = (lane, half of the 8 features, token tile)
+-    __syncthreads();  // every wave has read its last staged x
++    IK_LDS_BARRIER();  // every wave has read its last staged x
+ #pragma unroll
+     for (int t = 0; t < TM; ++t) {
+         float4* d = reinterpret_cast<float4*>(sp + (size_t)((wave * TM + t) * IK_WARP + lane) * 8);
+         d[0] = make_float4(acc[t][0], acc[t][1], acc[t][2], acc[t][3]);
+         d[1] = make_float4(acc[t][4], acc[t][5], acc[t][6], acc[t][7]);
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int rl = tid & 31, part = (tid >> 5) & 1, rt = tid >> 6;
+     if (rt < TM) {
+         float4 s = reinterpret_cast<const float4*>(sp + (size_t)(rt * IK_WARP + rl) * 8)[part];
+diff --git a/kernels/hip/ik_hip.h b/kernels/hip/ik_hip.h
+index aa88b0b4b..43ec11ed0 100644
+--- a/kernels/hip/ik_hip.h
++++ b/kernels/hip/ik_hip.h
+@@ -79,6 +79,22 @@ IK_DEVI uint4 ik_ldcs(const uint4* p) {
+ 
+ IK_DEVI uint4 ik_ldg(const uint4* p) { return *p; }
+ 
++/* ---- LDS-only block barrier ------------------------------------------------------------------------------------- */
++/* IK_LDS_BARRIER(): a block barrier that orders LDS (the workgroup's 'local' address space) only. On gfx12 __syncthreads() is a
++ * workgroup release/acquire fence over EVERY address space: `s_wait_loadcnt 0` before the barrier (every outstanding global load
++ * must land, so a software-pipelined load ring is drained) and `global_inv` after it. This form waits for LDS only.
++ * Legal only where the threads of the block exchange data across the barrier through LDS (or shuffles) alone: no thread may read,
++ * after the barrier, global memory that ANOTHER thread of the block wrote before it, and the barrier must not be part of a
++ * cross-block protocol (ticket, flag, __threadfence, atomics on global memory). Anything else keeps __syncthreads().
++ * Loads still in flight are consumed behind the compiler's own s_wait_loadcnt, as for any register use. Same form as
++ * gdn_lds_sync (gdn.hip). Audit: docs/results/2026-10-26-lb-lds-barrier.md. */
++#define IK_LDS_BARRIER()                                          \
++    do {                                                          \
++        __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local"); \
++        __builtin_amdgcn_s_barrier();                             \
++        __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local"); \
++    } while (0)
++
+ /* ---- wave32 reductions (xor shuffles; width 32 keeps them inside the wave) ---------------------------------- */
+ IK_DEVI float ik_warp_sum(float v) {
+ #pragma unroll
+@@ -93,24 +109,31 @@ IK_DEVI float ik_warp_max(float v) {
+ }
+ 
+ /* Block-wide sum / max, result broadcast to every thread. `red` is a shared array of at least
+- * blockDim.x / IK_WARP floats. Every thread must call it. */
++ * blockDim.x / IK_WARP floats. Every thread must call it. LDS_ONLY: its two barriers are IK_LDS_BARRIER() instead of
++ * __syncthreads(); pass true only where the caller meets IK_LDS_BARRIER's condition around the call. */
++template <bool LDS_ONLY = false>
+ IK_DEVI float ik_block_sum(float v, float* red) {
+     const int lane = threadIdx.x % IK_WARP, w = threadIdx.x / IK_WARP, nw = (blockDim.x + IK_WARP - 1) / IK_WARP;
+     v = ik_warp_sum(v);
+-    __syncthreads();  // `red` may still be in use by a previous reduction
++    if (LDS_ONLY) IK_LDS_BARRIER();
++    else __syncthreads();  // `red` may still be in use by a previous reduction
+     if (lane == 0) red[w] = v;
+-    __syncthreads();
++    if (LDS_ONLY) IK_LDS_BARRIER();
++    else __syncthreads();
+     float r = 0.f;
+     for (int i = 0; i < nw; ++i) r += red[i];  // fixed order: deterministic
+     return r;
+ }
+ 
++template <bool LDS_ONLY = false>
+ IK_DEVI float ik_block_max(float v, float* red) {
+     const int lane = threadIdx.x % IK_WARP, w = threadIdx.x / IK_WARP, nw = (blockDim.x + IK_WARP - 1) / IK_WARP;
+     v = ik_warp_max(v);
+-    __syncthreads();
++    if (LDS_ONLY) IK_LDS_BARRIER();
++    else __syncthreads();
+     if (lane == 0) red[w] = v;
+-    __syncthreads();
++    if (LDS_ONLY) IK_LDS_BARRIER();
++    else __syncthreads();
+     float r = red[0];
+     for (int i = 1; i < nw; ++i) r = fmaxf(r, red[i]);
+     return r;
+diff --git a/kernels/hip/ik_nf4_rows.h b/kernels/hip/ik_nf4_rows.h
+index 3773846fc..384cf2aff 100644
+--- a/kernels/hip/ik_nf4_rows.h
++++ b/kernels/hip/ik_nf4_rows.h
+@@ -36,7 +36,7 @@ __device__ __forceinline__ void nf4r_body(const ik_bf16* __restrict__ x, const u
+     extern __shared__ __align__(16) unsigned char smem[];
+     __shared__ float lut[16];
+     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
+     const int h = lane >> 4, col = lane & 15;
+     const int64_t n = blk * 16 + col;
+@@ -94,14 +94,14 @@ __device__ __forceinline__ void nf4r_body(const ik_bf16* __restrict__ x, const u
+         }
+     }
+     float* sp = reinterpret_cast<float*>(smem);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+ #pragma unroll
+     for (int t = 0; t < TM; ++t) {
+         float4* d = reinterpret_cast<float4*>(sp + (size_t)((wave * TM + t) * IK_WARP + lane) * 8);
+         d[0] = make_float4(acc[t][0], acc[t][1], acc[t][2], acc[t][3]);
+         d[1] = make_float4(acc[t][4], acc[t][5], acc[t][6], acc[t][7]);
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const float g = gs[0];
+     const int rl = tid & 31, part = (tid >> 5) & 1, rt = tid >> 6;
+     if (rt < TM) {
+diff --git a/kernels/hip/ik_quant.h b/kernels/hip/ik_quant.h
+index 4da01d437..0f38daa7b 100644
+--- a/kernels/hip/ik_quant.h
++++ b/kernels/hip/ik_quant.h
+@@ -102,11 +102,11 @@ IK_DEVI float ik_fp4_value(uint32_t c) {
+ }
+ 
+ /* One 16-entry table in shared memory (a conflict-free lookup: every entry sits in its own bank). Declare and fill
+- * it before any early return; it contains a __syncthreads(), so every thread of the block must reach it. */
++ * it before any early return; it contains a block barrier (IK_LDS_BARRIER), so every thread of the block must reach it. */
+ #define IK_FP4_LUT(name)                                               \
+     __shared__ float name[16];                                         \
+     if (threadIdx.x < 16) name[threadIdx.x] = ik_fp4_value(threadIdx.x); \
+-    __syncthreads()
++    IK_LDS_BARRIER()
+ 
+ /* 8 fp4 nibbles of a 32-bit word (element j = nibble j = byte j/2, low nibble first) -> 8 floats (unscaled) */
+ IK_DEVI void ik_fp4x8_to_f32(uint32_t w, const float* lut, float* f) {
+diff --git a/kernels/hip/matmul.hip b/kernels/hip/matmul.hip
+index 56a049aef..d2072a4a8 100644
+--- a/kernels/hip/matmul.hip
++++ b/kernels/hip/matmul.hip
+@@ -130,7 +130,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
+ #pragma unroll
+         for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+     }
+-    ss = ik_block_sum(ss, red);
++    ss = ik_block_sum<true>(ss, red);
+     const float r = rsqrtf(ss / (float)K + eps);
+     for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+         float f[8], g[8];
+@@ -142,7 +142,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
+         xs[i] = p;
+         if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
+     }
+-    __syncthreads();  // the whole normalised row is in LDS before any warp reads it
++    IK_LDS_BARRIER();  // the whole normalised row is in LDS before any warp reads it
+ }
+ 
+ // gemv_body<1, R, U, ik_bf16> on the normalised row in LDS. The first batch of weight loads is issued before the
+@@ -522,7 +522,7 @@ gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, O
+ 
+     gload(0);
+     sstore(0);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int lr = lane & 15, lk = (lane >> 4) * 8;
+     for (int kt = 0; kt < nk; ++kt) {
+         const int buf = kt & 1;
+@@ -542,7 +542,7 @@ gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, O
+                 for (int j = 0; j < TM; ++j) acc[i][j] = wmma_bf16(af[i], bf[j], acc[i][j]);
+         }
+         if (kt + 1 < nk) sstore(buf ^ 1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+     }
+ 
+     const bool vec_ok = out_vec && (N % 8) == 0;  // out_vec: out is 16 B aligned
+diff --git a/kernels/hip/moe.hip b/kernels/hip/moe.hip
+index a1a38004a..83157498d 100644
+--- a/kernels/hip/moe.hip
++++ b/kernels/hip/moe.hip
+@@ -407,9 +407,9 @@ moe_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ gu
+     const float gg = gscales[e * 3 + 0], gu = gscales[e * 3 + 1];
+     for (int c0 = 0; c0 < cnt; c0 += PC) {
+         const int pc = min(PC, cnt - c0);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         stage_rows(xs, x, pairs + begin + c0, pc, H, K);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         if (valid) {
+             float ag[kPairChunk], au[kPairChunk];
+ #pragma unroll
+@@ -474,9 +474,9 @@ moe_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw,
+     const float gd = gscales[e * 3 + 2];
+     for (int c0 = 0; c0 < cnt; c0 += PC) {
+         const int pc = min(PC, cnt - c0);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         stage_rows(hs, h, pairs + begin + c0, pc, I, 1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         if (valid) {
+             float acc[kPairChunk];
+ #pragma unroll
+@@ -990,7 +990,7 @@ moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
+         for (int i = threadIdx.x; i < H / 8; i += blockDim.x)
+             reinterpret_cast<uint4*>(smem)[i] = reinterpret_cast<const uint4*>(xr)[i];
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // warp-uniform
+     float ag = 0.f, au = 0.f;
+     auto step = [&](const uint2& g2, const uint2& u2, uint32_t gsb, uint32_t usb, const uint4& x0, const uint4& x1) {
+@@ -1085,7 +1085,7 @@ moe_down_reduce_p1_v2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __res
+         for (int i = threadIdx.x; i < K * I / 8; i += blockDim.x)
+             reinterpret_cast<uint4*>(smem)[i] = reinterpret_cast<const uint4*>(hrow)[i];
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!rv) return;
+     auto hload = [&](int k, int u, uint4& h0, uint4& h1) {
+         const uint4* hp = reinterpret_cast<const uint4*>((XS ? reinterpret_cast<const ik_bf16*>(smem) : hrow) + (int64_t)k * I + u * 16);
+diff --git a/kernels/hip/moe_block_grouped.hip b/kernels/hip/moe_block_grouped.hip
+index 5b0e240a5..6646fdeee 100644
+--- a/kernels/hip/moe_block_grouped.hip
++++ b/kernels/hip/moe_block_grouped.hip
+@@ -49,7 +49,7 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
+     }
+     __shared__ float lut[16];
+     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // whole warp exits together
+     float ag[kRowsMax], au[kRowsMax];
+ #pragma unroll
+@@ -121,7 +121,7 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
+     }
+     __shared__ float lut[16];
+     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // whole warp exits together
+     float acc[kRowsMax];
+ #pragma unroll
+diff --git a/kernels/hip/moe_shared.hip b/kernels/hip/moe_shared.hip
+index 7e307667f..00cd42623 100644
+--- a/kernels/hip/moe_shared.hip
++++ b/kernels/hip/moe_shared.hip
+@@ -44,7 +44,7 @@ shared_down_combine_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restr
+     }
+     __shared__ float lut[16];
+     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // whole warp exits together
+     float acc[M];
+ #pragma unroll
+diff --git a/kernels/hip/moe_wmma.h b/kernels/hip/moe_wmma.h
+index 768f9bfc9..a14843a9d 100644
+--- a/kernels/hip/moe_wmma.h
++++ b/kernels/hip/moe_wmma.h
+@@ -160,7 +160,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w,
+             }
+         };
+ 
+-        __syncthreads();  // the previous pair tile's last reads of sx / sred are done
++        IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
+         MwW W[kMwRing];
+         loadX(0);
+ #pragma unroll
+@@ -168,7 +168,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w,
+             if (i < nkb) W[i] = loadW(i);
+         storeX(0);
+         if (nkb > 1) loadX(1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+         for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
+ #pragma unroll
+             for (int i = 0; i < kMwRing; ++i) {
+@@ -180,7 +180,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w,
+                     storeX((kb + 1) & 1);
+                     if (kb + 2 < nkb) loadX(kb + 2);
+                 }
+-                __syncthreads();
++                IK_LDS_BARRIER();
+             }
+         }
+ 
+@@ -191,7 +191,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w,
+ #pragma unroll
+                     for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
+             }
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             if (part == 1) continue;
+         }
+         const int f0 = n0 + fw * 16 + h * 8;
+@@ -327,7 +327,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
+                 }
+             };
+ 
+-            __syncthreads();  // the previous pair tile's last reads of sx / sred are done
++            IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
+             MwW W[kMwRing];
+             loadX(0);
+ #pragma unroll
+@@ -335,7 +335,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
+                 if (i < nkb) W[i] = loadW(i);
+             storeX(0);
+             if (nkb > 1) loadX(1);
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
+ #pragma unroll
+                 for (int i = 0; i < kMwRing; ++i) {
+@@ -347,7 +347,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
+                         storeX((kb + 1) & 1);
+                         if (kb + 2 < nkb) loadX(kb + 2);
+                     }
+-                    __syncthreads();
++                    IK_LDS_BARRIER();
+                 }
+             }
+         };
+@@ -369,7 +369,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
+ #pragma unroll
+                     for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
+             }
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             if (part == 1) continue;
+         }
+         const int f0 = n0 + fw * 16 + h * 8;
+diff --git a/kernels/hip/moe_wmma_r7.h b/kernels/hip/moe_wmma_r7.h
+index e739a3504..df12b685b 100644
+--- a/kernels/hip/moe_wmma_r7.h
++++ b/kernels/hip/moe_wmma_r7.h
+@@ -96,7 +96,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__
+     __shared__ float lut[16];
+     if constexpr (!CVT) {  // IK_FP4_LUT, before any early return (it has a barrier)
+         if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+     }
+ 
+     const int slot = blockIdx.x;
+@@ -194,7 +194,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__
+                 }
+             };
+ 
+-            __syncthreads();  // the previous pair tile's last reads of sx / sred are done
++            IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
+             MwW W[RING][RF];
+             loadX(0);
+ #pragma unroll
+@@ -204,7 +204,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__
+                     for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, i);
+             storeX(0);
+             if (nkb > 1) loadX(1);
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             for (int kb0 = 0; kb0 < nkb; kb0 += RING) {
+ #pragma unroll
+                 for (int i = 0; i < RING; ++i) {
+@@ -218,7 +218,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__
+                         storeX((kb + 1) & 1);
+                         if (kb + 2 < nkb) loadX(kb + 2);
+                     }
+-                    __syncthreads();
++                    IK_LDS_BARRIER();
+                 }
+             }
+         };
+@@ -240,7 +240,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__
+ #pragma unroll
+                     for (int i = 0; i < 8; ++i) sred[((wave & 3) * 32 + lane) * (J * 8) + j * 8 + i] = acc[0][j][i];
+             }
+-            __syncthreads();
++            IK_LDS_BARRIER();
+             if (part == 1) continue;
+         }
+ #pragma unroll
+diff --git a/kernels/hip/mxfp4.hip b/kernels/hip/mxfp4.hip
+index a13e55344..8dac5388b 100644
+--- a/kernels/hip/mxfp4.hip
++++ b/kernels/hip/mxfp4.hip
+@@ -181,7 +181,7 @@ mxfp4_gemv1_lds_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
+ #pragma unroll
+         for (int i = 0; i < 4; ++i) xs[i * G + g] = v[i];
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     bool first = true;
+     for (; n < N; n += stride) {  // whole warp walks the same rows
+         const uint8_t *w, *sc;
+@@ -710,7 +710,7 @@ __global__ void __launch_bounds__(256) mx_fold_actq_kernel(const ik_bf16* __rest
+ #pragma unroll
+     for (int o = 16; o > 0; o >>= 1) mymax = max(mymax, (uint32_t)__shfl_xor((int)mymax, o, 32));
+     if ((tid & 31) == 0) red[tid >> 5] = mymax;
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     uint32_t ar = 0;
+     for (int i = 0; i < (int)(blockDim.x >> 5); ++i) ar = max(ar, red[i]);
+     if (ar == 0u) ar = 127u;  // all-zero row: any ref
+@@ -828,7 +828,7 @@ mx_fold_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__
+ 
+     gload(0);
+     sstore(0);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     const int lr = lane & 15, lh = (lane >> 4) * 16;
+     for (int kt = 0; kt < nk; ++kt) {
+         const int buf = kt & 1;
+@@ -851,7 +851,7 @@ mx_fold_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__
+                 }
+         }
+         if (kt + 1 < nk) sstore(buf ^ 1);
+-        __syncthreads();
++        IK_LDS_BARRIER();
+     }
+ 
+     const int ln = (lane >> 4) * 8;
+diff --git a/kernels/hip/norm.hip b/kernels/hip/norm.hip
+index 1def70602..c86829c79 100644
+--- a/kernels/hip/norm.hip
++++ b/kernels/hip/norm.hip
+@@ -49,7 +49,7 @@ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __r
+             ss += v * v;
+         }
+     }
+-    ss = ik_block_sum(ss, red);
++    ss = ik_block_sum<!ADD>(ss, red);  // ADD: `sum` is written before and re-read after the barrier (global): keeps __syncthreads
+     const float r = rsqrtf(ss / (float)H + eps);
+ 
+     if (VEC) {
+@@ -94,7 +94,7 @@ __global__ void gated_rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf1
+             ss += v * v;
+         }
+     }
+-    ss = ik_block_sum(ss, red);
++    ss = ik_block_sum<true>(ss, red);
+     const float r = rsqrtf(ss / (float)H + eps);
+     if (VEC) {
+         const int64_t nv = H / 8;
+diff --git a/kernels/hip/nvfp4.hip b/kernels/hip/nvfp4.hip
+index 8fb17539f..d2e1febbc 100644
+--- a/kernels/hip/nvfp4.hip
++++ b/kernels/hip/nvfp4.hip
+@@ -103,7 +103,7 @@ nvfp4_gemv_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__
+         uint4* xd = reinterpret_cast<uint4*>(smem);
+         for (int i = threadIdx.x; i < M * K / 8; i += blockDim.x) xd[i] = reinterpret_cast<const uint4*>(x)[i];
+     }
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // whole warp exits together
+     float acc[M];
+ #pragma unroll
+@@ -195,7 +195,7 @@ nvfp4_glu_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg,
+     }
+     __shared__ float lut[16];
+     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+-    __syncthreads();
++    IK_LDS_BARRIER();
+     if (!live) return;  // whole warp exits together
+     float acc[2] = {0.f, 0.f};
+     auto step = [&](int r, const uint2& wq, uint32_t sbyte, const uint4 (&xq)[2]) {

@@ -2951,7 +2951,17 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             bail!("the self-golden has decode rows for {} of {} prompts", set.len(), prompts.len());
         }
         let r = run_mode(engine, set, m, args, &gates, topk_k.is_some(), masks.as_ref().map(|m| m.scored.as_slice()), self_mode.then_some(&self_budget), &mut capture)?;
-        floor_ok &= r.pass;
+        // A mode whose floor the golden's ref_noise record makes report-only (together with --baseline) does not decide the floor
+        // verdict; the baseline + noise envelope do. LOG 2026-10-25 (27B W4A4 decode, coordinator decision).
+        let report_only = gates.noise.as_ref().is_some_and(|n| n.noise.floor_report_only_for(m.key(), base_file.is_some()));
+        if report_only {
+            println!(
+                "the {} mode's absolute floor is report-only for this golden (its ref_noise record, floor_report_only); the baseline + noise envelope below judge it. The floor alone would say {}",
+                m.key(),
+                if r.pass { "PASS" } else { "FAIL" }
+            );
+        }
+        floor_ok &= r.pass || report_only;
         results.push((m, r));
     }
     for (m, r) in &results {
@@ -3600,6 +3610,11 @@ mod tests {
         );
         assert_eq!(
             w(r#"{"quantization_config":{"quant_method":"compressed-tensors","num_bits":4}}"#, None).unwrap().0,
+            GateClass::Fp4
+        );
+        // a real llm-compressor NVFP4A16 config nests the bit width under config_groups.*.weights
+        assert_eq!(
+            w(r#"{"text_config":{"quantization_config":{"quant_method":"compressed-tensors","format":"nvfp4-pack-quantized","config_groups":{"group_0":{"format":"nvfp4-pack-quantized","weights":{"num_bits":4,"type":"float","scale_dtype":"torch.float8_e4m3fn"}}}}}}"#, None).unwrap().0,
             GateClass::Fp4
         );
         // EXL3 writes the bit width as a float

@@ -1,0 +1,62 @@
+[window] job 5158 w7; stopping radiance 2026-10-25 05:04:34
+[window] radiance stopped 2026-10-25 05:04:37
+05:04:37 w7 start; budget 2460 s; base 0b84f49_code-tree=a2582ab69fa2_dirty=no dev 174eb83_code-tree=748e42eebca8_dirty=no
+05:04:47 test mxfp4-v2 exit 0:       1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s|      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s|
+05:06:20 mtest recurrent exit 0:       1 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 92.72s|
+05:06:22 base mtest build: models tests build base exit 0 05:06:22
+05:06:35 mtest cudareal3 exit 101:       1 test real_35b_batch_step_sampled_timing ... FAILED|      1 test real_35b_busy_chunk_prefill_kl_gate ... FAILED|      1 test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED|      1 test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 7 filtered out; finished in 11.
+05:06:41 plan-dev-27 exit 0 [INTARSIA_PREFILL_PEEL=8]: 
+05:06:41 plan dev 27B: /home/josef/mx/out/w7/plan-dev-27.out:"prefill_chunk": 4096|/home/josef/mx/out/w7/plan-dev-27.out:"prefill_peel": 8|/home/josef/mx/out/w7/plan-dev-27.out:"prefill_chunk_source": "--prefill-chunk"|
+05:12:44 acc-base-c256 exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+05:18:22 acc-dev-peel exit 1 [INTARSIA_PREFILL_PEEL=8]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+05:24:01 acc-dev-nopeel exit 1 [INTARSIA_PREFILL_PEEL=0]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|Error: accuracy gate FAILED|
+05:24:18 accg-base exit 1: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF|Error: accuracy gate FAILED|
+05:24:33 accg-dev exit 1 [INTARSIA_PREFILL_PEEL=8]: floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested|golden gate: FAIL|reference noise [--ref-noise /work/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.970e-1 (n=1441), scored rows - (n=?); 2026-10-21; docs/results/2026-10-21-m1-qwen38-drill.md 5 (row 'HF|Error: accuracy gate FAILED|
+05:24:43 ids-dev-1029 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 1029 tokens|finish=length prompt=1029 (cached 0) completion=256 | prefill 820 ms (1254.1 tok/s) | decode 7769 ms (32.82 tok/s)|
+05:24:43 ids dev-1029 md5 f2a4ab0c
+05:24:54 ids-base-1029 exit 0: prompt: 1029 tokens|finish=length prompt=1029 (cached 0) completion=256 | prefill 1089 ms (945.1 tok/s) | decode 7772 ms (32.81 tok/s)|
+05:24:54 ids base-1029 md5 f2a4ab0c
+05:24:54 SAME 27B 1029 ids dev (4096 + peel) vs main (256) (ids-dev-1029.ids == ids-base-1029.ids)
+05:25:06 ids-dev-4100 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 4100 tokens|finish=length prompt=4100 (cached 0) completion=256 | prefill 2909 ms (1409.4 tok/s) | decode 7893 ms (32.31 tok/s)|
+05:25:06 ids dev-4100 md5 0c7dbe20
+05:25:20 ids-base-4100 exit 0: prompt: 4100 tokens|finish=length prompt=4100 (cached 0) completion=256 | prefill 4109 ms (997.7 tok/s) | decode 7892 ms (32.31 tok/s)|
+05:25:20 ids base-4100 md5 0c7dbe20
+05:25:20 SAME 27B 4100 ids dev (4096 + peel) vs main (256) (ids-dev-4100.ids == ids-base-4100.ids)
+05:25:33 ids-dev-4360 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 4360 tokens|finish=length prompt=4360 (cached 0) completion=256 | prefill 3355 ms (1299.4 tok/s) | decode 7897 ms (32.29 tok/s)|
+05:25:33 ids dev-4360 md5 5cc2c5bc
+05:25:47 ids-base-4360 exit 0: prompt: 4360 tokens|finish=length prompt=4360 (cached 0) completion=256 | prefill 4583 ms (951.4 tok/s) | decode 7900 ms (32.28 tok/s)|
+05:25:47 ids base-4360 md5 5cc2c5bc
+05:25:47 SAME 27B 4360 ids dev (4096 + peel) vs main (256) (ids-dev-4360.ids == ids-base-4360.ids)
+05:26:03 ids-dev-8201 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 8201 tokens|finish=length prompt=8201 (cached 0) completion=256 | prefill 6222 ms (1318.1 tok/s) | decode 8007 ms (31.85 tok/s)|
+05:26:03 ids dev-8201 md5 5c074696
+05:26:21 ids-base-8201 exit 0: prompt: 8201 tokens|finish=length prompt=8201 (cached 0) completion=256 | prefill 8671 ms (945.8 tok/s) | decode 8010 ms (31.84 tok/s)|
+05:26:21 ids base-8201 md5 5c074696
+05:26:21 SAME 27B 8201 ids dev (4096 + peel) vs main (256) (ids-dev-8201.ids == ids-base-8201.ids)
+05:26:43 ids-dev-16k exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 12016 ms (1363.5 tok/s) | decode 8289 ms (30.76 tok/s)|
+05:26:43 ids dev-16k md5 addfc6d1
+05:27:10 ids-base-16k exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=256 | prefill 17126 ms (956.7 tok/s) | decode 8290 ms (30.76 tok/s)|
+05:27:10 ids base-16k md5 addfc6d1
+05:27:10 SAME 27B 16k ids dev (4096 + peel) vs main (256) (ids-dev-16k.ids == ids-base-16k.ids)
+05:27:13 pf-main-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 1035 ms (989.6 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:16 pf-v2-1024 exit 0: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 907 ms (1129.4 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:18 pf-peel-1024 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 767 ms (1335.0 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:20 pf-peelfold-1024 exit 0 [INTARSIA_PREFILL_PEEL=8 INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 1024 tokens|finish=length prompt=1024 (cached 0) completion=1 | prefill 502 ms (2041.1 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:26 pf-main-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 4047 ms (1012.1 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:31 pf-v2-4096 exit 0: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 3552 ms (1153.1 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:36 pf-peel-4096 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 2855 ms (1434.8 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:39 pf-peelfold-4096 exit 0 [INTARSIA_PREFILL_PEEL=8 INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 4096 tokens|finish=length prompt=4096 (cached 0) completion=1 | prefill 1700 ms (2409.7 tok/s) | decode 0 ms (0.00 tok/s)|
+05:27:58 pf-main-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 17078 ms (959.4 tok/s) | decode 0 ms (0.00 tok/s)|
+05:28:14 pf-v2-16384 exit 0: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 15111 ms (1084.2 tok/s) | decode 0 ms (0.00 tok/s)|
+05:28:28 pf-peel-16384 exit 0 [INTARSIA_PREFILL_PEEL=8]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 11987 ms (1366.9 tok/s) | decode 0 ms (0.00 tok/s)|
+05:28:37 pf-peelfold-16384 exit 0 [INTARSIA_PREFILL_PEEL=8 INTARSIA_HIP_MXFP4_FOLD=1]: prompt: 16384 tokens|finish=length prompt=16384 (cached 0) completion=1 | prefill 7357 ms (2227.1 tok/s) | decode 0 ms (0.00 tok/s)|
+05:28:47 accg35-base exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/|
+05:28:56 accg35-dev exit 0: floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested|golden gate: PASS|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/|
+05:30:00 qual-35g exit 1: 
+05:30:00 qual 35g: /home/josef/mx/out/w7/qual-35g.err:[qualify      7s] == acc-short [short accuracy against a golden]|/home/josef/mx/out/w7/qual-35g.err:[qualify     14s] acc-short: MISSING-BASELINE in 7.7s (MISSING-BASELINE: baseline /work/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.baseline.json not used (
+05:30:15 mxbench m4096-nodq exit 0: mlp gate / up cfg 16: 71303168 outputs differ from v1|mlp down cfg 16: 20971520 outputs differ from v1|gdn in_proj_qkv cfg 16: 41943040 outputs differ from v1|gdn in_proj_z cfg 16: 25165824 outputs differ from v1|
+05:30:16 pmcbench lds (SQ_LDS_IDX_ACTIVE): no csv: whole-model GEMM ms per 0-token chunk:        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        2.1        
+05:30:17 pmcbench valu (SQ_INSTS_LDS SQ_WAIT_INST_LDS): csv
+05:30:17 w7 done; 920 s left
+[window] stages done 2026-10-25 05:30:17, exit 0
+[window] starting radiance 2026-10-25 05:30:17
+[window] radiance answers 2026-10-25 05:30:37 (after 25 s); active

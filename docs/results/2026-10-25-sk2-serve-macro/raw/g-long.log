@@ -1,0 +1,38 @@
+binary target/test/release/deps/batch_cuda_real-456c9ffff6fd4f6f
+
+running 1 test
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+LONGENG 2 slots, requests [0, 1], busy chunk default: mixed iterations 2, prefill chunks 3, decode batches B1:770 B2:129
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+LONGENG 4 slots, requests [0, 1, 2, 3], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:760 B2:10 B3:10 B4:119
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+LONGENG 4 slots, requests [0, 2, 3, 1], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:766 B2:4 B3:4 B4:125
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 1024
+LONGENG control busy chunk 1024: R0 200 tok, 900 gen : identical
+LONGENG control busy chunk 1024: R1 4096 tok : first differing token 12
+LONGENG control busy chunk 1024: R2 16384 tok (sampled) : first differing token 9
+LONGENG control busy chunk 1024: R3 2600 tok : first differing token 2
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 259.85s
+

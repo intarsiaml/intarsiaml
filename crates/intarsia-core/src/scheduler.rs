@@ -145,6 +145,14 @@ pub trait BatchModel {
     fn tail_merge(&self) -> usize {
         0
     }
+    /// Opt-in macro prefill (`INTARSIA_PREFILL_MACRO`): rows of the next [`BatchModel::prefill_chunk`] call for slot `slot` when
+    /// `remaining` (>= 1) prompt rows are left and chunks are `chunk` rows: a whole number of chunks (several, run by the model as
+    /// ONE layer-by-layer pass, bitwise the same chunks), or all `remaining` rows when that ends the prompt. `None` (default):
+    /// the plain one-chunk call. The scheduler asks only when this request is the only one prefilling and no sequence is
+    /// decoding, so the longer call delays nobody.
+    fn macro_step(&self, _slot: usize, _remaining: usize, _chunk: usize) -> Option<usize> {
+        None
+    }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
 }
@@ -333,6 +341,98 @@ pub fn next_prefill_chunk_tm(remaining: usize, chunk: usize, avoid_one_row: bool
         remaining
     } else {
         next_prefill_chunk(remaining, chunk, avoid_one_row)
+    }
+}
+
+/// Env knob: `INTARSIA_PREFILL_MACRO=<rows>` (unset / empty / `0`: off, the default): the most rows of a macro prefill pass
+/// ([`crate::model::Model::forward`]: several consecutive chunks of ONE prompt run layer by layer in one pass, so each
+/// weight is streamed once for all of them).
+pub const MACRO_ENV: &str = "INTARSIA_PREFILL_MACRO";
+
+/// Parse [`MACRO_ENV`]: `None`, empty and `0` are off (0); a positive integer is the row count.
+pub fn parse_macro(v: Option<&str>) -> Result<usize> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(0),
+        Some(s) => s.parse::<usize>().map_err(|_| Error::invalid(format!("{MACRO_ENV}={s} (a row count, 0 = off)"))),
+    }
+}
+
+/// [`parse_macro`] that tells "not set" (`None`: the recipe decides) from `0` (off).
+pub fn parse_macro_env(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(_) => parse_macro(v).map(Some),
+    }
+}
+
+/// The macro pass size the workspace and the schedule use: `rows` rounded down to whole chunks, and 0 (off) below two chunks
+/// (one chunk is the plain schedule).
+pub fn effective_macro_rows(rows: usize, chunk: usize) -> usize {
+    if chunk == 0 || rows < 2 * chunk {
+        0
+    } else {
+        rows / chunk * chunk
+    }
+}
+
+/// Chunks per group when `n_chunks` consecutive chunks of one prompt run as macro passes of at most `max_segs` chunks: as few
+/// passes as `max_segs` allows (every pass streams the weights once), the chunks spread evenly over them so no pass is a short
+/// tail (`ceil(n / ceil(n / max_segs))` chunks per group; the last group takes what is left).
+pub fn macro_group_len(n_chunks: usize, max_segs: usize) -> usize {
+    let max_segs = max_segs.max(1);
+    if n_chunks <= max_segs {
+        return n_chunks.max(1);
+    }
+    let groups = n_chunks.div_ceil(max_segs);
+    n_chunks.div_ceil(groups)
+}
+
+/// Rows of the next macro step of a prompt whose headless prefill has `body` rows left (all but its last token), run as
+/// chunks of `chunk` rows and passes of at most `macro_rows` rows (`macro_rows` from [`effective_macro_rows`], 0 = off).
+/// The caller runs `forward` on that many tokens; `Model::forward` cuts them into the chunks and passes. `None` when
+/// the macro schedule does not apply (off, or no more than one chunk left).
+pub fn macro_step_rows(body: usize, chunk: usize, macro_rows: usize) -> Option<usize> {
+    if macro_rows == 0 || chunk == 0 || body <= chunk {
+        return None;
+    }
+    let n_chunks = body.div_ceil(chunk);
+    let per = macro_group_len(n_chunks, macro_rows / chunk);
+    Some((per * chunk).min(body))
+}
+
+/// Env knob: `INTARSIA_PREFILL_PEEL=<rows>` overrides the recipe's `prefill_peel` (`0`: off; unset / empty: the recipe).
+pub const PEEL_ENV: &str = "INTARSIA_PREFILL_PEEL";
+
+/// Parse [`PEEL_ENV`]: `None` / empty = not set (the recipe decides), a row count below
+/// [`crate::recipe::DEFAULT_PREFILL_CHUNK`] otherwise (0 = off).
+pub fn parse_peel(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(s) => match s.parse::<usize>() {
+            Ok(n) if n < crate::recipe::DEFAULT_PREFILL_CHUNK => Ok(Some(n)),
+            _ => Err(Error::invalid(format!(
+                "{PEEL_ENV}={s} (a row count below {}, 0 = off)",
+                crate::recipe::DEFAULT_PREFILL_CHUNK
+            ))),
+        },
+    }
+}
+
+/// Prefill tail peel (`peel` rows, 0 = off = `n`): a forward pass of `n` rows, longer than the default chunk
+/// ([`crate::recipe::DEFAULT_PREFILL_CHUNK`], 256), whose length mod 256 is `1..=peel`, runs its first `n - n % 256` rows
+/// first and its last `n % 256` rows as their own pass. The default chunk schedule cuts a pass at the same rows (a pass
+/// at a larger chunk starts where a 256-row pass would and is cut into 256-row passes plus that remainder), so the
+/// short tail runs with exactly the row count, and so the small-row kernels (HIP: the MXFP4 GEMV at <= 8 rows, split-KV
+/// attention at <= 16), that the default schedule runs it with. Passes of more rows take the same kernels at either size
+/// where every kernel is row-invariant above `peel` rows (HIP 27B with peel 16, docs/results/2026-10-25-mx-hip-27b-prefill.md
+/// section 4): with the peel a larger chunk gives the bits of the default one. Returns the rows of the first pass.
+pub fn peel_tail(n: usize, peel: usize) -> usize {
+    let r = crate::recipe::DEFAULT_PREFILL_CHUNK;
+    let t = n % r;
+    if peel > 0 && n > r && t >= 1 && t <= peel {
+        n - t
+    } else {
+        n
     }
 }
 
@@ -1208,10 +1308,17 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         };
         let plen = self.active[i].seq.prompt().len();
-        let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
+        let mut len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
+        let slot = self.active[i].slot;
+        if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > chunk {
+            let sole = self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count() == 1;
+            if let Some(n) = self.model.macro_step(slot, plen - pos, chunk).filter(|_| sole) {
+                debug_assert!(n >= len && n <= plen - pos, "macro step {n} of {} rows", plen - pos);
+                len = n.clamp(len, plen - pos);
+            }
+        }
         let last = len == plen - pos;
         let mode = if last { Some(self.active[i].seq.first_mode()) } else { None };
-        let slot = self.active[i].slot;
         let id = self.active[i].id;
         self.ev(TraceEvent::Chunk { iter: self.iter, id, start: pos, len, last });
         (slot, Chunk { id, pos, len, last, chunk, t0: Instant::now() }, mode)
@@ -1270,6 +1377,16 @@ struct EngineShared {
     failed: Arc<Mutex<Option<String>>>,
     shutdown: AtomicBool,
     metrics: Arc<Mutex<BatchMetrics>>,
+    /// Start gate (`BatchEngine::spawn_held`): the scheduler thread does not read its channel until it is open. Open from the
+    /// start unless the engine was spawned held.
+    gate: (Mutex<bool>, std::sync::Condvar),
+}
+
+impl EngineShared {
+    fn open_gate(&self) {
+        *self.gate.0.lock().unwrap() = true;
+        self.gate.1.notify_all();
+    }
 }
 
 /// The scheduler on its own thread, which owns the model (design 2.1). `submit` only queues.
@@ -1286,6 +1403,17 @@ where
     S: BatchSeq<M> + 'static,
 {
     pub fn spawn(model: M, cfg: SchedulerConfig) -> Result<Self> {
+        Self::spawn_gated(model, cfg, false)
+    }
+
+    /// Like [`BatchEngine::spawn`], but the scheduler thread reads nothing until [`BatchEngine::release`]: tests submit a whole
+    /// workload first, so the first iteration sees all of it (otherwise how many requests are queued when it admits depends on
+    /// thread timing).
+    pub fn spawn_held(model: M, cfg: SchedulerConfig) -> Result<Self> {
+        Self::spawn_gated(model, cfg, true)
+    }
+
+    fn spawn_gated(model: M, cfg: SchedulerConfig, held: bool) -> Result<Self> {
         let sched: Scheduler<M, S> = Scheduler::new(model, cfg)?;
         let shared = Arc::new(EngineShared {
             queued: sched.queued.clone(),
@@ -1294,6 +1422,7 @@ where
             failed: sched.failed_shared.clone(),
             shutdown: AtomicBool::new(false),
             metrics: sched.metrics.clone(),
+            gate: (Mutex::new(!held), std::sync::Condvar::new()),
         });
         let (tx, rx) = mpsc::channel();
         let sh = shared.clone();
@@ -1343,6 +1472,11 @@ where
         }
     }
 
+    /// Open the start gate of an engine spawned with [`BatchEngine::spawn_held`] (no effect on any other).
+    pub fn release(&self) {
+        self.shared.open_gate();
+    }
+
     /// Counters and histograms as of now; `queue_depth` is live (the engine's queue counter), `running` is as of the
     /// end of the scheduler's last iteration.
     pub fn metrics(&self) -> BatchMetrics {
@@ -1359,6 +1493,7 @@ where
 impl<M, S> Drop for BatchEngine<M, S> {
     fn drop(&mut self) {
         self.shared.shutdown.store(true, Ordering::SeqCst);
+        self.shared.open_gate();
         drop(self.tx.take());
         if let Some(t) = self.thread.take() {
             let _ = t.join();
@@ -1376,6 +1511,12 @@ fn run_scheduler<M: BatchModel, S: BatchSeq<M>>(
     sh: Arc<EngineShared>,
 ) {
     use std::panic::{catch_unwind, AssertUnwindSafe};
+    {
+        let mut go = sh.gate.0.lock().unwrap();
+        while !*go {
+            go = sh.gate.1.wait(go).unwrap();
+        }
+    }
     let mut open = true;
     loop {
         if sh.shutdown.load(Ordering::SeqCst) {

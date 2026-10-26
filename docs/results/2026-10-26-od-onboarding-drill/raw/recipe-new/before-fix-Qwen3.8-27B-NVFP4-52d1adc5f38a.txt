@@ -1,0 +1,16 @@
+not covered: no existing recipe handles this model (closest: 45/45 tensor templates resolve, quant: nvfp4+fp8)
+  note: config.json: architectures ["Qwen3_5ForConditionalGeneration"], family "qwen3_5" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (2194 tensors; shards not present, so no dtypes or shapes)
+  note: layer prefix model.language_model.layers.{i} (64 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)
+  note: quantisation: nvfp4+fp8 (not implemented in full, see TODOs)
+  note: hf_quant_config.json declares kv_cache_quant_algo FP8; the KV cache runs as bf16 here (its k/v scales are not used)
+  note: closest existing recipe: builtin:qwen3_5_vl (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn", "gdn"}; 45/45 tensor templates resolve; architecture matches but the recipe cannot be used as is; quantisation not implemented)
+  note: ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (11), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)
+wrote recipes/qwen3_5_3.toml (5 TODO(recipe-new) item(s))
+5 item(s) need manual work:
+  1. quant: quant_algo "NVFP4" (NVFP4 weights AND 4-bit activations) declared in hf_quant_config.json; the engine implements only weight-only W4A16_NVFP4
+  2. quant: unsupported: 'model.language_model.layers.0.mlp.gate_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+  3. quant: unsupported: 'model.language_model.layers.0.mlp.up_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+  4. quant: unsupported: 'model.language_model.layers.0.mlp.down_proj' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+  5. quant: unsupported: 'lm_head' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+Error: 5 item(s) need manual work, see the TODO(recipe-new) markers in recipes/qwen3_5_3.toml

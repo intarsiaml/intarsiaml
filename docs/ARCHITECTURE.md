@@ -6,11 +6,13 @@ Intarsia is wood inlay: a picture built from interchangeable, precisely fitted p
 
 Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
 
-> **Status of this document (2026-10-22).** This file is the v0.2 *plan*, not a description of the code. Each claim in
-> sections 1 to 14 now carries one of three markers, checked against `origin/main` (cd617de2) with `grep` and `ls`
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
 > (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
 > **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
 > Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
 
 ### Status vs plan
 
@@ -18,7 +20,7 @@ Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md)
 |---|---|---|
 | Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
 | Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
-| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
 | Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
 | Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
 | Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
@@ -30,23 +32,23 @@ Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md)
 | Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
 | Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
 | `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
-| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; MLA, sliding window, Mamba2, LayerNorm absent |
-| Recipes and `recipe new` | **partial** | 4 recipes, Qwen3 family only; unsupported architectures refused at load |
-| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | no tuning DB, no `--allow-slow`, no per-bucket graphs |
-| Scheduler | **partial** | FIFO continuous batching, Metal only; no priorities |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP (dense models on Metal and HIP since #154, hybrid models on all three); tensor-parallel batching and MTP under batching are not on main; no priorities |
 | Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
 | Paged KV blocks | **planned** | KV is contiguous per slot |
-| Radix-tree prefix cache | **planned** | only idle-slot prefix reuse with recurrent snapshots |
-| Host-RAM KV tier | **planned** | no code |
-| Speculation | **partial** | n-gram only; MTP and DFlash drafters absent |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine only; idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash absent; batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
 | Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
 | Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
-| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
 | Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
 | Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
 | OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
 | Prometheus metrics | **implemented** | OTLP export absent |
-| Containers, run manifest, `intarsia replay` | **planned** | only HIP dev Dockerfiles; no manifest or replay command |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no `intarsia replay` command, and the bundle holds no plan or tuning hash |
 
 ---
 
@@ -146,7 +148,7 @@ flowchart LR
   MET --> UI
 ```
 
-**Status (section 2 diagram).** Boxes that are **planned** or **partial**: `KV` ("paged blocks, radix prefix cache, host tier"; planned, KV is contiguous per slot), `SPEC` (partial: n-gram only), `QF` (partial: no GGUF k-quants, AWQ/GPTQ), `BLK` (partial: no MLA, sliding window, Mamba2), `KR` "autotune DB" (planned), `HIP` and `CUDA` are implemented, `COMM` "NCCL/RCCL" (partial: no RCCL), "OTLP" in `MET` (planned), `/v1/responses` in `OAI` (planned), `PLAN` "captured graphs per batch bucket" (partial, see 3.6). Metal is implemented but missing from the diagram. The picture in [architecture-diagram.md](architecture-diagram.md) marks planned components with dashed outlines.
+**Status (section 2 diagram).** Boxes that are **planned** or **partial**: `KV` ("paged blocks, radix prefix cache, host tier"; partial: live KV is contiguous per slot ([`state.rs`](../crates/intarsia-core/src/state.rs)); the opt-in content-addressed prefix store keeps paged, content-addressed prefix states in device, host and disk tiers ([`prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)); there is no radix tree), `SPEC` (partial: n-gram (Metal only) and MTP (CUDA, HIP, Metal; one sequence) are in, see [`spec.rs`](../crates/intarsia-core/src/spec.rs) and [`model/spec_graph.rs`](../crates/intarsia-core/src/model/spec_graph.rs); no DFlash drafter), `QF` (partial: no GGUF k-quants, AWQ/GPTQ), `BLK` (partial: sliding window exists only inside the Gemma 4 block, [`model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs); no MLA, no Mamba2), `KR` "autotune DB" (planned), `HIP` and `CUDA` are implemented, `COMM` "NCCL/RCCL" (partial: NCCL on CUDA and a 2-rank P2P one-shot all-reduce on HIP, no RCCL), "OTLP" in `MET` (planned), `/v1/responses` in `OAI` (planned), `PLAN` "captured graphs per batch bucket" (partial: graphs are captured per decode row count, not per rounded bucket, see 3.6). Metal ([`crates/intarsia-backend-metal`](../crates/intarsia-backend-metal)) is implemented but missing from the diagram's `HW` subgraph. The picture in [architecture-diagram.md](architecture-diagram.md) marks planned components with dashed outlines.
 
 ---
 
@@ -173,9 +175,9 @@ pub trait Backend: Send + Sync {
 
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
-| A minimal `Backend` trait is the whole device contract | **partial** | [`backend.rs:165`](../crates/intarsia-core/src/backend.rs): the trait exists with 23 methods, 9 required (`name`, `info`, `alloc`, `upload`, `download`, `copy`, `kernels`, `launch`, `synchronize`); the rest have defaults. Shape differs from the sketch: `launch` is `launch(kernel_name, &OpCall, stream)`, graphs are `graph_capture`/`graph_replay`, there is no `event` |
+| A minimal `Backend` trait is the whole device contract | **partial** | [`backend.rs:192`](../crates/intarsia-core/src/backend.rs): the trait exists with 33 methods, 9 required (`name`, `info`, `alloc`, `upload`, `download`, `copy`, `kernels`, `launch`, `synchronize`); the rest have defaults. Shape differs from the sketch: `launch` is `launch(kernel_name, &OpCall, stream)`, graphs are `graph_capture`/`graph_replay`, there is no `event` |
 | `fn comm(&self) -> Option<&dyn Comm>` | **partial** | no `comm` method on the trait; TP collectives are built from backend lists in [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) and per-backend files |
-| Everything above the trait is backend-neutral | **partial** | backend-specific branches remain: [`crates/intarsia-core/src/model/batch.rs`](../crates/intarsia-core/src/model/batch.rs) tests `backend.name() != "cpu"`, and `--max-batch` is Metal-only in [`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs) |
+| Everything above the trait is backend-neutral | **partial** | backend-specific branches remain: [`crates/intarsia-core/src/model/batch.rs`](../crates/intarsia-core/src/model/batch.rs) tests `backend.name() != "cpu"`, and `--max-batch` above 1 is refused on any backend but Metal, CUDA and HIP (and the CPU backend with `INTARSIA_RECURRENT_BATCH=1`) in [`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs) |
 | A Vulkan or SYCL backend only has to implement the trait plus its kernel packs | **planned** | no such backend; `kernels/abi/ik_abi.h` takes a CUDA-stream-shaped `void* stream` and CUDA/HIP share `ik_*` symbol names |
 | Backend init applies known-bad-default fixes as data (`GPU_MAX_HW_QUEUES=1`) | **partial** | applied by the launchers, not by backend init: [`crates/intarsia-cli/src/cmd/onboard.rs`](../crates/intarsia-cli/src/cmd/onboard.rs), [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); `doctor` only reports it ([`crates/intarsia-cli/src/cmd/doctor.rs`](../crates/intarsia-cli/src/cmd/doctor.rs)) |
 
@@ -211,10 +213,10 @@ Rules:
 
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
-| Every op has a typed signature | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs): `Op` enum, 38 ops with arity and shape checks. The example op names (`paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) are plan names; the real ones are `AttnDecode`, `AttnPrefill`, `MoeTopk`, `MoeExperts`, `MoeBlock`, and there is no all-reduce op |
+| Every op has a typed signature | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs): `Op` enum, 42 ops with arity and shape checks. The example op names (`paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) are plan names; the real ones are `AttnDecode`, `AttnPrefill`, `MoeTopk`, `MoeExperts`, `MoeBlock`, and there is no all-reduce op |
 | Reference implementation per op in `cpu-ref` | **implemented** | [`crates/intarsia-backend-cpu/src/reference.rs`](../crates/intarsia-backend-cpu/src/reference.rs) |
 | Many implementations per op, each with (backend, arch, dtype/quant, shape predicate, exactness) | **implemented** | [`crates/intarsia-core/src/registry.rs`](../crates/intarsia-core/src/registry.rs) `KernelImpl` |
-| `register_kernel!` macro | **partial** | [`registry.rs:217`](../crates/intarsia-core/src/registry.rs) defines it; only that file uses it. Backends build `KernelImpl` values directly ([`crates/intarsia-backend-cuda/src/kernels.rs`](../crates/intarsia-backend-cuda/src/kernels.rs)). The `tol:` field in the example is illustrative |
+| `register_kernel!` macro | **partial** | [`registry.rs:247`](../crates/intarsia-core/src/registry.rs) defines it; only that file uses it. Backends build `KernelImpl` values directly ([`crates/intarsia-backend-cuda/src/kernels.rs`](../crates/intarsia-backend-cuda/src/kernels.rs)). The `tol:` field in the example is illustrative |
 | Admission test, `intarsia kernels test`; failing kernel is unselectable | **implemented** | [`crates/intarsia-core/src/admission.rs`](../crates/intarsia-core/src/admission.rs), [`crates/intarsia-cli/src/cmd/kernels.rs`](../crates/intarsia-cli/src/cmd/kernels.rs) |
 | Plan-time preconditions fail loudly at load | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) returns `Error::NoKernel` when no admitted kernel fits |
 | Autotuner and tuning DB committed as `tuning/<fingerprint>.toml` | **planned** | no autotuner code and no `tuning/` directory; selection is static priority among admitted kernels |
@@ -254,8 +256,8 @@ Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only 
 | Kernels compiled by `nvcc`/`hipcc` into a static library and bound via `extern "C"` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs), [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs), FFI in `ffi.rs` of each crate |
 | `native` pack (ours, CUDA + HIP) | **implemented** | [`kernels/cuda`](../kernels/cuda), [`kernels/hip`](../kernels/hip) |
 | `tensorfold` pack (MIT): EXL3, NVFP4, GDN, DFlash verify | **partial** | ports of TensorFold kernels exist ([`kernels/cuda/exl3.cu`](../kernels/cuda/exl3.cu), [`kernels/cuda/nvfp4.cu`](../kernels/cuda/nvfp4.cu), licence in [`LICENSES/TensorFold-MIT.txt`](../LICENSES/TensorFold-MIT.txt)); there is no pack boundary, and no DFlash verify |
-| `radiance` pack (Apache-2.0): MXFP4xFP8 GEMM, one-shot all-reduce, GDN, paged attention | **partial** | HIP kernels with attribution ([`kernels/hip/NOTICE-radiance`](../kernels/hip/NOTICE-radiance), [`LICENSES/Apache-2.0-radiance.txt`](../LICENSES/Apache-2.0-radiance.txt), [`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)); no paged attention |
-| `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_gemm_lt.cu`](../kernels/cuda/fp8_gemm_lt.cu)); hipBLASLt is referenced from [`kernels/hip/matmul.hip`](../kernels/hip/matmul.hip) |
+| `radiance` pack (Apache-2.0): MXFP4xFP8 GEMM, one-shot all-reduce, GDN, paged attention | **partial** | HIP kernels with attribution ([`kernels/hip/NOTICE-radiance`](../kernels/hip/NOTICE-radiance), [`LICENSES/Apache-2.0-radiance.txt`](../LICENSES/Apache-2.0-radiance.txt)): MXFP4 GEMM ([`kernels/hip/mxfp4.hip`](../kernels/hip/mxfp4.hip)), a 2-rank one-shot all-reduce ([`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)), GDN ([`kernels/hip/gdn.hip`](../kernels/hip/gdn.hip)); no paged attention, and the all-reduce is 2-rank only |
+| `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_gemm_lt.cu`](../kernels/cuda/fp8_gemm_lt.cu)); a hipBLASLt route is not built (the note is in [`kernels/hip/matmul.hip`](../kernels/hip/matmul.hip), see [`docs/backends/hip.md`](backends/hip.md)) |
 | Other packs (flashinfer, cutlass, ggml, exl3, ck/aiter) as pinned submodules under `kernels/packs/` | **planned** | no `kernels/packs/`, no `.gitmodules` |
 | No pack vendored without its licence file in `LICENSES/` | **implemented** | [`LICENSES`](../LICENSES) holds radiance, TensorFold and exllamav3 |
 | Block-scope fused ops are first-class; plan picks the fused op when admitted, else the chain | **partial** | fused ops exist as `Op` variants (`MoeBlock`, `GdnConvDelta`, `RmsNormAddMatmulPair`, `QkNormRopeKv`, ... in [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs)); the example names (`gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) do not exist, and the chain fallback is decided in model code, not by the plan compiler |
@@ -281,7 +283,7 @@ Per-tensor overrides live in the recipe (e.g. drafter stays FP8: MXFP4 RTN dropp
 
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
-| `QuantFormat` trait with `id`, `detect`, `load`, `dequant_ref`, `quantize` | **implemented** | [`mod.rs:213`](../crates/intarsia-core/src/quant/mod.rs) (same five methods; `load` takes `WeightMeta`, `&dyn Backend` and `QuantLoadOpts`) |
+| `QuantFormat` trait with `id`, `detect`, `load`, `dequant_ref`, `quantize` | **implemented** | [`mod.rs:233`](../crates/intarsia-core/src/quant/mod.rs) (same five methods; `load` takes `WeightMeta`, `&dyn Backend` and `QuantLoadOpts`) |
 | Formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | [`crates/intarsia-core/src/quant/fp8.rs`](../crates/intarsia-core/src/quant/fp8.rs), [`crates/intarsia-core/src/quant/nvfp4.rs`](../crates/intarsia-core/src/quant/nvfp4.rs), [`crates/intarsia-core/src/quant/mxfp4.rs`](../crates/intarsia-core/src/quant/mxfp4.rs), [`crates/intarsia-core/src/quant/exl3.rs`](../crates/intarsia-core/src/quant/exl3.rs); BF16 is `Bf16Dense` in `quant/mod.rs` |
 | Formats GGUF k-quants, AWQ/GPTQ | **planned** | no `QuantFormat` impl; `gguf` appears only in `quant/scheme.rs` and `cmd/recipe.rs` text |
 | Adding a quant = implement the trait + register kernels | **partial** | also needs `Op` variants per (format, fusion) and edits in about 20 files (review finding 9, deferred to the user) |
@@ -319,13 +321,16 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 
 [defaults]                       # tunables a user can override per deployment
 kv_dtype = "bf16"                # fp8_e4m3 KV is opt-in (CUDA `--kv-dtype fp8_e4m3`), not a recipe default
-max_batch = 8                    # ceiling for the batching scheduler (Metal only); the qwen3_5* recipes declare 32. `serve` runs one sequence unless --max-batch N (2..8; ADR-0010)
+max_batch = 8                    # ceiling for the batching scheduler (Metal, CUDA, HIP); the qwen3_5* recipes declare 32, gemma4 declares 1. `serve` runs one sequence unless --max-batch N (capped per backend; ADR-0010)
 
 [tuning.metal]                   # optional per-backend prefill chunk (--prefill-chunk wins; unlisted backends use 256)
 prefill_chunk = 2048
 
 [tuning.hip]
 prefill_chunk = 2048             # qwen3_5_moe.toml: CUDA 2048, HIP 4096
+
+[tuning.cuda]
+prefill_chunk = 4096             # shared by every dense Qwen3; qwen3_5_moe.toml keeps 2048 on CUDA
 ```
 
 Updated 2026-10-21: this example (it mirrors `recipes/qwen3.toml`) used to show `kv_dtype = "fp8_e4m3"`, `max_batch = 32` and no tuning table. Every shipped recipe (`recipes/*.toml`) uses `bf16`; the current defaults are tabulated in [docs/decisions/LOG.md](decisions/LOG.md) ("Defaults in force on main").
@@ -339,13 +344,14 @@ Hybrid models (Qwen3.5/3.8 GDN + full attention every 4th layer) use `pattern_by
 |---|---|---|
 | `Attention` kind Gqa | **implemented** | [`recipes/qwen3.toml`](../recipes/qwen3.toml) (`kind = "gqa"`) |
 | `Attention` kind GatedDeltaNet | **implemented** | [`recipes/qwen3_5.toml`](../recipes/qwen3_5.toml) (`kind = "gated_delta_net"`), [`crates/intarsia-core/src/gdn.rs`](../crates/intarsia-core/src/gdn.rs) |
-| `Attention` kinds Mla, SlidingWindow, Mamba2 | **planned** | no such kind in [`recipes`](../recipes) or the model code; a `sliding_attention` layer type is rejected in [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs) |
+| `Attention` kind SlidingWindow | **partial** | implemented only inside the Gemma 4 block ([`crates/intarsia-core/src/model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs), [`recipes/gemma4.toml`](../recipes/gemma4.toml) `kind = "gemma4"`); the generic recipe layer path still rejects a `sliding_attention` layer type ([`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs)) |
+| `Attention` kinds Mla, Mamba2 | **planned** | no such kind in [`recipes`](../recipes) or the model code |
 | `Ffn` kind Dense | **implemented** | [`recipes/qwen3.toml`](../recipes/qwen3.toml) |
 | `Ffn` kind Moe | **implemented** | [`recipes/qwen3_5_moe.toml`](../recipes/qwen3_5_moe.toml) (`kind = "qwen3_5_moe"`), [`crates/intarsia-core/src/quant/moe.rs`](../crates/intarsia-core/src/quant/moe.rs) |
 | `Norm` RmsNorm | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs) `RmsNorm` |
 | `Norm` LayerNorm | **planned** | no LayerNorm op |
 | Blocks are a reusable typed-config library | **partial** | block structure is Rust code in [`crates/intarsia-core/src/model.rs`](../crates/intarsia-core/src/model.rs); a recipe selects and wires tensors but cannot define a new block |
-| Recipe maps a Hugging Face model to blocks | **implemented** | [`recipes`](../recipes) (qwen3, qwen3_5, qwen3_5_moe, qwen3_5_vl), loaders [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs), [`crates/intarsia-core/src/recipe.rs`](../crates/intarsia-core/src/recipe.rs) |
+| Recipe maps a Hugging Face model to blocks | **implemented** | [`recipes`](../recipes) (qwen2, qwen3, qwen3_5, qwen3_5_moe, qwen3_5_vl, llama, gemma4), loaders [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs), [`crates/intarsia-core/src/recipe.rs`](../crates/intarsia-core/src/recipe.rs) |
 | Hybrid models via `pattern_by_layer` or `layer_types` | **implemented** | [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs) (tests show `layer_types`) |
 | `intarsia recipe new <hf-dir>` drafts a recipe and lists unmapped tensors | **implemented** | [`crates/intarsia-cli/src/cmd/recipe.rs`](../crates/intarsia-cli/src/cmd/recipe.rs) |
 | Most new models in a known family need only a recipe | **partial** | true inside the Qwen3 family only; rope scaling variants (llama3, yarn, longrope), attention bias, sliding window, non-SiLU FFNs need code or are refused at recipe load ([`docs/adding-a-model.md`](../docs/adding-a-model.md)) |
@@ -367,11 +373,11 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
 | 1. Build the op graph for a decode step and a prefill chunk | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) |
-| 2. Prefer admitted block-scope fused ops; load-time rewrites such as `gate+up` concat | **partial** | fused ops are selected in model code; no `gate+up` weight concat found in `model.rs` or `load.rs` |
+| 2. Prefer admitted block-scope fused ops; load-time rewrites such as `gate+up` concat | **partial** | fused ops are selected in model code (e.g. `try_mxfp4_pair` in [`crates/intarsia-core/src/model.rs`](../crates/intarsia-core/src/model.rs)); a load-time `gate+up` concat exists only for MoE experts ([`crates/intarsia-core/src/quant/moe.rs`](../crates/intarsia-core/src/quant/moe.rs)), not for the dense FFN |
 | 3. Kernel choice: preconditions, admission pass, tuning-DB winner, fallback chain | **partial** | preconditions and admission are in [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs); the tuning-DB winner step is **planned** |
 | Reference on GPU never selected silently; error unless `--allow-slow` | **partial** | the error half is real (`Error::NoKernel`); there is no `--allow-slow` flag |
 | 4. KV pool and activations from measured free memory | **implemented** | [`crates/intarsia-core/src/memplan.rs`](../crates/intarsia-core/src/memplan.rs) |
-| 5. Capture CUDA/HIP graphs per batch-size bucket | **partial** | graph capture and replay exist ([`crates/intarsia-core/src/model/graph_step.rs`](../crates/intarsia-core/src/model/graph_step.rs), `device.rs` of the CUDA and HIP crates); no per-bucket capture found |
+| 5. Capture CUDA/HIP graphs per batch-size bucket | **implemented** | one recording per decode row count (not rounded buckets), plus spec-decode graphs: [`crates/intarsia-core/src/model/graph_step.rs`](../crates/intarsia-core/src/model/graph_step.rs); `INTARSIA_BATCH_GRAPHS=0` turns it off |
 | Plan is serializable (`intarsia plan show`) for the UI | **implemented** | [`crates/intarsia-cli/src/cmd/plan.rs`](../crates/intarsia-cli/src/cmd/plan.rs), `GET /v1/intarsia/plan` in [`crates/intarsia-server/src/lib.rs`](../crates/intarsia-server/src/lib.rs) |
 
 ---
@@ -390,25 +396,25 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
-| Scheduler: continuous batching | **partial** | [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs) (FIFO, decode-first, iteration-level); only on Metal and only for dense attention-only models; `--max-batch` is refused on every other backend and for MoE and hybrid models ([`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs), [ADR-0010](decisions/0010-continuous-batching.md)) |
+| Scheduler: continuous batching | **partial** | [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs) (FIFO, decode-first, iteration-level, no priorities); opt-in `--max-batch N` batches on Metal, CUDA and HIP (row cap per `Backend::batch_row_cap`; hybrid models on all three, dense models on Metal and, since #154, HIP), and on the CPU backend only with `INTARSIA_RECURRENT_BATCH=1`; refused on other backends and with `--spec mtp` ([`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs), [ADR-0010](decisions/0010-continuous-batching.md)); tensor-parallel batching is not on main |
 | Chunked prefill with adaptive chunk size | **partial** | chunked prefill is real; the size is a fixed per-backend table (`[tuning.*] prefill_chunk` in [`recipes/qwen3_5_moe.toml`](../recipes/qwen3_5_moe.toml)), not adaptive |
 | Request priorities (`priority: background`) | **planned** | no priority handling in `scheduler.rs` |
 | Memory-based admission | **partial** | bounded queue with 429 and KV sized from measured memory ([`crates/intarsia-core/src/memplan.rs`](../crates/intarsia-core/src/memplan.rs)); no per-request memory admission |
 | Step watchdog and process supervisor that restarts the worker | **implemented** | [`crates/intarsia-server/src/supervisor.rs`](../crates/intarsia-server/src/supervisor.rs), [`crates/intarsia-server/src/health.rs`](../crates/intarsia-server/src/health.rs) |
 | Sequence state with attention-KV and recurrent slots, built for hybrid models | **implemented** | [`crates/intarsia-core/src/state.rs`](../crates/intarsia-core/src/state.rs) (`AttnKvState`, `RecurrentState`, `SequenceState`) |
-| Recurrent-state snapshots for prefix caching at block boundaries | **partial** | snapshots exist (`SequenceState::snapshot`, `restorable_len`) but follow the prefill chunk schedule, not KV block boundaries, because there are no blocks |
-| KV: paged blocks | **planned** | no block table; KV is contiguous per slot ([`crates/intarsia-core/src/state.rs`](../crates/intarsia-core/src/state.rs)) |
-| KV: radix-tree prefix cache keyed by (model, plan hash, token ids) | **planned** | none; what exists is reuse of an idle slot's KV prefix in [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs) |
+| Recurrent-state snapshots for prefix caching at block boundaries | **partial** | the prefix store keeps the recurrent blob of each stored prefix at points of the prefill chunk schedule ([`crates/intarsia-core/src/prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs), `SequenceState::snapshot`, `restorable_len`), not at KV block boundaries, because live KV has no blocks |
+| KV: paged blocks | **partial** | live KV is contiguous per slot ([`crates/intarsia-core/src/state.rs`](../crates/intarsia-core/src/state.rs)); only the prefix store holds KV in fixed `page_tokens` pages ([`crates/intarsia-core/src/prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)) |
+| KV: radix-tree prefix cache keyed by (model, plan hash, token ids) | **partial** | content-addressed, not a radix tree: entries are keyed by a hash of the token ids salted with the build fingerprint (model, recipe, dtypes, kernel plan, chunk schedule), pages are shared, and token ids are compared in full on a hit ([`crates/intarsia-core/src/prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs), opt-in `serve --prefix-store`); idle-slot prefix reuse in [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs); the store stays at one sequence |
 | KV: FP8/BF16 | **implemented** | bf16 default, `--kv-dtype fp8_e4m3` opt-in on CUDA ([`crates/intarsia-cli/src/common.rs`](../crates/intarsia-cli/src/common.rs)) |
-| KV: optional host-RAM tier on discrete GPUs | **planned** | no code |
-| Speculation: pluggable drafters `mtp`, `dflash`, `ngram` | **partial** | [`crates/intarsia-core/src/spec.rs`](../crates/intarsia-core/src/spec.rs) implements `SpecMode::Ngram` only; `mtp` and `dflash` are planned |
+| KV: optional host-RAM tier on discrete GPUs | **partial** | the prefix store has device, host-RAM and disk tiers with LRU demotion ([`crates/intarsia-core/src/prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)); it holds prefix states, not live KV |
+| Speculation: pluggable drafters `mtp`, `dflash`, `ngram` | **partial** | [`crates/intarsia-core/src/spec.rs`](../crates/intarsia-core/src/spec.rs) has `SpecMode::Ngram` (Metal only) and `SpecMode::Mtp` (checkpoint MTP head on CUDA, HIP and Metal; one sequence, greedy requests only; [`crates/intarsia-core/src/model/mtp.rs`](../crates/intarsia-core/src/model/mtp.rs), captured draft+verify graph on HIP in [`crates/intarsia-core/src/model/spec_graph.rs`](../crates/intarsia-core/src/model/spec_graph.rs)); batched MTP is refused at load; `dflash` is **planned** |
 | Verify uses a split-KV attention kernel for q_len>1 | **implemented** | [`kernels/cuda/attention_splitkv.cu`](../kernels/cuda/attention_splitkv.cu), [`kernels/hip/attention_splitkv.hip`](../kernels/hip/attention_splitkv.hip), [`kernels/metal/attention_splitkv.metal`](../kernels/metal/attention_splitkv.metal) |
 | Acceptance per workload is a first-class metric | **partial** | `intarsia_spec_proposed_tokens_total` and `intarsia_spec_accepted_tokens_total` exist ([`crates/intarsia-server/src/metrics.rs`](../crates/intarsia-server/src/metrics.rs)); no per-workload breakdown |
 | Sampling: greedy, temperature, top-k, top-p | **implemented** | [`crates/intarsia-core/src/sampler.rs`](../crates/intarsia-core/src/sampler.rs) |
 | Sampling: min-p and penalties | **planned** | not in `sampler.rs` |
 | Sampling: seeded; `ignore_eos` and `min_tokens` | **implemented** | [`crates/intarsia-core/src/sampler.rs`](../crates/intarsia-core/src/sampler.rs), [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs) |
 | Structured output via `llguidance` | **implemented** | [`crates/intarsia-core/src/constrain.rs`](../crates/intarsia-core/src/constrain.rs), [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs) |
-| Parsers: `hermes`, `qwen3-xml`, `glm`, `deepseek`, `think-tags`, `harmony`, selected by recipe | **partial** | `hermes` tool calls and `think-tags` reasoning in [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs); the other four are **planned**; recipes carry `tool_parser` and `reasoning_parser` keys ([`recipes/qwen3.toml`](../recipes/qwen3.toml)) but there is one implementation of each |
+| Parsers: `hermes`, `qwen3-xml`, `glm`, `deepseek`, `think-tags`, `harmony`, selected by recipe | **partial** | `hermes` tool calls and `think-tags` reasoning in [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs); the other four (`qwen3-xml`, `glm`, `deepseek`, `harmony`) are **planned**; recipes carry `tool_parser` and `reasoning_parser` keys ([`recipes/qwen3.toml`](../recipes/qwen3.toml)) but there is one implementation of each |
 
 ## 5. Parallelism (TP = X)
 
@@ -421,7 +427,7 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 |---|---|---|
 | `Comm` trait | **implemented** | [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) |
 | `nccl` implementation (Spark, two nodes over ConnectX-7) | **implemented** | [`crates/intarsia-backend-cuda/src/nccl.rs`](../crates/intarsia-backend-cuda/src/nccl.rs); cross-process ranks via [`crates/intarsia-core/src/tp_remote.rs`](../crates/intarsia-core/src/tp_remote.rs) (`--tp-remote`) |
-| `rccl` implementation (R9700) | **planned** | none; HIP tensor parallelism uses the P2P one-shot comm below or the host-bounced group |
+| `rccl` implementation (R9700) | **planned** | none; `--comm` accepts only `auto`, `host` and `nccl` ([`crates/intarsia-cli/src/common.rs`](../crates/intarsia-cli/src/common.rs)); HIP tensor parallelism uses the P2P one-shot comm below or the host-bounced group |
 | `p2p_oneshot` kernel for small decode messages on PCIe P2P | **partial** | [`crates/intarsia-backend-hip/src/comm.rs`](../crates/intarsia-backend-hip/src/comm.rs) (`P2pComm`, `ik_ar2_oneshot` in [`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)); two ranks only, HIP only |
 | Backend-neutral fallback | **implemented** | not in the plan: `HostCommGroup` in [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) (host-bounced; used for `--tp` on backends without a device collective) |
 | Fusion `all_reduce + rmsnorm + fp8 quant` as a registry pattern | **planned** | no fused all-reduce kernel or op; `ik_ar2_oneshot` is the only all-reduce kernel |
@@ -447,8 +453,8 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 | Quick gate: 5 sanity prompts plus perplexity | **implemented** | [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs) ("quick gate: sanity prompts, perplexity, non-finite") |
 | Golden logits from HF `transformers` via `tools/golden.py`, compared by `intarsia accuracy` | **implemented** | [`tools/golden.py`](../tools/golden.py), [`crates/intarsia-cli/src/cmd/accuracy.rs`](../crates/intarsia-cli/src/cmd/accuracy.rs) |
 | Gate thresholds (BF16 top-1 99.5 %, KL 1e-3; FP8 5e-3; 4-bit 3e-2) | **partial** | 4-bit floor 3e-2 is used, but gates have since been reshaped (reference-noise terms, scored-row masks, advisory 35b-short: [`docs/decisions/0008-35b-short-gate-advisory-and-hip-prefill-decisions.md`](../docs/decisions/0008-35b-short-gate-advisory-and-hip-prefill-decisions.md), [`docs/accuracy.md`](../docs/accuracy.md)) |
-| Task-level localeval suites | **partial** | run through the external harness ([`deploy/localeval/targets-snippet.toml`](../deploy/localeval/targets-snippet.toml)); not part of the engine |
-| Determinism checks (`deterministic` twice identical; `exact` with and without drafting) | **partial** | no `deterministic`-mode check in `crates/intarsia-cli/src/cmd`; bitwise no-op checks are done per change by hand and recorded in [`docs/decisions/LOG.md`](../docs/decisions/LOG.md) |
+| Task-level localeval suites | **partial** | `intarsia qualify` runs the in-depth A/B against a reference server through localeval when `/opt/code/deepeval` and `uv` exist, else the stage is skipped ([`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs)); targets in [`deploy/localeval/targets-snippet.toml`](../deploy/localeval/targets-snippet.toml); the suites are not part of the engine |
+| Determinism checks (`deterministic` twice identical; `exact` with and without drafting) | **partial** | no run-twice `deterministic` check and no drafting on/off check; `intarsia accuracy --mode reuse` gates warm against cold prefix reuse ([`crates/intarsia-cli/src/cmd/accuracy.rs`](../crates/intarsia-cli/src/cmd/accuracy.rs)); other bitwise no-op checks are done per change and recorded in [`docs/decisions/LOG.md`](../docs/decisions/LOG.md) |
 
 ## 7. Benchmarks and model onboarding
 
@@ -477,9 +483,9 @@ Quick results publish while deep keeps running. Every result embeds the host fin
 | `BenchPlugin` trait with `plan`/`run`/`report` | **planned** | no such trait |
 | `micro` plugin: per-op timing against a roofline | **planned** | no `micro` bench in [`crates/intarsia-bench/src`](../crates/intarsia-bench/src) |
 | `e2e` speed sweep with median of N, concurrency, % of bandwidth floor | **implemented** | [`crates/intarsia-bench/src/speed.rs`](../crates/intarsia-bench/src/speed.rs), `intarsia bench speed` in [`crates/intarsia-cli/src/cmd/bench.rs`](../crates/intarsia-cli/src/cmd/bench.rs) |
-| `localeval` plugin shells out to `/opt/code/deepeval` | **partial** | outside the engine: [`deploy/localeval/serve-and-bench.sh`](../deploy/localeval/serve-and-bench.sh) |
+| `localeval` plugin shells out to `/opt/code/deepeval` | **partial** | no plugin trait; `intarsia qualify` shells out to `/opt/code/deepeval` for the in-depth A/B ([`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs)) and [`deploy/localeval/serve-and-bench.sh`](../deploy/localeval/serve-and-bench.sh) drives it from outside the engine |
 | Onboarding pipeline `intarsia onboard` as a resumable staged DAG | **implemented** | [`crates/intarsia-cli/src/cmd/onboard.rs`](../crates/intarsia-cli/src/cmd/onboard.rs) (stages: recipe, smoke, quick, publish-quick, in-depth, publish-in-depth; the table's stage names differ) |
-| Results embed host fingerprint, plan hash, kernel picks, exactness, thinking flag | **partial** | reports are produced by [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); no plan hash |
+| Results embed host fingerprint, plan hash, kernel picks, exactness, thinking flag | **partial** | bench records carry `thinking`, `kv_dtype` and the launch command ([`crates/intarsia-bench/src/record.rs`](../crates/intarsia-bench/src/record.rs)); `qualify` reports are produced by [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); no plan hash |
 
 ## 8. API surface
 
@@ -530,7 +536,7 @@ TUI: `intarsia top` (ratatui) reads the same `/events` stream: one-screen dashbo
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
 | Prometheus `/metrics`: requests, gauges, `intarsia_engine_steps_total`, tokens, TTFT/ITL, KV, prefix, draft, per-op time, device memory | **implemented** | [`crates/intarsia-server/src/metrics.rs`](../crates/intarsia-server/src/metrics.rs); metric names asserted in [`crates/intarsia-tui/tests/fixtures/live_metrics.txt`](../crates/intarsia-tui/tests/fixtures/live_metrics.txt) |
-| Comm time, power and temperature | **partial** | comm time is recorded in `telemetry.rs`; no power or temperature metric in the fixture |
+| Comm time, power and temperature | **partial** | comm time is recorded in [`crates/intarsia-core/src/telemetry.rs`](../crates/intarsia-core/src/telemetry.rs) but is not a `/metrics` series; no power or temperature metric |
 | OTLP trace export | **planned** | no `opentelemetry` dependency |
 | Grafana dashboard and Prometheus snippet | **implemented** | [`deploy/observability/grafana/dashboards/intarsia.json`](../deploy/observability/grafana/dashboards/intarsia.json) |
 
@@ -547,10 +553,10 @@ TUI: `intarsia top` (ratatui) reads the same `/events` stream: one-screen dashbo
 | Claim | Status | Evidence on origin/main |
 |---|---|---|
 | `Dockerfile` with `cuda-13-arm64` and `rocm-7.2-x86_64` build args | **planned** | only HIP dev images: [`deploy/tatooine/Dockerfile.hip-dev`](../deploy/tatooine/Dockerfile.hip-dev), [`deploy/tatooine/Dockerfile.hip-prof`](../deploy/tatooine/Dockerfile.hip-prof) |
-| Toolchain pinned (`rust-toolchain.toml`, `Cargo.lock`) | **implemented** | [`rust-toolchain.toml`](../rust-toolchain.toml), [`Cargo.lock`](../Cargo.lock); CUDA/ROCm base-image digests and submodule commits are **planned** |
+| Toolchain pinned (`rust-toolchain.toml`, `Cargo.lock`) | **implemented** | [`rust-toolchain.toml`](../rust-toolchain.toml), [`Cargo.lock`](../Cargo.lock); same sha gives the same binary bytes via [`scripts/repro-build.sh`](../scripts/repro-build.sh), checked by [`scripts/repro-check.sh`](../scripts/repro-check.sh); CUDA/ROCm base-image digests and submodule commits are **planned** |
 | Host fingerprint via `intarsia doctor` | **partial** | [`crates/intarsia-cli/src/cmd/doctor.rs`](../crates/intarsia-cli/src/cmd/doctor.rs) reports device, measured copy bandwidth, kernels by arch and `GPU_MAX_HW_QUEUES`; no P2P topology or NCCL transport |
 | Tuning DB lockfile per fingerprint | **planned** | no tuning DB (3.2) |
-| Run manifest and `intarsia replay manifest.json` | **planned** | no command; [`docs/reproducing-results.md`](../docs/reproducing-results.md) says the same |
+| Run manifest and `intarsia replay manifest.json` | **partial** | [`scripts/bench-bundle.sh`](../scripts/bench-bundle.sh) packs stamp, doctor JSON, env knobs, recipes, lockfiles and the replay command into one tarball and `replay` re-runs it on another host ([`docs/reproducing-results.md`](../docs/reproducing-results.md)); [`scripts/deploy.sh`](../scripts/deploy.sh) writes the stamp; no `intarsia replay` subcommand, no plan or tuning hash |
 | Fleet integration through `fleetq` | **implemented** | [`deploy/localeval/targets-snippet.toml`](../deploy/localeval/targets-snippet.toml), [`scripts/deploy.sh`](../scripts/deploy.sh) |
 
 ## 12. Repository layout
@@ -583,8 +589,8 @@ docs/                     # ARCHITECTURE, decisions/, research/, recipes/
 |---|---|---|
 | `intarsia-core`, `-backend-cpu`, `-backend-cuda`, `-backend-hip`, `-models`, `-server`, `-bench`, `-cli` | **implemented** | [`crates`](../crates) |
 | `intarsia-quant` crate | **planned** | absent (3.4) |
-| Crates not in this layout | **implemented** | `intarsia-backend-metal`, `intarsia-tui`, `intarsia-ui`, `intarsiaml` (facade) |
-| `kernels/common/ik_portable.h`, `kernels/cuda`, `kernels/hip` | **implemented** | [`kernels`](../kernels); `kernels/metal` is also present |
+| Crates not in this layout | **implemented** | `intarsia-backend-metal`, `intarsia-tui`, `intarsia-ui`, `intarsiaml` (facade); the workspace has 12 members ([`Cargo.toml`](../Cargo.toml)) |
+| `kernels/common/ik_portable.h`, `kernels/cuda`, `kernels/hip` | **implemented** | [`kernels`](../kernels); `kernels/abi`, `kernels/metal` and `kernels/cuda_checks` are also present |
 | `kernels/packs/{ggml,flashinfer,cutlass,exl3,ck}` submodules | **planned** | absent |
 | `tuning/` lockfiles | **planned** | absent |
 | `recipes/`, `tools/`, `deploy/`, `docs/` | **implemented** | [`recipes`](../recipes), [`tools`](../tools), [`deploy`](../deploy) |
@@ -601,7 +607,8 @@ docs/                     # ARCHITECTURE, decisions/, research/, recipes/
 | 5. Intel Arc | Vulkan or SYCL backend | when better hardware arrives |
 
 
-**Status (section 13).** Phase 0 is **implemented**. Phase 1 is **partial**: the NVFP4 MoE block, hybrid GDN recipe, graphs, web UI and 35B on CUDA are in; paged KV, prefix cache as designed, continuous batching on CUDA/HIP and the Responses API are **planned**. Phase 2 is **partial** (HIP backend and kernels exist; the llama.cpp bar is tracked in the standings docs, not here). Phase 3 is **partial** (tensor parallelism exists; DFlash/MTP drafters are **planned**). Phase 4 (EXL3 is in as a format, autotuner at scale is **planned**) and Phase 5 (Intel Arc) are **planned**. Competitive claims are tracked in [results/](results/), not asserted by this file.
+**Status (section 13).** Phase 0 is **implemented**. Phase 1 is **partial**: the NVFP4 MoE block, hybrid GDN recipe, graphs (including per-row-count graphs for batched decode), web UI, 35B on CUDA and continuous batching on Metal, CUDA and HIP (hybrid models on all three, dense models on Metal and, since #154, HIP) are in; a content-addressed prefix store (host and disk tiers) is in as an opt-in; live paged KV, a radix-tree cache and the Responses API are **planned**. Phase 2 is **partial** (HIP backend and kernels exist, including row-exact batched decode and the Qwen3.8-27B MXFP4 path; the llama.cpp bar is tracked in the standings docs, not here). Phase 3 is **partial**: tensor parallelism exists (NCCL on CUDA, 2-rank P2P on HIP) and the MTP drafter is in (CUDA, HIP and Metal; one sequence; batched MTP is deferred, see `decisions/LOG.md`, 2026-10-25 12:57); DFlash is **planned**, and batching under tp, the vocab-parallel head and fused all-reduce+norm are open PRs (#135, #139, #140, #146). Phase 4 is **partial** (EXL3 is in as a format; WMMA small-row GEMV is in as an opt-in, #152, and the MXFP4 fold prefill GEMM is the HIP default, #153; autotuner at scale is **planned**) and Phase 5 (Intel Arc) is **planned**. Competitive claims are tracked in [results/](results/), not asserted by this file.
+
 ## 14. Risks
 
 1. **Quota/time**: the plan is larger than one week. Mitigation: phases are independently useful; Phase 0 proves every seam.

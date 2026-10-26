@@ -1,0 +1,125 @@
+fleetq: #5499 waiting (#6 in line): in line behind #5481 "tp2: sync + build the batch tree (7e719dd: CTRS probes, stages-w21), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5481 set, or it will wait for #5481 to be released.
+fleetq: #5499 waiting (#6 in line): in line behind #5481 "tp2: sync + build the batch tree (7e719dd: CTRS probes, stages-w21), CPU only" (claude-f31ccf91) on tatooine-r9700; #5481 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5481 set, or it will wait for #5481 to be released.
+fleetq: #5499 waiting (#4 in line): in line behind #5481 "tp2: sync + build the batch tree (7e719dd: CTRS probes, stages-w21), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5481 set, or it will wait for #5481 to be released.
+fleetq: #5499 waiting (#3 in line): in line behind #5497 "l7: g3 no-op base vs dev (plan show + 256 ids, 8B and 35B), card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5497 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5497 set, or it will wait for #5497 to be released.
+fleetq: #5499 waiting (#2 in line): in line behind #5498 "l7: build base tree at origin/main (CPU)" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5498 set, or it will wait for #5498 to be released.
+fleetq: #5499 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #5498 "l7: build base tree at origin/main (CPU)" (claude-f31ccf91) loads it
+fleetq:   #5498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5498 set, or it will wait for #5498 to be released.
+fleetq: #5499 running on tatooine-r9700: bash scripts/l7/ab.sh 'base dev base dev base dev' l7ab1 16
+[l7] radiance inactive
+[ab 1 base ] up 21:07:34
+[serve] base max-batch 16 serving after 25 s
+[ab 1 base] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 216.6 | 63.8 (58.1–71.5) | 0.35 |
+| 8 | 245.1 | 36.8 (32.4–43.9) | 0.69 |
+| 16 | 259.1 | 19.8 (17.2–24.5) | 1.35 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-210755-adhoc-l7ab1-1-base/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-1-base.log
+[ab 2 dev ] up 21:08:14
+[serve] dev max-batch 16 serving after 20 s
+[ab 2 dev] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 223.2 | 67.0 (60.7–75.5) | 0.37 |
+| 8 | 267.6 | 40.9 (35.6–49.1) | 0.68 |
+| 16 | 276.9 | 21.5 (18.4–27.0) | 1.35 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-210830-adhoc-l7ab1-2-dev/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-2-dev.log
+[ab 3 base ] up 21:08:47
+[serve] base max-batch 16 serving after 20 s
+[ab 3 base] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 214.5 | 64.2 (58.1–71.5) | 0.38 |
+| 8 | 248.0 | 37.5 (32.9–44.4) | 0.69 |
+| 16 | 259.5 | 19.8 (17.2–24.5) | 1.35 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-210903-adhoc-l7ab1-3-base/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-3-base.log
+[ab 4 dev ] up 21:09:22
+[serve] dev max-batch 16 serving after 20 s
+[ab 4 dev] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 220.7 | 66.6 (60.0–75.4) | 0.39 |
+| 8 | 265.5 | 40.7 (35.2–49.2) | 0.69 |
+| 16 | 279.9 | 21.6 (18.6–27.1) | 1.30 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-210938-adhoc-l7ab1-4-dev/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-4-dev.log
+[ab 5 base ] up 21:09:55
+[serve] base max-batch 16 serving after 20 s
+[ab 5 base] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 211.4 | 63.3 (57.4–71.2) | 0.38 |
+| 8 | 244.9 | 37.0 (32.5–44.1) | 0.70 |
+| 16 | 258.6 | 19.7 (17.2–24.2) | 1.32 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-211011-adhoc-l7ab1-5-base/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-5-base.log
+[ab 6 dev ] up 21:10:30
+[serve] dev max-batch 16 serving after 20 s
+[ab 6 dev] localeval rc=0
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 217.9 | 65.6 (59.4–74.3) | 0.38 |
+| 8 | 267.9 | 41.2 (35.6–49.5) | 0.69 |
+| 16 | 278.8 | 21.5 (18.5–27.1) | 1.30 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261025-211046-adhoc-l7ab1-6-dev/result.json
+[localeval] not logged to unanimis (--no-unim)
+[serve] saved /home/josef/intarsiaml-l7-logs/l7ab1-6-dev.log
+[ab] done 21:11:04
+[l7] radiance active after 25 s
+fleetq: #5499 done (exit 0); radiance-rank0 must come back before others can use it

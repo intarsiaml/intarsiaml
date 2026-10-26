@@ -1,0 +1,11 @@
+M = 4096, W4A4, bf16 out, 20 reps over 4 weight copies
+shape                     N      K  mma TFLOP/s   f8 TFLOP/s  speedup bitwise
+mlp gate / up         17408   5120         46.7         41.5    0.89x same (0 differ)
+mlp down               5120  17408         53.6         30.6    0.57x same (0 differ)
+gdn in_proj_qkv       10240   5120         62.7         43.9    0.70x same (0 differ)
+gdn in_proj_z          6144   5120         59.2         34.4    0.58x same (0 differ)
+gdn out / attn o       5120   6144         59.2         33.5    0.57x same (0 differ)
+attn q + gate         12288   5120         63.6         43.8    0.69x same (0 differ)
+attn k / v             1024   5120         51.4         27.9    0.54x same (0 differ)
+gdn in_proj_a / b        48   5120          7.5          6.8    0.91x same (0 differ)
+whole-model GEMM time per 4096-token chunk: mma 3873.8 ms (51.5 TFLOP/s), f8 5370.8 ms (37.1 TFLOP/s)

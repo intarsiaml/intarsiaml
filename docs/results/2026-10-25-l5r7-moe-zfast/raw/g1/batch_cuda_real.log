@@ -1,0 +1,85 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:36:16
+   |
+35 | pub(super) struct Captured {
+   |                   -------- field in this struct
+36 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:656:45
+    |
+656 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:233:8
+    |
+233 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 10 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan: 2048 KV tokens per sequence, 671088640 KV bytes in all, 20480 bytes per token; notes ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+batch plan notes: ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+16 sequences prefilled twice in 1.0 s
+batch 2: 130 steps bitwise in 3.3 s (per step: 9.2 ms batched, 15.2 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 4.2 s (per step: 11.5 ms batched, 18.8 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 5.2 s (per step: 13.3 ms batched, 24.7 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 6.4 s (per step: 16.3 ms batched, 30.8 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 7.5 s (per step: 18.4 ms batched, 37.0 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 8.9 s (per step: 21.3 ms batched, 43.6 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 10.0 s (per step: 23.4 ms batched, 49.8 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 11.5 s (per step: 29.6 ms batched, 55.7 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 12.6 s (per step: 30.8 ms batched, 61.8 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 13.9 s (per step: 33.6 ms batched, 68.3 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 14.7 s (per step: 33.4 ms batched, 74.5 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 16.0 s (per step: 37.5 ms batched, 80.6 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 17.3 s (per step: 40.5 ms batched, 87.0 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 18.6 s (per step: 43.2 ms batched, 93.4 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 19.8 s (per step: 46.2 ms batched, 99.6 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 170.8 s
+ok
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... SKIPPED: INTARSIA_QWEN3_DIR not set
+ok
+
+test result: ok. 3 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 226.78s
+

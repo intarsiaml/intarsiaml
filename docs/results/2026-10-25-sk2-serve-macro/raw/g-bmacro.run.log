@@ -1,0 +1,7 @@
+fleetq: #5525 waiting (#1 in line): needs 76 GB on spark2; 33 GB free of 116
+fleetq: #5525 waiting (#1 in line): needs 76 GB on spark2; the box reports only 54 GB actually free (memory used by something fleetq does not track)
+fleetq: #5525 running on spark2: scripts/sk/gpu-tests.sh dev run g-bmacro batch_cuda_real real_35b_batched_macro_prefill_equals_the_plain_local_engine
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+MACRO batched alone: 6 prefill calls (plain schedule: 17 chunks)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 102.62s
+fleetq: #5525 done (exit 0)

@@ -236,6 +236,7 @@ impl Inventory {
             inv.source = format!("safetensors headers of {} file(s) ({} tensors)", files.len(), inv.names.len());
         }
         inv.add_exl3_views();
+        inv.add_compressed_tensors_views();
         Ok(inv)
     }
 
@@ -252,6 +253,26 @@ impl Inventory {
             if let Some((_, s)) = self.info.get(&format!("{m}.trellis")).filter(|(_, s)| s.len() == 3).cloned() {
                 self.info.insert(w, ("EXL3".to_string(), vec![16 * s[1], 16 * s[0]]));
             }
+        }
+    }
+
+    /// A compressed-tensors NVFP4 module (`weight_packed` next to `weight_global_scale`, no `.weight`) is read by the loader
+    /// under the ModelOpt names (`quant::compressed_tensors`): give it the virtual `.weight` (the packed tensor's dtype and
+    /// shape), `.weight_scale` stays, and `.weight_scale_2` (the reciprocal of the global scale), so templates resolve and
+    /// `classify` sees NVFP4. INT4 `pack-quantized` has `weight_packed` and `weight_shape` but no global scale: untouched.
+    fn add_compressed_tensors_views(&mut self) {
+        let mods: Vec<String> = self.names.iter().filter_map(|n| n.strip_suffix(".weight_global_scale").map(String::from)).collect();
+        for m in mods {
+            let (w, p) = (format!("{m}.weight"), format!("{m}.weight_packed"));
+            if self.has(&w) || !self.has(&p) {
+                continue;
+            }
+            self.names.insert(w.clone());
+            self.names.insert(format!("{m}.weight_scale_2"));
+            if let Some(i) = self.info.get(&p).cloned() {
+                self.info.insert(w, i);
+            }
+            self.info.insert(format!("{m}.weight_scale_2"), ("F32".to_string(), vec![1]));
         }
     }
 
@@ -283,7 +304,8 @@ impl Inventory {
 /// Path segments that introduce a stack of numbered layers.
 const LAYER_WORDS: &[&str] = &["layers", "h", "blocks"];
 /// Name segments (prefixes) of components that are not part of the text decoder.
-const NON_TEXT: &[&str] = &["visual", "vision", "mtp", "multi_modal", "audio", "speech", "talker"];
+/// `merger` is the vision-to-text projector some wrappers keep outside the vision tower (`model.merger.mlp.*`, MiniCPM-V).
+const NON_TEXT: &[&str] = &["visual", "vision", "mtp", "multi_modal", "audio", "speech", "talker", "merger"];
 /// Trailing tensor names of a module (`<module>.weight`, ...).
 const PARAMS: &[&str] = &[
     "weight",
@@ -299,6 +321,7 @@ const PARAMS: &[&str] = &[
     "k_scale",
     "v_scale",
     "weight_packed",
+    "weight_global_scale",
     "weight_shape",
     // EXL3 (ExLlamaV3): the trellis, the input / output scales (or packed signs) and the codebook markers
     "trellis",
@@ -923,6 +946,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         (Some(_), Some("modelopt")) => {}
         (Some(_), Some("quark")) => {} // parsed below (QuantScheme::parse_quark)
         (Some(_), Some("exl3")) => {} // parsed below (QuantScheme::parse_exl3)
+        (Some(_), Some("compressed-tensors")) => {} // parsed below (QuantScheme::parse_compressed_tensors)
         (Some(q), None) if q.get("quant_algo").is_some() || q.get("quantized_layers").is_some() => {}
         (Some(q), Some("fp8")) => {
             if q.get("weight_block_size").is_some_and(|v| !v.is_null()) {
@@ -933,7 +957,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             }
         }
         (Some(_), Some(other)) => problems.push(format!(
-            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3)"
+            "quant: config quantization_config.quant_method = \"{other}\" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3, compressed-tensors NVFP4A16)"
         )),
         (Some(_), None) => problems.push("quant: config quantization_config has neither quant_method nor quant_algo; the scheme is unknown".into()),
     }
@@ -963,6 +987,19 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             Err(e) => problems.push(format!("quant: config.json quantization_config (quark): {e}")),
         }
     }
+    if let (None, Some(q), Some("compressed-tensors")) = (&doc, qc, method.as_deref()) {
+        match QuantScheme::parse_compressed_tensors(q) {
+            Ok(s) => {
+                notes.push(
+                    "config.json quantization_config (compressed-tensors) declares NVFP4A16 (nvfp4-pack-quantized): read as W4A16 NVFP4 \
+                     with weight_packed -> weight and weight_scale_2 = 1 / weight_global_scale"
+                        .into(),
+                );
+                scheme = Some(s);
+            }
+            Err(e) => problems.push(format!("quant: config.json quantization_config (compressed-tensors): {e}")),
+        }
+    }
     if let Some((d, src)) = &doc {
         match QuantScheme::parse(d) {
             Ok(s) => scheme = Some(s),
@@ -980,7 +1017,7 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
         for a in &algos {
             match Algo::parse(a) {
-                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 | Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 | Algo::Exl3 => {}
+                Algo::Fp8W8A8 | Algo::Nvfp4W4A16 | Algo::CtNvfp4W4A16 | Algo::Mxfp4W4A4 | Algo::Mxfp4W4A16 | Algo::Exl3 => {}
                 Algo::Nvfp4W4A4 => problems.push(format!(
                     "quant: quant_algo \"{a}\" (NVFP4 weights AND 4-bit activations) declared in {src}; the engine implements only weight-only W4A16_NVFP4"
                 )),
@@ -1069,7 +1106,11 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             parts.push(format!("unknown({d})"));
         }
     }
-    let label = if parts.is_empty() { cfg_float.to_string() } else { parts.join("+") };
+    let mut label = if parts.is_empty() { cfg_float.to_string() } else { parts.join("+") };
+    // the float label alone would read as a plain bf16 checkpoint: say what the config declares and the engine does not read
+    if let Some(m) = method.as_deref().filter(|m| !matches!(*m, "modelopt" | "quark" | "exl3")) {
+        label = format!("{label} (config declares quant_method \"{m}\")");
+    }
     // a handful of messages is enough
     if problems.len() > 6 {
         let n = problems.len() - 5;
@@ -1334,7 +1375,11 @@ impl Out {
     }
     fn issues(&mut self, issues: &[Issue], at: &str) {
         for i in issues.iter().filter(|i| i.at == at) {
-            self.todo(&i.text);
+            // the same finding can be raised by two layer types (full and linear attention both have the MoE block): list it once
+            let t = i.text.split_whitespace().collect::<Vec<_>>().join(" ");
+            if !self.todos.contains(&t) {
+                self.todo(&i.text);
+            }
         }
     }
 }
@@ -2643,6 +2688,65 @@ mod tests {
         parse_recipe(&an.toml).unwrap();
     }
 
+    /// `moe_fixture` re-stored the way llm-compressor's NVFP4A16 writes it: NVFP4 modules as `weight_packed` /
+    /// `weight_scale` / `weight_global_scale` (no `.weight`, no `weight_scale_2`), the FP8 modules as plain float, the
+    /// declared scheme in `config.json` `quantization_config` (no `hf_quant_config.json`). `int4`: the INT4 `pack-quantized`
+    /// layout instead (`weight_packed` + `weight_shape`, no global scale).
+    fn compressed_tensors_fixture(name: &str, input_activations: Value, int4: bool) -> PathBuf {
+        let (d, mut cfg) = moe_fixture(name, "W4A16_NVFP4");
+        std::fs::remove_file(d.join("hf_quant_config.json")).unwrap();
+        let idx_path = d.join("model.safetensors.index.json");
+        let idx: Value = serde_json::from_str(&std::fs::read_to_string(&idx_path).unwrap()).unwrap();
+        let wm = idx["weight_map"].as_object().unwrap();
+        let file = json!("model-00001-of-00001.safetensors");
+        let mut out = serde_json::Map::new();
+        for n in wm.keys() {
+            if let Some(m) = n.strip_suffix(".weight_scale_2") {
+                let (packed, extra) = (format!("{m}.weight_packed"), if int4 { "weight_shape" } else { "weight_global_scale" });
+                out.insert(packed, file.clone());
+                out.insert(format!("{m}.{extra}"), file.clone());
+            } else if n.ends_with(".input_scale") || (n.ends_with(".weight_scale") && wm.contains_key(&n.replace(".weight_scale", ".input_scale"))) {
+                // an FP8 module: plain float here
+            } else if n.ends_with(".weight") && wm.contains_key(&format!("{}_scale_2", n)) {
+                // replaced by weight_packed
+            } else {
+                out.insert(n.clone(), file.clone());
+            }
+        }
+        std::fs::write(&idx_path, json!({"metadata": {}, "weight_map": out}).to_string()).unwrap();
+        let (format, ty, gsz, strategy) = if int4 { ("pack-quantized", "int", 128, "group") } else { ("nvfp4-pack-quantized", "float", 16, "tensor_group") };
+        let group = json!({"format": format, "input_activations": input_activations, "output_activations": null,
+            "targets": ["Linear"], "weights": {"num_bits": 4, "type": ty, "group_size": gsz, "strategy": strategy,
+            "symmetric": true, "scale_dtype": "torch.float8_e4m3fn"}});
+        cfg["quantization_config"] = json!({"quant_method": "compressed-tensors", "format": format,
+            "quantization_status": "compressed", "config_groups": {"NVFP4A16": group}, "ignore": ["re:.*lm_head$", "re:.*mlp\\.gate$"],
+            "sparsity_config": {}, "transform_config": {}});
+        write_json(&d, "config.json", &cfg);
+        d
+    }
+
+    #[test]
+    fn compressed_tensors_nvfp4a16_is_covered_like_modelopt_nvfp4() {
+        let d = compressed_tensors_fixture("ct-nvfp4a16", Value::Null, false);
+        let an = analyse(&d, &[]).unwrap();
+        assert_eq!(an.covered_by.as_deref(), Some("builtin:qwen3_5_moe"), "{:?} {:?}", an.notes, an.todos);
+        assert!(an.quant.starts_with("nvfp4"), "{}", an.quant);
+        assert_eq!(an.tensor_templates_resolved.0, an.tensor_templates_resolved.1);
+        assert!(an.todos.is_empty(), "{:?}", an.todos);
+        assert!(an.notes.iter().any(|n| n.contains("compressed-tensors") && n.contains("weight_global_scale")), "{:?}", an.notes);
+    }
+
+    #[test]
+    fn compressed_tensors_w4a4_and_int4_are_not_covered() {
+        let a4 = json!({"num_bits": 4, "type": "float", "group_size": 16, "strategy": "tensor_group"});
+        let an = analyse(&compressed_tensors_fixture("ct-w4a4", a4, false), &[]).unwrap();
+        assert_eq!(an.covered_by, None);
+        assert!(an.todos.iter().any(|x| x.contains("W4A4")), "{:?}", an.todos);
+        let an = analyse(&compressed_tensors_fixture("ct-int4", Value::Null, true), &[]).unwrap();
+        assert_eq!(an.covered_by, None);
+        assert!(an.todos.iter().any(|x| x.contains("pack-quantized")), "{:?}", an.todos);
+    }
+
     #[test]
     fn header_reader_and_layer_split() {
         let d = tmpdir("hdr");
@@ -2669,5 +2773,12 @@ mod tests {
         write_json(&d, "config.json", &qwen3_config("Qwen3ForCausalLM", "qwen3"));
         let e = analyse(&d, &[]).unwrap_err().to_string();
         assert!(e.contains("safetensors"), "{e}");
+    }
+
+    #[test]
+    fn the_vision_projector_outside_the_vision_tower_is_not_text() {
+        assert!(is_non_text("model.merger.mlp.0.linear_1.weight"));
+        assert!(is_non_text("model.vision_tower.vit_merger.linear_1.weight"));
+        assert!(!is_non_text("model.language_model.layers.0.mlp.gate.weight"));
     }
 }

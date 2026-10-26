@@ -1,0 +1,13 @@
+This is a highly detailed, production-grade architecture plan for **IntarsiaML**. It demonstrates a deep understanding of the specific pain points in LLM serving (cold starts, kernel fragmentation, accuracy drift, and hardware-specific quirks like the GB10 sm_121 target or R9700 HIP queues).
+
+The shift from a monolithic Python host to a Rust host with a strict C-ABI kernel registry is the correct architectural decision for achieving the stated goals of **modularity**, **speed**, and **reproducibility**.
+
+Below is a technical review and implementation strategy based on the v0.2 plan, focusing on critical path items, risk mitigation, and immediate next steps for **Phase 0**.
+
+---
+
+### 1. Architectural Strengths & Validations
+
+1.  **The "Piece" Abstraction (Registry + ABI):**
+    *   **Why it works:** By decoupling the *op signature* from the *implementation* via `ik_abi.h`, you avoid the "torch-tensor" dependency hell. The C ABI is stable, portable, and allows Rust to bind to CUDA/HIP/Metal without needing complex FFI wrappers for every tensor layout.
+    *   **Admission

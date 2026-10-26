@@ -1,0 +1,17 @@
+This is a robust, production-grade architecture plan. The shift from "Python-heavy orchestration" to "Rust-native core with C-ABI kernel packs" directly addresses the latency and startup bottlenecks identified in the Fable review and R9700 lessons.
+
+Below is the **continuation and completion** of the document, picking up exactly where the `recipes/qwen3.toml` snippet cut off, followed by the remaining critical sections (Phase Gates, Risk Management, and Implementation Roadmap) to complete the v0.2 specification.
+
+---
+
+```toml
+         down = "...down_proj" }
+norms = { pre_attn = "model.layers.{i}.input_layernorm", post_ffn = "model.layers.{i}.post_attention_layernorm" }
+
+[layer:0]                      # Special case: first layer often differs
+pattern = ["attn", "ffn"]
+attn = { kind = "gqa", ... }   # Same structure, but can override specific weights if needed
+
+[head]
+lm_head = "model.layers.{i}.lm_head" # Note: usually tied, so this points to the final layer's head or shared weight
+tied =

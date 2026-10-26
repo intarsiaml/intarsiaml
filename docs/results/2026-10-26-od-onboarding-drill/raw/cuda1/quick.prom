@@ -1,0 +1,57 @@
+# HELP intarsia_qualify_decode_tok_s Single-stream decode tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_decode_tok_s gauge
+# HELP intarsia_qualify_prefill_tok_s Prefill tokens/s of the quick bench by prompt size.
+# TYPE intarsia_qualify_prefill_tok_s gauge
+# HELP intarsia_qualify_pct_of_floor Decode speed as a percentage of the memory-bandwidth byte floor.
+# TYPE intarsia_qualify_pct_of_floor gauge
+# HELP intarsia_qualify_accuracy_top1_pct Top-1 agreement with the golden, percent.
+# TYPE intarsia_qualify_accuracy_top1_pct gauge
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="prefill"} 91.18667591950036
+intarsia_qualify_accuracy_top1_pct{stage="acc-short",mode="decode"} 85.625
+# HELP intarsia_qualify_accuracy_mean_kl Mean KL(reference || ours), nats.
+# TYPE intarsia_qualify_accuracy_mean_kl gauge
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="prefill"} 0.1967359916442299
+intarsia_qualify_accuracy_mean_kl{stage="acc-short",mode="decode"} 0.24820155111002248
+# HELP intarsia_qualify_stage_pass 1 when the stage passed, 0 when it failed or errored (skipped and report-only WARN stages are absent).
+# TYPE intarsia_qualify_stage_pass gauge
+intarsia_qualify_stage_pass{stage="doctor"} 1
+intarsia_qualify_stage_pass{stage="recipe"} 1
+intarsia_qualify_stage_pass{stage="plan"} 1
+intarsia_qualify_stage_pass{stage="kernels"} 1
+intarsia_qualify_stage_pass{stage="gate"} 1
+intarsia_qualify_stage_pass{stage="acc-short"} 0
+intarsia_qualify_stage_pass{stage="bench"} 0
+# HELP intarsia_qualify_stage_seconds Wall time of a stage.
+# TYPE intarsia_qualify_stage_seconds gauge
+intarsia_qualify_stage_seconds{stage="doctor"} 0.756016763
+intarsia_qualify_stage_seconds{stage="recipe"} 0.004729672
+intarsia_qualify_stage_seconds{stage="plan"} 73.328281813
+intarsia_qualify_stage_seconds{stage="kernels"} 147.444821991
+intarsia_qualify_stage_seconds{stage="gate"} 207.207698066
+intarsia_qualify_stage_seconds{stage="acc-format"} 0.010650781
+intarsia_qualify_stage_seconds{stage="acc-short"} 356.879099777
+intarsia_qualify_stage_seconds{stage="acc-oracle"} 0.000682285
+intarsia_qualify_stage_seconds{stage="bench"} 1858.881178799
+# HELP intarsia_qualify_exit_code Exit code qualify would return for this section (0 pass, 1 gate failed, 2 pipeline failed or incomplete).
+# TYPE intarsia_qualify_exit_code gauge
+intarsia_qualify_exit_code{section="quick"} 2
+# HELP intarsia_qualify_section_seconds Wall time of the quick and the in-depth section.
+# TYPE intarsia_qualify_section_seconds gauge
+intarsia_qualify_section_seconds{section="quick"} 2644.513159947
+intarsia_qualify_section_seconds{section="full"} -0.0
+# HELP intarsia_qualify_last_run_timestamp_seconds Unix time of the report.
+# TYPE intarsia_qualify_last_run_timestamp_seconds gauge
+intarsia_qualify_last_run_timestamp_seconds 1792979069
+# HELP intarsia_onboard_published_timestamp_seconds Unix time the report of this tier was written.
+# TYPE intarsia_onboard_published_timestamp_seconds gauge
+intarsia_onboard_published_timestamp_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",tier="quick"} 1792979069
+# HELP intarsia_onboard_stage_seconds Wall time of an onboard stage.
+# TYPE intarsia_onboard_stage_seconds gauge
+intarsia_onboard_stage_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="recipe",tier="prepare",verdict="PASS"} 0.0
+intarsia_onboard_stage_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="smoke",tier="prepare",verdict="PASS"} 47.0
+intarsia_onboard_stage_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="quick",tier="quick",verdict="ERROR"} 2644.8
+# HELP intarsia_onboard_stage_end_timestamp_seconds Unix time an onboard stage ended.
+# TYPE intarsia_onboard_stage_end_timestamp_seconds gauge
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="recipe"} 1792976377
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="smoke"} 1792976424
+intarsia_onboard_stage_end_timestamp_seconds{model="Qwen3.8-27B-MXFP4-mtpfp8",backend="cuda",stage="quick"} 1792979069

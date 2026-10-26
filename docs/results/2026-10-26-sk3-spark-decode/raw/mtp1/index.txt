@@ -1,0 +1,18 @@
+sk-plain-r1: - result file: `results/20261025-225112-adhoc-sk-plain-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-225112-adhoc-sk-plain-r1/result.json 
+sk-plain-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-225124-adhoc-sk-plain-r1/result.json
+sk-mtp-r1: - result file: `results/20261025-225346-adhoc-sk-mtp-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-225346-adhoc-sk-mtp-r1/result.json 
+sk-mtp-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-225357-adhoc-sk-mtp-r1/result.json
+sk-vllm-r1: - result file: `results/20261025-225518-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-225518-adhoc-sk-vllm-r1/result.json 
+sk-vllm-r1.suite: [localeval] saved /opt/code/deepeval/results/20261025-225530-adhoc-sk-vllm-r1/result.json
+sk-vllm-r2: - result file: `results/20261025-225659-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-225659-adhoc-sk-vllm-r2/result.json 
+sk-vllm-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-225712-adhoc-sk-vllm-r2/result.json
+sk-mtp-r2: - result file: `results/20261025-225929-adhoc-sk-mtp-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-225929-adhoc-sk-mtp-r2/result.json 
+sk-mtp-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-225940-adhoc-sk-mtp-r2/result.json
+sk-plain-r2: - result file: `results/20261025-230139-adhoc-sk-plain-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-230139-adhoc-sk-plain-r2/result.json 
+sk-plain-r2.suite: [localeval] saved /opt/code/deepeval/results/20261025-230151-adhoc-sk-plain-r2/result.json
+sk-plain-r3: - result file: `results/20261025-230357-adhoc-sk-plain-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-230357-adhoc-sk-plain-r3/result.json 
+sk-plain-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-230409-adhoc-sk-plain-r3/result.json
+sk-mtp-r3: - result file: `results/20261025-230628-adhoc-sk-mtp-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-230628-adhoc-sk-mtp-r3/result.json 
+sk-mtp-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-230640-adhoc-sk-mtp-r3/result.json
+sk-vllm-r3: - result file: `results/20261025-230801-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-230801-adhoc-sk-vllm-r3/result.json 
+sk-vllm-r3.suite: [localeval] saved /opt/code/deepeval/results/20261025-230813-adhoc-sk-vllm-r3/result.json
