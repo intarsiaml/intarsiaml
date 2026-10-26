@@ -67,3 +67,10 @@ whole on rank 0): see lane dfh's section 16 for what would close that.
 
 No default changes. The 27B on HIP at `--tp 2` keeps `--spec mtp --spec-k 2` (1.43-1.93x off in every category); `--spec-k 3` is a
 documented opt-in for code-heavy traffic (+9% on code, -4.5% on prose). DFlash2 stays opt-in (`--spec dflash`). Windows used: 2 of 2.
+
+## 4. Follow-ups
+
+- Adaptive draft length (per-request k from running acceptance: k3 on high-acceptance text like code, k2 on prose) — would capture
+  code +9% without the prose -4.5%; untried.
+- Today, `--spec mtp --spec-k 3` (pass both: a `--spec-k` without `--spec` turns the tp=2 default off) is +9% for code-heavy use
+  (ho-code 111.8 vs 102.8, rcp-code 109.2 vs 100.2 tok/s), at -4.5% on prose.
