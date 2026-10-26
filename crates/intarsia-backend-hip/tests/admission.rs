@@ -16,19 +16,56 @@ fn device() -> Option<std::sync::Arc<dyn intarsia_core::Backend>> {
     }
 }
 
+/// Admission sweep of every hip kernel against the cpu reference, in two passes of this one test. The opt-in WMMA family
+/// (`INTARSIA_HIP_WMMA_ROWS=1`) rejects every shape with the knob unset, and with it set its GEMV twins reject theirs (the knob is read
+/// once per process), so no single process can grade both. Pass 1 (knob unset): every kernel that ran a case must be admitted. Pass 2: this
+/// test re-runs itself with the knob on (table `fp8a8=all,bf16=all`, as `quick_coverage_wmma.rs`) and grades the kernels pass 1 gave no case,
+/// each of which must now run at least one case and be admitted. A kernel with no case in either pass fails, and so does a pass 2 that
+/// graded nothing (no device in the child, a crash).
 #[test]
 fn every_hip_kernel_matches_the_reference() {
     let Some(hip) = device() else { return };
     let cpu = CpuBackend::arc();
+    if let Ok(names) = std::env::var("INTARSIA_TEST_CHILD_KERNELS") {
+        let names: Vec<&str> = names.split(',').collect();
+        let mut bad = Vec::new();
+        for name in &names {
+            let opts = AdmissionOpts { sweep: None, only_ops: None, only_kernel: Some(name.to_string()) };
+            let report = run_admission(&*cpu, &*hip, &opts).unwrap();
+            let text = report.render(true);
+            println!("{text}");
+            // a kernel with no summary at all (arch filter, row table) is a failure too, not a skip
+            if !matches!(report.kernels.as_slice(), [k] if k.admitted) {
+                bad.push(format!("{name}\n{text}"));
+            }
+        }
+        assert!(bad.is_empty(), "kernels not admitted with INTARSIA_HIP_WMMA_ROWS=1:\n{}", bad.join("\n"));
+        println!("child graded {n}/{n}", n = names.len());
+        return;
+    }
     let report =
         run_admission(&*cpu, &*hip, &AdmissionOpts { sweep: None, only_ops: None, only_kernel: None }).unwrap();
     let text = report.render(true);
     println!("{text}");
-    assert!(report.all_pass(), "some hip kernels failed admission:\n{text}");
-    // every registered kernel must have been exercised by at least one case
-    for k in &report.kernels {
-        assert!(k.cases > 0, "kernel {} ran no admission cases", k.kernel);
+    assert!(!report.kernels.is_empty(), "no kernels graded");
+    let failed: Vec<_> = report.kernels.iter().filter(|k| k.cases > 0 && !k.admitted).map(|k| k.kernel.as_str()).collect();
+    assert!(failed.is_empty(), "some hip kernels failed admission: {failed:?}\n{text}");
+    let no_case: Vec<_> = report.kernels.iter().filter(|k| k.cases == 0).map(|k| k.kernel.as_str()).collect();
+    if no_case.is_empty() {
+        return;
     }
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "every_hip_kernel_matches_the_reference", "--nocapture"])
+        .env("INTARSIA_HIP_WMMA_ROWS", "1")
+        .env("INTARSIA_HIP_WMMA_TABLE", "fp8a8=all,bf16=all")
+        .env("INTARSIA_TEST_CHILD_KERNELS", no_case.join(","))
+        .output()
+        .unwrap();
+    let (so, se) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    println!("{so}");
+    assert!(out.status.success(), "kernels with no case without the knob fail with INTARSIA_HIP_WMMA_ROWS=1: {no_case:?}\n{so}\n{se}");
+    let marker = format!("child graded {n}/{n}", n = no_case.len());
+    assert!(so.contains(&marker), "the knob-on pass did not grade {no_case:?} (no `{marker}` in its output)\n{so}\n{se}");
 }
 
 #[test]
