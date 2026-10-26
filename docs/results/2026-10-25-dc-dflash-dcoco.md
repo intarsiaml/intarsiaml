@@ -356,3 +356,29 @@ suites with its own drafter training mix; our 16 single-turn prompts do not repr
 is that the checkpoint's corrector gain transfers from the paper's suites to these prompts; two independent implementations
 agree on the small gain. Phase 4 (HIP and Metal ports of DCOCO) is not warranted. DFlash itself on HIP/Metal is a follow-up
 (out of scope now).
+
+### 11.3 localeval, served, interleaved x3 (spark1, 8B BF16 CUDA, `intarsia serve --max-batch 1`, default back-off gate)
+
+Driver `scripts/dc/bench.sh`, summary `tools/dc/summarize_bench.py`, raw in `raw/bench/` (3 arms, filler sweep + gsm8k) and
+`raw/bench-cat/` (spec-off vs DFlash, `datasets/categories-rcp.jsonl`, 24 prompts x 256 tokens). Order per round: off, dflash,
+(dcoco); 3 rounds; one server start per arm.
+
+| set | spec off | DFlash | DFlash+DCOCO |
+|---|---|---|---|
+| categories-rcp, recall (8), decode tok/s | 15.4 | **28.6** (1.86x, range 1.86-1.87 over 3 rounds) | not run |
+| code (8) | 15.4 | **25.4** (1.65x) | not run |
+| prose (8) | 15.4 | 15.1 (**0.98x**; 6 of 8 prompts below 1.0: 0.92-0.96x, two above: 1.04, 1.14) | not run |
+| all 24 | 15.3 | 21.3 (1.39x, e2e 1.38x) | not run |
+| filler sweep, 1024 prompt, 1 stream | 15.2 | 18.1-18.9 | 15.1-18.4 |
+| filler sweep, 4 clients, serial server | 15.2 per stream | 19.8-20.0 | 16.3-17.2 |
+| gsm8k (20, ~12-token answers) score | 0.40 | 0.40 | 0.40 |
+
+Notes:
+- Answers: 0 of 72 answers differ between off and DFlash (greedy, text equality); gsm8k identical in all 9 runs.
+- "4 streams" is 4 concurrent clients on a serial `--max-batch 1` server, report-only, as agreed. Aggregate throughput cannot exceed
+  the 1-stream figure there; DFlash's value at 4 clients is the same per-request speedup, with queueing.
+- Prose regresses 2% with the default gate (pooled, stable over 3 rounds). The gate's `INTARSIA_SPEC_GATE` defaults were designed
+  for ngram/MTP; a DFlash-specific cost gate (a draft pass costs about 25% of a verify pass in time) would fix it. Not done: with
+  the flag off by default and the prose case 2% slower, I left the shared gate untouched.
+- DCOCO arm: only in the filler sweep (its prompts have low tau) where it is below plain DFlash; not repeated on categories-rcp since
+  section 11.2 already fails G7 (tau +1.8% at +7% decode time).

@@ -32,14 +32,19 @@ for r in $(seq 1 "$ROUNDS"); do
     [ $up = 1 ] || { echo "server $tag did not come up"; ssh spark1 "tail -5 $LOG-$tag.log"; stop; continue; }
     m0=$(metric)
     RECIPE="intarsia serve --backend cuda --model Qwen3-8B --max-batch 1 --max-seq 8192 $SPEC (lane dc, scripts/dc/bench.sh)"
-    (cd /opt/code/deepeval && uv run localeval speed --url "$URL" --model Qwen3-8B --thinking off --label "dc-$tag" --recipe "$RECIPE" --sizes 128,1024 --gen 128 --reps 3 --concurrency 1,4 --ignore-busy) > "$OUT/$tag.speed.txt" 2>&1
+    [ "${QMODE:-gsm8k}" = cat ] || (cd /opt/code/deepeval && uv run localeval speed --url "$URL" --model Qwen3-8B --thinking off --label "dc-$tag" --recipe "$RECIPE" --sizes 128,1024 --gen 128 --reps 3 --concurrency 1,4 --ignore-busy) > "$OUT/$tag.speed.txt" 2>&1
     m1=$(metric)
-    (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "dc-$tag" --recipe "$RECIPE" --bench gsm8k --limit 20 --max-tokens 320 --judge none --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
+    if [ "${QMODE:-gsm8k}" = cat ]; then
+      # speed-by-category set (recall / code / prose, 27 prompts): real answers instead of the filler sweep
+      (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "dc-cat-$tag" --recipe "$RECIPE" --dataset datasets/categories-rcp.jsonl --judge none --max-tokens ${CATTOK:-256} --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
+    else
+      (cd /opt/code/deepeval && uv run localeval quality --url "$URL" --model Qwen3-8B --thinking off --label "dc-$tag" --recipe "$RECIPE" --bench gsm8k --limit 20 --max-tokens 320 --judge none --ignore-busy) > "$OUT/$tag.quality.txt" 2>&1
+    fi
     m2=$(metric)
     echo "metrics before:  $m0" > "$OUT/$tag.spec.txt"; echo "metrics after speed: $m1" >> "$OUT/$tag.spec.txt"; echo "metrics after quality: $m2" >> "$OUT/$tag.spec.txt"
     ssh spark1 "grep -a 'dflash:' $LOG-$tag.log | head -2" >> "$OUT/$tag.spec.txt"
     stop
-    tail -3 "$OUT/$tag.speed.txt" | cut -c1-200
+    tail -3 "$OUT/$tag.quality.txt" | cut -c1-200
   done
 done
 echo "== bench done"

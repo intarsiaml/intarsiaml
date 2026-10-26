@@ -253,7 +253,7 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
         if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
             continue;
         }
-        let rec = model.dry_run(phase, t, pos0)?;
+        let rec = model.dry_run(phase, t, pos0).map_err(|e| Error::invalid(format!("plan probe {phase:?} t={t} pos0={pos0}: {e}")))?;
         if phase == Phase::Decode && pos0 == 0 {
             decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
         }

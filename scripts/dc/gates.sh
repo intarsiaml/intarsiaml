@@ -79,4 +79,10 @@ PY
     done
   done
   echo "mtp35 fails=$fails" ;;
+m35probe)
+  # why does --spec mtp fail to load at --max-seq 8192? args: <max-seq>...
+  shift; M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
+  for MS in "$@"; do
+    echo "== max-seq $MS"; $BIN_DEV generate -m $M35 --backend cuda --mem-budget 34 --max-seq $MS --profile-every 0 --max-tokens 4 --spec mtp --spec-k 2 -p "Hello" < /dev/null 2>&1 >/dev/null | grep -aE "Error|Caused|probe|loaded|invalid" | cut -c1-300
+  done ;;
 esac
