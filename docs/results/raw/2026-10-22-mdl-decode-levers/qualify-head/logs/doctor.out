@@ -1,0 +1,16 @@
+intarsia doctor  (endor.kuepker.haus aarch64, backend metal)
+  os      macOS 27.0
+  cpu     Apple M5 Max (18 threads)
+  ram     137.4 GB total, 44.5 GB available
+  device  Apple M5 Max [metal applegpu_g17s] free 115.4 GB
+
+[info] sm_121_target: no NVIDIA GPU visible (nvidia-smi missing or failing)
+[info] metal_device: Apple M5 Max (applegpu_g17s), unified memory, 115.4 GB recommended working set, 115.4 GB free, bandwidth 507 GB/s measured copy
+[info] transparent_hugepages: THP setting not readable on this OS
+[ ok ] disk_free:.: 937.1 GB free of 3996 GB (23% free)
+[ ok ] disk_free:/Users/josef: 937.1 GB free of 3996 GB (23% free)
+[info] hip_gpu_max_hw_queues: GPU_MAX_HW_QUEUES=unset (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)
+[ ok ] serve_port: port 8090 is free
+[info] bandwidth: host->device 57.5 GB/s, device->host 61.9 GB/s, device copy 266.1 GB/s (read+write)
+
+fingerprint written to /opt/code/wt-mdl/docs/results/raw/2026-10-22-mdl-decode-levers/qualify-head/doctor.json

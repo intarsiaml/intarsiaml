@@ -1,0 +1,55 @@
+[04:30:36] == round 1 arm i2048
+[04:30:36] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 327.2, "pooled_itl_max_ms_median": 338.25, "pooled_itl_p50_ms_median": 22.2, "aggregate_decode_tok_s_median": 96.15}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 27.25, "pooled_itl_max_ms_median": 336.0, "pooled_itl_p50_ms_median": 20.6, "aggregate_decode_to
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 371.25, "pooled_itl_max_ms_median": 383.0, "pooled_itl_p50_ms_median": 26.799999999999997, "aggregate_decode_tok_s_median": 35.05}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 352.25, "pooled_itl_max_ms_median": 380.4, "pooled_itl_p50_ms_median": 25.9, "aggr
+[04:33:19] == round 1 arm i8192
+[04:33:19] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 583.9, "pooled_itl_max_ms_median": 593.5, "pooled_itl_p50_ms_median": 22.25, "aggregate_decode_tok_s_median": 99.3}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 28.05, "pooled_itl_max_ms_median": 589.0999999999999, "pooled_itl_p50_ms_median": 20.85, "aggrega
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1248.95, "pooled_itl_max_ms_median": 1257.9, "pooled_itl_p50_ms_median": 27.049999999999997, "aggregate_decode_tok_s_median": 38.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 47.5, "pooled_itl_max_ms_median": 1264.75, "pooled_itl_p50_ms_median": 24.45, "a
+[04:35:52] == round 1 arm i8192b2048
+[04:35:52] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 333.0, "pooled_itl_max_ms_median": 339.25, "pooled_itl_p50_ms_median": 22.6, "aggregate_decode_tok_s_median": 95.69999999999999}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 32.2, "pooled_itl_max_ms_median": 336.6, "pooled_itl_p50_ms_median": 20.8, "aggregat
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 373.1, "pooled_itl_max_ms_median": 380.55, "pooled_itl_p50_ms_median": 27.2, "aggregate_decode_tok_s_median": 35.55}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 348.45000000000005, "pooled_itl_max_ms_median": 382.9, "pooled_itl_p50_ms_median": 25.95, "aggre
+[04:38:34] == round 2 arm i8192b2048
+[04:38:34] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 332.4, "pooled_itl_max_ms_median": 338.0, "pooled_itl_p50_ms_median": 22.35, "aggregate_decode_tok_s_median": 96.4}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.1, "pooled_itl_max_ms_median": 338.25, "pooled_itl_p50_ms_median": 20.950000000000003, "aggreg
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 371.4, "pooled_itl_max_ms_median": 381.95, "pooled_itl_p50_ms_median": 27.1, "aggregate_decode_tok_s_median": 35.5}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 352.65, "pooled_itl_max_ms_median": 380.5, "pooled_itl_p50_ms_median": 25.75, "aggregate_decode_t
+[04:41:13] == round 2 arm i8192
+[04:41:13] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 583.05, "pooled_itl_max_ms_median": 588.5, "pooled_itl_p50_ms_median": 21.299999999999997, "aggregate_decode_tok_s_median": 101.75}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.15, "pooled_itl_max_ms_median": 590.25, "pooled_itl_p50_ms_median": 20.4, "agg
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1251.7, "pooled_itl_max_ms_median": 1262.1999999999998, "pooled_itl_p50_ms_median": 26.549999999999997, "aggregate_decode_tok_s_median": 38.3}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 31.9, "pooled_itl_max_ms_median": 1264.5, "pooled_itl_p50_ms_median": 
+[04:43:48] == round 2 arm i2048
+[04:43:48] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 331.35, "pooled_itl_max_ms_median": 336.8, "pooled_itl_p50_ms_median": 22.6, "aggregate_decode_tok_s_median": 95.2}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.3, "pooled_itl_max_ms_median": 335.85, "pooled_itl_p50_ms_median": 20.549999999999997, "aggreg
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 373.6, "pooled_itl_max_ms_median": 382.25, "pooled_itl_p50_ms_median": 26.7, "aggregate_decode_tok_s_median": 35.1}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 352.29999999999995, "pooled_itl_max_ms_median": 382.75, "pooled_itl_p50_ms_median": 25.7999999999
+[04:46:29] == round 3 arm i2048
+[04:46:29] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 328.85, "pooled_itl_max_ms_median": 340.1, "pooled_itl_p50_ms_median": 22.25, "aggregate_decode_tok_s_median": 95.8}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 28.25, "pooled_itl_max_ms_median": 336.45, "pooled_itl_p50_ms_median": 20.55, "aggregate_decode_
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 373.45000000000005, "pooled_itl_max_ms_median": 384.65, "pooled_itl_p50_ms_median": 27.1, "aggregate_decode_tok_s_median": 35.0}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 351.1, "pooled_itl_max_ms_median": 384.75, "pooled_itl_p50_ms_median": 25.4, "aggreg
+[04:49:08] == round 3 arm i8192
+[04:49:08] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 587.2, "pooled_itl_max_ms_median": 591.1500000000001, "pooled_itl_p50_ms_median": 22.4, "aggregate_decode_tok_s_median": 99.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 26.299999999999997, "pooled_itl_max_ms_median": 590.15, "pooled_itl_p50_ms_median": 2
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 1249.1, "pooled_itl_max_ms_median": 1262.4, "pooled_itl_p50_ms_median": 26.95, "aggregate_decode_tok_s_median": 38.25}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 36.25, "pooled_itl_max_ms_median": 1261.6999999999998, "pooled_itl_p50_ms_median": 24.7, "aggr
+[04:51:49] == round 3 arm i8192b2048
+[04:51:49] retro running requests: vllm:num_requests_running{engine="0",model_name="guidance"} 0.0
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 334.3, "pooled_itl_max_ms_median": 337.9, "pooled_itl_p50_ms_median": 22.45, "aggregate_decode_tok_s_median": 95.94999999999999}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 46.2, "pooled_itl_max_ms_median": 335.4, "pooled_itl_p50_ms_median": 20.1, "aggregat
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 373.04999999999995, "pooled_itl_max_ms_median": 384.05, "pooled_itl_p50_ms_median": 27.0, "aggregate_decode_tok_s_median": 35.55}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 352.45, "pooled_itl_max_ms_median": 382.3, "pooled_itl_p50_ms_median": 25.6, "aggre
+[04:54:26] == done
