@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Runs scripts/prepush.sh before every push. Enable: git config core.hooksPath .githooks
+exec "$(git rev-parse --show-toplevel)/scripts/prepush.sh"
