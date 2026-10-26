@@ -366,6 +366,11 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     assert_eq!(mtp_default(&one, &with, "cuda", 1, true), Some(2), "--max-batch 1 keeps it");
     let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
     assert_eq!(mtp_default(&dfl, &with, "cuda", 1, true), None, "another --spec");
+    // a lone `--spec-k N` (no `--spec`) keeps the default and sets only its draft length
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    assert_eq!(mtp_default(&lone, &with, "cuda", 1, true), Some(3), "a lone --spec-k 3 sets k");
+    assert_eq!(mtp_default(&lone, &without, "cuda", 1, true), None, "a lone --spec-k where no default applies stays off");
+    assert_eq!(mtp_default(&lone, &with, "hip", 1, true), None, "a lone --spec-k on another backend stays off");
     let zero = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 0\n")).unwrap();
     assert_eq!(mtp_default(&auto, &zero, "cuda", 1, true), None, "k = 0 is unset");
     single_rank_loader_default_matches_off();
