@@ -1,0 +1,5 @@
+fleetq: #5593 waiting (#2 in line): in line behind #5591 "dc: ngram k=4 ids vs spec-off, 18 prompts, 8B CUDA (main-equivalent path)" (claude-f31ccf91) on spark1
+fleetq:   #5591 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5591 set, or it will wait for #5591 to be released.
+fleetq: #5593 waiting (#1 in line): needs gpu quiet on spark1, but #5591 "dc: ngram k=4 ids vs spec-off, 18 prompts, 8B CUDA (main-equivalent path)" (claude-f31ccf91) loads it
+fleetq:   #5591 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5591 set, or it will wait for #5591 to be released.
+fleetq: #5593 running on spark1: bash -c 'MODE=dcoco GATE=0,0,0,1 scripts/dc/spark1.sh gates g3 math1 math2 math3 math4 math5 math6 code1 code2 code3 code4 code5 chat1 chat2 chat3 chat4 chat5; echo ---ZERO; MODE=dcoco0 ZERO=1 GATE=0,0,0,1 scripts/dc/spark1.sh gates g3 math2 code1 chat2 math5'

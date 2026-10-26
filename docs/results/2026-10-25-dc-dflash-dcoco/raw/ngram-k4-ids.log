@@ -2,3 +2,25 @@ fleetq: #5591 waiting (#2 in line): in line behind #5585 "od: generate speed, mx
 fleetq:   #5585 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5585 set, or it will wait for #5585 to be released.
 fleetq: #5591 waiting (#1 in line): needs gpu quiet on spark1, but #5585 "od: generate speed, mxfp4-act dynamic vs none, CUDA 27B (1k prompt)" (claude-f31ccf91) loads it
 fleetq:   #5585 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5585 set, or it will wait for #5585 to be released.
+fleetq: #5591 running on spark1: scripts/dc/spark1.sh gates g3 math1 math2 math3 math4 math5 math6 code1 code2 code3 code4 code5 chat1 chat2 chat3 chat4 chat5 short 4k
+FAIL g3 math1 ids differ | 
+FAIL g3 math2 ids differ | 
+FAIL g3 math3 ids differ | 
+FAIL g3 math4 ids differ | 
+FAIL g3 math5 ids differ | 
+FAIL g3 math6 ids differ | 
+FAIL g3 code1 ids differ | 
+FAIL g3 code2 ids differ | 
+FAIL g3 code3 ids differ | 
+FAIL g3 code4 ids differ | 
+FAIL g3 code5 ids differ | 
+FAIL g3 chat1 ids differ | 
+FAIL g3 chat2 ids differ | 
+FAIL g3 chat3 ids differ | 
+FAIL g3 chat4 ids differ | 
+FAIL g3 chat5 ids differ | 
+FAIL g3 short ids differ | 
+FAIL g3 4k ids differ | 
+g3 fails=18
+fleetq: #5591 done (exit 0)
+exit 0

@@ -309,3 +309,18 @@ pooled 3.29 is on 6 math, 5 code, 5 chat prompts.
 Finding: with the back-off gate off, chat prompts with tau < 1.5 (chat4: 1.40) run slower than spec-off (0.91x); the default
 `SpecGate` (backs off after consecutive passes with nothing accepted) is what protects them; its effect is part of the localeval
 runs in section 11.
+
+### 10.5 `--spec ngram` on CUDA (coordinator question: is it exact on the dense 8B?)
+
+Not reachable: `--spec ngram` is refused on CUDA at load ("--spec Ngram needs the Metal backend without tensor parallelism
+(backend cuda, tp 1)", `crates/intarsia-models/src/load.rs`; 18 of 18 runs of the 16 prompts plus the short and 4k prompts
+exited with that error, `raw/ngram-k4-ids.log`). So no CUDA user can hit the multi-row verify attention through ngram, and
+no ngram PR is needed. Metal is not affected by the CUDA attention-kernel finding of section 10.1 (it has its own row-exact
+verify contract, `docs/results/2026-10-15-metal-spec-g1.md`).
+
+The finding of section 10.1 does matter for the other speculative mode that is allowed on CUDA, `--spec mtp`: its verify
+passes take the same `AttnPrefill` multi-row call. The MTP gates on the hybrid 35B (10 attention layers of 40) were bitwise at
+128 and 1024 context; a model with more attention layers or longer contexts is the case the dense 8B probe says can flip a
+near-tie argmax. Not measured here (no dense MTP checkpoint on spark1 besides the 27B, which belongs to another lane). Cheap
+mitigation if wanted: switch `Backend::verify_attn_per_row` on for CUDA when `--spec mtp` is on (cost measured in section 10.1:
+verify16 1.32x vs 1.19x a decode step).
