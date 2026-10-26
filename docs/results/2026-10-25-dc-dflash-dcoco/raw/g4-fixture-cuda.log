@@ -1,0 +1,14 @@
+fleetq: #5502 waiting (#1 in line): needs cpu quiet on spark1, but #5500 "od: onboard cpu pre-pass (recipe+smoke) Qwen3.8-27B-MXFP4-mtpfp8" (claude-f31ccf91) loads it
+fleetq:   #5500 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5500 set, or it will wait for #5500 to be released.
+fleetq: #5502 running on spark1: scripts/dc/spark1.sh fxrun
+test draft_after_real_target_prefill_matches_the_mlx_reference ... dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 7.0 s
+raw_chat2: P=64 drafts [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] want [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] mismatches 0/15, hidden rel-L2 0.0137 max|d| 0.188, draft pass 185.7 ms
+raw_code1: P=66 drafts [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] want [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] mismatches 0/15, hidden rel-L2 0.0175 max|d| 0.156, draft pass 15.0 ms
+raw_math2: P=93 drafts [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] want [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] mismatches 0/15, hidden rel-L2 0.0296 max|d| 0.375, draft pass 15.0 ms
+test draft_from_reference_features_matches_the_mlx_reference ... dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 4.9 s
+raw_chat2: P=64 drafts [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] want [323, 33848, 882, 334, 13, 1096, 13, 11, 11, 11, 11, 11, 11, 11, 11] mismatches 0/15, hidden rel-L2 0.0086 max|d| 0.250, draft pass 16.8 ms
+raw_code1: P=66 drafts [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] want [8676, 4629, 917, 334, 1447, 73594, 12669, 198, 474, 75698, 1445, 750, 271, 271, 982] mismatches 0/15, hidden rel-L2 0.0098 max|d| 0.078, draft pass 16.2 ms
+raw_math2: P=93 drafts [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] want [96338, 518, 3070, 18, 369, 220, 16, 13, 17, 15, 15, 334, 382, 12, 3070] mismatches 0/15, hidden rel-L2 0.0094 max|d| 0.188, draft pass 17.2 ms
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.41s
+fleetq: #5502 done (exit 0)
+exit 0

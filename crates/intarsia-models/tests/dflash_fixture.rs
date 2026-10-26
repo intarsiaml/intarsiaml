@@ -27,8 +27,7 @@ fn i32s(p: &Path) -> Vec<i32> {
     std::fs::read(p).unwrap().chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
 }
 
-#[test]
-fn draft_matches_the_mlx_reference() {
+fn run(real_prefill: bool) {
     let (Some(target), Some(draft), Some(fx)) =
         (env_dir("INTARSIA_QWEN3_DIR"), env_dir("INTARSIA_DFLASH_DIR"), env_dir("INTARSIA_DFLASH_FIXTURES"))
     else {
@@ -62,7 +61,17 @@ fn draft_matches_the_mlx_reference() {
         let want = i32s(&d.join("argmax_drafts.i32"));
         let want_h = f32s(&d.join("h_final.f32"));
         let mut st = m.new_state().unwrap();
-        m.dflash_ingest_host(&mut st, &feat, p).unwrap();
+        if real_prefill {
+            // the real target prefills the context in pieces of 40 tokens: the taps and the ingest hook make the draft's cache
+            let toks: Vec<u32> = meta["tokens"].as_array().unwrap().iter().map(|t| t.as_u64().unwrap() as u32).collect();
+            assert_eq!(toks.len(), p + 1);
+            for c in toks[..p].chunks(40) {
+                m.forward(&mut st, c, intarsia_core::model::HeadMode::None, None).unwrap();
+            }
+            assert_eq!(st.len, p);
+        } else {
+            m.dflash_ingest_host(&mut st, &feat, p).unwrap();
+        }
         let t0 = std::time::Instant::now();
         let got = m.dflash_draft(&mut st, anchor, 15).unwrap();
         let ms = t0.elapsed().as_secs_f64() * 1e3;
@@ -84,5 +93,15 @@ fn draft_matches_the_mlx_reference() {
         assert!(rel < 0.05, "block output differs from the reference (rel-L2 {rel})");
         worst_mismatch = worst_mismatch.max(mismatch);
     }
-    assert!(worst_mismatch <= 2, "{worst_mismatch} of 15 drafts differ from the reference");
+    assert!(worst_mismatch <= if real_prefill { 4 } else { 2 }, "{worst_mismatch} of 15 drafts differ from the reference");
+}
+
+#[test]
+fn draft_from_reference_features_matches_the_mlx_reference() {
+    run(false);
+}
+
+#[test]
+fn draft_after_real_target_prefill_matches_the_mlx_reference() {
+    run(true);
 }

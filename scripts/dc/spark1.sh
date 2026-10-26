@@ -15,10 +15,15 @@ case "${1:?}" in
     shift
     for what in "$@"; do
       case $what in
+        fx) ssh spark1 "$ENVP; cd $SRC && CARGO_BUILD_JOBS=8 cargo test --release --no-run -p intarsia-models --test dflash_fixture 2>&1 | grep -E '^error|Finished|Executable' -A6 | tail -12" ;;
         test) ssh spark1 "$ENVP; cd $SRC && CARGO_BUILD_JOBS=8 cargo test --release --no-run -p intarsia-models --test verify16_cuda_real 2>&1 | grep -E '^error|Finished|Executable' | tail -5" ;;
         cli)  ssh spark1 "$ENVP; cd $SRC && CARGO_BUILD_JOBS=8 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -5" ;;
       esac
     done ;;
+  fxrun)  # rsync the reference fixtures (dc-ref/out/raw_*), run tests/dflash_fixture.rs on CUDA
+    rsync -a /opt/code/intarsiaml/.worktrees/dc-ref/out/raw_math2 /opt/code/intarsiaml/.worktrees/dc-ref/out/raw_code1 /opt/code/intarsiaml/.worktrees/dc-ref/out/raw_chat2 spark1:intarsiaml-dc-fx/ || exit 1
+    D=$H/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/4080a604bb608e59fb5240db1fa347357a4e3332
+    ssh spark1 "$ENVP; cd $SRC && INTARSIA_QWEN3_DIR=$M8 INTARSIA_DFLASH_DIR=$D INTARSIA_DFLASH_FIXTURES=\$HOME/intarsiaml-dc-fx INTARSIA_DFLASH_TEST_BACKEND=cuda ${PROBE_ENV:-} cargo test --release -p intarsia-models --test dflash_fixture -- --nocapture --test-threads=1 2>&1 | grep -aE 'math2|code1|chat2|test result|panicked|error|dflash:|test '" ;;
   probe)
     ssh spark1 "$ENVP; cd $SRC && INTARSIA_QWEN3_DIR=$M8 INTARSIA_REQUIRE_GPU=1 ${PROBE_ENV:-} cargo test --release -p intarsia-models --test verify16_cuda_real -- --nocapture --test-threads=1 2>&1 | grep -aE 'PROBE|DIFF|checked|plan notes|test result|panicked|error'" ;;
 esac
