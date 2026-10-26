@@ -87,6 +87,6 @@ reuse_kl_tol = 1e-2
 # prose runs 2 % under spec off (docs/results/2026-10-25-dc-dflash-dcoco.md section 11.3). `INTARSIA_SPEC_COSTGATE` overrides.
 [dflash]
 cost_min_speedup = 1.03
-cost_window = 8
+cost_window = 6
 cost_probe_every = 128
-cost_reprobe_tokens = 64
+cost_reprobe_tokens = 128

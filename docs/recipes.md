@@ -198,9 +198,9 @@ sets how the per-sequence gate decides to decode plainly. All keys are optional.
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `cost_min_speedup` | float | `1.03` | Expected speedup (`tokens_per_pass / (ms_per_pass / ms_per_plain_token)`, running means) below which the sequence decodes plainly; `0` turns the gate off. |
-| `cost_window` | int | `8` | Consecutive speculative passes under `cost_min_speedup` before the fallback. |
+| `cost_window` | int | `6` | Speculative passes (after 2 warm-up passes) before the running-mean speedup is compared with `cost_min_speedup` for the fallback. |
 | `cost_probe_every` | int | `128` | Passes between probes of the plain-step cost while speculating. |
-| `cost_reprobe_tokens` | int | `64` | Plain tokens decoded before speculation is tried again; each retry that falls back again doubles the next stretch (up to 16x). |
+| `cost_reprobe_tokens` | int | `128` | Plain tokens decoded before speculation is tried again; each retry that falls back again doubles the next stretch (up to 16x). |
 
 ## Worked example 1: a dense model (Qwen3-8B)
 

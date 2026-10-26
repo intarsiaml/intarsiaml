@@ -1,0 +1,25 @@
+fleetq: #5673 running on spark1: scripts/dc/spark1.sh gates prosediag prose-lighthouse prose-ocean-poem
+prose-lighthouse off: decode 16636 ms (15.33 tok/s) | 
+  plain samples: 0
+  gate-off notes: 0
+prose-lighthouse gate: decode 16383 ms (15.57 tok/s) | spec: verify passes=36 proposed=501 accepted=24 (acceptance 4.8%, 1.67 tokens per pass)
+  plain samples: 195
+  plain: 195 samples, 1.00 tokens/sample, 65.3 ms/sample
+  pass: 35 samples, 1.63 tokens/sample, 101.7 ms/sample
+  gate-off notes: 194
+prose-lighthouse nogate: decode 17789 ms (14.33 tok/s) | spec: verify passes=146 proposed=2182 accepted=62 (acceptance 2.8%, 1.42 tokens per pass)
+  plain samples: 0
+  gate-off notes: 0
+prose-ocean-poem off: decode 16624 ms (15.34 tok/s) | 
+  plain samples: 0
+  gate-off notes: 0
+prose-ocean-poem gate: decode 16911 ms (15.08 tok/s) | spec: verify passes=35 proposed=525 accepted=16 (acceptance 3.0%, 1.46 tokens per pass)
+  plain samples: 203
+  plain: 203 samples, 1.00 tokens/sample, 65.3 ms/sample
+  pass: 35 samples, 1.46 tokens/sample, 102.6 ms/sample
+  gate-off notes: 204
+prose-ocean-poem nogate: decode 17206 ms (14.82 tok/s) | spec: verify passes=129 proposed=1864 accepted=61 (acceptance 3.3%, 1.47 tokens per pass)
+  plain samples: 0
+  gate-off notes: 0
+fleetq: #5673 done (exit 1)
+exit 1

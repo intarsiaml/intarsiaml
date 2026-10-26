@@ -246,7 +246,7 @@ impl CostParams {
     /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): on at
     /// the 3% line; a pass is about 100 ms there, so the window is short.
     pub const DFLASH: CostParams =
-        CostParams { min_speedup: 1.03, window: 8, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125, smooth: true };
+        CostParams { min_speedup: 1.03, window: 6, probe_every: 128, reprobe_tokens: 128, warmup: 2, alpha: 0.125, smooth: true };
 
     /// The recipe's `[dflash]` overrides.
     pub fn with_dflash_recipe(self, m: Option<&crate::recipe::DflashSpec>) -> CostParams {

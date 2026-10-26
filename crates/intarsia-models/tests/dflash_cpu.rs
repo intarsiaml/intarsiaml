@@ -321,7 +321,7 @@ fn dflash_off_loads_nothing() {
     // the measured-cost gate is on with the draft (built-in values, then the recipe's [dflash] table), off without it
     let c = m.spec_cost_params();
     assert!(c.enabled(), "the DFlash cost gate is off");
-    assert_eq!((c.min_speedup, c.window, c.probe_every, c.reprobe_tokens), (1.03, 8, 128, 64), "recipe [dflash] values not applied");
+    assert_eq!((c.min_speedup, c.window, c.probe_every, c.reprobe_tokens), (1.03, 6, 128, 128), "recipe [dflash] values not applied");
     assert!(!model(1, 2, false, Some(3)).0.spec_cost_params().enabled());
 
     // --spec dflash on a model without the draft is refused at engine construction
