@@ -12,6 +12,7 @@
 //! Layout rule (v1): tensors keep the checkpoint layout (no repacking), so `dequant_ref` is checkpoint semantics.
 
 pub mod cases;
+pub mod compressed_tensors;
 pub mod exl3;
 pub mod fp8;
 pub mod moe;

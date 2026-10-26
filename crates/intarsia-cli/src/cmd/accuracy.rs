@@ -3611,6 +3611,11 @@ mod tests {
             w(r#"{"quantization_config":{"quant_method":"compressed-tensors","num_bits":4}}"#, None).unwrap().0,
             GateClass::Fp4
         );
+        // a real llm-compressor NVFP4A16 config nests the bit width under config_groups.*.weights
+        assert_eq!(
+            w(r#"{"text_config":{"quantization_config":{"quant_method":"compressed-tensors","format":"nvfp4-pack-quantized","config_groups":{"group_0":{"format":"nvfp4-pack-quantized","weights":{"num_bits":4,"type":"float","scale_dtype":"torch.float8_e4m3fn"}}}}}}"#, None).unwrap().0,
+            GateClass::Fp4
+        );
         // EXL3 writes the bit width as a float
         assert_eq!(
             w(r#"{"quantization_config":{"quant_method":"exl3","version":"0.0.1","bits":4.0,"head_bits":6}}"#, None)
