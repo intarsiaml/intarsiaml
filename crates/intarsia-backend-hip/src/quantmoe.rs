@@ -47,6 +47,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_block_bf16", Op::MoeBlock),
     // row-exact form for batched decode (`rows_exact`, T = 1..=ROWS_MAX at any K <= 8; tests/moe_block.rs)
     ("moe_block_bf16_rows", Op::MoeBlock),
+    // lane l7: the grouped form for the rows `moe_block_bf16_rows` does not serve (`rows_exact`, 5..=16 rows; kernels/hip/moe_block_grouped.hip)
+    ("moe_block_bf16_grouped", Op::MoeBlock),
     // fused decode launchers: no other backend has them, the model falls back to the ops they replace
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     // lane wg: bf16 router / gate on the WMMA family (INTARSIA_HIP_WMMA_ROWS=1)
@@ -343,16 +345,56 @@ pub fn moe_block_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
         && s.out == Some(DType::Bf16)
 }
 
-/// Most rows for which the model takes `moe_block_bf16_rows`. The kernel is row-exact for 1..=`ROWS_MAX` tokens (tests/moe_block.rs), but
+/// Most rows for which the model takes `moe_block_bf16_rows` when the grouped block is off. The kernel is row-exact for 1..=16 tokens (tests/moe_block.rs), but
 /// it reads each token's experts separately while the unfused `moe_experts_bf16_rows` shares an expert's weights between the tokens routed
 /// to it, so past a few rows the fused block is slower (35B model-loop step, docs/results/2026-10-24-hr3-hip-batching-r3.md section 4).
 pub const MOE_BLOCK_ROWS_MAX: usize = 4;
 
-/// The shapes `moe_block_bf16_rows` serves: the same weights and widths as `moe_block_shape_ok`, 1..=`MOE_BLOCK_ROWS_MAX` tokens at any K <= 8.
+/// First row count of `moe_block_bf16_grouped` (lane l7). The microbench (docs/results/2026-10-25-l7-moe-block-rows.md) has the grouped block ahead of the fused
+/// rows block from 3 rows on (118 against 128 us per layer at 3 rows, 147 against 164 at 4), level with the unfused chain at 3 and 4 and ahead of it from 5.
+pub const MOE_GROUPED_ROWS_MIN: usize = 3;
+
+/// Most rows for which the model takes `moe_block_bf16_rows` now: below the grouped block's range while that is on, else `MOE_BLOCK_ROWS_MAX`.
+pub fn moe_block_rows_max() -> usize {
+    if moe_block_enabled() && moe_grouped_enabled() {
+        MOE_GROUPED_ROWS_MIN - 1
+    } else {
+        MOE_BLOCK_ROWS_MAX
+    }
+}
+
+/// The shapes `moe_block_bf16_rows` serves: the same weights and widths as `moe_block_shape_ok`, 1..=`moe_block_rows_max()` tokens at any K <= 8.
 pub fn moe_block_rows_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
     let mut one = s.clone();
     one.m = 1;
-    s.m >= 1 && s.m <= MOE_BLOCK_ROWS_MAX && moe_block_shape_ok(&one)
+    s.m >= 1 && s.m <= moe_block_rows_max() && moe_block_shape_ok(&one)
+}
+
+/// `moe_block_bf16_grouped` (lane l7, kernels/hip/moe_block_grouped.hip: topk, grouped routed experts, one shared-expert pass for all rows, bitwise the
+/// T = 1 block per token) is admissible unless INTARSIA_HIP_MOE_GROUPED=0 (and INTARSIA_HIP_MOE_BLOCK is not 0). Off, the model takes the fused rows
+/// block up to `MOE_BLOCK_ROWS_MAX` rows and the unfused chain above, exactly as before.
+pub fn moe_grouped_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| moe_grouped_from(std::env::var("INTARSIA_HIP_MOE_GROUPED").ok().as_deref()))
+}
+
+/// The value of INTARSIA_HIP_MOE_GROUPED -> the grouped block admissible: only exactly "0" disables; unset or anything else enables.
+pub fn moe_grouped_from(v: Option<&str>) -> bool {
+    v != Some("0")
+}
+
+/// The shapes `moe_block_bf16_grouped` serves: the weights and widths of `moe_block_shape_ok` at any K <= 8, `MOE_GROUPED_ROWS_MIN`..=16 tokens.
+pub fn moe_block_grouped_shape_ok(s: &intarsia_core::ShapeInfo) -> bool {
+    let mut one = s.clone();
+    one.m = 1;
+    (MOE_GROUPED_ROWS_MIN..=16).contains(&s.m) && moe_block_shape_ok(&one)
+}
+
+/// Scratch bytes of `moe_block_bf16_grouped` (`ik_moe_block_grouped_scratch_bytes`): top-k weights f32 `[T, K]`, ids i32 `[T, K]`, routed bf16
+/// `[T, H]`, shared activation bf16 `[T, IS]`, then the routed experts' scratch; each region rounded up to 256 bytes.
+pub fn moe_block_grouped_scratch(s: &intarsia_core::ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    r(s.m * s.top_k * 4) * 2 + r(s.m * s.k * 2) + r(s.m * s.head_dim * 2) + moe_experts_scratch(s)
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -613,6 +655,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_block_scratch)
+                    .priority(-1)
+                    .rows_exact(),
+                // Grouped row-exact form (lane l7): 5..=16 tokens, each token bitwise the T = 1 launch on it alone; the routed experts of the unfused
+                // `moe_experts_bf16_rows` plus one shared-expert pass over all rows. Selected only by `exact_rows` calls.
+                "moe_block_bf16_grouped" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| moe_block_enabled() && moe_grouped_enabled() && moe_block_grouped_shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .scratch(moe_block_grouped_scratch)
                     .priority(-1)
                     .rows_exact(),
                 // Fused decode launchers: one activation row, bf16 in and out. Each is bitwise the chain it replaces (tests/
@@ -921,6 +974,52 @@ mod tests {
         // scratch: h [T * K, I] and sa [T, IS] bf16, each rounded up to 256 bytes
         assert_eq!(k.scratch_bytes(&sh(1, 256, 8, 2048, 512, 512)), 8 * 512 * 2 + 512 * 2);
         assert_eq!(k.scratch_bytes(&sh(1, 16, 2, 256, 16, 32)), 256 + 256);
+    }
+
+    /// Lane l7: `moe_block_bf16_grouped` serves exactly the rows the fused rows block leaves out (3..=16 at any K <= 8), is on unless
+    /// INTARSIA_HIP_MOE_GROUPED=0 (or INTARSIA_HIP_MOE_BLOCK=0), is a `rows_exact` kernel, and its scratch is the experts' plus four small regions.
+    #[test]
+    fn moe_block_grouped_serves_3_to_16_rows_only() {
+        assert!(moe_grouped_from(None));
+        assert!(!moe_grouped_from(Some("0")));
+        assert!(moe_grouped_from(Some("1")));
+        let ks = all();
+        let g = ks.iter().find(|k| k.name == "moe_block_bf16_grouped").unwrap();
+        let r = ks.iter().find(|k| k.name == "moe_block_bf16_rows").unwrap();
+        assert!(g.rows_exact && r.rows_exact);
+        let sh = |m: usize, e: usize, top_k: usize, h: usize, i: usize, is: usize| ShapeInfo {
+            m,
+            k: h,
+            n: i,
+            head_dim: is,
+            experts: e,
+            top_k,
+            act: Some(DType::Bf16),
+            weight: Some(DType::U8),
+            out: Some(DType::Bf16),
+            ..Default::default()
+        };
+        let on = moe_block_enabled() && moe_grouped_enabled();
+        for m in 0..=20usize {
+            let s = sh(m, 256, 8, 2048, 512, 512);
+            assert_eq!(moe_block_grouped_shape_ok(&s), (3..=16).contains(&m), "m={m}");
+            assert_eq!(g.accepts(&s), (3..=16).contains(&m) && on, "m={m}");
+            // the fused rows block keeps 1..=2 rows while the grouped block is on, 1..=4 with it off
+            assert_eq!(r.accepts(&s), (1..=if on { 2 } else { 4 }).contains(&m) && moe_block_enabled(), "m={m}");
+            // the two rows blocks never both take a shape
+            assert!(!(moe_block_rows_shape_ok(&s) && moe_block_grouped_shape_ok(&s)), "m={m}");
+        }
+        assert!(moe_block_grouped_shape_ok(&sh(5, 16, 4, 128, 32, 48)));
+        assert!(!moe_block_grouped_shape_ok(&sh(2, 16, 4, 128, 32, 48)));
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 16, 9, 128, 32, 48)), "K > 8");
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 1024, 8, 2048, 512, 512)), "E > 512");
+        assert!(!moe_block_grouped_shape_ok(&sh(8, 256, 8, 2048, 512, 520)), "IS % 16");
+        // scratch: top-k weights f32 [T, K], ids i32 [T, K], routed bf16 [T, H], shared activation bf16 [T, IS], then the experts' scratch
+        let s = sh(16, 256, 8, 2048, 512, 512);
+        let r256 = |x: usize| (x + 255) & !255;
+        let experts = r256(128 * 4) + r256(257 * 4) + r256(257 * 4) + r256(128 * 512 * 2) + r256(128 * 2048 * 2);
+        assert_eq!(g.scratch_bytes(&s), r256(128 * 4) * 2 + r256(16 * 2048 * 2) + r256(16 * 512 * 2) + experts);
+        assert_eq!(moe_block_grouped_scratch(&s), g.scratch_bytes(&s));
     }
 
     #[test]

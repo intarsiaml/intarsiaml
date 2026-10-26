@@ -159,6 +159,12 @@ int ik_moe_block_bf16(const ik_tensor* in, int top_k, int norm, ik_tensor* out, 
  * token t of the output is BITWISE the T = 1 launch on token t alone (crates/intarsia-backend-hip/tests/moe_block.rs). Registered `rows_exact`. */
 int ik_moe_block_bf16_rows(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream);
 int64_t ik_moe_block_scratch_bytes(int64_t T, int64_t K, int64_t I, int64_t IS);
+/* moe_block_bf16_grouped (lane l7, moe_block_grouped.hip, batched decode at 5..16 rows): the same 17 inputs and result as ik_moe_block_bf16_rows
+ * (token t BITWISE the T = 1 ik_moe_block_bf16 launch on token t alone), 1 <= T <= 16, K <= 8, E <= 512, as ik_moe_topk_bf16_v2 ->
+ * ik_moe_experts_bf16_rows (tokens grouped by expert) -> one shared-expert gate/up/silu pass -> one shared-down + combine pass over all rows.
+ * Registered `rows_exact`. Scratch: ik_moe_block_grouped_scratch_bytes (= intarsia_core quant::ops::moe_experts_scratch + 4 small regions). */
+int ik_moe_block_bf16_grouped(const ik_tensor* in, int top_k, int norm, ik_tensor* out, const ik_scratch* scratch, void* stream);
+int64_t ik_moe_block_grouped_scratch_bytes(int64_t T, int64_t K, int64_t E, int64_t H, int64_t I, int64_t IS);
 
 /* Core-op fusion phase 2 (docs/results/2026-10-19-core-op-fusion-p2.md), each bitwise the two launches it replaces:
  *   gate_split_qk_norm_rope_kv_bf16 (P4a, gate_qkr.hip): ik_gate_split_bf16 then ik_qk_norm_rope_kv_bf16 of the split-off

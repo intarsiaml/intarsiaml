@@ -191,13 +191,13 @@ fn token_of(hc: &HostCall, t: usize) -> HostCall {
     HostCall { op: hc.op, inputs, outputs: vec![OutSpec::new(DType::Bf16, &[1, h])], attrs: hc.attrs.clone() }
 }
 
-/// G-B of `moe_block_bf16_rows` (lane hr3, batched decode): token t of a T-token launch is BITWISE the T = 1 launch of the solo
-/// step (`moe_block_bf16`) on token t alone, T = 1..=16, at the 35B's decode shape (top-8 of 256 experts: T * K far past 16) and on
-/// smaller ones, norm on and off, with ties in the routing.
-#[test]
-fn moe_block_rows_are_the_solo_block_per_token() {
+/// G-B of a row-exact MoE block kernel (`moe_block_bf16_rows`, lane hr3, batched decode; `moe_block_bf16_grouped`, lane l7): token t of a T-token
+/// launch is BITWISE the T = 1 launch of the solo step (`moe_block_bf16`) on token t alone, T = 1..=16, at the 35B's decode shape (top-8 of 256
+/// experts: T * K far past 16) and on smaller ones, norm on and off, with ties in the routing. `ts_big` / `ts_small`: the row counts tried at the
+/// 35B shape and at the others (the bigger shapes at every row count would be minutes of random weights).
+fn rows_are_the_solo_block_per_token(kernel: &str, seed: u64, ts_big: &[usize], ts_small: &[usize]) {
     let Some(hip) = device() else { return };
-    let mut rng = SplitMix64::new(91);
+    let mut rng = SplitMix64::new(seed);
     let (mut cases, mut tokens, mut controls) = (0, 0, 0);
     for (e, k, h, i, is) in [
         (256usize, 8usize, 2048usize, 512usize, 512usize), // the 35B's decode step
@@ -210,21 +210,20 @@ fn moe_block_rows_are_the_solo_block_per_token() {
         for norm in [true, false] {
             for ties in [false, true] {
                 for t in 1..=16usize {
-                    // the bigger shapes at every row count would be minutes of random weights: a spread of counts
-                    if e == 256 && i == 512 && !matches!(t, 1 | 2 | 3 | 4 | 7 | 8 | 9 | 12 | 15 | 16) {
+                    if e == 256 && i == 512 && !ts_big.contains(&t) {
                         continue;
                     }
-                    if e != 256 && !matches!(t, 1 | 3 | 5 | 16) {
+                    if !(e == 256 && i == 512) && !ts_small.contains(&t) {
                         continue;
                     }
                     let hc = block_case(&mut rng, t, e, k, h, i, is, norm, ties);
-                    let got = run_host(&*hip, "moe_block_bf16_rows", &hc).unwrap_or_else(|er| panic!("rows t={t} e={e}: {er}"));
+                    let got = run_host(&*hip, kernel, &hc).unwrap_or_else(|er| panic!("{kernel} t={t} e={e}: {er}"));
                     let hb = h * 2;
                     for r in 0..t {
                         let want = run_host(&*hip, K_NAME, &token_of(&hc, r)).unwrap();
                         assert!(
                             got[0].data[r * hb..(r + 1) * hb] == want[0].data[..],
-                            "t={t} e={e} k={k} h={h} i={i} is={is} norm={norm} ties={ties}: token {r} differs from the solo T = 1 block"
+                            "{kernel} t={t} e={e} k={k} h={h} i={i} is={is} norm={norm} ties={ties}: token {r} differs from the solo T = 1 block"
                         );
                         tokens += 1;
                     }
@@ -239,7 +238,95 @@ fn moe_block_rows_are_the_solo_block_per_token() {
             }
         }
     }
-    eprintln!("moe_block_rows_are_the_solo_block_per_token: {cases} launches, {tokens} tokens bitwise the T = 1 block, {controls} negative controls differ");
+    eprintln!("{kernel}: {cases} launches, {tokens} tokens bitwise the T = 1 block, {controls} negative controls differ");
+}
+
+#[test]
+fn moe_block_rows_are_the_solo_block_per_token() {
+    rows_are_the_solo_block_per_token("moe_block_bf16_rows", 91, &[1, 2, 3, 4, 7, 8, 9, 12, 15, 16], &[1, 3, 5, 16]);
+}
+
+/// Lane l7: the grouped block (kernels/hip/moe_block_grouped.hip), every row count 1..=16 at the small shapes and a spread at the 35B's.
+#[test]
+fn moe_block_grouped_is_the_solo_block_per_token() {
+    rows_are_the_solo_block_per_token("moe_block_bf16_grouped", 92, &[1, 2, 4, 5, 6, 8, 9, 11, 13, 16], &[1, 2, 3, 5, 6, 7, 9, 11, 14, 16]);
+}
+
+/// Lane l7 negative controls for the grouped block: a block assembled the same way but with one stage on an inexact (tensor-core) kernel must NOT be
+/// the solo block per token, so the comparison of `moe_block_grouped_is_the_solo_block_per_token` has something to catch. (a) the routed experts through
+/// `moe_experts_bf16_v2` at T = 16 (tensor-core projections, another accumulation order); (b) the shared gate / up / down through `matmul_nvfp4_mma`
+/// (reported only, see below).
+#[test]
+fn moe_block_grouped_negative_controls() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(93);
+    let (t, e, k, h, i, is) = (16usize, 256usize, 8usize, 2048usize, 512usize, 512usize);
+    let hc = block_case(&mut rng, t, e, k, h, i, is, true, false);
+    let inp = &hc.inputs;
+    let call = |op: Op, inputs: Vec<HostTensor>, outputs: Vec<OutSpec>, attrs: OpAttrs| HostCall { op, inputs, outputs, attrs };
+    let tk = run_host(&*hip, "moe_topk_bf16_v2", &call(Op::MoeTopk, vec![inp[1].clone()], vec![OutSpec::new(DType::F32, &[t, k]), OutSpec::new(DType::I32, &[t, k])], hc.attrs.clone())).unwrap();
+    let assemble = |experts: &str, mm: &str| -> Vec<u8> {
+        let routed = run_host(
+            &*hip,
+            experts,
+            &call(
+                Op::MoeExperts,
+                vec![inp[0].clone(), tk[1].clone(), tk[0].clone(), inp[3].clone(), inp[4].clone(), inp[5].clone(), inp[6].clone(), inp[7].clone()],
+                vec![OutSpec::new(DType::Bf16, &[t, h])],
+                hc.attrs.clone(),
+            ),
+        )
+        .unwrap()
+        .remove(0);
+        let mmul = |x: &HostTensor, w: usize, n: usize| {
+            run_host(&*hip, mm, &call(Op::MatmulNvfp4, vec![x.clone(), inp[w].clone(), inp[w + 1].clone(), inp[w + 2].clone()], vec![OutSpec::new(DType::Bf16, &[t, n])], OpAttrs::default()))
+                .unwrap()
+                .remove(0)
+        };
+        let (g, u) = (mmul(&inp[0], 8, is), mmul(&inp[0], 11, is));
+        let a = run_host(&*hip, "silu_glu_bf16", &call(Op::SiluGlu, vec![g, u], vec![OutSpec::new(DType::Bf16, &[t, is])], OpAttrs::default())).unwrap().remove(0);
+        let so = mmul(&a, 14, h);
+        run_host(&*hip, "moe_combine_bf16", &call(Op::MoeCombine, vec![routed, so, inp[2].clone()], vec![OutSpec::new(DType::Bf16, &[t, h])], OpAttrs::default())).unwrap().remove(0).data
+    };
+    let hb = h * 2;
+    let solo: Vec<Vec<u8>> = (0..t).map(|r| run_host(&*hip, K_NAME, &token_of(&hc, r)).unwrap().remove(0).data).collect();
+    let differs = |got: &[u8]| (0..t).filter(|r| got[r * hb..(r + 1) * hb] != solo[*r][..]).count();
+    // the exact assembly of the same stages IS the solo block (the control's baseline: everything but the mutated stage is the chain)
+    let exact = assemble("moe_experts_bf16_rows", "matmul_nvfp4_gemv_rows");
+    assert_eq!(differs(&exact), 0, "the unfused row-exact chain must be the solo block per token");
+    let a = differs(&assemble("moe_experts_bf16_v2", "matmul_nvfp4_gemv_rows"));
+    let b = differs(&assemble("moe_experts_bf16_rows", "matmul_nvfp4_mma"));
+    eprintln!("moe_block_grouped_negative_controls: tensor-core experts differ in {a} of {t} tokens, tensor-core shared GEMVs in {b} of {t}");
+    assert!(a > 0, "control (a): the tensor-core experts gave the solo block in every token, the comparison cannot fail");
+    // (b) is reported, not asserted: on these activations the tensor-core shared GEMVs (exact products, f32 accumulation in another order) can round to
+    // the same bf16 everywhere, so it is no control; (a) is the control of the routed path and the "next token's solo block" control of
+    // `moe_block_grouped_is_the_solo_block_per_token` covers the whole block
+}
+
+/// Lane l7: the grouped block replayed from a captured graph (7 launches) is the eager launch, on new activations each replay.
+#[test]
+fn moe_block_grouped_graph_replay_is_bitwise_eager() {
+    let Some(be) = device() else { return };
+    assert!(be.supports_graphs());
+    let mut rng = SplitMix64::new(94);
+    let (t, name) = (9usize, "moe_block_bf16_grouped");
+    let hc = block_case(&mut rng, t, 256, 8, 2048, 512, 512, true, false);
+    let d = Dev::new(&*be, name, &hc);
+    let graph = be.graph_capture(0, &mut || be.launch(name, &d.call, 0)).unwrap();
+    for rep in 0..12 {
+        let mut v = hc.clone();
+        v.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &v.inputs[0].shape, &rng.normal_vec(v.inputs[0].numel(), 1.0));
+        v.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &v.inputs[1].shape, &rng.normal_vec(v.inputs[1].numel(), 2.0));
+        d.set(&*be, 0, &v.inputs[0], 0);
+        d.set(&*be, 1, &v.inputs[1], 0);
+        be.graph_replay(&graph, 0).unwrap();
+        let got = d.out_on(&*be, 0);
+        let hb = 2048 * 2;
+        for r in 0..t {
+            let want = run_host(&*be, K_NAME, &token_of(&v, r)).unwrap().remove(0).data;
+            assert!(got[r * hb..(r + 1) * hb] == want[..], "replay {rep}: token {r} differs from the solo T = 1 block");
+        }
+    }
 }
 
 /// Device copies of a host call (inputs, a zeroed output, the declared scratch).
@@ -614,5 +701,236 @@ fn moe_block_timing() {
             d
         };
         assert!(rd(&l.calls[3].1.outputs[0]) == rd(&l.fused.outputs[0]), "layer {j}: fused differs from the chain");
+    }
+}
+
+/// l7 microbench (INTARSIA_HIP_MOE_ROWS_BENCH=1, else skipped): the batched MoE block at T = 5..16 rows (INTARSIA_HIP_MOE_ROWS_BENCH_T, default
+/// "8,16"), L layers (INTARSIA_HIP_MOE_BLOCK_BENCH_LAYERS, default 16) with distinct weights, routing and activations, each variant one HIP graph,
+/// median of 50 replays, 3 interleaved rounds, us per layer. Variants: (a) the unfused chain exactly as the model runs it after the gate logit
+/// (topk, `moe_experts_bf16_rows`, shared gate and up `matmul_nvfp4_gemv_rows`, `silu_glu`, shared down, `moe_combine`); (b) topk + experts;
+/// (c) the shared pieces + combine; (d) one `matmul_nvfp4_gemv_v2` launch at M = 4 per shared matrix, the optimistic floor of one weight pass;
+/// (e) a tiny launch (the price of a launch boundary in a replay); (f) the fused `moe_block_bf16_rows`; (g) `moe_block_bf16_grouped` (lane l7). Also logs the distinct experts per layer.
+#[test]
+fn moe_rows_timing() {
+    if std::env::var("INTARSIA_HIP_MOE_ROWS_BENCH").as_deref() != Ok("1") {
+        return;
+    }
+    let Some(be) = device() else { return };
+    let layers: usize = std::env::var("INTARSIA_HIP_MOE_BLOCK_BENCH_LAYERS").ok().and_then(|v| v.parse().ok()).unwrap_or(16);
+    let ts: Vec<usize> = std::env::var("INTARSIA_HIP_MOE_ROWS_BENCH_T")
+        .unwrap_or_else(|_| "8,16".into())
+        .split(',')
+        .filter_map(|v| v.trim().parse().ok())
+        .collect();
+    let reps = 50usize;
+    let mut rng = SplitMix64::new(77);
+    let (e, k, h, i, is) = (256usize, 8usize, 2048usize, 512usize, 512usize);
+    // the standard table runs the old grouped projections (INTARSIA_HIP_MOE_G2=0); the several-rows-per-warp configs follow (INTARSIA_HIP_MOE_ROWS_BENCH_G2)
+    std::env::set_var("INTARSIA_HIP_MOE_G2", "0");
+    let g2_cfgs: Vec<String> = std::env::var("INTARSIA_HIP_MOE_ROWS_BENCH_G2").unwrap_or_default().split(',').filter(|v| !v.is_empty()).map(String::from).collect();
+    let base = block_case(&mut rng, 1, e, k, h, i, is, true, false);
+    let dev_t = |t: &HostTensor| {
+        let buf = be.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+        be.upload(&buf, 0, &t.data, 0).unwrap();
+        TensorRef::new(buf, t.dtype, &t.shape)
+    };
+    let out_t = |dt: DType, shape: &[usize]| dev_t(&HostTensor::zeros(dt, shape));
+    let scratch_for = |kernel: &str, call: &OpCall| -> Option<TensorRef> {
+        let kk = be.kernels().into_iter().find(|x| x.name == kernel).unwrap();
+        let need = kk.scratch_bytes(&ShapeInfo::from_call(call));
+        (need > 0).then(|| TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need.max(16)]))
+    };
+    // the weights of every layer are uploaded again, so no layer's weights stay in a cache
+    for &t in &ts {
+        struct Layer {
+            full: Vec<(&'static str, OpCall)>,
+            topk_ex: Vec<(&'static str, OpCall)>,
+            shared: Vec<(&'static str, OpCall)>,
+            floor: Vec<(&'static str, OpCall)>,
+            fused: OpCall,
+            grouped: OpCall,
+            topk_ids: TensorRef,
+        }
+        let mut ls = Vec::new();
+        for _ in 0..layers {
+            let mut hc = base.clone();
+            hc.inputs[0] = HostTensor::from_f32_as(DType::Bf16, &[t, h], &rng.normal_vec(t * h, 1.0));
+            hc.inputs[1] = HostTensor::from_f32_as(DType::Bf16, &[t, e], &rng.normal_vec(t * e, 2.0));
+            hc.inputs[2] = HostTensor::from_f32_as(DType::Bf16, &[t, 1], &rng.normal_vec(t, 2.0));
+            let inp: Vec<TensorRef> = hc.inputs.iter().map(dev_t).collect();
+            let (w, ids) = (out_t(DType::F32, &[t, k]), out_t(DType::I32, &[t, k]));
+            let (routed, g, u, a, so, out, out2) = (
+                out_t(DType::Bf16, &[t, h]),
+                out_t(DType::Bf16, &[t, is]),
+                out_t(DType::Bf16, &[t, is]),
+                out_t(DType::Bf16, &[t, is]),
+                out_t(DType::Bf16, &[t, h]),
+                out_t(DType::Bf16, &[t, h]),
+                out_t(DType::Bf16, &[t, h]),
+            );
+            let at = hc.attrs.clone();
+            let topk = OpCall::new(Op::MoeTopk, vec![inp[1].clone()], vec![w.clone(), ids.clone()], at.clone());
+            let mut ex = OpCall::new(
+                Op::MoeExperts,
+                vec![inp[0].clone(), ids.clone(), w.clone(), inp[3].clone(), inp[4].clone(), inp[5].clone(), inp[6].clone(), inp[7].clone()],
+                vec![routed.clone()],
+                at.clone(),
+            );
+            ex.scratch = scratch_for("moe_experts_bf16_rows", &ex);
+            let mm = |x: &TensorRef, wi: usize, o: &TensorRef| OpCall::new(Op::MatmulNvfp4, vec![x.clone(), inp[wi].clone(), inp[wi + 1].clone(), inp[wi + 2].clone()], vec![o.clone()], OpAttrs::default());
+            let (cg, cu) = (mm(&inp[0], 8, &g), mm(&inp[0], 11, &u));
+            let silu = OpCall::new(Op::SiluGlu, vec![g.clone(), u.clone()], vec![a.clone()], OpAttrs::default());
+            let cd = mm(&a, 14, &so);
+            let comb = OpCall::new(Op::MoeCombine, vec![routed.clone(), so.clone(), inp[2].clone()], vec![out.clone()], OpAttrs::default());
+            // the floor: the same three matrices at M = 4 through the v2 GEMV (one weight pass for 4 rows)
+            let (x4, a4) = (out_t(DType::Bf16, &[4, h]), out_t(DType::Bf16, &[4, is]));
+            let (g4, u4, d4) = (out_t(DType::Bf16, &[4, is]), out_t(DType::Bf16, &[4, is]), out_t(DType::Bf16, &[4, h]));
+            let f = |x: &TensorRef, wi: usize, o: &TensorRef| (("matmul_nvfp4_gemv_v2"), mm(x, wi, o));
+            let mut fused = OpCall::new(Op::MoeBlock, inp.clone(), vec![out2.clone()], at.clone());
+            fused.scratch = scratch_for("moe_block_bf16_rows", &fused);
+            let mut grouped = OpCall::new(Op::MoeBlock, inp.clone(), vec![out_t(DType::Bf16, &[t, h])], at.clone());
+            grouped.scratch = scratch_for("moe_block_bf16_grouped", &grouped);
+            let full = vec![
+                ("moe_topk_bf16_v2", topk.clone()),
+                ("moe_experts_bf16_rows", ex.clone()),
+                ("matmul_nvfp4_gemv_rows", cg.clone()),
+                ("matmul_nvfp4_gemv_rows", cu.clone()),
+                ("silu_glu_bf16", silu.clone()),
+                ("matmul_nvfp4_gemv_rows", cd.clone()),
+                ("moe_combine_bf16", comb.clone()),
+            ];
+            ls.push(Layer {
+                topk_ex: full[..2].to_vec(),
+                shared: full[2..].to_vec(),
+                full,
+                floor: vec![f(&x4, 8, &g4), f(&x4, 11, &u4), f(&a4, 14, &d4)],
+                fused,
+                grouped,
+                topk_ids: ids,
+            });
+        }
+        let tiny = {
+            let r = out_t(DType::Bf16, &[1, 256]);
+            OpCall::new(Op::MoeCombine, vec![r.clone(), r.clone(), out_t(DType::Bf16, &[1, 1])], vec![out_t(DType::Bf16, &[1, 256])], OpAttrs::default())
+        };
+        let capture = |f: &dyn Fn() -> intarsia_core::Result<()>| be.graph_capture(0, &mut || f()).unwrap();
+        let cap_all = |pick: &dyn Fn(&Layer) -> &Vec<(&'static str, OpCall)>| {
+            capture(&|| {
+                for l in &ls {
+                    for (n, c) in pick(l) {
+                        be.launch(n, c, 0)?;
+                    }
+                }
+                Ok(())
+            })
+        };
+        let g_full = cap_all(&|l| &l.full);
+        let g_topk_ex = cap_all(&|l| &l.topk_ex);
+        let g_shared = cap_all(&|l| &l.shared);
+        let g_floor = cap_all(&|l| &l.floor);
+        let g_tiny = capture(&|| {
+            for _ in 0..layers {
+                be.launch("moe_combine_bf16", &tiny, 0)?;
+            }
+            Ok(())
+        });
+        let g_fused = capture(&|| {
+            for l in &ls {
+                be.launch("moe_block_bf16_rows", &l.fused, 0)?;
+            }
+            Ok(())
+        });
+        let g_grouped = capture(&|| {
+            for l in &ls {
+                be.launch("moe_block_bf16_grouped", &l.grouped, 0)?;
+            }
+            Ok(())
+        });
+        let time = |g: &intarsia_core::backend::GraphHandle| -> f64 {
+            be.graph_replay(g, 0).unwrap();
+            be.synchronize(0).unwrap();
+            let mut v: Vec<f64> = (0..reps)
+                .map(|_| {
+                    let t0 = Instant::now();
+                    be.graph_replay(g, 0).unwrap();
+                    be.synchronize(0).unwrap();
+                    t0.elapsed().as_secs_f64() * 1e6 / layers as f64
+                })
+                .collect();
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            v[reps / 2]
+        };
+        let names = ["(a) unfused chain", "(b) topk + experts", "(c) shared + combine", "(d) 3 x gemv_v2 M=4", "(e) tiny launch", "(f) fused rows block", "(g) grouped block"];
+        let mut acc = vec![Vec::new(); names.len()];
+        for _round in 0..3 {
+            acc[0].push(time(&g_full));
+            acc[1].push(time(&g_topk_ex));
+            acc[2].push(time(&g_shared));
+            acc[3].push(time(&g_floor));
+            acc[4].push(time(&g_tiny));
+            acc[5].push(time(&g_fused));
+            acc[6].push(time(&g_grouped));
+        }
+        // distinct experts per layer (the routing of the topk graph's last replay)
+        be.graph_replay(&g_topk_ex, 0).unwrap();
+        be.synchronize(0).unwrap();
+        let mut counts = Vec::new();
+        for l in &ls {
+            let mut d = vec![0u8; l.topk_ids.nbytes()];
+            be.download(&l.topk_ids.buf, l.topk_ids.offset, &mut d, 0).unwrap();
+            let mut seen = std::collections::BTreeSet::new();
+            for c in d.chunks(4) {
+                seen.insert(i32::from_le_bytes([c[0], c[1], c[2], c[3]]));
+            }
+            counts.push(seen.len());
+        }
+        let mean = counts.iter().sum::<usize>() as f64 / counts.len() as f64;
+        eprintln!("moe_rows_timing T={t}: {layers} layers, {reps} replays per round, median us per layer, 3 rounds; distinct experts per layer mean {mean:.1} (min {} max {})", counts.iter().min().unwrap(), counts.iter().max().unwrap());
+        for (n, v) in names.iter().zip(&acc) {
+            eprintln!("  {n:24} {}", v.iter().map(|x| format!("{x:8.2}")).collect::<Vec<_>>().join(" "));
+        }
+        drop((g_full, g_topk_ex, g_shared, g_floor, g_tiny, g_fused, g_grouped));
+        // the G2 configs: topk + experts (b) and the grouped block (g) again with another rows-per-warp mapping; the grouped output must stay bit for bit
+        if !g2_cfgs.is_empty() {
+            let rd = |t: &TensorRef| {
+                let mut d = vec![0u8; t.nbytes()];
+                be.download(&t.buf, t.offset, &mut d, 0).unwrap();
+                d
+            };
+            let g_ref = capture(&|| {
+                for l in &ls {
+                    be.launch("moe_block_bf16_grouped", &l.grouped, 0)?;
+                }
+                Ok(())
+            });
+            be.graph_replay(&g_ref, 0).unwrap();
+            be.synchronize(0).unwrap();
+            let want: Vec<Vec<u8>> = ls.iter().map(|l| rd(&l.grouped.outputs[0])).collect();
+            for cfg in &g2_cfgs {
+                std::env::set_var("INTARSIA_HIP_MOE_G2", cfg);
+                let g_b = cap_all(&|l| &l.topk_ex);
+                let g_g = capture(&|| {
+                    for l in &ls {
+                        be.launch("moe_block_bf16_grouped", &l.grouped, 0)?;
+                    }
+                    Ok(())
+                });
+                let g_a = cap_all(&|l| &l.full);
+                be.graph_replay(&g_g, 0).unwrap();
+                be.synchronize(0).unwrap();
+                for (j, l) in ls.iter().enumerate() {
+                    assert!(rd(&l.grouped.outputs[0]) == want[j], "G2={cfg} T={t} layer {j}: the grouped block changed bits");
+                }
+                let (mut tb, mut tg, mut ta) = (Vec::new(), Vec::new(), Vec::new());
+                for _round in 0..3 {
+                    ta.push(time(&g_a));
+                    tb.push(time(&g_b));
+                    tg.push(time(&g_g));
+                }
+                let f = |v: &Vec<f64>| v.iter().map(|x| format!("{x:8.2}")).collect::<Vec<_>>().join(" ");
+                eprintln!("  G2={cfg:<5} (a) unfused {}  (b) topk+experts {}  (g) grouped {}", f(&ta), f(&tb), f(&tg));
+            }
+            std::env::set_var("INTARSIA_HIP_MOE_G2", "0");
+        }
     }
 }
