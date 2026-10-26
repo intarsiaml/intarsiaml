@@ -101,9 +101,11 @@ pub struct ModelArgs {
     /// CUDA, HIP and Metal, and on the CPU backend in the tests). Bitwise to `off` where the backend has row-exact verify
     /// kernels (HIP also runs the verify attention one decode call per row, and replays draft + verify as one graph unless
     /// `--no-graphs` or `INTARSIA_SPEC_GRAPH=0`); elsewhere self-consistent greedy over the verify rows. Greedy requests only
-    /// (sampled requests fall back to plain decode).
-    #[arg(long, default_value = "off")]
-    pub spec: String,
+    /// (sampled requests fall back to plain decode). Unset: `off`, except where the recipe makes MTP the default for this
+    /// backend under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`: the Qwen3.8-27B on HIP at `--tp 2`); `--spec off`
+    /// or `INTARSIA_SPEC_DEFAULT=0` opts out.
+    #[arg(long)]
+    pub spec: Option<String>,
     /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
     /// Default: 4 for `ngram`, 2 for `mtp`.
     #[arg(long)]
@@ -292,9 +294,14 @@ impl ModelArgs {
         Ok(devs)
     }
 
+    /// `--spec` as given, `off` when unset (the loader may still apply the recipe's tensor-parallel default, `spec_auto`).
+    pub fn spec_mode(&self) -> &str {
+        self.spec.as_deref().unwrap_or("off")
+    }
+
     pub fn engine_options(&self) -> Result<EngineOptions> {
-        if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0).filter(|_| self.spec != "mtp") {
-            anyhow::bail!("--mtp-draft-vocab {n} needs --spec mtp (it narrows the MTP drafter's head; --spec is {})", self.spec);
+        if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0).filter(|_| self.spec_mode() != "mtp") {
+            anyhow::bail!("--mtp-draft-vocab {n} needs --spec mtp (it narrows the MTP drafter's head; --spec is {})", self.spec_mode());
         }
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
         let chat_template = if let Some(p) = &self.chat_template_file {
@@ -319,7 +326,7 @@ impl ModelArgs {
                 tp_fusion: tp_fusion(std::env::var_os("INTARSIA_TP_FUSION").as_deref(), &self.backend, self.tp),
                 tp_vocab: tp_vocab(std::env::var_os("INTARSIA_TP_VOCAB").as_deref(), &self.backend, self.tp, &self.comm),
                 tp_arnorm: tp_arnorm(std::env::var_os("INTARSIA_TP_ARNORM").as_deref(), &self.backend, self.tp),
-                mtp: self.spec == "mtp",
+                mtp: self.spec_mode() == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
                 dflash: None, // set from --spec-draft by the loader
@@ -340,10 +347,10 @@ impl ModelArgs {
                 no_cache: self.no_admission_cache,
             },
             spec: intarsia_core::spec::SpecConfig::parse(
-                &self.spec,
-                self.spec_k.unwrap_or(if self.spec == "mtp" {
+                self.spec_mode(),
+                self.spec_k.unwrap_or(if self.spec_mode() == "mtp" {
                     intarsia_core::spec::MTP_K_DEFAULT
-                } else if self.spec == "dflash" {
+                } else if self.spec_mode() == "dflash" {
                     intarsia_core::spec::DFLASH_K_DEFAULT
                 } else {
                     intarsia_core::spec::SPEC_K_DEFAULT
@@ -353,6 +360,8 @@ impl ModelArgs {
             max_batch: self.max_batch,
             max_queue: self.max_queue,
             spec_off_at: self.spec_off_at,
+            // no --spec given (and no --spec-k): the loader may apply the recipe's tensor-parallel MTP default
+            spec_auto: self.spec.is_none() && self.spec_k.is_none(),
             busy_chunk: self.busy_chunk,
             prefix_store: self.prefix_store.clone(),
         })

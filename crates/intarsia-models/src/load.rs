@@ -67,6 +67,10 @@ pub struct EngineOptions {
     pub max_queue: Option<usize>,
     /// The server's `--spec-off-at` (batched engine only; `None`: the scheduler default).
     pub spec_off_at: Option<usize>,
+    /// No `--spec` was given (the CLI): the loader may switch `--spec mtp` on where the recipe makes it the default for this backend
+    /// under tensor parallelism (`[tuning.<backend>] mtp_default_tp_k`, in-process ranks, one sequence; `INTARSIA_SPEC_DEFAULT=0`
+    /// turns the default off). `false` (the library default): `spec` is taken as it is.
+    pub spec_auto: bool,
     /// The server's `--busy-chunk` (batched engine only; `None`: the scheduler default, 256).
     pub busy_chunk: Option<usize>,
     /// Content-addressed prefix store (`--prefix-store`, docs/results/2026-10-22-pc-prefix-store.md). `None`: the
@@ -364,6 +368,23 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
 
+/// The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07): `Some(k)`
+/// when no `--spec` was given (`spec_auto`), the group is `world > 1` in-process ranks on `backend`, one sequence (MTP does not
+/// batch), the recipe sets `[tuning.<backend>] mtp_default_tp_k = k`, and `INTARSIA_SPEC_DEFAULT` is not `0`.
+pub fn tp_mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<usize> {
+    if !opts.spec_auto
+        || opts.spec.mode != intarsia_core::spec::SpecMode::Off
+        || opts.load.mtp
+        || world < 2
+        || !local
+        || opts.max_batch.is_some_and(|n| n > 1)
+        || std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
+    {
+        return None;
+    }
+    recipe.resolve_mtp_default_tp(backend)
+}
+
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
     let backends: Vec<Arc<dyn Backend>> = match &group {
         Group::Local(b, _) => b.clone(),
@@ -379,6 +400,28 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         ));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
+    // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07): only
+    // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
+    let defaulted;
+    let local = matches!(group, Group::Local(..));
+    let opts = match backends.first().and_then(|b0| tp_mtp_default(opts, &recipe, b0.name(), backends.len(), local).map(|k| (b0, k))) {
+        Some((b0, k)) => {
+            eprintln!(
+                "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
+                 INTARSIA_SPEC_DEFAULT=0 turns it off)",
+                recipe.model.family,
+                b0.name(),
+                backends.len(),
+                b0.name()
+            );
+            let mut o = opts.clone();
+            o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Mtp, k };
+            o.load.mtp = true;
+            defaulted = o;
+            &defaulted
+        }
+        None => opts,
+    };
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 8, CUDA 16).
     let backend_name = backends.first().map_or("cpu", |b| b.name());

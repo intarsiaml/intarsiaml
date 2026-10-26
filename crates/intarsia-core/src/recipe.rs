@@ -344,6 +344,10 @@ pub struct BackendTuning {
     pub prefill_peel: Option<usize>,
     /// Macro prefill pass size in rows for this backend (see [`Tuning::prefill_macro`]).
     pub prefill_macro: Option<usize>,
+    /// With tensor parallelism (in-process ranks, tp > 1) on this backend and no `--spec` given: run `--spec mtp` with this many
+    /// drafts per pass ([`Recipe::resolve_mtp_default_tp`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend
+    /// only, set only where measured (the Qwen3.8-27B on HIP, user decision 2026-10-26 11:07).
+    pub mtp_default_tp_k: Option<usize>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -403,6 +407,13 @@ impl Recipe {
             return DraftVocab { value, source: format!("recipe {family}, base") };
         }
         DraftVocab { value: 0, source: "default".into() }
+    }
+
+    /// The recipe's tensor-parallel MTP default for `backend` (`[tuning.<backend>] mtp_default_tp_k`): `Some(k)` when the recipe has an
+    /// `[mtp]` head and sets it for this backend.
+    pub fn resolve_mtp_default_tp(&self, backend: &str) -> Option<usize> {
+        self.mtp.as_ref()?;
+        self.tuning.backends.get(backend).and_then(|b| b.mtp_default_tp_k).filter(|&k| k > 0)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
