@@ -1,0 +1,133 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1199:4
+     |
+1199 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1015:45
+     |
+1015 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.14s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 17 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22663921664, weights_bytes: 10942366580, workspace_bytes: 606899088, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21530725310, kv_cap_tokens: 2048, kv_total_bytes: 20971520, notes: [] }
+recurrent bytes per state 32931840
+batch plan: 2048 KV tokens per sequence, 335544320 KV bytes in all, 10240 bytes per token; notes ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+batch plan notes: ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+16 sequences prefilled twice in 0.9 s
+batch 2: 130 steps bitwise in 2.7 s (per step: 7.6 ms batched, 12.6 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 3.5 s (per step: 9.6 ms batched, 16.1 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 4.4 s (per step: 10.7 ms batched, 21.4 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 5.2 s (per step: 12.0 ms batched, 26.5 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 6.2 s (per step: 13.3 ms batched, 31.8 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 7.2 s (per step: 14.5 ms batched, 37.5 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 8.0 s (per step: 15.6 ms batched, 42.7 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 9.3 s (per step: 20.5 ms batched, 47.9 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 10.1 s (per step: 20.1 ms batched, 53.6 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 11.2 s (per step: 22.0 ms batched, 59.1 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 11.8 s (per step: 21.8 ms batched, 64.5 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 13.0 s (per step: 24.7 ms batched, 70.1 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 14.0 s (per step: 26.1 ms batched, 75.7 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 15.0 s (per step: 27.8 ms batched, 81.4 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 16.0 s (per step: 29.4 ms batched, 86.9 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 138.6 s
+tp=2 batched graphs: rank 0 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956, spec_captures: 0, spec_replays: 0 }, rank 1 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956, spec_captures: 0, spec_replays: 0 }
+tensor-parallel rank 1: decode graph enabled=true captures=22 replays=17580
+tensor-parallel rank 1: batched decode graph captures=15 replays=1956
+ok
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=2600
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+tensor-parallel rank 1: decode graph enabled=true captures=4 replays=412
+tensor-parallel rank 1: batched decode graph captures=3 replays=650
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=412
+tensor-parallel rank 1: batched decode graph captures=15 replays=260
+ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_35b_tp2_batch_first_steps_repro ... ignored
+test real_35b_tp2_batch_mutants_are_caught ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22587375616, weights_bytes: 10942366580, workspace_bytes: 569117584, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21458006565, kv_cap_tokens: 1024, kv_total_bytes: 10485760, notes: [] }
+recurrent bytes per state 32931840
+batch plan: 1024 KV tokens per sequence, 167772160 KV bytes in all, 10240 bytes per token; notes ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+8 sequences prefilled twice in 0.3 s
+batch 8: 4 steps bitwise in 0.6 s (per step: 17.3 ms batched, 120.1 ms for the 8 solo steps)
+12 sequences prefilled twice in 0.5 s
+
+thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:
+batch 12 step 0 row 0 (sequence 0, context 4 -> 5): logits differ at 248320 of 248320 entries, first at 0: solo 8.492943 batch 8.560308; step rows [row 0: 248320 differ, max |d| 3.295e-1, argmax solo 11 batch 11; row 1: 101001 differ, max |d| 3.070e-6, argmax solo 220 batch 220; row 2: 99823 differ, max |d| 3.815e-6, argmax solo 220 batch 220; row 3: 248320 differ, max |d| 3.226e-1, argmax solo 198 batch 198; row 4: 248318 differ, max |d| 1.776e-1, argmax solo 11 batch 11; row 5: 102862 differ, max |d| 5.007e-6, argmax solo 220 batch 220; row 6: 248320 differ, max |d| 2.102e-1, argmax solo 279 batch 279; row 7: 248320 differ, max |d| 1.679e-1, argmax solo 13 batch 13; row 8: 248320 differ, max |d| 3.930e-1, argmax solo 28495 batch 28495; row 9: 92802 differ, max |d| 2.861e-6, argmax solo 369 batch 369; row 10: 104117 differ, max |d| 3.576e-6, argmax solo 198 batch 198; row 11: 248320 differ, max |d| 2.986e-1, argmax solo 198 batch 198]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+8 sequences prefilled twice in 0.2 s
+batch 8: 4 steps bitwise in 0.6 s (per step: 15.2 ms batched, 119.5 ms for the 8 solo steps)
+mutant PlainKernels at 12 rows: caught (control after it passes)
+8 sequences prefilled twice in 0.2 s
+
+thread 'real_35b_tp2_batch_mutants_are_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:
+batch 8 step 0 row 0 (sequence 0, context 4 -> 5): logits differ at 248320 of 248320 entries, first at 0: solo 8.492943 batch 6.8212953; step rows [row 0: 248320 differ, max |d| 4.479e0, argmax solo 11 batch 220; row 1: 248320 differ, max |d| 2.985e0, argmax solo 220 batch 220; row 2: 248320 differ, max |d| 2.114e0, argmax solo 220 batch 220; row 3: 248320 differ, max |d| 4.500e0, argmax solo 198 batch 548; row 4: 248320 differ, max |d| 2.417e0, argmax solo 11 batch 11; row 5: 248320 differ, max |d| 2.334e0, argmax solo 220 batch 220; row 6: 248320 differ, max |d| 3.851e0, argmax solo 279 batch 271; row 7: 248320 differ, max |d| 4.615e0, argmax solo 13 batch 11]
+8 sequences prefilled twice in 0.2 s
+batch 8: 4 steps bitwise in 0.6 s (per step: 15.2 ms batched, 119.4 ms for the 8 solo steps)
+mutant ReverseRows at 8 rows: caught (control after it passes)
+tensor-parallel rank 1: decode graph enabled=true captures=44 replays=116
+tensor-parallel rank 1: batched decode graph captures=2 replays=14
+ok
+test real_35b_tp2_batch_stale_position_mutant_is_caught ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22587375616, weights_bytes: 10942366580, workspace_bytes: 569117584, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21458006565, kv_cap_tokens: 1024, kv_total_bytes: 10485760, notes: [] }
+recurrent bytes per state 32931840
+batch plan: 1024 KV tokens per sequence, 167772160 KV bytes in all, 10240 bytes per token; notes ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+8 sequences prefilled twice in 0.3 s
+batch 8: 4 steps bitwise in 0.6 s (per step: 17.3 ms batched, 120.5 ms for the 8 solo steps)
+8 sequences prefilled twice in 0.2 s
+
+thread 'real_35b_tp2_batch_stale_position_mutant_is_caught' panicked at crates/intarsia-models/tests/common/batch_identity.rs:149:21:
+batch 8 step 0 row 0 (sequence 0, context 4 -> 5): logits differ at 248320 of 248320 entries, first at 0: solo 8.492943 batch 8.651487; step rows [row 0: 248320 differ, max |d| 5.519e-1, argmax solo 11 batch 11; row 1: 0 differ, max |d| 0.000e0, argmax solo 220 batch 220; row 2: 0 differ, max |d| 0.000e0, argmax solo 220 batch 220; row 3: 0 differ, max |d| 0.000e0, argmax solo 198 batch 198; row 4: 0 differ, max |d| 0.000e0, argmax solo 11 batch 11; row 5: 0 differ, max |d| 0.000e0, argmax solo 220 batch 220; row 6: 0 differ, max |d| 0.000e0, argmax solo 279 batch 279; row 7: 0 differ, max |d| 0.000e0, argmax solo 13 batch 13]
+mutant StalePosition at 8 rows: caught

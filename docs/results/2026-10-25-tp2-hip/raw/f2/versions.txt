@@ -1,0 +1,2 @@
+lock: -rwxr-xr-x 1 josef josef 45988328 Oct 26 03:12 /home/josef/intarsiaml-tp2-lock/tp2-intarsia
+base: -rwxr-xr-x 1 josef josef 45792016 Oct 26 03:14 /home/josef/intarsiaml-tp2-base/tp2-intarsia

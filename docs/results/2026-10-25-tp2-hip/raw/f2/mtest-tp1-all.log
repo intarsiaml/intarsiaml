@@ -1,0 +1,119 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1199:4
+     |
+1199 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1015:45
+     |
+1015 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 17 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan: 2048 KV tokens per sequence, 671088640 KV bytes in all, 20480 bytes per token; notes ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+batch plan notes: ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+16 sequences prefilled twice in 1.0 s
+batch 2: 130 steps bitwise in 3.3 s (per step: 9.2 ms batched, 15.1 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 4.1 s (per step: 11.3 ms batched, 18.7 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 5.1 s (per step: 13.0 ms batched, 24.8 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 6.2 s (per step: 14.9 ms batched, 30.9 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 7.3 s (per step: 16.7 ms batched, 37.1 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 8.6 s (per step: 19.1 ms batched, 43.7 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 9.6 s (per step: 21.0 ms batched, 49.8 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 11.2 s (per step: 26.6 ms batched, 55.9 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 12.2 s (per step: 27.3 ms batched, 62.1 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 13.5 s (per step: 30.1 ms batched, 68.8 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 14.3 s (per step: 29.9 ms batched, 74.9 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 15.5 s (per step: 33.2 ms batched, 81.1 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 16.8 s (per step: 35.8 ms batched, 87.5 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 18.0 s (per step: 38.3 ms batched, 93.7 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 19.2 s (per step: 41.2 ms batched, 100.0 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 165.8 s
+ok
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+ok
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_35b_tp2_batch_first_steps_repro ... ignored
+test real_35b_tp2_batch_mutants_are_caught ... SKIPPED: INTARSIA_BATCH_TEST_TP=2 only
+ok
+test real_35b_tp2_batch_stale_position_mutant_is_caught ... SKIPPED: INTARSIA_BATCH_TEST_TP=2 only
+ok
+test real_35b_tp2_batch_with_prefill_repro ... ignored
+test real_35b_tp2_solo_fresh_states_repro ... ignored
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 17252220928, weights_bytes: 16381470720, workspace_bytes: 274722448, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 16389609675, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+recurrent bytes per state 0
+batch plan: 2048 KV tokens per sequence, 4831838208 KV bytes in all, 147456 bytes per token; notes []
+16 sequences prefilled twice in 1.3 s
+batch 2: 130 steps bitwise in 10.7 s (per step: 26.7 ms batched, 55.3 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 13.7 s (per step: 27.2 ms batched, 77.7 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 17.2 s (per step: 27.4 ms batched, 103.6 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 20.5 s (per step: 27.6 ms batched, 129.3 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 24.1 s (per step: 28.2 ms batched, 155.4 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 27.5 s (per step: 28.5 ms batched, 181.2 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 31.0 s (per step: 29.3 ms batched, 207.3 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 47.9 s (per step: 133.6 ms batched, 233.1 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 41.5 s (per step: 57.8 ms batched, 259.4 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 46.7 s (per step: 70.8 ms batched, 285.6 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 47.9 s (per step: 53.2 ms batched, 312.1 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 53.9 s (per step: 73.1 ms batched, 338.4 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 56.4 s (per step: 65.4 ms batched, 364.9 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 61.6 s (per step: 78.6 ms batched, 391.6 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 67.5 s (per step: 97.4 ms batched, 418.4 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 569.6 s
+ok
+
+test result: ok. 5 passed; 0 failed; 12 ignored; 0 measured; 0 filtered out; finished in 790.57s
+
