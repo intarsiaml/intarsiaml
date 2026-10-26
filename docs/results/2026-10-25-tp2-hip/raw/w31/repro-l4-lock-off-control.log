@@ -1,0 +1,346 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:958:45
+    |
+958 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:244:8
+    |
+244 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_tp2_batch_first_steps_repro ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 0: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 1: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 2: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 3: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 4: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 5: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 6: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 7: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+REPRO rep 8: ok
+tensor-parallel rank 1: decode graph enabled=true captures=16 replays=270
+tensor-parallel rank 1: batched decode graph captures=15 replays=30
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23139450880, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21982478060, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+
+thread 'real_35b_tp2_batch_first_steps_repro' panicked at crates/intarsia-models/tests/common/batch_identity.rs:140:21:
+batch 5 step 0 row 0 (sequence 12, context 27 -> 28): logits differ at 248320 of 248320 entries, first at 0: solo 0.3765884 batch 2.3390634; step rows [row 0: 248320 differ, max |d| 1.764e1, argmax solo 43198 batch 16; row 1: 248320 differ, max |d| 1.862e1, argmax solo 43198 batch 5174; row 2: 248320 differ, max |d| 1.105e1, argmax solo 5174 batch 13029; row 3: 248320 differ, max |d| 1.198e1, argmax solo 271 batch 507; row 4: 248320 differ, max |d| 5.725e1, argmax solo 18 batch 220314]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+REPRO watchdog: a rep took more than 12 s, the ranks are stuck
+LEDGER watchdog: rank 0 200 lines, rank 1 200 lines
+LEDGER the ledgers are identical
+LEDGER rank 0: #160 graph-solo rows=1 issued 5124->5253
+LEDGER rank 0: #161 graph-batch rows=2 issued 5253->5382
+LEDGER rank 0: #162 layers+capture rows=1 issued 5382->5382
+LEDGER rank 0: #163 graph-solo rows=1 issued 5382->5511
+LEDGER rank 0: #164 layers+capture rows=1 issued 5511->5511
+LEDGER rank 0: #165 graph-solo rows=1 issued 5511->5640
+LEDGER rank 0: #166 layers+capture rows=1 issued 5640->5640
+LEDGER rank 0: #167 graph-solo rows=1 issued 5640->5769
+LEDGER rank 0: #168 layers-batch+capture rows=3 issued 5769->5769
+LEDGER rank 0: #169 graph-batch rows=3 issued 5769->5898
+LEDGER rank 0: #170 graph-solo rows=1 issued 5898->6027
+LEDGER rank 0: #171 graph-solo rows=1 issued 6027->6156
+LEDGER rank 0: #172 graph-solo rows=1 issued 6156->6285
+LEDGER rank 0: #173 graph-batch rows=3 issued 6285->6414
+LEDGER rank 0: #174 layers+capture rows=1 issued 6414->6414
+LEDGER rank 0: #175 graph-solo rows=1 issued 6414->6543
+LEDGER rank 0: #176 layers+capture rows=1 issued 6543->6543
+LEDGER rank 0: #177 graph-solo rows=1 issued 6543->6672
+LEDGER rank 0: #178 layers+capture rows=1 issued 6672->6672
+LEDGER rank 0: #179 graph-solo rows=1 issued 6672->6801
+LEDGER rank 0: #180 layers+capture rows=1 issued 6801->6801
+LEDGER rank 0: #181 graph-solo rows=1 issued 6801->6930
+LEDGER rank 0: #182 layers-batch+capture rows=4 issued 6930->6930
+LEDGER rank 0: #183 graph-batch rows=4 issued 6930->7059
+LEDGER rank 0: #184 graph-solo rows=1 issued 7059->7188
+LEDGER rank 0: #185 graph-solo rows=1 issued 7188->7317
+LEDGER rank 0: #186 graph-solo rows=1 issued 7317->7446
+LEDGER rank 0: #187 graph-solo rows=1 issued 7446->7575
+LEDGER rank 0: #188 graph-batch rows=4 issued 7575->7704
+LEDGER rank 0: #189 layers+capture rows=1 issued 7704->7704
+LEDGER rank 0: #190 graph-solo rows=1 issued 7704->7833
+LEDGER rank 0: #191 layers+capture rows=1 issued 7833->7833
+LEDGER rank 0: #192 graph-solo rows=1 issued 7833->7962
+LEDGER rank 0: #193 layers+capture rows=1 issued 7962->7962
+LEDGER rank 0: #194 graph-solo rows=1 issued 7962->8091
+LEDGER rank 0: #195 layers+capture rows=1 issued 8091->8091
+LEDGER rank 0: #196 graph-solo rows=1 issued 8091->8220
+LEDGER rank 0: #197 graph-solo rows=1 issued 8220->8349
+LEDGER rank 0: #198 layers-batch+capture rows=5 issued 8349->8349
+LEDGER rank 0: #199 graph-batch rows=5 issued 8349->8478
+LEDGER rank 1: #160 graph-solo rows=1 issued 5124->5253
+LEDGER rank 1: #161 graph-batch rows=2 issued 5253->5382
+LEDGER rank 1: #162 layers+capture rows=1 issued 5382->5382
+LEDGER rank 1: #163 graph-solo rows=1 issued 5382->5511
+LEDGER rank 1: #164 layers+capture rows=1 issued 5511->5511
+LEDGER rank 1: #165 graph-solo rows=1 issued 5511->5640
+LEDGER rank 1: #166 layers+capture rows=1 issued 5640->5640
+LEDGER rank 1: #167 graph-solo rows=1 issued 5640->5769
+LEDGER rank 1: #168 layers-batch+capture rows=3 issued 5769->5769
+LEDGER rank 1: #169 graph-batch rows=3 issued 5769->5898
+LEDGER rank 1: #170 graph-solo rows=1 issued 5898->6027
+LEDGER rank 1: #171 graph-solo rows=1 issued 6027->6156
+LEDGER rank 1: #172 graph-solo rows=1 issued 6156->6285
+LEDGER rank 1: #173 graph-batch rows=3 issued 6285->6414
+LEDGER rank 1: #174 layers+capture rows=1 issued 6414->6414
+LEDGER rank 1: #175 graph-solo rows=1 issued 6414->6543
+LEDGER rank 1: #176 layers+capture rows=1 issued 6543->6543
+LEDGER rank 1: #177 graph-solo rows=1 issued 6543->6672
+LEDGER rank 1: #178 layers+capture rows=1 issued 6672->6672
+LEDGER rank 1: #179 graph-solo rows=1 issued 6672->6801
+LEDGER rank 1: #180 layers+capture rows=1 issued 6801->6801
+LEDGER rank 1: #181 graph-solo rows=1 issued 6801->6930
+LEDGER rank 1: #182 layers-batch+capture rows=4 issued 6930->6930
+LEDGER rank 1: #183 graph-batch rows=4 issued 6930->7059
+LEDGER rank 1: #184 graph-solo rows=1 issued 7059->7188
+LEDGER rank 1: #185 graph-solo rows=1 issued 7188->7317
+LEDGER rank 1: #186 graph-solo rows=1 issued 7317->7446
+LEDGER rank 1: #187 graph-solo rows=1 issued 7446->7575
+LEDGER rank 1: #188 graph-batch rows=4 issued 7575->7704
+LEDGER rank 1: #189 layers+capture rows=1 issued 7704->7704
+LEDGER rank 1: #190 graph-solo rows=1 issued 7704->7833
+LEDGER rank 1: #191 layers+capture rows=1 issued 7833->7833
+LEDGER rank 1: #192 graph-solo rows=1 issued 7833->7962
+LEDGER rank 1: #193 layers+capture rows=1 issued 7962->7962
+LEDGER rank 1: #194 graph-solo rows=1 issued 7962->8091
+LEDGER rank 1: #195 layers+capture rows=1 issued 8091->8091
+LEDGER rank 1: #196 graph-solo rows=1 issued 8091->8220
+LEDGER rank 1: #197 graph-solo rows=1 issued 8220->8349
+LEDGER rank 1: #198 layers-batch+capture rows=5 issued 8349->8349
+LEDGER rank 1: #199 graph-batch rows=5 issued 8349->8478
+THREAD 16: comm "batch_cuda_real" wchan "futex_do_wait" state "S"
+STACK tid 16:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: syscall
+   3: std::thread::Thread::park
+   4: std::sync::mpmc::list::Channel<T>::recv::{{closure}}
+   5: std::sync::mpmc::list::Channel<T>::recv
+   6: test::console::run_tests_console
+   7: test::test_main
+   8: test::test_main_static
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+  10: std::rt::lang_start::{{closure}}
+  11: std::rt::lang_start_internal
+  12: main
+  13: <unknown>
+  14: __libc_start_main
+  15: _start
+
+THREAD 17: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 17:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: <unknown>
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+  10: <unknown>
+  11: <unknown>
+  12: <unknown>
+  13: <unknown>
+  14: alloc::sync::Arc<T,A>::drop_slow
+  15: <alloc::vec::Vec<T,A> as core::ops::drop::Drop>::drop
+  16: core::ptr::drop_in_place<intarsia_core::state::SequenceState>
+  17: core::ptr::drop_in_place<intarsia_core::state::SequenceState>
+  18: <alloc::vec::Vec<T,A> as core::ops::drop::Drop>::drop
+  19: batch_cuda_real::batch_identity::run
+  20: std::thread::scoped::scope
+  21: core::ops::function::FnOnce::call_once
+  22: test::__rust_begin_short_backtrace
+  23: test::run_test::{{closure}}
+  24: std::sys::backtrace::__rust_begin_short_backtrace
+  25: core::ops::function::FnOnce::call_once{{vtable.shim}}
+  26: std::sys::pal::unix::thread::Thread::new::thread_start
+  27: <unknown>
+  28: <unknown>
+
+THREAD 18: comm "real_35b_tp2_ba" wchan "0" state "R"
+STACK tid 18:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+
+THREAD 19: comm "real_35b_tp2_ba" wchan "kfd_wait_on_events" state "S"
+STACK tid 19:
+   0: batch_cuda_real::dump_host_stacks::on_signal
+   1: <unknown>
+   2: ioctl
+   3: <unknown>
+   4: <unknown>
+   5: <unknown>
+   6: <unknown>
+   7: <unknown>
+   8: <unknown>
+   9: <unknown>
+
+THREAD 3018 (this one): comm "real_35b_tp2_ba" wchan "0" state "R"
+GPU coredump: execvp failed: No such file or directory
+Failed to write program header to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144c794ea0 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144c8a1740 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144e5e2e30 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144c3aeca0 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7407700457d0 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74077229c680 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144d380a40 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144d0ea800 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144f5e5ca0 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x741450062240, kernarg_address=0x0x741226b38200
+	completion_signal=0x0, correlation_id=0
+	rptr=3205241, wptr=3206321
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x74144f6f5ec0 SWq=0x741451473000, HWq=0x741440e00000, id=3
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release:0:rocdevice.cpp            :3721: 119238641799 us:  Callback: Queue 0x741440e00000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86 --test-threads=1 --nocapture --ignored --exact real_35b_tp2_batch_first_steps_repro` (signal: 6, SIGABRT: process abort signal)
