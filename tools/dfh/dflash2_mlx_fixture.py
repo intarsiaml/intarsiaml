@@ -59,8 +59,8 @@ for l in range(L):
     for c in ("attention_conv", "mlp_conv"):
         put(f"{p}.{c}.base_kernel", (2, K, H), "base"); put(f"{p}.{c}.kernel_projection.weight", (2 * K * G, H), 0.1)
 put("fc.weight", (H, len(TAPS) * H), 0.1); put("hidden_norm.weight", (H,), "norm"); put("norm.weight", (H,), "norm")
-put("candidate_selector.hidden_projection.weight", (8, H), 0.1)
-put("candidate_selector.predecessor_codebook", (V, 8), 0.1); put("candidate_selector.successor_codebook", (V, 8), 0.1)
+put("candidate_selector.hidden_projection.weight", (8, H), 0.6)
+put("candidate_selector.predecessor_codebook", (V, 8), 1.5); put("candidate_selector.successor_codebook", (V, 8), 1.5)
 mx.save_safetensors(str(out / "model.safetensors"), w)
 
 # the reference model, its parameters cast to f32 (the engine computes in f32 from the same bf16-rounded weights)
@@ -78,6 +78,8 @@ model.load_weights(list(ww.items()))
 emb = mx.load(str(fixture / "model.safetensors"))["model.embed_tokens.weight"].astype(mx.float32)
 model.embed_tokens = nn.Embedding(V, H); model.embed_tokens.weight = emb
 model.embed_scale = 1.0
+lm = mx.load(str(fixture / "model.safetensors"))["lm_head.weight"].astype(mx.float32)
+model.lm_head = nn.Linear(H, V, bias=False); model.lm_head.weight = lm
 gold = {}
 for C in (3, 13):
     feat = mx.array(np.random.default_rng(C).standard_normal((1, C, len(TAPS) * H)).astype(np.float32))
@@ -86,6 +88,12 @@ for C in (3, 13):
     hid = model.hidden_states(ids, feat, cache, 0)
     mx.eval(hid)
     gold[f"feat_{C}"] = feat[0]; gold[f"hidden_{C}"] = hid[0]
+    # the selector's drafts (greedy, rows 1..; `propose` with logits_start=1), on a fresh cache
+    path, _, _ = model.propose(ids, feat, model.make_cache(), 0.0, logits_start=1)
+    mx.eval(path)
+    gold[f"drafts_{C}"] = path[0].astype(mx.int32)
+    # the argmax drafts (no selector) for comparison
+    gold[f"argmax_{C}"] = mx.argmax(model.compute_logits(hid[0, 1:]), axis=-1).astype(mx.int32)
 gold["ids"] = mx.array([17] + [MASK] * (BLOCK - 1), dtype=mx.int32)
 mx.save_safetensors(str(out / "golden.safetensors"), gold)
 print("wrote", out, {k: v.shape for k, v in gold.items()})

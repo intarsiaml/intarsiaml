@@ -502,6 +502,7 @@ fn dflash2_draft_matches_the_z_lab_mlx_reference() {
     for c in [3usize, 13] {
         let dl = intarsia_models::load::open_dflash(Some(&dir), false).unwrap();
         assert!(dl.config.v2 && dl.config.sliding_window == WINDOW && dl.config.conv_group == CONV_GS);
+        assert_eq!((dl.config.selector_rank, dl.config.selector_top_k), (8, 4));
         let (recipe, dims) = target_spec();
         let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
         let opts = LoadOptions {
@@ -520,7 +521,12 @@ fn dflash2_draft_matches_the_z_lab_mlx_reference() {
         let feat = &gold[&format!("feat_{c}")].1;
         m.dflash_ingest_host(&mut st, feat, c).unwrap();
         let ids: Vec<u32> = gold["ids"].1.iter().map(|&x| x as u32).collect();
-        m.dflash_draft(&mut st, ids[0], BLOCK - 1).unwrap();
+        let drafts = m.dflash_draft(&mut st, ids[0], BLOCK - 1).unwrap();
+        let sel: Vec<u32> = gold[&format!("drafts_{c}")].1.iter().map(|&x| x as u32).collect();
+        let am: Vec<u32> = gold[&format!("argmax_{c}")].1.iter().map(|&x| x as u32).collect();
+        eprintln!("mlx parity: context {c}: drafts {drafts:?}, reference selector {sel:?}, reference argmax {am:?}");
+        assert_ne!(sel, am, "the fixture's selector must change the drafts for this check to mean anything");
+        assert_eq!(drafts, sel, "context {c}: the candidate selector's drafts differ from z-lab's");
         let got = m.dflash_last_hidden(BLOCK).unwrap();
         let want = &gold[&format!("hidden_{c}")].1;
         for r in 0..BLOCK {

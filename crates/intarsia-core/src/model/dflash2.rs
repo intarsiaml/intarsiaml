@@ -67,6 +67,64 @@ struct Bufs2 {
     iv: Buffer,
 }
 
+/// `candidate_selector.*` (DFlash2's drafts): of each block row's `top_k` highest logits, take the one whose successor code best
+/// fits the previous draft's predecessor code under the row's projected hidden state, walking from the anchor (greedy:
+/// `argmax(logit + sum_r pred[prev][r] * proj(h)[r] * succ[cand][r])`). Codebooks on the host (bf16 bits, `[V, rank]`).
+pub(super) struct Selector {
+    pub(super) proj: QTensor,
+    pub(super) rank: usize,
+    top_k: usize,
+    pred: Vec<u16>,
+    succ: Vec<u16>,
+}
+
+fn bf(b: u16) -> f32 {
+    f32::from_bits((b as u32) << 16)
+}
+
+impl Selector {
+    /// Drafts for `rows = logits.len() / v` block rows: `logits` `[rows, v]`, `hp` `[rows, rank]`, `anchor` the token before row 0.
+    pub(super) fn select(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> Vec<u32> {
+        let rows = logits.len() / v;
+        let mut prev = anchor as usize;
+        let mut out = Vec::with_capacity(rows);
+        let mut top: Vec<(f32, usize)> = Vec::with_capacity(self.top_k + 1);
+        for p in 0..rows {
+            let row = &logits[p * v..(p + 1) * v];
+            top.clear();
+            let mut floor = f32::NEG_INFINITY;
+            for (i, &x) in row.iter().enumerate() {
+                if top.len() < self.top_k || x > floor {
+                    let at = top.partition_point(|e| e.0 >= x);
+                    top.insert(at, (x, i));
+                    if top.len() > self.top_k {
+                        top.pop();
+                    }
+                    if top.len() == self.top_k {
+                        floor = top[self.top_k - 1].0;
+                    }
+                }
+            }
+            let (r, h) = (self.rank, &hp[p * self.rank..(p + 1) * self.rank]);
+            let pc = &self.pred[prev * r..(prev + 1) * r];
+            let mut best = (f32::NEG_INFINITY, top[0].1);
+            for &(u, c) in &top {
+                let sc = &self.succ[c * r..(c + 1) * r];
+                let mut e = 0f32;
+                for j in 0..r {
+                    e += bf(pc[j]) * h[j] * bf(sc[j]);
+                }
+                if u + e > best.0 {
+                    best = (u + e, c);
+                }
+            }
+            prev = best.1;
+            out.push(prev as u32);
+        }
+        out
+    }
+}
+
 pub(super) struct Draft2 {
     pub(super) layers: Vec<Layer2>,
     pub(super) n_heads: usize,
@@ -80,6 +138,9 @@ pub(super) struct Draft2 {
     conv_k: usize,
     conv_g: usize,
     bufs: Bufs2,
+    pub(super) selector: Option<Selector>,
+    /// `[block, rank]` the selector's projected hidden rows
+    pub(super) sel_out: Buffer,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -190,7 +251,28 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
         ik: [alloc(rows * kvdim)?, alloc(rows * kvdim)?],
         iv: alloc(rows * kvdim)?,
     };
+    let selector = if c.selector_rank > 0 && c.selector_top_k > 0 {
+        let codebook = |name: &str| -> Result<Vec<u16>> {
+            let info = src.info(name).ok_or_else(|| Error::model(format!("draft tensor '{name}' missing")))?;
+            if info.dtype != DType::Bf16 || info.shape != [c.vocab, c.selector_rank] {
+                return Err(Error::model(format!("draft '{name}' is {} {:?}, expected bf16 [{}, {}]", info.dtype, info.shape, c.vocab, c.selector_rank)));
+            }
+            Ok(src.bytes(name)?.chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect())
+        };
+        Some(Selector {
+            proj: super::dflash::lin(src, b, add_bytes, "candidate_selector.hidden_projection", c.selector_rank, h)?,
+            rank: c.selector_rank,
+            top_k: c.selector_top_k.min(c.vocab),
+            pred: codebook("candidate_selector.predecessor_codebook")?,
+            succ: codebook("candidate_selector.successor_codebook")?,
+        })
+    } else {
+        None
+    };
+    let sel_out = alloc(t * c.selector_rank.max(1))?;
     Ok(Draft2 {
+        selector,
+        sel_out,
         layers,
         n_heads: nh,
         n_kv_heads: nkv,

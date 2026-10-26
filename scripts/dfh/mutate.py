@@ -21,6 +21,10 @@ MUTANTS = {
     "draft-norm-offset": ("crates/intarsia-core/src/model/dflash2.rs",
         "OpAttrs { eps: d2.eps, w_offset: 0.0, ..Default::default() }, profile)\n    }",
         "OpAttrs { eps: d2.eps, w_offset: 1.0, ..Default::default() }, profile)\n    }"),
+    # the selector scores candidates with the predecessor code of the candidate instead of the previous draft
+    "selector-pred": ("crates/intarsia-core/src/model/dflash2.rs",
+        "            let pc = &self.pred[prev * r..(prev + 1) * r];",
+        "            let pc = &self.pred[top[0].1 * r..(top[0].1 + 1) * r];"),
 }
 
 tree, name = sys.argv[1], sys.argv[2]

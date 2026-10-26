@@ -339,6 +339,8 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         },
         conv_kernel: dn("conv_kernel_size"),
         conv_group: dn("conv_group_size"),
+        selector_rank: dn("selector_rank"),
+        selector_top_k: dn("selector_top_k"),
     };
     if config.v2 {
         // what this port implements (docs/results/2026-10-26-dfh-hip-dflash.md): non-causal sliding-window layers, default rope

@@ -56,6 +56,9 @@ pub struct DflashConfig {
     /// `dflash_config.conv_kernel_size` / `conv_group_size`.
     pub conv_kernel: usize,
     pub conv_group: usize,
+    /// `dflash_config.selector_rank` / `selector_top_k` (0: no candidate selector, drafts are the rows' argmax).
+    pub selector_rank: usize,
+    pub selector_top_k: usize,
 }
 
 /// `LoadOptions::dflash`: the draft checkpoint's weights and config.
@@ -489,13 +492,32 @@ impl Model {
             let eps = OpAttrs { eps: head.eps, w_offset: head.norm_offset, ..Default::default() };
             self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
             self.verify_head(&n.rows(1, t - 1), t - 1, profile)?;
+            let sel = d2.selector.as_ref();
+            if let Some(sl) = sel {
+                self.proj(&n.rows(1, t - 1), &sl.proj, &self.view(&d2.sel_out, act, &[t - 1, sl.rank]), profile)?;
+            }
             let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
             if self.recorder.lock().unwrap().is_some() {
                 return Ok(Vec::new());
             }
-            let mut b = vec![0u8; (t - 1) * 4];
-            self.backend.download(tok, 0, &mut b, self.stream)?;
-            let mut drafts: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+            let mut drafts: Vec<u32> = match sel {
+                None => {
+                    let mut b = vec![0u8; (t - 1) * 4];
+                    self.backend.download(tok, 0, &mut b, self.stream)?;
+                    b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect()
+                }
+                Some(sl) => {
+                    let v = self.dims.vocab;
+                    let mut lb = vec![0u8; (t - 1) * v * 4];
+                    self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
+                    let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+                    let mut hb = vec![0u8; (t - 1) * sl.rank * act.size_bytes()];
+                    self.backend.download(&d2.sel_out, 0, &mut hb, self.stream)?;
+                    let mut hp = vec![0f32; (t - 1) * sl.rank];
+                    crate::dtype::decode_to_f32(act, &hb, &mut hp);
+                    sl.select(&logits, v, &hp, next)
+                }
+            };
             drafts.truncate(k);
             if let Some(f) = head.script.lock().unwrap().as_ref() {
                 let mut seq = st.tokens.clone();
