@@ -1,0 +1,2 @@
+fleetq: #5792 waiting (#1 in line): needs gpu quiet on spark1, but #5791 "cmtp: CUDA mutant ids rollback-skip" (claude-f31ccf91) loads it
+fleetq:   #5791 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5791 set, or it will wait for #5791 to be released.

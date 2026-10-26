@@ -10,6 +10,8 @@ R=$HOME/intarsiaml-cmtp; name=${1:?mutant name}; shift
 case ${MODE:?build|ids} in
 build)
   mkdir -p $R/mut && rsync -a --delete --exclude target $R/src/ $R/mut/ || exit 1
+  # rsync keeps the sources' old mtimes: without a touch cargo would keep the previous mutant's objects in this build
+  find $R/mut/crates $R/mut/recipes -type f -exec touch {} +
   (cd $R/mut && CARGO_TARGET_DIR=$R/target-mut CARGO_BUILD_JOBS=12 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -2)
   cp $R/target-mut/release/intarsia $R/mut-clean.bin; echo "clean  sha256 $(sha256sum $R/mut-clean.bin | cut -c1-16)"
   (cd $R/mut && python3 scripts/cmtp/mutate.py . $name) || exit 1

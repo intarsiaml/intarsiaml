@@ -1,0 +1,2 @@
+fleetq: #5791 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5791 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s rollback-skip short-0 short-1 4k-0 4k-1 16k-0'

@@ -1,0 +1,27 @@
+== rollback-skip
+fleetq: #5785 running on spark1: ssh spark1 'MODE=build bash -s rollback-skip'
+    Finished `release` profile [optimized] target(s) in 24.30s
+clean  sha256 e78662136764d986
+mutant rollback-skip applied to crates/intarsia-core/src/state.rs
+    Finished `release` profile [optimized] target(s) in 14.88s
+mutant rollback-skip sha256 751d4a484ec87f12
+binaries differ
+fleetq: #5785 done (exit 0)
+== accept-off-by-one
+fleetq: #5787 running on spark1: ssh spark1 'MODE=build bash -s accept-off-by-one'
+    Finished `release` profile [optimized] target(s) in 23.99s
+clean  sha256 e78662136764d986
+mutant accept-off-by-one applied to crates/intarsia-core/src/spec.rs
+    Finished `release` profile [optimized] target(s) in 14.68s
+mutant accept-off-by-one sha256 9502e2b14552b074
+binaries differ
+fleetq: #5787 done (exit 0)
+== cuda-perrow-off
+fleetq: #5788 running on spark1: ssh spark1 'MODE=build bash -s cuda-perrow-off'
+    Finished `release` profile [optimized] target(s) in 23.50s
+clean  sha256 e78662136764d986
+mutant cuda-perrow-off applied to crates/intarsia-backend-cuda/src/device.rs
+    Finished `release` profile [optimized] target(s) in 9.39s
+mutant cuda-perrow-off sha256 7f0c1715478c69f3
+binaries differ
+fleetq: #5788 done (exit 0)
