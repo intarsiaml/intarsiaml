@@ -1,0 +1,32 @@
+diff --git a/crates/intarsia-core/src/model.rs b/crates/intarsia-core/src/model.rs
+index 508024a1d..e83f8f2d6 100644
+--- a/crates/intarsia-core/src/model.rs
++++ b/crates/intarsia-core/src/model.rs
+@@ -1990,6 +1990,9 @@ impl Model {
+     /// pass is a single chunk, the head wants every row, the state has no recurrence (the packed kernels are validated on
+     /// hybrid models only) or cannot be packed (MTP head, tensor parallelism, Gemma layers).
+     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
++        if std::env::var("INTARSIA_L7M_NEG").as_deref() == Ok("nomacro") {
++            return (0, 1); // l7m negative control: the macro schedule silently dropped while macro_rows() still reports it
++        }
+         if self.macro_rows == 0
+             || chunks.len() < 2
+             || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
+@@ -2027,6 +2030,17 @@ impl Model {
+         MACRO_PASSES_TOTAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+         *self.macro_ctx.lock().unwrap() = Some(segs.iter().map(|s| (s.lo, s.len)).collect());
+         let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
++        if r.is_ok() && std::env::var("INTARSIA_L7M_NEG").as_deref() == Ok("ulp") {
++            // l7m negative control: flip the lowest bit of the first byte of the first attention layer's K cache (one ulp of K[0])
++            self.backend.synchronize(self.stream)?;
++            if let Some(a) = st.slots.iter().find_map(|x| if let crate::state::StateSlot::AttnKv(a) = x { Some(a) } else { None }) {
++                let mut byte = [0u8; 1];
++                self.backend.download(&a.k, 0, &mut byte, self.stream)?;
++                byte[0] ^= 1;
++                self.backend.upload(&a.k, 0, &byte, self.stream)?;
++                self.backend.synchronize(self.stream)?;
++            }
++        }
+         *self.macro_ctx.lock().unwrap() = None;
+         r.map(Some)
+     }

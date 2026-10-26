@@ -9,8 +9,11 @@ set -uo pipefail
 CARD=${CARD:-0}; tag=l7m; arms=()
 for a in "$@"; do case "$a" in @*) tag=${a#@} ;; *) arms+=("$a") ;; esac; done
 LOG=${LOG:-$HOME/.cache/l7m-ab}; mkdir -p "$LOG"
-trap 'ssh tatooine "bash ~/intarsiaml-l7m-hip/scripts/l7m/win.sh restore"' EXIT
-ssh tatooine "bash ~/intarsiaml-l7m-hip/scripts/l7m/win.sh stop"
+# NOWIN=1: the caller (window.sh) stopped radiance and restores it
+if [ -z "${NOWIN:-}" ]; then
+  trap 'ssh tatooine "bash ~/intarsiaml-l7m-hip/scripts/l7m/win.sh restore"' EXIT
+  ssh tatooine "bash ~/intarsiaml-l7m-hip/scripts/l7m/win.sh stop"
+fi
 n=0
 for a in "${arms[@]}"; do
   n=$((n + 1)); IFS='|' read -r name tree envv args <<<"$a"

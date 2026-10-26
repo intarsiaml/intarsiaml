@@ -7,6 +7,9 @@
 #   IDS  : 256 greedy ids of `generate` after ~1.5k / 4k / 8.3k / 16.6k-token prompts: main binary vs this branch (default) vs this branch with INTARSIA_PREFILL_MACRO=0
 #   CTX  : max context of the 35B server (serve loaded line) and plan show, macro off / 8192 / 16384, single-stream and --max-batch 16, --max-seq 17408
 #   PLAN : `plan show` text + json, main vs branch default vs branch macro off (+ --max-batch 16), the memory plan
+#   OLD  : the UNCHANGED real_35b_macro_prefill_is_bitwise_the_plain_schedule of origin/main, run on the base tree (expected: fails at len 8292 macro 4096, 0 macro passes)
+#   NEG  : the new test on the negative-control tree (dev + scripts/l7m/neg.patch): no env (must pass), INTARSIA_L7M_NEG=nomacro (must fail "did not run"), =ulp (must fail "logits differ")
+# NOWIN=1: the caller (window.sh) stopped radiance and restores it; this script neither stops nor restores it.
 set -uo pipefail
 SECTIONS=${*:-BIT GC IDS PLAN CTX}; CARD=${CARD:-1}
 S=$HOME/intarsiaml-l7m-hip/scripts/l7m
@@ -17,15 +20,27 @@ VD=intarsia-cargo-l7m-dev; VB=intarsia-cargo-l7m-base
 M35=/models/Qwen3.6-35B-A3B-NVFP4
 export INTARSIA_REGISTRY_VOL=intarsia-cargo-l7m-registry
 want() { [[ " $SECTIONS " == *" $1 "* ]]; }
-trap '$S/win.sh restore' EXIT
-$S/win.sh stop
+RN=$HOME/intarsiaml-l7m-neg; VN=intarsia-cargo-l7m-neg
+if [ -z "${NOWIN:-}" ]; then trap '$S/win.sh restore' EXIT; $S/win.sh stop; fi
 dev() { r=$1; v=$2; shift 2; INTARSIA_REPO=$r INTARSIA_TARGET_VOL=$v HIP_VISIBLE_DEVICES=$CARD $D "$@" < /dev/null; }
 F='^test |^test result|FAILED|panicked|^error|pairs|bitwise|MACRO'
 T35="env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35"
+if want OLD; then
+  echo "[gates] OLD (unchanged test, origin/main tree) $(date +%T)"
+  dev $RB $VB $T35 cargo test --release --no-fail-fast -p intarsia-models --test batch_cuda_real -- --ignored --nocapture --test-threads=1 \
+     real_35b_macro_prefill_is_bitwise_the_plain_schedule 2>&1 | grep -aE "$F" | tee "$O/old-main.log"
+fi
 if want BIT; then
   echo "[gates] BIT $(date +%T)"
   dev $RD $VD $T35 cargo test --release --no-fail-fast -p intarsia-models --test batch_cuda_real -- --ignored --nocapture --test-threads=1 \
      real_35b_macro_prefill_is_bitwise_the_plain_schedule real_35b_batched_macro_prefill_equals_the_plain_local_engine 2>&1 | grep -aE "$F" | tee "$O/bit.log"
+fi
+if want NEG; then
+  for neg in none nomacro ulp; do
+    echo "[gates] NEG $neg $(date +%T)"
+    dev $RN $VN $T35 INTARSIA_L7M_NEG=$neg cargo test --release --no-fail-fast -p intarsia-models --test batch_cuda_real -- --ignored --nocapture --test-threads=1 \
+       real_35b_macro_prefill_is_bitwise_the_plain_schedule 2>&1 | grep -aE "$F" | tee "$O/neg-$neg.log"
+  done
 fi
 if want GC; then
   echo "[gates] GC $(date +%T)"
