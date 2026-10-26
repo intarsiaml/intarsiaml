@@ -293,3 +293,64 @@ fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
         }
     }
 }
+
+/// The recipe's tensor-parallel MTP default (`[tuning.<backend>] mtp_default_tp_k`, `intarsia_models::load::tp_mtp_default`): on only
+/// without --spec, at tp > 1 on in-process ranks of that backend, one sequence, and not with INTARSIA_SPEC_DEFAULT=0.
+#[test]
+fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
+    use intarsia_models::load::tp_mtp_default;
+    let with = intarsia_models::parse_recipe(&format!("{}\n[tuning.hip]\nmtp_default_tp_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
+    let without = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
+    let auto = intarsia_models::EngineOptions { spec_auto: true, ..Default::default() };
+    assert_eq!(tp_mtp_default(&auto, &with, "hip", 2, true), Some(2), "on: no --spec, hip, tp 2, in-process");
+    assert_eq!(tp_mtp_default(&auto, &without, "hip", 2, true), None, "a recipe without the key");
+    assert_eq!(tp_mtp_default(&auto, &with, "hip", 1, true), None, "tp 1 unchanged");
+    assert_eq!(tp_mtp_default(&auto, &with, "cuda", 2, true), None, "another backend unchanged");
+    assert_eq!(tp_mtp_default(&auto, &with, "hip", 2, false), None, "a rank in another process");
+    let explicit = intarsia_models::EngineOptions { spec_auto: false, ..Default::default() };
+    assert_eq!(tp_mtp_default(&explicit, &with, "hip", 2, true), None, "--spec off given (or a library caller)");
+    let batch = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(4), ..Default::default() };
+    assert_eq!(tp_mtp_default(&batch, &with, "hip", 2, true), None, "--max-batch 4");
+    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
+    assert_eq!(tp_mtp_default(&dfl, &with, "hip", 2, true), None, "another --spec");
+    // the default through the engine loader in the same test (the env var below is process-wide): runs spec, ids equal off
+    loader_default_matches_off();
+    std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
+    let off = tp_mtp_default(&auto, &with, "hip", 2, true);
+    std::env::remove_var("INTARSIA_SPEC_DEFAULT");
+    assert_eq!(off, None, "INTARSIA_SPEC_DEFAULT=0");
+}
+
+/// The default through the engine loader on the cpu group (a recipe file with `[tuning.cpu] mtp_default_tp_k = 2`): it loads the head,
+/// verify passes run, and its greedy ids equal --spec off's. A checkpoint without the head's weights falls back to plain decode.
+fn loader_default_matches_off() {
+    let dir = model_dir();
+    let recipe = dir.join("qwen3_5_mtp_default.toml");
+    std::fs::write(&recipe, format!("{}\n[tuning.cpu]\nmtp_default_tp_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
+    let load = |auto: bool, dir: &Path| {
+        let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc() as Arc<dyn intarsia_core::backend::Backend>).collect();
+        let comms = intarsia_core::HostCommGroup::new(backends.clone());
+        let o = intarsia_models::EngineOptions {
+            load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
+            recipe: Some(recipe.clone()),
+            spec_auto: auto,
+            ..Default::default()
+        };
+        intarsia_models::load_engine_tp(dir, backends, comms, &o).unwrap()
+    };
+    let (off, on) = (load(false, &dir), load(true, &dir));
+    for p in PROMPTS {
+        assert_eq!(run(&*off.engine, req(p, 40)), run(&*on.engine, req(p, 40)), "default-on vs off, prompt {p:?}");
+    }
+    assert!(on.engine.telemetry().spec_steps > 0, "the default actually ran --spec mtp");
+    // the same recipe on a checkpoint without the head: no error, plain decode
+    let bare = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model_bare");
+    std::fs::create_dir_all(&bare).unwrap();
+    for f in ["config.json", "tokenizer.json"] {
+        std::fs::copy(dir.join(f), bare.join(f)).unwrap();
+    }
+    std::fs::copy(fixture_dir().join("model.safetensors"), bare.join("model.safetensors")).unwrap();
+    let b = load(true, &bare);
+    assert_eq!(run(&*b.engine, req(PROMPTS[0], 20)), run(&*off.engine, req(PROMPTS[0], 20)));
+    assert_eq!(b.engine.telemetry().spec_steps, 0, "no head: the default is not applied");
+}

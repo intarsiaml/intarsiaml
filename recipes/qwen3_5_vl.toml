@@ -1,7 +1,7 @@
 # Qwen3.5-family dense hybrid decoder in the vision-language wrapper (Qwen3_5ForConditionalGeneration, e.g. Qwen3.8-27B):
 # the same blocks as recipes/qwen3_5.toml (GatedDeltaNet linear attention interleaved with gated full attention per
 # config.json text_config.layer_types, zero-centred RMSNorm, partial rotary embeddings, dense SwiGLU FFN), but the text
-# weights live under model.language_model.*; the vision tower (model.visual.*) and the MTP head (mtp.*) are ignored.
+# weights live under model.language_model.*; the vision tower (model.visual.*) is ignored; the MTP head (mtp.*) loads for --spec mtp ([mtp] below).
 # Quantisation (bf16, or AMD Quark MXFP4 W4A4 for amd/Qwen3.8-27B-Quark-AWQ-MXFP4) is detected per tensor and checked
 # against config.json quantization_config, not named here.
 # Scaffolded by `intarsia recipe new` (0 TODOs) during the M1 onboarding drill (docs/results/2026-10-21-m1-qwen38-drill.md).
@@ -81,3 +81,8 @@ prefix = "mtp"
 # User decision 2026-10-25 11:05. CUDA and Metal are not set here: not measured for the 27B.
 [tuning.hip]
 mtp_draft_vocab = 65536
+# `--spec mtp --spec-k 2` without --spec at in-process tensor parallelism (--tp N, N > 1, one sequence): exact (27B ids 18/18 at tp=2
+# vs --spec off, soak 40/40), 1.43-1.93x decode in every category, interleaved x3 (docs/results/2026-10-26-dfh-hip-dflash.md section 14).
+# User decision 2026-10-26 11:07: "turn MTP on by default at tp2 if it passes". tp=1 is unchanged. --spec off or INTARSIA_SPEC_DEFAULT=0
+# opts out.
+mtp_default_tp_k = 2
