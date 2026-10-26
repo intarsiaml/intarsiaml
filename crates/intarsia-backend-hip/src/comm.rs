@@ -291,6 +291,39 @@ impl Comm for P2pComm {
         // A rank already spinning in the kernel gives up on its own after a bounded number of polls.
         self.group.aborted.store(true, Ordering::Release);
     }
+    fn debug_state(&self) -> Option<String> {
+        // Read both ranks' launch counters and flags on a fresh non-blocking stream: it does not wait for a collective kernel that is
+        // spinning on the rank's own stream. Equal counters across the ranks = the ranks launched the same number of collective kernels;
+        // a flag is the last sequence number the peer raised in that block.
+        let mut out = String::new();
+        for (r, b) in self.group.bufs.iter().enumerate() {
+            let mut s: *mut c_void = std::ptr::null_mut();
+            let (mut c, mut f) = ([0u32; NBLOCKS as usize], [0u32; NBLOCKS as usize]);
+            // SAFETY: valid out-pointers and host arrays of NBLOCKS u32; the device pointers are the group's own allocations.
+            let rc = unsafe {
+                ffi::ik_rt_set_device(b.ordinal);
+                let mut rc = ffi::ik_rt_stream_create(&mut s);
+                if rc == 0 {
+                    rc = ffi::ik_rt_memcpy_d2h(c.as_mut_ptr() as *mut c_void, b.ctrs as *const c_void, NBLOCKS as usize * 4, s);
+                }
+                if rc == 0 {
+                    rc = ffi::ik_rt_memcpy_d2h(f.as_mut_ptr() as *mut c_void, b.flags as *const c_void, NBLOCKS as usize * 4, s);
+                }
+                rc
+            };
+            if rc != 0 {
+                out.push_str(&format!("rank {r}: read failed ({rc}); "));
+                continue;
+            }
+            let summ = |v: &[u32]| {
+                let (lo, hi) = (v.iter().min().unwrap(), v.iter().max().unwrap());
+                if lo == hi { format!("{lo}") } else { format!("{lo}..{hi} {v:?}") }
+            };
+            out.push_str(&format!("rank {r}: launch counters {} flags {}; ", summ(&c), summ(&f)));
+        }
+        Some(out)
+    }
+
     fn stats(&self) -> CommStats {
         self.counters.snapshot()
     }

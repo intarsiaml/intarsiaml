@@ -663,6 +663,11 @@ impl Model {
         self.coll_trace.dump()
     }
 
+    /// The communicator's device-side handshake state (`Comm::debug_state`), for the collective ledger's dump.
+    pub fn comm_debug_state(&self) -> Option<String> {
+        self.tp.comm.as_ref().and_then(|c| c.debug_state())
+    }
+
     /// Test hook: make tensor-parallel rank `rank` (1..world) apply `mutant` to its share of every batched step from now on
     /// (`None` clears it). Each is a protocol bug the batched-vs-solo tests must catch (`tests/tp_batch.rs`); production code
     /// never sets one.

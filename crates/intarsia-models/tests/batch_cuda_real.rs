@@ -178,6 +178,7 @@ fn dump_ledgers(m: &Model, why: &str) {
     let a = m.coll_trace_dump();
     let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
     eprintln!("LEDGER {why}: rank 0 {} lines, rank 1 {} lines", a.len(), b.len());
+    eprintln!("LEDGER device state: {}", m.comm_debug_state().unwrap_or_else(|| "none".into()));
     match (0..a.len().max(b.len())).find(|&i| a.get(i) != b.get(i)) {
         Some(i) => eprintln!("LEDGER first difference at line {i}:\n  rank 0: {:?}\n  rank 1: {:?}", a.get(i), b.get(i)),
         None => eprintln!("LEDGER the ledgers are identical"),

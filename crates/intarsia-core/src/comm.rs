@@ -106,6 +106,12 @@ pub trait Comm: Send + Sync {
     /// Record the measured duration of one collective (profiled steps).
     fn note_timed(&self, d: Duration);
 
+    /// Debugging (`INTARSIA_TP_COLL_TRACE`): the device-side handshake state (launch counters and flags of both ranks), read without
+    /// waiting for the streams, or `None` where the group has none.
+    fn debug_state(&self) -> Option<String> {
+        None
+    }
+
     /// Can the collectives be recorded into a captured graph (CUDA graph) on the rank's stream and replayed? True only
     /// when every call is a pure stream operation with no host synchronisation and no allocation once
     /// [`Comm::reserve`] ran. A group that says no keeps its model's decode eager at world > 1.
