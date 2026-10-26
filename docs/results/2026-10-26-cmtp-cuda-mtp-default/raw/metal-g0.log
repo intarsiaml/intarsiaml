@@ -1,0 +1,27 @@
+fleetq: #5776 running on endor: scripts/cmtp/metal-noop.sh
+== build base 1f979fad9 13:51:53
+    Finished `release` profile [optimized] target(s) in 18.94s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev 08887586e 13:53:10
+    Finished `release` profile [optimized] target(s) in 22.21s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+== kernels test metal (dev) 13:54:09
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.3s
+== done 13:54:34
+fleetq: #5776 done (exit 0)

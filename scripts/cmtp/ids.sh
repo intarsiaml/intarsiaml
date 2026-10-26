@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane cmtp ids gate ON spark1 (35B NVFP4, CUDA, tp=1): for each prompt of scripts/dfh/ids-prompts (short-0..5, 4k-0..5, 16k-0..5) greedy
+# Lane cmtp ids gate ON spark1 (35B NVFP4, CUDA, tp=1): for each prompt of scripts/cmtp/ids-prompts (PROMPTS overrides; scripts/dfh/ids-prompts is the first set) (short-0..5, 4k-0..5, 16k-0..5) greedy
 # ids (256, --ignore-eos) per arm; every arm but `off` must equal `off`. Arms (ARMS, default "off mtp"): off = --spec off, mtp = --spec mtp
 # --spec-k $K (default 2), auto = no --spec (the recipe default: its stderr must carry the "default of recipe qwen3_5_moe on cuda" line
 # and a spec: stats line). BIN: the CLI (default target-dev), O: output dir, SRC: tree that holds the prompts, OFF_FROM: a dir whose
@@ -11,7 +11,7 @@ R=$HOME/intarsiaml-cmtp
 H=/home/nvidia/.cache/huggingface/hub
 M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 BIN=${BIN:-$R/target-dev/release/intarsia}; O=${O:-$R/out}; SRC=${SRC:-$R/src}; mkdir -p "$O"
-P=$SRC/scripts/dfh/ids-prompts; fails=0
+P=${PROMPTS:-$SRC/scripts/cmtp/ids-prompts}; fails=0
 for n in "$@"; do
   case $n in short*) MS=4096 ;; 4k*) MS=8192 ;; *) MS=20480 ;; esac
   for arm in ${ARMS:-off mtp}; do

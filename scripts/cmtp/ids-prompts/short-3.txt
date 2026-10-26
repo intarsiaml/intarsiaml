@@ -1,0 +1,1 @@
+Write a Rust function that reads a text file and returns a HashMap of word counts (lowercased, split on whitespace), with proper error handling using Result.
