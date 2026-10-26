@@ -1852,7 +1852,22 @@ impl Model {
         }
     }
 
+    /// `INTARSIA_TP_PEER_SYNC=1` (w27 experiment, off by default): a peer rank's step ends with its stream idle. A peer only enqueues its share
+    /// (the next collective or download of rank 0 orders it), so its last replay can still be running when its next step starts.
+    pub(super) fn peer_sync(&self) -> Result<()> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *ON.get_or_init(|| std::env::var("INTARSIA_TP_PEER_SYNC").is_ok_and(|v| v == "1")) {
+            self.backend.synchronize(self.stream)?;
+        }
+        Ok(())
+    }
+
     fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.run_peer_inner(ps, ids, mode, graph)?;
+        self.peer_sync()
+    }
+
+    fn run_peer_inner(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
         self.tp_skew();
         if graph {
             if ids.len() != 1 {

@@ -599,6 +599,11 @@ impl Model {
     /// row count and every row's position are rank 0's (`job`): a peer whose states disagree fails before its first
     /// collective. Commits one token to every sub-state on success.
     fn run_peer_batch(&self, sts: &mut [&mut SequenceState], job: &PeerBatch) -> Result<()> {
+        self.run_peer_batch_inner(sts, job)?;
+        self.peer_sync()
+    }
+
+    fn run_peer_batch_inner(&self, sts: &mut [&mut SequenceState], job: &PeerBatch) -> Result<()> {
         self.tp_skew();
         let b = job.ids.len();
         if sts.len() != b || job.pos.len() != b {
