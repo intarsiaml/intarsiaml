@@ -164,6 +164,26 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             wr(&o[0], &out)
         }
+        Op::DynConv => {
+            let (t, h) = (i[0].shape[0], i[0].shape[1]);
+            let taps = i[2].shape[0];
+            let g = i[1].shape[1] / taps;
+            let gs = h / g;
+            let x = rd(&i[0])?;
+            let k = rd(&i[1])?;
+            let b = rd(&i[2])?;
+            let mut out = vec![0f64; t * h];
+            for r in 0..t {
+                for c in 0..h {
+                    let mut acc = 0.0;
+                    for o in 0..taps.min(r + 1) {
+                        acc += (b[o * h + c] + k[r * taps * g + o * g + c / gs]) * x[(r - o) * h + c];
+                    }
+                    out[r * h + c] = acc;
+                }
+            }
+            wr(&o[0], &out)
+        }
         Op::AddBias => {
             let (rows, cols) = (i[0].shape[0], i[0].shape[1]);
             let x = rd(&i[0])?;

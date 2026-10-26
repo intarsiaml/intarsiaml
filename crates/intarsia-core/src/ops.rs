@@ -18,6 +18,7 @@
 //! | `AttnPrefill` | q `[T,N,D]`, kc, vc `[Nkv,cap,D]` | `[T,N,D]` | pos0, scale, n_heads, n_kv_heads, head_dim, kv_cap |
 //! | `AttnDecode` | as prefill with T == 1 | `[1,N,D]` | same |
 //! | `SiluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` | |
+//! | `DynConv` | x `[T,H]`, k `[T,K*G]` (row t: K taps x G groups, tap-major), base `[K,H]` | `[T,H]` (= sum over taps o < K with t >= o of `(base[o,c] + k[t, o*G + c / (H/G)]) * x[t-o, c]`, f32 inside, one rounding; rows before row 0 are zero) | | DFlash2 draft's grouped dynamic causal conv along the block rows (lane dfh) |
 //! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
@@ -119,10 +120,11 @@ pub enum Op {
     AddBias,
     // appended (2026-10-22, g4 Gemma-4): `SiluGlu` with the tanh-GELU activation (`gelu_pytorch_tanh`), for the same reason
     GeluGlu,
+    DynConv,
 }
 
 impl Op {
-    pub const ALL: [Op; 42] = [
+    pub const ALL: [Op; 43] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -165,6 +167,7 @@ impl Op {
         Op::RopeScaled,
         Op::AddBias,
         Op::GeluGlu,
+        Op::DynConv,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -212,6 +215,7 @@ impl Op {
             Op::RopeScaled => "rope_scaled",
             Op::AddBias => "add_bias",
             Op::GeluGlu => "gelu_glu",
+            Op::DynConv => "dyn_conv",
         }
     }
 
@@ -262,6 +266,7 @@ impl Op {
             Op::RopeScaled => (2, 1),
             Op::AddBias => (2, 1),
             Op::GeluGlu => (2, 1),
+            Op::DynConv => (3, 1),
         }
     }
 }
@@ -587,6 +592,27 @@ impl OpCall {
                     return bad(format!("rope_mscale {} must be positive and finite", a.rope_mscale));
                 }
             }
+            Op::DynConv => {
+                rank(&i[0], 2, "x")?;
+                rank(&i[1], 2, "k")?;
+                rank(&i[2], 2, "base")?;
+                let (t, h) = (i[0].shape[0], i[0].shape[1]);
+                let taps = i[2].shape[0];
+                let ok = i[2].shape[1] == h
+                    && taps > 0
+                    && i[1].shape[0] == t
+                    && i[1].shape[1] % taps == 0
+                    && i[1].shape[1] / taps > 0
+                    && h % (i[1].shape[1] / taps) == 0
+                    && o[0].shape == i[0].shape
+                    && i[1].dtype == i[0].dtype
+                    && i[2].dtype == i[0].dtype
+                    && o[0].dtype == i[0].dtype;
+                if !ok {
+                    return bad(format!("x {:?} k {:?} base {:?} out {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
+                }
+                float(&i[0], "x")?;
+            }
             Op::AddBias => {
                 rank(&i[0], 2, "x")?;
                 rank(&i[1], 1, "bias")?;
@@ -783,6 +809,11 @@ impl ShapeInfo {
             Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu | Op::AddBias => {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
+            }
+            Op::DynConv => {
+                s.m = i[0].shape[0];
+                s.k = i[0].shape[1];
+                s.n = i[1].shape[1];
             }
             Op::QkNorm | Op::Rope | Op::RopeScaled | Op::KvAppend => {
                 s.m = i[0].shape[0];
@@ -1055,13 +1086,14 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::AddBias, "appended after RopeScaled");
-        assert_eq!(Op::ALL.last(), Some(&Op::GeluGlu), "appended after AddBias");
+        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::RopeScaled, "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::AddBias, "appended after RopeScaled");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::GeluGlu, "appended after AddBias");
+        assert_eq!(Op::ALL.last(), Some(&Op::DynConv), "appended after GeluGlu");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

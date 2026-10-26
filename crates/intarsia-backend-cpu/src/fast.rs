@@ -35,6 +35,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::Add => add(call),
         Op::Rope | Op::RopeScaled => rope(call),
         Op::AddBias => add_bias(call),
+        Op::DynConv => dyn_conv(call),
         Op::Matmul | Op::Logits => matmul(call),
         Op::KvAppend => kv_append(call),
         Op::AttnPrefill | Op::AttnDecode => attention(call),
@@ -146,6 +147,28 @@ fn add(call: &OpCall) -> Result<()> {
     // `scale != 1.0` (Gemma layer_scalar): one rounding of f32(a + b) * scale
     let o: Vec<f32> = if scale != 1.0 { a.iter().zip(&b).map(|(x, y)| (x + y) * scale).collect() } else { a.iter().zip(&b).map(|(x, y)| x + y).collect() };
     write_f32(&call.outputs[0], &o)
+}
+
+/// `Op::DynConv` (the DFlash2 draft's grouped dynamic causal conv), f32 inside.
+fn dyn_conv(call: &OpCall) -> Result<()> {
+    let (t, h) = (call.inputs[0].shape[0], call.inputs[0].shape[1]);
+    let taps = call.inputs[2].shape[0];
+    let g = call.inputs[1].shape[1] / taps;
+    let gs = h / g;
+    let x = read_f32(&call.inputs[0])?;
+    let k = read_f32(&call.inputs[1])?;
+    let b = read_f32(&call.inputs[2])?;
+    let mut out = vec![0f32; t * h];
+    for r in 0..t {
+        for c in 0..h {
+            let mut acc = 0f32;
+            for o in 0..taps.min(r + 1) {
+                acc += (b[o * h + c] + k[r * taps * g + o * g + c / gs]) * x[(r - o) * h + c];
+            }
+            out[r * h + c] = acc;
+        }
+    }
+    write_f32(&call.outputs[0], &out)
 }
 
 fn add_bias(call: &OpCall) -> Result<()> {

@@ -889,7 +889,9 @@ mod tests {
         // them fails at load with `NoKernel`, it never runs the unscaled rope.
         // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`), and the MXFP4 k/v-style
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
-        const NOT_ON_CUDA: [Op; 11] = [
+        // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
+        const NOT_ON_CUDA: [Op; 12] = [
+            Op::DynConv,
             Op::RopeScaled,
             Op::AddBias,
             Op::Sample,
