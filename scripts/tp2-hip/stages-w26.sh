@@ -51,16 +51,18 @@ E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSI
 # w25 findings that shape this: (1) the mismatch comes FIRST (batched logits wrong in every row, solo bits identical across runs) and the hang follows it
 # (a trap ~16 s later), so the hang may be the tail of a rank-offset in collectives; (2) the device counters are now read right after the batched step,
 # before the comparison, and the host stacks of every thread at the watchdog; (3) k = lazy code-object loading off, w = one eager warm-up step first.
-variant f1-control 200 $FS $E
+E20="${E/REPS=8/REPS=20}"
+# the three key variants at 20 reps (coordinator: 8 is thin): control, solo graphs off, every rank's stream idle between the last solo step and the batched step
+variant f1-control 330 $FS $E20
+variant sg1-solo-graphs-off 330 $FS $E20 INTARSIA_SOLO_GRAPHS=0
+variant syn1-sync-between 330 $FS $E20 INTARSIA_REPRO_SYNC_BETWEEN=1
 variant g1-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
 variant h1-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
-variant i1-leak 200 $FS $E INTARSIA_HIP_COMM_LEAK=1
 variant k1-no-deferred-loading 200 $FS $E HIP_ENABLE_DEFERRED_LOADING=0
 variant w1-warmup 200 $FS $E INTARSIA_REPRO_WARMUP=1
-variant f2-control 200 $FS $E
-variant g2-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
-variant h2-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
+variant i1-leak 200 $FS $E INTARSIA_HIP_COMM_LEAK=1
 for p in 1 2 3 4 5 6 7 8; do
   variant jp$p-one-process 200 $FS ${E/REPS=8/REPS=1}
 done
+variant f2-control 330 $FS $E20
 log "done, time left $(left)s"

@@ -1,0 +1,429 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 2 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_cuda_real.rs:911:45
+    |
+911 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:227:8
+    |
+227 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.07s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-6e7a7d7c0e406429)
+
+running 1 test
+test real_35b_tp2_solo_fresh_states_repro ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23196598272, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 22036768081, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 0 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 0 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 0 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 0 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 0: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 1 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 1 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 1 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 1 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 1: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 2 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 2 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 2 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 2 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 2: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 3 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 3 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 3 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 3 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 3: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 4 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 4 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 4 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 4 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 4: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 5 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 5 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 5 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 5 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 5: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 6 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+CTRS rep 6 state 0 after the solo prefill + decode step: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 6 state 1 before: rank 0: launch counters 257 flags 257; rank 1: launch counters 257 flags 257; 
+CTRS rep 6 state 1 after the solo prefill + decode step: rank 0: launch counters 1798 flags 1798; rank 1: launch counters 1798 flags 1798; 
+REPRO rep 6: 2 fresh states, first decode step bit-identical
+tensor-parallel rank 1: decode graph enabled=true captures=5 replays=5
+tensor-parallel rank 1: batched decode graph captures=1 replays=1
+tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 23152558080, weights_bytes: 10285633984, workspace_bytes: 460318112, kv_bytes_per_token: 32768, kv_fraction: 0.95, kv_budget_bytes: 21994929900, kv_cap_tokens: 2048, kv_total_bytes: 67108864, notes: [] }
+recurrent bytes per state 78446592
+CTRS rep 7 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; 
+GPU coredump: execvp failed: No such file or directory
+Failed to write program header to pipe: Broken pipe
+GPU coredump: handler exited with error (status: 1)
+GPU core dump failed
+:0:rocdevice.cpp            :3721: 103621528783 us:  Callback: Queue 0x752494e00000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249815caa0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498acf570 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498acb2e0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498a24e80 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498173950 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498b37050 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752499728d50 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75222071cc50 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498a4cbd0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b31c890 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249a345790 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249a353960 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752250268750 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7524990b38f0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7524987a9460 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752499192260 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498c606c0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75225029f850 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249846d8a0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7524995582d0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b21c710 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498838f10 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7522502b8900 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752499726400 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b459c60 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498b102a0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b53ad30 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7522208ae9f0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7524987ca510 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b456c20 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7524992e17c0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249a592720 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75225027d900 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x752498c3fac0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249a6194e0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b376dd0 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x75249b5de890 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_vector_typeIiLj4EEPvPS1_S5_PjS6_S6_iii
+VGPU=0x7522207f4500 SWq=0x75249ce6a000, HWq=0x752494e00000, id=1
+	Dispatch Header =0xd02 (type=2, barrier=1, acquire=2, release=1), setup=0
+	grid=[4096, 1, 1], workgroup=[256, 1, 1]
+	private_seg_size=0, group_seg_size=4
+	kernel_obj=0x75249c032240, kernarg_address=0x0x752494c90e00
+	completion_signal=0x0, correlation_id=0
+	rptr=148629, wptr=149360
+ Kernel Name: _Z10ar2_kernelILi2EEvPK15HIP_veerror: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+
+Caused by:
+  process didn't exit successfully: `/target/release/deps/batch_cuda_real-6e7a7d7c0e406429 --test-threads=1 --nocapture --ignored --exact real_35b_tp2_solo_fresh_states_repro` (signal: 6, SIGABRT: process abort signal)

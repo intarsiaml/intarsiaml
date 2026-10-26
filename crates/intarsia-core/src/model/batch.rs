@@ -665,6 +665,17 @@ impl Model {
         self.coll_trace.dump()
     }
 
+    /// Debugging (w26): wait until every rank's stream is idle (rank 0 and each peer), so nothing a rank enqueued earlier (a peer's
+    /// replay is enqueue-only) is still in flight.
+    pub fn sync_all_ranks(&self) -> Result<()> {
+        for r in 0..self.tp.world.max(1) {
+            if let Some(m) = self.rank_model(r) {
+                m.backend.synchronize(m.stream)?;
+            }
+        }
+        Ok(())
+    }
+
     /// The communicator's device-side handshake state (`Comm::debug_state`), for the collective ledger's dump.
     pub fn comm_debug_state(&self) -> Option<String> {
         self.tp.comm.as_ref().and_then(|c| c.debug_state())

@@ -95,6 +95,10 @@ fn step_on(model: &Model, bm: &Model, seqs: &mut [Seq], idxs: &[usize], step: us
             }
         }
     };
+    // INTARSIA_REPRO_SYNC_BETWEEN=1 (w26): every rank's stream idle between the last solo step and the batched step
+    if std::env::var("INTARSIA_REPRO_SYNC_BETWEEN").is_ok_and(|v| v == "1") {
+        model.sync_all_ranks().unwrap();
+    }
     probe("after the solo rows, before the batched step");
     // one batched step
     let mut slots: Vec<Option<&mut SequenceState>> = seqs.iter_mut().map(|s| Some(&mut s.batch)).collect();
