@@ -178,7 +178,6 @@ fn dump_ledgers(m: &Model, why: &str) {
     let a = m.coll_trace_dump();
     let b = m.rank_model(1).map(|p| p.coll_trace_dump()).unwrap_or_default();
     eprintln!("LEDGER {why}: rank 0 {} lines, rank 1 {} lines", a.len(), b.len());
-    eprintln!("LEDGER device state: {}", m.comm_debug_state().unwrap_or_else(|| "none".into()));
     match (0..a.len().max(b.len())).find(|&i| a.get(i) != b.get(i)) {
         Some(i) => eprintln!("LEDGER first difference at line {i}:\n  rank 0: {:?}\n  rank 1: {:?}", a.get(i), b.get(i)),
         None => eprintln!("LEDGER the ledgers are identical"),
@@ -188,6 +187,8 @@ fn dump_ledgers(m: &Model, why: &str) {
             eprintln!("LEDGER rank {r}: {line}");
         }
     }
+    // Last: the read may block when the device is already in an exception state (w20: it took the process down before any ledger line printed).
+    eprintln!("LEDGER device state: {}", m.comm_debug_state().unwrap_or_else(|| "none".into()));
 }
 
 /// Run `f`; if it takes longer than `INTARSIA_REPRO_WATCHDOG` seconds (25) the ranks are probably stuck in a collective: dump the ledgers and
@@ -208,9 +209,16 @@ fn with_watchdog<R>(m: &Model, f: impl FnOnce() -> R) -> R {
                 }
             }
         });
-        let r = f();
+        // A mismatch panics inside `f`: dump the ledgers at once (the idle device is still in the state the mismatch left it), then go on unwinding.
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
         done.store(true, std::sync::atomic::Ordering::Relaxed);
-        r
+        match r {
+            Ok(r) => r,
+            Err(e) => {
+                dump_ledgers(m, "mismatch");
+                std::panic::resume_unwind(e)
+            }
+        }
     })
 }
 
