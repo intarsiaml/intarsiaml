@@ -324,3 +324,35 @@ passes take the same `AttnPrefill` multi-row call. The MTP gates on the hybrid 3
 near-tie argmax. Not measured here (no dense MTP checkpoint on spark1 besides the 27B, which belongs to another lane). Cheap
 mitigation if wanted: switch `Backend::verify_attn_per_row` on for CUDA when `--spec mtp` is on (cost measured in section 10.1:
 verify16 1.32x vs 1.19x a decode step).
+
+## 11. Phase 3: DCOCO corrector (`--spec dflash --spec-draft DIR --dcoco`)
+
+Code: `crates/intarsia-core/src/model/dcoco.rs` (top-16 per slot on the device via `topk_rows`, `W_cand E[c]`, `W_ctx h` and the
+two halves of `W_pair` as bf16 projections, host-side lazy prefix-first walk of 14 x 16 transitions). Written from the paper and the
+checkpoint's tensor list; the unlicensed upstream repository was not read.
+
+### 11.1 Correctness gates (CUDA 8B)
+
+| gate | result |
+|---|---|
+| fixture: corrected drafts vs the MLX corrector (`tests/dflash_fixture.rs`, `raw/g6-fixture-dcoco-cuda.log`) | PASS 45/45 slots equal (real prefill through the taps, block rel-L2 1.4-3.0e-2); the corrected drafts differ from the plain argmax drafts, so the corrector is active |
+| G6 greedy ids == spec-off, 16 prompts, gate off (`raw/g6-dcoco.log`) | **PASS 16/16** |
+| G6 zero-MLP (`INTARSIA_DCOCO_ZERO=1`) reproduces plain DFlash | **PASS**: proposed/accepted counts identical to the plain DFlash run on all 4 prompts tried (math2 430/161, code1 516/154, chat2 1398/93, math5 544/154), ids identical to spec-off |
+
+### 11.2 Does it pay? (same 16 prompts, 192 tokens, gate off, spec-off 15.4 tok/s)
+
+| | pooled tau (accepted + 1) | pooled decode time vs plain DFlash |
+|---|---|---|
+| DFlash | 3.288 | 1.000 |
+| DFlash + DCOCO | 3.347 (**+1.8%**) | 1.078 (**7% slower**: a draft pass costs 25 ms against 16 ms, the corrector runs partly on the host) |
+
+Per prompt, DCOCO raises tau on 8 prompts, keeps it on 5 and lowers it on 3 (math3 7.96 -> 7.64, code5 6.33 -> 6.16, chat1 2.09 ->
+2.04); it is slower than plain DFlash on 15 of 16 prompts (only math6 gains, +9%). Full table: the analysis in `raw/g6-dcoco.log`
+against `raw/g4-tau-16.log`. The independent MLX run of section 10.3 gave the same +1.9%, so an implementation bug in either is unlikely.
+
+**G7 (DCOCO tau >= 1.10x DFlash and tok/s >= 1.05x): FAIL.** Coordinator rule (>= 5% pooled served gain and no category
+regressing): not met, so `--dcoco` stays an experimental opt-in flag. The paper reports tau 3.913 -> 4.985 (+27%) on ten
+suites with its own drafter training mix; our 16 single-turn prompts do not reproduce that. The assumption that might be wrong
+is that the checkpoint's corrector gain transfers from the paper's suites to these prompts; two independent implementations
+agree on the small gain. Phase 4 (HIP and Metal ports of DCOCO) is not warranted. DFlash itself on HIP/Metal is a follow-up
+(out of scope now).

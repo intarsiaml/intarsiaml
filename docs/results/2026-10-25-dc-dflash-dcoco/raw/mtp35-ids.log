@@ -1,0 +1,6 @@
+fleetq: #5608 waiting (#3 in line): in line behind #5602 "ct: build compressed-tensors branch (cuda, tree ct)" (claude-f31ccf91) on spark1
+fleetq:   #5602 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5602 set, or it will wait for #5602 to be released.
+fleetq: #5608 waiting (#2 in line): in line behind #5606 "dc: localeval off/dflash/dcoco interleaved x3, 8B CUDA" (claude-f31ccf91) on spark1
+fleetq:   #5606 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5606 set, or it will wait for #5606 to be released.
+fleetq: #5608 waiting (#1 in line): needs gpu quiet on spark1, but #5606 "dc: localeval off/dflash/dcoco interleaved x3, 8B CUDA" (claude-f31ccf91) loads it
+fleetq:   #5606 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5606 set, or it will wait for #5606 to be released.

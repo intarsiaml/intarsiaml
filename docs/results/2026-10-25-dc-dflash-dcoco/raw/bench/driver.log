@@ -1,2 +1,6 @@
 fleetq: #5606 waiting (#2 in line): in line behind #5602 "ct: build compressed-tensors branch (cuda, tree ct)" (claude-f31ccf91) on spark1
 fleetq:   #5602 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5602 set, or it will wait for #5602 to be released.
+fleetq: #5606 waiting (#1 in line): needs gpu quiet on spark1, but #5593 "dc: G6 dcoco ids==off (16 prompts) + zero-MLP == plain dflash (4 prompts)" (claude-f31ccf91) loads it
+fleetq:   #5593 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5593 set, or it will wait for #5593 to be released.
+fleetq: #5606 running on spark1: scripts/dc/bench.sh 3
+== off-r1 00:03:10
