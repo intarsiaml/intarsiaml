@@ -1,0 +1,10 @@
+clean (tp_mtp) e745e9ea1 test binary sha256 aaf836b0997e058b
+mutant tp-peer-no-rollback applied to crates/intarsia-core/src/state.rs
+mutant tp-peer-no-rollback: sha256 a827042ce24205c3 (clean aaf836b0997e058b): CAUGHT by:     mtp_tp2_greedy_ids_equal_spec_off 
+mutant mtp-peer-stale-chain applied to crates/intarsia-core/src/model/mtp.rs
+mutant mtp-peer-stale-chain: sha256 46a6143c301cf033 (clean aaf836b0997e058b): CAUGHT by:     mtp_tp2_drafts_equal_tp1_drafts 
+mutant mtp-draft-head-slice applied to crates/intarsia-core/src/model.rs
+mutant mtp-draft-head-slice: sha256 7e234f401ae3902a (clean aaf836b0997e058b): CAUGHT by:     mtp_tp2_drafts_equal_tp1_drafts 
+mutant mtp-peer-no-verify-queue applied to crates/intarsia-core/src/model.rs
+mutant mtp-peer-no-verify-queue: sha256 2c330c2cad42feca (clean aaf836b0997e058b): CAUGHT by:     mtp_tp2_greedy_ids_equal_spec_off 
+exit 0

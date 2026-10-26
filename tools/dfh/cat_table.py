@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Lane dfh: per-category table of a cat-window (scripts/dfh/cat-window.sh) from localeval results and the server's
-speculation counters. usage: python3 -I tools/dfh/cat_table.py <raw window dir> [results dir, default /opt/code/deepeval/results]
+speculation counters. usage: python3 -I tools/dfh/cat_table.py <raw window dir> [more raw dirs ...] (results under /opt/code/deepeval/results;
+several dirs pool their rounds, e.g. two speed windows and the radiance reference run)
 Checks every case for exactly GEN completion tokens and every arm for the same set of rows; prints decode tok/s pooled per
 category (tokens / sum of decode times), x vs off, and tokens per verify pass from the counters."""
 import glob, json, os, re, statistics as st, sys
-raw = sys.argv[1]; res = sys.argv[2] if len(sys.argv) > 2 else "/opt/code/deepeval/results"
-W = os.path.basename(raw.rstrip("/")); GEN = 512
-steps = open(os.path.join(raw, "steps.log")).read()
-runs = re.findall(r"round (\d+) arm (\S+) (\S+): localeval exit (\d+) (results/\S+)", steps)
+raws = sys.argv[1:]; res = "/opt/code/deepeval/results"
+W = "+".join(os.path.basename(r.rstrip("/")) for r in raws); GEN = 512
+runs = []
+for raw in raws:
+    steps = open(os.path.join(raw, "steps.log")).read()
+    runs += re.findall(r"round (\d+) arm (\S+) (\S+): localeval exit (\d+) (results/\S+)", steps)
 data, problems = {}, []
 for r, arm, cat, rc, path in runs:
     cases = json.load(open(os.path.join(os.path.dirname(res), path)))["datasets"][0]["cases"]
@@ -17,13 +20,19 @@ for r, arm, cat, rc, path in runs:
             problems.append(f"{arm} {cat} r{r} {c['name']}: {n} tokens")
     data.setdefault((arm, cat), []).append(cases)
 spec = {}
-mt = os.path.join(raw, "spec-metrics.txt")
-if os.path.exists(mt):
+for raw in raws:
+    mt = os.path.join(raw, "spec-metrics.txt")
+    if not os.path.exists(mt):
+        continue
     lines = open(mt).read().splitlines()
     for a, b in zip(lines[0::2], lines[1::2]):
         arm, cat, r = a.split()[:3]
-        g = lambda s, k: float(re.search(k + r"_total (\S+)", s).group(1)) if re.search(k + r"_total (\S+)", s) else 0.0
+        g = lambda s, k: float(re.search(re.escape(k) + r"_total(?:\{[^}]*\})? (\S+)", s).group(1)) if re.search(re.escape(k) + r"_total(?:\{[^}]*\})? (\S+)", s) else 0.0
         d = {k: g(b, k) - g(a, k) for k in ("intarsia_spec_steps", "intarsia_spec_proposed_tokens", "intarsia_spec_accepted_tokens")}
+        # radiance (the reference engine): every decode step is a speculative pass, decode tokens / decode steps is tokens per pass
+        if arm == "radiance":
+            steps_, toks = g(b, "radiance:engine_steps_decode") - g(a, "radiance:engine_steps_decode"), g(b, "radiance:decode_tokens") - g(a, "radiance:decode_tokens")
+            d = {"intarsia_spec_steps": steps_, "intarsia_spec_accepted_tokens": toks - steps_, "intarsia_spec_proposed_tokens": 0.0}
         spec.setdefault((arm, cat), []).append(d)
 arms = sorted({a for a, _ in data}, key=lambda a: (a != "off", a))
 cats = sorted({c for _, c in data})

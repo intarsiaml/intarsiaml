@@ -7,3 +7,22 @@
 09:59:16 round 1 arm off ho-prose: localeval exit 0 results/20261026-095812-dfh-off-dfh-w5-off-ho-prose-r1/result.json
 09:59:49 round 1 arm off ho-recall: localeval exit 0 results/20261026-095916-dfh-off-dfh-w5-off-ho-recall-r1/result.json
 10:01:55 round 1 arm off rcp-code: localeval exit 0 results/20261026-095949-dfh-off-dfh-w5-off-rcp-code-r1/result.json
+10:04:02 round 1 arm off rcp-prose: localeval exit 0 results/20261026-100156-dfh-off-dfh-w5-off-rcp-prose-r1/result.json
+10:06:08 round 1 arm off rcp-recall: localeval exit 0 results/20261026-100402-dfh-off-dfh-w5-off-rcp-recall-r1/result.json
+10:06:09 round 1 arm mtp2: starting server
+10:08:43 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261026-100802-dfh-mtp2-dfh-w5-mtp2-ho-chat-r1/result.json
+10:09:01 round 1 arm mtp2 ho-code: localeval exit 0 results/20261026-100843-dfh-mtp2-dfh-w5-mtp2-ho-code-r1/result.json
+10:09:47 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261026-100901-dfh-mtp2-dfh-w5-mtp2-ho-prose-r1/result.json
+10:10:08 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261026-100948-dfh-mtp2-dfh-w5-mtp2-ho-recall-r1/result.json
+10:11:18 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261026-101009-dfh-mtp2-dfh-w5-mtp2-rcp-code-r1/result.json
+10:12:49 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261026-101119-dfh-mtp2-dfh-w5-mtp2-rcp-prose-r1/result.json
+10:14:07 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261026-101250-dfh-mtp2-dfh-w5-mtp2-rcp-recall-r1/result.json
+10:14:08 round 1 arm dfl7: starting server
+10:15:53 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261026-101457-dfh-dfl7-dfh-w5-dfl7-ho-chat-r1/result.json
+10:16:09 round 1 arm dfl7 ho-code: localeval exit 0 results/20261026-101553-dfh-dfl7-dfh-w5-dfl7-ho-code-r1/result.json
+10:17:19 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261026-101610-dfh-dfl7-dfh-w5-dfl7-ho-prose-r1/result.json
+10:17:44 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261026-101719-dfh-dfl7-dfh-w5-dfl7-ho-recall-r1/result.json
+10:18:52 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261026-101745-dfh-dfl7-dfh-w5-dfl7-rcp-code-r1/result.json
+10:21:07 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261026-101852-dfh-dfl7-dfh-w5-dfl7-rcp-prose-r1/result.json
+10:22:34 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261026-102107-dfh-dfl7-dfh-w5-dfl7-rcp-recall-r1/result.json
+10:23:00 guard: [guard] radiance answers 2026-10-26 10:23:00 (after 30 s)
