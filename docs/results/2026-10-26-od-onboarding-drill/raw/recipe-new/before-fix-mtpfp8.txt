@@ -1,0 +1,11 @@
+not covered: no existing recipe handles this model (closest: 45/45 tensor templates resolve, quant: mxfp4)
+  note: config.json: architectures ["Qwen3_5ForConditionalGeneration"], family "qwen3_5" (config.json model_type); text model settings merged from text_config
+  note: tensors: safetensors headers of 1 file(s) (1703 tensors)
+  note: layer prefix model.language_model.layers.{i} (64 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)
+  note: quantisation: mxfp4 (not implemented in full, see TODOs)
+  note: closest existing recipe: builtin:qwen3_5_vl (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn", "gdn"}; 45/45 tensor templates resolve; architecture matches but the recipe cannot be used as is; quantisation not implemented)
+  note: ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (2), mtp.layers.* (18), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)
+wrote scratch/rn-out-mtpfp8.toml (1 TODO(recipe-new) item(s))
+1 item(s) need manual work:
+  1. quant: config.json quantization_config (quark): unsupported: Quark quantization_config.layer_quant_config (per-layer overrides) is not implemented
+Error: 1 item(s) need manual work, see the TODO(recipe-new) markers in scratch/rn-out-mtpfp8.toml

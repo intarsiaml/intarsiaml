@@ -1,0 +1,14 @@
+not covered: no existing recipe handles this model (closest: 49/61 tensor templates resolve, quant: bf16)
+  note: config.json: architectures ["MiniCPMV4_7ForConditionalGeneration"], family "minicpmv4_7" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (1152 tensors) + 16/16 shard headers
+  note: layer prefix model.language_model.layers.{i} (40 layers, matches num_hidden_layers); other numbered stacks ignored: model.vision_tower.encoder.layers (27)
+  note: quantisation: bf16
+  note: closest existing recipe: builtin:qwen3_5_moe (blocks {"attn", "gdn", "moe"} vs inferred {"attn", "gdn", "moe"}; 49/61 tensor templates resolve; architecture differs; 12 tensor template(s) missing in the checkpoint, e.g. ["model.language_model.layers.0.mlp.experts.0.gate_proj", "model.language_model.layers.0.mlp.experts.0.up_proj", "model.language_model.layers.0.mlp.experts.0.down_proj", "model.language_model.layers.0.mlp.experts.255.gate_proj"])
+  note: ignored non-text tensor groups: model.vision_tower.* (453)
+wrote scratch/recipe-bf16.toml (4 TODO(recipe-new) item(s))
+4 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5_moe uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. layer.moe: experts of mlp.experts are stored fused (e.g. experts.gate_up_proj as one tensor); the moe block loads per-expert tensors experts.{e}.{gate,up,down}_proj, so the checkpoint needs converting or the block extending
+  3. layer.moe: experts of mlp.experts are stored fused (e.g. experts.gate_up_proj as one tensor); the moe block loads per-expert tensors experts.{e}.{gate,up,down}_proj, so the checkpoint needs converting or the block extending
+  4. top: 6 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["model.merger.mlp.0.linear_1.bias", "model.merger.mlp.0.linear_1.weight", "model.merger.mlp.0.linear_2.bias", "model.merger.mlp.0.linear_2.weight", "model.merger.mlp.0.pre_norm.bias"] ...; decide whether the model needs them
+Error: 4 item(s) need manual work, see the TODO(recipe-new) markers in scratch/recipe-bf16.toml

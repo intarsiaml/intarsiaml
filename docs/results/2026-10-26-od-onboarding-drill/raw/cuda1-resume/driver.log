@@ -1,0 +1,18 @@
+[onboard] resuming /home/nvidia/intarsiaml-od/runs/cuda1/report
+[onboard      0s] Qwen3.8-27B-MXFP4-mtpfp8 on cuda, report directory /home/nvidia/intarsiaml-od/runs/cuda1/report
+[onboard] recipe: already done (PASS), not again
+[onboard] smoke: already done (PASS), not again
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard      0s] log: /home/nvidia/intarsiaml-od/runs/cuda1/report/logs/quick.err
+[onboard] quick: FAIL in 3m12s (qualify exit 1 (a gate failed): acc-short FAIL: decode: 21-way KL (scored rows, n=118) 2.968e-1 (need <= 2.0e-1); acc-oracle FAIL: prefill: 21-way KL (scored rows, n=1441) 1.945e-1 (need <= 2.0e-2))
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /home/nvidia/intarsiaml-od/runs/cuda1/report/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-26T02:17:31Z)
+[onboard] == in-depth: in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)
+[onboard    193s] log: /home/nvidia/intarsiaml-od/runs/cuda1/report/logs/in-depth.err
+[onboard] in-depth: ERROR in 9m16s (qualify exit 2: acc-short FAIL: decode: 21-way KL (scored rows, n=118) 2.968e-1 (need <= 2.0e-1); acc-oracle FAIL: prefill: 21-way KL (scored rows, n=1441) 1.945e-1 (need <= 2.0e-2); envelope ERROR: measuring the noise envelope with 'chunk' exit 1: Error: the reference baseline or this build carries no code stamp, so they cannot be shown to be one build (build through scripts/phase1b-acceptance.sh, or --allow-unstamped for development) [qualify    556s] == tp [tensor-parallel variant])
+[onboard] == publish-in-depth: publish in-depth.md / in-depth.json / in-depth.prom
+IN-DEPTH DONE: /home/nvidia/intarsiaml-od/runs/cuda1/report/in-depth.md
+[onboard] publish-in-depth: PASS in 0s (in-depth.md written 2026-10-26T02:26:47Z)
+ONBOARD ERROR (exit 2, stopped early) in 12m29s
+exit=2

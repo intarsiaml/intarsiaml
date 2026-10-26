@@ -75,6 +75,14 @@ Build (cached dependencies) 44 s on spark1, 6 s for the CLI crate on tatooine. T
 dominated by what the pipeline cannot do for you: the box queue (here 4.5 h on the Sparks), a recipe that needs a
 human (`TODO(recipe-new)`), and a new kernel. A model whose recipe exists is far inside both targets.
 
+**Second measurement: a checkpoint the engine had not seen (Qwen3.8-27B-MXFP4-mtpfp8, 2026-10-26, lane `od`,
+`docs/results/2026-10-26-od-onboarding-drill.md`).** Same weights as an onboarded checkpoint, FP8 MTP head; it needed one loader
+change to get past `recipe`. tatooine (HIP, one R9700): `recipe` 0 s, `smoke` 7 s, **quick numbers public 4 min 54 s after the start**
+(decode 33 tok/s = 82 % of the byte floor, prefill 1.8k tok/s), whole pass 6 min 52 s; but only 2 of the 6 in-depth stages could run, the others
+skip for want of a long golden, a 4k golden, a reference server and `--tp`. spark1 (CUDA): the quick tier ended in ERROR after 44 min (CUDA has
+only a GEMV for MXFP4: prefill 9 tok/s, the 4k speed sample exceeds the 30 min stage limit). Of the other unseen checkpoints on the fleet's disks
+every one stopped at `recipe new` on a quantisation format or tensor layout the loader does not read (next section).
+
 **Gotchas found by running it on CUDA and HIP.**
 
 * **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
@@ -127,6 +135,27 @@ block types.
   dynamic, longrope), an unknown quantisation scheme (the
   `quant_method` / `quant_algo` string is named), recipe tensors missing from the checkpoint. The numbered list is
   printed to stderr and the command **exits non-zero**. Resolve every TODO, then run step 2.
+
+**Resolving the TODOs that no code answers.** Most TODOs name a missing mechanism; two are decisions you take from the checkpoint:
+
+* `model.norm_offset` (a new family next to a recipe that sets `norm_offset = 1.0`). The checkpoint does not say whether its
+  RMSNorm computes `x * w` or `x * (1 + w)`; read one `input_layernorm.weight` and look at its mean and minimum. A zero-centred
+  norm (`1 + w`, the Qwen3.5 / 3.6 / 3.8 family) has a mean near 0 and some negative entries (MiniCPM-V 4.7 text model: mean 0.03,
+  min -0.08, `post_attention_layernorm` min -1.0); a plain norm has a mean near 1. The gated norm inside a GatedDeltaNet layer is
+  a plain `x * w` in both (mean 0.88 there) and is not affected. Under `x * w`, weights near 0 would zero the activations.
+  Reading one tensor needs no numpy (`struct` + the safetensors header: 8-byte length, JSON, then the bytes at `data_offsets`).
+* `top: N checkpoint tensor(s) outside the layer stack are claimed by no block`. If the names are the vision tower or its
+  projector (`model.visual.*`, `model.vision_tower.*`, `model.merger.*`, `mtp.*`) `recipe new` now lists them as ignored
+  non-text groups and raises nothing; any other name is a real tensor a block must claim.
+
+**Checkpoint formats that stop at this stage** (checked 2026-10-26 on the fleet's disks,
+`docs/results/2026-10-26-od-onboarding-drill.md`): compressed-tensors (`quant_method = "compressed-tensors"`: NVFP4A16
+`nvfp4-pack-quantized` with `weight_packed` / `weight_scale` / `weight_global_scale`, INT4 `pack-quantized` AWQ, MXFP4), ModelOpt
+`NVFP4` declared W4A4 (see `w4a4_as_w4a16` below), block-wise FP8 (`weight_scale_inv`), GPTQ / AWQ `qweight`, and routed experts stored
+fused (`experts.gate_up_proj [E, 2I, H]`, the transformers 5 layout; the MTP head loader in `model/mtp.rs` reads it, the main
+MoE block does not). Each is named in the TODO list; none is a recipe edit. A Quark checkpoint whose `layer_quant_config`
+names only `mtp.*` (an FP8 MTP head beside MXFP4 decoder layers, e.g. `Qwen3.8-27B-MXFP4-mtpfp8`) is accepted: the engine
+reads `mtp.*` only for `--spec mtp`, and that loader reads bf16 heads.
 
 The hand-written reference of the recipe format follows; `recipe new` produces exactly this.
 

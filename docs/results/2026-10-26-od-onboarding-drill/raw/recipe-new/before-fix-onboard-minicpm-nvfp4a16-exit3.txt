@@ -1,0 +1,12 @@
+[onboard      0s] stub-nvfp4a16 on cpu, report directory scratch/ob-stub
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+3 item(s) in scratch/ob-stub/recipe.toml need a human before the run can go on:
+  1. model.norm_offset: closest recipe builtin:qwen3_5_moe uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. top: 6 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["model.merger.mlp.0.linear_1.bias", "model.merger.mlp.0.linear_1.weight", "model.merger.mlp.0.linear_2.bias", "model.merger.mlp.0.linear_2.weight", "model.merger.mlp.0.pre_norm.bias"] ...; decide whether the model needs them
+  3. quant: config quantization_config.quant_method = "compressed-tensors" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3)
+Fix them (see docs/adding-a-model.md, "When you need code"), delete the TODO(recipe-new) lines, then run the same command again with --out scratch/ob-stub
+[onboard] recipe: ERROR in 0s (3 item(s) in scratch/ob-stub/recipe.toml need a human before the run can go on:)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /opt/code/intarsiaml/.worktrees/od/scratch/ob-stub/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-26T00:37:21Z)
+ONBOARD RECIPE NEEDS A HUMAN (exit 3, stopped early) in 0s

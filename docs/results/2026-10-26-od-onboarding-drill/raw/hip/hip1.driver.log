@@ -1,0 +1,19 @@
+[onboard      0s] Qwen3.8-27B-MXFP4-mtpfp8 on hip, report directory /work/onboard-runs/hip1/report
+[onboard] == recipe: recipe: existing, or scaffold (stops while TODOs remain)
+[onboard] recipe: PASS in 0s (builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant mxfp4))
+[onboard] == smoke: smoke: load and generate one prompt
+[onboard      0s] log: /work/onboard-runs/hip1/report/logs/smoke.err
+[onboard] smoke: PASS in 7s (generated: "Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is")
+[onboard] == quick: quick tier: qualify --quick-only (gate, accuracy, speed snapshot)
+[onboard      7s] log: /work/onboard-runs/hip1/report/logs/quick.err
+[onboard] quick: FAIL in 4m47s (qualify exit 1 (a gate failed): acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-MXFP4-mtpfp8 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/radiance/Qwen3.8-27B-MXFP4-mtpfp8 --backend cpu --golden /models/intarsia/golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-MXFP4-mtpfp8 --write-self-golden golden/oracle/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[onboard] == publish-quick: publish quick.md / quick.json / quick.prom
+QUICK DONE: /work/onboard-runs/hip1/report/quick.md
+[onboard] publish-quick: PASS in 0s (quick.md written 2026-10-26T02:38:38Z)
+[onboard] == in-depth: in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)
+[onboard    294s] log: /work/onboard-runs/hip1/report/logs/in-depth.err
+[onboard] in-depth: FAIL in 1m57s (qualify exit 1 (a gate failed): acc-oracle MISSING-BASELINE: MISSING-BASELINE: no CPU-oracle golden for 'Qwen3.8-27B-MXFP4-mtpfp8' (--oracle-golden, or oracle/<model>-cpu-oracle*.safetensors in a golden directory). Qwen3.8-27B-MXFP4-mtpfp8 has no full-precision golden, so it is gated against the f64 CPU oracle; make it once (intarsia accuracy --model /models/radiance/Qwen3.8-27B-MXFP4-mtpfp8 --backend cpu --golden /models/intarsia/golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode prefill --max-seq 8192 --prefill-chunk 256 --model-id Qwen3.8-27B-MXFP4-mtpfp8 --write-self-golden golden/oracle/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors), commit it, and record this backend's dump with a qualify run on clean main)
+[onboard] == publish-in-depth: publish in-depth.md / in-depth.json / in-depth.prom
+IN-DEPTH DONE: /work/onboard-runs/hip1/report/in-depth.md
+[onboard] publish-in-depth: PASS in 0s (in-depth.md written 2026-10-26T02:40:36Z)
+ONBOARD FAIL (exit 1) in 6m52s

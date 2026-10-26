@@ -1,0 +1,13 @@
+perplexity form: raw (limit 40 from default)
+perplexity: 1.595 over 1179 tokens (need <= 40), non-finite rows 0 ok
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10," -> " 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty
+    "Once upon a time, in a small village at the edge of a great forest, there lived an old clockmaker who" -> " had spent his entire life crafting timepieces. His workshop was filled with clocks of every kind—grandfather clocks that ticked like thunder, pocket watches that whispered secrets, and delicate wristwatches that danced with the light.\n\nOne day"
+sanity ok  : 48 tokens, max 4-gram repeat 1: non-empty, answers the fact ("blue"): yes
+    "The three primary colors are red, yellow, and" -> " blue. These colors are considered primary because they cannot be created by mixing other colors. When combined, they can produce a wide range of other colors. For example, red and yellow make orange, yellow and blue make green, and red and"
+sanity ok  : 48 tokens, max 4-gram repeat 6: non-empty, answers the fact ("paris"): yes
+    "The capital of France is" -> " Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is Rome.\nThe capital of Spain is Madrid.\nThe capital of Portugal is Lisbon.\nThe capital of the United Kingdom is London.\nThe capital of"
+sanity ok  : 48 tokens, max 4-gram repeat 4: non-empty, answers the fact ("oxygen"): yes
+    "Water is a molecule made of two hydrogen atoms and one" -> " oxygen atom. What is the chemical formula for water?\n\nA. H2O\nB. H2O2\nC. H2O3\nD. H2O4\n\n<think>\nThe question asks for the chemical formula"
+quick gate: PASS
