@@ -1,0 +1,12 @@
+fleetq: #5530 waiting (#4 in line): in line behind #5527 "sk2: localeval serve --max-batch 4 main vs dev vs vLLM x3" (claude-f31ccf91) on spark2
+fleetq:   #5527 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5527 set, or it will wait for #5527 to be released.
+fleetq: #5530 waiting (#3 in line): in line behind #5528 "sk2: kernels test --quick" (claude-f31ccf91) on spark2
+fleetq:   #5528 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5528 set, or it will wait for #5528 to be released.
+fleetq: #5530 waiting (#2 in line): in line behind #5529 "sk2: batch_cuda_real real_35b batched==solo" (claude-f31ccf91) on spark2
+fleetq:   #5529 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5529 set, or it will wait for #5529 to be released.
+fleetq: #5530 waiting (#1 in line): needs 76 GB on spark2; 2 GB free of 116
+fleetq: #5530 waiting (#1 in line): needs 76 GB on spark2; the box reports only 56 GB actually free (memory used by something fleetq does not track)
+fleetq: #5530 running on spark2: scripts/sk/gpu-tests.sh dev run g-long batch_cuda_real real_35b_batched_engine_long_prompts_equal_the_local_engine
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 259.85s
+fleetq: #5530 done (exit 0)

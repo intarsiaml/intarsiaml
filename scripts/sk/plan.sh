@@ -4,7 +4,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 OUTN=$1; shift; HOST=${HOST:-spark2}
-RAW=/opt/code/intarsiaml/.worktrees/sk/docs/results/2026-10-25-sk-spark-prefill/raw/$OUTN; mkdir -p "$RAW"
+RAW=/opt/code/intarsiaml/.worktrees/sk2/docs/results/2026-10-25-sk2-serve-macro/raw/$OUTN; mkdir -p "$RAW"
 for a in "$@"; do
   IFS=: read -r name tree envs <<< "$a"; envs=${envs//,/ }
   ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB; M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
