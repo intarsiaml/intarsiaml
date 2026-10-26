@@ -7,5 +7,5 @@ set -euo pipefail
 name=${1:-hip}
 cd "$(git rev-parse --show-toplevel)"
 ssh tatooine "mkdir -p ~/intarsiaml-l5-$name"
-rsync -a --delete --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude 'l5-out' --exclude node_modules --exclude web ./ "tatooine:intarsiaml-l5-$name/"
+rsync -a --delete --exclude .git --exclude .worktrees --exclude target --exclude 'target-*' --exclude 'l5-out' --exclude node_modules ./ "tatooine:intarsiaml-l5-$name/"
 echo "synced to tatooine:~/intarsiaml-l5-$name ($(git rev-parse --short HEAD) + working tree)"
