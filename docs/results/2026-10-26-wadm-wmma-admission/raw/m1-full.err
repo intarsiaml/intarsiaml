@@ -1,0 +1,238 @@
+
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:66:5:
+kernels with no case without the knob fail with INTARSIA_HIP_WMMA_ROWS=1: ["matmul_bf16_wmma", "matmul_bf16_wmma_rows", "matmul_fp8_wmma", "matmul_fp8_wmma_rows", "matmul_pair_bf16_wmma", "rmsnorm_add_matmul_pair_bf16_wmma", "matmul_fp8_pair_wmma", "gated_rmsnorm_matmul_fp8_wmma", "rmsnorm_add_matmul_fp8_pair_wmma", "sigmoid_mul_matmul_fp8_wmma"]
+
+running 1 test
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=4.371e-4 rel_l2=2.037e-5 M=3 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=3072 x=bf16 w=bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul         matmul_bf16_wmma               12      0    4.371e-4    2.037e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=1024 K=3072 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=2048 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=2048 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=4.371e-4 rel_l2=2.037e-5 M=3 N=3072 K=1024 x=bf16 w=bf16
+  matmul         matmul_bf16_wmma_rows  ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=1024 K=3072 x=bf16 w=bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul         matmul_bf16_wmma_rows          12      0    4.371e-4    2.037e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=1.100e-6 rel_l2=4.919e-8 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=3.317e-7 rel_l2=1.774e-8 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=1.371e-4 rel_l2=3.765e-6 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=4.439e-6 rel_l2=1.634e-7 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=1.136e-3 rel_l2=4.216e-5 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=6.250e-4 rel_l2=3.010e-5 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=5.682e-4 rel_l2=3.407e-5 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma        ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_wmma                24      0    1.136e-3    4.216e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.100e-6 rel_l2=4.919e-8 M=1 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=3.317e-7 rel_l2=1.774e-8 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.371e-4 rel_l2=3.765e-6 M=3 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=4.439e-6 rel_l2=1.634e-7 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.136e-3 rel_l2=4.216e-5 M=3 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=6.250e-4 rel_l2=3.010e-5 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=5.682e-4 rel_l2=3.407e-5 M=3 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.082e-3 rel_l2=1.853e-5 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=4.960e-4 rel_l2=1.438e-5 M=8 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=2.183e-3 rel_l2=5.192e-5 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=2.165e-3 rel_l2=5.205e-5 M=8 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.628e-5 rel_l2=5.713e-7 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.116e-3 rel_l2=3.725e-5 M=8 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=5.250e-6 rel_l2=2.826e-7 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=8 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=5.208e-4 rel_l2=1.051e-5 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.250e-4 rel_l2=2.305e-6 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.152e-3 rel_l2=2.468e-5 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=2.815e-4 rel_l2=6.794e-6 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=7.476e-5 rel_l2=2.171e-6 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=1.460e-4 rel_l2=4.662e-6 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  matmul_fp8     matmul_fp8_wmma_rows   ok    max_abs=0.000e0 rel_l2=0.000e0 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_wmma_rows           48      0    2.183e-3    5.205e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 64], [64, 64], [40, 64]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 96], [33, 96], [1, 96]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=1.605e0 rel_l2=1.433e0 M=1 N0=32 N1=32 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 2048], [256, 2048], [1, 2048]]
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_pair    matmul_pair_bf16_wmma           4      4     1.605e0     1.433e0  REJECTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=32 N1=32 K=2048 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=32 N1=32 K=2048 bf16 w_offset=1
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16 w_offset=0
+  rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16 w_offset=1
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma      8      0     0.000e0     0.000e0  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=6.010e-4 rel_l2=2.587e-5 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=1.851e-5 rel_l2=1.156e-6 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=4.907e-6 rel_l2=2.868e-7 M=1 N0=8192 N1=4096 K=2048 x=bf16 out=bf16 act_quant=true/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/true
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=false/false
+  matmul_fp8_pair matmul_fp8_pair_wmma   ok    max_abs=1.924e-5 rel_l2=3.174e-6 M=1 N0=512 N1=512 K=2048 x=bf16 out=bf16 act_quant=true/false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8_pair matmul_fp8_pair_wmma           15      0    6.010e-4    2.587e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=4 N=40 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=64 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=33 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=5.061e-4 rel_l2=3.996e-5 R=32 N=2048 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=2.706e-4 rel_l2=2.041e-5 R=32 N=2048 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=32 N=1 bf16 act_quant=false
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=true
+  gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=520 bf16 act_quant=false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma     12      0    5.061e-4    3.996e-5  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=48 K=64 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=40 N1=96 K=96 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=17 N1=33 K=48 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=512 N1=512 K=2048 bf16 w_offset=1 act_quant=true/false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma     12      0     0.000e0     0.000e0  ADMITTED
+
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=17 K=48 x=bf16 out=bf16 act_quant=true
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=17 K=48 x=bf16 out=bf16 act_quant=false
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=3.868e-5 rel_l2=2.784e-6 M=1 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=520 K=2064 x=bf16 out=bf16 act_quant=true
+  sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma ok    max_abs=1.732e-7 rel_l2=2.800e-8 M=1 N=520 K=2064 x=bf16 out=bf16 act_quant=false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma     10      0    3.868e-5    2.784e-6  ADMITTED
+
+test every_hip_kernel_matches_the_reference ... FAILED
+
+failures:
+
+failures:
+    every_hip_kernel_matches_the_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 3.41s
+
+
+
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:42:9:
+kernels not admitted with INTARSIA_HIP_WMMA_ROWS=1:
+matmul_pair_bf16_wmma
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 64], [64, 64], [40, 64]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 96], [33, 96], [1, 96]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=1.605e0 rel_l2=1.433e0 M=1 N0=32 N1=32 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 2048], [256, 2048], [1, 2048]]
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_pair    matmul_pair_bf16_wmma           4      4     1.605e0     1.433e0  REJECTED
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,0 +1,28 @@
+
+running 1 test
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=6.569e-1 rel_l2=4.416e-1 M=1 N0=64 N1=48 K=64 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=3.130e-1 rel_l2=4.291e-1 M=1 N0=64 N1=48 K=64 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=5.677e-1 rel_l2=2.814e-1 M=1 N0=64 N1=48 K=64 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=3.193e-1 rel_l2=3.643e-1 M=1 N0=40 N1=96 K=96 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=5.067e-1 rel_l2=4.658e-1 M=1 N0=40 N1=96 K=96 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=6.069e-1 rel_l2=3.958e-1 M=1 N0=40 N1=96 K=96 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=4.643e-1 rel_l2=6.043e-1 M=1 N0=17 N1=33 K=48 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=1.216e0 rel_l2=8.647e-1 M=1 N0=17 N1=33 K=48 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=2.737e-1 rel_l2=2.903e-1 M=1 N0=17 N1=33 K=48 bf16 w_offset=1 act_quant=true/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=6.365e-1 rel_l2=4.625e-1 M=1 N0=512 N1=512 K=2048 bf16 w_offset=1 act_quant=true/true
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=4.310e-1 rel_l2=4.573e-1 M=1 N0=512 N1=512 K=2048 bf16 w_offset=0 act_quant=false/false
+  rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma FAIL  max_abs=5.616e-1 rel_l2=4.883e-1 M=1 N0=512 N1=512 K=2048 bf16 w_offset=1 act_quant=true/false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma     12     12     1.216e0    8.647e-1  REJECTED
+
+test every_hip_kernel_matches_the_reference ... FAILED
+
+failures:
+
+failures:
+    every_hip_kernel_matches_the_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.29s
+
