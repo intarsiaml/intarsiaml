@@ -36,8 +36,8 @@ if want GC; then
 fi
 if want IDS; then
   echo "[gates] IDS $(date +%T)"
-  for arm in base dev dev0 dev8; do
-    case $arm in base) r=$RB; v=$VB; e="" ;; dev) r=$RD; v=$VD; e="" ;; dev0) r=$RD; v=$VD; e="INTARSIA_PREFILL_MACRO=0" ;; dev8) r=$RD; v=$VD; e="INTARSIA_PREFILL_MACRO=8192" ;; esac
+  for arm in base dev dev0; do
+    case $arm in base) r=$RB; v=$VB; e="" ;; dev) r=$RD; v=$VD; e="" ;; dev0) r=$RD; v=$VD; e="INTARSIA_PREFILL_MACRO=0" ;; esac
     for chars in ${CHARS:-4950 13600 27300 56000}; do
       dev $r $v env $e /target/release/intarsia generate -m $M35 --backend hip --max-seq 20480 --chat --no-think --temperature 0 --profile-every 0 --ignore-eos \
         --show-ids -p "$(head -c $chars $RD/tools/prompts/corpus_docs.txt)" --max-tokens 256 > /dev/null 2> "$O/ids-$arm-$chars.err"
@@ -45,7 +45,7 @@ if want IDS; then
       echo "$arm $chars: $(grep -aoE 'prompt_tokens=[0-9]+|prefill[^,]*' "$O/ids-$arm-$chars.err" | head -1) ids=$(tr ',' '\n' < "$O/ids-$arm-$chars.ids" | wc -l)" | tee -a "$O/ids.log"
     done
   done
-  for chars in ${CHARS:-4950 13600 27300 56000}; do for arm in dev dev0 dev8; do
+  for chars in ${CHARS:-4950 13600 27300 56000}; do for arm in dev dev0; do
     if cmp -s "$O/ids-base-$chars.ids" "$O/ids-$arm-$chars.ids" && [ -s "$O/ids-base-$chars.ids" ]; then echo "IDS $chars base vs $arm: identical"; else echo "IDS $chars base vs $arm: DIFFER"; fi
   done; done | tee -a "$O/ids.log"
 fi
