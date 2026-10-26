@@ -217,3 +217,44 @@ check on the changed tree: identical to off in 4 of 4 (`raw/w2/steps.log`).
   worst |logit diff| 0, with 135 verify replays from 43 recordings. The eager arm: 163 rows, 0 differences.
 - **Honest reading:** unprofiled, the eager verify pass on HIP is almost as fast as the captured one (0.2-2%, larger at small q). The
   capture is kept (bitwise, opt-out, small) but it is not what moved the number; removing the profiling did.
+
+## 9. DFlash2 in the engine (tp=1), cpu gates and mutants
+
+Coordinator 09:05: the captured verify pass is default-off (`INTARSIA_VERIFY_GRAPH=1`), every window's probe configuration is
+dry-run in a cpu slot first. Pre-existing on origin/main (`ec9e36b85`, checked in a clean worktree): `cargo test -p
+intarsia-backend-hip --test quick_coverage` fails on macOS with `moe_block_bf16_grouped` having no quick case (lane l7's kernel); not
+this lane's, reported to the coordinator.
+
+**Code.**
+- `Op::DynConv` (ops.rs contract, cpu reference and fast kernels, admission sweep with the 27B draft's shape H 5120, G 320, T up to
+  16) and two HIP kernels (`kernels/hip/dflash.hip` `dyn_conv_bf16`; `attn_decode_bf16_window`, `.ext()`, priority -1, so a call
+  with `window == 0` never selects it; written by a sub-agent, reviewed here, compiled on tatooine, GPU admission in window 4).
+- `model/dflash2.rs`: the draft with its own geometry (32 / 8 heads of 128 against the target's 24 / 4 of 256) and its own scratch,
+  standard RMSNorm (the checkpoint's norm weights have means 0.43-2.65: `x * w`, not the target recipe's `x * (1 + w)`), its own rope
+  theta (1e7, full rotary), both conv branches around attention and MLP, per-row sliding window (`window - 1 - r + block`, from the
+  reference's rotating cache of `window - 1` keys and its mask), drafts from block rows 1.. . The taps, the context ingest
+  scheduling, `DflashState` and its rollback are #158's. The candidate selector is not loaded yet (argmax drafts; it can change
+  only which tokens are proposed).
+- Loader: `DFlash2DraftModel` detected from `architectures`; DFlash2 allowed on cpu and HIP (DFlash v1 stays cpu and CUDA); engine:
+  `--spec dflash` allowed on recurrent targets (the verify pass keeps `SpecRows`, `spec_cut` rolls back through them).
+- Tap convention pinned from `model_mlx.py` `_LayerHook`: id `l` is the output of layer `l` (0-based), as in #158.
+
+**cpu gates** (`crates/intarsia-models/tests/dflash2_cpu.rs`, tiny hybrid target `tests/fixtures/tiny_qwen3_5`, f32):
+
+| test | result |
+|---|---|
+| taps vs HF's own `hidden_states` (layer 1 GatedDeltaNet, layer 3 gated attention) | rel L2 9.4e-7 / 1.5e-6; the neighbouring layers 0.46-0.82 |
+| draft vs an f64 host implementation, context 3 and 13 (window 6: shorter and longer) | rel L2 <= 8.0e-7 every row |
+| draft vs z-lab's `model_mlx.py` itself (MLX on CPU), through `open_dflash` (`tests/fixtures/tiny_dflash2`, `tools/dfh/dflash2_mlx_fixture.py`) | rel L2 <= 1.2e-6 every row (MLX on the Apple GPU differs from MLX on CPU by 2e-3 in f32, so the fixture is generated on CPU) |
+| greedy ids `--spec dflash` vs off on the hybrid, k 1 and 3, random draft | identical (0 accepted) |
+| scripted drafts (every acceptance pattern), odd `max_tokens`, follow-ups | identical; k 1: 143 of 338 accepted, k 3: 234 of 716 |
+
+**Mutants** (`scripts/dfh/mutants.sh`, `raw/mutants/cpu-mutants.log`; the script refuses a mutant whose anchor does not match exactly
+once or whose test binary hashes equal to the clean one; clean test binary sha256 `1b21dd79c6733189`):
+
+| mutant | binary sha256 | caught by |
+|---|---|---|
+| `tap-off-by-one` (the draft reads layer l + 1) | `c3e03ca9157e62a1` | taps vs HF |
+| `rollback-next-row` (recurrent rollback restores one row too late) | `62f61bd27b666918` | both ids gates |
+| `window-off-by-one` | `7ab399d098f566a7` | host reference, MLX parity |
+| `draft-norm-offset` (target's `1 + w` norms) | `d13ea3f63adbc6e0` | host reference, MLX parity |
