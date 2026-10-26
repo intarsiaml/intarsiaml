@@ -1,0 +1,209 @@
+[01:28:33] stopping missioncntrl-guidance
+missioncntrl-guidance
+439bbca06875b9ea7b4c370fe0bc8abdde2c06b20fdf435fdbce3b6959f76569
+[01:33:33] vllm ready after 280 s (util 0.32)
+(APIServer pid=1) INFO 10-24 05:28:59 [cache.py:282] Using fp8 data type to store kv cache. It reduces the GPU memory footprint and boosts the performance. Meanwhile, it may cause accuracy drop without a proper scaling factor
+(EngineCore pid=278) INFO 10-24 05:33:12 [gpu_worker.py:492] Initial free memory 108.52 GiB, reserved 8.0 GiB memory for KV Cache as specified by kv_cache_memory_bytes config and skipped memory profiling. This does not respect the gpu_memory_utilization config. Only use kv_cache_memory_bytes config when you want manual control of KV cache memory size. If OOM'ed, check the difference of initial free memory between the current run and the previous run where kv_cache_memory_bytes is suggested and update it correspondingly.
+(EngineCore pid=278) INFO 10-24 05:33:12 [kv_cache_utils.py:1882] GPU KV cache size: 759,837 tokens, Maximum concurrency for 131,072 tokens per request: 5.80x
+[01:33:34] == round 1 arm vllm
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.18s prefill=5480 tok/s decode=78.0 tok/s peak=79.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.18s prefill=5497 tok/s decode=78.1 tok/s peak=80.0 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=994 ttft=0.18s prefill=5456 tok/s decode=78.1 tok/s peak=79.5 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.64s prefill=6384 tok/s decode=77.1 tok/s peak=77.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=0.63s prefill=6442 tok/s decode=76.7 tok/s peak=78.7 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4088 ttft=0.63s prefill=6506 tok/s decode=76.6 tok/s peak=78.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16655 ttft=2.65s prefill=6281 tok/s decode=73.9 tok/s peak=76.2 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16653 ttft=2.64s prefill=6309 tok/s decode=74.1 tok/s peak=75.1 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=2.63s prefill=6329 tok/s decode=74.0 tok/s peak=76.6 tok/s out=128
+[localeval]   1024 tok rep 1/1: prompt=989 ttft=0.18s prefill=5467 tok/s decode=78.2 tok/s peak=79.2 tok/s out=128
+[localeval] 4 streams: aggregate 159.7 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4089 ttft=0.63s prefill=6513 tok/s decode=76.7 tok/s peak=78.2 tok/s out=128
+[localeval] 4 streams: aggregate 105.1 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 52; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 104.6 tok/s, pooled ITL p50/p99/max (20.5, 36.0, 647.7) ms, ttft [1.47, 2.3, 2.11, 2.11], errors []
+[itl4] rep 1 stagger: agg 111.5 tok/s, pooled ITL p50/p99/max (20.2, 146.4, 310.3) ms, ttft [0.64, 0.66, 0.67, 0.68], errors []
+[itl4] rep 2 burst: agg 104.7 tok/s, pooled ITL p50/p99/max (20.5, 45.7, 661.0) ms, ttft [1.44, 2.1, 2.1, 2.29], errors []
+[itl4] rep 2 stagger: agg 113.3 tok/s, pooled ITL p50/p99/max (19.7, 148.5, 473.6) ms, ttft [0.63, 0.66, 0.67, 0.67], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 40.85, "pooled_itl_max_ms_median": 654.35, "pooled_itl_p50_ms_median": 20.5, "aggregate_decode_tok_s_median": 104.65}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 147.45, "pooled_itl_max_ms_median": 391.95000000000005, "pooled_itl_p50_ms_median": 19.95, "agg
+[01:34:53] == round 1 arm i2048
+prefill chunk 2048 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.24s prefill=4046 tok/s decode=82.0 tok/s peak=85.9 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.20s prefill=4967 tok/s decode=83.8 tok/s peak=85.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.20s prefill=4924 tok/s decode=83.9 tok/s peak=85.7 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.63s prefill=6519 tok/s decode=81.2 tok/s peak=83.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.63s prefill=6527 tok/s decode=81.2 tok/s peak=85.8 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4086 ttft=0.63s prefill=6533 tok/s decode=81.0 tok/s peak=83.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=2.85s prefill=5845 tok/s decode=74.2 tok/s peak=77.4 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16653 ttft=2.77s prefill=6011 tok/s decode=74.3 tok/s peak=88.1 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16655 ttft=2.78s prefill=5993 tok/s decode=74.2 tok/s peak=75.3 tok/s out=128
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[localeval]   1024 tok rep 1/1: prompt=994 ttft=0.20s prefill=4993 tok/s decode=83.3 tok/s peak=85.6 tok/s out=128
+[localeval] 4 streams: aggregate 145.5 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4089 ttft=0.62s prefill=6545 tok/s decode=81.6 tok/s peak=83.6 tok/s out=128
+[localeval] 4 streams: aggregate 98.6 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 51; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 96.0 tok/s, pooled ITL p50/p99/max (22.2, 328.6, 336.0) ms, ttft [0.62, 1.24, 2.51, 1.86], errors []
+[itl4] rep 1 stagger: agg 110.7 tok/s, pooled ITL p50/p99/max (21.1, 30.0, 337.2) ms, ttft [0.62, 0.66, 0.67, 0.68], errors []
+[itl4] rep 2 burst: agg 98.1 tok/s, pooled ITL p50/p99/max (21.2, 328.0, 335.1) ms, ttft [2.53, 1.25, 0.63, 1.88], errors []
+[itl4] rep 2 stagger: agg 111.2 tok/s, pooled ITL p50/p99/max (20.5, 51.1, 336.2) ms, ttft [0.62, 0.66, 0.67, 0.67], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 328.3, "pooled_itl_max_ms_median": 335.55, "pooled_itl_p50_ms_median": 21.7, "aggregate_decode_tok_s_median": 97.05}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 40.55, "pooled_itl_max_ms_median": 336.7, "pooled_itl_p50_ms_median": 20.8, "aggregate_decode_to
+[01:37:38] == round 1 arm i8192
+prefill chunk 8192 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.20s prefill=4987 tok/s decode=83.6 tok/s peak=84.6 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=989 ttft=0.20s prefill=4986 tok/s decode=83.6 tok/s peak=85.2 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.20s prefill=4959 tok/s decode=83.5 tok/s peak=85.2 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=0.59s prefill=6954 tok/s decode=81.2 tok/s peak=82.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=0.58s prefill=7016 tok/s decode=81.1 tok/s peak=82.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=0.58s prefill=7048 tok/s decode=81.2 tok/s peak=83.0 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16659 ttft=2.48s prefill=6720 tok/s decode=74.0 tok/s peak=75.3 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16654 ttft=2.47s prefill=6750 tok/s decode=73.9 tok/s peak=76.1 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=2.47s prefill=6740 tok/s decode=73.9 tok/s peak=75.6 tok/s out=128
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[localeval]   1024 tok rep 1/1: prompt=986 ttft=0.21s prefill=4680 tok/s decode=83.5 tok/s peak=84.9 tok/s out=128
+[localeval] 4 streams: aggregate 144.1 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4090 ttft=0.58s prefill=7013 tok/s decode=81.6 tok/s peak=83.7 tok/s out=128
+[localeval] 4 streams: aggregate 101.8 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 52; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 98.9 tok/s, pooled ITL p50/p99/max (22.3, 580.8, 590.4) ms, ttft [1.16, 0.58, 1.74, 2.32], errors []
+[itl4] rep 1 stagger: agg 112.7 tok/s, pooled ITL p50/p99/max (20.3, 54.4, 600.3) ms, ttft [0.58, 0.6, 0.61, 0.62], errors []
+[itl4] rep 2 burst: agg 100.6 tok/s, pooled ITL p50/p99/max (21.6, 579.7, 589.0) ms, ttft [1.16, 0.58, 2.32, 1.74], errors []
+[itl4] rep 2 stagger: agg 112.8 tok/s, pooled ITL p50/p99/max (20.3, 33.5, 589.3) ms, ttft [0.58, 0.6, 0.61, 0.62], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 580.25, "pooled_itl_max_ms_median": 589.7, "pooled_itl_p50_ms_median": 21.950000000000003, "aggregate_decode_tok_s_median": 99.75}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 43.95, "pooled_itl_max_ms_median": 594.8, "pooled_itl_p50_ms_median": 20.3, "aggre
+[01:40:15] == round 2 arm i8192
+prefill chunk 8192 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.20s prefill=5035 tok/s decode=84.8 tok/s peak=87.0 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.20s prefill=5020 tok/s decode=84.8 tok/s peak=86.7 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.20s prefill=5081 tok/s decode=84.8 tok/s peak=87.1 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4091 ttft=0.58s prefill=7034 tok/s decode=82.2 tok/s peak=84.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=0.58s prefill=7021 tok/s decode=82.7 tok/s peak=84.1 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.58s prefill=7110 tok/s decode=82.3 tok/s peak=84.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=2.48s prefill=6716 tok/s decode=75.0 tok/s peak=76.4 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16654 ttft=2.47s prefill=6733 tok/s decode=74.8 tok/s peak=76.5 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16651 ttft=2.47s prefill=6754 tok/s decode=75.1 tok/s peak=76.1 tok/s out=128
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[localeval]   1024 tok rep 1/1: prompt=991 ttft=0.20s prefill=4929 tok/s decode=84.5 tok/s peak=86.0 tok/s out=128
+[localeval] 4 streams: aggregate 145.3 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4088 ttft=0.58s prefill=7067 tok/s decode=82.0 tok/s peak=83.6 tok/s out=128
+[localeval] 4 streams: aggregate 99.2 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 53; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 100.3 tok/s, pooled ITL p50/p99/max (22.1, 583.7, 588.6) ms, ttft [1.16, 0.58, 1.73, 2.32], errors []
+[itl4] rep 1 stagger: agg 112.2 tok/s, pooled ITL p50/p99/max (20.4, 34.3, 592.4) ms, ttft [0.58, 0.6, 0.6, 0.62], errors []
+[itl4] rep 2 burst: agg 100.4 tok/s, pooled ITL p50/p99/max (21.9, 581.9, 587.1) ms, ttft [0.58, 1.16, 1.74, 2.33], errors []
+[itl4] rep 2 stagger: agg 113.3 tok/s, pooled ITL p50/p99/max (20.1, 31.5, 593.8) ms, ttft [0.58, 0.6, 0.61, 0.62], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 582.8, "pooled_itl_max_ms_median": 587.85, "pooled_itl_p50_ms_median": 22.0, "aggregate_decode_tok_s_median": 100.35}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 32.9, "pooled_itl_max_ms_median": 593.0999999999999, "pooled_itl_p50_ms_median": 20.25, "aggreg
+[01:42:56] == round 2 arm i2048
+prefill chunk 2048 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.20s prefill=4892 tok/s decode=84.3 tok/s peak=85.4 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.20s prefill=5012 tok/s decode=84.1 tok/s peak=85.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.20s prefill=5021 tok/s decode=84.1 tok/s peak=86.2 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4091 ttft=0.62s prefill=6580 tok/s decode=81.5 tok/s peak=83.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=0.62s prefill=6598 tok/s decode=81.6 tok/s peak=82.8 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.62s prefill=6609 tok/s decode=81.2 tok/s peak=83.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=2.74s prefill=6075 tok/s decode=74.1 tok/s peak=75.5 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16659 ttft=2.75s prefill=6057 tok/s decode=74.2 tok/s peak=75.8 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16657 ttft=2.75s prefill=6059 tok/s decode=74.0 tok/s peak=76.1 tok/s out=128
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[localeval]   1024 tok rep 1/1: prompt=994 ttft=0.20s prefill=5053 tok/s decode=83.5 tok/s peak=85.2 tok/s out=128
+[localeval] 4 streams: aggregate 142.8 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4089 ttft=0.62s prefill=6605 tok/s decode=81.1 tok/s peak=84.0 tok/s out=128
+[localeval] 4 streams: aggregate 96.2 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 53; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 96.7 tok/s, pooled ITL p50/p99/max (22.0, 333.0, 337.5) ms, ttft [1.88, 0.62, 2.52, 1.25], errors []
+[itl4] rep 1 stagger: agg 111.1 tok/s, pooled ITL p50/p99/max (20.7, 33.0, 335.4) ms, ttft [0.62, 0.66, 0.66, 0.67], errors []
+[itl4] rep 2 burst: agg 96.4 tok/s, pooled ITL p50/p99/max (22.2, 328.1, 335.1) ms, ttft [1.25, 0.62, 2.52, 1.88], errors []
+[itl4] rep 2 stagger: agg 111.3 tok/s, pooled ITL p50/p99/max (20.2, 39.6, 335.6) ms, ttft [0.62, 0.65, 0.66, 0.68], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 330.55, "pooled_itl_max_ms_median": 336.3, "pooled_itl_p50_ms_median": 22.1, "aggregate_decode_tok_s_median": 96.55000000000001}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 36.3, "pooled_itl_max_ms_median": 335.5, "pooled_itl_p50_ms_median": 20.45, "aggrega
+[01:45:34] == round 2 arm vllm
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.19s prefill=5345 tok/s decode=75.9 tok/s peak=79.2 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=993 ttft=0.18s prefill=5508 tok/s decode=75.8 tok/s peak=77.6 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=992 ttft=0.18s prefill=5494 tok/s decode=77.6 tok/s peak=79.2 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4086 ttft=0.63s prefill=6456 tok/s decode=76.6 tok/s peak=78.1 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.64s prefill=6435 tok/s decode=76.5 tok/s peak=77.9 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.63s prefill=6453 tok/s decode=76.6 tok/s peak=80.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16655 ttft=2.62s prefill=6359 tok/s decode=74.0 tok/s peak=75.6 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16655 ttft=2.62s prefill=6369 tok/s decode=74.0 tok/s peak=75.5 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16654 ttft=2.62s prefill=6362 tok/s decode=73.7 tok/s peak=74.8 tok/s out=128
+[localeval]   1024 tok rep 1/1: prompt=991 ttft=0.18s prefill=5384 tok/s decode=76.3 tok/s peak=77.8 tok/s out=128
+[localeval] 4 streams: aggregate 155.7 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4088 ttft=0.63s prefill=6452 tok/s decode=74.7 tok/s peak=75.8 tok/s out=128
+[localeval] 4 streams: aggregate 104.4 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 51; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 104.0 tok/s, pooled ITL p50/p99/max (20.5, 26.7, 651.1) ms, ttft [1.47, 2.3, 2.12, 2.12], errors []
+[itl4] rep 1 stagger: agg 112.8 tok/s, pooled ITL p50/p99/max (19.9, 149.8, 311.7) ms, ttft [0.64, 0.66, 0.68, 0.68], errors []
+[itl4] rep 2 burst: agg 104.9 tok/s, pooled ITL p50/p99/max (20.2, 30.3, 641.5) ms, ttft [1.47, 2.11, 2.11, 2.3], errors []
+[itl4] rep 2 stagger: agg 111.8 tok/s, pooled ITL p50/p99/max (20.1, 148.4, 311.4) ms, ttft [0.63, 0.66, 0.67, 0.69], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 28.5, "pooled_itl_max_ms_median": 646.3, "pooled_itl_p50_ms_median": 20.35, "aggregate_decode_tok_s_median": 104.45}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 149.10000000000002, "pooled_itl_max_ms_median": 311.54999999999995, "pooled_itl_p50_ms_median": 
+[01:46:54] == round 3 arm vllm
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.18s prefill=5520 tok/s decode=76.1 tok/s peak=77.6 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.18s prefill=5456 tok/s decode=77.5 tok/s peak=79.1 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=993 ttft=0.18s prefill=5535 tok/s decode=78.0 tok/s peak=80.2 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=0.63s prefill=6459 tok/s decode=76.6 tok/s peak=77.8 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.64s prefill=6437 tok/s decode=76.9 tok/s peak=78.4 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.63s prefill=6458 tok/s decode=76.7 tok/s peak=77.9 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=2.62s prefill=6369 tok/s decode=74.1 tok/s peak=76.1 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16656 ttft=2.62s prefill=6363 tok/s decode=73.8 tok/s peak=75.1 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16658 ttft=2.62s prefill=6348 tok/s decode=73.9 tok/s peak=74.9 tok/s out=128
+[localeval]   1024 tok rep 1/1: prompt=994 ttft=0.18s prefill=5464 tok/s decode=76.1 tok/s peak=77.2 tok/s out=128
+[localeval] 4 streams: aggregate 156.2 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4090 ttft=0.63s prefill=6478 tok/s decode=74.9 tok/s peak=75.8 tok/s out=128
+[localeval] 4 streams: aggregate 103.7 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 50; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 106.1 tok/s, pooled ITL p50/p99/max (19.9, 30.2, 643.6) ms, ttft [1.47, 2.11, 2.12, 2.3], errors []
+[itl4] rep 1 stagger: agg 111.8 tok/s, pooled ITL p50/p99/max (20.3, 146.1, 314.8) ms, ttft [0.64, 0.66, 0.67, 0.69], errors []
+[itl4] rep 2 burst: agg 103.3 tok/s, pooled ITL p50/p99/max (20.6, 35.3, 666.5) ms, ttft [1.44, 2.11, 2.11, 2.3], errors []
+[itl4] rep 2 stagger: agg 112.2 tok/s, pooled ITL p50/p99/max (20.1, 148.2, 311.5) ms, ttft [0.64, 0.66, 0.68, 0.69], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 32.75, "pooled_itl_max_ms_median": 655.05, "pooled_itl_p50_ms_median": 20.25, "aggregate_decode_tok_s_median": 104.69999999999999}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 147.14999999999998, "pooled_itl_max_ms_median": 313.15, "pooled_itl_p50_ms_median"
+[01:48:13] == round 3 arm i2048
+prefill chunk 2048 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.20s prefill=4944 tok/s decode=83.5 tok/s peak=84.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=989 ttft=0.20s prefill=5009 tok/s decode=83.5 tok/s peak=85.1 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.20s prefill=5015 tok/s decode=83.4 tok/s peak=85.6 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=0.63s prefill=6536 tok/s decode=81.1 tok/s peak=83.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.61s prefill=6653 tok/s decode=80.9 tok/s peak=82.4 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.62s prefill=6598 tok/s decode=80.9 tok/s peak=82.8 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16657 ttft=2.76s prefill=6041 tok/s decode=73.8 tok/s peak=75.7 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16655 ttft=2.75s prefill=6065 tok/s decode=74.0 tok/s peak=75.2 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16654 ttft=2.74s prefill=6082 tok/s decode=73.8 tok/s peak=75.7 tok/s out=128
+prefill chunk 2048 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+[localeval]   1024 tok rep 1/1: prompt=992 ttft=0.20s prefill=5038 tok/s decode=84.5 tok/s peak=86.6 tok/s out=128
+[localeval] 4 streams: aggregate 147.2 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4088 ttft=0.62s prefill=6584 tok/s decode=81.9 tok/s peak=83.5 tok/s out=128
+[localeval] 4 streams: aggregate 96.0 tok/s
+[itl4] calibrated 22.0 tok/sentence, base 56; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 95.8 tok/s, pooled ITL p50/p99/max (22.3, 327.0, 336.7) ms, ttft [1.89, 2.53, 1.25, 0.62], errors []
+[itl4] rep 1 stagger: agg 111.7 tok/s, pooled ITL p50/p99/max (20.2, 36.6, 335.6) ms, ttft [0.62, 0.65, 0.65, 0.67], errors []
+[itl4] rep 2 burst: agg 95.4 tok/s, pooled ITL p50/p99/max (22.6, 330.3, 334.8) ms, ttft [0.62, 1.89, 2.53, 1.25], errors []
+[itl4] rep 2 stagger: agg 112.2 tok/s, pooled ITL p50/p99/max (20.0, 38.7, 334.7) ms, ttft [0.61, 0.65, 0.67, 0.67], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 328.65, "pooled_itl_max_ms_median": 335.75, "pooled_itl_p50_ms_median": 22.450000000000003, "aggregate_decode_tok_s_median": 95.6}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 37.650000000000006, "pooled_itl_max_ms_median": 335.15, "pooled_itl_p50_ms_median"
+[01:50:53] == round 3 arm i8192
+prefill chunk 8192 (--prefill-chunk)
+[localeval]   1024 tok rep 1/3: prompt=991 ttft=0.21s prefill=4764 tok/s decode=84.2 tok/s peak=86.2 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=989 ttft=0.20s prefill=5012 tok/s decode=84.0 tok/s peak=86.1 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=991 ttft=0.20s prefill=5005 tok/s decode=84.3 tok/s peak=86.1 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.58s prefill=7067 tok/s decode=81.7 tok/s peak=83.6 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=0.58s prefill=7019 tok/s decode=81.6 tok/s peak=83.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4088 ttft=0.58s prefill=7023 tok/s decode=81.6 tok/s peak=83.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=2.48s prefill=6724 tok/s decode=74.3 tok/s peak=75.6 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16653 ttft=2.48s prefill=6724 tok/s decode=74.1 tok/s peak=75.8 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16655 ttft=2.47s prefill=6748 tok/s decode=74.1 tok/s peak=75.7 tok/s out=128
+prefill chunk 8192 (--prefill-chunk)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 8192
+[localeval]   1024 tok rep 1/1: prompt=995 ttft=0.20s prefill=5052 tok/s decode=84.4 tok/s peak=86.3 tok/s out=128
+[localeval] 4 streams: aggregate 142.7 tok/s
+[localeval]   4096 tok rep 1/1: prompt=4089 ttft=0.58s prefill=7089 tok/s decode=81.4 tok/s peak=83.9 tok/s out=128
+[localeval] 4 streams: aggregate 99.6 tok/s
+[itl4] calibrated 22.1 tok/sentence, base 53; prompt ~4096 tokens (183 sentences)
+[itl4] rep 1 burst: agg 99.4 tok/s, pooled ITL p50/p99/max (22.3, 580.0, 582.8) ms, ttft [1.15, 2.31, 1.73, 0.58], errors []
+[itl4] rep 1 stagger: agg 113.0 tok/s, pooled ITL p50/p99/max (20.1, 35.9, 585.7) ms, ttft [0.58, 0.61, 0.6, 0.6], errors []
+[itl4] rep 2 burst: agg 99.8 tok/s, pooled ITL p50/p99/max (22.4, 576.8, 585.2) ms, ttft [0.58, 2.32, 1.16, 1.74], errors []
+[itl4] rep 2 stagger: agg 114.1 tok/s, pooled ITL p50/p99/max (20.1, 30.7, 592.1) ms, ttft [0.58, 0.6, 0.61, 0.61], errors []
+[itl4] summary {"burst": {"reps": 2, "pooled_itl_p99_ms_median": 578.4, "pooled_itl_max_ms_median": 584.0, "pooled_itl_p50_ms_median": 22.35, "aggregate_decode_tok_s_median": 99.6}, "stagger": {"reps": 2, "pooled_itl_p99_ms_median": 33.3, "pooled_itl_max_ms_median": 588.9000000000001, "pooled_itl_p50_ms_median": 20.1, "aggregate
+[01:53:32] == done
+missioncntrl-guidance
+[01:56:35] restore: retro healthy 1682 s after the stop
+{"object":"list","data":[{"id":"guidance","object":"model","created":1792821395,"owned_by":"vllm","root":"nvidia/Qwen3.6-35B-A3B-NVFP4","parent":null,"max_model_len":131072,"permission":[{"id":"modelperm-8671ee0a13ea4ac6","object":"model_permission","created":1792821395,"allow_create_engine":false,"{"id":"chatcmpl-ae056cf21466a438","object":"chat.completion","created":1792821395,"model":"guidance","choices":[{"index":0,"message":{"role":"assistant","content":"OK","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":null,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-
