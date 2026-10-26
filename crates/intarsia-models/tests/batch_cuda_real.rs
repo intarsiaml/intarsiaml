@@ -247,6 +247,12 @@ fn real_35b_tp2_solo_fresh_states_repro() {
         }
         let mut first: Option<Vec<u32>> = None;
         for k in 0..states {
+            let probe = |what: &str| {
+                if std::env::var("INTARSIA_REPRO_CTRS").is_ok_and(|v| v == "1") {
+                    eprintln!("CTRS rep {rep} state {k} {what}: {}", m.comm_debug_state().unwrap_or_default());
+                }
+            };
+            probe("before");
             if between && k % 2 == 1 {
                 let r = with_watchdog(&m, || std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     batch_identity::run(&m, &batch_identity::Cfg { lens: vec![11, 29, 53], batches: vec![3], steps: 1, vocab_range: (1000, 30000) })
@@ -263,6 +269,7 @@ fn real_35b_tp2_solo_fresh_states_repro() {
             m.forward(&mut st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
             let out = m.forward(&mut st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap();
             let StepOut::Logits(l) = out else { panic!("no logits") };
+            probe("after the solo prefill + decode step");
             let bits: Vec<u32> = l.iter().map(|x| x.to_bits()).collect();
             match &first {
                 None => first = Some(bits),
