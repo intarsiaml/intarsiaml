@@ -706,6 +706,9 @@ impl LocalEngine {
             if mtp && (!model.has_mtp() || state.mtp.is_none()) {
                 return Err(Error::invalid("--spec mtp needs the model loaded with its MTP head (LoadOptions::mtp)"));
             }
+            if meta.spec.mode == crate::spec::SpecMode::Dflash && (!model.has_dflash() || state.dflash.is_none()) {
+                return Err(Error::invalid("--spec dflash needs the model loaded with its draft (LoadOptions::dflash)"));
+            }
             // the MTP path keeps per-row recurrent states in its verify passes; n-gram drafting does not
             if state.has_recurrent() && !mtp {
                 return Err(Error::Unsupported("speculative decoding on a model with recurrent state".into()));
@@ -1125,8 +1128,10 @@ pub(crate) struct Seq {
     // verify pass yields several tokens; they wait in `pending` and go through the same per-token checks as sequential
     // tokens, so EOS / stop ids, stop strings, min_tokens and max_tokens act on them exactly the same way.
     spec_on: bool,
-    /// Drafts from the model's MTP head (`--spec mtp`) instead of prompt lookup.
+    /// Drafts from a model-based drafter (`--spec mtp` or `--spec dflash`) instead of prompt lookup.
     spec_mtp: bool,
+    /// The model-based drafter is the DFlash block draft (`--spec dflash`), not the MTP head.
+    spec_dflash: bool,
     spec_k: usize,
     /// The batching scheduler withholds drafting (batch too large); set per step by [`Seq::set_spec_allowed`].
     spec_paused: bool,
@@ -1174,7 +1179,7 @@ impl Seq {
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
-        if seq.spec_mtp {
+        if seq.spec_mtp && !seq.spec_dflash {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
         }
@@ -1186,7 +1191,7 @@ impl Seq {
         let ps = sh
             .store
             .as_ref()
-            .filter(|_| !(drafting && st.mtp.is_some()))
+            .filter(|_| !(drafting && (st.mtp.is_some() || st.dflash.is_some())))
             .map(|pol| SeqStore::new(pol.clone(), &seq.req.prompt, recurrent, model.prefill_chunk().max(1)));
 
         // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
@@ -1199,7 +1204,7 @@ impl Seq {
             // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
             p = st.restorable_len(p);
         }
-        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) {
+        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) || st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
             p = 0;
         }
         let mut restored = Duration::ZERO;
@@ -1228,6 +1233,9 @@ impl Seq {
         }
         if let Some(m) = st.mtp.as_mut() {
             m.active = drafting;
+        }
+        if let Some(d) = st.dflash.as_mut() {
+            d.active = drafting;
         }
         if seq.req.prewarm.is_some() {
             // a prewarm is admitted for its prefill only
@@ -1265,7 +1273,8 @@ impl Seq {
             .as_ref()
             .map(|c| c.start().map(crate::constrain::ConstraintRun::new).map_err(|e| e.to_string()));
         // constrained requests take plain steps only (drafts would bypass the mask)
-        let spec_mtp = env.spec.mode == crate::spec::SpecMode::Mtp;
+        let spec_dflash = env.spec.mode == crate::spec::SpecMode::Dflash;
+        let spec_mtp = env.spec.mode == crate::spec::SpecMode::Mtp || spec_dflash;
         let spec_on = env.spec.enabled()
             && greedy
             && req.trace_logits.is_none()
@@ -1295,6 +1304,7 @@ impl Seq {
             stops,
             spec_on,
             spec_mtp,
+            spec_dflash,
             spec_k,
             spec_paused: false,
             spec_busy: false,
@@ -1695,7 +1705,7 @@ impl Seq {
     /// before it, from its start to now, token emission included, over the tokens it yielded. Beside other sequences
     /// (`spec_busy`) the time is shared, so nothing is timed.
     fn cost_begin(&mut self, spec: bool) {
-        if !self.spec_mtp || !self.spec_on || !self.gate.cost_enabled() {
+        if !self.spec_mtp || self.spec_dflash || !self.spec_on || !self.gate.cost_enabled() {
             return;
         }
         let now = Instant::now();
@@ -1846,7 +1856,12 @@ impl Seq {
             Next::Draft(k) => {
                 self.cost_begin(true);
                 let t0 = Instant::now();
-                let drafts = model.mtp_draft(st, self.tok, k)?;
+                let drafts = if self.spec_dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? };
+                if drafts.is_empty() {
+                    // no room for a draft block near the end of the context window: a plain step
+                    self.cost_begin(false);
+                    return Ok(Some(self.plain_input()));
+                }
                 if mtp_verify_check() {
                     let mut ids = vec![self.tok];
                     ids.extend_from_slice(&drafts);

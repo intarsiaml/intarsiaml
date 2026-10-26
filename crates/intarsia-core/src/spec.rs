@@ -19,6 +19,10 @@ pub enum SpecMode {
     /// Works on models with recurrent state: the verify pass keeps the state after every row
     /// (`crate::state::SpecRows`).
     Mtp,
+    /// DFlash parallel block drafter (`crate::model::dflash`, `--spec dflash --spec-draft DIR`, lane dc): a 5-layer draft
+    /// reads the target's hidden states at five layers and proposes up to [`DFLASH_K_MAX`] tokens in one pass; verified
+    /// by the same multi-row pass (attention one decode call per row where the backend's multi-row call is not bitwise).
+    Dflash,
 }
 
 /// Longest suffix the drafter matches.
@@ -28,6 +32,11 @@ pub const NGRAM_MIN: usize = 1;
 /// Most draft tokens per verify pass (`--spec-k`): a pass has `1 + k` rows, and G0 / G0b measured the row-exact kernels
 /// cheap up to 7 rows (the 8-row GEMV hits the shard-alignment cliff).
 pub const SPEC_K_MAX: usize = 6;
+/// Most drafts per verify pass with `--spec dflash`: one block of the draft checkpoint (15) plus the anchor row = 16 rows,
+/// `Model::VERIFY_MAX_ROWS`. The row-exact claim for these passes is `docs/results/2026-10-25-dc-dflash-dcoco.md` section 10.1.
+pub const DFLASH_K_MAX: usize = 15;
+/// `--spec-k` default with `--spec dflash` (the checkpoint's block).
+pub const DFLASH_K_DEFAULT: usize = 15;
 /// Default `--spec-k`.
 pub const SPEC_K_DEFAULT: usize = 4;
 /// Default `--spec-k` for `--spec mtp` when none is given: the k = 1..3 sweep on spark1
@@ -63,10 +72,12 @@ impl SpecConfig {
             "off" | "none" | "" => SpecMode::Off,
             "ngram" => SpecMode::Ngram,
             "mtp" => SpecMode::Mtp,
-            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram or mtp)"))),
+            "dflash" => SpecMode::Dflash,
+            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram, mtp or dflash)"))),
         };
-        if !(1..=SPEC_K_MAX).contains(&k) {
-            return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={SPEC_K_MAX}")));
+        let kmax = if mode == SpecMode::Dflash { DFLASH_K_MAX } else { SPEC_K_MAX };
+        if !(1..=kmax).contains(&k) {
+            return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={kmax}")));
         }
         Ok(SpecConfig { mode, k })
     }

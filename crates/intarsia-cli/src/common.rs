@@ -108,6 +108,11 @@ pub struct ModelArgs {
     /// Default: 4 for `ngram`, 2 for `mtp`.
     #[arg(long)]
     pub spec_k: Option<usize>,
+    /// With `--spec dflash`: the draft checkpoint directory (`TD-Labs/Qwen3-8B-DCOCO` layout: `config.json` with
+    /// `dflash_config`, `model.safetensors`). CUDA and the CPU backend, single sequence, greedy requests; the target's
+    /// embedding and lm_head are used for the draft.
+    #[arg(long)]
+    pub spec_draft: Option<PathBuf>,
     /// With `--spec mtp`: draft over the first N lm_head rows (token ids 0..N, the frequent end of a BPE vocabulary) instead of
     /// all of them, so each draft costs N/V of a head sweep (about 11% of a 27B pass at k=2 is the two draft sweeps). Output is
     /// unchanged (the verify pass keeps the full head); only acceptance can move, down when the true token is outside 0..N.
@@ -311,7 +316,9 @@ impl ModelArgs {
                 mtp: self.spec == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
+                dflash: None, // set from --spec-draft by the loader
             },
+            spec_draft: self.spec_draft.clone(),
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
             recipe_dirs: self.recipe_dir.clone(),
@@ -328,6 +335,8 @@ impl ModelArgs {
                 &self.spec,
                 self.spec_k.unwrap_or(if self.spec == "mtp" {
                     intarsia_core::spec::MTP_K_DEFAULT
+                } else if self.spec == "dflash" {
+                    intarsia_core::spec::DFLASH_K_DEFAULT
                 } else {
                     intarsia_core::spec::SPEC_K_DEFAULT
                 }),

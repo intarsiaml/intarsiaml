@@ -192,6 +192,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         peers: Vec::new(),
         remote: None,
         mtp: None,
+        dflash: None,
         clean: 0,
         spec_rows: Default::default(),
     }

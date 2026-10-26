@@ -665,7 +665,7 @@ impl Model {
         if self.batch_rows == 0 || rows == 0 || rows > self.batch_rows {
             return Err(Error::invalid("decode_twin needs a batch-enabled model and 1..=batch_rows rows"));
         }
-        if !self.peers.is_empty() || self.tp.world > 1 || self.mtp.is_some() || self.gemma.is_some() {
+        if !self.peers.is_empty() || self.tp.world > 1 || self.mtp.is_some() || self.dflash.is_some() || self.gemma.is_some() {
             return Err(Error::Unsupported("decode twin: single-rank models without MTP or Gemma 4 layers".into()));
         }
         let (d, act) = (&self.ldims, self.act);
@@ -744,6 +744,8 @@ impl Model {
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
+            noncausal_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_rows_attn: false,
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -760,6 +762,7 @@ impl Model {
             skip_dead: std::sync::atomic::AtomicBool::new(false),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,
+            dflash: None,
             mtp_k: self.mtp_k,
             spec_cost: self.spec_cost,
         };

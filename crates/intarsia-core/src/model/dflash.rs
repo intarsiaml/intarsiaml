@@ -1,0 +1,407 @@
+//! DFlash parallel block drafter (`--spec dflash --spec-draft DIR`), lane dc, docs/results/2026-10-25-dc-dflash-dcoco.md.
+//!
+//! The draft checkpoint (`TD-Labs/Qwen3-8B-DCOCO` layout: `layers.N.*`, `fc`, `hidden_norm`, `norm`; embedding and lm_head are
+//! the target's, byte for byte) is five dense Qwen3 layers with non-causal attention:
+//!
+//! ```text
+//!   taps    feat_p = concat(out_l(p) for l in layer_ids)        out_l = the target's residual stream after layer l (0-based)
+//!   context h_ctx  = hidden_norm(fc(feat_p))                    for every target position p; fc [H, taps * H]
+//!           K_l(p) = rope(k_norm(k_proj_l(h_ctx)), p)           V_l(p) = v_proj_l(h_ctx)       (layer l of the draft, cached)
+//!   block   rows   = [anchor, MASK x (block - 1)]               at positions P .. P + block - 1, P = target length
+//!           x      = embed(rows); per layer: x += o_proj(attn(input_layernorm(x))); x += mlp(post_attention_layernorm(x))
+//!           attn   : the rows' own K/V are appended after the context, every row sees every key (no causal mask)
+//!   drafts  argmax(lm_head(norm(x))) of ALL block rows, row r drafts the token at position P + r + 1
+//! ```
+//!
+//! The context cache is written right after each target pass that processed the positions (`dflash_after_forward`, from the
+//! taps' staging buffers), so back-off steps leave no hole; a target rollback shortens it to the same length. The block's K/V
+//! are scratch beyond the cache length. Attention for the block runs one `AttnDecode` per row at the block's last position
+//! (every key visible, no new kernel). Drafts never change the output (every emitted token is a verify row's argmax), the draft's
+//! numerics only move the acceptance rate; the exactness of the verify pass itself is `Model::verify_rows_attn`.
+
+use super::*;
+use crate::state::DflashState;
+
+/// What the draft checkpoint's `config.json` (`dflash_config`) says, parsed by the loader.
+#[derive(Clone, Debug)]
+pub struct DflashConfig {
+    /// 0-based target layers whose outputs feed the draft, in `fc` column order.
+    pub layer_ids: Vec<usize>,
+    pub mask_id: u32,
+    /// Query rows of the block = tokens drafted per pass (`dflash_config.block_size`).
+    pub block: usize,
+    /// The draft's own geometry, checked against the target's.
+    pub hidden: usize,
+    pub n_layers: usize,
+    pub intermediate: usize,
+    pub n_heads: usize,
+    pub n_kv_heads: usize,
+    pub head_dim: usize,
+    pub vocab: usize,
+    /// DCOCO corrector geometry (`dcoco_candidate_topk`, `dcoco_emb_dim`, `dcoco_state_dim`, `dcoco_mlp_dim`); 0 when absent.
+    pub topk: usize,
+    pub emb_dim: usize,
+    pub state_dim: usize,
+    pub mlp_dim: usize,
+}
+
+/// `LoadOptions::dflash`: the draft checkpoint's weights and config.
+#[derive(Clone)]
+pub struct DflashLoad {
+    pub src: Arc<dyn WeightSource>,
+    pub config: DflashConfig,
+}
+
+impl std::fmt::Debug for DflashLoad {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DflashLoad").field("config", &self.config).finish_non_exhaustive()
+    }
+}
+
+pub(super) struct DflashHead {
+    /// Draft layer l: its attention (cache slot l of [`DflashState::kv`]) and feed-forward block.
+    pub(super) layers: Vec<(AttnBlock, FfnBlock)>,
+    /// `fc` split by columns into one `[H, H]` projection per tap (summed), so no concat buffer is needed.
+    fc: Vec<QTensor>,
+    hidden_norm: TensorRef,
+    norm: TensorRef,
+    /// Target layers tapped; `feat[i]` is the staging buffer of tap `i`, `[max rows, H]`.
+    pub(super) taps: Vec<usize>,
+    pub(super) feat: Vec<Buffer>,
+    mask_id: u32,
+    /// Query rows (= drafts) per pass.
+    pub(super) block: usize,
+}
+
+/// bf16 `[n, k]` linear weight `prefix` of the draft checkpoint.
+fn lin(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), prefix: &str, n: usize, k: usize) -> Result<QTensor> {
+    let q = crate::quant::load_linear(src, prefix, b, &QuantLoadOpts::default())?;
+    if (q.n, q.k) != (n, k) || q.format != crate::quant::BF16 {
+        return Err(Error::model(format!("draft tensor '{prefix}' is [{}, {}] {:?}, expected bf16 [{n}, {k}]", q.n, q.k, q.format)));
+    }
+    bytes(q.weight_bytes() as u64);
+    Ok(q)
+}
+
+/// The draft's weights onto the device, checked against the target (`Model::load_shard`, `opts.dflash`).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn load_head(
+    dl: &DflashLoad,
+    b: &dyn Backend,
+    dims: &ModelDims,
+    _recipe: &Recipe,
+    main_attn: Option<&AttnBlock>,
+    add_bytes: &dyn Fn(u64),
+    rows: usize,
+    act: DType,
+) -> Result<DflashHead> {
+    let (c, src) = (&dl.config, &*dl.src);
+    let main_attn = main_attn.ok_or_else(|| Error::model("--spec dflash needs a model with full-attention layers"))?;
+    if main_attn.gated || dims.moe.is_some() || dims.gemma.is_some() || dims.intermediate == 0 {
+        return Err(Error::Unsupported("--spec dflash needs a dense, ungated attention model (Qwen3)".into()));
+    }
+    let same = (c.hidden, c.intermediate, c.n_heads, c.n_kv_heads, c.head_dim, c.vocab)
+        == (dims.hidden, dims.intermediate, dims.n_heads, dims.n_kv_heads, dims.head_dim, dims.vocab);
+    if !same {
+        return Err(Error::model(format!(
+            "the draft's geometry (hidden {}, ffn {}, heads {}/{}, head_dim {}, vocab {}) differs from the target's \
+             (hidden {}, ffn {}, heads {}/{}, head_dim {}, vocab {})",
+            c.hidden, c.intermediate, c.n_heads, c.n_kv_heads, c.head_dim, c.vocab,
+            dims.hidden, dims.intermediate, dims.n_heads, dims.n_kv_heads, dims.head_dim, dims.vocab
+        )));
+    }
+    if c.layer_ids.is_empty() || c.layer_ids.iter().any(|&l| l >= dims.n_layers) || c.block == 0 || c.block > Model::VERIFY_MAX_ROWS - 1 {
+        return Err(Error::model(format!(
+            "draft tap layers {:?} / block {} do not fit a {}-layer target with {}-row verify passes",
+            c.layer_ids,
+            c.block,
+            dims.n_layers,
+            Model::VERIFY_MAX_ROWS
+        )));
+    }
+    if c.mask_id as usize >= dims.vocab {
+        return Err(Error::model(format!("draft mask token {} outside the vocabulary", c.mask_id)));
+    }
+    let (h, qdim, kvdim, inter) = (dims.hidden, dims.n_heads * dims.head_dim, dims.n_kv_heads * dims.head_dim, dims.intermediate);
+    let norm_w = |name: &str, n: usize| -> Result<TensorRef> {
+        let t = load_tensor(b, src, &resolve(src, name)?, Some(&[n]))?;
+        add_bytes(t.nbytes() as u64);
+        Ok(t)
+    };
+    let mut layers = Vec::with_capacity(c.n_layers);
+    for l in 0..c.n_layers {
+        let p = format!("layers.{l}");
+        let attn = AttnBlock {
+            pre_norm: norm_w(&format!("{p}.input_layernorm"), h)?,
+            wq: lin(src, b, add_bytes, &format!("{p}.self_attn.q_proj"), qdim, h)?,
+            wk: lin(src, b, add_bytes, &format!("{p}.self_attn.k_proj"), kvdim, h)?,
+            wv: lin(src, b, add_bytes, &format!("{p}.self_attn.v_proj"), kvdim, h)?,
+            wo: lin(src, b, add_bytes, &format!("{p}.self_attn.o_proj"), h, qdim)?,
+            q_norm: Some(norm_w(&format!("{p}.self_attn.q_norm"), dims.head_dim)?),
+            k_norm: Some(norm_w(&format!("{p}.self_attn.k_norm"), dims.head_dim)?),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            slot: l,
+            gated: false,
+            rotary_dim: main_attn.rotary_dim,
+        };
+        let ffn = FfnBlock {
+            pre_norm: norm_w(&format!("{p}.post_attention_layernorm"), h)?,
+            gate: lin(src, b, add_bytes, &format!("{p}.mlp.gate_proj"), inter, h)?,
+            up: lin(src, b, add_bytes, &format!("{p}.mlp.up_proj"), inter, h)?,
+            down: lin(src, b, add_bytes, &format!("{p}.mlp.down_proj"), h, inter)?,
+        };
+        layers.push((attn, ffn));
+    }
+    // fc [H, taps * H] split by columns
+    let taps = c.layer_ids.len();
+    let fc_name = resolve(src, "fc")?;
+    let info = src.info(&fc_name).ok_or_else(|| Error::model("draft tensor 'fc' missing"))?;
+    if info.dtype != DType::Bf16 || info.shape != [h, taps * h] {
+        return Err(Error::model(format!("draft '{fc_name}' is {} {:?}, expected bf16 [{h}, {}]", info.dtype, info.shape, taps * h)));
+    }
+    let raw = src.bytes(&fc_name)?;
+    let mut fc = Vec::with_capacity(taps);
+    for i in 0..taps {
+        let mut part = Vec::with_capacity(h * h * 2);
+        for r in 0..h {
+            let row = &raw[r * taps * h * 2..(r + 1) * taps * h * 2];
+            part.extend_from_slice(&row[i * h * 2..(i + 1) * h * 2]);
+        }
+        let buf = crate::backend::upload_new(b, &part)?;
+        add_bytes(part.len() as u64);
+        fc.push(QTensor { format: crate::quant::BF16, n: h, k: h, parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])], act_quant: false });
+    }
+    let hidden_norm = norm_w("hidden_norm", h)?;
+    let norm = norm_w("norm", h)?;
+    let mut feat = Vec::with_capacity(taps);
+    for _ in 0..taps {
+        let bytes = rows * h * act.size_bytes();
+        feat.push(b.alloc(bytes.max(16), MemKind::Device)?);
+        add_bytes(bytes as u64);
+    }
+    Ok(DflashHead { layers, fc, hidden_norm, norm, taps: c.layer_ids.clone(), feat, mask_id: c.mask_id, block: c.block })
+}
+
+impl Model {
+    /// Whether the DFlash drafter is loaded (`LoadOptions::dflash`).
+    pub fn has_dflash(&self) -> bool {
+        self.dflash.is_some()
+    }
+
+    /// Drafts per pass of the loaded DFlash drafter (its block), or 0.
+    pub fn dflash_block(&self) -> usize {
+        self.dflash.as_ref().map_or(0, |h| h.block)
+    }
+
+    /// The drafter state a new sequence gets (`None` without the drafter).
+    pub(super) fn new_dflash_state(&self, cap: usize) -> Result<Option<Box<DflashState>>> {
+        let Some(head) = &self.dflash else { return Ok(None) };
+        let specs: Vec<SlotSpec> = (0..head.layers.len())
+            .map(|_| SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv })
+            .collect();
+        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true })))
+    }
+
+    /// After a target pass over the `t` rows just committed to `st` (positions `st.len - t .. st.len`; the taps' staging
+    /// buffers hold their features): put the rows into the draft's context cache. Nothing for a request that does not draft.
+    pub(super) fn dflash_after_forward(&self, st: &mut SequenceState, t: usize, profile: bool) -> Result<()> {
+        let Some(head) = &self.dflash else { return Ok(()) };
+        let Some(d) = st.dflash.as_mut() else { return Ok(()) };
+        if !d.active || !d.synced {
+            // a request that never drafts does not pay for the draft (its rows are not ingested)
+            d.synced = false;
+            return Ok(());
+        }
+        if d.kv.len + t != st.len || st.len > d.kv.cap {
+            d.synced = false;
+            return Ok(());
+        }
+        let mut d = st.dflash.take().unwrap();
+        let r = self.dflash_ingest(head, &mut d.kv, t, profile);
+        if r.is_err() {
+            d.synced = false;
+        }
+        st.dflash = Some(d);
+        r
+    }
+
+    /// Context rows of `t` target positions into the draft caches: `h_ctx = hidden_norm(sum_i fc_i feat_i)`, then every draft
+    /// layer's k/v projection, k-norm, rope at the absolute positions and cache append (`attn_block_kv_only`).
+    fn dflash_ingest(&self, head: &DflashHead, kv: &mut SequenceState, t: usize, profile: bool) -> Result<()> {
+        let (h, act, ws) = (self.dims.hidden, self.act, &self.ws);
+        let v = |b: &Buffer| self.view(b, act, &[t, h]);
+        let (h0, h1, blk, n) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.blk), v(&ws.n));
+        let add = |a: &TensorRef, b: &TensorRef, out: &TensorRef| {
+            self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile)
+        };
+        // sum over the taps, ping-ponging h0 / blk (an Add never writes one of its inputs)
+        let feat = |i: usize| self.view(&head.feat[i], act, &[t, h]);
+        self.proj(&feat(0), &head.fc[0], &h0, profile)?;
+        let (mut acc, mut other) = (h0.clone(), blk.clone());
+        for i in 1..head.fc.len() {
+            self.proj(&feat(i), &head.fc[i], &h1, profile)?;
+            add(&acc, &h1, &other)?;
+            std::mem::swap(&mut acc, &mut other);
+        }
+        let eps = OpAttrs { eps: self.dims.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        self.exec(Op::RmsNorm, vec![acc, head.hidden_norm.clone()], vec![n.clone()], eps, profile)?;
+        let pos0 = kv.len;
+        for (a, _) in &head.layers {
+            self.attn_block_kv_only(a, kv, &n, t, pos0, false, profile)?;
+        }
+        kv.advance_rows(t);
+        Ok(())
+    }
+
+    /// Drafts after `next` (the token the target emits at position `st.len`): one block pass of the draft over the cached
+    /// context. Up to `k` tokens (the block holds `dflash_block()`), all from this one pass.
+    pub fn dflash_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
+        let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
+        if k == 0 {
+            return Ok(Vec::new());
+        }
+        if !d.active || !d.synced || d.kv.len != st.len {
+            return Err(Error::invalid(format!(
+                "DFlash state at {} (active {}, synced {}), sequence at {}",
+                d.kv.len, d.active, d.synced, st.len
+            )));
+        }
+        let t = head.block;
+        let p0 = d.kv.len;
+        if p0 + t > d.kv.cap {
+            return Ok(Vec::new());
+        }
+        let profile = false;
+        let (hd, act, ws) = (self.dims.hidden, self.act, &self.ws);
+        if self.recorder.lock().unwrap().is_none() {
+            let mut ids = vec![head.mask_id as i32; t];
+            ids[0] = next as i32;
+            if next as usize >= self.dims.vocab {
+                return Err(Error::BadRequest(format!("token id {next} >= vocab {}", self.dims.vocab)));
+            }
+            let bytes: Vec<u8> = ids.iter().flat_map(|i| i.to_le_bytes()).collect();
+            self.backend.upload(&ws.ids, 0, &bytes, self.stream)?;
+        }
+        let v = |b: &Buffer| self.view(b, act, &[t, hd]);
+        let (h0, h1, n, blk) = (v(&ws.h[0]), v(&ws.h[1]), v(&ws.n), v(&ws.blk));
+        let eps = OpAttrs { eps: self.dims.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
+        self.exec(
+            Op::Embedding,
+            vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()],
+            vec![h0.clone()],
+            OpAttrs::default(),
+            profile,
+        )?;
+        self.exec(Op::RmsNorm, vec![h0.clone(), head.layers[0].0.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
+        self.noncausal_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<()> {
+            for (i, (a, f)) in head.layers.iter().enumerate() {
+                self.attn_block(a, &d.kv, &n, &blk, t, p0, None, false, profile)?;
+                self.exec(
+                    Op::RmsNormAdd,
+                    vec![blk.clone(), h0.clone(), f.pre_norm.clone()],
+                    vec![n.clone(), h1.clone()],
+                    eps.clone(),
+                    profile,
+                )?;
+                self.ffn_block(f, &n, &blk, t, profile)?;
+                let next_w = head.layers.get(i + 1).map_or(&head.norm, |(a, _)| &a.pre_norm);
+                self.exec(Op::RmsNormAdd, vec![blk.clone(), h1.clone(), next_w.clone()], vec![n.clone(), h0.clone()], eps.clone(), profile)?;
+            }
+            Ok(())
+        })();
+        self.noncausal_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        run?;
+        // greedy token of every row: lm_head over the t rows, argmax on the device
+        self.verify_head(&n, t, profile)?;
+        let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(Vec::new()); // plan dry run: the launches are recorded, nothing to read back
+        }
+        let mut b = vec![0u8; t * 4];
+        self.backend.download(tok, 0, &mut b, self.stream)?;
+        let mut drafts: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+        drafts.truncate(k);
+        Ok(drafts)
+    }
+
+    /// Tests: put `rows` context positions into the draft from host features (`[rows, taps * H]` f32, rounded to the activation
+    /// dtype) as if the target had just processed them; advances `st` (target length and draft cache) by `rows`.
+    #[doc(hidden)]
+    pub fn dflash_ingest_host(&self, st: &mut SequenceState, feat: &[f32], rows: usize) -> Result<()> {
+        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("no DFlash draft"))?;
+        let (h, taps) = (self.dims.hidden, head.taps.len());
+        if feat.len() != rows * taps * h {
+            return Err(Error::invalid(format!("dflash_ingest_host: {} values for {rows} rows x {taps} taps x {h}", feat.len())));
+        }
+        let mut d = st.dflash.take().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
+        let r = (|| -> Result<()> {
+            let mut done = 0;
+            while done < rows {
+                let t = (rows - done).min(self.ws.max_tokens);
+                for i in 0..taps {
+                    let mut part = Vec::with_capacity(t * h);
+                    for r in 0..t {
+                        let base = (done + r) * taps * h + i * h;
+                        part.extend_from_slice(&feat[base..base + h]);
+                    }
+                    let host = crate::tensor::HostTensor::from_f32_as(self.act, &[t, h], &part);
+                    self.backend.upload(&head.feat[i], 0, &host.data, self.stream)?;
+                }
+                self.dflash_ingest(head, &mut d.kv, t, false)?;
+                done += t;
+            }
+            Ok(())
+        })();
+        st.dflash = Some(d);
+        r?;
+        st.advance_rows(rows);
+        Ok(())
+    }
+
+    /// Tests: the draft's last normed block output (`[rows, H]` f32), valid right after [`Model::dflash_draft`].
+    #[doc(hidden)]
+    pub fn dflash_last_hidden(&self, rows: usize) -> Result<Vec<f32>> {
+        let n = rows * self.dims.hidden;
+        let mut b = vec![0u8; n * self.act.size_bytes()];
+        self.backend.download(&self.ws.n, 0, &mut b, self.stream)?;
+        let mut out = vec![0f32; n];
+        crate::dtype::decode_to_f32(self.act, &b, &mut out);
+        Ok(out)
+    }
+
+    /// Plan dry-run (`Model::dry_run`, recorder installed): record the ingest and block passes so plan resolution and
+    /// admission cover them. Nothing without the drafter.
+    pub(super) fn dflash_dry_run(&self) -> Result<()> {
+        let Some(head) = &self.dflash else { return Ok(()) };
+        if self.recorder.lock().unwrap().is_none() {
+            return Err(Error::invalid("dflash_dry_run outside a dry run"));
+        }
+        if self.verify_tok.is_none() {
+            return Ok(()); // verify passes not enabled: the draft cannot run either
+        }
+        let specs: Vec<SlotSpec> = (0..head.layers.len())
+            .map(|_| SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv })
+            .collect();
+        let mut kv = crate::plan::phantom_state(&specs, self.plan.kv_cap_tokens, 0);
+        let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.extra = true;
+        }
+        let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+        let t = head.block;
+        let r = self.dflash_ingest(head, &mut kv, t, false).and_then(|_| {
+            let mut st = crate::plan::phantom_state(&[], self.plan.kv_cap_tokens, kv.len);
+            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true }));
+            self.dflash_draft(&mut st, 0, t).map(|_| ())
+        });
+        self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.extra = extra;
+        }
+        r
+    }
+}

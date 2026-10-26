@@ -98,6 +98,22 @@ pub struct SpecRows {
     pub saved: usize,
 }
 
+/// State of the DFlash drafter (`--spec dflash`, `crate::model::dflash`) beside a sequence: the draft layers' context K/V.
+/// Position `p`'s row is `K/V(hidden_norm(fc(target layer outputs at p)))` and is written right after the target pass that
+/// processed position `p` (every pass, so a back-off step leaves no hole); `kv.len` rows are valid. Drafting needs
+/// `kv.len == st.len`. A rollback of the target (`truncate`, `spec_rollback`) shortens `kv` to the same length.
+pub struct DflashState {
+    /// The draft layers' attention caches (one `AttnKv` slot per draft layer); `kv.len` = context rows ingested.
+    pub kv: SequenceState,
+    /// The current request drafts: only then does each pass ingest its rows. A request that never drafts skips the draft
+    /// entirely and leaves the state unsynced.
+    pub active: bool,
+    /// `kv.len` covers the target's rows (`st.len` when the pass ends). False once a pass ran without ingest or an
+    /// ingest failed or rows were restored from a prefix store; only `truncate(0)` syncs it again, so a drafting request
+    /// on an unsynced state starts from an empty cache (`Seq::new`).
+    pub synced: bool,
+}
+
 static NEXT_STATE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// A tensor-parallel peer rank's share of a sequence: its own slots on its own device.
@@ -136,6 +152,8 @@ pub struct SequenceState {
     pub clean: usize,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
+    /// The DFlash drafter's state (`--spec dflash` only).
+    pub dflash: Option<Box<DflashState>>,
     /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
     pub spec_rows: SpecRows,
 }
@@ -179,6 +197,7 @@ impl SequenceState {
             remote: None,
             clean: 0,
             mtp: None,
+            dflash: None,
             spec_rows: SpecRows::default(),
         })
     }
@@ -355,6 +374,11 @@ impl SequenceState {
             }
             m.pending_rows = keep - m.kv.len;
         }
+        if let Some(d) = &mut self.dflash {
+            if d.kv.len > keep {
+                d.kv.truncate(keep, backend)?;
+            }
+        }
         Ok(())
     }
 
@@ -438,6 +462,14 @@ impl SequenceState {
                 }
             }
         }
+        if let Some(d) = &mut self.dflash {
+            if len == 0 {
+                d.kv.truncate(0, backend)?;
+                d.synced = true;
+            } else if d.kv.len > len {
+                d.kv.truncate(len, backend)?;
+            }
+        }
         self.spec_rows.saved = 0;
         self.drop_snapshots_above(len);
         for s in self.slots.iter_mut() {
@@ -468,6 +500,19 @@ impl SequenceState {
         // the restored rows never went through the MTP head: its cache no longer covers the sequence
         if let Some(m) = &mut self.mtp {
             m.synced = false;
+        }
+        if let Some(d) = &mut self.dflash {
+            d.synced = false;
+        }
+    }
+
+    /// Advance a draft KV state by `n` ingested rows (every attention slot): the DFlash context cache holds no tokens.
+    pub fn advance_rows(&mut self, n: usize) {
+        self.len += n;
+        for s in self.slots.iter_mut() {
+            if let StateSlot::AttnKv(a) = s {
+                a.len = self.len;
+            }
         }
     }
 
