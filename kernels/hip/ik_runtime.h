@@ -60,6 +60,7 @@ int ik_rt_graph_begin(void* stream);
 int ik_rt_graph_end(void* stream, void** exec);
 int ik_rt_graph_launch(void* exec, void* stream);
 int ik_rt_graph_destroy(void* exec);
+int ik_rt_device_sync(void); /* hipDeviceSynchronize (INTARSIA_GRAPH_SYNC_DESTROY: a graph exec is destroyed only when the device is idle) */
 /* tensor parallelism (kernels/hip/allreduce.hip): peer access and the fine-grained (uncached) allocations the
  * all-reduce's scratch and flags live in */
 int ik_rt_can_access_peer(int device, int peer, int* ok);

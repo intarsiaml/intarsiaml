@@ -56,6 +56,7 @@ E20="${E/REPS=8/REPS=20}"
 variant f1-control 330 $FS $E20
 variant sg1-solo-graphs-off 330 $FS $E20 INTARSIA_SOLO_GRAPHS=0
 variant syn1-sync-between 330 $FS $E20 INTARSIA_REPRO_SYNC_BETWEEN=1
+variant gs1-sync-destroy 330 $FS $E20 INTARSIA_GRAPH_SYNC_DESTROY=1
 variant g1-drain4 200 $FS $E INTARSIA_HIP_AR_DRAIN=4
 variant h1-drain5 200 $FS $E INTARSIA_HIP_AR_DRAIN=5
 variant k1-no-deferred-loading 200 $FS $E HIP_ENABLE_DEFERRED_LOADING=0

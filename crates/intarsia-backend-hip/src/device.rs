@@ -73,9 +73,17 @@ impl GraphImpl for HipGraph {
 
 impl Drop for HipGraph {
     fn drop(&mut self) {
+        // INTARSIA_GRAPH_SYNC_DESTROY=1 (w26): wait for the device to go idle before the exec is destroyed. A peer rank's replay is enqueue-only, so the
+        // exec may still be running (or queued) when the next capture clears the cache; HIP can hand a destroyed exec's kernel-argument memory to the
+        // next instantiate at once.
+        static SYNC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let sync = *SYNC.get_or_init(|| std::env::var("INTARSIA_GRAPH_SYNC_DESTROY").is_ok_and(|v| v == "1"));
         // SAFETY: exec came from ik_rt_graph_end and is destroyed exactly once.
         unsafe {
             ffi::ik_rt_set_device(self.ordinal);
+            if sync {
+                ffi::ik_rt_device_sync();
+            }
             ffi::ik_rt_graph_destroy(self.exec as *mut c_void);
         }
     }

@@ -161,6 +161,7 @@ int ik_rt_graph_end(void* stream, void** exec) {
 }
 int ik_rt_graph_launch(void* exec, void* stream) { return (int)hipGraphLaunch((hipGraphExec_t)exec, (hipStream_t)stream); }
 int ik_rt_graph_destroy(void* exec) { return (int)hipGraphExecDestroy((hipGraphExec_t)exec); }
+int ik_rt_device_sync(void) { return (int)hipDeviceSynchronize(); }
 
 int ik_rt_can_access_peer(int device, int peer, int* ok) { return (int)hipDeviceCanAccessPeer(ok, device, peer); }
 
