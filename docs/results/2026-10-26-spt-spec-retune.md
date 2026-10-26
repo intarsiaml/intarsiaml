@@ -72,5 +72,5 @@ documented opt-in for code-heavy traffic (+9% on code, -4.5% on prose). DFlash2 
 
 - Adaptive draft length (per-request k from running acceptance: k3 on high-acceptance text like code, k2 on prose) — would capture
   code +9% without the prose -4.5%; untried.
-- Today, `--spec mtp --spec-k 3` (pass both: a `--spec-k` without `--spec` turns the tp=2 default off) is +9% for code-heavy use
+- Today, `--spec mtp --spec-k 3` (since the follow-up in `docs/decisions/LOG.md` 2026-10-26 15:40, `--spec-k 3` alone suffices on the 27B tp2 HIP default: a lone `--spec-k` keeps the default MTP and sets only the draft length; before it, a `--spec-k` without `--spec` turned the default off and both flags had to be passed) is +9% for code-heavy use
   (ho-code 111.8 vs 102.8, rcp-code 109.2 vs 100.2 tok/s), at -4.5% on prose.
