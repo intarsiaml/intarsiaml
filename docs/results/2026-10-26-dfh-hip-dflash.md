@@ -404,3 +404,34 @@ Window 7 (#5750, 11:37:09-12:04:50 radiance down; `raw/w7/`), tree `baaade4b9` (
 
 At tp=2 the DFlash2 draft (whole, on rank 0) costs about 24 ms, 1.3 plain steps, and its 8-row verify plus rollback about 43.6 ms
 (2.3x the 19.1 ms step; tp=1 63.1 ms, 2.05x), so DFlash2 at tp=2 wins only on code. It stays opt-in. MTP k2 is the tp=2 speculator.
+
+## 14. Window 8: tp=2 speed, interleaved x3, on main with mxr #176 merged; the MTP default turns on
+
+Window 8 (#5757, 12:11:39-12:47:32 radiance down; `raw/w8/`), tree `5335fd6df` (origin/main `a3e60ce6` merged: mxr's int8 multi-row
+MXFP4 GEMV, #176). Dry-run first (#5755).
+
+**Verify cost on the new kernel** (`raw/w8/ids/`). The window 3 probe (`verify_rows_real`, 27B tp=1, 1024-token context) now gives
+decode1 31.24 ms, verify2 1.09x, verify4 1.20x, verify8 **44.24 ms, 1.42x** (window 3: 62.0 ms, 1.98x; mxr estimated about 1.3x), ids
+bitwise (163 rows, 0 diffs). Traced DFlash k7 passes on the ~3k prompt `4k-1` (verify + rollback, median over the passes): tp=1 46.0
+ms (1.49x the 30.8 ms step; was 63.1 ms), tp=2 32.0 ms (1.68x the 19.0 ms step; was 43.6 ms); DFlash2 on that prompt 1.53x (tp=1) and
+1.23x (tp=2), ids identical to off at both.
+
+**Speed**, 27B tp=2, `serve --max-batch 1`, `--spec off` vs `--spec mtp --spec-k 2`, three rounds interleaved (off/mtp2, mtp2/off,
+off/mtp2), localeval `--judge none`, 512 forced tokens, 42 runs, 0 problems (every row 512 tokens, the same rows in every arm),
+pooled per category (`raw/w8/cat-table.txt`):
+
+| category | off tok/s | mtp2 tok/s | x | tokens / pass |
+|---|---|---|---|---|
+| ho-chat | 53.3 | 85.6 | **1.61x** | 2.32 |
+| ho-code | 53.2 | 102.9 | **1.93x** | 2.78 |
+| ho-prose | 53.2 | 76.0 | **1.43x** | 2.07 |
+| ho-recall | 53.2 | 89.5 | **1.68x** | 2.43 |
+| rcp-code | 53.2 | 100.2 | **1.88x** | 2.71 |
+| rcp-prose | 53.2 | 77.4 | **1.45x** | 2.10 |
+| rcp-recall | 53.2 | 90.6 | **1.70x** | 2.46 |
+
+Every category is above 0.99x on both prompt sets with no retuning between them (and window 7, on the tree before #176: 1.24-1.68x).
+Single-stream decode of the 27B at tp=2 goes from 53.3 tok/s to 76-103 tok/s. With the user's conditional decision (11:07, "turn MTP
+on by default at tp2 if it passes"), ids 18/18 and the soak (window 7), the recipe now sets `[tuning.hip] mtp_default_tp_k = 2` in
+`recipes/qwen3_5_vl.toml`: with no `--spec` at `--tp 2` the 27B on HIP runs `--spec mtp --spec-k 2`; tp=1, other models and backends
+are unchanged; `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opt out. DFlash2 stays opt-in.
