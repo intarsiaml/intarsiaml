@@ -64,6 +64,21 @@ if [[ $STAGE == 1 ]]; then
     wait
     log "kernels test --quick: $(grep -aiE 'cases|fail' "$O/kernels-test-quick.out" | tail -2 | tr '\n' '|')"
   fi
+elif [[ $STAGE == 4 ]]; then
+  # F4: is the admission test's failure (kernels with no cases) the merged head's or main's? the full kernel sweep of both binaries, cards 0 and 1 at once
+  if clear "kernels full"; then
+    run $D 0 600 kernels-full-d kernels test --backend hip --device 0 --model $M35 &
+    run $B 1 600 kernels-full-b kernels test --backend hip --device 0 --model $M35 &
+    wait
+    for t in d b; do grep -aE 'NO CASES|REJECT|FAIL' "$O/kernels-full-$t.out" | awk '{print $1, $2, $NF}' | sort > "$O/kernels-notadmitted-$t.txt"; log "kernels full $t: $(grep -ac ADMITTED "$O/kernels-full-$t.out") admitted lines, $(wc -l < "$O/kernels-notadmitted-$t.txt") not admitted"; done
+    # the peer-ignores-flag mutant (not applied in F3: its pattern had drifted): rank 1 must show captures=0 replays=0
+    if [[ -x $(T mut-peer-ignores-flag)/tp2-intarsia ]]; then
+      gen $D 0,1 mut-ref2 $M35 short $TP2
+      gen mut-peer-ignores-flag 0,1 mut-peer-ignores-flag $M35 short $TP2
+      log "MUTANT peer-ignores-flag: clean $(grep -ahE 'tensor-parallel rank 1: decode graph' "$O/gen-mut-ref2.err" | head -1) | mutant $(grep -ahE 'tensor-parallel rank 1: decode graph' "$O/gen-mut-peer-ignores-flag.err" | head -1)"
+    fi
+    if cmp -s "$O/kernels-notadmitted-d.txt" "$O/kernels-notadmitted-b.txt"; then log "SAME not-admitted kernel list, head vs main"; else log "DIFF not-admitted kernel list, head vs main"; fi
+  fi
 elif [[ $STAGE == 3 ]]; then
   # F3: the direct partial-sum check and the whole HIP crate suite, the comm/sharding mutants, KL of tp=2 against tp=1 (report-only in the agreed gate)
   ht() { # ht <tag> <cargo test args...>

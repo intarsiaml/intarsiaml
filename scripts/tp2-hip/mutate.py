@@ -28,9 +28,11 @@ MUTANTS = {
         comm.all_reduce_sum_into(partial, out, 0)?;"""),
     # the in-process peer ignores rank 0's graph decision and always runs the step eagerly
     "peer-ignores-flag": ("crates/intarsia-core/src/model.rs",
-        """    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        """    fn run_peer_inner(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.tp_skew();
         if graph {""",
-        """    fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        """    fn run_peer_inner(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.tp_skew();
         if graph && false {"""),
     # fusion under TP also folds the GatedDeltaNet out-projection (it would write the block output and skip the reduce)
     "tp-fold-outproj": ("crates/intarsia-core/src/model.rs",
@@ -54,6 +56,8 @@ tree, name = sys.argv[1], sys.argv[2]
 path, old, new = MUTANTS[name]
 p = f"{tree}/{path}"
 s = open(p).read()
-assert s.count(old) == 1, f"mutant {name}: anchor found {s.count(old)} times in {path}"
+# a mutant that does not apply must never build silently: the anchor has to match exactly once, and the mutation has to change the file
+if s.count(old) != 1 or old == new:
+    sys.exit(f"mutant {name}: NOT APPLIED, anchor found {s.count(old)} times (expected exactly 1) in {path}")
 open(p, "w").write(s.replace(old, new))
 print(f"mutant {name} applied to {path}")

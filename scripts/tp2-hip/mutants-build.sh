@@ -6,13 +6,14 @@
 #   fleetq run --host tatooine-r9700 --mem 0 --load cpu --expect 25 --label "tp2 mutants build" -- \
 #     ssh tatooine 'bash -s' < scripts/tp2-hip/mutants-build.sh
 set -uo pipefail
-SRC=${SRC:-batch}; VOL=intarsia-cargo-target-tp2-$SRC
+FAILED=""; SRC=${SRC:-batch}; VOL=intarsia-cargo-target-tp2-$SRC
 NAMES=${NAMES:-"no-peer-upload drop-captured-allreduce peer-ignores-flag tp-fold-outproj batch-peer-no-table vocab-no-gather"}
 mkdir -p ~/tp2/logs
 for n in $NAMES; do
   M=$HOME/intarsiaml-tp2-mut-$n
   rm -rf "$M"; cp -a "$HOME/intarsiaml-tp2-$SRC" "$M"; rm -rf "$M/tp2-out"
-  python3 ~/tp2/mutate.py "$M" "$n" || { echo "mutant $n: not applied"; continue; }
+  # a mutant that did not apply gets NO binary (the copy of the clean tree would otherwise carry the clean tp2-intarsia), and the script fails
+  python3 ~/tp2/mutate.py "$M" "$n" || { echo "mutant $n: NOT APPLIED, no binary"; rm -rf "$M"; FAILED="$FAILED $n"; continue; }
   INTARSIA_REPO=$M INTARSIA_TARGET_VOL=$VOL "$M/deploy/tatooine/dev.sh" env CARGO_BUILD_JOBS=20 cargo build --release -p intarsia-cli --features hip \
     > ~/tp2/logs/mut-$n.log 2>&1 < /dev/null
   echo "mutant $n build exit $? $(grep -aE '^error|Finished' ~/tp2/logs/mut-$n.log | tail -2 | tr '\n' '|')"
@@ -20,4 +21,8 @@ for n in $NAMES; do
 done
 # the volume now holds the last mutant: make the clean tree's mutated sources newer than any build output
 touch "$HOME/intarsiaml-tp2-$SRC/crates/intarsia-core/src/model.rs" "$HOME/intarsiaml-tp2-$SRC/crates/intarsia-core/src/model/graph_step.rs"
+# every mutant binary must differ from the clean tree's (a copy of the clean binary would "survive" for the wrong reason)
+for n in $NAMES; do M=$HOME/intarsiaml-tp2-mut-$n; [ -x "$M/tp2-intarsia" ] && echo "$n $(sha256sum "$M/tp2-intarsia" | cut -c1-16) $(cmp -s "$M/tp2-intarsia" "$HOME/intarsiaml-tp2-$SRC/tp2-intarsia" && echo SAME-AS-CLEAN || echo differs)"; done
+echo "clean $(sha256sum "$HOME/intarsiaml-tp2-$SRC/tp2-intarsia" | cut -c1-16)"
 ls -la ~/intarsiaml-tp2-mut-*/tp2-intarsia; df -h / | tail -1
+[ -z "$FAILED" ] || { echo "MUTANTS NOT APPLIED:$FAILED"; exit 1; }
