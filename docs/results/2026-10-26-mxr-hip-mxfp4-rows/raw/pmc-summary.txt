@@ -1,0 +1,301 @@
+## rocprofv3 --pmc on gfx1201 (w1, 17408x5120): per-dispatch sums averaged over dispatches; the SQ_INSTS_* / SQ_INST_CYCLES_VALU / SQ_WAVE_CYCLES / TCP / GL2C counters read 0 on this stack
+ | GRBM_GUI_ACTIVE | 26292.0
+ | SQ_BUSY_CYCLES | 787459.0
+ | SQ_INSTS_LDS | 0.0
+ | SQ_WAVE_CYCLES | 0.0
+mxfp4_gemv1_lds_kernel<float> | GRBM_GUI_ACTIVE | 252977.0
+mxfp4_gemv1_lds_kernel<float> | SQ_BUSY_CYCLES | 8091758.0
+mxfp4_gemv1_lds_kernel<float> | SQ_INSTS_LDS | 0.0
+mxfp4_gemv1_lds_kernel<float> | SQ_WAVE_CYCLES | 0.0
+mxfp4_gemv_rows_kernel<16, float> | GRBM_GUI_ACTIVE | 696712.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_BUSY_CYCLES | 22075943.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_INSTS_LDS | 0.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_WAVE_CYCLES | 0.0
+mxfp4_gemv_rows_kernel<8, float> | GRBM_GUI_ACTIVE | 391250.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_BUSY_CYCLES | 12416170.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_INSTS_LDS | 0.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_WAVE_CYCLES | 0.0
+mxfp4_xprep_kernel | GRBM_GUI_ACTIVE | 29595.0
+mxfp4_xprep_kernel | SQ_BUSY_CYCLES | 947034.0
+mxfp4_xprep_kernel | SQ_INSTS_LDS | 0.0
+mxfp4_xprep_kernel | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | GRBM_GUI_ACTIVE | 245583.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_BUSY_CYCLES | 7836878.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | GRBM_GUI_ACTIVE | 241560.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_BUSY_CYCLES | 7709901.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | GRBM_GUI_ACTIVE | 242934.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_BUSY_CYCLES | 7764249.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | GRBM_GUI_ACTIVE | 238404.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_BUSY_CYCLES | 7608598.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | GRBM_GUI_ACTIVE | 243727.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_BUSY_CYCLES | 7787684.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | GRBM_GUI_ACTIVE | 251353.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_BUSY_CYCLES | 8031774.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | GRBM_GUI_ACTIVE | 245429.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_BUSY_CYCLES | 7847562.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | GRBM_GUI_ACTIVE | 245869.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_BUSY_CYCLES | 7858819.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | GRBM_GUI_ACTIVE | 1058297.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_BUSY_CYCLES | 33864437.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | GRBM_GUI_ACTIVE | 853164.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_BUSY_CYCLES | 27299939.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | GRBM_GUI_ACTIVE | 375038.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_BUSY_CYCLES | 11973624.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | GRBM_GUI_ACTIVE | 856112.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_BUSY_CYCLES | 27393428.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | GRBM_GUI_ACTIVE | 579517.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_BUSY_CYCLES | 18525019.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | GRBM_GUI_ACTIVE | 886766.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_BUSY_CYCLES | 28376137.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | GRBM_GUI_ACTIVE | 436458.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_BUSY_CYCLES | 13956482.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | GRBM_GUI_ACTIVE | 905148.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_BUSY_CYCLES | 28964221.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | GRBM_GUI_ACTIVE | 500580.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_BUSY_CYCLES | 16009929.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | GRBM_GUI_ACTIVE | 385847.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_BUSY_CYCLES | 12341890.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | GRBM_GUI_ACTIVE | 278156.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_BUSY_CYCLES | 8891825.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | GRBM_GUI_ACTIVE | 390704.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_BUSY_CYCLES | 12497643.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | GRBM_GUI_ACTIVE | 311165.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_BUSY_CYCLES | 9946851.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | GRBM_GUI_ACTIVE | 488330.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_BUSY_CYCLES | 15626062.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | GRBM_GUI_ACTIVE | 293696.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_BUSY_CYCLES | 9387530.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_WAVE_CYCLES | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | GRBM_GUI_ACTIVE | 490957.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_BUSY_CYCLES | 15710055.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_INSTS_LDS | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_WAVE_CYCLES | 0.0
+mxr_xprep_kernel | GRBM_GUI_ACTIVE | 37193.0
+mxr_xprep_kernel | SQ_BUSY_CYCLES | 1190168.0
+mxr_xprep_kernel | SQ_INSTS_LDS | 0.0
+mxr_xprep_kernel | SQ_WAVE_CYCLES | 0.0
+ | SQ_INST_CYCLES_VALU | 0.0
+mxfp4_gemv1_lds_kernel<float> | SQ_INST_CYCLES_VALU | 0.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_INST_CYCLES_VALU | 0.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_INST_CYCLES_VALU | 0.0
+mxfp4_xprep_kernel | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_INST_CYCLES_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_INST_CYCLES_VALU | 0.0
+mxr_xprep_kernel | SQ_INST_CYCLES_VALU | 0.0
+ | SQ_INSTS_SALU | 0.0
+ | SQ_INSTS_VALU | 0.0
+ | SQ_WAVES | 248.0
+mxfp4_gemv1_lds_kernel<float> | SQ_INSTS_SALU | 0.0
+mxfp4_gemv1_lds_kernel<float> | SQ_INSTS_VALU | 0.0
+mxfp4_gemv1_lds_kernel<float> | SQ_WAVES | 1024.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_INSTS_SALU | 0.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_INSTS_VALU | 0.0
+mxfp4_gemv_rows_kernel<16, float> | SQ_WAVES | 8704.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_INSTS_SALU | 0.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_INSTS_VALU | 0.0
+mxfp4_gemv_rows_kernel<8, float> | SQ_WAVES | 8704.0
+mxfp4_xprep_kernel | SQ_INSTS_SALU | 0.0
+mxfp4_xprep_kernel | SQ_INSTS_VALU | 0.0
+mxfp4_xprep_kernel | SQ_WAVES | 60.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | SQ_WAVES | 17408.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | SQ_WAVES | 17408.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | SQ_WAVES | 17408.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | SQ_WAVES | 8704.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | SQ_WAVES | 4352.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_INSTS_SALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_INSTS_VALU | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | SQ_WAVES | 4352.0
+mxr_xprep_kernel | SQ_INSTS_SALU | 0.0
+mxr_xprep_kernel | SQ_INSTS_VALU | 0.0
+mxr_xprep_kernel | SQ_WAVES | 43.0
+ | GL2C_HIT_sum | 0.0
+ | GL2C_MISS_sum | 0.0
+mxfp4_gemv1_lds_kernel<float> | GL2C_HIT_sum | 0.0
+mxfp4_gemv1_lds_kernel<float> | GL2C_MISS_sum | 0.0
+mxfp4_gemv_rows_kernel<16, float> | GL2C_HIT_sum | 0.0
+mxfp4_gemv_rows_kernel<16, float> | GL2C_MISS_sum | 0.0
+mxfp4_gemv_rows_kernel<8, float> | GL2C_HIT_sum | 0.0
+mxfp4_gemv_rows_kernel<8, float> | GL2C_MISS_sum | 0.0
+mxfp4_xprep_kernel | GL2C_HIT_sum | 0.0
+mxfp4_xprep_kernel | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 1, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 2, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 2, true, float, 2> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 4, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<1, 4, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 1, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 2, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 2, true, float, 2> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 4, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<16, 4, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 1, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 2, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 2, true, float, 2> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 4, false, float, 1> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 0> | GL2C_MISS_sum | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | GL2C_HIT_sum | 0.0
+mxr_i8_rows_kernel<8, 4, true, float, 1> | GL2C_MISS_sum | 0.0
+mxr_xprep_kernel | GL2C_HIT_sum | 0.0
+mxr_xprep_kernel | GL2C_MISS_sum | 0.0

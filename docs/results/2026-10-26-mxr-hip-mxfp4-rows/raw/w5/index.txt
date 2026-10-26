@@ -1,0 +1,12 @@
+mxr-base-tp1-r1: results/20261026-110320-adhoc-mxr-base-tp1-r1/result.json`
+mxr-dev-tp1-r1: results/20261026-110644-adhoc-mxr-dev-tp1-r1/result.json`
+mxr-base-tp2-r1: results/20261026-110924-adhoc-mxr-base-tp2-r1/result.json`
+mxr-dev-tp2-r1: results/20261026-111146-adhoc-mxr-dev-tp2-r1/result.json`
+mxr-dev-tp2-r2: results/20261026-111349-adhoc-mxr-dev-tp2-r2/result.json`
+mxr-base-tp2-r2: results/20261026-111551-adhoc-mxr-base-tp2-r2/result.json`
+mxr-dev-tp1-r2: results/20261026-111825-adhoc-mxr-dev-tp1-r2/result.json`
+mxr-base-tp1-r2: results/20261026-112115-adhoc-mxr-base-tp1-r2/result.json`
+mxr-base-tp1-r3: results/20261026-112440-adhoc-mxr-base-tp1-r3/result.json`
+mxr-dev-tp1-r3: results/20261026-112805-adhoc-mxr-dev-tp1-r3/result.json`
+mxr-base-tp2-r3: results/20261026-113044-adhoc-mxr-base-tp2-r3/result.json`
+mxr-dev-tp2-r3: results/20261026-113307-adhoc-mxr-dev-tp2-r3/result.json`

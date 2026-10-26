@@ -1,0 +1,23 @@
+| tp | tree | rounds | 1 stream tok/s (agg) | 4 streams tok/s (agg) | 8 streams tok/s (agg) | 16 streams tok/s (agg) |
+|---|---|---|---|---|---|---|
+| 1 | base | 3 | 32.9 (32.9, 32.9, 32.9) | 84.8 (84.9, 84.8, 84.8) | 114.1 (114.3, 114.0, 114.0) | 133.0 (133.1, 133.0, 132.8) |
+| 1 | dev | 3 | 32.9 (32.9, 32.9, 32.9) | 98.7 (98.7, 98.7, 98.8) | 155.7 (155.6, 155.6, 155.8) | 201.8 (201.5, 201.6, 202.2) |
+| 2 | base | 3 | 53.3 (53.3, 53.3, 53.2) | 130.6 (130.7, 130.3, 130.8) | 181.0 (181.1, 180.8, 181.2) | 213.7 (213.8, 213.4, 213.8) |
+| 2 | dev | 3 | 53.3 (53.4, 53.2, 53.3) | 154.4 (154.4, 154.4, 154.5) | 241.8 (241.6, 241.7, 242.0) | 310.2 (310.5, 310.1, 310.0) |
+
+tp1 dev/base: 1: -0.1%, 4: +16.4%, 8: +36.4%, 16: +51.7%
+tp2 dev/base: 1: +0.1%, 4: +18.2%, 8: +33.5%, 16: +45.2%
+
+checks: all arms complete, 512 tokens, no errors
+  tp1 base r1: results/20261026-110320-adhoc-mxr-base-tp1-r1
+  tp1 base r2: results/20261026-112115-adhoc-mxr-base-tp1-r2
+  tp1 base r3: results/20261026-112440-adhoc-mxr-base-tp1-r3
+  tp1 dev r1: results/20261026-110644-adhoc-mxr-dev-tp1-r1
+  tp1 dev r2: results/20261026-111825-adhoc-mxr-dev-tp1-r2
+  tp1 dev r3: results/20261026-112805-adhoc-mxr-dev-tp1-r3
+  tp2 base r1: results/20261026-110924-adhoc-mxr-base-tp2-r1
+  tp2 base r2: results/20261026-111551-adhoc-mxr-base-tp2-r2
+  tp2 base r3: results/20261026-113044-adhoc-mxr-base-tp2-r3
+  tp2 dev r1: results/20261026-111146-adhoc-mxr-dev-tp2-r1
+  tp2 dev r2: results/20261026-111349-adhoc-mxr-dev-tp2-r2
+  tp2 dev r3: results/20261026-113307-adhoc-mxr-dev-tp2-r3

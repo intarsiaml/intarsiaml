@@ -1,0 +1,160 @@
+fleetq: #5739 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-mxr-dev/scripts/mxr/gates.sh'
+[mxr] radiance inactive 2026-10-26 10:23:45
+[gates] T timing + quick/admission 2026-10-26 10:23:45
+## mxr3 17408x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x17408 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 12288x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 10240x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 6144x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x6144 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 1024x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 48x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 8704x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x8704 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 3072x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x3072 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 512x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 24x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 17408x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x17408 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 12288x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 10240x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 6144x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x6144 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 1024x5120 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 8704x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x8704 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+## mxr3 5120x3072 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+## total mismatches 0
+-- kernels test --quick (dev)
+SKIPPED: kernel matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'
+-- admission + quick_coverage (dev)
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... FAILED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:27:5:
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.22s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test admission`
+[gates] B bitwise + mutants 2026-10-26 10:25:51
+-- rows_exact mxfp4 (dev, int8 path default)
+test mxfp4_pair_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 pair matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:28/28/667824 2:28/56/1335648 3:28/84/2003472 4:28/112/2671296 5:28/140/3339120 6:28/168/4006944 7:28/196/4674768 8:28/224/5342592 9:28/252/6010416 10:28/280/6678240 11:28/308/7346064 12:28/336/8013888 13:28/364/8681712 14:28/392/9349536 15:28/420/10017360 16:28/448/10685184
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:80/80/2588436 2:80/160/5176872 3:80/240/7765308 4:80/320/10353744 5:80/400/12942180 6:80/480/15530616 7:80/560/18119052 8:80/640/20707488 9:80/720/23295924 10:80/800/25884360 11:80/880/28472796 12:80/960/31061232 13:80/1040/33649668 14:80/1120/36238104 15:80/1200/38826540 16:80/1280/41414976
+test mxfp4_rows_edge_inputs_are_bitwise ... G-B mxfp4 edge matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:56/56/169488 2:56/112/338976 3:56/168/508464 4:56/224/677952 5:56/280/847440 6:56/336/1016928 7:56/392/1186416 8:56/448/1355904 9:56/504/1525392 10:56/560/1694880 11:56/616/1864368 12:56/672/2033856 13:56/728/2203344 14:56/784/2372832 15:56/840/2542320 16:56/896/2711808
+G-B mxfp4 edge matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:56/56/254376 2:56/112/508752 3:56/168/763128 4:56/224/1017504 5:56/280/1271880 6:56/336/1526256 7:56/392/1780632 8:56/448/2035008 9:56/504/2289384 10:56/560/2543760 11:56/616/2798136 12:56/672/3052512 13:56/728/3306888 14:56/784/3561264 15:56/840/3815640 16:56/896/4070016
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 11 filtered out; finished in 2.84s
+-- rows_exact mxfp4 with INTARSIA_HIP_MXFP4_I8=0 (the bf16 rows kernel)
+test mxfp4_pair_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 pair matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:28/28/667824 2:28/56/1335648 3:28/84/2003472 4:28/112/2671296 5:28/140/3339120 6:28/168/4006944 7:28/196/4674768 8:28/224/5342592 9:28/252/6010416 10:28/280/6678240 11:28/308/7346064 12:28/336/8013888 13:28/364/8681712 14:28/392/9349536 15:28/420/10017360 16:28/448/10685184
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:80/80/2588436 2:80/160/5176872 3:80/240/7765308 4:80/320/10353744 5:80/400/12942180 6:80/480/15530616 7:80/560/18119052 8:80/640/20707488 9:80/720/23295924 10:80/800/25884360 11:80/880/28472796 12:80/960/31061232 13:80/1040/33649668 14:80/1120/36238104 15:80/1200/38826540 16:80/1280/41414976
+test mxfp4_rows_edge_inputs_are_bitwise ... G-B mxfp4 edge matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:56/56/169488 2:56/112/338976 3:56/168/508464 4:56/224/677952 5:56/280/847440 6:56/336/1016928 7:56/392/1186416 8:56/448/1355904 9:56/504/1525392 10:56/560/1694880 11:56/616/1864368 12:56/672/2033856 13:56/728/2203344 14:56/784/2372832 15:56/840/2542320 16:56/896/2711808
+G-B mxfp4 edge matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:56/56/254376 2:56/112/508752 3:56/168/763128 4:56/224/1017504 5:56/280/1271880 6:56/336/1526256 7:56/392/1780632 8:56/448/2035008 9:56/504/2289384 10:56/560/2543760 11:56/616/2798136 12:56/672/3052512 13:56/728/3306888 14:56/784/3561264 15:56/840/3815640 16:56/896/4070016
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 11 filtered out; finished in 2.77s
+-- NEGATIVE CONTROL: INTARSIA_HIP_GB_CONTROL=matmul_mxfp4_gemv_rows=matmul_mxfp4_mma (MUST FAIL)
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... DIAG solo repeatable: true, rows repeatable: true
+thread 'mxfp4_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:307:17:
+G-B FAIL mxfp4 n=12288 k=5120 act=None Bf16: matmul_mxfp4_mma M=1 row 0 differs from matmul_mxfp4_gemv on that row alone in 2 of 12288 elements (first at col 4867: [00, 39] vs [ff, 38])
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.26s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test rows_exact`
+-- rows_registry
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.02s
+-- mutant clean: 223228f359b75477 (clean must pass, every mutant must FAIL)
+test mxfp4_rows_edge_inputs_are_bitwise ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.71s
+-- mutant m1-noflag: 3b9f9b7d1e10f5b6 (clean must pass, every mutant must FAIL)
+test mxfp4_rows_edge_inputs_are_bitwise ... FAILED
+G-B FAIL mxfp4 edge set B n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=6 row 5 differs from matmul_mxfp4_gemv on that row alone in 1012 of 1024 elements (first at col 0: [00, 00] vs [e3, c1])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.21s
+-- mutant m2-xscale: 4d994036d2e247d8 (clean must pass, every mutant must FAIL)
+test mxfp4_rows_edge_inputs_are_bitwise ... FAILED
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=2 row 0 differs from matmul_mxfp4_gemv on that row alone in 323 of 1024 elements (first at col 3: [9f, 3f] vs [1f, 3f])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.19s
+-- mutant m3-pairing: 8881bd61de4c6740 (clean must pass, every mutant must FAIL)
+test mxfp4_rows_edge_inputs_are_bitwise ... FAILED
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=2 row 0 differs from matmul_mxfp4_gemv on that row alone in 727 of 1024 elements (first at col 0: [80, 7f] vs [c0, ff])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.19s
+-- mutant m4-chainorder: 936ba5898804dd88 (clean must pass, every mutant must FAIL)
+test mxfp4_rows_edge_inputs_are_bitwise ... FAILED
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=None F32: matmul_mxfp4_gemv_rows M=5 row 4 differs from matmul_mxfp4_gemv on that row alone in 1 of 1024 elements (first at col 550: [5c, f3, 4a, fe] vs [5a, f3, 4a, fe])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.23s
+[gates] N no-op 2026-10-26 10:26:08
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop27] base short: 256 ids
+[noop27] base 4k: 256 ids
+[noop27] base 16k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+[noop27] dev short: 256 ids
+[noop27] dev 4k: 256 ids
+[noop27] dev 16k: 256 ids
+ids 8 short: identical (256 ids, sha 5d882689)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8343 B)
+plan 8 txt: byte-identical (1346 B)
+ids 35 short: identical (256 ids, sha 0d079dea)
+ids 35 4k: identical (256 ids, sha d626e2f1)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)
+ids 27 short: identical (256 ids)
+ids 27 4k: identical (256 ids)
+ids 27 16k: identical (256 ids)
+plan 27 json: byte-identical
+plan 27 txt: byte-identical
+[gates] S 27B batched decode == solo step 2026-10-26 10:27:48
+-- dev
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 883776160, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 14294712140, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 636.38s
+-- base
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 883776160, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 14294712140, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 676.68s
+[gates] P 27B tp2 ids 2026-10-26 10:39:05
+ids 27 tp2 short: identical (256 ids)
+ids 27 tp2 4k: identical (256 ids)
+[gates] done 2026-10-26 10:39:40
+[mxr] radiance active after 50 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793025625,"owned_by":"radiance"
+fleetq: #5739 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0
