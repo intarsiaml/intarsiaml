@@ -45,6 +45,19 @@ use graph_step::GraphState;
 /// Macro prefill passes run by any model of the process (diagnostics and tests; [`Model::macro_passes`] is the per-model count).
 pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// The ops a macro pass runs once per chunk ([`Model::macro_split`]): `INTARSIA_PREFILL_MACRO_SPLIT=<op,op,..>` (op names as
+/// `Op::parse`; `none` = nothing) replaces the default, the vendor-GEMM matmul family. A diagnostic knob for bisecting a row-variant op.
+fn macro_split_ops() -> Result<Vec<Op>> {
+    match std::env::var("INTARSIA_PREFILL_MACRO_SPLIT") {
+        Err(_) => Ok(vec![Op::Matmul, Op::MatmulFp8, Op::MatmulFp8Pair, Op::MatmulPair]),
+        Ok(v) if v.trim() == "none" => Ok(vec![]),
+        Ok(v) => v
+            .split(',')
+            .map(|n| Op::parse(n.trim()).ok_or_else(|| Error::invalid(format!("INTARSIA_PREFILL_MACRO_SPLIT: unknown op '{n}'"))))
+            .collect(),
+    }
+}
+
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
 
@@ -410,6 +423,12 @@ pub struct Model {
     macro_rows: usize,
     /// What the workspace was sized for at load ([`Model::set_macro_rows`] stays within it).
     macro_cap: usize,
+    /// The ops a macro pass runs once per chunk instead of once over all rows: the vendor GEMMs (cuBLAS / cuBLASLt pick their
+    /// tiling, and so their summation order, by the row count), whose bits a chunk-sized call must reproduce. Everything else a
+    /// macro pass batches is row-wise bitwise (norms, the pinned expert and shared-expert kernels, quantisers, top-k).
+    macro_split: Vec<Op>,
+    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`].
+    macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
     /// Macro passes run (groups of two or more chunks), for tests and the serve log.
     macro_passes: std::sync::atomic::AtomicU64,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
@@ -941,13 +960,21 @@ impl Model {
                 None => recipe.resolve_prefill_peel(b.name()).0,
             };
         // the opt-in macro prefill pass: several chunks of one prompt in one layer-by-layer pass (hybrid models, one rank)
+        // (`LoadOptions::prefill_macro`, then `INTARSIA_PREFILL_MACRO`, then the recipe's `[tuning.<backend>] prefill_macro`; never
+        // more rows than the context holds)
         let macro_rows = crate::scheduler::effective_macro_rows(
             match opts.prefill_macro {
                 Some(v) => v,
-                None => crate::scheduler::parse_macro(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())?,
-            },
+                None => match crate::scheduler::parse_macro_env(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())? {
+                    Some(v) => v,
+                    None => recipe.resolve_prefill_macro(b.name()).0,
+                },
+            }
+            .min(opts.max_seq),
             chunk,
         );
+        // one rank only (tensor-parallel passes are not packed)
+        let macro_rows = if tp.world > 1 { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
@@ -1154,6 +1181,8 @@ impl Model {
             prefill_peel,
             macro_rows,
             macro_cap: macro_rows,
+            macro_split: macro_split_ops()?,
+            macro_ctx: Mutex::new(None),
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
@@ -1995,7 +2024,10 @@ impl Model {
         self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
         self.macro_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         MACRO_PASSES_TOTAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None).map(Some)
+        *self.macro_ctx.lock().unwrap() = Some(segs.iter().map(|s| (s.lo, s.len)).collect());
+        let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
+        *self.macro_ctx.lock().unwrap() = None;
+        r.map(Some)
     }
 
     fn view(&self, b: &Buffer, dtype: DType, shape: &[usize]) -> TensorRef {
@@ -2028,8 +2060,33 @@ impl Model {
         self.exec_call(call, profile)
     }
 
+    /// [`Model::exec_call_one`], except that inside a macro pass ([`Model::run_macro_group`]) a call of one of
+    /// [`Model::macro_split`] over all the pass's rows runs once per chunk, on that chunk's rows of the activation and the outputs.
+    fn exec_call(&self, call: OpCall, profile: bool) -> Result<()> {
+        if self.macro_split.contains(&call.op) {
+            let segs = self.macro_ctx.lock().unwrap().clone();
+            if let Some(segs) = segs {
+                let total: usize = segs.iter().map(|s| s.1).sum();
+                if call.inputs.first().is_some_and(|x| x.shape.first() == Some(&total)) {
+                    for (lo, len) in segs {
+                        let mut part = call.clone();
+                        part.inputs[0] = call.inputs[0].rows(lo, len);
+                        for (o, p) in call.outputs.iter().zip(part.outputs.iter_mut()) {
+                            if o.shape.first() == Some(&total) {
+                                *p = o.rows(lo, len);
+                            }
+                        }
+                        self.exec_call_one(part, profile)?;
+                    }
+                    return Ok(());
+                }
+            }
+        }
+        self.exec_call_one(call, profile)
+    }
+
     /// Run (or, in a plan dry run, record) a prepared call: `exact_rows` follows the pass, the scratch is the plan's.
-    fn exec_call(&self, mut call: OpCall, profile: bool) -> Result<()> {
+    fn exec_call_one(&self, mut call: OpCall, profile: bool) -> Result<()> {
         let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;

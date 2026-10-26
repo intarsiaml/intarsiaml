@@ -1,3 +1,29 @@
 fleetq: #5448 running on spark2: scripts/sk/ids.sh ids1 base:main off:dev m4:dev:INTARSIA_PREFILL_MACRO=4096 m8:dev:INTARSIA_PREFILL_MACRO=8192 m16:dev:INTARSIA_PREFILL_MACRO=16384
 base 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 406 ms (2479.3 tok/s) | decode 3175 ms (80.32 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
 base 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 844 ms (4828.0 tok/s) | decode 3105 ms (82.12 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca
+base 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2865 ms (5669.4 tok/s) | decode 3413 ms (74.72 tok/s) ids=     256 md5=535b7c7ec84940be98e5b5435cc09a31
+off 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 561 ms (1793.0 tok/s) | decode 3033 ms (84.07 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+off 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 849 ms (4797.5 tok/s) | decode 3095 ms (82.39 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca
+off 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2871 ms (5657.7 tok/s) | decode 3367 ms (75.72 tok/s) ids=     256 md5=535b7c7ec84940be98e5b5435cc09a31
+m4 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 403 ms (2496.8 tok/s) | decode 3018 ms (84.49 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+m4 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 806 ms (5057.2 tok/s) | decode 3097 ms (82.33 tok/s) ids=     256 md5=2838a1df8f6d0555df35a4f6d3d14ff5
+m4 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2658 ms (6110.0 tok/s) | decode 3434 ms (74.26 tok/s) ids=     256 md5=417089ce59128537b01482f9012c964b
+m8 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 508 ms (1981.5 tok/s) | decode 3052 ms (83.55 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+m8 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 1023 ms (3982.9 tok/s) | decode 3220 ms (79.19 tok/s) ids=     256 md5=2838a1df8f6d0555df35a4f6d3d14ff5
+m8 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2585 ms (6282.6 tok/s) | decode 3417 ms (74.63 tok/s) ids=     256 md5=417089ce59128537b01482f9012c964b
+m16 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 413 ms (2433.3 tok/s) | decode 3025 ms (84.30 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+m16 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 811 ms (5022.4 tok/s) | decode 3137 ms (81.30 tok/s) ids=     256 md5=2838a1df8f6d0555df35a4f6d3d14ff5
+m16 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2510 ms (6469.7 tok/s) | decode 3420 ms (74.56 tok/s) ids=     256 md5=417089ce59128537b01482f9012c964b
+IDS 3300 base vs off: identical
+IDS 13600 base vs off: identical
+IDS 54700 base vs off: identical
+IDS 3300 base vs m4: identical
+IDS 13600 base vs m4: DIFFER
+IDS 54700 base vs m4: DIFFER
+IDS 3300 base vs m8: identical
+IDS 13600 base vs m8: DIFFER
+IDS 54700 base vs m8: DIFFER
+IDS 3300 base vs m16: identical
+IDS 13600 base vs m16: DIFFER
+IDS 54700 base vs m16: DIFFER
+fleetq: #5448 done (exit 0)

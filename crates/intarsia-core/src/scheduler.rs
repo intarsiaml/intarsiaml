@@ -349,6 +349,14 @@ pub fn parse_macro(v: Option<&str>) -> Result<usize> {
     }
 }
 
+/// [`parse_macro`] that tells "not set" (`None`: the recipe decides) from `0` (off).
+pub fn parse_macro_env(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(_) => parse_macro(v).map(Some),
+    }
+}
+
 /// The macro pass size the workspace and the schedule use: `rows` rounded down to whole chunks, and 0 (off) below two chunks
 /// (one chunk is the plain schedule).
 pub fn effective_macro_rows(rows: usize, chunk: usize) -> usize {

@@ -25,7 +25,7 @@ run_arm() { # run_arm <round> <spec>
   IFS=: read -r name tree chunk envs <<< "$spec"; envs=${envs//,/ }
   echo "== round $r arm $name $(date +%T)"
   if [[ $name == vllm ]]; then
-    le "sk-vllm-r$r" "http://$HN:8000/v1" guidance "vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --enable-prefix-caching (box launcher missioncntrl-guidance-run.sh)"
+    le "sk-vllm-r$r" "http://$HN:8000/v1" guidance "spark2 retro-role vLLM (served as guidance/capcom): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-chunked-prefill"
     return
   fi
   local sargs=""; [[ -n ${chunk:-} ]] && sargs="--prefill-chunk $chunk"

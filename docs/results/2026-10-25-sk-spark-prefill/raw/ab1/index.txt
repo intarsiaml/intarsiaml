@@ -1,0 +1,12 @@
+sk-main-r1: - result file: `results/20261025-201250-adhoc-sk-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201250-adhoc-sk-main-r1/result.json 
+sk-m8-r1: - result file: `results/20261025-201402-adhoc-sk-m8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201402-adhoc-sk-m8-r1/result.json 
+sk-m16-r1: - result file: `results/20261025-201506-adhoc-sk-m16-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201506-adhoc-sk-m16-r1/result.json 
+sk-vllm-r1: - result file: `results/20261025-201535-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201535-adhoc-sk-vllm-r1/result.json 
+sk-vllm-r2: - result file: `results/20261025-201602-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201602-adhoc-sk-vllm-r2/result.json 
+sk-m16-r2: - result file: `results/20261025-201705-adhoc-sk-m16-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201705-adhoc-sk-m16-r2/result.json 
+sk-m8-r2: - result file: `results/20261025-201810-adhoc-sk-m8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201810-adhoc-sk-m8-r2/result.json 
+sk-main-r2: - result file: `results/20261025-201914-adhoc-sk-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-201914-adhoc-sk-main-r2/result.json 
+sk-main-r3: - result file: `results/20261025-202018-adhoc-sk-main-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-202018-adhoc-sk-main-r3/result.json 
+sk-m8-r3: - result file: `results/20261025-202129-adhoc-sk-m8-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-202129-adhoc-sk-m8-r3/result.json 
+sk-m16-r3: - result file: `results/20261025-202232-adhoc-sk-m16-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-202232-adhoc-sk-m16-r3/result.json 
+sk-vllm-r3: - result file: `results/20261025-202300-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-202300-adhoc-sk-vllm-r3/result.json 
