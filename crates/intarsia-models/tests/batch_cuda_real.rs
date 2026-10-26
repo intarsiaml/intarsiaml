@@ -195,6 +195,9 @@ fn dump_ledgers(m: &Model, why: &str) {
 /// leave (the bounded wait would trap after about a minute and take the evidence with it).
 fn with_watchdog<R>(m: &Model, f: impl FnOnce() -> R) -> R {
     let wd: u64 = std::env::var("INTARSIA_REPRO_WATCHDOG").ok().and_then(|v| v.parse().ok()).unwrap_or(25);
+    if wd == 0 {
+        return f(); // INTARSIA_REPRO_WATCHDOG=0: no watchdog thread, no catch_unwind (the plain run of w17/w18)
+    }
     let done = std::sync::atomic::AtomicBool::new(false);
     std::thread::scope(|sc| {
         sc.spawn(|| {
@@ -267,10 +270,13 @@ fn real_35b_tp2_solo_fresh_states_repro() {
             }
             let mut st = m.new_state().unwrap();
             // w21: a rep failed at the first solo step of a fresh model (state 0), before any batched step: watch it too
-            let out = with_watchdog(&m, || {
-                m.forward(&mut st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
-                m.forward(&mut st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap()
-            });
+            let solo = |st: &mut _| {
+                m.forward(st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
+                m.forward(st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap()
+            };
+            // INTARSIA_REPRO_WD_SOLO=1 only (w22: n0 with it passed 20/20 where the same config failed in w17..w21): the probes and the watchdog
+            // are the things that differ from a plain run, so each is switched separately
+            let out = if std::env::var("INTARSIA_REPRO_WD_SOLO").is_ok_and(|v| v == "1") { with_watchdog(&m, || solo(&mut st)) } else { solo(&mut st) };
             let StepOut::Logits(l) = out else { panic!("no logits") };
             probe("after the solo prefill + decode step");
             let bits: Vec<u32> = l.iter().map(|x| x.to_bits()).collect();
