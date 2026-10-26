@@ -1,0 +1,2 @@
+fleetq: #5606 waiting (#2 in line): in line behind #5602 "ct: build compressed-tensors branch (cuda, tree ct)" (claude-f31ccf91) on spark1
+fleetq:   #5602 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5602 set, or it will wait for #5602 to be released.

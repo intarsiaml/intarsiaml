@@ -48,4 +48,35 @@ g3)
     if cmp -s $O/g3-${MODE:-dflash}-$id-off.ids $O/g3-${MODE:-dflash}-$id-dflash.ids && [ -s $O/g3-${MODE:-dflash}-$id-off.ids ]; then echo "PASS g3 $id ids identical ($(tr ',' '\n' < $O/g3-${MODE:-dflash}-$id-off.ids | wc -l) ids) | off: $fo | dflash: $fin | $st"; else echo "FAIL g3 $id ids differ | $st"; fails=$((fails+1)); fi
   done
   echo "g3 fails=$fails" ;;
+mtp35)
+  # 35B NVFP4 --spec mtp (k=2) vs --spec off, greedy ids, long raw-text prompts from the repo docs; BIN_BASE = main.
+  # usage: gates.sh mtp35 <tokens>... (env NP prompts per length, default 4; BIN overrides the binary)
+  shift; fails=0; NP=${NP:-4}; B=${BIN:-$BIN_BASE}
+  M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
+  for T in "$@"; do
+    case $T in 4096) MS=8192 ;; 16384) MS=20480 ;; *) MS=$((T + 4096)) ;; esac
+    for k in $(seq 0 $((NP - 1))); do
+      f=$O/p35-$T-$k.txt
+      python3 - "$SRC/docs" $T $k > $f <<'PY'
+import sys, glob
+d, T, k = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+files = sorted(glob.glob(d + "/results/*.md")) + sorted(glob.glob(d + "/*.md"))
+want = int(T * 3.3); out = []; n = 0; i = (k * 37 + (T // 4096) * 11) % len(files)
+while n < want:
+    t = open(files[i % len(files)], errors="ignore").read()
+    out.append(t); n += len(t); i += 1
+print("".join(out)[:want], end="")
+PY
+      for mode in off mtp; do
+        if [ $mode = off ]; then A="--spec off"; else A="--spec mtp --spec-k 2"; fi
+        env ${GATE:+INTARSIA_SPEC_GATE=$GATE} $B generate -m $M35 --backend cuda --mem-budget ${MEMB:-34} --max-seq $MS --profile-every 0 --ignore-eos --show-ids --max-tokens ${NTOK:-128} $A \
+          -p "$(cat $f)" < /dev/null > /dev/null 2> $O/m35-$T-$k-$mode.err
+        grep -a '^ids:' $O/m35-$T-$k-$mode.err > $O/m35-$T-$k-$mode.ids
+      done
+      pt=$(grep -a -o 'prompt[ _a-z]*[=:] *[0-9]*' $O/m35-$T-$k-mtp.err | head -1); st=$(grep -a '^spec:' $O/m35-$T-$k-mtp.err | tail -1 | cut -c1-150)
+      fo=$(grep -a 'finish=' $O/m35-$T-$k-off.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-50); fm=$(grep -a 'finish=' $O/m35-$T-$k-mtp.err | tail -1 | sed 's/.*| decode/decode/' | cut -c1-50)
+      if cmp -s $O/m35-$T-$k-off.ids $O/m35-$T-$k-mtp.ids && [ -s $O/m35-$T-$k-off.ids ]; then echo "PASS mtp35 T=$T p$k ($pt, $(wc -c < $f) chars) ids identical ($(tr ',' '\n' < $O/m35-$T-$k-off.ids | wc -l)) | off: $fo | mtp: $fm | $st"; else echo "FAIL mtp35 T=$T p$k ($pt) ids differ or empty | $st"; fails=$((fails+1)); fi
+    done
+  done
+  echo "mtp35 fails=$fails" ;;
 esac
