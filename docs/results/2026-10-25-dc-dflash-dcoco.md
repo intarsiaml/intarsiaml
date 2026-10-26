@@ -467,3 +467,6 @@ captured speculative step (`Model::spec_step_ok`) requires a per-row backend, so
 separate measurement). Limits: the sweep prompt is localeval's filler text, whose draft acceptance is not representative of real answers (`raw/mtp35-ids4-perrow.log`
 shows 48-86% acceptance on repo-doc prompts, with per-row prompt 0 at 16k running mtp 73.9 vs off 75.5 tok/s, 0.98x); 1 stream only. So a low-acceptance prompt
 can still be slower than spec-off with per-row, as it can with any speculation.
+
+**G0 after the final merge** (branch head `4f80ef4f7` content vs origin/main `9e439f1b7`, 8B CUDA, flags off): `plan show` JSON 8758 B and text 1478 B byte-identical, 256 ids identical
+at short (md5 `b43773b5`) and 4k (md5 `8aca363b`) prompts (`raw/g0-noop-final.log`). The `--spec mtp` default changes nothing without `--spec mtp`.

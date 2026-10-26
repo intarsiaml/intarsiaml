@@ -1,0 +1,7 @@
+fleetq: #5701 running on spark1: scripts/dc/spark1.sh gates g0
+PASS g0 ids short identical (256 ids, md5 b43773b5)
+PASS g0 ids 4k identical (256 ids, md5 8aca363b)
+PASS g0 plan json byte-identical (8758 B)
+PASS g0 plan txt byte-identical (1478 B)
+g0 fails=0
+fleetq: #5701 done (exit 0)
