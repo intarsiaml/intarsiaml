@@ -131,7 +131,10 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
     let drain = match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
         None | Some("") | Some("3") => 3,
         Some("1") => 1,
-        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1 or 3)"))),
+        // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
+        Some("4") => 4,
+        Some("5") => 5,
+        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4 or 5)"))),
     };
     let group = Arc::new(Group {
         bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],

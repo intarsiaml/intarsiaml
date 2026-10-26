@@ -67,7 +67,7 @@ __global__ void ar2_norm_kernel(const int4* x4, ik_bf16* out, const ik_bf16* res
     /* the data must be visible at the peer before the flag is */
     if (drain == 1)
         __threadfence_system();
-    else if (drain == 3)
+    else if (drain >= 3)
         asm volatile("s_wait_storecnt 0x0" ::: "memory");
     __syncthreads();
     if (tid == 0) {
@@ -75,8 +75,11 @@ __global__ void ar2_norm_kernel(const int4* x4, ik_bf16* out, const ik_bf16* res
         unsigned int spins = 0;
         while ((int)(arn_load_acq(&my_flags[b]) - seq) < 0) {
             __builtin_amdgcn_s_sleep(1);
+            if (drain == 4) arn_store_rel(&peer_flags[b], seq); /* INTARSIA_HIP_AR_DRAIN=4 (diagnostic): re-send the flag while waiting; hang gone = a flag store was lost */
             if (++spins > ARN_SPIN_MAX) __builtin_trap();
         }
+        if (drain == 5) /* INTARSIA_HIP_AR_DRAIN=5 (diagnostic): ~25 us before the data is read; failures gone = the data landed after the flag */
+            for (int i = 0; i < 100; ++i) __builtin_amdgcn_s_sleep(10);
     }
     __syncthreads();
 
