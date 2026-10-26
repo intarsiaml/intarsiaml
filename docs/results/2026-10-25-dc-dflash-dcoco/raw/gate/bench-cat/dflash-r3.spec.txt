@@ -1,0 +1,4 @@
+metrics before:  intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+metrics after speed: intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+metrics after quality: intarsia_spec_proposed_tokens_total 27407 intarsia_spec_accepted_tokens_total 2749 
+dflash: draft of 5 layers (taps [0, 8, 16, 24, 32], block 15) loaded in 4.4 s

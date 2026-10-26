@@ -1,0 +1,30 @@
+fleetq: #5645 waiting (#1 in line): needs gpu quiet on spark1, but #5608 "dc: 35B NVFP4 --spec mtp ids vs spec-off at 4k/16k/32k (main binary)" (claude-f31ccf91) loads it
+fleetq:   #5608 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5608 set, or it will wait for #5608 to be released.
+fleetq: #5645 running on spark1: scripts/dc/bench.sh 3 off dflash
+== off-r1 01:07:28
+
+[localeval] saved /opt/code/deepeval/results/20261026-010840-adhoc-dc-cat-off-r1/result.json
+[localeval] logged to unanimis: a98043ac-1f5f-447b-948c-dc7e53b7b4c1
+== dflash-r1 01:15:26
+
+[localeval] saved /opt/code/deepeval/results/20261026-011721-adhoc-dc-cat-dflash-r1/result.json
+[localeval] logged to unanimis: fd82c7aa-4eec-4162-a88c-84a080ba8aa4
+== off-r2 01:22:12
+
+[localeval] saved /opt/code/deepeval/results/20261026-012322-adhoc-dc-cat-off-r2/result.json
+[localeval] logged to unanimis: 1093ca5b-829e-4654-a95c-fe0df9a518e5
+== dflash-r2 01:30:06
+
+[localeval] saved /opt/code/deepeval/results/20261026-013154-adhoc-dc-cat-dflash-r2/result.json
+[localeval] logged to unanimis: cbaeb27a-fc34-4389-8cab-25695b70721b
+== off-r3 01:36:47
+
+[localeval] saved /opt/code/deepeval/results/20261026-013754-adhoc-dc-cat-off-r3/result.json
+[localeval] logged to unanimis: 94e14def-3d2a-4681-a4df-8aafb9b27d75
+== dflash-r3 01:44:38
+
+[localeval] saved /opt/code/deepeval/results/20261026-014622-adhoc-dc-cat-dflash-r3/result.json
+[localeval] logged to unanimis: 3c0b1efd-ba53-4bba-bc34-27a469d79928
+== bench done
+fleetq: #5645 done (exit 0)
+exit 0

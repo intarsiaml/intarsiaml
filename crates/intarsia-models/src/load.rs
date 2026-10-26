@@ -56,6 +56,10 @@ pub struct EngineOptions {
     pub plan: PlanOptions,
     /// Speculative decoding (`--spec`, `--spec-k`); default off. Metal only (milestone G1).
     pub spec: intarsia_core::spec::SpecConfig,
+    /// `--spec-draft DIR`: the DFlash draft checkpoint (`--spec dflash`, `model/dflash.rs`).
+    pub spec_draft: Option<PathBuf>,
+    /// `--dcoco`: with `--spec dflash`, the DCOCO corrector picks the drafts (needs the DCOCO checkpoint).
+    pub dcoco: bool,
     /// Concurrent sequences (`--max-batch`). `None`: the recipe's `max_batch`, clamped to what the engine implements.
     pub max_batch: Option<usize>,
     /// The server's `--max-queue`, for sizing the batched engine's request queue to `max_queue + max_batch` (the most
@@ -284,6 +288,48 @@ pub fn load_engine_tp(
     load_engine_group(dir, Group::Local(backends, comms), opts)
 }
 
+/// The DFlash draft checkpoint `dir` (`--spec-draft`): its weights and `config.json` (`dflash_config`).
+pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::model::DflashLoad> {
+    let dir = dir.ok_or_else(|| Error::invalid("--spec dflash needs --spec-draft DIR (the draft checkpoint)"))?;
+    let cfg_path = dir.join("config.json");
+    let cfg: Value = serde_json::from_slice(
+        &std::fs::read(&cfg_path).map_err(|e| Error::model(format!("{}: {e}", cfg_path.display())))?,
+    )
+    .map_err(|e| Error::model(format!("{}: {e}", cfg_path.display())))?;
+    let top = |k: &str| -> Result<usize> {
+        cfg.get(k).and_then(Value::as_u64).map(|v| v as usize).ok_or_else(|| Error::model(format!("{}: '{k}' missing", cfg_path.display())))
+    };
+    let d = cfg.get("dflash_config").ok_or_else(|| Error::model(format!("{}: not a DFlash draft (no dflash_config)", cfg_path.display())))?;
+    let dn = |k: &str| d.get(k).and_then(Value::as_u64).unwrap_or(0) as usize;
+    let layer_ids: Vec<usize> = d
+        .get("target_layer_ids")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_u64).map(|v| v as usize).collect())
+        .ok_or_else(|| Error::model(format!("{}: dflash_config.target_layer_ids missing", cfg_path.display())))?;
+    let mask_id = d
+        .get("mask_token_id")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| Error::model(format!("{}: dflash_config.mask_token_id missing", cfg_path.display())))? as u32;
+    let config = intarsia_core::model::DflashConfig {
+        layer_ids,
+        mask_id,
+        block: dn("block_size"),
+        hidden: top("hidden_size")?,
+        n_layers: top("num_hidden_layers")?,
+        intermediate: top("intermediate_size")?,
+        n_heads: top("num_attention_heads")?,
+        n_kv_heads: top("num_key_value_heads")?,
+        head_dim: top("head_dim")?,
+        vocab: top("vocab_size")?,
+        topk: dn("dcoco_candidate_topk"),
+        emb_dim: dn("dcoco_emb_dim"),
+        state_dim: dn("dcoco_state_dim"),
+        mlp_dim: dn("dcoco_mlp_dim"),
+    };
+    let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
+    Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
+}
+
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
     let backends: Vec<Arc<dyn Backend>> = match &group {
         Group::Local(b, _) => b.clone(),
@@ -328,6 +374,21 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
         }
     }
+    // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
+    let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+        if !matches!(backend_name, "cpu" | "cuda") {
+            return Err(Error::Unsupported(format!("--spec dflash on the {backend_name} backend (cpu and cuda only so far)")));
+        }
+        if max_batch.value > 1 {
+            return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
+        }
+        Some(open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?)
+    } else {
+        if opts.spec_draft.is_some() || opts.dcoco {
+            return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash"));
+        }
+        None
+    };
     let weights = SchemedSource::open(dir)?;
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
@@ -337,6 +398,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp,
         mtp_k: if mtp { opts.spec.k } else { opts.load.mtp_k },
+        dflash,
         ..opts.load.clone()
     };
     let mut model = match group {
@@ -382,7 +444,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
-        if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+            if model.tp_world() != 1 {
+                return Err(Error::Unsupported("--spec dflash under tensor parallelism".into()));
+            }
+            eprintln!(
+                "--spec dflash on {}: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)",
+                model.backend.name()
+            );
+        } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
             // CUDA since lane rb2: the verify rows take the `_rows` kernels (G-B: bitwise the one-row kernel per row)
             eprintln!("--spec mtp on {}: verify rows run the row-exact kernels (bitwise the single-row decode per row)", model.backend.name());
         } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 {

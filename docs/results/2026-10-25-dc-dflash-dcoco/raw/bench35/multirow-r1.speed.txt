@@ -1,0 +1,57 @@
+[localeval] calibrated: 22.0 tokens/sentence, 52 base tokens, ctx=36864
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=0.64s prefill=6415 tok/s decode=94.2 tok/s peak=117.2 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4091 ttft=0.65s prefill=6304 tok/s decode=98.4 tok/s peak=129.0 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=0.67s prefill=6067 tok/s decode=106.1 tok/s peak=131.0 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16676 ttft=2.86s prefill=5832 tok/s decode=79.4 tok/s peak=103.8 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16678 ttft=2.84s prefill=5869 tok/s decode=82.1 tok/s peak=110.4 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16680 ttft=2.87s prefill=5805 tok/s decode=82.6 tok/s peak=111.6 tok/s out=128
+[localeval]  32768 tok rep 1/3: prompt=33928 ttft=6.48s prefill=5233 tok/s decode=59.0 tok/s peak=68.0 tok/s out=128
+[localeval]  32768 tok rep 2/3: prompt=33927 ttft=6.47s prefill=5243 tok/s decode=75.5 tok/s peak=94.1 tok/s out=128
+[localeval]  32768 tok rep 3/3: prompt=33925 ttft=6.48s prefill=5235 tok/s decode=62.2 tok/s peak=72.1 tok/s out=128
+[localeval] 1 streams: aggregate 60.7 tok/s
+# localeval: adhoc — 2026-10-26T06:21
+
+- model: `Qwen3.6-35B-A3B-NVFP4` on ? (?), url `http://spark-4e77:8092/v1`
+- thinking: off; run kind: speed; label: dc35-multirow-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8092/v1 --model Qwen3.6-35B-A3B-NVFP4 --thinking off --label dc35-multirow-r1 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-batch 1 --max-seq 36864 --spec mtp --spec-k 2 env INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0 (lane dc, scripts/dc/bench35.sh) --sizes 4096,16384,32768 --gen 128 --reps 3 --concurrency 1 --ignore-busy`
+- result file: `results/20261026-062102-adhoc-dc35-multirow-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-batch 1 --max-seq 36864 --spec mtp --spec-k 2 env INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0 (lane dc, scripts/dc/bench35.sh)
+````
+
+## Speed sweep
+
+served `Qwen3.6-35B-A3B-NVFP4`, fingerprint `None`, ctx 36864, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4090 | 0.65 | 6304 (6067–6415) | - | 98.4 (94.2–106.1) | 129.0 (117.2–131.0) | - | - | 128 |
+| 16678 | 2.86 | 5832 (5805–5869) | 5693 | 82.1 (79.4–82.6) | 110.4 (103.8–111.6) | - | - | 128 |
+| 33927 | 6.48 | 5235 (5233–5243) | 4764 | 62.2 (59.0–75.5) | 72.1 (68.0–94.1) | - | - | 128 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 60.7 | 87.8 (87.8–87.8) | 0.65 |
+
+## Warnings
+
+- decode spread 12.1% at 4096 tokens: noisy; rerun before comparing
+- decode spread 26.6% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-062102-adhoc-dc35-multirow-r1/result.json
+[localeval] logged to unanimis: 74f063ae-7d8b-48b2-987b-6f17f028b145

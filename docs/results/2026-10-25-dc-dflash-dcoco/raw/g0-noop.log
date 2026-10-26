@@ -1,0 +1,10 @@
+fleetq: #5544 waiting (#1 in line): needs cpu quiet on spark1, but #5543 "od: cpu f64-oracle self-golden for the 27B (acc-oracle prerequisite)" (claude-f31ccf91) loads it
+fleetq:   #5543 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5543 set, or it will wait for #5543 to be released.
+fleetq: #5544 running on spark1: scripts/dc/spark1.sh gates g0
+PASS g0 ids short identical (256 ids, md5 b43773b5)
+PASS g0 ids 4k identical (256 ids, md5 8aca363b)
+PASS g0 plan json byte-identical (8758 B)
+PASS g0 plan txt byte-identical (1478 B)
+g0 fails=0
+fleetq: #5544 done (exit 0)
+exit 0

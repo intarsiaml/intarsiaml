@@ -1,0 +1,6 @@
+fleetq: #5443 running on spark1: ssh spark1 'python3 - /home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/4080a604bb608e59fb5240db1fa347357a4e3332/model.safetensors $(ls -d /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/*|head -1) embed_tokens.weight=model.embed_tokens.weight lm_head.weight=lm_head.weight layers.0.self_attn.q_proj.weight=model.layers.0.self_attn.q_proj.weight norm.weight=model.norm.weight'
+embed_tokens.weight BF16[151936, 4096] vs model.embed_tokens.weight BF16[151936, 4096]  IDENTICAL
+lm_head.weight BF16[151936, 4096] vs lm_head.weight BF16[151936, 4096]  IDENTICAL
+layers.0.self_attn.q_proj.weight BF16[4096, 4096] vs model.layers.0.self_attn.q_proj.weight BF16[4096, 4096]  DIFFERENT rows: 4096 first [0, 1, 2, 3, 4, 5, 6, 7] mask(151669) differs: False
+norm.weight BF16[4096] vs model.norm.weight BF16[4096]  DIFFERENT rows: 1 first [0] mask(151669) differs: False
+fleetq: #5443 done (exit 0)

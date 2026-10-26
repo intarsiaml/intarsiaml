@@ -1,0 +1,3 @@
+fleetq: #5674 running on spark1: scripts/dc/spark1.sh build cli
+    Finished `release` profile [optimized] target(s) in 14.47s
+fleetq: #5674 done (exit 0)

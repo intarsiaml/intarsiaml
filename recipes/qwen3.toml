@@ -80,3 +80,14 @@ prefill_chunk = 4096
 chat_turns = "chatml"
 reuse_logit_tol = 0.25
 reuse_kl_tol = 1e-2
+
+# `--spec dflash` measured-cost gate (crates/intarsia-core/src/spec.rs `CostParams`), OFF by default: per sequence, a running mean of
+# the tokens per verify pass and of the pass and plain-step times; below `cost_min_speedup` the sequence decodes plainly for
+# `cost_reprobe_tokens` tokens (doubled while retries keep falling back), then probes again. On (1.03) it lifts the 8B's low-acceptance
+# prose from 0.98x to 1.00x but costs recall/code 12 % / 11 % (decided on the first passes of an answer), so it stays off
+# (docs/results/2026-10-25-dc-dflash-dcoco.md section 12). Set 1.03 here, or `INTARSIA_SPEC_COSTGATE=1`, to try it.
+[dflash]
+cost_min_speedup = 0
+cost_window = 6
+cost_probe_every = 128
+cost_reprobe_tokens = 128

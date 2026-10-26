@@ -1,0 +1,11 @@
+fleetq: #5692 running on spark1: scripts/dc/spark1.sh gates mtp35 16384 32768
+FAIL mtp35 T=16384 p0 (prompt: 14002) ids differ or empty | spec: verify passes=62 proposed=124 accepted=64 (acceptance 51.6%, 2.03 tokens per pass)
+FAIL mtp35 T=16384 p1 (prompt: 15361) ids differ or empty | spec: verify passes=48 proposed=96 accepted=78 (acceptance 81.2%, 2.62 tokens per pass)
+PASS mtp35 T=16384 p2 (prompt: 13736, 37683 chars) ids identical (128) | off: decode 1676 ms (75.77 tok/s) | mtp: decode 1201 ms (105.73 tok/s) | spec: verify passes=43 proposed=86 accepted=83 (acceptance 96.5%, 2.93 tokens per pass)
+FAIL mtp35 T=32768 p0 (prompt: 28075) ids differ or empty | spec: verify passes=59 proposed=117 accepted=68 (acceptance 58.1%, 2.15 tokens per pass)
+FAIL mtp35 T=32768 p1 (prompt: 27765) ids differ or empty | spec: verify passes=46 proposed=91 accepted=81 (acceptance 89.0%, 2.76 tokens per pass)
+FAIL mtp35 T=32768 p2 (prompt: 27442) ids differ or empty | spec: verify passes=61 proposed=121 accepted=66 (acceptance 54.5%, 2.08 tokens per pass)
+mtp35 fails=5
+scripts/dc/spark1.sh: line 44: unexpected EOF while looking for matching `"'
+scripts/dc/spark1.sh: line 45: syntax error: unexpected end of file
+fleetq: #5692 done (exit 2)

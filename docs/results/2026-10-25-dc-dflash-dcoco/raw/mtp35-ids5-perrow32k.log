@@ -1,0 +1,5 @@
+fleetq: #5695 running on spark1: scripts/dc/spark1.sh gates mtp35 32768
+PASS mtp35 T=32768 p0 (prompt: 28075, 75498 chars) ids identical (128) | off: decode 1839 ms (69.04 tok/s) | mtp: decode 1790 ms (70.94 tok/s) | spec: verify passes=60 proposed=119 accepted=67 (acceptance 56.3%, 2.12 tokens per pass)
+PASS mtp35 T=32768 p1 (prompt: 27765, 75369 chars) ids identical (128) | off: decode 1838 ms (69.10 tok/s) | mtp: decode 1400 ms (90.74 tok/s) | spec: verify passes=46 proposed=91 accepted=81 (acceptance 89.0%, 2.76 tokens per pass)
+mtp35 fails=0
+fleetq: #5695 done (exit 0)

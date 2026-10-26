@@ -1,0 +1,12 @@
+fleetq: #5484 running on endor: /opt/code/TensorFold/.venv/bin/python /opt/code/intarsiaml/.worktrees/dc/tools/dc/ref/transition_acc.py --ckpt ckpt --target /Users/josef/models/Qwen3-8B --prompts /opt/code/intarsiaml/.worktrees/dc/tools/dc/prompts_dc.jsonl --plain runs/plain192.json --step 3
+transitions 7379 sec 47
+argmax       cond. top1 acc of slot p+1 given true slot p: 0.5867
+A            cond. top1 acc of slot p+1 given true slot p: 0.7477
+A_tanh_eps6  cond. top1 acc of slot p+1 given true slot p: 0.7479
+B            cond. top1 acc of slot p+1 given true slot p: 0.5375
+C            cond. top1 acc of slot p+1 given true slot p: 0.5650
+pre          cond. top1 acc of slot p+1 given true slot p: 0.5766
+lsm          cond. top1 acc of slot p+1 given true slot p: 0.7239
+lmax         cond. top1 acc of slot p+1 given true slot p: 0.7245
+fuse_gb      cond. top1 acc of slot p+1 given true slot p: 0.5376
+fleetq: #5484 done (exit 0)

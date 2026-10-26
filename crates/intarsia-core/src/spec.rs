@@ -19,6 +19,10 @@ pub enum SpecMode {
     /// Works on models with recurrent state: the verify pass keeps the state after every row
     /// (`crate::state::SpecRows`).
     Mtp,
+    /// DFlash parallel block drafter (`crate::model::dflash`, `--spec dflash --spec-draft DIR`, lane dc): a 5-layer draft
+    /// reads the target's hidden states at five layers and proposes up to [`DFLASH_K_MAX`] tokens in one pass; verified
+    /// by the same multi-row pass (attention one decode call per row where the backend's multi-row call is not bitwise).
+    Dflash,
 }
 
 /// Longest suffix the drafter matches.
@@ -28,6 +32,11 @@ pub const NGRAM_MIN: usize = 1;
 /// Most draft tokens per verify pass (`--spec-k`): a pass has `1 + k` rows, and G0 / G0b measured the row-exact kernels
 /// cheap up to 7 rows (the 8-row GEMV hits the shard-alignment cliff).
 pub const SPEC_K_MAX: usize = 6;
+/// Most drafts per verify pass with `--spec dflash`: one block of the draft checkpoint (15) plus the anchor row = 16 rows,
+/// `Model::VERIFY_MAX_ROWS`. The row-exact claim for these passes is `docs/results/2026-10-25-dc-dflash-dcoco.md` section 10.1.
+pub const DFLASH_K_MAX: usize = 15;
+/// `--spec-k` default with `--spec dflash` (the checkpoint's block).
+pub const DFLASH_K_DEFAULT: usize = 15;
 /// Default `--spec-k`.
 pub const SPEC_K_DEFAULT: usize = 4;
 /// Default `--spec-k` for `--spec mtp` when none is given: the k = 1..3 sweep on spark1
@@ -63,10 +72,12 @@ impl SpecConfig {
             "off" | "none" | "" => SpecMode::Off,
             "ngram" => SpecMode::Ngram,
             "mtp" => SpecMode::Mtp,
-            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram or mtp)"))),
+            "dflash" => SpecMode::Dflash,
+            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram, mtp or dflash)"))),
         };
-        if !(1..=SPEC_K_MAX).contains(&k) {
-            return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={SPEC_K_MAX}")));
+        let kmax = if mode == SpecMode::Dflash { DFLASH_K_MAX } else { SPEC_K_MAX };
+        if !(1..=kmax).contains(&k) {
+            return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={kmax}")));
         }
         Ok(SpecConfig { mode, k })
     }
@@ -222,11 +233,35 @@ pub struct CostParams {
     pub warmup: u32,
     /// Weight of a new sample in the running averages.
     pub alpha: f64,
+    /// Decide on the smoothed speedup alone: fall back once `warmup + window` passes have run since the (re)start and the
+    /// running-mean speedup is under `min_speedup`. Default (false): `window` consecutive passes under it, which a noisy
+    /// estimate near the line keeps resetting (DFlash prose: 24+ passes before the fallback, docs/results/2026-10-25-dc-dflash-dcoco.md).
+    pub smooth: bool,
 }
 
 impl CostParams {
     pub const OFF: CostParams =
-        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
+        CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125, smooth: false };
+
+    /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): OFF by
+    /// default. Measured on Qwen3-8B CUDA (docs/results/2026-10-25-dc-dflash-dcoco.md section 12) the gate fixes low-acceptance prose
+    /// (0.98x -> 1.00x) but decides on the first passes of an answer and costs recall/code 11-12 %, so ungated DFlash is the default.
+    /// `INTARSIA_SPEC_COSTGATE=1` (or `cost_min_speedup = 1.03` in `[dflash]`) turns it on with the window below, a pass is about
+    /// 100 ms there so the window is short.
+    pub const DFLASH: CostParams =
+        CostParams { min_speedup: 0.0, window: 6, probe_every: 128, reprobe_tokens: 128, warmup: 2, alpha: 0.125, smooth: true };
+
+    /// The recipe's `[dflash]` overrides.
+    pub fn with_dflash_recipe(self, m: Option<&crate::recipe::DflashSpec>) -> CostParams {
+        let Some(m) = m else { return self };
+        CostParams {
+            min_speedup: m.cost_min_speedup.unwrap_or(self.min_speedup),
+            window: m.cost_window.map_or(self.window, |w| w.max(1)),
+            probe_every: m.cost_probe_every.map_or(self.probe_every, |w| w.max(1)),
+            reprobe_tokens: m.cost_reprobe_tokens.map_or(self.reprobe_tokens, |w| w.max(1)),
+            ..self
+        }
+    }
 
     /// The speedup the gate holds speculation to when it is on: 3% over plain decode, about the run-to-run noise of a request.
     pub const DEFAULT_MIN_SPEEDUP: f64 = 1.03;
@@ -412,7 +447,7 @@ impl CostGate {
         match self.speedup() {
             Some(sp) if sp < self.p.min_speedup => {
                 self.low += 1;
-                if self.low >= self.p.window {
+                if self.low >= self.p.window || (self.p.smooth && self.passes >= self.p.warmup + self.p.window) {
                     self.mode = CostMode::Plain { left: self.next_reprobe };
                     self.next_reprobe = self.next_reprobe.saturating_mul(2).min(self.p.reprobe_tokens.saturating_mul(16));
                     self.events.off += 1;
@@ -857,7 +892,7 @@ mod tests {
     }
 
     fn cp() -> CostParams {
-        CostParams { min_speedup: 1.03, window: 8, probe_every: 16, reprobe_tokens: 40, warmup: 2, alpha: 0.25 }
+        CostParams { min_speedup: 1.03, window: 8, probe_every: 16, reprobe_tokens: 40, warmup: 2, alpha: 0.25, smooth: false }
     }
 
     /// Drive `steps` decode steps: a speculative step yields `spec(i)` = (tokens, ms), a plain step 1 token in `plain` ms.
@@ -967,6 +1002,23 @@ mod tests {
         let t = drive(&mut g, 120, |i| if i < 60 { (3, 12.2) } else { (2, 12.2) }, 6.1);
         assert_eq!(g.take_cost_events().off, 1, "{t}");
         assert!(t[60..].contains('p'), "{t}");
+    }
+
+    #[test]
+    fn cost_gate_smooth_falls_back_on_a_noisy_estimate_near_the_line() {
+        // DFlash prose: 1 or 2 tokens per 101 ms pass against a 67.4 ms plain step, mean speedup 1.00 with jitter around the 1.03 line
+        let noisy = |i: usize| (if i % 3 == 0 { 2 } else { 1 }, 101.0);
+        let first_off = |smooth: bool| {
+            let mut g = cost_gate(CostParams { smooth, probe_every: 1000, ..cp() });
+            let t = drive(&mut g, 120, noisy, 67.4);
+            (t.find("pppp"), t)
+        };
+        let (smooth, t) = first_off(true);
+        assert!(smooth.is_some_and(|i| i <= 2 * (2 + 8 + 4)), "smooth gate falls back late: {t}");
+        // a pass that pays stays on with the smooth decision too
+        let mut g = cost_gate(CostParams { smooth: true, ..cp() });
+        let t = drive(&mut g, 200, |_| (3, 101.0), 67.4);
+        assert_eq!(g.take_cost_events().off, 0, "{t}");
     }
 
     #[test]

@@ -357,6 +357,12 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Called once by a model that runs MTP speculation (`--spec mtp`): the backend switches its verify attention to per-row
+    /// ([`Backend::verify_attn_per_row`]) unless the user opted out, so the speculative ids equal spec-off at any context
+    /// (CUDA: the multi-row kernel is not bitwise the decode step at large positions, docs/results/2026-10-25-dc-dflash-dcoco.md
+    /// section 13). Default: nothing (HIP is per-row already, the others keep the multi-row call).
+    fn prefer_verify_attn_per_row(&self) {}
+
     /// Does this backend run batched decode steps with row tables (`OpCall::rows`): `GdnConv`, `GdnDeltaRule`, `KvAppend`
     /// and `AttnDecode` over all rows of a step in one launch, the sequences' state buffers named by a table of device
     /// addresses? (CUDA.) Whether a step uses them is the model's decision (`Model::row_tables`).

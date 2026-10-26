@@ -1,0 +1,83 @@
+fleetq: #5698 waiting (#1 in line): needs gpu quiet on spark1, but #5697 "dc: 35B mtp ids vs off 4k/16k/32k x3, new per-row default" (claude-f31ccf91) loads it
+fleetq:   #5697 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5697 set, or it will wait for #5697 to be released.
+fleetq: #5698 running on spark1: scripts/dc/bench35.sh 2
+== off-r1 06:18:40
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 58.9 | 81.0 (81.0–81.0) | 0.60 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-061919-adhoc-dc35-off-r1/result.json
+[localeval] logged to unanimis: a9b37b7e-15c7-4f07-b7f1-e7377bb1e185
+== multirow-r1 06:20:08
+
+## Warnings
+
+- decode spread 12.1% at 4096 tokens: noisy; rerun before comparing
+- decode spread 26.6% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-062102-adhoc-dc35-multirow-r1/result.json
+[localeval] logged to unanimis: 74f063ae-7d8b-48b2-987b-6f17f028b145
+== perrow-r1 06:21:52
+
+## Warnings
+
+- decode spread 12.6% at 4096 tokens: noisy; rerun before comparing
+- decode spread 16.7% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-062258-adhoc-dc35-perrow-r1/result.json
+[localeval] logged to unanimis: cdc0c29d-3906-40f5-b64b-9b53fe57439c
+== off-r2 06:24:06
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 59.2 | 81.4 (81.4–81.4) | 0.59 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-062442-adhoc-dc35-off-r2/result.json
+[localeval] logged to unanimis: 650fc20c-03d5-40aa-a0cf-db6b6b176b70
+== multirow-r2 06:25:30
+| 1 | 64.4 | 95.0 (95.0–95.0) | 0.65 |
+
+## Warnings
+
+- decode spread 27.2% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-062622-adhoc-dc35-multirow-r2/result.json
+[localeval] logged to unanimis: ae8699f8-06a2-4473-87e9-7a3d5b779633
+== perrow-r2 06:27:12
+
+## Warnings
+
+- decode spread 14.1% at 16384 tokens: noisy; rerun before comparing
+- decode spread 10.7% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-062816-adhoc-dc35-perrow-r2/result.json
+[localeval] logged to unanimis: 4909b31a-46e0-40ed-8299-3f50ba4fd174
+== bench35 done
+fleetq: #5698 done (exit 0)

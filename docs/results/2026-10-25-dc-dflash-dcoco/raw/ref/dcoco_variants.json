@@ -1,0 +1,1849 @@
+{
+ "what": "DCOCO corrector variants, in-loop speculative decoding, same 16 prompts / 192 tokens / layout r15 as dflash.json",
+ "paper_reference": {
+  "dflash_tau": 3.913,
+  "dcoco_tau": 4.985,
+  "note": "ten-suite average, greedy, thinking off (arXiv 2610.12570)"
+ },
+ "plain_dflash_tau_pooled": 3.2978260869565217,
+ "summary": [
+  {
+   "variant": "default",
+   "tau_pooled": 3.359513274336283,
+   "tau_mean_of_prompts": 4.781188754232665,
+   "rounds": 904,
+   "equal_plain_greedy": 9,
+   "sec": 72.3
+  },
+  {
+   "variant": "eps=1e-06",
+   "tau_pooled": 3.359513274336283,
+   "tau_mean_of_prompts": 4.781188754232665,
+   "rounds": 904,
+   "equal_plain_greedy": 9,
+   "sec": 72.3
+  },
+  {
+   "variant": "gelu=tanh",
+   "tau_pooled": 3.359513274336283,
+   "tau_mean_of_prompts": 4.781188754232665,
+   "rounds": 904,
+   "equal_plain_greedy": 9,
+   "sec": 70.8
+  },
+  {
+   "variant": "order=B",
+   "tau_pooled": 3.0259740259740258,
+   "tau_mean_of_prompts": 3.9510043621541353,
+   "rounds": 1001,
+   "equal_plain_greedy": 9,
+   "sec": 76.6
+  },
+  {
+   "variant": "order=C",
+   "tau_pooled": 3.2586206896551726,
+   "tau_mean_of_prompts": 4.480900702510979,
+   "rounds": 928,
+   "equal_plain_greedy": 9,
+   "sec": 70.9
+  },
+  {
+   "variant": "hnorm=pre",
+   "tau_pooled": 3.132505175983437,
+   "tau_mean_of_prompts": 4.295569997446982,
+   "rounds": 966,
+   "equal_plain_greedy": 9,
+   "sec": 73.8
+  },
+  {
+   "variant": "logit=logsoftmax",
+   "tau_pooled": 3.352549889135255,
+   "tau_mean_of_prompts": 4.769842450715269,
+   "rounds": 902,
+   "equal_plain_greedy": 9,
+   "sec": 71.4
+  },
+  {
+   "variant": "eps=1e-06,gelu=tanh",
+   "tau_pooled": 3.359513274336283,
+   "tau_mean_of_prompts": 4.781188754232665,
+   "rounds": 904,
+   "equal_plain_greedy": 9,
+   "sec": 70.4
+  },
+  {
+   "variant": "logit=lmax",
+   "tau_pooled": 3.352549889135255,
+   "tau_mean_of_prompts": 4.7517033741386925,
+   "rounds": 902,
+   "equal_plain_greedy": 9,
+   "sec": 70.1
+  }
+ ],
+ "winner": "default (eps=1e-5, gelu=erf, order=A [s;za;zb;la;lb], hnorm=post, logit=raw)",
+ "tied_at_top": [
+  "default",
+  "eps=1e-06",
+  "gelu=tanh",
+  "eps=1e-06,gelu=tanh"
+ ],
+ "tied_variants_vs_default_round_diff": {
+  "eps=1e-06": {
+   "rounds_compared": 904,
+   "rounds_with_different_drafts": 18,
+   "rounds_with_different_accepted": 0
+  },
+  "gelu=tanh": {
+   "rounds_compared": 904,
+   "rounds_with_different_drafts": 3,
+   "rounds_with_different_accepted": 0
+  },
+  "eps=1e-06,gelu=tanh": {
+   "rounds_compared": 904,
+   "rounds_with_different_drafts": 17,
+   "rounds_with_different_accepted": 0
+  }
+ },
+ "winner_tau_pooled": 3.359513274336283,
+ "gain_over_plain_dflash": 0.06168718737976153,
+ "gain_over_plain_dflash_pct": 1.870540948891919,
+ "margin_to_next_distinct_variant": {
+  "variant": "logit=logsoftmax",
+  "delta_tau": 0.006963385201028238
+ },
+ "meta": {
+  "mlx": "0.32.3",
+  "mlx_lm": "0.31.3",
+  "ckpt": "ckpt",
+  "target": "/Users/josef/models/Qwen3-8B",
+  "max_new": 192,
+  "mode": "dcoco",
+  "layout": "r15",
+  "tap_shift": 0,
+  "prompts_file": "/opt/code/intarsiaml/.worktrees/dc/tools/dc/prompts_dc.jsonl",
+  "cmd": "/opt/code/intarsiaml/.worktrees/dc/tools/dc/ref/dflash_ref.py --ckpt ckpt --target /Users/josef/models/Qwen3-8B --prompts /opt/code/intarsiaml/.worktrees/dc/tools/dc/prompts_dc.jsonl --max-new 192 --mode dcoco --variant grid1 --plain-cache runs/plain192.json --out runs/dcoco_grid1.json",
+  "plain_sec": 0.0,
+  "total_sec": 509.0
+ },
+ "runs": [
+  {
+   "variant": "default",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 904,
+    "tau_pooled": 3.359513274336283,
+    "tau_mean_of_prompts": 4.781188754232665,
+    "tau_committed_pooled": 3.3064159292035398,
+    "equal_plain_greedy": 9,
+    "sec": 72.3
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 26,
+     "tau": 7.5,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.15
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 30,
+     "tau": 6.566666666666666,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.4
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 25,
+     "tau": 7.8,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.08
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.92
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 33,
+     "tau": 6.0606060606060606,
+     "tau_committed": 5.787878787878788,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.69
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 26,
+     "tau": 7.346153846153846,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 2.11
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 36,
+     "tau": 5.305555555555555,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.92
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 35,
+     "tau": 5.6571428571428575,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.83
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 45,
+     "tau": 4.2444444444444445,
+     "tau_committed": 4.2444444444444445,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.65
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.95
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.3125,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.58
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.37
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 107,
+     "tau": 1.7850467289719627,
+     "tau_committed": 1.7850467289719627,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.26
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 105,
+     "tau": 1.8285714285714287,
+     "tau_committed": 1.819047619047619,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.34
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 136,
+     "tau": 1.4044117647058822,
+     "tau_committed": 1.4044117647058822,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.93
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 76,
+     "tau": 2.5394736842105265,
+     "tau_committed": 2.513157894736842,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.16
+    }
+   ]
+  },
+  {
+   "variant": "eps=1e-06",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 904,
+    "tau_pooled": 3.359513274336283,
+    "tau_mean_of_prompts": 4.781188754232665,
+    "tau_committed_pooled": 3.3064159292035398,
+    "equal_plain_greedy": 9,
+    "sec": 72.3
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 26,
+     "tau": 7.5,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.06
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 30,
+     "tau": 6.566666666666666,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.36
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 25,
+     "tau": 7.8,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.01
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.82
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 33,
+     "tau": 6.0606060606060606,
+     "tau_committed": 5.787878787878788,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.64
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 26,
+     "tau": 7.346153846153846,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 2.06
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 36,
+     "tau": 5.305555555555555,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.83
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 35,
+     "tau": 5.6571428571428575,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.79
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 45,
+     "tau": 4.2444444444444445,
+     "tau_committed": 4.2444444444444445,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.59
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 7.27
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.3125,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.61
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.4
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 107,
+     "tau": 1.7850467289719627,
+     "tau_committed": 1.7850467289719627,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.36
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 105,
+     "tau": 1.8285714285714287,
+     "tau_committed": 1.819047619047619,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.52
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 136,
+     "tau": 1.4044117647058822,
+     "tau_committed": 1.4044117647058822,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.88
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 76,
+     "tau": 2.5394736842105265,
+     "tau_committed": 2.513157894736842,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.08
+    }
+   ]
+  },
+  {
+   "variant": "gelu=tanh",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 904,
+    "tau_pooled": 3.359513274336283,
+    "tau_mean_of_prompts": 4.781188754232665,
+    "tau_committed_pooled": 3.3064159292035398,
+    "equal_plain_greedy": 9,
+    "sec": 70.8
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 26,
+     "tau": 7.5,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.08
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 30,
+     "tau": 6.566666666666666,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.32
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 25,
+     "tau": 7.8,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.96
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.86
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 33,
+     "tau": 6.0606060606060606,
+     "tau_committed": 5.787878787878788,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.77
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 26,
+     "tau": 7.346153846153846,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 1.99
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 36,
+     "tau": 5.305555555555555,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.83
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 35,
+     "tau": 5.6571428571428575,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.81
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 45,
+     "tau": 4.2444444444444445,
+     "tau_committed": 4.2444444444444445,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.55
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.92
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.3125,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.52
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.3
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 107,
+     "tau": 1.7850467289719627,
+     "tau_committed": 1.7850467289719627,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.16
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 105,
+     "tau": 1.8285714285714287,
+     "tau_committed": 1.819047619047619,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.17
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 136,
+     "tau": 1.4044117647058822,
+     "tau_committed": 1.4044117647058822,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.57
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 76,
+     "tau": 2.5394736842105265,
+     "tau_committed": 2.513157894736842,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 5.99
+    }
+   ]
+  },
+  {
+   "variant": "order=B",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 1001,
+    "tau_pooled": 3.0259740259740258,
+    "tau_mean_of_prompts": 3.9510043621541353,
+    "tau_committed_pooled": 2.986013986013986,
+    "equal_plain_greedy": 9,
+    "sec": 76.6
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 36,
+     "tau": 5.5,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.77
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 36,
+     "tau": 5.416666666666667,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.71
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 31,
+     "tau": 6.258064516129032,
+     "tau_committed": 6.161290322580645,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.38
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 30,
+     "tau": 6.466666666666667,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.3
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 39,
+     "tau": 5.051282051282051,
+     "tau_committed": 4.897435897435898,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.07
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 34,
+     "tau": 5.676470588235294,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 2.58
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 45,
+     "tau": 4.288888888888889,
+     "tau_committed": 4.2444444444444445,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.47
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 43,
+     "tau": 4.604651162790698,
+     "tau_committed": 4.441860465116279,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.34
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 51,
+     "tau": 3.7450980392156863,
+     "tau_committed": 3.7450980392156863,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.95
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 95,
+     "tau": 2.0105263157894737,
+     "tau_committed": 2.0105263157894737,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 7.27
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 35,
+     "tau": 5.542857142857143,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.73
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 78,
+     "tau": 1.6025641025641026,
+     "tau_committed": 1.5897435897435896,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.02
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 119,
+     "tau": 1.6050420168067228,
+     "tau_committed": 1.6050420168067228,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.83
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 105,
+     "tau": 1.819047619047619,
+     "tau_committed": 1.819047619047619,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.04
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 138,
+     "tau": 1.3840579710144927,
+     "tau_committed": 1.3840579710144927,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.53
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 86,
+     "tau": 2.244186046511628,
+     "tau_committed": 2.2209302325581395,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.61
+    }
+   ]
+  },
+  {
+   "variant": "order=C",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 928,
+    "tau_pooled": 3.2586206896551726,
+    "tau_mean_of_prompts": 4.480900702510979,
+    "tau_committed_pooled": 3.220905172413793,
+    "equal_plain_greedy": 9,
+    "sec": 70.9
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 27,
+     "tau": 7.222222222222222,
+     "tau_committed": 7.074074074074074,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.08
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 32,
+     "tau": 6.0625,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.4
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 27,
+     "tau": 7.222222222222222,
+     "tau_committed": 7.074074074074074,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.08
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 28,
+     "tau": 6.928571428571429,
+     "tau_committed": 6.821428571428571,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.13
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 37,
+     "tau": 5.378378378378378,
+     "tau_committed": 5.162162162162162,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.84
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 27,
+     "tau": 7.111111111111111,
+     "tau_committed": 7.074074074074074,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 2.03
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 37,
+     "tau": 5.1891891891891895,
+     "tau_committed": 5.162162162162162,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.85
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 39,
+     "tau": 5.076923076923077,
+     "tau_committed": 4.897435897435898,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.02
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 46,
+     "tau": 4.1521739130434785,
+     "tau_committed": 4.1521739130434785,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.53
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 91,
+     "tau": 2.098901098901099,
+     "tau_committed": 2.098901098901099,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.94
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 31,
+     "tau": 6.161290322580645,
+     "tau_committed": 6.161290322580645,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.42
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 78,
+     "tau": 1.6025641025641026,
+     "tau_committed": 1.5897435897435896,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 5.93
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 112,
+     "tau": 1.7053571428571428,
+     "tau_committed": 1.7053571428571428,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.28
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 102,
+     "tau": 1.8823529411764706,
+     "tau_committed": 1.8725490196078431,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 7.94
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 137,
+     "tau": 1.3941605839416058,
+     "tau_committed": 1.3941605839416058,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.54
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 77,
+     "tau": 2.5064935064935066,
+     "tau_committed": 2.4805194805194803,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 5.93
+    }
+   ]
+  },
+  {
+   "variant": "hnorm=pre",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 966,
+    "tau_pooled": 3.132505175983437,
+    "tau_mean_of_prompts": 4.295569997446982,
+    "tau_committed_pooled": 3.0942028985507246,
+    "equal_plain_greedy": 9,
+    "sec": 73.8
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 29,
+     "tau": 6.724137931034483,
+     "tau_committed": 6.586206896551724,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.24
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 34,
+     "tau": 5.705882352941177,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.58
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 26,
+     "tau": 7.5,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.0
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 29,
+     "tau": 6.689655172413793,
+     "tau_committed": 6.586206896551724,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.21
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 37,
+     "tau": 5.405405405405405,
+     "tau_committed": 5.162162162162162,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.83
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 30,
+     "tau": 6.4,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 2.27
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 39,
+     "tau": 4.948717948717949,
+     "tau_committed": 4.897435897435898,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.99
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 39,
+     "tau": 5.076923076923077,
+     "tau_committed": 4.897435897435898,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.03
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 48,
+     "tau": 3.9791666666666665,
+     "tau_committed": 3.9791666666666665,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.69
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 93,
+     "tau": 2.053763440860215,
+     "tau_committed": 2.053763440860215,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 7.11
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 34,
+     "tau": 5.617647058823529,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.65
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.21
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 118,
+     "tau": 1.6186440677966103,
+     "tau_committed": 1.61864406779661,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.8
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 106,
+     "tau": 1.8113207547169812,
+     "tau_committed": 1.8018867924528301,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.16
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 138,
+     "tau": 1.3840579710144927,
+     "tau_committed": 1.3840579710144927,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.53
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 85,
+     "tau": 2.2705882352941176,
+     "tau_committed": 2.2470588235294118,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.52
+    }
+   ]
+  },
+  {
+   "variant": "logit=logsoftmax",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 902,
+    "tau_pooled": 3.352549889135255,
+    "tau_mean_of_prompts": 4.769842450715269,
+    "tau_committed_pooled": 3.313747228381375,
+    "equal_plain_greedy": 9,
+    "sec": 71.4
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 27,
+     "tau": 7.222222222222222,
+     "tau_committed": 7.074074074074074,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.17
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 31,
+     "tau": 6.161290322580645,
+     "tau_committed": 6.161290322580645,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.43
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 24,
+     "tau": 8.125,
+     "tau_committed": 7.958333333333333,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.92
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.85
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 34,
+     "tau": 5.882352941176471,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.71
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 25,
+     "tau": 7.68,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 1.96
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 35,
+     "tau": 5.457142857142857,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.78
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 34,
+     "tau": 5.823529411764706,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.74
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 46,
+     "tau": 4.1521739130434785,
+     "tau_committed": 4.1521739130434785,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.67
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.98
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.0625,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.59
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.4
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 108,
+     "tau": 1.7685185185185186,
+     "tau_committed": 1.7685185185185186,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.31
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 104,
+     "tau": 1.8461538461538463,
+     "tau_committed": 1.8365384615384615,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.24
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 135,
+     "tau": 1.4148148148148147,
+     "tau_committed": 1.4148148148148147,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.71
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 75,
+     "tau": 2.5733333333333333,
+     "tau_committed": 2.546666666666667,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 5.98
+    }
+   ]
+  },
+  {
+   "variant": "eps=1e-06,gelu=tanh",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 904,
+    "tau_pooled": 3.359513274336283,
+    "tau_mean_of_prompts": 4.781188754232665,
+    "tau_committed_pooled": 3.3064159292035398,
+    "equal_plain_greedy": 9,
+    "sec": 70.4
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 26,
+     "tau": 7.5,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.1
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 30,
+     "tau": 6.566666666666666,
+     "tau_committed": 6.366666666666666,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.26
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 25,
+     "tau": 7.8,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.96
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.78
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 33,
+     "tau": 6.0606060606060606,
+     "tau_committed": 5.787878787878788,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.57
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 26,
+     "tau": 7.346153846153846,
+     "tau_committed": 7.346153846153846,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 1.97
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 36,
+     "tau": 5.305555555555555,
+     "tau_committed": 5.305555555555555,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.78
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 35,
+     "tau": 5.6571428571428575,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.76
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 45,
+     "tau": 4.2444444444444445,
+     "tau_committed": 4.2444444444444445,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.52
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.76
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.3125,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.51
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.32
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 107,
+     "tau": 1.7850467289719627,
+     "tau_committed": 1.7850467289719627,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.12
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 105,
+     "tau": 1.8285714285714287,
+     "tau_committed": 1.819047619047619,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.27
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 136,
+     "tau": 1.4044117647058822,
+     "tau_committed": 1.4044117647058822,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.63
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 76,
+     "tau": 2.5394736842105265,
+     "tau_committed": 2.513157894736842,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.08
+    }
+   ]
+  },
+  {
+   "variant": "logit=lmax",
+   "layout": "r15",
+   "aggregate": {
+    "prompts": 16,
+    "rounds": 902,
+    "tau_pooled": 3.352549889135255,
+    "tau_mean_of_prompts": 4.7517033741386925,
+    "tau_committed_pooled": 3.313747228381375,
+    "equal_plain_greedy": 9,
+    "sec": 70.1
+   },
+   "prompts": [
+    {
+     "id": "math1",
+     "kind": "math",
+     "prompt_len": 75,
+     "n_rounds": 27,
+     "tau": 7.222222222222222,
+     "tau_committed": 7.074074074074074,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.16
+    },
+    {
+     "id": "math2",
+     "kind": "math",
+     "prompt_len": 69,
+     "n_rounds": 31,
+     "tau": 6.161290322580645,
+     "tau_committed": 6.161290322580645,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.32
+    },
+    {
+     "id": "math3",
+     "kind": "math",
+     "prompt_len": 41,
+     "n_rounds": 25,
+     "tau": 7.8,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.92
+    },
+    {
+     "id": "math4",
+     "kind": "math",
+     "prompt_len": 42,
+     "n_rounds": 23,
+     "tau": 8.434782608695652,
+     "tau_committed": 8.304347826086957,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 1.77
+    },
+    {
+     "id": "math5",
+     "kind": "math",
+     "prompt_len": 54,
+     "n_rounds": 34,
+     "tau": 5.882352941176471,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.64
+    },
+    {
+     "id": "math6",
+     "kind": "math",
+     "prompt_len": 52,
+     "n_rounds": 25,
+     "tau": 7.68,
+     "tau_committed": 7.64,
+     "equals_plain_greedy": false,
+     "first_diff": 175,
+     "sec": 1.9
+    },
+    {
+     "id": "code1",
+     "kind": "code",
+     "prompt_len": 42,
+     "n_rounds": 35,
+     "tau": 5.457142857142857,
+     "tau_committed": 5.457142857142857,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.74
+    },
+    {
+     "id": "code2",
+     "kind": "code",
+     "prompt_len": 49,
+     "n_rounds": 34,
+     "tau": 5.823529411764706,
+     "tau_committed": 5.617647058823529,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.65
+    },
+    {
+     "id": "code3",
+     "kind": "code",
+     "prompt_len": 52,
+     "n_rounds": 46,
+     "tau": 4.1521739130434785,
+     "tau_committed": 4.1521739130434785,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 3.56
+    },
+    {
+     "id": "code4",
+     "kind": "code",
+     "prompt_len": 43,
+     "n_rounds": 88,
+     "tau": 2.1704545454545454,
+     "tau_committed": 2.1704545454545454,
+     "equals_plain_greedy": false,
+     "first_diff": 16,
+     "sec": 6.79
+    },
+    {
+     "id": "code5",
+     "kind": "code",
+     "prompt_len": 57,
+     "n_rounds": 32,
+     "tau": 6.0625,
+     "tau_committed": 5.96875,
+     "equals_plain_greedy": true,
+     "first_diff": null,
+     "sec": 2.52
+    },
+    {
+     "id": "chat1",
+     "kind": "chat",
+     "prompt_len": 41,
+     "n_rounds": 81,
+     "tau": 1.5432098765432098,
+     "tau_committed": 1.5308641975308641,
+     "equals_plain_greedy": false,
+     "first_diff": 24,
+     "sec": 6.34
+    },
+    {
+     "id": "chat2",
+     "kind": "chat",
+     "prompt_len": 40,
+     "n_rounds": 108,
+     "tau": 1.7685185185185186,
+     "tau_committed": 1.7685185185185186,
+     "equals_plain_greedy": false,
+     "first_diff": 54,
+     "sec": 8.12
+    },
+    {
+     "id": "chat3",
+     "kind": "chat",
+     "prompt_len": 34,
+     "n_rounds": 104,
+     "tau": 1.8461538461538463,
+     "tau_committed": 1.8365384615384615,
+     "equals_plain_greedy": false,
+     "first_diff": 66,
+     "sec": 8.04
+    },
+    {
+     "id": "chat4",
+     "kind": "chat",
+     "prompt_len": 36,
+     "n_rounds": 135,
+     "tau": 1.4148148148148147,
+     "tau_committed": 1.4148148148148147,
+     "equals_plain_greedy": false,
+     "first_diff": 53,
+     "sec": 10.64
+    },
+    {
+     "id": "chat5",
+     "kind": "chat",
+     "prompt_len": 42,
+     "n_rounds": 74,
+     "tau": 2.608108108108108,
+     "tau_committed": 2.581081081081081,
+     "equals_plain_greedy": false,
+     "first_diff": 23,
+     "sec": 6.03
+    }
+   ]
+  }
+ ]
+}

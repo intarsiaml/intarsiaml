@@ -1,0 +1,13 @@
+fleetq: #5691 running on spark1: scripts/dc/spark1.sh gates mtp35 4096 16384 32768
+PASS mtp35 T=4096 p0 (prompt: 5114, 13516 chars) ids identical (128) | off: decode 1568 ms (81.01 tok/s) | mtp: decode 1011 ms (125.62 tok/s) | spec: verify passes=43 proposed=85 accepted=84 (acceptance 98.8%, 2.95 tokens per pass)
+PASS mtp35 T=4096 p1 (prompt: 4849, 13516 chars) ids identical (128) | off: decode 1562 ms (81.31 tok/s) | mtp: decode 1156 ms (109.82 tok/s) | spec: verify passes=46 proposed=92 accepted=81 (acceptance 88.0%, 2.76 tokens per pass)
+PASS mtp35 T=4096 p2 (prompt: 4695, 13516 chars) ids identical (128) | off: decode 1562 ms (81.33 tok/s) | mtp: decode 1290 ms (98.42 tok/s) | spec: verify passes=52 proposed=103 accepted=75 (acceptance 72.8%, 2.44 tokens per pass)
+PASS mtp35 T=16384 p0 (prompt: 20331, 54067 chars) ids identical (128) | off: decode 1735 ms (73.19 tok/s) | mtp: decode 1295 ms (98.11 tok/s) | spec: verify passes=45 proposed=90 accepted=81 (acceptance 90.0%, 2.80 tokens per pass)
+FAIL mtp35 T=16384 p1 (prompt: 22299) ids differ or empty | 
+FAIL mtp35 T=16384 p2 (prompt: 20632) ids differ or empty | 
+FAIL mtp35 T=32768 p0 (prompt: 40981) ids differ or empty | 
+FAIL mtp35 T=32768 p1 (prompt: 39409) ids differ or empty | 
+FAIL mtp35 T=32768 p2 (prompt: 38407) ids differ or empty | 
+mtp35 fails=5
+fleetq: #5691 done (exit 0)
+exit 0

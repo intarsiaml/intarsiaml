@@ -1,0 +1,1 @@
+A bag has 5 red, 4 blue and 3 green marbles. Two marbles are drawn without replacement. What is the probability that they are different colours? Work it out carefully.

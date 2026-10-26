@@ -1,0 +1,30 @@
+fleetq: #5688 waiting (#1 in line): needs spark1 quiet, but requests not tracked by fleetq are in flight: spark1-vllm (1 in flight)
+fleetq: #5688 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5688 running on spark1: scripts/dc/bench.sh 3 off dflash
+== off-r1 04:33:11
+
+[localeval] saved /opt/code/deepeval/results/20261026-043453-adhoc-dc-cat-off-r1/result.json
+[localeval] logged to unanimis: 607cf651-ec56-452c-a6ec-317574c97f2d
+== dflash-r1 04:41:37
+
+[localeval] saved /opt/code/deepeval/results/20261026-044342-adhoc-dc-cat-dflash-r1/result.json
+[localeval] logged to unanimis: 5c77459e-c28f-44ad-b755-7eb0d5a310b3
+== off-r2 04:48:51
+
+[localeval] saved /opt/code/deepeval/results/20261026-045007-adhoc-dc-cat-off-r2/result.json
+[localeval] logged to unanimis: 1afbb47c-1f86-43dc-92e7-a4fb04b537dd
+== dflash-r2 04:56:51
+
+[localeval] saved /opt/code/deepeval/results/20261026-045839-adhoc-dc-cat-dflash-r2/result.json
+[localeval] logged to unanimis: 603b1232-eee6-4dc6-b532-debd52d0acea
+== off-r3 05:03:38
+
+[localeval] saved /opt/code/deepeval/results/20261026-050450-adhoc-dc-cat-off-r3/result.json
+[localeval] logged to unanimis: 0bf0af1d-5f12-412e-b5c9-1aeb564a10e2
+== dflash-r3 05:11:34
+
+[localeval] saved /opt/code/deepeval/results/20261026-051327-adhoc-dc-cat-dflash-r3/result.json
+[localeval] logged to unanimis: d2f8f18e-2a11-4ce1-8e59-726a177555f1
+== bench done
+fleetq: #5688 done (exit 0)
+exit 0

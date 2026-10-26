@@ -89,9 +89,17 @@ pub struct CudaBackend {
     bandwidth_gbs: Option<f64>,
     /// `cudaStream_t` handles (as usize), index = StreamId; grown on demand.
     streams: Mutex<Vec<usize>>,
+    /// Set by [`Backend::prefer_verify_attn_per_row`] (an MTP model, unless `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0`).
+    verify_per_row_pref: std::sync::atomic::AtomicBool,
 }
 
 impl CudaBackend {
+    /// `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW`: `Some(true)` set to anything but "0", `Some(false)` set to "0", `None` unset.
+    fn verify_per_row_env() -> Option<bool> {
+        static E: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+        *E.get_or_init(|| std::env::var_os("INTARSIA_CUDA_VERIFY_ATTN_PER_ROW").map(|v| v != "0"))
+    }
+
     pub fn new(ordinal: usize) -> Result<CudaBackend> {
         let mut n = 0;
         // SAFETY: plain FFI call with a valid out-pointer.
@@ -121,6 +129,7 @@ impl CudaBackend {
             total_at_init: info.total_bytes,
             bandwidth_gbs,
             streams: Mutex::new(Vec::new()),
+            verify_per_row_pref: std::sync::atomic::AtomicBool::new(false),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -290,6 +299,21 @@ impl Backend for CudaBackend {
 
     fn supports_row_tables(&self) -> bool {
         true
+    }
+
+    /// Run a verify pass's attention as one single-row decode call per row, exact by construction
+    /// (docs/results/2026-10-25-dc-dflash-dcoco.md sections 10.1 and 13). `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` turns it on for every
+    /// speculation; an MTP model turns it on by default ([`Backend::prefer_verify_attn_per_row`]); `=0` is the opt-out back to the
+    /// multi-row call (faster, not bitwise the decode step at large positions). Otherwise the multi-row call, as before.
+    fn verify_attn_per_row(&self) -> bool {
+        match Self::verify_per_row_env() {
+            Some(on) => on,
+            None => self.verify_per_row_pref.load(std::sync::atomic::Ordering::Relaxed),
+        }
+    }
+
+    fn prefer_verify_attn_per_row(&self) {
+        self.verify_per_row_pref.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn supports_topk(&self) -> bool {

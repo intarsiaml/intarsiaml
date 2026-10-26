@@ -38,7 +38,10 @@ pub(crate) mod feedback;
 mod graph_step;
 mod spec_graph;
 pub use spec_graph::SpecPass;
+pub(crate) mod dcoco;
+pub(crate) mod dflash;
 pub(crate) mod mtp;
+pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;
 pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -115,6 +118,9 @@ pub struct LoadOptions {
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
     pub mtp_draft_vocab: Option<usize>,
+    /// Load a DFlash draft checkpoint (`--spec dflash --spec-draft DIR`, `model/dflash.rs`). None: nothing is read, no op is
+    /// added and the model is exactly the one without it.
+    pub dflash: Option<DflashLoad>,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
 }
@@ -138,6 +144,7 @@ impl Default for LoadOptions {
             mtp: false,
             mtp_k: 0,
             mtp_draft_vocab: None,
+            dflash: None,
             prefill_macro: None,
         }
     }
@@ -408,6 +415,13 @@ pub struct Model {
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
+    /// Inside the DFlash draft block ([`Model::dflash_draft`]): attention is not causal, every row reads all keys up to the
+    /// block's last position (one decode call per row at that position).
+    noncausal_rows: std::sync::atomic::AtomicBool,
+    /// Verify passes run their attention one decode call per row on every backend (exact by construction), as HIP does by
+    /// `Backend::verify_attn_per_row`: set with the DFlash drafter, whose 16-row passes the multi-row call is not bitwise for
+    /// on CUDA (docs/results/2026-10-25-dc-dflash-dcoco.md section 10.1).
+    verify_rows_attn: bool,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
@@ -475,6 +489,8 @@ pub struct Model {
     tail_dead: std::sync::atomic::AtomicBool,
     /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
     mtp: Option<mtp::MtpHead>,
+    /// The DFlash block drafter (`LoadOptions::dflash`, `model/dflash.rs`).
+    dflash: Option<dflash::DflashHead>,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
     mtp_k: usize,
     /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
@@ -1027,9 +1043,9 @@ impl Model {
             .min(opts.max_seq),
             chunk,
         );
-        // one rank only (tensor-parallel passes are not packed), and no MTP head: the drafter's workspace and its plan probes are
+        // one rank only (tensor-parallel passes are not packed), and no MTP head or DFlash draft (its feature taps are per chunk): the drafter's workspace and its plan probes are
         // chunk-sized, and a speculative sequence never takes a macro pass (`macro_plan`)
-        let macro_rows = if tp.world > 1 || opts.mtp { 0 } else { macro_rows };
+        let macro_rows = if tp.world > 1 || opts.mtp || opts.dflash.is_some() { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
@@ -1062,6 +1078,29 @@ impl Model {
             Some(head)
         } else {
             None
+        };
+        // the DFlash drafter (`--spec dflash`): read only when asked for
+        let dflash_head = match &opts.dflash {
+            Some(dl) => {
+                if tp.world > 1 {
+                    return Err(Error::Unsupported("--spec dflash under tensor parallelism".into()));
+                }
+                let main_attn = layers.iter().flatten().find_map(|b| match b {
+                    Block::Attn(a) => Some(a),
+                    _ => None,
+                });
+                let t0 = Instant::now();
+                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act)?;
+                eprintln!(
+                    "dflash: draft of {} layers (taps {:?}, block {}) loaded in {:.1} s",
+                    head.layers.len(),
+                    head.taps,
+                    head.block,
+                    t0.elapsed().as_secs_f64()
+                );
+                Some(head)
+            }
+            None => None,
         };
         let mut ws_bytes = 0u64;
         let mut wb = |bytes: usize| -> Result<Buffer> {
@@ -1132,7 +1171,9 @@ impl Model {
             })
             .sum::<u64>()
             // the drafter head's own attention cache
-            + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 };
+            + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 }
+            // the DFlash draft layers' context caches
+            + dflash_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64);
         let mut plan = MemoryPlan::compute_budgeted(
             &b.info(),
             weights_bytes.get(),
@@ -1186,9 +1227,17 @@ impl Model {
         } else {
             None
         };
-        let spec_cost = crate::spec::CostParams::for_backend(b.name())
-            .with_recipe(recipe.mtp.as_ref())
-            .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
+        let spec_cost = if dflash_head.is_some() {
+            // the DFlash drafter: gate off by default (built-in values, the recipe's `[dflash]` table, then the env var)
+            crate::spec::CostParams::DFLASH.with_dflash_recipe(recipe.dflash.as_ref())
+        } else {
+            crate::spec::CostParams::for_backend(b.name()).with_recipe(recipe.mtp.as_ref())
+        }
+        .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
+        // `--spec mtp`: verify attention per row where the multi-row call is not bitwise the decode step (CUDA; the user can opt out)
+        if mtp_head.is_some() {
+            b.prefer_verify_attn_per_row();
+        }
         let mut model = Model {
             backend,
             registry,
@@ -1231,6 +1280,8 @@ impl Model {
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
+            noncausal_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_rows_attn: dflash_head.is_some(),
             verify_tok: None,
             verify_rows: 0,
             batch_rows: 0,
@@ -1256,6 +1307,7 @@ impl Model {
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             spec_cost,
             mtp: mtp_head,
+            dflash: dflash_head,
             mtp_k,
         };
         let tp_comm = model.tp.comm.clone();
@@ -1313,6 +1365,7 @@ impl Model {
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
             self.mtp_dry_run(t, pos0)?;
+            self.dflash_dry_run()?;
             if verify {
                 return self.verify_head(&hn, t, false);
             }
@@ -1421,6 +1474,8 @@ impl Model {
         self.telemetry.step();
         // the drafter queues every row; the caller's rollback drops the rejected ones
         self.mtp_after_forward(st, &hn, q, false, profile)?;
+        // the DFlash context takes every row too; the caller's rollback shortens it with the target
+        self.dflash_after_forward(st, q, profile)?;
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
@@ -1491,6 +1546,7 @@ impl Model {
             st.reserve_snapshots(&*self.backend, self.batch_snapshots())?;
         }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
+        st.dflash = self.new_dflash_state(self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
             // allocated once here (and reserved in the memory plan), not in the first verify pass
             let need = st.recurrent_bytes().max(16);
@@ -2026,6 +2082,7 @@ impl Model {
                     let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
                     self.mtp_after_forward(st, &hn, 1, true, false)?;
                 }
+                self.dflash_after_forward(st, 1, false)?;
                 return Ok(out);
             }
         }
@@ -2102,6 +2159,7 @@ impl Model {
             if st.mtp.is_some() {
                 self.mtp_after_forward(st, &hn, chunk.len(), true, profile)?;
             }
+            self.dflash_after_forward(st, chunk.len(), profile)?;
         }
         Ok(out)
     }
@@ -2454,6 +2512,16 @@ impl Model {
                     }
                 }
                 pending = true;
+            }
+            // DFlash: this layer's output (residual stream plus the pending block output) is a draft input
+            if let Some(head) = &self.dflash {
+                if let Some(ti) = head.taps.iter().position(|&x| x == li) {
+                    if !matches!(seqs, Seqs::One(_)) || !pending {
+                        return Err(Error::Unsupported("--spec dflash feature taps outside a single-sequence pass".into()));
+                    }
+                    let out = self.view(&head.feat[ti], act, &[t, h]);
+                    self.exec(Op::Add, vec![hv(cur), blkv.clone()], vec![out], OpAttrs::default(), profile)?;
+                }
             }
         }
         if dead_tail {
@@ -2956,9 +3024,26 @@ impl Model {
             kv_cap: slot.cap,
             ..Default::default()
         };
+        if t > 1 && self.noncausal_rows.load(std::sync::atomic::Ordering::Relaxed) {
+            // the DFlash draft block: every row attends to every key up to the block's last position (all of them appended
+            // above), one decode call per row at that position; the rows' own rope positions are already in q
+            for r in 0..t {
+                let mut a = attrs.clone();
+                a.pos0 = pos0 + t - 1;
+                self.exec_pos(
+                    Op::AttnDecode,
+                    vec![bufs.q[qc].rows(r, 1), kcache.clone(), vcache.clone()],
+                    vec![attn_out.rows(r, 1)],
+                    a,
+                    None,
+                    profile,
+                )?;
+            }
+            return Ok((attn_out, qc));
+        }
         if t > 1
             && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
-            && self.backend.verify_attn_per_row()
+            && (self.backend.verify_attn_per_row() || self.verify_rows_attn)
         {
             // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
             // partition follows the call's row count, and it takes no device position): one decode call per row

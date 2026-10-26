@@ -79,6 +79,7 @@ impl Model {
             && self.peers.is_empty()
             && st.peers.is_empty()
             && st.id != 0
+            && st.dflash.is_none()
             && !st.has_recurrent()
             && !self.graphs.usable(self)
             && self.recorder.lock().unwrap().is_none()

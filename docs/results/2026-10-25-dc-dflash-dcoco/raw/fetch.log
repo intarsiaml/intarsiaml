@@ -1,0 +1,10 @@
+fleetq: #5442 running on spark1: scripts/dc/spark1.sh fetch
+total 4483456
+-rw-rw-r-- 1 nvidia nvidia       1316 Oct 25 19:52 config.json
+-rw-rw-r-- 1 nvidia nvidia 4591038706 Oct 25 19:53 model.safetensors
+-rw-rw-r-- 1 nvidia nvidia       7960 Oct 25 19:52 README.md
+want 4591038706 bytes
+df240fec3d82d9ce2d372c0a58a32479637248b8b77993b1fb5f2ffb099cb12c  /home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/4080a604bb608e59fb5240db1fa347357a4e3332/model.safetensors
+access-control-expose-headers: X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash
+x-linked-etag: "df240fec3d82d9ce2d372c0a58a32479637248b8b77993b1fb5f2ffb099cb12c"
+fleetq: #5442 done (exit 0)

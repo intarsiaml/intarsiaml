@@ -29,6 +29,30 @@ pub struct Recipe {
     /// The checkpoint's multi-token-prediction head (`[mtp]`), loaded only for `--spec mtp`: no effect otherwise.
     #[serde(default)]
     pub mtp: Option<MtpSpec>,
+    /// Defaults of the measured-cost gate for `--spec dflash` (`[dflash]`): no effect otherwise.
+    #[serde(default)]
+    pub dflash: Option<DflashSpec>,
+}
+
+/// `[dflash]` recipe table: the measured-cost gate of the DFlash drafter (`spec::CostParams`). The gate compares the
+/// measured tokens per speculative pass and the pass time with the measured plain-step time, and decodes plainly while the
+/// expected speedup is below `cost_min_speedup`. Unset keys keep the built-in value (`CostParams::DFLASH`);
+/// `INTARSIA_SPEC_COSTGATE` overrides all of them (docs/tuning.md).
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DflashSpec {
+    /// Expected speedup below which the sequence falls back to plain decode (0 turns the gate off).
+    #[serde(default)]
+    pub cost_min_speedup: Option<f64>,
+    /// Consecutive speculative passes below `cost_min_speedup` before falling back.
+    #[serde(default)]
+    pub cost_window: Option<u32>,
+    /// While speculating, one plain step every this many passes keeps the plain-step cost current.
+    #[serde(default)]
+    pub cost_probe_every: Option<u32>,
+    /// Plain tokens before speculation is tried again (doubled while retries keep falling back).
+    #[serde(default)]
+    pub cost_reprobe_tokens: Option<u32>,
 }
 
 /// `[mtp]` table of a recipe: where the checkpoint's MTP head lives (`--spec mtp`, `crate::model::mtp`).

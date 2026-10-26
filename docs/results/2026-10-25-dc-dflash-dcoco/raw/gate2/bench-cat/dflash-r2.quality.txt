@@ -1,0 +1,61 @@
+[localeval] dataset datasets/categories-rcp.jsonl: 24 rows, judge=none
+# localeval: adhoc — 2026-10-26T04:58
+
+- model: `Qwen3-8B` on ? (?), url `http://spark-4e77:8091/v1`
+- thinking: off; run kind: quality; label: dc-cat-dflash-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-4e77:8091/v1 --model Qwen3-8B --thinking off --label dc-cat-dflash-r2 --recipe intarsia serve --backend cuda --model Qwen3-8B --max-batch 1 --max-seq 8192 --spec dflash --spec-draft $(ls -d /home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/* | head -1) (lane dc, scripts/dc/bench.sh) --dataset datasets/categories-rcp.jsonl --judge none --max-tokens 256 --ignore-busy`
+- result file: `results/20261026-045839-adhoc-dc-cat-dflash-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3-8B --max-batch 1 --max-seq 8192 --spec dflash --spec-draft $(ls -d /home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/* | head -1) (lane dc, scripts/dc/bench.sh)
+````
+
+## Dataset `datasets/categories-rcp.jsonl` (24 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 24 | 0 |
+| TTFT (s) | 0.098 | 1.0 | 24 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 24 | 0 |
+| Decode (tok/s) | 22.9 | 1.0 | 24 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.36 | 26.9 | The **TCP (Transmission Control Protocol)** is a connection-… |
+| recall-photosynthesis | yes | 0.0 | 0.09 | 30.3 | Photosynthesis is the process by which plants, algae, and so… |
+| recall-french-revolution | yes | 0.0 | 0.08 | 35.6 | The **French Revolution (1789–1799)** was a transformative p… |
+| recall-git-internals | yes | 0.0 | 0.09 | 25.4 | Git stores data internally using a **content-addressable sto… |
+| recall-vaccines | yes | 0.0 | 0.08 | 34.7 | Certainly! Here's a breakdown of how **mRNA vaccines**, **vi… |
+| recall-cpu-caches | yes | 0.0 | 0.09 | 24.4 | CPU caches are a critical component of modern computer archi… |
+| recall-plate-tectonics | yes | 0.0 | 0.09 | 18.4 | **Plate Tectonics: An Overview** Plate tectonics is the scie… |
+| recall-http2 | yes | 0.0 | 0.09 | 32.5 | HTTP/1.1, HTTP/2, and HTTP/3 are successive versions of the … |
+| code-lru-cache | yes | 0.0 | 0.09 | 30.1 | Here's a complete implementation of an **LRU Cache** class i… |
+| code-rate-limiter | yes | 0.0 | 0.08 | 25.1 | Here's a **thread-safe token-bucket rate limiter** in Python… |
+| code-json-parser | yes | 0.0 | 0.09 | 33.0 | Here's a **small recursive-descent JSON parser in Python** t… |
+| code-rust-cli | yes | 0.0 | 0.09 | 24.6 | Here's a complete Rust command-line program that reads a tex… |
+| code-sql-schema | yes | 0.0 | 0.08 | 29.8 | Here's a well-structured **PostgreSQL schema** for a **libra… |
+| code-ts-debounce | yes | 0.0 | 0.09 | 18.7 | Here's a complete TypeScript implementation of **debounce** … |
+| code-go-worker-pool | yes | 0.0 | 0.09 | 19.3 | Here's a complete Go implementation of a **worker pool** tha… |
+| code-bash-backup | yes | 0.0 | 0.09 | 18.2 | Here's a **robust Bash script** that performs the following … |
+| prose-lighthouse | yes | 0.0 | 0.08 | 15.1 | On the remote coast of Nova Scotia, where the sea roared lik… |
+| prose-city-essay | yes | 0.0 | 0.09 | 17.1 | **What Makes a City Feel Like Home** A city is more than jus… |
+| prose-product-launch | yes | 0.0 | 0.09 | 15.1 | **Sweet Treats Just a Few Blocks Away: Introducing Our New N… |
+| prose-mountain-letter | yes | 0.0 | 0.09 | 15.5 | **Dear Lily,** Tonight, the wind howls like a restless spiri… |
+| prose-ocean-poem | yes | 0.0 | 0.09 | 15.2 | **Nightfall on the Deep** The ocean breathes in silence, a s… |
+| prose-robot-fable | yes | 0.0 | 0.08 | 15.2 | In a quiet village nestled between rolling hills and a spark… |
+| prose-travel | yes | 0.0 | 0.09 | 15.2 | The morning sun spills over the horizon, casting a golden hu… |
+| prose-history-scene | yes | 0.0 | 0.08 | 15.1 | The air in the printing shop was thick with the scent of ink… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-045839-adhoc-dc-cat-dflash-r2/result.json
+[localeval] logged to unanimis: 603b1232-eee6-4dc6-b532-debd52d0acea
