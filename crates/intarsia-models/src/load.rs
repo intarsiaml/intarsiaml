@@ -368,6 +368,14 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
 
+/// Whether the checkpoint holds a dense MTP head the tensor-parallel default can load: the recipe's `[mtp]` prefix has its `fc`
+/// weight and the model's FFN is not MoE (an MoE head's experts are not sharded under tp).
+fn mtp_head_usable(dir: &Path, recipe: &intarsia_core::recipe::Recipe, dims: &intarsia_core::recipe::ModelDims) -> bool {
+    let Some(m) = recipe.mtp.as_ref() else { return false };
+    dims.moe.is_none()
+        && SafeTensors::open_dir(dir).is_ok_and(|st| intarsia_core::weights::WeightSource::info(&st, &format!("{}.fc.weight", m.prefix)).is_some())
+}
+
 /// The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07): `Some(k)`
 /// when no `--spec` was given (`spec_auto`), the group is `world > 1` in-process ranks on `backend`, one sequence (MTP does not
 /// batch), the recipe sets `[tuning.<backend>] mtp_default_tp_k = k`, and `INTARSIA_SPEC_DEFAULT` is not `0`.
@@ -400,11 +408,16 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         ));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
-    // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07): only
+    // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07 EDT, "turn MTP on by default at tp2 if it passes"): only
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
     let local = matches!(group, Group::Local(..));
     let opts = match backends.first().and_then(|b0| tp_mtp_default(opts, &recipe, b0.name(), backends.len(), local).map(|k| (b0, k))) {
+        // a checkpoint on this recipe without the head's weights, or with an MoE head (not sharded under tp): plain decode, as before
+        Some((_, k)) if !mtp_head_usable(dir, &recipe, &dims) => {
+            eprintln!("--spec mtp --spec-k {k} (the recipe's tensor-parallel default) not applied: no dense MTP head in this checkpoint; --spec off");
+            opts
+        }
         Some((b0, k)) => {
             eprintln!(
                 "--spec mtp --spec-k {k}: the default of recipe {} on {} at tp={} ([tuning.{}] mtp_default_tp_k; --spec off or \
