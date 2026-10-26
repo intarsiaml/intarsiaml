@@ -2,7 +2,7 @@
 # Lane l5, ON tatooine, sourced by the stage scripts (inside scripts/l5r7/window.sh; env NAME = snapshot, O = out dir, G = card).
 #   dv  <cmd...>         the branch build / snapshot (volume intarsia-cargo-target-l5-zdev, tree ~/intarsiaml-l5-$NAME), card $G
 #   bs  <cmd...>         origin/main (volume intarsia-cargo-target-l5-zbase, tree ~/intarsiaml-l5-zbase), card $G
-# Environment given to the function call (INTARSIA_HIP_MOE_FP8_WMMA=1 ...) reaches the container (dev.sh passes INTARSIA_(HIP|TP|BATCH|QWEN)_*).
+# Environment given to the function call (INTARSIA_HIP_MOE_ZFAST=0 ...) reaches the container (dev.sh passes INTARSIA_(HIP|TP|BATCH|QWEN)_*).
 M35=/models/Qwen3.6-35B-A3B-NVFP4
 M27=/hf/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 GOLD=/models/golden
