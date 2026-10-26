@@ -50,6 +50,8 @@ pub struct DflashConfig {
 pub struct DflashLoad {
     pub src: Arc<dyn WeightSource>,
     pub config: DflashConfig,
+    /// `--dcoco`: also load the corrector (`model/dcoco.rs`) and let it pick the drafts.
+    pub dcoco: bool,
 }
 
 impl std::fmt::Debug for DflashLoad {
@@ -71,6 +73,8 @@ pub(super) struct DflashHead {
     mask_id: u32,
     /// Query rows (= drafts) per pass.
     pub(super) block: usize,
+    /// The DCOCO corrector (`--dcoco`).
+    pub(super) dcoco: Option<super::dcoco::Corrector>,
 }
 
 /// bf16 `[n, k]` linear weight `prefix` of the draft checkpoint.
@@ -181,7 +185,18 @@ pub(super) fn load_head(
         feat.push(b.alloc(bytes.max(16), MemKind::Device)?);
         add_bytes(bytes as u64);
     }
-    Ok(DflashHead { layers, fc, hidden_norm, norm, taps: c.layer_ids.clone(), feat, mask_id: c.mask_id, block: c.block })
+    let dcoco = if dl.dcoco {
+        if c.topk == 0 || c.emb_dim == 0 || c.mlp_dim == 0 {
+            return Err(Error::model("--dcoco: the draft checkpoint's dflash_config has no dcoco_* fields (not a DCOCO checkpoint)"));
+        }
+        if c.emb_dim != c.state_dim {
+            return Err(Error::model("--dcoco: dcoco_emb_dim != dcoco_state_dim is not supported"));
+        }
+        Some(super::dcoco::Corrector::load(src, b, h, c.topk, c.emb_dim, c.mlp_dim, rows)?)
+    } else {
+        None
+    };
+    Ok(DflashHead { layers, fc, hidden_norm, norm, taps: c.layer_ids.clone(), feat, mask_id: c.mask_id, block: c.block, dcoco })
 }
 
 impl Model {
@@ -315,6 +330,12 @@ impl Model {
         })();
         self.noncausal_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         run?;
+        if let Some(c) = &head.dcoco {
+            // the corrector chooses the tokens among each slot's top-K candidates
+            let mut drafts = self.dcoco_draft(c, &n, t, profile)?;
+            drafts.truncate(k);
+            return Ok(drafts);
+        }
         // greedy token of every row: lm_head over the t rows, argmax on the device
         self.verify_head(&n, t, profile)?;
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;

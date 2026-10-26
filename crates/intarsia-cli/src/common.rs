@@ -113,6 +113,10 @@ pub struct ModelArgs {
     /// embedding and lm_head are used for the draft.
     #[arg(long)]
     pub spec_draft: Option<PathBuf>,
+    /// With `--spec dflash`: the DCOCO corrector (arXiv 2610.12570) picks each block's tokens from the draft's top-16
+    /// candidates per slot; needs the DCOCO checkpoint. Greedy output is unchanged, only the acceptance moves.
+    #[arg(long)]
+    pub dcoco: bool,
     /// With `--spec mtp`: draft over the first N lm_head rows (token ids 0..N, the frequent end of a BPE vocabulary) instead of
     /// all of them, so each draft costs N/V of a head sweep (about 11% of a 27B pass at k=2 is the two draft sweeps). Output is
     /// unchanged (the verify pass keeps the full head); only acceptance can move, down when the true token is outside 0..N.
@@ -319,6 +323,7 @@ impl ModelArgs {
                 dflash: None, // set from --spec-draft by the loader
             },
             spec_draft: self.spec_draft.clone(),
+            dcoco: self.dcoco,
             prefill_chunk: self.prefill_chunk,
             recipe: self.recipe.clone(),
             recipe_dirs: self.recipe_dir.clone(),

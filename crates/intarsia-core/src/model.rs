@@ -36,6 +36,7 @@ pub(crate) mod feedback;
 mod graph_step;
 mod spec_graph;
 pub use spec_graph::SpecPass;
+pub(crate) mod dcoco;
 pub(crate) mod dflash;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};

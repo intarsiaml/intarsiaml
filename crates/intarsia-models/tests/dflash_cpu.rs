@@ -133,6 +133,7 @@ fn draft_weights(seed: u64, ls: f32, tie: Option<&Gen>) -> Gen {
 fn dflash_load(draft: Gen) -> DflashLoad {
     DflashLoad {
         src: Arc::new(draft.w),
+        dcoco: false,
         config: DflashConfig {
             layer_ids: TAPS.to_vec(),
             mask_id: MASK,

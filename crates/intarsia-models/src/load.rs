@@ -57,6 +57,8 @@ pub struct EngineOptions {
     pub spec: intarsia_core::spec::SpecConfig,
     /// `--spec-draft DIR`: the DFlash draft checkpoint (`--spec dflash`, `model/dflash.rs`).
     pub spec_draft: Option<PathBuf>,
+    /// `--dcoco`: with `--spec dflash`, the DCOCO corrector picks the drafts (needs the DCOCO checkpoint).
+    pub dcoco: bool,
     /// Concurrent sequences (`--max-batch`). `None`: the recipe's `max_batch`, clamped to what the engine implements.
     pub max_batch: Option<usize>,
     /// The server's `--max-queue`, for sizing the batched engine's request queue to `max_queue + max_batch` (the most
@@ -265,7 +267,7 @@ pub fn load_engine_tp(
 }
 
 /// The DFlash draft checkpoint `dir` (`--spec-draft`): its weights and `config.json` (`dflash_config`).
-pub fn open_dflash(dir: Option<&Path>) -> Result<intarsia_core::model::DflashLoad> {
+pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::model::DflashLoad> {
     let dir = dir.ok_or_else(|| Error::invalid("--spec dflash needs --spec-draft DIR (the draft checkpoint)"))?;
     let cfg_path = dir.join("config.json");
     let cfg: Value = serde_json::from_slice(
@@ -303,7 +305,7 @@ pub fn open_dflash(dir: Option<&Path>) -> Result<intarsia_core::model::DflashLoa
         mlp_dim: dn("dcoco_mlp_dim"),
     };
     let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
-    Ok(intarsia_core::model::DflashLoad { src, config })
+    Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
@@ -344,10 +346,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
         }
-        Some(open_dflash(opts.spec_draft.as_deref())?)
+        Some(open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?)
     } else {
-        if opts.spec_draft.is_some() {
-            return Err(Error::invalid("--spec-draft needs --spec dflash"));
+        if opts.spec_draft.is_some() || opts.dcoco {
+            return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash"));
         }
         None
     };

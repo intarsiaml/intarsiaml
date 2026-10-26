@@ -27,7 +27,7 @@ fn i32s(p: &Path) -> Vec<i32> {
     std::fs::read(p).unwrap().chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
 }
 
-fn run(real_prefill: bool) {
+fn run(real_prefill: bool, dcoco: bool) {
     let (Some(target), Some(draft), Some(fx)) =
         (env_dir("INTARSIA_QWEN3_DIR"), env_dir("INTARSIA_DFLASH_DIR"), env_dir("INTARSIA_DFLASH_FIXTURES"))
     else {
@@ -44,7 +44,7 @@ fn run(real_prefill: bool) {
         max_seq: 512,
         prefill_chunk: 256,
         kv_fraction: 0.2,
-        dflash: Some(open_dflash(Some(&draft)).unwrap()),
+        dflash: Some(open_dflash(Some(&draft), dcoco).unwrap()),
         ..Default::default()
     };
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
@@ -58,7 +58,7 @@ fn run(real_prefill: bool) {
         let meta: serde_json::Value = serde_json::from_slice(&std::fs::read(d.join("meta.json")).unwrap()).unwrap();
         let (p, anchor) = (meta["P"].as_u64().unwrap() as usize, meta["anchor"].as_u64().unwrap() as u32);
         let feat = f32s(&d.join("feat.f32"));
-        let want = i32s(&d.join("argmax_drafts.i32"));
+        let want = i32s(&d.join(if dcoco { "corrected_drafts.i32" } else { "argmax_drafts.i32" }));
         let want_h = f32s(&d.join("h_final.f32"));
         let mut st = m.new_state().unwrap();
         if real_prefill {
@@ -98,10 +98,15 @@ fn run(real_prefill: bool) {
 
 #[test]
 fn draft_from_reference_features_matches_the_mlx_reference() {
-    run(false);
+    run(false, false);
 }
 
 #[test]
 fn draft_after_real_target_prefill_matches_the_mlx_reference() {
-    run(true);
+    run(true, false);
+}
+
+#[test]
+fn dcoco_drafts_after_real_prefill_match_the_mlx_reference() {
+    run(true, true);
 }
