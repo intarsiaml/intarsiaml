@@ -1,0 +1,33 @@
+11:37:09 guard: [guard] radiance stopped 2026-10-26 11:37:09
+11:37:09 pre: ids gate (arms mtp2, tp2, cap 1200 s)
+11:42:56 pre: ids exit 0
+11:42:59 pre: ids summary mtp2 tp2: 18 PASS, 0 FAIL|
+11:42:59 round 1 arm off: starting server
+11:44:11 round 1 arm off ho-chat: localeval exit 0 results/20261026-114331-dfh-off-dfh-w7-off-ho-chat-r1/result.json
+11:44:32 round 1 arm off ho-code: localeval exit 0 results/20261026-114412-dfh-off-dfh-w7-off-ho-code-r1/result.json
+11:45:12 round 1 arm off ho-prose: localeval exit 0 results/20261026-114433-dfh-off-dfh-w7-off-ho-prose-r1/result.json
+11:45:33 round 1 arm off ho-recall: localeval exit 0 results/20261026-114513-dfh-off-dfh-w7-off-ho-recall-r1/result.json
+11:46:52 round 1 arm off rcp-code: localeval exit 0 results/20261026-114534-dfh-off-dfh-w7-off-rcp-code-r1/result.json
+11:48:11 round 1 arm off rcp-prose: localeval exit 0 results/20261026-114653-dfh-off-dfh-w7-off-rcp-prose-r1/result.json
+11:49:30 round 1 arm off rcp-recall: localeval exit 0 results/20261026-114812-dfh-off-dfh-w7-off-rcp-recall-r1/result.json
+11:49:40 soak off: 2 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+11:49:41 round 1 arm mtp2: starting server
+11:51:29 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261026-115100-dfh-mtp2-dfh-w7-mtp2-ho-chat-r1/result.json
+11:51:42 round 1 arm mtp2 ho-code: localeval exit 0 results/20261026-115130-dfh-mtp2-dfh-w7-mtp2-ho-code-r1/result.json
+11:52:15 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261026-115143-dfh-mtp2-dfh-w7-mtp2-ho-prose-r1/result.json
+11:52:30 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261026-115216-dfh-mtp2-dfh-w7-mtp2-ho-recall-r1/result.json
+11:53:19 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261026-115231-dfh-mtp2-dfh-w7-mtp2-rcp-code-r1/result.json
+11:54:22 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261026-115320-dfh-mtp2-dfh-w7-mtp2-rcp-prose-r1/result.json
+11:55:17 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261026-115423-dfh-mtp2-dfh-w7-mtp2-rcp-recall-r1/result.json
+11:57:52 soak mtp2: 40 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+11:57:53 round 1 arm dfl7: starting server
+11:59:21 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261026-115840-dfh-dfl7-dfh-w7-dfl7-ho-chat-r1/result.json
+11:59:34 round 1 arm dfl7 ho-code: localeval exit 0 results/20261026-115921-dfh-dfl7-dfh-w7-dfl7-ho-code-r1/result.json
+12:00:27 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261026-115935-dfh-dfl7-dfh-w7-dfl7-ho-prose-r1/result.json
+12:00:46 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261026-120028-dfh-dfl7-dfh-w7-dfl7-ho-recall-r1/result.json
+12:01:37 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261026-120047-dfh-dfl7-dfh-w7-dfl7-rcp-code-r1/result.json
+12:03:20 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261026-120138-dfh-dfl7-dfh-w7-dfl7-rcp-prose-r1/result.json
+12:04:27 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261026-120320-dfh-dfl7-dfh-w7-dfl7-rcp-recall-r1/result.json
+12:04:39 soak dfl7: 2 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+12:04:40 done, time left 1045s
+12:04:50 guard: [guard] radiance answers 2026-10-26 12:04:50 (after 15 s)
