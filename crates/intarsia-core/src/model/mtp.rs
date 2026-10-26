@@ -767,7 +767,10 @@ impl Model {
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
         if kv_only {
-            self.attn_block_kv_only(&head.attn, kv, &n, t, kv.len, false, profile)?;
+            self.kv_only_skip_q.store(true, std::sync::atomic::Ordering::Relaxed);
+            let r = self.attn_block_kv_only(&head.attn, kv, &n, t, kv.len, false, profile);
+            self.kv_only_skip_q.store(false, std::sync::atomic::Ordering::Relaxed);
+            r?;
             return Ok(n);
         }
         // per-row attention keeps a short catch-up (after a verify pass) bitwise the captured step's; a prompt's rows (longer than any

@@ -416,6 +416,9 @@ pub struct Model {
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
+    /// Inside an MTP head's KV-only ingest ([`Model::mtp_layer_kv_only`], lane mpf): the attention block skips the q projection (the
+    /// rows' queries are never read; their K / V are what the cache needs).
+    kv_only_skip_q: std::sync::atomic::AtomicBool,
     /// Inside the DFlash draft block ([`Model::dflash_draft`]): attention is not causal, every row reads all keys up to the
     /// block's last position (one decode call per row at that position).
     noncausal_rows: std::sync::atomic::AtomicBool,
@@ -1303,6 +1306,7 @@ impl Model {
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
+            kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
             verify_tok: None,
@@ -3062,10 +3066,13 @@ impl Model {
         let ws = &self.ws;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let qc = 0usize;
+        let skip_q = self.kv_only_skip_q.load(std::sync::atomic::Ordering::Relaxed);
         let gate = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
-            self.proj(n, &a.wq, &qg, profile)?;
-            if !split_folded {
+            if !skip_q {
+                self.proj(n, &a.wq, &qg, profile)?;
+            }
+            if !split_folded && !skip_q {
                 self.exec(
                     Op::GateSplit,
                     vec![qg.reshaped(&[t, nh, 2 * hd])],
@@ -3077,9 +3084,11 @@ impl Model {
             Some(gate)
         } else {
             let qv = self.view(&ws.q[qc], act, &[t, nh * hd]);
-            self.proj(n, &a.wq, &qv, profile)?;
-            if let Some(bias) = &a.q_bias {
-                self.add_bias(&qv, bias, profile)?;
+            if !skip_q {
+                self.proj(n, &a.wq, &qv, profile)?;
+                if let Some(bias) = &a.q_bias {
+                    self.add_bias(&qv, bias, profile)?;
+                }
             }
             None
         };
