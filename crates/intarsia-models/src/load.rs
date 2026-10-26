@@ -325,7 +325,39 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         emb_dim: dn("dcoco_emb_dim"),
         state_dim: dn("dcoco_state_dim"),
         mlp_dim: dn("dcoco_mlp_dim"),
+        v2: cfg.get("architectures").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some("DFlash2DraftModel"))),
+        rms_eps: cfg.get("rms_norm_eps").and_then(Value::as_f64).unwrap_or(1e-6) as f32,
+        rope_theta: cfg
+            .get("rope_theta")
+            .and_then(Value::as_f64)
+            .or_else(|| cfg.get("rope_parameters").and_then(|r| r.get("rope_theta")).and_then(Value::as_f64))
+            .unwrap_or(10000.0) as f32,
+        sliding_window: if cfg.get("use_sliding_window").and_then(Value::as_bool) == Some(false) {
+            0
+        } else {
+            cfg.get("sliding_window").and_then(Value::as_u64).unwrap_or(0) as usize
+        },
+        conv_kernel: dn("conv_kernel_size"),
+        conv_group: dn("conv_group_size"),
     };
+    if config.v2 {
+        // what this port implements (docs/results/2026-10-26-dfh-hip-dflash.md): non-causal sliding-window layers, default rope
+        let types = cfg.get("layer_types").and_then(Value::as_array);
+        let all_sliding = types.is_some_and(|a| a.iter().all(|x| x.as_str() == Some("sliding_attention")));
+        let rope_default = cfg
+            .get("rope_parameters")
+            .or_else(|| cfg.get("rope_scaling"))
+            .and_then(|r| r.get("rope_type"))
+            .and_then(Value::as_str)
+            .is_none_or(|t| t == "default");
+        let causal = cfg.get("is_causal").and_then(Value::as_bool).unwrap_or(false);
+        if !all_sliding || !rope_default || causal || config.sliding_window == 0 {
+            return Err(Error::Unsupported(format!(
+                "{}: DFlash2 drafts with sliding-window, non-causal layers and default rope only",
+                cfg_path.display()
+            )));
+        }
+    }
     let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
@@ -376,13 +408,20 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     }
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
     let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
-        if !matches!(backend_name, "cpu" | "cuda") {
-            return Err(Error::Unsupported(format!("--spec dflash on the {backend_name} backend (cpu and cuda only so far)")));
-        }
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
         }
-        Some(open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?)
+        let dl = open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?;
+        // DFlash (dense Qwen3 targets): cpu and CUDA. DFlash2 (lane dfh): cpu and HIP, which have its conv and sliding-window kernels.
+        let ok = if dl.config.v2 { matches!(backend_name, "cpu" | "hip") } else { matches!(backend_name, "cpu" | "cuda") };
+        if !ok {
+            return Err(Error::Unsupported(format!(
+                "--spec dflash with a {} draft on the {backend_name} backend ({} only so far)",
+                if dl.config.v2 { "DFlash2" } else { "DFlash" },
+                if dl.config.v2 { "cpu and hip" } else { "cpu and cuda" }
+            )));
+        }
+        Some(dl)
     } else {
         if opts.spec_draft.is_some() || opts.dcoco {
             return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash"));

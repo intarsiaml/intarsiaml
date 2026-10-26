@@ -40,6 +40,7 @@ mod spec_graph;
 pub use spec_graph::SpecPass;
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
+mod dflash2;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;
@@ -1092,10 +1093,11 @@ impl Model {
                 let t0 = Instant::now();
                 let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act)?;
                 eprintln!(
-                    "dflash: draft of {} layers (taps {:?}, block {}) loaded in {:.1} s",
-                    head.layers.len(),
+                    "dflash: draft of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
+                    head.n_layers(),
                     head.taps,
                     head.block,
+                    if head.v2.is_some() { ", DFlash2" } else { "" },
                     t0.elapsed().as_secs_f64()
                 );
                 Some(head)
