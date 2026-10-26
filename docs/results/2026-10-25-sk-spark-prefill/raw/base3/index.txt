@@ -1,0 +1,6 @@
+sk-main-r1: - result file: `results/20261025-194858-adhoc-sk-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194858-adhoc-sk-main-r1/result.json 
+sk-vllm-r1: - result file: `results/20261025-194926-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194926-adhoc-sk-vllm-r1/result.json 
+sk-vllm-r2: - result file: `results/20261025-194953-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194953-adhoc-sk-vllm-r2/result.json 
+sk-main-r2: - result file: `results/20261025-195053-adhoc-sk-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195053-adhoc-sk-main-r2/result.json 
+sk-main-r3: - result file: `results/20261025-195203-adhoc-sk-main-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195203-adhoc-sk-main-r3/result.json 
+sk-vllm-r3: - result file: `results/20261025-195232-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195232-adhoc-sk-vllm-r3/result.json 

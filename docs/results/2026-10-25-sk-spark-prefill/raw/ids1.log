@@ -1,0 +1,3 @@
+fleetq: #5448 running on spark2: scripts/sk/ids.sh ids1 base:main off:dev m4:dev:INTARSIA_PREFILL_MACRO=4096 m8:dev:INTARSIA_PREFILL_MACRO=8192 m16:dev:INTARSIA_PREFILL_MACRO=16384
+base 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 406 ms (2479.3 tok/s) | decode 3175 ms (80.32 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+base 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 844 ms (4828.0 tok/s) | decode 3105 ms (82.12 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca

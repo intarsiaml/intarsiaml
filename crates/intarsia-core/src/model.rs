@@ -42,6 +42,9 @@ use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
+/// Macro prefill passes run by any model of the process (diagnostics and tests; [`Model::macro_passes`] is the per-model count).
+pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
 
@@ -85,6 +88,8 @@ pub struct LoadOptions {
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
     pub mtp_draft_vocab: Option<usize>,
+    /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
+    pub prefill_macro: Option<usize>,
 }
 
 impl Default for LoadOptions {
@@ -104,6 +109,7 @@ impl Default for LoadOptions {
             mtp: false,
             mtp_k: 0,
             mtp_draft_vocab: None,
+            prefill_macro: None,
         }
     }
 }
@@ -271,12 +277,15 @@ enum Seqs<'a> {
     Packed(&'a [Seg<'a>]),
 }
 
-/// One prompt of a packed prefill pass: its state and its rows `[lo, lo + len)` of the packed activations.
+/// One prompt of a packed prefill pass: its state and its rows `[lo, lo + len)` of the packed activations, which sit at
+/// positions `pos..pos + len` of the sequence (`st.len` for a pass of different prompts; later for the second and further
+/// chunks of ONE prompt in a macro pass, [`Model::forward_macro`], whose segments share a state and run in order).
 #[derive(Clone, Copy)]
 pub(crate) struct Seg<'a> {
     pub(crate) st: &'a SequenceState,
     pub(crate) lo: usize,
     pub(crate) len: usize,
+    pub(crate) pos: usize,
 }
 
 impl AttnBufs {
@@ -393,6 +402,16 @@ pub struct Model {
     /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
     /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
     prefill_peel: usize,
+    /// Opt-in macro prefill pass size in rows (`INTARSIA_PREFILL_MACRO`, [`LoadOptions::prefill_macro`]; a multiple of the chunk,
+    /// at least two chunks, else 0 = off): [`Model::forward`] of a recurrent-state sequence cuts its prompt into the usual chunks and
+    /// runs up to this many rows of consecutive chunks as ONE layer-by-layer pass (`Seqs::Packed` with one state, each chunk a segment),
+    /// so the row-wise ops (the routed experts above all) read their weights once for all the chunks; attention, KV append and the
+    /// GatedDeltaNet recurrence still run chunk by chunk. The workspace holds `macro_rows + tail_merge` rows.
+    macro_rows: usize,
+    /// What the workspace was sized for at load ([`Model::set_macro_rows`] stays within it).
+    macro_cap: usize,
+    /// Macro passes run (groups of two or more chunks), for tests and the serve log.
+    macro_passes: std::sync::atomic::AtomicU64,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
     /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
     /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
@@ -472,6 +491,24 @@ impl Model {
     /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
     pub fn prefill_peel(&self) -> usize {
         self.prefill_peel
+    }
+
+    /// Rows of a macro prefill pass (0 = off, the default; `INTARSIA_PREFILL_MACRO`, see the field). Callers that feed a long
+    /// prompt to [`Model::forward`] in steps use [`crate::scheduler::macro_step_rows`] with it.
+    pub fn macro_rows(&self) -> usize {
+        self.macro_rows
+    }
+
+    /// Change the macro pass size after load (tests and tools that compare schedules on one set of weights): `rows` is
+    /// clamped to what the workspace was sized for at load (`LoadOptions::prefill_macro` / `INTARSIA_PREFILL_MACRO`) and
+    /// rounded down to whole chunks; 0 turns the schedule off.
+    pub fn set_macro_rows(&mut self, rows: usize) {
+        self.macro_rows = crate::scheduler::effective_macro_rows(rows.min(self.macro_cap), self.ws.max_tokens);
+    }
+
+    /// Macro passes (groups of two or more chunks) this model has run.
+    pub fn macro_passes(&self) -> u64 {
+        self.macro_passes.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn load(
@@ -903,8 +940,17 @@ impl Model {
                 Some(v) => v,
                 None => recipe.resolve_prefill_peel(b.name()).0,
             };
-        // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows
-        let mt = chunk + tail_merge;
+        // the opt-in macro prefill pass: several chunks of one prompt in one layer-by-layer pass (hybrid models, one rank)
+        let macro_rows = crate::scheduler::effective_macro_rows(
+            match opts.prefill_macro {
+                Some(v) => v,
+                None => crate::scheduler::parse_macro(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())?,
+            },
+            chunk,
+        );
+        // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
+        // pass of `macro_rows` (+ the merged tail)
+        let mt = chunk.max(macro_rows) + tail_merge;
         let esz = act.size_bytes();
         // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
@@ -1106,6 +1152,9 @@ impl Model {
             feedback_hold,
             tail_merge,
             prefill_peel,
+            macro_rows,
+            macro_cap: macro_rows,
+            macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             spec_cost,
@@ -1526,14 +1575,20 @@ impl Model {
     /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
     /// `items`: `(state, rows)` per segment. Evaluated before anything launches, so a `false` costs nothing.
     pub fn pack_uniform(&self, items: &[(&SequenceState, usize)]) -> bool {
-        let total: usize = items.iter().map(|&(_, n)| n).sum();
+        let at: Vec<(&SequenceState, usize, usize)> = items.iter().map(|&(st, n)| (st, st.len, n)).collect();
+        self.pack_uniform_at(&at)
+    }
+
+    /// [`Model::pack_uniform`] with each segment's first position given: `(state, pos, rows)`.
+    fn pack_uniform_at(&self, items: &[(&SequenceState, usize, usize)]) -> bool {
+        let total: usize = items.iter().map(|&(_, _, n)| n).sum();
         let bufs = self.attn_bufs(total);
         for a in self.layers.iter().flatten().filter_map(|b| if let Block::Attn(a) = b { Some(a) } else { None }) {
             let (mut lo, mut first) = (0usize, None);
-            for &(st, len) in items {
+            for &(st, pos, len) in items {
                 let Ok(slot) = Self::attn_slot(st, a) else { return false };
                 let bj = bufs.rows(lo, len);
-                let fused = self.gate_qkv_call_at(a, slot, &bj, len, total, lo, st.len, None).filter(|c| self.fused_ok(c)).is_some();
+                let fused = self.gate_qkv_call_at(a, slot, &bj, len, total, lo, pos, None).filter(|c| self.fused_ok(c)).is_some();
                 if *first.get_or_insert(fused) != fused {
                     return false;
                 }
@@ -1605,7 +1660,7 @@ impl Model {
             let segs: Vec<Seg<'_>> = items
                 .iter()
                 .map(|(st, ids)| {
-                    let seg = Seg { st: &**st, lo, len: ids.len() };
+                    let seg = Seg { st: &**st, lo, len: ids.len(), pos: st.len };
                     lo += ids.len();
                     seg
                 })
@@ -1819,8 +1874,35 @@ impl Model {
         let chunks = self.forward_chunks(st, ids);
         let nchunks = chunks.len();
         let mut out = StepOut::None;
-        for (ci, chunk) in chunks.into_iter().enumerate() {
+        // the opt-in macro schedule: runs of consecutive chunks (the same chunks, in the same order) as ONE layer-by-layer pass
+        let (macro_rows_n, per) = self.macro_plan(st, &chunks, mode);
+        let mut ci = 0usize;
+        while ci < nchunks {
+            let mut glen = if ci < macro_rows_n { per.min(macro_rows_n - ci) } else { 1 };
+            if glen > 1 {
+                let group = &chunks[ci..ci + glen];
+                let last = ci + glen == nchunks;
+                let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+                if let Some(hn) = self.run_macro_group(st, group, profile)? {
+                    let total: usize = group.iter().map(|c| c.len()).sum();
+                    match mode {
+                        HeadMode::LastLogits if last => out = StepOut::Logits(self.head_logits(&hn, total - 1, 1, profile)?),
+                        HeadMode::LastArgmax if last => out = StepOut::Token(self.head_argmax(&hn, total - 1, profile)?),
+                        _ => {}
+                    }
+                    for c in group {
+                        st.commit(c);
+                        self.telemetry.step();
+                    }
+                    ci += glen;
+                    continue;
+                }
+                glen = 1; // the segments take different attention paths: chunk by chunk, as without the macro schedule
+            }
+            debug_assert_eq!(glen, 1);
+            let chunk = chunks[ci];
             let last = ci + 1 == nchunks;
+            ci += 1;
             let base = st.len;
             let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
             if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
@@ -1871,6 +1953,49 @@ impl Model {
             }
         }
         Ok(out)
+    }
+
+    /// The macro schedule of a forward pass over `chunks`: `(k, per)` = the first `k` chunks (all but a trailing chunk too short
+    /// to be a segment, [`Model::PACK_MIN_ROWS`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
+    /// pass is a single chunk, the head wants every row, the state has no recurrence (the packed kernels are validated on
+    /// hybrid models only) or cannot be packed (MTP head, tensor parallelism, Gemma layers).
+    fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
+        if self.macro_rows == 0
+            || chunks.len() < 2
+            || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
+            || !st.has_recurrent()
+            || st.mtp.is_some()
+            || !self.pack_capable()
+        {
+            return (0, 1);
+        }
+        let k = chunks.iter().take_while(|c| c.len() >= Self::PACK_MIN_ROWS).count();
+        if k < 2 {
+            return (0, 1);
+        }
+        (k, crate::scheduler::macro_group_len(k, self.macro_rows / self.ws.max_tokens.max(1)))
+    }
+
+    /// Run `group` (consecutive chunks of one sequence, `st.len` at the first) as one packed pass: the row-wise ops over all the
+    /// rows, attention, KV append and the recurrence once per chunk, in order, on the one state (`Seg::pos` is each chunk's
+    /// position). Returns the normed hidden rows of the whole pass, or `None` (nothing launched) when the chunks would take
+    /// different attention paths. The caller commits the chunks.
+    fn run_macro_group(&self, st: &SequenceState, group: &[&[u32]], profile: bool) -> Result<Option<TensorRef>> {
+        let mut lo = 0usize;
+        let mut segs: Vec<Seg<'_>> = Vec::with_capacity(group.len());
+        for c in group {
+            segs.push(Seg { st, lo, len: c.len(), pos: st.len + lo });
+            lo += c.len();
+        }
+        let items: Vec<(&SequenceState, usize, usize)> = segs.iter().map(|s| (s.st, s.pos, s.len)).collect();
+        if !self.pack_uniform_at(&items) {
+            return Ok(None);
+        }
+        let all: Vec<u32> = group.iter().flat_map(|c| c.iter().copied()).collect();
+        self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.macro_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        MACRO_PASSES_TOTAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None).map(Some)
     }
 
     fn view(&self, b: &Buffer, dtype: DType, shape: &[usize]) -> TensorRef {
@@ -2781,7 +2906,7 @@ impl Model {
         for s in segs {
             let slot = Self::attn_slot(s.st, a)?;
             let bufs_j = bufs.rows(s.lo, s.len);
-            prologues.push(self.gate_qkv_call_at(a, slot, &bufs_j, s.len, t, s.lo, s.st.len, None).filter(|c| self.fused_ok(c)));
+            prologues.push(self.gate_qkv_call_at(a, slot, &bufs_j, s.len, t, s.lo, s.pos, None).filter(|c| self.fused_ok(c)));
         }
         // the gated split runs per segment below when its prologue is not fused, so the projection leaves it out
         let (qc, gate) = self.attn_project(a, n, t, kv_done, true, profile)?;
@@ -2803,7 +2928,7 @@ impl Model {
                     profile,
                 )?;
             }
-            let (_, q_end) = self.attn_rows(a, slot, &bufs_j, qc, s.len, s.st.len, None, prologue, profile)?;
+            let (_, q_end) = self.attn_rows(a, slot, &bufs_j, qc, s.len, s.pos, None, prologue, profile)?;
             qc_after = q_end;
         }
         let attn_out = bufs.q[1 - qc_after].clone();
