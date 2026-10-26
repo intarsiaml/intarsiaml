@@ -1,1 +1,27 @@
 fleetq: #5675 running on spark1: bash -c 'scripts/dc/spark1.sh gates g0; scripts/dc/spark1.sh gates g3 math1 math2 math3 math4 math5 math6 code1 code2 code3 code4 code5 chat1 chat2 chat3 chat4 chat5 short 4k'
+PASS g0 ids short identical (256 ids, md5 b43773b5)
+PASS g0 ids 4k identical (256 ids, md5 8aca363b)
+PASS g0 plan json byte-identical (8758 B)
+PASS g0 plan txt byte-identical (1478 B)
+g0 fails=0
+PASS g3 math1 ids identical (192 ids) | off: decode 12454 ms (15.34 tok/s) | dflash: decode 2957 ms (64.59 tok/s) | spec: verify passes=28 proposed=413 accepted=162 (acceptance 39.2%, 6.79 tokens per pass)
+PASS g3 math2 ids identical (192 ids) | off: decode 12444 ms (15.35 tok/s) | dflash: decode 3159 ms (60.47 tok/s) | spec: verify passes=30 proposed=430 accepted=160 (acceptance 37.2%, 6.33 tokens per pass)
+PASS g3 math3 ids identical (192 ids) | off: decode 12437 ms (15.36 tok/s) | dflash: decode 2533 ms (75.40 tok/s) | spec: verify passes=24 proposed=345 accepted=166 (acceptance 48.1%, 7.92 tokens per pass)
+PASS g3 math4 ids identical (192 ids) | off: decode 12444 ms (15.35 tok/s) | dflash: decode 2550 ms (74.90 tok/s) | spec: verify passes=24 proposed=358 accepted=166 (acceptance 46.4%, 7.92 tokens per pass)
+PASS g3 math5 ids identical (192 ids) | off: decode 16108 ms (11.86 tok/s) | dflash: decode 6452 ms (29.60 tok/s) | spec: verify passes=35 proposed=514 accepted=155 (acceptance 30.2%, 5.43 tokens per pass)
+PASS g3 math6 ids identical (192 ids) | off: decode 21463 ms (8.90 tok/s) | dflash: decode 5429 ms (35.18 tok/s) | spec: verify passes=30 proposed=441 accepted=160 (acceptance 36.3%, 6.33 tokens per pass)
+PASS g3 code1 ids identical (192 ids) | off: decode 21469 ms (8.90 tok/s) | dflash: decode 6377 ms (29.95 tok/s) | spec: verify passes=35 proposed=501 accepted=154 (acceptance 30.7%, 5.40 tokens per pass)
+PASS g3 code2 ids identical (192 ids) | off: decode 21605 ms (8.84 tok/s) | dflash: decode 6828 ms (27.97 tok/s) | spec: verify passes=38 proposed=524 accepted=152 (acceptance 29.0%, 5.00 tokens per pass)
+PASS g3 code3 ids identical (192 ids) | off: decode 21446 ms (8.91 tok/s) | dflash: decode 8592 ms (22.23 tok/s) | spec: verify passes=48 proposed=689 accepted=142 (acceptance 20.6%, 3.96 tokens per pass)
+PASS g3 code4 ids identical (192 ids) | off: decode 21546 ms (8.86 tok/s) | dflash: decode 18910 ms (10.10 tok/s) | spec: verify passes=42 proposed=630 accepted=47 (acceptance 7.5%, 2.12 tokens per pass)
+PASS g3 code5 ids identical (192 ids) | off: decode 21885 ms (8.73 tok/s) | dflash: decode 5569 ms (34.30 tok/s) | spec: verify passes=29 proposed=431 accepted=160 (acceptance 37.1%, 6.52 tokens per pass)
+PASS g3 chat1 ids identical (192 ids) | off: decode 21490 ms (8.89 tok/s) | dflash: decode 20578 ms (9.28 tok/s) | spec: verify passes=41 proposed=615 accepted=32 (acceptance 5.2%, 1.78 tokens per pass)
+PASS g3 chat2 ids identical (192 ids) | off: decode 21410 ms (8.92 tok/s) | dflash: decode 17876 ms (10.68 tok/s) | spec: verify passes=72 proposed=1080 accepted=73 (acceptance 6.8%, 2.01 tokens per pass)
+PASS g3 chat3 ids identical (192 ids) | off: decode 21619 ms (8.83 tok/s) | dflash: decode 18956 ms (10.08 tok/s) | spec: verify passes=105 proposed=1537 accepted=82 (acceptance 5.3%, 1.78 tokens per pass)
+PASS g3 chat4 ids identical (192 ids) | off: decode 21521 ms (8.87 tok/s) | dflash: decode 21831 ms (8.75 tok/s) | spec: verify passes=40 proposed=516 accepted=20 (acceptance 3.9%, 1.50 tokens per pass)
+PASS g3 chat5 ids identical (192 ids) | off: decode 21582 ms (8.85 tok/s) | dflash: decode 14225 ms (13.43 tok/s) | spec: verify passes=80 proposed=1144 accepted=109 (acceptance 9.5%, 2.36 tokens per pass)
+PASS g3 short ids identical (192 ids) | off: decode 21483 ms (8.89 tok/s) | dflash: decode 10394 ms (18.38 tok/s) | spec: verify passes=58 proposed=809 accepted=132 (acceptance 16.3%, 3.28 tokens per pass)
+PASS g3 4k ids identical (192 ids) | off: decode 22885 ms (8.35 tok/s) | dflash: decode 22311 ms (8.56 tok/s) | spec: verify passes=34 proposed=468 accepted=27 (acceptance 5.8%, 1.79 tokens per pass)
+g3 fails=0
+fleetq: #5675 done (exit 0)
+exit 0
