@@ -3,6 +3,7 @@
 # prompt, 35B and 27B, each pair on the same card one after the other. The knob is not set (and the 27B has no routed experts at all).
 . "$(dirname "$0")/lib.sh" 2>/dev/null || . "$HOME/intarsiaml-l5-$NAME/scripts/l5r7/lib.sh"
 PD=$HOME/intarsiaml-l5-$NAME/scripts/hg/prompts
+wait_vram 60
 echo "[noop] base rev $(cat $HOME/intarsiaml-l5-zbase/.rev); branch snapshot $NAME $(now)"
 for m in 35 27; do
   if [ $m = 35 ]; then M=$M35; else M=$M27; fi

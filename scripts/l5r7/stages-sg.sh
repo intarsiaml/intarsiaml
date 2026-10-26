@@ -5,6 +5,7 @@
 . "$HOME/intarsiaml-l5-$NAME/scripts/l5r7/lib.sh"
 SHORT="--golden $GOLD/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --mem-budget 29"
 LONG="--golden $GOLD/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors --mode both --decode-positions 64 --max-seq 16384 --mem-budget 29"
+wait_vram 60
 D=$HOME/intarsiaml-l5-$NAME/l5-out; B=$HOME/intarsiaml-l5-zbase/l5-out; mkdir -p "$D" "$B"
 T0=$(date +%s); BUDGET=${SG_BUDGET:-2400}
 acc() { # <fn: dv|bs> <tag> <env> <outdir-in-container-relative> args...

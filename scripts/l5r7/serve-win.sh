@@ -20,6 +20,12 @@ case "$cmd" in
     esac
     docker rm -f $CT >/dev/null 2>&1
     if systemctl --user is-active radiance >/dev/null 2>&1; then echo "[serve] stopping radiance $(now)"; systemctl --user stop radiance; sleep 3; fi
+    for i in $(seq 1 30); do
+      u=$(cat /sys/bus/pci/devices/0000:07:00.0/mem_info_vram_used 2>/dev/null || echo -1)
+      echo "[vram] card1 used=$u B ($((u / 1048576)) MiB) $(now)"
+      if [ "$u" -ge 0 ] && [ "$u" -lt 1000000000 ]; then break; fi
+      sleep 2
+    done
     envs=(); for kv in "$@"; do envs+=(-e "$kv"); done
     docker run -d --name $CT --network host --device /dev/kfd --device /dev/dri \
       --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" --group-add video \

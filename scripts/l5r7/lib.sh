@@ -19,3 +19,18 @@ gen() {
   grep -a '^ids:' "$O/gen-$tag.err" > "$O/gen-$tag.ids"
   echo "[gen] $tag: $(tr ',' '\n' < "$O/gen-$tag.ids" | wc -l) ids, md5 $(md5sum < "$O/gen-$tag.ids" | cut -c1-8)  $(grep -a 'finish=' "$O/gen-$tag.err" | tail -1 | cut -c1-140)"
 }
+
+# wait_vram [cap_s=60] [limit_bytes=1000000000]: card 1 (HIP device 1 = 0000:07:00.0, radiance rank 1) must be free before a model load: poll the used VRAM
+# (sysfs mem_info_vram_used, the number rocm-smi --showmeminfo vram prints) every 2 s until it is under the limit or the cap is reached; logs every reading.
+# An OOM that follows a confirmed-free card is real.
+wait_vram() {
+  local cap=${1:-60} lim=${2:-1000000000} t0 u
+  t0=$(date +%s)
+  while :; do
+    u=$(cat /sys/bus/pci/devices/0000:07:00.0/mem_info_vram_used 2>/dev/null || echo -1)
+    echo "[vram] card1 used=$u B ($((u / 1048576)) MiB) after $(( $(date +%s) - t0 )) s $(now)"
+    if [ "$u" -ge 0 ] && [ "$u" -lt "$lim" ]; then return 0; fi
+    if [ $(( $(date +%s) - t0 )) -ge "$cap" ]; then echo "[vram] card1 NOT free after ${cap} s"; return 1; fi
+    sleep 2
+  done
+}
