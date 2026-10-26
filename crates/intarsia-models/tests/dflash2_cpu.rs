@@ -487,3 +487,48 @@ fn dflash2_scripted_drafts_hit_every_acceptance_pattern_and_stay_identical() {
         assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
     }
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// parity with z-lab's own reference (MLX), through the real loader
+// ------------------------------------------------------------------------------------------------------------------
+
+/// `tests/fixtures/tiny_dflash2`: a random DFlash2 checkpoint and the final normed block rows z-lab's `model_mlx.py` computes
+/// for it (`tools/dfh/dflash2_mlx_fixture.py`), read through `open_dflash` like a real `--spec-draft`.
+#[test]
+fn dflash2_draft_matches_the_z_lab_mlx_reference() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tiny_dflash2");
+    let gold = read_f32(&dir.join("golden.safetensors"));
+    let mut worst = 0f64;
+    for c in [3usize, 13] {
+        let dl = intarsia_models::load::open_dflash(Some(&dir), false).unwrap();
+        assert!(dl.config.v2 && dl.config.sliding_window == WINDOW && dl.config.conv_group == CONV_GS);
+        let (recipe, dims) = target_spec();
+        let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 64,
+            act_dtype: Some(DType::F32),
+            kv_dtype: Some(DType::F32),
+            profile_every: 0,
+            dflash: Some(dl),
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
+        m.enable_verify(BLOCK).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        let mut st = m.new_state().unwrap();
+        let feat = &gold[&format!("feat_{c}")].1;
+        m.dflash_ingest_host(&mut st, feat, c).unwrap();
+        let ids: Vec<u32> = gold["ids"].1.iter().map(|&x| x as u32).collect();
+        m.dflash_draft(&mut st, ids[0], BLOCK - 1).unwrap();
+        let got = m.dflash_last_hidden(BLOCK).unwrap();
+        let want = &gold[&format!("hidden_{c}")].1;
+        for r in 0..BLOCK {
+            let w: Vec<f64> = want[r * H..(r + 1) * H].iter().map(|&x| x as f64).collect();
+            let e = rel_l2(&got[r * H..(r + 1) * H], &w);
+            eprintln!("mlx parity: context {c} row {r}: rel l2 {e:.2e}");
+            worst = worst.max(e);
+        }
+    }
+    assert!(worst < 1e-4, "rel l2 {worst} against z-lab's reference");
+}
