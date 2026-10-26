@@ -302,7 +302,7 @@ impl Model {
 
     /// Whether [`Model::forward_verify`] can run its `q` rows on `st` as the replay of a captured verify-only pass: graphs
     /// usable, a backend whose verify attention is one decode call per row at a device position (so the recording names no
-    /// position; HIP), one rank, and `INTARSIA_VERIFY_GRAPH` not `0`. The eager pass and the replay launch the same ops on
+    /// position; HIP), one rank, and `INTARSIA_VERIFY_GRAPH=1` (default off). The eager pass and the replay launch the same ops on
     /// the same kernels in the same order, so their outputs are bitwise equal (`tests/verify_rows_real.rs` checks it on the
     /// real model).
     pub(super) fn verify_graph_ok(&self, st: &SequenceState, q: usize, profile: bool) -> bool {
@@ -402,8 +402,9 @@ impl Model {
     }
 }
 
-/// `INTARSIA_VERIFY_GRAPH` (`0`: verify passes outside the MTP step run eagerly), read once.
+/// `INTARSIA_VERIFY_GRAPH=1` turns the captured verify-only pass on (default off: at tp=1 on HIP it gains 0.2-2% over the eager
+/// pass, lane dfh window 3; default-on is decided at tp=2 from an interleaved measurement), read once.
 fn verify_graph_env_on() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").map_or(true, |v| v != "0"))
+    *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").is_ok_and(|v| v == "1"))
 }

@@ -11,9 +11,12 @@ SHORT='Write a long story about a robot who learns to paint.'
 TP2="--tp 2 --devices 0,1"
 T() { echo "$HOME/intarsiaml-dfh-${RUN:+run-$RUN-}$1"; }
 log() { echo "$(date +%T) $*" | tee -a "$O/steps.log"; }
+# DRY=1 (a cpu slot, radiance up, before a window): run/gen print the command and its environment instead of running it, mtest runs
+# the test with INTARSIA_VERIFY_DRYRUN=1 (prints PROBE_CONFIG, loads nothing) and without a GPU; clear() passes.
 # run <tree> <gpus> <timeout> <tag> <intarsia args...>
 run() {
   local tree=$1 gpus=$2 to=$3 tag=$4; shift 4
+  if [[ ${DRY:-0} == 1 ]]; then log "DRY run $tag gpus=$gpus E=[${E:-}] intarsia $*"; : > "$O/$tag.err"; return 0; fi
   # shellcheck disable=SC2086
   INTARSIA_REPO=$(T "$tree") HIP_VISIBLE_DEVICES=$gpus timeout "$to" "$(T "$tree")/deploy/tatooine/dev.sh" env ${E:-} /work/dfh-intarsia "$@" \
     > "$O/$tag.out" 2> "$O/$tag.err" < /dev/null
@@ -32,6 +35,7 @@ gen() {
 # mtest <tree> <tag> <gpus> <timeout> <cargo test args...>: intarsia-models GPU tests, prebuilt in the -hiptest volume
 mtest() {
   local tree=$1 tag=$2 gpus=$3 to=$4; shift 4
+  if [[ ${DRY:-0} == 1 ]]; then gpus=""; E="${E:-} INTARSIA_VERIFY_DRYRUN=1"; fi
   # shellcheck disable=SC2086
   INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=intarsia-cargo-target-dfh-$tree-hiptest HIP_VISIBLE_DEVICES=$gpus timeout "$to" \
     "$(T "$tree")/deploy/tatooine/dev.sh" env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 ${E:-} \
@@ -42,5 +46,5 @@ mtest() {
 }
 same() { if cmp -s "$O/$1" "$O/$2"; then log "SAME $3 ($1 == $2)"; else log "DIFF $3 ($1 != $2)"; fi; }
 vram() { local m=0 v c; for c in /sys/class/drm/card[0-9]/device/mem_info_vram_used; do v=$(cat "$c" 2>/dev/null || echo 0); (( v > m )) && m=$v; done; echo $m; }
-clear() { local i; for i in 1 2 3 4 5 6; do (( $(vram) < 1073741824 )) && return 0; sleep 10; done
+clear() { [[ ${DRY:-0} == 1 ]] && return 0; local i; for i in 1 2 3 4 5 6; do (( $(vram) < 1073741824 )) && return 0; sleep 10; done
   log "CONTENDED before '$1': $(( $(vram) / 1048576 )) MiB in use on a card: NO VERDICT"; return 1; }

@@ -56,6 +56,21 @@ fn greedy(m: &Model, st: &mut SequenceState, id: u32) -> u32 {
 
 #[test]
 fn verify_rows_are_bitwise_the_single_row_steps() {
+    // the run's configuration first, so a window's log shows what was measured; INTARSIA_VERIFY_DRYRUN=1 stops here (a cpu-slot
+    // check of a window's flags before the GPUs are taken)
+    let env = |k: &str| std::env::var(k).unwrap_or_else(|_| "unset".into());
+    eprintln!(
+        "PROBE_CONFIG dir={} rows={} lens={} backend={} INTARSIA_VERIFY_GRAPH={} profile_every=0",
+        env("INTARSIA_VERIFY_DIR"),
+        env("INTARSIA_VERIFY_ROWS"),
+        env("INTARSIA_VERIFY_LENS"),
+        env("INTARSIA_BATCH_TEST_BACKEND"),
+        env("INTARSIA_VERIFY_GRAPH")
+    );
+    if std::env::var("INTARSIA_VERIFY_DRYRUN").is_ok_and(|v| v == "1") {
+        eprintln!("PROBE_DRYRUN: not loading");
+        return;
+    }
     let (Some(dir), Some(be)) = (dir(), backend()) else {
         eprintln!("SKIPPED: INTARSIA_VERIFY_DIR / GPU unavailable");
         return;
@@ -129,7 +144,7 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
     }
 
     // 3. cost (probe, not a benchmark): median of 12 passes at length 1024, each verify row count as the engine runs it
-    //    (a captured replay where `Model::forward_verify` can, see `INTARSIA_VERIFY_GRAPH`)
+    //    (eager, or a captured replay with `INTARSIA_VERIFY_GRAPH=1`)
     let len = 1024;
     let prompt: Vec<u32> = (0..len).map(|_| rng.next(1000, hi)).collect();
     let mut st = m.new_state().unwrap();
