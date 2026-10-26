@@ -48,7 +48,7 @@ variant() { need 215 "$1" && clear "$1" && repro "$@"; }
     done; sleep 1; done ) > "$O/sampler.log" 2>&1 &
 SAMPLER=$!; trap 'kill $SAMPLER 2>/dev/null' EXIT
 log "env: $(uptime | sed 's/.*load/load/') | top: $(ps -eo pcpu,comm --sort=-pcpu | sed -n 2,5p | tr -s ' ' | tr '\n' ';') | containers: $(docker ps --format '{{.Names}}' | tr '\n' ' ')"
-B="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12"
+B="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1"
 # delay sweep on rank 1 (coordinator, after w24: s0 none 1/11, s3 300 us 1/4, s1 2 ms 0/20, s2 rank 0 2 ms 0/20), then the drain mode at the delay that fails most
 variant c0-control-a 200 $SO $B
 variant d1-rank1-50us 200 $SO $B INTARSIA_TP_SKEW_US=0,50
@@ -60,7 +60,7 @@ variant d6-rank0-300us 200 $SO $B INTARSIA_TP_SKEW_US=300,0
 variant d7-rank1-300us-drain1 200 $SO $B INTARSIA_TP_SKEW_US=0,300 INTARSIA_HIP_AR_DRAIN=1
 variant c1-control-b 200 $SO $B
 # the size loop reproduced twice in two windows (w20 l5 and w24 s7 hung at rep 1; w24 s8, 2 ms on rank 1, 0/8): the more sensitive vehicle
-E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12"
+E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1"
 variant e0-size-loop-a 200 $FS $E
 variant e1-size-loop-b 200 $FS $E
 variant e2-size-loop-rank1-300us 200 $FS $E INTARSIA_TP_SKEW_US=0,300

@@ -77,6 +77,10 @@ impl RankBuf {
 
 impl Drop for RankBuf {
     fn drop(&mut self) {
+        // INTARSIA_HIP_COMM_LEAK=1 (debugging, w25): never free the handshake buffers, so no later group can get the same address range
+        if std::env::var("INTARSIA_HIP_COMM_LEAK").is_ok_and(|v| v == "1") {
+            return;
+        }
         // SAFETY: allocated by ik_rt_malloc*/finegrained on `ordinal`; freed once.
         unsafe {
             ffi::ik_rt_set_device(self.ordinal);
@@ -133,6 +137,11 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
         bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],
         aborted: AtomicBool::new(false),
     });
+    if std::env::var("INTARSIA_HIP_COMM_LOG").is_ok_and(|v| v == "1") {
+        for (r, b) in group.bufs.iter().enumerate() {
+            eprintln!("COMM group: rank {r} device {} scratch {:p} flags {:p} ctrs {:p}", b.ordinal, b.scratch, b.flags, b.ctrs);
+        }
+    }
     Ok(backends
         .iter()
         .enumerate()

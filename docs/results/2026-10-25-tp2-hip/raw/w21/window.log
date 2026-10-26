@@ -1,0 +1,11 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w21-{batch} 2026-10-25 21:18:17
+[window] job 5509 w21; stopping radiance 2026-10-25 21:18:17
+[window] radiance stopped 2026-10-25 21:18:20
+21:18:20 window start, CAP 900s, pre-change de4f061, VRAM in use 57 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:18:57 repro m0-ctrs-graphs-on exit 101 [INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1]: CTRS rep 1 state 0 before: rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0;  | 
+21:19:06 repro m1-ctrs-solo-graphs-off exit 0 [INTARSIA_REPRO_REPS=2 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_SOLO_GRAPHS=0 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1]: REPRO failures 0/2 | 
+21:19:17 repro m2-ctrs-batched-graphs-off exit 0 [INTARSIA_REPRO_REPS=3 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_BATCH_GRAPHS=0 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1]: REPRO failures 0/3 | 
+21:19:17 done, time left 843s
+[window] stages done 2026-10-25 21:19:17 (exit 0)
+[window] starting radiance 2026-10-25 21:19:17
+[window] radiance answers 2026-10-25 21:19:37 (after 25 s)

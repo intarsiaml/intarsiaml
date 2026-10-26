@@ -1,0 +1,18 @@
+[window] running from snapshots /home/josef/intarsiaml-tp2-run-w24-{batch} 2026-10-25 22:07:32
+[window] job 5540 w24; stopping radiance 2026-10-25 22:07:32
+[window] radiance stopped 2026-10-25 22:07:34
+22:07:34 window start, CAP 1000s, pre-change de4f061, VRAM in use 20934 MiB, golden qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+22:07:34 env: load average: 2.61, 4.70, 3.91 | top:  262 intarsia; 1.1 tailscaled; 0.7 kworker/14:3-mm_percpu_wq; 0.5 kworker/2:2-mm_percpu_wq; | gpu: S: 1Mhz * 1: 500Mhz  2: 2350Mhz  0: 500Mhz  1: 1814Mhz * 2: 2350Mhz  
+22:09:13 repro s0-control exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1]:  | 
+22:10:39 repro s1-skew-rank1-2ms exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_SKEW_US=0,2000]: REPRO failures 0/20 | 
+22:11:53 repro s2-skew-rank0-2ms exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_SKEW_US=2000,0]: REPRO failures 0/20 | 
+22:12:34 repro s3-skew-rank1-300us exit 101 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_SKEW_US=0,300]:  | 
+22:14:01 repro s4-skew-rank1-20ms exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_SKEW_US=0,20000]: REPRO failures 0/20 | 
+22:15:16 repro s5-skew-rank0-20ms exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_SKEW_US=20000,0]: REPRO failures 0/20 | 
+22:16:31 repro s6-w21-config exit 0 [INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1]: REPRO failures 0/20 | 
+22:17:19 repro s7-size-loop-control exit 101 [INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2]:  | 
+22:19:32 repro s8-size-loop-skew-rank1-2ms exit 0 [INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_SKEW_US=0,2000]: REPRO failures 0/8 | 
+22:19:32 done, time left 282s
+[window] stages done 2026-10-25 22:19:32 (exit 0)
+[window] starting radiance 2026-10-25 22:19:32
+[window] radiance answers 2026-10-25 22:20:02 (after 35 s)
