@@ -1,0 +1,20 @@
+
+running 1 test
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 64], [64, 64], [40, 64]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 96], [33, 96], [1, 96]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=1.605e0 rel_l2=1.433e0 M=1 N0=32 N1=32 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 2048], [256, 2048], [1, 2048]]
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_pair    matmul_pair_bf16_wmma           4      4     1.605e0     1.433e0  REJECTED
+
+test every_hip_kernel_matches_the_reference ... FAILED
+
+failures:
+
+failures:
+    every_hip_kernel_matches_the_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.27s
+

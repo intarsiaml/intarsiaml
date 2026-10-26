@@ -1,0 +1,14 @@
+
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:42:9:
+kernels not admitted with INTARSIA_HIP_WMMA_ROWS=1:
+matmul_pair_bf16_wmma
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=64 N1=40 K=64 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 64], [64, 64], [40, 64]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=33 N1=1 K=96 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 96], [33, 96], [1, 96]]
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=1.605e0 rel_l2=1.433e0 M=1 N0=32 N1=32 K=2048 bf16
+  matmul_pair    matmul_pair_bf16_wmma  FAIL  max_abs=0.000e0 rel_l2=0.000e0 M=1 N0=256 N1=1 K=2048 bf16  ERROR: backend error: ik_matmul_pair_bf16_wmma returned IK_ERR_SHAPE (3); inputs [Bf16, Bf16, Bf16] shapes [[1, 2048], [256, 2048], [1, 2048]]
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_pair    matmul_pair_bf16_wmma           4      4     1.605e0     1.433e0  REJECTED
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
