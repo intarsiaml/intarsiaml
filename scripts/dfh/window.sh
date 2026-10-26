@@ -16,7 +16,7 @@ RAW=$REPO/docs/results/2026-10-26-dfh-hip-dflash/raw
 mkdir -p "$RAW/$W"
 CAP=${CAP:-2400}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/dfh' < /dev/null
-scp -q "$S"/lib.sh "$S"/stages-*.sh tatooine:dfh/
+scp -q "$S"/lib.sh "$S"/stages-*.sh "$S"/cmp_taps.py tatooine:dfh/
 ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP ${XENV:-} bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/dfh/out/$W; rm -rf "$O"; mkdir -p "$O"

@@ -1,0 +1,10 @@
+clean  8c0aa03d7 test binary sha256 1b21dd79c6733189
+mutant tap-off-by-one applied to crates/intarsia-core/src/model.rs
+mutant tap-off-by-one: sha256 c3e03ca9157e62a1 (clean 1b21dd79c6733189): CAUGHT by:     dflash2_taps_are_the_target_layer_outputs 
+mutant rollback-next-row applied to crates/intarsia-core/src/state.rs
+mutant rollback-next-row: sha256 62f61bd27b666918 (clean 1b21dd79c6733189): CAUGHT by:     dflash2_greedy_ids_equal_spec_off_on_the_hybrid     dflash2_scripted_drafts_hit_every_acceptance_pattern_and_stay_identical 
+mutant window-off-by-one applied to crates/intarsia-core/src/model/dflash2.rs
+mutant window-off-by-one: sha256 7ab399d098f566a7 (clean 1b21dd79c6733189): CAUGHT by:     dflash2_draft_matches_host_reference     dflash2_draft_matches_the_z_lab_mlx_reference 
+mutant draft-norm-offset applied to crates/intarsia-core/src/model/dflash2.rs
+mutant draft-norm-offset: sha256 d13ea3f63adbc6e0 (clean 1b21dd79c6733189): CAUGHT by:     dflash2_draft_matches_host_reference     dflash2_draft_matches_the_z_lab_mlx_reference 
+exit 0

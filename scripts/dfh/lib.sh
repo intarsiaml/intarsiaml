@@ -44,6 +44,23 @@ mtest() {
   log "mtest $tag exit $rc${E:+ [$E]}: $(grep -aE '^test result|FAILED|panicked|SKIPPED|PROBE_|DIFF' "$O/mtest-$tag.log" | head -14 | cut -c1-200 | tr '\n' '|')"
   return $rc
 }
+# htest <tree> <tag> <gpus> <timeout> <cargo test args...>: intarsia-backend-hip GPU tests, prebuilt in the -hiptest volume
+htest() {
+  local tree=$1 tag=$2 gpus=$3 to=$4; shift 4
+  if [[ ${DRY:-0} == 1 ]]; then log "DRY htest $tag gpus=$gpus E=[${E:-}] $*"; return 0; fi
+  # shellcheck disable=SC2086
+  INTARSIA_REPO=$(T "$tree") INTARSIA_TARGET_VOL=intarsia-cargo-target-dfh-$tree-hiptest HIP_VISIBLE_DEVICES=$gpus timeout "$to" \
+    "$(T "$tree")/deploy/tatooine/dev.sh" env ${E:-} cargo test --release -p intarsia-backend-hip "$@" > "$O/htest-$tag.log" 2>&1 < /dev/null
+  local rc=$?
+  log "htest $tag exit $rc: $(grep -aE '^test result|FAILED|panicked|skipping|dyn_conv|attn_decode_bf16_window' "$O/htest-$tag.log" | head -12 | cut -c1-200 | tr '\n' '|')"
+  return $rc
+}
+# plan <tree> <gpus> <tag> <model> [args]: plan show, JSON and text
+plan() {
+  local tree=$1 gpus=$2 tag=$3 m=$4; shift 4
+  run "$tree" "$gpus" 300 "plan-$tag" plan show --backend hip --model "$m" --mem-budget 29 --max-seq 4096 --json "$@"
+  run "$tree" "$gpus" 300 "plantext-$tag" plan show --backend hip --model "$m" --mem-budget 29 --max-seq 4096 "$@"
+}
 same() { if cmp -s "$O/$1" "$O/$2"; then log "SAME $3 ($1 == $2)"; else log "DIFF $3 ($1 != $2)"; fi; }
 vram() { local m=0 v c; for c in /sys/class/drm/card[0-9]/device/mem_info_vram_used; do v=$(cat "$c" 2>/dev/null || echo 0); (( v > m )) && m=$v; done; echo $m; }
 clear() { [[ ${DRY:-0} == 1 ]] && return 0; local i; for i in 1 2 3 4 5 6; do (( $(vram) < 1073741824 )) && return 0; sleep 10; done
