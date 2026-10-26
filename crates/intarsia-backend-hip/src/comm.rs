@@ -94,6 +94,20 @@ impl Drop for RankBuf {
 struct Group {
     bufs: [RankBuf; 2],
     aborted: AtomicBool,
+    /// `INTARSIA_TP_COLL_TRACE=1` (debugging, w26): every collective launch of each rank, packed as `op << 60 | dtype << 56 | out dtype << 52 |
+    /// blocks << 40 | elements` (op 1 all-reduce, 2 all-gather, 3 all-reduce + rmsnorm). `debug_state` reports the first launch where the ranks differ.
+    calls: Option<std::sync::Mutex<[Vec<u64>; 2]>>,
+}
+
+impl Group {
+    fn note(&self, rank: usize, op: u64, dt: i32, odt: i32, n: usize) {
+        if let Some(c) = &self.calls {
+            let mut c = c.lock().unwrap();
+            if c[rank].len() < 4_000_000 {
+                c[rank].push(op << 60 | ((dt as u64) & 15) << 56 | ((odt as u64) & 15) << 52 | (NBLOCKS as u64) << 40 | (n as u64 & ((1 << 40) - 1)));
+            }
+        }
+    }
 }
 
 struct P2pComm {
@@ -139,6 +153,7 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
     let group = Arc::new(Group {
         bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],
         aborted: AtomicBool::new(false),
+        calls: std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1").then(|| std::sync::Mutex::new([Vec::new(), Vec::new()])),
     });
     if std::env::var("INTARSIA_HIP_COMM_LOG").is_ok_and(|v| v == "1") {
         for (r, b) in group.bufs.iter().enumerate() {
@@ -201,6 +216,7 @@ impl Comm for P2pComm {
         let per = SLOT_BYTES / pe; // elements per launch
         while off < n_total {
             let n = per.min(n_total - off);
+            self.group.note(self.rank, 1, partial.dtype as i32, out.dtype as i32, n);
             // SAFETY: both ranges are inside their tensors (bounds checked); scratch / flags / counters are live for
             // the group's lifetime, which the comm keeps alive through `group`.
             let rc = unsafe {
@@ -271,6 +287,7 @@ impl Comm for P2pComm {
         let mut off = 0usize;
         while off < total {
             let n = SLOT_BYTES.min(total - off);
+            self.group.note(self.rank, 2, send.dtype as i32, send.dtype as i32, n);
             // SAFETY: the chunk is inside send, and inside both of recv's segments (bounds checked above); scratch / flags
             // / counters are live for the group's lifetime, which the comm keeps alive through `group`.
             let rc = unsafe {
@@ -332,6 +349,19 @@ impl Comm for P2pComm {
                 if lo == hi { format!("{lo}") } else { format!("{lo}..{hi} {v:?}") }
             };
             out.push_str(&format!("rank {r}: launch counters {} flags {}; ", summ(&c), summ(&f)));
+        }
+        if let Some(c) = &self.group.calls {
+            let c = c.lock().unwrap();
+            let dec = |w: u64| format!("op{} dt{} odt{} blocks{} n{}", w >> 60, (w >> 56) & 15, (w >> 52) & 15, (w >> 40) & 0xfff, w & ((1 << 40) - 1));
+            out.push_str(&format!("host call log: rank 0 {} launches, rank 1 {}; ", c[0].len(), c[1].len()));
+            match (0..c[0].len().max(c[1].len())).find(|&i| c[0].get(i) != c[1].get(i)) {
+                Some(i) => out.push_str(&format!(
+                    "FIRST DIFFERENCE at launch {i}: rank 0 {}, rank 1 {}",
+                    c[0].get(i).map_or("none".into(), |&w| dec(w)),
+                    c[1].get(i).map_or("none".into(), |&w| dec(w))
+                )),
+                None => out.push_str("the ranks' launch sequences are identical"),
+            }
         }
         Some(out)
     }
@@ -415,6 +445,7 @@ impl P2pComm {
         let s = self.backend.stream(stream)?;
         let ptr = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes());
         let (me, peer) = (&self.group.bufs[self.rank], &self.group.bufs[1 - self.rank]);
+        self.group.note(self.rank, 3, a.partial.dtype as i32, a.partial.dtype as i32, rows * h);
         // SAFETY: every range is inside its tensor (`ar_norm_shape` bounds-checked them); scratch / flags / counters are
         // live for the group's lifetime, which the comm keeps alive through `group`.
         let rc = unsafe {
