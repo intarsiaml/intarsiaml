@@ -1,0 +1,40 @@
+# localeval: adhoc — 2026-10-26T11:18
+
+- model: `intarsia` on ? (?), url `http://tatooine:8294/v1`
+- thinking: off; run kind: speed; label: mxr-dev-tp1-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8294/v1 --model intarsia --thinking off --sizes 1024 --gen 512 --reps 1 --concurrency 4,8,16 --label mxr-dev-tp1-r2 --no-unim --recipe intarsia serve --backend hip --tp 1 --max-seq 8192 --max-batch 16 (tree dev: lane-mxr/hip-mxfp4-rows fc0291746 or origin/main)`
+- result file: `results/20261026-111825-adhoc-mxr-dev-tp1-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend hip --tp 1 --max-seq 8192 --max-batch 16 (tree dev: lane-mxr/hip-mxfp4-rows fc0291746 or origin/main)
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 4930, 1 reps, 512 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.54 | 1824 (1824–1824) * | - | 32.9 (32.9–32.9) | 33.1 (33.1–33.1) | - | - | 512 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 98.7 | 26.9 (25.8–28.1) | 1.54 |
+| 8 | 155.6 | 22.3 (20.7–24.4) | 2.91 |
+| 16 | 201.6 | 15.1 (13.6–17.4) | 5.71 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.

@@ -1,0 +1,14 @@
+-- mutant clean: 75dc598eef7c8ebc
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.72s
+-- mutant m1-noflag: 4fc83a9199ea865b
+G-B FAIL mxfp4 edge set B n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=6 row 5 differs from matmul_mxfp4_gemv on that row alone in 1012 of 1024 elements (first at col 0: [00, 00] vs [e3, c1])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.21s
+-- mutant m2-xscale: 351b696239892822
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=2 row 0 differs from matmul_mxfp4_gemv on that row alone in 323 of 1024 elements (first at col 3: [9f, 3f] vs [1f, 3f])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.19s
+-- mutant m3-pairing: 97e7255f91bbc8b6
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=Dynamic Bf16: matmul_mxfp4_gemv_rows M=2 row 0 differs from matmul_mxfp4_gemv on that row alone in 727 of 1024 elements (first at col 0: [80, 7f] vs [c0, ff])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.19s
+-- mutant m4-chainorder: abcb1184ee9f456f
+G-B FAIL mxfp4 edge set A n=1024 k=5120 act=None F32: matmul_mxfp4_gemv_rows M=5 row 4 differs from matmul_mxfp4_gemv on that row alone in 1 of 1024 elements (first at col 550: [5c, f3, 4a, fe] vs [5a, f3, 4a, fe])
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.24s

@@ -1,0 +1,10 @@
+fleetq: #5736 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-mxr-dev/scripts/mxr/mutants.sh'
+clean      223228f359b75477
+m1-noflag  3b9f9b7d1e10f5b6
+m2-xscale  4d994036d2e247d8
+m3-pairing 8881bd61de4c6740
+m4-chainorder 936ba5898804dd88
+clean2     223228f359b75477 (clean rebuilt after the mutants; equal to clean: yes)
+MUTANTS BUILT 09:55:46
+fleetq: #5736 done (exit 0)
+exit 0

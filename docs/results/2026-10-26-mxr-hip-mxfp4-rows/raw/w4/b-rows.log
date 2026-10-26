@@ -1,0 +1,26 @@
+-- rows_exact mxfp4 (dev, int8 path default)
+test mxfp4_pair_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 pair matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:28/28/667824 2:28/56/1335648 3:28/84/2003472 4:28/112/2671296 5:28/140/3339120 6:28/168/4006944 7:28/196/4674768 8:28/224/5342592 9:28/252/6010416 10:28/280/6678240 11:28/308/7346064 12:28/336/8013888 13:28/364/8681712 14:28/392/9349536 15:28/420/10017360 16:28/448/10685184
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:80/80/2588436 2:80/160/5176872 3:80/240/7765308 4:80/320/10353744 5:80/400/12942180 6:80/480/15530616 7:80/560/18119052 8:80/640/20707488 9:80/720/23295924 10:80/800/25884360 11:80/880/28472796 12:80/960/31061232 13:80/1040/33649668 14:80/1120/36238104 15:80/1200/38826540 16:80/1280/41414976
+test mxfp4_rows_edge_inputs_are_bitwise ... G-B mxfp4 edge matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:56/56/169488 2:56/112/338976 3:56/168/508464 4:56/224/677952 5:56/280/847440 6:56/336/1016928 7:56/392/1186416 8:56/448/1355904 9:56/504/1525392 10:56/560/1694880 11:56/616/1864368 12:56/672/2033856 13:56/728/2203344 14:56/784/2372832 15:56/840/2542320 16:56/896/2711808
+G-B mxfp4 edge matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:56/56/254376 2:56/112/508752 3:56/168/763128 4:56/224/1017504 5:56/280/1271880 6:56/336/1526256 7:56/392/1780632 8:56/448/2035008 9:56/504/2289384 10:56/560/2543760 11:56/616/2798136 12:56/672/3052512 13:56/728/3306888 14:56/784/3561264 15:56/840/3815640 16:56/896/4070016
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 11 filtered out; finished in 2.84s
+-- rows_exact mxfp4 with INTARSIA_HIP_MXFP4_I8=0 (the bf16 rows kernel)
+test mxfp4_pair_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 pair matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:28/28/667824 2:28/56/1335648 3:28/84/2003472 4:28/112/2671296 5:28/140/3339120 6:28/168/4006944 7:28/196/4674768 8:28/224/5342592 9:28/252/6010416 10:28/280/6678240 11:28/308/7346064 12:28/336/8013888 13:28/364/8681712 14:28/392/9349536 15:28/420/10017360 16:28/448/10685184
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... G-B mxfp4 matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:80/80/2588436 2:80/160/5176872 3:80/240/7765308 4:80/320/10353744 5:80/400/12942180 6:80/480/15530616 7:80/560/18119052 8:80/640/20707488 9:80/720/23295924 10:80/800/25884360 11:80/880/28472796 12:80/960/31061232 13:80/1040/33649668 14:80/1120/36238104 15:80/1200/38826540 16:80/1280/41414976
+test mxfp4_rows_edge_inputs_are_bitwise ... G-B mxfp4 edge matmul_mxfp4_gemv_rows: M:cases/rows/bytes 1:56/56/169488 2:56/112/338976 3:56/168/508464 4:56/224/677952 5:56/280/847440 6:56/336/1016928 7:56/392/1186416 8:56/448/1355904 9:56/504/1525392 10:56/560/1694880 11:56/616/1864368 12:56/672/2033856 13:56/728/2203344 14:56/784/2372832 15:56/840/2542320 16:56/896/2711808
+G-B mxfp4 edge matmul_mxfp4_pair_gemv_rows: M:cases/rows/bytes 1:56/56/254376 2:56/112/508752 3:56/168/763128 4:56/224/1017504 5:56/280/1271880 6:56/336/1526256 7:56/392/1780632 8:56/448/2035008 9:56/504/2289384 10:56/560/2543760 11:56/616/2798136 12:56/672/3052512 13:56/728/3306888 14:56/784/3561264 15:56/840/3815640 16:56/896/4070016
+test timing_mxfp4_rows ... ignored, micro-timing
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 11 filtered out; finished in 2.77s
+-- NEGATIVE CONTROL: INTARSIA_HIP_GB_CONTROL=matmul_mxfp4_gemv_rows=matmul_mxfp4_mma (MUST FAIL)
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... DIAG solo repeatable: true, rows repeatable: true
+thread 'mxfp4_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:307:17:
+G-B FAIL mxfp4 n=12288 k=5120 act=None Bf16: matmul_mxfp4_mma M=1 row 0 differs from matmul_mxfp4_gemv on that row alone in 2 of 12288 elements (first at col 4867: [00, 39] vs [ff, 38])
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.26s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test rows_exact`
+-- rows_registry
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.02s

@@ -1,0 +1,19 @@
+-- kernels test --quick (dev)
+SKIPPED: kernel matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'
+-- admission + quick_coverage (dev)
+test backend_is_usable_from_other_threads ... ok
+test deterministic_kernels_repeat_bit_for_bit ... ok
+test every_hip_kernel_matches_the_reference ... FAILED
+test fingerprint_names_the_arch_and_runtime ... ok
+test info_reports_the_device ... ok
+test uninstantiated_gemv_knob_still_computes ... 
+test uninstantiated_gemv_knob_still_computes ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+thread 'every_hip_kernel_matches_the_reference' panicked at crates/intarsia-backend-hip/tests/admission.rs:27:5:
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.22s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test admission`

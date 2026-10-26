@@ -1,0 +1,150 @@
+## mxr3 17408x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    80.8 [   81.0] x1.00 ok | | | | |
+bf16 rows  | | M= 2    83.7 [   83.9] x1.04 ok | M= 4    92.5 [   93.1] x1.14 ok | M= 8   142.8 [  153.8] x1.77 ok | M=12   212.2 [  212.7] x2.63 ok | M=16   268.1 [  268.5] x3.32 ok
+i8 xp2     | | M= 2    79.3 [   80.2] x0.98 ok | M= 4    80.8 [   81.2] x1.00 ok | M= 8    86.0 [   87.4] x1.06 ok | M=12   103.9 [  106.3] x1.29 ok | M=16   132.6 [  133.1] x1.64 ok
+i8 xp4     | | M= 2    79.3 [   80.8] x0.98 ok | M= 4    80.9 [   81.4] x1.00 ok | M= 8    87.0 [   88.8] x1.08 ok | M=12   106.1 [  107.3] x1.31 ok | M=16   131.8 [  132.1] x1.63 ok
+## total mismatches 0
+## mxr3 5120x17408 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    80.8 [   80.9] x1.00 ok | | | | |
+bf16 rows  | | M= 2    87.9 [   88.3] x1.09 ok | M= 4   104.8 [  105.2] x1.30 ok | M= 8   146.2 [  156.2] x1.81 ok | M=12   215.3 [  215.6] x2.66 ok | M=16   270.9 [  271.6] x3.35 ok
+i8 xp2     | | M= 2    83.5 [   84.9] x1.03 ok | M= 4    85.1 [   85.5] x1.05 ok | M= 8    94.1 [   97.6] x1.16 ok | M=12   114.8 [  116.5] x1.42 ok | M=16   138.2 [  138.5] x1.71 ok
+i8 xp4     | | M= 2    83.4 [   85.6] x1.03 ok | M= 4    85.7 [   85.9] x1.06 ok | M= 8    91.7 [   94.5] x1.13 ok | M=12   107.3 [  108.7] x1.33 ok | M=16   130.5 [  131.7] x1.61 ok
+## total mismatches 0
+## mxr3 12288x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    59.8 [   60.2] x1.00 ok | | | | |
+bf16 rows  | | M= 2    63.4 [   63.5] x1.06 ok | M= 4    71.2 [   72.0] x1.19 ok | M= 8   106.1 [  107.5] x1.77 ok | M=12   144.5 [  156.0] x2.42 ok | M=16   195.1 [  195.4] x3.26 ok
+i8 xp2     | | M= 2    59.6 [   60.3] x1.00 ok | M= 4    60.5 [   60.7] x1.01 ok | M= 8    65.2 [   66.5] x1.09 ok | M=12    76.3 [   78.7] x1.28 ok | M=16    98.8 [   99.4] x1.65 ok
+i8 xp4     | | M= 2    59.6 [   61.0] x1.00 ok | M= 4    60.6 [   61.0] x1.01 ok | M= 8    65.6 [   66.9] x1.10 ok | M=12    78.0 [   79.7] x1.30 ok | M=16    97.6 [   98.0] x1.63 ok
+## total mismatches 0
+## mxr3 10240x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    51.1 [   52.5] x1.00 ok | | | | |
+bf16 rows  | | M= 2    54.7 [   54.9] x1.07 ok | M= 4    62.6 [   63.2] x1.23 ok | M= 8    92.0 [   92.7] x1.80 ok | M=12   125.3 [  131.2] x2.45 ok | M=16   165.5 [  165.6] x3.24 ok
+i8 xp2     | | M= 2    50.2 [   51.1] x0.98 ok | M= 4    52.0 [   52.1] x1.02 ok | M= 8    56.2 [   57.4] x1.10 ok | M=12    66.2 [   68.1] x1.30 ok | M=16    85.3 [   85.5] x1.67 ok
+i8 xp4     | | M= 2    50.2 [   51.6] x0.98 ok | M= 4    52.0 [   52.3] x1.02 ok | M= 8    56.8 [   58.2] x1.11 ok | M=12    66.8 [   69.3] x1.31 ok | M=16    83.8 [   84.3] x1.64 ok
+## total mismatches 0
+## mxr3 6144x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    34.4 [   39.7] x1.00 ok | | | | |
+bf16 rows  | | M= 2    39.0 [   39.3] x1.13 ok | M= 4    44.7 [   45.2] x1.30 ok | M= 8    62.4 [   62.9] x1.81 ok | M=12    82.6 [   83.5] x2.40 ok | M=16   100.2 [  101.9] x2.91 ok
+i8 xp2     | | M= 2    34.1 [   34.5] x0.99 ok | M= 4    36.0 [   36.0] x1.05 ok | M= 8    39.4 [   39.4] x1.15 ok | M=12    44.3 [   45.7] x1.29 ok | M=16    56.6 [   57.6] x1.64 ok
+i8 xp4     | | M= 2    34.3 [   35.4] x1.00 ok | M= 4    36.2 [   36.3] x1.05 ok | M= 8    39.7 [   40.6] x1.16 ok | M=12    45.8 [   46.9] x1.33 ok | M=16    55.4 [   56.2] x1.61 ok
+## total mismatches 0
+## mxr3 5120x6144 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    35.0 [   38.1] x1.00 ok | | | | |
+bf16 rows  | | M= 2    43.6 [   43.8] x1.24 ok | M= 4    55.9 [   56.1] x1.60 ok | M= 8    75.5 [   75.7] x2.15 ok | M=12    91.4 [   91.9] x2.61 ok | M=16   108.9 [  110.2] x3.11 ok
+i8 xp2     | | M= 2    40.7 [   40.9] x1.16 ok | M= 4    49.2 [   49.3] x1.40 ok | M= 8    57.7 [   57.9] x1.65 ok | M=12    63.2 [   63.5] x1.81 ok | M=16    70.7 [   70.7] x2.02 ok
+i8 xp4     | | M= 2    40.6 [   40.7] x1.16 ok | M= 4    44.1 [   44.4] x1.26 ok | M= 8    53.3 [   53.6] x1.52 ok | M=12    59.8 [   60.0] x1.71 ok | M=16    68.7 [   69.3] x1.96 ok
+## total mismatches 0
+## mxr3 1024x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    14.1 [   20.1] x1.00 ok | | | | |
+bf16 rows  | | M= 2    15.4 [   15.9] x1.09 ok | M= 4    18.1 [   18.2] x1.29 ok | M= 8    23.3 [   23.4] x1.66 ok | M=12    29.0 [   29.1] x2.06 ok | M=16    35.6 [   35.9] x2.53 ok
+i8 xp2     | | M= 2    13.3 [   13.4] x0.95 ok | M= 4    14.1 [   14.2] x1.00 ok | M= 8    16.0 [   28.4] x1.13 ok | M=12    18.1 [   18.2] x1.28 ok | M=16    20.6 [   29.6] x1.46 ok
+i8 xp4     | | M= 2    13.3 [   29.3] x0.94 ok | M= 4    14.4 [   14.5] x1.03 ok | M= 8    14.9 [   15.1] x1.06 ok | M=12    16.5 [   16.5] x1.17 ok | M=16    18.8 [   19.5] x1.34 ok
+## total mismatches 0
+## mxr3 48x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1     8.7 [   11.9] x1.00 ok | | | | |
+bf16 rows  | | M= 2    14.9 [   15.7] x1.71 ok | M= 4    16.8 [   16.8] x1.93 ok | M= 8    22.2 [   22.3] x2.56 ok | M=12    27.6 [   27.7] x3.18 ok | M=16    32.7 [   32.8] x3.77 ok
+i8 xp2     | | M= 2    11.1 [   11.2] x1.28 ok | M= 4    12.0 [   12.2] x1.39 ok | M= 8    13.8 [   13.9] x1.59 ok | M=12    15.5 [   15.5] x1.78 ok | M=16    17.8 [   17.8] x2.05 ok
+i8 xp4     | | M= 2    11.1 [   11.2] x1.28 ok | M= 4    12.1 [   12.3] x1.40 ok | M= 8    13.2 [   13.3] x1.52 ok | M=12    14.8 [   14.9] x1.71 ok | M=16    16.1 [   16.2] x1.86 ok
+## total mismatches 0
+## mxr3 8704x5120 act=1 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    44.7 [   46.3] x1.00 ok | | | | |
+bf16 rows  | | M= 2    49.5 [   49.6] x1.11 ok | M= 4    56.2 [   56.5] x1.26 ok | M= 8    81.2 [   81.7] x1.82 ok | M=12   107.5 [  109.5] x2.40 ok | M=16   133.9 [  143.8] x2.99 ok
+i8 xp2     | | M= 2    44.9 [   46.1] x1.00 ok | M= 4    45.9 [   46.1] x1.03 ok | M= 8    50.7 [   51.8] x1.13 ok | M=12    58.0 [   59.6] x1.30 ok | M=16    74.3 [   75.0] x1.66 ok
+i8 xp4     | | M= 2    45.0 [   46.5] x1.01 ok | M= 4    46.6 [   46.8] x1.04 ok | M= 8    50.7 [   52.0] x1.13 ok | M=12    58.6 [   60.6] x1.31 ok | M=16    73.3 [   74.0] x1.64 ok
+## total mismatches 0
+## mxr3 5120x8704 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    45.6 [   47.7] x1.00 ok | | | | |
+bf16 rows  | | M= 2    49.1 [   49.4] x1.08 ok | M= 4    60.3 [   60.5] x1.32 ok | M= 8    86.0 [   86.3] x1.89 ok | M=12   113.5 [  116.1] x2.49 ok | M=16   140.6 [  150.4] x3.08 ok
+i8 xp2     | | M= 2    45.5 [   46.5] x1.00 ok | M= 4    47.9 [   48.0] x1.05 ok | M= 8    52.7 [   54.1] x1.16 ok | M=12    62.0 [   62.9] x1.36 ok | M=16    75.5 [   76.4] x1.66 ok
+i8 xp4     | | M= 2    45.6 [   46.7] x1.00 ok | M= 4    48.5 [   48.9] x1.06 ok | M= 8    52.0 [   53.4] x1.14 ok | M=12    61.6 [   62.9] x1.35 ok | M=16    72.4 [   73.9] x1.59 ok
+## total mismatches 0
+## mxr3 5120x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    30.8 [   35.4] x1.00 ok | | | | |
+bf16 rows  | | M= 2    33.7 [   34.5] x1.10 ok | M= 4    40.2 [   40.2] x1.31 ok | M= 8    55.2 [   55.7] x1.79 ok | M=12    72.7 [   73.3] x2.36 ok | M=16    88.1 [   89.1] x2.86 ok
+i8 xp2     | | M= 2    30.5 [   31.0] x0.99 ok | M= 4    32.5 [   32.6] x1.06 ok | M= 8    35.9 [   36.0] x1.17 ok | M=12    41.1 [   41.1] x1.33 ok | M=16    48.4 [   49.9] x1.57 ok
+i8 xp4     | | M= 2    30.9 [   31.5] x1.00 ok | M= 4    33.0 [   33.1] x1.07 ok | M= 8    34.9 [   35.5] x1.13 ok | M=12    39.9 [   41.0] x1.30 ok | M=16    48.6 [   49.4] x1.58 ok
+## total mismatches 0
+## mxr3 3072x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    21.8 [   29.4] x1.00 ok | | | | |
+bf16 rows  | | M= 2    24.6 [   24.8] x1.13 ok | M= 4    28.6 [   28.9] x1.31 ok | M= 8    38.4 [   38.8] x1.76 ok | M=12    53.5 [   53.9] x2.45 ok | M=16    65.5 [   65.7] x3.00 ok
+i8 xp2     | | M= 2    21.4 [   21.6] x0.98 ok | M= 4    22.5 [   22.5] x1.03 ok | M= 8    25.2 [   25.2] x1.15 ok | M=12    28.3 [   28.4] x1.30 ok | M=16    33.3 [   33.3] x1.52 ok
+i8 xp4     | | M= 2    21.3 [   21.4] x0.98 ok | M= 4    22.4 [   22.5] x1.03 ok | M= 8    24.6 [   24.7] x1.13 ok | M=12    27.4 [   27.5] x1.26 ok | M=16    32.3 [   32.3] x1.48 ok
+## total mismatches 0
+## mxr3 5120x3072 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    21.3 [   24.5] x1.00 ok | | | | |
+bf16 rows  | | M= 2    24.3 [   24.7] x1.14 ok | M= 4    28.5 [   28.6] x1.34 ok | M= 8    38.7 [   39.1] x1.82 ok | M=12    50.1 [   50.4] x2.36 ok | M=16    60.7 [   61.0] x2.86 ok
+i8 xp2     | | M= 2    21.3 [   22.0] x1.00 ok | M= 4    23.7 [   24.0] x1.11 ok | M= 8    27.6 [   27.6] x1.30 ok | M=12    31.5 [   31.5] x1.48 ok | M=16    35.5 [   35.6] x1.67 ok
+i8 xp4     | | M= 2    21.3 [   21.5] x1.00 ok | M= 4    23.6 [   23.6] x1.11 ok | M= 8    25.9 [   26.0] x1.22 ok | M=12    29.3 [   29.3] x1.38 ok | M=16    34.7 [   34.8] x1.63 ok
+## total mismatches 0
+## mxr3 512x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    10.8 [   15.6] x1.00 ok | | | | |
+bf16 rows  | | M= 2    14.2 [   15.4] x1.31 ok | M= 4    16.5 [   16.6] x1.52 ok | M= 8    21.8 [   21.9] x2.01 ok | M=12    27.2 [   27.3] x2.51 ok | M=16    32.7 [   32.7] x3.02 ok
+i8 xp2     | | M= 2    11.7 [   11.8] x1.08 ok | M= 4    12.3 [   12.4] x1.13 ok | M= 8    14.1 [   14.2] x1.30 ok | M=12    15.7 [   15.7] x1.45 ok | M=16    17.9 [   18.0] x1.66 ok
+i8 xp4     | | M= 2    11.5 [   11.7] x1.06 ok | M= 4    12.4 [   12.4] x1.15 ok | M= 8    13.6 [   13.7] x1.25 ok | M=12    15.1 [   15.2] x1.40 ok | M=16    16.5 [   16.6] x1.53 ok
+## total mismatches 0
+## mxr3 24x5120 act=1 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1     8.6 [   12.2] x1.00 ok | | | | |
+bf16 rows  | | M= 2    14.5 [   15.6] x1.69 ok | M= 4    16.6 [   16.8] x1.94 ok | M= 8    22.0 [   22.0] x2.56 ok | M=12    27.3 [   27.3] x3.17 ok | M=16    32.4 [   32.4] x3.77 ok
+i8 xp2     | | M= 2    11.1 [   11.1] x1.29 ok | M= 4    12.0 [   12.1] x1.39 ok | M= 8    13.7 [   13.8] x1.59 ok | M=12    15.7 [   17.1] x1.82 ok | M=16    18.0 [   18.0] x2.09 ok
+i8 xp4     | | M= 2    11.5 [   16.2] x1.33 ok | M= 4    12.4 [   12.5] x1.44 ok | M= 8    13.5 [   13.6] x1.58 ok | M=12    15.0 [   15.2] x1.75 ok | M=16    16.4 [   16.5] x1.92 ok
+## total mismatches 0
+## mxr3 17408x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    78.3 [   78.5] x1.00 ok | | | |
+bf16 rows  | | M= 2    81.2 [   81.4] x1.04 ok | M= 4    92.8 [   93.1] x1.18 ok | M= 8   144.2 [  154.0] x1.84 ok | M=16   275.7 [  277.6] x3.52 ok
+i8 xp2     | | M= 2   117.3 [  120.1] x1.50 ok | M= 4   152.3 [  154.2] x1.94 ok | M= 8   235.7 [  237.1] x3.01 ok | M=16   445.8 [  446.5] x5.69 ok
+i8 xp4     | | M= 2   116.9 [  120.6] x1.49 ok | M= 4   155.0 [  156.6] x1.98 ok | M= 8   239.0 [  240.2] x3.05 ok | M=16   445.4 [  445.8] x5.69 ok
+## total mismatches 0
+## mxr3 5120x17408 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    77.9 [   78.2] x1.00 ok | | | |
+bf16 rows  | | M= 2    85.8 [   86.2] x1.10 ok | M= 4   103.6 [  104.1] x1.33 ok | M= 8   148.3 [  158.8] x1.90 ok | M=16   278.1 [  279.6] x3.57 ok
+i8 xp2     | | M= 2   128.2 [  132.7] x1.65 ok | M= 4   164.2 [  169.6] x2.11 ok | M= 8   251.9 [  252.9] x3.24 ok | M=16   459.8 [  460.2] x5.91 ok
+i8 xp4     | | M= 2   128.6 [  132.8] x1.65 ok | M= 4   166.8 [  171.1] x2.14 ok | M= 8   254.3 [  255.5] x3.27 ok | M=16   459.2 [  459.6] x5.90 ok
+## total mismatches 0
+## mxr3 12288x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    57.4 [   57.7] x1.00 ok | | | |
+bf16 rows  | | M= 2    60.7 [   61.1] x1.06 ok | M= 4    70.5 [   70.8] x1.23 ok | M= 8   107.0 [  108.3] x1.86 ok | M=16   186.6 [  200.7] x3.25 ok
+i8 xp2     | | M= 2    86.6 [   89.9] x1.51 ok | M= 4   110.8 [  113.0] x1.93 ok | M= 8   169.4 [  171.7] x2.95 ok | M=16   321.1 [  321.7] x5.59 ok
+i8 xp4     | | M= 2    86.6 [   90.0] x1.51 ok | M= 4   112.3 [  114.5] x1.96 ok | M= 8   172.9 [  174.4] x3.01 ok | M=16   321.0 [  321.6] x5.59 ok
+## total mismatches 0
+## mxr3 10240x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    48.8 [   50.1] x1.00 ok | | | |
+bf16 rows  | | M= 2    52.1 [   52.4] x1.07 ok | M= 4    61.4 [   61.7] x1.26 ok | M= 8    92.8 [   93.7] x1.90 ok | M=16   158.5 [  161.5] x3.25 ok
+i8 xp2     | | M= 2    75.7 [   79.0] x1.55 ok | M= 4    94.4 [   96.4] x1.94 ok | M= 8   143.4 [  145.7] x2.94 ok | M=16   268.9 [  269.0] x5.52 ok
+i8 xp4     | | M= 2    75.1 [   78.6] x1.54 ok | M= 4    95.6 [   97.6] x1.96 ok | M= 8   145.8 [  147.3] x2.99 ok | M=16   268.8 [  269.2] x5.51 ok
+## total mismatches 0
+## mxr3 6144x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    32.2 [   35.4] x1.00 ok | | | |
+bf16 rows  | | M= 2    36.4 [   36.8] x1.13 ok | M= 4    42.6 [   43.1] x1.33 ok | M= 8    61.4 [   61.9] x1.91 ok | M=16   103.9 [  105.7] x3.23 ok
+i8 xp2     | | M= 2    51.3 [   52.2] x1.59 ok | M= 4    62.2 [   62.4] x1.93 ok | M= 8    87.4 [   92.2] x2.72 ok | M=16   172.2 [  173.1] x5.36 ok
+i8 xp4     | | M= 2    51.6 [   53.3] x1.61 ok | M= 4    63.1 [   64.5] x1.96 ok | M= 8    95.6 [   97.0] x2.97 ok | M=16   171.5 [  172.8] x5.33 ok
+## total mismatches 0
+## mxr3 5120x6144 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    32.6 [   34.1] x1.00 ok | | | |
+bf16 rows  | | M= 2    41.0 [   41.3] x1.26 ok | M= 4    54.1 [   54.3] x1.66 ok | M= 8    74.9 [   75.3] x2.30 ok | M=16   112.5 [  114.0] x3.45 ok
+i8 xp2     | | M= 2    53.7 [   54.7] x1.65 ok | M= 4    63.1 [   63.7] x1.93 ok | M= 8    90.8 [   96.0] x2.78 ok | M=16   170.5 [  171.2] x5.22 ok
+i8 xp4     | | M= 2    54.3 [   56.8] x1.66 ok | M= 4    64.4 [   65.3] x1.97 ok | M= 8    93.7 [   95.8] x2.87 ok | M=16   169.7 [  170.9] x5.20 ok
+## total mismatches 0
+## mxr3 1024x5120 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    10.8 [   17.5] x1.00 ok | | | |
+bf16 rows  | | M= 2    12.8 [   13.5] x1.18 ok | M= 4    15.4 [   15.5] x1.42 ok | M= 8    20.9 [   21.3] x1.93 ok | M=16    34.1 [   34.4] x3.15 ok
+i8 xp2     | | M= 2    18.2 [   18.6] x1.68 ok | M= 4    22.3 [   22.4] x2.06 ok | M= 8    30.7 [   30.7] x2.83 ok | M=16    51.2 [   51.6] x4.73 ok
+i8 xp4     | | M= 2    18.0 [   18.1] x1.66 ok | M= 4    22.1 [   22.2] x2.04 ok | M= 8    30.3 [   30.4] x2.79 ok | M=16    50.3 [   50.4] x4.64 ok
+## total mismatches 0
+## mxr3 8704x5120 act=0 iters=200 rounds=3 (shape rule XP=2); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    42.3 [   45.2] x1.00 ok | | | |
+bf16 rows  | | M= 2    46.8 [   47.1] x1.11 ok | M= 4    54.3 [   54.9] x1.28 ok | M= 8    81.2 [   81.9] x1.92 ok | M=16   137.5 [  140.5] x3.25 ok
+i8 xp2     | | M= 2    65.6 [   66.4] x1.55 ok | M= 4    80.7 [   84.2] x1.91 ok | M= 8   122.1 [  125.8] x2.89 ok | M=16   236.8 [  237.5] x5.60 ok
+i8 xp4     | | M= 2    66.5 [   69.4] x1.57 ok | M= 4    82.5 [   85.3] x1.95 ok | M= 8   128.5 [  129.9] x3.04 ok | M=16   236.7 [  237.4] x5.59 ok
+## total mismatches 0
+## mxr3 5120x8704 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    42.9 [   46.1] x1.00 ok | | | |
+bf16 rows  | | M= 2    46.7 [   47.0] x1.09 ok | M= 4    58.5 [   58.9] x1.36 ok | M= 8    86.3 [   86.8] x2.01 ok | M=16   144.5 [  148.1] x3.37 ok
+i8 xp2     | | M= 2    62.7 [   64.2] x1.46 ok | M= 4    86.5 [   88.3] x2.02 ok | M= 8   132.7 [  134.6] x3.09 ok | M=16   242.8 [  243.6] x5.66 ok
+i8 xp4     | | M= 2    65.9 [   68.9] x1.53 ok | M= 4    87.4 [   88.8] x2.04 ok | M= 8   132.5 [  133.6] x3.09 ok | M=16   243.5 [  245.3] x5.67 ok
+## total mismatches 0
+## mxr3 5120x3072 act=0 iters=200 rounds=3 (shape rule XP=4); us per call incl. pre-pass, min over rounds [max]; x = ratio to prod1 M=1; bitwise vs prod1 per row
+prod1      | M= 1    18.5 [   24.3] x1.00 ok | | | |
+bf16 rows  | | M= 2    21.7 [   22.2] x1.18 ok | M= 4    26.1 [   26.5] x1.42 ok | M= 8    36.6 [   37.1] x1.98 ok | M=16    60.9 [   61.5] x3.30 ok
+i8 xp2     | | M= 2    33.0 [   33.9] x1.79 ok | M= 4    38.1 [   38.2] x2.07 ok | M= 8    51.8 [   52.7] x2.81 ok | M=16    89.1 [   90.2] x4.83 ok
+i8 xp4     | | M= 2    31.8 [   32.3] x1.72 ok | M= 4    36.5 [   36.6] x1.98 ok | M= 8    50.7 [   50.8] x2.75 ok | M=16    89.6 [   93.8] x4.86 ok
+## total mismatches 0

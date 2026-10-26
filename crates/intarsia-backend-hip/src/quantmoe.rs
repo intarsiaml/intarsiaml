@@ -31,9 +31,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_mxfp4_mma_fold", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv", Op::MatmulMxfp4Pair),
     // row-exact twins of the two GEMVs (`rows_exact`, M <= ROWS_MAX = 16): M == 1 is the GEMV launcher itself, M = 2..16 runs
-    // mxfp4_gemv_rows_kernel, which keeps the arithmetic of every output row of the one-row kernel (same lane-to-group map,
-    // same fma chain, same warp sum; the activation QDQ is per group of 32) with a register shape that does not grow with M,
-    // tests/rows_exact.rs
+    // mxfp4_i8_rows_kernel (W4A4: the group sums are exact, so an int8 dot4 gives the one-row kernel's t bitwise; then the same
+    // lane-to-group map, fma(t, s, acc) and warp sum; the pair as one launch) or, with INTARSIA_HIP_MXFP4_I8=0, the bf16
+    // mxfp4_gemv_rows_kernel; both keep every output row bitwise the one-row kernel's, tests/rows_exact.rs
     ("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair),
     ("moe_topk_bf16", Op::MoeTopk),
@@ -548,7 +548,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
-                    .scratch(|s| s.m * s.k * 2 + 16)
+                    // M >= 2: the exact int8 path's pre-pass output (bf16 QDQ copy, int8 codes, group scales, flags:
+                    // mx_i8_scratch in kernels/hip/mxfp4.hip); M == 1 reads the first m * k * 2 bytes as before
+                    .scratch(|s| s.m * s.k * 2 + s.m * s.k + s.m * s.k / 8 + s.m * 32 + 64)
                     .priority(-1)
                     .rows_exact(),
                 "matmul_mxfp4_mma" => k

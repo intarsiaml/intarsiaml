@@ -1,0 +1,28 @@
+fleetq: #5740 waiting (#2 in line): in line behind #5739 "mxr w4: MXFP4 int8 rows gates (rows_exact, mutants, quick/admission, no-op 8B/35B/27B, batched==solo, tp2 ids, timing), both cards (radiance down)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5739 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5739 set, or it will wait for #5739 to be released.
+fleetq: #5740 waiting (#2 in line): in line behind #5739 "mxr w4: MXFP4 int8 rows gates (rows_exact, mutants, quick/admission, no-op 8B/35B/27B, batched==solo, tp2 ids, timing), both cards (radiance down)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2; #5739 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5739 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5739 set, or it will wait for #5739 to be released.
+fleetq: #5740 waiting (#1 in line): #5739 "mxr w4: MXFP4 int8 rows gates (rows_exact, mutants, quick/admission, no-op 8B/35B/27B, batched==solo, tp2 ids, timing), both cards (radiance down)" (claude-f31ccf91) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #5739 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5739 set, or it will wait for #5739 to be released.
+fleetq: #5740 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-mxr-dev/scripts/mxr/cbuild.sh dev notests && bash ~/intarsiaml-mxr-dev/scripts/mxr/mutants.sh'
+== dev 10:40:26: intarsia
+    Finished `release` profile [optimized] target(s) in 11.16s
+== dev 10:40:37: tests (compile only)
+    Finished `release` profile [optimized] target(s) in 0.05s
+  Executable tests/admission.rs (/target/release/deps/admission-505212eeaca09fd4)
+  Executable tests/quick_coverage.rs (/target/release/deps/quick_coverage-cf4ce98208bf14f9)
+  Executable tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+  Executable tests/rows_registry.rs (/target/release/deps/rows_registry-af40d2445d91e889)
+    Finished `release` profile [optimized] target(s) in 0.06s
+  Executable tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+/dev/nvme0n1p1  1.9T  796G  1.1T  43% /data
+BUILD DONE 10:40:38
+clean      75dc598eef7c8ebc
+m1-noflag  4fc83a9199ea865b
+m2-xscale  351b696239892822
+m3-pairing 97e7255f91bbc8b6
+m4-chainorder abcb1184ee9f456f
+clean2     75dc598eef7c8ebc (clean rebuilt after the mutants; equal to clean: yes)
+MUTANTS BUILT 10:45:40
+fleetq: #5740 done (exit 0)
+exit 0

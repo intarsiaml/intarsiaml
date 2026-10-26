@@ -193,7 +193,11 @@ impl QTensor {
         let f32_out = out.dtype == DType::F32;
         let mut inputs = vec![x];
         inputs.extend(self.parts.iter().cloned());
-        let attrs = OpAttrs { fp8_static_act: self.format == FP8_E4M3 && self.act_quant, ..OpAttrs::default() };
+        let attrs = OpAttrs {
+            fp8_static_act: self.format == FP8_E4M3 && self.act_quant,
+            mxfp4_w4a16: self.format == MXFP4 && !self.act_quant,
+            ..OpAttrs::default()
+        };
         OpCall::new(self.op(f32_out), inputs, vec![out], attrs)
     }
 
