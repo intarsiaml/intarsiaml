@@ -48,8 +48,12 @@ MUTANTS = {
         "                    ci += glen;"),
     # the KV-only head ingest writes its rows at position 0 instead of the cache length (lane mpf)
     "head-kvonly-pos": ("crates/intarsia-core/src/model/mtp.rs",
-        "self.attn_block_kv_only(&head.attn, kv, &n, t, kv.len, false, profile)?;",
-        "self.attn_block_kv_only(&head.attn, kv, &n, t, 0, false, profile)?;"),
+        "let r = self.attn_block_kv_only(&head.attn, kv, &n, t, kv.len, false, profile);",
+        "let r = self.attn_block_kv_only(&head.attn, kv, &n, t, 0, false, profile);"),
+    # the KV-only head ingest keeps running the q projection's consumer but not its producer: the skip flag also covers the next full layer
+    "head-skipq-sticky": ("crates/intarsia-core/src/model/mtp.rs",
+        "            self.kv_only_skip_q.store(false, std::sync::atomic::Ordering::Relaxed);\n            r?;",
+        "            r?;"),
     # the KV-only head ingest is used for the piece whose output the first draft needs (lane mpf)
     "head-kvonly-last": ("crates/intarsia-core/src/model/mtp.rs",
         "                if next.is_none() || done + c < n {",
