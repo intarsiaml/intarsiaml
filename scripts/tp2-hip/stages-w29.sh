@@ -47,14 +47,17 @@ variant() { need 215 "$1" && clear "$1" && repro "$@"; }
 # The ledger's cumulative `issued` equals the device counter minus a constant 721 on rank 0 (6619-5898) and 722 on rank 1: rank 1 launched ONE collective kernel that no ledger
 # line accounts for, somewhere in the solo rows of the failing batch (the previous probe, 6150/6150, was equal). Every ledger line now carries `dev=<rank0>/<rank1>` (the host
 # counters read when the line is written), 400 lines are dumped: the first line where (dev1 - issued1) exceeds (dev0 - issued0) names the pass that launched the extra kernel.
-E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1"
+E="INTARSIA_REPRO_REPS=8 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_COMM_LOG=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_TP_BATCH_SYNC=0"
 E20="${E/REPS=8/REPS=20}"
 # the minimal repro (3 fresh states, one batched step of 3 rows, ~4 s a rep) also fails with host counters (w28 m1: rep 3 of 4): its failing rep has the SAME +1 (1402/1403 after the
 # solo rows against 1412/1412 in every passing rep, host call log 1412), and both ranks 9-10 launches short of the host accounting. Its ledger is short: start with it.
-M="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1"
+M="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STATES=2 INTARSIA_REPRO_BATCH_BETWEEN=1 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_CTRS=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1 INTARSIA_HIP_CTRS_HOST=1 INTARSIA_TP_BATCH_SYNC=0"
+# the mitigation (branch lane-tp2/batch-sync, default ON: every rank's stream idle before a batched tp step) is exercised with INTARSIA_TP_BATCH_SYNC unset; diagnostics set it to 0
+Y="INTARSIA_REPRO_REPS=20 INTARSIA_REPRO_STEPS=2 INTARSIA_TP_COLL_TRACE=1 INTARSIA_REPRO_WATCHDOG=12 INTARSIA_REPRO_WD_SOLO=1"
 variant m1-minimal-dev 200 $SO $M
 variant m2-minimal-dev 200 $SO $M
-variant m3-minimal-dev 200 $SO $M
+variant y1-size-loop-sync-on 330 $FS $Y
+variant y2-size-loop-sync-on 330 $FS $Y
+variant y3-size-loop-sync-on-40 500 $FS ${Y/REPS=20/REPS=40}
 variant h1-host-ctrs-dev 330 $FS $E20
-variant h2-host-ctrs-dev 330 $FS $E20
 log "done, time left $(left)s"

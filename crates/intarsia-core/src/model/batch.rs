@@ -468,6 +468,7 @@ impl Model {
         profile: bool,
     ) -> Result<Vec<StepOut>> {
         self.tp_skew();
+        self.sync_ranks_before_batch()?;
         let b = ids.len();
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
         let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
@@ -668,6 +669,21 @@ impl Model {
     /// is the pass the ranks decided differently.
     pub fn coll_trace_dump(&self) -> Vec<String> {
         self.coll_trace.dump()
+    }
+
+    /// A batched tensor-parallel step starts with every rank's stream idle. A peer rank only enqueues its share of a step (rank 0's download
+    /// orders rank 0 alone), so after a solo decode step (a captured graph replay) the peer's stream can still be draining when the batched
+    /// step's first collective launches. On the 27B tp2 size-loop reproduction (fresh solo states, then a batched step) every control run went
+    /// wrong (the two ranks' collective launch counters differ by one, batched logits wrong in every row, a later collective hangs until the
+    /// bounded wait traps 0x1016); with the streams idle between the solo rows and the batched step it did not in 20 of 20. The root cause is
+    /// not pinned down (ending each peer step with a sync did not help, so it is not only the peer's drain): this is the mitigation.
+    /// `INTARSIA_TP_BATCH_SYNC=0` turns it off (diagnostics). One stream synchronise per rank per batched step.
+    fn sync_ranks_before_batch(&self) -> Result<()> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if self.tp.world > 1 && *ON.get_or_init(|| std::env::var("INTARSIA_TP_BATCH_SYNC").map_or(true, |v| v != "0")) {
+            self.sync_all_ranks()?;
+        }
+        Ok(())
     }
 
     /// Debugging (w26): wait until every rank's stream is idle (rank 0 and each peer), so nothing a rank enqueued earlier (a peer's
