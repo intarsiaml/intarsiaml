@@ -1,0 +1,25 @@
+fleetq: #5798 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5798 running on spark1: ssh spark1 'bash -s'
+def-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-plain short-0: 7769fe3459348513 94 'Subject: Heating issue in [Apartment Num'
+def-plain spec steps: intarsia_spec_steps_total 143 
+def-plain default line: 1
+def-store 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-store 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-store short-0: 7769fe3459348513 94 'Subject: Heating issue in [Apartment Num'
+def-store spec steps: intarsia_spec_steps_total 143 
+def-store default line: 1
+off-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+off-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+off-plain short-0: 7769fe3459348513 94 'Subject: Heating issue in [Apartment Num'
+off-plain spec steps: intarsia_spec_steps_total 0 
+off-plain default line: 0
+off-store 4k-0: 7615e5fea21d8398 128 'Here is a section-by-section summary of '
+off-store 4k-0: 7615e5fea21d8398 128 'Here is a section-by-section summary of '
+off-store short-0: 05e02a546c024b8f 100 'Subject: Heating issue in [Apartment Num'
+off-store spec steps: intarsia_spec_steps_total 0 
+off-store default line: 0
+PASS user path: default (plain, store) answers == spec-off without a store (1a3ed833e36a3118 1a3ed833e36a3118 7769fe3459348513 )
+INFO spec-off WITH the prefix store differs from spec-off without it (7615e5fea21d8398 7615e5fea21d8398 05e02a546c024b8f  vs 1a3ed833e36a3118 1a3ed833e36a3118 7769fe3459348513 ): the store changes prefill numerics on its own, with or without MTP
+fleetq: #5798 done (exit 0)

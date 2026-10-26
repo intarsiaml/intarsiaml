@@ -1,2 +1,10 @@
 fleetq: #5797 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
 fleetq: #5797 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s cuda-perrow-off 16k-0 16k-1 16k-2 16k-3 16k-4 16k-5'
+FAIL ids 16k-0 mtp (prompt: 15481) differ/empty | spec: verify passes=105 proposed=210 accepted=150 (acceptance 71.4%, 2.43 tokens per pass)
+FAIL ids 16k-1 mtp (prompt: 15856) differ/empty | spec: verify passes=110 proposed=220 accepted=144 (acceptance 65.5%, 2.31 tokens per pass)
+FAIL ids 16k-2 mtp (prompt: 16305) differ/empty | spec: verify passes=114 proposed=228 accepted=141 (acceptance 61.8%, 2.24 tokens per pass)
+FAIL ids 16k-3 mtp (prompt: 16134) differ/empty | spec: verify passes=100 proposed=200 accepted=154 (acceptance 77.0%, 2.54 tokens per pass)
+FAIL ids 16k-4 mtp (prompt: 16290) differ/empty | spec: verify passes=120 proposed=239 accepted=135 (acceptance 56.5%, 2.12 tokens per pass)
+FAIL ids 16k-5 mtp (prompt: 15933) differ/empty | spec: verify passes=97 proposed=194 accepted=158 (acceptance 81.4%, 2.63 tokens per pass)
+ids fails=6
+fleetq: #5797 done (exit 0)

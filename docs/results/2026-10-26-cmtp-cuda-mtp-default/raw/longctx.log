@@ -1,0 +1,57 @@
+fleetq: #5799 waiting (#1 in line): needs gpu quiet on spark1, but #5798 "cmtp: user path rerun" (claude-f31ccf91) loads it
+fleetq:   #5798 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5798 set, or it will wait for #5798 to be released.
+fleetq: #5799 running on spark1: scripts/cmtp/longctx.sh 2
+== off-r1 15:55:36
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 58.6 | 80.2 (80.2–80.2) | 0.59 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-155614-adhoc-cmtp-lc-off-r1/result.json
+[localeval] logged to unanimis: 3974d75b-b7cb-49a5-8123-7dcb041369e7
+== auto-r1 15:57:03
+| 1 | 59.3 | 90.5 (90.5–90.5) | 0.75 |
+
+## Warnings
+
+- decode spread 13.9% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-155814-adhoc-cmtp-lc-auto-r1/result.json
+[localeval] logged to unanimis: 16594fe9-4500-4b67-99bc-03a51c53dce5
+== auto-r2 15:59:24
+| 1 | 65.2 | 105.3 (105.3–105.3) | 0.75 |
+
+## Warnings
+
+- decode spread 19.6% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-160025-adhoc-cmtp-lc-auto-r2/result.json
+[localeval] logged to unanimis: 2d0211ab-f75c-4a61-95bd-e6e4cc754af3
+== off-r2 16:01:35
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 58.7 | 80.2 (80.2–80.2) | 0.59 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-160226-adhoc-cmtp-lc-off-r2/result.json
+[localeval] logged to unanimis: 23519ebe-26e0-423d-b026-bef47b14be3a
+== longctx done
+fleetq: #5799 done (exit 0)
