@@ -1,0 +1,1 @@
+VOID: single-phase config (max-batch 16 for every row) left the tp1 context at 16223, so the 16k prefill/decode row was skipped ('exceeds context 16223') and only 1k/4k rows ran. Window stopped after round 1 by coordinator request; not averaged into any table. Rerun uses PHASES b1 (max-batch 1, 1k/4k/16k) and b16 (max-batch 16, 1k, 4/16 streams) as in w10.

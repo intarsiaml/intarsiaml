@@ -1,0 +1,10 @@
+04:49:45 final stage 4 start, CAP 500s, pre-change ebf95d0, VRAM in use 57 MiB
+04:51:01 kernels-full-b exit 0: 
+04:51:02 kernels-full-d exit 0: 
+04:51:02 kernels full d: 67 admitted lines, 10 not admitted
+04:51:02 kernels full b: 67 admitted lines, 10 not admitted
+04:51:09 gen-mut-ref2 exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+04:51:15 gen-mut-peer-ignores-flag exit 0: steps=257 graph replays=256 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/20816 argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257|tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0|
+04:51:15 MUTANT peer-ignores-flag: clean tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256 | mutant tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+04:51:15 SAME not-admitted kernel list, head vs main
+04:51:15 final stage 4 done, time left 410s

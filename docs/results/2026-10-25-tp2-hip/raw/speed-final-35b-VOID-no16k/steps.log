@@ -1,0 +1,9 @@
+04:00:26 guard: [guard] radiance stopped 2026-10-26 04:00:26
+04:00:26 phase main round 1 arm tp1: starting server
+04:00:42 phase main round 1 arm tp1: server up, localeval
+04:01:20 phase main round 1 arm tp1: localeval exit 0 - result file: `results/20261026-040042-adhoc-tp2final35-main-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-040042-adhoc-tp2final35-main-tp1-r1/result.json|
+04:01:20 phase main round 1 arm tp2: starting server
+04:01:33 phase main round 1 arm tp2: server up, localeval
+04:02:06 phase main round 1 arm tp2: localeval exit 0 - result file: `results/20261026-040133-adhoc-tp2final35-main-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261026-040133-adhoc-tp2final35-main-tp2-r1/result.json|
+04:02:07 phase main round 2 arm tp2: starting server
+04:02:23 guard: [guard] radiance answers 2026-10-26 04:02:23 (after 15 s)
