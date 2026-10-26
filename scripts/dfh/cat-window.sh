@@ -26,7 +26,7 @@ T0=$(date +%s); left() { echo $(( CAP - ($(date +%s) - T0) )); }
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
 FIFO=$(mktemp -u "$REPO/target/dfhguard.XXXXXX"); mkfifo "$FIFO"
-$SSH 'mkdir -p ~/dfh' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" tatooine:dfh/
+$SSH 'mkdir -p ~/dfh' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" tatooine:dfh/
 $SSH 'bash ~/dfh/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
 exec 9> "$FIFO"
@@ -37,6 +37,16 @@ cleanup() { $SSH 'docker rm -f dfh-serve' >/dev/null 2>&1 < /dev/null; exec 9>&-
   echo "$(date +%F) fleetq #$FLEETQ_JOB $W radiance stopped $start answers ${back:-NEVER} (guard.log in raw/$W)" >> "$OUT/../downtime.log"; }
 trap cleanup EXIT
 
+# PRE=ids: first the 27B ids gate (scripts/dfh/stages-ids.sh ON tatooine, IDARMS / TPS passed through, at most PRE_CAP s), its
+# output fetched into raw/<W>/ids/
+if [[ ${PRE:-} == ids ]]; then
+  say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
+  $SSH "rm -rf ~/dfh/out/$W-ids; mkdir -p ~/dfh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' timeout ${PRE_CAP:-1200} bash ~/dfh/stages-ids.sh ~/dfh/out/$W-ids" \
+    < /dev/null > "$OUT/ids-pre.log" 2>&1
+  say "pre: ids exit $?"
+  mkdir -p "$OUT/ids"; scp -q "tatooine:dfh/out/$W-ids/*" "$OUT/ids/" 2>/dev/null
+  say "pre: $(grep -h 'ids summary' "$OUT/ids/steps.log" | cut -c10- | tr '\n' '|')"
+fi
 if [[ ${PROBE:-0} == 1 ]]; then
   say "probe: tests/dflash2_real.rs on card 0"
   $SSH "export O=\$HOME/dfh/out/$W; mkdir -p \$O; source ~/dfh/lib.sh; E='INTARSIA_DFLASH2_TARGET=$M27 INTARSIA_DFLASH2_DRAFT=$DRAFT INTARSIA_DFLASH2_LEN=3000' mtest $TREE probe27 0 600 --test dflash2_real -- --nocapture; cat \$O/mtest-probe27.log" < /dev/null > "$OUT/mtest-probe27.log" 2>&1

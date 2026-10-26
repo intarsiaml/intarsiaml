@@ -165,7 +165,7 @@ struct Out {
     completion_tokens: usize,
 }
 
-fn run(e: &LocalEngine, req: GenRequest) -> Out {
+fn run(e: &dyn Engine, req: GenRequest) -> Out {
     let (mut ids, mut done) = (vec![], None);
     e.generate(req, &mut |ev| match ev {
         GenEvent::Token { id, .. } => ids.push(id),
@@ -240,6 +240,56 @@ fn mtp_tp2_greedy_ids_equal_spec_off() {
             if script {
                 assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
             }
+        }
+    }
+}
+
+/// The model as a checkpoint directory (config, weights with the MTP head, a word-level tokenizer) for the engine loader.
+fn model_dir() -> PathBuf {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::copy(fixture_dir().join("config.json"), dir.join("config.json")).unwrap();
+    let w = weights();
+    let ts: Vec<(String, HostTensor)> = w
+        .names()
+        .into_iter()
+        .map(|n| {
+            let info = w.info(&n).unwrap();
+            let t = HostTensor::new(info.dtype, info.shape.clone(), w.bytes(&n).unwrap().to_vec()).unwrap();
+            (n, t)
+        })
+        .collect();
+    let refs: Vec<(&str, &HostTensor)> = ts.iter().map(|(n, t)| (n.as_str(), t)).collect();
+    intarsia_models::safetensors::write_safetensors(&dir.join("model.safetensors"), &refs).unwrap();
+    let vocab: serde_json::Map<String, serde_json::Value> = (0..V).map(|i| (format!("t{i}"), i.into())).collect();
+    let tok = serde_json::json!({
+        "version": "1.0", "truncation": null, "padding": null, "added_tokens": [], "normalizer": null,
+        "pre_tokenizer": {"type": "Whitespace"}, "post_processor": null, "decoder": null,
+        "model": {"type": "WordLevel", "vocab": vocab, "unk_token": "t0"}
+    });
+    std::fs::write(dir.join("tokenizer.json"), tok.to_string()).unwrap();
+    dir
+}
+
+/// Through the engine loader (`load_engine_tp`, what `generate` / `serve` call): `--spec mtp` loads on an in-process tp=2 group
+/// (window 6 found the loader's backend gate still refusing it) and its greedy ids equal `--spec off`'s on the same group.
+#[test]
+fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
+    let dir = model_dir();
+    for tp_vocab in [true, false] {
+        let load = |spec: SpecMode| {
+            let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc() as Arc<dyn intarsia_core::backend::Backend>).collect();
+            let comms = intarsia_core::HostCommGroup::new(backends.clone());
+            let o = intarsia_models::EngineOptions {
+                load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), tp_vocab, ..Default::default() },
+                spec: SpecConfig { mode: spec, k: 2 },
+                ..Default::default()
+            };
+            intarsia_models::load_engine_tp(&dir, backends, comms, &o).unwrap_or_else(|e| panic!("tp=2 load with --spec {spec:?} (tp_vocab {tp_vocab}): {e}"))
+        };
+        let (off, on) = (load(SpecMode::Off), load(SpecMode::Mtp));
+        for p in PROMPTS {
+            assert_eq!(run(&*off.engine, req(p, 60)), run(&*on.engine, req(p, 60)), "loader tp2 tp_vocab {tp_vocab} prompt {p:?}");
         }
     }
 }

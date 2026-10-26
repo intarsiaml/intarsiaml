@@ -258,3 +258,78 @@ once or whose test binary hashes equal to the clean one; clean test binary sha25
 | `rollback-next-row` (recurrent rollback restores one row too late) | `62f61bd27b666918` | both ids gates |
 | `window-off-by-one` | `7ab399d098f566a7` | host reference, MLX parity |
 | `draft-norm-offset` (target's `1 + w` norms) | `d13ea3f63adbc6e0` | host reference, MLX parity |
+| `selector-pred` (the candidate selector reads the wrong predecessor) and `tp-peer-no-rollback` (rank 1 keeps its recurrent state after a rejection) | rerun at the lane head with the rest: `raw/mutants/cpu-mutants-head.log` | see section 11 |
+
+## 10. Windows 4 and 5: DFlash2 at tp=1 on HIP (exact; faster on code, slower on prose)
+
+**Window 4** (#5726, 09:37:24-09:40:36 radiance down; `raw/w4/`), tree `26b2dcafc` (argmax drafts, no selector yet):
+- 27B tp=1, 256 greedy ids, `--spec dflash --spec-k 7` vs off: **identical**, short and 4k (`gen-27b-*.ids`).
+- HIP G0 (8B, 35B; short, 4k; plan show JSON and text): **SAME** for all 12 comparisons against origin/main `ec9e36b85`.
+- GPU admission (`every_hip_kernel_matches_the_reference`) fails on **both** trees with the same set: 20 lines of `NO CASES (untested)` for
+  10 wmma kernels (`matmul_bf16_wmma`, `matmul_fp8_wmma`, their `_rows`, the pair / fused-norm variants), present on main. The lane's two
+  new kernels are admitted on the card (`dyn_conv_bf16`, `attn_decode_bf16_window`); the dev-vs-main diff of (kernel, verdict) is exactly
+  those two added lines. Pre-existing, not this lane's (reported to the coordinator); rerun at the head in window 6.
+
+**Window 5** (#5737, 09:55:49-10:23:00 radiance down; `raw/w5/`), tree `a4330ed0c` (selector on), 27B **tp=1** card 0, `serve
+--max-batch 1`, localeval `quality --judge none`, 512 forced tokens (ignore_eos + min_tokens), one round, 21 runs, 0 problems (every row
+512 tokens, same rows in every arm). Decode tok/s pooled per category, x vs off, tokens per verify pass from the server's counters:
+
+| category | off | `--spec dflash` k7 | `--spec mtp` k2 |
+|---|---|---|---|
+| ho-chat | 33.0 | 37.9, 1.15x, 3.07 t/p | 51.5, 1.56x, 2.30 t/p |
+| ho-code | 33.0 | 68.7, 2.08x, 5.58 t/p | 62.8, 1.90x, 2.80 t/p |
+| ho-prose | 33.0 | 30.2, **0.92x**, 2.47 t/p | 46.4, 1.41x, 2.08 t/p |
+| ho-recall | 33.0 | 43.0, 1.30x, 3.51 t/p | 52.1, 1.58x, 2.34 t/p |
+| rcp-code | 33.0 | 62.7, 1.90x, 5.11 t/p | 61.0, 1.85x, 2.72 t/p |
+| rcp-prose | 33.0 | 30.9, **0.94x**, 2.53 t/p | 46.4, 1.41x, 2.09 t/p |
+| rcp-recall | 33.0 | 48.5, 1.47x, 3.94 t/p | 54.1, 1.64x, 2.43 t/p |
+
+The w5 probe (`raw/w5/mtest-probe27.log`, 3000-token context): draft 23.5 ms for 7 drafts (0.77 of a plain step, 30.7 ms), of which
+`matmul` 10.4 ms (56 calls), the draft's logits 7.8 ms (one `[8, V]` bf16 head), `attn_decode` 4.4 ms (40 per-row calls); the row-exact
+verify8 65.1 ms (2.1x). A pass costs about 88.5 ms, so DFlash2 needs about 2.9 tokens per pass to break even: prose (2.5) loses.
+**Reading:** DFlash2 is opt-in and stays so (prose < 0.99x). `--spec mtp` k2 already wins in every category at tp=1 (its one-layer draft
+is cheap, 3 verify rows). The script ended with a bash syntax error after the last arm because `cat-window.sh` was edited while it ran
+(bash reads a script as it goes); every run had finished and radiance came back through the EXIT trap (`raw/w5/guard.log`).
+
+Coordinator 10:30 (decisions): (a) finish DFlash2 opt-in with its gates at tp=1 and tp=2, no draft-kernel tuning (follow-ups in
+section 13); one DFlash speed round at tp=2 is enough. (b) `--spec mtp` under tensor parallelism is in scope and comes first.
+
+## 11. `--spec mtp` under tensor parallelism (in-process ranks)
+
+**Design.** Rank 0 drafts and verifies, every rank runs every pass on its shard, in lockstep (their all-reduces pair up):
+- **The head is sharded like the model's layers** (`model/mtp.rs` `load_head`, `tp_world`): q / k / v / gate / up by rows, o / down by
+  columns, `fc` and the norms replicated; each rank's MTP KV cache holds its own KV heads (`ldims`). The MoE head (35B) is refused under
+  tp (its experts are not sharded).
+- **Queue and catch-up on every rank**: a peer's plain step (graph replay or chunks, `run_peer_inner`) and its verify pass
+  (`verify_peer`) queue their hidden rows into the peer's own `MtpState` exactly where rank 0 does (`forward_inner`,
+  `forward_verify_tp`), so the catch-up passes (with their all-reduces) happen at the same points on all ranks. Peer states get their
+  `MtpState` and `SpecRows` at `new_state`; the engine switches drafting on every rank (`m.active`).
+- **Drafting** (`Model::mtp_draft_tp`): each rank runs `mtp_draft_rank` on a thread; the catch-up and every chained pass run on all
+  ranks; rank 0 takes each draft's argmax and sends the id to the peers over a channel (they embed it for the next chained pass);
+  `None` or a dropped channel ends the chain, an error aborts the communicator. Every rank's head cache returns to the committed length.
+- **Draft head on rank 0 only**: the reduced head (`--mtp-draft-vocab`, 65536 for the 27B) is a row prefix of rank 0's own share of a
+  vocab-parallel head when it fits (V / world = 124160 rows for the 27B); otherwise rank 0 keeps a whole copy of the head (as the DFlash
+  drafter does). No collective in a draft's head.
+- **Verify and rollback**: section 9's tensor-parallel verify (every rank saves its own recurrent rows; `spec_rollback` rolls back every
+  rank, its MTP state included). The captured speculative step (`spec_step`) and verify graph stay single-rank (`tp.world == 1`), so
+  under tp the draft and the verify pass run eagerly (tp=1 measured eager within 0.2-2% of captured, section 8).
+- Loader (`crates/intarsia-models/src/load.rs`): `--spec mtp` with a rank in another process stays refused (`Group::Remote`); in-process
+  groups load. `tests/tp_mtp_refused.rs` became `tests/tp_mtp.rs`.
+
+**cpu gates** (`crates/intarsia-models/tests/tp_mtp.rs`, dense tiny hybrid `tests/fixtures/tiny_qwen3_5` + a random bf16 MTP head, f32):
+
+| test | result |
+|---|---|
+| drafts at tp=2 vs tp=1 (3 prompts, after prefill and after two plain steps, k 3), replicated head and vocab-parallel head, draft vocab 0 (whole copy on rank 0) and 40 (inside rank 0's 48-row share) | identical in 12 of 12 |
+| greedy ids `--spec mtp` vs off at tp=2, k 1 and 3 (head's drafts), k 2 and 3 scripted (all / some / none accepted), max_tokens 90, 1, 4, 7, both head layouts | identical; scripted k 3: 185 of 308 accepted |
+
+Regression: `mtp`, `dflash2_cpu`, `tp`, `tp_hybrid`, `tp_vocab`, `tp_batch`, `spec`, `dflash_cpu`, `hybrid`, `engine` all pass.
+
+**Mutants** (`TEST=tp_mtp scripts/dfh/mutants.sh ...`, `raw/mutants/mtp-tp-mutants.log`, clean test binary sha256 `aaf836b0997e058b`):
+
+| mutant | binary sha256 | caught by |
+|---|---|---|
+| `tp-peer-no-rollback` (rank 1 keeps its state after a rejection) | `a827042ce24205c3` | `mtp_tp2_greedy_ids_equal_spec_off` |
+| `mtp-peer-stale-chain` (a peer does not keep its chained row) | `46a6143c301cf033` | `mtp_tp2_drafts_equal_tp1_drafts` |
+| `mtp-draft-head-slice` (rank 0 drafts over its vocab share instead of a whole head) | `7e234f401ae3902a` | `mtp_tp2_drafts_equal_tp1_drafts` |
+| `mtp-peer-no-verify-queue` (peers never queue the verify pass's rows) | `2c330c2cad42feca` | `mtp_tp2_greedy_ids_equal_spec_off` |

@@ -488,6 +488,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 "--spec dflash on {}: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)",
                 model.backend.name()
             );
+        } else if mtp && model.tp_world() > 1 {
+            // in-process tensor parallelism (lane dfh): every rank runs the verify pass on the row-exact kernels and the drafter's
+            // passes in lockstep with rank 0 (`Model::mtp_draft`); a rank in another process was refused above
+            if !model.has_mtp() {
+                return Err(Error::Unsupported("--spec mtp under tensor parallelism without the MTP head".into()));
+            }
+            eprintln!(
+                "--spec mtp on {} with tp={}: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)",
+                model.backend.name(),
+                model.tp_world()
+            );
         } else if mtp && model.backend.name() != "metal" && model.tp_world() == 1 && model.batch_capable() {
             // CUDA since lane rb2: the verify rows take the `_rows` kernels (G-B: bitwise the one-row kernel per row)
             eprintln!("--spec mtp on {}: verify rows run the row-exact kernels (bitwise the single-row decode per row)", model.backend.name());
