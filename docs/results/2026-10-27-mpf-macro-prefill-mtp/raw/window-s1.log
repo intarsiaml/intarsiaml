@@ -1,0 +1,4 @@
+fleetq: #5816 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5816 running on spark1: env W=s1 'ARMS=off mtp2' ROUNDS=3 CAP=5400 scripts/mpf/window.sh
+fleetq: #5816 went ahead of the line and must end within 3h26m (by Mon 23:00); it is stopped then
+19:33:41 round 1 arm off: starting server (--spec off)
