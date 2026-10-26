@@ -5,7 +5,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 OUTN=$1; shift; ARMS=("$@"); HOST=${HOST:-spark2}
-RAW=/opt/code/intarsiaml/.worktrees/sk2/docs/results/2026-10-25-sk2-serve-macro/raw/$OUTN; mkdir -p "$RAW"
+RAW=/opt/code/intarsiaml/.worktrees/sk3/docs/results/2026-10-26-sk3-spark-decode/raw/$OUTN; mkdir -p "$RAW"
 for a in "${ARMS[@]}"; do
   IFS=: read -r name tree envs <<< "$a"; envs=${envs//,/ }
   for chars in ${CHARS:-3300 13600 54700}; do
