@@ -4,6 +4,7 @@
 #   GB   : G-B (tests/moe_block.rs incl. the grouped block, negative controls, graph replay; rows_exact; rows_registry)
 #   GC   : G-C 35B batched == solo (17,550 pairs) + batch_recurrent (tiny hybrid)
 #   BENCH: moe_rows_timing at T = 3, 4 (is the grouped block better than the fused rows block there?)
+#   TIMING: model-loop step time at 2..16 rows (default / grouped off / main-like) + the B=16 profile
 #   NOOP : batching-off no-op, base vs dev: plan show (text + json) and 256 greedy ids (8B and 35B, short and 4k prompt)
 set -uo pipefail
 SECTIONS=${*:-GB GC NOOP}
@@ -34,6 +35,17 @@ if want BENCH; then
   echo "[gates] BENCH $(date +%T)"
   dev $RD $VD env INTARSIA_HIP_MOE_ROWS_BENCH=1 INTARSIA_HIP_MOE_ROWS_BENCH_T=${BENCH_T:-3,4} INTARSIA_HIP_MOE_ROWS_BENCH_G2=2:2 INTARSIA_REQUIRE_GPU=1 \
     cargo test --release -p intarsia-backend-hip --test moe_block moe_rows_timing -- --nocapture --test-threads=1 2>&1 | grep -aE "^moe_rows_timing|^  \(|^  G2=|^test |panicked|^error" | tee "$O/bench.log"
+fi
+if want TIMING; then
+  echo "[gates] TIMING $(date +%T)"
+  for cfg in "default:" "grouped0:INTARSIA_HIP_MOE_GROUPED=0" "main-like:INTARSIA_HIP_MOE_GROUPED=0 INTARSIA_HIP_MOE_G2=0"; do
+    name=${cfg%%:*}; ev=${cfg#*:}
+    echo "[timing] $name"
+    dev $RD $VD env $ev INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 INTARSIA_TIMING_ROWS=2,3,4,5,6,8,12,16 \
+      cargo test --release -p intarsia-models --test batch_cuda_real -- --ignored --nocapture --test-threads=1 real_35b_batch_step_timing 2>&1 | grep -aE "^TIMING|^test |rows|ms" | tee -a "$O/timing-$name.log"
+  done
+  dev $RD $VD env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 INTARSIA_TIMING_ROWS=16 \
+    cargo test --release -p intarsia-models --test batch_cuda_real -- --ignored --nocapture --test-threads=1 real_35b_batch_step_profile 2>&1 | grep -aE "^PROFILE|^OPLIST.*moe|^test " | tee "$O/profile-default.log"
 fi
 if want NOOP; then
   echo "[gates] NOOP $(date +%T)"
