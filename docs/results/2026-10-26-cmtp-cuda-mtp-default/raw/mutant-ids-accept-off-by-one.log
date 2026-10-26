@@ -1,0 +1,2 @@
+fleetq: #5794 waiting (#2 in line): in line behind #5793 "cmtp: user path (supervised serve, prefix store)" (claude-f31ccf91) on spark1
+fleetq:   #5793 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5793 set, or it will wait for #5793 to be released.
