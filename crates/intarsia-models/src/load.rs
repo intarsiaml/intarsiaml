@@ -486,8 +486,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
         if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
-            if model.tp_world() != 1 {
-                return Err(Error::Unsupported("--spec dflash under tensor parallelism".into()));
+            if model.tp_world() != 1 && !model.has_dflash() {
+                return Err(Error::Unsupported("--spec dflash under tensor parallelism without the draft on rank 0".into()));
             }
             eprintln!(
                 "--spec dflash on {}: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)",

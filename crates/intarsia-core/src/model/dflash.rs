@@ -100,6 +100,9 @@ pub(super) struct DflashHead {
     script: Mutex<Option<super::DraftScript>>,
     /// Probes: profile the draft's ops (synchronised, timed per op), see [`Model::dflash_profile`].
     profile: std::sync::atomic::AtomicBool,
+    /// Rank 0 of a tensor-parallel group with a vocab-parallel head: a whole copy of the head for the draft's logits (the
+    /// group's head is split across the ranks). `None`: the model's own head is whole.
+    pub(super) full_head: Option<QTensor>,
 }
 
 impl DflashHead {
@@ -230,6 +233,7 @@ pub(super) fn load_head(
         norm_offset: _recipe.model.norm_offset,
         script: Mutex::new(None),
         profile: Default::default(),
+        full_head: None,
     })
 }
 
@@ -303,6 +307,7 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         norm_offset: 0.0,
         script: Mutex::new(None),
         profile: Default::default(),
+        full_head: None,
     })
 }
 
@@ -503,7 +508,18 @@ impl Model {
             let n = self.view(&ws.n, act, &[t, hd]);
             let eps = OpAttrs { eps: head.eps, w_offset: head.norm_offset, ..Default::default() };
             self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
-            self.verify_head(&n.rows(1, t - 1), t - 1, profile)?;
+            // the draft's logits and argmax on this rank alone (the target's verify head would all-gather under a vocab-parallel head)
+            {
+                let v = self.dims.vocab;
+                let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
+                let logits = self.view(&ws.logits, DType::F32, &[t - 1, v]);
+                let dhead = match &head.full_head {
+                    Some(h) => h,
+                    None => self.head()?,
+                };
+                self.proj(&n.rows(1, t - 1), dhead, &logits, profile)?;
+                self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[t - 1])], OpAttrs::default(), profile)?;
+            }
             let sel = d2.selector.as_ref();
             if let Some(sl) = sel {
                 self.proj(&n.rows(1, t - 1), &sl.proj, &self.view(&d2.sel_out, act, &[t - 1, sl.rank]), profile)?;

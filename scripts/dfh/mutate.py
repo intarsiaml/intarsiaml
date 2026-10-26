@@ -25,6 +25,10 @@ MUTANTS = {
     "selector-pred": ("crates/intarsia-core/src/model/dflash2.rs",
         "            let pc = &self.pred[prev * r..(prev + 1) * r];",
         "            let pc = &self.pred[top[0].1 * r..(top[0].1 + 1) * r];"),
+    # tensor parallelism: the peers keep the rejected rows' recurrent state (only rank 0 rolls back)
+    "tp-peer-no-rollback": ("crates/intarsia-core/src/state.rs",
+        "            p.st.spec_rollback_rank(keep, &*p.backend)?;",
+        "            let _ = &p.st;"),
 }
 
 tree, name = sys.argv[1], sys.argv[2]

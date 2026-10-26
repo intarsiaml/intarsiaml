@@ -1112,6 +1112,7 @@ impl Model {
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: false,
             verify_tok: None,
+            verify_tile: None,
             verify_rows: 0,
             batch_rows: 0,
             recurrent_batch: self.recurrent_batch,

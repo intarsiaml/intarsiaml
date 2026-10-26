@@ -538,3 +538,99 @@ fn dflash2_draft_matches_the_z_lab_mlx_reference() {
     }
     assert!(worst < 1e-4, "rel l2 {worst} against z-lab's reference");
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// tensor parallelism (two in-process cpu ranks, the host-staged communicator): the drafter on rank 0, the verify pass and
+// the recurrent rollback on every rank
+// ------------------------------------------------------------------------------------------------------------------
+
+fn model_tp(dseed: Option<u64>, k: Option<usize>, vocab_par: bool) -> (Model, Arc<Telemetry>) {
+    let (recipe, dims) = target_spec();
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    let tel = Arc::new(Telemetry::new());
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        profile_every: 0,
+        tp_vocab: vocab_par,
+        dflash: dseed.map(|s| dflash_load(draft_weights(s))),
+        ..Default::default()
+    };
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let mut m = Model::load_tp(backends, comms, &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+    assert_eq!(m.vocab_parallel(), vocab_par, "the head split as asked");
+    if let Some(k) = k {
+        m.enable_verify(k + 1).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+    }
+    (m, tel)
+}
+
+fn engine_tp(k: Option<usize>, vocab_par: bool, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>) {
+    let (m, tel) = model_tp(k.map(|_| 5), k, vocab_par);
+    if script.is_some() {
+        m.dflash_script(script).unwrap();
+    }
+    let spec = match k {
+        Some(k) => SpecConfig { mode: SpecMode::Dflash, k },
+        None => SpecConfig::default(),
+    };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+#[test]
+fn dflash2_tp2_taps_match_tp1() {
+    let gold = read_f32(&fixture_dir().join("golden.safetensors"));
+    let ids: Vec<u32> = gold["ids"].1.iter().map(|&x| x as u32).collect();
+    let (m1, _) = model(Some(5), Some(3), 64);
+    let mut s1 = m1.new_state().unwrap();
+    m1.forward(&mut s1, &ids, HeadMode::None, None).unwrap();
+    let (m2, _) = model_tp(Some(5), Some(3), true);
+    let mut s2 = m2.new_state().unwrap();
+    for c in ids.chunks(8) {
+        m2.forward(&mut s2, c, HeadMode::None, None).unwrap();
+    }
+    let last = ids.len() - (ids.len() - 1) / 8 * 8;
+    let (t1, t2) = (m1.dflash_taps(ids.len()).unwrap(), m2.dflash_taps(last).unwrap());
+    for i in 0..TAPS.len() {
+        let a = &t1[i][(ids.len() - last) * H..];
+        let w: Vec<f64> = a.iter().map(|&x| x as f64).collect();
+        let e = rel_l2(&t2[i][..last * H], &w);
+        eprintln!("tp2 tap {i}: rel l2 vs tp1 {e:.2e} over the last {last} rows");
+        assert!(e < 1e-5, "tap {i} at tp=2 is not the residual stream tp=1 taps: {e}");
+    }
+}
+
+#[test]
+fn dflash2_tp2_greedy_ids_equal_spec_off() {
+    for vocab_par in [true, false] {
+        let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+        let (off, _) = engine_tp(None, vocab_par, None);
+        for p in PROMPTS {
+            let o = run(&off, req(p, 100));
+            let mut s = p.to_vec();
+            s.extend(&o.ids);
+            truth.lock().unwrap().push(s);
+        }
+        for (k, script) in [(3usize, false), (3, true)] {
+            let (on, tel) = engine_tp(Some(k), vocab_par, script.then(|| scripted(truth.clone(), 9)));
+            for p in PROMPTS {
+                assert_eq!(run(&off, req(p, 90)), run(&on, req(p, 90)), "tp2 vocab_par {vocab_par} k {k} scripted {script} prompt {p:?}");
+                for n in [1usize, 4] {
+                    assert_eq!(run(&off, req(p, n)), run(&on, req(p, n)), "tp2 vocab_par {vocab_par} max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            eprintln!("tp2 vocab_par {vocab_par} k {k} scripted {script}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+            assert!(t.spec_steps > 0, "the verify path ran at tp=2");
+            if script {
+                assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
+            }
+        }
+    }
+}
