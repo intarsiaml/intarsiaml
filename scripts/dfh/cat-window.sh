@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane dfh: per-category speed window for the 27B at tp=1 (card 0), driven FROM THE MAC (localeval lives here), one fleetq job that
+# Lane dfh: per-category speed window for the 27B at tp=1 (card 0; TP=2: both cards, --tp 2), driven FROM THE MAC (localeval lives here), one fleetq job that
 # holds both R9700s and takes radiance down (after scripts/tp2-hip/speed-window.sh):
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 50 --mem 30 \
 #     --label "dfh cat" -- env W=w5 scripts/dfh/cat-window.sh
@@ -10,6 +10,7 @@
 # Radiance is restored by guard.sh on tatooine when this script ends or dies.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}" "${W:?W=<window>}"
+TP=${TP:-1}; GPUS=0; TPA=""; [[ $TP == 2 ]] && { GPUS=0,1; TPA="--tp 2 --devices 0,1"; }
 TREE=${TREE:-dev}; ROUNDS=${ROUNDS:-1}; ARMS=${ARMS:-"off mtp2 dfl7"}; GEN=${GEN:-512}; CAP=${CAP:-2700}; PORT=8095
 M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 DRAFT=/models/tensorfold/Qwen3.8-27B-DFlash2
@@ -45,12 +46,12 @@ serve() { # serve <arm>
     mtp*) spec="--spec mtp --spec-k ${arm#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dfl}" ;;
   esac
-  RECIPE="HIP_VISIBLE_DEVICES=0 dfh-intarsia serve --backend hip --model 27B $spec --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree $TREE, docker $IMG, lane dfh)"
+  RECIPE="HIP_VISIBLE_DEVICES=$GPUS dfh-intarsia serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree $TREE, docker $IMG, lane dfh)"
   $SSH "docker rm -f dfh-serve >/dev/null 2>&1; docker run -d --name dfh-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
-    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0 \
+    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS \
     -v \$HOME/intarsiaml-dfh-$TREE:/work -v /data/models:/models:ro -w /work $IMG /work/dfh-intarsia serve --backend hip --model $M27 \
-    --served-model-name qwen38-27b-$arm $spec --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 --no-supervisor --host 0.0.0.0 --port $PORT" \
+    --served-model-name qwen38-27b-$arm $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
   for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
   $SSH 'docker logs --tail 40 dfh-serve' > "$OUT/serve-fail-$arm.log" 2>&1 < /dev/null; return 1

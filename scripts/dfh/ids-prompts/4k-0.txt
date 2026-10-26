@@ -1,0 +1,86 @@
+# IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP (dense models on Metal and HIP since #154, hybrid models on all three); tensor-parallel batching and MTP under batching are not on main; no priorities |
+| Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
+| Paged KV blocks | **planned** | KV is contiguous per slot |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine only; idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash absent; batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
+| Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
+| Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
+| Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
+| Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
+| OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
+| Prometheus metrics | **implemented** | OTLP export absent |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no `intarsia replay` command, and the bundle holds no plan or tuning hash |
+
+---
+
+## 0. Goals, honest targets, anti-goals
+
+Requirements in priority order (user, 2026-10-12): modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → built-in UI/TUI (optional, dark) → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later.
+
+**What "top 3" means per platform** (the competitor to beat at each phase gate):
+
+| Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
+|---|---|---|---|
+| DGX Spark (GB10) | TensorFold (27B EXL3+DFlash2 83 tok/s), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
+| Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
+| Intel Arc | llama.cpp SYCL | not in scope | not in scope |
+
+Top 3 on R9700 means beating vLLM or llama.cpp, not radiance, until Phase 4. Saying so keeps the target honest.
+
+**Anti-goals** (each one cost a prior project months):
+- **No per-family engines.** TensorFold ships a CUDA engine per model family; effort multiplies per model. Here a model is a *recipe* over a shared block library. New code is needed only for a genuinely new block type.
+- **No Python in the serving path.** Native radiance starts in 11 s vs 160 s for vLLM at equal or better step time. Python stays in offline tools (golden references, converters).
+- **No scope sprawl.** Text LLM inference first. No image, audio or 3D (mlx-serve's burden). Vision encoders are a later block type, not a side product.
+- **No kernel enters without passing its reference test.** sm_121 CUTLASS NVFP4 MoE emitting `!!!!!` and a cuDNN FP8 GEMM hanging after 250k steps were both shipped by others.
+
+---
+
+## 1. Language and build
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed and startup with memory safety; best ecosystem for this exact stack: `tokenizers` (HF), `safetensors`, `minijinja` (HF chat templates), `llguidance` (structured output), `axum`/`tokio`, `ratatui`, `prometheus-client`, `opentelemetry`, `cudarc` (CUDA driver + NCCL). One static binary per 
+
+---
+
+Summarize the document above section by section, then list its open questions.

@@ -1,0 +1,383 @@
+# Tensor parallelism on both R9700s: the gate against tp=1, and what was built on top (lane tp2, 2026-10-25)
+
+Qwen3.6-35B-A3B NVFP4 (and Qwen3-8B, Qwen3.8-27B MXFP4) on tatooine's two R9700s (gfx1201), `intarsia ... --backend hip --tp 2
+--devices 0,1`: one process, two in-process ranks, HIP P2P all-reduce. Radiance was down for each window (`raw/downtime.log`).
+Raw logs: `docs/results/2026-10-25-tp2-hip/raw/`.
+
+## 0. What was already true on main
+
+The brief said fusion at tp=2 is opt-in. It is not: `tp_fusion(env, "hip", tp)` has been on for HIP at `--tp 2` since lane HS
+(`a7336525`, LOG 2026-10-21 19:50, user decision to soak and flip). `IA_TP_FUSION=0` opts out. So the "tp=2 with
+fusion" arm is what main ships, and the "without fusion" arm (-5 to -12 % decode, `2026-10-21-h1-tp2-hip.md`) is the opt-out.
+This lane's stage 1 therefore changes the rule to "HIP and `--tp` > 1" (the same behaviour: the HIP collective is two ranks) and
+adds the gate the user chose on 2026-10-25.
+
+## 1. The tp gate
+
+### Decisions, in order
+
+1. User, 2026-10-25 01:00 ("Gate vs tp1"): the gate is the KL change against our own tp=1 output within the noise envelope; fusion is
+   default-on at tp>1.
+2. Coordinator, after the first result (section 1.2): tp2-vs-tp1 KL cannot separate a 0.3 % partial-scale bug from reduction-order noise,
+   so the gate is (1) mutants killed, including the 0.3 % partial-scale one, through a direct partial-sum check; (2) tp=2 run-to-run ids
+   identical; (3) distance to vLLM no worse than tp=1; (4) KL(tp2 vs tp1) reported, not gating. Release blocker: the one 0x1016 crash.
+3. Coordinator, after window w8 (LOG.md, supersedes the per-prompt part of 2.3): check 3 is the MEAN only, KL(tp vs vLLM) <= KL(tp1 vs
+   vLLM) x 1.02, prefill and decode; the per-prompt ratios are report-only next to the vLLM re-run noise of the prompt. Why: the two
+   tp=1 control variants meant to calibrate a per-prompt cap (`IA_NO_FUSION=1`, `--prefill-chunk 233`) were bitwise identical to the
+   tp=1 reference (every KL, every row), so per-prompt noise is unmeasured, and a cap chosen after seeing the data would be tuned.
+
+Mechanism in the repo: recipe key `[accuracy] tp_ref_noise_factor` + `refnoise::resolve_factor_tp` (report-only form of check 4, unset);
+`scripts/tp2-hip/tp-gate.py` (check 3); `crates/intarsia-models/tests/tp_test_bug.rs` (CPU) and
+`crates/intarsia-backend-hip/tests/tp_partial_sum.rs` (GPU) for check 1.
+
+### 1.1 Check 3 (gating): mean distance to vLLM
+
+35B NVFP4, short golden, `raw/w8/acc-ext-*.out`, `raw/w8/../gate-check3.txt` (`tp-gate.py --noise ...`). tp=2 runs are bitwise run to run:
+
+| mode | tp=1 KL21 vs vLLM | tp=2 | ratio (limit 1.02) |
+|---|---|---|---|
+| prefill (1441 positions) | 5.978e-3 | 5.967e-3 | 0.998 PASS |
+| decode (160 positions) | 12.14e-3 | 7.10e-3 | 0.585 PASS |
+
+Per prompt, report only (prefill ratio, and (tp2 - tp1) in units of that prompt's vLLM re-run noise): most prompts are within about
++-1.4 noise units; `chat_short` -2.6 and `chat_multiturn` **+7.1** (tp=2 6.35e-2 vs tp=1 3.27e-2, noise 4.35e-3) are the outliers, `code`
+is 1.60x but +1.1 units. Decode has 16 scored positions per prompt and no recorded per-prompt noise; its ratios run from 0.21 to 5.3.
+The tp=1 controls are bitwise the reference (so they say nothing about per-prompt noise): this is a real gap in the evidence, and
+`chat_multiturn` is the first prompt to look at when someone has a window to spend on it.
+
+### 1.2 Check 3 does not detect a 0.3 % to 1 % partial-scale bug
+
+Same command with `IA_TP_TEST_BUG=scale:F` (rank 1's partials before every all-reduce; eager, no graphs):
+
+| bug | prefill mean ratio | decode mean ratio |
+|---|---|---|
+| none (tp=2) | 0.998 | 0.585 |
+| 0.1 % | 1.059 (fails) | 0.504 |
+| 0.3 % | 0.899 | 1.245 (fails) |
+| 1 % | 0.822 | 0.988 |
+
+The bugged runs have a lower prefill KL than clean tp=2, and the decode column is not monotonic in the size of the bug: noise, not
+detection. The same is true of KL(tp2 vs tp1) (check 4: tp=2 5.261e-3 = 1.66x the vLLM re-run noise, CUDA tp=2 1.10x; bug 0.3 %
+4.471e-3, 1 % 4.671e-3; `raw/w1/self-tp2-*`). Check 1 carries the bug.
+
+### 1.3 Check 1 (direct, gating): the partial sums
+
+- CPU, `tp_test_bug.rs`, f32 tiny model, tp=2 vs tp=1 logits, bound 6 x 2 x gamma_63 = 4.5e-5 (rel_l2): worst clean 5.8e-7 (78x under), weakest
+  `scale:1.003` 1.08e-3 (24x over), weakest `scale:1.001` 3.6e-4 (8x over), 8 seeds.
+- GPU, `tp_partial_sum.rs`, w8 (`raw/w8/hiptest-tp-partial-sum.log`): the registry-selected bf16 GEMV with f32 output at K = 2048 and 5120,
+  m = 1, 8, 64, tp=2 = each rank's half of K then the real P2P `all_reduce_sum_into` (f32 to f32 and f32 to bf16), against the full-K GEMV
+  of tp=1. Per element, deterministic bound `BOUND_DET = 2 gamma_K sum|x w|` (gamma_K = K u / (1 - K u), u = 2^-24) and probabilistic bound
+  `BOUND_PROB = 2 gamma~_K(lambda=6) sum|x w|` (Higham & Mary 2019; assumes zero-mean independent rounding errors). Clean: max|y2 - y1| is at
+  most 0.002 of BOUND_DET in every case (same-sign and random-sign data). Mutants (scale on rank 1's partial, drop a rank, swap x halves):
+  - 0.3 %: same-sign 6.3x BOUND_DET at K=2048 and 2.5x at K=5120 (killed by the deterministic bound); random-sign 1.09x at K=2048 (killed),
+    0.26x BOUND_DET but **3.1x BOUND_PROB** at K=5120 (killed by the probabilistic bound only: that is the gating bound at K=5120);
+  - 0.1 %: same-sign 2.1x at K=2048, 0.83x BOUND_DET but 9.95x BOUND_PROB at K=5120;
+  - drop a rank, swap halves: killed by 90x to 2000x or more on both kinds of data.
+  Not detectable by any summation-order bound: a partial scale below about 4 gamma~ (6.5e-5 at K=2048, 1e-4 at K=5120). The probabilistic
+  bound rests on an independence assumption, not a theorem.
+
+### 1.4 Mutants and run-to-run (w8; `raw/w8/steps.log`)
+
+35B tp=2, 256 ids short against the clean tp=2 run, plus rank 1's graph counters (clean: captures=1, replays=256):
+
+| mutant | result |
+|---|---|
+| `no-peer-upload` (rank 1 never uploads ids/positions) | killed, ids differ |
+| `drop-captured-allreduce` | killed, ids differ, HSA 0x1016 trap (the bounded wait) |
+| `peer-ignores-flag` (rank 1 ignores the graph flag) | killed by rank 1's counters (captures=0, replays=0), ids equal because graphs are bitwise eager |
+| `tp-fold-outproj` (a sharding mutant) | killed, ids differ |
+| `vocab-no-gather` | killed, ids differ |
+| `batch-peer-no-table` (batched step only) | not exercised by a solo run: w12 runs its models test binary (section 6) |
+| batched step protocol (`PlainKernels` at 12 rows, `ReverseRows` at 8, `StalePosition` at 8) | all caught by the tp=2 batched-vs-solo test; the stale-position one in its own process, after which the damaged group faults the device, which is the group going down |
+
+tp=2 256 ids short and 4k: run 1 equals run 2 (w1); tp=2 accuracy numbers equal across three runs (vocab head on, off, second run).
+
+### 1.5 The crash
+
+One of the first tp=2 accuracy runs in w1 died: `HSA_STATUS_ERROR_EXCEPTION code 0x1016`, exit 139, immediately after the "this build:" line,
+the first tp=2 process after a parallel tp=1 prelude (35B on GPU 0, 8B on GPU 1), default config. Window w8 repeated the exact command: cold start after
+the same prelude 0/6, warm back to back 0/24, `IA_TP_VOCAB=0` 0/12, main (before this lane) 0/12: **0 of 54**. The cause is unexplained.
+Recorded as known, unreproduced. (The same exception is what `drop-captured-allreduce` and the stale-position mutant produce on purpose; the
+bounded wait in `allreduce.hip` traps after about a minute of spinning.)
+
+### 1.6 Other checks of the same window
+
+127 HIP crate tests pass (13 ignored), `kernels test --quick` 62 kernels / 333 cases clean, prefix reuse at tp=2 (the long golden) passes with
+fusion and with `IA_TP_FUSION=0` (rank 1 replays 738), tp=1 plan show + 256 ids short/4k identical to main for 8B, 35B and 27B, CUDA (spark1)
+and Metal (endor) no-ops identical (`raw/cuda`, `raw/metal`).
+
+27B (w9, `raw/27b`): tp=2 256 ids equal tp=1 short and 4k; the accuracy tables (W4A4 golden) of tp=1 and tp=2 are equal in every printed column; the switches
+(`IA_TP_VOCAB=0`, `IA_TP_ARNORM=1` with 128 fused all-reduces per rank, `IA_TP_FUSION=0`) leave the ids equal. That golden's gate fails at tp=1 as
+well (KL21 0.18; W4A4 decode verdict, report-only until lane ac's PR #150); the dump compare was not run (missing `--pre-change`); w12 repeated it (section 4: it ran W4A4 too) and w13 runs it at W4A16.
+
+## 2. Speed, 35B NVFP4, tp=1 vs tp=2 (window w10, 2026-10-25 09:55 to 10:02, `raw/speed-0955`)
+
+localeval, tp1 and tp2 interleaved x3 in the same window, `--gen 512`, thinking off. tp1 = GPU 0 alone, tp2 = both cards, default config
+(fusion on), batch build. Median of 3 rounds (min-max in `raw/speed-0955/localeval-*.log`; table from `sptable.py tp2s35`).
+
+| metric | tp1 | tp2 | tp2 / tp1 |
+|---|---|---|---|
+| prefill 1k tok/s | 6489 | 8306 | 1.28 |
+| prefill 4k | 11961 | 13457 | 1.13 |
+| prefill 16k | 8449 | 10689 | 1.27 |
+| decode, 1 stream @1k | 164.1 | 191.9 | 1.17 |
+| decode, 1 stream @4k | 160.6 | 189.8 | 1.18 |
+| decode, 1 stream @16k | 145.8 | 180.9 | 1.24 |
+| aggregate decode, 4 streams | 272.6 | 364.3 | 1.34 |
+| aggregate decode, 16 streams | 334.4 | 485.9 | 1.45 |
+
+The batched rows are the new `--max-batch` with `--tp 2` path. Radiance was down 09:55:10 to 10:02:33 (about 7.5 min) and answered again at 10:02:48, rank 0 and rank 1 up.
+Radiance's own 35B/27B figures are not in this window: the 27B comparison is w11.
+
+## 3. Speed, Qwen3.8-27B MXFP4 (AWQ-Quark), tp=1 vs tp=2 (window w11, 10:03 to 10:36, `raw/speed-1003`)
+
+Same harness as section 2: single stream, `--gen 512`, 3 interleaved rounds per arm, median (min-max in the logs). Arms: tp1; tp2 (defaults);
+tp2-v0 (`IA_TP_VOCAB=0`, replicated lm_head); tp2-f0 (`IA_TP_FUSION=0`); tp2-a1 (`IA_TP_ARNORM=1`, fused all-reduce+rmsnorm).
+
+| metric | tp1 | tp2 | tp2 / tp1 | tp2-v0 | tp2-f0 | tp2-a1 |
+|---|---|---|---|---|---|---|
+| prefill 1k tok/s | 978 | 1406 | 1.44 | 1405 | 1398 | 1404 |
+| prefill 4k | 1017 | 1465 | 1.44 | 1460 | 1457 | 1463 |
+| prefill 16k | 925 | 1316 | 1.42 | 1313 | 1308 | 1309 |
+| decode @1k tok/s | 32.9 | 53.2 | 1.62 | 46.5 (-12.6 %) | 48.5 (-8.8 %) | 53.7 (+0.9 %) |
+| decode @4k | 32.3 | 52.6 | 1.63 | 46.0 | 47.9 | 53.0 |
+| decode @16k | 30.8 | 49.8 | 1.62 | 44.0 | 45.8 | 50.1 |
+
+- tp=2 is 1.42x to 1.44x faster in prefill and 1.62x faster in decode; the vocab-parallel head is worth 13 % of decode on this model, fusion 9 %.
+  The fused all-reduce+rmsnorm kernel is +0.9 % (round spread under 0.5 %): kept opt-in.
+- **The gap to Radiance is large and is not tp**: Radiance 1.12.0 (2026-10-25, with DFlash) prefill is 5210 / 6133 / 5852 tok/s at 1k / 4k / 16k, so
+  our tp=2 prefill is 3.7x / 4.2x / 4.4x lower. Its 1-stream decode of 145 tok/s includes speculation; a no-spec Radiance decode number was not measured here,
+  so decode is not compared. 27B MXFP4 prefill at tp=1 (978 tok/s) is a single-card kernel problem (the MXFP4 matmul), outside this lane.
+- **`--max-batch` on 27B MXFP4 was refused at load in this window, at tp=1 and tp=2 alike, because the tree predated #145.** The b16 phase
+  (4 and 16 streams) never ran: "a 9-row batched step runs matmul_mxfp4 on matmul_mxfp4_mma, which is not a row-exact kernel ..."
+  (`raw/speed-1003/serve-fail-tp1.log`, `serve-fail-tp2.log`). Main has the row-exact MXFP4 kernels for M = 1..16 since #145 (merge 5e9cc6da);
+  all lane-tp2 branches are merged with main (5241377b) and the 27B batched rows are re-run in window w14 (section 5).
+  Radiance reference for batching: 383.9 / 580.1 tok/s aggregate at 4 / 16 streams (with DFlash).
+- **Pending, not in these numbers: #144 (mx, 27B prefill on one card +35 to +43 %, chunk 4096 and a 16-row peel in the 27B recipe).** The 27B prefill
+  figures above are therefore tp1 before #144. Once it lands both ranks must use the same peel (the peel decides which rows run on which kernel, so
+  the ranks' chunk plan must be one plan), and the tp=2 27B no-op (256 ids short and 4k against tp=1, and the W4A16 dump compare of w12/w13) has to be
+  re-run on the merged tree.
+
+## 4. Window w12 (old tree, before the merge with main; `raw/w12`)
+
+Bitwise class dump compares at floor budgets (`--self-max-kl 1e-9 --self-max-pos-kl 1e-6 --self-max-flip-pct 0 --self-max-tail 5e-8`, `--pre-change`
+= the build's head, which is what makes a self-golden of the same build verifiable):
+
+| compare (35B short golden, tp=2) | prefill mean KL21 | decode mean KL21 | flips | gate |
+|---|---|---|---|---|
+| run 2 against run 1 | 2.3e-13 | 1.6e-12 | 0 | PASS |
+| `IA_TP_VOCAB=0` against run 1 | 2.3e-13 | 1.6e-12 | 0 | PASS |
+| `IA_TP_ARNORM=1` against run 1 (fused kernel ran: eager=161, captured=1 on both ranks) | 2.3e-13 | 1.6e-12 | 0 | PASS |
+| `IA_TP_FUSION=0` against run 1 | 2.3e-13 | 1.6e-12 | 0 | PASS |
+| 27B W4A16, tp=2 against tp=1 | 2.6e-12 | 2.3e-10 | 0 | PASS |
+
+The four 35B rows have the same values to every printed digit: the nonzero 1e-13 is a floor shared by all four (the comparison's own arithmetic on the stored top-20 values, probably), not a difference between the runs; it was not investigated.
+**Correction (lane ac, 2026-10-25): the 27B rows of w12 and w9 ran W4A4, not W4A16.** The stage passed the W4A16 golden but not `--mxfp4-act none`, so the engine
+used the checkpoint's dynamic activation quantisation (`acc-27b-tp1.err` line 2: "mxfp4 activations: dynamic"), and the tp=1 gate failed for that reason (golden/engine
+mismatch), not because of the checkpoint or of tp. The 27B tp=2 against tp=1 compare above is therefore a W4A4 bitwise-class compare (still valid as that);
+the W4A16 one is in w13 (`--mxfp4-act none` on both runs; with the flag the M1 and T2 gates pass at about 1.5e-3, lane ac). A W4A4 decode FAIL is report-only until
+lane ac's regression gate (PR #150) lands.
+
+**The `batch-peer-no-table` mutant has no verdict from w12.** Its test panicked in 0.01 s at the SKIPPED guard ("IA_QWEN36_DIR=/models/Qwen3.6-35B-A3B-NVFP4
+has no config.json"): the stage had exported `IA_MODELS` for the 27B before it, which moved the `/models` mount. That is not a kill. The stage is fixed
+(the mutant runs first, and a log with SKIPPED is reported as "no verdict"); w13 repeats it on the merged tree.
+
+## 5. `--spec mtp` under tp is refused at load
+
+`--spec mtp` with `--tp` > 1 (or `LoadOptions::mtp`) fails before any weight is read, whether or not the vocab-parallel head is on:
+`crates/intarsia-models/src/load.rs:278` (`load_engine_group`, so `load_engine_tp` and the remote-rank path), message "--spec mtp with tensor parallelism
+(--tp 2): the MTP drafter is not sharded, so it would draft from one rank's slice of the lm_head and of the recurrent state; run with --tp 1 or without
+--spec mtp". `Model::load_tp` refused it already (`model.rs`, "--spec mtp under tensor parallelism"), behind the weight read; the draft-head line that the merge
+touched (`draft_head`, `--mtp-draft-vocab`) is skipped under the vocab-parallel head and cannot be reached with MTP on a group. Test:
+`crates/intarsia-models/tests/tp_mtp_refused.rs` (tp=2 host group, vocab head on and off, `--spec mtp` and `LoadOptions::mtp`, plus the same group loading
+without MTP as the control); with the load.rs check disabled it fails on the terser model.rs message.
+
+## 6. Window w14: 27B `--max-batch 16`, tp=1 vs tp=2 (`raw/speed-1113`, 11:13:53 to 11:30:04) - PROVISIONAL
+
+**Provisional (coordinator, 2026-10-25):** w15 found that a tp=2 batched step of 4 rows on the 27B gives different logits from the solo step (section 8). If batched rows of 4 and more are wrong at tp=2, the tp2 aggregate numbers below (122.4 and 181.5 tok/s) count wrong tokens. They are re-measured after the fix; the tp1 numbers are not affected.
+
+After #145 (row-exact MXFP4 rows) the 27B batches at both tp=1 and tp=2 (`serve --max-batch 16`, HIP defaults; tp=2 `--tp 2 --devices 0,1`). localeval, prompt 1024 tokens,
+`--gen 512`, 3 interleaved rounds per arm, median (min-max in `raw/speed-1113/localeval-*.log`):
+
+| metric | tp1 | tp2 | tp2 / tp1 |
+|---|---|---|---|
+| aggregate decode, 4 streams (tok/s) | 78.7 (78.6-78.7) | 122.4 (122.4-122.5) | 1.56 |
+| aggregate decode, 16 streams | 110.1 (110.0-110.6) | 181.5 (181.4-181.6) | 1.65 |
+| decode, 1 stream | 32.9 | 53.2 | 1.62 |
+| prefill 1k | 985 | 1408 | 1.43 |
+
+The 1-stream and prefill numbers equal w11's (32.9 / 53.2, 978 / 1406) and the rounds are within 1 %, so there is no sign of contention in this window; it started 3 s after
+the end of w13/#5288's overlap (11:13:50), and I cannot prove that nothing else ran. Reference, Radiance 1.12.0 with DFlash: 383.9 / 580.1 tok/s at 4 / 16
+streams, which is 3.1x / 3.2x ours at tp=2; the draft speculation and the MXFP4 kernels are not in this lane.
+
+## 7. Window w13 (#5294, 11:08:48 to 11:13:49) is void
+
+It shared both cards with mr's out-of-slot run of #5288 (about 11:09 to 11:13:50, 27B batched==solo, kernels test, no-op generates; it also stopped and restarted
+radiance), and the #5293 tree sync and rebuild ran on tatooine during it (the batch tree was replaced at 11:10, the mutant builds finished at 11:12:28). What the logs show:
+`acc-w13-b` failed ("creating /work/tp2-out": the tree was swapped under it), so the run-to-run compare did not run; both batched==solo tests died at load with
+`hipMalloc ... out of memory`; the 27B dump compare ran with the old stage (no `--mxfp4-act none` yet, so it was W4A4 again); the mutant test "passed"
+(`batch-peer-no-table` SURVIVED, 197 s) against a mutant binary that was still being built, so it means nothing. **No w13 verdict survives**, and the w12 mutant result stays "no verdict". All of it is
+redone in job #5335 (w15, `stages-w13.sh` under another window name) with a free-VRAM guard before each step (a busy card for 60 s is logged CONTENDED, which is no verdict) and a
+mutant timeout that is also no verdict.
+
+## 8. Window w15 (#5336, 12:42 to 12:47, snapshot tree, cards free) and the 27B findings
+
+| check | result |
+|---|---|
+| 35B tp=2 run to run (floor budgets) | PASS, mean KL21 2.3e-13 prefill, 1.6e-12 decode, 0 flips |
+| mutant `batch-peer-no-table` | KILLED (the batched-vs-solo test fails): the batched tp=2 gate has teeth for a peer without its row table |
+| 35B batched == solo at tp=2 | PASS, 17,550 (row, step) pairs bitwise, both ranks replayed 1956 batched graphs |
+| 27B tp=1 against the W4A16 golden (`--mxfp4-act none`) | PASS |
+| 27B tp=2 against tp=1 (floor budgets) | FAIL as a floor check, see below: report-only |
+| 27B batched == solo at tp=2 | **FAIL**: `batch 4 step 0 row 0 (sequence 7, context 221 -> 222): logits differ at 248320 of 248320 entries, first at 0: solo 2.473164 batch 2.2689605` (N = 2 and 3 passed) |
+
+**27B tp=2 against tp=1.** Prefill mean KL21 1.262e-3 (max 1.330 at chat_multiturn position 12; 5 flips of 1441), decode 8.997e-4 (1 flip of 160). At W4A4 tp=2 equals tp=1 to dump
+rounding (w9, w12: 2.6e-12) because FP4 x FP4 products sum exactly and the order of the partial sums cannot matter; at W4A16 the bf16 activations make it matter, as on the 35B. The
+1.33 is one position: `scripts/tp2-hip/kl.py` on the tp=1 dump and the golden gives KL 1.285 for tp=1 against the reference at that very position (chat_multiturn 12), and without it
+tp=1 against the reference is 4.9e-4 mean over the 1441 positions (1.38e-3 with it), tp=2 against tp=1 is 3.4e-4 ((1.262e-3 x 1441 - 1.33) / 1440). So tp=2 differs from tp=1 by less than tp=1 differs
+from the reference; the position is one where the model is fragile in any precision. This compare is report-only; tp=2 against the golden by itself (w16) and tp=2 run to run stay hard
+(LOG 2026-10-25).
+
+**27B batched at tp=2.** All 248320 logits of the row differ by about 8 % at the first element, so this is not rounding; the process then dies with `HSA_STATUS_ERROR_EXCEPTION 0x1016`, which is the peer rank
+trapping in its bounded all-reduce wait after rank 0 panicked (the same exception the dropped-all-reduce mutant produces on purpose). #145's 27B batched==solo passed at tp=1 (N = 2..16).
+Suspect: an MXFP4 rows kernel (or the selection of it) at a tp=2 shard shape (K = 3072, 8704; N = 6144, 8704, 512, 124160), which no test covered. Window w16 (`stages-w16.sh`) runs the rows test at those
+shapes, the batched test with the vocab-parallel head, fusion and batched graphs off one at a time, and the tp=1 control.
+
+## 9. The 27B tp=2 batched mismatch: reproduced, not yet located (w15 to w19)
+
+**Reproduced (w17, w18, `raw/w17`, `raw/w18`).** `real_35b_tp2_batch_first_steps_repro` (a fresh 27B model per rep, batch sizes 2..16, `--tp 2`, HIP defaults) fails in every variant within 1 to 4 reps,
+always at "step 0" of a size (the first batched step of sequences that have never been batched), at sizes 3 to 5, e.g. `batch 4 step 0 row 0 (sequence 7, context 221 -> 222)` (the w15 row):
+
+| variant | first failure |
+|---|---|
+| graphs on (default), twice | rep 3 at 5 rows; rep 1 at 4 rows (w17) |
+| `IA_TP_BATCH_PREPARE=1` (peers' graphs recorded before the replay) | rep 2 at 4 rows |
+| `IA_BATCH_GRAPHS=0` | rep 0 at 4 rows |
+| `HIP_LAUNCH_BLOCKING=1` | rep 0 at 3 rows |
+| `IA_HIP_AR_DRAIN=1` (w17) | rep 0 at 3 rows |
+
+So it is not the batched graph, not capture concurrency, not launch ordering on the host and not the all-reduce store drain. All rows of the failing step are wrong (every logit differs, max |d| 10 to 200) and the process then
+hangs in a collective until the bounded wait traps (0x1016): the ranks are out of step after the bad step.
+
+**The solo logit of the failing row varies between runs** (sequence 7, context 221: 2.473164 in four runs, 2.1248 in one; sequence 12, context 27: -1.432 and 0.377), so the solo step of a fresh sequence is wrong too in some runs: the batched step is not the only
+suspect. The decode-beside-prefill part of the gate (`real_35b_tp2_batch_with_prefill_repro`) passed 0/3 in every variant (graphs on/off, drain 1, launch blocking), and passes on the cpu reference at tp=2
+(`tp_batch.rs`): the op sequences of the ranks agree there. w19 takes parts out (solo only on fresh states; solo plus batch; all eager; fusion off).
+
+### 9.1 w19 (89c4ee1, `raw/w19`) and what `IA_HIP_POISON` does and does not cover
+
+`IA_HIP_POISON=<hex byte>` fills every new `Backend::alloc` of the HIP backend (weights, workspace, kernel scratch the plan reserves, sequence states) at allocation time, not while a graph is
+captured. It does **not** cover a region that is written once and reused: the workspace and scratch regions that successive ops and steps reuse keep the previous op's data, and nothing
+refills them. So a NaN-filled run proves that no never-written memory is read; it says nothing about a read of stale data from an earlier op or step. The poison variants below therefore do not exclude
+read-before-write, only its fresh-allocation form (the comm buffers are separate mallocs, zeroed explicitly).
+
+| variant | result |
+|---|---|
+| size loop, allocations zero-filled (`00`), 12 reps | reps 0 and 1 ok; rep 2 hung and trapped 0x1016 about 60 s in, with no mismatch reported |
+| size loop, allocations NaN-filled (`ff`), 3 reps | 0/3 (no NaN read, no mismatch) |
+| solo only, 60 fresh states x 3 reps | 0/3: the first decode step of every fresh state is bit-identical to the first |
+| solo plus one batched step of 3 rows between states | **FAILED at the first batched step of the process** (`batch 3 step 0 row 0 (sequence 0, context 10 -> 11)`, solo 1.229 batch 5.227, all rows wrong) |
+
+The solo step is therefore not the problem (a wrong value that is consistent between states would still pass, but the accuracy gates cover that); the first batched step of fresh rows is. The minimal repro is
+"fresh model, one solo state, one batched step of 3 fresh rows". w20 runs it with the per-rank collective ledger (`IA_TP_COLL_TRACE=1`, `Model::coll_trace_dump`: passes and cumulative collective
+counts, eager launches plus graph replays) and a 25 s watchdog that dumps both ledgers; the first line where rank 0 and rank 1 differ names the step they decided differently.
+
+**w19 e1 (the key result).** The size loop with every graph off (`Model::set_graphs(false)`, solo and batched, both ranks): **0/12 reps** failed; w18's `IA_BATCH_GRAPHS=0` (only the batched graphs off, the solo decode graphs
+still on) failed at rep 0. So the mismatch needs the **solo decode graphs**: it appears when a batched step (eager or graph) runs after solo steps that replayed a captured graph, on a fresh batch of rows. Solo steps alone, with graphs,
+are fine (180 states, bit-identical), and a batched step alone with every graph off is fine. `IA_SOLO_GRAPHS=0` (new, debugging) turns off only the solo graphs; w20 runs the 2x2.
+
+## 10. The 27B tp=2 batched hang: cured by a process-wide graph lock (w26 to w31), and the final gates
+
+**What was wrong.** On the 27B tp=2 reproduction (fresh solo states and batched steps in one model, the size loop) a captured solo decode graph intermittently replayed with kernels missing:
+the collective launch counters one rank short by 10 or 61 launches for one row, then the ranks one launch apart, wrong logits in every row of the next batched step, and a collective that
+waits until the bounded wait traps (`HSA_STATUS_ERROR_EXCEPTION 0x1016`). The captures themselves are consistent (the same 868/869 kernel nodes per solo graph on both ranks,
+`IA_GRAPH_NODES=1`); the loss is in a replay.
+
+**What did not help** (each ran at 20 reps against a control that hung within 1 to 8 reps): ending a peer step with a stream sync (`IA_TP_PEER_SYNC`), idling the stream before capture/first launch
+(`IA_GRAPH_SYNC_CAPTURE`), idling before a graph exec is destroyed (`..._SYNC_DESTROY`), a 25 us sleep before the data reads (drain 5), warm-up, no deferred loading, leaking instead of freeing the comm,
+host-pinned counters, `AMD_SERIALIZE_KERNEL=3`, `HIP_LAUNCH_BLOCKING=1` (w26 to w30 `raw/`), and a batch-level sync between steps (`lane-tp2/batch-sync`, hung at rep 15 of 40).
+
+**What did.** (a) Solo decode graphs off at tp>1 (`IA_SOLO_GRAPHS=0` at any tp): 72 + 40 clean reps (w30 d1 to d3), costs about 3 % of 1-stream decode. (b) One HIP graph API call at a time
+process-wide (`IA_GRAPH_LOCK`, `device.rs::graph_lock`, held across capture with instantiate and across each launch; default on, `=0` off), solo graphs on:
+
+| w30/w31 run (27B tp=2, same binary) | graph lock | reps | failures |
+|---|---|---|---|
+| w30 k0 control, solo graphs on | off | hung | yes |
+| w30 k5, k6 | on | 20 + 20 | 0 |
+| w31 l1 (size loop) | on | 40 | 0 |
+| w31 l2 (size loop) | on | 40 | 0 |
+| w31 l3 (minimal repro: fresh model, one solo state, one batched step of 3 rows) | on | 40 | 0 |
+| w31 l4 control, same window and binary | **off** | failed at rep 9 (batch 5 step 0, all 248320 logits wrong, then the watchdog and 0x1016) | yes |
+
+160 clean reps with the lock against failures of every lock-off control within 1 to 9 reps. The mechanism is not proven: the evidence is that two rank threads capture and launch graphs concurrently and
+that serialising those calls removes the failure, not a located runtime bug. With one rank (tp=1) the lock is never contended; tp=1 behaviour is byte-identical to main (below).
+
+**Cost of the lock** (27B tp=2, 4k prompt, 512 generated tokens, two rounds each, `raw/speed-0225`; solo eager is the first fix, solo graphs plus lock the shipped one):
+
+| tok/s | prefill 4k | decode 1 stream | 4 streams | 16 streams |
+|---|---|---|---|---|
+| solo eager (round 1 / 2) | 1468 / 1464 | 50.96 / 50.91 | 77.8 / 77.7 | 98.1 / 97.9 |
+| solo graphs + lock (round 1 / 2) | 1466 / 1465 | 52.63 / 52.60 | 77.8 / 77.8 | 98.1 / 98.0 |
+
+No measurable cost at 4 and 16 streams; 1-stream decode is 3.3 % above solo eager. Radiance's reference for the same model at one stream is 145 tok/s including DFlash speculation (no like-for-like
+no-spec number was taken here).
+
+**Final gates on the merged head** (lane head `ebf95d0` merged with origin/main `b8fb4e6dd`; windows f1 and f2, `raw/f1`, `raw/f2`; tree `lock`, base tree `base` = origin/main):
+
+| gate | result |
+|---|---|
+| tp=1 plan show (json) and 256 greedy ids against origin/main, 8B and 35B, short and 4k | all identical (8 of 8 artifacts) |
+| 35B batched == solo at tp=2 (N = 2..16, 130 steps) | PASS, 17,550 (row, step) pairs bitwise; rank 1 replayed 1956 batched graphs |
+| step-protocol mutants PlainKernels at 12 rows, ReverseRows at 8, StalePosition at 8 | all caught |
+| `batch_cuda_real` (all non-ignored) at tp=2 and at tp=1 | PASS, 5 passed (the tp=1 run printed 17,550 pairs bitwise twice; the two tp=2-only mutant tests skip at tp=1) |
+| 27B batched == solo at tp=2 | PASS, 17,550 pairs bitwise, 421 s |
+| `batch_recurrent --test-threads=1` (tp=1, HIP) | 14 passed |
+| `kernels test --quick` (HIP) | 77 kernels, 365 cases, none failed (11 kernels have no quick case in this sweep, untested rather than failed) |
+| 35B tp=2 run to run, floor budgets | PASS: prefill mean KL21 2.26e-13, decode 1.59e-12, 0 flips |
+| tp=2 256 ids run to run, short and 4k | identical |
+| check 3 (mean KL against vLLM, tp=2 over tp=1, limit 1.02) | PASS: prefill 5.967e-3 vs 5.978e-3 (0.998), decode 7.102e-3 vs 12.14e-3 (0.585) |
+| prefix reuse at tp=2 (long golden) | PASS, rank 1 replayed 738 graphs |
+| tp=2 vs tp=1 256 ids (35B) | differ, as expected (different reduction order; the KL against tp=1 is report-only in the agreed gate) |
+| CUDA (spark1) against origin/main: plan show and 256 ids short/4k, 8B and 35B; `kernels test --quick`; core lib tests; CUDA batch_recurrent | identical; 531 cases; 129 passed; 14 passed (`raw/cuda-final`) |
+| Metal (endor) against origin/main: plan show and 256 ids; `kernels test`; workspace tests | identical; 817 cases; see the next paragraph (`raw/metal-final`) |
+
+Metal workspace tests had two failures, neither a behaviour change: `every_env_var_in_the_code_has_a_row_in_docs_tuning_md` (this lane's diagnostic switches had no rows; added to `docs/tuning.md`) and
+`every_hip_kernel_has_a_quick_case` ("moe_block_bf16_grouped" has no quick sweep case), which fails the same way on origin/main (checked in `wt-tp2-noop-base`) and is not from this lane.
+
+### 10.1 Later windows on the merged head (f3 to f5, speed windows) and corrections
+
+Gate in force (coordinator, 2026-10-25, confirmed 2026-10-26): direct partial-sum check with the mutants killed, tp=2 run to run identical, mean KL against vLLM at most 1.02 x tp=1, KL against tp=1 report-only.
+
+| gate | result |
+|---|---|
+| `tp_partial_sum` (direct check, f3) | PASS |
+| HIP crate suite (f3) | 167 passed, 2 failed, 14 ignored. Both failures are on main as well: `every_hip_kernel_has_a_quick_case` (`moe_block_bf16_grouped`, tracked separately) and `every_hip_kernel_matches_the_reference` (admission: 10 WMMA kernels with no admission cases; f4 ran the full kernel sweep of the head and of origin/main: the same 10 kernels are not admitted on both, 67 admitted lines each) |
+| mutants `no-peer-upload`, `drop-captured-allreduce` (0x1016 trap), `tp-fold-outproj`, `vocab-no-gather` | killed (ids differ from the clean tp=2 run) |
+| mutant `peer-ignores-flag` | killed by rank 1's counters in f4: captures=0 replays=0 against captures=1 replays=256 in the clean run (ids equal, as in w8) |
+| mutant `batch-peer-no-table` | killed by the batched-vs-solo test: the peer's stale row table gives a GPU memory access fault (SIGABRT), not an identity assertion |
+| KL(tp=2 vs tp=1), report only, short golden | prefill mean KL21 5.261e-3 (1.66 x the vLLM re-run noise 3.161e-3), 16 flips of 1441; decode 4.108e-3 (1.30 x), 2 flips of 160 |
+| KL(tp=2 vs tp=1), report only, long golden | prefill mean KL21 2.897e-2 (1.31 x noise 2.218e-2), 1675 flips of 36,887; decode 7.029e-3 (0.32 x), 3 flips of 80 |
+
+**Correction: `peer-ignores-flag` in f3 was no verdict, not a survivor.** The merge put `run_peer_inner` under a `run_peer` wrapper, so the mutant's anchor matched nowhere. `mutants-build.sh` printed "not applied" and moved on, and the mutant tree kept the clean build's `tp2-intarsia`, which f3 ran (sha256 `8ac7bbbc...`, identical to the clean build). Fixed: `mutate.py` exits non-zero unless the anchor matches exactly once and the mutation changes the file, a non-applied mutant gets no binary and `mutants-build.sh` fails, and it prints each mutant's binary hash against the clean build's. All six mutants apply exactly once to the committed tree; the other five f3 binaries were checked to differ from the clean build in binary hash and in source (2 to 7 changed lines each), so their kills came from applied mutations. The rebuilt `peer-ignores-flag` binary is `af97aabe...`.
+
+**The six mutant binaries** (sha256 prefix; clean tree `lock` is `8ac7bbbcf8c03983`; each differs from the clean build, and `mutate.py` applied each anchor exactly once):
+
+| mutant | binary | changed source lines | verdict |
+|---|---|---|---|
+| `no-peer-upload` | `6241367bf7214d78` | 6 | killed (ids differ) |
+| `drop-captured-allreduce` | `e8da4570a05b42c8` | 7 | killed (ids differ, 0x1016 trap) |
+| `peer-ignores-flag` | `af97aabe65e904f5` (rebuilt; the f3 binary was the clean one, no verdict) | 2 | killed (rank 1 captures=0 replays=0) |
+| `tp-fold-outproj` | `abb35f9e2152913c` | 2 | killed (ids differ) |
+| `batch-peer-no-table` | `9e0cb07c30e45d48` | 4 | killed (batched-vs-solo test: GPU memory fault) |
+| `vocab-no-gather` | `8100f6a77f99ab7e` | 2 | killed (ids differ) |
+
+**Correction: the f3 KL stage.** Its short-golden run died reading the tp=1 dump (the stage did not copy it into the tree); f5 repeated both runs, and the numbers above are f5's (the long one is identical to f3's).
+
+**Speed on the merged head (tree `lock`, localeval, tp=1 and tp=2 interleaved x3 in one window each, `--gen 512`, thinking off).** Prefill and 1-stream decode at max-batch 1 (1k, 4k, 16k prompts, phase b1); aggregate decode at max-batch 16 (4 and 16 streams, 1k prompts, phase b16). Every arm was checked for all rows present, 512 completion tokens in every decode row and nothing skipped (`raw/speed-final-35b`, `raw/speed-final-27b`). An earlier first attempt ran every row at max-batch 16, which left the tp=1 context at 16,223 tokens and silently skipped the 16k row; it was stopped after round 1 and is kept only as `raw/speed-final-35b-VOID-no16k`, not averaged in.
+
+Qwen3.6-35B-A3B NVFP4 (tok/s, median of 3, min-max in brackets):
+
+| metric | tp=1 | tp=2 | tp
+
+---
+
+Write a critical review of the document above: what is convincing, what is not, what is missing.
