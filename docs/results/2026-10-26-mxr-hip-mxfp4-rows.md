@@ -36,6 +36,8 @@ M = 1 is unchanged, both kernel and bits. Details:
 | G0 HIP: 8B and 35B `plan show` json + txt and 256 greedy ids at short / 4k, dev vs main | byte-identical |
 | 27B 256 greedy ids at short / 4k / 16k, tp1; `plan show` json + txt | identical; byte-identical |
 | 27B 256 greedy ids at short / 4k, tp2 | identical |
+| G0 CUDA (spark1, fleetq #5751, branch 074e0207 vs main ec9e36b8): 8B and 35B `plan show` json + txt, 256 ids at short / 4k; `kernels test --quick` | byte-identical, identical; 77 kernels, 531 cases, 0 fail (raw/cuda/) |
+| G0 Metal (endor, fleetq #5752, branch 459a1486 vs main): 8B and 35B `plan show` json + txt, 256 ids at short / 4k; 27B `plan show` json; `kernels test` | byte-identical, identical, identical; 44 kernels, 817 cases, 0 fail (raw/metal/) |
 | admission (`every_hip_kernel_matches_the_reference`), w5, dev on card 0 and main on card 1 | fails on both with the same set: 10 WMMA kernels with NO CASES (main's known debt), 0 kernels failing; `matmul_mxfp4_gemv_rows` 42 cases and `matmul_mxfp4_pair_gemv_rows` 82 cases (M = 1..16) ADMITTED |
 | `kernels test --quick` (dev), w5 | 77 kernels, 365 cases, 0 fail; the two rows kernels ADMITTED (8 and 12 cases). No kernel is newly registered: the int8 path sits behind the existing names, so quick and admission debt does not grow |
 | mutants rebuilt from 28415520 (final routing), w5 | clean passes; m1 (set B W4A4, M=6 row 5), m2 and m3 (set A, M=2), m4 (set A W4A16, M=5) all FAIL (raw/w5/mutants.txt) |

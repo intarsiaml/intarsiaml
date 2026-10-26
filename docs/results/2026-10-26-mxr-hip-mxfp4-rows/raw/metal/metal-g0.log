@@ -1,0 +1,31 @@
+fleetq: #5752 running on endor: bash scripts/mxr/metal-noop.sh
+== build base ec9e36b85 11:39:36
+    Finished `release` profile [optimized] target(s) in 18.20s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+plan 27 base exit 0
+== build dev 459a14862 11:40:50
+    Finished `release` profile [optimized] target(s) in 19.04s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+plan 27 dev exit 0
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha d660f553)
+ids 35 4k: identical (256 ids, sha f51a91ea)
+plan 35 json: byte-identical (10605 B)
+plan 35 txt: byte-identical (2404 B)
+plan 27 json: identical (12627 B)
+== kernels test metal (dev) 11:41:46
+matmul_nvfp4   matmul_nvfp4_gemv_rows         13      0    1.776e-4    2.907e-6  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+44 kernels, 817 cases in 25.1s
+== done 11:42:11
+fleetq: #5752 done (exit 0)
+exit 0
