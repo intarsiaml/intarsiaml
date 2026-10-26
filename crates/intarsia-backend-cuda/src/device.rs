@@ -292,6 +292,13 @@ impl Backend for CudaBackend {
         true
     }
 
+    /// Opt-in (`INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1`, lane dc, docs/results/2026-10-25-dc-dflash-dcoco.md): run a verify pass's
+    /// attention as one single-row decode call per row, exact by construction. Default off: the multi-row call, as before.
+    fn verify_attn_per_row(&self) -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var_os("INTARSIA_CUDA_VERIFY_ATTN_PER_ROW").is_some_and(|v| v != "0"))
+    }
+
     fn supports_topk(&self) -> bool {
         true
     }

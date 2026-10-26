@@ -3,7 +3,7 @@
 Branch `lane-dc/dflash-dcoco`. Opt-in only; with the flags off nothing is loaded and `plan show` plus the 256 greedy ids
 of the 8B on CUDA are bitwise main. Raw metadata for this note is in `2026-10-25-dc-dflash-dcoco/raw/`.
 
-Status: **phase 1 (scope note, no code)**. Sections 6 onwards are filled in by later phases.
+Status: phase 1 (scope note) accepted by the coordinator; **phase 2 in progress** (section 10).
 
 ## 0. Decision and sources
 
@@ -196,9 +196,9 @@ Gates (defined before measuring; "no" on a hard gate stops the phase):
 | 4 HIP port (non-causal attn, tap, top-K) / Metal port | about 16 / 16 each, only if phase 3 pays |
 | batched DFlash (real multi-stream), only if wanted | 20+ |
 
-## 7. Not done in phase 1
+## 7. Phase 1 scope
 
-No weights downloaded, no code. Status of later sections: phase 2 results, phase 3 results, ports: pending.
+Phase 1 downloaded metadata only and wrote no code. Phase 2 results are in section 10; phase 3 results and ports: pending.
 
 ## 8. Open items (resolved empirically in phase 2/3, not guessed)
 
@@ -211,8 +211,47 @@ No weights downloaded, no code. Status of later sections: phase 2 results, phase
    must beat DFlash tau (G7); the variants are cheap to try in cpu-ref.
 4. Whether the tap should include the pending add for layer 32 on the last-layer-fused path (it must; checked by G4).
 
-## 9. Decisions needed from the user
+## 9. Decisions (coordinator, 2026-10-25 after the scope note was accepted)
 
-- "4 streams": batched speculation does not exist (MTP refuses `--max-batch > 1`). Option A: 4 concurrent clients against
-  the serial server (what localeval can do today; throughput is then bounded by serial service). Option B: real batched
-  DFlash, a separate 20+ h item. Default taken unless told otherwise: A.
+- "4 streams": phases 2 and 3 are gated **at batch 1 only**. The 4-client run against the serial server is report-only,
+  labelled "serial server, not batched speculation", and gates nothing.
+- Batched DFlash (real multi-stream speculation) is out of scope: **follow-up item, about 20 h, not started**.
+- Embedding mismatch (draft vs Qwen3-8B, mask row included) would have stopped the lane before any CUDA code; it does not
+  (section 10.2).
+- Corrector details the paper leaves open (LayerNorm eps, GELU variant, concat order) are chosen by acceptance rate on the
+  cpu-ref and logged in LOG.md.
+- Stop rule: if the 16-row probe (G1) shows verify is not bitwise, report before spending the extra ~8 h.
+
+## 10. Phase 2 results
+
+Raw logs: `2026-10-25-dc-dflash-dcoco/raw/`. Scripts: `scripts/dc/spark1.sh` (sync, build, probe, fetch; every call is a fleetq
+job), `tools/dc/tensor_cmp.py`. Probe test: `crates/intarsia-models/tests/verify16_cuda_real.rs`.
+
+### 10.1 G1: 16-row CUDA verify probe (Qwen3-8B BF16, spark1 GB10, fleetq #5441, #5447)
+
+`Model::verify_check` runs each id window through q single-row decode steps and through one `forward_verify`, from the
+same state, and compares the f32 logits. Windows: q = 2..16 at contexts 17, 130, 513, 1024, 1900, 3000 (random ids) plus 24
+windows of 16 ids that are the model's own greedy continuation (all accepted case). 1194 rows in all.
+
+| config | windows with a logit difference | worst abs logit diff | argmax mismatches | verify16 / decode1 (len 1024, 12 passes, probe timing only) |
+|---|---|---|---|---|
+| default (multi-row `AttnPrefill` in verify) | 78 of 120 | 3.79 | 3 (random ids) | 79.3 / 66.9 ms = 1.19 |
+| `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` (one `AttnDecode` call per row) | **0** | **0** | 0 | 88.7 / 67.0 ms = 1.32 |
+
+(`raw/g1-verify16-probe.log`, `raw/g1-verify16-probe-perrow-attn.log`.) Finding: on the dense 8B the CUDA multi-row verify
+attention is **not** bitwise the decode step from about 100 context tokens on (exact up to length 17 for every q, and at 130
+for every q except 16; from 513 even q = 2 differs), while the `_rows` GEMV kernels are exact (all differences vanish when
+only attention is changed). So the existing CUDA `--spec ngram` on the dense 8B can in principle flip a greedy id at a
+near-tie; this is a pre-existing property, the 35B MTP gate did not see it. The fix is the existing HIP mechanism
+(`Backend::verify_attn_per_row`: one decode call per row, exact by construction). CUDA now answers it from an opt-in
+env var (default off, so nothing changes for the existing modes); DFlash will switch it on for its own verify through a
+Model-level flag, so the ~8 h row-exact-kernel contingency is not needed. Cost: verify16 is 1.32x a decode step instead of
+1.19x, so the break-even tau rises from about 1.4 to about 1.55 (draft included); G5's threshold (tau >= 2.5) is unchanged.
+
+### 10.2 Draft embedding and lm_head versus Qwen3-8B (cpu byte comparison on spark1, fleetq #5443)
+
+`TD-Labs/Qwen3-8B-DCOCO` downloaded to `/home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/4080a604.../`
+(fleetq #5442; 4,591,038,706 bytes, sha256 `df240fec...cb12c` equals the `x-linked-etag`). `tools/dc/tensor_cmp.py` compares
+tensors byte for byte: `embed_tokens.weight` and `lm_head.weight` are **IDENTICAL** to Qwen3-8B's (all 151936 rows, so the
+mask row 151669 too); the controls `layers.0.self_attn.q_proj` and `norm.weight` differ, as they must (`raw/embed-cmp.log`).
+Decision: the draft **shares the target's embedding and lm_head**; the draft's own copies (2.5 GB) are not loaded.

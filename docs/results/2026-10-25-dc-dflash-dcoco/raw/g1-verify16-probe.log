@@ -1,0 +1,93 @@
+fleetq: #5441 running on spark1: scripts/dc/spark1.sh probe
+test verify16_is_bitwise_the_single_row_steps ... plan notes: []
+len=17: q=2..=16 checked
+DIFF len=130 q=16: max|dlogit|=1.273033e-1 argmax mismatches=0
+len=130: q=2..=16 checked
+DIFF len=513 q=4: max|dlogit|=6.86748e-2 argmax mismatches=0
+DIFF len=513 q=5: max|dlogit|=1.1959362e-1 argmax mismatches=0
+DIFF len=513 q=6: max|dlogit|=8.156347e-2 argmax mismatches=0
+DIFF len=513 q=7: max|dlogit|=9.417033e-2 argmax mismatches=0
+DIFF len=513 q=8: max|dlogit|=1.0003805e-1 argmax mismatches=0
+DIFF len=513 q=9: max|dlogit|=1.06378555e-1 argmax mismatches=0
+DIFF len=513 q=10: max|dlogit|=1.7776442e-1 argmax mismatches=0
+DIFF len=513 q=11: max|dlogit|=9.516668e-2 argmax mismatches=0
+DIFF len=513 q=12: max|dlogit|=9.747267e-2 argmax mismatches=0
+DIFF len=513 q=13: max|dlogit|=1.2837768e-1 argmax mismatches=0
+DIFF len=513 q=14: max|dlogit|=1.1958265e-1 argmax mismatches=0
+DIFF len=513 q=15: max|dlogit|=1.391902e-1 argmax mismatches=0
+DIFF len=513 q=16: max|dlogit|=1.06024384e-1 argmax mismatches=1
+len=513: q=2..=16 checked
+DIFF len=1024 q=2: max|dlogit|=6.670761e-2 argmax mismatches=0
+DIFF len=1024 q=3: max|dlogit|=1.4123344e-1 argmax mismatches=0
+DIFF len=1024 q=4: max|dlogit|=1.084919e-1 argmax mismatches=0
+DIFF len=1024 q=5: max|dlogit|=1.0068178e-1 argmax mismatches=0
+DIFF len=1024 q=6: max|dlogit|=1.4113998e-1 argmax mismatches=0
+DIFF len=1024 q=7: max|dlogit|=1.20509624e-1 argmax mismatches=0
+DIFF len=1024 q=8: max|dlogit|=8.188534e-2 argmax mismatches=0
+DIFF len=1024 q=9: max|dlogit|=1.1897564e-1 argmax mismatches=0
+DIFF len=1024 q=10: max|dlogit|=1.16508126e-1 argmax mismatches=0
+DIFF len=1024 q=11: max|dlogit|=1.2949657e-1 argmax mismatches=0
+DIFF len=1024 q=12: max|dlogit|=1.2834764e-1 argmax mismatches=0
+DIFF len=1024 q=13: max|dlogit|=1.0261345e-1 argmax mismatches=0
+DIFF len=1024 q=14: max|dlogit|=9.731102e-2 argmax mismatches=0
+DIFF len=1024 q=15: max|dlogit|=1.14266634e-1 argmax mismatches=0
+DIFF len=1024 q=16: max|dlogit|=1.04837894e-1 argmax mismatches=0
+len=1024: q=2..=16 checked
+DIFF len=1900 q=2: max|dlogit|=6.5974e-2 argmax mismatches=0
+DIFF len=1900 q=3: max|dlogit|=7.937586e-2 argmax mismatches=0
+DIFF len=1900 q=4: max|dlogit|=9.3892336e-2 argmax mismatches=0
+DIFF len=1900 q=5: max|dlogit|=9.917879e-2 argmax mismatches=0
+DIFF len=1900 q=6: max|dlogit|=1.1613488e-1 argmax mismatches=0
+DIFF len=1900 q=7: max|dlogit|=1.0313797e-1 argmax mismatches=0
+DIFF len=1900 q=8: max|dlogit|=1.06622696e-1 argmax mismatches=0
+DIFF len=1900 q=9: max|dlogit|=1.0855138e-1 argmax mismatches=0
+DIFF len=1900 q=10: max|dlogit|=8.932543e-2 argmax mismatches=1
+DIFF len=1900 q=11: max|dlogit|=9.284735e-2 argmax mismatches=0
+DIFF len=1900 q=12: max|dlogit|=1.05204344e-1 argmax mismatches=0
+DIFF len=1900 q=13: max|dlogit|=1.2613702e-1 argmax mismatches=0
+DIFF len=1900 q=14: max|dlogit|=9.9211454e-2 argmax mismatches=0
+DIFF len=1900 q=15: max|dlogit|=9.052825e-2 argmax mismatches=0
+DIFF len=1900 q=16: max|dlogit|=1.3113046e-1 argmax mismatches=0
+len=1900: q=2..=16 checked
+DIFF len=3000 q=2: max|dlogit|=5.565238e-2 argmax mismatches=0
+DIFF len=3000 q=3: max|dlogit|=7.296443e-2 argmax mismatches=0
+DIFF len=3000 q=4: max|dlogit|=9.248066e-2 argmax mismatches=0
+DIFF len=3000 q=5: max|dlogit|=7.937136e-2 argmax mismatches=0
+DIFF len=3000 q=6: max|dlogit|=7.742703e-2 argmax mismatches=0
+DIFF len=3000 q=7: max|dlogit|=8.925724e-2 argmax mismatches=0
+DIFF len=3000 q=8: max|dlogit|=9.829736e-2 argmax mismatches=0
+DIFF len=3000 q=9: max|dlogit|=9.980869e-2 argmax mismatches=0
+DIFF len=3000 q=10: max|dlogit|=1.0747719e-1 argmax mismatches=0
+DIFF len=3000 q=11: max|dlogit|=8.569956e-2 argmax mismatches=0
+DIFF len=3000 q=12: max|dlogit|=2.2046089e-1 argmax mismatches=0
+DIFF len=3000 q=13: max|dlogit|=1.004796e-1 argmax mismatches=0
+DIFF len=3000 q=14: max|dlogit|=1.8026733e-1 argmax mismatches=0
+DIFF len=3000 q=15: max|dlogit|=1.9375217e-1 argmax mismatches=0
+DIFF len=3000 q=16: max|dlogit|=1.503641e-1 argmax mismatches=1
+len=3000: q=2..=16 checked
+DIFF greedy window 5 at 117: max|dlogit|=5.7601166e-1 argmax mismatches=0
+DIFF greedy window 6 at 133: max|dlogit|=4.53817e-1 argmax mismatches=0
+DIFF greedy window 7 at 149: max|dlogit|=4.457596e-1 argmax mismatches=0
+DIFF greedy window 8 at 165: max|dlogit|=1.4696026e-1 argmax mismatches=0
+DIFF greedy window 9 at 181: max|dlogit|=3.232727e-1 argmax mismatches=0
+DIFF greedy window 10 at 197: max|dlogit|=1.275605e0 argmax mismatches=0
+DIFF greedy window 11 at 213: max|dlogit|=7.129842e-1 argmax mismatches=0
+DIFF greedy window 12 at 229: max|dlogit|=4.9929476e-1 argmax mismatches=0
+DIFF greedy window 13 at 245: max|dlogit|=7.482989e-1 argmax mismatches=0
+DIFF greedy window 14 at 261: max|dlogit|=3.7938213e0 argmax mismatches=0
+DIFF greedy window 15 at 277: max|dlogit|=8.3732206e-1 argmax mismatches=0
+DIFF greedy window 16 at 293: max|dlogit|=1.9068885e-1 argmax mismatches=0
+DIFF greedy window 17 at 309: max|dlogit|=3.742571e-1 argmax mismatches=0
+DIFF greedy window 18 at 325: max|dlogit|=4.9904108e-1 argmax mismatches=0
+DIFF greedy window 19 at 341: max|dlogit|=2.70437e-1 argmax mismatches=0
+DIFF greedy window 20 at 357: max|dlogit|=3.9481115e-1 argmax mismatches=0
+DIFF greedy window 21 at 373: max|dlogit|=2.5157654e-1 argmax mismatches=0
+DIFF greedy window 22 at 389: max|dlogit|=1.7458224e-1 argmax mismatches=0
+DIFF greedy window 23 at 405: max|dlogit|=9.3381786e-1 argmax mismatches=0
+PROBE_TIME decode1 66.9 ms, verify16 79.3 ms, ratio 1.19
+PROBE_RESULT rows=1194 windows_with_diff=78 worst_abs_logit_diff=3.7938213e0
+thread 'verify16_is_bitwise_the_single_row_steps' panicked at crates/intarsia-models/tests/verify16_cuda_real.rs:152:5:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 154.81s
+error: test failed, to rerun pass `-p intarsia-models --test verify16_cuda_real`
+fleetq: #5441 done (exit 0)
+exit 0
