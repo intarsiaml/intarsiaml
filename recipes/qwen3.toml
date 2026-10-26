@@ -80,3 +80,13 @@ prefill_chunk = 4096
 chat_turns = "chatml"
 reuse_logit_tol = 0.25
 reuse_kl_tol = 1e-2
+
+# `--spec dflash` measured-cost gate (crates/intarsia-core/src/spec.rs `CostParams`): per sequence, a running mean of the tokens
+# per verify pass and of the pass and plain-step times; below `cost_min_speedup` the sequence decodes plainly for
+# `cost_reprobe_tokens` tokens (doubled while retries keep falling back), then probes again. Without it the 8B's low-acceptance
+# prose runs 2 % under spec off (docs/results/2026-10-25-dc-dflash-dcoco.md section 11.3). `INTARSIA_SPEC_COSTGATE` overrides.
+[dflash]
+cost_min_speedup = 1.03
+cost_window = 8
+cost_probe_every = 128
+cost_reprobe_tokens = 64

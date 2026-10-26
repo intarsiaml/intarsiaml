@@ -1179,7 +1179,7 @@ impl Seq {
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
-        if seq.spec_mtp && !seq.spec_dflash {
+        if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
         }
@@ -1712,7 +1712,7 @@ impl Seq {
     /// before it, from its start to now, token emission included, over the tokens it yielded. Beside other sequences
     /// (`spec_busy`) the time is shared, so nothing is timed.
     fn cost_begin(&mut self, spec: bool) {
-        if !self.spec_mtp || self.spec_dflash || !self.spec_on || !self.gate.cost_enabled() {
+        if !self.spec_mtp || !self.spec_on || !self.gate.cost_enabled() {
             return;
         }
         let now = Instant::now();

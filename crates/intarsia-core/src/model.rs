@@ -989,9 +989,9 @@ impl Model {
             .min(opts.max_seq),
             chunk,
         );
-        // one rank only (tensor-parallel passes are not packed), and no MTP head: the drafter's workspace and its plan probes are
+        // one rank only (tensor-parallel passes are not packed), and no MTP head or DFlash draft (its feature taps are per chunk): the drafter's workspace and its plan probes are
         // chunk-sized, and a speculative sequence never takes a macro pass (`macro_plan`)
-        let macro_rows = if tp.world > 1 || opts.mtp { 0 } else { macro_rows };
+        let macro_rows = if tp.world > 1 || opts.mtp || opts.dflash.is_some() { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
@@ -1168,9 +1168,13 @@ impl Model {
         } else {
             None
         };
-        let spec_cost = crate::spec::CostParams::for_backend(b.name())
-            .with_recipe(recipe.mtp.as_ref())
-            .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
+        let spec_cost = if dflash_head.is_some() {
+            // the DFlash drafter: gate on (built-in values, the recipe's `[dflash]` table, then the env var)
+            crate::spec::CostParams::DFLASH.with_dflash_recipe(recipe.dflash.as_ref())
+        } else {
+            crate::spec::CostParams::for_backend(b.name()).with_recipe(recipe.mtp.as_ref())
+        }
+        .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
         let mut model = Model {
             backend,
             registry,

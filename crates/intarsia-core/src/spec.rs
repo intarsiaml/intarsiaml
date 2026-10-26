@@ -239,6 +239,23 @@ impl CostParams {
     pub const OFF: CostParams =
         CostParams { min_speedup: 0.0, window: 16, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
 
+    /// Built-in starting point of the DFlash gate (the recipe's `[dflash]` table and `INTARSIA_SPEC_COSTGATE` adjust it): on at
+    /// the 3% line; a pass is about 100 ms there, so the window is short.
+    pub const DFLASH: CostParams =
+        CostParams { min_speedup: 1.03, window: 8, probe_every: 128, reprobe_tokens: 64, warmup: 2, alpha: 0.125 };
+
+    /// The recipe's `[dflash]` overrides.
+    pub fn with_dflash_recipe(self, m: Option<&crate::recipe::DflashSpec>) -> CostParams {
+        let Some(m) = m else { return self };
+        CostParams {
+            min_speedup: m.cost_min_speedup.unwrap_or(self.min_speedup),
+            window: m.cost_window.map_or(self.window, |w| w.max(1)),
+            probe_every: m.cost_probe_every.map_or(self.probe_every, |w| w.max(1)),
+            reprobe_tokens: m.cost_reprobe_tokens.map_or(self.reprobe_tokens, |w| w.max(1)),
+            ..self
+        }
+    }
+
     /// The speedup the gate holds speculation to when it is on: 3% over plain decode, about the run-to-run noise of a request.
     pub const DEFAULT_MIN_SPEEDUP: f64 = 1.03;
 
