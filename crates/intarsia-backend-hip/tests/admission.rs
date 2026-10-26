@@ -26,7 +26,7 @@ fn device() -> Option<std::sync::Arc<dyn intarsia_core::Backend>> {
 fn every_hip_kernel_matches_the_reference() {
     let Some(hip) = device() else { return };
     let cpu = CpuBackend::arc();
-    if let Ok(names) = std::env::var("INTARSIA_TEST_CHILD_KERNELS") {
+    if let Ok(names) = std::env::var("INTARSIA_TEST_CHILD") {
         let names: Vec<&str> = names.split(',').collect();
         let mut bad = Vec::new();
         for name in &names {
@@ -58,7 +58,7 @@ fn every_hip_kernel_matches_the_reference() {
         .args(["--exact", "every_hip_kernel_matches_the_reference", "--nocapture"])
         .env("INTARSIA_HIP_WMMA_ROWS", "1")
         .env("INTARSIA_HIP_WMMA_TABLE", "fp8a8=all,bf16=all")
-        .env("INTARSIA_TEST_CHILD_KERNELS", no_case.join(","))
+        .env("INTARSIA_TEST_CHILD", no_case.join(","))
         .output()
         .unwrap();
     let (so, se) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));

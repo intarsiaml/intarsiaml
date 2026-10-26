@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane wadm (from the Mac): ONE radiance-down window on tatooine for the hip admission tests, after build.sh. Stops radiance, runs the clean
 # admission binary (all of tests/admission.rs: pass 1 knob unset, pass 2 knob on for the kernels pass 1 gave no case), then each mutant binary in
-# its knob-on pass only (INTARSIA_TEST_CHILD_KERNELS=<the mutated kernels>, which is exactly what pass 2 runs), and m1 through the whole test when
+# its knob-on pass only (INTARSIA_TEST_CHILD=<the mutated kernels>, which is exactly what pass 2 runs), and m1 through the whole test when
 # the clean run was short. Radiance is restored in an EXIT trap on tatooine and polled until it answers. Logs: docs/results/2026-10-26-wadm-wmma-admission/raw/.
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 35 --mem 30 --label "wadm: admission" -- scripts/wadm/win.sh
 set -uo pipefail
@@ -42,7 +42,7 @@ run clean 1500 "" clean
 clean_rc=$RC; clean_dt=$DT
 # a mutant must FAIL the knob-on pass and the failure must name the mutated kernel
 mut() { # <name> <kernels comma list>
-  run "$1" 300 "$KNOB INTARSIA_TEST_CHILD_KERNELS=$2" "$1" --exact every_hip_kernel_matches_the_reference
+  run "$1" 300 "$KNOB INTARSIA_TEST_CHILD=$2" "$1" --exact every_hip_kernel_matches_the_reference
   local first=${2%%,*}
   if [ "$RC" -ne 0 ] && grep -aq "kernels not admitted" "$O/$1.out" "$O/$1.err" && grep -aq "FAIL.*${first}\|${first}.*\(FAIL\|NO CASES\|REJECTED\)" "$O/$1.out" "$O/$1.err"; then
     echo "[window] MUTANT $1 CAUGHT (names $first)"; else echo "[window] MUTANT $1 NOT CAUGHT (exit $RC)"; fi
@@ -52,7 +52,7 @@ mut m2 matmul_fp8_pair_wmma
 mut m3 rmsnorm_add_matmul_fp8_pair_wmma
 mut k1 matmul_fp8_wmma,matmul_fp8_wmma_rows
 # the same mutants must not trip the clean binary in the same mode (control for the mode itself)
-run control 300 "$KNOB INTARSIA_TEST_CHILD_KERNELS=matmul_pair_bf16_wmma,matmul_fp8_pair_wmma,rmsnorm_add_matmul_fp8_pair_wmma,matmul_fp8_wmma,matmul_fp8_wmma_rows" clean --exact every_hip_kernel_matches_the_reference
+run control 300 "$KNOB INTARSIA_TEST_CHILD=matmul_pair_bf16_wmma,matmul_fp8_pair_wmma,rmsnorm_add_matmul_fp8_pair_wmma,matmul_fp8_wmma,matmul_fp8_wmma_rows" clean --exact every_hip_kernel_matches_the_reference
 if [ "$clean_dt" -lt 420 ]; then
   run m1-full 900 "" m1 --exact every_hip_kernel_matches_the_reference
   if [ "$RC" -ne 0 ]; then echo "[window] MUTANT m1 CAUGHT by the full test"; else echo "[window] MUTANT m1 NOT CAUGHT by the full test"; fi
