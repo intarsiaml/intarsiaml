@@ -1,0 +1,33 @@
+test moe_rows_timing ... moe_rows_timing T=5: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 37.9 (min 35 max 40)
+  (a) unfused chain          221.77   216.58   216.76
+  (b) topk + experts         180.27   183.02   183.07
+  (c) shared + combine        34.64    34.71    34.69
+  (d) 3 x gemv_v2 M=4         17.67    17.68    17.67
+  (e) tiny launch              3.91     3.91     3.91
+  (f) fused rows block       196.58   196.84   197.13
+  (g) grouped block          207.30   207.23   207.74
+moe_rows_timing T=8: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 56.4 (min 52 max 61)
+  (a) unfused chain          315.10   311.39   311.61
+  (b) topk + experts         272.53   272.86   272.72
+  (c) shared + combine        39.58    39.57    39.73
+  (d) 3 x gemv_v2 M=4         17.66    17.66    17.66
+  (e) tiny launch              3.92     3.92     3.92
+  (f) fused rows block       308.86   309.27   309.69
+  (g) grouped block          301.43   301.55   301.65
+moe_rows_timing T=12: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 80.8 (min 74 max 87)
+  (a) unfused chain          448.45   447.42   447.67
+  (b) topk + experts         392.22   392.56   392.93
+  (c) shared + combine        56.25    56.33    56.20
+  (d) 3 x gemv_v2 M=4         17.67    17.70    17.70
+  (e) tiny launch              3.92     3.93     3.93
+  (f) fused rows block       452.81   453.55   454.23
+  (g) grouped block          435.62   436.14   436.31
+moe_rows_timing T=16: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 103.6 (min 97 max 111)
+  (a) unfused chain          585.68   585.24   585.95
+  (b) topk + experts         514.58   511.70   515.12
+  (c) shared + combine        72.86    72.85    72.89
+  (d) 3 x gemv_v2 M=4         17.71    17.70    17.70
+  (e) tiny launch              3.92     3.92     3.92
+  (f) fused rows block       604.17   605.42   606.22
+  (g) grouped block          562.49   563.46   563.97
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 22.22s

@@ -254,7 +254,8 @@ fn moe_block_grouped_is_the_solo_block_per_token() {
 
 /// Lane l7 negative controls for the grouped block: a block assembled the same way but with one stage on an inexact (tensor-core) kernel must NOT be
 /// the solo block per token, so the comparison of `moe_block_grouped_is_the_solo_block_per_token` has something to catch. (a) the routed experts through
-/// `moe_experts_bf16_v2` at T = 16 (tensor-core projections, another accumulation order); (b) the shared gate / up / down through `matmul_nvfp4_mma`.
+/// `moe_experts_bf16_v2` at T = 16 (tensor-core projections, another accumulation order); (b) the shared gate / up / down through `matmul_nvfp4_mma`
+/// (reported only, see below).
 #[test]
 fn moe_block_grouped_negative_controls() {
     let Some(hip) = device() else { return };
@@ -297,7 +298,9 @@ fn moe_block_grouped_negative_controls() {
     let b = differs(&assemble("moe_experts_bf16_rows", "matmul_nvfp4_mma"));
     eprintln!("moe_block_grouped_negative_controls: tensor-core experts differ in {a} of {t} tokens, tensor-core shared GEMVs in {b} of {t}");
     assert!(a > 0, "control (a): the tensor-core experts gave the solo block in every token, the comparison cannot fail");
-    assert!(b > 0, "control (b): the tensor-core shared GEMVs gave the solo block in every token, the comparison cannot fail");
+    // (b) is reported, not asserted: on these activations the tensor-core shared GEMVs (exact products, f32 accumulation in another order) can round to
+    // the same bf16 everywhere, so it is no control; (a) is the control of the routed path and the "next token's solo block" control of
+    // `moe_block_grouped_is_the_solo_block_per_token` covers the whole block
 }
 
 /// Lane l7: the grouped block replayed from a captured graph (7 launches) is the eager launch, on new activations each replay.

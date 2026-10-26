@@ -24,11 +24,11 @@ dev() { # dev <repo> <vol> <cmd...>
 F='^test |^test result|FAILED|panicked|^error|pairs|bitwise|launches|negative|SKIPPED'
 if want GB; then
   echo "[gates] GB $(date +%T)"
-  dev $RD $VD env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test moe_block --test rows_exact --test rows_registry -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F|moe_block_grouped" | tee "$O/g-b.log"
+  dev $RD $VD env INTARSIA_REQUIRE_GPU=1 cargo test --release --no-fail-fast -p intarsia-backend-hip --test moe_block --test rows_exact --test rows_registry -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F|moe_block_grouped" | tee "$O/g-b.log"
 fi
 if want GC; then
   echo "[gates] GC $(date +%T)"
-  dev $RD $VD env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 cargo test --release -p intarsia-models --test batch_cuda_real --test batch_recurrent -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F" | tee "$O/g-c.log"
+  dev $RD $VD env INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$M35 cargo test --release --no-fail-fast -p intarsia-models --test batch_cuda_real --test batch_recurrent -- --test-threads=1 --nocapture 2>&1 | grep -aE "$F" | tee "$O/g-c.log"
 fi
 if want BENCH; then
   echo "[gates] BENCH $(date +%T)"
