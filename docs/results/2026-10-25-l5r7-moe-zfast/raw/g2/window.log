@@ -41,3 +41,26 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; fin
 [gen] n35-short-base: 256 ids, md5 a77f38e1  finish=length prompt=134 (cached 0) completion=256 | prefill 86 ms (1551.7 tok/s) | decode 1536 ms (166.06 tok/s)
 [gen] n35-4k-base: 256 ids, md5 99a38a48  finish=length prompt=4420 (cached 0) completion=256 | prefill 485 ms (9105.7 tok/s) | decode 1585 ms (160.85 tok/s)
 [gen] n35-short-dev: 256 ids, md5 a77f38e1  finish=length prompt=134 (cached 0) completion=256 | prefill 86 ms (1558.0 tok/s) | decode 1533 ms (166.30 tok/s)
+[gen] n35-4k-dev: 256 ids, md5 99a38a48  finish=length prompt=4420 (cached 0) completion=256 | prefill 464 ms (9530.6 tok/s) | decode 1584 ms (161.02 tok/s)
+== no-op comparison (base = merge-base 6b01ead74)
+ids 35 short: identical (256 ids, md5 a77f38e1)
+ids 35 4k: identical (256 ids, md5 99a38a48)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)
+plan 27 json: byte-identical (13790 B)
+plan 27 txt: byte-identical (2877 B)
+[noop] done 2026-10-25 22:00:23
+######## stage sg 2026-10-25 22:00:23
+base-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+dev-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+== self-golden short: merge-base vs branch (z-fast on): IDENTICAL 60 tensors, 826116 bytes
+base-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+dev-long exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: ol
+== self-golden long: merge-base vs branch (z-fast on): IDENTICAL 30 tensors, 19198812 bytes
+devoff-short exit=0 decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decod
+== self-golden short: merge-base vs branch with INTARSIA_HIP_MOE_ZFAST=0: IDENTICAL 60 tensors, 826116 bytes
+SG DONE 293 s
+######## g1 done 2026-10-25 22:05:16
+[window] stages done 2026-10-25 22:05:16 (exit 0)
+[window] starting radiance 2026-10-25 22:05:16
+[window] radiance answers 2026-10-25 22:05:56 (after 45 s)

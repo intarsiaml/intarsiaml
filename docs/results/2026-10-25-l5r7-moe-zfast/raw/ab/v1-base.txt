@@ -1,0 +1,5 @@
+fleetq: #5538 holds tatooine-r9700-2, not tatooine-r9700; queueing separately
+fleetq: #5561 expect ~2m, learned from 85 similar runs; pass --expect to set it
+fleetq: #5561 waiting (#4 in line): in line behind #5540 "tp2 w24: rank-skew stress (INTARSIA_TP_SKEW_US) on the 27B tp2 repro + size loop, radiance down <=20 min" (claude-f31ccf91) on tatooine-r9700
+fleetq: #5561 running on tatooine-r9700: /opt/code/deepeval/.venv/bin/python3 -m localeval.cli speed --url http://tatooine:8296/v1 --model intarsia --thinking off --sizes 512,2048,4096,16384 --gen 8 --reps 3 --concurrency 1 --recipe 'intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 20480 --max-batch 1 (arm base, l5r7 zfast A/B)' --label l5r7-v1-base
+fleetq: #5561 done (exit -15)

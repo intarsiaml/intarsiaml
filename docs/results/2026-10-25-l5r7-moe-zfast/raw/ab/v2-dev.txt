@@ -1,0 +1,3 @@
+fleetq: #5538 is done, not running; queueing separately
+fleetq: #5562 expect ~2m, learned from 85 similar runs; pass --expect to set it
+fleetq: #5562 waiting (#3 in line): in line behind #5548 "od: HIP build (onboarding drill)" (claude-f31ccf91) on tatooine-r9700
