@@ -179,7 +179,9 @@ Exit code 1 (`FAIL`) because `acc-oracle` has no baseline.
 for this golden (recorded by lane ac on the byte-identical amd checkpoint). A checkpoint without them is gated on KL only, "top-1 not gated"; and on
 CUDA, where this golden has no baseline, the same stage FAILs decode (section 3).
 
-TBD-HIP2
+### 4.1 Window 2 (long golden, CPU oracle, W4A16 gate on HIP)
+
+PENDING: queued as fleetq #5597 behind other lanes (estimated start about 4 h later); this section is filled in if it ran before the PR was merged.
 
 
 ## 5. Friction, ranked
@@ -260,7 +262,7 @@ The report files on spark1 are `~/intarsiaml-od/runs/{cuda1,cpu1,oracle1,w4a16}`
 * **A better next subject than a repackaged checkpoint:** `Qwen3.8-27B-NVFP4-52d1adc5f38a` (spark2, 21 GB) is a different quantisation of a covered
   family (45/45 tensor templates resolve) blocked only by the `w4a4_as_w4a16` decision. A scratch recipe passed with `--recipe` would not
   touch any existing model. Not run here (it needs that decision first, and spark2's disk is 100 % full).
-* Radiance was taken down by this lane TBD-RAD; each time the script restored it and `fleetq status` showed neither rank DOWN afterwards.
+* Radiance was taken down once by this lane (window 1, 7 min 07 s); the script restored it and `fleetq status` showed neither rank DOWN afterwards (checked right after the job ended). A second failed attempt of window 2 (`Permission denied` on a script I had not made executable) ran for 0 s and never touched radiance.
 * Left behind for the coordinator (the worktree is not removed by this lane): the 19.4 GB model copy and the goldens at
   `spark1:~/intarsiaml-od/` (spark1 has 7 % disk free; `models/` is the large part), the run directories there, `tatooine:~/intarsiaml-od`
   (tree, `od-intarsia` binary, `onboard-runs`, `extra/` oracle copy), the docker volume `intarsia-cargo-target-od` on tatooine, and the
