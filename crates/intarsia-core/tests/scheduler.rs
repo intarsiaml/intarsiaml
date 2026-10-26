@@ -1968,3 +1968,75 @@ fn prefill_peel_negative_controls() {
         .count();
     assert!(fails > 100, "chunk 4096 without the peel differs on {fails} lengths");
 }
+
+// ---- macro prefill schedule (INTARSIA_PREFILL_MACRO) -------------------------------------------------------------------
+
+#[test]
+fn macro_knob_parses_and_rounds_to_whole_chunks() {
+    use intarsia_core::scheduler::{effective_macro_rows, parse_macro};
+    assert_eq!(parse_macro(None).unwrap(), 0);
+    assert_eq!(parse_macro(Some("")).unwrap(), 0);
+    assert_eq!(parse_macro(Some(" 8192 ")).unwrap(), 8192);
+    assert!(parse_macro(Some("lots")).is_err());
+    // off below two chunks, else whole chunks
+    assert_eq!(effective_macro_rows(0, 2048), 0);
+    assert_eq!(effective_macro_rows(2048, 2048), 0);
+    assert_eq!(effective_macro_rows(4095, 2048), 0);
+    assert_eq!(effective_macro_rows(4096, 2048), 4096);
+    assert_eq!(effective_macro_rows(10000, 2048), 8192);
+}
+
+#[test]
+fn macro_groups_are_as_few_as_the_cap_allows_and_even() {
+    use intarsia_core::scheduler::macro_group_len;
+    // cap 4 chunks per pass
+    assert_eq!(macro_group_len(1, 4), 1);
+    assert_eq!(macro_group_len(4, 4), 4);
+    assert_eq!(macro_group_len(5, 4), 3); // 3 + 2, not 4 + 1
+    assert_eq!(macro_group_len(8, 4), 4);
+    assert_eq!(macro_group_len(9, 4), 3); // 3 + 3 + 3, not 4 + 4 + 1
+    assert_eq!(macro_group_len(7, 2), 2);
+    // every chunk lands in exactly one group, the groups never exceed the cap, and a group is never a lone short tail
+    for n in 1..60usize {
+        for cap in 1..9usize {
+            let per = macro_group_len(n, cap);
+            assert!(per >= 1 && per <= cap.max(1) && per <= n);
+            let mut left = n;
+            let mut groups = 0;
+            while left > 0 {
+                let g = per.min(left);
+                left -= g;
+                groups += 1;
+            }
+            assert_eq!(groups, n.div_ceil(cap), "n {n} cap {cap}: as few passes as the cap allows");
+        }
+    }
+}
+
+#[test]
+fn macro_step_rows_follows_the_plain_chunking() {
+    use intarsia_core::scheduler::macro_step_rows;
+    let (chunk, cap) = (2048, 8192);
+    assert_eq!(macro_step_rows(5000, chunk, 0), None, "off");
+    assert_eq!(macro_step_rows(2048, chunk, cap), None, "one chunk is the plain schedule");
+    assert_eq!(macro_step_rows(100, chunk, cap), None);
+    // 4088 headless rows: one pass of both chunks
+    assert_eq!(macro_step_rows(4088, chunk, cap), Some(4088));
+    // 16654 = 8 chunks + 270: 9 chunks in 3 passes of 3
+    assert_eq!(macro_step_rows(16654, chunk, cap), Some(3 * 2048));
+    assert_eq!(macro_step_rows(16654 - 3 * 2048, chunk, cap), Some(3 * 2048));
+    assert_eq!(macro_step_rows(16654 - 6 * 2048, chunk, cap), Some(16654 - 6 * 2048));
+    // the steps of a prompt cover it exactly, every step a whole number of chunks except the one that ends it
+    for body in 1..40_000usize {
+        let (mut left, mut passes) = (body, 0);
+        while left > 0 {
+            let n = macro_step_rows(left, chunk, cap).unwrap_or(left.min(chunk));
+            assert!(n >= 1 && n <= left);
+            assert!(n % chunk == 0 || n == left, "body {body}: step {n} of {left}");
+            assert!(n <= cap.max(chunk));
+            left -= n;
+            passes += 1;
+        }
+        assert!(passes <= body.div_ceil(chunk), "body {body}: {passes} passes");
+    }
+}

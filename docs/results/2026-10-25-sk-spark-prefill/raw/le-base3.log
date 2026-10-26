@@ -1,0 +1,51 @@
+fleetq: #5438 running on spark2: scripts/sk/le-window.sh base3 3 main:main vllm
+== round 1 arm main 19:48:17
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 499 case(s) run, 0 cached
+sk-main-r1: - result file: `results/20261025-194858-adhoc-sk-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194858-adhoc-sk-main-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 0.19 | 5255 (5190–5259) * | - | 85.0 (84.9–85.2) | 86.0 (85.7–86.5) | - | - | 128 |
+| 4089 | 0.62 | 6547 (6524–6568) | 7117 | 82.5 (82.4–82.5) | 83.2 (83.0–83.3) | - | - | 128 |
+| 16655 | 2.78 | 6000 (5995–6022) | 5839 | 74.9 (74.8–75.0) | 75.8 (75.6–75.9) | - | - | 128 |
+== round 1 arm vllm 19:49:26
+sk-vllm-r1: - result file: `results/20261025-194926-adhoc-sk-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194926-adhoc-sk-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.18 | 5372 (5343–5432) * | - | 80.1 (80.0–80.1) | 80.7 (80.6–81.2) | - | - | 128 |
+| 4088 | 0.64 | 6409 (6333–6414) | 6841 | 78.6 (78.5–78.8) | 79.4 (79.0–79.8) | - | - | 128 |
+| 16655 | 2.64 | 6306 (6271–6315) | 6271 | 76.2 (76.0–76.2) | 77.6 (76.9–77.7) | - | - | 128 |
+== round 2 arm vllm 19:49:52
+sk-vllm-r2: - result file: `results/20261025-194953-adhoc-sk-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-194953-adhoc-sk-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 994 | 0.18 | 5470 (5390–5493) * | - | 80.0 (78.1–80.1) | 82.1 (80.9–83.2) | - | - | 128 |
+| 4089 | 0.64 | 6382 (6361–6402) | 6758 | 79.0 (79.0–79.0) | 79.7 (79.6–79.7) | - | - | 128 |
+| 16654 | 2.65 | 6288 (6281–6300) | 6254 | 76.2 (76.0–76.2) | 77.4 (77.4–77.8) | - | - | 128 |
+== round 2 arm main 19:50:19
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+sk-main-r2: - result file: `results/20261025-195053-adhoc-sk-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195053-adhoc-sk-main-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5308 (5196–5322) * | - | 85.3 (83.1–85.4) | 86.3 (84.6–86.5) | - | - | 128 |
+| 4090 | 0.62 | 6573 (6570–6593) | 7124 | 82.8 (82.8–82.9) | 83.9 (83.7–84.3) | - | - | 128 |
+| 16654 | 2.76 | 6025 (6025–6027) | 5866 | 75.2 (75.1–75.2) | 75.9 (75.8–76.1) | - | - | 128 |
+== round 3 arm main 19:51:21
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 499 cached
+sk-main-r3: - result file: `results/20261025-195203-adhoc-sk-main-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195203-adhoc-sk-main-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5172 (5130–5185) * | - | 85.8 (85.3–86.1) | 87.4 (87.3–88.4) | - | - | 128 |
+| 4090 | 0.63 | 6474 (6309–6562) | 7030 | 83.4 (83.0–83.5) | 84.4 (84.2–87.9) | - | - | 128 |
+| 16656 | 2.77 | 6015 (6005–6023) | 5880 | 75.6 (75.5–75.7) | 76.5 (76.5–76.5) | - | - | 128 |
+== round 3 arm vllm 19:52:31
+sk-vllm-r3: - result file: `results/20261025-195232-adhoc-sk-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261025-195232-adhoc-sk-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 994 | 0.18 | 5475 (5388–5518) * | - | 79.8 (79.1–80.2) | 80.8 (80.5–80.8) | - | - | 128 |
+| 4089 | 0.64 | 6362 (6351–6432) | 6699 | 78.8 (78.4–78.8) | 79.5 (79.2–79.5) | - | - | 128 |
+| 16655 | 2.64 | 6299 (6276–6306) | 6283 | 76.3 (76.1–76.3) | 77.6 (77.5–77.7) | - | - | 128 |
+== done 19:52:58
+fleetq: #5438 done (exit 0)

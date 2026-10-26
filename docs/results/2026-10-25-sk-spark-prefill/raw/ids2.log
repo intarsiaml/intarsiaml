@@ -1,0 +1,17 @@
+fleetq: #5468 running on spark2: scripts/sk/ids.sh ids2 base:main dflt:dev3 off:dev3:INTARSIA_PREFILL_MACRO=0
+base 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 403 ms (2495.1 tok/s) | decode 3082 ms (82.74 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+base 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 843 ms (4831.7 tok/s) | decode 3206 ms (79.55 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca
+base 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2898 ms (5603.8 tok/s) | decode 3437 ms (74.19 tok/s) ids=     256 md5=535b7c7ec84940be98e5b5435cc09a31
+dflt 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 428 ms (2352.2 tok/s) | decode 3058 ms (83.37 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+dflt 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 809 ms (5038.0 tok/s) | decode 3128 ms (81.52 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca
+dflt 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2605 ms (6235.6 tok/s) | decode 3424 ms (74.47 tok/s) ids=     256 md5=535b7c7ec84940be98e5b5435cc09a31
+off 3300: finish=length prompt=1006 (cached 0) completion=256 | prefill 403 ms (2497.8 tok/s) | decode 3040 ms (83.89 tok/s) ids=     256 md5=4b6864f055b11cc9d0e9fd231f914ec4
+off 13600: finish=length prompt=4074 (cached 0) completion=256 | prefill 841 ms (4843.6 tok/s) | decode 3145 ms (81.08 tok/s) ids=     256 md5=b8b4844c4bfcccfc1add5a26210825ca
+off 54700: finish=length prompt=16242 (cached 0) completion=256 | prefill 2867 ms (5664.6 tok/s) | decode 3444 ms (74.03 tok/s) ids=     256 md5=535b7c7ec84940be98e5b5435cc09a31
+IDS 3300 base vs dflt: identical
+IDS 13600 base vs dflt: identical
+IDS 54700 base vs dflt: identical
+IDS 3300 base vs off: identical
+IDS 13600 base vs off: identical
+IDS 54700 base vs off: identical
+fleetq: #5468 done (exit 0)

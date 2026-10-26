@@ -1,0 +1,34 @@
+prefill chunk 2048 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 29.8s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 20480 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 4189 tokens
+finish=length prompt=4189 (cached 0) completion=1 | prefill 979 ms (4278.9 tok/s) | decode 0 ms (0.00 tok/s)
+op table (estimated ms over all launches; total 1123.5 ms):
+op                               ms  share%    calls   timed
+moe_experts                  458.69   40.83      160     120
+matmul                       243.25   21.65      420     420
+gdn_delta_rule               149.53   13.31      120      90
+matmul_fp8                   108.95    9.70      410     390
+gdn_conv                      30.51    2.72      120      90
+attn_prefill                  24.37    2.17       30      30
+rmsnorm_add                   22.06    1.96      251     240
+matmul_nvfp4_glu              18.27    1.63      120      80
+gated_rmsnorm                 13.57    1.21       90      90
+matmul_nvfp4                  12.20    1.09      241     200
+rope                           9.47    0.84       80      60
+moe_combine                    8.49    0.76      160     120
+gate_split                     7.51    0.67       40      30
+sigmoid_mul                    5.52    0.49       40      30
+qk_norm                        4.57    0.41       80      60
+moe_topk                       3.18    0.28      160     120
+kv_append                      1.45    0.13       80      60
+embedding                      1.05    0.09        4       3
+rmsnorm                        0.52    0.05        4       3
+silu_glu                       0.28    0.03       40      40
+argmax                         0.00    0.00        1       0
+attn_decode                    0.00    0.00       10       0
+gated_rmsnorm_matmul_fp8       0.00    0.00       30       0
+matmul_fp8_pair                0.00    0.00       40       0
+matmul_pair                    0.00    0.00        1       0
+rmsnorm_add_matmul_pair        0.00    0.00       69       0
+steps=4 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: moe_experts=344ms/160 matmul=243ms/420 gdn_delta_rule=112ms/120 matmul_fp8=104ms/410 attn_prefill=24ms/30

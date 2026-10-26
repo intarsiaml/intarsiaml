@@ -1,0 +1,8 @@
+fleetq: #5505 waiting (#1 in line): needs 76 GB on spark2; 2 GB free of 116
+fleetq: #5505 waiting (#1 in line): needs 76 GB on spark2; the box reports only 54 GB actually free (memory used by something fleetq does not track)
+fleetq: #5505 running on spark2: scripts/sk/gpu-tests.sh main run g-packed-main batch_cuda_real real_35b_packed_prefill_equals_the_local_engine
+test real_35b_packed_prefill_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+thread 'real_35b_packed_prefill_equals_the_local_engine' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:798:13:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 106.13s
+fleetq: #5505 done (exit 0)

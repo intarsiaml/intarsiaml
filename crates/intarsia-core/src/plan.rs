@@ -230,6 +230,15 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize)
             }
         }
     }
+    // opt-in macro prefill pass (`INTARSIA_PREFILL_MACRO`): the row-wise ops of up to `macro_rows` rows of consecutive chunks run
+    // as one call, so the kernel scratch is sized (and the kernels admitted) for that shape too; nothing is added when off
+    let big = model.macro_rows() + model.tail_merge();
+    if model.macro_rows() > 0 {
+        probes.push((Phase::Prefill, big, 0));
+        if cap > big {
+            probes.push((Phase::Prefill, big, cap - big));
+        }
+    }
     // speculative verify passes (spec on only): every row count, at both ends of the context
     for t in 2..=model.verify_rows() {
         if t < cap {

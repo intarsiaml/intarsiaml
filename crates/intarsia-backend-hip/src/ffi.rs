@@ -381,6 +381,7 @@ extern "C" {
     /// P2' (kernels/hip/moe_block.hip): `inputs` points at the 17 `Op::MoeBlock` inputs, contiguous and in order.
     pub fn ik_moe_block_bf16(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_block_bf16_rows(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_moe_block_bf16_grouped(inputs: T, top_k: c_int, norm: c_int, out: TM, scratch: SC, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gate_split_qk_norm_rope_kv_bf16(
         qg: T,

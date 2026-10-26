@@ -1,0 +1,6 @@
+main r1: MemAvailable 55141 MB with the server up
+dflt r1: MemAvailable 53776 MB with the server up
+dflt r2: MemAvailable 54100 MB with the server up
+main r2: MemAvailable 55125 MB with the server up
+main r3: MemAvailable 55113 MB with the server up
+dflt r3: MemAvailable 54135 MB with the server up

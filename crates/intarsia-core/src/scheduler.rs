@@ -336,6 +336,62 @@ pub fn next_prefill_chunk_tm(remaining: usize, chunk: usize, avoid_one_row: bool
     }
 }
 
+/// Env knob: `INTARSIA_PREFILL_MACRO=<rows>` (unset / empty / `0`: off, the default): the most rows of a macro prefill pass
+/// ([`crate::model::Model::forward`]: several consecutive chunks of ONE prompt run layer by layer in one pass, so each
+/// weight is streamed once for all of them).
+pub const MACRO_ENV: &str = "INTARSIA_PREFILL_MACRO";
+
+/// Parse [`MACRO_ENV`]: `None`, empty and `0` are off (0); a positive integer is the row count.
+pub fn parse_macro(v: Option<&str>) -> Result<usize> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(0),
+        Some(s) => s.parse::<usize>().map_err(|_| Error::invalid(format!("{MACRO_ENV}={s} (a row count, 0 = off)"))),
+    }
+}
+
+/// [`parse_macro`] that tells "not set" (`None`: the recipe decides) from `0` (off).
+pub fn parse_macro_env(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(_) => parse_macro(v).map(Some),
+    }
+}
+
+/// The macro pass size the workspace and the schedule use: `rows` rounded down to whole chunks, and 0 (off) below two chunks
+/// (one chunk is the plain schedule).
+pub fn effective_macro_rows(rows: usize, chunk: usize) -> usize {
+    if chunk == 0 || rows < 2 * chunk {
+        0
+    } else {
+        rows / chunk * chunk
+    }
+}
+
+/// Chunks per group when `n_chunks` consecutive chunks of one prompt run as macro passes of at most `max_segs` chunks: as few
+/// passes as `max_segs` allows (every pass streams the weights once), the chunks spread evenly over them so no pass is a short
+/// tail (`ceil(n / ceil(n / max_segs))` chunks per group; the last group takes what is left).
+pub fn macro_group_len(n_chunks: usize, max_segs: usize) -> usize {
+    let max_segs = max_segs.max(1);
+    if n_chunks <= max_segs {
+        return n_chunks.max(1);
+    }
+    let groups = n_chunks.div_ceil(max_segs);
+    n_chunks.div_ceil(groups)
+}
+
+/// Rows of the next macro step of a prompt whose headless prefill has `body` rows left (all but its last token), run as
+/// chunks of `chunk` rows and passes of at most `macro_rows` rows (`macro_rows` from [`effective_macro_rows`], 0 = off).
+/// The caller runs `forward` on that many tokens; `Model::forward` cuts them into the chunks and passes. `None` when
+/// the macro schedule does not apply (off, or no more than one chunk left).
+pub fn macro_step_rows(body: usize, chunk: usize, macro_rows: usize) -> Option<usize> {
+    if macro_rows == 0 || chunk == 0 || body <= chunk {
+        return None;
+    }
+    let n_chunks = body.div_ceil(chunk);
+    let per = macro_group_len(n_chunks, macro_rows / chunk);
+    Some((per * chunk).min(body))
+}
+
 /// Env knob: `INTARSIA_PREFILL_PEEL=<rows>` overrides the recipe's `prefill_peel` (`0`: off; unset / empty: the recipe).
 pub const PEEL_ENV: &str = "INTARSIA_PREFILL_PEEL";
 
