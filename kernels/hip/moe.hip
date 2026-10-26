@@ -407,9 +407,9 @@ moe_gate_up_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ gu
     const float gg = gscales[e * 3 + 0], gu = gscales[e * 3 + 1];
     for (int c0 = 0; c0 < cnt; c0 += PC) {
         const int pc = min(PC, cnt - c0);
-        __syncthreads();
+        IK_LDS_BARRIER();
         stage_rows(xs, x, pairs + begin + c0, pc, H, K);
-        __syncthreads();
+        IK_LDS_BARRIER();
         if (valid) {
             float ag[kPairChunk], au[kPairChunk];
 #pragma unroll
@@ -474,9 +474,9 @@ moe_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, 
     const float gd = gscales[e * 3 + 2];
     for (int c0 = 0; c0 < cnt; c0 += PC) {
         const int pc = min(PC, cnt - c0);
-        __syncthreads();
+        IK_LDS_BARRIER();
         stage_rows(hs, h, pairs + begin + c0, pc, I, 1);
-        __syncthreads();
+        IK_LDS_BARRIER();
         if (valid) {
             float acc[kPairChunk];
 #pragma unroll
@@ -990,7 +990,7 @@ moe_gate_up_p1_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restric
         for (int i = threadIdx.x; i < H / 8; i += blockDim.x)
             reinterpret_cast<uint4*>(smem)[i] = reinterpret_cast<const uint4*>(xr)[i];
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // warp-uniform
     float ag = 0.f, au = 0.f;
     auto step = [&](const uint2& g2, const uint2& u2, uint32_t gsb, uint32_t usb, const uint4& x0, const uint4& x1) {
@@ -1085,7 +1085,7 @@ moe_down_reduce_p1_v2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __res
         for (int i = threadIdx.x; i < K * I / 8; i += blockDim.x)
             reinterpret_cast<uint4*>(smem)[i] = reinterpret_cast<const uint4*>(hrow)[i];
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!rv) return;
     auto hload = [&](int k, int u, uint4& h0, uint4& h1) {
         const uint4* hp = reinterpret_cast<const uint4*>((XS ? reinterpret_cast<const ik_bf16*>(smem) : hrow) + (int64_t)k * I + u * 16);

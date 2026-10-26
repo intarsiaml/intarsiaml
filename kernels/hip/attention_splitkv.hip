@@ -182,14 +182,14 @@ splitkv_body(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
 #pragma unroll
     for (int g = 0; g < GP; ++g) {
         if (g < G) {
-            __syncthreads();  // s_acc / s_m / s_l are reused for every head
+            IK_LDS_BARRIER();  // s_acc / s_m / s_l are reused for every head
 #pragma unroll
             for (int e = 0; e < 8; ++e) s_acc[gk * D + c * 8 + e] = acc[g][e];
             if (c == 0) {
                 s_m[gk] = m[g];
                 s_l[gk] = l[g];
             }
-            __syncthreads();
+            IK_LDS_BARRIER();
             const int64_t slot = ((int64_t)t * N + (int64_t)kvh * G + g) * nsplit + sp;
             if (threadIdx.x < D) {
                 float M = -INFINITY;

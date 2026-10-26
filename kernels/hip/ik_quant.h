@@ -102,11 +102,11 @@ IK_DEVI float ik_fp4_value(uint32_t c) {
 }
 
 /* One 16-entry table in shared memory (a conflict-free lookup: every entry sits in its own bank). Declare and fill
- * it before any early return; it contains a __syncthreads(), so every thread of the block must reach it. */
+ * it before any early return; it contains a block barrier (IK_LDS_BARRIER), so every thread of the block must reach it. */
 #define IK_FP4_LUT(name)                                               \
     __shared__ float name[16];                                         \
     if (threadIdx.x < 16) name[threadIdx.x] = ik_fp4_value(threadIdx.x); \
-    __syncthreads()
+    IK_LDS_BARRIER()
 
 /* 8 fp4 nibbles of a 32-bit word (element j = nibble j = byte j/2, low nibble first) -> 8 floats (unscaled) */
 IK_DEVI void ik_fp4x8_to_f32(uint32_t w, const float* lut, float* f) {

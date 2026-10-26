@@ -295,7 +295,7 @@ qk_norm_rope_kv_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict_
         for (int e = 0; e < 8; ++e) f[e] = f[e] * r * (g[e] + woff);
         reinterpret_cast<uint4*>(nr)[i] = ik_pack8(f);
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     ik_bf16 *dst_q = nullptr;
     CacheT* dst_k = nullptr;
     if (is_k) dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;

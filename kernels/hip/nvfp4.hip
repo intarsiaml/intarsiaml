@@ -103,7 +103,7 @@ nvfp4_gemv_v2_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
         uint4* xd = reinterpret_cast<uint4*>(smem);
         for (int i = threadIdx.x; i < M * K / 8; i += blockDim.x) xd[i] = reinterpret_cast<const uint4*>(x)[i];
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // whole warp exits together
     float acc[M];
 #pragma unroll
@@ -195,7 +195,7 @@ nvfp4_glu_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
     }
     __shared__ float lut[16];
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // whole warp exits together
     float acc[2] = {0.f, 0.f};
     auto step = [&](int r, const uint2& wq, uint32_t sbyte, const uint4 (&xq)[2]) {

@@ -160,7 +160,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
             }
         };
 
-        __syncthreads();  // the previous pair tile's last reads of sx / sred are done
+        IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
         MwW W[kMwRing];
         loadX(0);
 #pragma unroll
@@ -168,7 +168,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
             if (i < nkb) W[i] = loadW(i);
         storeX(0);
         if (nkb > 1) loadX(1);
-        __syncthreads();
+        IK_LDS_BARRIER();
         for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
 #pragma unroll
             for (int i = 0; i < kMwRing; ++i) {
@@ -180,7 +180,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
                     storeX((kb + 1) & 1);
                     if (kb + 2 < nkb) loadX(kb + 2);
                 }
-                __syncthreads();
+                IK_LDS_BARRIER();
             }
         }
 
@@ -191,7 +191,7 @@ moe_wmma_kernel(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w, 
 #pragma unroll
                     for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
             }
-            __syncthreads();
+            IK_LDS_BARRIER();
             if (part == 1) continue;
         }
         const int f0 = n0 + fw * 16 + h * 8;
@@ -327,7 +327,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
                 }
             };
 
-            __syncthreads();  // the previous pair tile's last reads of sx / sred are done
+            IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
             MwW W[kMwRing];
             loadX(0);
 #pragma unroll
@@ -335,7 +335,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
                 if (i < nkb) W[i] = loadW(i);
             storeX(0);
             if (nkb > 1) loadX(1);
-            __syncthreads();
+            IK_LDS_BARRIER();
             for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
 #pragma unroll
                 for (int i = 0; i < kMwRing; ++i) {
@@ -347,7 +347,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
                         storeX((kb + 1) & 1);
                         if (kb + 2 < nkb) loadX(kb + 2);
                     }
-                    __syncthreads();
+                    IK_LDS_BARRIER();
                 }
             }
         };
@@ -369,7 +369,7 @@ moe_wmma_kernel_v(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ w
 #pragma unroll
                     for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
             }
-            __syncthreads();
+            IK_LDS_BARRIER();
             if (part == 1) continue;
         }
         const int f0 = n0 + fw * 16 + h * 8;

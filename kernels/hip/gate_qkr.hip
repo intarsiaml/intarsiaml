@@ -97,7 +97,7 @@ gate_qk_norm_rope_kv_kernel(const ik_bf16* __restrict__ qg, const ik_bf16* __res
     // gate_split_kernel's second output: the gate half of the query head's gated row, copied
     if (!is_k)
         for (int m = lane; m < D; m += IK_WARP) gate[qrow * D + m] = qg[qrow * 2 * D + D + m];
-    __syncthreads();
+    IK_LDS_BARRIER();
     ik_bf16 *dst_q = nullptr;
     CacheT* dst_k = nullptr;
     if (is_k) dst_k = kcache + ((int64_t)kvh * cap + pos0 + t) * D;

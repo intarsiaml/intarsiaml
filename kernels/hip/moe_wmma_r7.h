@@ -96,7 +96,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
     __shared__ float lut[16];
     if constexpr (!CVT) {  // IK_FP4_LUT, before any early return (it has a barrier)
         if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-        __syncthreads();
+        IK_LDS_BARRIER();
     }
 
     const int slot = blockIdx.x;
@@ -194,7 +194,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
                 }
             };
 
-            __syncthreads();  // the previous pair tile's last reads of sx / sred are done
+            IK_LDS_BARRIER();  // the previous pair tile's last reads of sx / sred are done
             MwW W[RING][RF];
             loadX(0);
 #pragma unroll
@@ -204,7 +204,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
                     for (int f = 0; f < RF; ++f) W[i][f] = loadW(f, i);
             storeX(0);
             if (nkb > 1) loadX(1);
-            __syncthreads();
+            IK_LDS_BARRIER();
             for (int kb0 = 0; kb0 < nkb; kb0 += RING) {
 #pragma unroll
                 for (int i = 0; i < RING; ++i) {
@@ -218,7 +218,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
                         storeX((kb + 1) & 1);
                         if (kb + 2 < nkb) loadX(kb + 2);
                     }
-                    __syncthreads();
+                    IK_LDS_BARRIER();
                 }
             }
         };
@@ -240,7 +240,7 @@ moe_wmma_kernel_r7(const ik_bf16* __restrict__ src, const uint8_t* __restrict__ 
 #pragma unroll
                     for (int i = 0; i < 8; ++i) sred[((wave & 3) * 32 + lane) * (J * 8) + j * 8 + i] = acc[0][j][i];
             }
-            __syncthreads();
+            IK_LDS_BARRIER();
             if (part == 1) continue;
         }
 #pragma unroll

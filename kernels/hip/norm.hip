@@ -49,7 +49,7 @@ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __r
             ss += v * v;
         }
     }
-    ss = ik_block_sum(ss, red);
+    ss = ik_block_sum<!ADD>(ss, red);  // ADD: `sum` is written before and re-read after the barrier (global): keeps __syncthreads
     const float r = rsqrtf(ss / (float)H + eps);
 
     if (VEC) {
@@ -94,7 +94,7 @@ __global__ void gated_rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf1
             ss += v * v;
         }
     }
-    ss = ik_block_sum(ss, red);
+    ss = ik_block_sum<true>(ss, red);
     const float r = rsqrtf(ss / (float)H + eps);
     if (VEC) {
         const int64_t nv = H / 8;

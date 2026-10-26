@@ -44,7 +44,7 @@ shared_down_combine_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restr
     }
     __shared__ float lut[16];
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // whole warp exits together
     float acc[M];
 #pragma unroll

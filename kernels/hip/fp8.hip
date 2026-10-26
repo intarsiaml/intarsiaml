@@ -93,7 +93,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
 #pragma unroll
         for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
     }
-    ss = ik_block_sum(ss, red);
+    ss = ik_block_sum<true>(ss, red);
     const float r = rsqrtf(ss / (float)K + eps);
     for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
         float f[8], g[8];
@@ -105,7 +105,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
         xs[i] = p;
         if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
 }
 
 // The attention output gate folded into the o_proj staging (PRO == 4, core-op fusion P4b): chunk `i8` of
@@ -226,7 +226,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
             reinterpret_cast<uint4*>(xs)[i8] = o;
         }
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!wr[0]) return;  // (all rows of the warp are past N; rows are consecutive)
 
     float acc[R][M];

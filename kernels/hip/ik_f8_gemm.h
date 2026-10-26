@@ -113,7 +113,7 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
 
     gload(0);
     sstore(0);
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int lr = lane & 15, lh = (lane >> 4) * 16;
     for (int kt = 0; kt < nk; ++kt) {
         const int buf = kt & 1;
@@ -136,7 +136,7 @@ f8_gemm_kernel(const uint8_t* __restrict__ xq, const uint8_t* __restrict__ w, co
                 }
         }
         if (kt + 1 < nk) sstore(buf ^ 1);
-        __syncthreads();
+        IK_LDS_BARRIER();
     }
 
     const float so = sc[0] * sc[1];

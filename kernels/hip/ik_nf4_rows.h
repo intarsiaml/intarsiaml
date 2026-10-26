@@ -36,7 +36,7 @@ __device__ __forceinline__ void nf4r_body(const ik_bf16* __restrict__ x, const u
     extern __shared__ __align__(16) unsigned char smem[];
     __shared__ float lut[16];
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int h = lane >> 4, col = lane & 15;
     const int64_t n = blk * 16 + col;
@@ -94,14 +94,14 @@ __device__ __forceinline__ void nf4r_body(const ik_bf16* __restrict__ x, const u
         }
     }
     float* sp = reinterpret_cast<float*>(smem);
-    __syncthreads();
+    IK_LDS_BARRIER();
 #pragma unroll
     for (int t = 0; t < TM; ++t) {
         float4* d = reinterpret_cast<float4*>(sp + (size_t)((wave * TM + t) * IK_WARP + lane) * 8);
         d[0] = make_float4(acc[t][0], acc[t][1], acc[t][2], acc[t][3]);
         d[1] = make_float4(acc[t][4], acc[t][5], acc[t][6], acc[t][7]);
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     const float g = gs[0];
     const int rl = tid & 31, part = (tid >> 5) & 1, rt = tid >> 6;
     if (rt < TM) {

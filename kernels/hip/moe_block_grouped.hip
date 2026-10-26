@@ -49,7 +49,7 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     }
     __shared__ float lut[16];
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // whole warp exits together
     float ag[kRowsMax], au[kRowsMax];
 #pragma unroll
@@ -121,7 +121,7 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
     }
     __shared__ float lut[16];
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
+    IK_LDS_BARRIER();
     if (!live) return;  // whole warp exits together
     float acc[kRowsMax];
 #pragma unroll

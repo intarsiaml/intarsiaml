@@ -205,7 +205,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                 if (actq) *reinterpret_cast<uint2*>(xs + (size_t)row * stride + kc) = f8r_quant8(v, s_in);
                 else *reinterpret_cast<uint4*>(xs + (size_t)row * stride + kc * 2) = v;
             }
-            if (!(abl & 1)) __syncthreads();
+            if (!(abl & 1)) IK_LDS_BARRIER();
         }
 #pragma unroll
         for (int j = 0; j < NJ; ++j) {
@@ -275,7 +275,7 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
                 }
             }
         }
-        if (!DIRECT && ws + kwa < K) __syncthreads();  // the next window restages x
+        if (!DIRECT && ws + kwa < K) IK_LDS_BARRIER();  // the next window restages x
     }
     if (abl & 2) {  // ablation: wave 0 stores its own partial, no cross-wave traffic
         if (wave == 0) {
@@ -290,14 +290,14 @@ __device__ __forceinline__ void f8r_body(const ik_bf16* __restrict__ x, const ui
         return;
     }
     // cross-wave sum in a fixed order, scale, store: thread = (lane, half of the 8 features, token tile)
-    __syncthreads();  // every wave has read its last staged x
+    IK_LDS_BARRIER();  // every wave has read its last staged x
 #pragma unroll
     for (int t = 0; t < TM; ++t) {
         float4* d = reinterpret_cast<float4*>(sp + (size_t)((wave * TM + t) * IK_WARP + lane) * 8);
         d[0] = make_float4(acc[t][0], acc[t][1], acc[t][2], acc[t][3]);
         d[1] = make_float4(acc[t][4], acc[t][5], acc[t][6], acc[t][7]);
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int rl = tid & 31, part = (tid >> 5) & 1, rt = tid >> 6;
     if (rt < TM) {
         float4 s = reinterpret_cast<const float4*>(sp + (size_t)(rt * IK_WARP + rl) * 8)[part];

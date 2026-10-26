@@ -30,7 +30,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
     const ik_bf16* qrow = q + (t * N + h) * D;
 
     for (int d = threadIdx.x; d < D; d += kThreads) qs[d] = ik_b2f(qrow[d]);
-    __syncthreads();
+    IK_LDS_BARRIER();
 
     float m = -INFINITY, l = 0.f;
     float acc[kMaxD / kThreads] = {0.f, 0.f};
@@ -53,12 +53,12 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
             }
             s = dot * scale;
         }
-        const float tmax = ik_block_max(s, red);
+        const float tmax = ik_block_max<true>(s, red);
         const float m_new = fmaxf(m, tmax);
         const float p = (j < visible) ? expf(s - m_new) : 0.f;
         const float corr = expf(m - m_new);  // m == -inf on the first tile -> 0
         sc[threadIdx.x] = p;
-        const float tsum = ik_block_sum(p, red);  // also orders the sc[] write before the reads below
+        const float tsum = ik_block_sum<true>(p, red);  // also orders the sc[] write before the reads below
         l = l * corr + tsum;
         m = m_new;
 
@@ -74,7 +74,7 @@ attn_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const
                 acc[u] = a;
             }
         }
-        __syncthreads();  // sc[] is rewritten by the next tile
+        IK_LDS_BARRIER();  // sc[] is rewritten by the next tile
     }
 
     const float inv = 1.f / l;

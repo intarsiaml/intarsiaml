@@ -130,7 +130,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
 #pragma unroll
         for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
     }
-    ss = ik_block_sum(ss, red);
+    ss = ik_block_sum<true>(ss, red);
     const float r = rsqrtf(ss / (float)K + eps);
     for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
         float f[8], g[8];
@@ -142,7 +142,7 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
         xs[i] = p;
         if (writer) reinterpret_cast<uint4*>(normed)[i] = p;
     }
-    __syncthreads();  // the whole normalised row is in LDS before any warp reads it
+    IK_LDS_BARRIER();  // the whole normalised row is in LDS before any warp reads it
 }
 
 // gemv_body<1, R, U, ik_bf16> on the normalised row in LDS. The first batch of weight loads is issued before the
@@ -522,7 +522,7 @@ gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, O
 
     gload(0);
     sstore(0);
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int lr = lane & 15, lk = (lane >> 4) * 8;
     for (int kt = 0; kt < nk; ++kt) {
         const int buf = kt & 1;
@@ -542,7 +542,7 @@ gemm_wmma_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, O
                 for (int j = 0; j < TM; ++j) acc[i][j] = wmma_bf16(af[i], bf[j], acc[i][j]);
         }
         if (kt + 1 < nk) sstore(buf ^ 1);
-        __syncthreads();
+        IK_LDS_BARRIER();
     }
 
     const bool vec_ok = out_vec && (N % 8) == 0;  // out_vec: out is 16 B aligned

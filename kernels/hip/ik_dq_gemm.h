@@ -134,7 +134,7 @@ __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* _
 
     gload(0);
     sstore(0);
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int lr = lane & 15, lk = (lane >> 4) * 8;
     for (int kt = 0; kt < nk; ++kt) {
         const int buf = kt & 1;
@@ -154,7 +154,7 @@ __global__ void __launch_bounds__(WN * WM * 32) dq_gemm_kernel(DqArgs a, OutT* _
                 for (int j = 0; j < TM; ++j) acc[i][j] = ik_dq_wmma(af[i], bf[j], acc[i][j]);
         }
         if (kt + 1 < nk) sstore(buf ^ 1);
-        __syncthreads();
+        IK_LDS_BARRIER();
     }
 
     const float so = P::out_scale(st);

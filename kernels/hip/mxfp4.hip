@@ -181,7 +181,7 @@ mxfp4_gemv1_lds_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
 #pragma unroll
         for (int i = 0; i < 4; ++i) xs[i * G + g] = v[i];
     }
-    __syncthreads();
+    IK_LDS_BARRIER();
     bool first = true;
     for (; n < N; n += stride) {  // whole warp walks the same rows
         const uint8_t *w, *sc;
@@ -710,7 +710,7 @@ __global__ void __launch_bounds__(256) mx_fold_actq_kernel(const ik_bf16* __rest
 #pragma unroll
     for (int o = 16; o > 0; o >>= 1) mymax = max(mymax, (uint32_t)__shfl_xor((int)mymax, o, 32));
     if ((tid & 31) == 0) red[tid >> 5] = mymax;
-    __syncthreads();
+    IK_LDS_BARRIER();
     uint32_t ar = 0;
     for (int i = 0; i < (int)(blockDim.x >> 5); ++i) ar = max(ar, red[i]);
     if (ar == 0u) ar = 127u;  // all-zero row: any ref
@@ -828,7 +828,7 @@ mx_fold_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__ 
 
     gload(0);
     sstore(0);
-    __syncthreads();
+    IK_LDS_BARRIER();
     const int lr = lane & 15, lh = (lane >> 4) * 16;
     for (int kt = 0; kt < nk; ++kt) {
         const int buf = kt & 1;
@@ -851,7 +851,7 @@ mx_fold_gemm_kernel(const uint8_t* __restrict__ xc, const uint8_t* __restrict__ 
                 }
         }
         if (kt + 1 < nk) sstore(buf ^ 1);
-        __syncthreads();
+        IK_LDS_BARRIER();
     }
 
     const int ln = (lane >> 4) * 8;

@@ -81,7 +81,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
     float m = -INFINITY, l = 0.f;
 
     for (int kt = 0; kt < ntiles; ++kt) {
-        __syncthreads();  // the previous tile's reads of Ks / Vt are done
+        IK_LDS_BARRIER();  // the previous tile's reads of Ks / Vt are done
         for (int idx = tid; idx < BK * CH; idx += kThreads) {
             const int r = idx / CH, ch = idx % CH;
             const int64_t key = (int64_t)kt * BK + r;
@@ -98,7 +98,7 @@ flash_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, cons
                 Vt[(ch * 8 + 2 * e + 1) * LDV + r] = (uint16_t)(vw[e] >> 16);
             }
         }
-        __syncthreads();
+        IK_LDS_BARRIER();
 
         // ---- S^T = K Q^T : lane holds key (kb*16 + lk + i) of its query row ----
         ik_v8f s[NKB];
@@ -302,7 +302,7 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
     }
 
     for (int kt = 0; kt < ntiles; ++kt) {
-        __syncthreads();
+        IK_LDS_BARRIER();
         if constexpr (PF) {
             store_regs();
             if (kt + 1 < ntiles) load_regs(kt + 1);  // in flight during the barrier and this tile's math
@@ -327,7 +327,7 @@ flash_hpb_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, 
                 }
             }
         }
-        __syncthreads();
+        IK_LDS_BARRIER();
 
         ik_v8f sacc[NKB];
 #pragma unroll

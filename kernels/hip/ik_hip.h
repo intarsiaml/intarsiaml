@@ -79,6 +79,22 @@ IK_DEVI uint4 ik_ldcs(const uint4* p) {
 
 IK_DEVI uint4 ik_ldg(const uint4* p) { return *p; }
 
+/* ---- LDS-only block barrier ------------------------------------------------------------------------------------- */
+/* IK_LDS_BARRIER(): a block barrier that orders LDS (the workgroup's 'local' address space) only. On gfx12 __syncthreads() is a
+ * workgroup release/acquire fence over EVERY address space: `s_wait_loadcnt 0` before the barrier (every outstanding global load
+ * must land, so a software-pipelined load ring is drained) and `global_inv` after it. This form waits for LDS only.
+ * Legal only where the threads of the block exchange data across the barrier through LDS (or shuffles) alone: no thread may read,
+ * after the barrier, global memory that ANOTHER thread of the block wrote before it, and the barrier must not be part of a
+ * cross-block protocol (ticket, flag, __threadfence, atomics on global memory). Anything else keeps __syncthreads().
+ * Loads still in flight are consumed behind the compiler's own s_wait_loadcnt, as for any register use. Same form as
+ * gdn_lds_sync (gdn.hip). Audit: docs/results/2026-10-26-lb-lds-barrier.md. */
+#define IK_LDS_BARRIER()                                          \
+    do {                                                          \
+        __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local"); \
+        __builtin_amdgcn_s_barrier();                             \
+        __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local"); \
+    } while (0)
+
 /* ---- wave32 reductions (xor shuffles; width 32 keeps them inside the wave) ---------------------------------- */
 IK_DEVI float ik_warp_sum(float v) {
 #pragma unroll
@@ -93,24 +109,31 @@ IK_DEVI float ik_warp_max(float v) {
 }
 
 /* Block-wide sum / max, result broadcast to every thread. `red` is a shared array of at least
- * blockDim.x / IK_WARP floats. Every thread must call it. */
+ * blockDim.x / IK_WARP floats. Every thread must call it. LDS_ONLY: its two barriers are IK_LDS_BARRIER() instead of
+ * __syncthreads(); pass true only where the caller meets IK_LDS_BARRIER's condition around the call. */
+template <bool LDS_ONLY = false>
 IK_DEVI float ik_block_sum(float v, float* red) {
     const int lane = threadIdx.x % IK_WARP, w = threadIdx.x / IK_WARP, nw = (blockDim.x + IK_WARP - 1) / IK_WARP;
     v = ik_warp_sum(v);
-    __syncthreads();  // `red` may still be in use by a previous reduction
+    if (LDS_ONLY) IK_LDS_BARRIER();
+    else __syncthreads();  // `red` may still be in use by a previous reduction
     if (lane == 0) red[w] = v;
-    __syncthreads();
+    if (LDS_ONLY) IK_LDS_BARRIER();
+    else __syncthreads();
     float r = 0.f;
     for (int i = 0; i < nw; ++i) r += red[i];  // fixed order: deterministic
     return r;
 }
 
+template <bool LDS_ONLY = false>
 IK_DEVI float ik_block_max(float v, float* red) {
     const int lane = threadIdx.x % IK_WARP, w = threadIdx.x / IK_WARP, nw = (blockDim.x + IK_WARP - 1) / IK_WARP;
     v = ik_warp_max(v);
-    __syncthreads();
+    if (LDS_ONLY) IK_LDS_BARRIER();
+    else __syncthreads();
     if (lane == 0) red[w] = v;
-    __syncthreads();
+    if (LDS_ONLY) IK_LDS_BARRIER();
+    else __syncthreads();
     float r = red[0];
     for (int i = 1; i < nw; ++i) r = fmaxf(r, red[i]);
     return r;
