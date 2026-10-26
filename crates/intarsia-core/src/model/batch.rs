@@ -467,6 +467,7 @@ impl Model {
         modes: &[HeadMode],
         profile: bool,
     ) -> Result<Vec<StepOut>> {
+        self.tp_skew();
         let b = ids.len();
         let tok = self.batch_tok.as_ref().ok_or_else(|| Error::invalid("forward_batch without its token buffer"))?;
         let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
@@ -598,6 +599,7 @@ impl Model {
     /// row count and every row's position are rank 0's (`job`): a peer whose states disagree fails before its first
     /// collective. Commits one token to every sub-state on success.
     fn run_peer_batch(&self, sts: &mut [&mut SequenceState], job: &PeerBatch) -> Result<()> {
+        self.tp_skew();
         let b = job.ids.len();
         if sts.len() != b || job.pos.len() != b {
             return Err(Error::invalid(format!(

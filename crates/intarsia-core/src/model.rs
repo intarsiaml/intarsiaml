@@ -1835,7 +1835,25 @@ impl Model {
     /// slice of the head and the gather of every head group rank 0 runs in `mode` (`Model::head_groups`: the collectives
     /// must be the same sequence on every rank). `graph`: rank 0 replays its decode graph in this step
     /// (`Model::decode_graph_now`), so this rank replays its own.
+    /// Debugging (`INTARSIA_TP_SKEW_US=<rank 0 us>,<rank 1 us>`, off by default): delay this rank's launch of every step by that long, to
+    /// skew the ranks against each other (a handshake that is only right when the ranks arrive together fails under skew).
+    pub(super) fn tp_skew(&self) {
+        static SKEW: std::sync::OnceLock<[u64; 2]> = std::sync::OnceLock::new();
+        let s = SKEW.get_or_init(|| {
+            let v = std::env::var("INTARSIA_TP_SKEW_US").unwrap_or_default();
+            let mut it = v.split(',').map(|x| x.trim().parse::<u64>().unwrap_or(0));
+            [it.next().unwrap_or(0), it.next().unwrap_or(0)]
+        });
+        if self.tp.world == 2 {
+            let us = s[self.tp.rank.min(1)];
+            if us > 0 {
+                std::thread::sleep(std::time::Duration::from_micros(us));
+            }
+        }
+    }
+
     fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
+        self.tp_skew();
         if graph {
             if ids.len() != 1 {
                 return Err(Error::invalid(format!("decode graph step with {} tokens", ids.len())));
@@ -1866,6 +1884,7 @@ impl Model {
         mut on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         Self::check_forward(st, ids, mode, on_row.is_some())?;
+        self.tp_skew();
         // a plain pass ends the window in which the last verify pass's rows could be rolled back to
         st.spec_rows.saved = 0;
         // single-token decode: replay the captured step (profiled steps and unsupported backends run eagerly)
