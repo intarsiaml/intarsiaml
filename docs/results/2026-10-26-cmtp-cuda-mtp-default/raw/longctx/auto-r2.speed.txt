@@ -1,0 +1,56 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=36864
+[localeval]   4096 tok rep 1/3: prompt=4092 ttft=0.74s prefill=5520 tok/s decode=101.0 tok/s peak=138.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4087 ttft=0.76s prefill=5370 tok/s decode=100.9 tok/s peak=142.9 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4089 ttft=0.74s prefill=5516 tok/s decode=103.6 tok/s peak=136.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16676 ttft=3.97s prefill=4197 tok/s decode=83.6 tok/s peak=103.9 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16678 ttft=3.97s prefill=4199 tok/s decode=84.9 tok/s peak=113.4 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16680 ttft=3.98s prefill=4194 tok/s decode=84.1 tok/s peak=115.0 tok/s out=128
+[localeval]  32768 tok rep 1/3: prompt=33924 ttft=11.70s prefill=2901 tok/s decode=70.1 tok/s peak=76.4 tok/s out=128
+[localeval]  32768 tok rep 2/3: prompt=33929 ttft=11.70s prefill=2901 tok/s decode=67.3 tok/s peak=77.6 tok/s out=128
+[localeval]  32768 tok rep 3/3: prompt=33927 ttft=11.70s prefill=2900 tok/s decode=81.0 tok/s peak=98.4 tok/s out=128
+[localeval] 1 streams: aggregate 65.2 tok/s
+# localeval: adhoc — 2026-10-26T16:00
+
+- model: `qwen36-35b` on ? (?), url `http://spark-4e77:8096/v1`
+- thinking: off; run kind: speed; label: cmtp-lc-auto-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8096/v1 --model qwen36-35b --thinking off --label cmtp-lc-auto-r2 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-batch 1 --max-seq 36864  (lane cmtp, scripts/cmtp/longctx.sh) --sizes 4096,16384,32768 --gen 128 --reps 3 --concurrency 1 --ignore-busy`
+- result file: `results/20261026-160025-adhoc-cmtp-lc-auto-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-batch 1 --max-seq 36864  (lane cmtp, scripts/cmtp/longctx.sh)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 36864, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4089 | 0.74 | 5516 (5370–5520) | - | 101.0 (100.9–103.6) | 138.0 (136.5–142.9) | - | - | 128 |
+| 16678 | 3.97 | 4197 (4194–4199) | 3895 | 84.1 (83.6–84.9) | 113.4 (103.9–115.0) | - | - | 128 |
+| 33927 | 11.70 | 2901 (2900–2901) | 2233 | 70.1 (67.3–81.0) | 77.6 (76.4–98.4) | - | - | 128 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 65.2 | 105.3 (105.3–105.3) | 0.75 |
+
+## Warnings
+
+- decode spread 19.6% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-160025-adhoc-cmtp-lc-auto-r2/result.json
+[localeval] logged to unanimis: 2d0211ab-f75c-4a61-95bd-e6e4cc754af3

@@ -1,0 +1,9 @@
+fleetq: #5791 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5791 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s rollback-skip short-0 short-1 4k-0 4k-1 16k-0'
+FAIL ids short-0 mtp (prompt: 41) differ/empty | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+FAIL ids short-1 mtp (prompt: 34) differ/empty | spec: verify passes=122 proposed=244 accepted=86 (acceptance 35.2%, 1.70 tokens per pass)
+FAIL ids 4k-0 mtp (prompt: 3870) differ/empty | spec: verify passes=92 proposed=183 accepted=157 (acceptance 85.8%, 2.71 tokens per pass)
+FAIL ids 4k-1 mtp (prompt: 3993) differ/empty | spec: verify passes=117 proposed=234 accepted=138 (acceptance 59.0%, 2.18 tokens per pass)
+FAIL ids 16k-0 mtp (prompt: 15481) differ/empty | spec: verify passes=104 proposed=208 accepted=148 (acceptance 71.2%, 2.42 tokens per pass)
+ids fails=5
+fleetq: #5791 done (exit 0)

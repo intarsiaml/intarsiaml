@@ -1,0 +1,4 @@
+[targets.cmtp-mtp2]
+url = "http://spark-4e77:8095/v1"
+model = "qwen36-35b-mtp2"
+extra_body = { ignore_eos = true, min_tokens = 512 }

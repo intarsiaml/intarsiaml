@@ -245,7 +245,14 @@ fn mtp_tp2_greedy_ids_equal_spec_off() {
 }
 
 /// The model as a checkpoint directory (config, weights with the MTP head, a word-level tokenizer) for the engine loader.
+///
+/// Written once per process: tests run in parallel threads, and rewriting `model.safetensors` under an engine that has it mapped is a SIGBUS.
 fn model_dir() -> PathBuf {
+    static DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    DIR.get_or_init(write_model_dir).clone()
+}
+
+fn write_model_dir() -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::copy(fixture_dir().join("config.json"), dir.join("config.json")).unwrap();
@@ -294,10 +301,14 @@ fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
     }
 }
 
+/// `INTARSIA_SPEC_DEFAULT` is process-wide: the tests that read or set it take this lock for their whole body.
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The recipe's tensor-parallel MTP default (`[tuning.<backend>] mtp_default_tp_k`, `intarsia_models::load::tp_mtp_default`): on only
 /// without --spec, at tp > 1 on in-process ranks of that backend, one sequence, and not with INTARSIA_SPEC_DEFAULT=0.
 #[test]
 fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     use intarsia_models::load::tp_mtp_default;
     let with = intarsia_models::parse_recipe(&format!("{}\n[tuning.hip]\nmtp_default_tp_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
     let without = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
@@ -321,12 +332,145 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
     assert_eq!(tp_mtp_default(&lone, &with, "hip", 1, true), None, "lone --spec-k, tp 1: off");
     let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
     assert_eq!(tp_mtp_default(&explicit_k, &with, "hip", 2, true), None, "--spec off --spec-k 3: unchanged, off");
+    // a prefix store (explicit caching intent; a drafting request bypasses it) skips the default; an explicit --spec mtp is not this function's
+    let stored = intarsia_models::EngineOptions {
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    assert_eq!(tp_mtp_default(&stored, &with, "hip", 2, true), None, "--prefix-store on: no default at hip tp 2");
+    let off_store = intarsia_models::EngineOptions { spec_auto: true, prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("off").unwrap(), ..Default::default() };
+    assert_eq!(tp_mtp_default(&off_store, &with, "hip", 2, true), Some(2), "--prefix-store off is no store");
+    std::env::set_var("INTARSIA_PREFIX_STORE", "on");
+    let env_store = tp_mtp_default(&auto, &with, "hip", 2, true);
+    std::env::remove_var("INTARSIA_PREFIX_STORE");
+    assert_eq!(env_store, None, "INTARSIA_PREFIX_STORE=on: no default");
+    assert_eq!(tp_mtp_default(&auto, &with, "hip", 2, true), Some(2), "and back on once it is unset");
     // the default through the engine loader in the same test (the env var below is process-wide): runs spec, ids equal off
     loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
     let off = tp_mtp_default(&auto, &with, "hip", 2, true);
     std::env::remove_var("INTARSIA_SPEC_DEFAULT");
     assert_eq!(off, None, "INTARSIA_SPEC_DEFAULT=0");
+}
+
+/// The recipe's single-rank MTP default (`[tuning.<backend>] mtp_default_k`, `intarsia_models::load::mtp_default`, lane cmtp): on only
+/// without --spec, at one rank on that backend, one sequence, and not with INTARSIA_SPEC_DEFAULT=0; the tp key and this key do not
+/// answer for each other's world size. Through the engine loader: runs spec, ids equal off; a checkpoint without the head falls back.
+#[test]
+fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    use intarsia_models::load::{mtp_default, tp_mtp_default};
+    let base = include_str!("../../../recipes/qwen3_5.toml");
+    let with = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 2\n")).unwrap();
+    let tp_only = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_tp_k = 2\n")).unwrap();
+    let without = intarsia_models::parse_recipe(base).unwrap();
+    let auto = intarsia_models::EngineOptions { spec_auto: true, ..Default::default() };
+    assert_eq!(mtp_default(&auto, &with, "cuda", 1, true), Some(2), "on: no --spec, cuda, one rank");
+    assert_eq!(mtp_default(&auto, &without, "cuda", 1, true), None, "a recipe without the key");
+    assert_eq!(mtp_default(&auto, &with, "hip", 1, true), None, "another backend unchanged");
+    assert_eq!(mtp_default(&auto, &with, "cuda", 2, true), None, "tp 2 is mtp_default_tp_k's");
+    assert_eq!(tp_mtp_default(&auto, &with, "cuda", 2, true), None, "the one-rank key does not turn tp on");
+    assert_eq!(mtp_default(&auto, &tp_only, "cuda", 1, true), None, "the tp key does not turn one rank on");
+    let explicit = intarsia_models::EngineOptions { spec_auto: false, ..Default::default() };
+    assert_eq!(mtp_default(&explicit, &with, "cuda", 1, true), None, "--spec given (or a library caller)");
+    let batch = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(4), ..Default::default() };
+    assert_eq!(mtp_default(&batch, &with, "cuda", 1, true), None, "--max-batch 4");
+    let one = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(1), ..Default::default() };
+    assert_eq!(mtp_default(&one, &with, "cuda", 1, true), Some(2), "--max-batch 1 keeps it");
+    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
+    assert_eq!(mtp_default(&dfl, &with, "cuda", 1, true), None, "another --spec");
+    // a lone `--spec-k N` (no `--spec`) keeps the default and sets only its draft length
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    assert_eq!(mtp_default(&lone, &with, "cuda", 1, true), Some(3), "a lone --spec-k 3 sets k");
+    assert_eq!(mtp_default(&lone, &without, "cuda", 1, true), None, "a lone --spec-k where no default applies stays off");
+    assert_eq!(mtp_default(&lone, &with, "hip", 1, true), None, "a lone --spec-k on another backend stays off");
+    let zero = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 0\n")).unwrap();
+    assert_eq!(mtp_default(&auto, &zero, "cuda", 1, true), None, "k = 0 is unset");
+    let stored = intarsia_models::EngineOptions {
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    assert_eq!(mtp_default(&stored, &with, "cuda", 1, true), None, "--prefix-store on: no default at cuda tp 1");
+    let lone_stored = intarsia_models::EngineOptions { spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..stored.clone() };
+    assert_eq!(mtp_default(&lone_stored, &with, "cuda", 1, true), None, "a lone --spec-k does not bring it back");
+    std::env::set_var("INTARSIA_PREFIX_STORE", "on");
+    let env_store = mtp_default(&auto, &with, "cuda", 1, true);
+    std::env::remove_var("INTARSIA_PREFIX_STORE");
+    assert_eq!(env_store, None, "INTARSIA_PREFIX_STORE=on: no default");
+    assert_eq!(mtp_default(&auto, &with, "cuda", 1, true), Some(2), "and back on once it is unset");
+    single_rank_loader_default_matches_off();
+    std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");
+    let off = mtp_default(&auto, &with, "cuda", 1, true);
+    std::env::remove_var("INTARSIA_SPEC_DEFAULT");
+    assert_eq!(off, None, "INTARSIA_SPEC_DEFAULT=0");
+}
+
+/// G0 for the shipped recipes: exactly these (recipe, backend) pairs make `--spec mtp` the default, so every other model and backend
+/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B everywhere, CPU) runs without --spec as before.
+#[test]
+fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let recipe = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if let Some(k) = recipe.resolve_mtp_default_tp(backend) {
+                got.push(format!("{} {backend} tp {k}", recipe.model.family));
+            }
+            if let Some(k) = recipe.resolve_mtp_default(backend) {
+                got.push(format!("{} {backend} tp1 {k}", recipe.model.family));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, ["qwen3_5_vl hip tp 2"], "the recipes that turn MTP on by default (qwen3_5_moe cuda tp1: the key exists, unset until the macro prefill works with MTP)");
+}
+
+fn single_rank_loader_default_matches_off() {
+    let dir = model_dir();
+    let recipe = dir.join("qwen3_5_mtp_default_k.toml");
+    std::fs::write(&recipe, format!("{}\n[tuning.cpu]\nmtp_default_k = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
+    let load = |auto: bool, dir: &Path| {
+        let o = intarsia_models::EngineOptions {
+            load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
+            recipe: Some(recipe.clone()),
+            spec_auto: auto,
+            ..Default::default()
+        };
+        intarsia_models::load_engine(dir, CpuBackend::arc(), &o).unwrap()
+    };
+    let (off, on) = (load(false, &dir), load(true, &dir));
+    for p in PROMPTS {
+        assert_eq!(run(&*off.engine, req(p, 40)), run(&*on.engine, req(p, 40)), "one-rank default-on vs off, prompt {p:?}");
+    }
+    assert!(on.engine.telemetry().spec_steps > 0, "the one-rank default actually ran --spec mtp");
+    assert_eq!(off.engine.telemetry().spec_steps, 0);
+    // with a prefix store the default is skipped: plain decode, same ids
+    let stored = intarsia_models::EngineOptions {
+        load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
+        recipe: Some(recipe.clone()),
+        spec_auto: true,
+        prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
+        ..Default::default()
+    };
+    let st = intarsia_models::load_engine(&dir, CpuBackend::arc(), &stored).unwrap();
+    assert_eq!(run(&*off.engine, req(PROMPTS[0], 40)), run(&*st.engine, req(PROMPTS[0], 40)));
+    assert_eq!(st.engine.telemetry().spec_steps, 0, "a prefix store: the default is not applied");
+    let bare = Path::new(env!("CARGO_TARGET_TMPDIR")).join("tp_mtp_model_bare_k");
+    std::fs::create_dir_all(&bare).unwrap();
+    for f in ["config.json", "tokenizer.json"] {
+        std::fs::copy(dir.join(f), bare.join(f)).unwrap();
+    }
+    std::fs::copy(fixture_dir().join("model.safetensors"), bare.join("model.safetensors")).unwrap();
+    let b = load(true, &bare);
+    assert_eq!(run(&*b.engine, req(PROMPTS[0], 20)), run(&*off.engine, req(PROMPTS[0], 20)));
+    assert_eq!(b.engine.telemetry().spec_steps, 0, "no head: the default is not applied");
 }
 
 /// The default through the engine loader on the cpu group (a recipe file with `[tuning.cpu] mtp_default_tp_k = 2`): it loads the head,

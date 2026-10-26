@@ -1,0 +1,153 @@
+# Tensor parallelism on both R9700s: the gate against tp=1, and what was built on top (lane tp2, 2026-10-25)
+
+Qwen3.6-35B-A3B NVFP4 (and Qwen3-8B, Qwen3.8-27B MXFP4) on tatooine's two R9700s (gfx1201), `intarsia ... --backend hip --tp 2
+--devices 0,1`: one process, two in-process ranks, HIP P2P all-reduce. Radiance was down for each window (`raw/downtime.log`).
+Raw logs: `docs/results/2026-10-25-tp2-hip/raw/`.
+
+## 0. What was already true on main
+
+The brief said fusion at tp=2 is opt-in. It is not: `tp_fusion(env, "hip", tp)` has been on for HIP at `--tp 2` since lane HS
+(`a7336525`, LOG 2026-10-21 19:50, user decision to soak and flip). `IA_TP_FUSION=0` opts out. So the "tp=2 with
+fusion" arm is what main ships, and the "without fusion" arm (-5 to -12 % decode, `2026-10-21-h1-tp2-hip.md`) is the opt-out.
+This lane's stage 1 therefore changes the rule to "HIP and `--tp` > 1" (the same behaviour: the HIP collective is two ranks) and
+adds the gate the user chose on 2026-10-25.
+
+## 1. The tp gate
+
+### Decisions, in order
+
+1. User, 2026-10-25 01:00 ("Gate vs tp1"): the gate is the KL change against our own tp=1 output within the noise envelope; fusion is
+   default-on at tp>1.
+2. Coordinator, after the first result (section 1.2): tp2-vs-tp1 KL cannot separate a 0.3 % partial-scale bug from reduction-order noise,
+   so the gate is (1) mutants killed, including the 0.3 % partial-scale one, through a direct partial-sum check; (2) tp=2 run-to-run ids
+   identical; (3) distance to vLLM no worse than tp=1; (4) KL(tp2 vs tp1) reported, not gating. Release blocker: the one 0x1016 crash.
+3. Coordinator, after window w8 (LOG.md, supersedes the per-prompt part of 2.3): check 3 is the MEAN only, KL(tp vs vLLM) <= KL(tp1 vs
+   vLLM) x 1.02, prefill and decode; the per-prompt ratios are report-only next to the vLLM re-run noise of the prompt. Why: the two
+   tp=1 control variants meant to calibrate a per-prompt cap (`IA_NO_FUSION=1`, `--prefill-chunk 233`) were bitwise identical to the
+   tp=1 reference (every KL, every row), so per-prompt noise is unmeasured, and a cap chosen after seeing the data would be tuned.
+
+Mechanism in the repo: recipe key `[accuracy] tp_ref_noise_factor` + `refnoise::resolve_factor_tp` (report-only form of check 4, unset);
+`scripts/tp2-hip/tp-gate.py` (check 3); `crates/intarsia-models/tests/tp_test_bug.rs` (CPU) and
+`crates/intarsia-backend-hip/tests/tp_partial_sum.rs` (GPU) for check 1.
+
+### 1.1 Check 3 (gating): mean distance to vLLM
+
+35B NVFP4, short golden, `raw/w8/acc-ext-*.out`, `raw/w8/../gate-check3.txt` (`tp-gate.py --noise ...`). tp=2 runs are bitwise run to run:
+
+| mode | tp=1 KL21 vs vLLM | tp=2 | ratio (limit 1.02) |
+|---|---|---|---|
+| prefill (1441 positions) | 5.978e-3 | 5.967e-3 | 0.998 PASS |
+| decode (160 positions) | 12.14e-3 | 7.10e-3 | 0.585 PASS |
+
+Per prompt, report only (prefill ratio, and (tp2 - tp1) in units of that prompt's vLLM re-run noise): most prompts are within about
++-1.4 noise units; `chat_short` -2.6 and `chat_multiturn` **+7.1** (tp=2 6.35e-2 vs tp=1 3.27e-2, noise 4.35e-3) are the outliers, `code`
+is 1.60x but +1.1 units. Decode has 16 scored positions per prompt and no recorded per-prompt noise; its ratios run from 0.21 to 5.3.
+The tp=1 controls are bitwise the reference (so they say nothing about per-prompt noise): this is a real gap in the evidence, and
+`chat_multiturn` is the first prompt to look at when someone has a window to spend on it.
+
+### 1.2 Check 3 does not detect a 0.3 % to 1 % partial-scale bug
+
+Same command with `IA_TP_TEST_BUG=scale:F` (rank 1's partials before every all-reduce; eager, no graphs):
+
+| bug | prefill mean ratio | decode mean ratio |
+|---|---|---|
+| none (tp=2) | 0.998 | 0.585 |
+| 0.1 % | 1.059 (fails) | 0.504 |
+| 0.3 % | 0.899 | 1.245 (fails) |
+| 1 % | 0.822 | 0.988 |
+
+The bugged runs have a lower prefill KL than clean tp=2, and the decode column is not monotonic in the size of the bug: noise, not
+detection. The same is true of KL(tp2 vs tp1) (check 4: tp=2 5.261e-3 = 1.66x the vLLM re-run noise, CUDA tp=2 1.10x; bug 0.3 %
+4.471e-3, 1 % 4.671e-3; `raw/w1/self-tp2-*`). Check 1 carries the bug.
+
+### 1.3 Check 1 (direct, gating): the partial sums
+
+- CPU, `tp_test_bug.rs`, f32 tiny model, tp=2 vs tp=1 logits, bound 6 x 2 x gamma_63 = 4.5e-5 (rel_l2): worst clean 5.8e-7 (78x under), weakest
+  `scale:1.003` 1.08e-3 (24x over), weakest `scale:1.001` 3.6e-4 (8x over), 8 seeds.
+- GPU, `tp_partial_sum.rs`, w8 (`raw/w8/hiptest-tp-partial-sum.log`): the registry-selected bf16 GEMV with f32 output at K = 2048 and 5120,
+  m = 1, 8, 64, tp=2 = each rank's half of K then the real P2P `all_reduce_sum_into` (f32 to f32 and f32 to bf16), against the full-K GEMV
+  of tp=1. Per element, deterministic bound `BOUND_DET = 2 gamma_K sum|x w|` (gamma_K = K u / (1 - K u), u = 2^-24) and probabilistic bound
+  `BOUND_PROB = 2 gamma~_K(lambda=6) sum|x w|` (Higham & Mary 2019; assumes zero-mean independent rounding errors). Clean: max|y2 - y1| is at
+  most 0.002 of BOUND_DET in every case (same-sign and random-sign data). Mutants (scale on rank 1's partial, drop a rank, swap x halves):
+  - 0.3 %: same-sign 6.3x BOUND_DET at K=2048 and 2.5x at K=5120 (killed by the deterministic bound); random-sign 1.09x at K=2048 (killed),
+    0.26x BOUND_DET but **3.1x BOUND_PROB** at K=5120 (killed by the probabilistic bound only: that is the gating bound at K=5120);
+  - 0.1 %: same-sign 2.1x at K=2048, 0.83x BOUND_DET but 9.95x BOUND_PROB at K=5120;
+  - drop a rank, swap halves: killed by 90x to 2000x or more on both kinds of data.
+  Not detectable by any summation-order bound: a partial scale below about 4 gamma~ (6.5e-5 at K=2048, 1e-4 at K=5120). The probabilistic
+  bound rests on an independence assumption, not a theorem.
+
+### 1.4 Mutants and run-to-run (w8; `raw/w8/steps.log`)
+
+35B tp=2, 256 ids short against the clean tp=2 run, plus rank 1's graph counters (clean: captures=1, replays=256):
+
+| mutant | result |
+|---|---|
+| `no-peer-upload` (rank 1 never uploads ids/positions) | killed, ids differ |
+| `drop-captured-allreduce` | killed, ids differ, HSA 0x1016 trap (the bounded wait) |
+| `peer-ignores-flag` (rank 1 ignores the graph flag) | killed by rank 1's counters (captures=0, replays=0), ids equal because graphs are bitwise eager |
+| `tp-fold-outproj` (a sharding mutant) | killed, ids differ |
+| `vocab-no-gather` | killed, ids differ |
+| `batch-peer-no-table` (batched step only) | not exercised by a solo run: w12 runs its models test binary (section 6) |
+| batched step protocol (`PlainKernels` at 12 rows, `ReverseRows` at 8, `StalePosition` at 8) | all caught by the tp=2 batched-vs-solo test; the stale-position one in its own process, after which the damaged group faults the device, which is the group going down |
+
+tp=2 256 ids short and 4k: run 1 equals run 2 (w1); tp=2 accuracy numbers equal across three runs (vocab head on, off, second run).
+
+### 1.5 The crash
+
+One of the first tp=2 accuracy runs in w1 died: `HSA_STATUS_ERROR_EXCEPTION code 0x1016`, exit 139, immediately after the "this build:" line,
+the first tp=2 process after a parallel tp=1 prelude (35B on GPU 0, 8B on GPU 1), default config. Window w8 repeated the exact command: cold start after
+the same prelude 0/6, warm back to back 0/24, `IA_TP_VOCAB=0` 0/12, main (before this lane) 0/12: **0 of 54**. The cause is unexplained.
+Recorded as known, unreproduced. (The same exception is what `drop-captured-allreduce` and the stale-position mutant produce on purpose; the
+bounded wait in `allreduce.hip` traps after about a minute of spinning.)
+
+### 1.6 Other checks of the same window
+
+127 HIP crate tests pass (13 ignored), `kernels test --quick` 62 kernels / 333 cases clean, prefix reuse at tp=2 (the long golden) passes with
+fusion and with `IA_TP_FUSION=0` (rank 1 replays 738), tp=1 plan show + 256 ids short/4k identical to main for 8B, 35B and 27B, CUDA (spark1)
+and Metal (endor) no-ops identical (`raw/cuda`, `raw/metal`).
+
+27B (w9, `raw/27b`): tp=2 256 ids equal tp=1 short and 4k; the accuracy tables (W4A4 golden) of tp=1 and tp=2 are equal in every printed column; the switches
+(`IA_TP_VOCAB=0`, `IA_TP_ARNORM=1` with 128 fused all-reduces per rank, `IA_TP_FUSION=0`) leave the ids equal. That golden's gate fails at tp=1 as
+well (KL21 0.18; W4A4 decode verdict, report-only until lane ac's PR #150); the dump compare was not run (missing `--pre-change`); w12 repeated it (section 4: it ran W4A4 too) and w13 runs it at W4A16.
+
+## 2. Speed, 35B NVFP4, tp=1 vs tp=2 (window w10, 2026-10-25 09:55 to 10:02, `raw/speed-0955`)
+
+localeval, tp1 and tp2 interleaved x3 in the same window, `--gen 512`, thinking off. tp1 = GPU 0 alone, tp2 = both cards, default config
+(fusion on), batch build. Median of 3 rounds (min-max in `raw/speed-0955/localeval-*.log`; table from `sptable.py tp2s35`).
+
+| metric | tp1 | tp2 | tp2 / tp1 |
+|---|---|---|---|
+| prefill 1k tok/s | 6489 | 8306 | 1.28 |
+| prefill 4k | 11961 | 13457 | 1.13 |
+| prefill 16k | 8449 | 10689 | 1.27 |
+| decode, 1 stream @1k | 164.1 | 191.9 | 1.17 |
+| decode, 1 stream @4k | 160.6 | 189.8 | 1.18 |
+| decode, 1 stream @16k | 145.8 | 180.9 | 1.24 |
+| aggregate decode, 4 streams | 272.6 | 364.3 | 1.34 |
+| aggregate decode, 16 streams | 334.4 | 485.9 | 1.45 |
+
+The batched rows are the new `--max-batch` with `--tp 2` path. Radiance was down 09:55:10 to 10:02:33 (about 7.5 min) and answered again at 10:02:48, rank 0 and rank 1 up.
+Radiance's own 35B/27B figures are not in this window: the 27B comparison is w11.
+
+## 3. Speed, Qwen3.8-27B MXFP4 (AWQ-Quark), tp=1 vs tp=2 (window w11, 10:03 to 10:36, `raw/speed-1003`)
+
+Same harness as section 2: single stream, `--gen 512`, 3 interleaved rounds per arm, median (min-max in the logs). Arms: tp1; tp2 (defaults);
+tp2-v0 (`IA_TP_VOCAB=0`, replicated lm_head); tp2-f0 (`IA_TP_FUSION=0`); tp2-a1 (`IA_TP_ARNORM=1`, fused all-reduce+rmsnorm).
+
+| metric | tp1 | tp2 | tp2 / tp1 | tp2-v0 | tp2-f0 | tp2-a1 |
+|---|---|---|---|---|---|---|
+| prefill 1k tok/s | 978 | 1406 | 1.44 | 1405 | 1398 | 1404 |
+| prefill 4k | 1017 | 1465 | 1.44 | 1460 | 1457 | 1463 |
+| prefill 16k | 925 | 1316 | 1.42 | 1313 | 1308 | 1309 |
+| decode @1k tok/s | 32.9 | 53.2 | 1.62 | 46.5 (-12.6 %) | 48.5 (-8.8 %) | 53.7 (+0.9 %) |
+| decode @4k | 32.3 | 52.6 | 1.63 | 46.0 | 47.9 | 53.0 |
+| decode @16k | 30.8 | 49.8 | 1.62 | 44.0 | 45.8 | 50.1 |
+
+- tp=2 is 1.42x to 1.44x faster in prefill and 1.62x faster in decode; the vocab-parallel head is worth 13 % of decode on this model, fusion 9 %.
+  The fused all-reduce+rmsnorm kernel is +0.9 % (round spread under 0.5 %): kept opt-in.
+- **The gap to Radiance is large and is not tp**: Radiance 1.12.0 (2026-10-25, with DFlash) prefill is 5210 / 6133 / 5852 tok/s at 1k / 4k / 16k, so
+  our tp
+
+---
+
+Write a critical review of the document above: what is convincing, what is not, what is missing.

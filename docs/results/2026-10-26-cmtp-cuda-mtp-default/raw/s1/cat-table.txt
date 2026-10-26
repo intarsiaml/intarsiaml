@@ -1,0 +1,9 @@
+window s1: 63 localeval runs; problems: 0
+category                        off                   mtp2                   mtp3
+ho-chat        83.9  1.00x           110.9  1.32x  2.35t/p  107.2  1.28x  2.68t/p
+ho-code        83.8  1.00x           128.6  1.54x  2.74t/p  138.7  1.66x  3.48t/p
+ho-prose       83.8  1.00x            98.6  1.18x  2.08t/p   91.2  1.09x  2.26t/p
+ho-recall      83.8  1.00x           116.3  1.39x  2.47t/p  117.4  1.40x  2.95t/p
+rcp-code       83.8  1.00x           127.8  1.53x  2.72t/p  133.7  1.60x  3.37t/p
+rcp-prose      83.8  1.00x           100.2  1.20x  2.12t/p   94.0  1.12x  2.34t/p
+rcp-recall     83.7  1.00x           119.5  1.43x  2.53t/p  119.4  1.43x  2.99t/p

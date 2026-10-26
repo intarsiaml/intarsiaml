@@ -1,0 +1,11 @@
+clean (mtp) b6f682fb6 test binary sha256 eaa6f2749b77acc4
+mutant rollback-skip applied to crates/intarsia-core/src/state.rs
+mutant rollback-skip: sha256 134eb3c5fc902c2e (clean eaa6f2749b77acc4): CAUGHT by:     captured_spec_step_keeps_greedy_output_identical     captured_spec_step_survives_every_acceptance_pattern     cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical     cost_gate_with_scripted_drafts_stays_identical     dense_mtp_head_keeps_greedy_output_identical     min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids     mtp_head_drafts_keep_greedy_output_identical_over_256_tokens     non_drafting_requests_skip_the_head_and_leave_greedy_ones_identical     reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix     scripted_drafts_hit_every_acceptance_pattern_and_stay_identical     short_scripted_drafts_behave_alike_on_both_paths 
+mutant accept-off-by-one applied to crates/intarsia-core/src/spec.rs
+mutant accept-off-by-one: sha256 e812f490659712d6 (clean eaa6f2749b77acc4): CAUGHT by:     captured_spec_step_keeps_greedy_output_identical     captured_spec_step_survives_every_acceptance_pattern     cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical     cost_gate_with_scripted_drafts_stays_identical     dense_mtp_head_keeps_greedy_output_identical     min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids     mtp_head_drafts_keep_greedy_output_identical_over_256_tokens     non_drafting_requests_skip_the_head_and_leave_greedy_ones_identical     reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix     scripted_drafts_hit_every_acceptance_pattern_and_stay_identical     short_scripted_drafts_behave_alike_on_both_paths 
+mutant mtp-chain-row applied to crates/intarsia-core/src/model/mtp.rs
+mutant mtp-chain-row: sha256 ea5bec83a48015f5 (clean eaa6f2749b77acc4): CAUGHT by:     captured_spec_step_drafts_equal_the_eager_drafts 
+mutant mtp-kv-no-truncate applied to crates/intarsia-core/src/state.rs
+mutant mtp-kv-no-truncate: sha256 45f18e5e3a6f96e1: SURVIVED
+mutant mtp-token-pairing applied to crates/intarsia-core/src/model/mtp.rs
+mutant mtp-token-pairing: sha256 8eaad7dd521249bb (clean eaa6f2749b77acc4): CAUGHT by:     captured_spec_step_drafts_equal_the_eager_drafts     reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix 

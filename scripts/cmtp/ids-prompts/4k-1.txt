@@ -1,0 +1,138 @@
+# DFlash parallel-draft speculation and the DCOCO corrector (`--spec dflash [--dcoco]`), lane dc, 2026-10-25
+
+Branch `lane-dc/dflash-dcoco`. Opt-in only; with the flags off nothing is loaded and `plan show` plus the 256 greedy ids
+of the 8B on CUDA are bitwise main. Raw metadata for this note is in `2026-10-25-dc-dflash-dcoco/raw/`.
+
+Status: phase 1 (scope note) accepted by the coordinator; **phases 2 and 3 done; cost gate tried, DFlash stays opt-in** (sections 10-12).
+
+## 0. Decision and sources
+
+User decision 2026-10-25 19:39 ("go dcoco"): add DFlash, then the DCOCO corrector on top, both default-off.
+
+| source | what we took | licence |
+|---|---|---|
+| arXiv 2610.12570, "Contextual Correction of Parallel Drafts for Speculative Decoding" | the corrector math (section 3), selection rule, stochastic rule (App. G), reported numbers | paper |
+| `TD-Labs/Qwen3-8B-DCOCO` (HF, sha 4080a604, 2026-10-14) | config and tensor names/shapes (section 2) | **Apache-2.0** (HF card) |
+| github.com/two-delta/DCOCO | README only (vLLM image + `vllm serve` recipe). **No code read, none copied.** | **no licence**: GitHub API `license: null`, `LICENSE` is 404, so all rights reserved. Implementation is from the paper and the checkpoint only |
+| vLLM `v1/spec_decode/dflash.py`, `model_executor/models/qwen3_dflash.py`, `v1/spec_decode/utils.py` (main) | DFlash semantics: query layout, context K/V, non-causal attention | Apache-2.0 |
+| z-lab/dflash MLX reference, vendored in `/opt/code/TensorFold/src/tensorfold/drafters/vendor/z_lab_dflash/model_mlx.py` | the reference forward and the spec loop; usable as an independent numerical reference | MIT (Z Lab) |
+
+## 1. DFlash in one page
+
+Target Qwen3-8B (36 layers, H=4096, 32 q heads, 8 kv heads, head_dim 128). Draft: 5 dense Qwen3 layers (same shapes,
+`intermediate_size` 12288, qk-norm, rope theta 1e6 neox), all `full_attention`, **non-causal**, plus `fc` and `hidden_norm`.
+
+**Features from the target.** `target_layer_ids = [0, 8, 16, 24, 32]` are 0-based layer indices. The tap is the *output* of
+layer i, i.e. the full residual stream after that layer (attention and MLP adds both applied), before any final norm.
+(z-lab: `_LayerHook` stores the layer output; vLLM's `eagle_aux_hidden_state_layer_ids = [1, 9, 17, 25, 33]` is the same
+five tensors seen as the input of layer i+1.) For every target position t, `feat_t = concat(out_0, out_8, out_16, out_24, out_32)`
+in that order, 20480 values. Prefill positions and every verified position produce features.
+
+**Context projection (shared by all 5 draft layers).**
+`h_ctx = hidden_norm(fc(feat))`, `fc` is [4096, 20480] no bias, `hidden_norm` an RMSNorm.
+For draft layer l: `K_ctx = rope(k_norm(k_proj_l(h_ctx)), pos)`, `V_ctx = v_proj_l(h_ctx)`, at the target's absolute
+positions. Note the context rows do **not** pass through the layer's `input_layernorm`, only the shared `hidden_norm`.
+These K/V persist in the draft's own KV cache (5 layers x 8 kv heads x 128 x 2 x bf16 = 20 KiB per token).
+
+**Block decode (one forward per round). Corrected after the MLX reference run (section 10.3).**
+Let P be the number of context rows, equal to the position of the anchor token `b` (the last committed token, which the
+target has not yet been fed). The query block is `[b, MASK x 14]` (`mask_token_id` 151669), **15 rows** (`dflash_config.block_size
+= 15`) at positions P..P+14. Per layer: `x = embed(tokens)`; `x += o_proj(attn(input_layernorm(x)))`; `x += mlp(post_attention_layernorm(x))`;
+the query rows' own K/V (same projections, qk-norm, rope at P..P+14) are appended **after** the context K/V and attended
+with **no causal mask** (every query row sees all context and all block rows). Final `norm`, then `lm_head` on **all 15
+rows, the anchor row included** (`sample_from_anchor: true`): row r predicts the token at position P+r+1, so row 0 (the
+anchor) drafts the token right after the anchor. **15 drafts, 16 verify rows.** (The z-lab convention of taking rows 1..15
+gives tau 1.04 with this checkpoint: it is the wrong layout here.) The block K/V are scratch: the next round overwrites
+positions P'.. with real context K/V.
+
+**Verify (unchanged from MTP/ngram).** Target forward on `[b, d1..d15]` (16 rows = `LOGIT_ROWS`), longest-prefix greedy
+match, commit accepted + 1 bonus, roll the target KV back. The next round's context is the features of the rows the verify
+produced for the committed positions (anchor row plus the accepted rows).
+
+Geometry note: `block_size = 15` is the number of query rows and of drafted slots; `sample_from_anchor: true` means the
+anchor row is sampled too; `causal: false` is the non-causal block attention. (Whether the query block has 15 or 16 rows
+(one extra unused mask row) is a statistical tie on the reference, tau 3.298 vs 3.261; we use 15, which is also cheaper.)
+
+## 2. Checkpoint (metadata only; weights not downloaded yet)
+
+`TD-Labs/Qwen3-8B-DCOCO`: one `model.safetensors` of 4,591,038,706 bytes, 70 tensors, all BF16, 2,295,515,649 parameters
+(raw: `raw/TD-Labs_Qwen3-8B-DCOCO.safetensors-header.tsv`, read with two HTTP range requests of the safetensors header).
+`architectures = ["DCOCODraftModel"]`, `model_type = qwen3`, `vocab_size = draft_vocab_size = 151936`,
+`tie_word_embeddings = false`.
+
+| tensor | shape | use |
+|---|---|---|
+| `layers.{0..4}.input_layernorm.weight`, `post_attention_layernorm.weight` | [4096] | RMSNorm, eps 1e-6 |
+| `layers.{i}.self_attn.q_proj / o_proj` | [4096,4096] | |
+| `layers.{i}.self_attn.k_proj / v_proj` | [1024,4096] | also applied to `h_ctx` |
+| `layers.{i}.self_attn.q_norm / k_norm.weight` | [128] | per-head RMSNorm |
+| `layers.{i}.mlp.gate_proj / up_proj` | [12288,4096] | SwiGLU |
+| `layers.{i}.mlp.down_proj` | [4096,12288] | |
+| `fc.weight` | [4096, 20480] | feature fusion |
+| `hidden_norm.weight`, `norm.weight` | [4096] | context norm, final norm |
+| `embed_tokens.weight` | [151936,4096] | draft's own copy (2.4 GB). DCOCO freezes it, so it is probably the target's table: **verify row 151669 (mask) and a sample of rows against Qwen3-8B in phase 2; use the draft's table if they differ** |
+| `lm_head.weight` | [151936,4096] | separate from the embedding (not tied), draft's own |
+| `dcoco.cand_proj.weight` | [128,4096] | W_cand |
+| `dcoco.ctx_h_proj.weight` | [128,4096] | W_ctx |
+| `dcoco.cand_ctx_proj.weight` | [128,256] | W_fuse |
+| `dcoco.ctx_out_norm.weight / .bias` | [128] | affine LayerNorm after W_fuse |
+| `dcoco.pair_proj.weight` | [128,8192] | W_pair |
+| `dcoco.trans_mlp.0.weight / .bias` | [256,386] / [256] | MLP layer 1 |
+| `dcoco.trans_mlp.2.weight / .bias` | [1,256] / [1] | MLP layer 2 (scalar) |
+
+Checks: draft sizes 5 x 193.4M (layers) + 83.9M (`fc`) + 2 x 622.1M (embed, lm_head) = 2,295.3M, and the 10 `dcoco.*`
+tensors sum to exactly 2,229,505 parameters, the paper's number for Qwen3-8B (App. A). `dcoco_candidate_topk = 16`,
+`dcoco_emb_dim = dcoco_state_dim = 128`, `dcoco_mlp_dim = 256`.
+
+Draft weights read per round on a 273 GB/s Spark: 5 layers + `fc` (2.1 GB) + `lm_head` (1.24 GB) = about 3.4 GB, against
+16.4 GB for the BF16 8B target. The draft costs about 20% of a verify step, so a round is about 1.2x a plain decode step.
+
+## 3. Corrector math (from the paper, section 4.2-4.3 and App. A, G)
+
+Per drafted slot i = 1..B (B = 15): hidden state `h_i` (4096), top-K draft candidates `c_ik` and their draft logits
+`l_i(k)`, K = 16. Let E be the (frozen) token embedding, `LN` a non-affine LayerNorm, `LN_gb` an affine one, r = 128.
+
+```text
+b_ik = LN(W_cand E[c_ik])                     W_cand  [r, d]        = dcoco.cand_proj
+g_i  = LN(W_ctx  h_i)                         W_ctx   [r, d]        = dcoco.ctx_h_proj
+z_ik = LN_gb(W_fuse [b_ik ; g_i])             W_fuse  [r, 2r]       = dcoco.cand_ctx_proj, ctx_out_norm
+s_p  = W_pair [h_p ; h_{p+1}]                 W_pair  [r, 2d]       = dcoco.pair_proj        (p = 1..B-1, once per slot pair)
+S_p(a,b) = l_{p+1}(b) + MLP([s_p ; z_pa ; z_{p+1,b} ; l_p(a) ; l_{p+1}(b)])      MLP: 386 -> 256, GELU, 256 -> 1
+```
+
+The MLP's output layer was zero-initialised in training, so at initialisation S_p(a,b) = l_{p+1}(b) and the selection below
+reproduces DFlash's argmax. Selection (prefix-first greedy, eq. 7): `k_1 = argmax_k l_1(k)`, then
+`k_{p+1} = argmax_b S_p(k_p, b)`. The draft block is `c_{p,k_p}`. Complexity: (B-1) K^2 = 3584 scores in the paper's
+batched pass, O(B K) for the walk. Verify is the unchanged linear verify.
+
+Implementation plan, no extra drafter pass:
+- The walk only ever needs row `a = k_p` of S_p, so it can be run lazily: 14 steps x 16 candidates = 224 MLP evaluations
+  instead of 3584. cpu-ref and the first CUDA version do exactly that.
+- MLP layer 1 is linear in its concatenated input, so split `W0 = [Ws | Wa | Wb | w_la | w_lb]` (128, 128, 128, 1, 1
+  columns; **column order is an assumption**, section 8): `pre = Ws s_p + Wa z_pa + Wb z_{p+1,b} + w_la l_p(a) + w_lb l_{p+1}(b) + bias`.
+  The three 128->256 projections are done once per slot or per candidate (Matmul), the pair grid is a broadcast add, so the
+  per-transition work is a 256-wide GELU and a dot. This reuses existing ops; no new GEMM kernel is needed.
+- Greedy exactness: the corrector only changes *which* tokens are proposed. Verify is the target's own greedy argmax, so
+  the committed ids are the target's regardless of the corrector's numerics (the paper's lossless claim, and the same
+  argument as MTP). Stochastic (App. G): the proposal is a point mass `p_j = 1[v = y_j]`, accept with probability
+  `q_j(y_j)` (min(1, q/p) with p = 1), on rejection resample from `q` restricted to `v != y_j` and renormalised. We only
+  ship greedy, so this stays out of scope until the engine has stochastic spec.
+- Paper numbers to compare against (Qwen3-8B, B200, vLLM, T=0, thinking off, ten-suite average, concurrency 1): vanilla
+  265.6 tok/s, DFlash 783.1 (2.95x, tau 3.913), DCOCO 959.7 (3.62x, tau 4.985); gain +18-23% at batch 1, narrowing with
+  concurrency. tau there = accepted drafts + 1.
+
+## 4. Mapping onto this repo
+
+Grounded in `crates/intarsia-core` at origin/main cf84efa43 (read in this phase; line numbers will drift).
+
+| piece | existing seam | what is new |
+|---|---|---|
+| mode | `spec.rs` `SpecMode {Off,Ngram,Mtp}`, `SpecConfig::parse`, `SPEC_K_MAX = 6` | `SpecMode::Dflash`. `SPEC_K_MAX` is 6 because of the 8-row GEMV cliff; DFlash needs k up to 15 (16 verify rows = `LOGIT_ROWS`, `VERIFY_MAX_ROWS = 16`). Dflash gets its own `DFLASH_K_MAX = 15`, others unchanged |
+| drafter | `model/mtp.rs` (`mtp_draft`, own `MtpState` with a pending queue and its own KV) | `model/dflash.rs`: loads the draft, owns a 5-slot draft `SequenceState`, ingest queue, block forward |
+| verify, accept, rollback | `Model::forward_verify`, `engine.rs` `spec_verify / spec_accept / spec_cut`, `st.truncate` for attention-only models | **unchanged** |
+| gate / back-off | `SpecGate`, `CostGate` (`spec.rs`) | the tap must keep recording on back-off (plain decode) steps; ingest is lazy (queued features), so a back-off step costs one 40 KB/token copy and the context never has holes |
+| target tap | `Model::run_layers` loop (`model.rs`, two ping-pong residual buffers, pending-add, fused norms) | copy the post-layer residual (pending add included) of layers 0, 8, 16, 24, 32 into a `[rows, 20480]` staging buffer. Needed on prefill chunks, decode, verify, the captured decode graph, and the 
+
+---
+
+Explain the document above to a new engineer joining the project, in detail.

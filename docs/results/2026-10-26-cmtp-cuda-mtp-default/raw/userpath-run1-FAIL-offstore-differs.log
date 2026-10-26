@@ -1,0 +1,22 @@
+fleetq: #5793 waiting (#2 in line): in line behind #5792 "cmtp: G0 cuda" (claude-f31ccf91) on spark1
+fleetq:   #5792 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5792 set, or it will wait for #5792 to be released.
+fleetq: #5793 waiting (#1 in line): #5792 "cmtp: G0 cuda" (claude-f31ccf91) needs gpu quiet on spark1, and this job loads it
+fleetq:   #5792 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5792 set, or it will wait for #5792 to be released.
+fleetq: #5793 running on spark1: ssh spark1 'bash -s'
+def-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-plain 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-plain short-0: 7769fe3459348513 94 'Subject: Heating issue in [Apartment Num'
+def-plain spec steps: intarsia_spec_steps_total 143 
+def-plain default line: 1
+def-store 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-store 4k-0: 1a3ed833e36a3118 128 'Here is a section-by-section summary of '
+def-store short-0: 7769fe3459348513 94 'Subject: Heating issue in [Apartment Num'
+def-store spec steps: intarsia_spec_steps_total 143 
+def-store default line: 1
+off-store 4k-0: 7615e5fea21d8398 128 'Here is a section-by-section summary of '
+off-store 4k-0: 7615e5fea21d8398 128 'Here is a section-by-section summary of '
+off-store short-0: 05e02a546c024b8f 100 'Subject: Heating issue in [Apartment Num'
+off-store spec steps: intarsia_spec_steps_total 0 
+off-store default line: 0
+FAIL user path: 1a3ed833e36a3118 1a3ed833e36a3118 7769fe3459348513  | 1a3ed833e36a3118 1a3ed833e36a3118 7769fe3459348513  | 7615e5fea21d8398 7615e5fea21d8398 05e02a546c024b8f 
+fleetq: #5793 done (exit 0)

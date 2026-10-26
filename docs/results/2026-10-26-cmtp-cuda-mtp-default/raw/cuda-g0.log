@@ -1,0 +1,26 @@
+fleetq: #5792 waiting (#1 in line): needs gpu quiet on spark1, but #5791 "cmtp: CUDA mutant ids rollback-skip" (claude-f31ccf91) loads it
+fleetq:   #5791 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5791 set, or it will wait for #5791 to be released.
+fleetq: #5792 running on spark1: ssh spark1 'bash -s'
+PASS ids 8 short base == dev (256 ids, md5 b43773b5)
+PASS ids 8 4k base == dev (256 ids, md5 8aca363b)
+PASS plan 8 json base == dev byte-identical (8758 B)
+PASS plan 8 txt base == dev byte-identical (1478 B)
+PASS ids g short base == dev (256 ids, md5 e9b68e9b)
+PASS ids g 4k base == dev (256 ids, md5 f617db08)
+PASS plan g json base == dev byte-identical (8631 B)
+PASS plan g txt base == dev byte-identical (1865 B)
+PASS ids 35 short base == dev-off (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev-off (256 ids, md5 51b7fcfd)
+PASS plan 35 json base == dev-off byte-identical (13977 B)
+PASS plan 35 txt base == dev-off byte-identical (3507 B)
+PASS ids 35 short base == dev-envoff (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev-envoff (256 ids, md5 51b7fcfd)
+PASS plan 35 json base == dev-envoff byte-identical (13977 B)
+PASS plan 35 txt base == dev-envoff byte-identical (3507 B)
+PASS ids 35 short base == dev (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev (256 ids, md5 51b7fcfd)
+INFO plan 35 json base vs dev differ (62 diff lines)
+INFO plan 35 txt base vs dev differ (22 diff lines)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+g0 fails=0
+fleetq: #5792 done (exit 0)

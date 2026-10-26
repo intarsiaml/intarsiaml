@@ -1,0 +1,7 @@
+15:07:11 round 1 arm off: starting server (--spec off)
+15:07:52 round 1 arm off: 
+15:08:05 soak off: 4 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+15:08:06 round 1 arm auto: starting server ()
+15:09:08 round 1 arm auto: --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_|
+15:10:53 soak auto: 40 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+15:10:55 done, time left 2176s
