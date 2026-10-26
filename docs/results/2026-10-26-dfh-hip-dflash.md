@@ -181,4 +181,39 @@ i.e. about 2.0-2.1x. Not measured.
 A captured MTP pass with 7 verify rows plus 6 one-row head passes costs 76 ms (2.5x a plain step), which bounds a captured verify7 from
 above. One prompt of each kind, so these are data points, not a benchmark.
 
-**Status: stopped at the stop condition, decision asked of the coordinator** (section 8 once answered).
+**Status after window 1: stopped at the stop condition, decision asked of the coordinator.** Superseded by section 8: the w1 verify timings are profiled passes.
+
+## 8. Captured verify pass, windows 2 and 3: the bar passes (captured verify8 = 1.98x)
+
+Coordinator 08:41: option A (build a captured verify pass, generic for `--spec mtp` and `--spec dflash`; the 2.2x bar applies to the
+captured number; exactness must hold with capture on; pause, not stop, if above 2.2x; MXFP4 kernels belong to lane mxr).
+
+**What was built.** `Model::forward_verify` replays a captured verify-only graph where it can (`model/spec_graph.rs`:
+`verify_graph_ok`, `verify_replay`, `capture_verify`; one recording per (sequence state, rows), ids from `ws.ids`, row positions from
+`ws.pos`, the same launches as the eager pass). HIP only for now (CUDA and Metal keep the eager pass until measured), one rank, graphs
+on; `INTARSIA_VERIFY_GRAPH=0` opts out. `--spec mtp`'s own captured step is unchanged; its eager fallback now takes the capture.
+
+**Window 2 (#5709, 08:49:09-08:50:47) measured nothing new.** Its captured arm ran no capture (`spec_captures: 0`) and both arms
+gave the w1 numbers (verify8 85.8 ms): the probe loads with `LoadOptions::default()`, whose `profile_every` is 1, so every verify pass
+was profiled (eager, synchronised per op), and a profiled pass is never captured. The w1 2.76x is therefore a profiled pass too, not an
+eager one. The engine runs with `--profile-every 0`. Fixed in the probe (`profile_every: 0`). w2 also re-ran the `--spec mtp` ids
+check on the changed tree: identical to off in 4 of 4 (`raw/w2/steps.log`).
+
+**Window 3 (#5711, 08:55:27-08:56:19 radiance down; `raw/w3/`), probe unprofiled, 27B tp=1:**
+
+| rows q | captured verify ms (card 0) | vs decode1 | eager verify ms (card 1, `INTARSIA_VERIFY_GRAPH=0`) | vs decode1 |
+|---|---|---|---|---|
+| 1 (decode, graph) | 31.29 | 1.00x | 31.12 | 1.00x |
+| 2 | 36.69 | 1.17x | 37.41 | 1.20x |
+| 3 | 39.72 | 1.27x | 40.39 | 1.30x |
+| 4 | 43.12 | 1.38x | 43.58 | 1.40x |
+| 5 | 47.38 | 1.51x | 47.81 | 1.54x |
+| 6 | 52.08 | 1.66x | 52.34 | 1.68x |
+| 7 | 56.71 | 1.81x | 56.86 | 1.83x |
+| 8 | **61.99** | **1.98x** | 61.85 | 1.99x |
+
+- **Bar: PASS** (1.98x <= 2.2x). About 4.4 ms per extra row, the same slope as the captured batch step (MR doc: 59.5 ms at 8 rows).
+- **Exactness with capture on: PASS**: 303 rows (q = 2..8 at contexts 17, 130, 1024, 4000, 16000, plus 16 greedy windows), 0 differences,
+  worst |logit diff| 0, with 135 verify replays from 43 recordings. The eager arm: 163 rows, 0 differences.
+- **Honest reading:** unprofiled, the eager verify pass on HIP is almost as fast as the captured one (0.2-2%, larger at small q). The
+  capture is kept (bitwise, opt-out, small) but it is not what moved the number; removing the profiling did.
