@@ -41,7 +41,7 @@ The steps:
    nothing. Checksums without `-t`: `git archive` gives every file the commit's timestamp, and with `-t` an older ref
    would look older than the last build, so cargo would reuse stale objects.
 2. **Build** with `cargo build --release --locked --features <backend> -p intarsia-cli` and `INTARSIA_BUILD_STAMP`
-   (`head=<sha7> tree=<hash> backend=<be>`) baked in, so `intarsia qualify` and the accuracy reports carry it.
+   (`head=<sha7> code-tree=<hash> dirty=no tree=<hash> backend=<be>`) baked in, so `intarsia qualify` and the accuracy reports carry it.
    CUDA and Metal use the host toolchain. HIP builds in the pinned `intarsia-hip-dev` container through
    `deploy/tatooine/dev.sh` (the script builds the image from `deploy/tatooine/Dockerfile.hip-dev` if the host lacks it).
 3. **Smoke**: `intarsia doctor --json --out DEPLOY_DOCTOR.json`, then `intarsia kernels test --quick` (the whole quick
@@ -169,7 +169,7 @@ they only smoke-test). 3. Compare the printed table, then the numbers. Do not co
 |---|---|
 | `RUSTFLAGS=--remap-path-prefix=...` | Maps the source tree, the cargo target dir, `CARGO_HOME` and the rustc sysroot to fixed names. Needs absolute paths, so it is set by the script, not `.cargo/config.toml` (cargo's own `trim-paths` is not in the pinned 1.90.0). Caller `RUSTFLAGS` are kept. |
 | `SOURCE_DATE_EPOCH` | Defaults to the commit time of HEAD (an exported tree has no `.git`: export `SOURCE_DATE_EPOCH` yourself there); `0` if unknown. Also sets `ZERO_AR_DATE=1`, `LC_ALL=C`, `TZ=UTC`. |
-| `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
+| `INTARSIA_BUILD_STAMP` | The git provenance (`head=<sha7> code-tree=<hash> dirty=no tree=<hash> backend=...`) stays in the binary. It is an input (deploy.sh passes it), not a clock or a `git` call in `build.rs`, so the same sha gives the same bytes. |
 | `CARGO_INCREMENTAL=0` | No incremental cache in the result. |
 
 Backend build scripts: **Metal** and **HIP** need nothing more (the metallib is byte-stable; the HIP kernels build in the dev container, where the tree is always `/work` and the target dir `/target`). **CUDA** needs two things, both in `crates/intarsia-backend-cuda/build.rs`: nvcc derives the `_GLOBAL__N__<hash>` names inside every cubin from the source file's absolute path AND its mtime, `-lineinfo` records the source directory, and the host object carries nvcc's temp file name (`tmpxft_<pid>_...`) as an ELF file symbol. So `build.rs` copies `kernels/{cuda,common,abi}` to `/tmp/intarsia-cuda-kernels-<content hash>` (files stamped with a fixed mtime, checked before reuse), compiles from there, and runs `objcopy --strip-unneeded` on each object. The device code is unchanged; only symbol names and debug-line directories differ. `INTARSIA_CUDA_NO_STAGE=1` compiles in place (assert messages then show your checkout path, the binary hash depends on it). Without `objcopy` the build still works and warns.

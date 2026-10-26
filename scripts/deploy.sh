@@ -110,7 +110,10 @@ case "$BACKEND" in   # PREFIX runs a command in the build environment with the t
   hip) BIN=/target/release/intarsia; PREFIX="INTARSIA_REPO=$T $DEV" ;;
   *)   BIN=target/release/intarsia;  PREFIX="" ;;
 esac
-STAMP_TEXT="head=${SHA:0:7} tree=${TREEHASH:0:12} backend=$BACKEND"   # reaches the binary as INTARSIA_BUILD_STAMP
+# reaches the binary as INTARSIA_BUILD_STAMP. `head= code-tree= dirty=` is the form `intarsia accuracy` / `qualify` read (CodeStamp::parse, the
+# output of scripts/tree-stamp.sh): without code-tree the `envelope` stage ERRORs ("this build carries no code stamp"). The tree is exported
+# from the pinned commit, so it is clean by construction; `tree=` and `backend=` are kept for the readers of the old form.
+STAMP_TEXT="head=${SHA:0:7} code-tree=${TREEHASH:0:12} dirty=no tree=${TREEHASH:0:12} backend=$BACKEND"
 echo "deploy: $HOST ($BACKEND) <- $SHA ($SUBJECT)"
 
 # ---- sync -------------------------------------------------------------------------------------------------------------
