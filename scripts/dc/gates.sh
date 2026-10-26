@@ -14,8 +14,6 @@ mkdir -p $O
 md() { md5sum "$1" | cut -c1-8; }
 case "${1:?}" in
 buildbase)
-  rm -rf $BASE && mkdir -p $BASE && (cd /dev/null 2>/dev/null; true)
-  # the exported tree is rsynced from endor beforehand (scripts/dc/spark1.sh basesync)
   cd $BASE && CARGO_TARGET_DIR=$HOME/intarsiaml-dc-target-base CARGO_BUILD_JOBS=8 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -3 ;;
 builddev)
   cd $SRC && CARGO_TARGET_DIR=$HOME/intarsiaml-dc-target CARGO_BUILD_JOBS=8 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -3 ;;
