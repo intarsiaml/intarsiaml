@@ -1,0 +1,11 @@
+fleetq: #5796 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5796 running on spark1: ssh spark1 'bash -s'
+off-p0 4k-0: 1a3ed833e36a3118 128 length
+off-p0 short-0: 7769fe3459348513 94 stop
+def-p0 4k-0: 1a3ed833e36a3118 128 length
+def-p0 short-0: 7769fe3459348513 94 stop
+off-pd 4k-0: 1a3ed833e36a3118 128 length
+off-pd short-0: 7769fe3459348513 94 stop
+def-pd 4k-0: 1a3ed833e36a3118 128 length
+def-pd short-0: 7769fe3459348513 94 stop
+fleetq: #5796 done (exit 0)

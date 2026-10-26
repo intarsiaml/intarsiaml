@@ -1,0 +1,2 @@
+fleetq: #5797 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #5797 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s cuda-perrow-off 16k-0 16k-1 16k-2 16k-3 16k-4 16k-5'

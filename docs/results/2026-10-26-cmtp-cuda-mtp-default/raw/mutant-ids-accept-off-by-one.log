@@ -2,3 +2,10 @@ fleetq: #5794 waiting (#2 in line): in line behind #5793 "cmtp: user path (super
 fleetq:   #5793 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5793 set, or it will wait for #5793 to be released.
 fleetq: #5794 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
 fleetq: #5794 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-cmtp/out-final bash -s accept-off-by-one short-0 short-1 4k-0 4k-1 16k-0'
+FAIL ids short-0 mtp (prompt: 41) differ/empty | spec: verify passes=89 proposed=177 accepted=166 (acceptance 93.8%, 2.87 tokens per pass)
+FAIL ids short-1 mtp (prompt: 34) differ/empty | spec: verify passes=95 proposed=190 accepted=159 (acceptance 83.7%, 2.67 tokens per pass)
+FAIL ids 4k-0 mtp (prompt: 3870) differ/empty | spec: verify passes=89 proposed=177 accepted=166 (acceptance 93.8%, 2.87 tokens per pass)
+FAIL ids 4k-1 mtp (prompt: 3993) differ/empty | spec: verify passes=90 proposed=180 accepted=165 (acceptance 91.7%, 2.83 tokens per pass)
+FAIL ids 16k-0 mtp (prompt: 15481) differ/empty | spec: verify passes=90 proposed=180 accepted=165 (acceptance 91.7%, 2.83 tokens per pass)
+ids fails=5
+fleetq: #5794 done (exit 0)

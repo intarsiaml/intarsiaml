@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane cmtp user path ON spark1: the 35B served the way a user starts it (supervised, no --spec, no --max-batch, default --profile-every), with and
-# without --prefix-store on, against a --spec off server with the store: the same three requests (a ~3k-token prompt twice, so the second one is
-# a store hit, then a short one) must answer byte-identically; the default servers must have run speculation (intarsia_spec_steps_total > 0) and
+# without --prefix-store on, against a --spec off server without the store: the same three requests (a ~3k-token prompt twice, so the second one is
+# a store hit, then a short one) must answer byte-identically (a --spec off server with the store is reported too); the default servers must have run speculation (intarsia_spec_steps_total > 0) and
 # print the default line, the off server must not.
 #   fleetq run --host spark1 --mem 50 --expect 25 --label "cmtp: user path" -- ssh spark1 'bash -s' < scripts/cmtp/userpath.sh
 set -uo pipefail
@@ -30,6 +30,8 @@ run() { # run <tag> <args...>
 }
 run def-plain
 run def-store --prefix-store on
+run off-plain --spec off
 run off-store --prefix-store on --spec off
-a=$(cut -d' ' -f3 $O/answers-def-plain.txt | tr '\n' ' '); b=$(cut -d' ' -f3 $O/answers-def-store.txt | tr '\n' ' '); c=$(cut -d' ' -f3 $O/answers-off-store.txt | tr '\n' ' ')
-[ "$a" = "$c" ] && [ "$b" = "$c" ] && echo "PASS user path: default (plain, store) answers == spec-off ($c)" || echo "FAIL user path: $a | $b | $c"
+a=$(cut -d' ' -f3 $O/answers-def-plain.txt | tr '\n' ' '); b=$(cut -d' ' -f3 $O/answers-def-store.txt | tr '\n' ' '); c=$(cut -d' ' -f3 $O/answers-off-plain.txt | tr '\n' ' '); d=$(cut -d' ' -f3 $O/answers-off-store.txt | tr '\n' ' ')
+[ "$a" = "$c" ] && [ "$b" = "$c" ] && echo "PASS user path: default (plain, store) answers == spec-off without a store ($c)" || echo "FAIL user path: $a | $b | $c"
+[ "$d" = "$c" ] && echo "INFO spec-off with the store == spec-off without" || echo "INFO spec-off WITH the prefix store differs from spec-off without it ($d vs $c): the store changes prefill numerics on its own, with or without MTP"
