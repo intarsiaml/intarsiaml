@@ -1,0 +1,6 @@
+qualify-Qwen3.8-27B-MXFP4-mtpfp8-hip-bench  model=qualify-Qwen3.8-27B-MXFP4-mtpfp8  gen=128  reps=3
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      125     0.116         1055        33.1      128       81.6
+    1024      981     0.544         1804        32.9      128       81.3
+    4096     4014     2.164         1854        32.3      128       79.9
+bandwidth floor: 40.5 tok/s

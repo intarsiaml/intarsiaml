@@ -1,0 +1,5 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+admission on plan shapes: 20 kernel(s) checked, 0 case(s) run, 305 cached
+loaded Qwen3.8-27B-MXFP4-mtpfp8 on hip (AMD Radeon Graphics) in 22.9s, context 17152 tokens
+intarsia server listening on http://127.0.0.1:8090

@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/home/nvidia/intarsiaml-od/models/Qwen3.8-27B-MXFP4-mtpfp8",
+    "backend": "cuda"
+  },
+  "created_unix": 1792976377,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant mxfp4)",
+      "started_unix": 1792976377,
+      "ended_unix": 1792976377,
+      "wall_s": 0.008772163,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_vl",
+        "family": "qwen3_5",
+        "quant": "mxfp4"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris.\\nThe capital of Germany is Berlin.\\nThe capital of Italy is\"",
+      "started_unix": 1792976377,
+      "ended_unix": 1792976424,
+      "wall_s": 47.015966869,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "decode_tok_s": 6.74,
+        "completion": "Paris.\nThe capital of Germany is Berlin.\nThe capital of Italy is",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): acc-short FAIL: decode: 21-way KL (scored rows, n=118) 2.968e-1 (need <= 2.0e-1); acc-oracle FAIL: prefill: 21-way KL (scored rows, n=1441) 1.945e-1 (need <= 2.0e-2)",
+      "started_unix": 1792980858,
+      "ended_unix": 1792981051,
+      "wall_s": 192.972270853,
+      "halted": false,
+      "first_started_unix": 1792976424,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-26T02:17:31Z",
+      "started_unix": 1792981051,
+      "ended_unix": 1792981051,
+      "wall_s": 0.001251373,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792981051
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    },
+    {
+      "id": "in-depth",
+      "title": "in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)",
+      "tier": "in-depth",
+      "verdict": "error",
+      "reason": "qualify exit 2: acc-short FAIL: decode: 21-way KL (scored rows, n=118) 2.968e-1 (need <= 2.0e-1); acc-oracle FAIL: prefill: 21-way KL (scored rows, n=1441) 1.945e-1 (need <= 2.0e-2); envelope ERROR: measuring the noise envelope with 'chunk' exit 1: Error: the reference baseline or this build carries no code stamp, so they cannot be shown to be one build (build through scripts/phase1b-acceptance.sh, or --allow-unstamped for development) [qualify    556s] == tp [tensor-parallel variant]\n[qualify    556s] tp: SKIP in 0.0s (--tp not given (or 1))\n[qualify    556s] exit code 2",
+      "started_unix": 1792981051,
+      "ended_unix": 1792981607,
+      "wall_s": 556.068146892,
+      "halted": true,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 2
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-in-depth",
+      "title": "publish in-depth.md / in-depth.json / in-depth.prom",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "in-depth.md written 2026-10-26T02:26:47Z",
+      "started_unix": 1792981607,
+      "ended_unix": 1792981607,
+      "wall_s": 0.001705915,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1792981607
+      },
+      "artifacts": [
+        "in-depth.md",
+        "in-depth.json",
+        "in-depth.prom"
+      ]
+    }
+  ]
+}

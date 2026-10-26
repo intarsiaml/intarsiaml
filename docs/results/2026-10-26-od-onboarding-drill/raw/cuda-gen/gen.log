@@ -1,0 +1,22 @@
+fleetq: #5585 waiting (#2 in line): in line behind #5583 "dc: dflash+dcoco fixture test vs MLX ref, 8B CUDA" (claude-f31ccf91) on spark1
+fleetq: #5585 waiting (#1 in line): needs gpu quiet on spark1, but #5583 "dc: dflash+dcoco fixture test vs MLX ref, 8B CUDA" (claude-f31ccf91) loads it
+fleetq: #5585 running on spark1: scratch/run-gen.sh
+== act dynamic
+03:05:23
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (--mxfp4-act)
+loaded Qwen3.8-27B-MXFP4-mtpfp8 on NVIDIA GB10 in 39.7s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 4096 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 1101 tokens
+finish=stop prompt=1101 (cached 0) completion=1 | prefill 115080 ms (9.6 tok/s) | decode 0 ms (0.00 tok/s)
+steps=6 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_mxfp4=26642ms/2976 gdn_delta_rule=11ms/288 silu_glu=4ms/384 rmsnorm_add=4ms/768 gdn_conv=4ms/288
+03:07:58
+== act none
+03:07:58
+loaded Qwen3.8-27B-MXFP4-mtpfp8 on NVIDIA GB10 in 34.8s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 4096 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 1101 tokens
+ The quick brown fox jumps over the lazy dog.
+The text provided consists of
+finish=length prompt=1101 (cached 0) completion=16 | prefill 17046 ms (64.6 tok/s) | decode 1088 ms (13.78 tok/s)
+steps=21 graph replays=16 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_mxfp4=3917ms/10416 gdn_delta_rule=11ms/1008 rmsnorm_add=4ms/2688 silu_glu=4ms/1344 gdn_conv=4ms/1008
+03:08:52
+fleetq: #5585 done (exit 0)

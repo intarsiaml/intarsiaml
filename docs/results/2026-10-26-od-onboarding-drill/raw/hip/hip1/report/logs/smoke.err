@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+mxfp4 activations: dynamic (declared by the checkpoint)
+loaded Qwen3.8-27B-MXFP4-mtpfp8 on AMD Radeon Graphics in 5.8s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 4096 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 5 tokens
+finish=length prompt=5 (cached 0) completion=16 | prefill 123 ms (40.8 tok/s) | decode 452 ms (33.16 tok/s)
+steps=17 graph replays=16 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_mxfp4_pair=40ms/2992 matmul_mxfp4=19ms/2448 embedding=12ms/17 attn_prefill=4ms/16 rmsnorm_add=3ms/2176

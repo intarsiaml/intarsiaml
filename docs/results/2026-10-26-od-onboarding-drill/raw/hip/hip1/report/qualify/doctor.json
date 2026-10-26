@@ -1,0 +1,103 @@
+{
+  "kind": "intarsia-doctor",
+  "schema_version": 1,
+  "timestamp_unix": 1792982032,
+  "intarsia_version": "0.0.1",
+  "cuda_feature": false,
+  "hip_feature": true,
+  "metal_feature": false,
+  "host": {
+    "hostname": "37b6b9bb1304",
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux 7.0.0-38-generic",
+    "arch": "x86_64",
+    "cpu_model": "AMD Ryzen 9 9900X 12-Core Processor",
+    "logical_cores": 24,
+    "physical_cores": 12,
+    "ram_total_bytes": 66462851072,
+    "ram_available_bytes": 60032786432,
+    "swap_total_bytes": 8589930496
+  },
+  "gpu": {
+    "nvidia_smi": null,
+    "proc_driver_nvidia": null,
+    "nvcc": null,
+    "cuda_toolkit_version": null,
+    "rocm_version": "7.2.4",
+    "hipcc": "HIP version: 7.2.53211-97f5574fe2"
+  },
+  "backend": {
+    "requested": "hip",
+    "name": "hip",
+    "device": {
+      "name": "AMD Radeon Graphics",
+      "backend": "hip",
+      "arch": "gfx1201",
+      "total_mem": 34208743424,
+      "free_mem": 33986445312,
+      "unified": false,
+      "bandwidth_gbs": 447.0279948744534
+    },
+    "kernel_count": 80,
+    "kernels_by_arch": {
+      "gfx1201": 80
+    },
+    "bandwidth": {
+      "buffer_mib": 256,
+      "host_to_device_gbs": 28.6,
+      "device_to_host_gbs": 28.0,
+      "device_copy_gbs": 584.9,
+      "note": "device_copy_gbs counts read + write bytes; compare with the memory bandwidth you pass to `bench speed --bandwidth-gbs`"
+    }
+  },
+  "checks": [
+    {
+      "id": "sm_121_target",
+      "status": "info",
+      "detail": "no NVIDIA GPU visible (nvidia-smi missing or failing)",
+      "fix": null
+    },
+    {
+      "id": "hip_arch_target",
+      "status": "ok",
+      "detail": "GPU is gfx1201 and 80 kernels are built for it",
+      "fix": null
+    },
+    {
+      "id": "transparent_hugepages",
+      "status": "ok",
+      "detail": "THP = madvise (kernel: always [madvise] never)",
+      "fix": null
+    },
+    {
+      "id": "disk_free:.",
+      "status": "ok",
+      "detail": "25.3 GB free of 244 GB (10% free)",
+      "fix": null
+    },
+    {
+      "id": "disk_free:/tmp",
+      "status": "ok",
+      "detail": "25.3 GB free of 244 GB (10% free)",
+      "fix": null
+    },
+    {
+      "id": "hip_gpu_max_hw_queues",
+      "status": "info",
+      "detail": "GPU_MAX_HW_QUEUES=1 (ROCm: 1-2 avoids hardware-queue oversubscription slowdowns)",
+      "fix": null
+    },
+    {
+      "id": "serve_port",
+      "status": "ok",
+      "detail": "port 8090 is free",
+      "fix": null
+    },
+    {
+      "id": "bandwidth",
+      "status": "info",
+      "detail": "host->device 28.6 GB/s, device->host 28.0 GB/s, device copy 584.9 GB/s (read+write)",
+      "fix": null
+    }
+  ]
+}

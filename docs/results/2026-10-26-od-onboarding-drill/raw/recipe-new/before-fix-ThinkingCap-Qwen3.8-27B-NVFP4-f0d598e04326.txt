@@ -1,0 +1,12 @@
+not covered: no existing recipe handles this model (closest: 25/45 tensor templates resolve, quant: bf16)
+  note: config.json: architectures ["Qwen3_5ForConditionalGeneration"], family "qwen3_5" (config.json model_type); text model settings merged from text_config
+  note: tensors: model.safetensors.index.json (1999 tensors; shards not present, so no dtypes or shapes)
+  note: layer prefix model.language_model.layers.{i} (64 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)
+  note: quantisation: bf16 (not implemented in full, see TODOs)
+  note: closest existing recipe: builtin:qwen3_5_vl (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn", "gdn"}; 25/45 tensor templates resolve; architecture matches but the recipe cannot be used as is; 20 tensor template(s) missing in the checkpoint, e.g. ["model.language_model.layers.3.self_attn.q_proj", "model.language_model.layers.3.self_attn.k_proj", "model.language_model.layers.3.self_attn.v_proj", "model.language_model.layers.3.self_attn.o_proj"]; quantisation not implemented)
+  note: ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (1), mtp.layers.* (11), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)
+wrote recipes/qwen3_5_2.toml (2 TODO(recipe-new) item(s))
+2 item(s) need manual work:
+  1. layer: 10 per-layer tensor(s) are claimed by no block, e.g. ["linear_attn.in_proj_qkv.weight_global_scale", "linear_attn.in_proj_z.weight_global_scale", "linear_attn.out_proj.weight_global_scale", "mlp.down_proj.weight_global_scale", "mlp.gate_proj.weight_global_scale", "mlp.up_proj.weight_global_scale"] ... (relative to model.language_model.layers.<i>.); extra norms, biases or unknown modules need a block or an explicit decision to ignore them
+  2. quant: config quantization_config.quant_method = "compressed-tensors" is not implemented (supported: ModelOpt FP8 and W4A16_NVFP4, per-tensor FP8, Quark MXFP4, ExLlamaV3 EXL3)
+Error: 2 item(s) need manual work, see the TODO(recipe-new) markers in recipes/qwen3_5_2.toml

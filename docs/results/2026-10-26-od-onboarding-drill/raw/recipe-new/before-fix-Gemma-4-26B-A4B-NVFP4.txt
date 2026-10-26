@@ -1,0 +1,1 @@
+covered: builtin:gemma4 already handles this model (41/41 tensor templates resolve, quant: nvfp4); no new recipe needed

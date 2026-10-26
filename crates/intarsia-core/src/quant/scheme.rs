@@ -135,7 +135,7 @@ impl QuantScheme {
     /// The global weight spec must be OCP MXFP4 (`dtype fp4`, `qscheme per_group`, `group_size 32`, `scale_format e8m0`)
     /// for the declared algorithm to be one we implement; anything else is recorded verbatim (`QUARK_<dtype>...`) and
     /// rejected per layer by [`QuantScheme::check_linear`]. Per-layer overrides (`layer_quant_config`,
-    /// `layer_type_quant_config`) are not implemented and are an error when non-empty. `exclude` entries name modules,
+    /// `layer_type_quant_config`) are not implemented and are an error when non-empty, except entries for the `mtp.*` head. `exclude` entries name modules,
     /// some with a `.weight` suffix; the suffix is dropped.
     pub fn parse_quark(qc: &Value) -> Result<QuantScheme> {
         let method = qc.get("quant_method").and_then(Value::as_str).unwrap_or("");
@@ -143,8 +143,15 @@ impl QuantScheme {
             return Err(Error::model(format!("quantization_config.quant_method is '{method}', not 'quark'")));
         }
         for k in ["layer_quant_config", "layer_type_quant_config"] {
-            if qc.get(k).and_then(Value::as_object).is_some_and(|o| !o.is_empty()) {
-                return Err(Error::Unsupported(format!("Quark quantization_config.{k} (per-layer overrides) is not implemented")));
+            // Overrides that only name modules outside the text decoder (the multi-token-prediction head `mtp.*`, e.g. an FP8
+            // head in an otherwise MXFP4 checkpoint) cannot change how a decoder layer is read: `--spec mtp` loads that head
+            // through its own loader, which rejects tensors it does not read. Any other override is still an error.
+            if let Some(o) = qc.get(k).and_then(Value::as_object) {
+                if let Some(name) = o.keys().find(|n| !(n.as_str() == "mtp" || n.starts_with("mtp."))) {
+                    return Err(Error::Unsupported(format!(
+                        "Quark quantization_config.{k} (per-layer overrides) is not implemented (first override: '{name}')"
+                    )));
+                }
             }
         }
         let g = qc
@@ -405,6 +412,16 @@ mod tests {
         assert!(s.check_linear("model.layers.0.mlp.up_proj", MXFP4).is_err());
         let mut v = quark("null");
         v["layer_quant_config"] = serde_json::json!({"model.layers.0.mlp.up_proj": {}});
+        assert!(QuantScheme::parse_quark(&v).is_err());
+        // an FP8 head `mtp.*` in an MXFP4 checkpoint is outside the decoder layers: accepted; mixed with a decoder override it is not
+        let mut v = quark("null");
+        v["layer_quant_config"] = serde_json::json!({"mtp.fc": {}, "mtp.layers.0.mlp.up_proj": {}});
+        let s = QuantScheme::parse_quark(&v).unwrap();
+        s.check_linear("model.layers.0.mlp.up_proj", MXFP4).unwrap();
+        v["layer_quant_config"] = serde_json::json!({"mtp.fc": {}, "model.layers.0.mlp.up_proj": {}});
+        let e = QuantScheme::parse_quark(&v).unwrap_err().to_string();
+        assert!(e.contains("model.layers.0.mlp.up_proj"), "{e}");
+        v["layer_quant_config"] = serde_json::json!({"mtpx.fc": {}});
         assert!(QuantScheme::parse_quark(&v).is_err());
     }
 

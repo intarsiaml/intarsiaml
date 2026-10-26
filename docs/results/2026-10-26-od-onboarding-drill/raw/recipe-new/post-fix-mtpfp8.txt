@@ -1,0 +1,10 @@
+covered: builtin:qwen3_5_vl already handles this model (45/45 tensor templates resolve, quant: mxfp4); no new recipe needed
+  note: config.json: architectures ["Qwen3_5ForConditionalGeneration"], family "qwen3_5" (config.json model_type); text model settings merged from text_config
+  note: tensors: safetensors headers of 1 file(s) (1703 tensors)
+  note: layer prefix model.language_model.layers.{i} (64 layers, matches num_hidden_layers); other numbered stacks ignored: model.visual.blocks (27), mtp.layers (1)
+  note: quantisation: mxfp4
+  note: config.json quantization_config (quark) declares MXFP4 weights with dynamic MXFP4 activations (W4A4); the engine runs that by default (--mxfp4-act none opts into W4A16)
+  note: closest existing recipe: builtin:qwen3_5_vl (blocks {"attn", "ffn", "gdn"} vs inferred {"attn", "ffn", "gdn"}; 45/45 tensor templates resolve; covers this model)
+  note: ignored non-text tensor groups: model.visual.* (333), mtp.fc.* (2), mtp.layers.* (18), mtp.norm.* (1), mtp.pre_fc_norm_embedding.* (1), mtp.pre_fc_norm_hidden.* (1)
+wrote scratch/p3.toml (0 TODO(recipe-new) item(s))
+next: intarsia generate --model scratch/stub-Qwen3.8-27B-MXFP4-mtpfp8 --recipe scratch/p3.toml --backend cpu --prompt "The capital of France is" --max-tokens 16

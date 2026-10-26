@@ -1,0 +1,6 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.8-27B-MXFP4-mtpfp8
+server context window: 2048 tokens
+calibration: 46 base tokens, 21.40 tokens per filler sentence
+  size   1024 rep: prompt=1032 gen=64 ttft=108.88s prefill=9 tok/s decode=6.7 tok/s
+  size   1024 rep: prompt=1016 gen=64 ttft=107.15s prefill=9 tok/s decode=6.7 tok/s
+wrote /home/nvidia/intarsiaml-od/runs/cuda1/report/qualify/bench/qualify-Qwen3.8-27B-MXFP4-mtpfp8-cuda-bench-long.json

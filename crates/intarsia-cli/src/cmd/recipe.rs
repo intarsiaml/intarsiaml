@@ -283,7 +283,8 @@ impl Inventory {
 /// Path segments that introduce a stack of numbered layers.
 const LAYER_WORDS: &[&str] = &["layers", "h", "blocks"];
 /// Name segments (prefixes) of components that are not part of the text decoder.
-const NON_TEXT: &[&str] = &["visual", "vision", "mtp", "multi_modal", "audio", "speech", "talker"];
+/// `merger` is the vision-to-text projector some wrappers keep outside the vision tower (`model.merger.mlp.*`, MiniCPM-V).
+const NON_TEXT: &[&str] = &["visual", "vision", "mtp", "multi_modal", "audio", "speech", "talker", "merger"];
 /// Trailing tensor names of a module (`<module>.weight`, ...).
 const PARAMS: &[&str] = &[
     "weight",
@@ -1069,7 +1070,11 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
             parts.push(format!("unknown({d})"));
         }
     }
-    let label = if parts.is_empty() { cfg_float.to_string() } else { parts.join("+") };
+    let mut label = if parts.is_empty() { cfg_float.to_string() } else { parts.join("+") };
+    // the float label alone would read as a plain bf16 checkpoint: say what the config declares and the engine does not read
+    if let Some(m) = method.as_deref().filter(|m| !matches!(*m, "modelopt" | "quark" | "exl3")) {
+        label = format!("{label} (config declares quant_method \"{m}\")");
+    }
     // a handful of messages is enough
     if problems.len() > 6 {
         let n = problems.len() - 5;
@@ -1334,7 +1339,11 @@ impl Out {
     }
     fn issues(&mut self, issues: &[Issue], at: &str) {
         for i in issues.iter().filter(|i| i.at == at) {
-            self.todo(&i.text);
+            // the same finding can be raised by two layer types (full and linear attention both have the MoE block): list it once
+            let t = i.text.split_whitespace().collect::<Vec<_>>().join(" ");
+            if !self.todos.contains(&t) {
+                self.todo(&i.text);
+            }
         }
     }
 }
@@ -2669,5 +2678,12 @@ mod tests {
         write_json(&d, "config.json", &qwen3_config("Qwen3ForCausalLM", "qwen3"));
         let e = analyse(&d, &[]).unwrap_err().to_string();
         assert!(e.contains("safetensors"), "{e}");
+    }
+
+    #[test]
+    fn the_vision_projector_outside_the_vision_tower_is_not_text() {
+        assert!(is_non_text("model.merger.mlp.0.linear_1.weight"));
+        assert!(is_non_text("model.vision_tower.vit_merger.linear_1.weight"));
+        assert!(!is_non_text("model.language_model.layers.0.mlp.gate.weight"));
     }
 }

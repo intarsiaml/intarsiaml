@@ -1,0 +1,37 @@
+prefill chunk 256 (--prefill-chunk)
+mxfp4 activations: dynamic (declared by the checkpoint)
+accuracy: Qwen3.8-27B-MXFP4-mtpfp8 on cpu-ref (Cortex-A725) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /home/nvidia/intarsiaml-od/goldens/qwen3.8-27b-mxfp4-hfquark-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations dynamic (Quark even_round), 496 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise [sidecar /home/nvidia/intarsiaml-od/tree/golden/ref_noise/qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json]: precision_spread, KL21 all rows 1.969e-1 (n=1441), scored rows 1.991e-1 (n=1279); 2026-10-25; docs/results/2026-10-25-ac-27b-accuracy-gate.md; replaces the 2026-10-21 back-filled record (docs/results/2026-10-21-a2-ref-noise-gate.md), whose all-rows value 0.197 it reproduces; estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); factor 1 (default)
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.362e-2   1.582e-2   1.582e-2   1.157e-1   0.0524   0.0530    93.16     38/38      0
+story                 39    39    92.31   7.416e-2   8.838e-2   8.838e-2    1.006e0   0.0401   0.0399    85.64     26/39      0
+code                  87    87    98.85   9.166e-3   8.867e-3   8.867e-3   1.329e-1   0.0170   0.0178    88.05     66/87      0
+science               79    79    92.41   5.146e-2   5.070e-2   5.070e-2   2.119e-1   0.0379   0.0376    87.59      8/79      0
+chat_short            18    18    88.89   1.954e-2   1.911e-2   2.221e-2   9.260e-2   0.0335   0.0319    87.78      2/18      0
+chat_system           32    32    84.38   2.376e-1   2.174e-1   3.551e-2    1.701e0   0.0568   0.0532    78.12      6/32      0
+chat_multiturn        58    58    89.66   5.110e-1   5.334e-1   7.766e-1    1.316e1   0.0252   0.0368    81.03      2/58      0
+chat_reasoning        90    90    87.78   1.035e-1   1.037e-1   2.350e-1    1.101e0   0.0113   0.0127    84.44      2/90      0
+long_prose_300       300   300    94.67   2.102e-1   2.068e-1   2.068e-1    1.158e1   0.0137   0.0151    72.80     2/300      0
+long_prose_700       700   700    89.43   2.680e-1   2.680e-1   2.680e-1    6.570e0   0.0189   0.0254    73.63     6/700      0
+OVERALL                   1441    91.39   2.122e-1   2.124e-1   2.148e-1    1.316e1   0.0210   0.0249    77.18     11.0%      0
+prefill floor [4bit]: top-1 (all rows) 91.39% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 2.148e-1 (need <= 2.0e-1) FAIL [all rows, n=1441: 2.124e-1, reported only] | tail mass (all rows) ours 0.0249 vs ref 0.0210, excess +0.0039 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 1.991e-1 (scored rows) x factor 1 (default) = 1.991e-1 => effective 1.991e-1 bound by ref noise; KL 2.148e-1 FAIL | KL / ref noise = 1.079 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: FAIL 2.124e-1 (21-way KL over all rows <= static floor) | current def: FAIL 2.148e-1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by ref noise) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 29.0% of positions before the first argmax divergence, worst prompt 0.7% (informational)
+
+wrote self-golden /home/nvidia/intarsiaml-od/runs/oracle1/qwen3.8-27b-mxfp4-mtpfp8-cpu-oracle.safetensors (top-64 rows of modes prefill for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+exit=1
