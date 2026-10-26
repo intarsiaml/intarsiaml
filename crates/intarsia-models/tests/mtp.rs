@@ -1384,16 +1384,17 @@ fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
     }
 }
 
-/// `--spec mtp` with the macro prefill pass on (a recipe default since #162, 8192 rows on the CUDA 35B) must load and plan: the
-/// macro pass is a single-sequence prefill feature and an MTP model never takes it, so asking for it changes nothing (the
-/// drafter head's workspace is chunk-sized; a macro-sized plan probe failed with "MTP pass of 8192 rows" at server start).
+/// `--spec mtp` with the macro prefill pass on (a recipe default since #162, 8192 rows on the CUDA 35B) must load, plan and TAKE the macro
+/// pass (lane mpf; before it an MTP model never did, so MTP cost the 35B 20-51 % of its prefill): the model's logits are bitwise the
+/// plain chunk-by-chunk schedule's, the drafter head ingests the pass's rows (its drafts, so its proposals and acceptances, are the
+/// chunked schedule's), and the engine's greedy ids equal `--spec off` and the chunked MTP engine's.
 #[test]
-fn mtp_model_ignores_the_macro_prefill_knob() {
+fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
     let w = weights(12);
     let (recipe, dims) = dims();
     let opts = |macro_rows: Option<usize>| LoadOptions {
         max_seq: 512,
-        prefill_chunk: 8,
+        prefill_chunk: 16,
         act_dtype: Some(DType::F32),
         kv_dtype: Some(DType::F32),
         fp8_act: Some(Fp8Act::None),
@@ -1403,18 +1404,53 @@ fn mtp_model_ignores_the_macro_prefill_knob() {
     };
     let mut plain = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(0)), Arc::new(Telemetry::new())).unwrap();
     let mut mac = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(64)), Arc::new(Telemetry::new())).unwrap();
-    assert_eq!(mac.macro_rows(), 0, "an MTP model takes no macro passes");
+    assert_eq!(plain.macro_rows(), 0);
+    assert!(mac.macro_rows() > 0, "an MTP model keeps the macro knob");
     for m in [&mut plain, &mut mac] {
         m.enable_verify(3).unwrap();
         m.configure_plan(&Default::default(), None).unwrap();
     }
-    let ids: Vec<u32> = (0..40).map(|i| (i * 7 + 3) % 90).collect();
-    let run = |m: &Model| {
+    let ids: Vec<u32> = (0..60).map(|i| (i * 7 + 3) % 90).collect();
+    let run_model = |m: &Model| {
         let mut st = m.new_state().unwrap();
-        match m.forward(&mut st, &ids, HeadMode::LastLogits, None).unwrap() {
+        let l = match m.forward(&mut st, &ids, HeadMode::LastLogits, None).unwrap() {
             StepOut::Logits(l) => l,
             o => panic!("{o:?}"),
-        }
+        };
+        let mtp = st.mtp.as_ref().expect("the MTP state");
+        (l, mtp.kv.len, mtp.pending_rows)
     };
-    assert_eq!(run(&plain), run(&mac));
+    let before = mac.macro_passes();
+    let (a, b) = (run_model(&plain), run_model(&mac));
+    assert!(mac.macro_passes() > before, "the MTP model ran a macro pass");
+    assert_eq!(plain.macro_passes(), 0);
+    assert_eq!(a, b, "logits and the head's cache position equal the chunked schedule's");
+    // the engine: greedy ids equal spec-off and the chunked MTP engine; the drafter proposes and accepts the same
+    let engine_macro = |macro_rows: Option<usize>, k: Option<usize>| {
+        let tel = Arc::new(Telemetry::new());
+        let o = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, prefill_macro: macro_rows, ..Default::default() };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &o, tel.clone()).unwrap();
+        let spec = match k {
+            Some(k) => {
+                m.enable_verify(k + 1).unwrap();
+                m.configure_plan(&Default::default(), None).unwrap();
+                SpecConfig { mode: SpecMode::Mtp, k }
+            }
+            None => SpecConfig::default(),
+        };
+        let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone()).unwrap();
+        (e, tel)
+    };
+    let (off, _) = engine_macro(Some(0), None);
+    let (chunked, tel_c) = engine_macro(Some(0), Some(2));
+    let (mac_e, tel_m) = engine_macro(Some(64), Some(2));
+    let long: Vec<u32> = (0..150).map(|i| (i * 11 + 5) % 90).collect();
+    for p in [PROMPTS[0], &long[..], PROMPTS[2]] {
+        let r = run(&off, req(p, 96));
+        assert_eq!(r, run(&chunked, req(p, 96)), "chunked mtp, prompt of {}", p.len());
+        assert_eq!(r, run(&mac_e, req(p, 96)), "macro mtp, prompt of {}", p.len());
+    }
+    let (c, m) = (tel_c.snapshot(), tel_m.snapshot());
+    assert!(m.spec_steps > 0 && m.spec_proposed > 0, "the head drafted after a macro prefill");
+    assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (m.spec_steps, m.spec_proposed, m.spec_accepted), "same drafts");
 }

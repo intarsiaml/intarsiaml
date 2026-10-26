@@ -736,7 +736,9 @@ impl Model {
         self.exec(Op::Add, vec![h1.clone(), n.clone()], vec![h0.clone()], OpAttrs::default(), profile)?;
         // r = h0
         self.exec(Op::RmsNorm, vec![h0.clone(), head.attn.pre_norm.clone()], vec![n.clone()], eps.clone(), profile)?;
-        self.head_rows_attn.store(t > 1, std::sync::atomic::Ordering::Relaxed);
+        // per-row attention keeps a short catch-up (after a verify pass) bitwise the captured step's; a prompt's rows (longer than any
+        // verify pass) take the ordinary multi-row attention: per-row decode calls over a whole prompt are quadratic (lane mpf)
+        self.head_rows_attn.store(t > 1 && t <= Self::VERIFY_MAX_ROWS + 1, std::sync::atomic::Ordering::Relaxed);
         let attn = self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile);
         self.head_rows_attn.store(false, std::sync::atomic::Ordering::Relaxed);
         attn?;

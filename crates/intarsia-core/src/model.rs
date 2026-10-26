@@ -1049,7 +1049,7 @@ impl Model {
         );
         // one rank only (tensor-parallel passes are not packed), and no MTP head or DFlash draft (its feature taps are per chunk): the drafter's workspace and its plan probes are
         // chunk-sized, and a speculative sequence never takes a macro pass (`macro_plan`)
-        let macro_rows = if tp.world > 1 || opts.mtp || opts.dflash.is_some() { 0 } else { macro_rows };
+        let macro_rows = if tp.world > 1 || opts.dflash.is_some() { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
@@ -1388,7 +1388,8 @@ impl Model {
             }
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
-            self.mtp_dry_run(t, pos0)?;
+            // (a macro probe of more rows than a chunk: the head ingests the pass in chunk-sized pieces, lane mpf)
+            self.mtp_dry_run(t.min(self.ws.max_tokens), pos0)?;
             self.dflash_dry_run()?;
             if verify {
                 // a tensor-parallel peer without a head share (replicated head on rank 0) runs only the layers
@@ -2313,6 +2314,10 @@ impl Model {
                         st.commit(c);
                         self.telemetry.step();
                     }
+                    // the MTP drafter queues the pass's hidden rows and catches up over them in chunk-sized pieces (lane mpf)
+                    if st.mtp.is_some() {
+                        self.mtp_after_forward(st, &hn, total, true, profile)?;
+                    }
                     ci += glen;
                     continue;
                 }
@@ -2377,7 +2382,6 @@ impl Model {
             || chunks.len() < 2
             || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
             || !st.has_recurrent()
-            || st.mtp.is_some()
             || !self.pack_capable()
         {
             return (0, 1);
