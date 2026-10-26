@@ -1,4 +1,0 @@
-fleetq: #5805 running on spark1: ssh spark1 'ARMS='"'"'off mtp'"'"' bash -s short-0 short-1 short-2 short-3 short-4 short-5 4k-0 4k-1 4k-2 4k-3 4k-4 4k-5 16k-0 16k-1 16k-2 16k-3 16k-4 16k-5 34k-0 34k-1 34k-2'
-fleetq: #5805 went ahead of the line and must end within 4h55m (by Mon 23:00); it is stopped then
-fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
-PASS ids short-0 mtp (prompt: 41) 256 ids identical | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)

@@ -22,7 +22,7 @@ for r in $(seq 1 "$ROUNDS"); do
     up=0; for _ in $(seq 150); do curl -sf "http://spark-4e77:$PORT/health" >/dev/null && { up=1; break; }; sleep 2; done
     [ $up = 1 ] || { echo "server $tag did not come up"; ssh spark1 "tail -5 $LOG-$tag.log" < /dev/null; stop; continue; }
     RECIPE="intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-batch 1 --max-seq 36864 $SPEC (lane mpf, scripts/mpf/longctx.sh)"
-    (cd /opt/code/deepeval && uv run localeval speed --url "$URL" --model qwen36-35b --thinking off --label "mpf-lc-$tag" --recipe "$RECIPE" --sizes 4096,16384,32768 --gen 128 --reps 3 --concurrency 1 --ignore-busy) > "$OUT/$tag.speed.txt" 2>&1 < /dev/null
+    (cd /opt/code/deepeval && uv run localeval speed --url "$URL" --model qwen36-35b --thinking off --label "mpf-lc-$tag" --recipe "$RECIPE" --sizes 4096,16384,32768 --gen 128 --reps ${REPS:-5} --concurrency 1 --ignore-busy) > "$OUT/$tag.speed.txt" 2>&1 < /dev/null
     tail -12 "$OUT/$tag.speed.txt" | cut -c1-200
     ssh spark1 "grep -aE 'default of recipe|speculative|macro' $LOG-$tag.log | head -2 | cut -c1-160" < /dev/null > "$OUT/$tag.serve.txt" 2>&1
     stop

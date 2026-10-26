@@ -13,7 +13,7 @@ M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 BIN=${BIN:-$R/target-dev/release/intarsia}; O=${O:-$R/out}; SRC=${SRC:-$R/src}; mkdir -p "$O"
 P=${PROMPTS:-$SRC/scripts/mpf/ids-prompts}; fails=0
 for n in "$@"; do
-  case $n in short*) MS=4096 ;; 4k*) MS=8192 ;; *) MS=20480 ;; esac
+  case $n in short*) MS=4096 ;; 4k*) MS=8192 ;; 34k*) MS=36864 ;; *) MS=20480 ;; esac
   for arm in ${ARMS:-off mtp}; do
     if [ "$arm" = off ] && [ -n "${OFF_FROM:-}" ]; then cp $OFF_FROM/gen-$n-off.ids $OFF_FROM/gen-$n-off.err $O/; continue; fi
     case $arm in off) A="--spec off" ;; mtp*) A="--spec mtp --spec-k ${arm#mtp}"; [ "$arm" = mtp ] && A="--spec mtp --spec-k ${K:-2}" ;; auto) A="" ;; esac
