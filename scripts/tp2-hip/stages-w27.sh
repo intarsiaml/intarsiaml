@@ -51,6 +51,7 @@ E20="${E/REPS=8/REPS=20}"
 variant a1-control 330 $FS $E20
 variant b1-peer-sync 330 $FS $E20 INTARSIA_TP_PEER_SYNC=1
 variant s1-sync-capture 330 $FS $E20 INTARSIA_GRAPH_SYNC_CAPTURE=1
+variant d5-drain5 330 $FS $E20 INTARSIA_HIP_AR_DRAIN=5
 variant a2-control 330 $FS $E20
 variant b2-peer-sync 330 $FS $E20 INTARSIA_TP_PEER_SYNC=1
 variant s2-sync-capture 330 $FS $E20 INTARSIA_GRAPH_SYNC_CAPTURE=1
