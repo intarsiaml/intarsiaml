@@ -1,0 +1,11 @@
+fleetq: #5731 running on spark1: ssh spark1 'bash -s g0'
+PASS ids 8 short identical (256 ids)
+PASS ids 8 4k identical (256 ids)
+PASS plan 8 json identical but the build stamp (8758 B)
+PASS plan 8 txt identical but the build stamp (1478 B)
+PASS ids 35 short identical (256 ids)
+PASS ids 35 4k identical (256 ids)
+PASS plan 35 json identical but the build stamp (13977 B)
+PASS plan 35 txt identical but the build stamp (3507 B)
+g0 fails=0
+fleetq: #5731 done (exit 0)

@@ -155,6 +155,18 @@ fn dflash2_real_taps_and_cost() {
         eprintln!("PROBE_VERIFY target {v:?}, drafts accepted {acc} of {}", ids.len() - 1);
         st.truncate(base, &*m.backend).unwrap();
     }
+    // the draft on the row-exact kernels (INTARSIA_DFLASH_ROWS_KERNELS) against the default selection
+    for rk in [true, false] {
+        m.dflash_set_rows_kernels(rk);
+        let mut v = Vec::new();
+        let mut d = Vec::new();
+        for _ in 0..8 {
+            let t = Instant::now();
+            d = m.dflash_draft(&mut st, next, 7).unwrap();
+            v.push(t.elapsed().as_secs_f64() * 1e3);
+        }
+        eprintln!("PROBE_DRAFT_ROWS_KERNELS {rk}: draft7 {:.2} ms, drafts {d:?}", med(v));
+    }
     eprintln!(
         "PROBE_TIME decode1 {:.2} ms (n {}), draft7 {:.2} ms, verify8 {:.2} ms",
         med(dec.clone()),

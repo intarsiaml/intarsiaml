@@ -1,0 +1,5 @@
+tap 0: rel l2 0.000e+00 over 184 rows
+tap 1: rel l2 0.000e+00 over 184 rows
+tap 2: rel l2 0.000e+00 over 184 rows
+tap 3: rel l2 0.000e+00 over 184 rows
+tap 4: rel l2 0.000e+00 over 184 rows

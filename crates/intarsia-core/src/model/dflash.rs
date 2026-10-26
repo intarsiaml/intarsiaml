@@ -103,6 +103,9 @@ pub(super) struct DflashHead {
     /// Rank 0 of a tensor-parallel group with a vocab-parallel head: a whole copy of the head for the draft's logits (the
     /// group's head is split across the ranks). `None`: the model's own head is whole.
     pub(super) full_head: Option<QTensor>,
+    /// Run the DFlash2 block pass and its head on the row-exact (`_rows`) kernels (`INTARSIA_DFLASH_ROWS_KERNELS`, default
+    /// off; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
+    rows_kernels: std::sync::atomic::AtomicBool,
 }
 
 impl DflashHead {
@@ -234,6 +237,7 @@ pub(super) fn load_head(
         script: Mutex::new(None),
         profile: Default::default(),
         full_head: None,
+        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").is_ok_and(|v| v == "1")),
     })
 }
 
@@ -308,6 +312,7 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         script: Mutex::new(None),
         profile: Default::default(),
         full_head: None,
+        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").is_ok_and(|v| v == "1")),
     })
 }
 
@@ -339,6 +344,14 @@ impl Model {
             None => (0..head.layers.len())
                 .map(|_| SlotSpec::AttnKv { n_kv_heads: self.dims.n_kv_heads, head_dim: self.dims.head_dim, dtype: self.kv })
                 .collect(),
+        }
+    }
+
+    /// Probes: the DFlash2 draft on the row-exact kernels or not (see `DflashHead::rows_kernels`).
+    #[doc(hidden)]
+    pub fn dflash_set_rows_kernels(&self, on: bool) {
+        if let Some(h) = &self.dflash {
+            h.rows_kernels.store(on, std::sync::atomic::Ordering::Relaxed);
         }
     }
 
@@ -504,12 +517,16 @@ impl Model {
         }
         if let Some(d2) = &head.v2 {
             // DFlash2: rows 1 .. t draft the tokens at p0 + 1 .. p0 + t - 1 (`logits_start = 1`)
-            let x = self.dflash2_block(d2, &d.kv, t, profile)?;
+            let rows_k = head.rows_kernels.load(std::sync::atomic::Ordering::Relaxed);
+            if rows_k {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            let x = self.dflash2_block(d2, &d.kv, t, profile);
             let n = self.view(&ws.n, act, &[t, hd]);
-            let eps = OpAttrs { eps: head.eps, w_offset: head.norm_offset, ..Default::default() };
-            self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
             // the draft's logits and argmax on this rank alone (the target's verify head would all-gather under a vocab-parallel head)
-            {
+            let headed = x.and_then(|x| {
+                let eps = OpAttrs { eps: head.eps, w_offset: head.norm_offset, ..Default::default() };
+                self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
                 let v = self.dims.vocab;
                 let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
                 let logits = self.view(&ws.logits, DType::F32, &[t - 1, v]);
@@ -518,8 +535,12 @@ impl Model {
                     None => self.head()?,
                 };
                 self.proj(&n.rows(1, t - 1), dhead, &logits, profile)?;
-                self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[t - 1])], OpAttrs::default(), profile)?;
+                self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[t - 1])], OpAttrs::default(), profile)
+            });
+            if rows_k {
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }
+            headed?;
             let sel = d2.selector.as_ref();
             if let Some(sl) = sel {
                 self.proj(&n.rows(1, t - 1), &sl.proj, &self.view(&d2.sel_out, act, &[t - 1, sl.rank]), profile)?;
