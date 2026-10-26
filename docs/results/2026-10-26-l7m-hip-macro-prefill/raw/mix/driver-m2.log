@@ -1,0 +1,46 @@
+fleetq: #5622 waiting (#4 in line): in line behind #5615 "lb: served A/B base vs dev x3 interleaved (localeval 512/4k/16k + 8 streams), 35B card 0" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5615 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5615 set, or it will wait for #5615 to be released.
+fleetq: #5622 waiting (#3 in line): in line behind #5619 "tp2: sync + build the batch tree (6b17aff: host-pinned launch counters, spin x8, stages-w28), CPU only" (claude-f31ccf91) on tatooine-r9700
+fleetq:   #5619 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5619 set, or it will wait for #5619 to be released.
+fleetq: #5622 waiting (#2 in line): in line behind #5620 "tp2 w28: host-pinned launch counters read at the hang (size loop 3x20 reps + minimal repro); radiance down <=30 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5620 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5620 set, or it will wait for #5620 to be released.
+fleetq: #5622 waiting (#1 in line): radiance-rank0 is also taken down by #5620 "tp2 w28: host-pinned launch counters read at the hang (size loop 3x20 reps + minimal repro); radiance down <=30 min" (claude-f31ccf91)
+fleetq:   #5620 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5620 set, or it will wait for #5620 to be released.
+fleetq: #5622 waiting (#1 in line): needs tatooine-r9700-2 quiet, but its GPU is 26% busy with work fleetq does not track
+fleetq: #5622 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5622 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 72% busy with work fleetq does not track
+fleetq: #5622 running on tatooine-r9700, tatooine-r9700-2: env CARD=1 bash scripts/l7m/mix.sh 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' 'main|base||--max-batch 16' 'branch|dev||--max-batch 16' @l7mx2
+[l7] radiance inactive
+[mix 1 main] up 00:34:15  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 25 s
+[mix 1 main] short rc=0
+[mix 1 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-1-main.log
+[mix 2 branch] up 00:35:05  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 2 branch] short rc=0
+[mix 2 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-2-branch.log
+[mix 3 main] up 00:35:51  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[mix 3 main] short rc=0
+[mix 3 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-3-main.log
+[mix 4 branch] up 00:36:36  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 4 branch] short rc=0
+[mix 4 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-4-branch.log
+[mix 5 main] up 00:37:24  tree=base env=[] args=[--max-batch 16]
+[serve] base max-batch - serving after 20 s
+[mix 5 main] short rc=0
+[mix 5 main] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-5-main.log
+[mix 6 branch] up 00:38:10  tree=dev env=[] args=[--max-batch 16]
+[serve] dev max-batch - serving after 20 s
+[mix 6 branch] short rc=0
+[mix 6 branch] long rc=0
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7mx2-6-branch.log
+[mix] done 00:38:56
+[l7] radiance active after 20 s
+fleetq: #5622 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

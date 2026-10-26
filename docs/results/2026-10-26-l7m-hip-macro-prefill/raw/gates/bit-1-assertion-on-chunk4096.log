@@ -1,0 +1,21 @@
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... prefill chunk 4096 (recipe qwen3_5_moe, hip)
+MACRO batched alone: 4 prefill calls (plain schedule: 17 chunks)
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... MACRO len 1536 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 1536 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole false macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 4096: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 8192: 0 macro passes, logits of 17 rows
+MACRO len 4096 whole true macro 16384: 0 macro passes, logits of 17 rows
+MACRO len 8292 whole false macro 4096: 0 macro passes, logits of 17 rows
+thread 'real_35b_macro_prefill_is_bitwise_the_plain_schedule' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:876:17:
+FAILED
+    real_35b_macro_prefill_is_bitwise_the_plain_schedule
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 37.80s
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`
+error: 1 target failed:

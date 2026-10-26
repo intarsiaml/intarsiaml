@@ -1,0 +1,77 @@
+fleetq: #5574 waiting (#5 in line): in line behind #5552 "l5r7: g3 G-C rerun with VRAM wait, merged tree, card 1" (claude-f31ccf91-l5) on tatooine-r9700-2
+fleetq: #5574 waiting (#4 in line): in line behind #5566 "l5r7: served A/B (localeval x6 visits, card 1), both pools" (claude-f31ccf91-l5) on tatooine-r9700, tatooine-r9700-2
+fleetq: #5574 waiting (#3 in line): in line behind #5567 "od: HIP onboard window Qwen3.8-27B-MXFP4-mtpfp8 (radiance down, restored by the script)" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5567 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5567 set, or it will wait for #5567 to be released.
+fleetq: #5574 waiting (#2 in line): in line behind #5573 "tp2 w25: delay sweep + size loop on the 27B tp2 repro, 1 s clock/busy sampler on both cards, counters at a hang, radiance down <=32 min" (claude-f31ccf91) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #5573 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5573 set, or it will wait for #5573 to be released.
+fleetq: #5574 waiting (#1 in line): radiance-rank0 is also taken down by #5573 "tp2 w25: delay sweep + size loop on the 27B tp2 repro, 1 s clock/busy sampler on both cards, counters at a hang, radiance down <=32 min" (claude-f31ccf91)
+fleetq:   #5573 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5573 set, or it will wait for #5573 to be released.
+fleetq: #5574 waiting (#1 in line): needs tatooine-r9700-2 quiet, but its GPU is 40% busy with work fleetq does not track
+fleetq: #5574 running on tatooine-r9700, tatooine-r9700-2: env CARD=1 bash scripts/l7m/ab.sh 'A-off|dev||' 'B-m8192|dev|INTARSIA_PREFILL_MACRO=8192|' 'E-m16384|dev|INTARSIA_PREFILL_MACRO=16384|' 'A-off|dev||' 'B-m8192|dev|INTARSIA_PREFILL_MACRO=8192|' 'E-m16384|dev|INTARSIA_PREFILL_MACRO=16384|' 'A-off|dev||' 'B-m8192|dev|INTARSIA_PREFILL_MACRO=8192|' 'E-m16384|dev|INTARSIA_PREFILL_MACRO=16384|' @l7ms3
+[l7] radiance inactive
+[ab 1 A-off] up 23:02:15  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 20 s
+[ab 1 A-off] localeval rc=0
+| 990 | 0.15 | 6401 (6356–6486) * | - | 165.0 (164.6–166.7) | - | - | - | 16 |
+| 4089 | 0.41 | 9958 (9919–10009) | 12106 | 160.8 (158.9–163.4) | - | - | - | 16 |
+| 16677 | 1.89 | 8821 (8778–8857) | 8505 | 149.1 (144.5–151.0) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-1-A-off.log
+[ab 2 B-m8192] up 23:02:40  tree=dev env=[INTARSIA_PREFILL_MACRO=8192] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 2 B-m8192] localeval rc=0
+| 990 | 0.16 | 6333 (6226–6506) * | - | 164.6 (163.2–165.0) | - | - | - | 16 |
+| 4089 | 0.41 | 9883 (9851–10046) | 12012 | 159.9 (156.4–160.6) | - | - | - | 16 |
+| 16657 | 1.83 | 9119 (9012–9134) | 8901 | 146.0 (144.2–149.8) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-2-B-m8192.log
+[ab 3 E-m16384] up 23:03:01  tree=dev env=[INTARSIA_PREFILL_MACRO=16384] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 3 E-m16384] localeval rc=0
+| 992 | 0.16 | 6310 (6126–6470) * | - | 167.1 (164.7–168.3) | - | - | - | 16 |
+| 4089 | 0.41 | 9913 (9895–10004) | 12145 | 159.8 (157.7–160.7) | - | - | - | 16 |
+| 16657 | 1.83 | 9096 (9072–9320) | 8857 | 146.5 (146.0–237.9) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-3-E-m16384.log
+[ab 4 A-off] up 23:03:21  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 4 A-off] localeval rc=0
+| 990 | 0.15 | 6489 (6450–6507) * | - | 164.5 (159.3–165.8) | - | - | - | 16 |
+| 4088 | 0.41 | 9909 (9851–9918) | 11870 | 161.2 (161.0–162.2) | - | - | - | 16 |
+| 16657 | 1.88 | 8843 (8786–8865) | 8544 | 146.4 (145.0–146.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-4-A-off.log
+[ab 5 B-m8192] up 23:03:41  tree=dev env=[INTARSIA_PREFILL_MACRO=8192] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 5 B-m8192] localeval rc=0
+| 993 | 0.15 | 6520 (6268–6555) * | - | 164.6 (161.9–165.1) | - | - | - | 16 |
+| 4090 | 0.41 | 9943 (9832–10016) | 11958 | 160.4 (159.2–162.0) | - | - | - | 16 |
+| 16656 | 1.82 | 9137 (9015–9183) | 8899 | 146.3 (146.2–150.4) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-5-B-m8192.log
+[ab 6 E-m16384] up 23:04:02  tree=dev env=[INTARSIA_PREFILL_MACRO=16384] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 6 E-m16384] localeval rc=0
+| 992 | 0.15 | 6384 (6269–6413) * | - | 164.4 (161.6–166.9) | - | - | - | 16 |
+| 4090 | 0.41 | 9962 (9785–10031) | 12102 | 158.2 (156.7–159.9) | - | - | - | 16 |
+| 16655 | 1.80 | 9266 (9086–9284) | 9066 | 146.0 (143.9–147.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-6-E-m16384.log
+[ab 7 A-off] up 23:04:22  tree=dev env=[] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 7 A-off] localeval rc=0
+| 990 | 0.15 | 6410 (6319–6451) * | - | 164.6 (161.4–167.0) | - | - | - | 16 |
+| 4089 | 0.41 | 9961 (9946–10010) | 12058 | 159.3 (158.9–160.6) | - | - | - | 16 |
+| 16655 | 1.89 | 8810 (8752–8817) | 8490 | 146.8 (146.2–148.5) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-7-A-off.log
+[ab 8 B-m8192] up 23:04:42  tree=dev env=[INTARSIA_PREFILL_MACRO=8192] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 8 B-m8192] localeval rc=0
+| 992 | 0.16 | 6357 (6258–6491) * | - | 164.6 (164.1–164.6) | - | - | - | 16 |
+| 4089 | 0.41 | 9995 (9909–10021) | 12241 | 160.3 (160.3–161.4) | - | - | - | 16 |
+| 16654 | 1.83 | 9105 (9021–9178) | 8849 | 146.2 (143.5–149.7) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-8-B-m8192.log
+[ab 9 E-m16384] up 23:05:02  tree=dev env=[INTARSIA_PREFILL_MACRO=16384] args=[]
+[serve] dev max-batch - serving after 15 s
+[ab 9 E-m16384] localeval rc=0
+| 993 | 0.15 | 6488 (6367–6507) * | - | 164.1 (161.7–164.8) | - | - | - | 16 |
+| 4090 | 0.41 | 10016 (9986–10027) | 12145 | 161.3 (157.6–161.4) | - | - | - | 16 |
+| 16656 | 1.79 | 9294 (9139–9321) | 9080 | 146.2 (145.6–146.3) | - | - | - | 16 |
+[serve] saved /home/josef/intarsiaml-l7m-logs/l7ms3-9-E-m16384.log
+[ab] done 23:05:22
+[l7] radiance active after 25 s
+fleetq: #5574 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

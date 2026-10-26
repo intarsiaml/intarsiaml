@@ -1,0 +1,55 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=13788
+[localeval]  12288 tok rep 1/14: prompt=12449 ttft=1.30s prefill=9587 tok/s decode=151.4 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 2/14: prompt=12446 ttft=1.30s prefill=9580 tok/s decode=155.3 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 3/14: prompt=12447 ttft=1.30s prefill=9569 tok/s decode=12.0 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 4/14: prompt=12451 ttft=1.52s prefill=8170 tok/s decode=120.7 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 5/14: prompt=12445 ttft=1.51s prefill=8232 tok/s decode=111.5 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 6/14: prompt=12450 ttft=1.50s prefill=8325 tok/s decode=116.7 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 7/14: prompt=12448 ttft=1.51s prefill=8257 tok/s decode=99.2 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 8/14: prompt=12450 ttft=1.51s prefill=8228 tok/s decode=123.4 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 9/14: prompt=12449 ttft=1.50s prefill=8281 tok/s decode=117.0 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 10/14: prompt=12451 ttft=1.50s prefill=8273 tok/s decode=123.0 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 11/14: prompt=12450 ttft=1.51s prefill=8269 tok/s decode=111.3 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 12/14: prompt=12448 ttft=1.51s prefill=8257 tok/s decode=95.0 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 13/14: prompt=12450 ttft=1.52s prefill=8194 tok/s decode=118.5 tok/s peak=0.0 tok/s out=8
+[localeval]  12288 tok rep 14/14: prompt=12448 ttft=1.51s prefill=8234 tok/s decode=110.8 tok/s peak=0.0 tok/s out=8
+# localeval: adhoc — 2026-10-26T00:36
+
+- model: `intarsia` on ? (?), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: l7mx2-4-branch-long
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8296/v1 --model intarsia --thinking off --ignore-busy --no-unim --sizes 12288 --gen 8 --reps 14 --label l7mx2-4-branch-long --recipe mix L l7mx2-4-branch`
+- result file: `results/20261026-003652-adhoc-l7mx2-4-branch-long/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+mix L l7mx2-4-branch
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 13788, 14 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 12449 | 1.51 | 8263 (8170–9587) | - | 116.9 (12.0–155.3) | - | - | - | 8 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 122.7% at 12288 tokens: noisy; rerun before comparing
+- server was busy with other clients at some check (--ignore-busy); numbers are contended
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-003652-adhoc-l7mx2-4-branch-long/result.json
+[localeval] not logged to unanimis (--no-unim)
