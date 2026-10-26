@@ -266,8 +266,11 @@ fn real_35b_tp2_solo_fresh_states_repro() {
                 }
             }
             let mut st = m.new_state().unwrap();
-            m.forward(&mut st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
-            let out = m.forward(&mut st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap();
+            // w21: a rep failed at the first solo step of a fresh model (state 0), before any batched step: watch it too
+            let out = with_watchdog(&m, || {
+                m.forward(&mut st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
+                m.forward(&mut st, &prompt[prompt.len() - 1..], HeadMode::LastLogits, None).unwrap()
+            });
             let StepOut::Logits(l) = out else { panic!("no logits") };
             probe("after the solo prefill + decode step");
             let bits: Vec<u32> = l.iter().map(|x| x.to_bits()).collect();
