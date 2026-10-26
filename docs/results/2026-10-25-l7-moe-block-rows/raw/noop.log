@@ -1,0 +1,16 @@
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+ids 8 short: identical (256 ids, sha 5d882689)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8343 B)
+plan 8 txt: byte-identical (1346 B)
+ids 35 short: identical (256 ids, sha 0d079dea)
+ids 35 4k: identical (256 ids, sha d626e2f1)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)

@@ -1,0 +1,19 @@
+test moe_rows_timing ... moe_rows_timing T=3: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 23.2 (min 21 max 24)
+  (a) unfused chain          142.53   137.08   136.91
+  (b) topk + experts         116.74   115.63   115.66
+  (c) shared + combine        21.20    21.18    21.15
+  (d) 3 x gemv_v2 M=4         17.63    17.61    17.60
+  (e) tiny launch              3.90     3.90     3.90
+  (f) fused rows block       127.74   127.73   127.94
+  (g) grouped block          138.57   138.73   138.83
+  G2=2:2   (a) unfused   116.57   116.40   116.33  (b) topk+experts    95.53    95.55    96.20  (g) grouped   118.25   118.10   118.04
+moe_rows_timing T=4: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 30.9 (min 29 max 32)
+  (a) unfused chain          181.64   174.00   174.08
+  (b) topk + experts         150.40   152.20   152.39
+  (c) shared + combine        23.11    23.14    23.11
+  (d) 3 x gemv_v2 M=4         17.65    17.64    17.64
+  (e) tiny launch              3.89     3.89     3.89
+  (f) fused rows block       163.63   163.77   163.84
+  (g) grouped block          174.94   174.76   174.81
+  G2=2:2   (a) unfused   146.18   146.54   146.52  (b) topk+experts   123.36   123.54   123.65  (g) grouped   146.82   146.88   146.88
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 9.16s

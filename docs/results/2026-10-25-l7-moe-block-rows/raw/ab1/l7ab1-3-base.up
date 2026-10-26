@@ -1,0 +1,1 @@
+[serve] base max-batch 16 serving after 20 s

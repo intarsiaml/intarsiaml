@@ -1,0 +1,6 @@
+fleetq: #5425 waiting (#1 in line): #5422 "tp2 w18: 27B batched first-step mismatch at tp=2 (reproduced in w17): graphs on vs graphs off vs batch-prepare vs launch-blocking, fresh model per rep, stops at first mismatch; radiance down <=32 min" (claude-f31ccf91) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #5422 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5422 set, or it will wait for #5422 to be released.
+fleetq: #5425 running on tatooine-r9700: ssh tatooine 'bash ~/intarsiaml-l8-src/scripts/l8/build.sh f8bench'
+-rwxr-xr-x 1 josef josef  556600 Oct 25 19:43 .l8bin/f8bench
+-rw-r--r-- 1 josef josef 3352141 Oct 25 19:43 .l8bin/f8bench.s
+fleetq: #5425 done (exit 0)
