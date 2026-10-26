@@ -879,3 +879,56 @@ fn real_35b_macro_prefill_is_bitwise_the_plain_schedule() {
         }
     }
 }
+
+/// The batched engine's macro prefill (a prompt prefilling alone with nothing decoding runs several 2048-row chunks as one
+/// pass) is bitwise the plain schedule: the reference is the LocalEngine with the macro schedule OFF (`prefill_macro: Some(0)`),
+/// the batched engine runs the recipe default (8192). Prompts of 2.6k, 4k, 8.3k and 16.4k tokens, each submitted alone (macro
+/// steps), then all four at once (plain chunks while several prefill, macro steps for the last one standing); a sampled one
+/// among them. The scheduler's chunk counter must show fewer prefill calls than the plain schedule's.
+#[test]
+#[ignore]
+fn real_35b_batched_macro_prefill_equals_the_plain_local_engine() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let all = corpus_tokens(&dir);
+    let mk = |max_batch: Option<usize>, macro_rows: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 16384 + 256, kv_fraction: 0.95, profile_every: 0, prefill_macro: macro_rows, ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    let lens = [2600usize, 4096, 8192 + 100, 16384];
+    let reqs = || -> Vec<GenRequest> {
+        lens.iter()
+            .enumerate()
+            .map(|(i, &n)| {
+                let start = 1000 + i * 21000;
+                let mut r = GenRequest { prompt: all[start..start + n].to_vec(), max_tokens: 100, ignore_eos: true, ..Default::default() };
+                if i == 2 {
+                    r.temperature = 0.8;
+                    r.top_k = 40;
+                    r.top_p = 0.95;
+                    r.seed = Some(21);
+                }
+                r
+            })
+            .collect()
+    };
+    let reference: Vec<Out> = {
+        let l = load_engine(&dir, be.clone(), &mk(None, Some(0))).unwrap();
+        reqs().into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
+    };
+    let plain_chunks: usize = lens.iter().map(|&n| n.div_ceil(2048)).sum::<usize>();
+    let l = load_engine(&dir, be.clone(), &mk(Some(4), None)).unwrap();
+    let before = l.engine.batch_metrics().expect("batched metrics").prefill_chunks;
+    for (i, r) in reqs().into_iter().enumerate() {
+        let got = collect(&l.engine.submit(r).unwrap());
+        assert_eq!(&got, &reference[i], "prompt of {} tokens, alone", lens[i]);
+    }
+    let alone = l.engine.batch_metrics().unwrap().prefill_chunks - before;
+    eprintln!("MACRO batched alone: {alone} prefill calls (plain schedule: {} chunks)", plain_chunks);
+    assert!(alone < plain_chunks as u64, "no macro step ran: {alone} calls");
+    let rxs: Vec<_> = reqs().into_iter().map(|r| l.engine.submit(r).unwrap()).collect();
+    for (i, rx) in rxs.iter().enumerate() {
+        assert_eq!(&collect(rx), &reference[i], "prompt of {} tokens, together", lens[i]);
+    }
+}

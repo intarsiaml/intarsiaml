@@ -893,3 +893,54 @@ fn macro_forward_equals_chunked_forward() {
         }
     }
 }
+
+/// The batched engine with the macro prefill pass (sole prefill, nothing decoding) generates what the plain solo engine does: long
+/// prompts of 1 to 9 chunks, queued together (so some prefill beside others, some alone), prefix reuse off and on.
+#[test]
+fn batched_engine_with_macro_prefill_equals_plain_solo() {
+    let _m = MACRO_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = serial();
+    if backend().is_none() {
+        return;
+    }
+    let lens = [16usize, 17, 33, 64, 65, 97, 129, 144, 49, 111];
+    let reqs = || -> Vec<GenRequest> {
+        lens.iter()
+            .enumerate()
+            .map(|(i, &n)| GenRequest { prompt: prompt(300 + i as u64, n), max_tokens: 24, ignore_eos: true, ..Default::default() })
+            .collect()
+    };
+    for v in VARIANTS {
+        let plain = solo(v);
+        let want: Vec<Out> = reqs().into_iter().map(|r| run_solo(&plain, r)).collect();
+        for reuse in [false, true] {
+            for macro_rows in [32usize, 64] {
+                let passes0 = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+                let tel = Arc::new(Telemetry::new());
+                let mut m = load_model_cm(v, &tel, CHUNK, Some(macro_rows));
+                m.allow_recurrent_batch().unwrap();
+                m.enable_batch(3).unwrap();
+                m.configure_plan(&Default::default(), None).unwrap();
+                let mut o = BatchedOptions::new(3, 64);
+                o.prefix_reuse = reuse;
+                let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
+                // one at a time (each prefills alone: macro steps), then all at once (prefills overlap: plain chunks and macro steps mix)
+                for (i, r) in reqs().into_iter().enumerate() {
+                    let mut got = collect(&eng.submit(r).unwrap()).unwrap();
+                    got.cached_tokens = want[i].cached_tokens;
+                    assert_eq!(&got, &want[i], "{v:?} macro {macro_rows} reuse {reuse}: alone, prompt of {} tokens", lens[i]);
+                }
+                let rxs: Vec<_> = reqs().into_iter().map(|r| eng.submit(r).unwrap()).collect();
+                for (i, rx) in rxs.iter().enumerate() {
+                    let mut got = collect(rx).unwrap();
+                    got.cached_tokens = want[i].cached_tokens;
+                    assert_eq!(&got, &want[i], "{v:?} macro {macro_rows} reuse {reuse}: together, prompt of {} tokens", lens[i]);
+                }
+                assert!(
+                    intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed) > passes0,
+                    "{v:?} macro {macro_rows}: no macro pass ran in the batched engine"
+                );
+            }
+        }
+    }
+}

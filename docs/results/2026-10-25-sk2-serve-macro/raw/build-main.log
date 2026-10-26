@@ -1,0 +1,5 @@
+fleetq: #5518 running on spark2: scripts/sk/build.sh main origin/main
+    Finished `release` profile [optimized] target(s) in 22.46s
+-rwxrwxr-x 2 nvidia nvidia 79223480 Oct 25 21:23 /home/nvidia/intarsiaml-sk-main/target/acc/release/intarsia
+intarsia 0.0.1
+fleetq: #5518 done (exit 0)

@@ -115,6 +115,8 @@ struct MockModel {
     inflight: Option<(usize, Vec<u32>, Option<Mode>, usize)>,
     /// While `false`, every `prefill_chunk` and `decode_step` blocks (a long step, for the live-gauge test).
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
+    /// `BatchModel::macro_step` pass size in rows (0: off).
+    macro_rows: usize,
 }
 
 impl MockModel {
@@ -132,6 +134,7 @@ impl MockModel {
             steps: 0,
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
+            macro_rows: 0,
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -183,6 +186,11 @@ impl BatchModel for MockModel {
     }
     fn avoid_single_row_prefill(&self) -> bool {
         self.avoid
+    }
+    fn macro_step(&self, _slot: usize, remaining: usize, chunk: usize) -> Option<usize> {
+        let body = remaining.checked_sub(1)?;
+        let n = intarsia_core::scheduler::macro_step_rows(body, chunk, self.macro_rows)?;
+        Some(if n == body { remaining } else { n })
     }
     fn slot_tokens(&self, slot: usize) -> &[u32] {
         &self.toks[slot]
@@ -2039,4 +2047,58 @@ fn macro_step_rows_follows_the_plain_chunking() {
         }
         assert!(passes <= body.div_ceil(chunk), "body {body}: {passes} passes");
     }
+}
+
+/// Macro prefill in the batched scheduler: a request prefilling alone with nothing decoding takes the model's macro steps
+/// (whole chunks, balanced, the last token with the final step); with a decoder running, or two prompts prefilling, it takes the
+/// plain 2048 / 256 chunks.
+#[test]
+fn macro_steps_only_for_a_sole_prefill_with_nothing_decoding() {
+    let mut rng = SplitMix64::new(9);
+    let cfg = || SchedulerConfig { max_batch: 3, trace: true, ..Default::default() };
+    let chunks_of = |tr: &[TraceEvent], who: RequestId| -> Vec<(usize, usize)> {
+        tr.iter()
+            .filter_map(|e| if let TraceEvent::Chunk { id, start, len, .. } = e { (*id == who).then_some((*start, *len)) } else { None })
+            .collect()
+    };
+    // alone: 16655 tokens, 8192-row passes, 2048 chunks: body 16654 = 9 chunks (8 x 2048 + 270) -> 3 passes of 3 chunks, the
+    // last carrying the tail and the final token
+    let mut m = MockModel::new(3, 20000);
+    m.macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 16655), 3));
+    run_to_end(&mut s);
+    let tr = s.take_trace();
+    assert_eq!(chunks_of(&tr, a), vec![(0, 3 * 2048), (3 * 2048, 3 * 2048), (6 * 2048, 16655 - 6 * 2048)]);
+    assert_eq!(tokens(&collect(&rxa)).len(), 3);
+    // macro off: the plain schedule
+    let mut s = Scheduler::new(MockModel::new(3, 20000), cfg()).unwrap();
+    let (a, _rx, _) = submit(&mut s, greedy(random_prompt(&mut rng, 16655), 3));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), a), chunk_schedule(0, 16655, 2048, false));
+    // a decoder running when the prompt starts: 256-row chunks, no macro step
+    let mut m = MockModel::new(3, 20000);
+    m.macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (_a, _rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 100), 400));
+    s.step();
+    let (b, _rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 6000), 2));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), b), chunk_schedule(0, 6000, 256, false));
+    // a second prompt arriving while the first prefills: from then on the first takes single chunks (the macro step is for a
+    // prefill that delays nobody)
+    let mut m = MockModel::new(3, 30000);
+    m.macro_rows = 4096;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, _rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 12000), 2));
+    s.step(); // A's first step: a 2-chunk macro step
+    let (b, _rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 3000), 2));
+    run_to_end(&mut s);
+    let tr = s.take_trace();
+    let ca = chunks_of(&tr, a);
+    assert_eq!(&ca[..2], &[(0, 4096), (4096, 2048)], "{ca:?}");
+    assert!(ca[1..].iter().all(|&(_, l)| l <= 2048), "{ca:?}");
+    assert_eq!(ca.iter().map(|c| c.1).sum::<usize>(), 12000);
+    // B runs alone once A's prefill is done: its whole 3000 rows are one macro step
+    assert_eq!(chunks_of(&tr, b), vec![(0, 3000)]);
 }

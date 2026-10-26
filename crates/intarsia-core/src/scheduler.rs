@@ -145,6 +145,14 @@ pub trait BatchModel {
     fn tail_merge(&self) -> usize {
         0
     }
+    /// Opt-in macro prefill (`INTARSIA_PREFILL_MACRO`): rows of the next [`BatchModel::prefill_chunk`] call for slot `slot` when
+    /// `remaining` (>= 1) prompt rows are left and chunks are `chunk` rows: a whole number of chunks (several, run by the model as
+    /// ONE layer-by-layer pass, bitwise the same chunks), or all `remaining` rows when that ends the prompt. `None` (default):
+    /// the plain one-chunk call. The scheduler asks only when this request is the only one prefilling and no sequence is
+    /// decoding, so the longer call delays nobody.
+    fn macro_step(&self, _slot: usize, _remaining: usize, _chunk: usize) -> Option<usize> {
+        None
+    }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
 }
@@ -1300,10 +1308,17 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         };
         let plen = self.active[i].seq.prompt().len();
-        let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
+        let mut len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
+        let slot = self.active[i].slot;
+        if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > chunk {
+            let sole = self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count() == 1;
+            if let Some(n) = self.model.macro_step(slot, plen - pos, chunk).filter(|_| sole) {
+                debug_assert!(n >= len && n <= plen - pos, "macro step {n} of {} rows", plen - pos);
+                len = n.clamp(len, plen - pos);
+            }
+        }
         let last = len == plen - pos;
         let mode = if last { Some(self.active[i].seq.first_mode()) } else { None };
-        let slot = self.active[i].slot;
         let id = self.active[i].id;
         self.ev(TraceEvent::Chunk { iter: self.iter, id, start: pos, len, last });
         (slot, Chunk { id, pos, len, last, chunk, t0: Instant::now() }, mode)
