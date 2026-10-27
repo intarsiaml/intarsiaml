@@ -1,0 +1,108 @@
+fleetq: #6249 running on spark2: scripts/scc/win5.sh
+== round 1 arm base 08:13:36
+base r1: MemAvailable 52375 MB with the server up
+scc-base-r1: - result file: `results/20261027-081422-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081422-adhoc-scc-base-r1/result.json 
+[localeval] 1 streams: aggregate 78.5 tok/s
+[localeval] 4 streams: aggregate 162.8 tok/s
+[localeval] 8 streams: aggregate 204.3 tok/s
+[localeval] 16 streams: aggregate 231.5 tok/s
+== round 1 arm devauto 08:15:12
+devauto r1: MemAvailable 51424 MB with the server up
+scc-devauto-r1: - result file: `results/20261027-081557-adhoc-scc-devauto-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081557-adhoc-scc-devauto-r1/result.json 
+[localeval] 1 streams: aggregate 78.4 tok/s
+[localeval] 4 streams: aggregate 162.2 tok/s
+[localeval] 8 streams: aggregate 208.8 tok/s
+[localeval] 16 streams: aggregate 243.8 tok/s
+== round 1 arm dev1 08:16:46
+dev1 r1: MemAvailable 51664 MB with the server up
+scc-dev1-r1: - result file: `results/20261027-081732-adhoc-scc-dev1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081732-adhoc-scc-dev1-r1/result.json 
+[localeval] 1 streams: aggregate 78.3 tok/s
+[localeval] 4 streams: aggregate 159.5 tok/s
+[localeval] 8 streams: aggregate 205.7 tok/s
+[localeval] 16 streams: aggregate 236.1 tok/s
+== round 1 arm dev2 08:18:21
+dev2 r1: MemAvailable 51695 MB with the server up
+scc-dev2-r1: - result file: `results/20261027-081901-adhoc-scc-dev2-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081901-adhoc-scc-dev2-r1/result.json 
+[localeval] 1 streams: aggregate 78.3 tok/s
+[localeval] 4 streams: aggregate 162.8 tok/s
+[localeval] 8 streams: aggregate 208.3 tok/s
+[localeval] 16 streams: aggregate 245.4 tok/s
+== round 1 arm dev4 08:19:49
+dev4 r1: MemAvailable 51679 MB with the server up
+scc-dev4-r1: - result file: `results/20261027-082029-adhoc-scc-dev4-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082029-adhoc-scc-dev4-r1/result.json 
+[localeval] 1 streams: aggregate 78.9 tok/s
+[localeval] 4 streams: aggregate 160.9 tok/s
+[localeval] 8 streams: aggregate 209.0 tok/s
+[localeval] 16 streams: aggregate 244.8 tok/s
+== round 2 arm dev4 08:21:17
+dev4 r2: MemAvailable 51710 MB with the server up
+scc-dev4-r2: - result file: `results/20261027-082158-adhoc-scc-dev4-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082158-adhoc-scc-dev4-r2/result.json 
+[localeval] 1 streams: aggregate 77.9 tok/s
+[localeval] 4 streams: aggregate 161.6 tok/s
+[localeval] 8 streams: aggregate 207.0 tok/s
+[localeval] 16 streams: aggregate 245.4 tok/s
+== round 2 arm dev2 08:22:46
+dev2 r2: MemAvailable 51694 MB with the server up
+scc-dev2-r2: - result file: `results/20261027-082326-adhoc-scc-dev2-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082326-adhoc-scc-dev2-r2/result.json 
+[localeval] 1 streams: aggregate 79.0 tok/s
+[localeval] 4 streams: aggregate 162.8 tok/s
+[localeval] 8 streams: aggregate 214.3 tok/s
+[localeval] 16 streams: aggregate 245.2 tok/s
+== round 2 arm dev1 08:24:15
+dev1 r2: MemAvailable 51677 MB with the server up
+scc-dev1-r2: - result file: `results/20261027-082453-adhoc-scc-dev1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082453-adhoc-scc-dev1-r2/result.json 
+[localeval] 1 streams: aggregate 78.0 tok/s
+[localeval] 4 streams: aggregate 166.1 tok/s
+[localeval] 8 streams: aggregate 208.5 tok/s
+[localeval] 16 streams: aggregate 235.4 tok/s
+== round 2 arm devauto 08:25:42
+devauto r2: MemAvailable 51696 MB with the server up
+scc-devauto-r2: - result file: `results/20261027-082619-adhoc-scc-devauto-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082619-adhoc-scc-devauto-r2/result.json 
+[localeval] 1 streams: aggregate 78.2 tok/s
+[localeval] 4 streams: aggregate 160.3 tok/s
+[localeval] 8 streams: aggregate 211.9 tok/s
+[localeval] 16 streams: aggregate 245.1 tok/s
+== round 2 arm base 08:27:08
+base r2: MemAvailable 51713 MB with the server up
+scc-base-r2: - result file: `results/20261027-082748-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082748-adhoc-scc-base-r2/result.json 
+[localeval] 1 streams: aggregate 78.8 tok/s
+[localeval] 4 streams: aggregate 160.0 tok/s
+[localeval] 8 streams: aggregate 207.1 tok/s
+[localeval] 16 streams: aggregate 236.9 tok/s
+== round 3 arm base 08:28:37
+base r3: MemAvailable 51705 MB with the server up
+scc-base-r3: - result file: `results/20261027-082927-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082927-adhoc-scc-base-r3/result.json 
+[localeval] 1 streams: aggregate 78.8 tok/s
+[localeval] 4 streams: aggregate 163.2 tok/s
+[localeval] 8 streams: aggregate 204.5 tok/s
+[localeval] 16 streams: aggregate 235.5 tok/s
+== round 3 arm devauto 08:30:16
+devauto r3: MemAvailable 51707 MB with the server up
+scc-devauto-r3: - result file: `results/20261027-083054-adhoc-scc-devauto-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083054-adhoc-scc-devauto-r3/result.json 
+[localeval] 1 streams: aggregate 77.8 tok/s
+[localeval] 4 streams: aggregate 161.3 tok/s
+[localeval] 8 streams: aggregate 209.2 tok/s
+[localeval] 16 streams: aggregate 243.5 tok/s
+== round 3 arm dev1 08:31:43
+dev1 r3: MemAvailable 51709 MB with the server up
+scc-dev1-r3: - result file: `results/20261027-083227-adhoc-scc-dev1-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083227-adhoc-scc-dev1-r3/result.json 
+[localeval] 1 streams: aggregate 78.7 tok/s
+[localeval] 4 streams: aggregate 160.1 tok/s
+[localeval] 8 streams: aggregate 203.6 tok/s
+[localeval] 16 streams: aggregate 234.3 tok/s
+== round 3 arm dev2 08:33:16
+dev2 r3: MemAvailable 51691 MB with the server up
+scc-dev2-r3: - result file: `results/20261027-083358-adhoc-scc-dev2-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083358-adhoc-scc-dev2-r3/result.json 
+[localeval] 1 streams: aggregate 78.0 tok/s
+[localeval] 4 streams: aggregate 160.1 tok/s
+[localeval] 8 streams: aggregate 208.8 tok/s
+[localeval] 16 streams: aggregate 245.6 tok/s
+== round 3 arm dev4 08:34:47
+dev4 r3: MemAvailable 51680 MB with the server up
+scc-dev4-r3: - result file: `results/20261027-083528-adhoc-scc-dev4-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083528-adhoc-scc-dev4-r3/result.json 
+[localeval] 1 streams: aggregate 78.2 tok/s
+[localeval] 4 streams: aggregate 158.8 tok/s
+[localeval] 8 streams: aggregate 210.6 tok/s
+[localeval] 16 streams: aggregate 243.2 tok/s
+== done 08:36:17
+fleetq: #6249 done (exit 0)

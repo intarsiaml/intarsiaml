@@ -1,0 +1,7 @@
+fleetq: #6256 waiting (#1 in line): #6249 "scc: window 5 fp8 rows NT micro + served sweep x3" (claude-f31ccf91) needs cpu quiet on spark2, and this job loads it
+fleetq:   #6249 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6249 set, or it will wait for #6249 to be released.
+fleetq: #6256 running on spark2: scripts/scc/build.sh dev2
+    Finished `release` profile [optimized] target(s) in 56.57s
+-rwxrwxr-x 1 nvidia nvidia 80799768 Oct 27 08:37 /home/nvidia/intarsiaml-scc/bin/dev2
+intarsia 0.0.1
+fleetq: #6256 done (exit 0)

@@ -1,0 +1,91 @@
+fleetq: #6295 waiting (#1 in line): needs gpu quiet on spark2, but #6293 "scc: served-token identity base vs dev3" (claude-f31ccf91) loads it
+fleetq:   #6293 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6293 set, or it will wait for #6293 to be released.
+fleetq: #6295 waiting (#1 in line): needs spark2 quiet, but its GPU is 89% busy with work fleetq does not track
+fleetq: #6295 running on spark2: scripts/scc/win6.sh
+== round 1 arm base 09:14:41
+base r1: MemAvailable 51801 MB with the server up
+scc-base-r1: - result file: `results/20261027-091523-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091523-adhoc-scc-base-r1/result.json 
+[localeval] 1 streams: aggregate 78.6 tok/s
+[localeval] 4 streams: aggregate 159.7 tok/s
+[localeval] 8 streams: aggregate 200.2 tok/s
+[localeval] 16 streams: aggregate 236.7 tok/s
+== round 1 arm dev 09:16:13
+dev r1: MemAvailable 51808 MB with the server up
+scc-dev-r1: - result file: `results/20261027-091651-adhoc-scc-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091651-adhoc-scc-dev-r1/result.json 
+[localeval] 1 streams: aggregate 78.0 tok/s
+[localeval] 4 streams: aggregate 159.9 tok/s
+[localeval] 8 streams: aggregate 208.6 tok/s
+[localeval] 16 streams: aggregate 256.5 tok/s
+== round 1 arm vllm 09:17:39
+scc-vllm-r1: - result file: `results/20261027-091740-adhoc-scc-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091740-adhoc-scc-vllm-r1/result.json 
+[localeval] 1 streams: aggregate 74.5 tok/s
+[localeval] 4 streams: aggregate 113.8 tok/s
+[localeval] 8 streams: aggregate 114.1 tok/s
+[localeval] 16 streams: aggregate 113.7 tok/s
+== round 2 arm vllm 09:18:58
+scc-vllm-r2: - result file: `results/20261027-091858-adhoc-scc-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091858-adhoc-scc-vllm-r2/result.json 
+[localeval] 1 streams: aggregate 74.7 tok/s
+[localeval] 4 streams: aggregate 113.6 tok/s
+[localeval] 8 streams: aggregate 114.3 tok/s
+[localeval] 16 streams: aggregate 114.2 tok/s
+== round 2 arm dev 09:20:16
+dev r2: MemAvailable 51737 MB with the server up
+scc-dev-r2: - result file: `results/20261027-092106-adhoc-scc-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092106-adhoc-scc-dev-r2/result.json 
+[localeval] 1 streams: aggregate 78.0 tok/s
+[localeval] 4 streams: aggregate 164.0 tok/s
+[localeval] 8 streams: aggregate 210.0 tok/s
+[localeval] 16 streams: aggregate 258.8 tok/s
+== round 2 arm base 09:21:54
+base r2: MemAvailable 51722 MB with the server up
+scc-base-r2: - result file: `results/20261027-092236-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092236-adhoc-scc-base-r2/result.json 
+[localeval] 1 streams: aggregate 78.4 tok/s
+[localeval] 4 streams: aggregate 163.2 tok/s
+[localeval] 8 streams: aggregate 203.4 tok/s
+[localeval] 16 streams: aggregate 233.7 tok/s
+== round 3 arm base 09:23:26
+base r3: MemAvailable 51718 MB with the server up
+scc-base-r3: - result file: `results/20261027-092412-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092412-adhoc-scc-base-r3/result.json 
+[localeval] 1 streams: aggregate 78.9 tok/s
+[localeval] 4 streams: aggregate 161.0 tok/s
+[localeval] 8 streams: aggregate 204.1 tok/s
+[localeval] 16 streams: aggregate 235.2 tok/s
+== round 3 arm dev 09:25:01
+dev r3: MemAvailable 51750 MB with the server up
+scc-dev-r3: - result file: `results/20261027-092541-adhoc-scc-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092541-adhoc-scc-dev-r3/result.json 
+[localeval] 1 streams: aggregate 78.2 tok/s
+[localeval] 4 streams: aggregate 159.9 tok/s
+[localeval] 8 streams: aggregate 208.1 tok/s
+[localeval] 16 streams: aggregate 258.1 tok/s
+== round 3 arm vllm 09:26:29
+scc-vllm-r3: - result file: `results/20261027-092629-adhoc-scc-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092629-adhoc-scc-vllm-r3/result.json 
+[localeval] 1 streams: aggregate 74.7 tok/s
+[localeval] 4 streams: aggregate 114.2 tok/s
+[localeval] 8 streams: aggregate 114.1 tok/s
+[localeval] 16 streams: aggregate 113.3 tok/s
+== done 09:27:47
+== round 1 arm base 09:27:47
+base r1: MemAvailable 52453 MB with the server up
+scc-base-r1: - result file: `results/20261027-092836-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092836-adhoc-scc-base-r1/result.json 
+[localeval] 1 streams: aggregate 82.6 tok/s
+== round 1 arm dev 09:29:02
+dev r1: MemAvailable 52861 MB with the server up
+scc-dev-r1: - result file: `results/20261027-092954-adhoc-scc-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092954-adhoc-scc-dev-r1/result.json 
+[localeval] 1 streams: aggregate 90.9 tok/s
+== round 2 arm dev 09:30:20
+dev r2: MemAvailable 53417 MB with the server up
+scc-dev-r2: - result file: `results/20261027-093104-adhoc-scc-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-093104-adhoc-scc-dev-r2/result.json 
+[localeval] 1 streams: aggregate 85.6 tok/s
+== round 2 arm base 09:31:30
+base r2: MemAvailable 53373 MB with the server up
+scc-base-r2: - result file: `results/20261027-093216-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-093216-adhoc-scc-base-r2/result.json 
+[localeval] 1 streams: aggregate 91.7 tok/s
+== round 3 arm base 09:32:42
+base r3: MemAvailable 53363 MB with the server up
+scc-base-r3: - result file: `results/20261027-093326-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-093326-adhoc-scc-base-r3/result.json 
+[localeval] 1 streams: aggregate 88.9 tok/s
+== round 3 arm dev 09:33:53
+dev r3: MemAvailable 53406 MB with the server up
+scc-dev-r3: - result file: `results/20261027-093436-adhoc-scc-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-093436-adhoc-scc-dev-r3/result.json 
+[localeval] 1 streams: aggregate 94.6 tok/s
+== done 09:35:02
+fleetq: #6295 done (exit 0)

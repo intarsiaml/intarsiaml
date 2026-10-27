@@ -1,0 +1,132 @@
+{
+ "base": {
+  "1": {
+   "agg_rounds": [
+    82.6,
+    91.7,
+    88.9
+   ],
+   "agg_median": 88.9,
+   "ttft_p50": 0.187,
+   "ttft_p95": 0.187,
+   "ttft_max_rounds": [
+    0.187,
+    0.19,
+    0.187
+   ],
+   "per_stream_median": 102.022
+  },
+  "single": {
+   "1024": {
+    "decode_median": 97.743,
+    "decode_rounds": [
+     100.834,
+     96.725,
+     97.743
+    ],
+    "prefill_median": 5244.168,
+    "prefill_rounds": [
+     5243.767,
+     5244.168,
+     5279.42
+    ],
+    "ttft_median": 0.188
+   },
+   "4096": {
+    "decode_median": 105.837,
+    "decode_rounds": [
+     102.873,
+     105.995,
+     105.837
+    ],
+    "prefill_median": 6922.522,
+    "prefill_rounds": [
+     6864.369,
+     6922.522,
+     6927.255
+    ],
+    "ttft_median": 0.591
+   },
+   "16384": {
+    "decode_median": 85.296,
+    "decode_rounds": [
+     85.952,
+     84.794,
+     85.296
+    ],
+    "prefill_median": 6604.902,
+    "prefill_rounds": [
+     6538.617,
+     6614.751,
+     6604.902
+    ],
+    "ttft_median": 2.522
+   }
+  }
+ },
+ "dev": {
+  "1": {
+   "agg_rounds": [
+    90.9,
+    85.6,
+    94.6
+   ],
+   "agg_median": 90.9,
+   "ttft_p50": 0.189,
+   "ttft_p95": 0.189,
+   "ttft_max_rounds": [
+    0.188,
+    0.19,
+    0.189
+   ],
+   "per_stream_median": 104.721
+  },
+  "single": {
+   "1024": {
+    "decode_median": 103.405,
+    "decode_rounds": [
+     102.776,
+     106.097,
+     103.405
+    ],
+    "prefill_median": 5242.789,
+    "prefill_rounds": [
+     5262.811,
+     5150.335,
+     5242.789
+    ],
+    "ttft_median": 0.189
+   },
+   "4096": {
+    "decode_median": 105.732,
+    "decode_rounds": [
+     105.732,
+     102.69,
+     106.409
+    ],
+    "prefill_median": 6925.025,
+    "prefill_rounds": [
+     6920.651,
+     6925.025,
+     6925.294
+    ],
+    "ttft_median": 0.591
+   },
+   "16384": {
+    "decode_median": 84.787,
+    "decode_rounds": [
+     85.904,
+     81.971,
+     84.787
+    ],
+    "prefill_median": 6600.047,
+    "prefill_rounds": [
+     6600.047,
+     6617.235,
+     6582.26
+    ],
+    "ttft_median": 2.523
+   }
+  }
+ }
+}

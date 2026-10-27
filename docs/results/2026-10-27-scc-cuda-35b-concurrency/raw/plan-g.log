@@ -1,0 +1,6 @@
+fleetq: #6281 running on spark1: scripts/scc/plan-g.sh
+fleetq: #6281 went ahead of the line and must end within 79m (by Tue 10:24); it is stopped then
+PASS plan g json byte-identical (8631 B, md5 82ea8282)
+PASS plan g txt byte-identical (1865 B, md5 418cbfae)
+plan g fails=0
+fleetq: #6281 done (exit 0)

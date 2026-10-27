@@ -1,0 +1,42 @@
+fleetq: #6262 running on spark2: scripts/scc/test.sh run --test rows_exact --test rows_registry -- --test-threads=1
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+   --> crates/intarsia-backend-cuda/tests/rows_exact.rs:693:9
+    |
+693 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-cuda` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+
+running 6 tests
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test timing_gemv_rows ... ignored, micro-timing
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 19.41s
+
+     Running tests/rows_registry.rs (target/release/deps/rows_registry-6ff4c958b8241abd)
+
+running 4 tests
+test attn_decode_rows_kernel_is_selected_only_with_a_table_and_for_supported_shapes ... ok
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test print_tables ... ignored, prints the pin tables
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.43s
+
+fleetq: #6262 done (exit 0)

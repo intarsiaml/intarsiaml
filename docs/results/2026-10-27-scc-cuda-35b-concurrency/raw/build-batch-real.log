@@ -1,0 +1,6 @@
+fleetq: #6279 running on spark2: scripts/scc/batch-real.sh build
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 48.91s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+fleetq: #6279 done (exit 0)

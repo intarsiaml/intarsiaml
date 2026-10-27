@@ -1,0 +1,3 @@
+fleetq: #6292 running on spark2: ssh -n spark2 '~/intarsiaml-scc/bin/dev3 kernels test --backend cuda --quick 2>&1 | grep -aE "REJECTED|cases in|admission failed|passed|failed" | tail -8'
+77 kernels, 531 cases in 5.9s
+fleetq: #6292 done (exit 0)

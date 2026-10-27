@@ -1,0 +1,10 @@
+fleetq: #6277 running on spark2: ssh spark2 'bash -s'
+PASS plan 8 json byte-identical (8758 B, md5 da986bd8)
+PASS plan 8 txt byte-identical (1478 B, md5 d9eef22b)
+PASS plan 35 json byte-identical (15095 B, md5 9adaabdc)
+PASS plan 35 txt byte-identical (3866 B, md5 5372691e)
+ls: cannot access '/home/nvidia/.cache/huggingface/hub/models--nvidia--Gemma-4-26B-A4B-NVFP4/snapshots/*': No such file or directory
+FAIL plan g json
+FAIL plan g txt
+plan fails=2
+fleetq: #6277 done (exit 0)

@@ -1,0 +1,417 @@
+{
+ "base": {
+  "1": {
+   "agg_rounds": [
+    78.5,
+    78.8,
+    78.8
+   ],
+   "agg_median": 78.8,
+   "ttft_p50": 0.187,
+   "ttft_p95": 0.187,
+   "ttft_max_rounds": [
+    0.186,
+    0.187,
+    0.187
+   ],
+   "per_stream_median": 83.526
+  },
+  "4": {
+   "agg_rounds": [
+    162.8,
+    160.0,
+    163.2
+   ],
+   "agg_median": 162.8,
+   "ttft_p50": 0.479,
+   "ttft_p95": 0.778,
+   "ttft_max_rounds": [
+    0.776,
+    0.789,
+    0.778
+   ],
+   "per_stream_median": 44.085
+  },
+  "8": {
+   "agg_rounds": [
+    204.3,
+    207.1,
+    204.5
+   ],
+   "agg_median": 204.5,
+   "ttft_p50": 0.873,
+   "ttft_p95": 1.601,
+   "ttft_max_rounds": [
+    1.601,
+    1.601,
+    1.597
+   ],
+   "per_stream_median": 28.1
+  },
+  "16": {
+   "agg_rounds": [
+    231.5,
+    236.9,
+    235.5
+   ],
+   "agg_median": 235.5,
+   "ttft_p50": 1.693,
+   "ttft_p95": 3.387,
+   "ttft_max_rounds": [
+    3.434,
+    3.387,
+    3.379
+   ],
+   "per_stream_median": 16.436
+  },
+  "single": {
+   "1024": {
+    "decode_median": 83.419,
+    "decode_rounds": [
+     83.279,
+     83.419,
+     83.641
+    ],
+    "prefill_median": 5315.184,
+    "prefill_rounds": [
+     5315.184,
+     5347.165,
+     5311.462
+    ],
+    "ttft_median": 0.187
+   }
+  }
+ },
+ "dev1": {
+  "1": {
+   "agg_rounds": [
+    78.3,
+    78.0,
+    78.7
+   ],
+   "agg_median": 78.3,
+   "ttft_p50": 0.187,
+   "ttft_p95": 0.187,
+   "ttft_max_rounds": [
+    0.187,
+    0.188,
+    0.185
+   ],
+   "per_stream_median": 82.924
+  },
+  "4": {
+   "agg_rounds": [
+    159.5,
+    166.1,
+    160.1
+   ],
+   "agg_median": 160.1,
+   "ttft_p50": 0.478,
+   "ttft_p95": 0.78,
+   "ttft_max_rounds": [
+    0.781,
+    0.78,
+    0.78
+   ],
+   "per_stream_median": 43.307
+  },
+  "8": {
+   "agg_rounds": [
+    205.7,
+    208.5,
+    203.6
+   ],
+   "agg_median": 205.7,
+   "ttft_p50": 0.871,
+   "ttft_p95": 1.602,
+   "ttft_max_rounds": [
+    1.614,
+    1.602,
+    1.602
+   ],
+   "per_stream_median": 28.329
+  },
+  "16": {
+   "agg_rounds": [
+    236.1,
+    235.4,
+    234.3
+   ],
+   "agg_median": 235.4,
+   "ttft_p50": 1.691,
+   "ttft_p95": 3.379,
+   "ttft_max_rounds": [
+    3.373,
+    3.383,
+    3.379
+   ],
+   "per_stream_median": 16.436
+  },
+  "single": {
+   "1024": {
+    "decode_median": 82.892,
+    "decode_rounds": [
+     82.48,
+     82.892,
+     83.529
+    ],
+    "prefill_median": 5306.582,
+    "prefill_rounds": [
+     5297.203,
+     5306.582,
+     5331.427
+    ],
+    "ttft_median": 0.187
+   }
+  }
+ },
+ "dev2": {
+  "1": {
+   "agg_rounds": [
+    78.3,
+    79.0,
+    78.0
+   ],
+   "agg_median": 78.3,
+   "ttft_p50": 0.186,
+   "ttft_p95": 0.186,
+   "ttft_max_rounds": [
+    0.187,
+    0.185,
+    0.186
+   ],
+   "per_stream_median": 82.884
+  },
+  "4": {
+   "agg_rounds": [
+    162.8,
+    162.8,
+    160.1
+   ],
+   "agg_median": 162.8,
+   "ttft_p50": 0.477,
+   "ttft_p95": 0.778,
+   "ttft_max_rounds": [
+    0.776,
+    0.778,
+    0.784
+   ],
+   "per_stream_median": 44.085
+  },
+  "8": {
+   "agg_rounds": [
+    208.3,
+    214.3,
+    208.8
+   ],
+   "agg_median": 208.8,
+   "ttft_p50": 0.87,
+   "ttft_p95": 1.599,
+   "ttft_max_rounds": [
+    1.599,
+    1.602,
+    1.596
+   ],
+   "per_stream_median": 28.749
+  },
+  "16": {
+   "agg_rounds": [
+    245.4,
+    245.2,
+    245.6
+   ],
+   "agg_median": 245.4,
+   "ttft_p50": 1.688,
+   "ttft_p95": 3.36,
+   "ttft_max_rounds": [
+    3.359,
+    3.36,
+    3.367
+   ],
+   "per_stream_median": 17.207
+  },
+  "single": {
+   "1024": {
+    "decode_median": 82.875,
+    "decode_rounds": [
+     82.875,
+     83.696,
+     82.472
+    ],
+    "prefill_median": 5319.21,
+    "prefill_rounds": [
+     5323.7,
+     5297.554,
+     5319.21
+    ],
+    "ttft_median": 0.186
+   }
+  }
+ },
+ "dev4": {
+  "1": {
+   "agg_rounds": [
+    78.9,
+    77.9,
+    78.2
+   ],
+   "agg_median": 78.2,
+   "ttft_p50": 0.188,
+   "ttft_p95": 0.188,
+   "ttft_max_rounds": [
+    0.186,
+    0.188,
+    0.189
+   ],
+   "per_stream_median": 82.904
+  },
+  "4": {
+   "agg_rounds": [
+    160.9,
+    161.6,
+    158.8
+   ],
+   "agg_median": 160.9,
+   "ttft_p50": 0.481,
+   "ttft_p95": 0.784,
+   "ttft_max_rounds": [
+    0.784,
+    0.78,
+    0.785
+   ],
+   "per_stream_median": 43.562
+  },
+  "8": {
+   "agg_rounds": [
+    209.0,
+    207.0,
+    210.6
+   ],
+   "agg_median": 209.0,
+   "ttft_p50": 0.874,
+   "ttft_p95": 1.596,
+   "ttft_max_rounds": [
+    1.593,
+    1.602,
+    1.596
+   ],
+   "per_stream_median": 28.783
+  },
+  "16": {
+   "agg_rounds": [
+    244.8,
+    245.4,
+    243.2
+   ],
+   "agg_median": 244.8,
+   "ttft_p50": 1.699,
+   "ttft_p95": 3.383,
+   "ttft_max_rounds": [
+    3.383,
+    3.378,
+    3.387
+   ],
+   "per_stream_median": 17.184
+  },
+  "single": {
+   "1024": {
+    "decode_median": 82.483,
+    "decode_rounds": [
+     83.552,
+     82.483,
+     82.123
+    ],
+    "prefill_median": 5309.704,
+    "prefill_rounds": [
+     5272.149,
+     5309.704,
+     5312.71
+    ],
+    "ttft_median": 0.187
+   }
+  }
+ },
+ "devauto": {
+  "1": {
+   "agg_rounds": [
+    78.4,
+    78.2,
+    77.8
+   ],
+   "agg_median": 78.2,
+   "ttft_p50": 0.186,
+   "ttft_p95": 0.186,
+   "ttft_max_rounds": [
+    0.191,
+    0.186,
+    0.186
+   ],
+   "per_stream_median": 82.794
+  },
+  "4": {
+   "agg_rounds": [
+    162.2,
+    160.3,
+    161.3
+   ],
+   "agg_median": 161.3,
+   "ttft_p50": 0.48,
+   "ttft_p95": 0.782,
+   "ttft_max_rounds": [
+    0.786,
+    0.78,
+    0.782
+   ],
+   "per_stream_median": 43.677
+  },
+  "8": {
+   "agg_rounds": [
+    208.8,
+    211.9,
+    209.2
+   ],
+   "agg_median": 209.2,
+   "ttft_p50": 0.873,
+   "ttft_p95": 1.599,
+   "ttft_max_rounds": [
+    1.608,
+    1.599,
+    1.598
+   ],
+   "per_stream_median": 28.832
+  },
+  "16": {
+   "agg_rounds": [
+    243.8,
+    245.1,
+    243.5
+   ],
+   "agg_median": 243.8,
+   "ttft_p50": 1.691,
+   "ttft_p95": 3.374,
+   "ttft_max_rounds": [
+    3.37,
+    3.374,
+    3.386
+   ],
+   "per_stream_median": 17.081
+  },
+  "single": {
+   "1024": {
+    "decode_median": 82.837,
+    "decode_rounds": [
+     83.286,
+     82.837,
+     82.264
+    ],
+    "prefill_median": 5299.721,
+    "prefill_rounds": [
+     5299.721,
+     5289.697,
+     5305.955
+    ],
+    "ttft_median": 0.187
+   }
+  }
+ }
+}

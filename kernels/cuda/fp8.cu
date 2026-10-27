@@ -7,6 +7,9 @@
 //   *_mma   any M: 64-column tiles, weights dequantised to bf16 in shared memory (exact), bf16 tensor-core MMA,
 //           f32 accumulate. Used for prefill and as the correct path for every shape.
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
+#include <cstdlib>
+#include <cstring>
+
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 
@@ -177,7 +180,11 @@ constexpr int rows_chunk() {
     return (16384 / M / 512 > 0 ? 16384 / M / 512 : 1) * 512;  // M * chunk * 2 bytes <= 32 KB
 }
 
-template <int M, typename OutT>
+// NT: outputs per warp. A block stages the activations of M rows (and, for W8A8, requantises every element) for the kWarps * NT
+// outputs it owns, and each staged 16-element x vector is unpacked once per lane-block for all NT outputs; NT = 1 is the original
+// one-output-per-warp kernel. The arithmetic of every (m, n) is untouched (same lane-strided blocks, same 16-long fmaf chain,
+// same `acc += s`, same warp tree), so any NT gives the bits of NT = 1.
+template <int M, int NT, typename OutT>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
                      OutT* __restrict__ out, int N, int K) {
@@ -188,12 +195,15 @@ fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
     const float s_in = actq ? sc[1] : 1.f;
     const float s_out = sc[0] * s_in;
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n = (int64_t)blockIdx.x * kWarps + warp;
-    const bool live = n < N;  // a dead warp still takes part in the staging and the barriers
-    const uint4* wr = reinterpret_cast<const uint4*>(w + (live ? n : 0) * K);
-    float acc[M];
+    const int64_t nb = ((int64_t)blockIdx.x * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
+    const uint4* wr[NT];
 #pragma unroll
-    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < N ? nb + j : 0) * K);  // a dead output reads row 0
+    float acc[NT][M];
+#pragma unroll
+    for (int j = 0; j < NT; ++j)
+#pragma unroll
+        for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
     for (int c0 = 0; c0 < K; c0 += KC) {
         const int kc = K - c0 < KC ? K - c0 : KC;  // a multiple of 16
         const int ub = c0 / 16;                      // a multiple of 32
@@ -211,36 +221,174 @@ fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
             xs[(m * 2 + (j & 1)) * (KC / 16) + (j >> 1)] = v;
         }
         __syncthreads();
-        if (live) {
-#pragma unroll 2
+        if (nb < N) {  // a dead warp (all its outputs past N) still took part in the staging and the barriers
+#pragma unroll(NT == 1 ? 2 : 1)
             for (int u = lane; u < kc / 16; u += IK_WARP) {
-                float wf[16];
-                ik_fp8x16_to_f32(__ldcs(wr + ub + u), wf);
+                float wf[NT][16];
+#pragma unroll
+                for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + ub + u), wf[j]);
 #pragma unroll
                 for (int m = 0; m < M; ++m) {
                     float xf[16];
                     ik_unpack8(xs[(m * 2) * (KC / 16) + u], xf);
                     ik_unpack8(xs[(m * 2 + 1) * (KC / 16) + u], xf + 8);
-                    float sdot = 0.f;
 #pragma unroll
-                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[e], xf[e], sdot);
-                    acc[m] += sdot;
+                    for (int j = 0; j < NT; ++j) {
+                        float sdot = 0.f;
+#pragma unroll
+                        for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
+                        acc[j][m] += sdot;
+                    }
                 }
             }
         }
     }
 #pragma unroll
-    for (int m = 0; m < M; ++m) {
-        const float t = ik_warp_sum(acc[m]);  // all 32 lanes call it (full-mask shuffles)
-        if (live && lane == 0) ik_store(out + (int64_t)m * N + n, t * s_out);
+    for (int j = 0; j < NT; ++j)
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            const float t = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+            if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, t * s_out);
+        }
+}
+
+// ---- Row-exact multi-row GEMV, persistent variant: the whole K staged once per block -------------------------------------
+//
+// The chunked kernel above re-stages (and, in W8A8, re-quantises with a correctly rounded division per element) the M activation
+// rows for every kWarps * NT outputs, about as many instructions as the dot products themselves, with a barrier per chunk. When
+// M * K * 2 bytes fit one block's shared memory (M = 16: K <= 3072, i.e. every 2048-wide projection of the 35B), this kernel stages
+// all of x once per block and the block's warps then walk the output tiles with no barrier at all. The arithmetic of every
+// (m, n) is again the one-row kernel's: the same lane-strided 16-element blocks, fmaf chain, `acc += s` and warp tree.
+constexpr size_t kFullSmemMax = 96 * 1024;
+
+template <int M, int NT, int W, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, 1)
+fp8_gemv_rows_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                          OutT* __restrict__ out, int N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][K / 16]
+    const int KV = K / 16;
+    const bool actq = sc[1] > 0.f;
+    const float s_in = actq ? sc[1] : 1.f;
+    const float s_out = sc[0] * s_in;
+    for (int i = threadIdx.x; i < M * (K / 8); i += blockDim.x) {
+        const int m = i / (K / 8), j = i % (K / 8);  // j: 8-element piece of the row
+        uint4 v = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K) + j);
+        if (actq) {
+            float f[8];
+            ik_unpack8(v, f);
+#pragma unroll
+            for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
+            v = ik_pack8(f);  // fp8 values are exact in bf16
+        }
+        xs[(m * 2 + (j & 1)) * KV + (j >> 1)] = v;
     }
+    __syncthreads();
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = ((int64_t)N + NT - 1) / NT;
+    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
+        const uint4* wr[NT];
+#pragma unroll
+        for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < N ? nb + j : 0) * K);  // a dead output reads row 0
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+#pragma unroll 2
+        for (int u = lane; u < KV; u += IK_WARP) {
+            float wf[NT][16];
+#pragma unroll
+            for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[16];
+                ik_unpack8(xs[(m * 2) * KV + u], xf);
+                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    float sdot = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
+                    acc[j][m] += sdot;
+                }
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * s_out);
+            }
+    }
+}
+
+inline int sm_count() {
+    static int cached[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!cached[d]) {
+        int v = 0;
+        cudaDeviceGetAttribute(&v, cudaDevAttrMultiProcessorCount, d);
+        cached[d] = v > 0 ? v : 48;
+    }
+    return cached[d];
+}
+
+template <int M, int NT, int W, typename OutT>
+int rows_run_full(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)M * K * 2;
+    auto kern = fp8_gemv_rows_full_kernel<M, NT, W, OutT>;
+    if (cudaFuncSetAttribute((const void*)kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) != cudaSuccess) return IK_ERR_LAUNCH;
+    const int64_t tiles = (N + NT - 1) / NT;
+    const int64_t blocks = (tiles + W - 1) / W;
+    const unsigned grid = (unsigned)(blocks < sm_count() ? blocks : sm_count());
+    kern<<<grid, W * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, (int)K);
+    return ik_launch_status();
+}
+
+// Which kernel runs an M-row call over N outputs and K inputs. INTARSIA_CUDA_FP8_ROWS = 0 is the original kernel (the switch that
+// turns this change off), `tile` the chunked kernel with INTARSIA_CUDA_FP8_ROWS_NT outputs per warp (1 | 2 | 4, default: the largest
+// that leaves a grid of kRowsMinBlocks blocks), anything else (default) the persistent kernel when x fits shared memory and the
+// tiled one when it does not. INTARSIA_CUDA_FP8_ROWS_FULL = NTxW (1x16 | 2x16 | 2x8 | 4x8) picks the persistent kernel's shape.
+constexpr int kRowsMinBlocks = 96;
+inline int rows_tile_nt(int M, int64_t N) {
+    const char* e = getenv("INTARSIA_CUDA_FP8_ROWS_NT");
+    if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4') && e[1] == 0) return e[0] - '0';
+    if (M < 4) return 1;
+    for (int nt = 4; nt > 1; nt /= 2)
+        if ((N + kWarps * nt - 1) / (kWarps * nt) >= kRowsMinBlocks) return nt;
+    return 1;
+}
+
+template <int M, int NT, typename OutT>
+int rows_run_nt(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const unsigned grid = (unsigned)((N + kWarps * NT - 1) / (kWarps * NT));
+    fp8_gemv_rows_kernel<M, NT, OutT><<<grid, kWarps * IK_WARP, (size_t)M * rows_chunk<M>() * 2, s>>>(x, w, sc, out, (int)N, (int)K);
+    return ik_launch_status();
 }
 
 template <int M, typename OutT>
 int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
-    const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
-    fp8_gemv_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, (size_t)M * rows_chunk<M>() * 2, s>>>(x, w, sc, out, (int)N, (int)K);
-    return ik_launch_status();
+    const char* mode = getenv("INTARSIA_CUDA_FP8_ROWS");
+    const bool off = mode && mode[0] == '0' && mode[1] == 0;
+    const bool tile = mode && !strcmp(mode, "tile");
+    if (!off && !tile && (size_t)M * K * 2 <= kFullSmemMax) {
+        const char* f = getenv("INTARSIA_CUDA_FP8_ROWS_FULL");
+        const bool known = f && (!strcmp(f, "1x16") || !strcmp(f, "2x16") || !strcmp(f, "2x8") || !strcmp(f, "4x8"));
+        if (known && !strcmp(f, "1x16")) return rows_run_full<M, 1, 16>(x, w, sc, out, N, K, s);
+        if (known && !strcmp(f, "2x8")) return rows_run_full<M, 2, 8>(x, w, sc, out, N, K, s);
+        if (known && !strcmp(f, "4x8")) return rows_run_full<M, 4, 8>(x, w, sc, out, N, K, s);
+        return rows_run_full<M, 2, 16>(x, w, sc, out, N, K, s);
+    }
+    switch (off ? 1 : rows_tile_nt(M, N)) {
+        case 2: return rows_run_nt<M, 2>(x, w, sc, out, N, K, s);
+        case 4: return rows_run_nt<M, 4>(x, w, sc, out, N, K, s);
+        default: return rows_run_nt<M, 1>(x, w, sc, out, N, K, s);
+    }
 }
 
 template <typename OutT>

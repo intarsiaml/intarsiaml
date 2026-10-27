@@ -1,0 +1,9 @@
+fleetq: #6293 running on spark2: scripts/scc/ident.sh base dev3
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+fleetq: #6293 done (exit 0)
