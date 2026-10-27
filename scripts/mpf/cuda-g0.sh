@@ -7,12 +7,12 @@
 #   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 45 --label "mpf: G0 cuda" -- ssh spark1 'bash -s' < scripts/mpf/cuda-g0.sh
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-mpf; H=/home/nvidia/.cache/huggingface/hub; O=$R/out-g0; mkdir -p $O
+R=$HOME/intarsiaml-mpf; H=/home/nvidia/.cache/huggingface/hub; O=${O:-$R/out-g0}; mkdir -p $O
 M8=$(ls -d $H/models--Qwen--Qwen3-8B/snapshots/* | head -1)
 MG=$(ls -d $H/models--nvidia--Gemma-4-26B-A4B-NVFP4/snapshots/* | head -1)
 M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 PD=$R/src/scripts/tp2-hip/noop/prompts; fails=0
-DEV=$R/target-dev/release/intarsia; BASE=$R/target-base/release/intarsia
+DEV=${DEV:-$R/target-dev/release/intarsia}; BASE=$R/target-base/release/intarsia  # DEV=.../target-flip/...: the tree with the recipe key set; ONLY35=1 skips the 8B and Gemma
 # one <tag> <binary> <model-key> <model> <extra flags...>: ids for short and 4k, plan show json/text
 one() {
   local tag=$1 b=$2 m=$3 M=$4; shift 4
@@ -37,7 +37,8 @@ cmpt() {
     else echo "INFO plan $m $k $A vs $B differ ($(diff $O/plan-$m-$A.$k $O/plan-$m-$B.$k | wc -l) diff lines)"; fi
   done
 }
-for mm in 8:$M8 g:$MG; do
+LIST="8:$M8 g:$MG"; [ -n "${ONLY35:-}" ] && LIST=""
+for mm in $LIST; do
   m=${mm%%:*}; M=${mm#*:}
   one base $BASE $m $M; one dev $DEV $m $M; cmpt $m base dev 1
 done

@@ -1,0 +1,3 @@
+fleetq: #5823 running on spark1: ssh spark1 'MODE=build bash -s rollback-skip'
+fleetq: #5823 went ahead of the line and must end within 2h40m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
