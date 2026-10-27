@@ -112,7 +112,18 @@ fn splitkv_ok(s: &ShapeInfo) -> bool {
 /// The ext split-KV kernels also take head_dim 512 (Gemma 4's global layers; 16 q heads over 2 kv heads), at most 8 q heads per kv head.
 fn splitkv_ext_ok(s: &ShapeInfo) -> bool {
     splitkv_ok(s)
-        || (s.head_dim == 512 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0 && s.n_heads / s.n_kv_heads <= 8)
+        || (splitkv_512()
+            && s.head_dim == 512
+            && s.n_kv_heads > 0
+            && s.n_heads % s.n_kv_heads == 0
+            && s.n_heads / s.n_kv_heads <= 8)
+}
+
+/// `INTARSIA_CUDA_SPLITKV_512=0` takes head_dim 512 (Gemma 4's global layers) back to the SIMT `attn_decode_bf16_ext` /
+/// `attn_prefill_bf16_ext` kernels (one block per q head: slow at long context, the rollback for the split-KV 512 path). Default on.
+pub fn splitkv_512() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| !std::env::var("INTARSIA_CUDA_SPLITKV_512").is_ok_and(|v| v == "0"))
 }
 
 fn flash_ok(s: &ShapeInfo) -> bool {
