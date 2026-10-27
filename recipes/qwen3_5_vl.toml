@@ -64,6 +64,11 @@ lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
 [defaults]
 kv_dtype = "bf16"
 max_batch = 32
+# MXFP4 projections (amd/Qwen3.8-27B-Quark-AWQ-MXFP4) run with 16-bit activations (W4A16), not the W4A4 the Quark config declares:
+# full MMLU n=1425 W4A16 0.822 vs W4A4 0.802 (Radiance 0.830); cost at tp2: prefill -30% (2121 -> 1479 tok/s at 4k), decode -13..-19%
+# (MTP k=2 still works), docs/results/2026-10-27-act27-27b-w4a16-mmlu.md. User decision 2026-10-26 20:24. `--mxfp4-act dynamic`
+# runs the declared W4A4. No effect on a bf16 checkpoint of this architecture.
+mxfp4_act = "none"
 
 # Multi-token-prediction head (`mtp.*`, bf16 even in a quantised checkpoint): fc over [norm(embed) | norm(hidden)], one gated
 # full-attention + dense SwiGLU layer, a final norm, the model's lm_head. Read only by `--spec mtp`; without that flag

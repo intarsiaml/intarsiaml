@@ -2,6 +2,7 @@
 //! step reads (for the byte floor), and small fingerprints for provenance.
 
 use anyhow::Result;
+use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::weights::WeightSource;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -47,9 +48,11 @@ fn key(s: &str) -> String {
 }
 
 /// Find the golden file of `name` in `dirs`. `long` asks for the longer prompt set (`<name>-long...`, then `...-4k...`);
-/// otherwise the short one. A full-vocabulary fp32 reference outranks other sources.
-pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> {
-    find_scored(name, dirs, false, |is_long, is_4k| match (long, is_long, is_4k) {
+/// otherwise the short one. A full-vocabulary fp32 reference outranks other sources. For a model whose MXFP4 activation mode is `act`
+/// (`None`: not an MXFP4 model, or unknown), of two goldens made from the same weights, the W4A16 one (`-w4a16` in the name) is taken for `Mxfp4Act::None` and never for
+/// `Mxfp4Act::Dynamic` (a W4A16 golden sits ~0.14 KL away from a W4A4 run, docs/results/2026-10-25-ac-27b-accuracy-gate.md).
+pub fn find_golden_act(name: &str, dirs: &[PathBuf], long: bool, act: Option<Mxfp4Act>) -> Option<PathBuf> {
+    find_scored(name, dirs, false, act, |is_long, is_4k| match (long, is_long, is_4k) {
         (false, false, false) => Some(100),
         (true, true, _) => Some(100),
         (true, false, true) => Some(60),
@@ -60,13 +63,13 @@ pub fn find_golden(name: &str, dirs: &[PathBuf], long: bool) -> Option<PathBuf> 
 /// Find the ~4k-token golden of `name` (`<name>-4k...`, built from `tools/prompts/golden_4k.jsonl`): the one golden whose
 /// prompts are long enough for the prefix-reuse gate at a prefill chunk of 2048 (the long golden's longest is 700 tokens).
 pub fn find_golden_4k(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
-    find_scored(name, dirs, false, |_, is_4k| is_4k.then_some(100))
+    find_scored(name, dirs, false, None, |_, is_4k| is_4k.then_some(100))
 }
 
 /// Find the format-reference golden of `name` (`<name>-formatref...`): the same quantized weights run by the format's own
 /// reference implementation (tools/golden_exl3.py for EXL3). The short prompt set; never picked as an ordinary golden.
 pub fn find_format_golden(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
-    find_scored(name, dirs, true, |is_long, is_4k| (!is_long && !is_4k).then_some(100))
+    find_scored(name, dirs, true, None, |is_long, is_4k| (!is_long && !is_4k).then_some(100))
 }
 
 /// One `__metadata__` string of a safetensors file (reads the header only).
@@ -85,8 +88,30 @@ pub fn golden_meta(path: &Path, key: &str) -> Option<String> {
     v.get("__metadata__")?.get(key)?.as_str().map(String::from)
 }
 
+/// The MXFP4 activation mode a golden was made with: `activations dynamic|none` in the `engine_version` metadata that
+/// `tools/golden_quark_mxfp4.py` writes, else a `-w4a16` in the file name. `None`: the golden does not say.
+pub fn golden_act(path: &Path) -> Option<Mxfp4Act> {
+    if let Some(v) = golden_meta(path, "engine_version") {
+        if let Some(rest) = v.split("activations ").nth(1) {
+            match rest.split(|c: char| !c.is_ascii_alphanumeric()).next() {
+                Some("none") => return Some(Mxfp4Act::None),
+                Some("dynamic") => return Some(Mxfp4Act::Dynamic),
+                _ => {}
+            }
+        }
+    }
+    let stem = path.file_stem()?.to_str()?;
+    stem.contains("-w4a16").then_some(Mxfp4Act::None)
+}
+
 /// `formatref`: look for format-reference goldens (`-formatref` in the name) instead of ordinary ones.
-fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool, bool) -> Option<i32>) -> Option<PathBuf> {
+fn find_scored(
+    name: &str,
+    dirs: &[PathBuf],
+    formatref: bool,
+    act: Option<Mxfp4Act>,
+    base: impl Fn(bool, bool) -> Option<i32>,
+) -> Option<PathBuf> {
     let k = key(name);
     let mut best: Option<(i32, PathBuf)> = None;
     for d in dirs {
@@ -108,6 +133,11 @@ fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool
             let is_long = rest.contains("-long");
             let is_4k = rest.contains("-4k");
             let Some(mut score) = base(is_long, is_4k) else { continue };
+            match (act, rest.contains("-w4a16")) {
+                (Some(Mxfp4Act::None), true) => score += 20,
+                (Some(Mxfp4Act::Dynamic), true) => continue,
+                _ => {}
+            }
             if rest.contains("fp32") {
                 score += 10;
             } else if rest.contains("vllm") {
@@ -123,7 +153,7 @@ fn find_scored(name: &str, dirs: &[PathBuf], formatref: bool, base: impl Fn(bool
 
 /// Find the f64 CPU-oracle golden of model `name` (`<name>-cpu-oracle...` in the `oracle/` subdirectory of a golden
 /// directory: `intarsia accuracy --backend cpu --write-self-golden` on the short prompt set). It lives apart from the
-/// goldens so that `find_golden` never takes it for the short golden.
+/// goldens so that `find_golden_act` never takes it for the short golden.
 pub fn find_oracle_golden(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
     let k = key(name);
     for d in dirs {
@@ -320,18 +350,53 @@ mod tests {
         }
         let dirs = vec![d.clone()];
         let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
-        assert_eq!(n(find_golden("Qwen3-8B", &dirs, false)).as_deref(), Some("qwen3-8b-fp32.safetensors"));
-        assert_eq!(n(find_golden("Qwen3-8B", &dirs, true)).as_deref(), Some("qwen3-8b-long-fp32.safetensors"));
+        assert_eq!(n(find_golden_act("Qwen3-8B", &dirs, false, None)).as_deref(), Some("qwen3-8b-fp32.safetensors"));
+        assert_eq!(n(find_golden_act("Qwen3-8B", &dirs, true, None)).as_deref(), Some("qwen3-8b-long-fp32.safetensors"));
         assert_eq!(
-            n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, false)).as_deref(),
+            n(find_golden_act("Qwen3.6-35B-A3B-NVFP4", &dirs, false, None)).as_deref(),
             Some("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors")
         );
-        assert_eq!(n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, true)), None);
-        assert_eq!(n(find_golden("Llama-3", &dirs, false)), None);
+        assert_eq!(n(find_golden_act("Qwen3.6-35B-A3B-NVFP4", &dirs, true, None)), None);
+        assert_eq!(n(find_golden_act("Llama-3", &dirs, false, None)), None);
         // the 4k golden is found on its own, fp32 first; it is not the short or the long golden
         assert_eq!(n(find_golden_4k("Qwen3-8B", &dirs)).as_deref(), Some("qwen3-8b-4k-fp32.safetensors"));
         assert_eq!(n(find_golden_4k("Qwen3.6-35B-A3B-NVFP4", &dirs)), None);
         assert_eq!(n(find_golden_4k("Llama-3", &dirs)), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn mxfp4_golden_follows_the_activation_mode() {
+        let d = std::env::temp_dir().join(format!("qualify-mxfp4-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        for f in ["qwen3.8-27b-mxfp4-hfquark-top20.safetensors", "qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors"] {
+            std::fs::write(d.join(f), b"x").unwrap();
+        }
+        let dirs = vec![d.clone()];
+        let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
+        let name = "qwen3.8-27b-mxfp4-hfquark";
+        let w4a4 = Some("qwen3.8-27b-mxfp4-hfquark-top20.safetensors");
+        let w4a16 = Some("qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors");
+        // W4A16 effective (the Qwen3.8-27B recipe default): the W4A16 golden; W4A4 effective (`--mxfp4-act dynamic`): never it
+        assert_eq!(n(find_golden_act(name, &dirs, false, Some(Mxfp4Act::None))).as_deref(), w4a16);
+        assert_eq!(n(find_golden_act(name, &dirs, false, Some(Mxfp4Act::Dynamic))).as_deref(), w4a4);
+        // not an MXFP4 model: a golden is not picked by its tag
+        assert!(n(find_golden_act(name, &dirs, false, None)).is_some());
+        // the mode a golden was made with: file name, else the metadata the golden tool writes
+        assert_eq!(golden_act(&d.join("qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors")), Some(Mxfp4Act::None));
+        assert_eq!(golden_act(&d.join("qwen3.8-27b-mxfp4-hfquark-top20.safetensors")), None);
+        let meta = |act: &str| {
+            let h = format!(
+                r#"{{"__metadata__":{{"engine_version":"transformers 5, layer-streamed, activations {act} (Quark even_round), 496 QDQ'd linears"}}}}"#
+            );
+            let mut b = (h.len() as u64).to_le_bytes().to_vec();
+            b.extend(h.as_bytes());
+            b
+        };
+        std::fs::write(d.join("a4.safetensors"), meta("dynamic")).unwrap();
+        std::fs::write(d.join("a16.safetensors"), meta("none")).unwrap();
+        assert_eq!(golden_act(&d.join("a4.safetensors")), Some(Mxfp4Act::Dynamic));
+        assert_eq!(golden_act(&d.join("a16.safetensors")), Some(Mxfp4Act::None));
         let _ = std::fs::remove_dir_all(&d);
     }
 
@@ -350,7 +415,7 @@ mod tests {
         );
         assert_eq!(n(find_oracle_golden("Qwen3-8B", &dirs)), None, "only -cpu-oracle files are oracles");
         assert_eq!(
-            n(find_golden("Qwen3.6-35B-A3B-NVFP4", &dirs, false)).as_deref(),
+            n(find_golden_act("Qwen3.6-35B-A3B-NVFP4", &dirs, false, None)).as_deref(),
             Some("qwen36-35b-a3b-nvfp4-vllm-top20.safetensors")
         );
         let _ = std::fs::remove_dir_all(&d);
@@ -369,8 +434,8 @@ mod tests {
             n(find_format_golden("qwen3-8b-exl3-4.0bpw", &dirs)).as_deref(),
             Some("qwen3-8b-exl3-4.0bpw-formatref-exllamav3.safetensors")
         );
-        assert_eq!(n(find_golden("qwen3-8b-exl3-4.0bpw", &dirs, false)), None);
-        assert_eq!(n(find_golden("qwen3-8b-exl3-4.0bpw", &dirs, true)), None);
+        assert_eq!(n(find_golden_act("qwen3-8b-exl3-4.0bpw", &dirs, false, None)), None);
+        assert_eq!(n(find_golden_act("qwen3-8b-exl3-4.0bpw", &dirs, true, None)), None);
         assert_eq!(n(find_format_golden("Qwen3-8B", &dirs)), None);
         // metadata is read from the header only
         let hdr = br#"{"__metadata__":{"reference_kind":"format","reference_engine":"exllamav3 0.0.x"}}"#;

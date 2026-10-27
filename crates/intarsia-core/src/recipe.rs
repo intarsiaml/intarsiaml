@@ -292,6 +292,11 @@ pub struct Defaults {
     /// (W4A16): off = refuse to load it (a deviation from the declared scheme and from vLLM); on = accept, knowingly.
     #[serde(default)]
     pub w4a4_as_w4a16: bool,
+    /// MXFP4 checkpoints: `dynamic` (W4A4, what a Quark checkpoint declares) or `none` (W4A16). Unset: what the checkpoint
+    /// declares. Precedence: `--mxfp4-act`, then this, then the checkpoint ([`crate::quant::mxfp4::effective_act`]).
+    /// No effect on a checkpoint without MXFP4 projections.
+    #[serde(default)]
+    pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
 }
 
 fn default_kv() -> String {
@@ -303,7 +308,7 @@ fn default_batch() -> usize {
 
 impl Default for Defaults {
     fn default() -> Self {
-        Defaults { kv_dtype: default_kv(), max_batch: 1, fp8_act: Default::default(), w4a4_as_w4a16: false }
+        Defaults { kv_dtype: default_kv(), max_batch: 1, fp8_act: Default::default(), w4a4_as_w4a16: false, mxfp4_act: None }
     }
 }
 

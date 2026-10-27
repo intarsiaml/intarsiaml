@@ -68,9 +68,29 @@ impl Mxfp4Act {
     }
 }
 
-/// The activation mode the MXFP4 projections run: the explicit option, else what the checkpoint declares, else W4A16.
-pub fn effective_act(opt: Option<Mxfp4Act>, declared: Option<Mxfp4Act>) -> Mxfp4Act {
-    opt.or(declared).unwrap_or(Mxfp4Act::None)
+/// The activation mode the MXFP4 projections run: `--mxfp4-act` (`cli`), else the recipe's `[defaults] mxfp4_act`, else what
+/// the checkpoint declares, else W4A16.
+pub fn effective_act(cli: Option<Mxfp4Act>, recipe: Option<Mxfp4Act>, declared: Option<Mxfp4Act>) -> Mxfp4Act {
+    cli.or(recipe).or(declared).unwrap_or(Mxfp4Act::None)
+}
+
+/// Which input of [`effective_act`] decided (for the load log): `--mxfp4-act`, the recipe, or the checkpoint.
+pub fn act_source(cli: Option<Mxfp4Act>, recipe: Option<Mxfp4Act>) -> ActSource {
+    if cli.is_some() {
+        ActSource::Cli
+    } else if recipe.is_some() {
+        ActSource::Recipe
+    } else {
+        ActSource::Checkpoint
+    }
+}
+
+/// Where the MXFP4 activation mode came from ([`act_source`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActSource {
+    Cli,
+    Recipe,
+    Checkpoint,
 }
 
 /// Value of an e8m0 scale byte: `2^(b-127)` (exact, including the subnormal `2^-127`); 255 is NaN.
@@ -288,6 +308,25 @@ pub fn random_rows(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, act: Mx
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn act_precedence_is_cli_then_recipe_then_checkpoint() {
+        use Mxfp4Act::{Dynamic as D, None as N};
+        // (cli, recipe, declared) -> (mode, source)
+        let cases = [
+            ((Some(D), Some(N), Some(D)), (D, ActSource::Cli)),
+            ((Some(N), Some(D), Some(D)), (N, ActSource::Cli)),
+            ((None, Some(N), Some(D)), (N, ActSource::Recipe)),
+            ((None, Some(D), Some(N)), (D, ActSource::Recipe)),
+            ((None, None, Some(D)), (D, ActSource::Checkpoint)),
+            ((None, None, Some(N)), (N, ActSource::Checkpoint)),
+            ((None, None, None), (N, ActSource::Checkpoint)),
+        ];
+        for ((cli, recipe, declared), (mode, src)) in cases {
+            assert_eq!(effective_act(cli, recipe, declared), mode, "{cli:?} {recipe:?} {declared:?}");
+            assert_eq!(act_source(cli, recipe), src, "{cli:?} {recipe:?} {declared:?}");
+        }
+    }
 
     #[test]
     fn e8m0_decode() {

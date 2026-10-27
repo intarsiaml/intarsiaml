@@ -124,6 +124,7 @@ missing feature.
 | `max_batch` | int | `1` | Most sequences a run may decode together. `--max-batch N` above it is refused; without the flag the value is clamped to what the engine implements (continuous batching is Metal only, up to 8). |
 | `fp8_act` | string | `"static"` | FP8 checkpoints: `"static"` quantises activations with the checkpoint's `input_scale` (W8A8), `"none"` keeps them 16-bit (W8A16). No effect on other formats. See [quant-moe.md](quant-moe.md). Override with `--fp8-act`. |
 | `w4a4_as_w4a16` | bool | `false` | A checkpoint that declares plain `NVFP4` (weights AND 4-bit activations, W4A4) is refused by the loader (`Gemma4` layers) and not covered by the recipe in `recipe new` / `onboard`, because the engine runs NVFP4 weight-only (W4A16): a deviation from the declared scheme and from vLLM. `true` accepts that knowingly (Gemma-4 NVFP4 does). |
+| `mxfp4_act` | string | unset (what the checkpoint declares) | MXFP4 checkpoints: `"dynamic"` runs the W4A4 a Quark checkpoint declares (dynamic MXFP4 activations), `"none"` keeps activations 16-bit (W4A16). Precedence: `--mxfp4-act`, then this key, then the checkpoint's declaration. No effect on a checkpoint without MXFP4 projections. `recipes/qwen3_5_vl.toml` sets `"none"` (the Qwen3.8-27B MXFP4: full MMLU n=1425 W4A16 0.822 vs W4A4 0.802, `docs/results/2026-10-27-act27-27b-w4a16-mmlu.md`; cost at tp2: prefill -30%, decode -13..-19%); `--mxfp4-act dynamic` runs the declared W4A4. |
 
 ### `[tuning]` and `[tuning.<backend>]`
 
