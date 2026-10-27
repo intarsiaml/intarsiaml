@@ -1,0 +1,4 @@
+[targets.w4a8-a8]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-a8"
+extra_body = { ignore_eos = true, min_tokens = 512 }
