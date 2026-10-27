@@ -153,7 +153,7 @@ No round is below 1.00. The 0.984x of the CMX doc (3 rounds, per-round spread up
 | `plan show` 8B, 35B (and Gemma-4) unchanged | **PASS**: json and text byte-identical (8B md5 `b1a1150e`/`7742cef8`, 35B `ca8cba7e`/`2c7deccd`, Gemma-4 `2a659412`/`ec4ef23e`). The 27B plan differs by exactly the two new kernel rows |
 | GPU unit tests (`INTARSIA_REQUIRE_GPU=1`) | **PASS**: `mxfp4_gemv_mr` 2/2 (M = 1..4 x 10 shapes x 2 output dtypes, both kernel names, byte for byte the one-row GEMV; the first m rows of a 4-row call equal the m-row call), `mxfp4_mma` 3/3, `rows_exact` 6/6, `rows_registry` 3/3 |
 | Mac `cargo test --workspace --release` | **PASS**: 1075 passed, 0 failed (`raw/cargo-test-workspace-mac.log`; a first run found `kernel_list_is_unchanged_by_core_op_fusion_p1` and `every_cuda_kernel_has_a_quick_case` red until the two kernel names and the sweep cases were added) |
-| CI green | CI_RESULT |
+| CI green | **PASS** on PR #215 (head `8c124aaff`, after merging `origin/main` `6c40f8fde`): cargo check linux / cuda cfgs / hip cfgs / macOS metal, cargo test linux, reproducible build |
 
 ## Not done, open
 
