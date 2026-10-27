@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "key": {
+    "model": "/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "backend": "metal"
+  },
+  "created_unix": 1793093638,
+  "running": null,
+  "quick_published_unix": null,
+  "in_depth_published_unix": null,
+  "stages": [
+    {
+      "id": "recipe",
+      "title": "recipe: existing, or scaffold (stops while TODOs remain)",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "builtin:qwen3_5_vl covers the model (45/45 tensor templates resolve, quant bf16)",
+      "started_unix": 1793093638,
+      "ended_unix": 1793093638,
+      "wall_s": 0.006386208,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "covered_by": "builtin:qwen3_5_vl",
+        "family": "qwen3_5",
+        "quant": "bf16"
+      },
+      "artifacts": []
+    },
+    {
+      "id": "smoke",
+      "title": "smoke: load and generate one prompt",
+      "tier": "prepare",
+      "verdict": "pass",
+      "reason": "generated: \"Paris.\\nA. True\\nB. False\\nAnswer:\\nA\"",
+      "started_unix": 1793093947,
+      "ended_unix": 1793093948,
+      "wall_s": 0.941944458,
+      "halted": false,
+      "first_started_unix": 1793093638,
+      "facts": {
+        "decode_tok_s": 50.38,
+        "completion": "Paris.\nA. True\nB. False\nAnswer:\nA",
+        "mentions_paris": true
+      },
+      "artifacts": []
+    },
+    {
+      "id": "publish-quick",
+      "title": "publish quick.md / quick.json / quick.prom",
+      "tier": "quick",
+      "verdict": "pass",
+      "reason": "quick.md written 2026-10-27T09:41:43Z",
+      "started_unix": 1793094103,
+      "ended_unix": 1793094103,
+      "wall_s": 0.003000875,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1793094103
+      },
+      "artifacts": [
+        "quick.md",
+        "quick.json",
+        "quick.prom"
+      ]
+    },
+    {
+      "id": "quick",
+      "title": "quick tier: qualify --quick-only (gate, accuracy, speed snapshot)",
+      "tier": "quick",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): acc-short FAIL: decode: top-1 (all rows) 98.75% (need >= 99.5)",
+      "started_unix": 1793093948,
+      "ended_unix": 1793094103,
+      "wall_s": 154.157885291,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "in-depth",
+      "title": "in-depth tier: qualify (long-context accuracy, envelope, speed sweep, A/B, tp)",
+      "tier": "in-depth",
+      "verdict": "fail",
+      "reason": "qualify exit 1 (a gate failed): acc-short FAIL: decode: top-1 (all rows) 98.75% (need >= 99.5); acc-long FAIL: prefill: top-1 (all rows) 99.08% (need >= 99.5); decode: top-1 (all rows) 99.48% (need >= 99.5)",
+      "started_unix": 1793094103,
+      "ended_unix": 1793094302,
+      "wall_s": 199.888309167,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "qualify_exit": 1
+      },
+      "artifacts": [
+        "qualify/state.json"
+      ]
+    },
+    {
+      "id": "publish-in-depth",
+      "title": "publish in-depth.md / in-depth.json / in-depth.prom",
+      "tier": "in-depth",
+      "verdict": "pass",
+      "reason": "in-depth.md written 2026-10-27T09:45:02Z",
+      "started_unix": 1793094302,
+      "ended_unix": 1793094302,
+      "wall_s": 0.001732,
+      "halted": false,
+      "first_started_unix": null,
+      "facts": {
+        "published_unix": 1793094302
+      },
+      "artifacts": [
+        "in-depth.md",
+        "in-depth.json",
+        "in-depth.prom"
+      ]
+    }
+  ]
+}
