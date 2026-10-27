@@ -20,7 +20,7 @@ for spec in "$@"; do
   ssh -n -o BatchMode=yes spark2 "gb=\$(( \$(awk '/MemAvailable/ {print \$2}' /proc/meminfo) / 1024 / 1024 )); [ \$gb -ge 45 ] || { echo ABORT memory \$gb; exit 9; }; nohup $cmd > $R/replay-out/le-serve-$arm-r$RND.log 2>&1 < /dev/null & echo \$! > $R/replay-out/le-serve.pid" || { echo "start failed"; break; }
   up=0; for i in $(seq 1 90); do curl -sf http://spark-fa00:8091/health >/dev/null && { up=1; break; }; sleep 2; done
   if [ $up = 1 ]; then
-    (cd /opt/code/deepeval && FLEETQ_JOB=$job uv run localeval speed --url http://spark-fa00:8091/v1 --model g4x --thinking off --sizes $SIZES --gen 128 --reps 3 \
+    (cd /opt/code/deepeval && FLEETQ_JOB=$job uv run localeval speed --url http://spark-fa00:8091/v1 --model g4x --thinking off --sizes $SIZES --gen 128 --reps ${REPS:-2} \
        --label "g4x-$arm-r$RND" --recipe "$cmd" > $OUT/$arm-r$RND.log 2>&1; echo "localeval exit $?"; grep -aE "run_id|Run id|record|unanimis|results/" $OUT/$arm-r$RND.log | head -4)
   else echo "server did not come up"; fi
   ssh -n -o BatchMode=yes spark2 "kill \$(cat $R/replay-out/le-serve.pid) 2>/dev/null; for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 \$(cat $R/replay-out/le-serve.pid) 2>/dev/null || break; sleep 1; done; kill -9 \$(cat $R/replay-out/le-serve.pid) 2>/dev/null; true"
