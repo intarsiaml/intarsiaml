@@ -1061,7 +1061,6 @@ impl Model {
             logits: wb(LOGIT_ROWS * d.vocab * 4)?,
             tok: wb(16)?,
             part: None,
-            part_bf16_above: usize::MAX,
             pos: wb(16)?,
             x,
             moe,
