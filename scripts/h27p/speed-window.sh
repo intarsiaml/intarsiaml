@@ -28,7 +28,7 @@ trap cleanup EXIT
 
 serve() { # serve <arm>
   local arm=$1 bin=h27p-intarsia envs="" mb=$MB
-  [[ $arm =~ ^[a-z0-9]+[a-z]([0-9]+)$ ]] && mb=${BASH_REMATCH[1]}   # an arm name ending in digits sets --max-batch (dev16, base16, dev1)
+  [[ $arm =~ ^(base|dev)([0-9]+)$ ]] && mb=${BASH_REMATCH[2]}   # an arm name ending in digits sets --max-batch (dev16, base16, dev1)
   [[ $arm == base* ]] && bin=base-intarsia
   [[ $arm == bf16 ]] && envs="-e INTARSIA_TP_PARTIAL=bf16"
   RECIPE="HIP_VISIBLE_DEVICES=0,1 $bin serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch $mb --profile-every 0 --mem-budget 29 --max-seq $MS (lane h27p, arm $arm, docker $IMG)"
