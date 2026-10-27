@@ -1,0 +1,8 @@
+s27d-base-r1: - result file: `results/20261027-051007-adhoc-s27d-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-051007-adhoc-s27d-base-r1/result.json 
+s27d-dev-r1: - result file: `results/20261027-051504-adhoc-s27d-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-051504-adhoc-s27d-dev-r1/result.json 
+s27d-devk3-r1: - result file: `results/20261027-051908-adhoc-s27d-devk3-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-051908-adhoc-s27d-devk3-r1/result.json 
+s27d-devk1-r1: - result file: `results/20261027-052311-adhoc-s27d-devk1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-052311-adhoc-s27d-devk1-r1/result.json 
+s27d-devk1-r2: - result file: `results/20261027-052701-adhoc-s27d-devk1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-052701-adhoc-s27d-devk1-r2/result.json 
+s27d-devk3-r2: - result file: `results/20261027-053054-adhoc-s27d-devk3-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-053054-adhoc-s27d-devk3-r2/result.json 
+s27d-dev-r2: - result file: `results/20261027-053455-adhoc-s27d-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-053455-adhoc-s27d-dev-r2/result.json 
+s27d-base-r2: - result file: `results/20261027-053748-adhoc-s27d-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-053748-adhoc-s27d-base-r2/result.json 

@@ -29,7 +29,8 @@ for v in "$TARGET_VOL" "$REGISTRY_VOL"; do
   fi
 done
 TTY=(); [[ -t 0 && -t 1 ]] && TTY=(-t)
-exec docker run --rm -i "${TTY[@]}" \
+NAME=(); [[ -n "${INTARSIA_CONTAINER_NAME:-}" ]] && NAME=(--name "$INTARSIA_CONTAINER_NAME")   # a caller that may have to kill the container (a timeout kills only the docker client)
+exec docker run --rm -i "${TTY[@]}" "${NAME[@]}" \
   --device /dev/kfd --device /dev/dri \
   --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" --group-add video \
   --ipc host --security-opt seccomp=unconfined \

@@ -60,7 +60,7 @@ Requirements in priority order (user, 2026-10-12): modular → easy to use → a
 
 | Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
 |---|---|---|---|
-| DGX Spark (GB10) | TensorFold (27B EXL3+DFlash2 83 tok/s), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| DGX Spark (GB10) | TensorFold (27B decode 83 tok/s is its TP=2 vendor figure; one Spark measures 31.7 / 39.7 / 37.1 tok/s at 1k / 4k / 16k in localeval, TensorFold 0.3.0 MLX-4bit, see results/2026-10-27-s27d-cuda-27b-decode.md), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
 | R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
 | Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
 | Intel Arc | llama.cpp SYCL | not in scope | not in scope |

@@ -69,11 +69,9 @@ fn the_27b_recipe_runs_w4a8_on_hip_only_and_the_flag_always_wins() {
     let note = s.mxfp4_act_note(Mxfp4Act::Fp8, intarsia_core::quant::mxfp4::ActSource::Recipe).unwrap();
     assert!(note.contains("0.8204") && note.contains("--mxfp4-act dynamic"), "{note}");
     // a backend table that sets only itself does not leak into the others, and "fp8" parses in both places
-    let r = intarsia_models::parse_recipe(&format!(
-        "{}\n[tuning.cuda]\nmxfp4_act = \"fp8\"\n",
-        include_str!("../../../recipes/qwen3_5_vl.toml")
-    ))
-    .unwrap();
+    // (the recipe already carries a [tuning.cuda] table for its MTP defaults: add the key inside it)
+    let r = intarsia_models::parse_recipe(&include_str!("../../../recipes/qwen3_5_vl.toml").replace("[tuning.cuda]\n", "[tuning.cuda]\nmxfp4_act = \"fp8\"\n"))
+        .unwrap();
     assert_eq!(r.mxfp4_act_for("cuda"), Some(Mxfp4Act::Fp8));
     assert_eq!(r.mxfp4_act_for("metal"), Some(Mxfp4Act::None));
     for (name, r) in intarsia_models::recipe::all_recipes(&[]) {

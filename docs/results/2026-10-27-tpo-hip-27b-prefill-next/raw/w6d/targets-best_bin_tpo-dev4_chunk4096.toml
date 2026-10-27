@@ -1,0 +1,3 @@
+[targets.tpo-best_bin_tpo-dev4_chunk4096]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-tpo"

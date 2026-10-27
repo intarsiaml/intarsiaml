@@ -1,0 +1,10 @@
+[0] count               38 tokens (38+0)  vocab=248320  argmax_last=220  13s
+[1] story               39 tokens (39+0)  vocab=248320  argmax_last=9770  26s
+[2] code                87 tokens (87+0)  vocab=248320  argmax_last=262  39s
+[3] science             79 tokens (79+0)  vocab=248320  argmax_last=264  49s
+[4] chat_short          18 tokens (18+0)  vocab=248320  argmax_last=248068  59s
+[5] chat_system         32 tokens (32+0)  vocab=248320  argmax_last=248068  71s
+[6] chat_multiturn      58 tokens (58+0)  vocab=248320  argmax_last=248068  84s
+[7] chat_reasoning      90 tokens (90+0)  vocab=248320  argmax_last=248068  96s
+ref_spread: bf16 vs fp32 top-1 agreement 98.87% (5 flips in 441 rows), full-vocab KL 4.957e-04  (89s)
+wrote /opt/code/intarsiaml/.worktrees/qgc/runs/onboard-2/qualify/goldens/qwen3.5-4b-short.safetensors (219.0 MB) in 185s

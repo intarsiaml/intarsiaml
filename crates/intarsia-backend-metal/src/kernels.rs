@@ -395,9 +395,12 @@ pub fn all() -> Vec<KernelImpl> {
             let k = KernelImpl::new(op, name, "metal");
             match name {
                 EMBEDDING_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
-                RMSNORM_BF16 | RMSNORM_ADD_BF16 | ADD_BF16 | QK_NORM_BF16 | SILU_GLU_BF16 => {
-                    k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
+                // the norm weight is bound as bf16 (`dense.rs` `bind(.., bf, .., "w")`): declared, so an f32 norm weight fails at plan
+                // time naming the tensor instead of at the first launch
+                RMSNORM_BF16 | RMSNORM_ADD_BF16 | QK_NORM_BF16 => {
+                    k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
                 }
+                ADD_BF16 | SILU_GLU_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 ROPE_BF16 | ROPE_SCALED_BF16 => {
                     k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL)
                 }

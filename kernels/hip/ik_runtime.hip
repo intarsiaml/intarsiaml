@@ -104,6 +104,7 @@ int ik_rt_event_create_sync(void** ev) {
     *ev = (void*)e;
     return (int)rc;
 }
+int ik_rt_stream_wait_event(void* stream, void* ev) { return (int)hipStreamWaitEvent((hipStream_t)stream, (hipEvent_t)ev, 0); }
 int ik_rt_event_sync(void* ev) { return (int)hipEventSynchronize((hipEvent_t)ev); }
 
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream) {

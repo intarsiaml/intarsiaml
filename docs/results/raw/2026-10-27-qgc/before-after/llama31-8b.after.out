@@ -1,0 +1,39 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 36    36   100.00   8.072e-5   4.637e-5   4.637e-5   1.197e-3   0.0641   0.0640    98.33     36/36      0
+story                 40    40   100.00   1.064e-4   7.756e-5   7.756e-5   1.197e-3   0.0570   0.0576    99.00     40/40      0
+code                  81    81   100.00   4.628e-5   3.374e-5   3.374e-5   1.197e-3   0.0212   0.0213   100.00     81/81      0
+science               80    80   100.00   1.126e-4   9.474e-5   9.474e-5   1.197e-3   0.0425   0.0425    99.50     80/80      0
+chat_short            45    45    93.33   3.202e-3   2.935e-3   5.154e-5   7.319e-2   0.0967   0.0950    97.33     11/45      0
+chat_system           54    54    92.59   4.592e-3   4.471e-3   4.965e-5   7.319e-2   0.0885   0.0868    97.78     11/54      0
+chat_multiturn        85    85    95.29   1.806e-3   1.653e-3   2.097e-5   7.319e-2   0.0669   0.0658    98.35     11/85      0
+chat_reasoning       112   112    97.32   1.361e-3   1.248e-3   5.498e-5   7.319e-2   0.0470   0.0464    98.57    11/112      0
+long_prose_300       300   300   100.00   8.142e-5   7.361e-5   7.361e-5   2.687e-3   0.0145   0.0146    98.27   300/300      0
+long_prose_700       700   700   100.00   1.078e-4   9.835e-5   9.835e-5   6.393e-3   0.0176   0.0177    98.63   700/700      0
+OVERALL                   1533    99.09   5.335e-4   4.956e-4   8.414e-5   7.319e-2   0.0303   0.0301    98.59     83.6%      0
+prefill floor [bf16]: top-1 (all rows) 99.09% (need >= 98.72) ok | full-vocab KL (scored rows, n=1278) 9.760e-5 (need <= 1.0e-3) ok [all rows, n=1533: 5.335e-4, reported only] | tail mass (all rows) ours 0.0301 vs ref 0.0303, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [full-vocab KL]: static floor 1.000e-3 | ref noise 1.812e-4 (scored rows) x factor 1 (default) = 1.812e-4 => effective 1.000e-3 bound by static floor; KL 9.760e-5 PASS | KL / ref noise = 0.464 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: PASS 5.335e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 9.760e-5 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 36    16   100.00   1.581e-5   1.349e-5   1.349e-5   8.027e-5   0.0054   0.0053    97.50     16/16      0
+story                 40    16   100.00   7.814e-5   6.811e-5   6.811e-5   1.889e-4   0.0538   0.0544   100.00     16/16      0
+code                  81    16   100.00   3.188e-5   3.187e-5   3.187e-5   2.966e-4   0.0000   0.0000    98.75     16/16      0
+science               80    16   100.00   8.351e-5   7.244e-5   7.244e-5   1.816e-4   0.0643   0.0640    98.75     16/16      0
+chat_short            45    16   100.00   4.306e-3   3.829e-3   1.584e-5   6.690e-2   0.1133   0.1142    97.50     16/16      0
+chat_system           54    16   100.00   2.875e-3   2.813e-3   4.947e-9   3.071e-2   0.0879   0.0855   100.00     16/16      0
+chat_multiturn        85    16    93.75   1.662e-4   1.489e-4   5.795e-5   5.057e-4   0.0417   0.0414   100.00      6/16      0
+chat_reasoning       112    16   100.00   1.635e-4   1.490e-4   1.386e-5   1.116e-3   0.0156   0.0156   100.00     16/16      0
+long_prose_300       300    16   100.00   2.080e-5   2.075e-5   2.075e-5   2.037e-4   0.0001   0.0001   100.00     16/16      0
+long_prose_700       700    16   100.00   2.581e-5   2.541e-5   2.541e-5   1.896e-4   0.0001   0.0001    98.75     16/16      0
+OVERALL                    160    99.38   7.766e-4   7.172e-4   3.548e-5   6.690e-2   0.0382   0.0381    99.12     93.8%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 99.38% (need >= 98.72) ok | full-vocab KL (scored rows, n=117) 3.875e-5 (need <= 1.0e-3) ok [all rows, n=160: 7.766e-4, reported only] | tail mass (all rows) ours 0.0381 vs ref 0.0382, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [full-vocab KL]: static floor 1.000e-3 | ref noise 1.812e-4 (scored rows) x factor 1 (default) = 1.812e-4 => effective 1.000e-3 bound by static floor; KL 3.875e-5 PASS | KL / ref noise = 0.196 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 7.766e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 3.875e-5 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 66.8% of positions before the first argmax divergence, worst prompt 9.8% (informational)
+greedy-match [decode (teacher-forced)]: mean 93.8% of positions before the first argmax divergence, worst prompt 37.5% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

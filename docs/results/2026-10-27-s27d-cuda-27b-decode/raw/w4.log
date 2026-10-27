@@ -1,0 +1,46 @@
+fleetq: #6146 running on spark1: ssh spark1 'bash -s'
+=== plan 06:05:17
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15095 B, md5 ca8cba7e)
+PASS plan 35 txt byte-identical (3866 B, md5 2c7deccd)
+PASS plan g json byte-identical (8631 B, md5 82ea8282)
+PASS plan g txt byte-identical (1865 B, md5 418cbfae)
+FAIL plan 27 json
+FAIL plan 27 txt
+plan fails=2
+=== ids8 06:16:00
+ref   8 short-0 base: 256 ids, prefill 134 ms
+PASS  8 short-0 base == dev: ids + top-20 logits identical, prefill 124 ms
+ref   8 short-1 base: 256 ids, prefill 75 ms
+PASS  8 short-1 base == dev: ids + top-20 logits identical, prefill 73 ms
+ref   8 4k-0 base: 256 ids, prefill 78 ms
+PASS  8 4k-0 base == dev: ids + top-20 logits identical, prefill 78 ms
+ids fails=0
+=== ids27 06:21:50
+PASS ids short-0 auto (prompt: 41) 256 ids identical | spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)
+PASS ids short-1 auto (prompt: 34) 256 ids identical | spec: verify passes=113 proposed=226 accepted=142 (acceptance 62.8%, 2.26 tokens per pass)
+PASS ids short-2 auto (prompt: 42) 256 ids identical | spec: verify passes=101 proposed=202 accepted=154 (acceptance 76.2%, 2.52 tokens per pass)
+PASS ids 4k-0 auto (prompt: 3870) 256 ids identical | spec: verify passes=98 proposed=195 accepted=157 (acceptance 80.5%, 2.60 tokens per pass)
+ids fails=0
+=== microbench 06:31:00
+gate/up  N=17408  K=5120   M=1 base   179.7 us  263.5 GB/s | p1   180.1 us  262.9 GB/s bitwise | p2   189.9 us  249.3 GB/s bitwise | p4   180.7 us  262.0 GB/s bitwise
+gate/up  N=17408  K=5120   M=3 base   221.4 us  213.9 GB/s | p1   206.3 us  229.6 GB/s bitwise | p2   213.4 us  221.9 GB/s bitwise | p4   209.7 us  225.8 GB/s bitwise
+gate/up  N=17408  K=5120   M=4 base   257.9 us  183.6 GB/s | p1   241.3 us  196.3 GB/s bitwise | p2   261.7 us  180.9 GB/s bitwise | p4   263.5 us  179.7 GB/s bitwise
+down     N=5120   K=17408  M=1 base   184.8 us  256.3 GB/s | p1   184.5 us  256.6 GB/s bitwise | p2   184.1 us  257.2 GB/s bitwise | p4   190.5 us  248.6 GB/s bitwise
+down     N=5120   K=17408  M=3 base   212.3 us  223.0 GB/s | p1   221.0 us  214.3 GB/s bitwise | p2   205.8 us  230.0 GB/s bitwise | p4   219.5 us  215.7 GB/s bitwise
+down     N=5120   K=17408  M=4 base   259.6 us  182.4 GB/s | p1   273.9 us  172.9 GB/s bitwise | p2   255.3 us  185.4 GB/s bitwise | p4   266.1 us  178.0 GB/s bitwise
+out/o    N=5120   K=6144   M=1 base    65.5 us  255.2 GB/s | p1    65.2 us  256.2 GB/s bitwise | p2    63.6 us  262.9 GB/s bitwise | p4    63.5 us  263.1 GB/s bitwise
+out/o    N=5120   K=6144   M=3 base    76.4 us  218.8 GB/s | p1    76.5 us  218.4 GB/s bitwise | p2    74.7 us  223.8 GB/s bitwise | p4    78.7 us  212.2 GB/s bitwise
+out/o    N=5120   K=6144   M=4 base   106.4 us  157.0 GB/s | p1    90.2 us  185.3 GB/s bitwise | p2    91.9 us  181.7 GB/s bitwise | p4    96.0 us  174.0 GB/s bitwise
+qkv      N=10240  K=5120   M=1 base   106.4 us  261.7 GB/s | p1   106.1 us  262.6 GB/s bitwise | p2   105.1 us  265.1 GB/s bitwise | p4   104.9 us  265.6 GB/s bitwise
+qkv      N=10240  K=5120   M=3 base   140.8 us  197.8 GB/s | p1   123.7 us  225.2 GB/s bitwise | p2   123.1 us  226.3 GB/s bitwise | p4   141.6 us  196.7 GB/s bitwise
+qkv      N=10240  K=5120   M=4 base   145.4 us  191.6 GB/s | p1   145.0 us  192.0 GB/s bitwise | p2   165.2 us  168.6 GB/s bitwise | p4   155.7 us  178.9 GB/s bitwise
+z        N=6144   K=5120   M=1 base    65.6 us  254.6 GB/s | p1    65.7 us  254.3 GB/s bitwise | p2    64.6 us  258.9 GB/s bitwise | p4    64.8 us  257.7 GB/s bitwise
+z        N=6144   K=5120   M=3 base    76.3 us  219.2 GB/s | p1    76.2 us  219.5 GB/s bitwise | p2    75.9 us  220.1 GB/s bitwise | p4    80.9 us  206.5 GB/s bitwise
+z        N=6144   K=5120   M=4 base    88.7 us  188.5 GB/s | p1   106.2 us  157.4 GB/s bitwise | p2    91.9 us  181.8 GB/s bitwise | p4    97.9 us  170.8 GB/s bitwise
+q        N=12288  K=5120   M=1 base   128.0 us  261.1 GB/s | p1   127.8 us  261.6 GB/s bitwise | p2   126.3 us  264.6 GB/s bitwise | p4   125.9 us  265.5 GB/s bitwise
+q        N=12288  K=5120   M=3 base   156.5 us  213.6 GB/s | p1   149.8 us  223.2 GB/s bitwise | p2   144.6 us  231.1 GB/s bitwise | p4   164.3 us  203.4 GB/s bitwise
+q        N=12288  K=5120   M=4 base   175.5 us  190.4 GB/s | p1   173.3 us  192.8 GB/s bitwise | p2   183.3 us  182.4 GB/s bitwise | p4   184.8 us  180.8 GB/s bitwise
+=== done 06:31:08
+fleetq: #6146 done (exit 0)

@@ -1,0 +1,47 @@
+fleetq: #6153 running on tatooine-r9700, tatooine-r9700-2: scripts/tpo/w6.sh
+06:27:59 [+0s] step 1 sweep
+T base rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1054 ms (3659.0 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1058 ms (3646.2 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1059 ms (3642.3 tok/s) | decode 0 ms (0.00 tok/s)
+I base: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1061 ms (3636.8 tok/s) | decode 883 ms (53.23 tok/s)
+T v2c4096 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1020 ms (3781.4 tok/s) | decode 0 ms (0.00 tok/s)
+T v2c4096 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1018 ms (3790.7 tok/s) | decode 0 ms (0.00 tok/s)
+T v2c4096 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1021 ms (3778.6 tok/s) | decode 0 ms (0.00 tok/s)
+I v2c4096: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1019 ms (3787.0 tok/s) | decode 883 ms (53.24 tok/s
+T v1c4096 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1028 ms (3751.4 tok/s) | decode 0 ms (0.00 tok/s)
+T v1c4096 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1026 ms (3760.2 tok/s) | decode 0 ms (0.00 tok/s)
+T v1c4096 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1026 ms (3759.2 tok/s) | decode 0 ms (0.00 tok/s)
+I v1c4096: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1025 ms (3764.2 tok/s) | decode 883 ms (53.21 tok/s
+T v3c4096 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1047 ms (3684.8 tok/s) | decode 0 ms (0.00 tok/s)
+T v3c4096 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1043 ms (3697.2 tok/s) | decode 1 ms (0.00 tok/s)
+T v3c4096 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1045 ms (3691.8 tok/s) | decode 0 ms (0.00 tok/s)
+I v3c4096: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1045 ms (3693.4 tok/s) | decode 883 ms (53.21 tok/s
+T ref4096q4 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1099 ms (3511.7 tok/s) | decode 0 ms (0.00 tok/s)
+T ref4096q4 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1101 ms (3505.2 tok/s) | decode 0 ms (0.00 tok/s)
+T ref4096q4 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1098 ms (3513.4 tok/s) | decode 0 ms (0.00 tok/s)
+I ref4096q4: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1103 ms (3496.3 tok/s) | decode 882 ms (53.30 tok
+06:29:29 [+90s] best arm: v2c4096
+06:29:29 [+90s] step 2 mutants (of v2c4096)
+I mut_skip_last: md5 2ba540f3009f finish=length prompt=3858 (cached 0) completion=48 | prefill 942 ms (4097.0 tok/s) | d
+I mut_scale: md5 a2b8dd259525 finish=length prompt=3858 (cached 0) completion=48 | prefill 1345 ms (2867.6 tok/s) | deco
+I mut_offset: md5 5ac06c5f10f6 finish=length prompt=3858 (cached 0) completion=48 | prefill 947 ms (4075.2 tok/s) | deco
+06:29:47 [+108s] step 3 plan show g0 + 6 interleaved 4k rounds
+G plan 8B: byte-identical (1346 B)
+G plan 35B: byte-identical (3184 B)
+R base r1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1080 ms (3571.2 tok/s) | decode 0 ms (0.00 tok/s)
+R best r1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1024 ms (3768.4 tok/s) | decode 0 ms (0.00 tok/s)
+R best r2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1025 ms (3762.1 tok/s) | decode 0 ms (0.00 tok/s)
+R base r2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3590.7 tok/s) | decode 0 ms (0.00 tok/s)
+R base r3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1075 ms (3588.6 tok/s) | decode 0 ms (0.00 tok/s)
+R best r3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1027 ms (3757.0 tok/s) | decode 0 ms (0.00 tok/s)
+R best r4: finish=length prompt=3858 (cached 0) completion=1 | prefill 1032 ms (3739.8 tok/s) | decode 0 ms (0.00 tok/s)
+R base r4: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3592.2 tok/s) | decode 0 ms (0.00 tok/s)
+R base r5: finish=length prompt=3858 (cached 0) completion=1 | prefill 1092 ms (3533.0 tok/s) | decode 0 ms (0.00 tok/s)
+R best r5: finish=length prompt=3858 (cached 0) completion=1 | prefill 1030 ms (3744.5 tok/s) | decode 0 ms (0.00 tok/s)
+R best r6: finish=length prompt=3858 (cached 0) completion=1 | prefill 1035 ms (3729.3 tok/s) | decode 0 ms (0.00 tok/s)
+R base r6: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3590.6 tok/s) | decode 0 ms (0.00 tok/s)
+06:30:58 [+179s] step 4 drive (texts, speed, mixids)
+06:53:18 [+1519s] drive ended (exit 0)
+06:53:18 [+1519s] w6 done (+1519s)
+[tpo] radiance active after 5 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793098395,"owned_by":"radiance"
+fleetq: #6153 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

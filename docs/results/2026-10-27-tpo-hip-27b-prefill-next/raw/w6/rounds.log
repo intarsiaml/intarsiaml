@@ -1,0 +1,14 @@
+[tpo] radiance inactive 2026-10-27 06:30:09
+R base r1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1080 ms (3571.2 tok/s) | decode 0 ms (0.00 tok/s)
+R best r1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1024 ms (3768.4 tok/s) | decode 0 ms (0.00 tok/s)
+R best r2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1025 ms (3762.1 tok/s) | decode 0 ms (0.00 tok/s)
+R base r2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3590.7 tok/s) | decode 0 ms (0.00 tok/s)
+R base r3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1075 ms (3588.6 tok/s) | decode 0 ms (0.00 tok/s)
+R best r3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1027 ms (3757.0 tok/s) | decode 0 ms (0.00 tok/s)
+R best r4: finish=length prompt=3858 (cached 0) completion=1 | prefill 1032 ms (3739.8 tok/s) | decode 0 ms (0.00 tok/s)
+R base r4: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3592.2 tok/s) | decode 0 ms (0.00 tok/s)
+R base r5: finish=length prompt=3858 (cached 0) completion=1 | prefill 1092 ms (3533.0 tok/s) | decode 0 ms (0.00 tok/s)
+R best r5: finish=length prompt=3858 (cached 0) completion=1 | prefill 1030 ms (3744.5 tok/s) | decode 0 ms (0.00 tok/s)
+R best r6: finish=length prompt=3858 (cached 0) completion=1 | prefill 1035 ms (3729.3 tok/s) | decode 0 ms (0.00 tok/s)
+R base r6: finish=length prompt=3858 (cached 0) completion=1 | prefill 1074 ms (3590.6 tok/s) | decode 0 ms (0.00 tok/s)
+[tpo] w3 done 2026-10-27 06:30:58

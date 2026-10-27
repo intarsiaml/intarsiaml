@@ -1,0 +1,29 @@
+fleetq: #6145 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'ARMS='"'"'base:tpo-base:: c4096q1:tpo-base::--prefill-chunk,4096 c4096q4:tpo-base:GPU_MAX_HW_QUEUES=4:--prefill-chunk,4096 ov2c4096q4:tpo-dev1:INTARSIA_TP_OVERLAP=2,GPU_MAX_HW_QUEUES=4:--prefill-chunk,4096 ov2c4096q8:tpo-dev1:INTARSIA_TP_OVERLAP=2,GPU_MAX_HW_QUEUES=8:--prefill-chunk,4096 base4:tpo-base:GPU_MAX_HW_QUEUES=4:'"'"' O=$HOME/intarsiaml-tpo-logs/w5 bash ~/intarsiaml-tpo/scripts/tpo/w3.sh T I'
+[tpo] radiance inactive 2026-10-27 05:59:43
+T base rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1065 ms (3623.3 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1070 ms (3606.3 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1071 ms (3603.8 tok/s) | decode 0 ms (0.00 tok/s)
+I base: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1069 ms (3608.3 tok/s) | decode 883 ms (53.24 tok/s)
+T c4096q1 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1102 ms (3501.3 tok/s) | decode 0 ms (0.00 tok/s)
+T c4096q1 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1100 ms (3507.7 tok/s) | decode 0 ms (0.00 tok/s)
+T c4096q1 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1102 ms (3501.3 tok/s) | decode 0 ms (0.00 tok/s)
+I c4096q1: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1103 ms (3498.1 tok/s) | decode 884 ms (53.19 tok/s)
+T c4096q4 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1103 ms (3498.3 tok/s) | decode 0 ms (0.00 tok/s)
+T c4096q4 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1106 ms (3488.6 tok/s) | decode 0 ms (0.00 tok/s)
+T c4096q4 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1102 ms (3499.5 tok/s) | decode 0 ms (0.00 tok/s)
+I c4096q4: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1103 ms (3498.9 tok/s) | decode 882 ms (53.27 tok/s)
+T ov2c4096q4 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1036 ms (3724.7 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2c4096q4 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1036 ms (3725.4 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2c4096q4 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1034 ms (3731.3 tok/s) | decode 0 ms (0.00 tok/s)
+I ov2c4096q4: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1039 ms (3713.7 tok/s) | decode 883 ms (53.24 tok/s)
+T ov2c4096q8 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1038 ms (3715.9 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2c4096q8 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1037 ms (3721.6 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2c4096q8 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1038 ms (3716.2 tok/s) | decode 0 ms (0.00 tok/s)
+I ov2c4096q8: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1040 ms (3710.1 tok/s) | decode 883 ms (53.23 tok/s)
+T base4 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1084 ms (3560.6 tok/s) | decode 0 ms (0.00 tok/s)
+T base4 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1083 ms (3563.9 tok/s) | decode 0 ms (0.00 tok/s)
+T base4 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1083 ms (3563.6 tok/s) | decode 0 ms (0.00 tok/s)
+I base4: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1080 ms (3571.8 tok/s) | decode 884 ms (53.14 tok/s)
+[tpo] w3 done 2026-10-27 06:01:25
+[tpo] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793095293,"owned_by":"radiance"
+fleetq: #6145 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

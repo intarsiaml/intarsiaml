@@ -1,0 +1,12 @@
+s27d-base-r1: - result file: `results/20261027-051007-adhoc-s27d-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-051007-adhoc-s27d-base-r1/result.json 
+s27d-dev-r1: - result file: `results/20261027-051504-adhoc-s27d-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-051504-adhoc-s27d-dev-r1/result.json 
+s27d-dev-r2: - result file: `results/20261027-053455-adhoc-s27d-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-053455-adhoc-s27d-dev-r2/result.json 
+s27d-base-r2: - result file: `results/20261027-053748-adhoc-s27d-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-053748-adhoc-s27d-base-r2/result.json 
+s27d-base-r3: - result file: `results/20261027-054114-adhoc-s27d-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-054114-adhoc-s27d-base-r1/result.json 
+s27d-dev-r3: - result file: `results/20261027-054454-adhoc-s27d-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-054454-adhoc-s27d-dev-r1/result.json 
+s27d-dev-r4: - result file: `results/20261027-054829-adhoc-s27d-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-054829-adhoc-s27d-dev-r2/result.json 
+s27d-base-r4: - result file: `results/20261027-055101-adhoc-s27d-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-055101-adhoc-s27d-base-r2/result.json 
+s27d-base-r5: - result file: `results/20261027-055334-adhoc-s27d-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-055334-adhoc-s27d-base-r3/result.json 
+s27d-dev-r5: - result file: `results/20261027-055712-adhoc-s27d-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-055712-adhoc-s27d-dev-r3/result.json 
+s27d-dev-r6: - result file: `results/20261027-060044-adhoc-s27d-dev-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-060044-adhoc-s27d-dev-r4/result.json 
+s27d-base-r6: - result file: `results/20261027-060314-adhoc-s27d-base-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-060314-adhoc-s27d-base-r4/result.json 

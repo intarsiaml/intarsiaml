@@ -303,6 +303,31 @@ pub trait Backend: Send + Sync {
     /// Wait for all work on `stream`.
     fn synchronize(&self, stream: StreamId) -> Result<()>;
 
+    /// Whether two streams of this backend can run side by side and [`Backend::stream_wait`] orders them (lane TPO: the tensor-parallel
+    /// all-reduce on a second stream beside the next rows' GEMM). `false` (the default): the engine never uses a second stream.
+    fn stream_overlap(&self) -> bool {
+        false
+    }
+
+    /// Mark the point after everything queued so far on `signal`; the token can be waited for with [`Backend::stream_wait_for`], later and
+    /// more than once. Tokens are recycled: wait for one within a few dozen further `stream_record` calls. Only when
+    /// [`Backend::stream_overlap`] is `true`.
+    fn stream_record(&self, _signal: StreamId) -> Result<u64> {
+        Err(Error::Unsupported("stream_record".into()))
+    }
+
+    /// Order `waiter` after the point a token of [`Backend::stream_record`] marks: work launched on `waiter` from now on starts once the
+    /// work queued on the token's stream before it is done.
+    fn stream_wait_for(&self, _waiter: StreamId, _token: u64) -> Result<()> {
+        Err(Error::Unsupported("stream_wait_for".into()))
+    }
+
+    /// Order `waiter` after everything queued so far on `signal` ([`Backend::stream_record`] then [`Backend::stream_wait_for`]).
+    fn stream_wait(&self, waiter: StreamId, signal: StreamId) -> Result<()> {
+        let t = self.stream_record(signal)?;
+        self.stream_wait_for(waiter, t)
+    }
+
     /// Device-side token feedback for greedy decode (`Model::feedback_step`): `(supported, on by default)`. Supported
     /// means [`Backend::fence`] commits without waiting and [`Backend::read_after`] waits only for the work up to its
     /// fence, so the engine can encode step N+1 (fed by step N's on-device argmax) before it reads step N's token.
