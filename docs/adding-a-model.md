@@ -85,6 +85,26 @@ every one stopped at `recipe new` on a quantisation format or tensor layout the 
 
 **Gotchas found by running it on CUDA and HIP.**
 
+* **The binary must be built with the backend feature.** `cargo build --release --locked -p intarsia-cli --features metal` (or `cuda`, `hip`);
+  a plain build stops `smoke` with "this binary was built without the Metal backend". `scripts/deploy.sh` adds the feature for the host.
+* **`qualify` makes no golden for a hybrid (GatedDeltaNet), MoE or quantised model, even a small bf16 one**: `acc-short` is SKIPPED until you
+  make one. Without a reference server, make the HF fp32 golden by hand and give its directory with `-- --golden-dir DIR` (the file is found
+  by the model's name, `Qwen3.5-4B` -> `qwen3.5-4b-fp32.safetensors`):
+  `uv run --project tools python tools/golden.py --model <dir> --out DIR/qwen3.5-4b-fp32.safetensors --device cpu --dtype float32`
+  (short and 700-token prompts: 1 min for a 4B) and, for the 4k set,
+  `... --out DIR/qwen3.5-4b-4k-fp32-top20.safetensors --topk 20 --prompts tools/prompts/golden_4k.jsonl` (34 min for the 4B on endor's CPU:
+  HF falls back to its PyTorch GatedDeltaNet loop without `flash-linear-attention`; it holds the CPU, so no timing run can share the box).
+  A 4k file given alone is used by `acc-long` as the long set and `acc-4k` then reads "covered by acc-long"
+  (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
+* **Original Hugging Face Qwen3.5 checkpoints store `A_log` and the gated-norm weight as f32** (the MLX and ModelOpt conversions store bf16).
+  The GPU GatedDeltaNet kernels read bf16, so a 4B checkpoint stopped at "no kernel for gdn_delta_rule ... w=F32" and then at "metal w:
+  expected bf16, got f32". Both tensors are now rounded to bf16 once at load on the GPU backends (`gpu_f32_to_bf16` in
+  `crates/intarsia-core/src/model.rs`); the cpu reference keeps f32.
+* **A bf16 engine can FAIL the absolute top-1 floor (99.5 %) against an fp32 golden on reference noise alone.** Qwen3.5-4B on Metal: prefill
+  top-1 99.72 %, KL21 1.6e-4, yet `acc-short` FAILs on 2 of 160 decode rows (98.75 %). HF's own bf16 run agrees with its fp32 run on only
+  98.96 % of the same prefill rows (KL 3.2e-4), so the floor cannot be met by any bf16 run. Read the KL21 rows and compare with an HF bf16
+  golden (`tools/golden.py --dtype bfloat16`, 1.5 min for a 4B) before treating the FAIL as an engine fault.
+
 * **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
   and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
   that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,

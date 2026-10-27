@@ -49,6 +49,20 @@ use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
+/// `A_log` and the gated-norm weight are f32 in the original Hugging Face Qwen3.5 checkpoints (the MLX / ModelOpt conversions
+/// already store them bf16) and the GPU GatedDeltaNet kernels read them as bf16 (`weights(bf)`): without this the load stops at
+/// "no kernel for gdn_delta_rule" and then "metal w: expected bf16, got f32" (drill nmd, Qwen3.5-4B on Metal). Rounded once at
+/// load, on the GPU backends only; the cpu reference keeps the f32 values.
+fn gpu_f32_to_bf16(b: &dyn Backend, t: TensorRef, act: DType) -> Result<TensorRef> {
+    if t.dtype != DType::F32 || act != DType::Bf16 || b.name() == "cpu" {
+        return Ok(t);
+    }
+    let v = crate::weights::to_f32_vec(DType::F32, &b.download_row_major(&t)?)?;
+    let mut out = vec![0u8; v.len() * 2];
+    crate::dtype::encode_from_f32(DType::Bf16, &v, &mut out);
+    Ok(TensorRef::new(crate::backend::upload_new(b, &out)?, DType::Bf16, &t.shape))
+}
+
 /// Macro prefill passes run by any model of the process (diagnostics and tests; [`Model::macro_passes`] is the per-model count).
 pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -894,9 +908,9 @@ impl Model {
                             in_b: load_qs(&g.in_b, li, hv, dims.hidden, rows)?,
                             in_a: load_qs(&g.in_a, li, hv, dims.hidden, rows)?,
                             conv: conv.reshaped(&[c, lin.conv_kernel]),
-                            a_log: load_sharded(&g.a_log, li, ShardAxis::Rows, &[hv])?,
+                            a_log: gpu_f32_to_bf16(b, load_sharded(&g.a_log, li, ShardAxis::Rows, &[hv])?, act)?,
                             dt_bias: load_sharded(&g.dt_bias, li, ShardAxis::Rows, &[hv])?,
-                            norm: load(&g.norm, li, Some(&[lin.v_head_dim]))?,
+                            norm: gpu_f32_to_bf16(b, load(&g.norm, li, Some(&[lin.v_head_dim]))?, act)?,
                             out: load_qs(&g.out, li, dims.hidden, vdim, Some(ShardAxis::Cols))?,
                             slot,
                             lin,
