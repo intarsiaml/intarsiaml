@@ -536,7 +536,7 @@ impl Ctx {
             }
         }
         if self.a.skip.iter().any(|s| s == def.id) {
-            let rec = self.record(def, Out::skip("skipped by --skip"), 0, 0.0);
+            let rec = self.record(def, Out::skip(state::SKIPPED_BY_FLAG), 0, 0.0);
             self.commit(rec)?;
             return Ok(Flow::Continue);
         }
@@ -943,6 +943,10 @@ impl Ctx {
         if relevant.iter().any(|s| s.verdict.is_failing()) {
             return 1;
         }
+        // no golden for acc-short: nothing was checked, so not a pass
+        if relevant.iter().any(|s| s.is_unchecked_accuracy()) {
+            return 2;
+        }
         0
     }
 }
@@ -1331,11 +1335,11 @@ impl Ctx {
         }
         Ok(match self.make_golden(long)? {
             Golden::None(why) => Golden::None(format!(
-                "{why}; no {} golden for '{}' in {} (give --golden{} FILE or --golden-dir DIR, then --resume)",
-                if long { "long" } else { "short" },
-                self.name,
-                dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
-                if long { "-long" } else { "" },
+                "{why}; no {kind} golden for '{name}': looked for {paths}, or a golden whose model metadata names this model (give --golden{flag} FILE or --golden-dir DIR, then --resume)",
+                kind = if long { "long" } else { "short" },
+                name = self.name,
+                paths = dirs.iter().map(|d| format!("{}/{}{}*.safetensors", d.display(), self.name, if long { "-long" } else { "" })).collect::<Vec<_>>().join(", "),
+                flag = if long { "-long" } else { "" },
             )),
             g => g,
         })
@@ -1627,7 +1631,7 @@ fn acc_summary(modes: &[Value]) -> String {
 fn st_acc_short(c: &mut Ctx) -> Result<Out> {
     let (g, how) = match c.golden(false)? {
         Golden::Have(g, h) => (g, h),
-        Golden::None(why) => return Ok(Out::skip(why)),
+        Golden::None(why) => return Ok(Out::skip(format!("SKIPPED, accuracy NOT checked: {why}"))),
     };
     // A model whose golden is a reference server's (MoE / hybrid / quantized: no fp32 HF golden can be made) is gated
     // against the backend's recorded baseline and noise envelope; without one that applies it cannot PASS: the static

@@ -122,12 +122,21 @@ fn find_scored(
                 continue;
             }
             let stem = key(p.file_stem().and_then(|s| s.to_str()).unwrap_or(""));
-            let Some(rest) = stem.strip_prefix(&k) else { continue };
+            // by file name first; else by identity: the golden's own `model` metadata (the checkpoint it was made from)
+            // names this model directory, whatever the file is called
+            let (rest, by_identity) = match stem.strip_prefix(&k) {
+                Some(r) => (r.to_string(), false),
+                None if stem.contains("meta") => continue,
+                None if golden_meta(&p, "model").is_some_and(|m| key(&model_name(Path::new(&m), None)) == k) => {
+                    (format!("-{stem}"), true)
+                }
+                None => continue,
+            };
             if !(rest.is_empty() || rest.starts_with('-')) || rest.contains("meta") {
                 continue;
             }
             // a format-reference golden belongs to these exact weights: `<name>-formatref...`, no other variant of the name
-            if rest.contains("-formatref") != formatref || (formatref && !rest.starts_with("-formatref")) {
+            if rest.contains("-formatref") != formatref || (formatref && !by_identity && !rest.starts_with("-formatref")) {
                 continue;
             }
             let is_long = rest.contains("-long");
@@ -499,5 +508,30 @@ mod tests {
         assert_eq!(main_checkout(&main), None);
         assert_eq!(main_checkout(&d), None);
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Header-only safetensors file with `__metadata__` (what `golden_meta` reads).
+    fn write_meta_golden(path: &Path, meta: &str) {
+        let h = format!(r#"{{"__metadata__":{{{meta}}}}}"#);
+        let mut b = (h.len() as u64).to_le_bytes().to_vec();
+        b.extend(h.as_bytes());
+        std::fs::write(path, b).unwrap();
+    }
+
+    /// A golden named differently from the model directory is found by the checkpoint its metadata names
+    /// (drill g4d: `Gemma-4-26B-A4B-NVFP4` vs `gemma4-26b-a4b-nvfp4-fp32.safetensors`).
+    #[test]
+    fn golden_found_by_model_identity_when_the_name_differs() {
+        let d = std::env::temp_dir().join(format!("qualify-golden-id-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        write_meta_golden(&d.join("gemma4-26b-a4b-nvfp4-fp32.safetensors"), r#""model":"/home/nvidia/models/Gemma-4-26B-A4B-NVFP4""#);
+        write_meta_golden(&d.join("other-fp32.safetensors"), r#""model":"/models/Llama-3""#);
+        let dirs = vec![d.clone()];
+        let n = |p: Option<PathBuf>| p.map(|p| p.file_name().unwrap().to_string_lossy().to_string());
+        assert_eq!(n(find_golden_act("Gemma-4-26B-A4B-NVFP4", &dirs, false, None)), Some("gemma4-26b-a4b-nvfp4-fp32.safetensors".into()));
+        // no identity, no name: still a miss
+        assert_eq!(find_golden_act("Qwen3-8B", &dirs, false, None), None);
+        std::fs::remove_dir_all(&d).ok();
     }
 }
