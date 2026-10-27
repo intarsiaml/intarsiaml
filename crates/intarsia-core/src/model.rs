@@ -1023,8 +1023,10 @@ impl Model {
         // activation workspace
         // tensor parallelism: INTARSIA_TP_PARTIAL=bf16 reduces bf16 partials in place (two roundings per reduce, like
         // vLLM); the default keeps the partials in f32 and rounds once, as one unsharded matmul does
+        // the env var wins over the recipe's `[tuning.<backend>] tp_partial`
         let part_f32 = match std::env::var("INTARSIA_TP_PARTIAL").ok().as_deref() {
-            None | Some("") | Some("f32") => true,
+            None | Some("") => !matches!(recipe.resolve_tp_partial(b.name()), Some("bf16")),
+            Some("f32") => true,
             Some("bf16") => false,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
         };
