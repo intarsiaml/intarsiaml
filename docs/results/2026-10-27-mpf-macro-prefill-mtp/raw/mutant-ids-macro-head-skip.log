@@ -1,0 +1,7 @@
+fleetq: #5834 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-mpf/out bash -s macro-head-skip 4k-0 34k-0'
+fleetq: #5834 went ahead of the line and must end within 2h06m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+FAIL ids 4k-0 mtp (prompt: 3870) differ/empty | 
+FAIL ids 34k-0 mtp (prompt: 34120) differ/empty | 
+ids fails=2
+fleetq: #5834 done (exit 0)

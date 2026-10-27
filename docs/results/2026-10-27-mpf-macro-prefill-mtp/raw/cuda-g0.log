@@ -1,0 +1,26 @@
+fleetq: #5820 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5820 running on spark1: ssh spark1 'bash -s'
+fleetq: #5820 went ahead of the line and must end within 3h00m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+PASS ids 8 short base == dev (256 ids, md5 b43773b5)
+PASS ids 8 4k base == dev (256 ids, md5 8aca363b)
+PASS plan 8 json base == dev byte-identical (8758 B)
+PASS plan 8 txt base == dev byte-identical (1478 B)
+PASS ids g short base == dev (256 ids, md5 e9b68e9b)
+PASS ids g 4k base == dev (256 ids, md5 f617db08)
+PASS plan g json base == dev byte-identical (8631 B)
+PASS plan g txt base == dev byte-identical (1865 B)
+PASS ids 35 short base == dev-off (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev-off (256 ids, md5 51b7fcfd)
+PASS plan 35 json base == dev-off byte-identical (13977 B)
+PASS plan 35 txt base == dev-off byte-identical (3507 B)
+PASS ids 35 short base == dev-envoff (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev-envoff (256 ids, md5 51b7fcfd)
+PASS plan 35 json base == dev-envoff byte-identical (13977 B)
+PASS plan 35 txt base == dev-envoff byte-identical (3507 B)
+PASS ids 35 short base == dev (256 ids, md5 a6889e87)
+PASS ids 35 4k base == dev (256 ids, md5 51b7fcfd)
+PASS plan 35 json base == dev byte-identical (13977 B)
+PASS plan 35 txt base == dev byte-identical (3507 B)
+g0 fails=0
+fleetq: #5820 done (exit 0)

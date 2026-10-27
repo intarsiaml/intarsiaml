@@ -1,0 +1,15 @@
+category    arm    r1 tok/s  r2 tok/s  r3 tok/s  median  x off  worst round x off
+ho-chat     off        84.7      84.1      83.5    84.1   1.00              1.000
+ho-chat     mtp2      110.7     110.9     110.9   110.9   1.32              1.308
+ho-code     off        84.7      83.9      83.4    83.9   1.00              1.000
+ho-code     mtp2      128.3     128.4     128.5   128.4   1.53              1.516
+ho-prose    off        84.6      83.9      83.5    83.9   1.00              1.000
+ho-prose    mtp2       98.4      98.6      98.5    98.5   1.17              1.163
+ho-recall   off        84.6      84.1      83.5    84.1   1.00              1.000
+ho-recall   mtp2      115.9     116.1     116.1   116.1   1.38              1.370
+rcp-code    off        84.6      84.0      83.5    84.0   1.00              1.000
+rcp-code    mtp2      127.4     127.6     127.7   127.6   1.52              1.506
+rcp-prose   off        84.6      84.0      83.5    84.0   1.00              1.000
+rcp-prose   mtp2      100.0     100.2     100.2   100.2   1.19              1.182
+rcp-recall  off        84.5      83.9      83.4    83.9   1.00              1.000
+rcp-recall  mtp2      119.3     119.5     119.4   119.4   1.42              1.411

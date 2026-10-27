@@ -416,6 +416,9 @@ pub struct Model {
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
+    /// Inside an MTP head's KV-only ingest ([`Model::mtp_layer_kv_only`], lane mpf): the attention block skips the q projection (the
+    /// rows' queries are never read; their K / V are what the cache needs).
+    kv_only_skip_q: std::sync::atomic::AtomicBool,
     /// Inside the DFlash draft block ([`Model::dflash_draft`]): attention is not causal, every row reads all keys up to the
     /// block's last position (one decode call per row at that position).
     noncausal_rows: std::sync::atomic::AtomicBool,
@@ -1049,7 +1052,7 @@ impl Model {
         );
         // one rank only (tensor-parallel passes are not packed), and no MTP head or DFlash draft (its feature taps are per chunk): the drafter's workspace and its plan probes are
         // chunk-sized, and a speculative sequence never takes a macro pass (`macro_plan`)
-        let macro_rows = if tp.world > 1 || opts.mtp || opts.dflash.is_some() { 0 } else { macro_rows };
+        let macro_rows = if tp.world > 1 || opts.dflash.is_some() { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
@@ -1303,6 +1306,7 @@ impl Model {
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
+            kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
             verify_tok: None,
@@ -1388,7 +1392,8 @@ impl Model {
             }
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
-            self.mtp_dry_run(t, pos0)?;
+            // (a macro probe of more rows than a chunk: the head ingests the pass in chunk-sized pieces, lane mpf)
+            self.mtp_dry_run(t.min(self.ws.max_tokens), pos0)?;
             self.dflash_dry_run()?;
             if verify {
                 // a tensor-parallel peer without a head share (replicated head on rank 0) runs only the layers
@@ -2313,6 +2318,10 @@ impl Model {
                         st.commit(c);
                         self.telemetry.step();
                     }
+                    // the MTP drafter queues the pass's hidden rows and catches up over them in chunk-sized pieces (lane mpf)
+                    if st.mtp.is_some() {
+                        self.mtp_after_forward(st, &hn, total, true, profile)?;
+                    }
                     ci += glen;
                     continue;
                 }
@@ -2377,7 +2386,6 @@ impl Model {
             || chunks.len() < 2
             || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
             || !st.has_recurrent()
-            || st.mtp.is_some()
             || !self.pack_capable()
         {
             return (0, 1);
@@ -3058,10 +3066,13 @@ impl Model {
         let ws = &self.ws;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let qc = 0usize;
+        let skip_q = self.kv_only_skip_q.load(std::sync::atomic::Ordering::Relaxed);
         let gate = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
-            self.proj(n, &a.wq, &qg, profile)?;
-            if !split_folded {
+            if !skip_q {
+                self.proj(n, &a.wq, &qg, profile)?;
+            }
+            if !split_folded && !skip_q {
                 self.exec(
                     Op::GateSplit,
                     vec![qg.reshaped(&[t, nh, 2 * hd])],
@@ -3073,9 +3084,11 @@ impl Model {
             Some(gate)
         } else {
             let qv = self.view(&ws.q[qc], act, &[t, nh * hd]);
-            self.proj(n, &a.wq, &qv, profile)?;
-            if let Some(bias) = &a.q_bias {
-                self.add_bias(&qv, bias, profile)?;
+            if !skip_q {
+                self.proj(n, &a.wq, &qv, profile)?;
+                if let Some(bias) = &a.q_bias {
+                    self.add_bias(&qv, bias, profile)?;
+                }
             }
             None
         };

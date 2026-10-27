@@ -1,0 +1,55 @@
+fleetq: #5803 running on spark1: env OUT=/opt/code/intarsiaml/.worktrees/mpf/docs/results/2026-10-27-mpf-macro-prefill-mtp/raw/longctx-a scripts/mpf/longctx.sh 2
+== off-r1 17:55:40
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 56.9 | 79.9 (79.9–79.9) | 0.66 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-175628-adhoc-mpf-lc-off-r1/result.json
+[localeval] logged to unanimis: a88b453f-b5e4-4db0-81f1-d0280c83f174
+== mtp-r1 17:57:18
+
+## Warnings
+
+- decode spread 22.1% at 16384 tokens: noisy; rerun before comparing
+- decode spread 10.2% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-175811-adhoc-mpf-lc-mtp-r1/result.json
+[localeval] logged to unanimis: fcfb5da6-aadb-4c9e-aeb7-5365ebb2c12b
+== mtp-r2 17:58:59
+| 1 | 69.0 | 102.3 (102.3–102.3) | 0.61 |
+
+## Warnings
+
+- decode spread 15.3% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-175946-adhoc-mpf-lc-mtp-r2/result.json
+[localeval] logged to unanimis: 142f27e3-8286-4428-bc30-2557f1bd0c47
+== off-r2 18:00:34
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 58.8 | 80.2 (80.2–80.2) | 0.59 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - 
+
+[localeval] saved /opt/code/deepeval/results/20261026-180116-adhoc-mpf-lc-off-r2/result.json
+[localeval] logged to unanimis: 7750c961-8c8d-4d33-a156-c2c8a06c9e1f
+== longctx done
+fleetq: #5803 done (exit 0)

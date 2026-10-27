@@ -1,0 +1,10 @@
+fleetq: #5833 running on spark1: ssh spark1 'MODE=build bash -s macro-head-skip'
+fleetq: #5833 went ahead of the line and must end within 2h07m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+    Finished `release` profile [optimized] target(s) in 23.00s
+clean  sha256 0b0eb31807e378ef
+mutant macro-head-skip applied to crates/intarsia-core/src/model.rs
+    Finished `release` profile [optimized] target(s) in 13.29s
+mutant macro-head-skip sha256 cb1ad1fe3afb5094
+binaries differ
+fleetq: #5833 done (exit 0)

@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/mpf/scripts/mpf/../dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: cmtp-off — 2026-10-26T19:53
+
+- model: `qwen36-35b-off` on ? (?), url `http://spark-4e77:8095/v1`
+- thinking: off; run kind: quality; label: cmtp-s1-off-rcp-prose-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality cmtp-off --thinking off --label cmtp-s1-off-rcp-prose-r3 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec off --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp) --dataset /opt/code/intarsiaml/.worktrees/mpf/scripts/mpf/../dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261026-195322-cmtp-off-cmtp-s1-off-rcp-prose-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --spec off --max-batch 1 --profile-every 0 --mem-budget 40 --max-seq 8192 (spark1, lane cmtp)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/mpf/scripts/mpf/../dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.075 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 83.5 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | yes | 0.0 | 0.07 | 83.5 | The salt spray had long since bleached Elias’s knuckles whit… |
+| prose-city-essay | yes | 0.0 | 0.07 | 83.4 | **The Architecture of Belonging** We often imagine "home" as… |
+| prose-product-launch | yes | 0.0 | 0.07 | 83.5 | # Fresh from the Oven, Straight to Your Door: Introducing Ou… |
+| prose-mountain-letter | yes | 0.0 | 0.08 | 83.5 | Dear Leo, It is 2:00 AM. The wind outside our tent is howlin… |
+| prose-ocean-poem | yes | 0.0 | 0.08 | 83.5 | The moon is a silver coin dropped into a black velvet purse,… |
+| prose-robot-fable | yes | 0.0 | 0.07 | 83.5 | Unit 734, known affectionately as "Seven," was a model desig… |
+| prose-travel | yes | 0.0 | 0.08 | 83.4 | The sun had not yet fully crested the horizon, but the coast… |
+| prose-history-scene | yes | 0.0 | 0.08 | 83.5 | The air in the shop was thick enough to chew, a heavy suspen… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261026-195322-cmtp-off-cmtp-s1-off-rcp-prose-r3/result.json
+[localeval] logged to unanimis: 3be37aef-b8d4-4d52-80a1-e2aa7c2ab7d4

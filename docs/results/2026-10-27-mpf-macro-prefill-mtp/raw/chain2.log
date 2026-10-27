@@ -1,0 +1,10 @@
+== g0 19:58:58
+== mutant build rollback-skip 20:19:45
+== mutant ids rollback-skip 20:20:56
+== mutant build accept-off-by-one 20:37:54
+== mutant ids accept-off-by-one 20:48:21
+== mutant build cuda-perrow-off 20:50:12
+== mutant ids cuda-perrow-off 20:50:44
+== mutant build macro-head-skip 20:52:47
+== mutant ids macro-head-skip 20:53:24
+== done 20:54:42

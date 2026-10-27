@@ -1,0 +1,55 @@
+19:33:41 round 1 arm off: starting server (--spec off)
+19:34:24 round 1 arm off: 
+19:34:50 round 1 arm off ho-chat: localeval exit 0 results/20261026-193425-cmtp-off-cmtp-s1-off-ho-chat-r1/result.json
+19:35:04 round 1 arm off ho-code: localeval exit 0 results/20261026-193451-cmtp-off-cmtp-s1-off-ho-code-r1/result.json
+19:35:30 round 1 arm off ho-prose: localeval exit 0 results/20261026-193505-cmtp-off-cmtp-s1-off-ho-prose-r1/result.json
+19:35:44 round 1 arm off ho-recall: localeval exit 0 results/20261026-193531-cmtp-off-cmtp-s1-off-ho-recall-r1/result.json
+19:36:35 round 1 arm off rcp-code: localeval exit 0 results/20261026-193545-cmtp-off-cmtp-s1-off-rcp-code-r1/result.json
+19:37:25 round 1 arm off rcp-prose: localeval exit 0 results/20261026-193635-cmtp-off-cmtp-s1-off-rcp-prose-r1/result.json
+19:38:16 round 1 arm off rcp-recall: localeval exit 0 results/20261026-193726-cmtp-off-cmtp-s1-off-rcp-recall-r1/result.json
+19:38:18 round 1 arm mtp2: starting server (--spec mtp --spec-k 2)
+19:39:01 round 1 arm mtp2: --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_|
+19:39:21 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261026-193901-cmtp-mtp2-cmtp-s1-mtp2-ho-chat-r1/result.json
+19:39:31 round 1 arm mtp2 ho-code: localeval exit 0 results/20261026-193922-cmtp-mtp2-cmtp-s1-mtp2-ho-code-r1/result.json
+19:39:54 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261026-193931-cmtp-mtp2-cmtp-s1-mtp2-ho-prose-r1/result.json
+19:40:04 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261026-193954-cmtp-mtp2-cmtp-s1-mtp2-ho-recall-r1/result.json
+19:40:39 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261026-194005-cmtp-mtp2-cmtp-s1-mtp2-rcp-code-r1/result.json
+19:41:22 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261026-194039-cmtp-mtp2-cmtp-s1-mtp2-rcp-prose-r1/result.json
+19:41:59 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261026-194123-cmtp-mtp2-cmtp-s1-mtp2-rcp-recall-r1/result.json
+19:42:00 round 2 arm mtp2: starting server (--spec mtp --spec-k 2)
+19:42:47 round 2 arm mtp2: --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_|
+19:43:07 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261026-194247-cmtp-mtp2-cmtp-s1-mtp2-ho-chat-r2/result.json
+19:43:17 round 2 arm mtp2 ho-code: localeval exit 0 results/20261026-194308-cmtp-mtp2-cmtp-s1-mtp2-ho-code-r2/result.json
+19:43:40 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261026-194317-cmtp-mtp2-cmtp-s1-mtp2-ho-prose-r2/result.json
+19:43:50 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261026-194340-cmtp-mtp2-cmtp-s1-mtp2-ho-recall-r2/result.json
+19:44:24 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261026-194351-cmtp-mtp2-cmtp-s1-mtp2-rcp-code-r2/result.json
+19:45:07 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261026-194425-cmtp-mtp2-cmtp-s1-mtp2-rcp-prose-r2/result.json
+19:45:44 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261026-194508-cmtp-mtp2-cmtp-s1-mtp2-rcp-recall-r2/result.json
+19:45:46 round 2 arm off: starting server (--spec off)
+19:46:32 round 2 arm off: 
+19:46:58 round 2 arm off ho-chat: localeval exit 0 results/20261026-194632-cmtp-off-cmtp-s1-off-ho-chat-r2/result.json
+19:47:12 round 2 arm off ho-code: localeval exit 0 results/20261026-194659-cmtp-off-cmtp-s1-off-ho-code-r2/result.json
+19:47:39 round 2 arm off ho-prose: localeval exit 0 results/20261026-194713-cmtp-off-cmtp-s1-off-ho-prose-r2/result.json
+19:47:53 round 2 arm off ho-recall: localeval exit 0 results/20261026-194739-cmtp-off-cmtp-s1-off-ho-recall-r2/result.json
+19:48:44 round 2 arm off rcp-code: localeval exit 0 results/20261026-194753-cmtp-off-cmtp-s1-off-rcp-code-r2/result.json
+19:49:34 round 2 arm off rcp-prose: localeval exit 0 results/20261026-194844-cmtp-off-cmtp-s1-off-rcp-prose-r2/result.json
+19:50:25 round 2 arm off rcp-recall: localeval exit 0 results/20261026-194935-cmtp-off-cmtp-s1-off-rcp-recall-r2/result.json
+19:50:27 round 3 arm off: starting server (--spec off)
+19:51:08 round 3 arm off: 
+19:51:34 round 3 arm off ho-chat: localeval exit 0 results/20261026-195108-cmtp-off-cmtp-s1-off-ho-chat-r3/result.json
+19:51:49 round 3 arm off ho-code: localeval exit 0 results/20261026-195135-cmtp-off-cmtp-s1-off-ho-code-r3/result.json
+19:52:16 round 3 arm off ho-prose: localeval exit 0 results/20261026-195150-cmtp-off-cmtp-s1-off-ho-prose-r3/result.json
+19:52:30 round 3 arm off ho-recall: localeval exit 0 results/20261026-195216-cmtp-off-cmtp-s1-off-ho-recall-r3/result.json
+19:53:21 round 3 arm off rcp-code: localeval exit 0 results/20261026-195230-cmtp-off-cmtp-s1-off-rcp-code-r3/result.json
+19:54:12 round 3 arm off rcp-prose: localeval exit 0 results/20261026-195322-cmtp-off-cmtp-s1-off-rcp-prose-r3/result.json
+19:55:04 round 3 arm off rcp-recall: localeval exit 0 results/20261026-195413-cmtp-off-cmtp-s1-off-rcp-recall-r3/result.json
+19:55:06 round 3 arm mtp2: starting server (--spec mtp --spec-k 2)
+19:55:52 round 3 arm mtp2: --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_|
+19:56:12 round 3 arm mtp2 ho-chat: localeval exit 0 results/20261026-195552-cmtp-mtp2-cmtp-s1-mtp2-ho-chat-r3/result.json
+19:56:22 round 3 arm mtp2 ho-code: localeval exit 0 results/20261026-195613-cmtp-mtp2-cmtp-s1-mtp2-ho-code-r3/result.json
+19:56:45 round 3 arm mtp2 ho-prose: localeval exit 0 results/20261026-195622-cmtp-mtp2-cmtp-s1-mtp2-ho-prose-r3/result.json
+19:56:55 round 3 arm mtp2 ho-recall: localeval exit 0 results/20261026-195645-cmtp-mtp2-cmtp-s1-mtp2-ho-recall-r3/result.json
+19:57:29 round 3 arm mtp2 rcp-code: localeval exit 0 results/20261026-195656-cmtp-mtp2-cmtp-s1-mtp2-rcp-code-r3/result.json
+19:58:12 round 3 arm mtp2 rcp-prose: localeval exit 0 results/20261026-195730-cmtp-mtp2-cmtp-s1-mtp2-rcp-prose-r3/result.json
+19:58:49 round 3 arm mtp2 rcp-recall: localeval exit 0 results/20261026-195813-cmtp-mtp2-cmtp-s1-mtp2-rcp-recall-r3/result.json
+19:58:51 done, time left 3890s

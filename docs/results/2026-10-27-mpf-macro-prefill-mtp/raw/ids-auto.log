@@ -1,0 +1,28 @@
+fleetq: #5824 waiting (#1 in line): needs cpu quiet on spark1, but #5823 "mpf: CUDA mutant build rollback-skip" (claude-f31ccf91) loads it
+fleetq:   #5823 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5823 set, or it will wait for #5823 to be released.
+fleetq: #5824 running on spark1: ssh spark1 'BIN=$HOME/intarsiaml-mpf/target-flip/release/intarsia O=$HOME/intarsiaml-mpf/out-auto OFF_FROM=$HOME/intarsiaml-mpf/out ARMS='"'"'off auto'"'"' bash -s short-0 short-1 short-2 short-3 short-4 short-5 4k-0 4k-1 4k-2 4k-3 4k-4 4k-5 16k-0 16k-1 16k-2 16k-3 16k-4 16k-5 34k-0 34k-1 34k-2'
+fleetq: #5824 went ahead of the line and must end within 2h39m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+PASS ids short-0 auto (prompt: 41) 256 ids identical | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)
+PASS ids short-1 auto (prompt: 34) 256 ids identical | spec: verify passes=119 proposed=237 accepted=136 (acceptance 57.4%, 2.14 tokens per pass)
+PASS ids short-2 auto (prompt: 42) 256 ids identical | spec: verify passes=91 proposed=181 accepted=163 (acceptance 90.1%, 2.79 tokens per pass)
+PASS ids short-3 auto (prompt: 43) 256 ids identical | spec: verify passes=91 proposed=182 accepted=163 (acceptance 89.6%, 2.79 tokens per pass)
+PASS ids short-4 auto (prompt: 69) 256 ids identical | spec: verify passes=88 proposed=176 accepted=166 (acceptance 94.3%, 2.89 tokens per pass)
+PASS ids short-5 auto (prompt: 39) 256 ids identical | spec: verify passes=117 proposed=234 accepted=131 (acceptance 56.0%, 2.12 tokens per pass)
+PASS ids 4k-0 auto (prompt: 3870) 256 ids identical | spec: verify passes=106 proposed=211 accepted=149 (acceptance 70.6%, 2.41 tokens per pass)
+PASS ids 4k-1 auto (prompt: 3993) 256 ids identical | spec: verify passes=107 proposed=213 accepted=147 (acceptance 69.0%, 2.37 tokens per pass)
+PASS ids 4k-2 auto (prompt: 4348) 256 ids identical | spec: verify passes=107 proposed=214 accepted=147 (acceptance 68.7%, 2.37 tokens per pass)
+PASS ids 4k-3 auto (prompt: 3821) 256 ids identical | spec: verify passes=104 proposed=207 accepted=150 (acceptance 72.5%, 2.44 tokens per pass)
+PASS ids 4k-4 auto (prompt: 3978) 256 ids identical | spec: verify passes=120 proposed=240 accepted=135 (acceptance 56.2%, 2.12 tokens per pass)
+PASS ids 4k-5 auto (prompt: 4129) 256 ids identical | spec: verify passes=89 proposed=177 accepted=166 (acceptance 93.8%, 2.87 tokens per pass)
+PASS ids 16k-0 auto (prompt: 15481) 256 ids identical | spec: verify passes=108 proposed=216 accepted=146 (acceptance 67.6%, 2.35 tokens per pass)
+PASS ids 16k-1 auto (prompt: 15856) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 16k-2 auto (prompt: 16305) 256 ids identical | spec: verify passes=110 proposed=220 accepted=144 (acceptance 65.5%, 2.31 tokens per pass)
+PASS ids 16k-3 auto (prompt: 16134) 256 ids identical | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+PASS ids 16k-4 auto (prompt: 16290) 256 ids identical | spec: verify passes=124 proposed=248 accepted=130 (acceptance 52.4%, 2.05 tokens per pass)
+PASS ids 16k-5 auto (prompt: 15933) 256 ids identical | spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+PASS ids 34k-0 auto (prompt: 34120) 256 ids identical | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+PASS ids 34k-1 auto (prompt: 34278) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 34k-2 auto (prompt: 33060) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+ids fails=0
+fleetq: #5824 done (exit 0)

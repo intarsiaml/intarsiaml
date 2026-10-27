@@ -1,0 +1,7 @@
+19:29:41 round 1 arm off: starting server (--spec off)
+19:30:21 round 1 arm off: 
+19:30:35 soak off: 4 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+19:30:37 round 1 arm mtp2: starting server (--spec mtp --spec-k 2)
+19:31:30 round 1 arm mtp2: --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_|
+19:33:26 soak mtp2: 40 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+19:33:28 done, time left 2173s

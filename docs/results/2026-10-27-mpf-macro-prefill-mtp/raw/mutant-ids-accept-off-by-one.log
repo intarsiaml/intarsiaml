@@ -1,0 +1,8 @@
+fleetq: #5830 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-mpf/out bash -s accept-off-by-one short-0 4k-0 16k-0'
+fleetq: #5830 went ahead of the line and must end within 2h11m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+FAIL ids short-0 mtp (prompt: 41) differ/empty | spec: verify passes=89 proposed=177 accepted=166 (acceptance 93.8%, 2.87 tokens per pass)
+FAIL ids 4k-0 mtp (prompt: 3870) differ/empty | spec: verify passes=89 proposed=177 accepted=166 (acceptance 93.8%, 2.87 tokens per pass)
+FAIL ids 16k-0 mtp (prompt: 15481) differ/empty | spec: verify passes=90 proposed=180 accepted=165 (acceptance 91.7%, 2.83 tokens per pass)
+ids fails=3
+fleetq: #5830 done (exit 0)

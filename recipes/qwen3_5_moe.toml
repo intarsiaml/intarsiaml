@@ -75,11 +75,10 @@ prefill_chunk = 2048
 # (docs/results/2026-10-25-sk-spark-prefill.md). Single-sequence engine (`serve` without `--max-batch`, `generate`) and, since
 # docs/results/2026-10-25-sk2-serve-macro.md, `serve --max-batch` for a prompt that prefills alone with nothing decoding.
 prefill_macro = 8192
-# `--spec mtp --spec-k 2` as the default at tp=1 on CUDA (`mtp_default_k = 2`) passed every decode gate (ids 18/18, soak 40/40, mutants, 1.18-1.54x
-# decode in all categories) but is NOT enabled: a loaded MTP head disables the macro prefill pass, so prefill is -20 % / -37 % / -51 % at 4k / 16k /
-# 34k tokens (TTFT +0.15 s / +1.5 s / +6.0 s). It stays unset until the macro pass works with MTP (docs/results/2026-10-26-cmtp-cuda-mtp-default.md);
-# `--spec mtp` is opt-in meanwhile.
-# mtp_default_k = 2
+# `--spec mtp --spec-k 2` is the default at tp=1 on CUDA when no `--spec` is given (`--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out; `--max-batch`
+# above 1, a configured prefix store and checkpoints without the MTP head keep plain decode). The macro prefill pass runs with the head (lane mpf), so prefill
+# is within 1 % of `--spec off` and decode is 1.17-1.5x in every category (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, lane cmtp before it).
+mtp_default_k = 2
 
 # 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
 # long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert

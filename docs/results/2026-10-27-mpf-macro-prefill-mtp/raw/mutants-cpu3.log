@@ -1,0 +1,5 @@
+clean (mtp) 3775f2c38 test binary sha256 e64e9a415832a9e8
+mutant head-kvonly-pos applied to crates/intarsia-core/src/model/mtp.rs
+mutant head-kvonly-pos: sha256 4668f33678413d6a (clean e64e9a415832a9e8): CAUGHT by:     mtp_model_takes_the_macro_prefill_pass_and_the_head_follows 
+mutant macro-head-skip applied to crates/intarsia-core/src/model.rs
+mutant macro-head-skip: sha256 509ed1d3393a697e (clean e64e9a415832a9e8): CAUGHT by:     mtp_model_takes_the_macro_prefill_pass_and_the_head_follows 
