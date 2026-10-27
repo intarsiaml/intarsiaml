@@ -98,8 +98,9 @@ pub struct Recorder {
     pub calls: Vec<PlannedCall>,
     /// Collectives of the pass (tensor parallelism).
     pub comm: Vec<PlannedComm>,
-    /// `(op, description)` of every call that found no kernel.
-    pub missing: Vec<(Op, String)>,
+    /// `(op, description, weights)` of every call that found no kernel: `weights` names the checkpoint tensors among the
+    /// call's inputs that carry the dtype no kernel takes, as `'tensor name' (DType)`.
+    pub missing: Vec<(Op, String, Vec<String>)>,
 }
 
 /// An `(op, kernel)` row of the resolved plan.
@@ -260,8 +261,8 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize, 0usize);
     let mut decode0: Vec<(Op, String)> = Vec::new();
-    // op -> (shapes without a kernel, first description, where it is needed)
-    let mut missing: BTreeMap<Op, (BTreeSet<String>, String, BTreeSet<String>)> = BTreeMap::new();
+    // op -> (shapes without a kernel, first description, where it is needed, weight tensors of the dtype no kernel takes)
+    let mut missing: BTreeMap<Op, MissingOp> = BTreeMap::new();
     for (phase, t, pos0) in probes {
         // a batch step appends one token to each of its sequences
         if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
@@ -282,10 +283,11 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
             let rows_exact = |k: &str| model.registry.kernel(k).is_some_and(|k| k.rows_exact || k.row_table);
             check_batch_ops(model.backend.name(), &rows_exact, &decode0, &batch, t)?;
         }
-        for (op, m) in rec.missing {
-            let e = missing.entry(op).or_insert_with(|| (BTreeSet::new(), m.clone(), BTreeSet::new()));
-            e.0.insert(m);
-            e.2.insert(format!("{phase:?} t={t}"));
+        for (op, m, weights) in rec.missing {
+            let e = missing.entry(op).or_insert_with(|| MissingOp { first: m.clone(), ..Default::default() });
+            e.shapes.insert(m);
+            e.wh.insert(format!("{phase:?} t={t}"));
+            e.weights.extend(weights);
         }
         if phase == Phase::Decode && pos0 == 0 {
             for c in rec.comm.iter().filter(|c| !c.extra) {
@@ -303,20 +305,48 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
         } else {
             ""
         };
-        let mut msg =
-            format!("{} op(s) of this model have no kernel on {}/{}{ref_only}:", missing.len(), b.backend, b.arch);
-        for (op, (shapes, first, wh)) in &missing {
-            let wh: Vec<&String> = wh.iter().take(4).collect();
-            msg.push_str(&format!(
-                "\n  - {op}: {} shape(s) without a kernel, e.g. {first}; needed by {}{}",
-                shapes.len(),
-                wh.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
-                if missing[op].2.len() > 4 { ", ..." } else { "" }
-            ));
-        }
-        return Err(Error::NoKernel(msg));
+        return Err(Error::NoKernel(no_kernel_message(&b.backend, &b.arch, ref_only, &missing)));
     }
     Ok((calls, sizes, comm_decode))
+}
+
+/// One op of the model that found no kernel in the plan probes.
+#[derive(Default)]
+struct MissingOp {
+    /// Distinct descriptions (shape, dtypes) of the calls without a kernel.
+    shapes: BTreeSet<String>,
+    /// The first of them.
+    first: String,
+    /// Where it is needed (`Decode t=1`, ...).
+    wh: BTreeSet<String>,
+    /// The checkpoint tensors among the call inputs of the dtype no kernel takes, `'name' (DType)`.
+    weights: BTreeSet<String>,
+}
+
+/// The load error for ops without a kernel. A call whose weight dtype no kernel takes (an f32 norm weight where the backend's
+/// kernels read bf16) names the checkpoint tensors, their dtype and the op, so the fix (convert the tensor, or register the
+/// kernel) is a lookup, not a bisection.
+fn no_kernel_message(backend: &str, arch: &str, ref_only: &str, missing: &BTreeMap<Op, MissingOp>) -> String {
+    let mut msg = format!("{} op(s) of this model have no kernel on {backend}/{arch}{ref_only}:", missing.len());
+    for (op, m) in missing {
+        let wh: Vec<&String> = m.wh.iter().take(4).collect();
+        msg.push_str(&format!(
+            "\n  - {op}: {} shape(s) without a kernel, e.g. {}; needed by {}{}",
+            m.shapes.len(),
+            m.first,
+            wh.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
+            if m.wh.len() > 4 { ", ..." } else { "" }
+        ));
+        if !m.weights.is_empty() {
+            let w: Vec<&String> = m.weights.iter().take(4).collect();
+            msg.push_str(&format!(
+                "\n    weight tensor(s) of a dtype no {op} kernel takes on {backend}/{arch}: {}{}",
+                w.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
+                if m.weights.len() > 4 { format!(", ... ({} in all)", m.weights.len()) } else { String::new() }
+            ));
+        }
+    }
+    msg
 }
 
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache, and with the hybrid opt-in
@@ -946,6 +976,30 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_no_kernel_error_names_the_weight_tensors_their_dtype_and_the_op() {
+        let mut missing: BTreeMap<Op, MissingOp> = BTreeMap::new();
+        let shape = "no kernel for gdn_delta_rule on metal/apple9 (m=1 n=128 k=128 act=Bf16 w=F32) (heads 0/0 head_dim 0 kv_len 0)".to_string();
+        let e = missing.entry(Op::GdnDeltaRule).or_insert_with(|| MissingOp { first: shape.clone(), ..Default::default() });
+        e.shapes.insert(shape);
+        e.wh.insert("Decode t=1".into());
+        for l in 0..6 {
+            e.weights.insert(format!("'model.layers.{l}.linear_attn.A_log' (f32)"));
+        }
+        let msg = no_kernel_message("metal", "apple9", "", &missing);
+        assert!(msg.starts_with("1 op(s) of this model have no kernel on metal/apple9:"), "{msg}");
+        assert!(msg.contains("- gdn_delta_rule: 1 shape(s) without a kernel, e.g. no kernel for gdn_delta_rule"), "{msg}");
+        assert!(
+            msg.contains("weight tensor(s) of a dtype no gdn_delta_rule kernel takes on metal/apple9: 'model.layers.0.linear_attn.A_log' (f32)"),
+            "{msg}"
+        );
+        assert!(msg.contains(", ... (6 in all)"), "at most four are listed: {msg}");
+        // no weight named (an activation-shaped miss): the message is the one it always was
+        let mut plain: BTreeMap<Op, MissingOp> = BTreeMap::new();
+        plain.entry(Op::Matmul).or_default().shapes.insert("x".into());
+        assert!(!no_kernel_message("cuda", "sm_90", "", &plain).contains("weight tensor"));
+    }
 
     #[test]
     fn position_diff_names_the_differing_ops() {

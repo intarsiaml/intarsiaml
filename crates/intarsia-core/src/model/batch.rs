@@ -1079,6 +1079,7 @@ impl Model {
             kv: self.kv,
             plan,
             weights_bytes: self.weights_bytes,
+            weight_names: self.weight_names.clone(),
             embed: self.embed.clone(),
             final_norm: self.final_norm.clone(),
             lm_head: self.lm_head.clone(),

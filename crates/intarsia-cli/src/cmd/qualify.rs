@@ -81,8 +81,9 @@ pub struct QualifyArgs {
     /// golden/, and the main checkout's golden/ when run from a git worktree).
     #[arg(long)]
     pub golden_dir: Vec<PathBuf>,
-    /// Do not make a golden from the model itself with tools/golden.py above this many GB of weights.
-    #[arg(long, default_value_t = 5.0)]
+    /// Do not make a golden from the model itself with tools/golden.py above this many GB of weights (the HF fp32 run on the
+    /// CPU takes about a minute per 8 GB for the short set; the fp32 copy must also fit in RAM, 2 x the weights + 3 GB).
+    #[arg(long, default_value_t = 16.0)]
     pub make_golden_max_gb: f64,
     /// Report directory (default: reports/<model>/<timestamp>/).
     #[arg(long)]
@@ -1306,6 +1307,110 @@ fn have_cmd(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// What `qualify` does about a missing HF fp32 golden of a model it may make one for itself.
+#[derive(Debug, Clone, PartialEq)]
+enum AutoGolden {
+    /// Make it here on the CPU: `fp32_gb` of memory, about `expect_min` minutes (the fleetq slot's `--expect`).
+    Make { fp32_gb: f64, expect_min: u64 },
+    /// Not made by `qualify` on purpose; the reason, and the caller adds the exact command.
+    Manual(String),
+    /// Cannot be made here; the reason.
+    Skip(String),
+}
+
+/// Fixed room on top of the fp32 weights for activations, the tokenizer and the interpreter, GB.
+const GOLDEN_RAM_HEADROOM_GB: f64 = 3.0;
+
+/// Decide whether `qualify` makes the HF fp32 golden of a model with no golden: a dense (no MoE, not quantized) model, hybrid
+/// GatedDeltaNet included, whose fp32 copy fits in RAM (`avail_gb`, and `--mem-budget`) and whose weights are at most
+/// `max_gb` (`--make-golden-max-gb`, a time limit: about a minute per 8 GB for the short set). Pure.
+///
+/// A hybrid model's long golden stays manual: HF runs its GatedDeltaNet layers as a PyTorch loop without
+/// `flash-linear-attention`, which the short set's 700 tokens tolerate (about a minute for a 4B) and 4k-token prompts do not
+/// (34 minutes for a 4B, docs/results/2026-10-27-nmd-new-model-drill-metal.md). The 4k golden is never made here.
+fn auto_golden_decision(wf: &facts::WeightFacts, long: bool, weight_gb: f64, max_gb: f64, avail_gb: f64, budget_gb: Option<f64>) -> AutoGolden {
+    if wf.moe || wf.quantized {
+        return AutoGolden::Skip(
+            "no golden found, and a golden for a MoE / quantized model is made from a reference server: pass --reference <vLLM url> or --golden FILE".into(),
+        );
+    }
+    if wf.hybrid && long {
+        return AutoGolden::Manual("no long golden found; a hybrid model's long golden is not made by qualify (HF's PyTorch GatedDeltaNet loop is slow on long prompts)".into());
+    }
+    if weight_gb > max_gb {
+        return AutoGolden::Skip(format!("no golden found, and {weight_gb:.1} GB of weights is too large to make an fp32 HF golden quickly (limit {max_gb} GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>"));
+    }
+    // fp32 is twice bf16 (a float32 checkpoint is already that size; counting it as bf16 only errs on the safe side)
+    let fp32_gb = 2.0 * weight_gb;
+    let need = fp32_gb + GOLDEN_RAM_HEADROOM_GB;
+    let have = budget_gb.map_or(avail_gb, |b| b.min(avail_gb));
+    if need > have {
+        return AutoGolden::Skip(format!("no golden found, and an fp32 HF golden of {weight_gb:.1} GB of weights needs about {need:.0} GB of RAM on the CPU but {have:.0} GB are available: pass --golden FILE or --reference <vLLM url>"));
+    }
+    // 4B (8.7 GB): 65 s for the fp32 pass over the short set plus the bf16 spread pass and the two model loads, measured; guess high
+    AutoGolden::Make { fp32_gb: need, expect_min: (3.0 + weight_gb * 0.5).ceil() as u64 }
+}
+
+fn available_ram_gb() -> f64 {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    sys.available_memory() as f64 / 1e9
+}
+
+/// Run `cmd` inside a fleetq slot on this machine (`--for-url` on loopback means this box), unless the process already
+/// holds one (`FLEETQ_JOB`, which is how `fleetq run` marks its child). No fleetq on the machine: `cmd` unchanged.
+fn in_fleetq_slot(cmd: Command, expect_min: u64, mem_gb: f64, label: &str) -> Command {
+    if std::env::var("FLEETQ_JOB").is_ok_and(|v| !v.trim().is_empty()) || !have_fleetq() {
+        return cmd;
+    }
+    wrap_in_fleetq(cmd, expect_min, mem_gb, label)
+}
+
+fn wrap_in_fleetq(cmd: Command, expect_min: u64, mem_gb: f64, label: &str) -> Command {
+    let mut w = Command::new("fleetq");
+    w.args(["run", "--for-url", "http://127.0.0.1", "--load", "cpu", "--expect"])
+        .arg(expect_min.to_string())
+        .arg("--mem")
+        .arg(format!("{}", mem_gb.ceil()))
+        .arg("--label")
+        .arg(label)
+        .arg("--")
+        .arg(cmd.get_program())
+        .args(cmd.get_args());
+    w
+}
+
+fn have_fleetq() -> bool {
+    Command::new("fleetq").arg("--help").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().is_ok_and(|s| s.success())
+}
+
+fn uv_golden_prefix(repo: &Path) -> String {
+    format!("uv run --project {} python {}", repo.join("tools").display(), repo.join("tools/golden.py").display())
+}
+
+/// The exact command that makes a long golden by hand (the short set's prompts plus the 300- and 700-token ones).
+fn manual_golden_command(repo: &Path, model_dir: &Path, name: &str, long: bool) -> String {
+    let p = repo.join("tools/prompts");
+    format!(
+        "{} --model {} --out golden/{name}{}-fp32.safetensors --device cpu --dtype float32 --prompts {} {}",
+        uv_golden_prefix(repo),
+        model_dir.display(),
+        if long { "-long" } else { "" },
+        p.join("golden.jsonl").display(),
+        p.join("golden_long.jsonl").display(),
+    )
+}
+
+/// The exact command that makes the 4k golden by hand (top-20 log-probs: a full-vocabulary 4k golden is over a GB per prompt).
+fn manual_golden_command_4k(repo: &Path, model_dir: &Path, name: &str) -> String {
+    format!(
+        "{} --model {} --out golden/{name}-4k-fp32-top20.safetensors --device cpu --dtype float32 --topk 20 --prompts {}",
+        uv_golden_prefix(repo),
+        model_dir.display(),
+        repo.join("tools/prompts/golden_4k.jsonl").display(),
+    )
+}
+
 impl Ctx {
     fn golden(&mut self, long: bool) -> Result<Golden> {
         let key = if long { "golden_long" } else { "golden_short" };
@@ -1365,9 +1470,13 @@ impl Ctx {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
         Ok(Golden::None(format!(
-            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; build one with tools/golden.py --prompts tools/prompts/golden_4k.jsonl)",
+            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; qualify never makes it, build it by hand: {})",
             self.name,
             dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
+            match facts::repo_root() {
+                Some(repo) => manual_golden_command_4k(&repo, &self.a.model, &self.name),
+                None => "tools/golden.py --prompts tools/prompts/golden_4k.jsonl --topk 20 --dtype float32".into(),
+            },
         )))
     }
 
@@ -1399,6 +1508,8 @@ impl Ctx {
         let mut cmd = Command::new(&python[0]);
         cmd.args(&python[1..]);
         let mut desc;
+        // (expected minutes, GB) when the golden is made on this machine's CPU: that needs a fleetq slot
+        let mut slot: Option<(u64, f64)> = None;
         match self.a.reference.clone() {
             Some(r) if r.starts_with("http://") || r.starts_with("https://") => {
                 let base = intarsia_bench::http::api_base(&r);
@@ -1416,13 +1527,16 @@ impl Ctx {
                 let model_dir = other.map(PathBuf::from).unwrap_or(self.a.model.clone());
                 let cfg = read_json(&model_dir.join("config.json"))?;
                 let wf = facts::weight_facts(&model_dir, &cfg)?;
-                if wf.moe || wf.hybrid || wf.quantized {
-                    return Ok(Golden::None("no golden found, and a golden for a MoE / hybrid / quantized model is made from a reference server: pass --reference <vLLM url> or --golden FILE".into()));
-                }
                 let gb = wf.total_bytes as f64 / 1e9;
-                if gb > self.a.make_golden_max_gb {
-                    return Ok(Golden::None(format!("no golden found, and {gb:.1} GB of weights is too large to make an fp32 HF golden quickly (limit {} GB, --make-golden-max-gb): pass --golden FILE or --reference <vLLM url>", self.a.make_golden_max_gb)));
-                }
+                let avail_gb = available_ram_gb();
+                let (fp32_gb, expect_min) = match auto_golden_decision(&wf, long, gb, self.a.make_golden_max_gb, avail_gb, self.a.mem_budget) {
+                    AutoGolden::Make { fp32_gb, expect_min } => (fp32_gb, expect_min),
+                    AutoGolden::Manual(why) => {
+                        let cmdline = manual_golden_command(&repo, &model_dir, &self.name, long);
+                        return Ok(Golden::None(format!("{why}; make it by hand (CPU, no timing run beside it): {cmdline}")));
+                    }
+                    AutoGolden::Skip(why) => return Ok(Golden::None(why)),
+                };
                 cmd.arg(repo.join("tools/golden.py"))
                     .args(["--model"])
                     .arg(&model_dir)
@@ -1432,13 +1546,18 @@ impl Ctx {
                 if long {
                     cmd.arg(repo.join("tools/prompts/golden_long.jsonl"));
                 }
-                desc = format!("made with tools/golden.py from {} (HF transformers fp32 on cpu)", model_dir.display());
+                desc = format!("made with tools/golden.py from {} (HF transformers fp32 on cpu, bf16 spread recorded)", model_dir.display());
+                slot = Some((expect_min, fp32_gb));
             }
         }
         if let Some(d) = out.parent() {
             std::fs::create_dir_all(d)?;
         }
         self.say(&format!("making the {} golden ({desc})", if long { "long" } else { "short" }));
+        let cmd = match slot {
+            Some((expect_min, gb)) => in_fleetq_slot(cmd, expect_min, gb, &format!("qualify: HF fp32 {} golden for {}", if long { "long" } else { "short" }, self.name)),
+            None => cmd,
+        };
         self.cmds.push(format!("{:?}", cmd));
         let r = proc::run_captured(
             cmd,
@@ -2713,6 +2832,58 @@ mod tests {
             assert!(server_max_seq(&[size], gen) >= need, "{size}+{gen}");
         }
         assert!(server_max_seq(&[64], 16) >= 2048);
+    }
+
+    fn wf(moe: bool, hybrid: bool, quantized: bool) -> facts::WeightFacts {
+        facts::WeightFacts { total_bytes: 8_700_000_000, active_bytes: 8_700_000_000, moe, hybrid, quantized }
+    }
+
+    #[test]
+    fn a_dense_hybrid_bf16_model_that_fits_gets_its_short_golden_made() {
+        // Qwen3.5-4B: 8.7 GB of bf16 weights, hybrid; endor has ~100 GB free
+        let AutoGolden::Make { fp32_gb, expect_min } = auto_golden_decision(&wf(false, true, false), false, 8.7, 16.0, 100.0, None) else {
+            panic!("a dense hybrid model fitting in RAM is made")
+        };
+        assert!((fp32_gb - 20.4).abs() < 1e-9, "fp32 copy plus headroom: {fp32_gb}");
+        assert_eq!(expect_min, 8, "an honest, high guess for the slot");
+        // a plain dense model: short and long both
+        for long in [false, true] {
+            assert!(matches!(auto_golden_decision(&wf(false, false, false), long, 8.7, 16.0, 100.0, None), AutoGolden::Make { .. }));
+        }
+    }
+
+    #[test]
+    fn the_long_golden_of_a_hybrid_model_stays_manual_and_the_rest_is_skipped_with_a_reason() {
+        let d = |w: &facts::WeightFacts, long, gb, max, avail, budget| auto_golden_decision(w, long, gb, max, avail, budget);
+        assert!(matches!(d(&wf(false, true, false), true, 8.7, 16.0, 100.0, None), AutoGolden::Manual(m) if m.contains("hybrid")));
+        for w in [wf(true, false, false), wf(false, false, true), wf(true, true, true)] {
+            assert!(matches!(d(&w, false, 8.7, 16.0, 100.0, None), AutoGolden::Skip(m) if m.contains("MoE / quantized") && m.contains("--reference")));
+        }
+        // too many weights for a quick golden
+        assert!(matches!(d(&wf(false, true, false), false, 54.0, 16.0, 500.0, None), AutoGolden::Skip(m) if m.contains("--make-golden-max-gb")));
+        // fp32 does not fit: 8.7 GB needs 17.4 + 3 GB; 20 GB free is not enough, 21 is
+        assert!(matches!(d(&wf(false, true, false), false, 8.7, 16.0, 20.0, None), AutoGolden::Skip(m) if m.contains("needs about 20 GB of RAM") && m.contains("20 GB are available")));
+        assert!(matches!(d(&wf(false, true, false), false, 8.7, 16.0, 21.0, None), AutoGolden::Make { .. }));
+        // --mem-budget caps what RAM may be used
+        assert!(matches!(d(&wf(false, true, false), false, 8.7, 16.0, 100.0, Some(12.0)), AutoGolden::Skip(m) if m.contains("12 GB are available")));
+    }
+
+    #[test]
+    fn the_manual_golden_commands_are_complete_and_the_slot_wrapper_keeps_the_command() {
+        let (repo, model) = (Path::new("/r"), Path::new("/m/Qwen3.5-4B"));
+        let c = manual_golden_command(repo, model, "qwen3.5-4b", true);
+        assert_eq!(
+            c,
+            "uv run --project /r/tools python /r/tools/golden.py --model /m/Qwen3.5-4B --out golden/qwen3.5-4b-long-fp32.safetensors --device cpu --dtype float32 --prompts /r/tools/prompts/golden.jsonl /r/tools/prompts/golden_long.jsonl"
+        );
+        let c4 = manual_golden_command_4k(repo, model, "qwen3.5-4b");
+        assert!(c4.contains("--out golden/qwen3.5-4b-4k-fp32-top20.safetensors") && c4.contains("--topk 20") && c4.ends_with("/r/tools/prompts/golden_4k.jsonl"), "{c4}");
+        let mut inner = Command::new("python3");
+        inner.args(["golden.py", "--dtype", "float32"]);
+        let w = wrap_in_fleetq(inner, 8, 20.4, "lbl");
+        let args: Vec<String> = w.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(w.get_program(), "fleetq");
+        assert_eq!(args.join(" "), "run --for-url http://127.0.0.1 --load cpu --expect 8 --mem 21 --label lbl -- python3 golden.py --dtype float32");
     }
 
     #[test]

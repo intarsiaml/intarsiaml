@@ -87,24 +87,30 @@ every one stopped at `recipe new` on a quantisation format or tensor layout the 
 
 * **The binary must be built with the backend feature.** `cargo build --release --locked -p intarsia-cli --features metal` (or `cuda`, `hip`);
   a plain build stops `smoke` with "this binary was built without the Metal backend". `scripts/deploy.sh` adds the feature for the host.
-* **`qualify` makes no golden for a hybrid (GatedDeltaNet), MoE or quantised model, even a small bf16 one**: `acc-short` is SKIPPED until you
-  make one. Without a reference server, make the HF fp32 golden by hand and give its directory with `-- --golden-dir DIR` (the file is found
-  by the model's name, `Qwen3.5-4B` -> `qwen3.5-4b-fp32.safetensors`):
-  `uv run --project tools python tools/golden.py --model <dir> --out DIR/qwen3.5-4b-fp32.safetensors --device cpu --dtype float32`
-  (short and 700-token prompts: 1 min for a 4B) and, for the 4k set,
-  `... --out DIR/qwen3.5-4b-4k-fp32-top20.safetensors --topk 20 --prompts tools/prompts/golden_4k.jsonl` (34 min for the 4B on endor's CPU:
-  HF falls back to its PyTorch GatedDeltaNet loop without `flash-linear-attention`; it holds the CPU, so no timing run can share the box).
-  A 4k file given alone is used by `acc-long` as the long set and `acc-4k` then reads "covered by acc-long"
-  (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
+* **`qualify` makes the short golden of a dense bf16 model itself, hybrid (GatedDeltaNet) included**, when none is found and the fp32 copy fits
+  in RAM (2 x the weights + 3 GB, within `--mem-budget`) and the weights are at most `--make-golden-max-gb` (16 GB): `tools/golden.py --dtype
+  float32` on the CPU, inside a fleetq slot on this machine (`fleetq run --load cpu`, taken for you unless the process already holds one; no
+  fleetq on the box: it just runs). About 1.5 min for the Qwen3.5-4B short set, bf16 spread pass included. A MoE or quantised model is skipped
+  with the reason (its golden comes from a reference server: `--reference URL` or `--golden FILE`), as is a model too large for the CPU run.
+  The **long** golden of a hybrid model and the **4k** golden of any model stay manual, because HF runs GatedDeltaNet as a PyTorch loop
+  without `flash-linear-attention` (4k set: 34 min for the 4B on endor's CPU, which no timing run can share). `qualify` prints the exact
+  command in the stage's SKIPPED reason; it reads like
+  `uv run --project tools python tools/golden.py --model <dir> --out golden/qwen3.5-4b-4k-fp32-top20.safetensors --device cpu --dtype float32 --topk 20 --prompts tools/prompts/golden_4k.jsonl`
+  (the long one: `--out golden/qwen3.5-4b-long-fp32.safetensors --prompts tools/prompts/golden.jsonl tools/prompts/golden_long.jsonl`). Give the
+  directory with `-- --golden-dir DIR` (files are found by model name). A 4k file given alone is used by `acc-long` as the long set and
+  `acc-4k` then reads "covered by acc-long" (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
 * **Original Hugging Face Qwen3.5 checkpoints store `A_log` and the gated-norm weight as f32** (the MLX and ModelOpt conversions store bf16).
   The GPU GatedDeltaNet kernels read bf16, so a 4B checkpoint stopped at "no kernel for gdn_delta_rule ... w=F32" and then at "metal w:
   expected bf16, got f32". Both tensors are now rounded to bf16 once at load on the GPU backends (`gpu_f32_to_bf16` in
   `crates/intarsia-core/src/model.rs`); the cpu reference keeps f32.
-* **A bf16 engine can FAIL the absolute top-1 floor (99.5 %) against an fp32 golden on reference noise alone.** Qwen3.5-4B on Metal: prefill
-  top-1 99.72 %, KL21 1.6e-4, yet `acc-short` FAILs on 2 of 160 decode rows (98.75 %). HF's own bf16 run agrees with its fp32 run on only
-  98.96 % of the same prefill rows (KL 3.2e-4), so the floor cannot be met by any bf16 run. Read the KL21 rows and compare with an HF bf16
-  golden (`tools/golden.py --dtype bfloat16`, 1.5 min for a 4B) before treating the FAIL as an engine fault.
-
+* **The top-1 floor of a bf16 model follows the golden's reference spread.** The class floor (99.5 %) cannot be met by a bf16 run against an
+  fp32 golden when HF's own bf16 forward disagrees with its fp32 one more often than that (Qwen3.5-4B: 98.96 % agreement over the 1441
+  short-set rows, KL 3.2e-4; the engine's 99.72 % prefill top-1 and 2 flips in 160 decode rows failed it in the drill). `tools/golden.py
+  --dtype float32` now runs a second bf16 pass and records that agreement (and the KL) in the golden's `ref_spread` metadata;
+  `intarsia accuracy` (and so `acc-short`, `acc-long`) then requires top-1 >= `agreement - 2 standard errors` at the number of rows judged
+  (0.27 points on 1441 rows, 0.8 on 160 decode rows), never above 99.5 %, **and** the unchanged KL floor. `--min-top1` still wins; a golden
+  without `ref_spread` (every golden made before this, every vLLM golden) keeps the 99.5 % floor exactly. The line `gates: ... top-1 floor
+  calibrated on the golden's reference spread` in the accuracy log says which applies. `--no-bf16-spread` skips the extra pass.
 * **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
   and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
   that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,
@@ -353,9 +359,10 @@ What each stage needs and how it decides:
 * **Goldens** (`acc-short`, `acc-long`, `acc-4k`, `envelope`, `tp`): `--golden` / `--golden-long` / `--golden-4k`, else found by model name
   in `--golden-dir` (default `./golden`, `/models/golden`, `$INTARSIA_GOLDEN_DIR`; an fp32 file is preferred
   over others, `<name>-long...` is the long set), else made: from `--reference http://...` (a vLLM-style server:
-  `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a small dense bf16 model (at most `--make-golden-max-gb`
-  5 GB of weights, no MoE / hybrid / quantisation), an HF fp32 golden with `tools/golden.py` (needs `uv` or a
-  python with torch and transformers). Otherwise the stage is **skipped with the reason**; a model that no one can
+  `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a dense bf16 model (at most `--make-golden-max-gb`
+  16 GB of weights, no MoE / quantisation, an fp32 copy that fits in RAM; hybrid models get the short golden only), an HF fp32
+  golden with `tools/golden.py` in a fleetq slot (needs `uv` or a python with torch and transformers)
+  that also records the bf16 spread the top-1 floor follows. Otherwise the stage is **skipped with the reason**; a model that no one can
   make a golden for needs `--golden` or `--reference`. A reference server must implement vLLM's `prompt_logprobs`
   (radiance 1.9.0 ignores it and returns no rows). For an AMD Quark MXFP4 checkpoint with no reference server and no
   bf16 base, `tools/golden_quark_mxfp4.py` makes the golden from HF's own Qwen3.5 decoder layers, one layer in memory at a

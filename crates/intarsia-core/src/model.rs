@@ -49,6 +49,19 @@ use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
+/// The checkpoint tensors among a call's `inputs` that have dtype `dtype` (the weight dtype of a call no kernel took), as
+/// `'name' (dtype)`. Matched by buffer and offset against the tensors `Model::load_shard` read; activations and workspace
+/// buffers are not in the index. Empty when `dtype` is unknown or no input is a named checkpoint tensor.
+fn weights_named(index: &[(String, TensorRef)], inputs: &[TensorRef], dtype: Option<DType>) -> Vec<String> {
+    let Some(dt) = dtype else { return Vec::new() };
+    inputs
+        .iter()
+        .filter(|t| t.dtype == dt)
+        .filter_map(|t| index.iter().find(|(_, w)| w.buf.ptr_eq(&t.buf) && w.offset == t.offset))
+        .map(|(n, w)| format!("'{n}' ({})", w.dtype))
+        .collect()
+}
+
 /// `A_log` and the gated-norm weight are f32 in the original Hugging Face Qwen3.5 checkpoints (the MLX / ModelOpt conversions
 /// already store them bf16) and the GPU GatedDeltaNet kernels read them as bf16 (`weights(bf)`): without this the load stops at
 /// "no kernel for gdn_delta_rule" and then "metal w: expected bf16, got f32" (drill nmd, Qwen3.5-4B on Metal). Rounded once at
@@ -390,6 +403,9 @@ pub struct Model {
     profile_every: u32,
     /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
     scratch: Option<Buffer>,
+    /// Dense checkpoint tensors by name (`load` / `load_sharded`), to say which tensor an op without a kernel for its weight
+    /// dtype was given ([`weights_named`]); read on the plan error path only.
+    weight_names: Arc<Vec<(String, TensorRef)>>,
     /// Installed by [`Model::dry_run`]: `exec` records `(op, shape, kernel)` instead of launching.
     recorder: Mutex<Option<crate::plan::Recorder>>,
     /// Result of plan resolution (kernel of every op/shape the model needs).
@@ -633,10 +649,12 @@ impl Model {
         let dims = &local_dims;
         let b: &dyn Backend = &*backend;
         let weights_bytes = Cell::new(0u64);
+        let weight_names: std::cell::RefCell<Vec<(String, TensorRef)>> = Default::default();
         let load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
             let name = resolve(src, &Recipe::expand(tmpl, layer))?;
             let t = load_tensor(b, src, &name, shape)?;
             weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            weight_names.borrow_mut().push((name, t.clone()));
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
@@ -678,6 +696,7 @@ impl Model {
                 return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
             }
             weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            weight_names.borrow_mut().push((name, t.clone()));
             Ok(t)
         };
 
@@ -1299,6 +1318,7 @@ impl Model {
             kv,
             plan,
             weights_bytes: weights_bytes.get(),
+            weight_names: Arc::new(weight_names.into_inner()),
             embed,
             final_norm,
             lm_head,
@@ -2530,6 +2550,7 @@ impl Model {
                         r.missing.push((
                             call.op,
                             format!("{e} (heads {}/{} head_dim {} kv_len {})", s.n_heads, s.n_kv_heads, s.head_dim, s.kv_len),
+                            weights_named(&self.weight_names, &call.inputs, s.weight),
                         ))
                     }
                 }
@@ -3848,5 +3869,42 @@ impl Model {
     /// KV cache bytes one token occupies across all attention slots.
     pub fn kv_bytes_per_token(&self) -> u64 {
         self.plan.kv_bytes_per_token
+    }
+}
+
+#[cfg(test)]
+mod weights_named_tests {
+    use super::*;
+    use crate::backend::BufferImpl;
+
+    struct Buf(usize);
+    impl BufferImpl for Buf {
+        fn bytes(&self) -> usize {
+            self.0
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    fn tensor(dtype: DType, shape: &[usize]) -> TensorRef {
+        TensorRef::new(Buffer::new(Buf(1024)), dtype, shape)
+    }
+
+    #[test]
+    fn a_call_without_a_kernel_for_its_weight_dtype_names_the_checkpoint_tensor() {
+        let a_log = tensor(DType::F32, &[32]);
+        let norm = tensor(DType::Bf16, &[128]);
+        let x = tensor(DType::Bf16, &[1, 128]);
+        let index = vec![("model.layers.0.linear_attn.A_log".to_string(), a_log.clone()), ("model.layers.0.linear_attn.norm.weight".to_string(), norm.clone())];
+        // the activation is no checkpoint tensor; only the f32 input is of the dtype no kernel took, and it is named with its dtype
+        let inputs = [x.clone(), a_log.clone(), norm.clone()];
+        assert_eq!(weights_named(&index, &inputs, Some(DType::F32)), vec!["'model.layers.0.linear_attn.A_log' (f32)".to_string()]);
+        // a view of the same buffer at another offset is another tensor, not the named one
+        let mut other = a_log.clone();
+        other.offset = 64;
+        assert!(weights_named(&index, &[other], Some(DType::F32)).is_empty());
+        // an unknown weight dtype names nothing
+        assert!(weights_named(&index, &inputs, None).is_empty());
     }
 }
