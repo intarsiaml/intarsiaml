@@ -1,0 +1,4 @@
+scc-vllm16-r1: - result file: `results/20261027-132605-adhoc-scc-vllm16-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-132605-adhoc-scc-vllm16-r1/result.json 
+scc-vllm16-r2: - result file: `results/20261027-132648-adhoc-scc-vllm16-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-132648-adhoc-scc-vllm16-r2/result.json 
+scc-main-r1: - result file: `results/20261027-132820-adhoc-scc-main-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-132820-adhoc-scc-main-r1/result.json 
+scc-main-r2: - result file: `results/20261027-132948-adhoc-scc-main-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-132948-adhoc-scc-main-r2/result.json 
