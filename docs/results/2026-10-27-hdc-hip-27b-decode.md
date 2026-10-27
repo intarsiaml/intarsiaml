@@ -10,7 +10,7 @@ Branch `lane-hdc/hip-27b-decode`, built on origin/main `8f93d2397`. Host tatooin
 | Where the step goes | 18.35 ms per step at 1k (54.5 tok/s). Weight bytes per rank and token are 7.93 GB, so the floor at 640 GB/s is 12.39 ms (80.7 tok/s): main runs at **67.5 %** of the bandwidth ceiling at 1k (67.4 % at 4k, 66.9 % at 16k). The MXFP4 GEMVs themselves are already at 84-95 % of 640 GB/s and the logits GEMV is at 100 %; the gap is **many small launches around them**: 320 activation-quantisation launches (0.68 ms), 128 all-reduces (1.2-1.6 ms), 177 norm launches (0.59 ms) and about 1.5 ms of idle between 1128 launches. |
 | Knobs on main | `INTARSIA_TP_ARNORM=1`: **+0.6 / +0.7 / +0.7 %** at 1k / 4k / 16k, bitwise equal, below the +3 % bar, stays opt-in. `INTARSIA_HIP_WMMA_ROWS=1` (any `WMMA_TABLE`): **a no-op on the 27B** (plan byte-identical, speed 1.000 / 1.000 / 1.000), because the 27B decode has no fp8 dense weight and no bf16 router. Both together = ARNORM alone. |
 | The fix | `INTARSIA_HIP_MXFP4_A8_FUSE` (quantise the activation inside the GEMV block, an existing knob, off) becomes **the default for single-row calls (M = 1)**, and the fused kernel now loads the first weight group of each warp before it quantises. No new numerics (the output hash of 512 launches is identical in the pre-pass, fused-all-M and new-default modes). MTP-off decode **+4.4 / +4.3 / +4.5 %** (n = 4 per arm, spread at most 1.2 %) at 1k / 4k / 16k: 54.5 / 53.8 / 50.8 to 56.9 / 56.1 / 53.0 tok/s. |
-| Gates | All met (table below). PR (number below). |
+| Gates | All met (table below). PR #214, merged after CI. |
 
 ## 1. Attribution: one MTP-off decode step, tp=2, 1k context, main `8f93d2397`
 
@@ -129,7 +129,7 @@ The run spread is 8-18 %, so none of the three ratios is distinguishable from 1.
 | `plan show` diff explained | **no diff**: byte-identical for the 8B (1346 B), the 35B (3184 B) and the 27B at tp2 (3331 B), main CLI against the change; the plan names kernels, not their internal fusion |
 | kernel tests on the GPU | `rows_exact` 13 passed (every M equals the one-row kernel, the default path), `mxfp4_a8` 6 passed, `mxfp4_decode` 2, `a8_served` 1, `mxfp4_a8_fuse` passed in three modes; `kernels test --backend hip --quick`: 74 rows ADMITTED, none rejected (`raw/w3/gates-1/`) |
 | Mac `cargo test --workspace --release` | **met**: 198 `test result: ok`, 0 failed (before the test-file edit below, which is `cfg(ik_hip)`; `docs_env_vars` re-run after it) |
-| CI | see the PR |
+| CI | **met**: PR #214, cargo check (linux, cuda cfgs, hip cfgs, macOS metal), cargo test (linux) and the reproducible build all pass |
 
 ## What did not work or was not done
 
