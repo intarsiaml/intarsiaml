@@ -1,0 +1,10 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=9.768e-1 rel_l2=1.004e0 T=64 Hk=2 Hv=4 dk=32 dv=32 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=9.676e-1 rel_l2=1.120e0 T=130 Hk=2 Hv=4 dk=32 dv=32 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=1.369e0 rel_l2=1.407e0 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=1.077e0 rel_l2=1.379e0 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+gdn_delta_rule gdn_delta_rule_bf16_pre         8      4     1.369e0     1.407e0  REJECTED
+1 kernels, 8 cases in 0.4s
+Error: kernel admission failed (1 kernel(s) REJECTED)

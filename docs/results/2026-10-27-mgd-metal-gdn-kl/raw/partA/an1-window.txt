@@ -1,0 +1,19 @@
+window positions 160
+prefill NAXon        1.173e-02
+prefill NAXoff       1.475e-02
+decode-win NAXon     8.200e-03
+decode-win NAXoff    1.164e-02
+decode-full NAXon    8.988e-03
+decode-full NAXoff   8.988e-03
+full decode on vs off max abs diff 0.0
+top10 share window decode off 0.72
+('chat_multiturn', 55) win_off 4.651e-01 win_on 3.492e-01 full 2.380e-01 prefill_off 5.554e-01 prefill_on 3.747e-01
+('long_prose_700', 689) win_off 2.646e-01 win_on 3.098e-02 full 3.326e-01 prefill_off 7.959e-01 prefill_on 4.175e-01
+('chat_system', 30) win_off 2.208e-01 win_on 2.144e-02 full 5.299e-02 prefill_off 2.850e-02 prefill_on 2.488e-01
+('chat_reasoning', 74) win_off 1.338e-01 win_on 1.741e-01 full 6.311e-02 prefill_off 9.713e-02 prefill_on 1.714e-01
+('chat_system', 23) win_off 8.185e-02 win_on 9.383e-04 full 1.209e-02 prefill_off 7.336e-02 prefill_on 1.235e-02
+('chat_system', 22) win_off 5.003e-02 win_on 3.532e-03 full 6.049e-02 prefill_off 6.182e-02 prefill_on 2.938e-02
+('chat_reasoning', 88) win_off 3.886e-02 win_on 2.037e-02 full 1.674e-02 prefill_off 1.229e-02 prefill_on 4.536e-02
+('chat_short', 16) win_off 3.297e-02 win_on 3.297e-02 full 2.015e-02 prefill_off 3.133e-02 prefill_on 1.468e-02
+full decode top1% share 0.40 mean 5.421e-03
+random 160-position subset mean of full decode: 2.5% 2.57e-03 median 5.06e-03 97.5% 1.01e-02

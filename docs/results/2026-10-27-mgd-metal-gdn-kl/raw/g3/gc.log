@@ -1,0 +1,116 @@
+   Compiling indexmap v2.14.2
+   Compiling syn v2.0.119
+   Compiling smallvec v1.16.3
+   Compiling serde v1.0.229
+   Compiling serde_spanned v1.1.2
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-backend-hip)
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-backend-cuda)
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling dary_heap v0.3.9
+   Compiling spm_precompiled v0.1.4
+   Compiling compact_str v0.9.1
+   Compiling serde_json v1.0.154
+   Compiling minijinja v2.24.0
+   Compiling darling_core v0.20.11
+   Compiling zerocopy-derive v0.8.62
+   Compiling monostate-impl v0.1.18
+   Compiling monostate v0.1.18
+   Compiling darling_macro v0.20.11
+   Compiling zerocopy v0.8.62
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling derive_builder_macro v0.20.2
+   Compiling derive_builder v0.20.2
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling ahash v0.8.12
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-core)
+   Compiling rand v0.9.5
+   Compiling tokenizers v0.22.2
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-backend-metal)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-models)
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_metal_real.rs:430:41
+    |
+430 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                         ^^^^^^^^^^ this value is reassigned later and never used
+...
+442 |                             reason = Some(finish_reason);
+    |                             ---------------------------- `reason` is overwritten here before the previous value is read
+    |
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "batch_metal_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 10.56s
+     Running tests/batch_metal_real.rs (target/release/deps/batch_metal_real-0e2ba6caed371530)
+
+running 7 tests
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_real_traffic ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_engine_long_prompts_control_busy_chunk_64 ... ignored
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+test real_35b_batched_engine_equals_the_local_engine has been running for over 60 seconds
+test real_35b_batched_engine_equals_the_local_engine ... FAILED
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+
+failures:
+
+---- real_35b_batched_engine_equals_the_local_engine stdout ----
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+
+thread 'real_35b_batched_engine_equals_the_local_engine' (27239956) panicked at crates/intarsia-models/tests/batch_metal_real.rs:187:65:
+called `Result::unwrap()` on an `Err` value: Memory("only 0 MiB free (0 MiB for KV at 50%): cannot hold a 16-token context")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    real_35b_batched_engine_equals_the_local_engine
+
+test result: FAILED. 1 passed; 1 failed; 5 ignored; 0 measured; 0 filtered out; finished in 81.05s
+
+error: test failed, to rerun pass `-p intarsia-models --test batch_metal_real`

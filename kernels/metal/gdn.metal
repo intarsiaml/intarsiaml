@@ -219,6 +219,191 @@ INST_DELTA(64)
 INST_DELTA(128)
 INST_DELTA(256)
 
+// ---- GdnDeltaRule, prefill form with a prep pass (lane MGD) ----------------------------------------------------------------
+// Bitwise `gdn_delta_rule_t`. That kernel recomputes, in every one of the dv rows of a head, the per-token work that does not
+// depend on the state: the l2 norms of q and k (two simd_sums), the reciprocal square roots, sigmoid(b), softplus / exp(a). The
+// prep kernel does it once per (token, key head) and writes the normalised q, k (f32, the very values the recurrence forms:
+// bf2f(q) * qr, bf2f(k) * kr) and the per-(token, value head) beta and decay; the recurrence then reads them and keeps only
+// the state chain: s *= decay, one simd_sum for kv, delta, s += k delta, one simd_sum for the output. Every float operation of
+// the recurrence is the original's, in the original's order, so the outputs and the state are bit-for-bit the original's.
+// bind (prep): 0 qkv, 1 a, 2 b, 3 A_log, 4 dt_bias, 5 scratch f32 = qk [T,Hk,2,dk] (q * qr | k * kr), then (at float offset
+// p.pad) gates [T,Hv,2] (beta | decay), 6 params. Groups (T, Hk) of 32 threads (one simdgroup).
+template <uint DK>
+kernel void gdn_delta_prep_t(device const ushort* qkv [[buffer(0)]],
+                             device const ushort* ga [[buffer(1)]],
+                             device const ushort* gb [[buffer(2)]],
+                             device const ushort* alog [[buffer(3)]],
+                             device const ushort* dtb [[buffer(4)]],
+                             device float* scratch [[buffer(5)]],
+                             constant GdnDeltaP& p [[buffer(6)]],
+                             uint2 tg [[threadgroup_position_in_grid]],
+                             uint lane [[thread_index_in_simdgroup]]) {
+    constexpr uint PL = DK / 32;
+    const uint t = tg.x, kh = tg.y;
+    device float* qk = scratch;
+    device float* gates = scratch + p.pad;
+    const ulong C = 2ul * p.hk * DK + (ulong)p.hv * p.dv;
+    const float scale = 1.0f / precise::sqrt((float)DK);
+    device const ushort* qp = qkv + p.s_qkv + t * C + (ulong)kh * DK + lane;
+    device const ushort* kp = qkv + p.s_qkv + t * C + ((ulong)p.hk + kh) * DK + lane;
+    float qn[PL], kn[PL], qq = 0.0f, kk = 0.0f;
+    for (uint i = 0; i < PL; ++i) {
+        qn[i] = bf2f(qp[32 * i]);
+        kn[i] = bf2f(kp[32 * i]);
+        qq += qn[i] * qn[i];
+        kk += kn[i] * kn[i];
+    }
+    qq = simd_sum(qq);
+    kk = simd_sum(kk);
+    const float qr = (1.0f / precise::sqrt(qq + p.eps)) * scale;
+    const float kr = 1.0f / precise::sqrt(kk + p.eps);
+    device float* dst = qk + ((ulong)t * p.hk + kh) * 2 * DK + lane;
+    for (uint i = 0; i < PL; ++i) {
+        dst[32 * i] = qn[i] * qr;
+        dst[DK + 32 * i] = kn[i] * kr;
+    }
+    // the value heads of this key head: lane r takes head kh * (Hv / Hk) + r
+    const uint grp = p.hv / p.hk;
+    if (lane < grp) {
+        const uint h = kh * grp + lane;
+        const float neg_a = -precise::exp(bf2f(alog[p.s_alog + h]));
+        const float dtbias = bf2f(dtb[p.s_dtb + h]);
+        const float beta = gdn_sigmoid(bf2f(gb[p.s_b + (ulong)t * p.hv + h]));
+        const float decay = precise::exp(neg_a * gdn_softplus(bf2f(ga[p.s_a + (ulong)t * p.hv + h]) + dtbias));
+        gates[((ulong)t * p.hv + h) * 2] = beta;
+        gates[((ulong)t * p.hv + h) * 2 + 1] = decay;
+    }
+}
+
+// bind (recurrence): 0 qkv (only v is read), 1 scratch (as written by the prep), 2 o [T,Hv,dv] bf16, 3 state f32 [Hv,dv,dk] (in
+// place), 4 params. Groups (dv / GDN_PRE_ROWS, Hv) of GDN_DELTA_SG simdgroups (dv % GDN_PRE_ROWS == 0), GDN_PRE_RPS rows j of head h
+// each, every row as in `gdn_delta_rule_t`. The four simdgroups of a group read the same q, k, beta, decay of every token: a tile of GDN_PRE_TILE tokens
+// is staged in threadgroup memory by all 128 threads (the next tile is fetched into registers while the current one is consumed),
+// so the serial loop reads no device memory.
+// Value rows a simdgroup runs side by side (independent chains: their simd_sums overlap) and rows a threadgroup covers.
+constant constexpr uint GDN_PRE_RPS = 4;
+constant constexpr uint GDN_PRE_ROWS = GDN_DELTA_SG * GDN_PRE_RPS;
+
+template <uint DK>
+struct GdnPreTile {
+    static constant constexpr uint TILE = DK >= 256 ? 8 : 16;          // tokens per tile
+    static constant constexpr uint QPT = TILE * 2 * DK / (32 * GDN_DELTA_SG);  // q / k floats a thread stages per tile
+};
+
+#define PRE_FETCH(T0)                                                                                                   \
+    {                                                                                                                   \
+        const uint fn = min(TILE, p.t - (T0));                                                                          \
+        for (uint r = 0; r < QPT; ++r) {                                                                                \
+            const uint idx = tid + NT * r, tt = idx / (2 * DK), e = idx % (2 * DK);                                     \
+            rq[r] = tt < fn ? qk[((T0) + tt) * qks + e] : 0.0f;                                                         \
+        }                                                                                                               \
+        rg = tid < 2 * TILE && tid / 2 < fn ? gates[((T0) + tid / 2) * gs + (tid & 1)] : 0.0f;                          \
+        for (uint r = 0; r < VPT; ++r) {                                                                                \
+            const uint idx = tid + NT * r, tt = idx / GDN_PRE_ROWS;                                                     \
+            rv[r] = idx < TILE * GDN_PRE_ROWS && tt < fn ? vp[((T0) + tt) * C + (idx % GDN_PRE_ROWS)] : (ushort)0;      \
+        }                                                                                                               \
+    }
+#define PRE_STAGE()                                                                                                     \
+    {                                                                                                                   \
+        for (uint r = 0; r < QPT; ++r) {                                                                                \
+            const uint idx = tid + NT * r;                                                                              \
+            sqk[idx / (2 * DK)][idx % (2 * DK)] = rq[r];                                                                \
+        }                                                                                                               \
+        if (tid < 2 * TILE) sgt[tid / 2][tid & 1] = rg;                                                                 \
+        for (uint r = 0; r < VPT; ++r) {                                                                                \
+            const uint idx = tid + NT * r;                                                                              \
+            if (idx < TILE * GDN_PRE_ROWS) sv[idx / GDN_PRE_ROWS][idx % GDN_PRE_ROWS] = rv[r];                          \
+        }                                                                                                               \
+    }
+
+template <uint DK>
+kernel void gdn_delta_rule_pre_t(device const ushort* qkv [[buffer(0)]],
+                                 device const float* scratch [[buffer(1)]],
+                                 device ushort* o [[buffer(2)]],
+                                 device float* state [[buffer(3)]],
+                                 constant GdnDeltaP& p [[buffer(4)]],
+                                 uint2 tg [[threadgroup_position_in_grid]],
+                                 uint sg [[simdgroup_index_in_threadgroup]],
+                                 uint lane [[thread_index_in_simdgroup]]) {
+    constexpr uint PL = DK / 32;
+    constexpr uint TILE = GdnPreTile<DK>::TILE;
+    constexpr uint QPT = GdnPreTile<DK>::QPT;
+    constexpr uint NT = 32 * GDN_DELTA_SG;
+    constexpr uint RPS = GDN_PRE_RPS;
+    constexpr uint VPT = (TILE * GDN_PRE_ROWS + NT - 1) / NT;  // v values a thread stages per tile
+    threadgroup float sqk[TILE][2 * DK];
+    threadgroup float sgt[TILE][2];
+    threadgroup ushort sv[TILE][GDN_PRE_ROWS];
+
+    const uint h = tg.y;
+    const uint j0 = tg.x * GDN_PRE_ROWS + sg * RPS;  // rows j0 .. j0 + RPS - 1 < dv: the host requires dv % GDN_PRE_ROWS == 0
+    const uint tid = sg * 32 + lane;
+    const uint kh = h / (p.hv / p.hk);
+    const ulong C = 2ul * p.hk * DK + (ulong)p.hv * p.dv;
+    device const float* qk = scratch + (ulong)kh * 2 * DK;  // + t * Hk * 2 * dk
+    device const float* gates = scratch + p.pad + (ulong)h * 2;  // + t * Hv * 2
+    device const ushort* vp = qkv + p.s_qkv + 2ul * p.hk * DK + (ulong)h * p.dv + (ulong)tg.x * GDN_PRE_ROWS;  // + t * C
+    const ulong qks = (ulong)p.hk * 2 * DK, gs = (ulong)p.hv * 2;
+
+    float s[RPS][PL];
+    for (uint r = 0; r < RPS; ++r) {
+        device float* srow = state + ((ulong)h * p.dv + j0 + r) * DK;
+        for (uint i = 0; i < PL; ++i) s[r][i] = srow[lane + 32 * i];
+    }
+
+    // the tile at token t0 -> registers (rq: q | k floats, rg: beta, decay, rv: v of the group's rows); slots past T are unused
+    float rq[QPT], rg = 0.0f;
+    ushort rv[VPT];
+    PRE_FETCH(0)
+    for (uint t0 = 0; t0 < p.t; t0 += TILE) {
+        threadgroup_barrier(mem_flags::mem_threadgroup);  // the previous tile is consumed
+        PRE_STAGE()
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (t0 + TILE < p.t) PRE_FETCH(t0 + TILE)
+        const uint n = min(TILE, p.t - t0);
+        for (uint tt = 0; tt < n; ++tt) {
+            const float cdecay = sgt[tt][1], cbeta = sgt[tt][0];
+            float kv[RPS];
+            for (uint r = 0; r < RPS; ++r) {
+                kv[r] = 0.0f;
+                for (uint i = 0; i < PL; ++i) {
+                    s[r][i] *= cdecay;
+                    kv[r] += s[r][i] * sqk[tt][DK + lane + 32 * i];
+                }
+            }
+            for (uint r = 0; r < RPS; ++r) kv[r] = simd_sum(kv[r]);
+            float out[RPS];
+            for (uint r = 0; r < RPS; ++r) {
+                const float delta = (bf2f(sv[tt][sg * RPS + r]) - kv[r]) * cbeta;
+                out[r] = 0.0f;
+                for (uint i = 0; i < PL; ++i) {
+                    s[r][i] += sqk[tt][DK + lane + 32 * i] * delta;
+                    out[r] += s[r][i] * sqk[tt][lane + 32 * i];
+                }
+            }
+            for (uint r = 0; r < RPS; ++r) {
+                const float ov = simd_sum(out[r]);
+                if (lane == 0) o[p.s_o + ((ulong)(t0 + tt) * p.hv + h) * p.dv + j0 + r] = f2bf(ov);
+            }
+        }
+    }
+    for (uint r = 0; r < RPS; ++r) {
+        device float* srow = state + ((ulong)h * p.dv + j0 + r) * DK;
+        for (uint i = 0; i < PL; ++i) srow[lane + 32 * i] = s[r][i];
+    }
+}
+
+#define INST_DELTA_PRE(DK)                                                                                              \
+    template [[host_name("gdn_delta_prep_dk" #DK)]] kernel void gdn_delta_prep_t<DK>(                                   \
+        device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,   \
+        device float*, constant GdnDeltaP&, uint2, uint);                                                               \
+    template [[host_name("gdn_delta_rule_pre_dk" #DK)]] kernel void gdn_delta_rule_pre_t<DK>(                           \
+        device const ushort*, device const float*, device ushort*, device float*, constant GdnDeltaP&, uint2, uint, uint);
+INST_DELTA_PRE(32)
+INST_DELTA_PRE(64)
+INST_DELTA_PRE(128)
+INST_DELTA_PRE(256)
+
 // ---- Row tables (batched decode, lane mr3) -------------------------------------------------------------------------------
 // `gdn_conv_bf16_rows_k*` / `gdn_delta_rule_bf16_rows_dk*`: the T = 1 conv and delta-rule calls of the solo decode step on R
 // rows (sequences) in ONE dispatch (threadgroup z = row). Row r of the activations ([R, ...]) is the single input row of

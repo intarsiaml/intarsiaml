@@ -1,0 +1,21 @@
+== tp2 f32: exit 0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.12% (not gated for this class) ok | 21-way KL (scored rows, n=118) 5.669e-3 (need <= 3.0e-2) ok [all rows, n=160: 5.071e-3, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.669e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 5.071e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.669e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+greedy-match [prefill]: mean 47.2% of positions before the first argmax divergence, worst prompt 2.6% (informational)
+greedy-match [decode (teacher-forced)]: mean 81.9% of positions before the first argmax divergence, worst prompt 18.8% (informational)
+golden gate: PASS
+== tp2 bf16: exit 0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 7.011e-3 (need <= 3.0e-2) ok [all rows, n=160: 8.796e-3, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 7.011e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 8.796e-3 (21-way KL over all rows <= static floor) | current def: PASS 7.011e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+greedy-match [prefill]: mean 62.4% of positions before the first argmax divergence, worst prompt 2.6% (informational)
+greedy-match [decode (teacher-forced)]: mean 68.1% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+golden gate: PASS
+== tp2 hyb: exit 0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.25% (not gated for this class) ok | 21-way KL (scored rows, n=118) 9.641e-3 (need <= 3.0e-2) ok [all rows, n=160: 9.809e-3, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 9.641e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 9.809e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.641e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+greedy-match [prefill]: mean 62.4% of positions before the first argmax divergence, worst prompt 2.6% (informational)
+greedy-match [decode (teacher-forced)]: mean 68.1% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+golden gate: PASS

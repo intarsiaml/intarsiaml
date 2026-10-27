@@ -25,3 +25,18 @@ fn shipped_27b_recipe_prefill_chunk() {
     // whole base chunks: a multiple of the 256-row builtin chunk
     assert_eq!(hip.value % intarsia_core::recipe::DEFAULT_PREFILL_CHUNK, 0);
 }
+
+#[test]
+fn shipped_27b_recipe_tp_partial() {
+    // bf16 all-reduce partials on HIP only (lane TPB, docs/results/2026-10-27-tpb-hip-tp-partials.md); CUDA, Metal and CPU keep the engine default (f32)
+    let text = include_str!("../../../recipes/qwen3_5_vl.toml");
+    let r = intarsia_models::parse_recipe(text).unwrap();
+    assert_eq!(r.resolve_tp_partial("hip"), Some("bf16"));
+    for b in ["cuda", "metal", "cpu"] {
+        assert_eq!(r.resolve_tp_partial(b), None, "{b} keeps the f32 partials");
+    }
+    // a value other than f32 / bf16 is refused when the recipe is read
+    let bad = text.replace("tp_partial = \"bf16\"", "tp_partial = \"fp16\"");
+    assert_ne!(bad, text);
+    assert!(intarsia_models::parse_recipe(&bad).is_err(), "tp_partial = fp16 must be refused");
+}

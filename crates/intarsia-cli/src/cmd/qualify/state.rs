@@ -8,6 +8,9 @@ use std::path::{Path, PathBuf};
 
 pub const STATE_VERSION: u32 = 1;
 
+/// The reason of a stage the user skipped with `--skip` (an explicit choice, unlike a SKIP for a missing golden).
+pub const SKIPPED_BY_FLAG: &str = "skipped by --skip";
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Verdict {
@@ -85,6 +88,13 @@ pub struct State {
     pub hooks: Vec<Value>,
 }
 
+impl StageRecord {
+    /// `acc-short` that did not run and was not skipped on request: see `State::accuracy_unchecked`.
+    pub fn is_unchecked_accuracy(&self) -> bool {
+        self.id == "acc-short" && self.verdict == Verdict::Skip && self.reason != SKIPPED_BY_FLAG
+    }
+}
+
 impl State {
     pub fn new(key: Value) -> State {
         State { version: STATE_VERSION, key, created_unix: now(), quick_report: None, stages: vec![], hooks: vec![] }
@@ -116,6 +126,12 @@ impl State {
         std::fs::write(&tmp, serde_json::to_string_pretty(self)? + "\n")?;
         std::fs::rename(&tmp, &p).with_context(|| format!("writing {}", p.display()))?;
         Ok(())
+    }
+
+    /// The required short-accuracy stage, SKIPPED for a reason other than the user's `--skip` (no golden found): the run
+    /// checked no accuracy and must not read as PASS.
+    pub fn accuracy_unchecked(&self) -> Option<&StageRecord> {
+        self.get("acc-short").filter(|r| r.is_unchecked_accuracy())
     }
 
     pub fn get(&self, id: &str) -> Option<&StageRecord> {

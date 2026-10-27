@@ -159,6 +159,9 @@ pub const GATE_SPLIT_BF16: &str = "gate_split_bf16";
 pub const SIGMOID_MUL_BF16: &str = "sigmoid_mul_bf16";
 pub const GDN_CONV_BF16: &str = "gdn_conv_bf16";
 pub const GDN_DELTA_RULE_BF16: &str = "gdn_delta_rule_bf16";
+/// `GdnDeltaRule` for T >= `gdn::PRE_MIN_T`: the per-token norms and gates once per head instead of once per value row, bitwise
+/// `gdn_delta_rule_bf16` (kernels/metal/gdn.metal, tests/gdn.rs).
+pub const GDN_DELTA_RULE_BF16_PRE: &str = "gdn_delta_rule_bf16_pre";
 pub const ARGMAX_F32: &str = "argmax_f32";
 pub const ARGMAX_BF16: &str = "argmax_bf16";
 /// Low-latency forms (phase B2b), chosen by the launcher of the op when the operands allow: row norms that issue all
@@ -364,6 +367,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (SIGMOID_MUL_BF16, Op::SigmoidMul),
     (GDN_CONV_BF16, Op::GdnConv),
     (GDN_DELTA_RULE_BF16, Op::GdnDeltaRule),
+    (GDN_DELTA_RULE_BF16_PRE, Op::GdnDeltaRule),
     (crate::moe::MOE_TOPK_BF16, Op::MoeTopk),
     (crate::moe::MOE_EXPERTS_BF16, Op::MoeExperts),
     (crate::moe::MOE_COMBINE_BF16, Op::MoeCombine),
@@ -571,6 +575,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(crate::gdn::delta_ok)
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL),
+                // the same recurrence for T >= 64 with the per-token norms and gates done once per head in a prep pass: bitwise
+                // `gdn_delta_rule_bf16` (tests/gdn.rs). `INTARSIA_METAL_GDN_PRE=0` hides it.
+                GDN_DELTA_RULE_BF16_PRE => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::gdn::pre_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::gdn::pre_scratch)
+                    .priority(5),
                 // MoE (kernels/metal/moe.metal, moe.rs), the hip entries' predicates and budget. top-k: bf16 or f32 logits.
                 crate::moe::MOE_TOPK_BF16 => k
                     .acts([DType::Bf16, DType::F32])
@@ -840,6 +854,7 @@ mod tests {
         "gdn_conv_bf16:gdn_conv",
         "gdn_conv_bf16_rows:gdn_conv",
         "gdn_delta_rule_bf16:gdn_delta_rule",
+        "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",

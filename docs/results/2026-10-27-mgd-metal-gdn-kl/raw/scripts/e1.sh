@@ -1,0 +1,6 @@
+#!/bin/bash
+cd /opt/code/intarsiaml/.worktrees/mgd
+M=$HOME/models/Qwen3.6-35B-A3B-NVFP4; G=/opt/code/intarsiaml/golden
+export INTARSIA_ACC_POS_DUMP=$PWD/run/e1/pos.tsv; rm -f $INTARSIA_ACC_POS_DUMP
+./target/release/intarsia accuracy --model $M --backend metal --golden $G/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --allow-unstamped > run/e1/log.txt 2>&1
+echo exit $?

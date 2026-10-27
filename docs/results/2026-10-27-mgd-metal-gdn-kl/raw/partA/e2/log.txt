@@ -1,0 +1,57 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise [sidecar /opt/code/intarsiaml/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md); estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl); factor 1 (default)
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   1.950e-3   2.299e-3   2.299e-3   9.722e-3   0.0455   0.0431    95.26     38/38      0
+story                 39    39    94.87   5.019e-3   4.789e-3   4.789e-3   2.610e-2   0.0495   0.0487    93.85      4/39      0
+code                  87    87    97.70   7.329e-4   7.179e-4   7.179e-4   5.876e-3   0.0179   0.0180    96.78     11/87      0
+science               79    79    96.20   1.047e-2   1.353e-2   1.353e-2   3.504e-1   0.0278   0.0322    96.46     26/79      0
+chat_short            18    18    94.44   2.578e-3   2.784e-3   7.919e-3   2.495e-2   0.0424   0.0407    95.56      2/18      0
+chat_system           32    32    96.88   2.485e-2   2.473e-2   3.963e-2   3.226e-1   0.0305   0.0271    90.62      9/32      0
+chat_multiturn        58    58    96.55   8.647e-3   8.721e-3   2.304e-2   3.746e-1   0.0262   0.0256    94.48      2/58      0
+chat_reasoning        90    90    93.33   1.785e-2   1.790e-2   1.198e-2   2.418e-1   0.0207   0.0201    95.11      2/90      0
+long_prose_300       300   300    99.00   2.960e-3   3.111e-3   3.111e-3   1.909e-1   0.0126   0.0134    90.20     0/300      0
+long_prose_700       700   700    98.86   6.360e-3   5.708e-3   5.708e-3   6.057e-1   0.0129   0.0124    89.83     0/700      0
+OVERALL                   1441    98.06   6.558e-3   6.448e-3   5.589e-3   6.057e-1   0.0176   0.0175    91.55      6.5%      0
+prefill floor [4bit]: top-1 (all rows) 98.06% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.589e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.448e-3, reported only] | tail mass (all rows) ours 0.0175 vs ref 0.0176, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 5.589e-3 PASS | KL / ref noise = 1.857 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: PASS 6.448e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.589e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    37   100.00   3.150e-3   3.462e-3   3.462e-3   2.409e-2   0.0455   0.0422    91.89     37/37      0
+story                 39    38    94.74   4.933e-3   4.724e-3   4.724e-3   2.292e-2   0.0504   0.0493    96.32      3/38      0
+code                  87    86    98.84   9.630e-4   9.521e-4   9.521e-4   9.594e-3   0.0110   0.0107    96.51     10/86      0
+science               79    78    96.15   5.415e-3   5.287e-3   5.287e-3   3.472e-2   0.0272   0.0277    97.69     12/78      0
+chat_short            18    17    94.12   7.386e-3   8.040e-3   1.488e-2   5.433e-2   0.0449   0.0420    96.47      1/17      0
+chat_system           32    31    93.55   2.889e-2   2.901e-2   1.148e-2   4.612e-1   0.0314   0.0332    88.39      9/31      0
+chat_multiturn        58    57    98.25   5.595e-3   5.684e-3   1.458e-2   2.382e-1   0.0267   0.0259    96.49      1/57      0
+chat_reasoning        90    89    95.51   1.295e-2   1.299e-2   5.243e-3   6.802e-2   0.0209   0.0203    95.06      1/89      0
+long_prose_300       300   299    99.00   3.036e-3   3.242e-3   3.242e-3   1.676e-1   0.0122   0.0133    89.90     4/299      0
+long_prose_700       700   699    98.86   5.287e-3   4.965e-3   4.965e-3   5.465e-1   0.0120   0.0117    89.64    30/699      0
+OVERALL                   1431    98.25   5.524e-3   5.421e-3   4.477e-3   5.465e-1   0.0166   0.0166    91.45      7.5%      0
+note: the reference noise was measured over 1441 positions, the decode mode compares 1431: the noise is applied as measured, but the subset can differ
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.25% (not gated for this class) ok | 21-way KL (scored rows, n=1273) 4.477e-3 (need <= 3.0e-2) ok [all rows, n=1431: 5.421e-3, reported only] | tail mass (all rows) ours 0.0166 vs ref 0.0166, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 4.477e-3 PASS | KL / ref noise = 1.487 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 5.421e-3 (21-way KL over all rows <= static floor) | current def: PASS 4.477e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 20.1% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 17.8% of positions before the first argmax divergence, worst prompt 1.1% (informational)
+
+wrote self-golden run/e2/self.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

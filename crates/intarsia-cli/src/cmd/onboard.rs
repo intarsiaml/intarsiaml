@@ -798,7 +798,7 @@ fn run_qualify(c: &mut Ctx, st: &OnbState, quick_only: bool, stem: &str) -> Resu
     let bad: Vec<String> = q
         .stages
         .iter()
-        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error))
+        .filter(|s| matches!(s.verdict, Verdict::Fail | Verdict::MissingBaseline | Verdict::Error) || s.is_unchecked_accuracy())
         .map(|s| format!("{} {}: {}", s.id, s.verdict.label(), first_line(&s.reason)))
         .collect();
     let detail = bad.join("; ");
