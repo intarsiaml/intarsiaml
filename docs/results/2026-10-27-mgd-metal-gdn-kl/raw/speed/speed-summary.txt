@@ -1,0 +1,10 @@
+bucket arm: per-round prefill tok/s (marginal-free, uncached prompt/TTFT) | decode tok/s; median
+1024 base [3352, 3352, 3353] med 3352 | dec [121.6, 123.2, 123.5] med 123.2
+1024 cand [3994, 4072, 4111] med 4072 | dec [118.6, 122.5, 122.5] med 122.5
+1024 cand/base prefill 1.215 decode 0.994
+4096 base [3652, 3301, 3367] med 3367 | dec [119.2, 119.9, 119.0] med 119.2
+4096 cand [3866, 4084, 4093] med 4084 | dec [118.5, 118.5, 118.8] med 118.5
+4096 cand/base prefill 1.213 decode 0.994
+16384 base [2624, 2427, 2425] med 2427 | dec [108.8, 108.5, 108.9] med 108.8
+16384 cand [2842, 2868, 2885] med 2868 | dec [108.0, 108.8, 109.2] med 108.8
+16384 cand/base prefill 1.182 decode 1.000

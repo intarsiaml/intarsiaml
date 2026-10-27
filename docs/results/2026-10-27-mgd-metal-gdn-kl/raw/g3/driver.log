@@ -1,0 +1,23 @@
+fleetq: #6046 running on endor: run/gates.sh /opt/code/intarsiaml/.worktrees/mgd/run/g3 gb gc long dense rec
+== stage gb 04:03:37
+gb exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.52s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.81s
+== stage gc 04:03:50
+gc exit 101
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+test real_35b_batched_engine_equals_the_local_engine ... FAILED
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: FAILED. 1 passed; 1 failed; 5 ignored; 0 measured; 0 filtered out; finished in 81.05s
+== stage long 04:05:21
+long exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 72.30s
+== stage dense 04:06:34
+dense exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.22s
+== stage rec 04:06:53
+rec exit 0
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.25s
+== done 04:07:40
+fleetq: #6046 done (exit 0)

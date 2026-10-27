@@ -1,0 +1,4 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max (vocab 248320, weights/act/kv bf16/bf16)
+Error: --golden and --self-golden are separate runs (the self-golden carries its own prompts); run them one after the other

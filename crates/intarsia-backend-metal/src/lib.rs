@@ -1005,6 +1005,7 @@ impl MetalBackend {
                 | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
                 | (kernels::GDN_CONV_BF16, Op::GdnConv)
                 | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
+                | (kernels::GDN_DELTA_RULE_BF16_PRE, Op::GdnDeltaRule)
         ) {
             return self.launch_gdn(kernel, call);
         }

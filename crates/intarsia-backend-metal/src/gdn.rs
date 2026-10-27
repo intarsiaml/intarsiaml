@@ -12,6 +12,8 @@ const CONV_TILE: usize = 32;
 pub(crate) const CONV_TG: usize = 128;
 /// Simdgroups (value-head rows) per threadgroup of the delta-rule kernels (`GDN_DELTA_SG`).
 pub(crate) const DELTA_SG: usize = 4;
+/// Value rows per threadgroup of `gdn_delta_rule_pre_dk*` (`GDN_PRE_ROWS`: `GDN_DELTA_SG` simdgroups of `GDN_PRE_RPS` rows).
+pub(crate) const PRE_ROWS: usize = DELTA_SG * 4;
 
 /// Conv kernels by tap count K = 2..=8.
 pub const CONV_SHADERS: [&str; 7] = [
@@ -32,11 +34,45 @@ pub const DELTA_SHADERS: [(usize, &str); 4] = [
     (256, "gdn_delta_rule_bf16_dk256"),
 ];
 
+/// Prefill form of the delta rule by dk: (prep pass, recurrence).
+pub const DELTA_PRE_SHADERS: [(usize, &str, &str); 4] = [
+    (32, "gdn_delta_prep_dk32", "gdn_delta_rule_pre_dk32"),
+    (64, "gdn_delta_prep_dk64", "gdn_delta_rule_pre_dk64"),
+    (128, "gdn_delta_prep_dk128", "gdn_delta_rule_pre_dk128"),
+    (256, "gdn_delta_prep_dk256", "gdn_delta_rule_pre_dk256"),
+];
+
+/// Fewest tokens of a call the prep form serves (shorter ones, decode and the MTP verify rows included, run the original).
+pub const PRE_MIN_T: usize = 64;
+
 pub fn shader_names() -> Vec<&'static str> {
     let mut v = vec![GATE_SPLIT_BF16, SIGMOID_MUL_BF16, CONV_STATE];
     v.extend(CONV_SHADERS);
     v.extend(DELTA_SHADERS.iter().map(|d| d.1));
+    v.extend(DELTA_PRE_SHADERS.iter().flat_map(|d| [d.1, d.2]));
     v
+}
+
+/// `INTARSIA_METAL_GDN_PRE=0` hides the prep form (`gdn_delta_rule_bf16` serves every T again; same bits).
+pub fn pre_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_GDN_PRE").map_or(true, |v| v != "0"))
+}
+
+/// The prep form's facts: the original's, T >= [`PRE_MIN_T`], and the scratch indexed with 32-bit math.
+pub fn pre_ok(s: &ShapeInfo) -> bool {
+    pre_enabled() && delta_ok(s) && s.n % PRE_ROWS == 0 && s.m >= PRE_MIN_T && pre_scratch(s) <= (u32::MAX as usize) * 4
+}
+
+/// Scratch floats: normalised q and k `[T, Hk, 2, dk]`, then beta and decay `[T, Hv, 2]`.
+fn pre_floats(t: usize, hk: usize, hv: usize, dk: usize) -> (usize, usize) {
+    (t * hk * 2 * dk, t * hv * 2)
+}
+
+/// Scratch bytes of the prep form at `s` (T tokens), rounded up to 256.
+pub fn pre_scratch(s: &ShapeInfo) -> usize {
+    let (a, b) = pre_floats(s.m, s.n_kv_heads, s.n_heads, s.head_dim);
+    (4 * (a + b)).next_multiple_of(256)
 }
 
 /// `GdnConv`: 2..=8 taps (`ShapeInfo::k`).
@@ -129,6 +165,7 @@ impl MetalBackend {
                 }
                 Ok(())
             }
+            (GDN_DELTA_RULE_BF16_PRE, Op::GdnDeltaRule) => self.launch_delta_pre(call),
             (GDN_DELTA_RULE_BF16, Op::GdnDeltaRule) => {
                 let d = intarsia_core::gdn::DeltaDims::from_call(call);
                 let Some(&(_, shader)) = DELTA_SHADERS.iter().find(|s| s.0 == d.dk) else {
@@ -167,5 +204,65 @@ impl MetalBackend {
             }
             _ => Err(Error::NoKernel(format!("metal kernel '{kernel}' for op '{}'", call.op))),
         }
+    }
+
+    /// `gdn_delta_rule_bf16_pre`: the prep pass, then the recurrence, both on the plan's scratch workspace.
+    fn launch_delta_pre(&self, call: &OpCall) -> Result<()> {
+        let (i, o) = (&call.inputs, &call.outputs);
+        let bf = DType::Bf16;
+        let d = intarsia_core::gdn::DeltaDims::from_call(call);
+        let Some(&(_, prep, rec)) = DELTA_PRE_SHADERS.iter().find(|s| s.0 == d.dk) else {
+            return Err(Error::invalid(format!("metal gdn_delta_rule_bf16_pre: dk = {} (32/64/128/256 supported)", d.dk)));
+        };
+        if d.t * d.hv * d.dv == 0 {
+            return Ok(());
+        }
+        if d.hk == 0 || d.hv % d.hk != 0 || d.dv % PRE_ROWS != 0 {
+            return Err(Error::invalid(format!(
+                "metal gdn_delta_rule_bf16_pre: {} value heads, {} key heads, dv = {} (a multiple of {PRE_ROWS})",
+                d.hv, d.hk, d.dv
+            )));
+        }
+        let (qk_floats, gate_floats) = pre_floats(d.t, d.hk, d.hv, d.dk);
+        let need = 4 * (qk_floats + gate_floats);
+        let scratch = call
+            .scratch
+            .as_ref()
+            .ok_or_else(|| Error::invalid("metal gdn_delta_rule_bf16_pre: the scratch workspace (OpCall::scratch) is missing"))?;
+        if scratch.numel() * scratch.dtype.size_bytes() < need {
+            return Err(Error::invalid(format!(
+                "metal gdn_delta_rule_bf16_pre: scratch of {} bytes, need {need}",
+                scratch.numel() * scratch.dtype.size_bytes()
+            )));
+        }
+        let sc = self.bind(scratch, DType::U8, true, "scratch")?;
+        if sc.skip != 0 || (self.mbuf(&scratch.buf)?.base + scratch.offset) % 16 != 0 {
+            return Err(Error::invalid("metal gdn_delta_rule_bf16_pre: scratch must be 16-byte aligned"));
+        }
+        let (qkv, a, b, al, db) = (
+            self.bind(&i[0], bf, false, "qkv")?,
+            self.bind(&i[1], bf, false, "a")?,
+            self.bind(&i[2], bf, false, "b")?,
+            self.bind(&i[3], bf, false, "A_log")?,
+            self.bind(&i[4], bf, false, "dt_bias")?,
+        );
+        let (out, st) = (self.bind(&o[0], bf, true, "o")?, self.bind(&o[1], DType::F32, true, "state")?);
+        dim(d.t * d.conv_dim(), "T*C")?;
+        let p = DeltaP {
+            t: dim(d.t, "T")?,
+            hk: dim(d.hk, "Hk")?,
+            hv: dim(d.hv, "Hv")?,
+            dv: dim(d.dv, "dv")?,
+            skips: [qkv.skip, a.skip, b.skip, al.skip, db.skip, out.skip],
+            eps: call.attrs.eps,
+            pad: dim(qk_floats, "qk floats")?,
+        };
+        self.dispatch(prep, &[&qkv, &a, &b, &al, &db, &sc], &p, Grid::Groups { x: d.t, y: d.hk, threads: 32 })?;
+        self.dispatch(
+            rec,
+            &[&qkv, &sc, &out, &st],
+            &p,
+            Grid::Groups { x: d.dv / PRE_ROWS, y: d.hv, threads: 32 * DELTA_SG },
+        )
     }
 }

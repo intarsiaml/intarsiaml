@@ -1,0 +1,47 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mgd/crates/intarsia-models)
+    Finished `release` profile [optimized] target(s) in 1.17s
+     Running tests/batch_recurrent.rs (target/release/deps/batch_recurrent-d36435d2834928f5)
+
+running 14 tests
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test alternating_rows_and_batches_do_not_recapture ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test macro_forward_equals_chunked_forward ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test batched_engine_with_packed_prefill_equals_solo ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.25s
+
