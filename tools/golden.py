@@ -16,6 +16,9 @@ of 300 and 700 tokens, so default 256-token prefill chunks are crossed). Long se
 use `--topk 20` for them (a full-vocabulary 4k golden is over a GB per prompt). The metadata records the
 reference engine (transformers + torch versions), model revision (snapshot hash of the path), dtype and the
 KV dtype the reference attention used (its activation dtype), the template and the prompt files.
+With `--dtype float32` (the golden an engine is judged against) a second bfloat16 pass over the same ids records, in the
+metadata key `ref_spread`, how far HF's own bf16 forward is from the fp32 rows (top-1 agreement, mean KL): `intarsia accuracy`
+derives its top-1 floor from it. `--no-bf16-spread` skips the pass.
 Only torch, transformers, safetensors and numpy are needed (runs inside the vLLM image).
 """
 import argparse
@@ -33,6 +36,49 @@ import goldenlib as gl
 HERE = pathlib.Path(__file__).resolve().parent
 
 
+def bf16_spread(args, tensors, ref_argmax):
+    """How far the same model in bfloat16 is from the fp32 golden just built: top-1 agreement and mean KL over all rows.
+
+    The fp32 golden is the reference `intarsia accuracy` judges an engine against, but the engine is a bf16 model: even
+    HF's own bf16 forward does not reproduce the fp32 argmax on every row. That spread is what a bf16 engine can at best be
+    expected to match, so the accuracy gate derives its top-1 floor from it (metadata `ref_spread`, accuracy/top1ref.rs).
+    """
+    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.bfloat16)
+    model.eval().to(args.device)
+    topk = args.topk > 0
+    rows = flips = 0
+    kl_sum = 0.0
+    for i, ref_top in enumerate(ref_argmax):
+        ids = tensors[f"ids_{i}"]
+        with torch.no_grad():
+            lp = torch.log_softmax(model(torch.tensor([ids.tolist()], device=args.device)).logits[0].float(), dim=-1).cpu()
+        flips += int((lp.argmax(dim=-1).numpy() != ref_top).sum())
+        rows += len(ids)
+        if topk:
+            # 21-way KL, the gate's metric for a top-k golden: the reference's top-k plus one "everything else" bucket
+            v = torch.from_numpy(tensors[f"topk_logprobs_{i}"])
+            ix = torch.from_numpy(tensors[f"topk_ids_{i}"]).long()
+            pr, pb = v.exp(), lp.gather(1, ix).exp()
+            orr, ob = (1 - pr.sum(-1)).clamp_min(1e-12), (1 - pb.sum(-1)).clamp_min(1e-12)
+            kl = (pr * (v - pb.clamp_min(1e-30).log())).sum(-1) + orr * (orr / ob).log()
+        else:
+            ref = torch.from_numpy(tensors[f"logprobs_{i}"].astype(np.float32))
+            kl = (ref.exp() * (ref - lp)).sum(-1)
+        kl_sum += float(kl.sum())
+        del lp
+    del model
+    return {
+        "format": "intarsia-ref-spread-v1",
+        "method": "hf_bf16_vs_fp32",
+        "top1_agree_pct": 100.0 * (rows - flips) / rows,
+        "top1_flips": flips,
+        "n": rows,
+        "kl_kind": "21-way" if topk else "full-vocab",
+        "kl_mean": kl_sum / rows,
+        "date": time.strftime("%Y-%m-%d", time.gmtime()),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True, help="HF model dir (config.json, tokenizer, safetensors)")
@@ -47,6 +93,9 @@ def main():
     ap.add_argument("--topk", type=int, default=0,
                     help="store only the top-K log-probs per position (format intarsia-golden-topk-v1); "
                          "0 = full vocabulary as fp16 (format intarsia-golden-v1)")
+    ap.add_argument("--no-bf16-spread", action="store_true",
+                    help="with --dtype float32: skip the second pass that records how far this model's own bf16 forward "
+                         "is from the fp32 golden (metadata `ref_spread`, which `intarsia accuracy` turns into its top-1 floor)")
     args = ap.parse_args()
     dtype = getattr(torch, args.dtype)
 
@@ -58,7 +107,7 @@ def main():
     def apply_template(messages):
         return tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
-    tensors, meta_prompts = {}, []
+    tensors, meta_prompts, ref_argmax = {}, [], []
     t0 = time.time()
     vocab = 0
     # a rendered chat template that already starts with the BOS token (Llama 3: <|begin_of_text|>) must not get a second one
@@ -81,6 +130,7 @@ def main():
         del logits
         vocab = lp.shape[1]
         tensors[f"ids_{i}"] = np.array(ids, dtype=np.int32)
+        ref_argmax.append(lp.argmax(dim=-1).numpy())
         if args.topk > 0:
             v, ix = lp.topk(args.topk, dim=-1)
             tensors[f"topk_ids_{i}"] = ix.to(torch.int32).numpy()
@@ -115,6 +165,15 @@ def main():
     }
     if args.topk > 0:
         meta["topk"] = str(args.topk)
+    if args.dtype == "float32" and not args.no_bf16_spread:
+        del model
+        t1 = time.time()
+        spread = bf16_spread(args, tensors, ref_argmax)
+        spread["how"] = (f"tools/golden.py second pass: the same HF model in bfloat16 on {args.device}, same token ids, one forward per prompt; "
+                         f"top-1 = bf16 argmax equals the fp32 golden's argmax (all rows); KL = {spread['kl_kind']} KL(fp32 || bf16), mean over all rows")
+        meta["ref_spread"] = json.dumps(spread)
+        print(f"ref_spread: bf16 vs fp32 top-1 agreement {spread['top1_agree_pct']:.2f}% ({spread['top1_flips']} flips in {spread['n']} rows), "
+              f"{spread['kl_kind']} KL {spread['kl_mean']:.3e}  ({time.time() - t1:.0f}s)", flush=True)
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     save_file(tensors, str(out), metadata=meta)

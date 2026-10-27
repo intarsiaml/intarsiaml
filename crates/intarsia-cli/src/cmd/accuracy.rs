@@ -37,6 +37,7 @@ mod gatedefs;
 mod provenance;
 mod refnoise;
 mod selfgolden;
+mod top1ref;
 mod turns;
 pub use refnoise::RefNoiseArgs;
 use baseline::{Baseline, Margins, ModeStats, PromptStats};
@@ -867,6 +868,9 @@ struct Gates {
     class: GateClass,
     why: String,
     min_top1: Option<f64>,
+    /// The golden's `ref_spread` record (HF bf16 against HF fp32), when it has one and no `--min-top1` overrides it:
+    /// the top-1 floor is then `min(min_top1, agreement - margin)` at the judged row count ([`Gates::top1_floor`]).
+    top1_spread: Option<top1ref::RefSpread>,
     /// Maximum mean KL over the scored rows (outside system and user turns): the 21-way (tail-bucket) KL for top-k goldens,
     /// the full-vocabulary KL otherwise.
     max_kl: f64,
@@ -923,6 +927,7 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str, format_ref: Option<&str>) 
         class,
         why,
         min_top1: args.min_top1.or(t1),
+        top1_spread: None,
         max_kl: args.max_mean_kl.unwrap_or(kl),
         max_tail_excess: args.max_tail_excess.unwrap_or(DEFAULT_MAX_TAIL_EXCESS),
         noise: None,
@@ -932,6 +937,38 @@ fn resolve_gates(args: &AccuracyArgs, kv_dtype: &str, format_ref: Option<&str>) 
 // ---------------------------------------------------------------------------
 // golden gate
 // ---------------------------------------------------------------------------
+
+impl Gates {
+    /// The top-1 floor (percent) for a mode that judges `rows` rows: `min_top1`, lowered to the golden's reference spread
+    /// when it records one (`top1ref.rs`). `None`: top-1 is not gated for this class.
+    fn top1_floor(&self, rows: usize) -> Option<f64> {
+        let class = self.min_top1?;
+        Some(self.top1_spread.as_ref().and_then(|s| s.floor(rows, class)).unwrap_or(class))
+    }
+    /// `top1_floor` as printed in the verdict line ("99.5" for the class floor, two decimals for a calibrated one).
+    fn top1_need(&self, rows: usize) -> Option<String> {
+        let f = self.top1_floor(rows)?;
+        Some(if Some(f) == self.min_top1 { format!("{f}") } else { format!("{f:.2}") })
+    }
+}
+
+/// The golden's `ref_spread` metadata calibrates the top-1 floor: the engine must agree with the fp32 golden as often as
+/// HF's own bf16 forward does, less a margin (`top1ref.rs`). `--min-top1` wins; a golden without the key (every golden
+/// made before lane QGC, and every server golden) keeps the class floor exactly as it was; a class with no top-1 gate stays
+/// ungated.
+fn apply_ref_spread_top1_floor(gates: &mut Gates, args: &AccuracyArgs, meta: Option<&str>) -> Result<()> {
+    if args.min_top1.is_some() || gates.min_top1.is_none() {
+        return Ok(());
+    }
+    let Some(json) = meta else { return Ok(()) };
+    let s = top1ref::RefSpread::parse(json).context("golden metadata `ref_spread`")?;
+    gates.why += &format!("; top-1 floor calibrated on the golden's reference spread ({})", s.describe());
+    if s.top1_agree_pct < top1ref::MIN_AGREEMENT {
+        gates.why += &format!("; spread below {}% is not used, class floor kept", top1ref::MIN_AGREEMENT);
+    }
+    gates.top1_spread = Some(s);
+    Ok(())
+}
 
 /// The recipe's `[accuracy] min_top1` (percent) lowers the class default top-1 floor for a model whose bf16 forward is
 /// measured below it: `min(recipe, default)`. `--min-top1` wins; a class with no top-1 gate (format-reference golden) stays
@@ -1349,7 +1386,7 @@ fn run_mode(
         return Ok(ModeResult { matches, pass, stats, prompts: per_prompt, verdict: self_verdict });
     }
     let ok_nf = total.nonfinite == 0;
-    let ok_top1 = gates.min_top1.is_none_or(|m| total.top1_pct() >= m);
+    let ok_top1 = gates.top1_floor(total.n).is_none_or(|m| total.top1_pct() >= m);
     // The KL floor judges the rows the model is asked to predict; top-1, tail mass and non-finite rows judge all rows.
     let (gate_kl, gate_kl_name, all_kl) =
         if topk { (total_sc.mean_kl21(), "21-way KL", total.mean_kl21()) } else { (total_sc.mean_kl(), "full-vocab KL", total.mean_kl()) };
@@ -1395,7 +1432,7 @@ fn run_mode(
         } else {
             String::new()
         },
-        match gates.min_top1 {
+        match gates.top1_need(total.n) {
             Some(m) => format!("need >= {m}"),
             None => "not gated for this class".into(),
         },
@@ -2701,6 +2738,9 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
     }
     let recipe = load_recipe(args);
     apply_recipe_top1_floor(&mut gates, args, recipe.as_ref());
+    if !self_mode {
+        apply_ref_spread_top1_floor(&mut gates, args, g.meta_str(top1ref::META_KEY))?;
+    }
     let masks = if self_mode {
         None // the self-golden budgets compare two builds' logits on every row
     } else {
@@ -2739,7 +2779,10 @@ fn golden_gate(engine: &dyn Engine, args: &AccuracyArgs, perturb: Option<&envelo
             "gates: class {} ({}); top-1 (all rows) {}, {} (scored rows: outside system and user turns) <= {:.1e}, |tail excess| (all rows) <= {}",
             gates.class.name(),
             gates.why,
-            gates.min_top1.map_or("not gated".to_string(), |m| format!(">= {m}%")),
+            gates.min_top1.map_or("not gated".to_string(), |m| match &gates.top1_spread {
+                Some(_) => format!(">= {m}% (lowered to the golden's reference spread per judged row count, see above)"),
+                None => format!(">= {m}%"),
+            }),
             if topk_k.is_some() { "21-way KL" } else { "KL" },
             gates.max_kl,
             gates.max_tail_excess,
@@ -3978,6 +4021,52 @@ mod tests {
         g.min_top1 = None;
         apply_recipe_top1_floor(&mut g, &a, Some(&qwen2));
         assert_eq!(g.min_top1, None);
+    }
+
+    #[test]
+    fn ref_spread_calibrates_the_top1_floor_and_its_absence_changes_nothing() {
+        let d = std::env::temp_dir().join(format!("acc-top1spread-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("config.json"), "{}").unwrap();
+        let gates = |extra: &[&str]| {
+            let mut a = args_with(extra);
+            a.model.model = d.clone();
+            (resolve_gates(&a, "bf16", None).unwrap(), a)
+        };
+        let meta = r#"{"format":"intarsia-ref-spread-v1","method":"hf_bf16_vs_fp32","top1_agree_pct":98.96,"n":1441}"#;
+        // no metadata (every golden made before this lane): the class floor, for any row count, with the same text as before
+        let (mut g, a) = gates(&[]);
+        apply_ref_spread_top1_floor(&mut g, &a, None).unwrap();
+        assert!(g.top1_spread.is_none());
+        assert_eq!((g.top1_floor(1441), g.top1_floor(160), g.top1_need(1441).as_deref()), (Some(99.5), Some(99.5), Some("99.5")));
+        // with metadata: the drill's numbers (engine 99.72 % prefill, 98.75 % decode) pass, and the floor depends on the rows judged
+        let (mut g, a) = gates(&[]);
+        apply_ref_spread_top1_floor(&mut g, &a, Some(meta)).unwrap();
+        let (pre, dec) = (g.top1_floor(1441).unwrap(), g.top1_floor(160).unwrap());
+        assert!(99.72 >= pre && 98.75 >= dec && dec < pre && pre < 99.5, "{pre} {dec}");
+        assert_eq!(g.top1_need(1441).as_deref(), Some("98.43"));
+        assert!(g.why.contains("reference spread") && g.why.contains("98.96%"), "{}", g.why);
+        // a regression still fails: 97 % over the prefill rows is below the calibrated floor
+        assert!(97.0 < pre);
+        // --min-top1 wins; a lower recipe floor stays the cap; a class with no top-1 gate stays ungated
+        let (mut g, a) = gates(&["--min-top1", "99.9"]);
+        apply_ref_spread_top1_floor(&mut g, &a, Some(meta)).unwrap();
+        assert_eq!((g.top1_floor(1441), g.top1_spread.is_none()), (Some(99.9), true));
+        let (mut g, a) = gates(&[]);
+        g.min_top1 = Some(90.0);
+        apply_ref_spread_top1_floor(&mut g, &a, Some(meta)).unwrap();
+        assert_eq!(g.top1_floor(1441), Some(90.0), "never above the floor in force");
+        let (mut g, a) = gates(&[]);
+        g.min_top1 = None;
+        apply_ref_spread_top1_floor(&mut g, &a, Some(meta)).unwrap();
+        assert_eq!(g.top1_floor(1441), None);
+        // a spread too wide to mean anything is ignored (class floor kept, said so); a broken record is an error
+        let (mut g, a) = gates(&[]);
+        apply_ref_spread_top1_floor(&mut g, &a, Some(r#"{"format":"intarsia-ref-spread-v1","top1_agree_pct":90.0,"n":100}"#)).unwrap();
+        assert_eq!(g.top1_floor(100), Some(99.5));
+        assert!(g.why.contains("not used"), "{}", g.why);
+        let (mut g, a) = gates(&[]);
+        assert!(apply_ref_spread_top1_floor(&mut g, &a, Some("{}")).is_err());
     }
 
     #[test]
