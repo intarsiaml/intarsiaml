@@ -274,12 +274,17 @@ pub struct WeightFacts {
     pub quantized: bool,
 }
 
+/// Routed experts one token uses: `num_experts_per_tok` (Qwen, Mixtral) or `top_k_experts` (Gemma 4); 0 when neither is set.
+fn moe_top_k(tc: &Value) -> u64 {
+    ["num_experts_per_tok", "top_k_experts"].iter().find_map(|k| tc.get(*k).and_then(|v| v.as_u64())).unwrap_or(0)
+}
+
 pub fn weight_facts(dir: &Path, cfg: &Value) -> Result<WeightFacts> {
     let st = intarsia_models::safetensors::SafeTensors::open_dir(dir).map_err(|e| anyhow::anyhow!("{e}"))?;
     let tc = intarsia_core::recipe::text_config(cfg);
     let (experts, top_k) = (
         tc.get("num_experts").and_then(|v| v.as_u64()).unwrap_or(0) as f64,
-        tc.get("num_experts_per_tok").and_then(|v| v.as_u64()).unwrap_or(0) as f64,
+        moe_top_k(tc) as f64,
     );
     let moe = experts > 0.0;
     let hybrid = tc
@@ -322,6 +327,14 @@ pub fn weight_facts(dir: &Path, cfg: &Value) -> Result<WeightFacts> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn moe_top_k_reads_both_config_spellings() {
+        assert_eq!(moe_top_k(&serde_json::json!({"num_experts": 128, "num_experts_per_tok": 8})), 8);
+        // Gemma 4 spells it `top_k_experts`; unread, the decode byte floor counted every expert (17.6 GB/token for 26B-A4B).
+        assert_eq!(moe_top_k(&serde_json::json!({"num_experts": 128, "top_k_experts": 8})), 8);
+        assert_eq!(moe_top_k(&serde_json::json!({"hidden_size": 8})), 0);
+    }
 
     #[test]
     fn names_from_paths() {
