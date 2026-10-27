@@ -2343,7 +2343,7 @@ impl Model {
                 HeadMode::AllLogits => true,
                 HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
-            // ... unless a drafter consumes the chunk's final-normed hidden rows (the MTP head's `hn`, the DFlash taps): then they are live
+            // ... unless a drafter reads the chunk's hidden rows: the MTP head takes the final-normed `hn` (the skipped last-layer FFN is part of it); DFlash taps layer outputs, kept out as a precaution
             let drafter = st.mtp.is_some() || st.dflash.is_some();
             let dead = !feeds_head && !drafter && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
             self.tail_dead.store(dead, std::sync::atomic::Ordering::Relaxed);

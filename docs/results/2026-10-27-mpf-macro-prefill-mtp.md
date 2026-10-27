@@ -11,14 +11,14 @@ Raw logs: `2026-10-27-mpf-macro-prefill-mtp/raw/`. Scripts `scripts/mpf/`, table
 
 | gate | result |
 | --- | --- |
-| 1 ids: 6 short, 6 ~4k, 6 ~16k, 3 ~34k | 21/21 identical to `--spec off`, with explicit `--spec mtp` and with the shipped default (no flag) |
+| 1 ids: 6 short, 6 ~4k, 6 ~16k, 3 ~34k | 21/21 identical to `--spec off`, with explicit `--spec mtp` and with the shipped default (no flag). Ids cannot see a draft-cache bug (drafts never change the output); the evidence for the head cache is the identical `spec:` counts, section 9 |
 | 2 soak, 40 greedy requests (one prompt ~3.9k tokens, so the macro pass runs) | 40/40 identical, equal to spec-off |
 | 3 mutants | 3 CUDA mutants of lane cmtp + 1 new in the macro head-ingest path (`macro-head-skip`) caught on CUDA (hashes differ from clean); 3 more head-ingest mutants and the two older shared-logic mutants caught on CPU |
-| 4 speed | prefill tok/s 0.995 / 0.994 / 0.995 of spec-off at 4k / 16k / 34k (worst round 0.990), TTFT +0.4 / +0.6 / +0.5 %; decode 1.17-1.53x in all 7 categories (worst round 1.163x) |
+| 4 speed | prefill within ~1 % of spec-off, at the noise floor: medians of 3 rounds 0.995 / 0.994 / 0.995 at 4k / 16k / 34k, but single rounds 0.970-1.015 (sections 5 and 9), TTFT about +0.5 %; decode 1.17-1.53x in 7 categories on prompts under 4.8k (worst round 1.163x); at 16-34k prompts it is 1.04-1.2x per round (section 9), inside the run-to-run noise |
 | 5 G0 | CUDA 8B, Gemma-4, 35B opt-outs byte-identical to main (also with the default on); Metal 8B and 35B byte-identical; HIP untouched |
 
 Two attempts closed the prefill gap from 0.80 / 0.63 / 0.49 (lane cmtp) to 0.995: the macro pass with the head (this lane, first attempt at 0.97-0.96), then KV-only head ingest of prompt rows (0.990), then skipping the q projection in it (0.995).
-The remaining 0.5 % is the head's fc projections, norms and K / V projections over every prompt row. Prefill measured with a 1 % gate is within it, but not far inside: the worst single round is exactly 0.990 at 4k.
+The remaining 0.5 % is the head's fc projections, norms and K / V projections over every prompt row. Prefill measured with a 1 % gate is within it only at the noise floor: the worst round of `raw/longctx` is 0.990 (4k), but `raw/longctx-c` has a 16k round at 0.970 and a 34k round at 1.015 (section 9).
 
 ## 1. What changed (code)
 
@@ -37,7 +37,7 @@ The remaining 0.5 % is the head's fc projections, norms and K / V projections ov
    position differs by O(1)), and the engine's greedy ids equal `--spec off`, the chunked MTP engine and the one-pass MTP engine, with the same proposals and acceptances. `tp_mtp.rs`' recipe-pair test now expects
    `qwen3_5_moe cuda tp1 2` and `qwen3_5_vl hip tp 2`.
 
-Behaviour change outside the default: an explicit `--spec mtp` now takes the macro pass wherever a recipe sets `prefill_macro` (CUDA 35B: 8192). It did not before.
+Behaviour change outside the default: an explicit `--spec mtp` now takes the macro pass wherever a recipe sets `prefill_macro`: the CUDA 35B (8192) and the HIP 35B (`[tuning.hip] prefill_macro = 8192`, `recipes/qwen3_5_moe.toml:105`). It did not before. The HIP case was never run in this lane (section 9).
 
 ## 2. Gate 1: ids (21 prompts), `raw/ids-g1.log`, `raw/ids-auto.log`
 
@@ -82,7 +82,7 @@ Median over the 3 rounds; TTFT is prompt tokens / prefill tok/s (localeval's def
 | 16.7k | 6645 | 6605 | 0.994 | 2.507 s | 2.522 s | 1.006 | 72.7 | 77.9 | 1.07 | 0.992 |
 | 33.9k | 5893 | 5862 | 0.995 | 5.753 s | 5.784 s | 1.005 | 65.7 | 69.1 | 1.05 | 0.991 |
 
-Before this lane (lane cmtp, same method): prefill 0.80 / 0.63 / 0.49 of off, TTFT +0.15 s / +1.5 s / +6.0 s. Attempt 1 (KV-only ingest): 0.990-0.991 (`raw/longctx-b`); attempt 2 (skip q): 0.994-0.995 (`raw/longctx`, `raw/longctx-c`).
+Before this lane (lane cmtp, same method): prefill 0.80 / 0.63 / 0.49 of off, TTFT +0.15 s / +1.5 s / +6.0 s. Attempt 1 (KV-only ingest): 0.990-0.991 (`raw/longctx-b`); attempt 2 (skip q): medians 0.994-0.995 in `raw/longctx` (3 rounds x 5 reps) and `raw/longctx-c` (2 rounds x 3 reps), round by round 0.990-0.997 in `longctx` but 0.970 (16k) and 1.015 (34k) in `longctx-c`.
 The remaining 0.5 % is the head's two fc projections, norms, and K / V projections over every prompt row. The decode column is the localeval filler-text sweep (acceptance not representative of chat).
 
 ### Decode per category (`raw/s1/`, `scripts/mpf/window.sh`: one `serve --max-batch 1` per arm, `localeval quality --judge none`, 7 category files, 512 forced tokens, 3 rounds, order alternating)
@@ -103,8 +103,7 @@ The remaining 0.5 % is the head's two fc projections, norms, and K / V projectio
   byte-identical; 35B no flag, `--spec off`, `INTARSIA_SPEC_DEFAULT=0`: ids identical, plans byte-identical for the two opt-outs.
 - CUDA with the default on, `raw/cuda-g0-flip.log` (target-flip): 35B base (plain decode) vs dev `--spec off`, dev `INTARSIA_SPEC_DEFAULT=0`: ids and plans byte-identical (md5 `a6889e87` short, `51b7fcfd` 4k); dev no flag (the default, MTP): ids identical, and its `plan show` differs from main's only by the five extra row-exact verify kernels (`add_bf16`, `matmul_bf16_gemv_rows`, `matmul_fp8_gemv_rows`, `matmul_nvfp4_gemv_rows`, `moe_experts_decode_v2_rows_bf16`); the scratch line no longer differs (it did in lane cmtp, when the macro workspace was dropped).
 - Metal (endor), `raw/metal-g0.log`: 8B and 35B ids (short, 4k) and `plan show` byte-identical to main; kernels test 44 kernels / 817 cases ADMITTED.
-- HIP: no HIP code or recipe key changed; the recipe-pair test shows `qwen3_5_vl hip tp 2` as the only HIP default. HIP at tp=1 with an explicit `--spec mtp` takes the macro pass only where its recipe sets `prefill_macro` (not set).
-  No GPU run on tatooine.
+- HIP: no HIP kernel or recipe key changed; the recipe-pair test shows `qwen3_5_vl hip tp 2` as the only HIP default. **Correction (section 9):** the HIP 35B recipe does set `[tuning.hip] prefill_macro = 8192`, so an explicit `--spec mtp` on the HIP 35B at tp=1 now takes the macro pass with the head, and the 27B tp=2 default runs the KV-only catch-up at tp > 1; neither was run on tatooine in this lane (they are, in section 9).
 
 ## 7. Tests
 

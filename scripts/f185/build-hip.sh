@@ -9,6 +9,8 @@ export INTARSIA_REPO=$R/work INTARSIA_TARGET_VOL=intarsia-cargo-f185
 for name in ${NAMES:-base dev}; do
   echo "== $name $(date +%T)"
   rsync -a --delete --exclude .bin $R/src-$name/ $R/work/
+  # git archive stamps every file with the commit time, which can be older than the previous build's outputs: make cargo see every source as changed
+  find $R/work -path $R/work/.bin -prune -o -type f -exec touch {} +
   "$INTARSIA_REPO"/deploy/tatooine/dev.sh env CARGO_BUILD_JOBS=${JOBS:-20} cargo build --release -p intarsia-cli --features hip > $R/logs/build-$name.log 2>&1 < /dev/null
   echo "build $name exit $? $(date +%T)"; grep -E '^error|Finished' $R/logs/build-$name.log | tail -3
   "$INTARSIA_REPO"/deploy/tatooine/dev.sh cp /target/release/intarsia /work/.bin/$name < /dev/null
