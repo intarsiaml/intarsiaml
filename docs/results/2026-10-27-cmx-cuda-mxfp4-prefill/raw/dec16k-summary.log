@@ -1,0 +1,10 @@
+fleetq: #6271 waiting (#3 in line): in line behind #6268 "cmx: KL vs W4A16 golden (base, dev, dev knob0) + plan show" (claude-f31ccf91) on spark1
+fleetq:   #6268 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6268 set, or it will wait for #6268 to be released.
+fleetq: #6271 waiting (#2 in line): in line behind #6269 "cmx: MMLU n=1425 on dev" (claude-f31ccf91) on spark1
+fleetq:   #6269 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6269 set, or it will wait for #6269 to be released.
+fleetq: #6271 waiting (#1 in line): needs gpu quiet on spark1, but #6269 "cmx: MMLU n=1425 on dev" (claude-f31ccf91) loads it
+fleetq:   #6269 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6269 set, or it will wait for #6269 to be released.
+fleetq: #6271 running on spark1: scripts/cmx/dec16k.sh
+base: prompt chars 54900 (~16.6k tokens) ttft 255.6 s, decode tok/s (127 tokens after the first chunk) 20.49, chunks 128
+dev: prompt chars 54900 (~16.6k tokens) ttft 19.8 s, decode tok/s (127 tokens after the first chunk) 20.80, chunks 128
+fleetq: #6271 done (exit 1)

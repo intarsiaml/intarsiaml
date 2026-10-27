@@ -1,0 +1,52 @@
+fleetq: #6251 running on spark1: ssh spark1 'bash -s short-0 short-1 mid-0 mid-1 4k-0'
+short-0 base-off: finish=length prompt=41 (cached 0) completion=256 | prefill 716 ms (57.2 tok/s) | decode 18547 ms (13.75 tok/s)
+short-0 dev-off: finish=length prompt=41 (cached 0) completion=256 | prefill 192 ms (213.0 tok/s) | decode 18586 ms (13.72 tok/s)
+short-0 dev0-off: finish=length prompt=41 (cached 0) completion=256 | prefill 717 ms (57.2 tok/s) | decode 18568 ms (13.73 tok/s)
+short-0 dev-mtp: finish=length prompt=41 (cached 0) completion=256 | prefill 323 ms (127.1 tok/s) | decode 10473 ms (24.35 tok/s)
+short-1 base-off: finish=length prompt=34 (cached 0) completion=256 | prefill 634 ms (53.6 tok/s) | decode 18577 ms (13.73 tok/s)
+short-1 dev-off: finish=length prompt=34 (cached 0) completion=256 | prefill 192 ms (176.9 tok/s) | decode 18563 ms (13.74 tok/s)
+short-1 dev0-off: finish=length prompt=34 (cached 0) completion=256 | prefill 636 ms (53.4 tok/s) | decode 18595 ms (13.71 tok/s)
+short-1 dev-mtp: finish=length prompt=34 (cached 0) completion=256 | prefill 322 ms (105.6 tok/s) | decode 10992 ms (23.20 tok/s)
+mid-0 base-off: finish=length prompt=556 (cached 0) completion=256 | prefill 8680 ms (64.1 tok/s) | decode 18640 ms (13.68 tok/s)
+mid-0 dev-off: finish=length prompt=556 (cached 0) completion=256 | prefill 782 ms (711.1 tok/s) | decode 18623 ms (13.69 tok/s)
+mid-0 dev0-off: finish=length prompt=556 (cached 0) completion=256 | prefill 8655 ms (64.2 tok/s) | decode 18620 ms (13.69 tok/s)
+mid-0 dev-mtp: finish=length prompt=556 (cached 0) completion=256 | prefill 961 ms (578.4 tok/s) | decode 9111 ms (27.99 tok/s)
+mid-1 base-off: finish=length prompt=218 (cached 0) completion=256 | prefill 3453 ms (63.1 tok/s) | decode 18606 ms (13.71 tok/s)
+mid-1 dev-off: finish=length prompt=218 (cached 0) completion=256 | prefill 374 ms (583.1 tok/s) | decode 18591 ms (13.72 tok/s)
+mid-1 dev0-off: finish=length prompt=218 (cached 0) completion=256 | prefill 3455 ms (63.1 tok/s) | decode 18595 ms (13.71 tok/s)
+mid-1 dev-mtp: finish=length prompt=218 (cached 0) completion=256 | prefill 382 ms (571.2 tok/s) | decode 9258 ms (27.54 tok/s)
+4k-0 base-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 59985 ms (64.5 tok/s) | decode 19017 ms (13.41 tok/s)
+4k-0 dev-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 4614 ms (838.7 tok/s) | decode 18920 ms (13.48 tok/s)
+4k-0 dev0-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 60020 ms (64.5 tok/s) | decode 18999 ms (13.42 tok/s)
+4k-0 dev-mtp: finish=length prompt=3870 (cached 0) completion=256 | prefill 4653 ms (831.8 tok/s) | decode 9631 ms (26.48 tok/s)
+short-0 (prompt tokens 41): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  base-mtp: missing
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+short-1 (prompt tokens 34): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  base-mtp: missing
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+mid-0 (prompt tokens 556): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  base-mtp: missing
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+mid-1 (prompt tokens 218): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  base-mtp: missing
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+4k-0 (prompt tokens 3870): base-off 256 ids
+  dev-off vs base-off: first divergence at id 5 of 256
+  dev0-off vs base-off: IDENTICAL
+  dev-mtp vs base-off: first divergence at id 5 of 256
+  base-mtp: missing
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+fleetq: #6251 done (exit 0)

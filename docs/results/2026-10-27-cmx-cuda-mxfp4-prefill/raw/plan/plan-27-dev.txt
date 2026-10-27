@@ -1,0 +1,64 @@
+model Qwen3.8-27B-MXFP4  backend cuda  device NVIDIA GB10 (124610 MiB)  exactness fast
+act bf16  kv bf16  prefill chunk 256 (default)  scratch 1857600 B  require_admitted false  reference_only false
+
+layers (64):
+    0..2   gated_delta_net+dense_ffn
+    3..3   attention+dense_ffn
+    4..6   gated_delta_net+dense_ffn
+    7..7   attention+dense_ffn
+    8..10  gated_delta_net+dense_ffn
+   11..11  attention+dense_ffn
+   12..14  gated_delta_net+dense_ffn
+   15..15  attention+dense_ffn
+   16..18  gated_delta_net+dense_ffn
+   19..19  attention+dense_ffn
+   20..22  gated_delta_net+dense_ffn
+   23..23  attention+dense_ffn
+   24..26  gated_delta_net+dense_ffn
+   27..27  attention+dense_ffn
+   28..30  gated_delta_net+dense_ffn
+   31..31  attention+dense_ffn
+   32..34  gated_delta_net+dense_ffn
+   35..35  attention+dense_ffn
+   36..38  gated_delta_net+dense_ffn
+   39..39  attention+dense_ffn
+   40..42  gated_delta_net+dense_ffn
+   43..43  attention+dense_ffn
+   44..46  gated_delta_net+dense_ffn
+   47..47  attention+dense_ffn
+   48..50  gated_delta_net+dense_ffn
+   51..51  attention+dense_ffn
+   52..54  gated_delta_net+dense_ffn
+   55..55  attention+dense_ffn
+   56..58  gated_delta_net+dense_ffn
+   59..59  attention+dense_ffn
+   60..62  gated_delta_net+dense_ffn
+   63..63  attention+dense_ffn
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        1 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        128 0
+add            add_bf16                   deterministic no        0 0
+qk_norm        qk_norm_bf16               deterministic no        32 0
+rope           rope_bf16                  deterministic no        32 0
+matmul         matmul_bf16                fast          no        0 0
+matmul         matmul_bf16_gemv           deterministic no        0 0
+logits         logits_bf16                fast          no        0 0
+logits         logits_bf16_gemv           deterministic no        1 0
+logits         logits_bf16_gemv_rows      deterministic no        0 0
+kv_append      kv_append_bf16             exact         no        32 0
+attn_prefill   attn_prefill_bf16_flash    deterministic no        0 0
+attn_prefill   attn_prefill_bf16_splitkv  deterministic no        0 1857600
+attn_decode    attn_decode_bf16_splitkv   deterministic no        16 1585152
+silu_glu       silu_glu_bf16              deterministic no        64 0
+argmax         argmax_f32                 exact         no        1 0
+gate_split     gate_split_bf16            deterministic no        16 0
+sigmoid_mul    sigmoid_mul_bf16           deterministic no        16 0
+gdn_conv       gdn_conv_bf16              deterministic no        48 0
+gdn_delta_rule gdn_delta_rule_bf16_split  deterministic no        48 0
+matmul_pair    matmul_pair_bf16_gemv      deterministic no        0 0
+gated_rmsnorm  gated_rmsnorm_bf16         deterministic no        48 0
+matmul_mxfp4   matmul_mxfp4_gemv          deterministic no        496 0
+matmul_mxfp4   matmul_mxfp4_gemv_rows     deterministic no        0 0
+matmul_mxfp4   matmul_mxfp4_mma           deterministic no        0 0

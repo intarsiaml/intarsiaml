@@ -1,0 +1,17 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in 1.9 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, cuda; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (--mxfp4-act)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+accuracy: Qwen3.8-27B-MXFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /home/nvidia/intarsiaml-od/goldens/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations none (Quark even_round), 0 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: head 74211fc code-tree 430ac4f3af44 clean

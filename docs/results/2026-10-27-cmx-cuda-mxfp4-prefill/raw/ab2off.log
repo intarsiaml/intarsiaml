@@ -1,0 +1,63 @@
+fleetq: #6222 running on spark1: scripts/cmx/le-window.sh ab2off 3 baseoff:base:::--spec_off devoff:dev:::--spec_off
+== round 1 arm baseoff 07:56:20
+baseoff r1: MemAvailable 66084 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 19 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-baseoff-r1: - result file: `results/20261027-075714-adhoc-cmx-baseoff-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075714-adhoc-cmx-baseoff-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 15.51 | 64 (64–64) * | - | 13.7 (13.6–13.7) | 13.8 (13.7–14.0) | - | - | 128 |
+| 4090 | 63.70 | 64 (64–64) | 64 | 13.4 (13.4–13.4) | 13.4 (13.4–13.5) | - | - | 128 |
+baseoff r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== round 1 arm devoff 08:01:42
+devoff r1: MemAvailable 66124 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 20 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-devoff-r1: - result file: `results/20261027-080239-adhoc-cmx-devoff-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080239-adhoc-cmx-devoff-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 1.26 | 786 (786–787) * | - | 13.7 (13.7–13.7) | 13.7 (13.7–13.7) | - | - | 128 |
+| 4091 | 4.87 | 839 (837–842) | 858 | 13.4 (13.4–13.5) | 13.5 (13.5–13.5) | - | - | 128 |
+devoff r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== round 2 arm devoff 08:03:36
+devoff r2: MemAvailable 66142 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 20 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-devoff-r2: - result file: `results/20261027-080434-adhoc-cmx-devoff-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080434-adhoc-cmx-devoff-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 1.25 | 792 (790–794) * | - | 13.7 (13.7–13.7) | 13.7 (13.7–13.7) | - | - | 128 |
+| 4089 | 4.85 | 843 (843–843) | 860 | 13.5 (13.4–13.5) | 13.5 (13.5–13.5) | - | - | 128 |
+devoff r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== round 2 arm baseoff 08:05:31
+baseoff r2: MemAvailable 66133 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 19 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-baseoff-r2: - result file: `results/20261027-080628-adhoc-cmx-baseoff-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080628-adhoc-cmx-baseoff-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 15.49 | 64 (64–64) * | - | 13.6 (13.6–13.6) | 13.7 (13.6–13.7) | - | - | 128 |
+| 4088 | 63.85 | 64 (64–64) | 64 | 13.4 (13.4–13.4) | 13.4 (13.4–13.5) | - | - | 128 |
+baseoff r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== round 3 arm baseoff 08:10:57
+baseoff r3: MemAvailable 66161 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 19 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-baseoff-r3: - result file: `results/20261027-081159-adhoc-cmx-baseoff-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081159-adhoc-cmx-baseoff-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 15.59 | 64 (63–64) * | - | 13.5 (13.5–13.6) | 13.6 (13.6–13.6) | - | - | 128 |
+| 4087 | 64.16 | 64 (63–64) | 64 | 13.3 (13.2–13.4) | 13.4 (13.4–13.5) | - | - | 128 |
+baseoff r3 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== round 3 arm devoff 08:16:28
+devoff r3: MemAvailable 66115 MB with the server up
+prefill chunk 256 (default)
+admission on plan shapes: 20 kernel(s) checked, 0 case(s) run, 422 cached
+cmx-devoff-r3: - result file: `results/20261027-081726-adhoc-cmx-devoff-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081726-adhoc-cmx-devoff-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 1.25 | 790 (786–794) * | - | 13.7 (13.7–13.7) | 13.7 (13.7–13.7) | - | - | 128 |
+| 4089 | 4.87 | 841 (840–842) | 858 | 13.4 (13.4–13.4) | 13.5 (13.5–13.5) | - | - | 128 |
+devoff r3 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+== done 08:18:23
+fleetq: #6222 done (exit 0)

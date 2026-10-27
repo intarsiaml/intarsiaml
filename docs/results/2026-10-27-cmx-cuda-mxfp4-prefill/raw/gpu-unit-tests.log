@@ -1,0 +1,21 @@
+fleetq: #6196 running on spark1: ssh -n spark1 'export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-cmx/trees/dev && INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test mxfp4_mma --test rows_exact --test rows_registry --test quick_coverage 2>&1 | grep -aE "^test |test result|panicked|error|FAIL" '
+test mxfp4_gemv_rows_is_the_gemv ... ok
+test mxfp4_mma_rows_do_not_depend_on_m_or_position ... ok
+test mxfp4_mma_agrees_with_the_gemv ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test every_cuda_kernel_has_a_quick_case ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.11s
+test timing_gemv_rows ... ignored, micro-timing
+test row_parallel_ops_are_row_independent ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.90s
+test print_tables ... ignored, prints the pin tables
+test attn_decode_rows_kernel_is_selected_only_with_a_table_and_for_supported_shapes ... ok
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.52s
+fleetq: #6196 done (exit 0)

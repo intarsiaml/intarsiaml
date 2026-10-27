@@ -1,0 +1,60 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+    Finished `release` profile [optimized] target(s) in 0.35s
+     Running tests/verify_rows_real.rs (target/release/deps/verify_rows_real-32ba72000c084056)
+
+running 1 test
+PROBE_CONFIG dir=/home/nvidia/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4 rows=4 lens=17,130,1024,4000 backend=unset INTARSIA_VERIFY_GRAPH=unset profile_every=0
+test verify_rows_are_bitwise_the_single_row_steps has been running for over 60 seconds
+plan notes: []
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+DIFF len=1024 q=4: max|dlogit|=1.0642052e-1 argmax mismatches=0
+len=1024: q=2..=4 checked
+DIFF len=4000 q=2: max|dlogit|=5.198598e-2 argmax mismatches=0
+DIFF len=4000 q=3: max|dlogit|=7.566017e-2 argmax mismatches=0
+DIFF len=4000 q=4: max|dlogit|=9.720039e-2 argmax mismatches=0
+len=4000: q=2..=4 checked
+PROBE_TIME decode1 168.14 ms, verify2 181.77 ms (1.08x), verify3 199.62 ms (1.19x), verify4 226.06 ms (1.34x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 7, replays: 181, batch_captures: 0, batch_replays: 0, spec_captures: 0, spec_replays: 0 }
+PROBE_RESULT rows=100 windows_with_diff=4 argmax_flips=0 worst_abs_logit_diff=1.0642052e-1
+
+thread 'verify_rows_are_bitwise_the_single_row_steps' panicked at crates/intarsia-models/tests/verify_rows_real.rs:182:5:
+assertion `left == right` failed: the verify pass is not bitwise the single-row steps
+  left: 4
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test verify_rows_are_bitwise_the_single_row_steps ... FAILED
+
+failures:
+
+failures:
+    verify_rows_are_bitwise_the_single_row_steps
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 362.33s
+
+error: test failed, to rerun pass `-p intarsia-models --test verify_rows_real`

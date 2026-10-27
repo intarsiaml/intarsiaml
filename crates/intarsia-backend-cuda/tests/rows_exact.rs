@@ -406,6 +406,29 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
     rig.report("nvfp4");
 }
 
+// ---- mxfp4 -----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
+    use intarsia_core::quant::{cases::matmul_mxfp4_case, Mxfp4Act};
+    let Some(rig) = Rig::new("mxfp4_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(803);
+    // (n, k): the 27B's k / v / o projections and a GDN in_proj_a/b (hidden 5120), odd edges (K = 32, a ragged lane tail of 33 groups)
+    let shapes = [(1024usize, 5120usize), (5120, 6144), (48, 5120), (300, 1056), (9, 32), (1, 64)];
+    for (n, k) in shapes {
+        for act in [Mxfp4Act::None, Mxfp4Act::Dynamic] {
+            let hc = matmul_mxfp4_case(&mut rng, 1, n, k, act, DType::Bf16, DType::Bf16);
+            let weights: Vec<TensorRef> = hc.inputs[1..].iter().map(|p| rig.put(p)).collect();
+            let x_rows = nasty_rows(&mut rng, k, 448.0);
+            for out_dt in [DType::Bf16, DType::F32] {
+                let label = format!("mxfp4 n={n} k={k} act={} {out_dt:?}", act.name());
+                gb_matmul(&rig, Op::MatmulMxfp4, "matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", &weights, &x_rows, n, out_dt, &label, CAP);
+            }
+        }
+    }
+    rig.report("mxfp4");
+}
+
 // ---- bf16 matmul / logits -----------------------------------------------------------------------------------------
 
 fn fast_bf16(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {

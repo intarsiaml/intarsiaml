@@ -32,6 +32,8 @@ extern "C" {
     fn ik_matmul_nvfp4_gemm_reg(x: T, w: T, bs: T, gs: T, out: TM, s: S) -> c_int;
     fn ik_matmul_nvfp4_glu_gemm(x: T, wg: T, bsg: T, gsg: T, wu: T, bsu: T, gsu: T, out: TM, s: S) -> c_int;
     fn ik_matmul_mxfp4_gemv(x: T, w: T, scales: T, act: T, out: TM, s: S) -> c_int;
+    fn ik_matmul_mxfp4_gemv_rows(x: T, w: T, scales: T, act: T, out: TM, s: S) -> c_int;
+    fn ik_matmul_mxfp4_mma(x: T, w: T, scales: T, act: T, out: TM, s: S) -> c_int;
     fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     fn ik_moe_experts_bf16(
@@ -322,6 +324,8 @@ impl CudaBackend {
                 "matmul_nvfp4_gemm_reg" => ik_matmul_nvfp4_gemm_reg(i(0), i(1), i(2), i(3), o, s),
                 "matmul_nvfp4_glu_gemm" => ik_matmul_nvfp4_glu_gemm(i(0), i(1), i(2), i(3), i(4), i(5), i(6), o, s),
                 "matmul_mxfp4_gemv" => ik_matmul_mxfp4_gemv(i(0), i(1), i(2), i(3), o, s),
+                "matmul_mxfp4_gemv_rows" => ik_matmul_mxfp4_gemv_rows(i(0), i(1), i(2), i(3), o, s),
+                "matmul_mxfp4_mma" => ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, s),
                 "moe_topk_bf16" => ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => ik_moe_experts_bf16(
                     i(0),

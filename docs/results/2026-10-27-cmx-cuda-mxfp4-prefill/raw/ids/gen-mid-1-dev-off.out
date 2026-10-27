@@ -1,0 +1,16 @@
+Based on the provided text, here is a structured summary and analysis of the `DFlash` parallel-draft speculation and `DCOCO` corrector implementation on branch `lane-dc/dflash-dcoco`.
+
+### 1. Core Status & Decision
+*   **Date:** 2026-10-25
+*   **Branch:** `lane-dc/dflash-dcoco`
+*   **User Decision:** "go dcoco" (2026-10-25 19:39) – Approved adding DFlash and the DCOCO corrector.
+*   **Current Status:**
+    *   **Phase 1 (Scope Note):** Accepted by coordinator.
+    *   **Phases 2 & 3:** Completed.
+    *   **Cost Gate:** Tested.
+    *   **Final State:** **DFlash remains opt-in** (not default).
+
+### 2. Technical Implementation Details
+*   **Flags:** `--spec dflash [--dcoco]`
+    *   `--spec dflash`: Enables DFlash parallel-draft speculation.
+    *   `--dcoco`: Enables the DCOCO corrector on top of DFlash
