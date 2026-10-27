@@ -188,6 +188,23 @@ pub fn a8_quant_rows(x: &[f32], m: usize, k: usize) -> (Vec<u8>, Vec<f32>) {
     (q, s)
 }
 
+/// Whether a backend's kernel table serves W4A8 (`OpAttrs::mxfp4_a8`) MXFP4 matmuls: some `Op::MatmulMxfp4` kernel accepts a W4A8
+/// decode shape. `--mxfp4-act fp8` on a backend without one is refused at load, with a message, instead of failing later as
+/// "no kernel" (the other MXFP4 kernels decline W4A8 calls, so nothing silently runs another mode).
+pub fn backend_serves_a8(kernels: &[crate::registry::KernelImpl]) -> bool {
+    let s = crate::ops::ShapeInfo {
+        m: 1,
+        n: 64,
+        k: 64,
+        act: Some(DType::Bf16),
+        weight: Some(DType::U8),
+        out: Some(DType::Bf16),
+        mxfp4_a8: true,
+        ..Default::default()
+    };
+    kernels.iter().any(|k| k.op == crate::ops::Op::MatmulMxfp4 && k.accepts(&s))
+}
+
 /// Whether a host MXFP4 tensor's `act` part (the third) says fp8.
 pub fn host_act_is_fp8(parts: &[HostTensor]) -> bool {
     parts.get(2).is_some_and(|p| Mxfp4Act::from_flag(p.to_f32()[0]) == Some(Mxfp4Act::Fp8))

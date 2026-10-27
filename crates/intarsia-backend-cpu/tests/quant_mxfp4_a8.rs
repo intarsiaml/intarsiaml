@@ -153,3 +153,10 @@ fn scale_and_modes() {
         }
     }
 }
+
+#[test]
+fn the_cpu_reference_serves_w4a8_and_an_empty_table_does_not() {
+    use intarsia_core::backend::Backend;
+    assert!(mxfp4::backend_serves_a8(&CpuBackend::new().kernels()));
+    assert!(!mxfp4::backend_serves_a8(&[]));
+}

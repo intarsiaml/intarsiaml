@@ -774,11 +774,12 @@ impl Ctx {
             }
         })
     }
-    /// The MXFP4 activation mode a plain run of this model uses (no `--mxfp4-act`: the recipe's `[defaults] mxfp4_act`, else
-    /// what the checkpoint declares); `None` for a model without an MXFP4 scheme.
+    /// The MXFP4 activation mode a plain run of this model uses on this backend (no `--mxfp4-act`: the recipe's
+    /// `[tuning.<backend>] mxfp4_act`, else its `[defaults] mxfp4_act`, else what the checkpoint declares); `None` for a model
+    /// without an MXFP4 scheme.
     fn effective_mxfp4_act(&self) -> Option<intarsia_core::quant::Mxfp4Act> {
         let declared = self.declared_mxfp4_act()?;
-        let recipe = self.recipe().and_then(|r| r.defaults.mxfp4_act);
+        let recipe = self.recipe().and_then(|r| r.mxfp4_act_for(&self.a.backend));
         Some(intarsia_core::quant::mxfp4::effective_act(None, recipe, Some(declared)))
     }
     /// The MXFP4 activation mode the checkpoint declares (Quark `input_tensors`); `None` for a model without an MXFP4 scheme.
@@ -1520,7 +1521,12 @@ impl Ctx {
         // gets no flag.
         if self.effective_mxfp4_act().is_some() && !args.iter().any(|a| a == "--mxfp4-act") {
             let own = facts::golden_meta(golden, "self_golden").as_deref() == Some("1");
-            if let Some(act) = facts::golden_act(golden).or_else(|| if own { None } else { self.declared_mxfp4_act() }) {
+            if let Some(mut act) = facts::golden_act(golden).or_else(|| if own { None } else { self.declared_mxfp4_act() }) {
+                // W4A8 (the HIP default of the Qwen3.8-27B) is graded as shipped, against the W4A16 golden it is closest to: the
+                // golden's own mode is W4A16, the engine runs the mode a plain run uses
+                if act == intarsia_core::quant::Mxfp4Act::None && self.effective_mxfp4_act() == Some(intarsia_core::quant::Mxfp4Act::Fp8) {
+                    act = intarsia_core::quant::Mxfp4Act::Fp8;
+                }
                 args.extend(["--mxfp4-act".into(), act.name().into()]);
             }
         }

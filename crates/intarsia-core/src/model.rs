@@ -626,13 +626,22 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, recipe.defaults.mxfp4_act, src.quant_scheme().and_then(|s| s.mxfp4_act()));
+        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, recipe.mxfp4_act_for(backend.name()), src.quant_scheme().and_then(|s| s.mxfp4_act()));
         let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), mxfp4_act, shard: None };
+        // W4A8 needs its own kernels (HIP, and the cpu reference): refuse here, clearly, rather than fail at plan time as "no kernel"
+        let a8_served = mxfp4_act != crate::quant::Mxfp4Act::Fp8 || crate::quant::mxfp4::backend_serves_a8(&backend.kernels());
         // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
         let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);
             let shard = axis.filter(|_| tp.world > 1).map(|axis| Shard { axis, rank: tp.rank, world: tp.world });
             let q = crate::quant::load_linear(src, &prefix, b, &QuantLoadOpts { shard, ..qopts })?;
+            if q.act_fp8 && !a8_served {
+                return Err(Error::Unsupported(format!(
+                    "mxfp4 activations 'fp8' (W4A8) have no kernels on the {} backend (HIP only; first hit at projection '{prefix}'); \
+                     use --mxfp4-act none (W4A16) or dynamic (W4A4), or drop the flag for the recipe's default",
+                    backend.name()
+                )));
+            }
             // what the checkpoint declares (hf_quant_config.json) must match what was stored and what we implement
             if let Some(scheme) = src.quant_scheme() {
                 scheme.check_linear(&prefix, q.format)?;
