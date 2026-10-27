@@ -20,12 +20,12 @@ for arm in ${ARMS:-}; do
   gen=$GEN; if [[ " $args " == *" SPECON "* ]]; then gen=${GEN/--spec off/}; args=${args/SPECON/}; fi
   if want T; then
     for rep in $(seq 1 $REPS); do
-      gpu 230 env $envs /work/$bin $gen $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/t-$name-$rep.out" 2> "$O/t-$name-$rep.err"
+      gpu ${TMO:-90} env $envs /work/$bin $gen $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/t-$name-$rep.out" 2> "$O/t-$name-$rep.err"
       echo "T $name rep$rep: $(grep -a 'prefill ' "$O/t-$name-$rep.err" | tail -1 | cut -c1-160)"
     done
   fi
   if want I; then
-    gpu 230 env $envs /work/$bin $gen $args --max-tokens 48 --profile-every 0 -p "$P" > "$O/i-$name.out" 2> "$O/i-$name.err"
+    gpu ${TMO:-90} env $envs /work/$bin $gen $args --max-tokens 48 --profile-every 0 -p "$P" > "$O/i-$name.out" 2> "$O/i-$name.err"
     echo "I $name: md5 $(md5sum < "$O/i-$name.out" | cut -c1-12) $(grep -a 'prefill ' "$O/i-$name.err" | tail -1 | cut -c1-120)"
   fi
 done
@@ -47,7 +47,7 @@ if want R; then
     if (( r % 2 == 0 )); then order=(); for ((k=${#arms[@]}-1; k>=0; k--)); do order+=("${arms[k]}"); done; fi
     for arm in "${order[@]}"; do
       IFS=: read -r name bin envs args <<< "$arm"; envs=${envs//,/ }; args=${args//,/ }
-      gpu 230 env $envs /work/$bin $GEN $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/r-$name-$r.out" 2> "$O/r-$name-$r.err"
+      gpu ${TMO:-90} env $envs /work/$bin $GEN $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/r-$name-$r.out" 2> "$O/r-$name-$r.err"
       echo "R $name r$r: $(grep -a 'prefill ' "$O/r-$name-$r.err" | tail -1 | cut -c1-110)"
     done
   done
