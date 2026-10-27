@@ -1,0 +1,7 @@
+| arm | prefill 1024-tok tok/s median (min-max) [prompt tok] | marginal 1024 | decode tok/s |
+|---|---|---|---|
+| base | 64 (64-64) [992] | - | 13.62 |
+| dev | 64 (64-64) [993] | - | 22.74 |
+
+dev vs base: median prefill change per size (and the paired per-round changes), decode ratio
+    1024: medians -0.2 %  paired rounds -0.2 %, -0.0 %, +0.5 %, -0.1 %, -0.3 %, -0.0 %  decode x1.668

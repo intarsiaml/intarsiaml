@@ -5,6 +5,6 @@ export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
 R=$HOME/intarsiaml-s27d; S=$R/trees/dev/scripts/s27d; mkdir -p $R/out
 echo "=== plan $(date +%T)"; bash $S/plan.sh 2>&1 | tail -12
 echo "=== ids8 $(date +%T)"; MODELS="8" PROMPTS="short-0 short-1 4k-0" bash $S/ids8.sh 2>&1 | tail -8
-echo "=== ids27 $(date +%T)"; O=$R/out/ids27 bash $S/ids.sh ${IDS27:-short-0 short-1 short-2 4k-0 4k-1} 2>&1 | tail -14
+echo "=== ids27 $(date +%T)"; ARMS="off auto" O=$R/out/ids27 bash $S/ids.sh ${IDS27:-short-0 short-1 short-2 4k-0} 2>&1 | tail -14
 echo "=== microbench $(date +%T)"; cd $R/bb/scripts/s27d/mxfp4bench && nvcc -O3 -arch=sm_121 -I$R/bb/kernels/cuda -o bench bench.cu 2>&1 | grep -v "^$" | head -20 && ./bench 40
 echo "=== done $(date +%T)"
