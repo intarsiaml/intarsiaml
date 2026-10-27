@@ -33,7 +33,7 @@ done
 for x in ${EXTRA:-}; do  # extra steps inside the same slot: g0 = CUDA plan show, prof16k = nsys decode profile of the base build at 16k
   case $x in
     g0) echo "== G0 $(date +%T)"; ssh -n spark2 "bash $R/replay-out/g0.sh ${G0_BINS:-base g2b}" ;;
-    prof16k) echo "== profile $(date +%T)"; ssh -n spark2 "bash $R/replay-out/profile.sh base-16k bins/base 64000" ;;
+    prof16k) echo "== profile $(date +%T)"; ssh -n spark2 "bash $R/replay-out/profile.sh base-16k bins/${PROF_BIN:-base} 64000" ;;
   esac
 done
 echo "== le round $RND done $(date +%T)"
