@@ -14,7 +14,7 @@ Raw logs: `2026-10-27-mpf-macro-prefill-mtp/raw/`. Scripts `scripts/mpf/`, table
 | 1 ids: 6 short, 6 ~4k, 6 ~16k, 3 ~34k | 21/21 identical to `--spec off`, with explicit `--spec mtp` and with the shipped default (no flag). Ids cannot see a draft-cache bug (drafts never change the output); the evidence for the head cache is the identical `spec:` counts, section 9 |
 | 2 soak, 40 greedy requests (one prompt ~3.9k tokens, so the macro pass runs) | 40/40 identical, equal to spec-off |
 | 3 mutants | 3 CUDA mutants of lane cmtp + 1 new in the macro head-ingest path (`macro-head-skip`) caught on CUDA (hashes differ from clean); 3 more head-ingest mutants and the two older shared-logic mutants caught on CPU |
-| 4 speed | prefill about 0.7 % below spec-off, at the noise floor: 0.992 / 0.992 / 0.994 of off at 4k / 16k / 34k pooled over 8 rounds of 3 runs (single rounds 0.970-1.015), TTFT +0.7 / +0.8 / +0.5 %; decode 1.17-1.53x in 7 categories on prompts under 4.8k (worst round 1.163x), 1.27x at 4k, 1.13x at 16k and 1.05x at 34k in the long-context sweep (single rounds 1.01-1.22; section 9) |
+| 4 speed | prefill about 0.7 % below spec-off, at the noise floor: 0.992 / 0.992 / 0.994 of off at 4k / 16k / 34k pooled over 8 rounds from 3 sets (single rounds 0.970-1.015 over the three sizes), TTFT +0.7 / +0.8 / +0.5 %; decode 1.17-1.53x in 7 categories on prompts under 4.8k (worst round 1.163x), 1.27x at 4k, 1.13x at 16k and 1.05x at 34k in the long-context sweep (single rounds 1.23-1.30 at 4k, 1.01-1.22 at 16-34k; section 9) |
 | 5 G0 | CUDA 8B, Gemma-4, 35B opt-outs byte-identical to main (also with the default on); Metal 8B and 35B byte-identical; HIP untouched |
 
 Two attempts closed the prefill gap from 0.80 / 0.63 / 0.49 (lane cmtp) to 0.995: the macro pass with the head (this lane, first attempt at 0.97-0.96), then KV-only head ingest of prompt rows (0.990), then skipping the q projection in it (0.995).
@@ -127,7 +127,7 @@ Baseline note: the lane brief named `fecf2d24e` as the pre-PR build, but that co
 | 4 | "worst round 0.990" is true of `raw/longctx` only | confirmed: `raw/longctx-c` has 0.970 (16k) and 1.015 (34k) | claim replaced by "within ~1 %, at the noise floor"; new 3-round set and pooled numbers below |
 | 5 | the 1.17-1.53x decode headline covers prompts under 4.8k only | confirmed | section 0 (gate 4 row), section 5 and a new LOG row corrected; long-context decode below |
 | 6 | `INTARSIA_PREFILL_SKIP_DEAD=1` with `--spec mtp` feeds the head a hidden state without the last layer's FFN | confirmed in code (`tail_dead` had no `st.mtp` check) | fixed in `Model::forward_inner`: the skip is off for a state with an MTP head (and DFlash, as a precaution); CPU test with a mutant |
-| 7 | a lone `--spec-k 0` on the CUDA 35B | the CLI already refuses it (`SpecConfig::parse`: `--spec-k 0 outside 1..=6`, for every mode, checked on a real CLI run); a library caller with `spec_auto` + `spec_k_given` + `k = 0` would have got the recipe default as `SpecConfig { Mtp, k: 0 }` (a verify pass of one row, no drafts) | the loader now refuses it with `--spec-k 0: a draft length is 1 or more (--spec off turns speculation off)`; `mtp_default` / `tp_mtp_default` never return `Some(0)`; CPU tests |
+| 7 | a lone `--spec-k 0` on the CUDA 35B | the CLI already refuses it (`SpecConfig::parse`: `--spec-k 0 outside 1..=6`, for every mode, checked on a real CLI run); a library caller with `spec_auto` + `spec_k_given` + `k = 0` would have got the recipe default as `SpecConfig { Mtp, k: 0 }` (MTP state with zero drafts per pass; not traced further, now refused) | the loader now refuses it with `--spec-k 0: a draft length is 1 or more (--spec off turns speculation off)`; `mtp_default` / `tp_mtp_default` never return `Some(0)`; CPU tests |
 
 ### 9.1 Checks of the paths the lane did not run (tatooine, radiance down 3 times, 14 s / 1 min 54 s / 2 min 33 s, `raw/f185/ab*`, `downtime.log`)
 
@@ -154,7 +154,7 @@ Per round, prefill tok/s `--spec mtp` over `--spec off` (decode in the second li
 
 | prompt tokens | round 1 | round 2 | round 3 | pooled, 8 rounds (`longctx`, `longctx-c`, this set; `-a`, `-b` ran earlier code) |
 | --- | --- | --- | --- | --- |
-| 4.1k prefill | 1.013 | 0.990 | 1.002 | 0.992 (rounds 0.970-1.015, median 0.994); TTFT +0.7 % |
+| 4.1k prefill | 1.013 | 0.990 | 1.002 | 0.992 (rounds 0.990-1.013, median 0.994); TTFT +0.7 % |
 | 16.7k prefill | 1.014 | 0.993 | 0.992 | 0.992 (rounds 0.970-1.014, median 0.992); TTFT +0.8 % |
 | 33.9k prefill | 1.005 | 0.995 | 0.991 | 0.994 (rounds 0.991-1.015, median 0.994); TTFT +0.5 % |
 | 4.1k decode | 1.290 | 1.278 | 1.282 | 1.27 (1.23-1.30) |
