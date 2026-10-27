@@ -12,7 +12,7 @@ MoE model, and the short-conv block is the smallest of the gaps between that che
 `LiquidAI/LFM2.5-24B-A2B-MLX-{4bit,6bit,8bit}` (13 / 18 / 24 GB), `Lfm2MoeForCausalLM`: 40 layers, hidden 2048, 30 `conv` layers and 10
 `full_attention` layers (GQA 32/8 heads, qk layernorm), layers 0-1 with a dense FFN (`intermediate_size` 11776) and layers 2-39 with a
 64-expert top-4 MoE (`moe_intermediate_size` 1536, no shared expert). The smallest is the 4-bit one (snapshot `667408d4`); no bf16 or
-smaller (1.2B / 2.6B) LFM2 exists anywhere on endor (searched the whole disk) and nothing may be downloaded.
+smaller (1.2B / 2.6B) LFM2 was found on endor (`find` for lfm2 / liquidai names to depth 6, plus the HF cache listing) and nothing may be downloaded.
 
 ## Stage timing
 
