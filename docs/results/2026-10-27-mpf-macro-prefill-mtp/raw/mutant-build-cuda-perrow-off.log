@@ -1,0 +1,10 @@
+fleetq: #5831 running on spark1: ssh spark1 'MODE=build bash -s cuda-perrow-off'
+fleetq: #5831 went ahead of the line and must end within 2h09m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+    Finished `release` profile [optimized] target(s) in 22.17s
+clean  sha256 0b0eb31807e378ef
+mutant cuda-perrow-off applied to crates/intarsia-backend-cuda/src/device.rs
+    Finished `release` profile [optimized] target(s) in 8.04s
+mutant cuda-perrow-off sha256 3fe385ad06e38dc0
+binaries differ
+fleetq: #5831 done (exit 0)

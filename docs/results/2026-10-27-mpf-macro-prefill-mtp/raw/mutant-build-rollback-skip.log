@@ -1,3 +1,10 @@
 fleetq: #5823 running on spark1: ssh spark1 'MODE=build bash -s rollback-skip'
 fleetq: #5823 went ahead of the line and must end within 2h40m (by Mon 23:00); it is stopped then
 fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+    Finished `release` profile [optimized] target(s) in 49.16s
+clean  sha256 0b0eb31807e378ef
+mutant rollback-skip applied to crates/intarsia-core/src/state.rs
+    Finished `release` profile [optimized] target(s) in 13.19s
+mutant rollback-skip sha256 8b0d53cea2b3dbed
+binaries differ
+fleetq: #5823 done (exit 0)

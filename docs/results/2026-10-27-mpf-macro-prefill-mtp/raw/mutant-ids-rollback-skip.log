@@ -1,0 +1,10 @@
+fleetq: #5825 waiting (#1 in line): #5824 "mpf: gate1 ids 21 prompts off vs default (no flag)" (claude-f31ccf91) needs gpu quiet on spark1, and this job loads it
+fleetq:   #5824 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5824 set, or it will wait for #5824 to be released.
+fleetq: #5825 running on spark1: ssh spark1 'MODE=ids OFF_FROM=$HOME/intarsiaml-mpf/out bash -s rollback-skip short-0 4k-0 16k-0'
+fleetq: #5825 went ahead of the line and must end within 2h24m (by Mon 23:00); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+FAIL ids short-0 mtp (prompt: 41) differ/empty | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+FAIL ids 4k-0 mtp (prompt: 3870) differ/empty | spec: verify passes=92 proposed=183 accepted=157 (acceptance 85.8%, 2.71 tokens per pass)
+FAIL ids 16k-0 mtp (prompt: 15481) differ/empty | spec: verify passes=104 proposed=208 accepted=148 (acceptance 71.2%, 2.42 tokens per pass)
+ids fails=3
+fleetq: #5825 done (exit 0)
