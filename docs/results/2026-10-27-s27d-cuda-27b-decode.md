@@ -67,10 +67,9 @@ window 7.80 s = 102.6 ms per pass, kernel time 97.0 % of it, idle 3 %. Per pass:
 | norms, rope, kv append, glue | ~1.5 | 1.5 % | |
 | launch gaps | 3.1 | 3 % | CUDA graphs already replay (76 replays, 4 captures) |
 
-Reading: plain decode (M=1) is at the memory roofline already (72.7 ms for 18.0 GB = 248 GB/s including the lm_head), so speculation is
-the only lever that moves tokens per second; the levers inside a pass are bounded: bf16 GEMVs reach 233-239 GB/s, the MXFP4 GEMV 188 GB/s at
-M=3 (about 206 GB/s at M=1 by difference), so bringing the MXFP4 GEMV to the bf16 GEMV's rate would save up to ~15 ms of 102 (a bitwise
-change: the arithmetic order per lane stays). Section 6 has what was and was not tried.
+Reading: plain decode (M=1) is at the memory roofline already (72.7 ms for 18.0 GB = 248 GB/s including the lm_head; the MXFP4 GEMV streams M=1 at
+255-263 GB/s in the microbench), so speculation is the only lever that moves tokens per second. Inside a pass the MXFP4 GEMV drops to 188 GB/s at the verify's
+M=3 (bf16 GEMVs hold 233-239 GB/s); at most ~12 ms of 102 would come back if M=3 ran at the M=1 time. Section 6 has what was and was not tried.
 
 ## 2. What changed
 
@@ -89,7 +88,7 @@ change: the arithmetic order per lane stays). Section 6 has what was and was not
 |---|---|---|
 | decode >= +5 % paired, >= 6 interleaved rounds, median | **PASS**, x1.668 (rounds x1.591-x1.709), 1k, base `origin/main` vs branch binary, default flags | section 0, `raw/gate6/agg.txt` |
 | prefill >= 0.99x | **PASS**, -0.2 % (paired -0.2, -0.0, +0.5, -0.1, -0.3, -0.0 %); 64 tok/s on both arms | `raw/gate6/agg.txt` |
-| greedy ids identical, 8B and 27B probe sets | @@IDS@@ | `raw/ids8/`, `raw/ids27/` |
+| greedy ids identical, 8B and 27B probe sets | **PASS**: 27B, `--spec off` vs the recipe default (no flag; the log line `the default of recipe qwen3_5_vl on cuda at tp=1` and a `spec:` stats line are required): short-0, short-1, short-2, 4k-0 (3870 tokens), 256 ids each, identical; 8B (`Qwen/Qwen3-8B`, base vs branch binary): short-0, short-1, 4k-0, 256 ids and first-token top-20 logits identical. **Trimmed set** (4 + 3 prompts, no 16k) | `raw/ids8/`, `raw/ids27/` |
 | KL / MMLU (only if numerics change) | not applicable: the verify rows are bitwise the sequential steps, the drafter and its vocabulary only move acceptance; ids gate stands in | section 5 |
 | kernel admission, 3 planted mutants (new kernel only) | not applicable: no kernel added or changed | section 2 |
 | `plan show` byte-identical on 8B, 35B, Gemma-4 (CUDA) | **PASS**, json and text for all three, base vs branch binaries | `raw/plan/`; the 27B plan differs only by the MTP head's bf16 ops (`add_bf16`, `matmul_bf16`, `matmul_bf16_gemv`, `logits_bf16_gemv_rows`, `matmul_pair_bf16_gemv`), as intended |
@@ -113,11 +112,18 @@ of M), decode attention runs per row for MTP (`INTARSIA_CUDA_VERIFY_ATTN_PER_ROW
 verify row is bitwise the plain decode step (docs/results/2026-10-26-cmtp-cuda-mtp-default.md). The draft head's vocabulary and the drafter's
 numerics only decide how many drafts are accepted. The measured check is the ids gate of section 3.
 
-@@IDS_DETAIL@@
+Acceptance in the ids runs: 69.8 %, 62.8 %, 76.2 % (short), 80.5 % (4k); 2.26-2.60 tokens per pass.
 
 ## 6. Not done, and why
 
-- **MXFP4 GEMV bandwidth (largest remaining decode lever, bitwise)**. @@MB@@
+- **MXFP4 GEMV at M = 2..4 (largest remaining in-pass decode lever, bitwise)**. Standalone microbench (`scripts/s27d/mxfp4bench/`, `raw/microbench/bench.txt`, the
+  27B's six shapes, weights rotated through 4 copies, 40 launches): the current kernel streams M=1 at 255-263 GB/s (the roofline; the plain
+  decode is bandwidth-bound and untouchable), but M=3 at 198-223 GB/s and M=4 at 157-190 GB/s (M=3 costs 1.15-1.3x the M=1 time on the
+  same bytes, the profile above shows 188 GB/s in the engine): each extra verify row re-converts the 32 activations per group and runs 32 FMAs,
+  and the kernel is ALU/issue-bound for rows >= 2, not latency-bound. Batching the lane's weight loads (B = 2 or 4 groups in flight, arithmetic order unchanged, bitwise equal in
+  every case) did not help (within +-8 % of the baseline, sometimes slower), so memory-level parallelism is not the limit. A kernel that stages the activation rows once per block
+  (shared memory, f32) and reuses the dequantised weights across rows could bring M=3 to the M=1 time: at most ~12 ms of the 102 ms pass (~12 % decode), bitwise
+  possible (same per-row fma chain). Not built: it needs `kernels test` admission with planted mutants and its own paired window, which did not fit the budget.
 - **CUDA MXFP4 prefill** (user-visible and 9x behind TensorFold): 64 tok/s, 64 s to first token at 4k, 4.3 min at 16k. `mxfp4.cu` is the M1-drill GEMV
   ("correct, not fast: there is no MXFP4 tensor-core GEMM here"); a dequantise-to-bf16 tile GEMM on the `nvfp4_mma` pattern is the fix. Not the decode gap,
   but it set the cost of every window here (a 6-round 1k/4k/16k A/B does not fit in a window) and it bounds MMLU-style numerics gates on this model on CUDA.
@@ -132,6 +138,6 @@ numerics only decide how many drafts are accepted. The measured check is the ids
 ## 7. Fleet log
 
 Owner `claude-f31ccf91`, spark1 only (vLLM `flight/guidance/capcom` up the whole time, nothing taken down): copy of the checkpoint #6060/#6061
-(net,disk), builds #6066 (base), #6110 (dev), quiet GPU windows #6081 (w1), #6093 (nsys), #6111 (w2), #6132 (w3), #6146 (w4), @@W5@@; shared
+(net,disk), builds #6066 (base), #6110 (dev), quiet GPU windows #6081 (w1), #6093 (nsys), #6111 (w2), #6132 (w3), #6146 (w4), #6147 (w5, 16k single-sample decode); shared
 functional smokes #6075, #6077, #6078. Trees `~/intarsiaml-s27d/trees/{base,dev}`, model `~/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4`,
 worktree `.worktrees/s27d`: kept (see the report).

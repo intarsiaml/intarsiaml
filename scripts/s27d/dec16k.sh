@@ -7,6 +7,8 @@ HOST=spark1; HN=spark-4e77; PORT=8191
 OUT=/opt/code/intarsiaml/.worktrees/s27d/docs/results/2026-10-27-s27d-cuda-27b-decode/raw/dec16k; mkdir -p $OUT
 M=/home/nvidia/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4
 ARMS=("$@"); [ ${#ARMS[@]} = 0 ] && ARMS=(base:base dev:dev)
+# a server left over from an interrupted run of this script holds the port
+ssh -n -o BatchMode=yes $HOST "pkill -f 'release/intarsia serve.*--port $PORT'; sleep 4" || true
 for a in "${ARMS[@]}"; do
   IFS=: read -r name tree <<< "$a"
   SPID=$(ssh -n -o BatchMode=yes $HOST "mkdir -p ~/intarsiaml-s27d/trees/$tree/out; nohup ~/intarsiaml-s27d/trees/$tree/target/release/intarsia serve --backend cuda --model $M --port $PORT --host 0.0.0.0 --served-model-name m --max-seq 20480 --mem-budget 45 --profile-every 0 > ~/intarsiaml-s27d/trees/$tree/out/dec16k-$name.log 2>&1 < /dev/null & echo \$!")
@@ -26,7 +28,7 @@ with urllib.request.urlopen(req, timeout=900) as r:
         if j.get('usage'): usage = j['usage']
         if j.get('choices') and j['choices'][0].get('text'): ts.append(time.time())
 n = len(ts)
-print(f'{name}: prompt_tokens {usage and usage.get("prompt_tokens")} chunks {n} ttft {ts[0]-t0:.1f} s prefill {usage and usage.get("prompt_tokens", 0)/(ts[0]-t0):.0f} tok/s decode tok/s (127 tokens after the first chunk) {127/(ts[-1]-ts[0]):.2f}')
+print(f'{name}: prompt chars {len(text)} (~16.6k tokens) ttft {ts[0]-t0:.1f} s, decode tok/s (127 tokens after the first chunk) {127/(ts[-1]-ts[0]):.2f}, chunks {n}')
 PY
   ssh -n $HOST "kill $SPID 2>/dev/null; sleep 5; kill -9 $SPID 2>/dev/null"
 done
