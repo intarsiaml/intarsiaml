@@ -38,6 +38,11 @@ int ik_attn_prefill_bf16_splitkv_ext(const ik_tensor* q, const ik_tensor* kc, co
                                      float scale, int64_t window, ik_tensor* out, const ik_scratch* scratch,
                                      void* stream);
 
+/* attn_prefill_bf16_flash_ext: attention_flash.cu's tensor-core prefill kernel with the sliding window and head_dim 256 / 512
+ * (D = 512: two blocks of 256 output dims each); kernels/cuda/attention_flash_ext.cu */
+int ik_attn_prefill_bf16_flash_ext(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
+                                   int64_t window, ik_tensor* out, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

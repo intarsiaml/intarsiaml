@@ -42,6 +42,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_decode_bf16_ext", Op::AttnDecode),
     ("attn_prefill_bf16_splitkv_ext", Op::AttnPrefill),
     ("attn_decode_bf16_splitkv_ext", Op::AttnDecode),
+    ("attn_prefill_bf16_flash_ext", Op::AttnPrefill),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("gdn_conv_bf16", Op::GdnConv),
@@ -113,6 +114,11 @@ fn splitkv_ok(s: &ShapeInfo) -> bool {
 fn splitkv_ext_ok(s: &ShapeInfo) -> bool {
     splitkv_ok(s)
         || (s.head_dim == 512 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0 && s.n_heads / s.n_kv_heads <= 8)
+}
+
+/// The ext flash prefill kernel: head_dim 256 or 512 (Gemma 4's sliding and global layers).
+fn flash_ext_ok(s: &ShapeInfo) -> bool {
+    matches!(s.head_dim, 256 | 512) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0
 }
 
 fn flash_ok(s: &ShapeInfo) -> bool {
@@ -445,6 +451,16 @@ pub fn all() -> Vec<KernelImpl> {
                 .tol(BF16_TOL)
                 .priority(9)
                 .scratch(splitkv_scratch),
+            // tensor-core flash prefill with the sliding window, head_dim 256 / 512 (kernels/cuda/attention_flash_ext.cu). Priority 9:
+            // below the plain flash kernel (10, which never accepts an ext call) so a plain call keeps its kernel, above the SIMT ones
+            "attn_prefill_bf16_flash_ext" => k
+                .acts(bf)
+                .weights(bf)
+                .ext()
+                .when(|s| flash_ext_ok(s) && s.m > SPLITKV_MAX_ROWS)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(9),
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
             // sequential recurrence, one warp per state row: fixed reduction order
@@ -1120,6 +1136,7 @@ mod tests {
         "attn_decode_bf16_ext:attn_decode",
         "attn_decode_bf16_splitkv_ext:attn_decode",
         "attn_prefill_bf16_ext:attn_prefill",
+        "attn_prefill_bf16_flash_ext:attn_prefill",
         "attn_prefill_bf16_splitkv_ext:attn_prefill",
         "embedding_scaled_bf16:embedding",
         "gelu_glu_bf16:gelu_glu",
@@ -1161,11 +1178,13 @@ mod tests {
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 8, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnPrefill, &att(8, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_splitkv_ext"));
-        assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_flash_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(1024, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_flash_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 128, true)).as_deref(), Some("attn_prefill_bf16_ext"), "no flash ext kernel at head_dim 128");
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, false)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnDecode, &att(1, 32, 2, 512, true)).as_deref(), Some("attn_decode_bf16_ext"), "16 q heads per kv head: SIMT");
-        assert_eq!(pick(Op::AttnPrefill, &att(20, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_ext"));
+        assert_eq!(pick(Op::AttnPrefill, &att(20, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_flash_ext"));
         let el = |ext: bool| ShapeInfo { m: 4, k: 64, head_dim: 64, act: bf, out: bf, ext, ..Default::default() };
         for (op, plain, extk) in [
             (Op::Rope, "rope_bf16", "rope_prop_bf16"),
