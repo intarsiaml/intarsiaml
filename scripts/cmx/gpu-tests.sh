@@ -5,7 +5,7 @@
 # 2. batched decode rows == solo step (tests/batch_cuda_real.rs, run with the 27B directory), N = 2..16, 130 steps
 # 3. kernels test: the matmul_mxfp4 op full sweep, then the whole CUDA quick sweep
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/gates}; mkdir -p $O
+R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/gates}; mkdir -p $O
 cd $R/trees/dev
 echo "== verify rows $(date +%T)"
 INTARSIA_VERIFY_DIR=$M INTARSIA_VERIFY_ROWS=4 INTARSIA_VERIFY_LENS=${LENS:-17,130,1024,4000} INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-models --test verify_rows_real -- --nocapture > $O/verify-rows.log 2>&1

@@ -58,7 +58,7 @@ GEMM vs GEMV: max relative difference 2.0e-3 to 4.1e-3 of max |out| (bf16 output
 | verify rows == single-row steps (27B, `verify_rows_real`, q <= 4, ctx 17..4000) | **PASS with the engine's per-row verify attention** (`INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1`, what `--spec mtp` runs): 0 diffs, with and without the GEMM. Without it the probe reports 4 windows with diffs (max |dlogit| 0.115); **the same diffs appear with `INTARSIA_CUDA_MXFP4_MMA=0` (0.106)**, so they come from the multi-row attention, not from this change |
 | `kernels test` admits the kernel, >= 3 planted mutants caught | **PASS**: `matmul_mxfp4_mma` ADMITTED (10 cases, rel_l2 5.8e-5), `_gemv` and `_gemv_rows` admitted; full CUDA sweep 79 kernels / 1597 cases, no REJECTED. **6 of 6 mutants caught** (e8m0 bias, scale per piece, scale row stride, scale step stride, output scale, k-half scale offset; `scripts/cmx/mutants.py`) |
 | `plan show` byte-identical 8B, 35B, Gemma-4 on CUDA | **PASS**: json and text for all three (md5 `b1a1150e`/`7742cef8`, `ca8cba7e`/`2c7deccd`, `82ea8282`/`418cbfae`). The 27B plan differs, as intended (new kernel rows) |
-| Mac `cargo test --workspace` | **PASS**: 1044 passed, 0 failed (`raw/cargo-test-workspace-mac.log`) |
+| Mac `cargo test --workspace` | **PASS**: 1044 passed, 0 failed on the branch, 1061 passed, 0 failed after merging main `4325c48c4` (`raw/cargo-test-workspace-mac.log` is the first run). All GPU results above are from the pre-merge tree (base `74211fc33`); the quiet-window budget was spent, so they were not rerun after the merge |
 | CI green | see the PR |
 | knob `INTARSIA_CUDA_MXFP4_MMA=0` restores the old path | **PASS**: prefill 57 / 63 / 64.5 tok/s as base, ids identical to base on every prompt including the 3870-token one, KL equal to base to all digits |
 
@@ -83,4 +83,4 @@ M = 4096 32316 (22.6 TFLOP/s, an outlier, not on the served path: chunk 256). Ot
 2. Hybrid batching with prefill chunks inside an `exact_rows` call still uses the slow GEMV; the GEMM serves only ordinary calls (by design: its bits differ from the GEMV's).
 3. M = 4096 in one call is half the TFLOP/s of M = 1024 (microbench only; chunk 256 serves). Not investigated.
 4. HIP/Metal unchanged. The `plan show` of the 27B on CUDA now lists the two new kernels.
-5. `~/intarsiaml-s27d` on spark1 deleted at the end of the lane (see the report); its checkpoint copy was used from there until then, so a rerun of `scripts/cmx/*` needs `MODEL=` pointed at a checkpoint.
+5. `~/intarsiaml-s27d` on spark1 deleted at the end of the lane (see the report); the checkpoint was copied to `~/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4` first (diff -rq verified), which the scripts now use.

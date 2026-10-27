@@ -5,7 +5,7 @@
 # GEMM) and teacher-forced single-token decode of the last 16 positions of each prompt. Static floor 0.03 (no baseline: there is none for CUDA).
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4}; G=${GOLDEN:-$HOME/intarsiaml-od/goldens/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors}
+R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4}; G=${GOLDEN:-$HOME/intarsiaml-od/goldens/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors}
 O=${O:-$R/out/acc}; mkdir -p $O
 for arm in ${ARMS:-base dev dev0}; do
   case $arm in base) tree=base; env="" ;; dev) tree=dev; env="" ;; dev0) tree=dev; env="INTARSIA_CUDA_MXFP4_MMA=0" ;; esac

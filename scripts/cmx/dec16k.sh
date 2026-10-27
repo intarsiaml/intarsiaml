@@ -5,7 +5,7 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 HOST=spark1; HN=spark-4e77; PORT=8191
 OUT=/opt/code/intarsiaml/.worktrees/cmx/docs/results/2026-10-27-cmx-cuda-mxfp4-prefill/raw/dec16k; mkdir -p $OUT
-M=/home/nvidia/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4
+M=/home/nvidia/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4
 ARMS=("$@"); [ ${#ARMS[@]} = 0 ] && ARMS=(base:base dev:dev)
 # a server left over from an interrupted run of this script holds the port
 ssh -n -o BatchMode=yes $HOST "pkill -f 'release/intarsia serve.*--port $PORT'; sleep 4" || true

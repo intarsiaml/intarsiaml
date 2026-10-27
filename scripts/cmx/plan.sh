@@ -5,7 +5,7 @@ set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
 R=$HOME/intarsiaml-cmx; H=/home/nvidia/.cache/huggingface/hub; O=${O:-$R/out/plan}; mkdir -p $O; fails=0
 for mm in 8:models--Qwen--Qwen3-8B 35:models--nvidia--Qwen3.6-35B-A3B-NVFP4 g:models--nvidia--Gemma-4-26B-A4B-NVFP4 27:27B; do
-  m=${mm%%:*}; M=$(ls -d $H/${mm#*:}/snapshots/* 2>/dev/null | head -1); [ $m = 27 ] && M=$HOME/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4
+  m=${mm%%:*}; M=$(ls -d $H/${mm#*:}/snapshots/* 2>/dev/null | head -1); [ $m = 27 ] && M=$HOME/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4
   for t in base dev; do
     b=$R/trees/$t/target/release/intarsia
     $b plan show --backend cuda --model $M --max-seq 8192 --mem-budget 40 --json < /dev/null > $O/plan-$m-$t.json 2> /dev/null

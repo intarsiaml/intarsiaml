@@ -4,7 +4,7 @@
 #   a. dev, INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1 (what `--spec mtp` runs)     b. dev, INTARSIA_CUDA_MXFP4_MMA=0 (the pre-change matmul path), probe attention
 #   c. dev, MMA=0 and ATTN_PER_ROW=1
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/gates}; mkdir -p $O
+R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/gates}; mkdir -p $O
 cd $R/trees/dev
 for v in "a:INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1" "b:INTARSIA_CUDA_MXFP4_MMA=0" "c:INTARSIA_CUDA_MXFP4_MMA=0 INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1"; do
   n=${v%%:*}; e=${v#*:}

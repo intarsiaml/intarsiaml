@@ -9,7 +9,7 @@ set -uo pipefail
 HOST=${HOST:-spark1}; HN=${HN:-spark-4e77}; PORT=${PORT:-8190}
 OUTN=$1; ROUNDS=$2; shift 2
 OUT=/opt/code/intarsiaml/.worktrees/cmx/docs/results/2026-10-27-cmx-cuda-mxfp4-prefill/raw/$OUTN; mkdir -p $OUT
-M35=${MODEL:-/home/nvidia/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4}
+M35=${MODEL:-/home/nvidia/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4}
 SN=${SN:-intarsia-27b}; SIZES=${SIZES:-1024,4096,16384}; MS=${MS:-20480}; MB=${MB:-45}
 SPID=""
 vtok() { curl -s --max-time 5 "http://$HN:8000/metrics" | grep -E "^vllm:generation_tokens_total" | head -1 | awk '{print $2}'; }

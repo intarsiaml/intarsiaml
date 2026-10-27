@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Lane cmx: build a tree on spark1 under ~/intarsiaml-cmx/trees/<name>, inside a fleetq slot (--load cpu):
 #   fleetq run --host spark1 --load cpu --mem 16 --expect 25 --label "cmx: build <name>" -- scripts/cmx/build.sh <name> [src-dir]
-# Same as scripts/s27d/build.sh with other paths; the cargo target is seeded from the s27d dev tree.
+# Same as scripts/s27d/build.sh with other paths; the cargo target is seeded from the cmx base tree.
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 NAME=$1; REPO="$(git rev-parse --show-toplevel)"; SRC=${2:-$REPO}
-HOST=${HOST:-spark1}; SEED=${SEED:-intarsiaml-s27d/trees/dev}
+HOST=${HOST:-spark1}; SEED=${SEED:-intarsiaml-cmx/trees/base}
 R="~/intarsiaml-cmx/trees/$NAME"
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }

@@ -7,7 +7,7 @@
 # Output: $O/gen-<prompt>-<arm>.{ids,err}; then the comparison table (prompt tokens, first divergence index of each arm against base-off).
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/ids}; mkdir -p "$O"
+R=$HOME/intarsiaml-cmx; M=${MODEL:-$HOME/intarsiaml-cmx/models/Qwen3.8-27B-MXFP4}; O=${O:-$R/out/ids}; mkdir -p "$O"
 P=$R/trees/dev/scripts/cmx/ids-prompts
 ARMS=${ARMS:-"base-off dev-off dev0-off dev-mtp"}
 gen() { # gen <prompt> <arm>
