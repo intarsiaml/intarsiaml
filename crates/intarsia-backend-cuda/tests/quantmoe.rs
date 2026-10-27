@@ -125,6 +125,22 @@ fn moe_experts_mma_matches_reference() {
     }
 }
 
+/// Gemma-4-26B-A4B layer shape for the grouped gelu kernels (H = 2816, I = 704 = 5.5 raw 128-k units, top-8): the tensor-core and
+/// W4A16 kernels against the cpu reference and the warp-per-row gelu kernel, at tile heights 16 / 32 / 64.
+#[test]
+fn moe_gelu_experts_at_the_gemma4_shape() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(44);
+    for (t, e) in [(33usize, 16usize), (100, 16), (300, 16), (1024, 32)] {
+        let mut hc = experts_case(&mut rng, t, e, 8, 2816, 704, DType::Bf16);
+        hc.attrs.gelu = true;
+        let label = format!("gemma shape T={t} E={e}");
+        for kernel in ["moe_experts_gelu_bf16", "moe_experts_mma_gelu_bf16", "moe_experts_w4a16_gelu_bf16"] {
+            check_experts_with(&*cuda, kernel, &hc, &label);
+        }
+    }
+}
+
 /// The grouped tensor-core kernel against the warp-per-row kernel it replaces for prefill batches, on the same
 /// inputs (both are also graded against the cpu reference above). The two sum in a different order, so the bf16
 /// outputs may differ by rounding, never by more than rel_l2 1e-3 (the admission budget). Same shapes as
