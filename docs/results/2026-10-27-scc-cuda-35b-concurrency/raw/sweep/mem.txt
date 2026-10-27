@@ -1,0 +1,15 @@
+base r1: MemAvailable 52375 MB with the server up
+devauto r1: MemAvailable 51424 MB with the server up
+dev1 r1: MemAvailable 51664 MB with the server up
+dev2 r1: MemAvailable 51695 MB with the server up
+dev4 r1: MemAvailable 51679 MB with the server up
+dev4 r2: MemAvailable 51710 MB with the server up
+dev2 r2: MemAvailable 51694 MB with the server up
+dev1 r2: MemAvailable 51677 MB with the server up
+devauto r2: MemAvailable 51696 MB with the server up
+base r2: MemAvailable 51713 MB with the server up
+base r3: MemAvailable 51705 MB with the server up
+devauto r3: MemAvailable 51707 MB with the server up
+dev1 r3: MemAvailable 51709 MB with the server up
+dev2 r3: MemAvailable 51691 MB with the server up
+dev4 r3: MemAvailable 51680 MB with the server up

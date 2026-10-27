@@ -19,6 +19,6 @@ python3 \$O/burst.py 8197 ${N:-16} ${GEN:-256} 1 | tee \$O/burst.txt
 pkill -TERM -f 'bin/[${BIN:0:1}]${BIN:1} serve --backend cuda --model .* --port 8197'; sleep 8
 for i in \$(seq 1 90); do pgrep -f '[n]sys profile' > /dev/null || break; sleep 2; done
 nsys stats -r cuda_gpu_trace -f csv --force-export=true -o \$O/trace \$O/nsys.nsys-rep < /dev/null > \$O/stats.log 2>&1
-python3 \$O/rank.py \$O/trace_cuda_gpu_trace.csv | tee \$O/rank.txt
+python3 \$O/rank.py \$O/trace_cuda_gpu_trace.csv ${RANK_ARGS:-5} | tee \$O/rank.txt
 rm -f \$O/nsys.sqlite \$O/nsys.nsys-rep.bak"
 scp -q "$HOST:intarsiaml-scc/out/$OUTN/rank.txt" "$HOST:intarsiaml-scc/out/$OUTN/burst.txt" "$HOST:intarsiaml-scc/out/$OUTN/warm.txt" "$HOST:intarsiaml-scc/out/$OUTN/serve.err" "$RAW/"

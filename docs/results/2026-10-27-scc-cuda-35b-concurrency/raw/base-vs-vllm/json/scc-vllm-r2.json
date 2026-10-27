@@ -1,0 +1,233 @@
+{
+ "run_id": "20261027-075032-adhoc-scc-vllm-r2",
+ "kind": "speed",
+ "label": "scc-vllm-r2",
+ "started_at": "2026-10-27T07:50:32-04:00",
+ "finished_at": "2026-10-27T07:51:49-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8000/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "spark2 production vLLM (role retro, served as guidance/capcom): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-chunked-prefill"
+  },
+  "server_reported": {
+   "version": {
+    "version": "0.26.1rc1.dev602+g65b7662d3"
+   }
+  }
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8000/v1 --model guidance --thinking off --sizes 1024 --gen 256 --reps 3 --concurrency 1,4,8,16 --label scc-vllm-r2 --no-unim --recipe spark2 production vLLM (role retro, served as guidance/capcom): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-chunked-prefill",
+  "git": "d12b61c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance",
+    "capcom"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "vllm",
+   "max_model_len": 131072
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 992,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.186,
+     "min": 0.181,
+     "max": 0.187,
+     "n": 3,
+     "spread_pct": 3.1
+    },
+    "prefill_tok_s": {
+     "median": 5327.152,
+     "min": 5301.714,
+     "max": 5475.871,
+     "n": 3,
+     "spread_pct": 3.3
+    },
+    "decode_tok_s": {
+     "median": 78.695,
+     "min": 78.022,
+     "max": 78.842,
+     "n": 3,
+     "spread_pct": 1.0
+    },
+    "peak_decode_tok_s": {
+     "median": 79.6,
+     "min": 79.5,
+     "max": 79.6,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 1,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 74.6,
+    "per_stream_decode_tok_s": {
+     "median": 78.812,
+     "min": 78.812,
+     "max": 78.812,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 79.7,
+     "min": 79.7,
+     "max": 79.7,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.188,
+     "min": 0.188,
+     "max": 0.188,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "errors": []
+   },
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 114.3,
+    "per_stream_decode_tok_s": {
+     "median": 60.566,
+     "min": 60.1,
+     "max": 61.866,
+     "n": 4,
+     "spread_pct": 2.9
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 63.05,
+     "min": 62.6,
+     "max": 63.6,
+     "n": 4,
+     "spread_pct": 1.6
+    },
+    "ttft_s": {
+     "median": 2.538,
+     "min": 0.244,
+     "max": 4.829,
+     "n": 4,
+     "spread_pct": 180.7
+    },
+    "errors": []
+   },
+   {
+    "streams": 8,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 114.1,
+    "per_stream_decode_tok_s": {
+     "median": 60.394,
+     "min": 59.749,
+     "max": 61.44,
+     "n": 8,
+     "spread_pct": 2.8
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 62.9,
+     "min": 62.2,
+     "max": 63.4,
+     "n": 8,
+     "spread_pct": 1.9
+    },
+    "ttft_s": {
+     "median": 7.032,
+     "min": 0.248,
+     "max": 13.79,
+     "n": 8,
+     "spread_pct": 192.6
+    },
+    "errors": []
+   },
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 114.9,
+    "per_stream_decode_tok_s": {
+     "median": 60.859,
+     "min": 59.685,
+     "max": 62.745,
+     "n": 16,
+     "spread_pct": 5.0
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 64.1,
+     "min": 61.9,
+     "max": 68.3,
+     "n": 16,
+     "spread_pct": 10.0
+    },
+    "ttft_s": {
+     "median": 15.92,
+     "min": 0.26,
+     "max": 31.552,
+     "n": 16,
+     "spread_pct": 196.6
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.26.1rc1.dev602+g65b7662d3-9e4897ff",
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 8,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

@@ -1,0 +1,7 @@
+fleetq: #6232 running on spark2: env CONC=16 scripts/scc/le-window.sh hostprof-base 1 base-hp:base:INTARSIA_HOST_PROFILE=1:--max-batch_16
+== round 1 arm base-hp 08:00:26
+base-hp r1: MemAvailable 52192 MB with the server up
+scc-base-hp-r1: - result file: `results/20261027-080107-adhoc-scc-base-hp-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080107-adhoc-scc-base-hp-r1/result.json 
+[localeval] 16 streams: aggregate 234.0 tok/s
+== done 08:01:37
+fleetq: #6232 done (exit 0)

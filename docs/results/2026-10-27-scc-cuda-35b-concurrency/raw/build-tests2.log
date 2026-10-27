@@ -1,0 +1,8 @@
+fleetq: #6260 running on spark2: scripts/scc/test.sh build
+
+warning: `intarsia-backend-cuda` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 8.66s
+  Executable tests/quick_coverage.rs (target/release/deps/quick_coverage-8772f20b462ceef5)
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+  Executable tests/rows_registry.rs (target/release/deps/rows_registry-6ff4c958b8241abd)
+fleetq: #6260 done (exit 0)

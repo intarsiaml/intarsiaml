@@ -1,0 +1,5 @@
+fleetq: #6273 running on spark2: scripts/scc/build.sh dev3
+    Finished `release` profile [optimized] target(s) in 54.95s
+-rwxrwxr-x 1 nvidia nvidia 80799904 Oct 27 08:57 /home/nvidia/intarsiaml-scc/bin/dev3
+intarsia 0.0.1
+fleetq: #6273 done (exit 0)
