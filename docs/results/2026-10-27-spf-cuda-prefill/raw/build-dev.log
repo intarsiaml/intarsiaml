@@ -1,0 +1,9 @@
+fleetq: #5882 waiting (#2 in line): in line behind #5880 "spf: build dbg (alignment print)" (claude-f31ccf91) on spark1
+fleetq:   #5880 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5880 set, or it will wait for #5880 to be released.
+fleetq: #5882 waiting (#1 in line): #5877 "f185 (c): 34k/16k macro vs chunk prefill with MTP, spec stats" (claude-f31ccf91) needs cpu quiet on spark1, and this job loads it
+fleetq:   #5877 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5877 set, or it will wait for #5877 to be released.
+fleetq: #5882 running on spark1: scripts/spf/build.sh dev
+    Finished `release` profile [optimized] target(s) in 23.86s
+-rwxrwxr-x 2 nvidia nvidia 79852728 Oct 26 23:57 /home/nvidia/intarsiaml-spf/dev/target/release/intarsia
+intarsia 0.0.1
+fleetq: #5882 done (exit 0)

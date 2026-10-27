@@ -1,0 +1,13 @@
+fleetq: #5950 waiting (#2 in line): in line behind #5944 "spf: build rope2 + rope_multi test binary" (claude-f31ccf91) on spark1
+fleetq:   #5944 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5944 set, or it will wait for #5944 to be released.
+fleetq: #5950 waiting (#1 in line): needs cpu quiet on spark1, but #5944 "spf: build rope2 + rope_multi test binary" (claude-f31ccf91) loads it
+fleetq:   #5944 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5944 set, or it will wait for #5944 to be released.
+fleetq: #5950 running on spark1: ssh spark1 'MODELS="35" PROMPTS="short-0 4k-0 16k-0" ARMS="base:base rope:rope" bash -s'
+ref   35 short-0 base: 256 ids, prefill 90 ms
+PASS  35 short-0 base == rope: ids + top-20 logits identical, prefill 131 ms
+ref   35 4k-0 base: 256 ids, prefill 553 ms
+PASS  35 4k-0 base == rope: ids + top-20 logits identical, prefill 564 ms
+ref   35 16k-0 base: 256 ids, prefill 2279 ms
+PASS  35 16k-0 base == rope: ids + top-20 logits identical, prefill 2252 ms
+ids fails=0
+fleetq: #5950 done (exit 0)

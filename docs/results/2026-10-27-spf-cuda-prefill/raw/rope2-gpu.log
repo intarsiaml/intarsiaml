@@ -1,0 +1,2 @@
+fleetq: #5956 waiting (#2 in line): in line behind #5954 "spf: rope mutants" (claude-f31ccf91) on spark1
+fleetq:   #5954 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5954 set, or it will wait for #5954 to be released.

@@ -1,0 +1,34 @@
+fleetq: #5890 waiting (#1 in line): needs gpu quiet on spark1, but #5885 "f185 (d): long-context speed off vs mtp, 3 rounds, off first in round 1" (claude-f31ccf91) loads it
+fleetq:   #5885 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5885 set, or it will wait for #5885 to be released.
+fleetq: #5890 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5890 running on spark1: ssh spark1 'bash -s'
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=12288 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=12288 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=12288 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=12288 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=4096 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+DBG gemm M=4091 K=4096 N=1024 x%4096=0 w%4096=0 out%4096=0
+finish=length prompt=4091 (cached 0) completion=1 | prefill 1092 ms (3747.9 tok/s) | decode 0 ms (0.00 tok/s)
+ROPE_MULTI=1: finish=length prompt=4091 (cached 0) completion=64 | prefill 1093 ms (3743.2 tok/s) | decode 4326 ms (14.56 tok/s) ids sha 009253a4
+ROPE_MULTI=0: finish=length prompt=4091 (cached 0) completion=64 | prefill 1127 ms (3631.2 tok/s) | decode 4297 ms (14.66 tok/s) ids sha 009253a4
+ROPE_MULTI=1: finish=length prompt=4091 (cached 0) completion=64 | prefill 1064 ms (3843.5 tok/s) | decode 4295 ms (14.67 tok/s) ids sha 009253a4
+ROPE_MULTI=0: finish=length prompt=4091 (cached 0) completion=64 | prefill 1102 ms (3713.3 tok/s) | decode 4328 ms (14.56 tok/s) ids sha 009253a4
+fleetq: #5890 done (exit 0)

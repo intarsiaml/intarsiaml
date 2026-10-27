@@ -1,0 +1,33 @@
+fleetq: #5850 running on spark1: scripts/spf/le-window.sh base8b 3 base:base
+== round 1 arm base 23:20:57
+base r1: MemAvailable 63646 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 277 case(s) run, 0 cached
+spf-base-r1: - result file: `results/20261026-232238-adhoc-spf-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261026-232238-adhoc-spf-base-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.22 | 4554 (4493–4567) * | - | 15.1 (15.1–15.1) | 15.3 (15.3–15.5) | - | - | 128 |
+| 4087 | 1.02 | 3999 (3958–4060) | 3851 | 14.7 (14.7–14.7) | 14.9 (14.8–15.0) | - | - | 128 |
+| 16677 | 4.80 | 3473 (3469–3475) | 3332 | 13.2 (13.2–13.2) | 13.3 (13.3–13.3) | - | - | 128 |
+== round 2 arm base 23:24:20
+base r2: MemAvailable 64028 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-base-r2: - result file: `results/20261026-232536-adhoc-spf-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261026-232536-adhoc-spf-base-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.22 | 4461 (4441–4510) * | - | 15.3 (15.2–15.3) | 15.3 (15.3–15.3) | - | - | 128 |
+| 4086 | 1.04 | 3937 (3921–3939) | 3794 | 14.8 (14.8–14.8) | 14.9 (14.9–14.9) | - | - | 128 |
+| 16675 | 4.81 | 3467 (3457–3469) | 3338 | 13.3 (13.3–13.3) | 13.4 (13.3–13.5) | - | - | 128 |
+== round 3 arm base 23:27:17
+base r3: MemAvailable 63777 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-base-r3: - result file: `results/20261026-232836-adhoc-spf-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261026-232836-adhoc-spf-base-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.22 | 4507 (4409–4528) * | - | 15.2 (15.2–15.3) | 15.3 (15.3–15.4) | - | - | 128 |
+| 4110 | 1.02 | 4031 (4028–4034) | 3900 | 14.8 (14.8–14.8) | 14.9 (14.8–14.9) | - | - | 128 |
+| 16679 | 4.75 | 3510 (3493–3511) | 3369 | 13.3 (13.3–13.3) | 13.4 (13.3–13.4) | - | - | 128 |
+== done 23:30:17
+fleetq: #5850 done (exit 0)

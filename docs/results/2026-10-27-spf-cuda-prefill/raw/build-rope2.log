@@ -1,0 +1,12 @@
+fleetq: #5944 waiting (#2 in line): in line behind #5940 "spf: kernels test (full + quick + rope 8B shapes), rope tree" (claude-f31ccf91) on spark1
+fleetq:   #5940 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5940 set, or it will wait for #5940 to be released.
+fleetq: #5944 waiting (#1 in line): #5940 "spf: kernels test (full + quick + rope 8B shapes), rope tree" (claude-f31ccf91) needs cpu quiet on spark1, and this job loads it
+fleetq:   #5940 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5940 set, or it will wait for #5940 to be released.
+fleetq: #5944 running on spark1: bash -c 'scripts/spf/build.sh rope2 && ssh -n spark1 "export PATH=\$HOME/.cargo/bin:/usr/local/cuda/bin:\$PATH; cd ~/intarsiaml-spf/rope2 && CARGO_BUILD_JOBS=12 cargo test --release -p intarsia-backend-cuda --test rope_multi --no-run 2>&1 | tail -3"'
+    Finished `release` profile [optimized] target(s) in 24.66s
+-rwxrwxr-x 2 nvidia nvidia 79853136 Oct 27 00:58 /home/nvidia/intarsiaml-spf/rope2/target/release/intarsia
+intarsia 0.0.1
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 7.52s
+  Executable tests/rope_multi.rs (target/release/deps/rope_multi-213023963c30b59e)
+fleetq: #5944 done (exit 0)

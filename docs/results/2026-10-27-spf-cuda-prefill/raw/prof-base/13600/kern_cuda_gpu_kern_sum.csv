@@ -1,0 +1,13 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+39.9,377837504,72,5247743.1,5105616.0,4828448,6309568,358919.4,void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_tn_align8>(T1::Params)
+32.3,305313824,108,2826979.9,1647072.0,1427232,6869920,1771645.7,nvjet_sm121_tst_mma_192x144x64_2_48x72x64_tmaAB_bz_TNNN
+7.4,69668960,36,1935248.9,1889920.0,1842208,2246112,99585.1,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+6.4,60226144,72,836474.2,830096.0,332128,1359264,500298.1,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+4.7,44027776,36,1222993.8,1216704.0,1195328,1371488,29641.9,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+4.1,39045632,72,542300.4,540176.0,518816,651136,19466.4,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+3.0,28486432,72,395644.9,381120.0,350560,777312,62136.1,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+1.2,11644448,73,159513.0,247680.0,62944,279488,95025.5,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+0.6,5274784,1,5274784.0,5274784.0,5274784,5274784,0.0,"void <unnamed>::gemv_kernel<(int)1, float, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *, long, long)"
+0.4,4213376,72,58519.1,67696.0,39104,88256,18198.2,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+0.0,187040,1,187040.0,187040.0,187040,187040,0.0,"void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)"
+0.0,19296,1,19296.0,19296.0,19296,19296,0.0,"void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)"

@@ -1,0 +1,6 @@
+`
+Collecting data...
+Generating '/tmp/nsys-report-9bde.qdstrm'
+[1/1] [0%                          ] nsys.nsys-rep[1/1] [0%                          ] nsys.nsys-rep[1/1] [=============59%            ] nsys.nsys-rep[1/1] [================71%         ] nsys.nsys-rep[1/1] [====================83%     ] nsys.nsys-rep[1/1] [====================84%     ] nsys.nsys-rep[1/1] [====================85%     ] nsys.nsys-rep[1/1] [=====================86%    ] nsys.nsys-rep[1/1] [=====================87%    ] nsys.nsys-rep[1/1] [=====================88%    ] nsys.nsys-rep[1/1] [=====================89%    ] nsys.nsys-rep[1/1] [======================90%   ] nsys.nsys-rep[1/1] [======================91%   ] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep[1/1] [========================100%] nsys.nsys-rep
+Generated:
+	/home/nvidia/intarsiaml-spf/base/out/prof-base4087/14035/nsys.nsys-rep

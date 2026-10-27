@@ -1,0 +1,15 @@
+fleetq: #5939 running on spark1: ssh spark1 'MODELS="8" PROMPTS="short-0 4k-0 4k-1 16k-0" bash -s'
+ref   8 short-0 base: 256 ids, prefill 97 ms
+PASS  8 short-0 base == rope: ids + top-20 logits identical, prefill 78 ms
+PASS  8 short-0 base == rope0: ids + top-20 logits identical, prefill 77 ms
+ref   8 4k-0 base: 256 ids, prefill 80 ms
+PASS  8 4k-0 base == rope: ids + top-20 logits identical, prefill 81 ms
+PASS  8 4k-0 base == rope0: ids + top-20 logits identical, prefill 78 ms
+ref   8 4k-1 base: 256 ids, prefill 74 ms
+PASS  8 4k-1 base == rope: ids + top-20 logits identical, prefill 75 ms
+PASS  8 4k-1 base == rope0: ids + top-20 logits identical, prefill 76 ms
+ref   8 16k-0 base: 256 ids, prefill 86 ms
+PASS  8 16k-0 base == rope: ids + top-20 logits identical, prefill 86 ms
+PASS  8 16k-0 base == rope0: ids + top-20 logits identical, prefill 88 ms
+ids fails=0
+fleetq: #5939 done (exit 0)

@@ -33,6 +33,8 @@ for e in ev:
     cur.append(e); last_end = max(last_end or 0, e[1])
 reqs.append(cur)
 for i, q in enumerate(reqs):
+    if len(q) < 50:
+        continue  # an idle server's housekeeping kernels
     t0, t1 = q[0][0], max(e[1] for e in q)
     print(f"request {i}: {len(q)} kernels, span {(t1 - t0) / 1e6:.1f} ms, kernel time {sum(e[1] - e[0] for e in q) / 1e6:.1f} ms")
 idx = int(sys.argv[2]) if len(sys.argv) > 2 else len(reqs) - 1

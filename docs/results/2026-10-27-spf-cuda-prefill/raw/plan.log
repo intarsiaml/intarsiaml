@@ -1,0 +1,10 @@
+fleetq: #5935 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #5935 running on spark1: ssh spark1 'bash -s'
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15095 B, md5 ca8cba7e)
+PASS plan 35 txt byte-identical (3866 B, md5 2c7deccd)
+PASS plan g json byte-identical (8631 B, md5 82ea8282)
+PASS plan g txt byte-identical (1865 B, md5 418cbfae)
+plan fails=0
+fleetq: #5935 done (exit 0)

@@ -1,0 +1,64 @@
+fleetq: #5926 running on spark1: scripts/spf/le-window.sh ab8b 3 base:base rope:rope
+== round 1 arm base 00:19:25
+base r1: MemAvailable 64542 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-base-r1: - result file: `results/20261027-002039-adhoc-spf-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-002039-adhoc-spf-base-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.21 | 4630 (4534–4674) * | - | 15.1 (15.0–15.1) | 15.2 (15.2–15.2) | - | - | 128 |
+| 4087 | 0.95 | 4279 (4242–4287) | 4171 | 14.7 (14.7–14.7) | 14.7 (14.7–14.8) | - | - | 128 |
+| 16653 | 4.67 | 3561 (3559–3571) | 3378 | 13.2 (13.2–13.2) | 13.3 (13.2–13.3) | - | - | 128 |
+== round 1 arm rope 00:22:20
+rope r1: MemAvailable 64564 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-rope-r1: - result file: `results/20261027-002337-adhoc-spf-rope-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-002337-adhoc-spf-rope-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.20 | 4895 (4879–4925) * | - | 15.1 (15.1–15.1) | 15.2 (15.2–15.2) | - | - | 128 |
+| 4090 | 0.90 | 4515 (4498–4521) | 4411 | 14.7 (14.7–14.7) | 14.7 (14.7–14.8) | - | - | 128 |
+| 16653 | 4.54 | 3669 (3667–3677) | 3457 | 13.2 (13.2–13.2) | 13.3 (13.2–13.3) | - | - | 128 |
+== round 2 arm rope 00:25:17
+rope r2: MemAvailable 64488 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-rope-r2: - result file: `results/20261027-002632-adhoc-spf-rope-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-002632-adhoc-spf-rope-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.20 | 4892 (4860–4892) * | - | 15.1 (15.1–15.1) | 15.2 (15.2–15.3) | - | - | 128 |
+| 4087 | 0.92 | 4436 (4332–4450) | 4312 | 14.7 (14.7–14.7) | 14.8 (14.8–14.8) | - | - | 128 |
+| 16654 | 4.54 | 3671 (3659–3683) | 3475 | 13.2 (13.2–13.2) | 13.2 (13.2–13.3) | - | - | 128 |
+== round 2 arm base 00:28:12
+base r2: MemAvailable 64598 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-base-r2: - result file: `results/20261027-002925-adhoc-spf-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-002925-adhoc-spf-base-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.21 | 4646 (4645–4684) * | - | 15.1 (15.1–15.1) | 15.2 (15.2–15.2) | - | - | 128 |
+| 4090 | 0.96 | 4238 (4220–4244) | 4121 | 14.7 (14.7–14.7) | 14.7 (14.7–14.8) | - | - | 128 |
+| 16654 | 4.73 | 3518 (3505–3542) | 3334 | 13.2 (13.2–13.2) | 13.3 (13.2–13.3) | - | - | 128 |
+== round 3 arm base 00:31:06
+base r3: MemAvailable 64541 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-base-r3: - result file: `results/20261027-003230-adhoc-spf-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-003230-adhoc-spf-base-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.22 | 4561 (4462–4583) * | - | 15.1 (15.1–15.1) | 15.2 (15.2–15.2) | - | - | 128 |
+| 4088 | 0.97 | 4227 (4221–4238) | 4129 | 14.7 (14.7–14.7) | 14.7 (14.7–14.8) | - | - | 128 |
+| 16678 | 4.68 | 3565 (3565–3579) | 3394 | 13.2 (13.2–13.2) | 13.2 (13.2–13.2) | - | - | 128 |
+== round 3 arm rope 00:34:11
+rope r3: MemAvailable 64539 MB with the server up
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+spf-rope-r3: - result file: `results/20261027-003528-adhoc-spf-rope-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-003528-adhoc-spf-rope-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 988 | 0.20 | 4906 (4892–4929) * | - | 15.1 (15.1–15.1) | 15.2 (15.2–15.3) | - | - | 128 |
+| 4089 | 0.91 | 4486 (4467–4496) | 4368 | 14.7 (14.7–14.7) | 14.8 (14.8–14.8) | - | - | 128 |
+| 16654 | 4.53 | 3675 (3670–3684) | 3472 | 13.2 (13.2–13.2) | 13.2 (13.2–13.2) | - | - | 128 |
+scripts/spf/le-window.sh: line 49: syntax error near unexpected token `done'
+scripts/spf/le-window.sh: line 49: `done'
+fleetq: #5926 done (exit 2)

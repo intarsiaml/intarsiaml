@@ -1,0 +1,19 @@
+kernel total 945.9 ms
+cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256      377.8 ms  39.9 %     72 calls
+nvjet_sm121_tst_mma_192x144x64_2_48x72x64_tmaAB_bz_TNNN                     305.3 ms  32.3 %    108 calls
+flash_kernel<                                                                69.7 ms   7.4 %     36 calls
+rope_kernel                                                                  60.2 ms   6.4 %     72 calls
+rmsnorm_kernel<                                                              50.7 ms   5.4 %    145 calls
+silu_glu_kernel<                                                             44.0 ms   4.7 %     36 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                      28.5 ms   3.0 %     72 calls
+gemv_kernel<                                                                  5.3 ms   0.6 %      1 calls
+kv_append_kernel<__nv_bfloat16,                                               4.2 ms   0.4 %     72 calls
+embedding_kernel<                                                             0.2 ms   0.0 %      1 calls
+argmax_kernel<float>                                                          0.0 ms   0.0 %      1 calls
+window: 616 kernels, span 1372.05 ms, busy 945.70 ms, idle 426.35 ms
+gaps < 20 us: 426 totalling 0.94 ms (mean 2.2 us); >= 20 us: 11 totalling 425.40 ms
+  gap  415533.7 us before nvjet_sm121_tst_mma_192x144x64_2_48x72x64_tmaAB_bz_TNNN
+  gap    5918.0 us before void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)
+  gap    2130.0 us before void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_tn_align8
+  gap    1137.1 us before void <unnamed>::gemv_kernel<(int)1, float, (bool)1>(const __nv_bfloat16 *, const __nv_bflo
+  gap     266.3 us before void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat1
