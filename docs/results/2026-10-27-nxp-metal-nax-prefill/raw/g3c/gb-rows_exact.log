@@ -1,0 +1,49 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-31ca8bc2b56c4560)
+
+running 8 tests
+test bf16_pair_rows_at_the_35b_pairs ... bf16 pair: 84 cases, 420 rows compared bitwise
+ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... fp8: 1344 cases, 6720 rows compared bitwise
+ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... moe_experts: 168 cases, 840 rows compared bitwise
+ok
+test negative_controls_differ_from_the_one_row_calls ... NEGATIVE CONTROL fp8 rows (_xd) with rows 0 and 1 swapped: 2040 of 4096 output bytes differ
+NEGATIVE CONTROL fp8 rows (_xd) with q(x) skipped (is = 0): 2542 of 4096 output bytes differ
+NEGATIVE CONTROL moe rows with the routing of tokens 0 and 1 swapped: 7444 of 32768 output bytes differ
+NEGATIVE CONTROL moe grouped prefill path at T = 8 (simdgroup matrices, another order): 18 of 32768 output bytes differ
+ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... nvfp4: 168 cases, 840 rows compared bitwise
+ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... row-parallel: 98 cases, 490 rows compared bitwise
+ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_rows ... ignored
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.29s
+

@@ -1,0 +1,41 @@
+fleetq: #5896 running on endor: cargo test --release -p intarsia-backend-metal --test fp8_nax -- --nocapture
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/fp8_nax.rs (target/release/deps/fp8_nax-a763e394e05c4c20)
+
+running 6 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_nan_weight_poisons_its_column_only ... ok
+test nax_is_run_to_run_deterministic ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test nax_scales_the_float_product_and_rounds_once ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+fleetq: #5896 done (exit 0)
+EXIT 0

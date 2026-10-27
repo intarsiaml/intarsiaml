@@ -1,0 +1,17 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL moe_experts    moe_experts_bf16       max_abs=3.189e1 rel_l2=3.180e1 T=5 E=16 K=4 H=128 I=48 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=3.194e1 rel_l2=3.182e1 T=36 E=16 K=4 H=128 I=128 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=1.304e2 rel_l2=1.303e2 T=4 E=32 K=8 H=2048 I=512 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=1.302e2 rel_l2=1.302e2 T=40 E=32 K=8 H=2048 I=512 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=4.526e1 rel_l2=4.540e1 T=130 E=16 K=8 H=256 I=64 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=4.520e1 rel_l2=4.540e1 T=130 E=16 K=8 H=256 I=128 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=1.303e2 rel_l2=1.302e2 T=60 E=16 K=8 H=2048 I=512 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=7.280e1 rel_l2=7.237e1 T=45 E=16 K=4 H=640 I=384 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=1.308e2 rel_l2=1.302e2 T=256 E=256 K=8 H=2048 I=512 bf16
+  FAIL moe_experts    moe_experts_bf16       max_abs=4.526e1 rel_l2=4.540e1 T=1024 E=16 K=8 H=256 I=128 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_bf16               12     10     1.308e2     1.303e2  REJECTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+2 kernels, 14 cases in 3.5s
+Error: kernel admission failed (1 kernel(s) REJECTED)

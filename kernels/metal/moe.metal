@@ -16,6 +16,7 @@
 // Kernel arguments: OpP (common.h); per kernel below.
 
 #include "common.h"
+#include "moe_mm.h"
 
 constant float moe_fp4[16] = {0.f, 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f, 6.f, -0.f, -0.5f, -1.f, -1.5f, -2.f, -3.f, -4.f, -6.f};
 
@@ -29,7 +30,6 @@ inline float moe_e4m3(uint b) {
     return (b & 0x80u) ? -v : v;
 }
 
-inline float moe_rb(float v) { return bf2f(f2bf(v)); }
 
 // sum_j x[j] * fp4(code j) over one 16-element block (8 bytes, element 2i in the low nibble of byte i)
 inline float moe_blk_dot(uint2 wv, thread const float* xv) {
@@ -272,21 +272,6 @@ kernel void moe_group(device const int* ids [[buffer(0)]], device int* pairs [[b
     }
 }
 
-// tile `ty` of `tm` rows -> (expert, first slot, rows); false past the last tile
-inline bool moe_tile(device const int* off, device const int* tiles, uint E, uint tm, uint ty, thread uint& e,
-                     thread uint& s0, thread uint& rows) {
-    if ((int)ty >= tiles[E]) return false;
-    uint lo = 0u, hi = E;  // largest e with tiles[e] <= ty (tiles[e + 1] > ty then)
-    while (hi - lo > 1u) {
-        const uint mid = (lo + hi) / 2u;
-        if ((uint)tiles[mid] <= ty) lo = mid;
-        else hi = mid;
-    }
-    e = lo;
-    s0 = (uint)off[e] + (ty - (uint)tiles[e]) * tm;
-    rows = min(tm, (uint)off[e + 1] - s0);
-    return true;
-}
 
 // ---- row-exact expert-grouped decode (continuous batching) ----------------------------------------------------------
 // T <= 8 tokens (T * K <= 64 pairs) in one launch, each expert's weights read ONCE for all the tokens routed to it, and every
@@ -423,48 +408,6 @@ kernel void moe_dec_dn_x(device const ushort* h [[buffer(0)]], device const int*
     }
 }
 
-// NVFP4 -> bf16 as kernels/metal/nvfp4.metal: two codes (nibbles at bits 0..3, 16..19) -> value / 2^14 via half bits,
-// an e4m3 scale byte -> value / 256 (NaN code -> NaN); the 2^22 is folded back into the scale, the product is exact
-inline float2 moe_x2(uint t) {
-    const uint h = ((t & 0x00070007u) << 9) | ((t & 0x00080008u) << 12);
-    return float2(as_type<half2>(h));
-}
-inline float moe_sc(uint b) {
-    if ((b & 0x7Fu) == 0x7Fu) return as_type<float>(0x7FC00000u);
-    return float(as_type<half>((ushort)(((b & 0x7Fu) << 7) | ((b & 0x80u) << 8)))) * 4194304.0f;
-}
-inline uint moe_pack(float lo, float hi) { return (as_type<uint>(lo) >> 16) | (as_type<uint>(hi) & 0xFFFF0000u); }
-
-// one 16-element block (2 words, scale s from moe_sc) -> 16 bf16 at dst (16-byte aligned)
-inline void moe_blk_bf16(uint2 v, float s, threadgroup bfloat* dst) {
-    uint o[8];
-    for (int i = 0; i < 2; ++i) {
-        float2 c[4];  // c[k]: elements k and k + 4 of the word
-        for (int k = 0; k < 4; ++k) c[k] = moe_x2((v[i] >> (4 * k)) & 0x000F000Fu) * s;
-        o[4 * i] = moe_pack(c[0].x, c[1].x);
-        o[4 * i + 1] = moe_pack(c[2].x, c[3].x);
-        o[4 * i + 2] = moe_pack(c[0].y, c[1].y);
-        o[4 * i + 3] = moe_pack(c[2].y, c[3].y);
-    }
-    threadgroup uint4* d = (threadgroup uint4*)dst;
-    d[0] = uint4(o[0], o[1], o[2], o[3]);
-    d[1] = uint4(o[4], o[5], o[6], o[7]);
-}
-
-constant constexpr uint MOE_WR = 64;            // weight rows per tile: 32 gate + 32 up columns (gu), 64 columns (dn)
-constant constexpr uint MOE_LC = MOE_WR + 4;    // floats per epilogue row
-
-// raw weight words and scale bytes of blocks bq .. bq + NB - 1 of the K step at k0 (zero past the matrix)
-template <uint NB>
-inline void moe_fetch(device const uchar* wp, device const uchar* sp, bool bok, uint bq, uint k0, uint KD,
-                      thread uint2* wv, thread uint* sv) {
-    for (uint q = 0; q < NB; ++q) {
-        const uint gk = k0 + (bq + q) * 16u;
-        const bool ok = bok && gk < KD;
-        wv[q] = ok ? uint2(*(device const packed_uint2*)(wp + gk / 2)) : uint2(0u);
-        sv[q] = ok ? (uint)sp[gk / 16] : 0u;
-    }
-}
 
 // One expert tile: BM rows (slots) x MOE_WR weight rows, bf16 x bf16 -> f32 simdgroup matrices, 4 simdgroups of BM / SR
 // rows x 16 * SR weight rows; every weight block is decoded once per tile into threadgroup memory. K steps of BK (BK / 2 contiguous
