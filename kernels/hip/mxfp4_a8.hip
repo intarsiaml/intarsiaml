@@ -8,10 +8,13 @@
 // bitwise two single calls. The `act` argument is accepted (the registered op carries it) but not read: this IS the fp8 mode.
 // Structure and register shaping as mxfp4_i8_rows_kernel (mxfp4.hip): R = 2 weight rows per warp share the activation loads,
 // each activation row is consumed behind a scheduler barrier so the registers do not grow with M, the next XP (row, group)
-// activation steps are in flight while the current dots run. No LDS.
+// activation steps are in flight while the current dots run. No LDS in the pre-pass variant; the fused variant
+// (mxfp4_a8_rows_fused_kernel, INTARSIA_HIP_MXFP4_A8_FUSE=1) quantises the rows inside each block into LDS and runs the same
+// body, so its outputs are bitwise the pre-pass variant's.
 #include "ik_mx_a8.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 namespace {
 
@@ -22,11 +25,12 @@ constexpr int kXP = 2;      // activation steps in flight
 
 // M activation rows x the rows [0, N0) of (w0, s0, o0) then [0, N1) of (w1, s1, o1); N1 == 0: a single matmul.
 // xq: u8 [M, K] as uint4 (32 bytes = 2 uint4 per group), xs: f32 [M]; outputs [M, N0] / [M, N1] row-major.
+// the dot / accumulate / store loop shared by the pre-pass and the fused kernel; xq / xs are global (pre-pass) or LDS (fused)
 template <int M, typename OutT>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-mxfp4_a8_rows_kernel(const uint4* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w0,
-                     const uint8_t* __restrict__ s0, OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
-                     const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
+__device__ __forceinline__ void
+a8_rows_body(const uint4* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w0,
+             const uint8_t* __restrict__ s0, OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
+             const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
     constexpr int R = kRowsR;
     constexpr int D = kXP < M ? kXP : M;
     static_assert(D >= 1, "kXP >= 1");
@@ -107,14 +111,73 @@ mxfp4_a8_rows_kernel(const uint4* __restrict__ xq, const float* __restrict__ xs,
 }
 
 template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_a8_rows_kernel(const uint4* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w0,
+                     const uint8_t* __restrict__ s0, OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
+                     const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
+    a8_rows_body<M, OutT>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, K);
+}
+
+// LDS layout of the fused kernel (dynamic shared memory, the scratch layout of ik_mx_a8.h without the slack): xq u8 [M, K] at
+// byte 0, xs f32 [M] at byte al16(M * K); size al16(M * K) + al16(4 * M). The static float red[kWarps] comes on top (32 bytes).
+// Used only when the dynamic size is <= kFuseLdsMax (K = 5120: M <= 11, K = 6144: M <= 9, K = 17408: M <= 3, K = 2080: M <= 16).
+constexpr int kFuseLdsMax = 60000;
+__host__ __device__ inline size_t a8_fuse_xs_off(int M, int K) { return ((size_t)M * (size_t)K + 15) & ~(size_t)15; }
+__host__ __device__ inline size_t a8_fuse_lds_bytes(int M, int K) { return a8_fuse_xs_off(M, K) + (((size_t)M * 4 + 15) & ~(size_t)15); }
+
+// Same as mxfp4_a8_rows_kernel with the pre-pass folded in: each block first quantises the M activation rows into LDS with the
+// pre-pass's own helpers (mx_a8_row_scale / mx_a8_row_quant, so xq and xs are bit-identical), then runs the same body reading
+// them from LDS. The blocks are 256 threads, as the pre-pass kernel's. Requires K % 32 == 0, x 16-byte aligned.
+template <int M, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_a8_rows_fused_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const uint8_t* __restrict__ s0,
+                           OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1, const uint8_t* __restrict__ s1,
+                           OutT* __restrict__ o1, int64_t N1, int K) {
+    static_assert(kWarps * IK_WARP == kMxA8QuantThreads, "the quantisation helpers assume the pre-pass block size");
+    extern __shared__ uint4 a8_lds[];
+    __shared__ float red[kWarps];
+    uint8_t* lq = reinterpret_cast<uint8_t*>(a8_lds);
+    float* lxs = reinterpret_cast<float*>(lq + a8_fuse_xs_off(M, K));
+    const int C = K >> 3;
+#pragma unroll 1
+    for (int m = 0; m < M; ++m) {
+        const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K);
+        const float s = mx_a8_row_scale(xp, C, red);
+        if (threadIdx.x == 0) lxs[m] = s;
+        mx_a8_row_quant(xp, reinterpret_cast<uint2*>(lq + (size_t)m * K), C, s);
+    }
+    __syncthreads();  // every block thread takes part above; only now may a warp leave early (n0 >= N in the body)
+    a8_rows_body<M, OutT>(reinterpret_cast<const uint4*>(lq), lxs, w0, s0, o0, N0, w1, s1, o1, N1, K);
+}
+
+template <int M, typename OutT>
 void a8_launch(const uint4* xq, const float* xs, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
                const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, hipStream_t s) {
     const unsigned grid = (unsigned)((N0 + N1 + kWarps * kRowsR - 1) / (kWarps * kRowsR));
     mxfp4_a8_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K);
 }
 
+template <int M, typename OutT>
+void a8_launch_fused(const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
+                     const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, hipStream_t s) {
+    const unsigned grid = (unsigned)((N0 + N1 + kWarps * kRowsR - 1) / (kWarps * kRowsR));
+    mxfp4_a8_rows_fused_kernel<M, OutT><<<grid, kWarps * IK_WARP, a8_fuse_lds_bytes(M, (int)K), s>>>(x, w0, s0, o0, N0, w1, s1, o1,
+                                                                                                   N1, (int)K);
+}
+
+// INTARSIA_HIP_MXFP4_A8_FUSE=1: quantise the activations inside the GEMV blocks (no pre-pass launch) whenever the LDS size fits.
+// Read once per process; anything else (unset, "0", ...) keeps the pre-pass path.
+static bool a8_fuse_enabled() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_HIP_MXFP4_A8_FUSE");
+        return e && e[0] == '1' && e[1] == '\0';
+    }();
+    return v;
+}
+
 // one pre-pass (activation quantisation), then one launch over the rows of both matrices (N1 == 0: single). The scratch is
-// required (IK_ERR_INVALID_ARG when null, misaligned or smaller than mx_a8_scratch_bytes).
+// required (IK_ERR_INVALID_ARG when null, misaligned or smaller than mx_a8_scratch_bytes), also when the fused path (which
+// does not use it) is selected.
 template <typename OutT>
 int a8_rows(int M, const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
             const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, const ik_scratch* scratch, hipStream_t s) {
@@ -122,6 +185,17 @@ int a8_rows(int M, const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, OutT*
     if (!scratch || !scratch->data || (reinterpret_cast<uintptr_t>(scratch->data) & 15u) ||
         scratch->bytes < (int64_t)mx_a8_scratch_bytes(M, K))
         return IK_ERR_INVALID_ARG;
+    if (a8_fuse_enabled() && K > 0 && K <= 0x7fffffffLL && (K & 7) == 0 && a8_fuse_lds_bytes(M, (int)K) <= (size_t)kFuseLdsMax) {
+        if (!x || (reinterpret_cast<uintptr_t>(x) & 15u)) return IK_ERR_INVALID_ARG;
+#define IK_MX_A8F(MM) case MM: a8_launch_fused<MM, OutT>(x, w0, s0, o0, N0, w1, s1, o1, N1, K, s); break
+        switch (M) {
+            IK_MX_A8F(1); IK_MX_A8F(2); IK_MX_A8F(3); IK_MX_A8F(4); IK_MX_A8F(5); IK_MX_A8F(6); IK_MX_A8F(7); IK_MX_A8F(8);
+            IK_MX_A8F(9); IK_MX_A8F(10); IK_MX_A8F(11); IK_MX_A8F(12); IK_MX_A8F(13); IK_MX_A8F(14); IK_MX_A8F(15); IK_MX_A8F(16);
+            default: return IK_ERR_SHAPE;
+        }
+#undef IK_MX_A8F
+        return ik_launch_status();
+    }
     IK_TRY(mx_a8_quant_launch(x, scratch->data, M, K, s));
     const uint4* xq = reinterpret_cast<const uint4*>(scratch->data);
     const float* xs = reinterpret_cast<const float*>(static_cast<unsigned char*>(scratch->data) + mx_a8_xs_offset(M, K));

@@ -53,6 +53,28 @@ IK_DEVI uint2 mx_a8_quant8(const uint4& v, float s) {
 #endif
 }
 
+/* The two per-row steps of the activation quantisation, shared by the pre-pass kernel below and by the fused decode kernel
+ * (mxfp4_a8_rows_fused_kernel, which runs them per row in its own block into LDS): both therefore produce bit-identical xs / xq.
+ * Both are block-cooperative: every thread of a 256-thread block calls them with the same arguments.
+ * mx_a8_row_scale: xs of one row = max(amax / 448, 1 / (448 * 512)); the amax is a max over the exact |x|, so it does not
+ * depend on the order of the reduction. `red` is float[256 / IK_WARP] of block shared memory; the result is block-uniform.
+ * mx_a8_row_quant: the K e4m3 bytes of the row (C = K / 8 chunks), qp may point to global or shared memory. */
+constexpr int kMxA8QuantThreads = 256;
+IK_DEVI float mx_a8_row_scale(const uint4* xp, int C, float* red) {
+    float amax = 0.f;
+    for (int c = threadIdx.x; c < C; c += kMxA8QuantThreads) {
+        float f[8];
+        ik_unpack8(xp[c], f);
+#pragma unroll
+        for (int e = 0; e < 8; ++e) amax = fmaxf(amax, fabsf(f[e]));
+    }
+    amax = ik_block_max(amax, red);
+    return fmaxf(__fdiv_rn(amax, kMxA8Max), kMxA8MinScale);
+}
+IK_DEVI void mx_a8_row_quant(const uint4* xp, uint2* qp, int C, float s) {
+    for (int c = threadIdx.x; c < C; c += kMxA8QuantThreads) qp[c] = mx_a8_quant8(xp[c], s);
+}
+
 /* One block (256 threads) per activation row m: xs[m] and the K e4m3 bytes xq[m * K ..]. K % 8 == 0, x and xq 16-byte aligned
  * (K % 32 == 0 in every caller). The block max is order independent, so the scale does not depend on the block shape. */
 static __global__ void __launch_bounds__(256)
@@ -62,17 +84,9 @@ mx_a8_quant_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xq, floa
     const uint4* xp = reinterpret_cast<const uint4*>(x + row * K);
     uint2* qp = reinterpret_cast<uint2*>(xq + row * K);
     const int C = K >> 3;  // 8-element chunks
-    float amax = 0.f;
-    for (int c = threadIdx.x; c < C; c += 256) {
-        float f[8];
-        ik_unpack8(xp[c], f);
-#pragma unroll
-        for (int e = 0; e < 8; ++e) amax = fmaxf(amax, fabsf(f[e]));
-    }
-    amax = ik_block_max(amax, red);
-    const float s = fmaxf(__fdiv_rn(amax, kMxA8Max), kMxA8MinScale);
+    const float s = mx_a8_row_scale(xp, C, red);
     if (threadIdx.x == 0) xs[row] = s;
-    for (int c = threadIdx.x; c < C; c += 256) qp[c] = mx_a8_quant8(xp[c], s);
+    mx_a8_row_quant(xp, qp, C, s);
 }
 
 /* ---- scratch layout / launch (host) ------------------------------------------------------------------------------------ */
