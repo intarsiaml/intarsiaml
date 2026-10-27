@@ -1,0 +1,10 @@
+test a8_mma_hashes ... ignored, prints hashes for a cross-process diff
+test timing_a8_tp2 ... ignored, micro-timing
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_flipped_weight_code_is_visible ... ok
+test a8_rows_are_bitwise_the_solo_kernel ... ok
+test a8_mma_rows_do_not_depend_on_position ... FAILED
+test a8_kernels_match_the_reference ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+thread 'a8_mma_rows_do_not_depend_on_position' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:58:63:
+test result: FAILED. 5 passed; 1 failed; 2 ignored; 0 measured; 1 filtered out; finished in 5.02s

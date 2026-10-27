@@ -1,0 +1,12 @@
+old (main: tile table, PD 1) grid y per shape block ['68', '40', '48', '24', '40']
+  gate+up  17408x5120 M=2048:   2229.6 us   163.7 TFLOP/s  (44.7% of 366)
+  down     5120x8704 M=2048:    985.2 us   185.3 TFLOP/s  (50.6% of 366)
+  q+gate   6144x5120 M=2048:    694.3 us   185.6 TFLOP/s  (50.7% of 366)
+  z        3072x5120 M=2048:    350.4 us   183.9 TFLOP/s  (50.2% of 366)
+  o        5120x3072 M=2048:    353.4 us   182.3 TFLOP/s  (49.8% of 366)
+new (PD 2, 128x256 tile) grid y per shape block ['136', '40', '48', '24', '40']
+  gate+up  17408x5120 M=2048:   1950.0 us   187.2 TFLOP/s  (51.2% of 366)
+  down     5120x8704 M=2048:    939.1 us   194.4 TFLOP/s  (53.1% of 366)
+  q+gate   6144x5120 M=2048:    671.9 us   191.8 TFLOP/s  (52.4% of 366)
+  z        3072x5120 M=2048:    337.9 us   190.6 TFLOP/s  (52.1% of 366)
+  o        5120x3072 M=2048:    339.8 us   189.6 TFLOP/s  (51.8% of 366)
