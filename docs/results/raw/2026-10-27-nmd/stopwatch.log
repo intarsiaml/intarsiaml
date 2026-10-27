@@ -1,0 +1,35 @@
+T0 2026-10-27 04:53:34
+build start 04:53:34
+rc=0
+build end 04:53:59
+onboard-1 submit 04:54:24
+onboard-1 start 04:58:53
+rc=2
+onboard-1 end 04:58:53
+golden short start 04:58:53
+rebuild metal start 04:59:04
+rebuild metal end 04:59:18
+golden short rc=0
+golden short end 04:59:58
+golden 4k start 04:59:58
+golden 4k rc=0
+golden 4k end 05:33:53
+onboard-2 submit 05:33:58
+onboard-2 start 05:33:58
+rc=2
+onboard-2 end 05:33:58
+fix-a_log built; onboard-3 submit 05:37:30
+onboard-3 start 05:37:30
+rc=2
+onboard-3 end 05:37:31
+onboard-4 submit 05:39:00
+onboard-4 start 05:39:07
+rc=1
+onboard-4 end 05:45:02
+hf-bf16 golden start 05:48:57
+hf-bf16 golden end 05:50:37
+serve start 05:51:08
+serve up 05:51:34
+localeval speed end 05:52:23
+localeval mmlu end 05:56:51
+serve2 start 05:57:04
