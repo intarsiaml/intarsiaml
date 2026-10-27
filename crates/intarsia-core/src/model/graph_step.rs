@@ -207,9 +207,9 @@ impl Model {
         if want_logits {
             let mut bytes = vec![0u8; v * 4];
             self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
-            Ok(Some(StepOut::Logits(
-                bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect(),
-            )))
+            let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+            self.softcap_logits(&mut out);
+            Ok(Some(StepOut::Logits(out)))
         } else {
             let mut b = [0u8; 4];
             self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
