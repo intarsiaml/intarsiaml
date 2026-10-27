@@ -95,8 +95,10 @@ fn parse_header(data: &[u8], file: usize, out: &mut BTreeMap<String, Entry>) -> 
         if name == "__metadata__" {
             continue;
         }
-        let dtype = DType::from_safetensors(v.get("dtype").and_then(|d| d.as_str()).ok_or("missing dtype")?)
-            .map_err(|e| format!("{name}: {e}"))?;
+        let dt = v.get("dtype").and_then(|d| d.as_str()).ok_or("missing dtype")?;
+        // MLX packs quantised weights into `U32` words. Same 4 bytes as `I32`, and only `quant::mlx_affine` reads those
+        // bits (it requires sibling `.scales` / `.biases`), so they are carried as `I32` rather than a new ABI dtype.
+        let dtype = DType::from_safetensors(if dt == "U32" { "I32" } else { dt }).map_err(|e| format!("{name}: {e}"))?;
         let shape: Vec<usize> = v
             .get("shape")
             .and_then(|s| s.as_array())

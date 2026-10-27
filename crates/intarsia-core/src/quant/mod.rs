@@ -15,6 +15,7 @@ pub mod cases;
 pub mod compressed_tensors;
 pub mod exl3;
 pub mod fp8;
+pub mod mlx_affine;
 pub mod moe;
 pub mod mxfp4;
 pub mod nvfp4;
