@@ -614,6 +614,65 @@ fn real_35b_batched_engine_equals_the_local_engine() {
     }
 }
 
+/// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): `INTARSIA_DEVICE_SAMPLING=1` on a backend with
+/// `topk_rows`. The same seeded `Sampler`s draw from the whole logits row (`HeadMode::LastLogits`, the host walk) in one arm and from the device's
+/// top-k candidates (`HeadMode::LastTopK`) in the other, over 32 steps of batched decode with 1, 4 and 16 rows and five temperature / top_k /
+/// top_p settings (k from 1 to the 64 maximum); the two arms must draw the same token at every step of every row. Opt-in like the other 35B gates.
+#[test]
+fn real_35b_device_sampling_draws_the_host_tokens() {
+    let _serial = serial();
+    use intarsia_core::sampler::{Sampler, SamplingParams};
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 2048);
+    if !m.device_sampling() {
+        skip("INTARSIA_DEVICE_SAMPLING=1 is not set (or the backend has no device top-k)");
+        return;
+    }
+    let settings = [(0.7f32, 20usize, 1.0f32), (1.0, 40, 0.9), (0.8, 64, 0.5), (1.3, 8, 0.95), (0.6, 1, 1.0)];
+    let steps = 32;
+    let mut cells = 0usize;
+    for b in [1usize, 4, 16] {
+        for &(temperature, top_k, top_p) in &settings {
+            let params = SamplingParams { temperature, top_k, top_p };
+            let run = |device: bool| -> Vec<Vec<u32>> {
+                let mut states: Vec<_> = (0..b)
+                    .map(|i| {
+                        let mut st = m.new_state().unwrap();
+                        let p: Vec<u32> = (0..48 + 5 * i).map(|j| 1000 + ((j * 7 + i * 13) % 20000) as u32).collect();
+                        m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+                        st
+                    })
+                    .collect();
+                let mut samplers: Vec<Sampler> = (0..b).map(|i| Sampler::new(params.clone(), Some(7 + i as u64))).collect();
+                let mut toks: Vec<u32> = (0..b).map(|i| 1000 + 37 * i as u32).collect();
+                let modes = vec![if device { HeadMode::LastTopK(top_k) } else { HeadMode::LastLogits }; b];
+                let mut drawn = vec![Vec::new(); b];
+                for _ in 0..steps {
+                    let mut refs: Vec<&mut _> = states.iter_mut().collect();
+                    let out = m.forward_batch(&mut refs, &toks, &modes).unwrap();
+                    for (r, o) in out.iter().enumerate() {
+                        toks[r] = match o {
+                            StepOut::Logits(l) => samplers[r].sample(l) as u32,
+                            StepOut::TopK { ids, vals } => {
+                                assert!(device, "a top-k row came back in the host arm");
+                                samplers[r].sample_topk(ids, vals) as u32
+                            }
+                            o => panic!("unexpected {o:?}"),
+                        };
+                        drawn[r].push(toks[r]);
+                    }
+                }
+                drawn
+            };
+            let host = run(false);
+            let dev = run(true);
+            assert_eq!(dev, host, "b {b} temperature {temperature} top_k {top_k} top_p {top_p}");
+            cells += b * steps;
+        }
+    }
+    eprintln!("{cells} (row, step) tokens drawn from the device top-k equal the host draws (B 1 / 4 / 16, {} settings)", settings.len());
+}
+
 // ---- timing (not a gate): `cargo test ... -- --ignored --nocapture real_35b_batch_step_timing` --------------------------
 
 /// Wall time of `forward_batch` (all rows `LastArgmax`, the serving mode) at B = 1, 2, 4, 8, 16 over 24 steps, the solo

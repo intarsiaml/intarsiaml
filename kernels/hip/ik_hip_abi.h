@@ -248,6 +248,13 @@ int ik_matmul_mxfp4_pair_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w0, c
 int ik_fp8_relayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
 int ik_fp8_unrelayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
 
+/* topk_f32 (R3b, HIP port of kernels/cuda/topk.cu, same ABI): the k largest values of each f32 row [R, V] in the sampler's order (value
+ * descending, ties by ascending index, -0.0 == +0.0), with their indices: ids i32 [R, k], vals f32 [R, k]; nan i32 [R] is 1 for a row
+ * that holds a NaN (its entries are not meaningful). 1 <= k <= 64, k <= V. Scratch: R * 32 * k * 8 bytes. Not an op: the model calls it
+ * for device-side sampling (Backend::topk_rows). */
+int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* vals, ik_tensor* nan, const ik_scratch* scratch,
+                void* stream);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,22 @@
+# Lane htk: private localeval targets (LOCALEVAL_TARGETS=scripts/htk/targets.toml). The server is `intarsia serve --backend hip` of
+# scripts/htk/win.sh on tatooine:8296. htk-sampled sends temperature 0.8 and top_k 40 on every speed request (the suite pins top_p 1 and seed 0),
+# the shape the device top-k takes (1 <= top_k <= 64); htk-greedy is the plain greedy sweep.
+[defaults]
+judge = "spark-capcom"
+
+[targets.htk-sampled]
+url = "http://tatooine:8296/v1"
+model = "intarsia"
+host = "tatooine"
+engine = "intarsia hip"
+thinking = "off"
+extra_body = { temperature = 0.8, top_k = 40 }
+notes = "Qwen3.6-35B-A3B NVFP4 on one R9700, tp1, --max-batch 16; sampled speed requests"
+
+[targets.htk-greedy]
+url = "http://tatooine:8296/v1"
+model = "intarsia"
+host = "tatooine"
+engine = "intarsia hip"
+thinking = "off"
+notes = "same server, greedy"

@@ -1,0 +1,48 @@
+
+running 5 tests
+test device_topk_rejects_bad_arguments ... ok
+test device_topk_edge_k_and_special_values ... FAILED
+test device_topk_finds_planted_values_on_every_slice_edge ... FAILED
+test device_topk_is_the_host_candidate_order ... FAILED
+test device_topk_flags_nan_rows_and_only_those ... FAILED
+
+failures:
+
+---- device_topk_edge_k_and_special_values stdout ----
+
+thread 'device_topk_edge_k_and_special_values' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: k==V: v 64 rows 3 k 64 row 0 rank 34
+  left: 11
+ right: 63
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- device_topk_finds_planted_values_on_every_slice_edge stdout ----
+
+thread 'device_topk_finds_planted_values_on_every_slice_edge' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: planted: v 248320 rows 6 k 1 row 4 rank 0
+  left: 62600
+ right: 248319
+
+---- device_topk_is_the_host_candidate_order stdout ----
+
+thread 'device_topk_is_the_host_candidate_order' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: random: v 248320 rows 3 k 20 row 0 rank 6
+  left: 75369
+ right: 246283
+
+---- device_topk_flags_nan_rows_and_only_those stdout ----
+
+thread 'device_topk_flags_nan_rows_and_only_those' panicked at crates/intarsia-backend-hip/tests/topk.rs:284:17:
+assertion `left == right` failed: k 8 clean row 10 rank 6
+  left: 99903
+ right: 241232
+
+
+failures:
+    device_topk_edge_k_and_special_values
+    device_topk_finds_planted_values_on_every_slice_edge
+    device_topk_flags_nan_rows_and_only_those
+    device_topk_is_the_host_candidate_order
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+

@@ -186,6 +186,7 @@ extern "C" {
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;
+    pub fn ik_topk_f32(logits: T, k: i64, ids: TM, vals: TM, nan: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_gdn_conv_bf16(x: T, taps: T, y: TM, state: TM, s: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gdn_delta_rule_bf16(
