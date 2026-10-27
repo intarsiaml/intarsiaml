@@ -33,6 +33,7 @@ mod batch;
 mod coll_trace;
 mod gdn_batch;
 mod gdn_block;
+mod short_conv;
 mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
@@ -46,6 +47,7 @@ pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;
 pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
+use short_conv::ConvBlock;
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
@@ -225,6 +227,8 @@ struct MoeBlock {
 enum Block {
     Attn(AttnBlock),
     Gdn(GdnBlock),
+    /// LFM2's gated short conv (`model/short_conv.rs`).
+    Conv(ConvBlock),
     Ffn(FfnBlock),
     Moe(MoeBlock),
     /// A whole Gemma 4 decoder layer (`model/gemma.rs`): attention, dense MLP and MoE with sandwich norms.
@@ -882,6 +886,34 @@ impl Model {
                             rotary_dim,
                         }));
                     }
+                    "conv" => {
+                        let c = recipe.layer.conv.as_ref().unwrap();
+                        if c.kind != "short_conv" {
+                            return Err(Error::Unsupported(format!("conv block kind '{}' is not implemented in this build", c.kind)));
+                        }
+                        let sc = dims.short_conv.ok_or_else(|| {
+                            Error::model("the recipe has a conv block but config.json has no short-conv kernel size ([config] short_conv_kernel)")
+                        })?;
+                        if tp.world > 1 {
+                            return Err(Error::Unsupported("tensor parallelism of the short-conv block".into()));
+                        }
+                        let (h, ks) = (dims.hidden, sc.kernel);
+                        let conv = load(&c.conv, li, None)?;
+                        if conv.numel() != h * ks {
+                            return Err(Error::model(format!("conv taps {:?} do not match [{h}, {ks}]", conv.shape)));
+                        }
+                        let slot = slot_specs.len();
+                        slot_specs.push(SlotSpec::Recurrent { bytes: short_conv::state_bytes(h, ks) });
+                        blocks.push(Block::Conv(ConvBlock {
+                            pre_norm: load(pre, li, Some(&[h]))?,
+                            in_proj: load_qs(&c.in_proj, li, 3 * h, h, None)?,
+                            conv: conv.reshaped(&[h, ks]),
+                            out: load_qs(&c.out, li, h, h, None)?,
+                            slot,
+                            hidden: h,
+                            kernel: ks,
+                        }));
+                    }
                     "gdn" => {
                         let g = recipe.layer.gdn.as_ref().unwrap();
                         if g.kind != "gated_delta_net" {
@@ -1195,7 +1227,8 @@ impl Model {
             Block::Attn(x) => (g, a || x.gated),
             _ => (g, a),
         });
-        let x = gdn_block::alloc_extra(&mut wb, mt, esz, dims, has_gdn, has_gated)?;
+        let has_conv = layers.iter().flatten().any(|blk| matches!(blk, Block::Conv(_)));
+        let x = gdn_block::alloc_extra(&mut wb, mt, esz, dims, has_gdn, has_gated, has_conv)?;
         let mut moe_bytes = 0u64;
         let moe = match dims.moe.as_ref().filter(|_| layers.iter().flatten().any(|bl| matches!(bl, Block::Moe(_)))) {
             Some(mc) => {
@@ -1780,6 +1813,7 @@ impl Model {
                     .map(|b| match b {
                         Block::Attn(_) => "attention",
                         Block::Gdn(_) => "gated_delta_net",
+                        Block::Conv(_) => "short_conv",
                         Block::Ffn(_) => "dense_ffn",
                         Block::Moe(_) => "moe",
                         Block::Gemma(_) => "gemma4_layer",
@@ -2719,7 +2753,7 @@ impl Model {
         for (li, blocks) in self.layers.iter().enumerate() {
             let tail = dead_tail && li + 1 == n_layers;
             for block in blocks {
-                if tail && !matches!(block, Block::Attn(_) | Block::Gdn(_)) {
+                if tail && !matches!(block, Block::Attn(_) | Block::Gdn(_) | Block::Conv(_)) {
                     // the last layer's FFN / MoE feeds only the final norm and the head
                     continue;
                 }
@@ -2779,6 +2813,15 @@ impl Model {
                             self.gdn_block_segs(g, segs, &nv, &blkv, t, profile, f.as_ref())?;
                         }
                     },
+                    Block::Conv(c) => {
+                        norm_in(&c.pre_norm, pending, &mut cur)?;
+                        match seqs {
+                            Seqs::Batch(sts) if self.recurrent_batch => self.conv_block_batch(c, sts, &nv, &blkv, profile)?,
+                            Seqs::Batch(_) => return Err(Error::Unsupported("batched decode of a recurrent block".into())),
+                            Seqs::One(st) => self.conv_block(c, st, &nv, &blkv, t, profile)?,
+                            Seqs::Packed(segs) => self.conv_block_segs(c, segs, &nv, &blkv, t, profile)?,
+                        }
+                    }
                     Block::Ffn(f) => match self.overlap_ffn(f, t, profile).filter(|_| matches!(seqs, Seqs::One(_)) && dpos.is_none()) {
                         Some(piece) => {
                             // lane TPO: the residual add + norm, gate, up, down and the all-reduce per row piece (the add writes the other

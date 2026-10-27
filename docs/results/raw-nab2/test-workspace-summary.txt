@@ -1,0 +1,1 @@
+cargo test --workspace --release --no-fail-fast: 1074 passed 1 failed 26 ignored (the 1 failure, docs_env_vars, fixed by a tuning.md row and re-run green)

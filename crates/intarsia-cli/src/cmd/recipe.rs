@@ -1266,6 +1266,13 @@ fn coverage(
                         }
                     }
                 }
+                "conv" => {
+                    if let Some(c) = &r.layer.conv {
+                        for t in [&c.in_proj, &c.conv, &c.out] {
+                            add(e(t));
+                        }
+                    }
+                }
                 "ffn" => {
                     if let Some(f) = &r.layer.ffn {
                         for t in [&f.gate, &f.up, &f.down] {
@@ -1336,7 +1343,10 @@ fn coverage(
             cov.missing.push(n);
         }
     }
-    // lm_head: its own tensor, or tied to the embedding table when the config says so
+    // lm_head: its own tensor, or tied to the embedding table when the config says so (under the recipe's key for it:
+    // LFM2 spells it `tie_embedding`)
+    let tie = tie
+        || tc.get(&r.config.tie_embeddings).or_else(|| cfg.get(&r.config.tie_embeddings)).and_then(Value::as_bool).unwrap_or(false);
     let lh = &r.top.lm_head;
     cov.total += 1;
     if inv.resolve(&lh.tensor).is_some() || (tie && lh.tied_to.as_deref().is_some_and(|t| inv.resolve(t).is_some())) {

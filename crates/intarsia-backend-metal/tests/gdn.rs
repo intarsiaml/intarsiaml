@@ -7,7 +7,7 @@
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
-use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, GDN_DELTA_RULE_BF16, GDN_DELTA_RULE_BF16_PRE, SIGMOID_MUL_BF16};
+use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, SHORT_CONV_BF16, GDN_DELTA_RULE_BF16, GDN_DELTA_RULE_BF16_PRE, SIGMOID_MUL_BF16};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::gdn::{self, DeltaDims};
@@ -113,6 +113,51 @@ fn conv_chunked_prefill_equals_one_call_and_the_reference() {
         assert!(err < 1e-3, "K={k} T={t}: y vs reference rel_l2 {err:e}");
         let st32: Vec<f64> = s1.iter().map(|&v| v as f64).collect();
         assert_eq!(st32, st, "K={k} T={t}: state vs reference"); // the state holds bf16 inputs: exact
+    }
+}
+
+/// `ShortConv` (LFM2): like `run_conv`, on a `[T,3C]` projection.
+fn run_short_conv(be: &MetalBackend, bcx: &[u16], w: &[u16], t: usize, c: usize, k: usize, chunks: &[usize]) -> (Vec<f64>, Vec<f32>) {
+    assert_eq!(chunks.iter().sum::<usize>(), t);
+    let (xb, wb) = (upload_off(be, bcx), upload_off(be, w));
+    let yb = upload_off(be, &vec![0xEEEEu16; t * c]);
+    let sb = f32_buf(be, &vec![0.0; c * (k - 1)]);
+    let mut lo = 0;
+    for &n in chunks {
+        let call = OpCall::new(
+            Op::ShortConv,
+            vec![rows(&xb, 3 * c, lo, &[n, 3 * c]), tref(&wb, OFF, &[c, k])],
+            vec![rows(&yb, c, lo, &[n, c]), f32_tref(&sb, &[c, k - 1])],
+            OpAttrs::default(),
+        );
+        be.launch(SHORT_CONV_BF16, &call, 0).unwrap();
+        lo += n;
+    }
+    be.synchronize(0).unwrap();
+    (read_bf16(be, &yb, t * c), read_f32(be, &sb, c * (k - 1)))
+}
+
+/// The gated short conv is chunk-invariant bit for bit (the multi-tile state pass, a split inside a tile, one-token decode
+/// steps) and matches the f64 reference; the state is the exact product `B * x` of two bf16 values.
+#[test]
+fn short_conv_chunked_prefill_equals_one_call_and_the_reference() {
+    let be = backend();
+    let c = 300usize;
+    for (t, split, k) in [2usize, 3, 4, 8].into_iter().flat_map(|k| {
+        [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2]), (65, vec![32, 33])].into_iter().map(move |(t, s)| (t, s, k))
+    }) {
+        let bcx = rand_bf16(t * 3 * c, 21 + t as u64);
+        let w = rand_bf16(c * k, 9);
+        let (y1, s1) = run_short_conv(&be, &bcx, &w, t, c, k, &[t]);
+        let (yc, sc) = run_short_conv(&be, &bcx, &w, t, c, k, &split);
+        assert_eq!(y1, yc, "K={k} T={t} {split:?}: chunked y differs from one call");
+        assert_eq!(s1, sc, "K={k} T={t} {split:?}: chunked state differs from one call");
+        let mut st = vec![0.0f64; c * (k - 1)];
+        let want = gdn::short_conv(&f64s(&bcx), &f64s(&w), &mut st, t, c, k);
+        let err = rel_l2_bf16(&y1, &want);
+        assert!(err < 1e-3, "K={k} T={t}: y vs reference rel_l2 {err:e}");
+        let st32: Vec<f64> = s1.iter().map(|&v| v as f64).collect();
+        assert_eq!(st32, st, "K={k} T={t}: state vs reference");
     }
 }
 

@@ -531,3 +531,52 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   A checkpoint that declares plain `NVFP4` (W4A4) is refused until the recipe says `[defaults] w4a4_as_w4a16 = true`.
 
 `recipe new` names these cases in its TODO list; `qualify`'s `plan` stage names the ops that have no kernel.
+
+## Adding a new block
+
+A checkpoint whose layers need a computation the library has no block for (LFM2's gated short conv, lane nab2,
+`docs/results/2026-10-27-nab2-lfm2-shortconv.md`: 12 minutes from the weights to the first correct greedy text on cpu,
+40 to a Metal onboard PASS). Do it in this order; every step has a check that fails loudly, so none needs a GPU until step 5.
+
+1. **Read the HF `modeling_<family>.py` of the pinned transformers first** (`tools/.venv/lib/python3*/site-packages/transformers/models/<family>/`)
+   and write the block as formulas, with the state it keeps. Look for things the config hides: LFM2's FFN width is
+   `int(2 * intermediate_size / 3)` rounded to `block_multiple_of` (`block_auto_adjust_ff_dim`), its `norm_eps` and
+   `tie_embedding` are spelled their own way, and its "embedding_norm" is the final norm.
+2. **One op, one reference.** Add an `Op` (`crates/intarsia-core/src/ops.rs`: the enum, `Op::ALL`, `as_str`, arity, the table in the
+   header comment, and the hand-numbered "appended after" asserts at the bottom of the file), its shape check and f64 reference
+   in the module of the nearest sibling (`gdn.rs` for a conv or a recurrence), the cpu dispatch (`reference.rs`, `fast.rs`), and an
+   admission sweep (`admission.rs`: `sweep` arm, the arity table, `label`/`case_from_call` arms). A new op appends at the END of
+   `Op::ALL`: cache keys and plan JSON depend on the order. State that persists between tokens lives in the op's in-place output
+   (here `state [C, K-1]` f32), never in a hidden buffer.
+3. **One block.** `crates/intarsia-core/src/model/<block>.rs` with a struct, a workspace allocator and three entry points (solo or
+   chunk, packed segments, batched rows); a `Block::<Name>` variant wired in `model.rs` (load, run, trace name, the "tail" check) and
+   `model/batch.rs` (`batch_capable`, `has_hybrid_blocks`, the workspace allocation of the decode twin: `alloc_extra` is called in two
+   places). State goes in a `SlotSpec::Recurrent { bytes }` slot: prefix snapshots, restore, the failed-forward reset and the
+   speculative rollback then work with no new code.
+4. **The recipe.** A `[layer.<name>]` table (`ConvSpec` in `recipe.rs`), a `by_type` entry per layer type, any config keys the family
+   spells differently under `[config]`, a coverage arm in `cmd/recipe.rs` (otherwise `recipe new` keeps saying "not covered"),
+   and the key in `docs/recipes.md` (`tests/recipes_doc.rs` fails until every schema key is documented). Run
+   `intarsia recipe new --model DIR`: it must say `covered: builtin:<family>`.
+5. **Tiny HF fixture before the real weights.** `tools/gen_<family>_fixture.py` builds a 6-layer random-weight model with the block
+   in it (re-randomise the norms and the new weights: HF initialises them to values that hide bugs), saves HF's logits for a fixed
+   prompt, and `crates/intarsia-models/tests/<family>.rs` checks one-shot prefill, chunked prefill (state across boundaries),
+   prefill then decode, snapshot restore, the failed-pass reset, batched == solo, and that a backend without the kernel refuses the
+   load naming the op. These run in a second on the cpu backend. Only then load the real checkpoint.
+6. **Metal.** Reuse a sibling kernel where the maths is the same: LFM2's conv is `gdn.metal`'s `gdn_conv_t` with a `SHORT` template
+   switch (activation off, gated read of `B * x`, `C` gate on the output), 20 lines of change, registered as a new kernel for the new op
+   (`kernels.rs`, `lib.rs` dispatch, `gdn.rs` launcher, the `MAIN_KERNEL_LIST` pin). Then `intarsia kernels test --backend metal --op
+   <op>` must say ADMITTED, and you plant at least three mutants (activation left on, the wrong tap order, the state taken from the
+   wrong tensor, the multi-tile state pass skipped) and check each one is REJECTED: a sweep that passes a mutant is too small.
+   Add a chunk-invariance test next to the kernel (`crates/intarsia-backend-metal/tests/gdn.rs`: one call vs split calls, bitwise).
+7. **CUDA and HIP.** Without a kernel they must refuse at load and name the op. Add the op to `NOT_ON_CUDA` (cuda `kernels.rs`) and
+   `UNIMPLEMENTED` (hip `kernels.rs`); `tests/lfm2.rs` shows the check (a wrapped backend with the op's kernels removed gives
+   `Error::NoKernel` containing the op name).
+8. **Goldens, onboard, gates.** `intarsia onboard` makes the short golden itself. The long and 4k goldens are still made by hand
+   (`tools/golden.py --dtype float32`, about 10 minutes for 1.2B on the CPU, pass `--golden-dir` to a re-run with `--redo in-depth`).
+   Before the PR: batched == solo on the real model (`INTARSIA_LFM2_DIR=... cargo test --release -p intarsia-models --test
+   batch_metal_real real_lfm2`), greedy ids equal for `--prefill-chunk 512` vs the default on a prompt longer than two chunks, and
+   `plan show` byte-identical before and after for a model that does not use the block.
+
+What cost time, in order, is in the friction list of the results doc; the cheap-to-avoid items are: the `recipe new` coverage arm and the
+`ConfigKeys::default()` call in `kernels test --model` (both ignore a recipe's key renames), the chat template's `{% generation %}`
+tag (now accepted), and the hand-numbered op-count constants.

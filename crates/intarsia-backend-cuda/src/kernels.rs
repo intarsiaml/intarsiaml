@@ -924,7 +924,9 @@ mod tests {
         // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`), and the MXFP4 k/v-style
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
         // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
-        const NOT_ON_CUDA: [Op; 12] = [
+        // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
+        const NOT_ON_CUDA: [Op; 13] = [
+            Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
             Op::AddBias,

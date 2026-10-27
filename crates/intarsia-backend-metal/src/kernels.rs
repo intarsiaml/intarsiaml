@@ -158,6 +158,8 @@ pub const QK_NORM_ROPE_KV_BF16_PF: &str = "qk_norm_rope_kv_bf16_pf";
 pub const GATE_SPLIT_BF16: &str = "gate_split_bf16";
 pub const SIGMOID_MUL_BF16: &str = "sigmoid_mul_bf16";
 pub const GDN_CONV_BF16: &str = "gdn_conv_bf16";
+/// `ShortConv` (LFM2's gated short conv): the GdnConv kernels with the activation off and the B * x / C gates (gdn.metal).
+pub const SHORT_CONV_BF16: &str = "short_conv_bf16";
 pub const GDN_DELTA_RULE_BF16: &str = "gdn_delta_rule_bf16";
 /// `GdnDeltaRule` for T >= `gdn::PRE_MIN_T`: the per-token norms and gates once per head instead of once per value row, bitwise
 /// `gdn_delta_rule_bf16` (kernels/metal/gdn.metal, tests/gdn.rs).
@@ -366,6 +368,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (GATE_SPLIT_BF16, Op::GateSplit),
     (SIGMOID_MUL_BF16, Op::SigmoidMul),
     (GDN_CONV_BF16, Op::GdnConv),
+    (SHORT_CONV_BF16, Op::ShortConv),
     (GDN_DELTA_RULE_BF16, Op::GdnDeltaRule),
     (GDN_DELTA_RULE_BF16_PRE, Op::GdnDeltaRule),
     (crate::moe::MOE_TOPK_BF16, Op::MoeTopk),
@@ -565,7 +568,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
-                GDN_CONV_BF16 => k
+                GDN_CONV_BF16 | SHORT_CONV_BF16 => k
                     .acts(bf)
                     .weights(bf)
                     .when(crate::gdn::conv_ok)
@@ -890,13 +893,14 @@ mod tests {
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
         "rope_scaled_bf16:rope_scaled",
+        "short_conv_bf16:short_conv",
         "sigmoid_mul_bf16:sigmoid_mul",
         "silu_glu_bf16:silu_glu",
     ];
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`) plus the two ops added by rope scaling / projection bias (`add_bias`, `rope_scaled`: no existing
-    /// op gains or loses a kernel), so the plan has the same candidates as before.
+    /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), so the plan has the same candidates as before.
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

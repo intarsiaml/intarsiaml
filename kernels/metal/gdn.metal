@@ -47,20 +47,35 @@ kernel void sigmoid_mul_bf16(device const ushort* a [[buffer(0)]],
 }
 
 // ---- GdnConv: depthwise causal conv over tokens (taps w [C,K], tap K-1 = current token) + SiLU ---------------------------
+// ---- ShortConv (LFM2): the same conv with the activation off over the product B * x of a [T,3C] projection, times C -------
+// `SHORT` selects the second form (host names short_conv_bf16_k*): x is the in_proj output with rows [B | C | x] (row
+// stride 3C); the conv input of token t is B[t] * x[t] (an exact f32 product of two bf16), the state holds those products, and
+// y = C[t] * conv. Everything else (tiling, history registers, state update ordering) is shared with GdnConv.
 constant constexpr uint GDN_CONV_TILE = 32;
 constant constexpr uint GDN_CONV_TG = 128;
 
-// state [C,K-1] (index 0 oldest) <- the last K-1 of [old state | x]; ascending j reads only slots >= j, so it is in place
+// conv input of token `pos` (absolute row of x, already offset by the skip) for channel c
+template <bool SHORT>
+inline float gdn_conv_in(device const ushort* x, ulong skip, ulong pos, uint C, uint c) {
+    if (SHORT) {
+        const device ushort* r = x + skip + pos * 3 * C;
+        return bf2f(r[c]) * bf2f(r[2 * C + c]);
+    }
+    return bf2f(x[skip + pos * C + c]);
+}
+
+// state [C,K-1] (index 0 oldest) <- the last K-1 of [old state | conv inputs]; ascending j reads only slots >= j, so it is in place
+template <bool SHORT>
 inline void gdn_conv_state_update(device const ushort* x, device float* state, uint c, uint T, uint C, uint K, uint skip) {
     for (uint j = 0; j + 1 < K; ++j) {
         const ulong e = (ulong)T + j;  // index into [old state (K-1) | x (T)]
-        state[(ulong)c * (K - 1) + j] = e < K - 1 ? state[(ulong)c * (K - 1) + e] : bf2f(x[skip + (e - (K - 1)) * C + c]);
+        state[(ulong)c * (K - 1) + j] = e < K - 1 ? state[(ulong)c * (K - 1) + e] : gdn_conv_in<SHORT>(x, skip, e - (K - 1), C, c);
     }
 }
 
-// bind: 0 x [T,C], 1 w [C,K], 2 y [T,C], 3 state f32 [C,K-1]. a = T, b = C, c = K, d = update the state here.
+// bind: 0 x [T,C] ([T,3C] for SHORT), 1 w [C,K], 2 y [T,C], 3 state f32 [C,K-1]. a = T, b = C, c = K, d = update the state here.
 // s0..s2 skips of x / w / y. Groups (ceil(C / 128), token tiles) of 128 threads.
-template <uint K>
+template <uint K, bool SHORT>
 kernel void gdn_conv_t(device const ushort* x [[buffer(0)]],
                        device const ushort* w [[buffer(1)]],
                        device ushort* y [[buffer(2)]],
@@ -79,19 +94,23 @@ kernel void gdn_conv_t(device const ushort* x [[buffer(0)]],
 #pragma unroll
     for (uint j = 0; j < K - 1; ++j) {
         const long pos = t0 - (K - 1) + j;
-        h[j] = pos >= 0 ? bf2f(x[p.s0 + (ulong)pos * C + c]) : state[(ulong)c * (K - 1) + (K - 1) + pos];
+        h[j] = pos >= 0 ? gdn_conv_in<SHORT>(x, p.s0, (ulong)pos, C, c) : state[(ulong)c * (K - 1) + (K - 1) + pos];
     }
     for (long t = t0; t < t1; ++t) {
-        const float cur = bf2f(x[p.s0 + (ulong)t * C + c]);
+        const float cur = gdn_conv_in<SHORT>(x, p.s0, (ulong)t, C, c);
         float acc = taps[K - 1] * cur;
 #pragma unroll
         for (uint j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
-        y[p.s2 + (ulong)t * C + c] = f2bf(gdn_silu(acc));
+        if (SHORT) {
+            y[p.s2 + (ulong)t * C + c] = f2bf(bf2f(x[p.s0 + (ulong)t * 3 * C + C + c]) * acc);
+        } else {
+            y[p.s2 + (ulong)t * C + c] = f2bf(gdn_silu(acc));
+        }
 #pragma unroll
         for (uint j = 0; j + 2 < K; ++j) h[j] = h[j + 1];
         h[K - 2] = cur;
     }
-    if (p.d != 0) gdn_conv_state_update(x, state, c, p.a, C, K, p.s0);
+    if (p.d != 0) gdn_conv_state_update<SHORT>(x, state, c, p.a, C, K, p.s0);
 }
 
 // bind: 0 x, 1 state. a = T, b = C, c = K. s0 skip of x. Threads: C.
@@ -100,11 +119,21 @@ kernel void gdn_conv_state(device const ushort* x [[buffer(0)]],
                            constant OpP& p [[buffer(2)]],
                            uint c [[thread_position_in_grid]]) {
     if (c >= p.b) return;
-    gdn_conv_state_update(x, state, c, p.a, p.b, p.c, p.s0);
+    gdn_conv_state_update<false>(x, state, c, p.a, p.b, p.c, p.s0);
+}
+
+kernel void short_conv_state(device const ushort* x [[buffer(0)]],
+                             device float* state [[buffer(1)]],
+                             constant OpP& p [[buffer(2)]],
+                             uint c [[thread_position_in_grid]]) {
+    if (c >= p.b) return;
+    gdn_conv_state_update<true>(x, state, c, p.a, p.b, p.c, p.s0);
 }
 
 #define INST_CONV(K)                                                                                                    \
-    template [[host_name("gdn_conv_bf16_k" #K)]] kernel void gdn_conv_t<K>(                                             \
+    template [[host_name("gdn_conv_bf16_k" #K)]] kernel void gdn_conv_t<K, false>(                                      \
+        device const ushort*, device const ushort*, device ushort*, device float*, constant OpP&, uint2, uint2);       \
+    template [[host_name("short_conv_bf16_k" #K)]] kernel void gdn_conv_t<K, true>(                                     \
         device const ushort*, device const ushort*, device ushort*, device float*, constant OpP&, uint2, uint2);
 INST_CONV(2)
 INST_CONV(3)
@@ -442,7 +471,7 @@ kernel void gdn_conv_rows_t(device const ushort* x [[buffer(0)]],
 #pragma unroll
     for (uint j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
     yr[p.s2 + c] = f2bf(gdn_silu(acc));
-    gdn_conv_state_update(xr, state, c, 1, C, K, p.s0);
+    gdn_conv_state_update<false>(xr, state, c, 1, C, K, p.s0);
 }
 
 #define INST_CONV_ROWS(K)                                                                                               \

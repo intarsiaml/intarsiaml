@@ -26,6 +26,18 @@ pub const CONV_SHADERS: [&str; 7] = [
     "gdn_conv_bf16_k8",
 ];
 const CONV_STATE: &str = "gdn_conv_state";
+/// `ShortConv` (LFM2) kernels by tap count K = 2..=8: the conv kernels above with the gated read of B * x, the activation off and
+/// the C gate on the output (`SHORT` in gdn.metal), and their multi-tile state pass.
+pub const SHORT_CONV_SHADERS: [&str; 7] = [
+    "short_conv_bf16_k2",
+    "short_conv_bf16_k3",
+    "short_conv_bf16_k4",
+    "short_conv_bf16_k5",
+    "short_conv_bf16_k6",
+    "short_conv_bf16_k7",
+    "short_conv_bf16_k8",
+];
+const SHORT_CONV_STATE: &str = "short_conv_state";
 /// Delta-rule kernels by dk.
 pub const DELTA_SHADERS: [(usize, &str); 4] = [
     (32, "gdn_delta_rule_bf16_dk32"),
@@ -46,8 +58,9 @@ pub const DELTA_PRE_SHADERS: [(usize, &str, &str); 4] = [
 pub const PRE_MIN_T: usize = 64;
 
 pub fn shader_names() -> Vec<&'static str> {
-    let mut v = vec![GATE_SPLIT_BF16, SIGMOID_MUL_BF16, CONV_STATE];
+    let mut v = vec![GATE_SPLIT_BF16, SIGMOID_MUL_BF16, CONV_STATE, SHORT_CONV_STATE];
     v.extend(CONV_SHADERS);
+    v.extend(SHORT_CONV_SHADERS);
     v.extend(DELTA_SHADERS.iter().map(|d| d.1));
     v.extend(DELTA_PRE_SHADERS.iter().flat_map(|d| [d.1, d.2]));
     v
@@ -75,7 +88,7 @@ pub fn pre_scratch(s: &ShapeInfo) -> usize {
     (4 * (a + b)).next_multiple_of(256)
 }
 
-/// `GdnConv`: 2..=8 taps (`ShapeInfo::k`).
+/// `GdnConv` and `ShortConv`: 2..=8 taps (`ShapeInfo::k`).
 pub fn conv_ok(s: &ShapeInfo) -> bool {
     (2..=CONV_SHADERS.len() + 1).contains(&s.k)
 }
@@ -138,9 +151,12 @@ impl MetalBackend {
                 };
                 self.dispatch(kernel, &[&a, &g, &out], &p, Grid::Threads(n))
             }
-            (GDN_CONV_BF16, Op::GdnConv) => {
-                let (t, c, k) = (i[0].shape[0], i[0].shape[1], i[1].shape[1]);
-                let Some(&shader) = CONV_SHADERS.get(k.wrapping_sub(2)) else {
+            (GDN_CONV_BF16, Op::GdnConv) | (SHORT_CONV_BF16, Op::ShortConv) => {
+                // ShortConv reads the [T,3C] projection (B | C | x per row): the channel count is the taps' leading dim
+                let short = call.op == Op::ShortConv;
+                let (t, c, k) = (i[0].shape[0], i[1].shape[0], i[1].shape[1]);
+                let (shaders, state_pass) = if short { (&SHORT_CONV_SHADERS, SHORT_CONV_STATE) } else { (&CONV_SHADERS, CONV_STATE) };
+                let Some(&shader) = shaders.get(k.wrapping_sub(2)) else {
                     return Err(Error::invalid(format!("metal {kernel}: {k} taps (2..=8 supported)")));
                 };
                 if t * c == 0 {
@@ -149,7 +165,7 @@ impl MetalBackend {
                 let (x, w, y) =
                     (self.bind(&i[0], bf, false, "x")?, self.bind(&i[1], bf, false, "taps")?, self.bind(&o[0], bf, true, "y")?);
                 let st = self.bind(&o[1], DType::F32, true, "conv state")?;
-                dim(t * c, "T*C")?;
+                dim(t * c * if short { 3 } else { 1 }, "T*C")?;
                 dim(c * k, "C*K")?;
                 let tiles = t.div_ceil(CONV_TILE);
                 // one tile: each thread updates its own channel's state at the end; else a second dispatch, after all
@@ -161,7 +177,7 @@ impl MetalBackend {
                 };
                 self.dispatch(shader, &[&x, &w, &y, &st], &p, Grid::Groups { x: c.div_ceil(CONV_TG), y: tiles, threads: CONV_TG })?;
                 if tiles > 1 {
-                    self.dispatch(CONV_STATE, &[&x, &st], &p, Grid::Threads(c))?;
+                    self.dispatch(state_pass, &[&x, &st], &p, Grid::Threads(c))?;
                 }
                 Ok(())
             }

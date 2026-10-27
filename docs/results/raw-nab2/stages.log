@@ -1,0 +1,19 @@
+09:21 weights landed (stopwatch start)
+09:25 orientation: read NAB drill doc, adding-a-model, hybrid-models, gdn code
+09:28 recipe new run: 10 TODOs (stage 1 done, scaffold at raw/nab2/lfm2-scaffold.toml)
+09:30 recipe lfm2.toml written (hand-completed from scaffold)
+09:32 first correct greedy text on cpu backend (cpu-ref ShortConv + Block::Conv + recipe + FFN width fix + chat-template generation tag fix)
+09:34 Metal short_conv kernel ADMITTED (20 cases, 0 fail)
+09:36 6/6 planted mutants killed by kernels test --op short_conv
+09:36 onboard start (metal)
+09:38 recipe new now says covered (fixed 2 coverage bugs in cmd/recipe.rs); onboard start (metal)
+09:40 onboard restart after kernels --model recipe-keys fix
+09:43 onboard-1 PASS (quick 1m47s, whole 2m33s; acc-long/acc-4k SKIPPED: no manual goldens yet)
+09:43 golden generation start (long + 4k, HF fp32 CPU)
+09:52 goldens done (long 41s, 4k ~10 min incl bf16 spread); re-run onboard in-depth with --golden-dir
+09:54 speed run launched
+09:57 speed + MMLU done
+10:04 plan A/B identical, chunk invariance identical; batched real gate start
+10:06 batched==solo real PASS (4550 pairs); cargo test --workspace start
+10:10 docs: adding-a-model new-block section written
+10:13 cargo test --workspace --release: 1074 passed, 1 failed (docs_env_vars: INTARSIA_LFM2_DIR missing in tuning.md) -> row added

@@ -612,6 +612,11 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::ShortConv => {
+            for c in short_conv_sweep(cfg, &mut rng) {
+                push(c.label, c.call);
+            }
+        }
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule => {
             for c in gdn_sweep(op, cfg, &mut rng) {
                 push(c.label, c.call);
@@ -812,6 +817,34 @@ fn gdn_shapes(quick: bool) -> Vec<(usize, usize, usize, usize, usize)> {
         v.extend([(1, 3, 64, 48, 4), (2, 2, 128, 64, 3), (1, 2, 256, 40, 4), (16, 32, 128, 128, 4)]);
     }
     v
+}
+
+/// Cases for `ShortConv` (LFM2's gated short conv): a non-zero initial state that the output state is compared against,
+/// K = 3 (LFM2.5) and 4, token counts on both sides of the 32-token tile of the Metal kernel (1 = decode, 5, 33 / 67 / 130 =
+/// several tiles, which exercise the separate state-update pass), C = 2048 is the LFM2.5-1.2B width.
+fn short_conv_sweep(cfg: &SweepConfig, rng: &mut SplitMix64) -> Vec<Case> {
+    let mut cases = Vec::new();
+    let ts: &[usize] = if cfg.quick { &[1, 5, 67] } else { &[1, 7, 33, 64, 130] };
+    let shapes: &[(usize, usize)] = if cfg.quick { &[(64, 3), (2048, 3)] } else { &[(48, 2), (64, 3), (96, 4), (2048, 3)] };
+    for &(c, ks) in shapes {
+        for &t in ts {
+            for dt in act_dtypes() {
+                cases.push(Case {
+                    label: format!("T={t} C={c} K={ks} {dt}"),
+                    call: HostCall {
+                        op: Op::ShortConv,
+                        inputs: vec![rand_t(rng, dt, &[t, 3 * c], 1.0), rand_t(rng, dt, &[c, ks], 0.5)],
+                        outputs: vec![
+                            OutSpec::new(dt, &[t, c]),
+                            OutSpec { dtype: DType::F32, shape: vec![c, ks - 1], init: Some(rand_t(rng, DType::F32, &[c, ks - 1], 1.0)) },
+                        ],
+                        attrs: attrs(),
+                    },
+                });
+            }
+        }
+    }
+    cases
 }
 
 /// Cases for `GateSplit`, `SigmoidMul`, `GdnConv` and `GdnDeltaRule` (non-zero initial state, several
@@ -1169,7 +1202,7 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
         Op::QkNormRopeKv => (5, 3),
         Op::GateSplit => (1, 2),
         Op::SigmoidMul => (2, 1),
-        Op::GdnConv => (2, 2),
+        Op::GdnConv | Op::ShortConv => (2, 2),
         Op::GdnDeltaRule => (5, 2),
         Op::GateSplitQkNormRopeKv => (5, 4),
         Op::GdnConvDelta => (6, 3),
@@ -1219,6 +1252,14 @@ fn clamp_call(call: &crate::ops::OpCall, caps: &ShapeCaps) -> Option<Clamped> {
             "T={} C={} K={} {} w={}",
             i[0].shape[0].min(caps.rows),
             i[0].shape[1],
+            i[1].shape[1],
+            i[0].dtype,
+            i[1].dtype
+        ),
+        Op::ShortConv => format!(
+            "T={} C={} K={} {} w={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0],
             i[1].shape[1],
             i[0].dtype,
             i[1].dtype
@@ -1447,6 +1488,18 @@ pub fn case_from_call(call: &crate::ops::OpCall, caps: &ShapeCaps, rng: &mut Spl
             HostCall {
                 op,
                 inputs: vec![rand_t(rng, i[0].dtype, &[t, c], 1.0), rand_t(rng, i[1].dtype, &[c, k], 0.5)],
+                outputs: vec![
+                    OutSpec::new(o[0].dtype, &[t, c]),
+                    OutSpec { dtype: DType::F32, shape: vec![c, k - 1], init: Some(rand_t(rng, DType::F32, &[c, k - 1], 1.0)) },
+                ],
+                attrs: a.clone(),
+            }
+        }
+        Op::ShortConv => {
+            let (t, c, k) = (i[0].shape[0].min(caps.rows), i[1].shape[0], i[1].shape[1]);
+            HostCall {
+                op,
+                inputs: vec![rand_t(rng, i[0].dtype, &[t, 3 * c], 1.0), rand_t(rng, i[1].dtype, &[c, k], 0.5)],
                 outputs: vec![
                     OutSpec::new(o[0].dtype, &[t, c]),
                     OutSpec { dtype: DType::F32, shape: vec![c, k - 1], init: Some(rand_t(rng, DType::F32, &[c, k - 1], 1.0)) },

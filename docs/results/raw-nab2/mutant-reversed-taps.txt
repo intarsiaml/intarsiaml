@@ -1,0 +1,27 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL short_conv     short_conv_bf16        max_abs=1.647e0 rel_l2=1.575e0 T=1 C=48 K=2 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=2.429e0 rel_l2=1.647e0 T=7 C=48 K=2 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=9.684e-1 rel_l2=1.431e0 T=33 C=48 K=2 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.163e0 rel_l2=1.483e0 T=64 C=48 K=2 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.267e0 rel_l2=1.382e0 T=130 C=48 K=2 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.807e0 rel_l2=1.515e0 T=1 C=64 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=8.932e-1 rel_l2=1.154e0 T=7 C=64 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.489e0 rel_l2=1.047e0 T=33 C=64 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.111e0 rel_l2=1.123e0 T=64 C=64 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.138e0 rel_l2=1.046e0 T=130 C=64 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.263e0 rel_l2=1.352e0 T=1 C=96 K=4 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.551e0 rel_l2=1.381e0 T=7 C=96 K=4 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.137e0 rel_l2=1.391e0 T=33 C=96 K=4 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.730e0 rel_l2=1.375e0 T=64 C=96 K=4 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.158e0 rel_l2=1.387e0 T=130 C=96 K=4 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.682e0 rel_l2=1.187e0 T=1 C=2048 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.163e0 rel_l2=1.165e0 T=7 C=2048 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=2.154e0 rel_l2=1.154e0 T=33 C=2048 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.907e0 rel_l2=1.161e0 T=64 C=2048 K=3 bf16
+  FAIL short_conv     short_conv_bf16        max_abs=1.263e0 rel_l2=1.163e0 T=130 C=2048 K=3 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+short_conv     short_conv_bf16                20     20     2.429e0     1.647e0  REJECTED
+1 kernels, 20 cases in 0.3s
+Error: kernel admission failed (1 kernel(s) REJECTED)
+EXIT=1

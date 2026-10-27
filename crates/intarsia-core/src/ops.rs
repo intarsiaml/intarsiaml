@@ -33,6 +33,7 @@
 //! | `GateSplit` | x `[T,N,2D]` (per head: `D` values then `D` gate values) | q `[T,N,D]`, gate `[T,N,D]` | |
 //! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |
 //! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32 (**in place**) | |
+//! | `ShortConv` | bcx `[T,3C]` (the `in_proj` output, rows `[B \| C \| x]`), taps `[C,K]` | y `[T,C]` (= `C * causalconv(B * x)`: depthwise causal conv, no activation, no bias, tap `K-1` on the current token; f32 inside, one rounding), conv state `[C,K-1]` f32 (the last `K-1` values of `B * x`, **in place**) | LFM2's short-conv block (lane nab2) |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -121,10 +122,12 @@ pub enum Op {
     // appended (2026-10-22, g4 Gemma-4): `SiluGlu` with the tanh-GELU activation (`gelu_pytorch_tanh`), for the same reason
     GeluGlu,
     DynConv,
+    // appended (2026-10-27, nab2 LFM2.5): the gated short conv of Liquid's LFM2 (no activation, state in a `Recurrent` slot), for the same reason
+    ShortConv,
 }
 
 impl Op {
-    pub const ALL: [Op; 43] = [
+    pub const ALL: [Op; 44] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -168,6 +171,7 @@ impl Op {
         Op::AddBias,
         Op::GeluGlu,
         Op::DynConv,
+        Op::ShortConv,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -216,6 +220,7 @@ impl Op {
             Op::AddBias => "add_bias",
             Op::GeluGlu => "gelu_glu",
             Op::DynConv => "dyn_conv",
+            Op::ShortConv => "short_conv",
         }
     }
 
@@ -267,6 +272,7 @@ impl Op {
             Op::AddBias => (2, 1),
             Op::GeluGlu => (2, 1),
             Op::DynConv => (3, 1),
+            Op::ShortConv => (2, 2),
         }
     }
 }
@@ -750,7 +756,7 @@ impl OpCall {
             | Op::MatmulMxfp4
             | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
-            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::check(self)?,
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
         }
         Ok(())
     }
@@ -903,7 +909,7 @@ impl ShapeInfo {
             | Op::MatmulMxfp4
             | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
-            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta => crate::gdn::shape(call, &mut s),
+            Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1135,14 +1141,15 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::AddBias, "appended after RopeScaled");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::GeluGlu, "appended after AddBias");
-        assert_eq!(Op::ALL.last(), Some(&Op::DynConv), "appended after GeluGlu");
+        assert_eq!(Op::ALL[Op::ALL.len() - 9], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::RopeScaled, "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::AddBias, "appended after RopeScaled");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::GeluGlu, "appended after AddBias");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::DynConv, "appended after GeluGlu");
+        assert_eq!(Op::ALL.last(), Some(&Op::ShortConv), "appended after DynConv");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

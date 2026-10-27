@@ -1,0 +1,10 @@
+prefill chunk 256 (default)
+loaded LiquidAI/LFM2.5-1.2B-Instruct on Apple M5 Max in 0.3s: 16 layers, hidden 2048, act bf16, kv bf16, weights 2.34 GB, context 4096 tokens (recipe builtin:lfm2, chat template chat_template.jinja)
+prompt: 1711 tokens
+ has no more will have had to be with their will"
+
+The sentence summarizes the complex relationship between the speaker and the listener, highlighting themes of trust, loyalty, and the consequences of actions.
+The 2018–19 season was the 75th season of the top flight of women's football in
+ids: [1178, 1295, 1209, 1188, 1052, 1320, 811, 874, 916, 1149, 1188, 511, 509, 1098, 13184, 62798, 779, 4121, 4452, 1685, 779, 21009, 810, 779, 33817, 521, 41628, 19279, 803, 8810, 521, 37936, 521, 810, 779, 11364, 803, 7581, 523, 2, 1, 708, 1098, 730, 1024, 533, 1408, 913, 4243, 953, 779, 730, 2725, 881, 4243, 803, 779, 2684, 11398, 803, 2854, 1090, 5775, 797]
+finish=length prompt=1711 (cached 0) completion=64 | prefill 148 ms (11552.9 tok/s) | decode 398 ms (158.40 tok/s)
+steps=71 graph replays=0 (captures 0) eager decode steps=64 (profiled 4) top ops: matmul=48ms/3408 matmul_pair=31ms/1562 embedding=26ms/71 rmsnorm_add=24ms/2272 silu_glu=12ms/1136
