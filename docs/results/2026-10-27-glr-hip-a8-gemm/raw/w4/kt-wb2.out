@@ -1,0 +1,21 @@
+W20261027 11:52:00.305503 128708851642880 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000471 sec
+W20261027 11:52:00.305545 128708851642880 simple_timer.cpp:55] [rocprofv3] 'env GLR_TIMING_M=2048 GLR_TIMING_ITERS=20 INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,1 /work/glr-bin/mxfp4_a8-v5 --ignored --nocapture timing_a8_tp2' ::     0.000000 sec
+W20261027 11:52:00.325719 130021323907968 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000400 sec
+W20261027 11:52:00.326178 130021323907968 simple_timer.cpp:55] [rocprofv3] '/work/glr-bin/mxfp4_a8-v5 --ignored --nocapture timing_a8_tp2' ::     0.000000 sec
+
+running 1 test
+W20261027 11:52:00.336962 130021304731328 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+TIME a8tp2 gate+up  17408x5120  M=2048      2503.7 us   145.8 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1371.3 us   133.1 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       829.3 us   155.4 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       435.2 us   148.0 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       418.1 us   154.1 TFLOPS
+test timing_a8_tp2 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 1.05s
+
+W20261027 11:52:01.375012 130021323907968 simple_timer.cpp:55] [rocprofv3] '/work/glr-bin/mxfp4_a8-v5 --ignored --nocapture timing_a8_tp2' ::     1.048833 sec
+E20261027 11:52:01.381255 130021323907968 output_stream.cpp:111] Opened result file: /work/glr-prof/w4-k-wb2/k_kernel_trace.csv
+E20261027 11:52:01.384313 130021323907968 output_stream.cpp:111] Opened result file: /work/glr-prof/w4-k-wb2/k_agent_info.csv
+W20261027 11:52:01.384949 130021323907968 simple_timer.cpp:55] [rocprofv3] output generation ::     0.009416 sec
+W20261027 11:52:01.384993 130021323907968 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.009486 sec

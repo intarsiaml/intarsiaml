@@ -1,0 +1,3 @@
+[targets.glr-rec_bin_glr-dev-cli]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-glr"

@@ -1,0 +1,31 @@
+
+running 8 tests
+test a8_mma_hashes ... ignored, prints hashes for a cross-process diff
+test timing_a8_tp2 ... ignored, micro-timing
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_flipped_weight_code_is_visible ... ok
+test a8_kernels_match_the_reference ... FAILED
+test a8_rows_are_bitwise_the_solo_kernel ... FAILED
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+
+failures:
+
+---- a8_kernels_match_the_reference stdout ----
+
+thread 'a8_kernels_match_the_reference' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:88:13:
+matmul_mxfp4_a8_mma M=1 N=640 K=5120 f32 out: rel_l2 5.000e-1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a8_rows_are_bitwise_the_solo_kernel stdout ----
+
+thread 'a8_rows_are_bitwise_the_solo_kernel' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:214:17:
+n=5120 k=5120: decode kernel vs prefill GEMM 1.000e0
+
+
+failures:
+    a8_kernels_match_the_reference
+    a8_rows_are_bitwise_the_solo_kernel
+
+test result: FAILED. 4 passed; 2 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.95s
+

@@ -1,0 +1,20 @@
+[glr] radiance stopped 2026-10-27 08:36:43; GPUs: 0 radiance containers
+[glr] list-avail: 1484 lines
+[glr] counters present: GL2C_EA_RDREQ_sum SQ_INSTS_VALU TCP_REQ SQ_INSTS_LDS GL2C_HIT_sum LDSBankConflict GRBM_GUI_ACTIVE SQ_WAVES
+[glr] pass 1 new: GL2C_EA_RDREQ_sum -> ok
+[glr] pass 1 old: GL2C_EA_RDREQ_sum -> ok
+[glr] pass 2 new: SQ_INSTS_VALU -> ok
+[glr] pass 2 old: SQ_INSTS_VALU -> ok
+[glr] pass 3 new: TCP_REQ -> ok
+[glr] pass 3 old: TCP_REQ -> ok
+[glr] pass 4 new: SQ_INSTS_LDS -> ok
+[glr] pass 4 old: SQ_INSTS_LDS -> ok
+[glr] pass 5 new: GL2C_HIT_sum -> ok
+[glr] pass 5 old: GL2C_HIT_sum -> ok
+[glr] pass 6 new: LDSBankConflict -> ok
+[glr] pass 6 old: LDSBankConflict -> ok
+[glr] pass 7 new: GRBM_GUI_ACTIVE -> ok
+[glr] pass 7 old: GRBM_GUI_ACTIVE -> ok
+[glr] pass 8 new: SQ_WAVES -> ok
+[glr] pass 8 old: SQ_WAVES -> ok
+[glr] w5-kprof done 2026-10-27 08:36:59, 2384 s of the window left

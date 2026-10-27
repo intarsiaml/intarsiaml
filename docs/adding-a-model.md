@@ -200,6 +200,25 @@ status other than `compressed` is refused at `recipe new` and at load with the r
 No golden exists for a new model: `tools/golden_ct_nvfp4.py` makes one on a CPU from HF's Qwen3.5 decoder layers and the
 `compressed-tensors` package's own dequantisation (2 min for the 27B, a few GB of memory).
 
+**MLX affine quantisation** (`mlx-community/*`, `mlx_lm.convert -q`; `config.json` has `"quantization": {"group_size": 64, "bits": 4,
+"mode": "affine"}` and no `quant_method`) is accepted since 2026-10-27 (`docs/results/2026-10-27-nab-new-arch-drill-lfm2.md`): any of 2, 3, 4,
+5, 6 and 8 bits, and the per-module overrides the config lists (`"model.embed_tokens": {"bits": 6, ...}`). The loader
+(`quant/mlx_affine.rs`, `MlxAffine` around the safetensors source) **dequantises every packed module to bf16 at load**:
+`<m>.weight` is a `u32` bit stream, `<m>.scales` / `<m>.biases` are per group, `w = scale * q + bias` in f32 rounded once to bf16
+(bitwise `mx.dequantize`). So the recipe, the kernels and the gates see a plain bf16 checkpoint, `recipe new` says `quant: bf16 (MLX affine
+4-bit dequantised at load)`, and **memory and bandwidth are those of bf16: 4x the stored size for 4-bit** (Qwen3.5-2B 4-bit is 1.7 GB on
+disk, 3.76 GB loaded, 11.0 GB peak resident while loading because the dequantised copy and the device copy coexist; the decode byte floor counts 3.76 GB). A native MLX-quant GEMV that reads the 4-bit words is a later change. The
+loader also undoes three things `mlx_lm` does on conversion: `mlx-vlm` tensor names (`language_model.model.*` become `model.language_model.*`),
+the conv layout (`[C, K, 1]` becomes `[C, 1, K]`, same bytes), and, for Qwen3.5 / Qwen3-Next, the `+1` it bakes into the zero-centred
+RMSNorms (it gives back `w - 1` when layer 0's `input_layernorm` has mean above 0.5; without this the model is fluent nonsense because the recipe's
+`norm_offset` adds the 1 again). Safetensors files whose data starts at an odd byte (MLX writes unpadded headers) are copied to the device
+instead of mapped. Not read: MLX `mxfp4` / `nvfp4` / `mxfp8` modes (named in the error), stacked `switch_mlp` experts (the MoE block is
+NVFP4-only), the vision tower.
+No bf16 original of an MLX checkpoint on the box? Make the reference side from the MLX weights with an independent numpy dequantiser,
+`tools/mlx_to_hf_bf16.py --src <mlx dir> --out <dir>` (10 s for a 2B model), and pass it as `onboard --golden-from <dir>`:
+the golden then measures the engine against HF on the same dequantised weights (rounding only, KL about 1e-4), not the
+4-bit loss. The gate class of an MLX checkpoint follows its lowest bit width (`<= 5` bits: the 4-bit class, `6..8`: the FP8 class).
+
 The hand-written reference of the recipe format follows; `recipe new` produces exactly this.
 
 ```toml
@@ -482,6 +501,10 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   against an independent decode of real tensor slices (`tools/gen_mxfp4_fixture.py`), then `intarsia kernels test`.
   Supported today: bf16, FP8 (per-tensor), NVFP4 (ModelOpt W4A16, compressed-tensors NVFP4A16), MXFP4 (Quark OCP MX, W4A4 by default as declared,
   `--mxfp4-act none` for W4A16). Dense FFN, attention and GatedDeltaNet projections take any of them.
+  A format that is only a different packing of bf16-representable values can skip all of that and be read as bf16: MLX affine is a
+  `WeightSource` wrapper that dequantises at load (`quant/mlx_affine.rs`, ~300 lines with tests, cpu-ref fixture from a numpy
+  reference: `tools/gen_mlx_affine_fixture.py`). That costs memory and bandwidth (16 / bits times the file), not correctness; do it
+  first to get a model through `onboard`, write the native kernels when the speed matters.
 * A multimodal wrapper of a known text family (`*ForConditionalGeneration`, text weights under
   `model.language_model.*`) needs a copy of the family's recipe with the prefix changed (`recipes/qwen3_5_vl.toml`):
   recipes have no prefix parameter or inheritance. `recipe new` then writes the scaffold to the first free

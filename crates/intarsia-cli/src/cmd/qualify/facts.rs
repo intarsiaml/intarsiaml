@@ -290,6 +290,11 @@ fn moe_top_k(tc: &Value) -> u64 {
 
 pub fn weight_facts(dir: &Path, cfg: &Value) -> Result<WeightFacts> {
     let st = intarsia_models::safetensors::SafeTensors::open_dir(dir).map_err(|e| anyhow::anyhow!("{e}"))?;
+    // an MLX affine checkpoint is read as bf16 (dequantised at load): count what the engine reads, not the 4-bit file
+    let st: Box<dyn WeightSource> = match intarsia_core::quant::mlx_affine::MlxAffineConfig::from_config(cfg).map_err(|e| anyhow::anyhow!("{e}"))? {
+        Some(m) => Box::new(intarsia_core::quant::mlx_affine::MlxAffine::new(st, &m).map_err(|e| anyhow::anyhow!("{e}"))?),
+        None => Box::new(st),
+    };
     let tc = intarsia_core::recipe::text_config(cfg);
     let (experts, top_k) = (
         tc.get("num_experts").and_then(|v| v.as_u64()).unwrap_or(0) as f64,

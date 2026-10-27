@@ -1,0 +1,70 @@
+fleetq: #6204 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'BIN=/work/glr-bin/mxfp4_a8-v3 W=w2 SEC='"'"'corr time hashv prof'"'"' TVARS='"'"'base|A=1;pd2-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2;ord-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1;ord-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,1;ord-4224|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4,64,0,2,0,1;ord3-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,3,0,1;ord3-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,3,0,1;t2444|INTARSIA_HIP_MXFP4_A8_TILE=2,4,4,4,64,0,1;t4244|INTARSIA_HIP_MXFP4_A8_TILE=4,2,4,4,64,0,1;t2444p2|INTARSIA_HIP_MXFP4_A8_TILE=2,4,4,4,64,0,2;base-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4;base-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2;base-4224|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4;base2|A=1'"'"' HVARS='"'"'ord-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1;ord-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,1;ord-4224|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4,64,0,2,0,1;ord3-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,3,0,1;pd2-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2;t2444|INTARSIA_HIP_MXFP4_A8_TILE=2,4,4,4,64,0,1;t4244|INTARSIA_HIP_MXFP4_A8_TILE=4,2,4,4,64,0,1'"'"' PVARS='"'"'base|A=1;line|INTARSIA_HIP_MXFP4_A8_LINES=1;pd2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2;ord|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1;t2444|INTARSIA_HIP_MXFP4_A8_TILE=2,4,4,4,64,0,1'"'"' CANDS='"'"'GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES'"'"' bash ~/intarsiaml-glr/scripts/glr/w1.sh'
+[glr] w2 stopping radiance 2026-10-27 07:32:25
+[glr] radiance stopped 2026-10-27 07:32:29; GPUs: 0 radiance containers
+== corr A=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.22s
+== corr INTARSIA_HIP_MXFP4_A8_LINES=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.71s
+== corr INTARSIA_HIP_MXFP4_A8_LINES=1 INTARSIA_HIP_MXFP4_A8_PERGROUP=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.71s
+== base: 30 lines 2026-10-27 07:33:09
+== pd2-4424: 30 lines 2026-10-27 07:33:16
+== ord-4424: 30 lines 2026-10-27 07:33:22
+== ord-4442: 30 lines 2026-10-27 07:33:28
+== ord-4224: 30 lines 2026-10-27 07:33:35
+== ord3-4424: 30 lines 2026-10-27 07:33:41
+== ord3-4442: 30 lines 2026-10-27 07:33:48
+== t2444: 30 lines 2026-10-27 07:33:55
+== t4244: 30 lines 2026-10-27 07:34:01
+== t2444p2: 30 lines 2026-10-27 07:34:10
+== base-4424: 30 lines 2026-10-27 07:34:16
+== base-4442: 30 lines 2026-10-27 07:34:23
+== base-4224: 30 lines 2026-10-27 07:34:30
+== base2: 30 lines 2026-10-27 07:34:36
+== hash ord-4424: 48 lines; differing from default: 0
+== hash ord-4442: 48 lines; differing from default: 0
+== hash ord-4224: 48 lines; differing from default: 0
+== hash ord3-4424: 48 lines; differing from default: 0
+== hash pd2-4424: 48 lines; differing from default: 0
+== hash t2444: 48 lines; differing from default: 0
+== hash t4244: 48 lines; differing from default: 0
+[glr] counters present: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES
+[glr] pass 1 base: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict -> ok
+[glr] pass 1 line: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict -> ok
+[glr] pass 1 pd2: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict -> ok
+[glr] pass 1 ord: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict -> ok
+[glr] pass 1 t2444: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES LDSBankConflict -> ok
+[glr] pass 2 base: TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum -> ok
+[glr] pass 2 line: TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum -> ok
+[glr] pass 2 pd2: TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum -> ok
+[glr] pass 2 ord: TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum -> ok
+[glr] pass 2 t2444: TCP_REQ TCP_REQ_MISS GL2C_HIT_sum GL2C_MISS_sum -> ok
+[glr] pass 3 base: GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum -> ok
+[glr] pass 3 line: GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum -> ok
+[glr] pass 3 pd2: GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum -> ok
+[glr] pass 3 ord: GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum -> ok
+[glr] pass 3 t2444: GL2C_EA_RDREQ_sum GL2C_EA_RDREQ_128B_sum GL2C_EA_RDREQ_64B_sum GL2C_EA_RDREQ_32B_sum -> ok
+[glr] pass 4 base: TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD -> ok
+[glr] pass 4 line: TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD -> ok
+[glr] pass 4 pd2: TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD -> ok
+[glr] pass 4 ord: TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD -> ok
+[glr] pass 4 t2444: TA_BUSY_avr TA_BUSY_max SQ_INSTS_LDS SQ_INSTS_TEX_LOAD -> ok
+[glr] pass 5 base: SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU -> ok
+[glr] pass 5 line: SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU -> ok
+[glr] pass 5 pd2: SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU -> ok
+[glr] pass 5 ord: SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU -> ok
+[glr] pass 5 t2444: SQ_INSTS_WAVE32_LDS SQ_INSTS_VEC32_LEVEL_LDS SQ_INSTS_WAVE32_VALU SQ_INST_CYCLES_VALU -> ok
+[glr] pass 6 base: SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES -> ok
+[glr] pass 6 line: SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES -> ok
+[glr] pass 6 pd2: SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES -> ok
+[glr] pass 6 ord: SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES -> ok
+[glr] pass 6 t2444: SQ_INST_CYCLES_VMEM SQ_WAIT_INST_ANY SQ_WAIT_ANY SQ_WAVE_CYCLES -> ok
+[glr] w2 done 2026-10-27 07:35:52, 2193 s of the window left
+[glr] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793100959,"owned_by":"radiance"
+fleetq: #6204 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

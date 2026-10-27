@@ -832,6 +832,13 @@ fn weight_class(dir: &Path) -> Result<(GateClass, String)> {
     let mut docs: Vec<Value> = Vec::new();
     if let Ok(t) = std::fs::read_to_string(dir.join("config.json")) {
         if let Ok(c) = serde_json::from_str::<Value>(&t) {
+            // MLX affine (`quantization` {group_size, bits, mode}): the lowest bit width in the file decides the class. The
+            // engine reads these weights dequantised to bf16, so the class is the checkpoint's, not the arithmetic's.
+            if let Ok(Some(m)) = intarsia_core::quant::mlx_affine::MlxAffineConfig::from_config(&c) {
+                let bits = m.overrides.values().map(|(_, b)| *b).chain([m.bits]).min().unwrap_or(m.bits);
+                let class = if bits <= 5 { GateClass::Fp4 } else { GateClass::Fp8 };
+                return Ok((class, format!("MLX affine {bits}-bit weights (dequantised to bf16 at load)")));
+            }
             for v in [c.get("quantization_config"), c.get("text_config").and_then(|t| t.get("quantization_config"))]
                 .into_iter()
                 .flatten()

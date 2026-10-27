@@ -1,0 +1,10 @@
+variant           M=256    M=512   M=1024   M=1536   M=2048   M=4096   (ratio to the interpolated base; < 1 is faster)
+new               0.953    0.909    0.797    0.884    0.924    0.937
+
+call time us (old mean of 3 / new mean of 2) and TFLOP/s; the fwd and rev runs are 1 vs 5 slots apart so the two means are drift-balanced
+M=256: gate+up 342->314us 133->145TF 0.919 | down 200->195us 114->117TF 0.972 | q+gate 145->141us 111->114TF 0.972 | z 105->103us 77->78TF 0.980 | o 92->90us 88->90TF 0.980
+M=512: gate+up 641->561us 142->163TF 0.875 | down 342->329us 134->139TF 0.963 | q+gate 248->213us 130->152TF 0.858 | z 132->128us 122->126TF 0.974 | o 141->135us 114->119TF 0.962
+M=1024: gate+up 1447->1080us 126->169TF 0.746 | down 656->546us 139->167TF 0.833 | q+gate 467->396us 138->163TF 0.848 | z 243->207us 133->155TF 0.854 | o 239->203us 135->159TF 0.850
+M=1536: gate+up 2020->1791us 136->153TF 0.887 | down 977->871us 140->157TF 0.891 | q+gate 692->584us 140->165TF 0.844 | z 356->325us 136->149TF 0.914 | o 350->312us 138->155TF 0.892
+M=2048: gate+up 2495->2248us 146->162TF 0.901 | down 1217->1119us 150->163TF 0.919 | q+gate 823->793us 157->163TF 0.963 | z 415->398us 155->162TF 0.959 | o 408->395us 158->163TF 0.968
+M=4096: gate+up 4777->4290us 153->170TF 0.898 | down 2416->2341us 151->156TF 0.969 | q+gate 1828->1776us 141->145TF 0.971 | z 880->849us 146->152TF 0.965 | o 860->834us 150->154TF 0.970

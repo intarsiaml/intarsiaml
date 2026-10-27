@@ -265,6 +265,167 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
     out[row * D + threadIdx.x] = ik_f2b(A / L);
 }
 
+// D = 512 (Gemma 4 global layers). A key row is spanned by one warp, 16 dims per thread (two 16 B loads, dims c*8 .. +8 and
+// 256 + c*8 .. +8), so a score is a warp shuffle reduction; the block has NG = 8 key lanes. The 8 query heads of a kv head are
+// served in passes of kGP512 = 4 (grid.y = NKV * npass), so the accumulators stay in registers; the second pass re-reads
+// K / V from L2. Everything else (split policy, window, lane merge, partial layout, combine_kernel<512>) is splitkv_kernel's.
+constexpr int kGP512 = 4;
+constexpr int kD512 = 512;
+constexpr int kSplit512KB = 1;  // keys per key lane per iteration (registers: 2 x 16 B K and V loads each, 128 accumulators)
+
+template <int KB>
+__global__ void __launch_bounds__(kBlock)
+splitkv512_kernel(const ik_bf16* __restrict__ q, const ik_bf16* __restrict__ kc, const ik_bf16* __restrict__ vc,
+                  float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int npass, int64_t cap,
+                  int64_t pos0_host, float qscale, int nsplit, int64_t window, const int32_t* pos_dev) {
+    constexpr int D = kD512;
+    constexpr int NG = kBlock / 32;
+    const int nkv = gridDim.y / npass;
+    const int64_t tq = gridDim.z;
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int64_t kv_len = pos0 + tq;
+    const int nsplit_eff = splitkv_count(kv_len, nkv, tq);
+    const int64_t chunk = splitkv_chunk(kv_len, nsplit_eff);
+    if ((int)blockIdx.x >= nsplit_eff) return;
+    __shared__ __align__(16) float s_acc[NG * D];
+    __shared__ float s_m[NG], s_l[NG];
+
+    const int sp = blockIdx.x, kvh = blockIdx.y / npass, g0 = (blockIdx.y % npass) * kGP512, t = blockIdx.z;
+    const int c = threadIdx.x % 32, gk = threadIdx.x / 32;
+    const int64_t visible = pos0 + t + 1;
+    const int64_t lo = (window > 0 && visible > window) ? visible - window : 0;
+    int64_t start = (int64_t)sp * chunk;
+    int64_t end = start + chunk;
+    if (start < lo) start = lo;
+    if (end > visible) end = visible;
+
+    const ik_bf16* kb = kc + (int64_t)kvh * cap * D + c * 8;
+    const ik_bf16* vb = vc + (int64_t)kvh * cap * D + c * 8;
+
+    float qr[kGP512][16];
+#pragma unroll
+    for (int g = 0; g < kGP512; ++g) {
+#pragma unroll
+        for (int e = 0; e < 16; ++e) {
+            qr[g][e] = 0.f;
+            if (g0 + g < G)
+                qr[g][e] = ik_b2f(q[((int64_t)t * N + (int64_t)kvh * G + g0 + g) * D + (e / 8) * 256 + c * 8 + (e % 8)]) * qscale;
+        }
+    }
+    float m[kGP512], l[kGP512], acc[kGP512][16];
+#pragma unroll
+    for (int g = 0; g < kGP512; ++g) {
+        m[g] = -INFINITY;
+        l[g] = 0.f;
+#pragma unroll
+        for (int e = 0; e < 16; ++e) acc[g][e] = 0.f;
+    }
+
+    for (int64_t base = start; base < end; base += (int64_t)NG * KB) {
+        uint4 kk[KB][2], vv[KB][2];
+        bool ok[KB];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            const int64_t j = base + (int64_t)u * NG + gk;
+            ok[u] = j < end;
+            kk[u][0] = kk[u][1] = vv[u][0] = vv[u][1] = make_uint4(0, 0, 0, 0);
+            if (ok[u]) {
+                kk[u][0] = __ldg(reinterpret_cast<const uint4*>(kb + j * D));
+                kk[u][1] = __ldg(reinterpret_cast<const uint4*>(kb + j * D + 256));
+                vv[u][0] = __ldg(reinterpret_cast<const uint4*>(vb + j * D));
+                vv[u][1] = __ldg(reinterpret_cast<const uint4*>(vb + j * D + 256));
+            }
+        }
+        float sc[KB][kGP512];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            float kf[16];
+            ik_unpack8(kk[u][0], kf);
+            ik_unpack8(kk[u][1], kf + 8);
+#pragma unroll
+            for (int g = 0; g < kGP512; ++g) {
+                float d = 0.f;
+#pragma unroll
+                for (int e = 0; e < 16; ++e) d += qr[g][e] * kf[e];
+#pragma unroll
+                for (int o = 16; o > 0; o >>= 1) d += __shfl_xor_sync(0xffffffffu, d, o);
+                sc[u][g] = ok[u] ? d : -INFINITY;
+            }
+        }
+        float vf[KB][16];
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            ik_unpack8(vv[u][0], vf[u]);
+            ik_unpack8(vv[u][1], vf[u] + 8);
+        }
+#pragma unroll
+        for (int g = 0; g < kGP512; ++g) {
+            float tmax = sc[0][g];
+#pragma unroll
+            for (int u = 1; u < KB; ++u) tmax = fmaxf(tmax, sc[u][g]);
+            const float m_new = fmaxf(m[g], tmax);
+            const float m_use = (m_new == -INFINITY) ? 0.f : m_new;
+            const float corr = exp2f(m[g] - m_use);  // m == -inf -> 0
+            m[g] = m_new;
+            float p[KB], psum = 0.f;
+#pragma unroll
+            for (int u = 0; u < KB; ++u) {
+                p[u] = exp2f(sc[u][g] - m_use);
+                psum += p[u];
+            }
+            l[g] = l[g] * corr + psum;
+#pragma unroll
+            for (int e = 0; e < 16; ++e) {
+                float a = acc[g][e] * corr;
+#pragma unroll
+                for (int u = 0; u < KB; ++u) a += p[u] * vf[u][e];
+                acc[g][e] = a;
+            }
+        }
+    }
+
+    // merge the NG key lanes, one head at a time; write the block's partial for that head
+#pragma unroll
+    for (int g = 0; g < kGP512; ++g) {
+        if (g0 + g < G) {
+            __syncthreads();  // s_acc / s_m / s_l are reused for every head
+#pragma unroll
+            for (int e = 0; e < 16; ++e) s_acc[gk * D + (e / 8) * 256 + c * 8 + (e % 8)] = acc[g][e];
+            if (c == 0) {
+                s_m[gk] = m[g];
+                s_l[gk] = l[g];
+            }
+            __syncthreads();
+            const int64_t slot = ((int64_t)t * N + (int64_t)kvh * G + g0 + g) * nsplit + sp;
+            float M = -INFINITY;
+            for (int i = 0; i < NG; ++i) M = fmaxf(M, s_m[i]);
+            for (int d = threadIdx.x; d < D; d += kBlock) {
+                float A = 0.f, L = 0.f;
+                if (M != -INFINITY) {
+                    for (int i = 0; i < NG; ++i) {
+                        const float w = exp2f(s_m[i] - M);  // empty lane: exp2(-inf) = 0, acc is 0 too
+                        L += s_l[i] * w;
+                        A += s_acc[i * D + d] * w;
+                    }
+                }
+                pacc[slot * D + d] = A;
+                if (d == 0) pml[slot] = make_float2(M, L);
+            }
+        }
+    }
+}
+
+template <int KB>
+void launch_split512(const ik_bf16* q, const ik_bf16* kc, const ik_bf16* vc, float* pacc, float2* pml, int64_t T, int64_t N,
+                     int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit, int64_t window,
+                     const int32_t* pos_dev, cudaStream_t s) {
+    const int G = (int)(N / NKV);
+    const int npass = (G + kGP512 - 1) / kGP512;
+    dim3 grid(nsplit, (unsigned)(NKV * npass), (unsigned)T);
+    splitkv512_kernel<KB><<<grid, kBlock, 0, s>>>(q, kc, vc, pacc, pml, (int)N, G, npass, cap, pos0, qscale, nsplit, window,
+                                                  pos_dev);
+}
+
 template <int GP, int TPK, int KB, typename KT, bool ROWS = false>
 void launch_split(const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml, int64_t T,
                   int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
@@ -309,7 +470,7 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
     if (out->shape[0] != T || out->shape[1] != N || out->shape[2] != D) return IK_ERR_SHAPE;
     if (NKV <= 0 || N % NKV != 0 || pos0 < 0 || window < 0 || pos0 + T > cap || T > kMaxRows) return IK_ERR_SHAPE;
     if (N / NKV > kMaxGroup) return IK_ERR_SHAPE;
-    if (D != 32 && D != 64 && D != 128 && D != 256) return IK_ERR_SHAPE;
+    if (D != 32 && D != 64 && D != 128 && D != 256 && !(D == 512 && !f8kv)) return IK_ERR_SHAPE;
     if (T == 0 || N == 0) return IK_OK;
     if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data)) return IK_ERR_STRIDE;
 
@@ -343,6 +504,10 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
         case 64: rc = dispatch_group<8>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
         case 128: rc = dispatch_group<16>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
         case 256: rc = dispatch_group<32>((int)(N / NKV), qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s); break;
+        case 512:
+            launch_split512<kSplit512KB>(qp, kp, vp, pacc, pml, T, N, NKV, cap, pos0, qscale, nsplit, window, pos_dev, s);
+            rc = IK_OK;
+            break;
     }
     if (rc != IK_OK) return rc;
     IK_TRY(ik_launch_status());
@@ -353,6 +518,7 @@ int splitkv_launch(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc,
         case 64: combine_kernel<64><<<rows, 64, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
         case 128: combine_kernel<128><<<rows, 128, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
         case 256: combine_kernel<256><<<rows, 256, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
+        case 512: combine_kernel<512><<<rows, 512, 0, s>>>(pacc, pml, op, nsplit, (int)T, (int)NKV, pos0, pos_dev); break;
     }
     return ik_launch_status();
 }

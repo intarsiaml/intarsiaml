@@ -10,6 +10,11 @@
 //! 4. `a8_rows_are_bitwise_the_solo_kernel`: `_gemv_rows` at M = 1..16 == `_gemv` M = 1 per row; the decode kernels agree with the
 //!    prefill GEMM to 1e-5 (another summation order).
 //! 5. Negative control: one flipped weight code moves the output.
+//! 6. `a8_mma_rows_do_not_depend_on_position` (lane GLR): the same activation row at other positions of a call (first, tile edges, last, M tails),
+//!    for calls of M on both sides of every tile cutover, gives the same bits as the solo row.
+//! 7. `a8_mma_hashes` (ignored; prints `HASH` lines): FNV-1a of the output bytes over shapes with every K and M tail; run once per
+//!    `INTARSIA_HIP_MXFP4_A8_PD` value (1 = the previous kernel and tile table; the kernel reads it once per process) and diff the lines: prefetch
+//!    distance 1 and 2, and the tile table of each, must agree bitwise.
 //!
 //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
 #![cfg(ik_hip)]
@@ -135,6 +140,53 @@ fn a8_mma_rows_do_not_depend_on_m() {
 }
 
 #[test]
+fn a8_mma_rows_do_not_depend_on_position() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(98);
+    for (n, k, odt) in [(17408usize, 5120usize, DType::Bf16), (5120, 8704, DType::Bf16), (300, 4128, DType::F32), (200, 4000, DType::Bf16)] {
+        let big = matmul_mxfp4_case(&mut rng, 4100, n, k, Mxfp4Act::Fp8, DType::Bf16, odt);
+        let ob = odt.size_bytes() * n;
+        // row 7 of the big call as the probe: its solo result (M = 1, the small tile) is the reference
+        let probe = rows_of(&big, 7, 1, k, n);
+        let want = run_host(&*hip, "matmul_mxfp4_a8_mma", &probe).unwrap().remove(0).data;
+        let xrow = big.inputs[0].data[7 * k * 2..8 * k * 2].to_vec();
+        for m in [17usize, 65, 255, 257, 1000, 2047, 2048, 2049, 4100] {
+            for pos in [0usize, 1, 15, 16, 31, 63, 64, 127, 128, 255, 256, 257, 1023, 2047, 2048, m - 1] {
+                if pos >= m {
+                    continue;
+                }
+                let mut hc = rows_of(&big, 100usize.min(4100 - m), m, k, n);
+                hc.inputs[0].data[pos * k * 2..(pos + 1) * k * 2].copy_from_slice(&xrow);
+                let got = run_host(&*hip, "matmul_mxfp4_a8_mma", &hc).unwrap().remove(0).data;
+                assert!(got[pos * ob..(pos + 1) * ob] == want[..], "n={n} k={k} {odt:?}: the probe row at position {pos} of an M={m} call differs from its solo result");
+            }
+        }
+    }
+}
+
+/// FNV-1a 64 over the output bytes of the W4A8 prefill GEMM on shapes with every K tail (K % 256 = 0, 32, 64, 128, 160, 224, < 256), N not
+/// a multiple of the tile, and M on both sides of the tile thresholds. Prints `HASH m n k out hash` lines.
+#[test]
+#[ignore = "prints hashes for a cross-process diff"]
+fn a8_mma_hashes() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(99);
+    let fnv = |d: &[u8]| d.iter().fold(0xcbf29ce484222325u64, |h, b| (h ^ *b as u64).wrapping_mul(0x100000001b3));
+    for (m, n, k) in [
+        (2048usize, 17408usize, 5120usize), (2048, 5120, 8704), (2048, 6144, 5120), (2048, 3072, 5120), (2048, 5120, 3072), (4096, 17408, 5120),
+        (1024, 17408, 5120), (1024, 5120, 8704), (512, 6144, 5120), (1536, 5120, 3072), (256, 3072, 5120), (130, 5120, 5120),
+        (2049, 8200, 4128), (2100, 777, 4160), (1000, 4100, 4224), (777, 300, 4000), (300, 200, 4064), (65, 100, 96), (257, 129, 224),
+        (2300, 1000, 160), (2048, 8192, 1056), (3000, 12288, 5120), (64, 1024, 5120), (1, 640, 5120),
+    ] {
+        for odt in [DType::Bf16, DType::F32] {
+            let hc = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, odt);
+            let out = run_host(&*hip, "matmul_mxfp4_a8_mma", &hc).unwrap().remove(0);
+            println!("HASH {m} {n} {k} {odt:?} {:016x}", fnv(&out.data));
+        }
+    }
+}
+
+#[test]
 fn a8_rows_are_bitwise_the_solo_kernel() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(94);
@@ -247,11 +299,18 @@ fn timing_mxfp4_prefill() {
 fn timing_a8_tp2() {
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(97);
+    let ms: Vec<usize> = std::env::var("GLR_TIMING_M").ok().map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect()).unwrap_or_else(|| vec![2048, 4096]);
+    // GLR_TIMING_ONLY=q+gate,o restricts the shapes, GLR_TIMING_ITERS the launches per case (profiler passes)
+    let only: Vec<String> = std::env::var("GLR_TIMING_ONLY").ok().map(|v| v.split(',').map(str::to_string).collect()).unwrap_or_default();
+    let iters: usize = std::env::var("GLR_TIMING_ITERS").ok().and_then(|v| v.parse().ok()).unwrap_or(100);
     for (name, n, k) in [("gate+up", 17408usize, 5120usize), ("down", 5120, 8704), ("q+gate", 6144, 5120), ("z", 3072, 5120), ("o", 5120, 3072)] {
-        for m in [2048usize, 4096] {
+        if !only.is_empty() && !only.iter().any(|o| o == name) {
+            continue;
+        }
+        for &m in &ms {
             let flops = 2.0 * m as f64 * n as f64 * k as f64;
             let hc = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
-            let us = time_launch(&hip, "matmul_mxfp4_a8_mma", &hc, 100);
+            let us = time_launch(&hip, "matmul_mxfp4_a8_mma", &hc, iters);
             println!("TIME a8tp2 {name:<8} {n}x{k:<5} M={m:<5} {us:10.1} us  {:6.1} TFLOPS", flops / us / 1e6);
         }
     }
