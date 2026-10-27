@@ -63,6 +63,13 @@ if [[ ${PRE:-} == ids ]]; then
   mkdir -p "$OUT/ids"; scp -q "tatooine:spt/out/$W-ids/*" "$OUT/ids/" 2>/dev/null
   say "pre: $(grep -h 'ids summary' "$OUT/ids/steps.log" | cut -c10- | tr '\n' '|')"
 fi
+# PRE=acc: gate 2 + batched == solo on tatooine (scripts/w4a8/acc.sh); PRE=w4a8ids: the 18-prompt MTP ids gate in fp8 mode (scripts/w4a8/ids.sh)
+if [[ ${PRE:-} == acc || ${PRE:-} == w4a8ids ]]; then
+  script=acc.sh; [[ $PRE == w4a8ids ]] && script=ids.sh
+  say "pre: $PRE"
+  $SSH "timeout ${PRE_CAP:-1500} bash ~/intarsiaml-w4a8/scripts/w4a8/$script" < /dev/null > "$OUT/pre-$PRE.log" 2>&1
+  say "pre: $PRE exit $?; $(tail -3 "$OUT/pre-$PRE.log" | tr '\n' '|' | cut -c1-300)"
+fi
 if [[ ${PROBE:-0} == 1 ]]; then
   say "probe: tests/dflash2_real.rs on card 0"
   $SSH "export O=\$HOME/spt/out/$W; mkdir -p \$O; source ~/spt/lib.sh; E='INTARSIA_DFLASH2_TARGET=$M27 INTARSIA_DFLASH2_DRAFT=$DRAFT INTARSIA_DFLASH2_LEN=3000' mtest $TREE probe27 0 600 --test dflash2_real -- --nocapture; cat \$O/mtest-probe27.log" < /dev/null > "$OUT/mtest-probe27.log" 2>&1
@@ -120,7 +127,7 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
         say "round $r arm $arm $c: localeval exit $rc $(grep -aoE 'results/[^ ]+' "$OUT/q-$arm-$c-r$r.log" | tail -1)"
       done
     fi
-    if [[ ${SWEEP:-1} == 1 && ${MMLU:-0} != 1 ]]; then   # prefill / decode sweep, the act27 method (--sizes 1024,4096 --gen 128 --reps 3)
+    if [[ ${SWEEP:-1} == 1 ]]; then   # prefill / decode sweep, the act27 method (--sizes 1024,4096 --gen 128 --reps 3)
       ( cd /opt/code/deepeval && LOCALEVAL_TARGETS="$OUT/targets-plain-$arm.toml" uv run localeval speed "w4a8-$arm" --sizes 1024,4096 --gen 128 --reps 3 \
           --label "w4a8-$W-$arm-sweep-r$r" --recipe "$RECIPE" --wait-idle 60 ) > "$OUT/sweep-$arm-r$r.log" 2>&1 < /dev/null
       say "round $r arm $arm sweep: exit $? $(grep -aoE 'results/[^ ]+' "$OUT/sweep-$arm-r$r.log" | tail -1)"
