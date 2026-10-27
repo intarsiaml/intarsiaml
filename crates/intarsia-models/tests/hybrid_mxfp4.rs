@@ -134,6 +134,17 @@ fn mxfp4_w4a16_matches_the_dequantised_model_and_w4a4_runs() {
     let w_only = want.iter().zip(&logits(&original(), None)).map(|(a, b)| rel_l2(a, b)).fold(0f64, f64::max);
     println!("MXFP4 weights vs f32 weights worst rel l2 {w_only:.3e}");
     assert!(worst > 1e-4, "W4A4 must differ from W4A16 (the activation QDQ ran)");
+    // W4A8 (per-token fp8 activations) runs through the whole hybrid model (GDN + attention + FFN, the pair fusions included) and sits
+    // closer to W4A16 than W4A4 does: e4m3 keeps 3 mantissa bits of every element, e2m1 one
+    let w4a8 = logits(&mx, Some(Mxfp4Act::Fp8));
+    let mut worst8 = 0f64;
+    for (g, w) in w4a8.iter().zip(&want) {
+        assert!(g.iter().all(|v| v.is_finite()));
+        worst8 = worst8.max(rel_l2(g, w));
+    }
+    println!("W4A8 vs W4A16 worst rel l2 {worst8:.3e}");
+    assert!(worst8 > 1e-6, "W4A8 must differ from W4A16 (the fp8 quantisation ran)");
+    assert!(worst8 < worst, "W4A8 ({worst8:.3e}) must be closer to W4A16 than W4A4 ({worst:.3e})");
 }
 
 /// The fixture's original f32 weights in the VL layout.
