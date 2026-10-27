@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 91 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.28s prefill=3570 tok/s decode=54.2 tok/s peak=62.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=986 ttft=0.28s prefill=3528 tok/s decode=54.5 tok/s peak=60.9 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.28s prefill=3584 tok/s decode=54.5 tok/s peak=60.8 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4087 ttft=1.05s prefill=3895 tok/s decode=53.8 tok/s peak=60.6 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4082 ttft=1.05s prefill=3873 tok/s decode=53.8 tok/s peak=64.8 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4085 ttft=1.05s prefill=3880 tok/s decode=53.8 tok/s peak=60.3 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16649 ttft=4.64s prefill=3589 tok/s decode=50.7 tok/s peak=56.6 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16652 ttft=4.69s prefill=3554 tok/s decode=51.0 tok/s peak=57.0 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=4.86s prefill=3428 tok/s decode=53.0 tok/s peak=60.3 tok/s out=128
+# localeval: hdc-wm_spoff — 2026-10-27T13:46
+
+- model: `qwen38-27b-hdc` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: hdc-w2-wm_spoff-14
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed hdc-wm_spoff --sizes 1024,4096,16384 --gen 128 --reps 3 --label hdc-w2-wm_spoff-14 --recipe HIP_VISIBLE_DEVICES=0,1 hdc-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off ( -e INTARSIA_HIP_WMMA_ROWS=1 -e INTARSIA_HIP_WMMA_TABLE=fp8a8=all,fp8a16=all,bf16=all; lane hdc) --wait-idle 60`
+- result file: `results/20261027-134613-hdc-wm_spoff-hdc-w2-wm_spoff-14/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 hdc-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off ( -e INTARSIA_HIP_WMMA_ROWS=1 -e INTARSIA_HIP_WMMA_TABLE=fp8a8=all,fp8a16=all,bf16=all; lane hdc)
+````
+
+## Speed sweep
+
+served `qwen38-27b-hdc`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.28 | 3570 (3528–3584) * | - | 54.5 (54.2–54.5) | 60.9 (60.8–62.8) | - | - | 128 |
+| 4085 | 1.05 | 3880 (3873–3895) | 3988 | 53.8 (53.8–53.8) | 60.6 (60.3–64.8) | - | - | 128 |
+| 16652 | 4.69 | 3554 (3428–3589) | 3459 | 51.0 (50.7–53.0) | 57.0 (56.6–60.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-134613-hdc-wm_spoff-hdc-w2-wm_spoff-14/result.json
+[localeval] logged to unanimis: 24ceddd1-846d-4eee-a472-7e08649739ec

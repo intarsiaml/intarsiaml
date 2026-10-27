@@ -4,7 +4,8 @@
 //! batch invariance (rows at M = 5 are bitwise the rows run at M = 1).
 //!
 //! The knob is read once per process, so this file is its own test binary and has ONE test: it sets the knob to 1 before the first
-//! launch unless the caller already set it (INTARSIA_HIP_MXFP4_A8_FUSE=0 runs the very same cases on the pre-pass path). The fused
+//! launch unless the caller already set it (INTARSIA_HIP_MXFP4_A8_FUSE=0 runs the very same cases on the pre-pass path;
+//! A8_FUSE_TEST_DEFAULT=1 leaves it unset, i.e. the shipped default: fused for M = 1, pre-pass for M >= 2). The fused
 //! kernel is used where its LDS size fits (al16(M*K) + al16(4*M) <= 60000: K = 5120 up to M = 11, K = 6144 up to M = 9, K = 17408
 //! up to M = 3, K = 2080 all M); larger M fall back to the pre-pass inside the same process.
 //!
@@ -12,6 +13,7 @@
 //! byte of every launch, in order):
 //!   INTARSIA_HIP_MXFP4_A8_FUSE=0 cargo test --release -p intarsia-backend-hip --test mxfp4_a8_fuse -- --nocapture | grep FUSEHASH
 //!   INTARSIA_HIP_MXFP4_A8_FUSE=1 cargo test --release -p intarsia-backend-hip --test mxfp4_a8_fuse -- --nocapture | grep FUSEHASH
+//!   A8_FUSE_TEST_DEFAULT=1 cargo test --release -p intarsia-backend-hip --test mxfp4_a8_fuse -- --nocapture | grep FUSEHASH
 //!
 //! Needs a GPU: skips without one.
 #![cfg(ik_hip)]
@@ -67,7 +69,9 @@ fn fnv(h: &mut u64, bytes: &[u8]) {
 #[test]
 fn a8_fused_is_bitwise_the_unfused() {
     // before the first launch: the launcher reads the knob once per process
-    if std::env::var_os(KNOB).is_none() {
+    if std::env::var_os("A8_FUSE_TEST_DEFAULT").is_some() {
+        std::env::remove_var(KNOB);
+    } else if std::env::var_os(KNOB).is_none() {
         std::env::set_var(KNOB, "1");
     }
     let Some(hip) = device() else { return };
