@@ -44,6 +44,9 @@ fn overall(stages: &[&StageRecord], expected_full: bool, have_full: bool) -> &'s
         "FAIL"
     } else if stages.iter().any(|s| s.verdict == Verdict::MissingBaseline) {
         "MISSING-BASELINE"
+    } else if stages.iter().any(|s| s.is_unchecked_accuracy()) {
+        // a golden that was not found is not a pass: the accuracy stage never ran
+        "INCOMPLETE"
     } else if expected_full && !have_full {
         "INCOMPLETE"
     } else {
@@ -703,5 +706,22 @@ mod tests {
         assert_eq!(fmt_dur(12.0), "12s");
         assert_eq!(fmt_dur(125.0), "2m05s");
         assert_eq!(fmt_dur(7300.0), "2h01m");
+    }
+
+    /// A missing golden skips `acc-short`: the run checked no accuracy and must not read as PASS (drill g4d).
+    #[test]
+    fn a_skipped_accuracy_stage_is_not_a_pass() {
+        let (mut s, m) = sample();
+        s.put(rec("acc-short", "quick", Verdict::Skip, "SKIPPED, accuracy NOT checked: no short golden for 'M': looked for golden/M*.safetensors", Value::Null));
+        let j = summary_json(&s, &m, false);
+        assert_eq!(j["verdict"], "INCOMPLETE");
+        assert_eq!(j["exit_code"], 2);
+        assert!(render(&s, &m, false).contains("golden/M*.safetensors"));
+        // the user's own --skip is a choice, not a miss
+        s.put(rec("acc-short", "quick", Verdict::Skip, super::super::state::SKIPPED_BY_FLAG, Value::Null));
+        assert_eq!(summary_json(&s, &m, false)["verdict"], "PASS");
+        // and a real failure still outranks it
+        s.put(rec("gate", "quick", Verdict::Fail, "x", Value::Null));
+        assert_eq!(summary_json(&s, &m, false)["verdict"], "FAIL");
     }
 }
