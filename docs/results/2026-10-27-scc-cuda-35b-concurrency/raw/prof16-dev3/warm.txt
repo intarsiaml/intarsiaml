@@ -1,0 +1,1 @@
+round 0 streams 2 wall 1.45s ttft_med 0.92 ttft_max 0.92 chunks [32, 32]

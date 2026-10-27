@@ -2,6 +2,7 @@
  * Dense weight-quantised GEMM for prefill: out[M,N] = scale * x[M,K] @ dequant(W)[N,K]^T on tensor cores, for
  *   FMT_NVFP4  W = e2m1 (u8 [N,K/2]) * e4m3 block scale (per 16 k) ; epilogue scale = global_scale
  *   FMT_FP8    W = e4m3 (u8 [N,K])                                  ; epilogue scale = weight_scale * input_scale
+ *   FMT_MXFP4  W = e2m1 (u8 [N,K/2]) * e8m0 block scale (per 32 k, u8 [N,K/32]) ; no epilogue scale (OCP MXFP4, W4A16)
  * Same numerics as the nvfp4.cu / fp8.cu `*_mma` kernels (weights dequantised to bf16 exactly, f32 accumulate), but a
  * different memory schedule (see kernels/cuda/moe_grouped.cu for the measurements behind it): packed weights are
  * copied in 64-byte-per-row runs with cp.async (LPDDR reads of 32 B per row at a large row stride reach about half
@@ -23,6 +24,7 @@ namespace wq {
 
 constexpr int FMT_NVFP4 = 0;
 constexpr int FMT_FP8 = 1;
+constexpr int FMT_MXFP4 = 2;
 
 constexpr int BK = 64;         // k per step
 constexpr int LDS = BK + 8;    // padded smem row (bf16 elements)
@@ -32,11 +34,16 @@ constexpr int kRawUnit = kWRows * kRawStride;
 
 IK_DEVI float round_bf16(float v) { return ik_b2f(ik_f2b(v)); }
 
+// e8m0 byte -> 2^(b - 127); 0 -> 2^-127 (f32 subnormal), 255 -> NaN (mxfp4.cu's mx_e8m0)
+IK_DEVI float e8m0_to_f(uint32_t b) {
+    return b == 0u ? __uint_as_float(0x00400000u) : (b == 255u ? __uint_as_float(0x7FC00000u) : __uint_as_float(b << 23));
+}
+
 template <int FMT>
 struct Fmt {
-    static constexpr int kStepsPerUnit = FMT == FMT_NVFP4 ? 2 : 1;           // 64-wide k steps per 64-byte raw unit
+    static constexpr int kStepsPerUnit = FMT == FMT_FP8 ? 1 : 2;             // 64-wide k steps per 64-byte raw unit
     static constexpr int kRing = (3 + kStepsPerUnit - 1) / kStepsPerUnit;    // raw units in flight
-    static constexpr int kRowBytesPerK = FMT == FMT_NVFP4 ? 1 : 2;           // row bytes = K * 1 / kRowBytesPerK
+    static constexpr int kRowBytesPerK = FMT == FMT_FP8 ? 2 : 1;             // row bytes = K * 1 / kRowBytesPerK
 };
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
@@ -69,11 +76,11 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
     const int wn = warp & 3, wm = warp >> 2;
     const int S = K / BK;
     const int U = (S + SPU - 1) / SPU;
-    const int64_t row_bytes = FMT == FMT_NVFP4 ? K / 2 : K;
+    const int64_t row_bytes = FMT == FMT_FP8 ? K : K / 2;
     const bool actq = FMT == FMT_FP8 && gs[1] > 0.f;
     if (only_wo && actq) return;  // block-uniform: this launch is the weight-only fallback of an e4m3-activation kernel
     const ik_bf16* const a_src = actq ? xq : x;
-    const float s_out = FMT == FMT_FP8 ? gs[0] * (actq ? gs[1] : 1.f) : gs[0];
+    const float s_out = FMT == FMT_FP8 ? gs[0] * (actq ? gs[1] : 1.f) : (FMT == FMT_NVFP4 ? gs[0] : 1.f);  // MXFP4: gs unused
 
     // packed-weight copy: row r = (tid >> 2) + (NTHREADS / 4) q, 16-byte part tid & 3 of the unit's 64 bytes
     const int rpart = tid & 3;
@@ -98,17 +105,23 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
     const int wr = WM == 1 ? tid : tid >> 1;
     const int khalf = WM == 1 ? 0 : (tid & 1);
     const int wrow = min(n0 + wr, N - 1);
-    const uint8_t* sp = FMT == FMT_NVFP4 ? bs + (int64_t)wrow * (K / 16) + khalf * 2 : bs;
+    // NVFP4: e4m3 scale per 16 k, 4 bytes per 64-k step (2 when WM == 2); MXFP4: e8m0 scale per 32 k, 2 bytes per step (1 when WM == 2)
+    const uint8_t* sp = FMT == FMT_NVFP4   ? bs + (int64_t)wrow * (K / 16) + khalf * 2
+                        : FMT == FMT_MXFP4 ? bs + (int64_t)wrow * (K / 32) + khalf
+                                           : bs;
     uint32_t rawsc = 0;
     auto load_sc = [&](int st) {
         if (FMT == FMT_NVFP4) {
             if (WM == 1) rawsc = *reinterpret_cast<const uint32_t*>(sp + st * (BK / 16));
             else rawsc = *reinterpret_cast<const uint16_t*>(sp + st * (BK / 16));
+        } else if (FMT == FMT_MXFP4) {
+            if (WM == 1) rawsc = *reinterpret_cast<const uint16_t*>(sp + st * (BK / 32));
+            else rawsc = sp[st * (BK / 32)];
         }
     };
     auto dequant = [&](int st, int buf) {
         const int u = st / SPU;
-        if (FMT == FMT_NVFP4) {
+        if (FMT != FMT_FP8) {
             const unsigned char* rp = rawu(u % RING) + wr * kRawStride + (st & 1) * 32 + khalf * 16;
             const uint4 q0 = *reinterpret_cast<const uint4*>(rp);
             const uint4 q1 = WM == 1 ? *reinterpret_cast<const uint4*>(rp + 16) : q0;
@@ -116,8 +129,10 @@ wq_gemm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ xq, co
 #pragma unroll
             for (int b = 0; b < 4 / WM; ++b) {
                 uint4 lo, hi;
-                ik_fp4x16_scaled_to_bf16(make_uint2(wd[2 * b], wd[2 * b + 1]),
-                                         ik_e4m3_to_f((uint8_t)((rawsc >> (8 * b)) & 0xFFu)), lo, hi);
+                // NVFP4: piece b has its own e4m3 scale byte; MXFP4: a 32-k group is two pieces (WM == 1), or the thread's whole half (WM == 2)
+                const float sc = FMT == FMT_NVFP4 ? ik_e4m3_to_f((uint8_t)((rawsc >> (8 * b)) & 0xFFu))
+                                                  : e8m0_to_f((rawsc >> (WM == 1 ? 8 * (b >> 1) : 0)) & 0xFFu);
+                ik_fp4x16_scaled_to_bf16(make_uint2(wd[2 * b], wd[2 * b + 1]), sc, lo, hi);
                 uint4* dst = reinterpret_cast<uint4*>(ws(buf) + wr * LDS + khalf * 32 + b * 16);
                 dst[0] = lo;
                 dst[1] = hi;
@@ -253,7 +268,7 @@ template <int FMT, int MT, int WM, typename OutT>
 void launch_gemm(const ik_bf16* x, const ik_bf16* xq, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out,
                  int M, int N, int K, int vec_out, cudaStream_t s, int only_wo) {
     // activation bytes vs weight bytes: the larger operand is the one consecutive blocks should share
-    const int nfast = (double)M * 2.0 > (double)N * (FMT == FMT_NVFP4 ? 0.5625 : 1.0) ? 1 : 0;
+    const int nfast = (double)M * 2.0 > (double)N * (FMT == FMT_NVFP4 ? 0.5625 : (FMT == FMT_MXFP4 ? 0.53125 : 1.0)) ? 1 : 0;
     constexpr size_t smem = (size_t)(3 * 16 * MT * WM + 2 * kWRows) * LDS * 2 + (size_t)Fmt<FMT>::kRing * kRawUnit;
     static const bool attr_set = [] {
         cudaFuncSetAttribute(reinterpret_cast<const void*>(wq_gemm_kernel<FMT, MT, WM, OutT>),

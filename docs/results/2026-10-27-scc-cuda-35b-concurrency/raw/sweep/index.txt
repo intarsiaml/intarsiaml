@@ -1,0 +1,15 @@
+scc-base-r1: - result file: `results/20261027-081422-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081422-adhoc-scc-base-r1/result.json 
+scc-devauto-r1: - result file: `results/20261027-081557-adhoc-scc-devauto-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081557-adhoc-scc-devauto-r1/result.json 
+scc-dev1-r1: - result file: `results/20261027-081732-adhoc-scc-dev1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081732-adhoc-scc-dev1-r1/result.json 
+scc-dev2-r1: - result file: `results/20261027-081901-adhoc-scc-dev2-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081901-adhoc-scc-dev2-r1/result.json 
+scc-dev4-r1: - result file: `results/20261027-082029-adhoc-scc-dev4-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082029-adhoc-scc-dev4-r1/result.json 
+scc-dev4-r2: - result file: `results/20261027-082158-adhoc-scc-dev4-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082158-adhoc-scc-dev4-r2/result.json 
+scc-dev2-r2: - result file: `results/20261027-082326-adhoc-scc-dev2-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082326-adhoc-scc-dev2-r2/result.json 
+scc-dev1-r2: - result file: `results/20261027-082453-adhoc-scc-dev1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082453-adhoc-scc-dev1-r2/result.json 
+scc-devauto-r2: - result file: `results/20261027-082619-adhoc-scc-devauto-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082619-adhoc-scc-devauto-r2/result.json 
+scc-base-r2: - result file: `results/20261027-082748-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082748-adhoc-scc-base-r2/result.json 
+scc-base-r3: - result file: `results/20261027-082927-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-082927-adhoc-scc-base-r3/result.json 
+scc-devauto-r3: - result file: `results/20261027-083054-adhoc-scc-devauto-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083054-adhoc-scc-devauto-r3/result.json 
+scc-dev1-r3: - result file: `results/20261027-083227-adhoc-scc-dev1-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083227-adhoc-scc-dev1-r3/result.json 
+scc-dev2-r3: - result file: `results/20261027-083358-adhoc-scc-dev2-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083358-adhoc-scc-dev2-r3/result.json 
+scc-dev4-r3: - result file: `results/20261027-083528-adhoc-scc-dev4-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-083528-adhoc-scc-dev4-r3/result.json 

@@ -1,0 +1,6 @@
+cmx-baseoff-r1: - result file: `results/20261027-075714-adhoc-cmx-baseoff-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075714-adhoc-cmx-baseoff-r1/result.json 
+cmx-devoff-r1: - result file: `results/20261027-080239-adhoc-cmx-devoff-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080239-adhoc-cmx-devoff-r1/result.json 
+cmx-devoff-r2: - result file: `results/20261027-080434-adhoc-cmx-devoff-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080434-adhoc-cmx-devoff-r2/result.json 
+cmx-baseoff-r2: - result file: `results/20261027-080628-adhoc-cmx-baseoff-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080628-adhoc-cmx-baseoff-r2/result.json 
+cmx-baseoff-r3: - result file: `results/20261027-081159-adhoc-cmx-baseoff-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081159-adhoc-cmx-baseoff-r3/result.json 
+cmx-devoff-r3: - result file: `results/20261027-081726-adhoc-cmx-devoff-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-081726-adhoc-cmx-devoff-r3/result.json 

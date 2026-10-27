@@ -1,0 +1,1 @@
+scc-base-hp-r1: - result file: `results/20261027-080107-adhoc-scc-base-hp-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-080107-adhoc-scc-base-hp-r1/result.json 

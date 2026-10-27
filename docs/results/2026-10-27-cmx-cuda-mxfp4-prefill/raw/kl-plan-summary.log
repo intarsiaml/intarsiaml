@@ -1,0 +1,57 @@
+fleetq: #6268 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #6268 waiting (#1 in line): needs 50 GB on spark1; 12 GB free of 116
+fleetq: #6268 waiting (#1 in line): needs 50 GB on spark1; 32 GB free of 116
+fleetq: #6268 running on spark1: ssh spark1 'bash -s'
+== base 08:49:29
+rc=0
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 99.44% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.599e-4 (need <= 3.0e-2) ok [all rows, n=1441: 5.609e-4, reported only] | tail mass (all rows) ours 0.0160 vs
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.599e-4 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 5.609e-4 (21-way KL over all rows <= static floor) | current def: PASS 5.599e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stat
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 99.38% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.081e-3 (need <= 3.0e-2) ok [all rows, n=160: 8.755e-4, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.081e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 8.755e-4 (21-way KL over all rows <= static floor) | current def: PASS 1.081e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== dev 08:51:05
+rc=0
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 99.58% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 4.388e-3 (need <= 3.0e-2) ok [all rows, n=1441: 3.945e-3, reported only] | tail mass (all rows) ours 0.0160 vs
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.388e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 3.945e-3 (21-way KL over all rows <= static floor) | current def: PASS 4.388e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stat
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 99.38% (not gated for this class) ok | 21-way KL (scored rows, n=118) 6.337e-4 (need <= 3.0e-2) ok [all rows, n=160: 6.041e-4, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 6.337e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 6.041e-4 (21-way KL over all rows <= static floor) | current def: PASS 6.337e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== dev0 08:52:08
+rc=0
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 99.44% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.599e-4 (need <= 3.0e-2) ok [all rows, n=1441: 5.609e-4, reported only] | tail mass (all rows) ours 0.0160 vs
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.599e-4 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 5.609e-4 (21-way KL over all rows <= static floor) | current def: PASS 5.599e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stat
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 99.38% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.081e-3 (need <= 3.0e-2) ok [all rows, n=160: 8.755e-4, reported only] | tail mass (all rows) 
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.081e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 8.755e-4 (21-way KL over all rows <= static floor) | current def: PASS 1.081e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by stati
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15095 B, md5 ca8cba7e)
+PASS plan 35 txt byte-identical (3866 B, md5 2c7deccd)
+PASS plan g json byte-identical (8631 B, md5 82ea8282)
+PASS plan g txt byte-identical (1865 B, md5 418cbfae)
+INFO plan 27B json differs from base, as intended (new matmul_mxfp4_mma / _gemv_rows picks; see the lines below)
+INFO plan 27B txt differs from base, as intended (new matmul_mxfp4_mma / _gemv_rows picks; see the lines below)
+== 27B matmul_mxfp4 picks (base, then dev)
+-- base
+matmul_mxfp4   matmul_mxfp4_gemv          deterministic no        496 0
+-- dev
+matmul_mxfp4   matmul_mxfp4_gemv          deterministic no        496 0
+matmul_mxfp4   matmul_mxfp4_gemv_rows     deterministic no        0 0
+matmul_mxfp4   matmul_mxfp4_mma           deterministic no        0 0
+plan fails=0
+fleetq: #6268 done (exit 0)

@@ -1,0 +1,42 @@
+fleetq: #6212 running on spark2: scripts/scc/le-window.sh base-vs-vllm 3 base:base::--max-batch_16 vllm
+== round 1 arm base 07:47:39
+base r1: MemAvailable 52178 MB with the server up
+scc-base-r1: - result file: `results/20261027-074823-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-074823-adhoc-scc-base-r1/result.json 
+[localeval] 1 streams: aggregate 78.2 tok/s
+[localeval] 4 streams: aggregate 161.3 tok/s
+[localeval] 8 streams: aggregate 202.8 tok/s
+[localeval] 16 streams: aggregate 235.3 tok/s
+== round 1 arm vllm 07:49:13
+scc-vllm-r1: - result file: `results/20261027-074914-adhoc-scc-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-074914-adhoc-scc-vllm-r1/result.json 
+[localeval] 1 streams: aggregate 74.8 tok/s
+[localeval] 4 streams: aggregate 114.1 tok/s
+[localeval] 8 streams: aggregate 114.3 tok/s
+[localeval] 16 streams: aggregate 114.4 tok/s
+== round 2 arm vllm 07:50:31
+scc-vllm-r2: - result file: `results/20261027-075032-adhoc-scc-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075032-adhoc-scc-vllm-r2/result.json 
+[localeval] 1 streams: aggregate 74.6 tok/s
+[localeval] 4 streams: aggregate 114.3 tok/s
+[localeval] 8 streams: aggregate 114.1 tok/s
+[localeval] 16 streams: aggregate 114.9 tok/s
+== round 2 arm base 07:51:49
+base r2: MemAvailable 51829 MB with the server up
+scc-base-r2: - result file: `results/20261027-075225-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075225-adhoc-scc-base-r2/result.json 
+[localeval] 1 streams: aggregate 78.7 tok/s
+[localeval] 4 streams: aggregate 159.8 tok/s
+[localeval] 8 streams: aggregate 203.8 tok/s
+[localeval] 16 streams: aggregate 234.6 tok/s
+== round 3 arm base 07:53:15
+base r3: MemAvailable 52267 MB with the server up
+scc-base-r3: - result file: `results/20261027-075355-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075355-adhoc-scc-base-r3/result.json 
+[localeval] 1 streams: aggregate 78.5 tok/s
+[localeval] 4 streams: aggregate 159.5 tok/s
+[localeval] 8 streams: aggregate 203.5 tok/s
+[localeval] 16 streams: aggregate 235.3 tok/s
+== round 3 arm vllm 07:54:44
+scc-vllm-r3: - result file: `results/20261027-075445-adhoc-scc-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-075445-adhoc-scc-vllm-r3/result.json 
+[localeval] 1 streams: aggregate 74.8 tok/s
+[localeval] 4 streams: aggregate 114.8 tok/s
+[localeval] 8 streams: aggregate 114.1 tok/s
+[localeval] 16 streams: aggregate 114.7 tok/s
+== done 07:56:03
+fleetq: #6212 done (exit 0)

@@ -1,0 +1,13 @@
+Based on the provided text, here is the completion of the "Status vs plan" table row for the **Rust host, server, CLI, TUI, embedded UI** component, followed by a summary of the document's current state.
+
+### Completed Table Row
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | Core host infrastructure, server, CLI, TUI, and embedded UI are fully implemented and verified against `origin/main` (cf84efa4, PRs up to #157). |
+
+### Document Status Summary (as of 2026-10-25)
+
+*   **Document Type:** This is the **v0.2 plan** for IntarsiaML, not a description of the current codebase.
+*   **Verification Method:** All claims in sections 1–14 are marked as **implemented**, **partial**, or **planned** based on `grep` and `ls` checks against `origin/main` (commit `cf84efa4`, PRs up to #157).
+*   **Discrepancy Handling:**

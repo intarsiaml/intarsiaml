@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    ROWS_MAX, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -29,6 +29,11 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_nvfp4_gemm_reg", Op::MatmulNvfp4),
     // M1 drill (kernels/cuda/mxfp4.cu): OCP MXFP4 (Quark), W4A4 dynamic or W4A16 by the op's act input; any M
     ("matmul_mxfp4_gemv", Op::MatmulMxfp4),
+    // row-exact twin of the GEMV (`rows_exact`, verify passes and batched steps: the same launcher, bitwise per row at any M)
+    ("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4),
+    // prefill (M >= MXFP4_MMA_MIN_TOKENS, W4A16 calls): weights dequantised to bf16 in shared memory, bf16 tensor cores
+    // (kernels/cuda/mxfp4_gemm.cu); INTARSIA_CUDA_MXFP4_MMA=0 keeps the GEMV
+    ("matmul_mxfp4_mma", Op::MatmulMxfp4),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_decode_bf16", Op::MoeExperts),
@@ -87,6 +92,12 @@ const F8_MIN_TOKENS: usize = 5;
 
 /// Fewest tokens for which the dense dequantise-once GEMMs are preferred over `*_mma`.
 const GEMM_MIN_TOKENS: usize = 33;
+
+/// Fewest rows for `matmul_mxfp4_mma` (the W4A16 tensor-core GEMM of the 27B's MXFP4 projections). Below it the GEMV serves:
+/// microbench on spark1 over the 27B's six shapes (scripts/cmx/mxfp4bench, docs/results/2026-10-27-cmx-cuda-mxfp4-prefill.md): the GEMM
+/// streams the weights at 150-175 GB/s whatever M <= 64, the GEMV costs 196 / 209 / 241 / 283 us at M = 2 / 3 / 4 / 5 (gate / up,
+/// 17408 x 5120) against the GEMM's 271-297: even at M = 5 and slower from there (638 us at M = 9, 1076 at M = 17).
+pub const MXFP4_MMA_MIN_TOKENS: usize = 5;
 
 /// Fewest tokens for `matmul_fp8_gemm_reg` (bitwise `matmul_fp8_gemm`, 128-row tiles): measured faster per 35B chunk
 /// from 256 tokens up on spark1 (fp8 projections of one 256-token chunk 12.5 vs 14.7 ms, 2048 tokens 83 vs 104 ms;
@@ -234,6 +245,28 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .priority(10),
+                // The row-exact twin: every row bitwise the one-row call, at any M (the GEMV reduces each row in its own fixed
+                // order). Selected only for `exact_rows` calls, and then exclusively, so a verify pass or a batched step never
+                // takes the tensor-core GEMM below (whose bits differ from the GEMV's).
+                "matmul_mxfp4_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| !s.mxfp4_a8 && s.m >= 1 && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                // W4A16 only (`ShapeInfo::mxfp4_w4a16`: the call's `act` input is 0): the kernel does not quantise x. ordinary
+                // calls only (see above). Above the GEMV (priority 10) from MXFP4_MMA_MIN_TOKENS rows; K % 128 for the 64-byte raw unit.
+                "matmul_mxfp4_mma" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_w4a16 && !s.mxfp4_a8 && s.m >= MXFP4_MMA_MIN_TOKENS && s.k % 128 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(mxfp4_mma_priority(20)),
                 "matmul_nvfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])

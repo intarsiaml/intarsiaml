@@ -174,6 +174,20 @@ fn wide_fp8_weights(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {
     HostTensor::new(DType::Fp8E4m3, vec![n, k], data).unwrap()
 }
 
+/// Weights spanning six binades (e4m3 exponent field 5..=10, any sign and mantissa): between the model-like data, whose partial
+/// sums are mostly exact, and `wide_fp8_weights`, whose sums are dominated by the largest term. Here the f32 sums round and every
+/// term still counts, so a reordering across lanes (not only inside one lane's 16-long chain) shows in the last bit.
+fn mid_fp8_weights(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {
+    let data: Vec<u8> = (0..n * k)
+        .map(|_| {
+            let b = rng.next_u64() as u8;
+            let e = 5 + ((b >> 3) & 0x0F) % 6;
+            (b & 0x87) | (e << 3)
+        })
+        .collect();
+    HostTensor::new(DType::Fp8E4m3, vec![n, k], data).unwrap()
+}
+
 /// NVFP4 with block scales over the whole finite positive e4m3 range (0x08 .. 0x7e: 2^-6 .. 448) instead of 0.5 .. 2.25.
 fn wide_nvfp4(rng: &mut SplitMix64, n: usize, k: usize) -> Vec<HostTensor> {
     let mut q = nvfp4::random_rows(rng, n, k);
@@ -296,20 +310,53 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
         (16, 16400),
         (8, 1040),
     ];
-    for (n, k) in shapes {
-        // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
-        for (wide, aq, is) in [(false, true, 0.125f32), (true, true, 0.125), (true, true, 0.0117), (true, true, 3.0), (false, false, 0.0), (true, false, 0.0)] {
-            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
-            let ws = hc.inputs[2].to_f32()[0];
-            let scales = scales_tensor(if wide { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
-            let w = rig.put(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
-            let sc = rig.put(&scales);
-            let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
-            for out_dt in [DType::Bf16, DType::F32] {
-                let label = format!("fp8 n={n} k={k} wide={wide} aq={aq} is={is} out={out_dt:?}");
-                gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv", "matmul_fp8_gemv_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, CAP);
+    // the rows kernel in each of its forms (INTARSIA_CUDA_FP8_ROWS / _NT / _FULL): the original (`0`), the chunked kernel at each
+    // outputs-per-warp tile, the persistent kernel in each shape, and the launcher's own pick (auto). Each must give the one-row
+    // kernel's bits on every shape (the odd n / k edges are what the tiles' dead-output paths and the chunked fallback are for)
+    let forms: [(&str, &str, &str); 10] = [
+        ("0", "", ""),
+        ("tile", "1", ""),
+        ("tile", "2", ""),
+        ("tile", "4", ""),
+        ("tile", "", ""),
+        ("", "", "1x16"),
+        ("", "", "2x16"),
+        ("", "", "2x8"),
+        ("", "", "4x8"),
+        ("", "", ""),
+    ];
+    for (mode, nt, full) in forms {
+        for (var, val) in [("INTARSIA_CUDA_FP8_ROWS", mode), ("INTARSIA_CUDA_FP8_ROWS_NT", nt), ("INTARSIA_CUDA_FP8_ROWS_FULL", full)] {
+            if val.is_empty() {
+                std::env::remove_var(var);
+            } else {
+                std::env::set_var(var, val);
             }
         }
+        let nt = format!("{mode}/{nt}/{full}");
+        for (n, k) in shapes {
+            // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
+            // weights: 0 model-like (narrow), 1 wide (40 binades), 2 mid (six binades)
+            for (wide, aq, is) in [(0u8, true, 0.125f32), (1, true, 0.125), (1, true, 0.0117), (1, true, 3.0), (2, true, 0.125), (2, true, 0.0117), (0, false, 0.0), (1, false, 0.0), (2, false, 0.0)] {
+                let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+                let ws = hc.inputs[2].to_f32()[0];
+                let scales = scales_tensor(if wide == 1 { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
+                let w = rig.put(&match wide {
+                    1 => wide_fp8_weights(&mut rng, n, k),
+                    2 => mid_fp8_weights(&mut rng, n, k),
+                    _ => hc.inputs[1].clone(),
+                });
+                let sc = rig.put(&scales);
+                let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
+                for out_dt in [DType::Bf16, DType::F32] {
+                    let label = format!("fp8 nt={nt} n={n} k={k} wide={wide} aq={aq} is={is} out={out_dt:?}");
+                    gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv", "matmul_fp8_gemv_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, CAP);
+                }
+            }
+        }
+    }
+    for var in ["INTARSIA_CUDA_FP8_ROWS", "INTARSIA_CUDA_FP8_ROWS_NT", "INTARSIA_CUDA_FP8_ROWS_FULL"] {
+        std::env::remove_var(var);
     }
     rig.report("fp8");
 }
@@ -332,18 +379,54 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
         (1030, 160, DType::Bf16),
         (1, 16, DType::Bf16),
     ];
-    for (n, k, model_out) in shapes {
-        for wide in [false, true] {
-            let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
-            let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
-            let x_rows = nasty_rows(&mut rng, k, 448.0);
-            // the model's output dtype first, then the other one (f32 outputs expose a last-bit difference bf16 would round away)
-            for out_dt in [model_out, if model_out == DType::F32 { DType::Bf16 } else { DType::F32 }] {
-                gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 n={n} k={k} wide={wide} {out_dt:?}"), CAP);
+    // the rows launcher's outputs-per-warp tile (INTARSIA_CUDA_NVFP4_ROWS_NT; `0` = the original kernel via INTARSIA_CUDA_NVFP4_ROWS):
+    // every forced tile and the launcher's own pick give the one-row kernel's bits on every shape
+    for tile in ["0", "1", "2", "4", "auto"] {
+        std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS");
+        std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_NT");
+        match tile {
+            "0" => std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS", "0"),
+            "auto" => {}
+            nt => std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_NT", nt),
+        }
+        for (n, k, model_out) in shapes {
+            for wide in [false, true] {
+                let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
+                let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
+                let x_rows = nasty_rows(&mut rng, k, 448.0);
+                // the model's output dtype first, then the other one (f32 outputs expose a last-bit difference bf16 would round away)
+                for out_dt in [model_out, if model_out == DType::F32 { DType::Bf16 } else { DType::F32 }] {
+                    gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 tile={tile} n={n} k={k} wide={wide} {out_dt:?}"), CAP);
+                }
             }
         }
     }
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS");
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_NT");
     rig.report("nvfp4");
+}
+
+// ---- mxfp4 -----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
+    use intarsia_core::quant::{cases::matmul_mxfp4_case, Mxfp4Act};
+    let Some(rig) = Rig::new("mxfp4_rows_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(803);
+    // (n, k): the 27B's k / v / o projections and a GDN in_proj_a/b (hidden 5120), odd edges (K = 32, a ragged lane tail of 33 groups)
+    let shapes = [(1024usize, 5120usize), (5120, 6144), (48, 5120), (300, 1056), (9, 32), (1, 64)];
+    for (n, k) in shapes {
+        for act in [Mxfp4Act::None, Mxfp4Act::Dynamic] {
+            let hc = matmul_mxfp4_case(&mut rng, 1, n, k, act, DType::Bf16, DType::Bf16);
+            let weights: Vec<TensorRef> = hc.inputs[1..].iter().map(|p| rig.put(p)).collect();
+            let x_rows = nasty_rows(&mut rng, k, 448.0);
+            for out_dt in [DType::Bf16, DType::F32] {
+                let label = format!("mxfp4 n={n} k={k} act={} {out_dt:?}", act.name());
+                gb_matmul(&rig, Op::MatmulMxfp4, "matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", &weights, &x_rows, n, out_dt, &label, CAP);
+            }
+        }
+    }
+    rig.report("mxfp4");
 }
 
 // ---- bf16 matmul / logits -----------------------------------------------------------------------------------------
@@ -652,7 +735,7 @@ fn timing_gemv_rows() {
     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
         println!("TIME {what:<28} {kernel:<26} M={m:<2} {us:8.2} us  {:7.1} GB/s", bytes as f64 / us / 1e3);
     };
-    for (n, k) in [(2048usize, 4096usize), (2048, 2048), (8192, 2048)] {
+    for (n, k) in [(2048usize, 4096usize), (2048, 2048), (8192, 2048), (4096, 2048), (512, 2048)] {
         let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
         let w = rig.put(&hc.inputs[1]);
         let sc = rig.put(&scales_tensor(hc.inputs[2].to_f32()[0], 0.125));
@@ -661,9 +744,28 @@ fn timing_gemv_rows() {
             if !have(kernel) {
                 continue;
             }
-            for m in ms {
-                let us = rig.time_us(kernel, Op::MatmulFp8, &[x.rows(0, m), w.clone(), sc.clone()], &[(DType::Bf16, vec![m, n])], &a, iters);
-                line(&format!("fp8 {n}x{k}"), kernel, m, us, n * k);
+            // the rows kernel at each outputs-per-warp tile (INTARSIA_CUDA_FP8_ROWS_NT; "auto" is the launcher's pick)
+            let forms: &[&str] = if kernel.ends_with("_rows") { &["off", "tile1", "tile2", "tile4", "1x16", "2x16", "2x8", "4x8", "auto"] } else { &["auto"] };
+            for nt in forms {
+                for var in ["INTARSIA_CUDA_FP8_ROWS", "INTARSIA_CUDA_FP8_ROWS_NT", "INTARSIA_CUDA_FP8_ROWS_FULL"] {
+                    std::env::remove_var(var);
+                }
+                match *nt {
+                    "off" => std::env::set_var("INTARSIA_CUDA_FP8_ROWS", "0"),
+                    "tile1" | "tile2" | "tile4" => {
+                        std::env::set_var("INTARSIA_CUDA_FP8_ROWS", "tile");
+                        std::env::set_var("INTARSIA_CUDA_FP8_ROWS_NT", &nt[4..]);
+                    }
+                    "auto" => {}
+                    shape => std::env::set_var("INTARSIA_CUDA_FP8_ROWS_FULL", shape),
+                }
+                for &m in &ms {
+                    let us = rig.time_us(kernel, Op::MatmulFp8, &[x.rows(0, m), w.clone(), sc.clone()], &[(DType::Bf16, vec![m, n])], &a, iters);
+                    line(&format!("fp8 {n}x{k} nt={nt}"), kernel, m, us, n * k);
+                }
+            }
+            for var in ["INTARSIA_CUDA_FP8_ROWS", "INTARSIA_CUDA_FP8_ROWS_NT", "INTARSIA_CUDA_FP8_ROWS_FULL"] {
+                std::env::remove_var(var);
             }
         }
     }
@@ -675,12 +777,24 @@ fn timing_gemv_rows() {
             if !have(kernel) {
                 continue;
             }
-            for m in ms {
-                let mut ins = vec![x.rows(0, m)];
-                ins.extend(ws.iter().cloned());
-                let us = rig.time_us(kernel, Op::MatmulNvfp4, &ins, &[(odt, vec![m, n])], &a, iters);
-                line(&format!("nvfp4 {n}x{k}"), kernel, m, us, n * k / 2 + n * k / 16);
+            let tiles: &[&str] = if kernel.ends_with("_rows") { &["0", "1", "2", "4", "auto"] } else { &["auto"] };
+            for tile in tiles {
+                std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS");
+                std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_NT");
+                match *tile {
+                    "0" => std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS", "0"),
+                    "auto" => {}
+                    nt => std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_NT", nt),
+                }
+                for &m in &ms {
+                    let mut ins = vec![x.rows(0, m)];
+                    ins.extend(ws.iter().cloned());
+                    let us = rig.time_us(kernel, Op::MatmulNvfp4, &ins, &[(odt, vec![m, n])], &a, iters);
+                    line(&format!("nvfp4 {n}x{k} tile={tile}"), kernel, m, us, n * k / 2 + n * k / 16);
+                }
             }
+            std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS");
+            std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_NT");
         }
     }
     for (n, k) in [(4096usize, 4096usize), (256, 2048)] {

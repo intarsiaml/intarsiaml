@@ -130,6 +130,15 @@ int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* v
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                          ik_tensor* out, void* stream);
 
+/* matmul_mxfp4_mma (kernels/cuda/mxfp4_gemm.cu): the W4A16 prefill GEMM, same arguments. bf16 tensor cores over weights dequantised
+ * to bf16 in shared memory, f32 accumulate; `act` is not read (the caller routes W4A16 calls only: act 0). K % 128 == 0; x, w 16-byte
+ * aligned. A row's bits do not depend on M, but they are not the GEMV's (a different summation order). */
+int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                        void* stream);
+/* matmul_mxfp4_gemv_rows: = ik_matmul_mxfp4_gemv (already bitwise per row at any M), registered as the rows_exact twin. */
+int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                              ik_tensor* out, void* stream);
+
 /* matmul_exl3_gemv: x[M,K] (bf16 / f16 / f32), trellis i16 [K/16,N/16,8*k2] (k2 = 2 * bits: 2, 4, .., 16 with any codebook,
  * 3 / 5 / 7 with mul1), suh f16 [K], svh f16 [N], codebook i32 [1] ON THE DEVICE (0 = 3inst, 1 = mcg, 2 = mul1; any other
  * value, or a codebook that does not exist at the width, fills out with NaN) -> out[M,N] (bf16 / f16 / f32) =

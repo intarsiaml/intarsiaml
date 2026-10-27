@@ -1,0 +1,5 @@
+fleetq: #6276 running on spark2: ssh spark2 'python3 - fp8-full-lane-skew'
+clean fp8_rows: test fp8_rows_are_bitwise_the_one_row_gemv ... ok | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 9.39s
+clean nvfp4_rows: test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 7.02s
+fp8-full-lane-skew: SURVIVED: test fp8_rows_are_bitwise_the_one_row_gemv ... ok | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 9.44s
+fleetq: #6276 done (exit 0)

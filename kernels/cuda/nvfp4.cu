@@ -6,6 +6,9 @@
 //   *_mma   any M: 64-column tiles, e2m1*e4m3 dequantised to bf16 in shared memory (exact), bf16 MMA, f32 accumulate.
 // Deterministic (fixed reduction order). Activations bf16; output bf16 or f32 (the lm_head writes f32 logits).
 // The fp4 -> e4m3 byte lookup (`prmt`) follows TensorFold's NVFP4 kernels (MIT, see ik_quant.cuh).
+#include <cstdlib>
+#include <cstring>
+
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 #include <initializer_list>
@@ -55,6 +58,77 @@ nvfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     }
 }
 
+// The row-exact launcher's variant (M >= 4): a warp owns NT consecutive output rows and unpacks each x block once for all of
+// them (the kernel above re-reads and re-unpacks x for every output). Per (m, n) the arithmetic is the kernel above's: the same
+// lane-strided blocks, the same 16-long fmaf chain, the same `acc = fmaf(s, sc, acc)`, the same warp tree.
+template <int M, int NT, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t nb = ((int64_t)blockIdx.x * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
+    if (nb >= N) return;  // whole warp exits together
+    const uint2* wr[NT];
+    const uint8_t* sr[NT];
+#pragma unroll
+    for (int j = 0; j < NT; ++j) {
+        const int64_t n = nb + j < N ? nb + j : 0;  // a dead output reads row 0
+        wr[j] = reinterpret_cast<const uint2*>(w + n * (K / 2));
+        sr[j] = bs + n * (K / 16);
+    }
+    float acc[NT][M];
+#pragma unroll
+    for (int j = 0; j < NT; ++j)
+#pragma unroll
+        for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+#pragma unroll(NT == 1 ? 4 : 2)
+    for (int u = lane; u < K / 16; u += IK_WARP) {
+        float wf[NT][16], sc[NT];
+#pragma unroll
+        for (int j = 0; j < NT; ++j) {
+            const uint2 wv = __ldcs(wr[j] + u);
+            sc[j] = ik_e4m3_to_f(sr[j][u]);
+            ik_fp4x8_to_f32(wv.x, wf[j]);
+            ik_fp4x8_to_f32(wv.y, wf[j] + 8);
+        }
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * 16);
+            float xf[16];
+            ik_unpack8(__ldg(xp), xf);
+            ik_unpack8(__ldg(xp + 1), xf + 8);
+#pragma unroll
+            for (int j = 0; j < NT; ++j) {
+                float s = 0.f;
+#pragma unroll
+                for (int e = 0; e < 16; ++e) s = fmaf(wf[j][e], xf[e], s);
+                acc[j][m] = fmaf(s, sc[j], acc[j][m]);
+            }
+        }
+    }
+    const float g = gs[0];
+#pragma unroll
+    for (int j = 0; j < NT; ++j)
+#pragma unroll
+        for (int m = 0; m < M; ++m) {
+            const float r = ik_warp_sum(acc[j][m]);
+            if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * g);
+        }
+}
+
+// Outputs per warp of the row-exact launcher's M-row call: INTARSIA_CUDA_NVFP4_ROWS_NT = 1 | 2 | 4 forces it (1 is the kernel above,
+// INTARSIA_CUDA_NVFP4_ROWS=0 forces that too); otherwise 4 when that leaves a grid of 96 blocks, else 2 when it leaves 32 (M < 4: 1).
+inline int rows_tile_nt(int M, int64_t N) {
+    const char* off = getenv("INTARSIA_CUDA_NVFP4_ROWS");
+    if (off && off[0] == '0' && off[1] == 0) return 1;
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_NT");
+    if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4') && e[1] == 0) return e[0] - '0';
+    if (M < 4) return 1;
+    if ((N + kWarps * 4 - 1) / (kWarps * 4) >= 96) return 4;
+    if ((N + kWarps * 2 - 1) / (kWarps * 2) >= 32) return 2;
+    return 1;
+}
+
 // Shared-expert gate + up + silu_glu in one launch (M == 1, bf16 out): a warp owns row n of BOTH the gate and the up matrix,
 // so it reads the activations once and ends with silu(gate_n) * up_n. Each row runs exactly the arithmetic of
 // nvfp4_gemv_kernel<1, bf16> (same lane/iteration order, same fma chain, scale applied after the warp sum), the two results
@@ -101,32 +175,45 @@ nvfp4_glu_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ wg, 
 
 template <int M, typename OutT>
 void gemv_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K,
-              cudaStream_t s) {
+              cudaStream_t s, bool rows) {
+    if constexpr (M >= 4) {
+        if (rows) {
+            const int nt = rows_tile_nt(M, N);
+            if (nt == 2) {
+                nvfp4_gemv_tile_kernel<M, 2, OutT><<<(unsigned)((N + 2 * kWarps - 1) / (2 * kWarps)), kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
+                return;
+            }
+            if (nt == 4) {
+                nvfp4_gemv_tile_kernel<M, 4, OutT><<<(unsigned)((N + 4 * kWarps - 1) / (4 * kWarps)), kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
+                return;
+            }
+        }
+    }
     const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
     nvfp4_gemv_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K);
 }
 
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N,
-              int64_t K, cudaStream_t s) {
+              int64_t K, cudaStream_t s, bool rows) {
     switch (M) {
-        case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s); break;
-        case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s); break;
-        case 3: gemv_run<3>(x, w, bs, gs, out, N, K, s); break;
-        case 4: gemv_run<4>(x, w, bs, gs, out, N, K, s); break;
-        case 5: gemv_run<5>(x, w, bs, gs, out, N, K, s); break;
-        case 6: gemv_run<6>(x, w, bs, gs, out, N, K, s); break;
-        case 7: gemv_run<7>(x, w, bs, gs, out, N, K, s); break;
-        case 8: gemv_run<8>(x, w, bs, gs, out, N, K, s); break;
+        case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 3: gemv_run<3>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 4: gemv_run<4>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 5: gemv_run<5>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 6: gemv_run<6>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 7: gemv_run<7>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 8: gemv_run<8>(x, w, bs, gs, out, N, K, s, rows); break;
         // 9..16: only the row-exact launcher (`launch` refuses M > 8 for the decode GEMV); the same kernel template, M more accumulators
-        case 9: gemv_run<9>(x, w, bs, gs, out, N, K, s); break;
-        case 10: gemv_run<10>(x, w, bs, gs, out, N, K, s); break;
-        case 11: gemv_run<11>(x, w, bs, gs, out, N, K, s); break;
-        case 12: gemv_run<12>(x, w, bs, gs, out, N, K, s); break;
-        case 13: gemv_run<13>(x, w, bs, gs, out, N, K, s); break;
-        case 14: gemv_run<14>(x, w, bs, gs, out, N, K, s); break;
-        case 15: gemv_run<15>(x, w, bs, gs, out, N, K, s); break;
-        case 16: gemv_run<16>(x, w, bs, gs, out, N, K, s); break;
+        case 9: gemv_run<9>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 10: gemv_run<10>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 11: gemv_run<11>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 12: gemv_run<12>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 13: gemv_run<13>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 14: gemv_run<14>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 15: gemv_run<15>(x, w, bs, gs, out, N, K, s, rows); break;
+        case 16: gemv_run<16>(x, w, bs, gs, out, N, K, s, rows); break;
         default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
@@ -260,8 +347,8 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bs, const ik
     const bool f32o = out->dtype == IK_DTYPE_F32;
     if (gemv) {
         if (M > max_gemv_rows) return IK_ERR_SHAPE;
-        return f32o ? gemv_by_m((int)M, xp, wp, bp, gp, (float*)out->data, N, K, s)
-                    : gemv_by_m((int)M, xp, wp, bp, gp, (ik_bf16*)out->data, N, K, s);
+        return f32o ? gemv_by_m((int)M, xp, wp, bp, gp, (float*)out->data, N, K, s, max_gemv_rows > 8)
+                    : gemv_by_m((int)M, xp, wp, bp, gp, (ik_bf16*)out->data, N, K, s, max_gemv_rows > 8);
     }
     return f32o ? mma_by_m(xp, wp, bp, gp, (float*)out->data, M, N, K, s)
                 : mma_by_m(xp, wp, bp, gp, (ik_bf16*)out->data, M, N, K, s);

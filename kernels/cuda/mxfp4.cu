@@ -5,7 +5,8 @@
 //                        "even" scale; crates/intarsia-core/src/quant/mxfp4.rs)
 // A port of kernels/hip/mxfp4.hip's GEMV (M1 drill): warp-per-output-row, one 32-element group (16 weight bytes, one scale
 // byte, 32 activations) per lane-iteration, so a group's activation QDQ happens inside one lane. Any M: blockIdx.y walks
-// M in chunks of 8 rows (prefill re-reads W once per chunk; correct, not fast: there is no MXFP4 tensor-core GEMM here).
+// M in chunks of 8 rows (prefill re-reads W once per chunk; correct, not fast; prefill-shaped W4A16 calls take the tensor-core
+// GEMM in mxfp4_gemm.cu instead).
 // Deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
 #include "ik_launch.h"
 #include "ik_quant.cuh"
@@ -140,6 +141,15 @@ extern "C" {
 
 int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                          ik_tensor* out, void* stream) {
+    return launch(x, w, scales, act, out, stream);
+}
+
+// The row-exact twin (`rows_exact`, `OpCall::exact_rows`: verify passes and batched decode steps). The GEMV above is already
+// bitwise per row at any M (every row has its own fixed reduction order; blockIdx.y only walks the rows), so the twin is the
+// same launcher under a second name: the registry then keeps the tensor-core `ik_matmul_mxfp4_mma` (not bitwise the GEMV)
+// away from those calls.
+int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                              ik_tensor* out, void* stream) {
     return launch(x, w, scales, act, out, stream);
 }
 

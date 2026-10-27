@@ -7,6 +7,8 @@
 //!    MoeExperts) take only those, M = 1..=16: M = 1 is included (decision: an `exact_rows` one-row call must stay valid, e.g.
 //!    a `forward_batch` step with one active row or a verify pass without drafts; Metal starts its rows kernels at 2 and fails
 //!    an M = 1 call), and M > 16 fails instead of landing on a kernel whose bits depend on the row count.
+//!    The exception to "M > 16 fails" is MatmulMxfp4: its row-exact twin is the GEMV itself (bitwise per row at any M), so it
+//!    takes every M, and the tensor-core `matmul_mxfp4_mma` (not bitwise the GEMV) is never reachable from an `exact_rows` call.
 //! 3. Ops without a row-exact kernel keep their ordinary choice under `exact_rows` (row-parallel ops; the fused ops have none
 //!    by policy: at B >= 2 the model runs the unfused chain).
 //!
@@ -16,9 +18,10 @@ use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
 use intarsia_core::exec::{HostCall, OutSpec};
 use intarsia_core::quant::cases::{
-    combine_case, experts_case, gated_rmsnorm_case, matmul_fp8_case, matmul_fp8_pair_case, matmul_nvfp4_case,
-    matmul_nvfp4_glu_case, matmul_pair_case, topk_case,
+    combine_case, experts_case, gated_rmsnorm_case, matmul_fp8_case, matmul_fp8_pair_case, matmul_mxfp4_case,
+    matmul_mxfp4_w4a16_case, matmul_nvfp4_case, matmul_nvfp4_glu_case, matmul_pair_case, topk_case,
 };
+use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{DType, DeviceInfo, HostTensor, Op, OpAttrs, OpCall, Registry};
 
@@ -69,6 +72,12 @@ fn cases() -> Vec<(&'static str, Builder)> {
         ("matmul_fp8 w8a16 k=2048 -> f32", Box::new(|r, m| matmul_fp8_case(r, m, 128, 2048, false, DType::Bf16, DType::F32))),
         ("matmul_nvfp4 k=2048 -> bf16", Box::new(|r, m| matmul_nvfp4_case(r, m, 128, 2048, DType::Bf16, DType::Bf16))),
         ("matmul_nvfp4 k=2048 -> f32 (head)", Box::new(|r, m| matmul_nvfp4_case(r, m, 128, 2048, DType::Bf16, DType::F32))),
+        ("matmul_mxfp4 w4a16 k=5120 -> bf16", Box::new(|r, m| matmul_mxfp4_w4a16_case(r, m, 128, 5120, DType::Bf16, DType::Bf16))),
+        ("matmul_mxfp4 w4a16 k=5120 -> f32 (head)", Box::new(|r, m| matmul_mxfp4_w4a16_case(r, m, 128, 5120, DType::Bf16, DType::F32))),
+        // K not a multiple of 128 (the GEMM's 64-byte raw unit): the GEMV serves every M
+        ("matmul_mxfp4 w4a16 k=160 -> bf16", Box::new(|r, m| matmul_mxfp4_w4a16_case(r, m, 128, 160, DType::Bf16, DType::Bf16))),
+        // W4A4 (the activation quantiser is in the GEMV only): never the GEMM
+        ("matmul_mxfp4 w4a4 k=5120 -> bf16", Box::new(|r, m| matmul_mxfp4_case(r, m, 128, 5120, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16))),
         ("moe_experts silu top8", Box::new(|r, m| experts_case(r, m, 16, 8, 256, 128, DType::Bf16))),
         (
             "moe_experts gelu top8",
@@ -138,6 +147,10 @@ matmul_fp8 w8a8 k=4096 -> bf16: 1..=4 matmul_fp8_gemv; 5..=4096 matmul_fp8_gemm_
 matmul_fp8 w8a16 k=2048 -> f32: 1..=4 matmul_fp8_gemv; 5..=32 matmul_fp8_mma; 33..=255 matmul_fp8_gemm; 256..=4096 matmul_fp8_gemm_reg;
 matmul_nvfp4 k=2048 -> bf16: 1..=8 matmul_nvfp4_gemv; 9..=32 matmul_nvfp4_mma; 33..=255 matmul_nvfp4_gemm; 256..=4096 matmul_nvfp4_gemm_reg;
 matmul_nvfp4 k=2048 -> f32 (head): 1..=8 matmul_nvfp4_gemv; 9..=32 matmul_nvfp4_mma; 33..=255 matmul_nvfp4_gemm; 256..=4096 matmul_nvfp4_gemm_reg;
+matmul_mxfp4 w4a16 k=5120 -> bf16: 1..=4 matmul_mxfp4_gemv; 5..=4096 matmul_mxfp4_mma;
+matmul_mxfp4 w4a16 k=5120 -> f32 (head): 1..=4 matmul_mxfp4_gemv; 5..=4096 matmul_mxfp4_mma;
+matmul_mxfp4 w4a16 k=160 -> bf16: 1..=4096 matmul_mxfp4_gemv;
+matmul_mxfp4 w4a4 k=5120 -> bf16: 1..=4096 matmul_mxfp4_gemv;
 moe_experts silu top8: 1..=1 moe_experts_decode_v2_bf16; 2..=31 moe_experts_bf16; 32..=767 moe_experts_mma_bf16; 768..=4096 moe_experts_w4a16_bf16;
 moe_experts gelu top8: 1..=1 moe_experts_decode_v2_gelu_bf16; 2..=31 moe_experts_gelu_bf16; 32..=767 moe_experts_mma_gelu_bf16; 768..=4096 moe_experts_w4a16_gelu_bf16;
 moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
@@ -159,6 +172,10 @@ matmul_fp8 w8a8 k=4096 -> bf16: 1..=16 matmul_fp8_gemv_rows; 17..=4096 -;
 matmul_fp8 w8a16 k=2048 -> f32: 1..=16 matmul_fp8_gemv_rows; 17..=4096 -;
 matmul_nvfp4 k=2048 -> bf16: 1..=16 matmul_nvfp4_gemv_rows; 17..=4096 -;
 matmul_nvfp4 k=2048 -> f32 (head): 1..=16 matmul_nvfp4_gemv_rows; 17..=4096 -;
+matmul_mxfp4 w4a16 k=5120 -> bf16: 1..=4096 matmul_mxfp4_gemv_rows;
+matmul_mxfp4 w4a16 k=5120 -> f32 (head): 1..=4096 matmul_mxfp4_gemv_rows;
+matmul_mxfp4 w4a16 k=160 -> bf16: 1..=4096 matmul_mxfp4_gemv_rows;
+matmul_mxfp4 w4a4 k=5120 -> bf16: 1..=4096 matmul_mxfp4_gemv_rows;
 moe_experts silu top8: 1..=16 moe_experts_decode_v2_rows_bf16; 17..=4096 -;
 moe_experts gelu top8: 1..=16 moe_experts_decode_v2_gelu_rows_bf16; 17..=4096 -;
 moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;

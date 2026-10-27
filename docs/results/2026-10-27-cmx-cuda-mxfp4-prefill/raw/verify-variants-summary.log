@@ -1,0 +1,33 @@
+fleetq: #6282 running on spark1: ssh spark1 'bash -s'
+fleetq: #6282 went ahead of the line and must end within 79m (by Tue 10:24); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+== variant a (INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 09:05:29
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 113.84s
+== variant b (INTARSIA_CUDA_MXFP4_MMA=0) 09:07:24
+rc=101
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+DIFF len=1024 q=4: max|dlogit|=1.0642052e-1 argmax mismatches=0
+len=1024: q=2..=4 checked
+DIFF len=4000 q=2: max|dlogit|=5.198598e-2 argmax mismatches=0
+DIFF len=4000 q=3: max|dlogit|=7.566017e-2 argmax mismatches=0
+DIFF len=4000 q=4: max|dlogit|=9.720039e-2 argmax mismatches=0
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=4 argmax_flips=0 worst_abs_logit_diff=1.0642052e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 362.33s
+== variant c (INTARSIA_CUDA_MXFP4_MMA=0 INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 09:13:27
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 323.15s
+== done 09:18:51
+fleetq: #6282 done (exit 0)

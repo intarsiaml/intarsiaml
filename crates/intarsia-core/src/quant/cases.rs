@@ -58,6 +58,14 @@ pub fn matmul_mxfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act
     }
 }
 
+/// `MatmulMxfp4` as the model calls a W4A16 weight (`QTensor::call`): `act` = 0 and `OpAttrs::mxfp4_w4a16` set, the shape a kernel
+/// registered for W4A16 calls only (CUDA's `matmul_mxfp4_mma`) accepts.
+pub fn matmul_mxfp4_w4a16_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
+    let mut hc = matmul_mxfp4_case(rng, m, n, k, Mxfp4Act::None, xdt, odt);
+    hc.attrs.mxfp4_w4a16 = true;
+    hc
+}
+
 /// Router logits for `t` tokens over `e` experts. `ties`: draw from a handful of values so exact ties (and the
 /// lowest-index rule) are exercised; ties are also rounded through the logits dtype like a real router output.
 pub fn topk_case(rng: &mut SplitMix64, t: usize, e: usize, k: usize, ties: bool, dt: DType, norm: bool) -> HostCall {
@@ -526,6 +534,20 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 push("M=300 N=1000 K=512 x=bf16 out=bf16 act=dynamic".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16));
                 push("M=300 N=1000 K=512 x=bf16 out=bf16 act=fp8".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16));
             }
+            {
+                // W4A16 as the model calls it (`OpAttrs::mxfp4_w4a16`; the tensor-core GEMM of CUDA is registered for these calls only):
+                // K % 128 == 0, M and N tails, both output dtypes. Appended after the cases above, so their random data is unchanged;
+                // small in the quick sweep.
+                let shapes: &[(usize, usize, usize)] = if quick { &[(17, 136, 256)] } else { &[(9, 136, 256), (17, 136, 256), (40, 1000, 512), (300, 1000, 512), (70, 5120, 5120)] };
+                for &(m, n, k) in shapes {
+                    for odt in [DType::Bf16, DType::F32] {
+                        push(
+                            format!("M={m} N={n} K={k} x=bf16 out={odt} act=none (w4a16)"),
+                            matmul_mxfp4_w4a16_case(&mut rng, m, n, k, DType::Bf16, odt),
+                        );
+                    }
+                }
+            }
         }
         Op::MoeTopk => {
             let ts: &[usize] = if quick { &[1, 5] } else { &[1, 5, 33, 256] };
@@ -976,6 +998,8 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
 fn plan_act(call: &OpCall) -> Mxfp4Act {
     if call.attrs.mxfp4_a8 {
         Mxfp4Act::Fp8
+    } else if call.attrs.mxfp4_w4a16 {
+        Mxfp4Act::None
     } else {
         Mxfp4Act::Dynamic
     }
@@ -996,6 +1020,14 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::MatmulNvfp4 => {
             matmul_nvfp4_case(rng, i[0].shape[0].min(caps.rows), i[1].shape[0].min(caps.n), i[0].shape[1], i[0].dtype, o[0].dtype)
         }
+        Op::MatmulMxfp4 if call.attrs.mxfp4_w4a16 => matmul_mxfp4_w4a16_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+        ),
         Op::MatmulMxfp4 => matmul_mxfp4_case(
             rng,
             i[0].shape[0].min(caps.rows),

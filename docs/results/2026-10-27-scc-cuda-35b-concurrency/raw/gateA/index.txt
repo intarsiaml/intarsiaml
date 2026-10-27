@@ -1,0 +1,9 @@
+scc-base-r1: - result file: `results/20261027-091523-adhoc-scc-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091523-adhoc-scc-base-r1/result.json 
+scc-dev-r1: - result file: `results/20261027-091651-adhoc-scc-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091651-adhoc-scc-dev-r1/result.json 
+scc-vllm-r1: - result file: `results/20261027-091740-adhoc-scc-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091740-adhoc-scc-vllm-r1/result.json 
+scc-vllm-r2: - result file: `results/20261027-091858-adhoc-scc-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-091858-adhoc-scc-vllm-r2/result.json 
+scc-dev-r2: - result file: `results/20261027-092106-adhoc-scc-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092106-adhoc-scc-dev-r2/result.json 
+scc-base-r2: - result file: `results/20261027-092236-adhoc-scc-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092236-adhoc-scc-base-r2/result.json 
+scc-base-r3: - result file: `results/20261027-092412-adhoc-scc-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092412-adhoc-scc-base-r3/result.json 
+scc-dev-r3: - result file: `results/20261027-092541-adhoc-scc-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092541-adhoc-scc-dev-r3/result.json 
+scc-vllm-r3: - result file: `results/20261027-092629-adhoc-scc-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-092629-adhoc-scc-vllm-r3/result.json 

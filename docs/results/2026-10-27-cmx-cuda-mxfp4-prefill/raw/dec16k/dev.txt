@@ -1,0 +1,1 @@
+dev: prompt chars 54900 (~16.6k tokens) ttft 19.8 s, decode tok/s (127 tokens after the first chunk) 20.80, chunks 128

@@ -1,0 +1,5 @@
+fleetq: #6221 running on spark2: scripts/scc/prof.sh base prof16-base
+round 0 streams 2 wall 1.41s ttft_med 0.88 ttft_max 0.88 chunks [32, 32]
+round 0 streams 16 wall 20.25s ttft_med 2.51 ttft_max 4.48 chunks [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+scp: intarsiaml-scc/out/prof16-base/rank.txt: No such file or directory
+fleetq: #6221 done (exit 1)
