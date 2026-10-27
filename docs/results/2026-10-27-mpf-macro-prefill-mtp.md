@@ -7,14 +7,14 @@ Raw logs: `2026-10-27-mpf-macro-prefill-mtp/raw/`. Scripts `scripts/mpf/`, table
 ## 0. Result
 
 **All five gates pass; `[tuning.cuda] mtp_default_k = 2` is set in `recipes/qwen3_5_moe.toml`**: `--spec mtp --spec-k 2` is the default for the Qwen3.6-35B-A3B NVFP4 on CUDA at tp=1 (single sequence, no `--spec`;
-`--spec off` / `INTARSIA_SPEC_DEFAULT=0` opt out; a configured prefix store, `--max-batch` above 1 and checkpoints without the head keep plain decode). The prefill cost that kept it off in lane cmtp is gone.
+`--spec off` / `INTARSIA_SPEC_DEFAULT=0` opt out; a configured prefix store, `--max-batch` above 1 and checkpoints without the head keep plain decode). The prefill cost that kept it off in lane cmtp is down to the noise floor (about 0.7 %).
 
 | gate | result |
 | --- | --- |
 | 1 ids: 6 short, 6 ~4k, 6 ~16k, 3 ~34k | 21/21 identical to `--spec off`, with explicit `--spec mtp` and with the shipped default (no flag). Ids cannot see a draft-cache bug (drafts never change the output); the evidence for the head cache is the identical `spec:` counts, section 9 |
 | 2 soak, 40 greedy requests (one prompt ~3.9k tokens, so the macro pass runs) | 40/40 identical, equal to spec-off |
 | 3 mutants | 3 CUDA mutants of lane cmtp + 1 new in the macro head-ingest path (`macro-head-skip`) caught on CUDA (hashes differ from clean); 3 more head-ingest mutants and the two older shared-logic mutants caught on CPU |
-| 4 speed | prefill within ~1 % of spec-off, at the noise floor: medians of 3 rounds 0.995 / 0.994 / 0.995 at 4k / 16k / 34k, but single rounds 0.970-1.015 (sections 5 and 9), TTFT about +0.5 %; decode 1.17-1.53x in 7 categories on prompts under 4.8k (worst round 1.163x); at 16-34k prompts it is 1.04-1.2x per round (section 9), inside the run-to-run noise |
+| 4 speed | prefill about 0.7 % below spec-off, at the noise floor: 0.992 / 0.992 / 0.994 of off at 4k / 16k / 34k pooled over 8 rounds of 3 runs (single rounds 0.970-1.015), TTFT +0.7 / +0.8 / +0.5 %; decode 1.17-1.53x in 7 categories on prompts under 4.8k (worst round 1.163x), 1.27x at 4k, 1.13x at 16k and 1.05x at 34k in the long-context sweep (single rounds 1.01-1.22; section 9) |
 | 5 G0 | CUDA 8B, Gemma-4, 35B opt-outs byte-identical to main (also with the default on); Metal 8B and 35B byte-identical; HIP untouched |
 
 Two attempts closed the prefill gap from 0.80 / 0.63 / 0.49 (lane cmtp) to 0.995: the macro pass with the head (this lane, first attempt at 0.97-0.96), then KV-only head ingest of prompt rows (0.990), then skipping the q projection in it (0.995).
@@ -113,3 +113,65 @@ The remaining 0.5 % is the head's two fc projections, norms, and K / V projectio
 
 `scripts/mpf/spark1.sh` (build), `ids.sh`, `longctx.sh`, `window.sh` (speed: `W=s1 ARMS="off mtp2" ROUNDS=3`; soak: `CATS=none SOAK=40`), `cuda-g0.sh`, `mutant.sh` + `mutate.py`, `metal-noop.sh`, `chain*.sh` (the order they ran in),
 `TEST=mtp scripts/mpf/mutants.sh <names>` for the CPU mutants.
+
+## 9. Review follow-up (Fable adversarial review of PR #185, 2026-10-26; lane f185, PR #189)
+
+The review found no bug that changes greedy ids. It found wrong claims in this document and paths the lane did not run. Each claim was checked against origin/main (`e0a042208`) first; the GPU runs are in `raw/f185/` (scripts `scripts/f185/`, binaries built from `0a6d60d8e`/`fac1d6541`, below).
+Baseline note: the lane brief named `fecf2d24e` as the pre-PR build, but that commit is 372 commits older and has no `mtp_default_tp_k` (the 27B tp=2 default does not exist there, a "default on" run would be plain decode). The pre-PR binary is `fac1d6541` = first parent of the #185 merge `ac9ea9044`.
+
+| # | finding | verdict | what was done |
+| --- | --- | --- | --- |
+| 1 | HIP 35B takes the macro pass with `--spec mtp` (this doc said it did not) | confirmed: `recipes/qwen3_5_moe.toml:105`, `[tuning.hip] prefill_macro = 8192` | GPU check (b) below passes; text fixed (sections 1, 6) |
+| 2 | the 27B tp=2 default now runs `mtp_layer_kv_only` / `attn_block_kv_only` under tp > 1, with a stale q buffer feeding the fused prologue | confirmed (the q projection is skipped by `kv_only_skip_q`; the fused `GateSplitQkNormRopeKv` still reads that buffer) | GPU check (a) passes: identical ids, `spec:` counts and per-pass traces to the pre-PR build. CPU test pins that the K / V rows do not depend on that input |
+| 3 | the ids gates cannot see a head-cache bug | confirmed: drafts never change the output | `spec:` counts compared (below): 18 of 18 shared prompts equal lane cmtp's; the 3 new 34k prompts equal between the macro and the chunk path |
+| 4 | "worst round 0.990" is true of `raw/longctx` only | confirmed: `raw/longctx-c` has 0.970 (16k) and 1.015 (34k) | claim replaced by "within ~1 %, at the noise floor"; new 3-round set and pooled numbers below |
+| 5 | the 1.17-1.53x decode headline covers prompts under 4.8k only | confirmed | section 0 (gate 4 row), section 5 and a new LOG row corrected; long-context decode below |
+| 6 | `INTARSIA_PREFILL_SKIP_DEAD=1` with `--spec mtp` feeds the head a hidden state without the last layer's FFN | confirmed in code (`tail_dead` had no `st.mtp` check) | fixed in `Model::forward_inner`: the skip is off for a state with an MTP head (and DFlash, as a precaution); CPU test with a mutant |
+| 7 | a lone `--spec-k 0` on the CUDA 35B | the CLI already refuses it (`SpecConfig::parse`: `--spec-k 0 outside 1..=6`, for every mode, checked on a real CLI run); a library caller with `spec_auto` + `spec_k_given` + `k = 0` would have got the recipe default as `SpecConfig { Mtp, k: 0 }` (a verify pass of one row, no drafts) | the loader now refuses it with `--spec-k 0: a draft length is 1 or more (--spec off turns speculation off)`; `mtp_default` / `tp_mtp_default` never return `Some(0)`; CPU tests |
+
+### 9.1 Checks of the paths the lane did not run (tatooine, radiance down 3 times, 14 s / 1 min 54 s / 2 min 33 s, `raw/f185/ab*`, `downtime.log`)
+
+The first window (`ab-run1-models-not-mounted`) failed to start any run (the container did not mount `/data/models`; 14 s of downtime, no verdict), the second (`ab`) ran (a) and (b), the third (`abc`) the same plus the optional runs. Radiance answered `/v1/models` after each.
+
+(a) Qwen3.8-27B Quark-AWQ-MXFP4, HIP tp=2 (`--tp 2 --devices 0,1`), the shipped default (no `--spec`), `INTARSIA_SPEC_TRACE=1`; `dev` = this branch, `base` = `fac1d6541`:
+
+| prompt | tokens | ids dev = base | ids dev = dev `--spec off` | `spec:` line, dev = base | per-pass trace, dev = base |
+| --- | --- | --- | --- | --- | --- |
+| short-0 | 41 | yes | yes | passes 106, proposed 212, accepted 148 | 106 passes equal |
+| 4k-0 | 3870 | yes | yes | 98 / 195 / 157 | 98 equal |
+| 16k-0 | 15481 | yes | yes | 96 / 191 / 159 | 96 equal |
+
+Identical counts at 16k, where the head's prompt catch-up is 15481 rows through `mtp_layer_kv_only`, close finding 2 on this model and backend: a wrong K / V row in the head cache would have changed the acceptance counts.
+
+(b) Qwen3.6-35B-A3B NVFP4 on HIP tp=1 (one R9700), explicit `--spec mtp --spec-k 2`, the 15481-token prompt, max-seq 20480: loads and runs; `generate` prints the new `macro prefill passes=2` line (the macro pass ran with the head; the same 2 with `--spec off`); 256 ids equal `--spec off`; the `spec:` line (103 / 206 / 151, acceptance 73.3 %) and the 103-pass trace equal the pre-PR build's `--spec mtp`. No fix needed, no gate added: the HIP macro pass stays on under `--spec mtp`.
+
+(c) CUDA 35B, spark1, `raw/f185/c/`, `INTARSIA_PREFILL_MACRO=0` (chunk-by-chunk, no macro pass) against the default (macro pass; 5 passes at 34k, 2 at 16k, the `generate` line `macro prefill passes=`), both `--spec mtp --spec-k 2`: `spec:` lines identical on 34k-0 (101 / 201 / 154), 34k-1 (104 / 207 / 151), 34k-2 (104 / 207 / 151; a different prompt and different ids than 34k-1) and 16k-0 (108 / 216 / 146), ids equal `--spec off` in every arm.
+Claim 3 itself: the `spec:` lines of `raw/ids-g1.log` and `raw/ids-auto.log` equal lane cmtp's `ids-final.log` on all 18 shared prompts (`raw/f185/ids-*.log.spec`, `comm` of the sorted lines). The ids gates stay blind to a head-cache bug, which is why the counts are the evidence.
+
+### 9.2 Prefill and decode at long context, one more set (`raw/f185/longctx/`, `scripts/f185/longctx.sh 3`, 3 rounds x 5 reps, off first in round 1)
+
+Per round, prefill tok/s `--spec mtp` over `--spec off` (decode in the second line):
+
+| prompt tokens | round 1 | round 2 | round 3 | pooled, 8 rounds (`longctx`, `longctx-c`, this set; `-a`, `-b` ran earlier code) |
+| --- | --- | --- | --- | --- |
+| 4.1k prefill | 1.013 | 0.990 | 1.002 | 0.992 (rounds 0.970-1.015, median 0.994); TTFT +0.7 % |
+| 16.7k prefill | 1.014 | 0.993 | 0.992 | 0.992 (rounds 0.970-1.014, median 0.992); TTFT +0.8 % |
+| 33.9k prefill | 1.005 | 0.995 | 0.991 | 0.994 (rounds 0.991-1.015, median 0.994); TTFT +0.5 % |
+| 4.1k decode | 1.290 | 1.278 | 1.282 | 1.27 (1.23-1.30) |
+| 16.7k decode | 1.152 | 1.135 | 1.112 | 1.13 (1.07-1.22) |
+| 33.9k decode | 1.029 | 1.056 | 1.011 | 1.05 (1.01-1.14) |
+
+In this set the arm that ran first in round 1 (off) was the slower one by about 2 % in all three sizes (6759 / 6452 / 5751 tok/s against 6918-6958 / 6641 / 5886-5901 later), which is why round 1 reads above 1.0: one more reason the 0.5 % cost cannot be told from noise round by round. The honest statement is the pooled one: prefill about 0.7 % below spec-off, within the noise of a single round (0.970-1.015); TTFT +0.5 to +0.8 %.
+Decode with the head falls from 1.27x at 4k to 1.13x at 16k and 1.05x at 34k (filler text, acceptance not representative of chat); the 1.17-1.53x of section 5 is for prompts under 4.8k.
+
+### 9.3 Code and tests
+
+- `crates/intarsia-core/src/model.rs` (`forward_inner`): `dead = !feeds_head && !drafter && ...`. Test `skip_dead_leaves_the_mtp_heads_rows_and_drafts_alone` (`tests/mtp.rs`: drafts after chunked prompts equal with the skip off and on; fails with the guard removed, mutant run).
+- `crates/intarsia-models/src/load.rs`: the loader refuses a lone `--spec-k 0`; tests `a_lone_spec_k_zero_is_refused_by_the_loader`, plus `mtp_default` / `tp_mtp_default` asserts (`tests/tp_mtp.rs`).
+- `crates/intarsia-backend-cpu/tests/kv_only_q_independence.rs`: the reference `gate_split_qk_norm_rope_kv` over the admission sweep, q+gate input replaced by zeros, other values, 3e4-scale values, NaN and inf: the K and V cache outputs are bitwise unchanged. (The device kernels are held to the reference by the backends' fusion tests; the end-to-end evidence for them is (a).)
+- `generate` prints `macro prefill passes=N` when a macro pass ran (stderr, after the `spec:` line).
+- `cargo test -p intarsia-core -p intarsia-models -p intarsia-backend-cpu -p intarsia-cli`: 687 passed, 0 failed (final run with every change in); `scripts/prepush.sh` passes.
+
+Not done: the HIP fusion test (`fusion_p2.rs`) was not extended with the q-independence check (it needs a HIP test build); the DFlash tap layers were not checked against the dead tail (the guard keeps DFlash out of it instead).
+
+Reproduce: `scripts/f185/sync.sh` (rev to the box), `build-hip.sh` / `spark1.sh` (CPU-slot builds), `window.sh` + `stages-ab.sh` (tatooine, radiance down), `ids.sh` (`ARMS="off mtp mtpnm"`, `mtpnm` = macro pass off), `longctx.sh 3`; pooled table `raw/f185/pooled-rounds.txt` (`python3 tools/mpf/pool.py raw/longctx=a raw/longctx-c=c raw/f185/longctx=d`).

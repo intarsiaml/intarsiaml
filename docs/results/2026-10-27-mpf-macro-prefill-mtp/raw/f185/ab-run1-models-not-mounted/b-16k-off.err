@@ -1,0 +1,4 @@
+Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4
+
+Caused by:
+    model error: reading /models/intarsia/Qwen3.6-35B-A3B-NVFP4/config.json: No such file or directory (os error 2)

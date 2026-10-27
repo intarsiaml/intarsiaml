@@ -8,6 +8,7 @@
 set -uo pipefail
 export O=${1:?out dir}
 R=$HOME/intarsiaml-f185; D=$R/work/deploy/tatooine/dev.sh
+export INTARSIA_MODELS=/data/models   # dev.sh mounts it at /models (the default mounts only /data/models/intarsia)
 M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 M35=/models/intarsia/Qwen3.6-35B-A3B-NVFP4
 P=$R/work/scripts/mpf/ids-prompts
@@ -34,6 +35,9 @@ sametrace() { # first divergence of the per-pass traces
   if [ -s "$O/$1" ] && cmp -s "$O/$1" "$O/$2"; then log "SAME per-pass trace $3 ($(wc -l < "$O/$1") passes)"
   else log "DIFF per-pass trace $3: first difference at line $(cmp "$O/$1" "$O/$2" 2>&1 | grep -oE 'line [0-9]+' | head -1) of $(wc -l < "$O/$1") / $(wc -l < "$O/$2")"; fi
 }
+for f in "${M27/#\/models//data/models}/config.json" "${M35/#\/models//data/models}/config.json" "$R/work/.bin/base" "$R/work/.bin/dev" "$P/16k-0.txt"; do
+  [ -e "$f" ] || { log "PREFLIGHT: $f missing: NO VERDICT"; exit 3; }
+done
 clear || exit 2
 log "stages start, VRAM in use $(( $(vram) / 1048576 )) MiB"
 if [[ " ${STAGES_SEL:-a b c} " == *" a "* ]]; then

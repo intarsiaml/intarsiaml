@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane f185 (from the Mac; adapted from scripts/dfh/window.sh): ONE radiance-down window on tatooine running stages-ab.sh, radiance restored in an EXIT trap
 # on tatooine and awaited at /v1/models. Output fetched to docs/results/2026-10-27-mpf-macro-prefill-mtp/raw/f185/<W>/.
-#   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 35 --mem 30 --label "f185: HIP checks" -- env W=ab scripts/f185/window.sh
+#   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 12 --mem 30 --label "f185: HIP checks" -- env W=ab scripts/f185/window.sh
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}" "${W:?W=<window name>}"
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$S/../.." && pwd)"
@@ -9,7 +9,7 @@ RAW=$REPO/docs/results/2026-10-27-mpf-macro-prefill-mtp/raw/f185; mkdir -p "$RAW
 CAP=${CAP:-1500}
 ssh -o BatchMode=yes tatooine 'mkdir -p ~/intarsiaml-f185/stages' < /dev/null
 scp -q "$S"/stages-*.sh tatooine:intarsiaml-f185/stages/
-ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP STAGES_SEL='${STAGES_SEL:-a b}' bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
+ssh -o BatchMode=yes tatooine "FLEETQ_JOB=$FLEETQ_JOB W=$W CAP=$CAP STAGES_SEL='${STAGES_SEL:-a b c}' bash -s" <<'EOS' 2>&1 | tee "$RAW/$W/window.log"
 set -uo pipefail
 O=$HOME/intarsiaml-f185/out/$W; rm -rf "$O"; mkdir -p "$O"
 now() { date '+%F %T'; }
