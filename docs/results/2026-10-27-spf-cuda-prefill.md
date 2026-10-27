@@ -115,19 +115,33 @@ The environment variable was read once per process in the tree that produced eve
 **Gap in the night.** spark1 dropped out of fleetq from about 01:00 to 03:35 EDT (the server marked it offline; jobs waited, nothing was bypassed). The mutants
 and the GPU test were run when it came back (03:37).
 
-## 5. Qwen3.6-35B-A3B NVFP4
+## 5. Qwen3.6-35B-A3B NVFP4 (run after the merge of #191, spark1, 03:50 EDT)
 
-Correctness only (this change reaches the 35B through the partial-rotary rope of its 10 attention layers): ids identical in section 4. **The speed windows
-the brief asked for (35B at 1k against the box's vLLM, MTP default against `--spec off`) were not run**: they were queued behind the gates when spark1 went
-offline for fleetq. `scripts/spf/chain2.sh` (vLLM vs intarsia MTP default vs `--spec off`, 3 rounds, 1k / 4k / 16k) and `scripts/spf/chain5.sh` (steady-state nsys
-of a 1k request, kernel total against wall) are ready. Reading the code before measuring: the MTP head's prompt rows are queued during prefill and run at the
-first draft step (`mtp_run_pending`), so MTP should cost the 1k TTFT only a hidden-state copy; the 1k gap to vLLM recorded by lane sk (-3.9 %, taken before the
-MTP default) is therefore unlikely to be MTP, and is still unexplained.
+`scripts/spf/chain2.sh`: localeval speed, 3 interleaved rounds, round order rotated; `vllm` = the box's production server (`guidance`, 34 GB, idle), `def` =
+intarsia serve with the recipe default (MTP, k 2, macro prefill, chunk 2048), `off` = `--spec off`. Both intarsia arms include the rope fix (`raw/ab35b/`).
+
+| prefill tok/s, median of 3 round medians (min-max) | 1k (991) | 4k (4090) | 16k (16654) | decode 1k / 4k / 16k |
+|---|---|---|---|---|
+| vLLM | 5384 (5323-5420) | 6429 (6327-6447) | 6298 (6265-6313) | 80.5 / 79.2 / 76.5 |
+| intarsia default (MTP) | 5332 (5303-5349) | 6943 (6916-7004) | 6656 (6630-6661) | 105.4 / 104.2 / 85.3 |
+| intarsia `--spec off` | 5352 (5330-5355) | 7000 (6544-7011) | 6678 (6662-6692) | 83.1 / 80.5 / 73.3 |
+| default vs vLLM, paired per round | **-1.0 %** (+0.2, -2.2, -0.7) | +8.0 % (+7.3, +8.0, +10.7) | +5.7 % (+6.3, +5.0, +5.7) | x1.31 / x1.31 / x1.12 |
+
+The 1k gap shrank from -3.9 % (lane sk, before MTP default and this fix) to -1.0 %, inside the round-to-round spread of the vLLM arm (-0.7 to +0.2 on the
+other side of the same pairs). MTP does not cost prefill: default vs `--spec off` is -0.4 / -0.8 / -0.3 %. The 4k / 16k ties of lane sk are now +8 % / +6 %
+(part of it the MTP/macro work of #185, part this fix: 10 attention layers' rope). Not isolated per cause (no base-binary arm on the 35B).
+
+Steady-state nsys of one 1023-token request (`raw/serve35-1k-def/`, `raw/serve35-1k-off/`): GPU kernel time 169.5 ms (spec off 170 ms), `moe_w4a16_kernel` 53 %,
+`gdn_delta_split_kernel` 14 %, no launch-bound phase (small gaps total 2.3 ms in 1026 gaps). With MTP on, the GPU is idle for 13.6 ms right after the prefill's
+kernels, before the first 1-row draft step; **that gap is after the first token** (spec-off has none, and the TTFT of the two arms is the same), so it shows up in
+the request's wall time (190 vs 187 ms) but not in TTFT. The 16 ms between the end of the GPU work (171 ms) and the measured TTFT (186 ms) is in both arms and
+in vLLM (184 ms); not broken down further. rope is 0.4 % of this request: nothing left to gain there at 1k.
 
 ## 6. Not done, and what is left
 
 * GEMM: the sustained 83 vs 94 TFLOP/s gap (finding 2) and the per-M heuristic misses (finding 3) are the only large levers left on the 8B, and neither is an
   engine bug. Flash attention (62 TFLOP/s causal) and the two memory-bound elementwise ops are at 70-100 % of what the part allows.
+* 35B at 1k: the remaining -1 % is host-side request overhead (about 16 ms between the end of GPU work and TTFT, same in both intarsia arms); not investigated.
 * `qk_norm` + `rope` + `kv_append` as one op (13 + 4 ms at 4k, about 1.5 %) was not built: it would need a new registered op and change the 8B / 35B `plan show`.
 * The remaining 4.6 ms/call of double-precision `pow`/`sincos` in `rope_multi_kernel` could come from a per-chunk table shared by the 72 calls (up to about 1 % at 4k);
   not built (stateful launcher, graph-capture rules).
@@ -136,6 +150,5 @@ MTP default) is therefore unlikely to be MTP, and is still unexplained.
 
 All jobs owner `claude-f31ccf91`, spark1 (vLLM `flight/guidance/capcom` up, nothing taken down). Builds (cpu): #5848, #5882, #5894, #5944 (trees `base`, `dev`, `rope`, `rope2`). Quiet GPU/CPU: #5850 (8B baseline x3), #5857 / #5864 (single-shot nsys),
 #5860 / #5863 / #5866 and the `lt_sweep` jobs (GEMM micro-benchmarks, clocks, nsys of the micro-benchmark), #5869 / #5870 (steady-state serve nsys, base and fix),
-#5890 (alignment print + knob A/B), the A/B window, `plan show`, ids 8B, ids 35B, kernels test. Cancelled unrun: #5954 (mutants), #5956 (rope2 GPU test). Endor (cpu):
-#5893 (Metal `plan show`). The spark1 trees `~/intarsiaml-spf/{base,dev,rope,rope2,lt}` and the local worktree `.worktrees/spf` are kept for the open gates (the brief
-asked for their removal at the end).
+#5890 (alignment print + knob A/B), the A/B window, `plan show`, ids 8B, ids 35B, kernels test. Run after spark1 returned: rope2 GPU test + quick admission, mutants, the 35B window (3 rounds x 3 arms) and two 1k nsys requests. Endor (cpu):
+#5893 (Metal `plan show`). The spark1 trees `~/intarsiaml-spf` and the local worktree `.worktrees/spf` were removed at the end.

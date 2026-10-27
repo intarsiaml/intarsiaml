@@ -1,0 +1,9 @@
+spf-vllm-r1: - result file: `results/20261027-034324-adhoc-spf-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034324-adhoc-spf-vllm-r1/result.json 
+spf-def-r1: - result file: `results/20261027-034451-adhoc-spf-def-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034451-adhoc-spf-def-r1/result.json 
+spf-off-r1: - result file: `results/20261027-034553-adhoc-spf-off-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034553-adhoc-spf-off-r1/result.json 
+spf-off-r2: - result file: `results/20261027-034703-adhoc-spf-off-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034703-adhoc-spf-off-r2/result.json 
+spf-def-r2: - result file: `results/20261027-034826-adhoc-spf-def-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034826-adhoc-spf-def-r2/result.json 
+spf-vllm-r2: - result file: `results/20261027-034851-adhoc-spf-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034851-adhoc-spf-vllm-r2/result.json 
+spf-vllm-r3: - result file: `results/20261027-034918-adhoc-spf-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034918-adhoc-spf-vllm-r3/result.json 
+spf-def-r3: - result file: `results/20261027-035035-adhoc-spf-def-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-035035-adhoc-spf-def-r3/result.json 
+spf-off-r3: - result file: `results/20261027-035137-adhoc-spf-off-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-035137-adhoc-spf-off-r3/result.json 
