@@ -5,7 +5,7 @@ Date 2026-10-27 (EDT). Branch `lane-s27d/cuda-27b-decode`, PR #199, base `origin
 fleetq #6061), `intarsia serve --backend cuda --max-seq 20480 --mem-budget 45`, W4A16 (the CUDA default), single sequence, tp=1. Raw logs:
 `2026-10-27-s27d-cuda-27b-decode/raw/`; scripts: `scripts/s27d/`. Every GPU window ran in a fleetq quiet slot
 (`--quiet gpu,cpu`); spark1-vllm (flight, guidance, capcom) stayed up and idle (the vLLM `generation_tokens_total` counter did not move
-across any timed arm, `raw/gate6/load.txt`).
+across the six gate rounds, `raw/gate6/load.txt`; the first window (4k numbers), the nsys run and the 16k run have no before/after snapshot, the counter read flat at 06:32).
 
 ## 0. Result
 
@@ -94,9 +94,13 @@ M=3 (bf16 GEMVs hold 233-239 GB/s); at most ~12 ms of 102 would come back if M=3
 | `plan show` byte-identical on 8B, 35B, Gemma-4 (CUDA) | **PASS**, json and text for all three, base vs branch binaries | `raw/plan/`; the 27B plan differs only by the MTP head's bf16 ops (`add_bf16`, `matmul_bf16`, `matmul_bf16_gemv`, `logits_bf16_gemv_rows`, `matmul_pair_bf16_gemv`), as intended |
 | Mac `cargo test --workspace` | **PASS**, 1039 passed, 0 failed (`--no-fail-fast`) | `raw/cargo-test-workspace-mac.log` |
 | CI green | **PASS**, all six checks (cargo check linux, cuda cfgs, hip cfgs, macOS metal; cargo test linux; reproducible build) on the merged head | PR #199 |
-| new behaviour behind a knob | PASS: `--spec off`, `INTARSIA_SPEC_DEFAULT=0`, `--mtp-draft-vocab 0` | section 2 |
+| new behaviour behind an INTARSIA_* knob | **PASS for the default path** (`INTARSIA_SPEC_DEFAULT=0` = base behaviour exactly; `--spec off` too). **Partial for the draft head**: a user who passes `--spec mtp` explicitly on the CUDA 27B now also gets the 65536-row head (before: full head); there is no env var for that, rollback is the flag `--mtp-draft-vocab 0` only (same as the existing HIP key) | section 2 |
 
 ## 4. Measurement notes
+
+- The ids, `plan show` and speed gates ran on the dev tree = `6bcfe52ce` plus the recipe change. The merge of #197/#198 that followed touches HIP tp>1 (`tp_partial`) and `qualify`, not CUDA tp=1; CI and the Mac test run cover the merged head.
+- Not covered: per-category decode (on HIP the 65536 head lost 16 % on Chinese text; CUDA unmeasured, break-even is about 1.4 tokens per pass and k=2 at 51 % acceptance gives ~1.77), a 16k ids prompt, more than one 4k/16k decode sample.
+- TensorFold's 83 is described in docs/ARCHITECTURE.md as "27B EXL3 + DFlash2"; the only TensorFold 27B records here (TensorFold 0.3.0 CUDA, MLX-4bit 27B + DFlash2) are 1 Spark and TP2, and no EXL3 27B record exists in model-benchmarks.
 
 - The shared vLLM (`guidance`) carried ~78 tok/s of unrelated traffic for ~20 minutes at the start (fleetq quiet jobs waited for it); every timed
   window began after that stopped and the counter was read before and after each arm (`raw/gate6/load.txt`, delta 0 everywhere).
