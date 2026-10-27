@@ -421,10 +421,11 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(19)
                     .ext()
                     .rows_exact(),
+                // I % 64 == 0 (not 128): Gemma-4-26B-A4B has I = 704, whose down projection ends in a half 128-k unit (kernels/cuda/moe_grouped.cu)
                 "moe_experts_mma_gelu_bf16" => k
                     .acts(bf)
                     .weights([DType::U8])
-                                        .when(|s| s.m >= MMA_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                                        .when(|s| s.m >= MMA_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 64 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_experts_mma_scratch)
@@ -433,7 +434,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "moe_experts_w4a16_gelu_bf16" => k
                     .acts(bf)
                     .weights([DType::U8])
-                                        .when(|s| s.m >= W4A16_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 128 == 0)
+                                        .when(|s| s.m >= W4A16_MIN_TOKENS && s.experts <= 1024 && s.k % 128 == 0 && s.n % 64 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .scratch(moe_experts_mma_scratch)

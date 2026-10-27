@@ -44,7 +44,7 @@ def main():
     ap.add_argument("--json")
     a = ap.parse_args()
     ks = load(a.path)
-    marks = [i for i, k in enumerate(ks) if "embedding_kernel" in k[2]]
+    marks = [i for i, k in enumerate(ks) if "embedding_kernel" in k[2] or "embedding_scaled_kernel" in k[2]]  # scaled: Gemma 4
     steps = [ks[m:n] for m, n in zip(marks, marks[1:] + [len(ks)])]
     if not steps:
         sys.exit("no embedding_kernel found: is this a decode trace?")

@@ -18,7 +18,8 @@
 // two bf16 weight buffers while the previous step's mma runs. Every pair's arithmetic depends only on its own row, so
 // results are independent of tiling and of the order the atomics produce in the grouping: bit-identical run to run.
 //
-// Needs H % 128 == 0 and I % 128 == 0 (Qwen3.6-35B-A3B: H=2048, I=512). Scratch layout (must match
+// Needs H % 128 == 0 and I % 64 == 0 (Qwen3.6-35B-A3B: H=2048, I=512; Gemma-4-26B-A4B: H=2816, I=704, whose down projection
+// has K = I = 5.5 raw units). Scratch layout (must match
 // intarsia_core::quant::ops::moe_experts_mma_scratch, regions rounded to 256 bytes):
 //   pairs int[T*K] | offsets int[E+1] | ntiles int[1] | tiles int2[ceil(P/16) + min(E,P)] | h bf16[P,I] | y bf16[P,H]
 #include "ik_launch.h"
@@ -78,7 +79,7 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
     const int wn = warp & 3, wm = warp >> 2;
     const int Kdim = MODE == 0 ? H : I;
     const int S = Kdim / BK;     // 64-wide steps
-    const int U = Kdim / 128;    // 128-wide raw units (Kdim % 128 == 0)
+    const int U = (Kdim + 127) / 128;  // 128-wide raw units; a Kdim of 64 mod 128 (Gemma 4: I = 704) ends in a half unit
 
     int n0;
     int64_t nrows;
@@ -103,7 +104,9 @@ moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w,
 #pragma unroll
         for (int q = 0; q < RQ; ++q) {
             const int r = (tid >> 2) + (NTHREADS / 4) * q;
-            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, rsrc[q] + u * 64, 16);
+            // the half unit at the end of a Kdim of 64 mod 128 holds 32 payload bytes per row: parts 2 and 3 are zero-filled
+            const bool in_row = u * 64 + rpart * 16 < Kdim / 2;
+            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, in_row ? rsrc[q] + u * 64 : rsrc[q], in_row ? 16 : 0);
         }
     };
 
@@ -341,7 +344,7 @@ int moe_mma_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* we
     IK_TRY(ik_check_a(out, IK_DTYPE_BF16, 2, 2));
     const int64_t T = x->shape[0], H = x->shape[1], K = ids->shape[1];
     const int64_t E = gate_up_w->shape[0], I = gate_up_w->shape[1] / 2;
-    if (H % 128 != 0 || I % 128 != 0 || gate_up_w->shape[1] != 2 * I || gate_up_w->shape[2] != H / 2 ||
+    if (H % 128 != 0 || I % 64 != 0 || gate_up_w->shape[1] != 2 * I || gate_up_w->shape[2] != H / 2 ||
         gate_up_s->shape[0] != E || gate_up_s->shape[1] != 2 * I || gate_up_s->shape[2] != H / 16 ||
         down_w->shape[0] != E || down_w->shape[1] != H || down_w->shape[2] != I / 2 || down_s->shape[0] != E ||
         down_s->shape[1] != H || down_s->shape[2] != I / 16 || gscales->shape[0] != E || gscales->shape[1] != 3 ||

@@ -37,6 +37,12 @@ IK_DEVI void cp_async8(void* smem_dst, const void* gmem_src) {
     asm volatile("cp.async.ca.shared.global [%0], [%1], 8;\n" ::"r"(d), "l"(gmem_src) : "memory");
 }
 
+// 4-byte copy (a source that is only 4-byte aligned); `src_bytes` 0 zero-fills it without reading the source
+IK_DEVI void cp_async4(void* smem_dst, const void* gmem_src, int src_bytes) {
+    const unsigned d = static_cast<unsigned>(__cvta_generic_to_shared(smem_dst));
+    asm volatile("cp.async.ca.shared.global [%0], [%1], 4, %2;\n" ::"r"(d), "l"(gmem_src), "r"(src_bytes) : "memory");
+}
+
 // Asynchronous L2 prefetch of `bytes` contiguous bytes (sm_90+ bulk prefetch, no shared memory or barrier involved).
 IK_DEVI void prefetch_l2_bulk(const void* p, unsigned bytes) {
     asm volatile("cp.async.bulk.prefetch.L2.global [%0], %1;\n" ::"l"(p), "r"(bytes) : "memory");
@@ -106,7 +112,7 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
     const int g = lane >> 2, t4 = lane & 3;
     const int Kdim = MODE == 0 ? H : I;
     const int S = Kdim / BK;   // 64-wide steps
-    const int U = Kdim / 128;  // 128-wide packed units (Kdim % 128 == 0)
+    const int U = (Kdim + 127) / 128;  // 128-wide packed units; a Kdim of 64 mod 128 (Gemma 4: I = 704) ends in a half unit
 
     int n0;
     int64_t nrows;
@@ -145,10 +151,10 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
                 for (int q = 0; q < RQ; ++q) {
                     if (u == 0) {
                         for (int gq = 0; gq <= PF_AHEAD; ++gq)
-                            if (gq * PF_GROUP < U) prefetch_l2_bulk(rsrc[q] + gq * PF_GROUP * 64, (unsigned)(min(PF_GROUP, U - gq * PF_GROUP) * 64));
+                            if (gq * PF_GROUP < U) prefetch_l2_bulk(rsrc[q] + gq * PF_GROUP * 64, (unsigned)min(min(PF_GROUP, U - gq * PF_GROUP) * 64, Kdim / 2 - gq * PF_GROUP * 64));
                     } else if (u % PF_GROUP == 0 && (u / PF_GROUP + PF_AHEAD) * PF_GROUP < U) {
                         const int g0 = (u / PF_GROUP + PF_AHEAD) * PF_GROUP;
-                        prefetch_l2_bulk(rsrc[q] + g0 * 64, (unsigned)(min(PF_GROUP, U - g0) * 64));
+                        prefetch_l2_bulk(rsrc[q] + g0 * 64, (unsigned)min(min(PF_GROUP, U - g0) * 64, Kdim / 2 - g0 * 64));
                     }
                 }
             }
@@ -156,9 +162,19 @@ moe_w4a16_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ 
 #pragma unroll
         for (int q = 0; q < RQ; ++q) {
             const int r = (tid >> 2) + (NT / 4) * q;
-            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, rsrc[q] + u * 64, 16);
+            // the half unit at the end of a Kdim of 64 mod 128 holds 32 payload bytes per row: parts 2 and 3 are zero-filled
+            const bool in_row = u * 64 + rpart * 16 < Kdim / 2;
+            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, in_row ? rsrc[q] + u * 64 : rsrc[q], in_row ? 16 : 0);
         }
-        if (tid < R) cp_async8(rawu(slot) + tid * kRawStride + 64, ssrc + u * 8);
+        if (tid < R) {
+            if ((Kdim / 16) % 8 == 0) {
+                cp_async8(rawu(slot) + tid * kRawStride + 64, ssrc + u * 8);
+            } else {  // a row of block scales is Kdim / 16 = 4 mod 8 bytes: two 4-byte copies, the second one zero-filled in the tail unit
+                cp_async4(rawu(slot) + tid * kRawStride + 64, ssrc + u * 8, 4);
+                const bool second = u * 8 + 8 <= Kdim / 16;
+                cp_async4(rawu(slot) + tid * kRawStride + 68, second ? ssrc + u * 8 + 4 : ssrc, second ? 4 : 0);
+            }
+        }
     };
 
     // this thread's A rows: chunk (16 B = 8 bf16) c8 of rows r = (tid >> 3) + (NT / 8) q, q < BM / (NT / 8)
@@ -390,7 +406,7 @@ int moe_w4a16_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     IK_TRY(ik_check_a(out, IK_DTYPE_BF16, 2, 2));
     const int64_t T = x->shape[0], H = x->shape[1], K = ids->shape[1];
     const int64_t E = gate_up_w->shape[0], I = gate_up_w->shape[1] / 2;
-    if (H % 128 != 0 || I % 128 != 0 || gate_up_w->shape[1] != 2 * I || gate_up_w->shape[2] != H / 2 ||
+    if (H % 128 != 0 || I % 64 != 0 || gate_up_w->shape[1] != 2 * I || gate_up_w->shape[2] != H / 2 ||
         gate_up_s->shape[0] != E || gate_up_s->shape[1] != 2 * I || gate_up_s->shape[2] != H / 16 ||
         down_w->shape[0] != E || down_w->shape[1] != H || down_w->shape[2] != I / 2 || down_s->shape[0] != E ||
         down_s->shape[1] != H || down_s->shape[2] != I / 16 || gscales->shape[0] != E || gscales->shape[1] != 3 ||

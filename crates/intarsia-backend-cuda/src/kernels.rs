@@ -596,6 +596,38 @@ mod tests {
         assert_eq!(pick(256), Some("moe_experts_mma_bf16".to_string()));
     }
 
+    /// The grouped gelu experts kernel for the Gemma-4-26B-A4B layer shape (H 2816, I 704 = 5.5 128-k units, 128 experts, top-8): a
+    /// prefill chunk takes the tensor-core kernels (I % 64 is enough; the launcher picks the activation from `OpAttrs::gelu`).
+    #[test]
+    fn moe_gelu_experts_selection_at_the_gemma4_shape() {
+        let pick = |m: usize, ext: bool| {
+            let s = ShapeInfo {
+                m,
+                n: 704,
+                k: 2816,
+                experts: 128,
+                top_k: 8,
+                act: Some(DType::Bf16),
+                weight: Some(DType::U8),
+                out: Some(DType::Bf16),
+                ext,
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| k.op == Op::MoeExperts && k.accepts(&s) && !k.rows_exact && !k.row_table) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        if std::env::var("INTARSIA_CUDA_MOE_W4A16").is_ok() || std::env::var("INTARSIA_CUDA_MOE_NVFP4").is_ok() {
+            return;
+        }
+        assert_eq!(pick(1024, true), Some("moe_experts_w4a16_gelu_bf16".to_string()));
+        assert_eq!(pick(256, true), Some("moe_experts_mma_gelu_bf16".to_string()));
+    }
+
     /// The GatedDeltaNet recurrence kernel the registry picks at the 35B shape (dk = dv = 128, 16 key heads, 32 value heads)
     /// for decode (T = 1) and a prefill chunk (T = 2048), and at dk = 64: the split kernel (bitwise the one-thread-per-row
     /// kernel) by default, the one-thread-per-row kernel with `INTARSIA_CUDA_GDN_SPLIT=0`, the lanes kernel with
