@@ -1,0 +1,1 @@
+base: prompt chars 54900 (~16.6k tokens) ttft 256.1 s, decode tok/s (127 tokens after the first chunk) 12.83, chunks 128

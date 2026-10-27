@@ -1,0 +1,8 @@
+base r1: MemAvailable 64261 MB with the server up
+dev r1: MemAvailable 62705 MB with the server up
+devk3 r1: MemAvailable 62299 MB with the server up
+devk1 r1: MemAvailable 63727 MB with the server up
+devk1 r2: MemAvailable 62886 MB with the server up
+devk3 r2: MemAvailable 62481 MB with the server up
+dev r2: MemAvailable 62698 MB with the server up
+base r2: MemAvailable 64091 MB with the server up
