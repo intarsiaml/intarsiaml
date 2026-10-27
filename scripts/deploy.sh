@@ -15,6 +15,8 @@
 #   --backend    default auto: probes the host (nvcc or nvidia-smi -> cuda, Darwin -> metal, else /dev/kfd -> hip).
 #   --ref        default HEAD. Resolved to a full sha and exported with `git archive`, so only COMMITTED content is deployed
 #                (uncommitted changes are reported and ignored: a stamp must name a sha that exists).
+#   runs/ and replay-out/ in the tree are never synced over or deleted (--delete spares them): keep run output (raw logs,
+#                state.json) there, e.g. `intarsia onboard --out runs/<name>`.
 #   --tree       directory under ~/intarsia-deploy on the host (default: the backend name). Its target/ dir is kept between
 #                deploys so builds are incremental.
 #   --smoke      quick (default): `intarsia doctor`, then `intarsia kernels test --quick` (the whole quick sweep, about a
@@ -121,7 +123,7 @@ EXPORT=$(mktemp -d); trap 'rm -rf "$EXPORT"' EXIT
 git -C "$REPO" archive --format=tar "$SHA" | tar -x -C "$EXPORT"
 # -c without -t: unchanged files keep their mtime, changed files get "now". `git archive` stamps every file with the commit
 # time, so with -t a deploy of an older ref would look older than the last build and cargo would reuse stale objects.
-RSYNC=(rsync -rlpc --delete --itemize-changes --exclude /target --exclude '/DEPLOY_*' --exclude /replay-out)
+RSYNC=(rsync -rlpc --delete --itemize-changes --exclude /target --exclude '/DEPLOY_*' --exclude /replay-out --exclude /runs)
 if [[ $DRY == 1 ]]; then
   echo "--- sync: ${RSYNC[*]} $EXPORT/ $HOST:intarsia-deploy/$TREE/"
 else

@@ -1,0 +1,14 @@
+NAX on  full prefill vs oracle 5.209e-03 (n=1441)  decode vs oracle 4.286e-03 (n=1431)
+   last-16 window: prefill 6.034e-03 decode 8.804e-03
+NAX off full prefill vs oracle 5.641e-03 (n=1441)  decode vs oracle 4.286e-03 (n=1431)
+   last-16 window: prefill 1.022e-02 decode 8.804e-03
+  count            prefill 2.398e-03 decode 3.304e-03 n=37
+  story            prefill 2.925e-03 decode 3.042e-03 n=38
+  code             prefill 8.153e-04 decode 6.313e-04 n=86
+  science          prefill 9.312e-03 decode 4.181e-03 n=78
+  chat_short       prefill 2.834e-03 decode 2.268e-03 n=17
+  chat_system      prefill 3.514e-02 decode 4.491e-02 n=31
+  chat_multiturn   prefill 6.853e-03 decode 4.292e-03 n=57
+  chat_reasoning   prefill 4.623e-03 decode 5.785e-03 n=89
+  long_prose_300   prefill 4.895e-03 decode 2.494e-03 n=299
+  long_prose_700   prefill 4.339e-03 decode 3.689e-03 n=699

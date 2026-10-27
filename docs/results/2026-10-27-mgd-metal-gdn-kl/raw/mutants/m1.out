@@ -1,0 +1,14 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=7.529e-1 rel_l2=4.657e0 T=64 Hk=2 Hv=4 dk=32 dv=32 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=8.066e-1 rel_l2=4.657e0 T=130 Hk=2 Hv=4 dk=32 dv=32 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=5.981e-1 rel_l2=7.000e0 T=64 Hk=1 Hv=3 dk=64 dv=48 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=6.870e-1 rel_l2=7.000e0 T=130 Hk=1 Hv=3 dk=64 dv=48 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=4.343e-1 rel_l2=1.031e1 T=64 Hk=2 Hv=2 dk=128 dv=64 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=4.167e-1 rel_l2=1.031e1 T=130 Hk=2 Hv=2 dk=128 dv=64 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=6.909e-1 rel_l2=1.031e1 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  FAIL gdn_delta_rule gdn_delta_rule_bf16_pre max_abs=6.304e-1 rel_l2=1.031e1 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+gdn_delta_rule gdn_delta_rule_bf16_pre         8      8    8.066e-1     1.031e1  REJECTED
+1 kernels, 8 cases in 0.4s
+Error: kernel admission failed (1 kernel(s) REJECTED)
