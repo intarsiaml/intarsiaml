@@ -524,6 +524,12 @@ impl TpRank {
 }
 
 /// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
+/// `INTARSIA_TP_OVERLAP_MUTANT` (lane TPO, test only): which planted bug the row-piece overlap runs with (see `Model::reduce_rows_async`).
+fn overlap_mutant() -> Option<&'static str> {
+    static M: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    M.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP_MUTANT").ok().filter(|v| !v.is_empty())).as_deref()
+}
+
 fn parse_tp_test_bug(v: Option<&str>) -> Result<Option<(usize, f32)>> {
     let Some(v) = v.map(str::trim).filter(|v| !v.is_empty()) else { return Ok(None) };
     let bad = || Error::invalid(format!("INTARSIA_TP_TEST_BUG={v} (expected scale:FACTOR[@RANK])"));
@@ -3611,9 +3617,24 @@ impl Model {
 
     /// Queue the all-reduce `partial -> out` of one row range on stream 1, after everything queued so far on stream 0, and return the token
     /// of its end (`None` when the collective is skipped by the batched-mutant test hook).
-    fn reduce_rows_async(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, skip: bool) -> Result<Option<u64>> {
+    fn reduce_rows_async(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, skip: bool, piece_idx: (usize, usize)) -> Result<Option<u64>> {
         if skip {
             return Ok(None);
+        }
+        // `INTARSIA_TP_OVERLAP_MUTANT` (test only, the gate must fail on each): skip_last = no all-reduce for the last piece of a reduction,
+        // scale = rank 1 scales piece 1's partial by 1.003 first, offset = the first piece reduces rows shifted by one tile (256) into the next
+        let mutant = overlap_mutant();
+        if mutant == Some("skip_last") && piece_idx.0 + 1 == piece_idx.1 {
+            return Ok(None);
+        }
+        if mutant == Some("scale") && piece_idx.0 == 1 && self.tp.rank == 1 {
+            self.scale_partial(partial, 1.003)?;
+        }
+        if mutant == Some("offset") && piece_idx.0 == 0 {
+            let (p, o) = (partial.rows(0, 1), out.rows(0, 1)); // a single row instead of the piece: the rest of the piece is never reduced
+            self.backend.stream_wait(1, self.stream)?;
+            comm.all_reduce_sum_into(&p, &o, 1)?;
+            return Ok(Some(self.backend.stream_record(1)?));
         }
         self.backend.stream_wait(1, self.stream)?;
         comm.all_reduce_sum_into(partial, out, 1)?;
@@ -3664,9 +3685,10 @@ impl Model {
         self.pipe_join()?;
         let skip = self.take_dropped_collective();
         let mut toks = Vec::new();
-        for (r0, n) in Self::row_pieces(t, piece) {
+        let pieces = Self::row_pieces(t, piece);
+        for (pi, &(r0, n)) in pieces.iter().enumerate() {
             self.proj(&x.rows(r0, n), w, &dst.rows(r0, n), profile)?;
-            if let Some(tok) = self.reduce_rows_async(comm, &dst.rows(r0, n), &out.rows(r0, n), skip)? {
+            if let Some(tok) = self.reduce_rows_async(comm, &dst.rows(r0, n), &out.rows(r0, n), skip, (pi, pieces.len()))? {
                 toks.push((r0, n, tok));
             }
         }
@@ -3711,12 +3733,12 @@ impl Model {
                 Some(part) => {
                     let part = self.view(part, DType::F32, &[t, self.ldims.hidden]).rows(r0, n);
                     self.proj(&a, &f.down, &part, profile)?;
-                    self.reduce_rows_async(comm, &part, &out.rows(r0, n), skip)?
+                    self.reduce_rows_async(comm, &part, &out.rows(r0, n), skip, (i, pieces.len()))?
                 }
                 None => {
                     let o = out.rows(r0, n);
                     self.proj(&a, &f.down, &o, profile)?;
-                    self.reduce_rows_async(comm, &o, &o, skip)?
+                    self.reduce_rows_async(comm, &o, &o, skip, (i, pieces.len()))?
                 }
             };
             if let Some(tok) = tok {
