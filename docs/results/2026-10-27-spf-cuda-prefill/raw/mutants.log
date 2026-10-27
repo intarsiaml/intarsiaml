@@ -1,0 +1,8 @@
+fleetq: #5999 running on spark1: ssh spark1 'M8=$(ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* | head -1); KFLAGS="--op rope -m $M8" python3 - rope'
+clean: 2 kernels, 90 cases in 0.1s
+rope-sign: CAUGHT: rope           rope_bf16                      36     24     1.820e0    6.405e-1  REJECTED | rope           rope_prop_bf16                 54     24     1.820e0    6.405e-1  REJECTED | 2 kernels, 90 cases in 0.1s | Error: kernel admission failed (2 kernel(s) REJECTED)
+rope-pos-off-by-one: CAUGHT: rope           rope_bf16                      36     24    9.611e-1    2.480e-1  REJECTED | rope           rope_prop_bf16                 54     24    9.611e-1    2.480e-1  REJECTED | 2 kernels, 90 cases in 0.1s | Error: kernel admission failed (2 kernel(s) REJECTED)
+rope-skip-head-group: CAUGHT: rope           rope_bf16                      36     16     1.000e0    4.428e-1  REJECTED | rope           rope_prop_bf16                 54     16     1.000e0    4.428e-1  REJECTED | 2 kernels, 90 cases in 0.1s | Error: kernel admission failed (2 kernel(s) REJECTED)
+rope-freq-denominator: CAUGHT: rope           rope_bf16                      36     12     1.823e0    7.500e-1  REJECTED | rope           rope_prop_bf16                 54     12     1.823e0    7.500e-1  REJECTED | 2 kernels, 90 cases in 0.1s | Error: kernel admission failed (2 kernel(s) REJECTED)
+rope-pair-lane: CAUGHT: rope           rope_bf16                      36     24     2.000e0    9.635e-1  REJECTED | rope           rope_prop_bf16                 54     24     2.000e0    9.635e-1  REJECTED | 2 kernels, 90 cases in 0.1s | Error: kernel admission failed (2 kernel(s) REJECTED)
+fleetq: #5999 done (exit 0)

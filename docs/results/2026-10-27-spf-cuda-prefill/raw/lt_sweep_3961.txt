@@ -1,0 +1,29 @@
+fleetq: #5861 running on spark1: ssh spark1 'cd ~/intarsiaml-spf/lt && ./lt_sweep 3961'
+q/o  N=4096 K=4096 M=3961: cublasGemmEx 1.360 ms = 97.7 TFLOP/s
+   lt[ 0] id=67 tile=463 stages=35 splitk=1 red=0 ws=0: 1.415 ms = 93.9 TFLOP/s
+   lt[ 1] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 1.433 ms = 92.8 TFLOP/s
+   lt[ 2] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 1.622 ms = 82.0 TFLOP/s
+   best lt[0] 1.415 ms = 93.9 TFLOP/s (-3.8% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 16224256 elements differ
+k/v  N=1024 K=4096 M=3961: cublasGemmEx 0.332 ms = 100.1 TFLOP/s
+   lt[ 0] id=67 tile=409 stages=35 splitk=1 red=0 ws=0: 0.333 ms = 99.8 TFLOP/s
+   lt[ 1] id=67 tile=406 stages=35 splitk=1 red=0 ws=0: 0.346 ms = 96.0 TFLOP/s
+   lt[ 2] id=67 tile=20 stages=35 splitk=1 red=0 ws=0: 0.399 ms = 83.2 TFLOP/s
+   lt[ 3] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 0.393 ms = 84.6 TFLOP/s
+   lt[ 4] id=21 tile=24 stages=9 splitk=1 red=0 ws=0: 0.432 ms = 76.9 TFLOP/s
+   lt[ 5] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 0.387 ms = 85.9 TFLOP/s
+   best lt[0] 0.333 ms = 99.8 TFLOP/s (-0.4% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 4056064 elements differ
+gate/up N=12288 K=4096 M=3961: cublasGemmEx 4.792 ms = 83.2 TFLOP/s
+   lt[ 0] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 4.709 ms = 84.7 TFLOP/s
+   lt[ 1] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 4.266 ms = 93.5 TFLOP/s
+   lt[ 2] id=67 tile=324 stages=35 splitk=1 red=0 ws=0: 8.317 ms = 47.9 TFLOP/s
+   best lt[1] 4.266 ms = 93.5 TFLOP/s (+12.3% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 48672768 elements differ
+down N=4096 K=12288 M=3961: cublasGemmEx 4.434 ms = 89.9 TFLOP/s
+   lt[ 0] id=67 tile=463 stages=35 splitk=1 red=0 ws=0: 4.424 ms = 90.1 TFLOP/s
+   lt[ 1] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 4.612 ms = 86.4 TFLOP/s
+   lt[ 2] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 5.009 ms = 79.6 TFLOP/s
+   best lt[0] 4.424 ms = 90.1 TFLOP/s (+0.2% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 16224256 elements differ
+fleetq: #5861 done (exit 0)

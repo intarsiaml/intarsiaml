@@ -1,0 +1,5 @@
+Generating SQLite file /home/nvidia/intarsiaml-spf/base/out/prof-base/55000/nsys.sqlite from /home/nvidia/intarsiaml-spf/base/out/prof-base/55000/nsys.nsys-rep
+Processing [/home/nvidia/intarsiaml-spf/base/out/prof-base/55000/nsys.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_gpu_kern_sum.py] to [/home/nvidia/intarsiaml-spf/base/out/prof-base/55000/kern_cuda_gpu_kern_sum.csv]... PROCESSED
+
+Processing [/home/nvidia/intarsiaml-spf/base/out/prof-base/55000/nsys.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-armv8/reports/cuda_gpu_trace.py] to [/home/nvidia/intarsiaml-spf/base/out/prof-base/55000/kern_cuda_gpu_trace.csv]... PROCESSED
+

@@ -1,0 +1,29 @@
+fleetq: #5860 running on spark1: ssh spark1 'export PATH=/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-spf/lt && nvcc -O2 -arch=sm_121 -o lt_sweep lt_sweep.cu -lcublas -lcublasLt 2>&1 | tail -5 && ./lt_sweep 4096'
+q/o  N=4096 K=4096 M=4096: cublasGemmEx 1.437 ms = 95.6 TFLOP/s
+   lt[ 0] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 1.460 ms = 94.1 TFLOP/s
+   lt[ 1] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 1.690 ms = 81.3 TFLOP/s
+   lt[ 2] id=67 tile=324 stages=35 splitk=1 red=0 ws=0: 2.915 ms = 47.1 TFLOP/s
+   best lt[0] 1.460 ms = 94.1 TFLOP/s (-1.6% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 16777216 elements differ
+k/v  N=1024 K=4096 M=4096: cublasGemmEx 0.334 ms = 102.9 TFLOP/s
+   lt[ 0] id=67 tile=409 stages=35 splitk=1 red=0 ws=0: 0.335 ms = 102.7 TFLOP/s
+   lt[ 1] id=67 tile=406 stages=35 splitk=1 red=0 ws=0: 0.348 ms = 98.7 TFLOP/s
+   lt[ 2] id=67 tile=20 stages=35 splitk=1 red=0 ws=0: 0.380 ms = 90.5 TFLOP/s
+   lt[ 3] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 0.396 ms = 86.7 TFLOP/s
+   lt[ 4] id=21 tile=24 stages=9 splitk=1 red=0 ws=0: 0.433 ms = 79.4 TFLOP/s
+   lt[ 5] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 0.385 ms = 89.2 TFLOP/s
+   best lt[0] 0.335 ms = 102.7 TFLOP/s (-0.2% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 4194304 elements differ
+gate/up N=12288 K=4096 M=4096: cublasGemmEx 4.281 ms = 96.3 TFLOP/s
+   lt[ 0] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 4.298 ms = 95.9 TFLOP/s
+   lt[ 1] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 4.754 ms = 86.7 TFLOP/s
+   lt[ 2] id=67 tile=324 stages=35 splitk=1 red=0 ws=0: 8.660 ms = 47.6 TFLOP/s
+   best lt[0] 4.298 ms = 95.9 TFLOP/s (-0.4% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 50331648 elements differ
+down N=4096 K=12288 M=4096: cublasGemmEx 4.749 ms = 86.8 TFLOP/s
+   lt[ 0] id=67 tile=412 stages=35 splitk=1 red=0 ws=0: 4.677 ms = 88.2 TFLOP/s
+   lt[ 1] id=21 tile=23 stages=9 splitk=1 red=0 ws=0: 5.024 ms = 82.1 TFLOP/s
+   lt[ 2] id=67 tile=324 stages=35 splitk=1 red=0 ws=0: 8.719 ms = 47.3 TFLOP/s
+   best lt[0] 4.677 ms = 88.2 TFLOP/s (+1.5% vs GemmEx)
+   best-lt vs GemmEx output: 0 / 16777216 elements differ
+fleetq: #5860 done (exit 0)
