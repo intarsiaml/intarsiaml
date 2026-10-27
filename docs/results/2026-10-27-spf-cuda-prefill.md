@@ -106,16 +106,14 @@ Every round of every size is above the 3 % bar; decode x1.000 / 0.999 / 1.000.
 | `plan show` byte-identical, Metal | PASS: 8B, 35B, json and text (two Metal builds, origin/main and this tree) | `raw/metal-plan.log` |
 | `plan show`, HIP | not run. The change touches `kernels/cuda/elementwise.cu`, `docs/tuning.md`, a CUDA test and docs only; no Rust source of the HIP path changed, and the Metal result above shows the planner output does not depend on the diff | |
 | prefill >= 3 % median over 3 interleaved rounds, decode >= 0.99x | PASS (section 4 table) | `raw/ab8b/` |
-| >= 3 planted mutants caught | **NOT RUN** (spark1 left the fleetq queue, see below). `scripts/spf/mutants.py` has five (sign, position off by one, skipped head group, wrong frequency denominator, swapped output lane); the quick sweep uses 4 heads so the skipped-group mutant needs the 8B's 32 / 8 heads, `kernels test --op rope -m <8B>` | |
-| `tests/rope_multi.rs` (bitwise, in-process, 8 head layouts x 9 row counts x 3 positions, env flipped per call) | **NOT RUN on a GPU**: it compiles (CI "cuda cfgs" green; test binary built on spark1 in `~/intarsiaml-spf/rope2`) but the GPU job never started | |
+| >= 3 planted mutants caught | PASS, 5 of 5 CAUGHT (REJECTED by `kernels test --op rope -m <8B>`): sign flip, position off by one, skipped head group, wrong frequency denominator, swapped output lane. Clean tree: 90 cases pass | `raw/mutants.log`, `scripts/spf/mutants.py` |
+| `tests/rope_multi.rs` (bitwise, in-process, 8 head layouts x 9 row counts x 3 positions x knob on/off) | PASS on spark1 GPU (`INTARSIA_REQUIRE_GPU=1`, 2.96 s), tree `rope2` = the committed code; quick admission on the same tree: 77 kernels, 531 cases, no REJECTED | `raw/rope2-gpu.log` |
 
 The environment variable was read once per process in the tree that produced every number above and is read per launch in the committed code (so that
 `tests/rope_multi.rs` can flip it); the kernels and arithmetic are the same.
 
-**Why two gates are open.** By 01:05 EDT (first seen; the last GPU job finished about 00:55) the fleetq server had marked spark1 offline (it can no longer resolve `spark-4e77` after the gateway swap); jobs
-for spark1 wait forever and the coordinator ruled out bypassing fleetq. Everything that needs the GPU after that point was not run. To finish, on spark1
-(trees `base`, `rope`, `rope2` are in `~/intarsiaml-spf/`): `scripts/spf/chain4.sh` (rope_multi test + quick admission on `rope2`) and `scripts/spf/chain3.sh`
-(second job: the mutants), then `scripts/spf/chain2.sh` (35B window) and `scripts/spf/chain5.sh` (35B 1k profile).
+**Gap in the night.** spark1 dropped out of fleetq from about 01:00 to 03:35 EDT (the server marked it offline; jobs waited, nothing was bypassed). The mutants
+and the GPU test were run when it came back (03:37).
 
 ## 5. Qwen3.6-35B-A3B NVFP4
 
