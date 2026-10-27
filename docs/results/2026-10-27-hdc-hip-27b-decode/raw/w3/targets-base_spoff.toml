@@ -1,0 +1,3 @@
+[targets.hdc-base_spoff]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-hdc"

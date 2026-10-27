@@ -1,0 +1,77 @@
+13:30:32 guard: [guard] radiance stopped 2026-10-27 13:30:31
+13:32:13 item 1 attr: [hdc] gen base r1 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen arnorm r1 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] gen fuse r1 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen anfuse r1 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] gen base r2 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen arnorm r2 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] gen fuse r2 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen anfuse r2 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] gen base r3 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen arnorm r3 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] gen fuse r3 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2|[hdc] gen anfuse r3 rc=0 steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms|[hdc] prof base rc=0 2026-10-27 13:31:47: 81078772 /home/josef/intarsiaml-hdc/hdc-prof/base/k_kernel_trace.csv |[hdc] prof arnorm rc=0 2026-10-27 13:31:53: 75197816 /home/josef/intarsiaml-hdc/hdc-prof/arnorm/k_kernel_trace.csv |[hdc] prof fuse rc=0 2026-10-27 13:31:59: 63366475 /home/josef/intarsiaml-hdc/hdc-prof/fuse/k_kernel_trace.csv |[hdc] prof anfuse rc=0 2026-10-27 13:32:05: 57493899 /home/josef/intarsiaml-hdc/hdc-prof/anfuse/k_kernel_trace.csv |[hdc] attr w2 done 2026-10-27 13:32:06|
+13:32:13 item 2: starting server base+spoff
+13:33:32 item 2 base+spoff speed: exit 0 results/20261027-133249-hdc-base_spoff-hdc-w2-base_spoff-2/result.json
+13:33:32 item 3: starting server an+spoff
+13:34:46 item 3 an+spoff speed: exit 0 results/20261027-133404-hdc-an_spoff-hdc-w2-an_spoff-3/result.json
+13:34:46 item 4: starting server wm+spoff
+13:36:02 item 4 wm+spoff speed: exit 0 results/20261027-133519-hdc-wm_spoff-hdc-w2-wm_spoff-4/result.json
+13:36:02 item 5: starting server both+spoff
+13:36:34 item 5 both+spoff speed: exit 1 
+13:36:34 item 6: starting server fz+spoff
+13:37:47 item 6 fz+spoff speed: exit 0 results/20261027-133705-hdc-fz_spoff-hdc-w2-fz_spoff-6/result.json
+13:37:47 item 7: starting server anfz+spoff
+13:39:00 item 7 anfz+spoff speed: exit 0 results/20261027-133819-hdc-anfz_spoff-hdc-w2-anfz_spoff-7/result.json
+13:39:00 item 8: starting server base+spoff
+13:40:14 item 8 base+spoff speed: exit 0 results/20261027-133932-hdc-base_spoff-hdc-w2-base_spoff-8/result.json
+13:40:14 item 9: starting server anfz+spoff
+13:41:28 item 9 anfz+spoff speed: exit 0 results/20261027-134046-hdc-anfz_spoff-hdc-w2-anfz_spoff-9/result.json
+13:41:28 item 10: starting server fz+spoff
+13:42:41 item 10 fz+spoff speed: exit 0 results/20261027-134200-hdc-fz_spoff-hdc-w2-fz_spoff-10/result.json
+13:42:41 item 11: starting server both+spoff
+13:43:13 item 11 both+spoff speed: exit 1 
+13:43:13 item 12: starting server wm+spoff
+13:44:27 item 12 wm+spoff speed: exit 0 results/20261027-134345-hdc-wm_spoff-hdc-w2-wm_spoff-12/result.json
+13:44:27 item 13: starting server an+spoff
+13:45:41 item 13 an+spoff speed: exit 0 results/20261027-134459-hdc-an_spoff-hdc-w2-an_spoff-13/result.json
+13:45:41 item 14: starting server wm+spoff
+13:46:55 item 14 wm+spoff speed: exit 0 results/20261027-134613-hdc-wm_spoff-hdc-w2-wm_spoff-14/result.json
+13:46:55 item 15: starting server both+spoff
+13:47:27 item 15 both+spoff speed: exit 1 
+13:47:27 item 16: starting server fz+spoff
+13:48:40 item 16 fz+spoff speed: exit 0 results/20261027-134759-hdc-fz_spoff-hdc-w2-fz_spoff-16/result.json
+13:48:41 item 17: starting server anfz+spoff
+13:49:54 item 17 anfz+spoff speed: exit 0 results/20261027-134913-hdc-anfz_spoff-hdc-w2-anfz_spoff-17/result.json
+13:49:54 item 18: starting server base+spoff
+13:51:08 item 18 base+spoff speed: exit 0 results/20261027-135026-hdc-base_spoff-hdc-w2-base_spoff-18/result.json
+13:51:08 item 19: starting server an+spoff
+13:52:22 item 19 an+spoff speed: exit 0 results/20261027-135140-hdc-an_spoff-hdc-w2-an_spoff-19/result.json
+13:52:22 item 20: starting server wm+spoff
+13:53:36 item 20 wm+spoff speed: exit 0 results/20261027-135254-hdc-wm_spoff-hdc-w2-wm_spoff-20/result.json
+13:53:36 item 21: starting server an+spoff
+13:54:50 item 21 an+spoff speed: exit 0 results/20261027-135408-hdc-an_spoff-hdc-w2-an_spoff-21/result.json
+13:54:50 item 22: starting server base+spoff
+13:56:04 item 22 base+spoff speed: exit 0 results/20261027-135522-hdc-base_spoff-hdc-w2-base_spoff-22/result.json
+13:56:04 item 23: starting server anfz+spoff
+13:57:18 item 23 anfz+spoff speed: exit 0 results/20261027-135636-hdc-anfz_spoff-hdc-w2-anfz_spoff-23/result.json
+13:57:18 item 24: starting server fz+spoff
+13:58:31 item 24 fz+spoff speed: exit 0 results/20261027-135750-hdc-fz_spoff-hdc-w2-fz_spoff-24/result.json
+13:58:31 item 25: starting server both+spoff
+13:59:03 item 25 both+spoff speed: exit 1 
+13:59:03 item 26: starting server base
+14:00:56 item 26 base speed: exit 0 results/20261027-140021-hdc-base-hdc-w2-base-26/result.json
+14:00:56 item 27: starting server an
+14:02:48 item 27 an speed: exit 0 results/20261027-140213-hdc-an-hdc-w2-an-27/result.json
+14:02:48 item 28: starting server fz
+14:04:41 item 28 fz speed: exit 0 results/20261027-140406-hdc-fz-hdc-w2-fz-28/result.json
+14:04:41 item 29: starting server an
+14:06:33 item 29 an speed: exit 0 results/20261027-140559-hdc-an-hdc-w2-an-29/result.json
+14:06:33 item 30: starting server fz
+14:08:25 item 30 fz speed: exit 0 results/20261027-140750-hdc-fz-hdc-w2-fz-30/result.json
+14:08:25 item 31: starting server base
+14:10:17 item 31 base speed: exit 0 results/20261027-140943-hdc-base-hdc-w2-base-31/result.json
+14:10:17 item 32: starting server fz
+14:12:10 item 32 fz speed: exit 0 results/20261027-141135-hdc-fz-hdc-w2-fz-32/result.json
+14:12:10 item 33: starting server base
+14:14:02 item 33 base speed: exit 0 results/20261027-141327-hdc-base-hdc-w2-base-33/result.json
+14:14:02 item 34: starting server an
+14:15:54 item 34 an speed: exit 0 results/20261027-141519-hdc-an-hdc-w2-an-34/result.json
+14:15:54 item 35: starting server base+spoff
+14:18:26 item 35 base+spoff texts: exit 0       18 lines
+14:18:26 item 36: starting server fz+spoff
+14:20:55 item 36 fz+spoff texts: exit 0       18 lines
+14:20:55 item 37: starting server an+spoff
+14:23:26 item 37 an+spoff texts: exit 0       18 lines
+14:23:26 item 38: starting server anfz+spoff
+14:25:55 item 38 anfz+spoff texts: exit 0       18 lines
+14:26:05 guard: [guard] radiance answers 2026-10-27 14:26:05 (after 15 s)

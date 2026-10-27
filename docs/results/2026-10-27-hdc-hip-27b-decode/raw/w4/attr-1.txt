@@ -1,0 +1,8 @@
+[hdc] gendev base r1 rc=0 decode 2373 ms (54.35 tok/s)
+[hdc] gendev dev r1 rc=0 decode 2269 ms (56.84 tok/s)
+[hdc] gendev base r2 rc=0 decode 2376 ms (54.29 tok/s)
+[hdc] gendev dev r2 rc=0 decode 2269 ms (56.84 tok/s)
+[hdc] gendev base r3 rc=0 decode 2378 ms (54.25 tok/s)
+[hdc] gendev dev r3 rc=0 decode 2274 ms (56.72 tok/s)
+[hdc] profdev dev rc=0 2026-10-27 15:21:59
+[hdc] attr w4 done 2026-10-27 15:21:59

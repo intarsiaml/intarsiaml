@@ -1,0 +1,5 @@
+pu-ref` |
+| `intarsia-kernels` crate | **planned** | does not exist; kernels live in `kernels/` |
+| `intarsia-models` crate | **planned** | does not exist; models live in `crates/intarsia-core/src/models` |
+| `intarsia-bench` crate | **planned** | does not exist; benchmarks live in `crates/intarsia-benchmarks` |
+| `intarsia-ffi` crate | **planned** | does not exist; the C ABI is a header, not a

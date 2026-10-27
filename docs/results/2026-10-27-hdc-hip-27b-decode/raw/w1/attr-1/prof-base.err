@@ -1,0 +1,85 @@
+W20261027 17:27:13.999369 138421357435584 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000459 sec
+W20261027 17:27:13.999797 138421357435584 simple_timer.cpp:55] [rocprofv3] '/work/hdc-base-cli generate --backend hip --model /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --tp 2 --devices 0,1 --max-seq 4096 --spec off --profile-every 0 --ignore-eos --max-tokens 130 -p # IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-c' ::     0.000000 sec
+W20261027 17:27:14.010447 138421357435584 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.6s: 64 layers, hidden 5120, act bf16, kv bf16, weights 10.29 GB, context 4096 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 997 tokens
+finish=length prompt=997 (cached 0) completion=130 | prefill 284 ms (3515.1 tok/s) | decode 2682 ms (48.10 tok/s)
+tensor parallel: 16898 all-reduces (129.0 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=131 graph replays=130 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/16898 argmax=0ms/130 attn_decode=0ms/2080 attn_prefill=0ms/16 embedding=0ms/131
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=130
+W20261027 17:27:19.696861 138421357435584 simple_timer.cpp:55] [rocprofv3] '/work/hdc-base-cli generate --backend hip --model /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --tp 2 --devices 0,1 --max-seq 4096 --spec off --profile-every 0 --ignore-eos --max-tokens 130 -p # IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-c' ::     5.697064 sec
+E20261027 17:27:19.718771 138421357435584 output_stream.cpp:111] Opened result file: /work/hdc-prof/base/k_kernel_stats.csv
+E20261027 17:27:19.718992 138421357435584 output_stream.cpp:111] Opened result file: /work/hdc-prof/base/k_kernel_trace.csv
+E20261027 17:27:20.002544 138421357435584 output_stream.cpp:111] Opened result file: /work/hdc-prof/base/k_agent_info.csv
+E20261027 17:27:20.002720 138421357435584 output_stream.cpp:111] Opened result file: /work/hdc-prof/base/k_domain_stats.csv
+W20261027 17:27:20.004947 138421357435584 simple_timer.cpp:55] [rocprofv3] output generation ::     0.306334 sec
+W20261027 17:27:20.005131 138421357435584 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.306529 sec
