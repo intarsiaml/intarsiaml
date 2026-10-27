@@ -2,10 +2,10 @@
 # G4X: one round of interleaved speed A/B arms for Gemma-4-26B-A4B-NVFP4 on spark2 (run INSIDE a fleetq slot, --quiet gpu,cpu,
 # --mem >= 30). A fresh `intarsia serve` per arm, `bench speed` is the only client.
 #   ab.sh <round> <name:binary[:ENV=VAL[,ENV=VAL]]> ...      SERVE_ARGS=--a=b+--c=d among the env entries adds `serve` arguments
-# Env: SIZES (128,1024,4096,16384) GEN (128) REPS (3) OUT (~/intarsiaml-g4x/out/ab) BENCH_ARGS (extra `bench speed` arguments)
+# Env: SIZES (128,1024,4096,16384) GEN (128) REPS (3) OUT (~/intarsiaml-g4x/replay-out/ab; replay-out survives the rsync --delete of scripts/deploy.sh) BENCH_ARGS (extra `bench speed` arguments)
 set -u
 M=${MODEL_DIR:-$HOME/models/Gemma-4-26B-A4B-NVFP4}; NAME=g4x; PORT=${PORT:-8091}
-SIZES=${SIZES:-128,1024,4096,16384}; GEN=${GEN:-128}; REPS=${REPS:-3}; OUT=${OUT:-$HOME/intarsiaml-g4x/out/ab}
+SIZES=${SIZES:-128,1024,4096,16384}; GEN=${GEN:-128}; REPS=${REPS:-3}; OUT=${OUT:-$HOME/intarsiaml-g4x/replay-out/ab}
 RND=$1; shift
 gb=$(( $(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024 / 1024 )); echo "MemAvailable ${gb} GB"; (( gb >= 45 )) || { echo "ABORT: memory"; exit 1; }
 for spec in "$@"; do

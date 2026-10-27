@@ -109,6 +109,12 @@ fn splitkv_ok(s: &ShapeInfo) -> bool {
         && s.n_heads / s.n_kv_heads <= 8
 }
 
+/// The ext split-KV kernels also take head_dim 512 (Gemma 4's global layers; 16 q heads over 2 kv heads), at most 8 q heads per kv head.
+fn splitkv_ext_ok(s: &ShapeInfo) -> bool {
+    splitkv_ok(s)
+        || (s.head_dim == 512 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0 && s.n_heads / s.n_kv_heads <= 8)
+}
+
 fn flash_ok(s: &ShapeInfo) -> bool {
     matches!(s.head_dim, 64 | 128 | 256) && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0
 }
@@ -434,7 +440,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .acts(bf)
                 .weights(bf)
                 .ext()
-                .when(|s| splitkv_ok(s) && s.m <= SPLITKV_MAX_ROWS)
+                .when(|s| splitkv_ext_ok(s) && s.m <= SPLITKV_MAX_ROWS)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(9)
@@ -1124,8 +1130,9 @@ mod tests {
         assert_eq!(pick(Op::AttnDecode, &att(1, 16, 8, 256, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnPrefill, &att(8, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_splitkv_ext"));
         assert_eq!(pick(Op::AttnPrefill, &att(64, 16, 8, 256, true)).as_deref(), Some("attn_prefill_bf16_ext"));
-        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, true)).as_deref(), Some("attn_decode_bf16_ext"));
-        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, false)).as_deref(), Some("attn_decode_bf16_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, true)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 16, 2, 512, false)).as_deref(), Some("attn_decode_bf16_splitkv_ext"));
+        assert_eq!(pick(Op::AttnDecode, &att(1, 32, 2, 512, true)).as_deref(), Some("attn_decode_bf16_ext"), "16 q heads per kv head: SIMT");
         assert_eq!(pick(Op::AttnPrefill, &att(20, 16, 2, 512, true)).as_deref(), Some("attn_prefill_bf16_ext"));
         let el = |ext: bool| ShapeInfo { m: 4, k: 64, head_dim: 64, act: bf, out: bf, ext, ..Default::default() };
         for (op, plain, extk) in [
