@@ -35,7 +35,7 @@ if ! grep -aq "^test result: ok. 4 passed; 0 failed" "$O/test-fold2.txt"; then l
 PC=$(sed -E "s/^head=([0-9a-f]+).*/\1/" <<< "$stamp")
 B4=/work/mx-out/qwen3.8-27b-mxfp4-hfquark-top20.hip.baseline.json
 E4=/work/mx-out/qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json
-A4="--golden $G27 --mode both --decode-positions 16 --max-seq 4096"
+A4="--mxfp4-act dynamic --golden $G27 --mode both --decode-positions 16 --max-seq 4096"
 acc4() { local to=$1 tag=$2; shift 2; run dev "$to" "$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 "$@"; }
 need 300 "record" && acc4 300 a4-record $A4 --ref-noise $N27 --write-baseline $B4 --write-self-golden /work/mx-out/a4-rec.safetensors
 need 300 "envelope" && acc4 300 a4-envelope $A4 --noise-ref $B4 --noise-perturb chunk --write-noise-envelope $E4 --allow-same-code

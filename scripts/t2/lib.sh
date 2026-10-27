@@ -55,7 +55,7 @@ PY
 acc() {
   local tree=$1 gpus=$2 tag=$3; shift 3
   run "$tree" "$gpus" 600 "acc-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both \
-    --ref-noise $N27 --write-self-golden /work/t2-out/acc-$tag.safetensors --allow-unstamped "$@"
+    --mxfp4-act dynamic --ref-noise $N27 --write-self-golden /work/t2-out/acc-$tag.safetensors --allow-unstamped "$@"
   mv "$(T "$tree")/t2-out/acc-$tag.safetensors" "$O/" 2>/dev/null
 }
 # self <tree> <gpus> <tag> <dump in $O> [args]: change vs base (--self-golden against the dump)

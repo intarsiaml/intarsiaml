@@ -777,9 +777,13 @@ impl Ctx {
     /// The MXFP4 activation mode a plain run of this model uses (no `--mxfp4-act`: the recipe's `[defaults] mxfp4_act`, else
     /// what the checkpoint declares); `None` for a model without an MXFP4 scheme.
     fn effective_mxfp4_act(&self) -> Option<intarsia_core::quant::Mxfp4Act> {
-        let declared = intarsia_models::load::read_quant_scheme(&self.a.model).ok()??.mxfp4_act()?;
+        let declared = self.declared_mxfp4_act()?;
         let recipe = self.recipe().and_then(|r| r.defaults.mxfp4_act);
         Some(intarsia_core::quant::mxfp4::effective_act(None, recipe, Some(declared)))
+    }
+    /// The MXFP4 activation mode the checkpoint declares (Quark `input_tensors`); `None` for a model without an MXFP4 scheme.
+    fn declared_mxfp4_act(&self) -> Option<intarsia_core::quant::Mxfp4Act> {
+        intarsia_models::load::read_quant_scheme(&self.a.model).ok()??.mxfp4_act()
     }
     fn acc_max_seq(&self, long: bool) -> usize {
         if long && !self.smoke() {
@@ -1511,9 +1515,12 @@ impl Ctx {
         args.extend(extra.iter().cloned());
         // An MXFP4 golden is a property of its activation mode: the engine is run in the mode the golden was made with (a W4A16
         // golden against a W4A4 run, or the reverse, is a different model about 0.14 KL21 away, not an engine error). The
-        // recipe's default only decides which golden `golden()` finds by name.
+        // recipe's default only decides which golden `golden()` finds by name. A golden that does not say (a reference server's, or
+        // made before the metadata) was made against the checkpoint's declared scheme; a self-golden dump is the engine's own and
+        // gets no flag.
         if self.effective_mxfp4_act().is_some() && !args.iter().any(|a| a == "--mxfp4-act") {
-            if let Some(act) = facts::golden_act(golden) {
+            let own = facts::golden_meta(golden, "self_golden").as_deref() == Some("1");
+            if let Some(act) = facts::golden_act(golden).or_else(|| if own { None } else { self.declared_mxfp4_act() }) {
                 args.extend(["--mxfp4-act".into(), act.name().into()]);
             }
         }

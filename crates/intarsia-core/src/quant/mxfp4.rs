@@ -10,7 +10,7 @@
 //! Activations: Quark's MXFP4 export declares `input_tensors` as dynamic MXFP4 too (W4A4): at run time every
 //! group of 32 consecutive activations along K is quantised to e2m1 with its own e8m0 scale and dequantised again
 //! (QDQ) before the dot product. [`Mxfp4Act::Dynamic`] runs that declared scheme; [`Mxfp4Act::None`] keeps the
-//! activations 16-bit (W4A16, opt-in, a deviation from the checkpoint). The op carries the mode as its fourth input,
+//! activations 16-bit (W4A16, a deviation from the checkpoint: the choice of `--mxfp4-act none` or a recipe's `[defaults] mxfp4_act`). The op carries the mode as its fourth input,
 //! `act [1] f32` (0 = 16-bit activations, 1 = dynamic MXFP4 QDQ), like FP8's `input_scale`.
 //!
 //! Activation scale, Quark `scale_calculation_mode = "even"`: round the group's amax at the element's mantissa width
@@ -41,7 +41,7 @@ pub enum Mxfp4Act {
     /// W4A4 (Quark's declared scheme): activations are QDQ'd to MXFP4 per group of 32 at run time.
     #[default]
     Dynamic,
-    /// W4A16: activations stay 16-bit (opt-in; a deviation from a W4A4 checkpoint).
+    /// W4A16: activations stay 16-bit (a deviation from a W4A4 checkpoint: `--mxfp4-act none`, or a recipe's default as in the Qwen3.8-27B's).
     None,
 }
 

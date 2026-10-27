@@ -27,7 +27,7 @@ for t in $D $B; do cp -rn "$HOME/intarsiaml-p1/p1-golden" "$(T $t)/" 2>/dev/null
 acc27() { # acc27 <tree> <gpus> <tag> [args]
   local tree=$1 gpus=$2 tag=$3; shift 3
   run "$tree" "$gpus" 600 "acc-$tag" accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both \
-    --ref-noise $N27 --write-self-golden /work/tp2-out/acc-$tag.safetensors --allow-unstamped "$@"
+    --mxfp4-act dynamic --ref-noise $N27 --write-self-golden /work/tp2-out/acc-$tag.safetensors --allow-unstamped "$@"
   mv "$(T "$tree")/tp2-out/acc-$tag.safetensors" "$O/" 2>/dev/null
 }
 self27() { # self27 <tree> <gpus> <tag> <dump in $O> [args]
