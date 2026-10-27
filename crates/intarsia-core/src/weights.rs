@@ -54,7 +54,8 @@ pub fn load_tensor(
     }
     let nbytes = info.shape.iter().product::<usize>() * info.dtype.size_bytes();
     if let Some((mem, off, len)) = src.host_memory(name) {
-        if len == nbytes {
+        // a file whose data starts at an odd byte (MLX writes unpadded safetensors headers) cannot back a bf16 / f32 buffer
+        if len == nbytes && off % info.dtype.size_bytes() == 0 {
             if let Some(buf) = backend.wrap_host(mem, off, len) {
                 return Ok(TensorRef::new(buf, info.dtype, &info.shape));
             }
@@ -191,7 +192,7 @@ pub fn load_tensor_shard(backend: &dyn Backend, src: &dyn WeightSource, name: &s
         let len = n / shard.world * k * esz;
         let off = shard.rank * len;
         if let Some((mem, moff, mlen)) = src.host_memory(name) {
-            if mlen == bytes.len() {
+            if mlen == bytes.len() && (moff + off) % esz == 0 {
                 if let Some(buf) = backend.wrap_host(mem, moff + off, len) {
                     return Ok(TensorRef::new(buf, info.dtype, &shape));
                 }

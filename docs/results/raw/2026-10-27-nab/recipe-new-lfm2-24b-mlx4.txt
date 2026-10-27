@@ -1,0 +1,22 @@
+not covered: no existing recipe handles this model (closest: 2/3 tensor templates resolve, quant: unknown(U32 weight without scales))
+  note: config.json: architectures ["Lfm2MoeForCausalLM"], family "lfm2_moe" (config.json model_type)
+  note: tensors: model.safetensors.index.json (870 tensors) + 3/3 shard headers
+  note: layer prefix model.layers.{i} (40 layers, matches num_hidden_layers)
+  note: quantisation: unknown(U32 weight without scales) (not implemented in full, see TODOs)
+  note: closest existing recipe: builtin:qwen3_5 (blocks {"attn", "ffn", "gdn"} vs inferred {"ffn"}; 2/3 tensor templates resolve; architecture differs; 1 tensor template(s) missing in the checkpoint, e.g. ["model.norm"]; layer 0: model error: layer 0 has type 'conv' but the recipe only maps ["full_attention", "linear_attention"]; config: model error: config.json missing 'rms_norm_eps' (no default is assumed); quantisation not implemented)
+wrote /private/tmp/claude-501/nab/lfm2.toml (13 TODO(recipe-new) item(s))
+13 item(s) need manual work:
+  1. model.norm_offset: closest recipe builtin:qwen3_5 uses norm_offset = 1.0 (zero-centred RMSNorm) but this is a different family; the checkpoint does not say, check the model's RMSNorm in transformers (x * w vs x * (1 + w))
+  2. config.json: model error: config.json missing 'rms_norm_eps' (no default is assumed); the engine reads the dimensions with the Hugging Face key names, map different names in a [config] table (docs/adding-a-model.md)
+  3. layer: layers 0 and 39 of type 'conv' have different tensors (only in 0: ["feed_forward.down_proj", "feed_forward.down_proj.biases", "feed_forward.gate_proj"]; only in 39: ["feed_forward.expert_bias", "feed_forward.gate", "feed_forward.switch_mlp.down_proj"]); one pattern cannot describe both (dense-then-MoE or similar), split them by layer type
+  4. layer: no attention or linear-attention block recognised (module groups in the layer: ["conv", "conv.in_proj", "conv.out_proj", "feed_forward", "feed_forward.down_proj", "feed_forward.gate_proj", "feed_forward.up_proj"]); a new block or a different tensor layout is needed
+  5. layer.ffn: type 'full_attention' names the ffn tensors differently from an earlier layer type (FfnT { parent: "feed_forward", gate: "feed_forward.gate_proj", up: "feed_forward.up_proj", down: "feed_forward.down_proj" } vs FfnT { parent: "feed_forward.switch_mlp", gate: "feed_forward.switch_mlp.gate_proj", up: "feed_forward.switch_mlp.up_proj", down: "feed_forward.switch_mlp.down_proj" }); one table cannot express both
+  6. layer: no attention or linear-attention block recognised (module groups in the layer: ["feed_forward", "feed_forward.switch_mlp", "feed_forward.switch_mlp.down_proj", "feed_forward.switch_mlp.gate_proj", "feed_forward.switch_mlp.up_proj", "self_attn", "self_attn.k_proj", "self_attn.out_proj", "self_attn.q_proj", "self_attn.v_proj"]); a new block or a different tensor layout is needed
+  7. top.final_norm: no final norm tensor (model.norm.weight or similar) in the checkpoint; name it
+  8. top: 2 checkpoint tensor(s) outside the layer stack are claimed by no block, e.g. ["model.embed_tokens.biases", "model.embedding_norm.weight"]; decide whether the model needs them
+  9. layer: 30 per-layer tensor(s) are claimed by no block, e.g. ["conv.conv.weight", "conv.in_proj.biases", "conv.in_proj.scales", "conv.in_proj.weight", "conv.out_proj.biases", "conv.out_proj.scales"] ... (relative to model.layers.<i>.); extra norms, biases or unknown modules need a block or an explicit decision to ignore them
+  10. quant: config quantization_config has neither quant_method nor quant_algo; the scheme is unknown
+  11. quant: tensor layout of model.layers.0.feed_forward.gate_proj not recognised: U32 weight without scales
+  12. quant: tensor layout of model.layers.0.feed_forward.up_proj not recognised: U32 weight without scales
+  13. quant: tensor layout of model.layers.0.feed_forward.down_proj not recognised: U32 weight without scales
+Error: 13 item(s) need manual work, see the TODO(recipe-new) markers in /private/tmp/claude-501/nab/lfm2.toml
