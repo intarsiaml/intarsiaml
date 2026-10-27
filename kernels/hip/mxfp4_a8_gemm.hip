@@ -97,9 +97,10 @@ struct A8Args {
 };
 
 // FOLD: runs when flag == 0 (every row foldable); !FOLD: runs when flag != 0. The other launch exits at once.
+// PD: global-load prefetch distance in stages (1: the next stage's data is in flight during this stage's WMMAs; 2: the one after, two register sets).
 // BK: k per stage, 64 (two groups) or 32 (one group); DIAG: 0 shipped, 1 = diagnostic build without the weight decode, 2 = without the WMMAs
 // (wrong results, timing only). The k order of every accumulator is the same for any BK: stages run in ascending k, a stage's WMMAs in k order.
-template <bool FOLD, int WN, int WM, int TN, int TM, int BK, int DIAG, typename OutT>
+template <bool FOLD, int WN, int WM, int TN, int TM, int BK, int DIAG, int PD, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* __restrict__ out) {
     if ((*a.flag == 0) != FOLD) return;
     constexpr int NT = WN * WM * IK_WARP;
@@ -124,8 +125,11 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
     const int64_t n_blk = (int64_t)blockIdx.y * BN;
     const int nk = (K + BK - 1) / BK, KG = K / kA8G;
 
-    uint4 rw[CW], rx[CX];
-    int rt[CW];  // FOLD: fold shift of the chunk's group; else: its e8m0 byte
+    struct Stage {
+        uint4 rw[CW], rx[CX];
+        int rt[CW];  // FOLD: fold shift of the chunk's group; else: its e8m0 byte
+    };
+    Stage st[PD];  // register sets of the stages in flight: stage k's data is in st[k % PD]
     int wr[CW];  // FOLD: row reference (largest scale byte)
 #pragma unroll
     for (int c = 0; c < CW; ++c) {
@@ -135,20 +139,20 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
             if (n < N) wr[c] = (int)a.wref[n];
         }
     }
-    auto gload = [&](int k0) {
+    auto gload = [&](Stage& st, int k0) {
 #pragma unroll
         for (int c = 0; c < CW; ++c) {
             const int idx = tid + c * NT, r = idx / GPK, ch = idx % GPK;
             const int64_t n = n_blk + r;
             const int kg = k0 + ch * kA8G;
             if (idx < CHW && n < N && kg < K) {
-                rw[c] = *reinterpret_cast<const uint4*>(w + n * (K / 2) + kg / 2);
+                st.rw[c] = *reinterpret_cast<const uint4*>(w + n * (K / 2) + kg / 2);
                 const int s = (int)ws[n * KG + kg / kA8G];
-                if constexpr (FOLD) rt[c] = s - wr[c] + 6;
-                else rt[c] = s;
+                if constexpr (FOLD) st.rt[c] = s - wr[c] + 6;
+                else st.rt[c] = s;
             } else {
-                rw[c] = make_uint4(0, 0, 0, 0);
-                rt[c] = FOLD ? 0 : 127;  // zero codes; a finite scale so 0 * scale stays 0
+                st.rw[c] = make_uint4(0, 0, 0, 0);
+                st.rt[c] = FOLD ? 0 : 127;  // zero codes; a finite scale so 0 * scale stays 0
             }
         }
 #pragma unroll
@@ -156,10 +160,10 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
             const int idx = tid + c * NT, r = idx / XPK, ch = idx % XPK;
             const int m = m_blk + r;
             const int k = k0 + ch * 16;
-            rx[c] = (idx < CHX && m < M && k < K) ? *reinterpret_cast<const uint4*>(xq + (int64_t)m * K + k) : make_uint4(0, 0, 0, 0);
+            st.rx[c] = (idx < CHX && m < M && k < K) ? *reinterpret_cast<const uint4*>(xq + (int64_t)m * K + k) : make_uint4(0, 0, 0, 0);
         }
     };
-    auto sstore = [&](int buf) {
+    auto sstore = [&](const Stage& st, int buf) {
 #pragma unroll
         for (int c = 0; c < CW; ++c) {
             const int idx = tid + c * NT;
@@ -167,18 +171,18 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
                 const int r = idx / GPK, ch = idx % GPK;
                 uint32_t t0 = kA8Tab0, t1 = kA8Tab1;
                 if constexpr (FOLD) {
-                    const int ti = min(max(rt[c], -8), 6) + 8;  // always in range when the flag is 0
+                    const int ti = min(max(st.rt[c], -8), 6) + 8;  // always in range when the flag is 0
                     t0 = kA8FoldTab[ti][0];
                     t1 = kA8FoldTab[ti][1];
                 } else {
-                    sS[(buf * GPK + ch) * BN + r] = a8_e8m0((uint32_t)rt[c]);
+                    sS[(buf * GPK + ch) * BN + r] = a8_e8m0((uint32_t)st.rt[c]);
                 }
                 uint2 p0, p1, p2, p3;
                 if constexpr (DIAG == 1) {  // no decode: the raw code bytes
-                    p0 = make_uint2(rw[c].x, rw[c].y), p1 = make_uint2(rw[c].z, rw[c].w), p2 = p0, p3 = p1;
+                    p0 = make_uint2(st.rw[c].x, st.rw[c].y), p1 = make_uint2(st.rw[c].z, st.rw[c].w), p2 = p0, p3 = p1;
                 } else {
-                    p0 = a8_fold8(rw[c].x, t0, t1), p1 = a8_fold8(rw[c].y, t0, t1);
-                    p2 = a8_fold8(rw[c].z, t0, t1), p3 = a8_fold8(rw[c].w, t0, t1);
+                    p0 = a8_fold8(st.rw[c].x, t0, t1), p1 = a8_fold8(st.rw[c].y, t0, t1);
+                    p2 = a8_fold8(st.rw[c].z, t0, t1), p3 = a8_fold8(st.rw[c].w, t0, t1);
                 }
                 uint8_t* p = &sw[buf][r * kLD + ch * kA8G];
                 *reinterpret_cast<uint4*>(p) = make_uint4(p0.x, p0.y, p1.x, p1.y);
@@ -188,7 +192,7 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
 #pragma unroll
         for (int c = 0; c < CX; ++c) {
             const int idx = tid + c * NT;
-            if (idx < CHX) *reinterpret_cast<uint4*>(&sx[buf][(idx / XPK) * kLD + (idx % XPK) * 16]) = rx[c];
+            if (idx < CHX) *reinterpret_cast<uint4*>(&sx[buf][(idx / XPK) * kLD + (idx % XPK) * 16]) = st.rx[c];
         }
     };
 
@@ -200,14 +204,19 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
 #pragma unroll
             for (int e = 0; e < 8; ++e) acc[i][j][e] = 0.f;
 
-    gload(0);
-    sstore(0);
+    gload(st[0], 0);
+    sstore(st[0], 0);
+#pragma unroll
+    for (int p = 1; p < PD; ++p)
+        if (p < nk) gload(st[p], p * BK);
     __syncthreads();
     const int lr = lane & 15, lh = (lane >> 4) * 16;
     const int ln = (lane >> 4) * 8;  // C fragment: lane holds token lr and features ln + e, e = 0..7
-    for (int kt = 0; kt < nk; ++kt) {
+    // one stage: `nx` holds the data of stage kt + 1 (stored into the other LDS buffer after the WMMAs), `ld` is the register set of stage kt
+    // (already stored) and receives the loads of stage kt + PD, issued before the WMMAs (PD 1: nx and ld are the same set)
+    auto step = [&](int kt, Stage& nx, Stage& ld) {
         const int buf = kt & 1;
-        if (kt + 1 < nk) gload((kt + 1) * BK);
+        if (kt + PD < nk) gload(ld, (kt + PD) * BK);
 #pragma unroll
         for (int kk = 0; kk < BK; kk += 32) {
             uint4 af[TN], bf[TM];
@@ -258,8 +267,13 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
                     }
             }
         }
-        if (kt + 1 < nk) sstore(buf ^ 1);
+        if (kt + 1 < nk) sstore(nx, buf ^ 1);
         __syncthreads();
+    };
+    for (int kt0 = 0; kt0 < nk; kt0 += PD) {
+#pragma unroll
+        for (int u = 0; u < PD; ++u)
+            if (kt0 + u < nk) step(kt0 + u, st[(u + 1) % PD], st[u]);
     }
 
 #pragma unroll
@@ -298,22 +312,22 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
     }
 }
 
-template <bool FOLD, int WN, int WM, int TN, int TM, int BK = 64, int DIAG = 0, typename OutT>
+template <bool FOLD, int WN, int WM, int TN, int TM, int BK = 64, int DIAG = 0, int PD = 1, typename OutT>
 void a8_enqueue(const A8Args& a, OutT* out, hipStream_t s) {
     dim3 grid((unsigned)(((int64_t)a.M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((a.N + WN * TN * 16 - 1) / (WN * TN * 16)));
-    a8_gemm_kernel<FOLD, WN, WM, TN, TM, BK, DIAG, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
+    a8_gemm_kernel<FOLD, WN, WM, TN, TM, BK, DIAG, PD, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
 }
 
-// INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,BK[,DIAG]] and INTARSIA_HIP_MXFP4_A8_PERGROUP=1, read once
+// INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,BK[,DIAG[,PD]]] and INTARSIA_HIP_MXFP4_A8_PERGROUP=1, read once
 struct A8Cfg {
-    int tile[6] = {0, 0, 0, 0, 64, 0};
+    int tile[7] = {0, 0, 0, 0, 64, 0, 1};
     int pergroup = 0;
 };
 const A8Cfg& a8_cfg() {
     static const A8Cfg cfg = [] {
         A8Cfg c;
         const char* e = getenv("INTARSIA_HIP_MXFP4_A8_TILE");
-        if (e && sscanf(e, "%d,%d,%d,%d,%d,%d", &c.tile[0], &c.tile[1], &c.tile[2], &c.tile[3], &c.tile[4], &c.tile[5]) < 4) c.tile[0] = 0;
+        if (e && sscanf(e, "%d,%d,%d,%d,%d,%d,%d", &c.tile[0], &c.tile[1], &c.tile[2], &c.tile[3], &c.tile[4], &c.tile[5], &c.tile[6]) < 4) c.tile[0] = 0;
         const char* g = getenv("INTARSIA_HIP_MXFP4_A8_PERGROUP");
         c.pergroup = (g && g[0] == '1') ? 1 : 0;
         return c;
@@ -331,41 +345,53 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
         a8_enqueue<false, WN, WM, TN, TM>(a, out, s);   \
         return;                                         \
     }
-#define IK_A8_TILE_V(WN, WM, TN, TM, BK, DIAG)                  \
-    {                                                           \
-        a8_enqueue<true, WN, WM, TN, TM, BK, DIAG>(a, out, s);  \
-        a8_enqueue<false, WN, WM, TN, TM, BK, DIAG>(a, out, s); \
-        return;                                                 \
+#define IK_A8_TILE_V(WN, WM, TN, TM, BK, DIAG, PD)                  \
+    {                                                                \
+        a8_enqueue<true, WN, WM, TN, TM, BK, DIAG, PD>(a, out, s);   \
+        a8_enqueue<false, WN, WM, TN, TM, BK, DIAG, PD>(a, out, s);  \
+        return;                                                      \
     }
     const int* t = a8_cfg().tile;
     if (t[0] > 0) {
         const int key = t[0] * 1000 + t[1] * 100 + t[2] * 10 + t[3];
-        if (t[5] == 0) {
-            if (t[4] == 64) {
-                if (key == 4442) {
-                    a8_enqueue<true, 4, 4, 4, 2>(a, out, s);
-                    a8_enqueue<false, 4, 4, 2, 4>(a, out, s);
-                    return;
-                }
-                if (key == 4424) IK_A8_TILE(4, 4, 2, 4)
-                if (key == 4224) IK_A8_TILE(4, 2, 2, 4)
-                if (key == 2244) IK_A8_TILE(2, 2, 4, 4)
-            } else if (t[4] == 32) {
-                if (key == 4444) IK_A8_TILE_V(4, 4, 4, 4, 32, 0)
-                if (key == 4244) IK_A8_TILE_V(4, 2, 4, 4, 32, 0)
-                if (key == 2444) IK_A8_TILE_V(2, 4, 4, 4, 32, 0)
-                if (key == 4442) IK_A8_TILE_V(4, 4, 4, 2, 32, 0)
-                if (key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 32, 0)
+        if (t[4] == 64 && t[5] == 0 && t[6] == 1) {
+            if (key == 4442) {
+                a8_enqueue<true, 4, 4, 4, 2>(a, out, s);
+                a8_enqueue<false, 4, 4, 2, 4>(a, out, s);
+                return;
             }
-        } else if (t[5] == 1 && t[4] == 64 && key == 4424) {
-            IK_A8_TILE_V(4, 4, 2, 4, 64, 1)
-        } else if (t[5] == 2 && t[4] == 64 && key == 4424) {
-            IK_A8_TILE_V(4, 4, 2, 4, 64, 2)
-        } else if (t[5] == 1 && t[4] == 32 && key == 4444) {
-            IK_A8_TILE_V(4, 4, 4, 4, 32, 1)
-        } else if (t[5] == 2 && t[4] == 32 && key == 4444) {
-            IK_A8_TILE_V(4, 4, 4, 4, 32, 2)
+            if (key == 4424) IK_A8_TILE(4, 4, 2, 4)
+            if (key == 4224) IK_A8_TILE(4, 2, 2, 4)
+            if (key == 2244) IK_A8_TILE(2, 2, 4, 4)
         }
+        if (t[4] == 64 && t[5] == 0 && t[6] == 2) {
+            if (key == 4442) {
+                a8_enqueue<true, 4, 4, 4, 2, 64, 0, 2>(a, out, s);
+                a8_enqueue<false, 4, 4, 2, 4, 64, 0, 2>(a, out, s);
+                return;
+            }
+            if (key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 64, 0, 2)
+            if (key == 4224) IK_A8_TILE_V(4, 2, 2, 4, 64, 0, 2)
+        }
+        if (t[4] == 64 && t[5] == 0 && t[6] == 3) {
+            if (key == 4442) {
+                a8_enqueue<true, 4, 4, 4, 2, 64, 0, 3>(a, out, s);
+                a8_enqueue<false, 4, 4, 2, 4, 64, 0, 3>(a, out, s);
+                return;
+            }
+            if (key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 64, 0, 3)
+        }
+        if (t[4] == 32 && t[5] == 0 && t[6] == 2) {
+            if (key == 4442) IK_A8_TILE_V(4, 4, 4, 2, 32, 0, 2)
+            if (key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 32, 0, 2)
+        }
+        if (t[4] == 32 && t[5] == 0 && t[6] == 1) {
+            if (key == 4444) IK_A8_TILE_V(4, 4, 4, 4, 32, 0, 1)
+            if (key == 4442) IK_A8_TILE_V(4, 4, 4, 2, 32, 0, 1)
+            if (key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 32, 0, 1)
+        }
+        if (t[5] == 1 && t[4] == 64 && key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 64, 1, 1)
+        if (t[5] == 2 && t[4] == 64 && key == 4424) IK_A8_TILE_V(4, 4, 2, 4, 64, 2, 1)
     }
     // ik_f8_gemm.h's f8_gemm_run table (weights x tokens), as the fold launch
     if (a.M <= 64) IK_A8_TILE(4, 1, 2, 2)

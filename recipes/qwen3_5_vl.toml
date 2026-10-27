@@ -111,3 +111,10 @@ prefill_peel = 16
 # take the model chunk, 2048). A 2048-row chunk stalls the decoding streams for 650 ms (max inter-token gap, 4k prompt arriving beside one stream), 256 rows
 # for 135 ms, the base build's number. Alone, a prompt still prefills in 2048-row chunks.
 busy_chunk = 256
+# bf16 all-reduce partials at tensor parallelism (the row-parallel o / down / gdn-out projections reduce bf16 partials in place, 2 B per element
+# instead of the f32 partial's 4 B): the 4k prefill all-reduce is 35 % of the pass on the 2 x R9700 PCIe link (28 GB/s). Prefill +17 / +18 / +17 %
+# (1k / 4k / 16k, 6 interleaved rounds, MTP k2). Gates (docs/results/2026-10-27-tpb-hip-tp-partials.md): MMLU n=1425 0.8218 (f32 partials 0.8204;
+# paired 13 vs 15 questions), KL to the W4A16 golden x1.06 (prefill) / x1.24 (decode) of the f32 partials', MTP spec-on == spec-off texts 18/18,
+# batched == solo, decode level (spec-off x1.002 / x1.001). The greedy ids differ from the f32 partials' on most prompts (rounding changes which
+# near-tie token wins), so this is an accuracy-neutral change, not a bitwise one. `INTARSIA_TP_PARTIAL=f32` opts out.
+tp_partial = "bf16"

@@ -8,7 +8,7 @@ IFS=';' read -ra V <<< "${GEMMV:-default}"
 for v in "${V[@]}"; do
   e="A=1"; [ -n "$v" ] && [ "$v" != default ] && e="INTARSIA_HIP_MXFP4_A8_TILE=$v"
   echo "== variant ${v:-default}"
-  if [ "${CHECK:-0}" = 1 ]; then
+  if [ "${CHECK:-0}" = 1 ] && [[ $v != *,*,*,*,*,[12] ]]; then
     G=0 gpu 600 env $e cargo test --release -p intarsia-backend-hip --test mxfp4_a8 -- a8_kernels_match a8_mma_rows a8_mma_wide 2>&1 | grep -aE "^test |test result|panicked|rel_l2|differ" | head -12
   fi
   G=0 gpu 600 env $e cargo test --release -p intarsia-backend-hip --test mxfp4_a8 -- --ignored --nocapture timing_a8_tp2 2>&1 | grep -aE "^TIME|panicked|error" | head -14
