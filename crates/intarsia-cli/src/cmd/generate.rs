@@ -218,6 +218,10 @@ pub fn run(args: GenerateArgs) -> Result<()> {
             (t.spec_steps + t.spec_accepted) as f64 / t.spec_steps.max(1) as f64,
         );
     }
+    let macro_passes = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+    if macro_passes > 0 {
+        eprintln!("macro prefill passes={macro_passes}");
+    }
     eprintln!(
         "steps={} graph replays={} (captures {}) eager decode steps={} (profiled {}) top ops: {}",
         t.steps_total,

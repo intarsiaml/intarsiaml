@@ -490,7 +490,7 @@ pub struct Model {
     macro_passes: std::sync::atomic::AtomicU64,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
     /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
-    /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
+    /// the final norm). Single rank only, and not for a state with a drafter (MTP head, DFlash), which reads the chunk's hidden rows. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
     skip_dead: std::sync::atomic::AtomicBool,
     /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
     tail_dead: std::sync::atomic::AtomicBool,
@@ -2343,7 +2343,9 @@ impl Model {
                 HeadMode::AllLogits => true,
                 HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
-            let dead = !feeds_head && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
+            // ... unless a drafter consumes the chunk's final-normed hidden rows (the MTP head's `hn`, the DFlash taps): then they are live
+            let drafter = st.mtp.is_some() || st.dflash.is_some();
+            let dead = !feeds_head && !drafter && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
             self.tail_dead.store(dead, std::sync::atomic::Ordering::Relaxed);
             let hn = self.run_chunk(st, chunk, profile);
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
