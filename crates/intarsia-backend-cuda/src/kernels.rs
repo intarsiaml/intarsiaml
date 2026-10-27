@@ -275,6 +275,23 @@ pub fn mxfp4_mma_priority(on: i32) -> i32 {
     }
 }
 
+/// The multi-row W4A16 GEMV for the 27B's MXFP4 projections at M = 2..=4 (`matmul_mxfp4_gemv_mr` and its `exact_rows` twin
+/// `matmul_mxfp4_gemv_mr_rows`, kernels/cuda/mxfp4.cu): bitwise the one-row GEMV per element, faster for the MTP verify and batched
+/// steps (docs/results/2026-10-27-cgv-cuda-mxfp4-gemv.md). `INTARSIA_CUDA_MXFP4_GEMV_MR=0` keeps `matmul_mxfp4_gemv[_rows]`. Read once.
+pub fn mxfp4_gemv_mr() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_MXFP4_GEMV_MR").map_or(true, |v| v != "0"))
+}
+
+/// Priority of `matmul_mxfp4_gemv_mr[_rows]`: `on` unless switched off, below everything then.
+pub fn mxfp4_gemv_mr_priority(on: i32) -> i32 {
+    if mxfp4_gemv_mr() {
+        on
+    } else {
+        -10
+    }
+}
+
 /// `INTARSIA_CUDA_FP8_GEMM_F8=1` selects the e4m3 tensor-core W8A8 GEMM (`matmul_fp8_gemm_f8`, every M >= 5) without the
 /// lanes GDN kernel that `INTARSIA_CUDA_FAST_PREFILL=1` also turns on; `INTARSIA_CUDA_FAST_PREFILL=1` still selects it as
 /// before. Opt-in: docs/results/2026-10-19-cuda-prefill-4.md.
@@ -1070,6 +1087,8 @@ mod tests {
         "matmul_fp8_pair_gemm_reg:matmul_fp8_pair",
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
+        "matmul_mxfp4_gemv_mr:matmul_mxfp4",
+        "matmul_mxfp4_gemv_mr_rows:matmul_mxfp4",
         "matmul_mxfp4_gemv_rows:matmul_mxfp4",
         "matmul_mxfp4_mma:matmul_mxfp4",
         "matmul_nvfp4_gemm:matmul_nvfp4",

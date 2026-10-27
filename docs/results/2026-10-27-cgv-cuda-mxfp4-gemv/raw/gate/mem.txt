@@ -1,0 +1,16 @@
+main-off r1: MemAvailable 66132 MB with the server up
+dev-off r1: MemAvailable 65496 MB with the server up
+main-on r1: MemAvailable 64831 MB with the server up
+dev-on r1: MemAvailable 63074 MB with the server up
+dev-on r2: MemAvailable 64772 MB with the server up
+main-on r2: MemAvailable 64826 MB with the server up
+dev-off r2: MemAvailable 66209 MB with the server up
+main-off r2: MemAvailable 66188 MB with the server up
+main-off r3: MemAvailable 66173 MB with the server up
+dev-off r3: MemAvailable 66233 MB with the server up
+main-on r3: MemAvailable 64786 MB with the server up
+dev-on r3: MemAvailable 64764 MB with the server up
+dev-on r4: MemAvailable 64790 MB with the server up
+main-on r4: MemAvailable 64833 MB with the server up
+dev-off r4: MemAvailable 66199 MB with the server up
+main-off r4: MemAvailable 66189 MB with the server up

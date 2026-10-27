@@ -1,0 +1,9 @@
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_mxfp4   matmul_mxfp4_gemv              75      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_rows         75      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               10      0    3.401e-3    5.797e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_mr           12      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_mr_rows      12      0    1.042e-3    2.991e-5  ADMITTED
+5 kernels, 184 cases in 4.1s

@@ -1,0 +1,447 @@
+{
+  "model": "nvidia/Gemma-4-26B-A4B-NVFP4",
+  "backend": "cuda",
+  "device": {
+    "name": "NVIDIA GB10",
+    "mem_total": 130663231488,
+    "arch": "sm_121"
+  },
+  "tp": null,
+  "exactness": "fast",
+  "layers": [
+    {
+      "index": 0,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 1,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 2,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 3,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 4,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 5,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 6,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 7,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 8,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 9,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 10,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 11,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 12,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 13,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 14,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 15,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 16,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 17,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 18,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 19,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 20,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 21,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 22,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 23,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 24,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 25,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 26,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 27,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 28,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    },
+    {
+      "index": 29,
+      "kind": "gemma4_layer",
+      "blocks": [
+        "gemma4_layer"
+      ]
+    }
+  ],
+  "ops": [
+    {
+      "op": "embedding",
+      "kernel": "embedding_scaled_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm",
+      "kernel": "rmsnorm_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 241,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "add",
+      "kernel": "add_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 60,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "add",
+      "kernel": "add_scaled_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "qk_norm",
+      "kernel": "qk_norm_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 90,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rope",
+      "kernel": "rope_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 50,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rope",
+      "kernel": "rope_prop_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul",
+      "kernel": "matmul_bf16",
+      "backend": "cuda",
+      "exactness": "fast",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul",
+      "kernel": "matmul_bf16_gemv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 235,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "logits",
+      "kernel": "logits_bf16",
+      "backend": "cuda",
+      "exactness": "fast",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "logits",
+      "kernel": "logits_bf16_gemv",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "kv_append",
+      "kernel": "kv_append_bf16",
+      "backend": "cuda",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 60,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_prefill",
+      "kernel": "attn_prefill_bf16_ext",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_prefill",
+      "kernel": "attn_prefill_bf16_splitkv_ext",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 4605440
+    },
+    {
+      "op": "attn_decode",
+      "kernel": "attn_decode_bf16_splitkv_ext",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 2105344
+    },
+    {
+      "op": "argmax",
+      "kernel": "argmax_f32",
+      "backend": "cuda",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_topk",
+      "kernel": "moe_topk_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_experts",
+      "kernel": "moe_experts_decode_v2_gelu_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 11264
+    },
+    {
+      "op": "moe_experts",
+      "kernel": "moe_experts_gelu_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 57705984
+    },
+    {
+      "op": "gelu_glu",
+      "kernel": "gelu_glu_bf16",
+      "backend": "cuda",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    }
+  ],
+  "act_dtype": "bf16",
+  "kv_dtype": "bf16",
+  "scratch_bytes": 57705984,
+  "prefill_chunk": 1024,
+  "probed_sizes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    31,
+    32,
+    33,
+    63,
+    64,
+    65,
+    127,
+    128,
+    129,
+    255,
+    256,
+    257,
+    511,
+    512,
+    513,
+    1023,
+    1024
+  ],
+  "require_admitted": false,
+  "reference_only": false,
+  "prefill_chunk_source": "recipe gemma4, cuda"
+}

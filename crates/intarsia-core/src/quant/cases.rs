@@ -547,6 +547,17 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         );
                     }
                 }
+                // 2 to 4 rows with N tails (CUDA's multi-row GEMV `matmul_mxfp4_gemv_mr`, 2 or 4 output rows per warp), appended again so the cases
+                // above keep their data: N odd and not a multiple of 4, N = 1 and 3 (the tail warp's missing rows land in the next activation row's first output), K of 2 to 8 groups.
+                let few: &[(usize, usize, usize)] = if quick { &[(3, 135, 160), (4, 137, 256), (2, 1, 64), (3, 3, 96)] } else { &[(2, 136, 256), (3, 135, 160), (4, 137, 256), (2, 1, 64), (3, 3, 96), (3, 1000, 512), (2, 5120, 5120), (4, 5120, 5120)] };
+                for &(m, n, k) in few {
+                    for odt in [DType::Bf16, DType::F32] {
+                        push(
+                            format!("M={m} N={n} K={k} x=bf16 out={odt} act=none (w4a16)"),
+                            matmul_mxfp4_w4a16_case(&mut rng, m, n, k, DType::Bf16, odt),
+                        );
+                    }
+                }
             }
         }
         Op::MoeTopk => {

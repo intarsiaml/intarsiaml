@@ -1,0 +1,52 @@
+short-0 base-off: finish=length prompt=41 (cached 0) completion=256 | prefill 247 ms (165.9 tok/s) | decode 18717 ms (13.62 tok/s)
+short-0 dev-off: finish=length prompt=41 (cached 0) completion=256 | prefill 213 ms (192.5 tok/s) | decode 18799 ms (13.56 tok/s)
+short-0 dev0-off: finish=length prompt=41 (cached 0) completion=256 | prefill 193 ms (212.8 tok/s) | decode 18575 ms (13.73 tok/s)
+short-0 base-mtp: finish=length prompt=41 (cached 0) completion=256 | prefill 333 ms (123.0 tok/s) | decode 10503 ms (24.28 tok/s)
+short-0 dev-mtp: finish=length prompt=41 (cached 0) completion=256 | prefill 320 ms (128.2 tok/s) | decode 9876 ms (25.82 tok/s)
+short-1 base-off: finish=length prompt=34 (cached 0) completion=256 | prefill 191 ms (177.6 tok/s) | decode 18550 ms (13.75 tok/s)
+short-1 dev-off: finish=length prompt=34 (cached 0) completion=256 | prefill 192 ms (176.9 tok/s) | decode 18561 ms (13.74 tok/s)
+short-1 dev0-off: finish=length prompt=34 (cached 0) completion=256 | prefill 192 ms (176.8 tok/s) | decode 18570 ms (13.73 tok/s)
+short-1 base-mtp: finish=length prompt=34 (cached 0) completion=256 | prefill 329 ms (103.2 tok/s) | decode 11039 ms (23.10 tok/s)
+short-1 dev-mtp: finish=length prompt=34 (cached 0) completion=256 | prefill 331 ms (102.7 tok/s) | decode 10385 ms (24.55 tok/s)
+mid-0 base-off: finish=length prompt=556 (cached 0) completion=256 | prefill 783 ms (710.4 tok/s) | decode 18604 ms (13.71 tok/s)
+mid-0 dev-off: finish=length prompt=556 (cached 0) completion=256 | prefill 782 ms (710.7 tok/s) | decode 18586 ms (13.72 tok/s)
+mid-0 dev0-off: finish=length prompt=556 (cached 0) completion=256 | prefill 784 ms (709.3 tok/s) | decode 18577 ms (13.73 tok/s)
+mid-0 base-mtp: finish=length prompt=556 (cached 0) completion=256 | prefill 798 ms (696.6 tok/s) | decode 9155 ms (27.85 tok/s)
+mid-0 dev-mtp: finish=length prompt=556 (cached 0) completion=256 | prefill 797 ms (697.5 tok/s) | decode 8607 ms (29.63 tok/s)
+4k-0 base-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 4640 ms (834.0 tok/s) | decode 18912 ms (13.48 tok/s)
+4k-0 dev-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 4645 ms (833.2 tok/s) | decode 18903 ms (13.49 tok/s)
+4k-0 dev0-off: finish=length prompt=3870 (cached 0) completion=256 | prefill 4623 ms (837.0 tok/s) | decode 18907 ms (13.49 tok/s)
+4k-0 base-mtp: finish=length prompt=3870 (cached 0) completion=256 | prefill 4663 ms (830.0 tok/s) | decode 9658 ms (26.40 tok/s)
+4k-0 dev-mtp: finish=length prompt=3870 (cached 0) completion=256 | prefill 4654 ms (831.5 tok/s) | decode 9094 ms (28.04 tok/s)
+short-0 (prompt tokens 41): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  base-mtp vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  dev0-mtp: missing
+  dev-mtp vs base-mtp: IDENTICAL
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+short-1 (prompt tokens 34): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  base-mtp vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  dev0-mtp: missing
+  dev-mtp vs base-mtp: IDENTICAL
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+mid-0 (prompt tokens 556): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  base-mtp vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  dev0-mtp: missing
+  dev-mtp vs base-mtp: IDENTICAL
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL
+4k-0 (prompt tokens 3870): base-off 256 ids
+  dev-off vs base-off: IDENTICAL
+  dev0-off vs base-off: IDENTICAL
+  base-mtp vs base-off: IDENTICAL
+  dev-mtp vs base-off: IDENTICAL
+  dev0-mtp: missing
+  dev-mtp vs base-mtp: IDENTICAL
+  dev-mtp vs dev-off (spec-on == spec-off): IDENTICAL

@@ -1,0 +1,10 @@
+prompt: 4210 tokens
+finish=length prompt=4210 (cached 0) completion=192 | prefill 5092 ms (826.8 tok/s) | decode 7893 ms (24.20 tok/s)
+spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+steps=95 graph replays=77 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/171 argmax=0ms/231 attn_decode=0ms/3962 attn_prefill=0ms/272 embedding=0ms/266
+gen.err
+gen.out
+nsys.nsys-rep
+nsys.sqlite
+prompt.txt
+trace_cuda_gpu_trace.csv

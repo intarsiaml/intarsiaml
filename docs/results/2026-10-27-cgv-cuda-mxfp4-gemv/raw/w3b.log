@@ -1,0 +1,54 @@
+== kernels test 14:31:17
+rc=0
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_mxfp4   matmul_mxfp4_gemv              75      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_rows         75      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               10      0    3.401e-3    5.797e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_mr           12      0    1.042e-3    2.991e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_mr_rows      12      0    1.042e-3    2.991e-5  ADMITTED
+5 kernels, 184 cases in 4.1s
+rc=0
+81 kernels, 569 cases in 5.9s
+== verify variants 14:31:29
+== variant a (INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 14:31:29
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.64s
+== variant b (INTARSIA_CUDA_MXFP4_GEMV_MR=0) 14:32:31
+rc=101
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+DIFF len=1024 q=4: max|dlogit|=1.0042095e-1 argmax mismatches=0
+len=1024: q=2..=4 checked
+DIFF len=4000 q=2: max|dlogit|=4.1837215e-2 argmax mismatches=0
+DIFF len=4000 q=3: max|dlogit|=8.797932e-2 argmax mismatches=0
+DIFF len=4000 q=4: max|dlogit|=1.1469746e-1 argmax mismatches=0
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=4 argmax_flips=0 worst_abs_logit_diff=1.1469746e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.28s
+== variant c (INTARSIA_CUDA_MXFP4_GEMV_MR=0 INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 14:33:34
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.41s
+== done 14:34:36
+== mutants 14:34:37
+clean: matmul_mxfp4   matmul_mxfp4_gemv_mr           12      0    1.042e-3    2.991e-5  ADMITTED | matmul_mxfp4   matmul_mxfp4_gemv_mr_rows      12      0    1.042e-3    2.991e-5  ADMITTED | 5 kernels, 184 cases in 4.0s
+x-row-stride: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=2.211e26 rel_l2=1.810e26 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=3.019e36 rel_l2=1.827e36 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   
+scale-row-of-r: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=5.595e-1 rel_l2=5.069e-1 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=6.293e-1 rel_l2=5.638e-1 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   
+weight-row-of-r: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=1.012e0 rel_l2=9.011e-1 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=1.130e0 rel_l2=8.901e-1 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   ma
+store-column: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=1.207e0 rel_l2=1.262e0 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=1.103e0 rel_l2=1.202e0 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_
+group-scale: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=5.000e-1 rel_l2=5.000e-1 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=5.000e-1 rel_l2=5.000e-1 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   
+e8m0-of-wrong-row: CAUGHT: FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=5.595e-1 rel_l2=5.069e-1 M=2 N=136 K=256 x=bf16 out=bf16 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   max_abs=6.293e-1 rel_l2=5.638e-1 M=2 N=136 K=256 x=bf16 out=f32 act=none (w4a16) |   FAIL matmul_mxfp4   matmul_mxfp4_gemv_mr   
+tail-store-guard: SURVIVED: matmul_mxfp4   matmul_mxfp4_gemv_mr           12      0    1.042e-3    2.991e-5  ADMITTED | matmul_mxfp4   matmul_mxfp4_gemv_mr_rows      12      0    1.042e-3    2.991e-5  ADMITTED | 5 kernels, 184 cases in 4.0s
+tail-row-clamp: SURVIVED: matmul_mxfp4   matmul_mxfp4_gemv_mr           12      0    1.042e-3    2.991e-5  ADMITTED | matmul_mxfp4   matmul_mxfp4_gemv_mr_rows      12      0    1.042e-3    2.991e-5  ADMITTED | 5 kernels, 184 cases in 4.0s
+== W3b done 14:42:33

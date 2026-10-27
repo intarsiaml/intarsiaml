@@ -1,0 +1,9 @@
+decode kernels 205516; mxfp4 GEMV total 11374.9 ms
+kernel  grid.x  calls  median_us  mean_us  total_ms
+gemv     2176  24448     207.0    210.7    5150.7
+gemv      640  24448     204.3    149.7    3659.5
+gemv     1280   9168     124.5    126.6    1160.7
+gemv      768   9168      77.0     78.6     720.7
+gemv     1536   3056     147.8    150.4     459.6
+gemv        6  18336       5.9      6.1     112.6
+gemv      128   6112      17.6     18.2     111.1

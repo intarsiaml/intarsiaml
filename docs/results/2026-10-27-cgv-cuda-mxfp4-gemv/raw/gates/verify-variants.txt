@@ -1,0 +1,29 @@
+== variant a (INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 14:31:29
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.64s
+== variant b (INTARSIA_CUDA_MXFP4_GEMV_MR=0) 14:32:31
+rc=101
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+DIFF len=1024 q=4: max|dlogit|=1.0042095e-1 argmax mismatches=0
+len=1024: q=2..=4 checked
+DIFF len=4000 q=2: max|dlogit|=4.1837215e-2 argmax mismatches=0
+DIFF len=4000 q=3: max|dlogit|=8.797932e-2 argmax mismatches=0
+DIFF len=4000 q=4: max|dlogit|=1.1469746e-1 argmax mismatches=0
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=4 argmax_flips=0 worst_abs_logit_diff=1.1469746e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.28s
+== variant c (INTARSIA_CUDA_MXFP4_GEMV_MR=0 INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1) 14:33:34
+rc=0
+len=17: q=2..=4 checked
+len=130: q=2..=4 checked
+len=1024: q=2..=4 checked
+len=4000: q=2..=4 checked
+PROBE_RESULT rows=100 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.41s
+== done 14:34:36
