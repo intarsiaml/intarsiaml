@@ -67,6 +67,9 @@ fn macro_split_ops() -> Result<Vec<Op>> {
 
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
+/// `INTARSIA_TP_PARTIAL=bf16-prefill`: passes of at most this many rows (decode, MTP verify, batched decode, the peeled prefill tails) keep f32
+/// partials; longer passes (prefill chunks) reduce bf16 partials in place. Equal to the prefill peel's 16-row bound.
+const TP_PARTIAL_F32_ROWS: usize = 16;
 
 #[derive(Clone, Debug)]
 pub struct LoadOptions {
@@ -230,6 +233,10 @@ struct Workspace {
     /// Tensor parallelism: f32 `[max_tokens, hidden]` partial results of the row-parallel projections (o, down),
     /// reduced into the bf16 activation buffer with a single rounding. None: bf16 partials reduced in place.
     part: Option<Buffer>,
+    /// With `part` set: passes of MORE than this many rows reduce bf16 partials in place anyway (`INTARSIA_TP_PARTIAL=bf16-prefill`: prefill
+    /// chunks halve their all-reduce bytes, decode and verify steps of at most [`TP_PARTIAL_F32_ROWS`] rows keep f32 partials).
+    /// `usize::MAX`: never.
+    part_bf16_above: usize,
     /// `i32` position table (rewritten before every replay of a captured step). Entry 0 is the position of the token a
     /// captured decode step processes; a captured speculative step ([`Model::spec_step`]) uses the regions
     /// [`POS_VERIFY`], [`POS_CATCH_UP`] and [`POS_CHAIN`], each a run of consecutive positions.
@@ -1024,11 +1031,13 @@ impl Model {
         // tensor parallelism: INTARSIA_TP_PARTIAL=bf16 reduces bf16 partials in place (two roundings per reduce, like
         // vLLM); the default keeps the partials in f32 and rounds once, as one unsharded matmul does
         // the env var wins over the recipe's `[tuning.<backend>] tp_partial`
-        let part_f32 = match std::env::var("INTARSIA_TP_PARTIAL").ok().as_deref() {
-            None | Some("") => !matches!(recipe.resolve_tp_partial(b.name()), Some("bf16")),
-            Some("f32") => true,
-            Some("bf16") => false,
-            Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32 or bf16)"))),
+        // `bf16-prefill`: f32 partials up to TP_PARTIAL_F32_ROWS rows (decode, verify, the 1..16-row prefill tails), bf16 above (prefill chunks)
+        let env_partial = std::env::var("INTARSIA_TP_PARTIAL").ok();
+        let (part_f32, part_bf16_above) = match env_partial.as_deref().filter(|v| !v.is_empty()).or(recipe.resolve_tp_partial(b.name())) {
+            None | Some("f32") => (true, usize::MAX),
+            Some("bf16") => (false, usize::MAX),
+            Some("bf16-prefill") => (true, TP_PARTIAL_F32_ROWS),
+            Some(v) => return Err(Error::invalid(format!("INTARSIA_TP_PARTIAL={v} (f32, bf16 or bf16-prefill)"))),
         };
         if opts.tp_fusion && tp.world > 1 && !b.fusion_under_tp() {
             return Err(Error::Unsupported(format!(
@@ -1168,6 +1177,7 @@ impl Model {
             logits: wb(LOGIT_ROWS * dims.vocab * 4)?,
             tok: wb(16)?,
             part: if tp.world > 1 && part_f32 { Some(wb(mt * dims.hidden * 4)?) } else { None },
+            part_bf16_above,
             pos: wb(POS_TAB_BYTES)?,
             x,
             moe,
@@ -1822,7 +1832,11 @@ impl Model {
 
     /// Dtype of the row-parallel partial results the collective sums ("f32" or "bf16"); None without tensor parallelism.
     pub fn tp_partials(&self) -> Option<&'static str> {
-        (self.tp.world > 1).then(|| if self.ws.part.is_some() { "f32" } else { "bf16" })
+        (self.tp.world > 1).then(|| match (self.ws.part.is_some(), self.ws.part_bf16_above) {
+            (false, _) => "bf16",
+            (true, usize::MAX) => "f32",
+            (true, _) => "bf16-prefill",
+        })
     }
 
     /// Whether the lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`, and possible here).
@@ -3326,7 +3340,7 @@ impl Model {
         let qshape = [t, d.n_heads * d.head_dim];
         // the output gate folded into the fp8 o_proj's input (`SigmoidMulMatmulFp8`) when the backend has it; the gated
         // product is then never stored
-        if let (Some(g), None) = (&gate, &self.ws.part) {
+        if let (Some(g), None) = (&gate, self.part_for(t)) {
             if a.wo.format == crate::quant::FP8_E4M3 {
                 let fused = self.try_fused(
                     Op::SigmoidMulMatmulFp8,
@@ -3355,7 +3369,7 @@ impl Model {
             }
             None => attn_out.reshaped(&qshape),
         };
-        match &self.ws.part {
+        match self.part_for(t) {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, d.hidden]);
                 self.proj(&o_in, &a.wo, &part, profile)?;
@@ -3495,7 +3509,7 @@ impl Model {
             self.proj(n, &f.up, &u, profile)?;
         }
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
-        match &self.ws.part {
+        match self.part_for(t) {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
                 if f.down.format == crate::quant::MXFP4 {
@@ -3517,11 +3531,16 @@ impl Model {
         }
     }
 
+    /// The f32 partial buffer a row-parallel projection of `t` rows reduces through; `None`: bf16 partials, reduced in place.
+    fn part_for(&self, t: usize) -> Option<&Buffer> {
+        self.ws.part.as_ref().filter(|_| t <= self.ws.part_bf16_above)
+    }
+
     /// `out = x @ w^T` for a row-parallel projection (`w` holds this rank's input columns): into the f32 partial and
     /// summed over the group when the partials are f32, else into `out` and summed in place. Without tensor parallelism
     /// this is exactly [`Model::proj`] (the all-reduce is a no-op).
     pub(crate) fn proj_reduce(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
-        match &self.ws.part {
+        match self.part_for(t) {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
                 self.proj(x, w, &part, profile)?;

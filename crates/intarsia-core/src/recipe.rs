@@ -365,7 +365,7 @@ pub struct BackendTuning {
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
     pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
     /// Tensor parallelism on this backend: the dtype of the row-parallel partials the all-reduce sums (`"f32"`: one rounding after the sum,
-    /// the unsharded matmul's; `"bf16"`: each rank rounds its partial first, half the all-reduce bytes) when `INTARSIA_TP_PARTIAL` is not
+    /// the unsharded matmul's; `"bf16"`: each rank rounds its partial first, half the all-reduce bytes; `"bf16-prefill"`: bf16 only for passes of more than 16 rows, i.e. prefill chunks) when `INTARSIA_TP_PARTIAL` is not
     /// set ([`Recipe::resolve_tp_partial`]). Unset: `"f32"`. Per backend only, set only where an accuracy gate passed.
     pub tp_partial: Option<String>,
 }
@@ -621,8 +621,8 @@ impl Recipe {
         if self.tuning.backends.values().any(|b| b.busy_chunk == Some(0)) {
             return Err(Error::model("recipe [tuning.<backend>] busy_chunk must be at least 1"));
         }
-        if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
-            return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32 or bf16)")));
+        if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16" | "bf16-prefill")) {
+            return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32, bf16 or bf16-prefill)")));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
