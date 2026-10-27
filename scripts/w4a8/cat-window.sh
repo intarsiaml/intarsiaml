@@ -64,8 +64,8 @@ if [[ ${PRE:-} == ids ]]; then
   say "pre: $(grep -h 'ids summary' "$OUT/ids/steps.log" | cut -c10- | tr '\n' '|')"
 fi
 # PRE=acc: gate 2 + batched == solo on tatooine (scripts/w4a8/acc.sh); PRE=w4a8ids: the 18-prompt MTP ids gate in fp8 mode (scripts/w4a8/ids.sh)
-if [[ ${PRE:-} == acc || ${PRE:-} == w4a8ids ]]; then
-  script=acc.sh; [[ $PRE == w4a8ids ]] && script=ids.sh
+if [[ -n ${PRE:-} && ${PRE} != ids ]]; then
+  script=$PRE.sh; [[ $PRE == acc ]] && script=acc.sh; [[ $PRE == w4a8ids ]] && script=ids.sh
   say "pre: $PRE"
   $SSH "timeout ${PRE_CAP:-1500} bash ~/intarsiaml-w4a8/scripts/w4a8/$script" < /dev/null > "$OUT/pre-$PRE.log" 2>&1
   say "pre: $PRE exit $?; $(tail -3 "$OUT/pre-$PRE.log" | tr '\n' '|' | cut -c1-300)"
@@ -86,7 +86,7 @@ serve() { # serve <arm>
     -v \$HOME/intarsiaml-w4a8:/work -v /data/models:/models:ro -w /work $IMG /work/w4a8-intarsia serve --backend hip --model $M27 \
     --served-model-name qwen38-27b-$arm $spec $TPA --mxfp4-act $act --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
-  for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
+  for i in $(seq 1 200); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
   $SSH 'docker logs --tail 40 w4a8-serve' > "$OUT/serve-fail-$arm.log" 2>&1 < /dev/null; return 1
 }
 metric() { curl -s -m 5 "http://tatooine:$PORT/metrics" | grep -E '^intarsia_spec_(steps|proposed_tokens|accepted_tokens|costgate_[a-z_]+)_total' | sed 's/{[^}]*}//' | tr '\n' ' '; }
