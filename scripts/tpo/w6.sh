@@ -68,7 +68,7 @@ if (( $(el) < 1700 )); then
   run3 "R" "base:tpo-base:: best:tpo-dev4:$BE:$BA" w6-r ROUNDS=6 > "$RAW/rounds.log" 2>&1; fetch w6-r; grep -aE "^R " "$RAW/rounds.log" | cut -c1-120 | tee -a "$RAW/steps.log"
 fi
 
-if (( $(el) < 1500 )); then
+if (( $(el) < 1700 )); then
   say "step 4 drive (texts, speed, mixids)"
   CH=""; [[ -n "$BA" ]] && CH="+chunk4096"
   export ENV_best="${BE//,/ }"
