@@ -1,0 +1,14 @@
+[win] v1-off serving after 20 s 2026-10-27 01:10:37
+greedy n=16: 1024 tokens
+[win] saved /home/josef/intarsiaml-htk/logs/v1-off.log (7 lines)
+[w2] visit 1 off done t+69 s
+[win] v2-on serving after 20 s 2026-10-27 01:11:47
+greedy n=16: 1024 tokens
+[win] saved /home/josef/intarsiaml-htk/logs/v2-on.log (7 lines)
+[w2] visit 2 on done t+136 s
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+[win] saved /home/josef/intarsiaml-htk/logs/w2-last.log (1 lines)
+[win] starting radiance 2026-10-27 01:12:38
+[win] radiance answers 2026-10-27 01:12:58 (after 25 s); active

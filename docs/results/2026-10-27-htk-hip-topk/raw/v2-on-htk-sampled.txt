@@ -1,0 +1,47 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/2: prompt=989 ttft=0.14s prefill=7162 tok/s decode=153.6 tok/s peak=157.1 tok/s out=128
+[localeval]   1024 tok rep 2/2: prompt=992 ttft=0.14s prefill=7003 tok/s decode=153.7 tok/s peak=165.0 tok/s out=128
+[localeval] 4 streams: aggregate 222.7 tok/s
+[localeval] 16 streams: aggregate 281.9 tok/s
+# localeval: htk-sampled — 2026-10-27T01:12
+
+- model: `intarsia` on tatooine (intarsia hip), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: htk-v2-on-htk-sampled
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed htk-sampled --thinking off --sizes 1024 --gen 128 --reps 2 --concurrency 4,16 --label htk-v2-on-htk-sampled --no-unim --recipe intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --max-batch 16; INTARSIA_DEVICE_SAMPLING=1`
+- result file: `results/20261027-011222-htk-sampled-htk-v2-on-htk-sampled/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --max-batch 16; INTARSIA_DEVICE_SAMPLING=1
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 8192, 2 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.14 | 7082 (7003–7162) * | - | 153.6 (153.6–153.7) | 161.1 (157.1–165.0) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 222.7 | 65.7 (59.9–72.8) | 0.34 |
+| 16 | 281.9 | 21.4 (18.8–26.3) | 1.21 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-011222-htk-sampled-htk-v2-on-htk-sampled/result.json
+[localeval] not logged to unanimis (--no-unim)

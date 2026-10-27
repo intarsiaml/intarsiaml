@@ -1,0 +1,56 @@
+
+running 5 tests
+test device_topk_edge_k_and_special_values ... FAILED
+test device_topk_rejects_bad_arguments ... FAILED
+test device_topk_finds_planted_values_on_every_slice_edge ... FAILED
+test device_topk_is_the_host_candidate_order ... FAILED
+test device_topk_flags_nan_rows_and_only_those ... FAILED
+
+failures:
+
+---- device_topk_edge_k_and_special_values stdout ----
+
+thread 'device_topk_edge_k_and_special_values' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: k==V: v 2 rows 3 k 2 row 1 rank 0
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- device_topk_rejects_bad_arguments stdout ----
+
+thread 'device_topk_rejects_bad_arguments' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: after-reject: v 100 rows 2 k 5 row 0 rank 0
+  left: 84
+ right: 16
+
+---- device_topk_finds_planted_values_on_every_slice_edge stdout ----
+
+thread 'device_topk_finds_planted_values_on_every_slice_edge' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: planted: v 248320 rows 6 k 1 row 3 rank 0
+  left: 248319
+ right: 0
+
+---- device_topk_is_the_host_candidate_order stdout ----
+
+thread 'device_topk_is_the_host_candidate_order' panicked at crates/intarsia-backend-hip/tests/topk.rs:103:17:
+assertion `left == right` failed: random: v 248320 rows 3 k 20 row 0 rank 2
+  left: 165676
+ right: 1552
+
+---- device_topk_flags_nan_rows_and_only_those stdout ----
+
+thread 'device_topk_flags_nan_rows_and_only_those' panicked at crates/intarsia-backend-hip/tests/topk.rs:284:17:
+assertion `left == right` failed: k 8 clean row 0 rank 2
+  left: 123175
+ right: 115921
+
+
+failures:
+    device_topk_edge_k_and_special_values
+    device_topk_finds_planted_values_on_every_slice_edge
+    device_topk_flags_nan_rows_and_only_those
+    device_topk_is_the_host_candidate_order
+    device_topk_rejects_bad_arguments
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+

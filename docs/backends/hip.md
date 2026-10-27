@@ -37,7 +37,7 @@ The `cuda` and `hip` cargo features of `intarsia-cli` are mutually exclusive (co
 | attn_prefill (T > 16) | `attn_prefill_bf16_flash` | Deterministic | WMMA flash attention, head_dim 64 / 128 / 256 |
 | attn_prefill / attn_decode fallback | `attn_prefill_bf16`, `attn_decode_bf16` | Deterministic | SIMT, head_dim <= 256 |
 
-Registered since the 35B work: `gdn_conv`, `gdn_delta_rule`, `matmul_fp8_{gemv,mma}`, `matmul_nvfp4_{gemv,mma}`, `moe_topk`, `moe_experts`, `moe_combine` (table in `quantmoe.rs`). Not registered: sampling. `kernels.rs::UNIMPLEMENTED` lists the rest and a unit test keeps the list
+Registered since the 35B work: `gdn_conv`, `gdn_delta_rule`, `matmul_fp8_{gemv,mma}`, `matmul_nvfp4_{gemv,mma}`, `moe_topk`, `moe_experts`, `moe_combine` (table in `quantmoe.rs`). Not registered: sampling (the device-side top-k of sampling, `ik_topk_f32` in `kernels/hip/topk.hip`, is not an op either: the model calls it through `Backend::topk_rows` with `INTARSIA_DEVICE_SAMPLING=1`, the port of the CUDA kernel with the same exact order; `tests/topk.rs` is its admission, with the `htk-*` mutants in `scripts/hip-decode/mutate.py`). `kernels.rs::UNIMPLEMENTED` lists the rest and a unit test keeps the list
 honest. Radiance (Apache-2.0) was otherwise read for design only; one kernel is derived: `kernels/hip/allreduce.hip` (Phase 2b), which carries
 `kernels/hip/NOTICE-radiance` and `LICENSES/Apache-2.0-radiance.txt` (see "Tensor parallelism" below). Updated 2026-10-21: this paragraph used to say no
 kernel was a radiance port and no NOTICE was needed; that was true only before Phase 2b.
