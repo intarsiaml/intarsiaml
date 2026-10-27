@@ -785,6 +785,10 @@ pub struct ShapeInfo {
     pub fp8_static_act: bool,
     /// `OpAttrs::mxfp4_a8` of the call (MXFP4 matmuls: W4A8, dynamic per-token fp8 activations).
     pub mxfp4_a8: bool,
+    /// `OpAttrs::mxfp4_w4a16` of the call (MXFP4 matmuls: the activations are not quantised, the call's `act` input is 0). Read by kernel
+    /// selection: a kernel that reads only bf16 activations (CUDA's tensor-core `matmul_mxfp4_mma`) is registered for these calls alone,
+    /// because the device-side `act` value is invisible at plan time.
+    pub mxfp4_w4a16: bool,
     /// An input of the call is in a non-row-major layout (`backend::Layout`: HIP fragment-order fp8 weights). Only kernels registered
     /// `.frag_ok()` accept the call, so a kernel that reads row-major bytes can never be selected for it.
     pub frag: bool,
@@ -810,6 +814,7 @@ impl ShapeInfo {
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
             fp8_static_act: call.attrs.fp8_static_act,
             mxfp4_a8: call.attrs.mxfp4_a8,
+            mxfp4_w4a16: call.attrs.mxfp4_w4a16,
             ..Default::default()
         };
         match call.op {
