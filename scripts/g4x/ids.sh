@@ -3,7 +3,8 @@
 # --quiet gpu,cpu, --mem >= 32), compared across builds with `diff -r`.
 #   ids.sh <name> <binary> [ENV=VAL ...]       output replay-out/ids/<name>/<prompt>.ids
 # Prompts: 3 short raw prompts, 1k / 4k / 16k tokens of tools/prompts/corpus_docs.txt (first 4000 / 16000 / 64000 bytes), plus the
-# code corpus at 8k (first 32000 bytes of corpus_code.txt); 96 greedy tokens each (--ignore-eos).
+# code corpus at 8k (first 32000 bytes of corpus_code.txt); 96 greedy tokens each (--ignore-eos). CHAT=1: through the chat template
+# (--chat --no-think): a raw prompt makes this instruction model loop on one token, which hides differences.
 set -u
 R=$HOME/intarsiaml-g4x; M=$HOME/models/Gemma-4-26B-A4B-NVFP4
 name=$1; bin=$2; shift 2
@@ -13,7 +14,7 @@ O=$R/replay-out/ids/$name; rm -rf $O; mkdir -p $O
 gen() { # label prompt
   local label=$1 prompt=$2
   env "${ENVS[@]}" $bin generate -m $M --backend cuda --mem-budget 30 --max-seq 20480 --profile-every 0 --ignore-eos --max-tokens 96 \
-    --show-ids -p "$prompt" > $O/$label.out 2> $O/$label.err
+    ${CHAT:+--chat --no-think} --show-ids -p "$prompt" > $O/$label.out 2> $O/$label.err
   echo "$label rc=$? $(grep -a -m1 -E 'prompt_tokens|prompt tokens|tokens in' $O/$label.err | cut -c1-120)"
 }
 ENVS=("$@"); [ ${#ENVS[@]} -eq 0 ] && ENVS=(INTARSIA_X=0)
