@@ -1,0 +1,14 @@
+fleetq: #5877 waiting (#1 in line): needs gpu quiet on spark1, but #5876 "spf: gemm microbench pointer alignment" (claude-f31ccf91) loads it
+fleetq:   #5876 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5876 set, or it will wait for #5876 to be released.
+fleetq: #5877 running on spark1: ssh spark1 'ARMS="off mtp mtpnm" O=$HOME/intarsiaml-f185/out/c bash -s 34k-0 34k-1 34k-2 16k-0'
+PASS ids 34k-0 mtp (prompt: 34120) 256 ids identical | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+PASS ids 34k-0 mtpnm (prompt: 34120) 256 ids identical | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+PASS ids 34k-1 mtp (prompt: 34278) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 34k-1 mtpnm (prompt: 34278) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 34k-2 mtp (prompt: 33060) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 34k-2 mtpnm (prompt: 33060) 256 ids identical | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 16k-0 mtp (prompt: 15481) 256 ids identical | spec: verify passes=108 proposed=216 accepted=146 (acceptance 67.6%, 2.35 tokens per pass)
+PASS ids 16k-0 mtpnm (prompt: 15481) 256 ids identical | spec: verify passes=108 proposed=216 accepted=146 (acceptance 67.6%, 2.35 tokens per pass)
+ids fails=0
+fleetq: #5877 done (exit 0)
+EXIT 0

@@ -81,7 +81,7 @@ impl QuantFormat for Fp8E4m3 {
             backend.relayout_fp8_frag(&w)?;
         }
         let st = upload_new(backend, &scales_tensor(ws, is).data)?;
-        Ok(QTensor { format: FP8_E4M3, n, k, parts: vec![w, TensorRef::new(st, DType::F32, &[2])], act_quant })
+        Ok(QTensor { format: FP8_E4M3, n, k, parts: vec![w, TensorRef::new(st, DType::F32, &[2])], act_fp8: false, act_quant })
     }
 
     fn dequant_ref(&self, q: &QTensor, backend: &dyn Backend) -> Result<HostTensor> {

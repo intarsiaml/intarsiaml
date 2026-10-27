@@ -1,0 +1,24 @@
+
+running 5 tests
+test device_topk_rejects_bad_arguments ... ok
+test device_topk_flags_nan_rows_and_only_those ... FAILED
+test device_topk_edge_k_and_special_values ... ok
+test device_topk_finds_planted_values_on_every_slice_edge ... ok
+test device_topk_is_the_host_candidate_order ... ok
+
+failures:
+
+---- device_topk_flags_nan_rows_and_only_those stdout ----
+
+thread 'device_topk_flags_nan_rows_and_only_those' panicked at crates/intarsia-backend-hip/tests/topk.rs:279:9:
+assertion `left == right` failed: k 1: NaN flags
+  left: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ right: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    device_topk_flags_nan_rows_and_only_those
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+

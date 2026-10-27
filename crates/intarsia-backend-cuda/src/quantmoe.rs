@@ -229,7 +229,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| s.m >= 1 && s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && s.m >= 1 && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)

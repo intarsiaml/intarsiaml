@@ -346,7 +346,7 @@ What each stage needs and how it decides:
   last-bit differences, so the reference does not reproduce itself (Qwen3.8-27B: HF bf16 vs HF f32, both W4A4, 21-way
   KL 0.197 against a floor of 0.03). Gate the weight path in W4A16 instead (`--mxfp4-act none` against an `--act none`
   golden: 8.3e-4 there), and quote W4A4 against the reference's own spread (a second golden with `--dtype float32`). A recipe may
-  set `[defaults] mxfp4_act` (the Qwen3.8-27B recipe sets `none`: W4A16 is the default there); `qualify` then prefers the `-w4a16` golden of a
+  set `[defaults] mxfp4_act` (the Qwen3.8-27B recipe sets `none`: W4A16 is the default there, and `[tuning.hip] mxfp4_act = "fp8"`: W4A8 on HIP); `qualify` then prefers the `-w4a16` golden of a
   model by name, never takes it for a W4A4 run, and runs `accuracy` in the activation mode the golden was made with (its
   `engine_version` metadata, else a `-w4a16` in the file name), so a golden is never gated against the other mode. The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt

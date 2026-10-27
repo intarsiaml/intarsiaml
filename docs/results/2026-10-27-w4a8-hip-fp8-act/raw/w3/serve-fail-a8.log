@@ -1,0 +1,15 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (--mxfp4-act)
+--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2
+
+Caused by:
+    no kernel for 1 op(s) of this model have no kernel on hip/gfx1201:
+      - matmul_mxfp4: 232 shape(s) without a kernel, e.g. no kernel for matmul_mxfp4 on hip/gfx1201 (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(U8)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...

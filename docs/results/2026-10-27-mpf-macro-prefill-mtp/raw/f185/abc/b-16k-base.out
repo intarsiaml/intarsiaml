@@ -1,0 +1,9 @@
+Here is a section-by-section summary of the IntarsiaML architecture plan (v0.2), followed by a list of open questions derived from the "planned" and "partial" status items.
+
+### Document Summary
+
+**0. Goals, Honest Targets, Anti-Goals**
+Intarsia aims for modularity, ease of use, and accuracy, prioritizing speed only after these are secured. The immediate goal is to beat `llama.cpp` and `vLLM` on single-stream performance for specific quantizations (e.g., EXL3, NVFP4) on NVIDIA GB10 and AMD R9700 hardware. The architecture strictly avoids per-family engines, Python in the serving path, and scope sprawl (text-only initially). No kernel is accepted without passing a reference test.
+
+**1. Language and Build**
+The host server, scheduler, and UI are written in Rust (stable 2021) to ensure native speed, memory safety, and a single static binary. GPU kernels are written in CUDA C++ (for NVIDIA) and HIP C++ (for AMD), compiled ahead-of-time (AOT) to avoid JIT latency. A shared portable header (`ik_portable.h`) handles common

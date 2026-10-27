@@ -1,0 +1,31 @@
+== longctx
+4k   r1 reps 5/5 prefill off 6993 mtp 6967 x 0.996 | decode off 80.1 mtp 102.4 x 1.278
+4k   r2 reps 5/5 prefill off 6980 mtp 6908 x 0.990 | decode off 79.9 mtp 98.3 x 1.230
+4k   r3 reps 5/5 prefill off 6969 mtp 6948 x 0.997 | decode off 80.6 mtp 102.3 x 1.269
+16k  r1 reps 5/5 prefill off 6656 mtp 6605 x 0.992 | decode off 72.7 mtp 77.9 x 1.072
+16k  r2 reps 5/5 prefill off 6643 mtp 6593 x 0.992 | decode off 72.7 mtp 77.9 x 1.072
+16k  r3 reps 5/5 prefill off 6645 mtp 6617 x 0.996 | decode off 72.7 mtp 82.3 x 1.132
+34k  r1 reps 5/5 prefill off 5941 mtp 5886 x 0.991 | decode off 65.7 mtp 69.1 x 1.052
+34k  r2 reps 5/5 prefill off 5893 mtp 5853 x 0.993 | decode off 65.7 mtp 74.8 x 1.139
+34k  r3 reps 5/5 prefill off 5884 mtp 5862 x 0.996 | decode off 65.8 mtp 68.3 x 1.038
+== longctx-c
+4k   r1 reps 3/3 prefill off 6943 mtp 6887 x 0.992 | decode off 80.8 mtp 100.9 x 1.249
+4k   r2 reps 3/3 prefill off 6964 mtp 6894 x 0.990 | decode off 80.1 mtp 103.8 x 1.296
+16k  r1 reps 3/3 prefill off 6663 mtp 6460 x 0.970 | decode off 73.2 mtp 89.1 x 1.217
+16k  r2 reps 3/3 prefill off 6660 mtp 6610 x 0.992 | decode off 73.0 mtp 82.3 x 1.127
+34k  r1 reps 3/3 prefill off 5820 mtp 5907 x 1.015 | decode off 65.9 mtp 69.3 x 1.052
+34k  r2 reps 3/3 prefill off 5930 mtp 5890 x 0.993 | decode off 66.0 mtp 68.6 x 1.039
+== longctx-b
+4k   r1 reps 3/3 prefill off 6965 mtp 6850 x 0.983 | decode off 80.9 mtp 104.5 x 1.292
+4k   r2 reps 3/3 prefill off 6967 mtp 6963 x 0.999 | decode off 80.4 mtp 101.3 x 1.260
+16k  r1 reps 3/3 prefill off 6678 mtp 6586 x 0.986 | decode off 73.3 mtp 83.0 x 1.132
+16k  r2 reps 3/3 prefill off 6634 mtp 6589 x 0.993 | decode off 72.9 mtp 80.1 x 1.099
+34k  r1 reps 3/3 prefill off 5941 mtp 5866 x 0.987 | decode off 65.8 mtp 74.8 x 1.137
+34k  r2 reps 3/3 prefill off 5906 mtp 5874 x 0.995 | decode off 65.8 mtp 67.4 x 1.024
+== longctx-a
+4k   r1 reps 3/3 prefill off 6916 mtp 6666 x 0.964 | decode off 80.1 mtp 100.3 x 1.252
+4k   r2 reps 3/3 prefill off 6974 mtp 6790 x 0.974 | decode off 80.5 mtp 104.7 x 1.301
+16k  r1 reps 3/3 prefill off 6605 mtp 6341 x 0.960 | decode off 71.9 mtp 76.1 x 1.058
+16k  r2 reps 3/3 prefill off 6646 mtp 6434 x 0.968 | decode off 73.1 mtp 84.8 x 1.160
+34k  r1 reps 3/3 prefill off 5890 mtp 5604 x 0.951 | decode off 64.4 mtp 70.4 x 1.093
+34k  r2 reps 3/3 prefill off 5918 mtp 5676 x 0.959 | decode off 65.9 mtp 66.4 x 1.008

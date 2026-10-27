@@ -490,7 +490,7 @@ pub struct Model {
     macro_passes: std::sync::atomic::AtomicU64,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
     /// the last layer's work after its last cache write (the attention core and output projection, the FFN / MoE block,
-    /// the final norm). Single rank only. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
+    /// the final norm). Single rank only, and not for a state with a drafter (MTP head, DFlash), which reads the chunk's hidden rows. Every cache and recurrent state byte is unchanged (nothing skipped writes them).
     skip_dead: std::sync::atomic::AtomicBool,
     /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
     tail_dead: std::sync::atomic::AtomicBool,
@@ -626,13 +626,22 @@ impl Model {
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
-        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, recipe.defaults.mxfp4_act, src.quant_scheme().and_then(|s| s.mxfp4_act()));
+        let mxfp4_act = crate::quant::mxfp4::effective_act(opts.mxfp4_act, recipe.mxfp4_act_for(backend.name()), src.quant_scheme().and_then(|s| s.mxfp4_act()));
         let qopts = QuantLoadOpts { fp8_act: opts.fp8_act.unwrap_or(recipe.defaults.fp8_act), mxfp4_act, shard: None };
+        // W4A8 needs its own kernels (HIP, and the cpu reference): refuse here, clearly, rather than fail at plan time as "no kernel"
+        let a8_served = mxfp4_act != crate::quant::Mxfp4Act::Fp8 || crate::quant::mxfp4::backend_serves_a8(&backend.kernels());
         // `n`, `k`: the shape this rank holds (for a sharded weight, its slice of the checkpoint's `[n, k]`)
         let load_qs = |tmpl: &str, layer: usize, n: usize, k: usize, axis: Option<ShardAxis>| -> Result<QTensor> {
             let prefix = Recipe::expand(tmpl, layer);
             let shard = axis.filter(|_| tp.world > 1).map(|axis| Shard { axis, rank: tp.rank, world: tp.world });
             let q = crate::quant::load_linear(src, &prefix, b, &QuantLoadOpts { shard, ..qopts })?;
+            if q.act_fp8 && !a8_served {
+                return Err(Error::Unsupported(format!(
+                    "mxfp4 activations 'fp8' (W4A8) have no kernels on the {} backend (HIP only; first hit at projection '{prefix}'); \
+                     use --mxfp4-act none (W4A16) or dynamic (W4A4), or drop the flag for the recipe's default",
+                    backend.name()
+                )));
+            }
             // what the checkpoint declares (hf_quant_config.json) must match what was stored and what we implement
             if let Some(scheme) = src.quant_scheme() {
                 scheme.check_linear(&prefix, q.format)?;
@@ -686,7 +695,7 @@ impl Model {
             && tp.world > 1
             && tp.comm.as_ref().and_then(|c| c.all_gather_quantum()).is_some_and(|q| dims.vocab % tp.world == 0 && (vh * 4) % q == 0)
             && (!tied || (embed.shape == [dims.vocab, dims.hidden] && (vh * dims.hidden * embed.dtype.size_bytes()) % 16 == 0));
-        let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_quant: false };
+        let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_fp8: false, act_quant: false };
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
             if tp.rank != 0 && !vocab_par {
                 return Ok(None);
@@ -2343,7 +2352,9 @@ impl Model {
                 HeadMode::AllLogits => true,
                 HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
-            let dead = !feeds_head && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
+            // ... unless a drafter reads the chunk's hidden rows: the MTP head takes the final-normed `hn` (the skipped last-layer FFN is part of it); DFlash taps layer outputs, kept out as a precaution
+            let drafter = st.mtp.is_some() || st.dflash.is_some();
+            let dead = !feeds_head && !drafter && self.tp.world == 1 && self.skip_dead.load(std::sync::atomic::Ordering::Relaxed);
             self.tail_dead.store(dead, std::sync::atomic::Ordering::Relaxed);
             let hn = self.run_chunk(st, chunk, profile);
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -2832,7 +2843,7 @@ impl Model {
     }
 
     /// Two MXFP4 projections of the same activation as one `Op::MatmulMxfp4Pair` launch, when the backend has the kernel.
-    /// Only for two MXFP4 weights with the same `act_quant` (the pair carries one `act` input): anything else, or no kernel,
+    /// Only for two MXFP4 weights with the same activation mode (`act_quant`, `act_fp8`; the pair carries one `act` input): anything else, or no kernel,
     /// returns `false` without running anything and the caller runs the two `proj`s.
     pub(crate) fn try_mxfp4_pair(
         &self,
@@ -2843,14 +2854,14 @@ impl Model {
         out_b: &TensorRef,
         profile: bool,
     ) -> Result<bool> {
-        if a.format != crate::quant::MXFP4 || b.format != crate::quant::MXFP4 || a.act_quant != b.act_quant {
+        if a.format != crate::quant::MXFP4 || b.format != crate::quant::MXFP4 || a.act_quant != b.act_quant || a.act_fp8 != b.act_fp8 {
             return Ok(false);
         }
         self.try_fused(
             Op::MatmulMxfp4Pair,
             vec![x.clone(), a.parts[0].clone(), a.parts[1].clone(), b.parts[0].clone(), b.parts[1].clone(), a.parts[2].clone()],
             vec![out_a.clone(), out_b.clone()],
-            OpAttrs { mxfp4_w4a16: !a.act_quant, ..OpAttrs::default() },
+            OpAttrs { mxfp4_w4a16: !a.act_quant, mxfp4_a8: a.act_fp8, ..OpAttrs::default() },
             profile,
         )
     }

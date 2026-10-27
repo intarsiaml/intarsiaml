@@ -1,0 +1,35 @@
+== topk tests (t+0 s)
+topk exit 0
+G-B topk_f32 (hip) rejections: k 0 / 65 / > V, wrong output shape, short scratch
+G-B topk_f32 (hip) edges: 2764 pairs equal to the host order (k = 1 / 64 / V, ties, +-0, +-inf, subnormals, extremes)
+G-B topk_f32 (hip) NaN: rows flagged at every slice edge and the last element, neighbours exact, all-NaN row flagged
+G-B topk_f32 (hip) planted: 1032 pairs equal to the host order (maxima on every slice edge, last slice, last element)
+G-B topk_f32 (hip): 16392 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), sampler draws equal
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+== mutants (t+1 s)
+htk-tiebreak: exit 101 CAUGHT (device_topk_edge_k_and_special_values device_topk_rejects_bad_arguments device_topk_finds_planted_values_on_every_slice_edge device_topk_is_the_host_candidate_order device_topk_flags_nan_rows_and_only_those test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s )
+htk-slice-end: exit 101 CAUGHT (device_topk_edge_k_and_special_values device_topk_rejects_bad_arguments device_topk_flags_nan_rows_and_only_those device_topk_finds_planted_values_on_every_slice_edge device_topk_is_the_host_candidate_order test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s )
+htk-stage2-n: exit 101 CAUGHT (device_topk_edge_k_and_special_values device_topk_finds_planted_values_on_every_slice_edge device_topk_is_the_host_candidate_order device_topk_flags_nan_rows_and_only_those test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s )
+htk-nanflag: exit 101 CAUGHT (device_topk_flags_nan_rows_and_only_those test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s )
+htk-nonstrict: exit 101 CAUGHT (device_topk_edge_k_and_special_values device_topk_is_the_host_candidate_order device_topk_flags_nan_rows_and_only_those device_topk_finds_planted_values_on_every_slice_edge test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s )
+htk-exhausted: exit 101 CAUGHT (device_topk_edge_k_and_special_values device_topk_is_the_host_candidate_order test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s )
+htk-nomemset: exit 101 CAUGHT (device_topk_is_the_host_candidate_order device_topk_rejects_bad_arguments device_topk_edge_k_and_special_values device_topk_finds_planted_values_on_every_slice_edge device_topk_flags_nan_rows_and_only_those test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s )
+htk-kv: exit 101 CAUGHT (device_topk_rejects_bad_arguments test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s )
+htk-scratch: exit 101 CAUGHT (device_topk_rejects_bad_arguments test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s )
+== admission (t+10 s)
+admission exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 3.43s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.36s
+== 35B: device draws == host draws (t+77 s)
+draws exit 0
+3360 (row, step) tokens drawn from the device top-k equal the host draws (B 1 / 4 / 16, 5 settings)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 36.64s
+== 35B: sampled step timing (t+114 s)
+timing exit 0
+TIMING sampled B= 4 host      : 59.04 ms/step incl. host sampling, 67.7 tok/s aggregate
+TIMING sampled B= 4 device top-k: 12.86 ms/step incl. host sampling, 311.0 tok/s aggregate
+TIMING sampled B=16 host      : 44.74 ms/step incl. host sampling, 357.6 tok/s aggregate
+TIMING sampled B=16 device top-k: 39.03 ms/step incl. host sampling, 409.9 tok/s aggregate
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 6.77s
+[w1] done t+121 s

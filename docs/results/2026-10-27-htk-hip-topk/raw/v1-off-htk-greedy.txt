@@ -1,0 +1,40 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/2: prompt=991 ttft=0.14s prefill=7158 tok/s decode=162.6 tok/s peak=165.0 tok/s out=128
+[localeval]   1024 tok rep 2/2: prompt=993 ttft=0.14s prefill=6892 tok/s decode=162.5 tok/s peak=165.3 tok/s out=128
+# localeval: htk-greedy — 2026-10-27T01:11
+
+- model: `intarsia` on tatooine (intarsia hip), url `http://tatooine:8296/v1`
+- thinking: off; run kind: speed; label: htk-v1-off-htk-greedy
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed htk-greedy --thinking off --sizes 1024 --gen 128 --reps 2 --label htk-v1-off-htk-greedy --no-unim --recipe intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --max-batch 16; INTARSIA_DEVICE_SAMPLING=0`
+- result file: `results/20261027-011128-htk-greedy-htk-v1-off-htk-greedy/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --max-batch 16; INTARSIA_DEVICE_SAMPLING=0
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 8192, 2 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.14 | 7025 (6892–7158) * | - | 162.5 (162.5–162.6) | 165.2 (165.0–165.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-011128-htk-greedy-htk-v1-off-htk-greedy/result.json
+[localeval] not logged to unanimis (--no-unim)

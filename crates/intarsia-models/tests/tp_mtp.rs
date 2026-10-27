@@ -301,6 +301,29 @@ fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
     }
 }
 
+/// A lone `--spec-k 0` (no `--spec`) through the engine loader: refused with a message that names it, at tp=1 and tp=2 alike; the
+/// CLI's parse refuses a draft length outside 1..=max for every mode (review of PR #185, 2026-10-26: it was read as the recipe default
+/// with k = 0).
+#[test]
+fn a_lone_spec_k_zero_is_refused_by_the_loader() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = model_dir();
+    assert!(SpecConfig::parse("off", 0).is_err() && SpecConfig::parse("mtp", 0).is_err(), "the CLI parse refuses k = 0");
+    let o = intarsia_models::EngineOptions {
+        load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
+        spec_auto: true,
+        spec_k_given: true,
+        spec: SpecConfig { mode: SpecMode::Off, k: 0 },
+        ..Default::default()
+    };
+    let one = intarsia_models::load_engine(&dir, CpuBackend::arc(), &o);
+    assert!(one.is_err_and(|e| e.to_string().contains("--spec-k 0")), "tp=1 load of a lone --spec-k 0");
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc() as Arc<dyn intarsia_core::backend::Backend>).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let two = intarsia_models::load_engine_tp(&dir, backends, comms, &o);
+    assert!(two.is_err_and(|e| e.to_string().contains("--spec-k 0")), "tp=2 load of a lone --spec-k 0");
+}
+
 /// `INTARSIA_SPEC_DEFAULT` is process-wide: the tests that read or set it take this lock for their whole body.
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -330,6 +353,8 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
     assert_eq!(tp_mtp_default(&lone, &without, "hip", 2, true), None, "lone --spec-k, no recipe key: off (the loader warns)");
     assert_eq!(tp_mtp_default(&lone, &with, "cuda", 2, true), None, "lone --spec-k, another backend: off");
     assert_eq!(tp_mtp_default(&lone, &with, "hip", 1, true), None, "lone --spec-k, tp 1: off");
+    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0 }, ..Default::default() };
+    assert_eq!(tp_mtp_default(&lone0, &with, "hip", 2, true), None, "lone --spec-k 0: no drafting, the default is not applied (not SpecConfig{{Mtp, k: 0}})");
     let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
     assert_eq!(tp_mtp_default(&explicit_k, &with, "hip", 2, true), None, "--spec off --spec-k 3: unchanged, off");
     // a prefix store (explicit caching intent; a drafting request bypasses it) skips the default; an explicit --spec mtp is not this function's
@@ -385,6 +410,9 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     assert_eq!(mtp_default(&lone, &with, "cuda", 1, true), Some(3), "a lone --spec-k 3 sets k");
     assert_eq!(mtp_default(&lone, &without, "cuda", 1, true), None, "a lone --spec-k where no default applies stays off");
     assert_eq!(mtp_default(&lone, &with, "hip", 1, true), None, "a lone --spec-k on another backend stays off");
+    // a lone `--spec-k 0` is no draft length: the default is not applied with k = 0 (the loader refuses it outright, next test)
+    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0 }, ..Default::default() };
+    assert_eq!(mtp_default(&lone0, &with, "cuda", 1, true), None, "a lone --spec-k 0 is not SpecConfig {{ Mtp, k: 0 }}");
     let zero = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 0\n")).unwrap();
     assert_eq!(mtp_default(&auto, &zero, "cuda", 1, true), None, "k = 0 is unset");
     let stored = intarsia_models::EngineOptions {

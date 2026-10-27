@@ -400,6 +400,10 @@ fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backe
         return None;
     }
     let rk = if world >= 2 { recipe.resolve_mtp_default_tp(backend) } else { recipe.resolve_mtp_default(backend) }?;
+    // `--spec-k 0` alone is no draft length: never `SpecConfig { Mtp, k: 0 }` (the loader refuses it before it gets here)
+    if opts.spec_k_given && opts.spec.k == 0 {
+        return None;
+    }
     // a lone `--spec-k N` sets only the draft length of the default; the recipe's k is used otherwise
     Some(if opts.spec_k_given { opts.spec.k } else { rk })
 }
@@ -433,6 +437,11 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             "--spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)"
                 .into(),
         ));
+    }
+    // A lone `--spec-k 0` (no `--spec`) asks for no draft length: it is refused here as the CLI refuses it (`SpecConfig::parse`), not read as
+    // the recipe default with k = 0 (a library caller builds `EngineOptions` without that parse).
+    if opts.spec_auto && opts.spec_k_given && opts.spec.k == 0 && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp {
+        return Err(Error::invalid("--spec-k 0: a draft length is 1 or more (--spec off turns speculation off)"));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
     // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07 EDT, "turn MTP on by default at tp2 if it passes"): only
@@ -573,7 +582,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let declared = weights.scheme().and_then(|s| s.mxfp4_act());
     {
         use intarsia_core::quant::mxfp4::{act_source, effective_act, ActSource};
-        let (cli, rec) = (opts.load.mxfp4_act, recipe.defaults.mxfp4_act);
+        let (cli, rec) = (opts.load.mxfp4_act, recipe.mxfp4_act_for(model.backend.name()));
         let eff = effective_act(cli, rec, declared);
         let by = act_source(cli, rec);
         if let Some(note) = weights.scheme().and_then(|s| s.mxfp4_act_note(eff, by)) {
@@ -582,6 +591,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if declared.is_some() || cli.is_some() {
             let src = match by {
                 ActSource::Cli => "--mxfp4-act".to_string(),
+                ActSource::Recipe if recipe.mxfp4_act_is_backend_tuned(model.backend.name()) => {
+                    format!("recipe {} [tuning.{}] mxfp4_act", recipe.model.family, model.backend.name())
+                }
                 ActSource::Recipe => format!("recipe {} [defaults] mxfp4_act", recipe.model.family),
                 ActSource::Checkpoint => "declared by the checkpoint".to_string(),
             };

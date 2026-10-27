@@ -1,0 +1,28 @@
+rounds pooled: ['a-r1', 'a-r2', 'a-r3', 'c-r1', 'c-r2', 'd-r1', 'd-r2', 'd-r3']
+  4k  a-r1   prefill off 6993 mtp 6967 x 0.996 | decode off 80.1 mtp 102.4 x 1.278
+  4k  a-r2   prefill off 6980 mtp 6908 x 0.990 | decode off 79.9 mtp 98.3 x 1.230
+  4k  a-r3   prefill off 6969 mtp 6948 x 0.997 | decode off 80.6 mtp 102.3 x 1.269
+  4k  c-r1   prefill off 6943 mtp 6887 x 0.992 | decode off 80.8 mtp 100.9 x 1.249
+  4k  c-r2   prefill off 6964 mtp 6894 x 0.990 | decode off 80.1 mtp 103.8 x 1.296
+  4k  d-r1   prefill off 6759 mtp 6846 x 1.013 | decode off 80.4 mtp 103.7 x 1.290
+  4k  d-r2   prefill off 6958 mtp 6890 x 0.990 | decode off 80.8 mtp 103.3 x 1.278
+  4k  d-r3   prefill off 6918 mtp 6934 x 1.002 | decode off 80.5 mtp 103.2 x 1.282
+4k: rounds 8; pooled prefill off 6965 mtp 6912 x 0.9923; per-round x min 0.990 max 1.013 median 0.994; TTFT off 0.587s mtp 0.592s (1.007); decode off 80.5 mtp 102.3 x 1.272; per-round decode x min 1.230 max 1.296
+  16k a-r1   prefill off 6656 mtp 6605 x 0.992 | decode off 72.7 mtp 77.9 x 1.072
+  16k a-r2   prefill off 6643 mtp 6593 x 0.992 | decode off 72.7 mtp 77.9 x 1.072
+  16k a-r3   prefill off 6645 mtp 6617 x 0.996 | decode off 72.7 mtp 82.3 x 1.132
+  16k c-r1   prefill off 6663 mtp 6460 x 0.970 | decode off 73.2 mtp 89.1 x 1.217
+  16k c-r2   prefill off 6660 mtp 6610 x 0.992 | decode off 73.0 mtp 82.3 x 1.127
+  16k d-r1   prefill off 6452 mtp 6542 x 1.014 | decode off 72.9 mtp 84.0 x 1.152
+  16k d-r2   prefill off 6644 mtp 6597 x 0.993 | decode off 73.3 mtp 83.2 x 1.135
+  16k d-r3   prefill off 6641 mtp 6587 x 0.992 | decode off 73.0 mtp 81.2 x 1.112
+16k: rounds 8; pooled prefill off 6645 mtp 6595 x 0.9925; per-round x min 0.970 max 1.014 median 0.992; TTFT off 2.507s mtp 2.526s (1.008); decode off 72.9 mtp 82.2 x 1.128; per-round decode x min 1.072 max 1.217
+  34k a-r1   prefill off 5941 mtp 5886 x 0.991 | decode off 65.7 mtp 69.1 x 1.052
+  34k a-r2   prefill off 5893 mtp 5853 x 0.993 | decode off 65.7 mtp 74.8 x 1.139
+  34k a-r3   prefill off 5884 mtp 5862 x 0.996 | decode off 65.8 mtp 68.3 x 1.038
+  34k c-r1   prefill off 5820 mtp 5907 x 1.015 | decode off 65.9 mtp 69.3 x 1.052
+  34k c-r2   prefill off 5930 mtp 5890 x 0.993 | decode off 66.0 mtp 68.6 x 1.039
+  34k d-r1   prefill off 5751 mtp 5781 x 1.005 | decode off 65.5 mtp 67.4 x 1.029
+  34k d-r2   prefill off 5901 mtp 5870 x 0.995 | decode off 65.6 mtp 69.3 x 1.056
+  34k d-r3   prefill off 5886 mtp 5832 x 0.991 | decode off 65.9 mtp 66.6 x 1.011
+34k: rounds 8; pooled prefill off 5892 mtp 5858 x 0.9943; per-round x min 0.991 max 1.015 median 0.994; TTFT off 5.758s mtp 5.786s (1.005); decode off 65.7 mtp 69.2 x 1.053; per-round decode x min 1.011 max 1.139

@@ -205,6 +205,11 @@ int ik_matmul_mxfp4_mma_v1(const ik_tensor* x, const ik_tensor* w, const ik_tens
  * against the row's largest group scale, one fp8 WMMA GEMM. Scratch M * K * 2 + M + N bytes. */
 int ik_matmul_mxfp4_mma_fold(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                              ik_tensor* out, const ik_scratch* scratch, void* stream);
+/* matmul_mxfp4_a8_mma (lane W4A8, kernels/hip/mxfp4_a8_gemm.hip): MXFP4 weights x dynamic per-token fp8 (e4m3) activations on the
+ * fp8 WMMA, any M >= 1, K % 32 == 0; act is accepted and not read. Scratch mx_a8_scratch_bytes(M, K) rounded up to 16, plus
+ * round16(N) + 16 bytes, 16-byte aligned. */
+int ik_matmul_mxfp4_a8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                           ik_tensor* out, const ik_scratch* scratch, void* stream);
 /* matmul_mxfp4_pair_gemv (lane P1): Op::MatmulMxfp4Pair, two MXFP4 projections of one x with one act input; M == 1 one launch
  * (x staged once), else the two single gemvs (scratch as matmul_mxfp4_gemv). */
 int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
@@ -217,6 +222,21 @@ int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_t
 int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
                                    const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
                                    const ik_scratch* scratch, void* stream);
+/* W4A8 decode (lane W4A8, kernels/hip/mxfp4_a8.hip, kernels/hip/ik_mx_a8.h): MXFP4 weights x dynamic per-token e4m3
+ * activations (xs[m] = max(amax / 448, 1 / (448 * 512)), xq = RNE e4m3 of x / xs), 1 <= M <= 16, one kernel family for solo
+ * and batched rows (a row's bits do not depend on M or on its position). `act` is checked but not read. scratch is required:
+ * xq u8 [M, K] at byte 0, xs f32 [M] at byte ((M * K + 15) & ~15); scratch->bytes >= ((M * K + 15) & ~15) + ((M * 4 + 15) &
+ * ~15) + 16, 16-byte aligned data, else IK_ERR_INVALID_ARG. The pair is one launch after one quantisation, rows [0, N0) from
+ * (w0, s0) into out0 and [0, N1) from (w1, s1) into out1, bitwise two single calls. */
+int ik_matmul_mxfp4_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                                 ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_a8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                            const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_pair_a8_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                 const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_pair_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
+                                      const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
+                                      const ik_scratch* scratch, void* stream);
 
 /* Fragment-order dense fp8 weights (lane wg, HIP only, opt-in). A weight [N, K] with N % 16 == 0 and K % 32 == 0 is stored as
  * [N/16][K/32][lane = 16 h + col][16 B]: chunk c of tile t is 512 contiguous bytes, byte 16 lane + b of it is w[16 t + col][32 c + 16 h + b].
@@ -227,6 +247,13 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
 /* dst = fragment order of src (row-major [N, K]); both fp8 e4m3, same shape, distinct buffers. unfrag is the inverse (download, tests). */
 int ik_fp8_relayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
 int ik_fp8_unrelayout_frag(const ik_tensor* src, ik_tensor* dst, void* stream);
+
+/* topk_f32 (R3b, HIP port of kernels/cuda/topk.cu, same ABI): the k largest values of each f32 row [R, V] in the sampler's order (value
+ * descending, ties by ascending index, -0.0 == +0.0), with their indices: ids i32 [R, k], vals f32 [R, k]; nan i32 [R] is 1 for a row
+ * that holds a NaN (its entries are not meaningful). 1 <= k <= 64, k <= V. Scratch: R * 32 * k * 8 bytes. Not an op: the model calls it
+ * for device-side sampling (Backend::topk_rows). */
+int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* vals, ik_tensor* nan, const ik_scratch* scratch,
+                void* stream);
 
 #ifdef __cplusplus
 }

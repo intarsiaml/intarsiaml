@@ -1,0 +1,23 @@
+prefill kernel-mode GPU sum 10670.7 ms over 7096 launches (all 8804)
+op                                            calls        ms      %   us/call
+matmul_fp8_mma                                 1040    3063.8   28.7      2946
+moe_experts_bf16#1                              320    2337.5   21.9      7305
+attn_prefill_bf16_flash                          80    2040.5   19.1     25506
+gdn_delta_rule_bf16                             240    1453.0   13.6      6054
+moe_experts_bf16#2                              320    1177.6   11.0      3680
+matmul_nvfp4_mma                                960     333.6    3.1       347
+moe_experts_bf16#3                              320      50.8    0.5       159
+gdn_conv_bf16                                   240      32.1    0.3       134
+rmsnorm_add_bf16                                640      31.1    0.3        49
+qk_norm_rope_kv_bf16                             80      29.4    0.3       368
+rmsnorm_bf16                                    308      28.5    0.3        93
+matmul_pair_bf16_nax                            560      26.6    0.2        47
+silu_glu_bf16                                   620      22.0    0.2        35
+moe_combine_bf16                                320      10.9    0.1        34
+moe_experts_bf16                                320       9.0    0.1        28
+gate_split_bf16                                  80       8.3    0.1       104
+moe_topk_bf16                                   320       8.3    0.1        26
+sigmoid_mul_bf16                                 80       6.6    0.1        82
+gdn_conv_bf16#1                                 240       0.8    0.0         3
+embedding_bf16                                    8       0.4    0.0        50
+cb mode: 88 command buffers, GPU busy 11439.5 ms of span 11776.3 ms (97.1%)

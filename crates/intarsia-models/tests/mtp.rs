@@ -1207,6 +1207,30 @@ fn eager_head_catch_up_is_per_row_attention() {
     assert!(dec >= 2, "the head's rows ran per-row decode attention ({dec} calls)");
 }
 
+/// `INTARSIA_PREFILL_SKIP_DEAD` (`Model::set_skip_dead`) skips the last layer's FFN / MoE of a prefill chunk that feeds no head. The MTP
+/// head consumes that chunk's final-normed hidden rows, so with a head in the state the chunk is not dead: the drafts after a
+/// chunked prompt are the skip-off drafts (review of PR #185, 2026-10-26: the skip fed the head the wrong rows).
+#[test]
+fn skip_dead_leaves_the_mtp_heads_rows_and_drafts_alone() {
+    let w = weights(11);
+    let m = load(&w, DType::F32, true, Some(3));
+    let prompts: [Vec<u32>; 3] = [PROMPTS[0].to_vec(), PROMPTS[2].to_vec(), (0..41u32).map(|i| 5 + (i * 29) % 80).collect()];
+    let mut drafts = Vec::new();
+    for skip in [false, true] {
+        m.set_skip_dead(skip);
+        let mut per = Vec::new();
+        for p in &prompts {
+            let mut st = m.new_state().unwrap();
+            // chunks of 8: every chunk but the last feeds no head (HeadMode::LastArgmax reads the final one only)
+            let StepOut::Token(last) = m.forward(&mut st, p, HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+            per.push((last, m.mtp_draft(&mut st, last, 3).unwrap()));
+        }
+        drafts.push(per);
+    }
+    m.set_skip_dead(false);
+    assert_eq!(drafts[0], drafts[1], "MTP drafts after a chunked prompt differ with the dead tail skipped");
+}
+
 /// Scripted drafts shorter than k: the captured and the eager paths treat them alike (the step falls back to the eager path,
 /// which verifies exactly the scripted drafts); greedy output stays the spec-off output.
 #[test]
@@ -1304,7 +1328,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,

@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/w4a8/scripts/w4a8/../dfh/cats/rcp-recall.jsonl: 8 rows, judge=none
+# localeval: w4a8-a16 — 2026-10-27T01:34
+
+- model: `qwen38-27b-a16` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: w4a8-w5-a16-rcp-recall-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality w4a8-a16 --thinking off --label w4a8-w5-a16-rcp-recall-r3 --recipe HIP_VISIBLE_DEVICES=0,1 intarsia serve --backend hip --model 27B  --tp 2 --devices 0,1 --mxfp4-act none --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (lane w4a8, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0) --dataset /opt/code/intarsiaml/.worktrees/w4a8/scripts/w4a8/../dfh/cats/rcp-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261027-013419-w4a8-a16-w4a8-w5-a16-rcp-recall-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 intarsia serve --backend hip --model 27B  --tp 2 --devices 0,1 --mxfp4-act none --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (lane w4a8, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/w4a8/scripts/w4a8/../dfh/cats/rcp-recall.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.126 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 83.8 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.13 | 86.7 | The Transmission Control Protocol (TCP) is a connection-orie… |
+| recall-photosynthesis | yes | 0.0 | 0.12 | 90.4 | Photosynthesis is the process by which plants, algae, and so… |
+| recall-french-revolution | yes | 0.0 | 0.13 | 78.6 | The French Revolution (1789–1799) was a radical political an… |
+| recall-git-internals | yes | 0.0 | 0.13 | 84.8 | Git is a content-addressable file system. This means that ev… |
+| recall-vaccines | yes | 0.0 | 0.12 | 82.9 | Here is a detailed explanation of how mRNA, viral-vector, an… |
+| recall-cpu-caches | yes | 0.0 | 0.13 | 79.2 | CPU caches are a critical component of modern processor perf… |
+| recall-plate-tectonics | yes | 0.0 | 0.13 | 85.8 | Plate tectonics is the scientific theory that explains the l… |
+| recall-http2 | yes | 0.0 | 0.13 | 82.3 | To understand the evolution from HTTP/1.1 to HTTP/3, it is h… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-013419-w4a8-a16-w4a8-w5-a16-rcp-recall-r3/result.json
+[localeval] logged to unanimis: cb285657-addb-42ea-9045-5211a95b2f15

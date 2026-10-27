@@ -1,0 +1,48 @@
+
+running 5 tests
+test device_topk_is_the_host_candidate_order ... FAILED
+test device_topk_rejects_bad_arguments ... FAILED
+test device_topk_edge_k_and_special_values ... FAILED
+test device_topk_finds_planted_values_on_every_slice_edge ... FAILED
+test device_topk_flags_nan_rows_and_only_those ... FAILED
+
+failures:
+
+---- device_topk_is_the_host_candidate_order stdout ----
+
+thread 'device_topk_is_the_host_candidate_order' panicked at crates/intarsia-backend-hip/tests/topk.rs:97:9:
+random: no NaN in the rows, flags [-1515870811]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- device_topk_rejects_bad_arguments stdout ----
+
+thread 'device_topk_rejects_bad_arguments' panicked at crates/intarsia-backend-hip/tests/topk.rs:97:9:
+after-reject: no NaN in the rows, flags [-1515870811, -1515870811]
+
+---- device_topk_edge_k_and_special_values stdout ----
+
+thread 'device_topk_edge_k_and_special_values' panicked at crates/intarsia-backend-hip/tests/topk.rs:97:9:
+k==V: no NaN in the rows, flags [-1515870811, -1515870811, -1515870811]
+
+---- device_topk_finds_planted_values_on_every_slice_edge stdout ----
+
+thread 'device_topk_finds_planted_values_on_every_slice_edge' panicked at crates/intarsia-backend-hip/tests/topk.rs:97:9:
+planted: no NaN in the rows, flags [-1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811]
+
+---- device_topk_flags_nan_rows_and_only_those stdout ----
+
+thread 'device_topk_flags_nan_rows_and_only_those' panicked at crates/intarsia-backend-hip/tests/topk.rs:279:9:
+assertion `left == right` failed: k 1: NaN flags
+  left: [-1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811, -1515870811]
+ right: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1]
+
+
+failures:
+    device_topk_edge_k_and_special_values
+    device_topk_finds_planted_values_on_every_slice_edge
+    device_topk_flags_nan_rows_and_only_those
+    device_topk_is_the_host_candidate_order
+    device_topk_rejects_bad_arguments
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
