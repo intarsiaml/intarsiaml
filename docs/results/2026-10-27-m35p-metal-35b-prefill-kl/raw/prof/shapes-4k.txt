@@ -1,0 +1,17 @@
+op n k t calls ms %  us/call TFLOPS(2*t*n*k)  bytes
+matmul_fp8_mma n=8192 k=2048 t=2048 calls=40 ms=210.1 9.2% us/call=5251 TFLOPS=13.1 bytes=16777216
+matmul_fp8_mma n=8192 k=2048 t=2047 calls=40 ms=195.2 8.5% us/call=4879 TFLOPS=14.1 bytes=16777216
+gdn_delta_rule_bf16 n=0 k=0 t=2048 calls=30 ms=185.3 8.1% us/call=6176 TFLOPS=0.0 bytes=0
+gdn_delta_rule_bf16 n=0 k=0 t=2047 calls=30 ms=181.0 7.9% us/call=6034 TFLOPS=0.0 bytes=0
+matmul_fp8_mma n=2048 k=4096 t=2048 calls=40 ms=103.6 4.5% us/call=2589 TFLOPS=13.3 bytes=8388608
+matmul_fp8_mma n=2048 k=4096 t=2047 calls=40 ms=102.8 4.5% us/call=2570 TFLOPS=13.4 bytes=8388608
+attn_prefill_bf16_flash n=0 k=0 t=2047 calls=10 ms=93.4 4.1% us/call=9344 TFLOPS=0.0 bytes=0
+matmul_fp8_mma n=4096 k=2048 t=2048 calls=30 ms=77.9 3.4% us/call=2597 TFLOPS=13.2 bytes=8388608
+matmul_fp8_mma n=4096 k=2048 t=2047 calls=30 ms=75.0 3.3% us/call=2502 TFLOPS=13.7 bytes=8388608
+attn_prefill_bf16_flash n=0 k=0 t=2048 calls=10 ms=31.6 1.4% us/call=3163 TFLOPS=0.0 bytes=0
+matmul_nvfp4_mma n=512 k=1024 t=2048 calls=80 ms=28.9 1.3% us/call=362 TFLOPS=5.9 bytes=524288
+matmul_nvfp4_mma n=512 k=1024 t=2047 calls=80 ms=28.8 1.3% us/call=360 TFLOPS=6.0 bytes=524288
+moe_experts_bf16#1 n=182 k=16376 t=2047 calls=4 ms=28.3 1.2% us/call=7080 TFLOPS=1.7 bytes=0
+moe_experts_bf16#1 n=184 k=16384 t=2048 calls=4 ms=28.3 1.2% us/call=7066 TFLOPS=1.7 bytes=0
+moe_experts_bf16#1 n=192 k=16376 t=2047 calls=4 ms=28.2 1.2% us/call=7052 TFLOPS=1.8 bytes=0
+moe_experts_bf16#1 n=213 k=16376 t=2047 calls=3 ms=22.2 1.0% us/call=7414 TFLOPS=1.9 bytes=0
