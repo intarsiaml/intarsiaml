@@ -117,7 +117,9 @@ IK_DEVI uint2 mx_a8_e2m1x8_to_e4m3(uint32_t w) {
 /* wd: the 8 dwords mx_a8_e2m1x8_to_e4m3 made from a group's four weight words (.x then .y of each), xa / xc: the group's 32
  * xq bytes (xa = elements 0..15, xc = 16..31). Fixed accumulation order, independent of everything else. */
 #if __has_builtin(__builtin_amdgcn_dot4_f32_fp8_fp8)
+#if defined(__HIP_DEVICE_COMPILE__)  // device pass only: the host pass does not see the gfx12 builtin and would report the fallback
 #warning "mx_a8: dot4 fp8 path"
+#endif
 IK_DEVI float mx_a8_dot32(const uint32_t* wd, const uint4& xa, const uint4& xc) {
     float t = 0.f;
     t = __builtin_amdgcn_dot4_f32_fp8_fp8(wd[0], xa.x, t);
@@ -131,7 +133,9 @@ IK_DEVI float mx_a8_dot32(const uint32_t* wd, const uint4& xa, const uint4& xc) 
     return t;
 }
 #else
+#if defined(__HIP_DEVICE_COMPILE__)
 #warning "mx_a8: fp32 fallback path"
+#endif
 /* 4 e4m3 bytes -> 4 floats (exact) */
 #if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
 typedef float mx_a8_v2f __attribute__((ext_vector_type(2)));

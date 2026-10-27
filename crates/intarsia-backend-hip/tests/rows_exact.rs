@@ -594,19 +594,22 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
         (124160, 5120),
     ];
     for (n, k) in shapes {
-        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
+        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None, intarsia_core::quant::Mxfp4Act::Fp8] {
             let q = intarsia_core::quant::mxfp4::random_rows(&mut rng, n, k, act);
             let weights: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
             let x_rows = nasty_rows(&mut rng, k, 448.0);
             // as the model calls it: W4A16 carries mxfp4_w4a16 (the bf16 rows kernel); the int8 path's own W4A16 handling (the
             // flagged fp chain) is covered by mxfp4_rows_edge_inputs_are_bitwise
-            let attrs = OpAttrs { mxfp4_w4a16: act == intarsia_core::quant::Mxfp4Act::None, ..OpAttrs::default() };
+            let a8 = act == intarsia_core::quant::Mxfp4Act::Fp8;
+            let attrs = OpAttrs { mxfp4_w4a16: act == intarsia_core::quant::Mxfp4Act::None, mxfp4_a8: a8, ..OpAttrs::default() };
+            // W4A8: the ordinary `matmul_mxfp4_a8_gemv` (solo decode) and its row-exact twin run one kernel family
+            let (solo, rows) = if a8 { ("matmul_mxfp4_a8_gemv", "matmul_mxfp4_a8_gemv_rows") } else { ("matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows") };
             for out_dt in [DType::Bf16, DType::F32] {
                 gb_matmul_attrs(
                     &rig,
                     Op::MatmulMxfp4,
-                    "matmul_mxfp4_gemv",
-                    "matmul_mxfp4_gemv_rows",
+                    solo,
+                    rows,
                     &weights,
                     &x_rows,
                     n,
@@ -624,22 +627,24 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
 /// Row r of an M-row `matmul_mxfp4_pair_gemv_rows` call is bitwise the one-row `matmul_mxfp4_gemv` on row r alone, for both
 /// outputs (the pair's int8 path runs both matrices in one launch, so its rows straddle the boundary of the two).
 #[allow(clippy::too_many_arguments)]
-fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>], n0: usize, n1: usize, out_dt: DType, label: &str, w4a16: bool) {
+fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>], n0: usize, n1: usize, out_dt: DType, label: &str, act: intarsia_core::quant::Mxfp4Act) {
+    let (w4a16, a8) = (act == intarsia_core::quant::Mxfp4Act::None, act == intarsia_core::quant::Mxfp4Act::Fp8);
+    let (solo, prows) = if a8 { ("matmul_mxfp4_a8_gemv", "matmul_mxfp4_pair_a8_gemv_rows") } else { ("matmul_mxfp4_gemv", "matmul_mxfp4_pair_gemv_rows") };
     let k = x_rows[0].len();
     let osz = out_dt.size_bytes();
-    let attrs = OpAttrs::default();
-    let pattrs = OpAttrs { mxfp4_w4a16: w4a16, ..OpAttrs::default() };
+    let attrs = OpAttrs { mxfp4_a8: a8, ..OpAttrs::default() };
+    let pattrs = OpAttrs { mxfp4_w4a16: w4a16, mxfp4_a8: a8, ..OpAttrs::default() };
     let one = |w: &[TensorRef], n: usize, r: usize| {
         let mut ins = vec![rig.put(&bf16_row(&x_rows[r]))];
         ins.extend_from_slice(w);
-        rig.run("matmul_mxfp4_gemv", Op::MatmulMxfp4, &ins, &[(out_dt, vec![1, n])], &attrs)[0].data.clone()
+        rig.run(solo, Op::MatmulMxfp4, &ins, &[(out_dt, vec![1, n])], &attrs)[0].data.clone()
     };
     let want: Vec<(Vec<u8>, Vec<u8>)> = (0..CAP).map(|r| (one(a, n0, r), one(b, n1, r))).collect();
     let all: Vec<f32> = x_rows[..CAP].iter().flatten().copied().collect();
     let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
     for m in 1..=CAP {
         let ins = vec![x_all.rows(0, m), a[0].clone(), a[1].clone(), b[0].clone(), b[1].clone(), a[2].clone()];
-        let o = rig.run("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair, &ins, &[(out_dt, vec![m, n0]), (out_dt, vec![m, n1])], &pattrs);
+        let o = rig.run(prows, Op::MatmulMxfp4Pair, &ins, &[(out_dt, vec![m, n0]), (out_dt, vec![m, n1])], &pattrs);
         for r in 0..m {
             let g0 = &o[0].data[r * n0 * osz..(r + 1) * n0 * osz];
             let g1 = &o[1].data[r * n1 * osz..(r + 1) * n1 * osz];
@@ -647,7 +652,7 @@ fn gb_mxfp4_pair(rig: &Rig, a: &[TensorRef], b: &[TensorRef], x_rows: &[Vec<f32>
             let bad1 = g1.chunks(osz).zip(want[r].1.chunks(osz)).position(|(g, w)| g != w);
             assert!(bad0.is_none() && bad1.is_none(), "G-B FAIL {label}: M={m} row {r}: first differing column out0 {bad0:?} out1 {bad1:?}");
         }
-        rig.note("matmul_mxfp4_pair_gemv_rows", m, m, m * (n0 + n1) * osz);
+        rig.note(prows, m, m, m * (n0 + n1) * osz);
     }
 }
 
@@ -658,15 +663,14 @@ fn mxfp4_pair_rows_are_bitwise_the_one_row_gemv() {
     let mut rng = SplitMix64::new(811);
     let shapes = [(17408usize, 17408usize, 5120usize), (1024, 1024, 5120), (8704, 8704, 5120), (512, 512, 5120), (9, 33, 2080), (301, 1, 4096), (5, 7, 32)];
     for (n0, n1, k) in shapes {
-        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None] {
+        for act in [intarsia_core::quant::Mxfp4Act::Dynamic, intarsia_core::quant::Mxfp4Act::None, intarsia_core::quant::Mxfp4Act::Fp8] {
             let qa = intarsia_core::quant::mxfp4::random_rows(&mut rng, n0, k, act);
             let qb = intarsia_core::quant::mxfp4::random_rows(&mut rng, n1, k, act);
             let a: Vec<TensorRef> = qa.parts.iter().map(|p| rig.put(p)).collect();
             let b: Vec<TensorRef> = qb.parts.iter().map(|p| rig.put(p)).collect();
             let x_rows = nasty_rows(&mut rng, k, 448.0);
             for out_dt in [DType::Bf16, DType::F32] {
-                let w4a16 = act == intarsia_core::quant::Mxfp4Act::None;
-                gb_mxfp4_pair(&rig, &a, &b, &x_rows, n0, n1, out_dt, &format!("mxfp4 pair n={n0}+{n1} k={k} act={act:?} {out_dt:?}"), w4a16);
+                gb_mxfp4_pair(&rig, &a, &b, &x_rows, n0, n1, out_dt, &format!("mxfp4 pair n={n0}+{n1} k={k} act={act:?} {out_dt:?}"), act);
             }
         }
     }
@@ -779,7 +783,7 @@ fn mxfp4_rows_edge_inputs_are_bitwise() {
                     let label = format!("mxfp4 edge set {set} n={n} k={k} act={act:?} {out_dt:?}");
                     gb_matmul(&rig, Op::MatmulMxfp4, "matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", &weights, rows, n, out_dt, &label, CAP);
                     // default attrs: W4A16 runs the int8 kernel's flagged fp chain (the path the model routes away from)
-                    gb_mxfp4_pair(&rig, &weights, &w1, rows, n, n / 2 + 1, out_dt, &format!("{label} pair"), false);
+                    gb_mxfp4_pair(&rig, &weights, &w1, rows, n, n / 2 + 1, out_dt, &format!("{label} pair"), intarsia_core::quant::Mxfp4Act::Dynamic);
                 }
             }
         }
@@ -1188,12 +1192,13 @@ fn timing_mxfp4_rows() {
         let q = intarsia_core::quant::mxfp4::random_rows(&mut rng, n, k, intarsia_core::quant::Mxfp4Act::Dynamic);
         let ws: Vec<TensorRef> = q.parts.iter().map(|p| rig.put(p)).collect();
         let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
-        for kernel in ["matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows"] {
+        for kernel in ["matmul_mxfp4_gemv", "matmul_mxfp4_gemv_rows", "matmul_mxfp4_a8_gemv", "matmul_mxfp4_a8_gemv_rows"] {
             let ms: &[usize] = if kernel.ends_with("_rows") { &[1, 2, 3, 4, 5, 6, 7, 8, 12, 16] } else { &[1, 2, 3, 4, 5, 8] };
             for &m in ms {
                 let mut ins = vec![x.rows(0, m)];
                 ins.extend(ws.iter().cloned());
-                let us = rig.time_us(kernel, Op::MatmulMxfp4, &ins, &[(DType::Bf16, vec![m, n])], &OpAttrs::default(), iters);
+                let attrs = OpAttrs { mxfp4_a8: kernel.contains("_a8_"), ..OpAttrs::default() };
+                let us = rig.time_us(kernel, Op::MatmulMxfp4, &ins, &[(DType::Bf16, vec![m, n])], &attrs, iters);
                 let bytes = n * k / 2 + n * k / 32;
                 println!("TIME mxfp4 {n}x{k:<6} {kernel:<24} M={m:<2} {us:8.2} us  {:7.1} GB/s", bytes as f64 / us / 1e3);
             }

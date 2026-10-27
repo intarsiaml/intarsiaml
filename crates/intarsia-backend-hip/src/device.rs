@@ -872,7 +872,8 @@ impl Backend for HipBackend {
                 // W4A16 keeps the bf16 rows kernel (the int8 path would take its slower flagged fp chain), W4A4 the int8 path
                 "matmul_mxfp4_gemv_rows" if a.mxfp4_w4a16 => ffi::ik_matmul_mxfp4_gemv_rows_bf16(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_gemv_rows" => ffi::ik_matmul_mxfp4_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
-                "matmul_mxfp4_a8_gemv" | "matmul_mxfp4_a8_gemv_rows" => ffi::ik_matmul_mxfp4_a8_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_gemv" => ffi::ik_matmul_mxfp4_a8_gemv(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_gemv_rows" => ffi::ik_matmul_mxfp4_a8_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_v1" => ffi::ik_matmul_mxfp4_mma_v1(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_fold" => ffi::ik_matmul_mxfp4_mma_fold(i(0), i(1), i(2), i(3), o, sc, s),
@@ -882,7 +883,8 @@ impl Backend for HipBackend {
                     ffi::ik_matmul_mxfp4_pair_gemv_rows_bf16(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s)
                 }
                 "matmul_mxfp4_pair_gemv_rows" => ffi::ik_matmul_mxfp4_pair_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
-                "matmul_mxfp4_pair_a8_gemv" | "matmul_mxfp4_pair_a8_gemv_rows" => ffi::ik_matmul_mxfp4_pair_a8_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                "matmul_mxfp4_pair_a8_gemv" => ffi::ik_matmul_mxfp4_pair_a8_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                "matmul_mxfp4_pair_a8_gemv_rows" => ffi::ik_matmul_mxfp4_pair_a8_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_topk_bf16_v2" => ffi::ik_moe_topk_bf16_v2(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => {

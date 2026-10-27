@@ -208,4 +208,16 @@ int ik_matmul_mxfp4_pair_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w0, c
                : a8_rows((int)M, xp, a0, b0, (ik_bf16*)out0->data, N0, a1, b1, (ik_bf16*)out1->data, N1, K, scratch, s);
 }
 
+// solo twins: the ordinary (non-rows_exact) registrations `matmul_mxfp4_a8_gemv` / `matmul_mxfp4_pair_a8_gemv` launch the very same kernel
+// family, so a solo row and a batched row are the same instruction sequence
+int ik_matmul_mxfp4_a8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                            const ik_scratch* scratch, void* stream) {
+    return ik_matmul_mxfp4_a8_gemv_rows(x, w, scales, act, out, scratch, stream);
+}
+
+int ik_matmul_mxfp4_pair_a8_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                 const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream) {
+    return ik_matmul_mxfp4_pair_a8_gemv_rows(x, w0, s0, w1, s1, act, out0, out1, scratch, stream);
+}
+
 }  // extern "C"

@@ -230,6 +230,10 @@ int ik_matmul_mxfp4_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, cons
  * (w0, s0) into out0 and [0, N1) from (w1, s1) into out1, bitwise two single calls. */
 int ik_matmul_mxfp4_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                                  ik_tensor* out, const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_a8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                            const ik_scratch* scratch, void* stream);
+int ik_matmul_mxfp4_pair_a8_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                 const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream);
 int ik_matmul_mxfp4_pair_a8_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,
                                       const ik_tensor* s1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1,
                                       const ik_scratch* scratch, void* stream);
