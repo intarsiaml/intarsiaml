@@ -138,6 +138,8 @@ fn try_load_with(
         profile_every,
         // the Spark's `free` after the weights is the page-cache-reduced figure (about 2 GB on a shared box): take most of it
         kv_fraction: 0.95,
+        // INTARSIA_TEST_MXFP4_ACT=fp8|none|dynamic: the MXFP4 activation mode (default: the recipe's / the checkpoint's)
+        mxfp4_act: std::env::var("INTARSIA_TEST_MXFP4_ACT").ok().map(|v| intarsia_core::quant::Mxfp4Act::parse(&v).unwrap()),
         ..Default::default()
     });
     let tel = Arc::new(Telemetry::new());
