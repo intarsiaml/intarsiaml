@@ -1,0 +1,23 @@
+04:56:07 guard: [guard] radiance stopped 2026-10-27 04:56:07
+04:58:22 item 1 gsweep: 100 TIME lines
+04:58:22 item 2: starting server f32+spoff
+04:59:33 item 2 f32+spoff speed: exit 0 results/20261027-045854-tpb-f32_spoff-tpb-w4-f32_spoff-2/result.json
+04:59:33 item 3: starting server bf16+spoff
+05:00:40 item 3 bf16+spoff speed: exit 0 results/20261027-050004-tpb-bf16_spoff-tpb-w4-bf16_spoff-3/result.json
+05:01:15 item 4 bf16+spoff speed: exit 0 results/20261027-050040-tpb-bf16_spoff-tpb-w4-bf16_spoff-4/result.json
+05:01:15 item 5: starting server f32+spoff
+05:02:25 item 5 f32+spoff speed: exit 0 results/20261027-050147-tpb-f32_spoff-tpb-w4-f32_spoff-5/result.json
+05:03:05 item 6 f32+spoff speed: exit 0 results/20261027-050226-tpb-f32_spoff-tpb-w4-f32_spoff-6/result.json
+05:03:05 item 7: starting server bf16+spoff
+05:04:11 item 7 bf16+spoff speed: exit 0 results/20261027-050336-tpb-bf16_spoff-tpb-w4-bf16_spoff-7/result.json
+05:04:47 item 8 bf16+spoff speed: exit 0 results/20261027-050412-tpb-bf16_spoff-tpb-w4-bf16_spoff-8/result.json
+05:04:47 item 9: starting server f32+spoff
+05:05:57 item 9 f32+spoff speed: exit 0 results/20261027-050519-tpb-f32_spoff-tpb-w4-f32_spoff-9/result.json
+05:06:36 item 10 f32+spoff speed: exit 0 results/20261027-050558-tpb-f32_spoff-tpb-w4-f32_spoff-10/result.json
+05:06:36 item 11: starting server bf16+spoff
+05:07:43 item 11 bf16+spoff speed: exit 0 results/20261027-050708-tpb-bf16_spoff-tpb-w4-bf16_spoff-11/result.json
+05:08:20 item 12 bf16+spoff speed: exit 0 results/20261027-050745-tpb-bf16_spoff-tpb-w4-bf16_spoff-12/result.json
+05:08:20 item 13: starting server f32+spoff
+05:09:30 item 13 f32+spoff speed: exit 0 results/20261027-050852-tpb-f32_spoff-tpb-w4-f32_spoff-13/result.json
+05:09:30 done
+05:09:41 guard: [guard] radiance answers 2026-10-27 05:09:41 (after 15 s)

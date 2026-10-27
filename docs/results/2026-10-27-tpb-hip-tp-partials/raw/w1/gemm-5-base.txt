@@ -1,0 +1,87 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1205:4
+     |
+1205 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/mxfp4_a8.rs (/target/release/deps/mxfp4_a8-1a26adc82f5ea936)
+
+running 1 test
+TIME mxfp4 prefill 17408x5120   M=256   matmul_mxfp4_mma_fold         356.5 us   128.0 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=256   matmul_mxfp4_mma              655.7 us    69.6 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=256   matmul_mxfp4_a8_mma           344.3 us   132.5 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=1024  matmul_mxfp4_mma_fold        1455.8 us   125.4 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=1024  matmul_mxfp4_mma             2496.5 us    73.1 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=1024  matmul_mxfp4_a8_mma          1452.5 us   125.7 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=4096  matmul_mxfp4_mma_fold        4995.8 us   146.2 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=4096  matmul_mxfp4_mma             9183.9 us    79.5 TFLOPS
+TIME mxfp4 prefill 17408x5120   M=4096  matmul_mxfp4_a8_mma          4990.1 us   146.3 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=256   matmul_mxfp4_mma_fold         403.9 us   113.0 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=256   matmul_mxfp4_mma              765.5 us    59.6 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=256   matmul_mxfp4_a8_mma           383.1 us   119.1 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=1024  matmul_mxfp4_mma_fold        1519.9 us   120.1 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=1024  matmul_mxfp4_mma             2591.5 us    70.4 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=1024  matmul_mxfp4_a8_mma          1516.8 us   120.3 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=4096  matmul_mxfp4_mma_fold        4711.6 us   155.0 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=4096  matmul_mxfp4_mma             9544.8 us    76.5 TFLOPS
+TIME mxfp4 prefill 5120x17408  M=4096  matmul_mxfp4_a8_mma          4795.8 us   152.2 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=256   matmul_mxfp4_mma_fold         225.1 us   119.3 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=256   matmul_mxfp4_mma              385.4 us    69.6 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=256   matmul_mxfp4_a8_mma           223.4 us   120.2 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=1024  matmul_mxfp4_mma_fold         721.0 us   148.9 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=1024  matmul_mxfp4_mma             1555.8 us    69.0 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=1024  matmul_mxfp4_a8_mma           722.5 us   148.6 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=4096  matmul_mxfp4_mma_fold        3079.3 us   139.5 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=4096  matmul_mxfp4_mma             5647.8 us    76.0 TFLOPS
+TIME mxfp4 prefill 10240x5120   M=4096  matmul_mxfp4_a8_mma          3072.9 us   139.8 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=256   matmul_mxfp4_mma_fold         142.6 us   113.0 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=256   matmul_mxfp4_mma              238.2 us    67.6 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=256   matmul_mxfp4_a8_mma           150.7 us   106.9 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=1024  matmul_mxfp4_mma_fold         447.9 us   143.8 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=1024  matmul_mxfp4_mma              788.9 us    81.7 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=1024  matmul_mxfp4_a8_mma           454.1 us   141.9 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=4096  matmul_mxfp4_mma_fold        1793.8 us   143.7 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=4096  matmul_mxfp4_mma             3535.9 us    72.9 TFLOPS
+TIME mxfp4 prefill 6144x5120   M=4096  matmul_mxfp4_a8_mma          1840.2 us   140.0 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=256   matmul_mxfp4_mma_fold         162.1 us    99.4 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=256   matmul_mxfp4_mma              282.1 us    57.1 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=256   matmul_mxfp4_a8_mma           167.9 us    95.9 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=1024  matmul_mxfp4_mma_fold         455.8 us   141.3 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=1024  matmul_mxfp4_mma              828.3 us    77.8 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=1024  matmul_mxfp4_a8_mma           450.6 us   143.0 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=4096  matmul_mxfp4_mma_fold        1802.8 us   142.9 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=4096  matmul_mxfp4_mma             3603.7 us    71.5 TFLOPS
+TIME mxfp4 prefill 5120x6144   M=4096  matmul_mxfp4_a8_mma          1837.6 us   140.2 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=256   matmul_mxfp4_mma_fold         257.1 us   125.3 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=256   matmul_mxfp4_mma              457.9 us    70.3 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=256   matmul_mxfp4_a8_mma           247.6 us   130.1 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=1024  matmul_mxfp4_mma_fold         862.6 us   149.4 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=1024  matmul_mxfp4_mma             1822.0 us    70.7 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=1024  matmul_mxfp4_a8_mma           861.9 us   149.5 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=4096  matmul_mxfp4_mma_fold        3716.6 us   138.7 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=4096  matmul_mxfp4_mma             6641.2 us    77.6 TFLOPS
+TIME mxfp4 prefill 12288x5120   M=4096  matmul_mxfp4_a8_mma          3680.6 us   140.0 TFLOPS
+test timing_mxfp4_prefill ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 12.33s
+

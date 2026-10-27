@@ -1,0 +1,13 @@
+04:18:15 guard: [guard] radiance stopped 2026-10-27 04:18:15
+04:18:15 item 1: starting server bf16
+04:28:29 item 1 bf16 mmlu: exit 0 results/20261027-041932-tpb-bf16-tpb-w2-bf16-mmlu-1/result.json
+04:29:58 item 2 bf16 texts: exit 0       18 lines
+04:29:58 item 3: starting server bf16+spoff
+04:32:32 item 3 bf16+spoff texts: exit 0       18 lines
+04:32:53 item 4 bf16+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+04:32:53 item 5: starting server bf16+mb16
+04:34:10 item 5 bf16+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+04:34:10 item 6: starting server f32+mb16
+04:35:28 item 6 f32+mb16 mixids: 4k-0.txt: A 8a3ef2a792 (200 chunks) B d3be02813e (48 chunks)|16k-3.txt: A 8a3ef2a792 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 8a3ef2a792 (200 chunks) B 537fb01934 (48 chunks)|
+04:35:28 done
+04:35:39 guard: [guard] radiance answers 2026-10-27 04:35:39 (after 15 s)
