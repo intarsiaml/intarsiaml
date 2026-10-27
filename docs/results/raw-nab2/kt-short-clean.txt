@@ -1,0 +1,5 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+short_conv     short_conv_bf16                20      0    5.073e-5    2.209e-6  ADMITTED
+1 kernels, 20 cases in 0.2s

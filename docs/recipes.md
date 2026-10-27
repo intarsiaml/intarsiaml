@@ -85,6 +85,19 @@ missing feature.
 | `norm` | string | required | Gated RMSNorm weight `[dv]` (plain weight, never offset by `norm_offset`). |
 | `out` | string | required | Output projection. |
 
+### `[layer.conv]` (gated short conv: Liquid LFM2 / LFM2.5)
+
+The block is `y = out(C * causalconv(B * x))` with `[B | C | x] = in_proj(n)`; the depthwise conv has `K = conv_L_cache` taps, no
+activation, no bias (`Op::ShortConv`, `crates/intarsia-core/src/model/short_conv.rs`). Its only state is the last `K - 1` columns of
+`B * x`, a `Recurrent` slot like GatedDeltaNet's. The width is `hidden_size`. Pre-norm key: `layer.norms.pre_conv`.
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `kind` | string | required | `"short_conv"`. |
+| `in_proj` | string | required | Projection `[3 * hidden, hidden]`; its rows split into `B`, `C`, `x`. |
+| `conv` | string | required | Depthwise causal conv taps `[hidden, 1, K]` or `[hidden, K]`. |
+| `out` | string | required | Output projection `[hidden, hidden]`. |
+
 ### `[layer.ffn]` (dense MLP)
 
 | Key | Type | Default | What it controls |
@@ -157,7 +170,7 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 | `num_heads` | `"num_attention_heads"` |
 | `num_kv_heads` | `"num_key_value_heads"` |
 | `head_dim` | `"head_dim"` (falls back to `hidden / heads` when the config has none) |
-| `intermediate_size` | `"intermediate_size"` |
+| `intermediate_size` | `"intermediate_size"` (with `block_auto_adjust_ff_dim = true`, LFM2, the dense FFN width is `int(2 * ff / 3)` times `block_ffn_dim_multiplier`, rounded up to `block_multiple_of`, as HF `Lfm2MLP` does) |
 | `vocab_size` | `"vocab_size"` |
 | `rms_eps` | `"rms_norm_eps"` |
 | `rope_theta` | `"rope_theta"` |
@@ -167,6 +180,7 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 | `linear_k_heads`, `linear_v_heads` | `"linear_num_key_heads"`, `"linear_num_value_heads"` |
 | `linear_k_head_dim`, `linear_v_head_dim` | `"linear_key_head_dim"`, `"linear_value_head_dim"` |
 | `linear_conv_kernel` | `"linear_conv_kernel_dim"` |
+| `short_conv_kernel` | `"conv_L_cache"` (LFM2's short conv; absent from the config = no such block) |
 
 ### `[accuracy]` (read only by `intarsia accuracy`; no effect on loading or serving)
 
