@@ -1,0 +1,5 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (default)
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d

@@ -1,0 +1,9 @@
+fleetq: #6270 running on spark1: ssh spark1 'python3 - dev'
+clean: 3 kernels, 136 cases in 4.2s
+e8m0-bias: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10     10     1.000e0     1.000e0  REJECTED | 3 kernels, 136 cases in 2.8s | Error: kernel admission failed (1 kernel(s) REJECTED)
+scale-per-piece: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10      2     1.270e0    8.183e-1  REJECTED | 3 kernels, 136 cases in 4.8s | Error: kernel admission failed (1 kernel(s) REJECTED)
+scale-row-stride: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10     10    8.554e37    3.065e37  REJECTED | 3 kernels, 136 cases in 4.8s | Error: kernel admission failed (1 kernel(s) REJECTED)
+scale-step-stride: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10      2    3.773e34    4.976e33  REJECTED | 3 kernels, 136 cases in 4.7s | Error: kernel admission failed (1 kernel(s) REJECTED)
+out-scale: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10     10    5.000e-1    5.000e-1  REJECTED | 3 kernels, 136 cases in 4.7s | Error: kernel admission failed (1 kernel(s) REJECTED)
+khalf-scale: CAUGHT: matmul_mxfp4   matmul_mxfp4_mma               10      8    7.401e-1    5.898e-1  REJECTED | 3 kernels, 136 cases in 4.7s | Error: kernel admission failed (1 kernel(s) REJECTED)
+fleetq: #6270 done (exit 0)

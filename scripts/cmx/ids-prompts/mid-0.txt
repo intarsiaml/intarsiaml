@@ -1,0 +1,21 @@
+# IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented**

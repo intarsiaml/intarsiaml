@@ -1,0 +1,29 @@
+fleetq: #6266 running on spark1: ssh spark1 'bash -s'
+== verify rows 08:40:30
+rc=101
+test verify_rows_are_bitwise_the_single_row_steps has been running for over 60 seconds
+thread 'verify_rows_are_bitwise_the_single_row_steps' panicked at crates/intarsia-models/tests/verify_rows_real.rs:182:5:
+assertion `left == right` failed: the verify pass is not bitwise the single-row steps
+test verify_rows_are_bitwise_the_single_row_steps ... FAILED
+    verify_rows_are_bitwise_the_single_row_steps
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.06s
+== batched decode == solo 08:41:34
+rc=0
+batch plan notes: ["2244 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 149 MiB per sequence)"]
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+4290 (row, step) pairs bitwise identical in 422.9 s
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 464.50s
+== kernels test --op matmul_mxfp4 08:49:19
+rc=0
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_mxfp4   matmul_mxfp4_gemv              63      0    7.576e-4    1.471e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_rows         63      0    7.576e-4    1.471e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               10      0    3.401e-3    5.797e-5  ADMITTED
+3 kernels, 136 cases in 2.7s
+== kernels test --quick 08:49:22
+rc=0
+79 kernels, 545 cases in 5.9s
+== done 08:49:29
+fleetq: #6266 done (exit 0)
