@@ -1,0 +1,7 @@
+I am the GPU. I sit in the rack, humming at a steady clock, waiting for the humans to tell me what to do. They call this "tuning," but to me, it is just a matter of how they feed me data and how they expect me to answer.
+
+I have a rule of thumb, one they must respect: if they change a knob marked **numerics: yes**, they are changing the math. They are changing the order of my sums, the precision of my memory, or the shape of my chunks. If they do that, they cannot just quote my speed. They must run the `accuracy` gate against the golden standard. Otherwise, my speed number is just noise. If they change a knob marked **no**, they are only changing my schedule, my memory layout, or my logging. Those are safe.
+
+Let me tell you about the knobs they turn.
+
+First, there is the **Prefill Chunk**. By default, I process 256 tokens at a time, or whatever the recipe says. But if they change this to 1024, they are changing the boundaries of my reductions. The KV cache writes happen in a different order. It is a subtle shift, a KL-level difference

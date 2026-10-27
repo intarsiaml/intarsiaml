@@ -1,0 +1,22 @@
+fleetq: #5992 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5992 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh acc.sh'
+[h27p] radiance inactive 2026-10-27 03:18:45
+acc chunk 2048 exit 0
+acc chunk 256 exit 0
+== chunk 256
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 5.626e-3 (need <= 3.0e-2) ok [all rows, n=160: 6.179e-3, reported only] | t
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.626e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 6.179e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.626e-3 (21-way KL over scored rows <= max(static floor, factor x reference no
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== chunk 2048
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 5.626e-3 (need <= 3.0e-2) ok [all rows, n=160: 6.179e-3, reported only] | t
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.626e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 6.179e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.626e-3 (21-way KL over scored rows <= max(static floor, factor x reference no
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+60 / 60 tensors; only in one: 0 []; differing: 0 []
+BITWISE EQUAL
+[h27p] acc.sh done 2026-10-27 03:18:59
+[h27p] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793085547,"owned_by":"radiance"
+fleetq: #5992 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,3 @@
+rep 0: B ttft 1.32 s | A gap before median 18 ms | during B: n=14 max 652 ms p99 648 ms | A tokens 300
+rep 1: B ttft 1.35 s | A gap before median 18 ms | during B: n=15 max 656 ms p99 654 ms | A tokens 300
+rep 2: B ttft 1.34 s | A gap before median 18 ms | during B: n=14 max 661 ms p99 655 ms | A tokens 300

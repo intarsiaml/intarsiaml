@@ -1,0 +1,9 @@
+03:26:15 guard: [guard] radiance stopped 2026-10-27 03:26:15
+03:26:15 round 1 arm base16: starting server
+03:27:29 round 1 arm base16 mixids: 4k-0.txt: A c158a361f4 (200 chunks) B d3be02813e (48 chunks)|16k-3.txt: A 8a3ef2a792 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 8a3ef2a792 (200 chunks) B 537fb01934 (48 chunks)|
+03:27:30 round 1 arm dev16: starting server
+03:28:48 round 1 arm dev16 mixids: 4k-0.txt: A 8a3ef2a792 (200 chunks) B d3be02813e (48 chunks)|16k-3.txt: A 8a3ef2a792 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 8a3ef2a792 (200 chunks) B 537fb01934 (48 chunks)|
+03:28:48 round 1 arm dev1: starting server
+03:30:22 round 1 arm dev1 mixids: 4k-0.txt: A 8a3ef2a792 (200 chunks) B d3be02813e (48 chunks)|16k-3.txt: A 8a3ef2a792 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 8a3ef2a792 (200 chunks) B 537fb01934 (48 chunks)|
+03:30:22 done
+03:30:32 guard: [guard] radiance answers 2026-10-27 03:30:32 (after 15 s)

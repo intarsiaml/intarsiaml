@@ -1,0 +1,8 @@
+Based on the provided document, here is a section-by-section summary of the IntarsiaML architecture plan (v0.2), followed by a list of open questions and gaps identified in the text.
+
+### Section-by-Section Summary
+
+**0. Goals, Honest Targets, and Anti-Goals**
+*   **Priorities:** Modularity > Ease of Use > Accuracy > Speed (Top 3 per platform) > Reproducibility > APIs > UI > Metrics > Diagrams > Spark/R9700/TP.
+*   **Performance Targets:**
+    *   **DGX Spark (GB10
