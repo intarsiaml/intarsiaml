@@ -34,3 +34,26 @@ fn mlx_checkpoint_reads_bit_for_bit_like_the_numpy_dequantiser() {
     assert!(extra.is_empty(), "engine view has tensors the reference lacks: {:?}", &extra[..extra.len().min(5)]);
     eprintln!("{n} tensors, {:.2} GB identical", bytes as f64 / 1e9);
 }
+
+/// A checkpoint with a per-module bit override and stacked 3-D experts (LFM2.5-24B-A2B-MLX-4bit: 4-bit body, 6-bit embedding,
+/// `switch_mlp.*` `[64, 1536, 256]` words): every module opens with the shape the bits imply, and the first rows of the embedding
+/// and of an expert dequantise to finite values of a sane magnitude.
+///
+///   MLX_MIXED_DIR=<LFM2.5 mlx dir> cargo test --release -p intarsia-models --test mlx_affine_real -- --ignored
+#[test]
+#[ignore]
+fn mixed_bits_and_stacked_experts_open_with_the_implied_shapes() {
+    let dir = std::env::var_os("MLX_MIXED_DIR").expect("set MLX_MIXED_DIR");
+    let src = SchemedSource::open(&PathBuf::from(dir)).unwrap();
+    let i = src.info("model.embed_tokens.weight").unwrap();
+    assert_eq!((i.dtype, i.shape), (intarsia_core::DType::Bf16, vec![128000, 2048]));
+    let i = src.info("model.layers.2.feed_forward.switch_mlp.gate_proj.weight").unwrap();
+    assert_eq!(i.shape, vec![64, 1536, 2048]);
+    assert!(src.info("model.layers.2.feed_forward.switch_mlp.gate_proj.scales").is_none());
+    for (name, rows) in [("model.embed_tokens.weight", 4usize), ("model.layers.2.feed_forward.switch_mlp.gate_proj.weight", 4)] {
+        let b = src.bytes(name).unwrap();
+        let v = intarsia_core::weights::to_f32_vec(intarsia_core::DType::Bf16, &b[..rows * 2048 * 2]).unwrap();
+        assert!(v.iter().all(|x| x.is_finite() && x.abs() < 50.0), "{name}");
+        assert!(v.iter().any(|x| *x != 0.0), "{name}");
+    }
+}
