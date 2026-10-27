@@ -33,3 +33,6 @@ serve up 05:51:34
 localeval speed end 05:52:23
 localeval mmlu end 05:56:51
 serve2 start 05:57:04
+serve2 up 05:57:30
+skip speed 05:57:30
+localeval mmlu10 end 06:31:43

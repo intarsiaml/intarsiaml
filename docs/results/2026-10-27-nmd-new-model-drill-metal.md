@@ -37,7 +37,7 @@ With the golden running beside the first load, first token would have been at ab
 | `in-depth` tier | 05:41:43 | 05:45:02 | 3 min 19 s | **in-depth.md published, +51 min 28 s**; verdict FAIL (acc-short, acc-long) |
 | HF bf16 golden (noise check, by hand) + comparison | 05:48:57 | 05:50:37 | 1 min 40 s | explains the FAIL: +57 min |
 | `intarsia serve` load + localeval speed sweep (128, 1k, 4k, 16k) | 05:51:08 | 05:52:23 | 1 min 15 s | unanimis 22be5b7f; +58 min 49 s |
-| localeval MMLU `--limit 10` (n = 570, 5-shot, thinking off) | MMLU_START | MMLU_END | MMLU_WALL | unanimis MMLU_ID |
+| localeval MMLU `--limit 10` (n = 570, 5-shot, thinking off) | 05:57:04 | 06:31:43 | 34 min 39 s | unanimis b84bcc40; +1 h 38 min |
 
 Targets: basic test within 1 to 2 h: **48 min (quick.md) / 57 min (with the FAIL explained)**. In-depth within 2 to 4 h: **51 min** for what
 onboard's in-depth tier contains (it is 3 minutes of machine time here; see friction 6).
@@ -54,7 +54,7 @@ onboard's in-depth tier contains (it is 3 minutes of machine time here; see fric
 | Decode (localeval, forced 128 tokens, 3 reps) | 61.5 tok/s at 114 prompt tokens, 61.5 at 992, 61.0 at 4089, 57.6 at 16.7k | unanimis 22be5b7f |
 | Prefill | 2258 (114 tok, overhead-bound), 4835 (992), 4623 (4089; marginal 4554), 2767 (16.7k; marginal 2448) tok/s; TTFT 6.0 s at 16.7k | same |
 | Decode vs the byte floor (8.41 GB per token, 614 GB/s) | 84 % at 1k and 4k (onboard's `intarsia bench`: 54.1 / 60.5 / 60.7 tok/s at 128 / 1k / 4k) | `quick.md` |
-| MMLU `--limit 10` (n = 570) | MMLU_RESULT | unanimis MMLU_ID |
+| MMLU `--limit 10` (n = 570) | **0.751** (SE about 0.018), 0 truncated, mean reply 153 tokens although thinking is off (the model explains its answer), 2051 s | unanimis b84bcc40 |
 
 Every speed cell is one run (3 reps). The decode figure is eager (`decode ran eagerly` in the bench warnings, no graph replay on Metal), at 84 %
 of the byte floor. Not compared with mlx-lm on the same weights (no time).
@@ -99,7 +99,7 @@ run the cpu backend (f32 `A_log`) on the same goldens to isolate the rounding.
 6. **The in-depth tier is 3 minutes here.** With no `--reference` server, no CPU-oracle golden and no `--tp`, `ab`, `acc-oracle`, `acc-format` and
    `tp` are SKIPs. The requirement's "2 to 4 hours of in-depth" is therefore the localeval quality set (MMLU, GSM8K) that the user runs by hand
    after onboard; onboard could end by printing the exact `localeval` commands (and the server command) for a model it just qualified.
-   MMLU `--limit 25` is 1425 questions at 2.7 s each (about 65 min) on this 4B; I cut it to `--limit 10` (n = 570).
+   MMLU `--limit 25` is 1425 questions at 3.6 s each (mean reply 153 tokens at 61 tok/s), about 85 min on this 4B; I started it, stopped it at 5 subjects and ran `--limit 10` (n = 570, 34 min) instead.
 7. **Reading code or guessing, complete list:** `qualify.rs` golden rules (item 3); `kernels.rs`, `gdn.rs`, `model.rs` for the no-kernel error
    (item 1); the checkpoint's tensor dtypes (a Python script over the safetensors headers); the `intarsia serve` flags and `localeval --url` for a
    local server (no doc for "serve the model I just qualified and benchmark it"; `docs/benchmarking.md` was not needed).
@@ -115,5 +115,9 @@ there and the in-depth report; it can run while the quick numbers are published,
 * `cpu` backend run on the same goldens to separate the bf16 rounding of `A_log`/norm from the Metal numerics (above).
 * GSM8K, mlx-lm / llama.cpp same-weights comparison, `--spec mtp` (the checkpoint carries an MTP head; the recipe has `[mtp]` for the 27B).
 * The goldens are not committed (the short fp32 golden is 716 MB); the commands to remake them are in `docs/adding-a-model.md`.
-* No CUDA/HIP no-op ids for the loader change: it is a dtype cast that fires only for f32 `A_log` / gated-norm tensors on non-cpu backends, which
-  could not load before; bf16 checkpoints do not reach it. `cargo test --release -p intarsia-core`: see the PR.
+* No CUDA/HIP no-op ids for the loader change, on this evidence: the cast fires only for f32 `A_log` / gated-norm tensors on non-cpu backends
+  (the cpu backend reports its name as `cpu`, `intarsia-backend-cpu/src/lib.rs:109`). The `A_log` and `linear_attn.norm.weight` headers of
+  every Qwen3.5-family checkpoint on endor's disk that the fleet runs (`Qwen3.6-35B-A3B-NVFP4`, `Qwen3.8-27B-Quark-AWQ-MXFP4`, `qwen38-27b`)
+  are all BF16, so for them the helper returns the tensor untouched; the CUDA and HIP `gdn_delta_rule` entries are registered `weights(bf)` like
+  Metal's, so f32 `A_log` could not load there. Not checked: whether a CUDA or HIP gated-rmsnorm kernel accepts an f32 norm weight (a checkpoint
+  with bf16 `A_log` and f32 norm would then change numerics there); none is known. `cargo test --release -p intarsia-core`: see the PR.
