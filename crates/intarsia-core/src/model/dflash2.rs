@@ -154,7 +154,7 @@ fn split_rows(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), name
     let mk = |part: &[u8]| -> Result<QTensor> {
         let buf = crate::backend::upload_new(b, part)?;
         bytes(part.len() as u64);
-        Ok(QTensor { format: crate::quant::BF16, n, k, parts: vec![TensorRef::new(buf, DType::Bf16, &[n, k])], act_quant: false })
+        Ok(QTensor { format: crate::quant::BF16, n, k, parts: vec![TensorRef::new(buf, DType::Bf16, &[n, k])], act_fp8: false, act_quant: false })
     };
     Ok([mk(&raw[..half])?, mk(&raw[half..2 * half])?])
 }

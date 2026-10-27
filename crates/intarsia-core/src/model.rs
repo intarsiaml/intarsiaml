@@ -686,7 +686,7 @@ impl Model {
             && tp.world > 1
             && tp.comm.as_ref().and_then(|c| c.all_gather_quantum()).is_some_and(|q| dims.vocab % tp.world == 0 && (vh * 4) % q == 0)
             && (!tied || (embed.shape == [dims.vocab, dims.hidden] && (vh * dims.hidden * embed.dtype.size_bytes()) % 16 == 0));
-        let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_quant: false };
+        let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_fp8: false, act_quant: false };
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
             if tp.rank != 0 && !vocab_par {
                 return Ok(None);
@@ -2834,7 +2834,7 @@ impl Model {
     }
 
     /// Two MXFP4 projections of the same activation as one `Op::MatmulMxfp4Pair` launch, when the backend has the kernel.
-    /// Only for two MXFP4 weights with the same `act_quant` (the pair carries one `act` input): anything else, or no kernel,
+    /// Only for two MXFP4 weights with the same activation mode (`act_quant`, `act_fp8`; the pair carries one `act` input): anything else, or no kernel,
     /// returns `false` without running anything and the caller runs the two `proj`s.
     pub(crate) fn try_mxfp4_pair(
         &self,
@@ -2845,14 +2845,14 @@ impl Model {
         out_b: &TensorRef,
         profile: bool,
     ) -> Result<bool> {
-        if a.format != crate::quant::MXFP4 || b.format != crate::quant::MXFP4 || a.act_quant != b.act_quant {
+        if a.format != crate::quant::MXFP4 || b.format != crate::quant::MXFP4 || a.act_quant != b.act_quant || a.act_fp8 != b.act_fp8 {
             return Ok(false);
         }
         self.try_fused(
             Op::MatmulMxfp4Pair,
             vec![x.clone(), a.parts[0].clone(), a.parts[1].clone(), b.parts[0].clone(), b.parts[1].clone(), a.parts[2].clone()],
             vec![out_a.clone(), out_b.clone()],
-            OpAttrs { mxfp4_w4a16: !a.act_quant, ..OpAttrs::default() },
+            OpAttrs { mxfp4_w4a16: !a.act_quant, mxfp4_a8: a.act_fp8, ..OpAttrs::default() },
             profile,
         )
     }

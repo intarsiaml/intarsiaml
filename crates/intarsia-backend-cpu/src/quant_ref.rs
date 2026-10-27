@@ -5,6 +5,7 @@
 
 use crate::mem::{bytes, read_f32, write_f32};
 use intarsia_core::quant::reference as r;
+use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::{Error, Op, OpCall, Result, TensorRef};
 use rayon::prelude::*;
 
@@ -74,11 +75,20 @@ pub fn run(call: &OpCall) -> Result<()> {
             let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
             let g = intarsia_core::quant::mxfp4::GROUP;
             let mut x = read_f32(&i[0])?;
-            let act_qdq = scalar(&i[3])? != 0.0;
-            if act_qdq {
+            let mode = Mxfp4Act::from_flag(scalar(&i[3])?)
+                .ok_or_else(|| Error::model(format!("matmul_mxfp4: act input {} is not 0, 1 or 2", scalar(&i[3]).unwrap_or(f32::NAN))))?;
+            if mode == Mxfp4Act::Dynamic {
                 // QDQ once for all rows (the per-row oracle would redo it per column block)
                 x = intarsia_core::quant::mxfp4::qdq_rows(&x, m, k);
             }
+            // W4A8: quantise once for all rows too; the e4m3 values go through the plain dot, the token scale after it
+            let a8_scales = if mode == Mxfp4Act::Fp8 {
+                let (q, s) = intarsia_core::quant::mxfp4::a8_quant_rows(&x, m, k);
+                x = q.iter().map(|b| intarsia_core::dtype::fp8_e4m3_to_f32(*b)).collect();
+                Some(s)
+            } else {
+                None
+            };
             let (w, sc) = (bytes(&i[1])?, bytes(&i[2])?);
             let chunk = 64.max(n / (rayon::current_num_threads() * 4)).min(n.max(1));
             let cols: Vec<(usize, Vec<f64>)> = (0..n)
@@ -97,6 +107,13 @@ pub fn run(call: &OpCall) -> Result<()> {
                 let nc = blk.len() / m.max(1);
                 for mi in 0..m {
                     out[mi * n + n0..mi * n + n0 + nc].copy_from_slice(&blk[mi * nc..(mi + 1) * nc]);
+                }
+            }
+            if let Some(s) = &a8_scales {
+                for mi in 0..m {
+                    for v in &mut out[mi * n..(mi + 1) * n] {
+                        *v *= s[mi] as f64;
+                    }
                 }
             }
             wr(&o[0], &out)

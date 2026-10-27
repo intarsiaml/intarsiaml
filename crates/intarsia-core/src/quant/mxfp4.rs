@@ -10,8 +10,10 @@
 //! Activations: Quark's MXFP4 export declares `input_tensors` as dynamic MXFP4 too (W4A4): at run time every
 //! group of 32 consecutive activations along K is quantised to e2m1 with its own e8m0 scale and dequantised again
 //! (QDQ) before the dot product. [`Mxfp4Act::Dynamic`] runs that declared scheme; [`Mxfp4Act::None`] keeps the
-//! activations 16-bit (W4A16, a deviation from the checkpoint: the choice of `--mxfp4-act none` or a recipe's `[defaults] mxfp4_act`). The op carries the mode as its fourth input,
-//! `act [1] f32` (0 = 16-bit activations, 1 = dynamic MXFP4 QDQ), like FP8's `input_scale`.
+//! activations 16-bit (W4A16, a deviation from the checkpoint: the choice of `--mxfp4-act none` or a recipe's `[defaults] mxfp4_act`);
+//! [`Mxfp4Act::Fp8`] (W4A8, opt-in) quantises each token's activations to fp8 e4m3 with one dynamic scale (see [`a8_scale`]).
+//! The op carries the mode as its fourth input, `act [1] f32` (0 = 16-bit activations, 1 = dynamic MXFP4 QDQ, 2 = fp8), like
+//! FP8's `input_scale`.
 //!
 //! Activation scale, Quark `scale_calculation_mode = "even"`: round the group's amax at the element's mantissa width
 //! (e2m1 has 1 mantissa bit: add 2^21 to the f32 bit pattern and clear the mantissa), take its exponent, subtract
@@ -43,6 +45,10 @@ pub enum Mxfp4Act {
     Dynamic,
     /// W4A16: activations stay 16-bit (a deviation from a W4A4 checkpoint: `--mxfp4-act none`, or a recipe's default as in the Qwen3.8-27B's).
     None,
+    /// W4A8 (opt-in; a deviation from a W4A4 checkpoint): activations are quantised per token to fp8 e4m3 with a dynamic
+    /// scale ([`a8_scale`], [`a8_quant_rows`]). The e2m1 weights are exact in e4m3, so the dot product is exact up to fp32
+    /// accumulation; the quality sits next to W4A16, the speed next to W4A4.
+    Fp8,
 }
 
 impl Mxfp4Act {
@@ -50,7 +56,8 @@ impl Mxfp4Act {
         match s {
             "dynamic" | "w4a4" => Ok(Mxfp4Act::Dynamic),
             "none" | "w4a16" => Ok(Mxfp4Act::None),
-            other => Err(Error::model(format!("unknown mxfp4 activation mode '{other}' (dynamic | none)"))),
+            "fp8" | "w4a8" => Ok(Mxfp4Act::Fp8),
+            other => Err(Error::model(format!("unknown mxfp4 activation mode '{other}' (dynamic | none | fp8)"))),
         }
     }
     /// Value of the op's `act [1] f32` input.
@@ -58,12 +65,30 @@ impl Mxfp4Act {
         match self {
             Mxfp4Act::Dynamic => 1.0,
             Mxfp4Act::None => 0.0,
+            Mxfp4Act::Fp8 => 2.0,
         }
+    }
+    /// The mode of an `act` flag value (exactly 0, 1 or 2).
+    pub fn from_flag(f: f32) -> Option<Mxfp4Act> {
+        if f == 0.0 {
+            Some(Mxfp4Act::None)
+        } else if f == 1.0 {
+            Some(Mxfp4Act::Dynamic)
+        } else if f == 2.0 {
+            Some(Mxfp4Act::Fp8)
+        } else {
+            None
+        }
+    }
+    /// Whether the activations are quantised at run time (`QTensor::act_quant`).
+    pub fn quantised(self) -> bool {
+        self != Mxfp4Act::None
     }
     pub fn name(self) -> &'static str {
         match self {
             Mxfp4Act::Dynamic => "dynamic",
             Mxfp4Act::None => "none",
+            Mxfp4Act::Fp8 => "fp8",
         }
     }
 }
@@ -132,6 +157,40 @@ pub fn qdq_group(x: &mut [f32]) {
     for v in x.iter_mut() {
         *v = fp4_to_f32(f32_to_fp4(*v / s)) * s;
     }
+}
+
+/// Largest finite e4m3 (OCP e4m3fn) magnitude.
+pub const A8_MAX: f32 = 448.0;
+/// Smallest per-token scale of the W4A8 activations (keeps `x / scale` finite for an all-zero or tiny row).
+pub const A8_MIN_SCALE: f32 = 1.0 / (448.0 * 512.0);
+
+/// W4A8 per-token activation scale from the row's largest magnitude: `max(amax / 448, 1 / (448 * 512))`, f32 arithmetic
+/// (radiance's `dynamic_per_token_scaled_fp8_quant`, `/opt/code/vllm-mxfp4/radiance_mxfp4.py`).
+#[inline]
+pub fn a8_scale(amax: f32) -> f32 {
+    (amax / A8_MAX).max(A8_MIN_SCALE)
+}
+
+/// W4A8: quantise an `[m, k]` activation matrix per token. Returns (e4m3 bytes `[m,k]`, scales `[m]`): `scale =`
+/// [`a8_scale`]`(max |x|)` and each byte is `x / scale` (f32 division) clamped to +-448 and rounded to nearest-even e4m3.
+pub fn a8_quant_rows(x: &[f32], m: usize, k: usize) -> (Vec<u8>, Vec<f32>) {
+    assert!(x.len() >= m * k);
+    let mut q = vec![0u8; m * k];
+    let mut s = vec![0f32; m];
+    for r in 0..m {
+        let row = &x[r * k..(r + 1) * k];
+        let sc = a8_scale(row.iter().fold(0f32, |a, v| a.max(v.abs())));
+        s[r] = sc;
+        for (o, v) in q[r * k..(r + 1) * k].iter_mut().zip(row) {
+            *o = crate::dtype::f32_to_fp8_e4m3((*v / sc).clamp(-A8_MAX, A8_MAX));
+        }
+    }
+    (q, s)
+}
+
+/// Whether a host MXFP4 tensor's `act` part (the third) says fp8.
+pub fn host_act_is_fp8(parts: &[HostTensor]) -> bool {
+    parts.get(2).is_some_and(|p| Mxfp4Act::from_flag(p.to_f32()[0]) == Some(Mxfp4Act::Fp8))
 }
 
 /// QDQ an `[m, k]` activation matrix along K in groups of 32 (`k % 32 == 0`).
@@ -256,7 +315,8 @@ impl QuantFormat for Mxfp4 {
             n,
             k,
             parts: vec![w, s, TensorRef::new(act, DType::F32, &[1])],
-            act_quant: opts.mxfp4_act == Mxfp4Act::Dynamic,
+            act_quant: opts.mxfp4_act.quantised(),
+            act_fp8: opts.mxfp4_act == Mxfp4Act::Fp8,
         })
     }
 
@@ -280,7 +340,7 @@ impl QuantFormat for Mxfp4 {
                 HostTensor { dtype: DType::U8, shape: vec![n, k / GROUP], data: scales },
                 act_tensor(act),
             ],
-            act_quant: act == Mxfp4Act::Dynamic,
+            act_quant: act.quantised(),
         })
     }
 }
@@ -301,7 +361,7 @@ pub fn random_rows(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, act: Mx
             HostTensor { dtype: DType::U8, shape: vec![n, k / GROUP], data: scales },
             act_tensor(act),
         ],
-        act_quant: act == Mxfp4Act::Dynamic,
+        act_quant: act.quantised(),
     }
 }
 

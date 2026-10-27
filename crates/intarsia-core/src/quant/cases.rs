@@ -54,7 +54,7 @@ pub fn matmul_mxfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act
         op: Op::MatmulMxfp4,
         inputs: vec![x, parts.next().unwrap(), parts.next().unwrap(), parts.next().unwrap()],
         outputs: vec![OutSpec::new(odt, &[m, n])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { mxfp4_a8: act == Mxfp4Act::Fp8, ..OpAttrs::default() },
     }
 }
 
@@ -237,7 +237,7 @@ pub fn matmul_mxfp4_pair_case(
         op: Op::MatmulMxfp4Pair,
         inputs: vec![x, w0, s0, w1, s1, act0],
         outputs: vec![OutSpec::new(odt, &[m, n0]), OutSpec::new(odt, &[m, n1])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { mxfp4_a8: act == Mxfp4Act::Fp8, ..OpAttrs::default() },
     }
 }
 
@@ -504,6 +504,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     for (xdt, odt, act) in [
                         (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
                         (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Fp8),
                         (DType::F32, DType::F32, Mxfp4Act::Dynamic),
                     ] {
                         push(
@@ -515,7 +516,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             }
             if !quick {
                 // the 27B gate/up projection, one row, both activation modes
-                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {
+                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None, Mxfp4Act::Fp8] {
                     push(
                         format!("M=1 N=17408 K=5120 x=bf16 out=bf16 act={}", act.name()),
                         matmul_mxfp4_case(&mut rng, 1, 17408, 5120, act, DType::Bf16, DType::Bf16),
@@ -523,6 +524,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
                 // a prefill-shaped batch with M and N tails
                 push("M=300 N=1000 K=512 x=bf16 out=bf16 act=dynamic".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16));
+                push("M=300 N=1000 K=512 x=bf16 out=bf16 act=fp8".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16));
             }
         }
         Op::MoeTopk => {
@@ -686,6 +688,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     for (xdt, odt, act) in [
                         (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
                         (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Fp8),
                         (DType::F32, DType::F32, Mxfp4Act::Dynamic),
                     ] {
                         // the real decode shapes are big: only a couple of row counts for them

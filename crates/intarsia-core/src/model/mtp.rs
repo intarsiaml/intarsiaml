@@ -126,7 +126,7 @@ pub(super) fn load_head(
             n: h,
             k: h,
             parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])],
-            act_quant: false,
+            act_fp8: false, act_quant: false,
         })
     };
     let (fc_e, fc_h) = (dense(&e)?, dense(&hh)?);
