@@ -1,0 +1,49 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    99.41   1.770e-4   1.571e-4   1.571e-4   5.922e-2   0.1064   0.1067    98.96  124/4064      0
+long_code_4k        4064  4064    99.75   8.776e-5   8.107e-5   8.107e-5   4.743e-3   0.0437   0.0438    99.10  398/4064      0
+chat_reuse_4k       4631  4631    98.21   8.411e-3   8.588e-3   1.919e-4    1.552e1   0.0898   0.0901    98.65   27/4631      0
+OVERALL                  12759    99.08   3.137e-3   3.193e-3   1.199e-4    1.552e1   0.0804   0.0806    98.89      4.3%      0
+prefill floor [bf16]: top-1 (all rows) 99.08% (need >= 99.5) FAIL | 21-way KL (scored rows, n=8221) 1.199e-4 (need <= 1.0e-3) ok [all rows, n=12759: 3.193e-3, reported only] | tail mass (all rows) ours 0.0806 vs ref 0.0804, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 1.199e-4 PASS
+gate-definition: kl_floor [prefill]: old def: FAIL 3.193e-3 (21-way KL over all rows <= static floor) | current def: PASS 1.199e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    64   100.00   8.705e-5   9.279e-5   9.279e-5   8.978e-4   0.0133   0.0136    99.06     64/64      0
+long_code_4k        4064    64   100.00   1.020e-4   1.005e-4   1.005e-4   1.343e-3   0.0134   0.0133    99.38     64/64      0
+chat_reuse_4k       4631    64    98.44   2.447e-4   2.438e-4   2.438e-4   1.628e-3   0.0082   0.0082    99.06     52/64      0
+OVERALL                    192    99.48   1.446e-4   1.457e-4   1.457e-4   1.628e-3   0.0116   0.0117    99.17     93.8%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 99.48% (need >= 99.5) FAIL | 21-way KL (scored rows, n=192) 1.457e-4 (need <= 1.0e-3) ok [all rows, n=192: 1.457e-4, reported only] | tail mass (all rows) ours 0.0117 vs ref 0.0116, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 1.457e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 1.457e-4 (21-way KL over all rows <= static floor) | current def: PASS 1.457e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 4.5% of positions before the first argmax divergence, worst prompt 0.6% (informational)
+greedy-match [decode (teacher-forced)]: mean 93.8% of positions before the first argmax divergence, worst prompt 81.2% (informational)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 256 (default); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072-g4k.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_docs_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s3072.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_docs_4k       continue    2000   4080    2015      0     32/32  ok
+long_docs_4k       restore     2000   4064    1792      0     32/32  ok
+long_docs_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+long_code_4k       continue    2000   4080    2015      0     32/32  ok
+long_code_4k       restore     2000   4064    1792      0     32/32  ok
+long_code_4k       aligned     1792   4064    1792      0     32/32  ok (logits bit-identical to the cold run)
+chat_reuse_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: not used, made for model Some("nvidia/Qwen3.6-35B-A3B-NVFP4"), the golden is Some("/Users/josef/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")
+chat_reuse_4k      continue    4521   4647    4536      0     22/32  ok (rounding tie at token 22: warm took 466 cold took 4598; shared rows differ by 0.169 (before) / 0.067 (here) nats of log-probability, KL up to 1.0e-3; fixed rounding scale 0.250 nats, KL 1e-2 (built-in); warm margin 0.091, cold margin 0.008)
+chat_reuse_4k      restore     4521   4631    4352      0     32/32  ok
+chat_reuse_4k      aligned     4352   4631    4352      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 3 prompt(s) judged, 0 skipped
+prefix-reuse gate: PASS
+
+wrote baseline .nmd/onboard-2/qualify/baselines/acc-long.baseline.json (2 mode(s); absolute floor FAILED in this run: the baseline records it)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested   prefix-reuse verdict: PASS
+golden gate: FAIL
