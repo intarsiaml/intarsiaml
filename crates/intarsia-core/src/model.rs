@@ -400,6 +400,9 @@ pub struct Model {
     /// the pipelined FFN takes them over per row range. `pipe_active` is the cheap test for "the list is not empty".
     pipe: Mutex<Vec<(usize, usize, u64)>>,
     pipe_active: std::sync::atomic::AtomicBool,
+    /// True while [`Model::run_layers`] runs a single-sequence pass: the only place the overlap may leave an all-reduce in flight (its end
+    /// joins). Other callers of the blocks (the MTP and DFlash heads) never split.
+    in_layers: std::sync::atomic::AtomicBool,
     /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
     ar_fused_eager: std::sync::atomic::AtomicU64,
     ar_fused_captured: std::sync::atomic::AtomicU64,
@@ -524,6 +527,15 @@ impl TpRank {
 }
 
 /// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
+/// Clears [`Model::in_layers`] when a `run_layers` pass ends, however it ends.
+struct PipeScope<'a>(&'a std::sync::atomic::AtomicBool);
+
+impl Drop for PipeScope<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// `INTARSIA_TP_OVERLAP_MUTANT` (lane TPO, test only): which planted bug the row-piece overlap runs with (see `Model::reduce_rows_async`).
 fn overlap_mutant() -> Option<&'static str> {
     static M: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
@@ -1321,6 +1333,7 @@ impl Model {
             ar_defer: Mutex::new(None),
             pipe: Mutex::new(Vec::new()),
             pipe_active: std::sync::atomic::AtomicBool::new(false),
+            in_layers: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),
             tp,
@@ -2594,6 +2607,10 @@ impl Model {
         ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
+        let _scope = (matches!(seqs, Seqs::One(_)) && dpos.is_none()).then(|| {
+            self.in_layers.store(true, std::sync::atomic::Ordering::Relaxed);
+            PipeScope(&self.in_layers)
+        });
         let _pass = if self.coll_trace.on {
             self.coll_trace.pass(if matches!(seqs, Seqs::Batch(_)) { "layers-batch" } else { "layers" }, t, self.capture_ops.lock().unwrap().is_some())
         } else {
@@ -3581,21 +3598,22 @@ impl Model {
     /// `GPU_MAX_HW_QUEUES >= 4` on the R9700s, or it waits in line behind the GEMM). `None`: everything runs whole, as before. Pieces are
     /// multiples of 256 rows (the GEMM's tile). Only an eager, unprofiled, unrecorded pass of at least two tiles of rows on a two-rank group
     /// whose backend runs two streams side by side. `INTARSIA_TP_OVERLAP_FFN=0` keeps the FFN whole (only the attention / GDN output
-    /// projections are pieces); `INTARSIA_TP_OVERLAP_MIN=rows` raises the smallest pass that splits (default 512).
+    /// projections are pieces); `INTARSIA_TP_OVERLAP_MIN=rows` sets the smallest pass that splits (default 3072: a piece of fewer than 2048 rows
+    /// runs the GEMM on a smaller, slower tile). Only inside [`Model::run_layers`] of a single sequence.
     fn overlap_piece(&self, t: usize, profile: bool) -> Option<usize> {
         static CFG: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
         let (k, min) = *CFG.get_or_init(|| {
             let env = |n: &str| std::env::var(n).ok().and_then(|v| v.trim().parse::<usize>().ok());
-            (env("INTARSIA_TP_OVERLAP").unwrap_or(0), env("INTARSIA_TP_OVERLAP_MIN").unwrap_or(512))
+            (env("INTARSIA_TP_OVERLAP").unwrap_or(0), env("INTARSIA_TP_OVERLAP_MIN").unwrap_or(3072))
         });
-        if k < 2 || t < min.max(512) || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
+        if k < 2 || t < min.max(512) || !self.in_layers.load(std::sync::atomic::Ordering::Relaxed) || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
             return None;
         }
         if !self.backend.stream_overlap() || self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
             return None;
         }
         let piece = t.div_ceil(k).div_ceil(256) * 256;
-        (piece < t).then_some(piece)
+        (Self::row_pieces(t, piece).len() >= 2).then_some(piece)
     }
 
     /// Whether the FFN of a pass of `t` rows runs as pieces (see [`Model::overlap_piece`]).
@@ -3611,8 +3629,15 @@ impl Model {
         self.overlap_piece(t, profile)
     }
 
+    /// The row ranges of a pass of `t` rows in pieces of `piece`; a remainder of fewer than 256 rows joins the last full piece (a pass that
+    /// small would take the small-M kernels, whose bits differ from the tile GEMM's: `prefill_peel`).
     fn row_pieces(t: usize, piece: usize) -> Vec<(usize, usize)> {
-        (0..t).step_by(piece).map(|r0| (r0, piece.min(t - r0))).collect()
+        let mut v: Vec<(usize, usize)> = (0..t).step_by(piece).map(|r0| (r0, piece.min(t - r0))).collect();
+        if v.len() >= 2 && v.last().is_some_and(|l| l.1 < 256) {
+            let l = v.pop().unwrap();
+            v.last_mut().unwrap().1 += l.1;
+        }
+        v
     }
 
     /// Queue the all-reduce `partial -> out` of one row range on stream 1, after everything queued so far on stream 0, and return the token

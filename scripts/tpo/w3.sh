@@ -17,14 +17,15 @@ if want M; then
 fi
 for arm in ${ARMS:-}; do
   IFS=: read -r name bin envs args <<< "$arm"; envs=${envs//,/ }; args=${args//,/ }
+  gen=$GEN; if [[ " $args " == *" SPECON "* ]]; then gen=${GEN/--spec off/}; args=${args/SPECON/}; fi
   if want T; then
     for rep in $(seq 1 $REPS); do
-      gpu 230 env $envs /work/$bin $GEN $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/t-$name-$rep.out" 2> "$O/t-$name-$rep.err"
+      gpu 230 env $envs /work/$bin $gen $args --max-tokens 1 --profile-every 0 -p "$P" > "$O/t-$name-$rep.out" 2> "$O/t-$name-$rep.err"
       echo "T $name rep$rep: $(grep -a 'prefill ' "$O/t-$name-$rep.err" | tail -1 | cut -c1-160)"
     done
   fi
   if want I; then
-    gpu 230 env $envs /work/$bin $GEN $args --max-tokens 48 --profile-every 0 -p "$P" > "$O/i-$name.out" 2> "$O/i-$name.err"
+    gpu 230 env $envs /work/$bin $gen $args --max-tokens 48 --profile-every 0 -p "$P" > "$O/i-$name.out" 2> "$O/i-$name.err"
     echo "I $name: md5 $(md5sum < "$O/i-$name.out" | cut -c1-12) $(grep -a 'prefill ' "$O/i-$name.err" | tail -1 | cut -c1-120)"
   fi
 done

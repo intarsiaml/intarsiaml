@@ -2,7 +2,7 @@
 # Lane TPO final window, run FROM THE MAC inside ONE fleetq job that holds both R9700s and takes radiance down (<= 45 min):
 #   fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --mem 30 --expect 45 \
 #     --label "tpo w6 ..." -- scripts/tpo/w6.sh
-# Steps (each skipped when its start would pass its deadline, in priority order):
+# Steps (each skipped when its start would pass its deadline, in priority order; see the file for the order actually run):
 #   1 sweep      generate-based timing + 48 greedy tokens (md5) of the arms, the candidate set below            (w3.sh T I)
 #   2 mutants    the planted bugs of the overlap, md5 must differ from the candidate's                       (w3.sh I)
 #   3 g0 + rounds `plan show` 8B / 35B, then 6 interleaved base / best 4k prefill rounds                    (w3.sh G R)
@@ -12,17 +12,19 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
 RAW=$REPO/docs/results/2026-10-27-tpo-hip-27b-prefill-next/raw/w6; mkdir -p "$RAW" "$REPO/tpo-out"
-T0=$(date +%s); LIMIT=${LIMIT:-2580}   # 43 min
+T0=$(date +%s); LIMIT=${LIMIT:-2400}   # 40 min: the 45 min cap includes the restore
 el() { echo $(( $(date +%s) - T0 )); }
 say() { echo "$(date +%T) [+$(el)s] $*" | tee -a "$RAW/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
 Q="GPU_MAX_HW_QUEUES=4"
 C4="--prefill-chunk,4096"
+MIN="INTARSIA_TP_OVERLAP_MIN=3072"
 SWEEP="base:tpo-base:: \
-v2c4096:tpo-dev3:INTARSIA_TP_OVERLAP=2,$Q:$C4 \
-v1c4096:tpo-dev3:INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$Q:$C4 \
-v2c2048:tpo-dev3:INTARSIA_TP_OVERLAP=2,$Q: \
-v3c4096:tpo-dev3:INTARSIA_TP_OVERLAP=3,$Q:$C4 \
+base_spec:tpo-base::SPECON \
+v2c4096:tpo-dev4:INTARSIA_TP_OVERLAP=2,$MIN,$Q:$C4 \
+v2c4096_spec:tpo-dev4:INTARSIA_TP_OVERLAP=2,$MIN,$Q:--prefill-chunk,4096,SPECON \
+v1c4096:tpo-dev4:INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$MIN,$Q:$C4 \
+v3c4096:tpo-dev4:INTARSIA_TP_OVERLAP=3,$MIN,$Q:$C4 \
 ref4096q4:tpo-base:$Q:$C4"
 run3() { # run3 <sections> <arms> <outdir name> [extra env assignments...]
   local sec=$1 arms=$2 d=$3; shift 3
@@ -44,36 +46,36 @@ for l in open(sys.argv[1],errors='replace'):
     b=re.match(r'I (\S+): md5 (\S+)',l)
     if b: m[b.group(1)]=b.group(2)
 base=m.get('base')
-c=[(statistics.median(v),k) for k,v in t.items() if k not in ('base','ref4096q4') and m.get(k)==base and v]
+c=[(statistics.median(v),k) for k,v in t.items() if k not in ('base','ref4096q4','base_spec','v2c4096_spec') and m.get(k)==base and v]
 print(min(c)[1] if c else 'none')
 EOF
 )
 say "best arm: $BEST"
-declare -A ENVS ARGS BIN
-ENVS[v2c4096]="INTARSIA_TP_OVERLAP=2,$Q"; ARGS[v2c4096]="$C4"
-ENVS[v1c4096]="INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$Q"; ARGS[v1c4096]="$C4"
-ENVS[v2c2048]="INTARSIA_TP_OVERLAP=2,$Q"; ARGS[v2c2048]=""
-ENVS[v3c4096]="INTARSIA_TP_OVERLAP=3,$Q"; ARGS[v3c4096]="$C4"
-if [[ "$BEST" == none || -z "${ENVS[$BEST]:-}" ]]; then BEST=v2c4096; say "no arm matched the base md5: continuing with $BEST for the mutant and the failure record"; fi
-BE=${ENVS[$BEST]}; BA=${ARGS[$BEST]}
+case "$BEST" in
+  v1c4096) BE="INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$MIN,$Q"; BA="$C4" ;;
+  v3c4096) BE="INTARSIA_TP_OVERLAP=3,$MIN,$Q"; BA="$C4" ;;
+  *) BEST=v2c4096; BE="INTARSIA_TP_OVERLAP=2,$MIN,$Q"; BA="$C4" ;;
+esac
+
 
 if (( $(el) < 1500 )); then
   say "step 2 mutants (of $BEST)"
-  MUT=""; for mu in skip_last scale offset; do MUT="$MUT mut_$mu:tpo-dev3:$BE,INTARSIA_TP_OVERLAP_MUTANT=$mu:$BA"; done
+  MUT=""; for mu in skip_last scale offset; do MUT="$MUT mut_$mu:tpo-dev4:$BE,INTARSIA_TP_OVERLAP_MUTANT=$mu:$BA"; done
   run3 "I" "$MUT" w6-mut > "$RAW/mut.log" 2>&1; fetch w6-mut; grep -aE "^I " "$RAW/mut.log" | cut -c1-120 | tee -a "$RAW/steps.log"
 fi
 if (( $(el) < 1700 )); then
-  say "step 3 g0 + interleaved rounds"
-  run3 "G R" "base:tpo-base:: best:tpo-dev3:$BE:$BA" w6-r ROUNDS=6 "GENVS='${BE//,/ }'" > "$RAW/rounds.log" 2>&1; fetch w6-r; grep -aE "^[GR] " "$RAW/rounds.log" | cut -c1-120 | tee -a "$RAW/steps.log"
+  say "step 3 plan show g0"
+  run3 "G" "" w6-g GBIN=tpo-dev4 "GENVS='${BE//,/ }'" > "$RAW/g0.log" 2>&1; fetch w6-g; grep -aE "^G " "$RAW/g0.log" | cut -c1-120 | tee -a "$RAW/steps.log"
 fi
 
-if (( $(el) < 1900 )); then
+if (( $(el) < 1500 )); then
   say "step 4 drive (texts, speed, mixids)"
   CH=""; [[ -n "$BA" ]] && CH="+chunk4096"
   export ENV_best="${BE//,/ }"
-  ITEMS="rec:texts best+bin=tpo-dev3$CH:texts best+bin=tpo-dev3$CH+spoff:texts"
-  ITEMS="$ITEMS rec:speed best+bin=tpo-dev3$CH:speed best+bin=tpo-dev3$CH:speed rec:speed rec:speed best+bin=tpo-dev3$CH:speed"
-  ITEMS="$ITEMS best+bin=tpo-dev3$CH+mb16:mixids best+bin=tpo-dev3$CH+spoff:mixids"
+  ITEMS="rec:texts best+bin=tpo-dev4$CH:texts best+bin=tpo-dev4$CH+spoff:texts"
+  B="best+bin=tpo-dev4$CH:speed"
+  ITEMS="$ITEMS rec:speed $B $B rec:speed rec:speed $B $B rec:speed rec:speed $B $B rec:speed"
+  ITEMS="$ITEMS best+bin=tpo-dev4$CH+mb16:mixids best+bin=tpo-dev4$CH+spoff:mixids"
   W=w6d ITEMS="$ITEMS" "$HERE/drive.sh" > "$RAW/drive.log" 2>&1 &
   DP=$!
   ( while kill -0 $DP 2>/dev/null; do if (( $(el) > LIMIT )); then say "deadline: stopping drive.sh"; kill -TERM $DP; break; fi; sleep 10; done ) &
