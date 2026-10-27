@@ -1,0 +1,43 @@
+fleetq: #6198 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'BIN=/work/glr-bin/mxfp4_a8-v2 W=w1 bash ~/intarsiaml-glr/scripts/glr/w1.sh'
+[glr] w1 stopping radiance 2026-10-27 07:23:53
+[glr] radiance stopped 2026-10-27 07:23:57; GPUs: 0 radiance containers
+[glr] list-avail: 1484 lines
+== corr A=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+thread 'a8_mma_rows_do_not_depend_on_position' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:58:63:
+test result: FAILED. 5 passed; 1 failed; 2 ignored; 0 measured; 1 filtered out; finished in 5.14s
+== corr INTARSIA_HIP_MXFP4_A8_LINES=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+thread 'a8_mma_rows_do_not_depend_on_position' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:58:63:
+test result: FAILED. 5 passed; 1 failed; 2 ignored; 0 measured; 1 filtered out; finished in 4.98s
+== corr INTARSIA_HIP_MXFP4_A8_LINES=1 INTARSIA_HIP_MXFP4_A8_PERGROUP=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+thread 'a8_mma_rows_do_not_depend_on_position' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8.rs:58:63:
+test result: FAILED. 5 passed; 1 failed; 2 ignored; 0 measured; 1 filtered out; finished in 5.02s
+== hashes: 48 / 48 lines; differing: 0
+== base: 30 lines 2026-10-27 07:24:31
+== line: 30 lines 2026-10-27 07:24:38
+== pd2-4424: 30 lines 2026-10-27 07:24:44
+== pd2-4442: 30 lines 2026-10-27 07:24:51
+== base-4424: 30 lines 2026-10-27 07:24:57
+== base-4442: 30 lines 2026-10-27 07:25:04
+== base-4224: 30 lines 2026-10-27 07:25:11
+== line-4424: 30 lines 2026-10-27 07:25:18
+== line-4442: 30 lines 2026-10-27 07:25:25
+== line-4224: 30 lines 2026-10-27 07:25:32
+== diag1: 30 lines 2026-10-27 07:25:38
+== diag2: 30 lines 2026-10-27 07:25:45
+== diag3: 30 lines 2026-10-27 07:25:51
+== diag4: 30 lines 2026-10-27 07:25:57
+== diag5: 30 lines 2026-10-27 07:26:03
+== diag6: 30 lines 2026-10-27 07:26:08
+[glr] counters present: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES SQ_WAVE_CYCLES SQ_WAIT_ANY SQ_WAIT_INST_ANY SQ_INSTS_VALU SQ_INSTS_LDS SQ_INST_CYCLES_VMEM SQ_INSTS_FLAT SQ_INST_LEVEL_LDS SQ_INSTS_SALU
+[glr] pass 1 base: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES SQ_WAVE_CYCLES -> ok
+[glr] pass 1 line: GRBM_GUI_ACTIVE SQ_WAVES SQ_BUSY_CYCLES SQ_WAVE_CYCLES -> ok
+[glr] pass 2 base: SQ_WAIT_ANY SQ_WAIT_INST_ANY SQ_INSTS_VALU SQ_INSTS_LDS -> ok
+[glr] pass 2 line: SQ_WAIT_ANY SQ_WAIT_INST_ANY SQ_INSTS_VALU SQ_INSTS_LDS -> ok
+[glr] pass 3 base: SQ_INST_CYCLES_VMEM SQ_INSTS_FLAT SQ_INST_LEVEL_LDS SQ_INSTS_SALU -> ok
+[glr] pass 3 line: SQ_INST_CYCLES_VMEM SQ_INSTS_FLAT SQ_INST_LEVEL_LDS SQ_INSTS_SALU -> ok
+[glr] w1 done 2026-10-27 07:26:14, 2259 s of the window left
+[glr] radiance active after 20 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793100385,"owned_by":"radiance"
+fleetq: #6198 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

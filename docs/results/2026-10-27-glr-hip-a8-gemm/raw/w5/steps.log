@@ -1,0 +1,28 @@
+08:13:53 guard: [guard] radiance stopped 2026-10-27 08:13:52
+08:13:53 item 1: starting server rec+bin=glr-base-cli
+08:15:45 item 1 rec+bin=glr-base-cli speed: exit 0 results/20261027-081510-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-1/result.json
+08:17:14 item 2 rec+bin=glr-base-cli texts: exit 0       18 lines
+08:17:14 item 3: starting server rec+bin=glr-dev-cli
+08:19:06 item 3 rec+bin=glr-dev-cli speed: exit 0 results/20261027-081831-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-3/result.json
+08:20:32 item 4 rec+bin=glr-dev-cli texts: exit 0       18 lines
+08:21:07 item 5 rec+bin=glr-dev-cli speed: exit 0 results/20261027-082033-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-5/result.json
+08:21:07 item 6: starting server rec+bin=glr-base-cli
+08:23:00 item 6 rec+bin=glr-base-cli speed: exit 0 results/20261027-082225-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-6/result.json
+08:23:36 item 7 rec+bin=glr-base-cli speed: exit 0 results/20261027-082301-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-7/result.json
+08:23:36 item 8: starting server rec+bin=glr-dev-cli
+08:25:29 item 8 rec+bin=glr-dev-cli speed: exit 0 results/20261027-082454-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-8/result.json
+08:26:04 item 9 rec+bin=glr-dev-cli speed: exit 0 results/20261027-082529-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-9/result.json
+08:26:04 item 10: starting server rec+bin=glr-base-cli
+08:27:57 item 10 rec+bin=glr-base-cli speed: exit 0 results/20261027-082721-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-10/result.json
+08:28:33 item 11 rec+bin=glr-base-cli speed: exit 0 results/20261027-082757-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-11/result.json
+08:28:33 item 12: starting server rec+bin=glr-dev-cli
+08:30:25 item 12 rec+bin=glr-dev-cli speed: exit 0 results/20261027-082950-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-12/result.json
+08:31:01 item 13 rec+bin=glr-dev-cli speed: exit 0 results/20261027-083026-glr-rec_bin_glr-dev-cli-glr-w5-rec_bin_glr-dev-cli-13/result.json
+08:31:01 item 14: starting server rec+bin=glr-base-cli
+08:32:54 item 14 rec+bin=glr-base-cli speed: exit 0 results/20261027-083218-glr-rec_bin_glr-base-cli-glr-w5-rec_bin_glr-base-cli-14/result.json
+08:32:54 item 15: starting server rec+bin=glr-dev-cli+spoff
+08:35:25 item 15 rec+bin=glr-dev-cli+spoff texts: exit 0       18 lines
+08:35:25 item 16: starting server rec+bin=glr-dev-cli
+08:37:00 item 16 kprof: 16 passes
+08:37:00 done
+08:37:10 guard: [guard] radiance answers 2026-10-27 08:37:10 (after 15 s)
