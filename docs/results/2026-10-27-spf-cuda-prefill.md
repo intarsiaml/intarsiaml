@@ -96,11 +96,35 @@ Every round of every size is above the 3 % bar; decode x1.000 / 0.999 / 1.000.
 
 ### Gates
 
-PENDING-GATES
+| gate | result | evidence |
+|---|---|---|
+| CPU tests | PASS: `cargo test --workspace` on the Mac, 1014 passed, 0 failed; CI on PR #191: cargo check (linux, cuda cfgs, hip cfgs, macOS metal), cargo test (linux), reproducible build all green | `raw/cargo-test-workspace-mac.log` |
+| CUDA greedy ids, 8B | PASS: 256 ids + first-token top-20 logits (4 decimals) identical, base vs fix and base vs `INTARSIA_CUDA_ROPE_MULTI=0`, 4 prompts (short, 4k x2, 16k), 12 comparisons. Note: the 4k / 16k comparisons run the prompt through `--show-logits` first, so the ids come from decode on a prefix-cached prompt; the prefill itself is covered by the logits of that pass | `raw/ids8.log` |
+| CUDA greedy ids, 35B (affected: partial-rotary rope, prefill and macro segments) | PASS: short, 4k, 16k, base vs fix, ids + top-20 logits identical | `raw/ids35.log` |
+| kernel admission | PASS: `kernels test --backend cuda` full 77 kernels / 1514 cases, quick 77 / 531, `--op rope` with the 8B's shapes 36 cases (fix and `ROPE_MULTI=0` give identical max_abs 8.503e-4 / rel_l2 1.078e-5), no REJECTED. Run on the tree before the env knob was made per-launch (see below) | `raw/ktest.log` |
+| `plan show` byte-identical, CUDA | PASS: 8B, 35B, Gemma-4-26B, json and text, base vs fix | `raw/plan.log` |
+| `plan show` byte-identical, Metal | PASS: 8B, 35B, json and text (two Metal builds, origin/main and this tree) | `raw/metal-plan.log` |
+| `plan show`, HIP | not run. The change touches `kernels/cuda/elementwise.cu`, `docs/tuning.md`, a CUDA test and docs only; no Rust source of the HIP path changed, and the Metal result above shows the planner output does not depend on the diff | |
+| prefill >= 3 % median over 3 interleaved rounds, decode >= 0.99x | PASS (section 4 table) | `raw/ab8b/` |
+| >= 3 planted mutants caught | **NOT RUN** (spark1 left the fleetq queue, see below). `scripts/spf/mutants.py` has five (sign, position off by one, skipped head group, wrong frequency denominator, swapped output lane); the quick sweep uses 4 heads so the skipped-group mutant needs the 8B's 32 / 8 heads, `kernels test --op rope -m <8B>` | |
+| `tests/rope_multi.rs` (bitwise, in-process, 8 head layouts x 9 row counts x 3 positions, env flipped per call) | **NOT RUN on a GPU**: it compiles (CI "cuda cfgs" green; test binary built on spark1 in `~/intarsiaml-spf/rope2`) but the GPU job never started | |
+
+The environment variable was read once per process in the tree that produced every number above and is read per launch in the committed code (so that
+`tests/rope_multi.rs` can flip it); the kernels and arithmetic are the same.
+
+**Why two gates are open.** From about 00:52 EDT the fleetq server marked spark1 offline (it can no longer resolve `spark-4e77` after the gateway swap); jobs
+for spark1 wait forever and the coordinator ruled out bypassing fleetq. Everything that needs the GPU after that point was not run. To finish, on spark1
+(trees `base`, `rope`, `rope2` are in `~/intarsiaml-spf/`): `scripts/spf/chain4.sh` (rope_multi test + quick admission on `rope2`) and `scripts/spf/chain3.sh`
+(second job: the mutants), then `scripts/spf/chain2.sh` (35B window) and `scripts/spf/chain5.sh` (35B 1k profile).
 
 ## 5. Qwen3.6-35B-A3B NVFP4
 
-PENDING-35B
+Correctness only (this change reaches the 35B through the partial-rotary rope of its 10 attention layers): ids identical in section 4. **The speed windows
+the brief asked for (35B at 1k against the box's vLLM, MTP default against `--spec off`) were not run**: they were queued behind the gates when spark1 went
+offline for fleetq. `scripts/spf/chain2.sh` (vLLM vs intarsia MTP default vs `--spec off`, 3 rounds, 1k / 4k / 16k) and `scripts/spf/chain5.sh` (steady-state nsys
+of a 1k request, kernel total against wall) are ready. Reading the code before measuring: the MTP head's prompt rows are queued during prefill and run at the
+first draft step (`mtp_run_pending`), so MTP should cost the 1k TTFT only a hidden-state copy; the 1k gap to vLLM recorded by lane sk (-3.9 %, taken before the
+MTP default) is therefore unlikely to be MTP, and is still unexplained.
 
 ## 6. Not done, and what is left
 
@@ -112,4 +136,8 @@ PENDING-35B
 
 ## 7. Fleet log
 
-All jobs owner `claude-f31ccf91`, spark1 (vLLM `flight/guidance/capcom` up, nothing taken down). PENDING-FLEET
+All jobs owner `claude-f31ccf91`, spark1 (vLLM `flight/guidance/capcom` up, nothing taken down). Builds (cpu): #5848, #5882, #5894, #5944 (trees `base`, `dev`, `rope`, `rope2`). Quiet GPU/CPU: #5850 (8B baseline x3), #5857 / #5864 (single-shot nsys),
+#5860 / #5863 / #5866 and the `lt_sweep` jobs (GEMM micro-benchmarks, clocks, nsys of the micro-benchmark), #5869 / #5870 (steady-state serve nsys, base and fix),
+#5890 (alignment print + knob A/B), the A/B window, `plan show`, ids 8B, ids 35B, kernels test. Cancelled unrun: #5954 (mutants), #5956 (rope2 GPU test). Endor (cpu):
+#5893 (Metal `plan show`). The spark1 trees `~/intarsiaml-spf/{base,dev,rope,rope2,lt}` and the local worktree `.worktrees/spf` are kept for the open gates (the brief
+asked for their removal at the end).

@@ -1,5 +1,0 @@
-fleetq: #5954 waiting (#2 in line): in line behind #5950 "spf: ids 35B base vs rope" (claude-f31ccf91) on spark1
-fleetq:   #5950 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5950 set, or it will wait for #5950 to be released.
-fleetq: #5954 waiting (#1 in line): needs gpu quiet on spark1, but #5950 "spf: ids 35B base vs rope" (claude-f31ccf91) loads it
-fleetq:   #5950 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5950 set, or it will wait for #5950 to be released.
-fleetq: #5954 waiting (#1 in line): spark1 is offline
