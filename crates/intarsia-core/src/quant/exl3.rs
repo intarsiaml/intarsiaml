@@ -413,7 +413,7 @@ impl QuantFormat for Exl3 {
         let svh = scales("svh", "sv", n)?;
         let tr = crate::weights::load_tensor(backend, meta.src, &format!("{p}.trellis"), None)?;
         let cbt = TensorRef::new(upload_new(backend, &(cb as i32).to_le_bytes())?, DType::I32, &[1]);
-        Ok(QTensor { format: EXL3, n, k, parts: vec![tr, suh, svh, cbt], act_quant: false })
+        Ok(QTensor { format: EXL3, n, k, parts: vec![tr, suh, svh, cbt], act_fp8: false, act_quant: false })
     }
 
     fn dequant_ref(&self, q: &QTensor, backend: &dyn Backend) -> Result<HostTensor> {

@@ -1,0 +1,28 @@
+fleetq: #5979 waiting (#7 in line): in line behind #5973 "NXP G1 decode-64 base/fp8/cand" (claude-f31ccf91) on endor
+fleetq:   #5973 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5973 set, or it will wait for #5973 to be released.
+fleetq: #5979 waiting (#6 in line): in line behind #5974 "NXP G2 MMLU n=1425 cand (35B)" (claude-f31ccf91) on endor
+fleetq:   #5974 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5974 set, or it will wait for #5974 to be released.
+fleetq: #5979 waiting (#5 in line): in line behind #5975 "NXP G3 gates cand (gb gc long rec dense)" (claude-f31ccf91) on endor
+fleetq:   #5975 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5975 set, or it will wait for #5975 to be released.
+fleetq: #5979 waiting (#4 in line): in line behind #5976 "NXP G3 ids base/cand (off mtp ngram c512)" (claude-f31ccf91) on endor
+fleetq:   #5976 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5976 set, or it will wait for #5976 to be released.
+fleetq: #5979 waiting (#3 in line): in line behind #5977 "NXP kernels test (full) + 4k decode-256" (claude-f31ccf91) on endor
+fleetq:   #5977 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5977 set, or it will wait for #5977 to be released.
+fleetq: #5979 waiting (#2 in line): in line behind #5978 "NXP G4b speed A/B extra 2 rounds" (claude-f31ccf91) on endor
+fleetq:   #5978 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5978 set, or it will wait for #5978 to be released.
+fleetq: #5979 waiting (#1 in line): #5978 "NXP G4b speed A/B extra 2 rounds" (claude-f31ccf91) needs cpu quiet on endor, and this job loads it
+fleetq:   #5978 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5978 set, or it will wait for #5978 to be released.
+fleetq: #5979 running on endor: /opt/code/intarsiaml/.worktrees/nxp/.nxp-out/plans2.sh
+base Llama-3.1-8B-Instruct rc=0
+cand Llama-3.1-8B-Instruct rc=0
+Llama-3.1-8B-Instruct IDENTICAL
+base Qwen2.5-7B-Instruct rc=0
+cand Qwen2.5-7B-Instruct rc=0
+Qwen2.5-7B-Instruct IDENTICAL
+base Qwen3.8-27B-Quark-AWQ-MXFP4 rc=0
+cand Qwen3.8-27B-Quark-AWQ-MXFP4 rc=0
+Qwen3.8-27B-Quark-AWQ-MXFP4 IDENTICAL
+base qwen38-27b rc=1
+cand qwen38-27b rc=1
+qwen38-27b IDENTICAL
+fleetq: #5979 done (exit 0)

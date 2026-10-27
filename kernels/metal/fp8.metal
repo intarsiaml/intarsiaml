@@ -492,3 +492,17 @@ inline void fp8_mma_impl(device const ushort* X, device const uchar* W, device c
 
 FP8_MMA(fp8_mma_bf16, ushort)
 FP8_MMA(fp8_mma_f32, float)
+
+// ---- weight decode for the NAX GEMM (gemm_nax_fp8.metal) ---------------------------------------------------------------
+// `fp8_w_to_bf16`: W[N,K] e4m3 bytes -> bf16 [N,K] (the staged tile of `fp8_mma_impl`, `fp8_tile16`: exact, NaN codes kept
+// as NaN) into the plan scratch. p.b = N, p.c = K (K % 16 == 0); one thread decodes 16 weights; bind 0 W (8-byte aligned),
+// 1 Wb (16-byte aligned), 2 OpP.
+kernel void fp8_w_to_bf16(device const uchar* w [[buffer(0)]], device uint4* wb [[buffer(1)]], constant OpP& p [[buffer(2)]],
+                          uint g [[thread_position_in_grid]]) {
+    if ((ulong)g >= (ulong)p.b * p.c / 16) return;
+    device const uchar* wp = w + (ulong)g * 16;
+    uint o[8];
+    fp8_tile16(*(device const uint2*)wp, *(device const uint2*)(wp + 8), o);
+    wb[2 * (ulong)g] = uint4(o[0], o[1], o[2], o[3]);
+    wb[2 * (ulong)g + 1] = uint4(o[4], o[5], o[6], o[7]);
+}

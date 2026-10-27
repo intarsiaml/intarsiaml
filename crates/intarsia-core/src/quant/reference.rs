@@ -121,6 +121,20 @@ pub fn matmul_mxfp4(x: &[f32], m: usize, k: usize, w: &[u8], sc: &[u8], act_qdq:
     out
 }
 
+/// `MatmulMxfp4` for `n` rows in W4A8 mode: `x` is quantised per token to e4m3 ([`crate::quant::mxfp4::a8_quant_rows`]), the
+/// e4m3 values times the e2m1 weights are summed exactly (f64) per output, and the token's scale multiplies the sum.
+pub fn matmul_mxfp4_a8(x: &[f32], m: usize, k: usize, w: &[u8], sc: &[u8], n: usize) -> Vec<f64> {
+    let (q, s) = crate::quant::mxfp4::a8_quant_rows(x, m, k);
+    let xq: Vec<f32> = q.iter().map(|b| crate::dtype::fp8_e4m3_to_f32(*b)).collect();
+    let mut out = matmul_mxfp4(&xq, m, k, w, sc, false, n);
+    for mi in 0..m {
+        for v in &mut out[mi * n..(mi + 1) * n] {
+            *v *= s[mi] as f64;
+        }
+    }
+    out
+}
+
 /// `MoeTopk`: per token the `k` largest logits (ties: lowest index first), softmax weights.
 /// Selecting on the raw logits is exactly top-k of the softmax probabilities (monotone), and with `norm` the
 /// renormalised weights equal the softmax over the selected logits. Weights are rounded to `dtype` (HF casts the

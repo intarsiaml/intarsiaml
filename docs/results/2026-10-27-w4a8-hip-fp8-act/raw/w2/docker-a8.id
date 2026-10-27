@@ -1,0 +1,4 @@
+f6466508298d18d7716b15f7cb86a02cbefce10a5b3218352968e5488f0770b8
+docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "/work/w4a8-intarsia": stat /work/w4a8-intarsia: no such file or directory
+
+Run 'docker run --help' for more information

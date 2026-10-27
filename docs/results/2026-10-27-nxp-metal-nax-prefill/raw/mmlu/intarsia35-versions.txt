@@ -1,0 +1,2 @@
+intarsia 0.0.1
+/opt/code/intarsiaml/.worktrees/nxp/.nxp-out/intarsia-cand serve --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --backend metal --device 0 --host 127.0.0.1 --port 8093 --served-model-name intarsia-metal --max-seq 8192 --profile-every 0 --no-supervisor --no-ui

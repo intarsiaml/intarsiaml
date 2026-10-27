@@ -107,6 +107,15 @@ every one stopped at `recipe new` on a quantisation format or tensor layout the 
   onboard run (`fleetq acquire ... --wait`, then `FLEETQ_JOB=<id>` on each command), so a failed step does not send you to the
   back of the line. Launch the waiting `fleetq` client detached (`start_new_session`); a client that dies is dropped from the
   queue after three minutes.
+* **Goldens are found by the model directory's name, and the committed ones are named for the family** (`gemma4-26b-a4b-nvfp4-*`), not for
+  a directory like `Gemma-4-26B-A4B-NVFP4`. A miss SKIPs every accuracy stage and onboard still ends `PASS`. Give the name with
+  onboard's own `--model-name gemma4-26b-a4b-nvfp4`; after `--` it makes qualify exit 2 (onboard forwards its own copy)
+  (`docs/results/2026-10-27-g4d-gemma4-drill.md`).
+* **`scripts/deploy.sh` syncs with `--delete`.** Do not keep run output (`--out`, logs) inside the deployed tree; the next deploy erases it.
+* **Do not size a golden run from the lease alone on a unified-memory box (GB10).** The HF f32 golden of a 4k prompt took 68 GB of the
+  121 GB next to the 38 GB retro server; the 12k prompt exhausted the box and spark2 stopped answering. Make long goldens one at a time
+  with a measured peak, and not next to a served model that must stay up. `tools/gemma4_nvfp4_golden.py` also needs `C_INCLUDE_PATH` at a
+  Python with headers (torch 2.14's Triton `bmm_outer_product` compiles a C helper) once a prompt is long.
 
 ## 1. `intarsia recipe new`
 
@@ -337,7 +346,7 @@ What each stage needs and how it decides:
   last-bit differences, so the reference does not reproduce itself (Qwen3.8-27B: HF bf16 vs HF f32, both W4A4, 21-way
   KL 0.197 against a floor of 0.03). Gate the weight path in W4A16 instead (`--mxfp4-act none` against an `--act none`
   golden: 8.3e-4 there), and quote W4A4 against the reference's own spread (a second golden with `--dtype float32`). A recipe may
-  set `[defaults] mxfp4_act` (the Qwen3.8-27B recipe sets `none`: W4A16 is the default there); `qualify` then prefers the `-w4a16` golden of a
+  set `[defaults] mxfp4_act` (the Qwen3.8-27B recipe sets `none`: W4A16 is the default there, and `[tuning.hip] mxfp4_act = "fp8"`: W4A8 on HIP); `qualify` then prefers the `-w4a16` golden of a
   model by name, never takes it for a W4A4 run, and runs `accuracy` in the activation mode the golden was made with (its
   `engine_version` metadata, else a `-w4a16` in the file name), so a golden is never gated against the other mode. The short golden cannot exercise prefix reuse (the reuse
   gate needs a split of at least one prefill chunk, 256 tokens), so reuse is gated on the long golden, and there only one prompt

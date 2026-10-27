@@ -1,0 +1,36 @@
+[window] job 5891 abc; stopping radiance 2026-10-27 00:00:12
+[window] radiance stopped 2026-10-27 00:00:15
+00:00:15 stages start, VRAM in use 57 MiB
+00:00:21 a-short-0-base exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)|
+00:00:28 a-short-0-dev exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)|
+00:00:28 SAME (a) short-0: dev default ids == base default ids
+00:00:28 SAME spec stats (a) short-0: dev vs base default: spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)
+00:00:28 SAME per-pass trace (a) short-0: dev vs base default (106 passes)
+00:00:37 a-4k-0-base exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=98 proposed=195 accepted=157 (acceptance 80.5%, 2.60 tokens per pass)|
+00:00:46 a-4k-0-dev exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=98 proposed=195 accepted=157 (acceptance 80.5%, 2.60 tokens per pass)|
+00:00:46 SAME (a) 4k-0: dev default ids == base default ids
+00:00:46 SAME spec stats (a) 4k-0: dev vs base default: spec: verify passes=98 proposed=195 accepted=157 (acceptance 80.5%, 2.60 tokens per pass)
+00:00:46 SAME per-pass trace (a) 4k-0: dev vs base default (98 passes)
+00:01:04 a-16k-0-base exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)|
+00:01:21 a-16k-0-dev exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)|
+00:01:21 SAME (a) 16k-0: dev default ids == base default ids
+00:01:21 SAME spec stats (a) 16k-0: dev vs base default: spec: verify passes=96 proposed=191 accepted=159 (acceptance 83.2%, 2.66 tokens per pass)
+00:01:21 SAME per-pass trace (a) 16k-0: dev vs base default (96 passes)
+00:01:33 b-16k-off exit 0: macro prefill passes=2|
+00:01:34 b-16k-dev exit 0: spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass)|macro prefill passes=2|
+00:01:34 SAME (b) 35B tp1 16k: dev --spec mtp ids == dev --spec off
+00:01:34 (b) macro passes: off=[macro prefill passes=2] dev-mtp=[macro prefill passes=2]
+00:01:41 b-16k-base exit 0: spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass)|
+00:01:41 SAME (c) 35B tp1 16k: base --spec mtp ids == dev --spec off
+00:01:41 SAME spec stats (c) 35B tp1 16k: dev vs base --spec mtp: spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass)
+00:01:41 SAME per-pass trace (c) 35B tp1 16k: dev vs base --spec mtp (103 passes)
+00:01:49 a-short-0-off exit 0: 
+00:01:49 SAME (c) short-0: 27B dev default ids == dev --spec off
+00:01:59 a-4k-0-off exit 0: 
+00:01:59 SAME (c) 4k-0: 27B dev default ids == dev --spec off
+00:02:18 a-16k-0-off exit 0: 
+00:02:18 SAME (c) 16k-0: 27B dev default ids == dev --spec off
+00:02:18 stages done (123 s)
+[window] stages done 2026-10-27 00:02:18 (exit 0)
+[window] starting radiance 2026-10-27 00:02:18
+[window] radiance answers 2026-10-27 00:02:48 (after 35 s)

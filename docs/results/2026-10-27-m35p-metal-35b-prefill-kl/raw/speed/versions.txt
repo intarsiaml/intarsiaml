@@ -1,0 +1,10 @@
+2026-10-26T23:20:17-04:00
+job 5849
+441c7c7b8fa5018debb632a3b2395aa9
+ProductName:		macOS ProductVersion:		27.0 BuildVersion:		26A428 PID    COMMAND          %CPU
+98144  mlruntimed       0.0 
+97724  griddatad        0.0 
+97720  UnknownSendersBl 0.0 
+97712  MessagesBlastDoo 0.0 
+97711  com.apple.audio. 0.0 
+97706  IMTranscoderAgen 0.0 

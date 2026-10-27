@@ -31,6 +31,15 @@ const DEC_DN_X: &str = "moe_dec_dn_x";
 /// Grouped GEMMs by rows per tile (8, 16, 32, 64).
 const MM_GU: [&str; 4] = ["moe_mm_gu_m8", "moe_mm_gu_m16", "moe_mm_gu_m32", "moe_mm_gu_m64"];
 const MM_DN: [&str; 4] = ["moe_mm_dn_m8", "moe_mm_dn_m16", "moe_mm_dn_m32", "moe_mm_dn_m64"];
+/// The grouped kernels on the neural accelerators (kernels/metal/moe_nax.metal, metal4.0 library), same tiles.
+pub const NAX_MM_GU: [&str; 4] = ["moe_mm_nax_gu_m8", "moe_mm_nax_gu_m16", "moe_mm_nax_gu_m32", "moe_mm_nax_gu_m64"];
+pub const NAX_MM_DN: [&str; 4] = ["moe_mm_nax_dn_m8", "moe_mm_nax_dn_m16", "moe_mm_nax_dn_m32", "moe_mm_nax_dn_m64"];
+
+/// `INTARSIA_METAL_MOE_NAX=0` keeps the simdgroup_matrix grouped kernels (`moe_mm_*`) for the prefill experts.
+pub fn nax_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MOE_NAX").map_or(true, |v| v != "0"))
+}
 const GATHER: [&str; 2] = ["moe_gather_bf16", "moe_gather_f32"];
 
 /// The row-exact decode's fat-threadgroup gate+up / down kernels (`MOE_PR` = 2 rows per simdgroup, no grouping by expert;
@@ -233,6 +242,7 @@ impl MetalBackend {
         }
         let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
         let (ti, tm) = tile_rows(pairs, e);
+        let nax = self.has_metal4() && nax_enabled();
         let mut p = p;
         p.dims[5] = tm as u32;
         let gt = self.pso(GROUP).map_or(256, |s| {
@@ -243,9 +253,9 @@ impl MetalBackend {
         // tile slots: at most ceil(P / tm) full tiles plus one partial tile per non-empty expert (the rest exit early)
         let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
         let ggu = MTLSize { width: i.div_ceil(GU_COLS), height: max_tiles, depth: 1 };
-        self.moe_dispatch(MM_GU[ti], &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
+        self.moe_dispatch(if nax { NAX_MM_GU[ti] } else { MM_GU[ti] }, &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
         let gdn = MTLSize { width: h.div_ceil(DN_COLS), height: max_tiles, depth: 1 };
-        self.moe_dispatch(MM_DN[ti], &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
+        self.moe_dispatch(if nax { NAX_MM_DN[ti] } else { MM_DN[ti] }, &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
         let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
         self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256)
     }

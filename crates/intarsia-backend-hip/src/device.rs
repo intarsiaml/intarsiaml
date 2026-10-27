@@ -872,14 +872,19 @@ impl Backend for HipBackend {
                 // W4A16 keeps the bf16 rows kernel (the int8 path would take its slower flagged fp chain), W4A4 the int8 path
                 "matmul_mxfp4_gemv_rows" if a.mxfp4_w4a16 => ffi::ik_matmul_mxfp4_gemv_rows_bf16(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_gemv_rows" => ffi::ik_matmul_mxfp4_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_gemv" => ffi::ik_matmul_mxfp4_a8_gemv(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_gemv_rows" => ffi::ik_matmul_mxfp4_a8_gemv_rows(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_v1" => ffi::ik_matmul_mxfp4_mma_v1(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_fold" => ffi::ik_matmul_mxfp4_mma_fold(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_mma" => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_pair_gemv" => ffi::ik_matmul_mxfp4_pair_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "matmul_mxfp4_pair_gemv_rows" if a.mxfp4_w4a16 => {
                     ffi::ik_matmul_mxfp4_pair_gemv_rows_bf16(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s)
                 }
                 "matmul_mxfp4_pair_gemv_rows" => ffi::ik_matmul_mxfp4_pair_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                "matmul_mxfp4_pair_a8_gemv" => ffi::ik_matmul_mxfp4_pair_a8_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                "matmul_mxfp4_pair_a8_gemv_rows" => ffi::ik_matmul_mxfp4_pair_a8_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_topk_bf16_v2" => ffi::ik_moe_topk_bf16_v2(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_experts_bf16" => {
@@ -1016,6 +1021,35 @@ impl Backend for HipBackend {
     /// all rows (`OpCall::rows`; the `_rows` row-table kernels, proven bitwise the one-row kernels in tests/row_tables.rs).
     fn supports_row_tables(&self) -> bool {
         true
+    }
+
+    /// Device-side top-k for sampling (`ik_topk_f32`, kernels/hip/topk.hip: the CUDA kernel's ABI and exact ordering). The model only
+    /// uses it with `INTARSIA_DEVICE_SAMPLING=1`.
+    fn supports_topk(&self) -> bool {
+        true
+    }
+
+    fn topk_rows(
+        &self,
+        logits: &TensorRef,
+        k: usize,
+        ids: &TensorRef,
+        vals: &TensorRef,
+        nan: &TensorRef,
+        scratch: &TensorRef,
+        stream: StreamId,
+    ) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let (l, i, v, n) = (Self::tensor(logits)?, Self::tensor(ids)?, Self::tensor(vals)?, Self::tensor(nan)?);
+        let scr = ffi::IkScratch { data: Self::ptr(&scratch.buf, scratch.offset, scratch.nbytes())? as *mut c_void, bytes: scratch.nbytes() as i64 };
+        let (mut i, mut v, mut n) = (i, v, n);
+        // SAFETY: tensors are bounds-checked views of live device buffers; the launcher validates shapes and the scratch size.
+        let st = unsafe { ffi::ik_topk_f32(&l, k as i64, &mut i, &mut v, &mut n, &scr, s) };
+        if st != 0 {
+            return Err(Error::backend(format!("topk_f32: {}", ffi::status_name(st))));
+        }
+        Ok(())
     }
 
     fn device_address(&self, buf: &Buffer) -> Option<u64> {

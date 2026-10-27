@@ -1,0 +1,13 @@
+
+running 1 test
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 12608077824, weights_bytes: 20825033460, workspace_bytes: 960564112, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 11977673782, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan: 2048 KV tokens per sequence, 671088640 KV bytes in all, 20480 bytes per token; notes ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+TIMING sampled B= 4 host      : 59.04 ms/step incl. host sampling, 67.7 tok/s aggregate
+TIMING sampled B= 4 device top-k: 12.86 ms/step incl. host sampling, 311.0 tok/s aggregate
+TIMING sampled B=16 host      : 44.74 ms/step incl. host sampling, 357.6 tok/s aggregate
+TIMING sampled B=16 device top-k: 39.03 ms/step incl. host sampling, 409.9 tok/s aggregate
+test real_35b_batch_step_sampled_timing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 6.77s
+

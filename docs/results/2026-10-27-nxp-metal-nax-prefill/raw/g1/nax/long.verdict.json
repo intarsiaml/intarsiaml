@@ -1,0 +1,139 @@
+{
+  "format": "intarsia-kl-verdict-v1",
+  "kind": "golden",
+  "golden": {
+    "file": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+    "fnv1a64": "1c62c8e49c68fe34",
+    "size": 6061444,
+    "positions": 36887
+  },
+  "ref_noise_origin": "sidecar /opt/code/intarsiaml/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json",
+  "ref_noise": {
+    "format": "intarsia-ref-noise-v1",
+    "golden": {
+      "file": "qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors",
+      "fnv1a64": "1c62c8e49c68fe34",
+      "size": 6061444,
+      "positions": 36887
+    },
+    "method": "run_to_run",
+    "kl21_mean": 0.02218,
+    "kl21_mean_scored": 0.008417,
+    "n": 36887,
+    "n_scored": 32349,
+    "runs": 2,
+    "date": "2026-10-21",
+    "how": "vLLM `guidance` (0.26.1rc1.dev602+g65b7662d3, the build the golden records, fp8 KV cache, prefix caching on) re-scored the exact ids of the stored golden (`tools/golden_vllm.py --ids-from`, `scripts/cuda-round7/vllm-self.sh`); KL21(stored golden || re-run) by `scripts/m3-accuracy/setkl.py` (`scripts/cuda-round7/kl-table.sh`): both sides truncated to top-20, a reference id missing from the re-run's top-20 gets the re-run's 20th probability, the scored value drops the ChatML system and user-turn rows. M3 measured two more re-runs: 2.37e-2 and 2.66e-2 on all rows, 8.6e-3 and 8.7e-3 on the scored rows (docs/results/2026-10-21-m3-accuracy-debt.md 2.4). The all-rows value is dominated by chat_reuse_4k (0.118), the prompt vLLM itself does not reproduce. `prompts` holds the per-prompt all-rows values of that same re-run, copied from the log (user decision 2026-10-21 13:58); M3's other re-runs put chat_reuse_4k at 0.129, 0.151 and 0.102 (docs/results/2026-10-21-m3-accuracy-debt/raw/vllm/setkl.txt), so one re-run's per-prompt value moves by about 1.3x either way. Per-prompt scored-rows values of the vLLM re-run are in no committed log and are not recorded.",
+    "estimator": "kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl)",
+    "source": "docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md)",
+    "prompts": {
+      "chat_reuse_4k": {
+        "kl21_mean": 0.118
+      },
+      "long_code_12k": {
+        "kl21_mean": 0.00544
+      },
+      "long_code_4k": {
+        "kl21_mean": 0.005139
+      },
+      "long_docs_12k": {
+        "kl21_mean": 0.01181
+      },
+      "long_docs_4k": {
+        "kl21_mean": 0.01055
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "mode": "prefill",
+      "kl_metric": "21-way KL",
+      "kl": 0.01395414630173809,
+      "static_floor": 0.03,
+      "ref_noise": 0.008417,
+      "ref_noise_rows": "scored rows",
+      "kl_on_noise_rows": 0.01395414630173809,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": 0.008417,
+      "effective_threshold": 0.03,
+      "bound_by": "static",
+      "pass": true,
+      "factor_needed": 1.6578527149504683,
+      "prompt_checks": null,
+      "definition_changes": [
+        {
+          "gate": "kl_floor",
+          "changed_on": "2026-10-21",
+          "log_ref": [
+            "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+            "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+          ],
+          "metrics": {
+            "all_rows_kl": 0.043196408595613335,
+            "scored_rows_kl": 0.01395414630173809
+          },
+          "old_def": {
+            "definition": "21-way KL over all rows <= static floor",
+            "metric_name": "all_rows_kl",
+            "metric": 0.043196408595613335,
+            "limit": 0.03,
+            "verdict": "FAIL"
+          },
+          "current_def": {
+            "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+            "metric_name": "scored_rows_kl",
+            "metric": 0.01395414630173809,
+            "limit": 0.03,
+            "verdict": "PASS"
+          }
+        }
+      ]
+    },
+    {
+      "mode": "decode",
+      "kl_metric": "21-way KL",
+      "kl": 0.012382261527056414,
+      "static_floor": 0.03,
+      "ref_noise": 0.02218,
+      "ref_noise_rows": "all rows",
+      "kl_on_noise_rows": 0.012382261527056414,
+      "factor": 1.0,
+      "factor_source": "default",
+      "noise_threshold": 0.02218,
+      "effective_threshold": 0.03,
+      "bound_by": "static",
+      "pass": true,
+      "factor_needed": 0.5582624674056094,
+      "prompt_checks": null,
+      "definition_changes": [
+        {
+          "gate": "kl_floor",
+          "changed_on": "2026-10-21",
+          "log_ref": [
+            "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+            "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+          ],
+          "metrics": {
+            "all_rows_kl": 0.012382261527056414,
+            "scored_rows_kl": 0.012382261527056414
+          },
+          "old_def": {
+            "definition": "21-way KL over all rows <= static floor",
+            "metric_name": "all_rows_kl",
+            "metric": 0.012382261527056414,
+            "limit": 0.03,
+            "verdict": "PASS"
+          },
+          "current_def": {
+            "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+            "metric_name": "scored_rows_kl",
+            "metric": 0.012382261527056414,
+            "limit": 0.03,
+            "verdict": "PASS"
+          }
+        }
+      ]
+    }
+  ]
+}

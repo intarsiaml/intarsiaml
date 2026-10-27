@@ -36,6 +36,15 @@ pub const TABLE: &[(&str, Op)] = &[
     // mxfp4_gemv_rows_kernel; both keep every output row bitwise the one-row kernel's, tests/rows_exact.rs
     ("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_gemv_rows", Op::MatmulMxfp4Pair),
+    // W4A8 (`OpAttrs::mxfp4_a8`, the call's `act` input is 2; docs/results/2026-10-27-w4a8-hip-fp8-act.md; kernels/hip/mxfp4_a8.hip,
+    // mxfp4_a8_gemm.hip): MXFP4 weights x dynamic per-token fp8 e4m3 activations. Every kernel above declines such a call (they read any
+    // nonzero `act` as W4A4); these serve only it. `_gemv` and `_gemv_rows` (and the pair twins) launch the SAME kernel family, one
+    // arithmetic chain per row at every M, so a row is bitwise the M = 1 call by construction; `_mma` is the prefill GEMM on the fp8 WMMA.
+    ("matmul_mxfp4_a8_gemv", Op::MatmulMxfp4),
+    ("matmul_mxfp4_a8_gemv_rows", Op::MatmulMxfp4),
+    ("matmul_mxfp4_a8_mma", Op::MatmulMxfp4),
+    ("matmul_mxfp4_pair_a8_gemv", Op::MatmulMxfp4Pair),
+    ("matmul_mxfp4_pair_a8_gemv_rows", Op::MatmulMxfp4Pair),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_topk_bf16_v2", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
@@ -69,6 +78,12 @@ pub const TABLE: &[(&str, Op)] = &[
     ("sigmoid_mul_matmul_fp8_wmma", Op::SigmoidMulMatmulFp8),
     ("shared_down_combine_nvfp4_gemv", Op::SharedDownCombine),
 ];
+
+/// Scratch bytes of the W4A8 kernels' activation quant pre-pass (`mx_a8_scratch_bytes` in kernels/hip/ik_mx_a8.h): the e4m3 bytes `[m, k]`
+/// and the per-token scales `[m]` f32, each 16-byte aligned, plus 16 bytes of slack.
+fn mx_a8_scratch(m: usize, k: usize) -> usize {
+    (m * k).div_ceil(16) * 16 + (m * 4).div_ceil(16) * 16 + 16
+}
 
 /// Admission budget of the bf16-rounded outputs of every kernel here (a one-ulp flip, up to 7.8e-3 of the
 /// largest output, is allowed: max_abs 1.5e-2 is about two ulps). rel_l2 is 1e-3: the admission sweep measures at most
@@ -526,7 +541,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| (1..=8).contains(&s.m) && s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && (1..=8).contains(&s.m) && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -535,7 +550,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| (1..=8).contains(&s.m) && s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && (1..=8).contains(&s.m) && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -544,7 +559,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_gemv_rows" | "matmul_mxfp4_pair_gemv_rows" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| (1..=crate::kernels::ROWS_MAX).contains(&s.m) && s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && (1..=crate::kernels::ROWS_MAX).contains(&s.m) && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -556,7 +571,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -566,7 +581,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_mma_v1" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
@@ -578,12 +593,42 @@ pub fn all() -> Vec<KernelImpl> {
                 "matmul_mxfp4_mma_fold" => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| s.k % 64 == 0 && s.k <= 32768)
+                    .when(|s| !s.mxfp4_a8 && s.k % 64 == 0 && s.k <= 32768)
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| s.m * s.k * 2 + s.m + s.n + 16)
                     .priority(if mxfp4_fold_enabled() { 5 } else { -20 }),
+                // W4A8 decode (M <= 8 solo) and its row-exact twin (M <= ROWS_MAX): one kernel family (mx_a8_quant_kernel, then
+                // mxfp4_a8_rows_kernel), scratch = mx_a8_scratch_bytes (kernels/hip/ik_mx_a8.h)
+                "matmul_mxfp4_a8_gemv" | "matmul_mxfp4_pair_a8_gemv" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_a8 && (1..=8).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| mx_a8_scratch(s.m, s.k))
+                    .priority(10),
+                "matmul_mxfp4_a8_gemv_rows" | "matmul_mxfp4_pair_a8_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_a8 && (1..=crate::kernels::ROWS_MAX).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| mx_a8_scratch(s.m, s.k))
+                    .priority(-1)
+                    .rows_exact(),
+                // W4A8 prefill GEMM on the fp8 WMMA, any M: the quant pre-pass output, then N bytes of per-row scale maxima + a flag
+                "matmul_mxfp4_a8_mma" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_a8 && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| mx_a8_scratch(s.m, s.k) + s.n.div_ceil(16) * 16 + 64),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))

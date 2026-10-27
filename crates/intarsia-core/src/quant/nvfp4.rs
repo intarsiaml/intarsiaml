@@ -159,7 +159,7 @@ impl QuantFormat for Nvfp4 {
             n,
             k,
             parts: vec![w, bs, TensorRef::new(gst, DType::F32, &[1])],
-            act_quant: false,
+            act_fp8: false, act_quant: false,
         })
     }
 

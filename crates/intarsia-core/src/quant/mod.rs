@@ -123,8 +123,10 @@ pub struct QTensor {
     pub n: usize,
     pub k: usize,
     pub parts: Vec<TensorRef>,
-    /// FP8: the `scales` tensor carries a positive input scale (W8A8). MXFP4: the `act` input is 1 (W4A4).
+    /// FP8: the `scales` tensor carries a positive input scale (W8A8). MXFP4: the `act` input is 1 (W4A4) or 2 (W4A8).
     pub act_quant: bool,
+    /// MXFP4 only: the `act` input is 2, dynamic per-token fp8 e4m3 activations (W4A8; `act_quant` is true too).
+    pub act_fp8: bool,
 }
 
 /// Host copy of a [`QTensor`] (tests, admission, `dequant_ref`).
@@ -161,7 +163,7 @@ impl HostQTensor {
             let buf = crate::backend::upload_new(backend, &p.data)?;
             parts.push(TensorRef::new(buf, p.dtype, &p.shape));
         }
-        Ok(QTensor { format: self.format, n: self.n, k: self.k, parts, act_quant: self.act_quant })
+        Ok(QTensor { format: self.format, n: self.n, k: self.k, parts, act_quant: self.act_quant, act_fp8: self.format == MXFP4 && mxfp4::host_act_is_fp8(&self.parts) })
     }
 
     /// The op and its weight inputs as host tensors (for building admission cases).
@@ -196,6 +198,7 @@ impl QTensor {
         let attrs = OpAttrs {
             fp8_static_act: self.format == FP8_E4M3 && self.act_quant,
             mxfp4_w4a16: self.format == MXFP4 && !self.act_quant,
+            mxfp4_a8: self.format == MXFP4 && self.act_fp8,
             ..OpAttrs::default()
         };
         OpCall::new(self.op(f32_out), inputs, vec![out], attrs)
@@ -267,7 +270,7 @@ impl QuantFormat for Bf16Dense {
         if w.shape.len() != 2 {
             return Err(Error::model(format!("'{}.weight' must be 2-D, got {:?}", meta.prefix, w.shape)));
         }
-        Ok(QTensor { format: BF16, n: w.shape[0], k: w.shape[1], parts: vec![w], act_quant: false })
+        Ok(QTensor { format: BF16, n: w.shape[0], k: w.shape[1], parts: vec![w], act_fp8: false, act_quant: false })
     }
     fn dequant_ref(&self, q: &QTensor, backend: &dyn Backend) -> Result<HostTensor> {
         Ok(HostTensor::from_f32(&[q.n, q.k], &q.download(backend)?.dequant()))

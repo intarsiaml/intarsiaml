@@ -357,6 +357,10 @@ pub struct BackendTuning {
     /// pass ([`Recipe::resolve_mtp_default`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend only, set only where
     /// measured (the Qwen3.6-35B-A3B on CUDA, lane cmtp).
     pub mtp_default_k: Option<usize>,
+    /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
+    /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
+    /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
+    pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -416,6 +420,17 @@ impl Recipe {
             return DraftVocab { value, source: format!("recipe {family}, base") };
         }
         DraftVocab { value: 0, source: "default".into() }
+    }
+
+    /// The MXFP4 activation mode the recipe picks for `backend` when `--mxfp4-act` is absent: `[tuning.<backend>] mxfp4_act`, else
+    /// `[defaults] mxfp4_act`, else `None` (what the checkpoint declares decides).
+    pub fn mxfp4_act_for(&self, backend: &str) -> Option<crate::quant::Mxfp4Act> {
+        self.tuning.backends.get(backend).and_then(|b| b.mxfp4_act).or(self.defaults.mxfp4_act)
+    }
+
+    /// Whether the recipe's MXFP4 activation mode for `backend` comes from `[tuning.<backend>]` (else from `[defaults]`).
+    pub fn mxfp4_act_is_backend_tuned(&self, backend: &str) -> bool {
+        self.tuning.backends.get(backend).is_some_and(|b| b.mxfp4_act.is_some())
     }
 
     /// The recipe's tensor-parallel MTP default for `backend` (`[tuning.<backend>] mtp_default_tp_k`): `Some(k)` when the recipe has an

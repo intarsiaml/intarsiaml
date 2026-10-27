@@ -90,3 +90,10 @@ fn complete_recipes_in_the_docs_parse_and_validate() {
     }
     assert!(n >= 3, "expected the three worked examples, found {n}");
 }
+
+/// The per-backend activation key and its HIP value are documented where a reader looks for them.
+#[test]
+fn the_per_backend_mxfp4_act_key_is_documented() {
+    assert!(DOC.contains("[tuning.<backend>] mxfp4_act"), "docs/recipes.md must document [tuning.<backend>] mxfp4_act");
+    assert!(DOC.contains("`[tuning.hip] mxfp4_act = \"fp8\"`"), "docs/recipes.md must name the 27B recipe's HIP value");
+}

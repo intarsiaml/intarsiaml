@@ -1,0 +1,36 @@
+# localeval: adhoc — 2026-10-26T23:28
+
+- model: `intarsia` on ? (?), url `http://127.0.0.1:18435/v1`
+- thinking: off; run kind: speed; label: m35p-35b-mb8
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:18435/v1 --model intarsia --sizes 1024,4096,16384 --gen 256 --reps 3 --thinking off --label m35p-35b-mb8 --recipe /opt/code/intarsiaml/.worktrees/m35p/.m35p-out/intarsia-base serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18435 --max-batch 8`
+- result file: `results/20261026-232817-adhoc-m35p-35b-mb8/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+/opt/code/intarsiaml/.worktrees/m35p/.m35p-out/intarsia-base serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18435 --max-batch 8
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 20000, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.60 | 1649 (1648–1650) * | - | 123.0 (121.9–123.7) | 124.7 (124.6–125.0) | - | - | 256 |
+| 4089 | 2.29 | 1785 (1600–1789) | 1835 | 120.3 (118.5–120.4) | 121.4 (121.0–121.5) | - | - | 256 |
+| 16655 | 11.05 | 1507 (1505–1516) | 1434 | 108.4 (107.2–108.6) | 109.3 (109.0–109.4) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
